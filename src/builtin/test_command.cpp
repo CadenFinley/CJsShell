@@ -10,8 +10,7 @@
 
 int test_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(args,
-                            {"Usage: test EXPRESSION",
-                             "Evaluate file attributes and comparisons.",
+                            {"Usage: test EXPRESSION", "Evaluate file attributes and comparisons.",
                              "Aliases: [ EXPRESSION ]"})) {
         return 0;
     }

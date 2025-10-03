@@ -15,10 +15,9 @@
 #include "shell.h"
 
 int export_command(const std::vector<std::string>& args, Shell* shell) {
-    if (builtin_handle_help(args,
-                            {"Usage: export [NAME[=VALUE] ...]",
-                             "Set environment variables for the shell and subprocesses.",
-                             "Without operands, list exported variables."})) {
+    if (builtin_handle_help(args, {"Usage: export [NAME[=VALUE] ...]",
+                                   "Set environment variables for the shell and subprocesses.",
+                                   "Without operands, list exported variables."})) {
         return 0;
     }
     if (args.size() == 1) {
@@ -72,9 +71,8 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
 }
 
 int unset_command(const std::vector<std::string>& args, Shell* shell) {
-    if (builtin_handle_help(args,
-                            {"Usage: unset NAME [NAME ...]",
-                             "Remove variables from the environment and shell state."})) {
+    if (builtin_handle_help(args, {"Usage: unset NAME [NAME ...]",
+                                   "Remove variables from the environment and shell state."})) {
         return 0;
     }
     if (args.size() < 2) {

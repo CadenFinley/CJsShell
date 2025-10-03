@@ -8,9 +8,8 @@
 #include "error_out.h"
 
 int break_command(const std::vector<std::string>& args) {
-    if (builtin_handle_help(args,
-                            {"Usage: break [N]",
-                             "Exit N levels of enclosing loops (default 1)."})) {
+    if (builtin_handle_help(
+            args, {"Usage: break [N]", "Exit N levels of enclosing loops (default 1)."})) {
         return 0;
     }
     int level = 1;
@@ -34,9 +33,9 @@ int break_command(const std::vector<std::string>& args) {
 }
 
 int continue_command(const std::vector<std::string>& args) {
-    if (builtin_handle_help(args,
-                            {"Usage: continue [N]",
-                             "Skip to the next iteration of the current loop or Nth enclosing loop."})) {
+    if (builtin_handle_help(
+            args, {"Usage: continue [N]",
+                   "Skip to the next iteration of the current loop or Nth enclosing loop."})) {
         return 0;
     }
     int level = 1;
@@ -60,9 +59,9 @@ int continue_command(const std::vector<std::string>& args) {
 }
 
 int return_command(const std::vector<std::string>& args) {
-    if (builtin_handle_help(args,
-                            {"Usage: return [N]",
-                             "Exit a function with status N (default uses last command status)."})) {
+    if (builtin_handle_help(
+            args, {"Usage: return [N]",
+                   "Exit a function with status N (default uses last command status)."})) {
         return 0;
     }
     int exit_code = 0;

@@ -10,12 +10,12 @@
 #include <ctime>
 #include <fstream>
 #include <functional>
-#include <thread>
+#include <limits>
 #include <sstream>
 #include <string_view>
-#include <utility>
-#include <limits>
 #include <system_error>
+#include <thread>
+#include <utility>
 #include <vector>
 
 #include "cjsh.h"
@@ -196,8 +196,8 @@ Result<void> FileOperations::write_file_content(const std::string& path,
 
     int fd = open_result.value();
     if (::fchmod(fd, S_IRUSR | S_IWUSR) == -1) {
-        std::string error_message = "Failed to set secure permissions on '" + path +
-                                    "': " + std::string(strerror(errno));
+        std::string error_message =
+            "Failed to set secure permissions on '" + path + "': " + std::string(strerror(errno));
         safe_close(fd);
         return Result<void>::error(error_message);
     }
@@ -232,9 +232,8 @@ Result<void> FileOperations::write_all(int fd, std::string_view data) {
             ) {
                 continue;
             }
-            return Result<void>::error("Failed to write to file descriptor " +
-                                       std::to_string(fd) + ": " +
-                                       std::string(strerror(errno)));
+            return Result<void>::error("Failed to write to file descriptor " + std::to_string(fd) +
+                                       ": " + std::string(strerror(errno)));
         }
         if (written == 0) {
             return Result<void>::error("Write to file descriptor " + std::to_string(fd) +
@@ -760,16 +759,13 @@ bool init_interactive_filesystem() {
             if (!cache_exists) {
                 build_executable_cache();
             } else {
-                launch_async_once(g_cache_refresh_in_progress, []() {
-                    build_executable_cache();
-                });
+                launch_async_once(g_cache_refresh_in_progress, []() { build_executable_cache(); });
             }
         } else {
             static int cleanup_counter = 0;
             if (++cleanup_counter % 10 == 0) {
-                launch_async_once(g_cache_cleanup_in_progress, []() {
-                    cleanup_stale_cache_entries();
-                });
+                launch_async_once(g_cache_cleanup_in_progress,
+                                  []() { cleanup_stale_cache_entries(); });
             }
         }
 

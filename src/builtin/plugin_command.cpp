@@ -29,7 +29,7 @@ void print_plugin_help() {
               << "  --help                     Show this help message\n";
 }
 
-}
+}  // namespace
 
 int plugin_command(const std::vector<std::string>& args) {
     if (args.size() > 1 && (args[1] == "--help" || args[1] == "-h")) {
@@ -68,7 +68,6 @@ int plugin_command(const std::vector<std::string>& args) {
     }
 
     const std::string& cmd = args[1];
-
 
     if (cmd == "available") {
         if (g_plugin) {

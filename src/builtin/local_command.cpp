@@ -9,9 +9,8 @@
 #include "shell_script_interpreter.h"
 
 int local_command(const std::vector<std::string>& args, Shell* shell) {
-    if (builtin_handle_help(args,
-                            {"Usage: local NAME[=VALUE] ...",
-                             "Define local variables within a function scope."})) {
+    if (builtin_handle_help(args, {"Usage: local NAME[=VALUE] ...",
+                                   "Define local variables within a function scope."})) {
         return 0;
     }
     if (args.size() == 1) {

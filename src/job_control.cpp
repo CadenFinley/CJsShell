@@ -259,9 +259,8 @@ static int parse_signal(const std::string& signal_str) {
 }
 
 int jobs_command(const std::vector<std::string>& args) {
-    if (builtin_handle_help(args,
-                            {"Usage: jobs [-lp]",
-                             "List active jobs. -l shows PIDs, -p prints PIDs only."})) {
+    if (builtin_handle_help(
+            args, {"Usage: jobs [-lp]", "List active jobs. -l shows PIDs, -p prints PIDs only."})) {
         return 0;
     }
     auto& job_manager = JobManager::instance();
@@ -333,9 +332,7 @@ int jobs_command(const std::vector<std::string>& args) {
 }
 
 int fg_command(const std::vector<std::string>& args) {
-    if (builtin_handle_help(args,
-                            {"Usage: fg [%JOB]",
-                             "Bring a job to the foreground."})) {
+    if (builtin_handle_help(args, {"Usage: fg [%JOB]", "Bring a job to the foreground."})) {
         return 0;
     }
     auto& job_manager = JobManager::instance();
@@ -413,8 +410,7 @@ int fg_command(const std::vector<std::string>& args) {
 
 int bg_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(args,
-                            {"Usage: bg [%JOB]",
-                             "Resume a stopped job in the background."})) {
+                            {"Usage: bg [%JOB]", "Resume a stopped job in the background."})) {
         return 0;
     }
     auto& job_manager = JobManager::instance();
@@ -468,9 +464,9 @@ int bg_command(const std::vector<std::string>& args) {
 }
 
 int wait_command(const std::vector<std::string>& args) {
-    if (builtin_handle_help(args,
-                            {"Usage: wait [ID ...]",
-                             "Wait for specified jobs or processes. Without IDs, waits for all."})) {
+    if (builtin_handle_help(
+            args, {"Usage: wait [ID ...]",
+                   "Wait for specified jobs or processes. Without IDs, waits for all."})) {
         return 0;
     }
     auto& job_manager = JobManager::instance();

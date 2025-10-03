@@ -190,8 +190,8 @@ std::optional<HereStringError> setup_here_string_stdin(const std::string& here_s
     }
     content.push_back('\n');
 
-    auto write_result = cjsh_filesystem::FileOperations::write_all(
-        here_pipe[1], std::string_view{content});
+    auto write_result =
+        cjsh_filesystem::FileOperations::write_all(here_pipe[1], std::string_view{content});
     std::fill(content.begin(), content.end(), '\0');
     if (write_result.is_error()) {
         cjsh_filesystem::FileOperations::safe_close(here_pipe[1]);
@@ -1629,8 +1629,9 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                         std::string cloexec_error;
                         if (!set_close_on_exec(here_pipe[0], cloexec_error) ||
                             !set_close_on_exec(here_pipe[1], cloexec_error)) {
-                            std::cerr << "cjsh: failed to secure here document pipe: "
-                                      << cloexec_error << std::endl;
+                            std::cerr
+                                << "cjsh: failed to secure here document pipe: " << cloexec_error
+                                << std::endl;
                             close(here_pipe[1]);
                             close(here_pipe[0]);
                             _exit(EXIT_FAILURE);

@@ -64,13 +64,16 @@ int history_command(const std::vector<std::string>& args) {
             print_error({ErrorType::INVALID_ARGUMENT, "history", "Invalid index: " + args[1], {}});
             return 1;
         } catch (const std::out_of_range&) {
-            print_error({ErrorType::INVALID_ARGUMENT, "history", "Index out of range: " + args[1], {}});
+            print_error(
+                {ErrorType::INVALID_ARGUMENT, "history", "Index out of range: " + args[1], {}});
             return 1;
         }
 
         if (limit < 0) {
-            print_error({ErrorType::INVALID_ARGUMENT, "history",
-                         "COUNT must be a non-negative integer", {}});
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         "history",
+                         "COUNT must be a non-negative integer",
+                         {}});
             return 1;
         }
 

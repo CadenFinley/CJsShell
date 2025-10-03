@@ -24,37 +24,36 @@
 namespace {
 
 void print_ai_command_help() {
-    std::cout
-        << "AI Command Help:\n"
-        << "  ai                             Enter AI mode and show chat history\n"
-        << "  ai --help                      Show this summary\n"
-        << "  ai help                        Show this summary\n"
-        << "  ai log                         Save the last chat to a file\n"
-        << "  ai apikey                      Show API key status\n"
-        << "  ai chat <message>              Send a chat message\n"
-        << "  ai chat history [clear]        Show or clear chat history\n"
-        << "  ai file <subcommand>           Manage attached context files\n"
-        << "      add <file>|all             Attach files from the current directory\n"
-        << "      remove <file>|all          Remove attached files\n"
-        << "      active                     List attached files\n"
-        << "      available                  List files in the current directory\n"
-        << "      refresh                    Re-read attached files from disk\n"
-        << "      clear                      Remove all attachments\n"
-        << "  ai directory [set|clear]       Show or change the save directory\n"
-        << "  ai mode [type]                 Get or set assistant mode\n"
-        << "  ai model [name]                Get or set the model ID\n"
-        << "  ai initialinstruction [text]   Get or set the system instruction\n"
-        << "  ai name [name]                 Get or set the assistant name\n"
-        << "  ai timeoutflag [seconds]       Get or set the request timeout\n"
-        << "  ai voice [voice]               Get or set dictation voice\n"
-        << "  ai voicedictation enable|disable Toggle voice dictation\n"
-        << "  ai voicedictationinstructions [text] Set dictation instructions\n"
-        << "  ai get <key>                   Show a specific response field\n"
-        << "  ai dump                        Dump all response data and last prompt\n"
-        << "  ai rejectchanges               Reject pending AI edits\n";
+    std::cout << "AI Command Help:\n"
+              << "  ai                             Enter AI mode and show chat history\n"
+              << "  ai --help                      Show this summary\n"
+              << "  ai help                        Show this summary\n"
+              << "  ai log                         Save the last chat to a file\n"
+              << "  ai apikey                      Show API key status\n"
+              << "  ai chat <message>              Send a chat message\n"
+              << "  ai chat history [clear]        Show or clear chat history\n"
+              << "  ai file <subcommand>           Manage attached context files\n"
+              << "      add <file>|all             Attach files from the current directory\n"
+              << "      remove <file>|all          Remove attached files\n"
+              << "      active                     List attached files\n"
+              << "      available                  List files in the current directory\n"
+              << "      refresh                    Re-read attached files from disk\n"
+              << "      clear                      Remove all attachments\n"
+              << "  ai directory [set|clear]       Show or change the save directory\n"
+              << "  ai mode [type]                 Get or set assistant mode\n"
+              << "  ai model [name]                Get or set the model ID\n"
+              << "  ai initialinstruction [text]   Get or set the system instruction\n"
+              << "  ai name [name]                 Get or set the assistant name\n"
+              << "  ai timeoutflag [seconds]       Get or set the request timeout\n"
+              << "  ai voice [voice]               Get or set dictation voice\n"
+              << "  ai voicedictation enable|disable Toggle voice dictation\n"
+              << "  ai voicedictationinstructions [text] Set dictation instructions\n"
+              << "  ai get <key>                   Show a specific response field\n"
+              << "  ai dump                        Dump all response data and last prompt\n"
+              << "  ai rejectchanges               Reject pending AI edits\n";
 }
 
-}
+}  // namespace
 
 int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
     if (!config::ai_enabled) {

@@ -115,10 +115,8 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"ls", [this](const std::vector<std::string>& args) { return ::ls_command(args, shell); }},
         {"cd",
          [this](const std::vector<std::string>& args) {
-             if (builtin_handle_help(args,
-                                     {"Usage: cd [DIR]",
-                                      "Change the current directory.",
-                                      "Use '-' to switch to the previous directory."})) {
+             if (builtin_handle_help(args, {"Usage: cd [DIR]", "Change the current directory.",
+                                            "Use '-' to switch to the previous directory."})) {
                  return 0;
              }
              if (args.size() > 2) {
@@ -162,8 +160,7 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"help",
          [](const std::vector<std::string>& args) {
              if (builtin_handle_help(args,
-                                     {"Usage: help",
-                                      "Display the CJSH command reference."})) {
+                                     {"Usage: help", "Display the CJSH command reference."})) {
                  return 0;
              }
              return ::help_command();
@@ -223,9 +220,9 @@ Built_ins::Built_ins() : shell(nullptr) {
          [](const std::vector<std::string>& args) { return ::hash_command(args, nullptr); }},
         {"builtin",
          [this](const std::vector<std::string>& args) {
-             if (builtin_handle_help(args,
-                                     {"Usage: builtin COMMAND [ARGS...]",
-                                      "Invoke a builtin command bypassing functions and PATH lookup."})) {
+             if (builtin_handle_help(
+                     args, {"Usage: builtin COMMAND [ARGS...]",
+                            "Invoke a builtin command bypassing functions and PATH lookup."})) {
                  return 0;
              }
              if (args.size() < 2) {

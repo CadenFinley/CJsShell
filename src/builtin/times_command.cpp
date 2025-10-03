@@ -13,9 +13,9 @@
 #include "error_out.h"
 
 int times_command(const std::vector<std::string>& args, Shell* shell) {
-    if (builtin_handle_help(args,
-                            {"Usage: times",
-                             "Print accumulated process times for the shell and its children."})) {
+    if (builtin_handle_help(
+            args,
+            {"Usage: times", "Print accumulated process times for the shell and its children."})) {
         return 0;
     }
     (void)shell;

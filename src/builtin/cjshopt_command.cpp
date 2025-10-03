@@ -10,13 +10,13 @@
 #include <sstream>
 #include <unordered_map>
 #include <unordered_set>
+#include "bookmark_database.h"
 #include "cjsh.h"
+#include "cjsh_completions.h"
 #include "cjsh_filesystem.h"
 #include "error_out.h"
 #include "isocline/isocline.h"
 #include "isocline/keybinding_specs.h"
-#include "cjsh_completions.h"
-#include "bookmark_database.h"
 
 extern bool g_startup_active;
 
@@ -24,15 +24,19 @@ namespace {
 void print_cjshopt_usage() {
     std::cout << "Usage: cjshopt <subcommand> [options]\n";
     std::cout << "Available subcommands:\n";
-    std::cout << "  style_def <token_type> <style>   Define or redefine a syntax highlighting style\n";
+    std::cout
+        << "  style_def <token_type> <style>   Define or redefine a syntax highlighting style\n";
     std::cout << "  login-startup-arg [--flag-name]  Add a startup flag (config file only)\n";
     std::cout << "  completion-case <on|off|status>  Configure completion case sensitivity\n";
-    std::cout << "  keybind <subcommand> [...]       Inspect or modify key bindings (modifications in config only)\n";
+    std::cout << "  keybind <subcommand> [...]       Inspect or modify key bindings (modifications "
+                 "in config only)\n";
     std::cout << "  generate-profile [--force]       Create or overwrite ~/.cjprofile\n";
     std::cout << "  generate-rc [--force]            Create or overwrite ~/.cjshrc\n";
     std::cout << "  generate-logout [--force]        Create or overwrite ~/.cjsh_logout\n";
-    std::cout << "  set-max-bookmarks <number>       Set the maximum number of bookmarks to store\n";
-    std::cout << "  set-history-max <value>          Configure the maximum size of the history file\n";
+    std::cout
+        << "  set-max-bookmarks <number>       Set the maximum number of bookmarks to store\n";
+    std::cout
+        << "  set-history-max <value>          Configure the maximum size of the history file\n";
     std::cout << "Use 'cjshopt <subcommand> --help' to see usage for a specific subcommand.\n";
 }
 }  // namespace
@@ -262,12 +266,10 @@ struct KeyBindingDefault {
 };
 
 const std::vector<KeyBindingDefault> kKeyBindingDefaults = {
-    {IC_KEY_ACTION_CURSOR_LEFT, "cursor-left", "go one character to the left",
-     SPEC_CURSOR_LEFT},
+    {IC_KEY_ACTION_CURSOR_LEFT, "cursor-left", "go one character to the left", SPEC_CURSOR_LEFT},
     {IC_KEY_ACTION_CURSOR_RIGHT_OR_COMPLETE, "cursor-right", "go one character to the right",
      SPEC_CURSOR_RIGHT},
-    {IC_KEY_ACTION_CURSOR_UP, "cursor-up", "go one row up, or back in the history",
-     SPEC_CURSOR_UP},
+    {IC_KEY_ACTION_CURSOR_UP, "cursor-up", "go one row up, or back in the history", SPEC_CURSOR_UP},
     {IC_KEY_ACTION_CURSOR_DOWN, "cursor-down", "go one row down, or forward in the history",
      SPEC_CURSOR_DOWN},
     {IC_KEY_ACTION_CURSOR_WORD_PREV, "cursor-word-prev", "go to the start of the previous word",
@@ -278,23 +280,22 @@ const std::vector<KeyBindingDefault> kKeyBindingDefaults = {
      SPEC_CURSOR_LINE_START},
     {IC_KEY_ACTION_CURSOR_LINE_END, "cursor-line-end", "go to the end of the current line",
      SPEC_CURSOR_LINE_END},
-    {IC_KEY_ACTION_CURSOR_INPUT_START, "cursor-input-start",
-     "go to the start of the current input", SPEC_CURSOR_INPUT_START},
+    {IC_KEY_ACTION_CURSOR_INPUT_START, "cursor-input-start", "go to the start of the current input",
+     SPEC_CURSOR_INPUT_START},
     {IC_KEY_ACTION_CURSOR_INPUT_END, "cursor-input-end", "go to the end of the current input",
      SPEC_CURSOR_INPUT_END},
     {IC_KEY_ACTION_CURSOR_MATCH_BRACE, "cursor-match-brace", "jump to matching brace",
      SPEC_CURSOR_MATCH_BRACE},
     {IC_KEY_ACTION_HISTORY_PREV, "history-prev", "go back in the history", SPEC_HISTORY_PREV},
-    {IC_KEY_ACTION_HISTORY_NEXT, "history-next", "go forward in the history",
-     SPEC_HISTORY_NEXT},
+    {IC_KEY_ACTION_HISTORY_NEXT, "history-next", "go forward in the history", SPEC_HISTORY_NEXT},
     {IC_KEY_ACTION_HISTORY_SEARCH, "history-search",
      "search the history starting with the current word", SPEC_HISTORY_SEARCH},
     {IC_KEY_ACTION_DELETE_FORWARD, "delete-forward", "delete the current character",
      SPEC_DELETE_FORWARD},
     {IC_KEY_ACTION_DELETE_BACKWARD, "delete-backward", "delete the previous character",
      SPEC_DELETE_BACKWARD},
-    {IC_KEY_ACTION_DELETE_WORD_START_WS, "delete-word-start-ws",
-     "delete to preceding white space", SPEC_DELETE_WORD_START_WS},
+    {IC_KEY_ACTION_DELETE_WORD_START_WS, "delete-word-start-ws", "delete to preceding white space",
+     SPEC_DELETE_WORD_START_WS},
     {IC_KEY_ACTION_DELETE_WORD_START, "delete-word-start",
      "delete to the start of the current word", SPEC_DELETE_WORD_START},
     {IC_KEY_ACTION_DELETE_WORD_END, "delete-word-end", "delete to the end of the current word",
@@ -320,12 +321,14 @@ const std::vector<std::string> kKeybindUsage = {
     "      They cannot be changed at runtime.",
     "",
     "Subcommands:",
-    "  list                            Show current default and custom key bindings (works at runtime)",
+    "  list                            Show current default and custom key bindings (works at "
+    "runtime)",
     "  set <action> <keys...>          Replace bindings for an action (config file only)",
     "  add <action> <keys...>          Add key bindings for an action (config file only)",
     "  clear <keys...>                 Remove bindings for the specified key(s) (config file only)",
     "  clear-action <action>           Remove all custom bindings for an action (config file only)",
-    "  reset                           Clear all custom key bindings and restore defaults (config file only)",
+    "  reset                           Clear all custom key bindings and restore defaults (config "
+    "file only)",
     "",
     "Use 'keybind --help' for detailed guidance.",
 };
@@ -533,9 +536,8 @@ int keybind_list_command() {
             printed.insert(entry.action);
         }
         std::cout << std::left << std::setw(static_cast<int>(name_width) + 2)
-                  << entry.canonical_name
-                  << std::setw(static_cast<int>(kDefaultColumnWidth)) << default_display
-                  << custom_display << '\n';
+                  << entry.canonical_name << std::setw(static_cast<int>(kDefaultColumnWidth))
+                  << default_display << custom_display << '\n';
     }
 
     for (const auto& pair : grouped) {
@@ -550,7 +552,9 @@ int keybind_list_command() {
 
     if (entries.empty()) {
         std::cout << "\nNo custom key bindings are currently defined." << std::endl;
-        std::cout << "To customize key bindings, add 'cjshopt keybind ...' commands to your ~/.cjshrc file." << std::endl;
+        std::cout << "To customize key bindings, add 'cjshopt keybind ...' commands to your "
+                     "~/.cjshrc file."
+                  << std::endl;
     } else {
         std::cout << "\nCustom key bindings are defined in your configuration files." << std::endl;
         std::cout << "To modify them, edit your ~/.cjshrc file." << std::endl;
@@ -571,8 +575,8 @@ int keybind_set_or_add_command(const std::vector<std::string>& args, bool replac
     const std::string& action_arg = args[2];
     ic_key_action_t action = ic_key_action_from_name(action_arg.c_str());
     if (action == IC_KEY_ACTION__MAX) {
-        print_error({ErrorType::INVALID_ARGUMENT, "keybind",
-                     "Unknown action '" + action_arg + "'", kKeybindUsage});
+        print_error({ErrorType::INVALID_ARGUMENT, "keybind", "Unknown action '" + action_arg + "'",
+                     kKeybindUsage});
         return 1;
     }
 
@@ -689,16 +693,16 @@ int keybind_clear_keys_command(const std::vector<std::string>& args) {
 
 int keybind_clear_action_command(const std::vector<std::string>& args) {
     if (args.size() != 3) {
-        print_error({ErrorType::INVALID_ARGUMENT, "keybind",
-                     "clear-action requires an action name", kKeybindUsage});
+        print_error({ErrorType::INVALID_ARGUMENT, "keybind", "clear-action requires an action name",
+                     kKeybindUsage});
         return 1;
     }
 
     const std::string& action_arg = args[2];
     ic_key_action_t action = ic_key_action_from_name(action_arg.c_str());
     if (action == IC_KEY_ACTION__MAX) {
-        print_error({ErrorType::INVALID_ARGUMENT, "keybind",
-                     "Unknown action '" + action_arg + "'", kKeybindUsage});
+        print_error({ErrorType::INVALID_ARGUMENT, "keybind", "Unknown action '" + action_arg + "'",
+                     kKeybindUsage});
         return 1;
     }
 
@@ -716,11 +720,11 @@ int keybind_clear_action_command(const std::vector<std::string>& args) {
 
     if (!g_startup_active) {
         if (!removed.empty()) {
-            std::cout << "Cleared custom bindings for " << canonical_action_name(action)
-                      << ": " << join_specs(removed) << std::endl;
+            std::cout << "Cleared custom bindings for " << canonical_action_name(action) << ": "
+                      << join_specs(removed) << std::endl;
         } else {
-            std::cout << "No custom bindings were set for "
-                      << canonical_action_name(action) << '.' << std::endl;
+            std::cout << "No custom bindings were set for " << canonical_action_name(action) << '.'
+                      << std::endl;
         }
     }
 
@@ -738,8 +742,8 @@ int keybind_reset_command() {
 
 int keybind_command(const std::vector<std::string>& args) {
     if (args.size() == 1) {
-        print_error({ErrorType::INVALID_ARGUMENT, "keybind",
-                     "Missing subcommand argument", kKeybindUsage});
+        print_error(
+            {ErrorType::INVALID_ARGUMENT, "keybind", "Missing subcommand argument", kKeybindUsage});
         return 1;
     }
 
@@ -751,10 +755,12 @@ int keybind_command(const std::vector<std::string>& args) {
 
     // Only allow modifications during startup (in config files)
     if (subcommand != "list" && !g_startup_active) {
-        print_error({ErrorType::RUNTIME_ERROR, "keybind",
-                     "Key binding modifications can only be set in configuration files (e.g., ~/.cjshrc)",
-                     {"Use 'keybind list' to view current bindings.",
-                      "To modify bindings, add 'cjshopt keybind ...' commands to your ~/.cjshrc file."}});
+        print_error(
+            {ErrorType::RUNTIME_ERROR,
+             "keybind",
+             "Key binding modifications can only be set in configuration files (e.g., ~/.cjshrc)",
+             {"Use 'keybind list' to view current bindings.",
+              "To modify bindings, add 'cjshopt keybind ...' commands to your ~/.cjshrc file."}});
         return 1;
     }
 
@@ -792,8 +798,8 @@ int keybind_command(const std::vector<std::string>& args) {
         return keybind_reset_command();
     }
 
-    print_error({ErrorType::INVALID_ARGUMENT, "keybind",
-                 "Unknown subcommand '" + subcommand + "'", kKeybindUsage});
+    print_error({ErrorType::INVALID_ARGUMENT, "keybind", "Unknown subcommand '" + subcommand + "'",
+                 kKeybindUsage});
     return 1;
 }
 
@@ -802,9 +808,11 @@ extern std::vector<std::string> g_profile_startup_args;
 int startup_flag_command(const std::vector<std::string>& args) {
     // Only allow setting startup flags during startup (in config files)
     if (!g_startup_active) {
-        print_error({ErrorType::RUNTIME_ERROR, "login-startup-arg",
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "login-startup-arg",
                      "Startup flags can only be set in configuration files (e.g., ~/.cjprofile)",
-                     {"To set startup flags, add 'cjshopt login-startup-arg ...' commands to your ~/.cjprofile file."}});
+                     {"To set startup flags, add 'cjshopt login-startup-arg ...' commands to your "
+                      "~/.cjprofile file."}});
         return 1;
     }
 
@@ -1062,8 +1070,8 @@ int set_max_bookmarks_command(const std::vector<std::string>& args) {
     try {
         number = std::stoi(option);
     } catch (const std::invalid_argument&) {
-        print_error({ErrorType::INVALID_ARGUMENT, "set-max-bookmarks",
-                     "invalid number: " + option, usage_lines});
+        print_error({ErrorType::INVALID_ARGUMENT, "set-max-bookmarks", "invalid number: " + option,
+                     usage_lines});
         return 1;
     } catch (const std::out_of_range&) {
         print_error({ErrorType::INVALID_ARGUMENT, "set-max-bookmarks",
@@ -1104,14 +1112,14 @@ int set_history_max_command(const std::vector<std::string>& args) {
                 std::cout << line << '\n';
             }
         }
-        print_error({ErrorType::INVALID_ARGUMENT, "set-history-max",
-                     "expected 1 argument", usage_lines});
+        print_error(
+            {ErrorType::INVALID_ARGUMENT, "set-history-max", "expected 1 argument", usage_lines});
         return 1;
     }
 
     if (args.size() > 2) {
-        print_error({ErrorType::INVALID_ARGUMENT, "set-history-max",
-                     "too many arguments provided", usage_lines});
+        print_error({ErrorType::INVALID_ARGUMENT, "set-history-max", "too many arguments provided",
+                     usage_lines});
         return 1;
     }
 
@@ -1135,8 +1143,8 @@ int set_history_max_command(const std::vector<std::string>& args) {
             if (current_limit <= 0) {
                 std::cout << "History persistence is currently disabled." << std::endl;
             } else {
-                std::cout << "History file retains up to " << current_limit
-                          << " entries." << std::endl;
+                std::cout << "History file retains up to " << current_limit << " entries."
+                          << std::endl;
             }
         }
         return 0;
@@ -1187,14 +1195,12 @@ int set_history_max_command(const std::vector<std::string>& args) {
     if (!g_startup_active) {
         long applied_limit = get_history_max_entries();
         if (applied_limit <= 0) {
-            std::cout << "History persistence disabled."
-                      << std::endl;
+            std::cout << "History persistence disabled." << std::endl;
         } else {
-            std::cout << "History file will retain up to " << applied_limit
-                      << " entries." << std::endl;
+            std::cout << "History file will retain up to " << applied_limit << " entries."
+                      << std::endl;
         }
     }
 
     return 0;
 }
-

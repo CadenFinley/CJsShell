@@ -16,9 +16,12 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
         std::cout << "Options:\n";
         std::cout << "  -r            do not allow backslashes to escape any characters\n";
         std::cout << "  -p prompt     output PROMPT without a trailing newline before reading\n";
-        std::cout << "  -n nchars     return after reading NCHARS characters rather than waiting for a newline\n";
-        std::cout << "  -d delim      continue until the first character of DELIM is read, rather than newline\n";
-        std::cout << "Note: a timeout option (-t) is parsed but not yet implemented and will return an error.\n";
+        std::cout << "  -n nchars     return after reading NCHARS characters rather than waiting "
+                     "for a newline\n";
+        std::cout << "  -d delim      continue until the first character of DELIM is read, rather "
+                     "than newline\n";
+        std::cout << "Note: a timeout option (-t) is parsed but not yet implemented and will "
+                     "return an error.\n";
     };
 
     bool help_requested = false;

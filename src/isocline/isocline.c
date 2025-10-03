@@ -140,7 +140,7 @@ static size_t key_action_name_count(void) {
 }
 
 static ic_key_binding_entry_t* key_binding_find_entry(ic_env_t* env, ic_keycode_t key,
-                                                     ssize_t* index_out) {
+                                                      ssize_t* index_out) {
     if (env == NULL || env->key_bindings == NULL)
         return NULL;
     for (ssize_t i = 0; i < env->key_binding_count; ++i) {
@@ -232,8 +232,7 @@ static bool key_lookup_named(const char* token, ic_keycode_t* out_key) {
     return false;
 }
 
-static bool append_token(bool* first, char* buffer, size_t buflen, size_t* len,
-                         const char* token) {
+static bool append_token(bool* first, char* buffer, size_t buflen, size_t* len, const char* token) {
     size_t token_len = strlen(token);
     size_t extra = (*first ? 0 : 1);
     if (*len + extra + token_len + 1 > buflen)

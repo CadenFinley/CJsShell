@@ -171,11 +171,11 @@ bool PromptInfo::is_variable_used(const std::string& var_name,
 
     {
         std::lock_guard<std::mutex> lock(cache_mutex);
-        
+
         if (cache.size() > MAX_CACHE_SIZE) {
             cache.clear();
         }
-        
+
         auto it = cache.find(cache_key);
         if (it != cache.end()) {
             return it->second;
@@ -211,7 +211,7 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
 
     {
         std::lock_guard<std::mutex> lock(cache_mutex);
-        
+
         if (language_cache.size() > MAX_CACHE_SIZE) {
             for (auto it = language_cache.begin(); it != language_cache.end();) {
                 if ((now - it->second.second) >= CACHE_DURATION) {
@@ -220,7 +220,7 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
                     ++it;
                 }
             }
-            
+
             if (language_cache.size() > MAX_CACHE_SIZE) {
                 std::vector<std::pair<std::string, std::chrono::steady_clock::time_point>> entries;
                 entries.reserve(language_cache.size());
@@ -228,15 +228,15 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
                     entries.emplace_back(key, value.second);
                 }
                 std::sort(entries.begin(), entries.end(),
-                         [](const auto& a, const auto& b) { return a.second < b.second; });
-                
+                          [](const auto& a, const auto& b) { return a.second < b.second; });
+
                 size_t to_remove = language_cache.size() - (MAX_CACHE_SIZE * 3 / 4);
                 for (size_t i = 0; i < to_remove && i < entries.size(); ++i) {
                     language_cache.erase(entries[i].first);
                 }
             }
         }
-        
+
         if (version_cache.size() > MAX_CACHE_SIZE) {
             for (auto it = version_cache.begin(); it != version_cache.end();) {
                 if ((now - it->second.second) >= CACHE_DURATION) {
@@ -245,7 +245,7 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
                     ++it;
                 }
             }
-            
+
             if (version_cache.size() > MAX_CACHE_SIZE) {
                 std::vector<std::pair<std::string, std::chrono::steady_clock::time_point>> entries;
                 entries.reserve(version_cache.size());
@@ -253,8 +253,8 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
                     entries.emplace_back(key, value.second);
                 }
                 std::sort(entries.begin(), entries.end(),
-                         [](const auto& a, const auto& b) { return a.second < b.second; });
-                
+                          [](const auto& a, const auto& b) { return a.second < b.second; });
+
                 size_t to_remove = version_cache.size() - (MAX_CACHE_SIZE * 3 / 4);
                 for (size_t i = 0; i < to_remove && i < entries.size(); ++i) {
                     version_cache.erase(entries[i].first);

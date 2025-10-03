@@ -12,10 +12,9 @@
 #include "trap_command.h"
 
 int exit_command(const std::vector<std::string>& args) {
-    if (builtin_handle_help(args,
-                            {"Usage: exit [-f|--force] [N]",
-                             "Exit the shell with status N (default last command).",
-                             "Use --force to skip running exit traps."})) {
+    if (builtin_handle_help(args, {"Usage: exit [-f|--force] [N]",
+                                   "Exit the shell with status N (default last command).",
+                                   "Use --force to skip running exit traps."})) {
         return 0;
     }
     int exit_code = 0;

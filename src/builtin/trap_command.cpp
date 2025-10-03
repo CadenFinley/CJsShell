@@ -193,10 +193,9 @@ std::string signal_number_to_name(int signal_number) {
 }
 
 int trap_command(const std::vector<std::string>& args) {
-    if (builtin_handle_help(args,
-                            {"Usage: trap [-lp] [ARG] [SIGNAL ...]",
-                             "Set a command to execute when SIGNAL is received.",
-                             "With no arguments, list active traps."})) {
+    if (builtin_handle_help(args, {"Usage: trap [-lp] [ARG] [SIGNAL ...]",
+                                   "Set a command to execute when SIGNAL is received.",
+                                   "With no arguments, list active traps."})) {
         return 0;
     }
     if (args.size() == 1) {

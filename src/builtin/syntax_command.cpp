@@ -25,8 +25,10 @@ void print_syntax_usage() {
     std::cout << "  --semantic          Include semantic analysis" << std::endl;
     std::cout << "  --style             Include style checking" << std::endl;
     std::cout << "  --performance       Include performance analysis" << std::endl;
-    std::cout << "  --severity LEVEL    Filter by severity (info,warning,error,critical)" << std::endl;
-    std::cout << "  --category CAT      Filter by category (syntax,variables,redirection,etc.)" << std::endl;
+    std::cout << "  --severity LEVEL    Filter by severity (info,warning,error,critical)"
+              << std::endl;
+    std::cout << "  --category CAT      Filter by category (syntax,variables,redirection,etc.)"
+              << std::endl;
 }
 }  // namespace
 

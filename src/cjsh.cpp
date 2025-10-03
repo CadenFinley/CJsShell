@@ -230,7 +230,7 @@ static void start_interactive_process() {
     }
 
     if (cjsh_filesystem::is_first_boot()) {
-        //std::cout << " Thank you for installing CJ's Shell!" << std::endl;
+        // std::cout << " Thank you for installing CJ's Shell!" << std::endl;
         std::cout << std::endl;
         std::cout << " Type 'help' to see available commands and options." << std::endl;
         if (!cjsh_filesystem::file_exists(cjsh_filesystem::g_cjsh_source_path)) {
@@ -243,8 +243,11 @@ static void start_interactive_process() {
             std::cout << " To create .cjsh_logout run 'cjshopt generate-logout" << std::endl;
         }
         std::cout << std::endl;
-        std::cout << " To suppress this help message run the command: 'touch "<< cjsh_filesystem::g_cjsh_first_boot_path.string() << "'" << std::endl;
-        std::cout << " To suppress the title line, put this command in .cjprofile: 'cjshopt login-startup-arg --no-titleline'" << std::endl;
+        std::cout << " To suppress this help message run the command: 'touch "
+                  << cjsh_filesystem::g_cjsh_first_boot_path.string() << "'" << std::endl;
+        std::cout << " To suppress the title line, put this command in .cjprofile: 'cjshopt "
+                     "login-startup-arg --no-titleline'"
+                  << std::endl;
         std::cout << " Or alternatively execute cjsh with this flag: --no-titleline" << std::endl;
         std::cout << std::endl;
         config::show_startup_time = true;

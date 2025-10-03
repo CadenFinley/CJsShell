@@ -12,9 +12,8 @@
 #include "shell_script_interpreter.h"
 
 int type_command(const std::vector<std::string>& args, Shell* shell) {
-    if (builtin_handle_help(args,
-                            {"Usage: type [-afptP] NAME [NAME ...]",
-                             "Display how the shell resolves each NAME."})) {
+    if (builtin_handle_help(args, {"Usage: type [-afptP] NAME [NAME ...]",
+                                   "Display how the shell resolves each NAME."})) {
         return 0;
     }
     if (args.size() < 2) {

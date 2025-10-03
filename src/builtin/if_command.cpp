@@ -8,10 +8,9 @@
 
 int if_command(const std::vector<std::string>& args, Shell* shell,
                std::string& last_terminal_output_error) {
-    if (builtin_handle_help(args,
-                            {"Usage: if CONDITION; then COMMAND; fi",
-                             "Evaluate CONDITION and run COMMAND when it succeeds.",
-                             "Supports standard cjsh command syntax."})) {
+    if (builtin_handle_help(args, {"Usage: if CONDITION; then COMMAND; fi",
+                                   "Evaluate CONDITION and run COMMAND when it succeeds.",
+                                   "Supports standard cjsh command syntax."})) {
         return 0;
     }
     auto record_error = [&](const ErrorInfo& info) {

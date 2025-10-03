@@ -85,7 +85,7 @@ typedef uint32_t ic_keycode_t;
 #define IC_KEY_F10 (IC_KEY_VIRT + 20)
 #define IC_KEY_F11 (IC_KEY_VIRT + 21)
 #define IC_KEY_F12 (IC_KEY_VIRT + 22)
-#define IC_KEY_F(n) (IC_KEY_F1 + (n)-1)
+#define IC_KEY_F(n) (IC_KEY_F1 + (n) - 1)
 
 // Event codes
 #define IC_KEY_EVENT_BASE (0x02000000U)

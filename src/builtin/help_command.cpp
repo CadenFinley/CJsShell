@@ -44,7 +44,7 @@ int help_command() {
         {"exit/quit", "Leave the shell with an optional exit status"},
         {"eval", "Evaluate a string as shell code"},
         {"exec", "Replace the shell process with another program"},
-    {"source / .", "Execute commands from a file in the current shell"},
+        {"source / .", "Execute commands from a file in the current shell"},
         {"set", "Adjust shell options or positional parameters"},
         {"shift", "Rotate positional parameters to the left"},
         {"export", "Set or display environment variables"},
@@ -66,8 +66,8 @@ int help_command() {
         {"wait", "Wait for jobs or processes to finish"},
         {"kill", "Send signals to jobs or processes"},
         {"syntax", "Check scripts or command strings for issues"},
-    {"test, [", "Evaluate POSIX test expressions"},
-    {"[[", "Evaluate extended test expressions"},
+        {"test, [", "Evaluate POSIX test expressions"},
+        {"[[", "Evaluate extended test expressions"},
         {":", "No-op command that always succeeds"},
         {"if", "Run conditional blocks in scripts"},
         {"theme", "Manage themes and previews"},
@@ -75,8 +75,7 @@ int help_command() {
         {"cjshopt", "Generate config files and adjust cjsh options"},
         {"prompt_test", "Preview prompt metrics and tokens"},
         {"validate", "Toggle command validation or verify names"},
-        {"version", "Show cjsh version information"}
-    };
+        {"version", "Show cjsh version information"}};
 
     std::cout << std::left;
     constexpr int column_width = 18;
@@ -107,7 +106,8 @@ int help_command() {
     std::cout << "  ~/.cjshrc           Interactive configuration (aliases, themes, plugins).\n";
     std::cout << "  ~/.cjsh_logout      Optional logout script sourced on exit.\n";
     std::cout << "  ~/.config/cjsh/     Data directory (themes/, plugins/, colors/, prompts/).\n";
-    std::cout << "  ~/.cache/cjsh/      Cache directory (history.txt, AI transcripts, exec cache).\n";
+    std::cout
+        << "  ~/.cache/cjsh/      Cache directory (history.txt, AI transcripts, exec cache).\n";
     std::cout << "  ~/.cache/cjsh/.first_boot  Marker used to suppress the first-run banner.\n";
 
     heading("cjsh invocation and startup flags");
@@ -118,8 +118,10 @@ int help_command() {
                  "    and completion popups.\n";
     std::cout << "  - Press <Tab> for context-aware completions and suggestions.\n";
     std::cout << "  - Press F1 to open isocline's interactive cheat sheet of key bindings.\n";
-    std::cout << "  - Incremental history search (Ctrl+R) and other readline-style shortcuts are available.\n";
-    std::cout << "  - Configuration such as syntax colors can be adjusted via 'cjshopt style_def'.\n";
+    std::cout << "  - Incremental history search (Ctrl+R) and other readline-style shortcuts are "
+                 "available.\n";
+    std::cout
+        << "  - Configuration such as syntax colors can be adjusted via 'cjshopt style_def'.\n";
 
     std::cout << "\n" << separator << "\n";
     return 0;

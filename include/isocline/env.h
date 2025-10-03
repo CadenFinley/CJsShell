@@ -60,9 +60,9 @@ struct ic_env_s {
                                          // cleanup
     long hint_delay;                     // delay before displaying a hint in milliseconds
 
-  ic_key_binding_entry_t* key_bindings;  // dynamic array of custom key bindings
-  ssize_t key_binding_count;
-  ssize_t key_binding_capacity;
+    ic_key_binding_entry_t* key_bindings;  // dynamic array of custom key bindings
+    ssize_t key_binding_count;
+    ssize_t key_binding_capacity;
 };
 
 ic_private char* ic_editline(ic_env_t* env, const char* prompt_text);

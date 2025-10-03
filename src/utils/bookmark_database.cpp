@@ -401,15 +401,13 @@ void BookmarkDatabase::enforce_bookmark_limit() {
 
     std::vector<std::pair<std::string, std::chrono::system_clock::time_point>> bookmark_times;
     bookmark_times.reserve(bookmarks_.size());
-    
+
     for (const auto& [name, entry] : bookmarks_) {
         bookmark_times.emplace_back(name, entry.last_accessed);
     }
 
     std::sort(bookmark_times.begin(), bookmark_times.end(),
-              [](const auto& a, const auto& b) {
-                  return a.second < b.second;
-              });
+              [](const auto& a, const auto& b) { return a.second < b.second; });
 
     for (size_t i = 0; i < to_remove && i < bookmark_times.size(); ++i) {
         bookmarks_.erase(bookmark_times[i].first);

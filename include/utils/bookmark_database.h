@@ -59,7 +59,6 @@ class BookmarkDatabase {
         const std::unordered_map<std::string, std::string>& old_bookmarks);
 
    private:
-
     size_t MAX_BOOKMARKS = 10;
     std::unordered_map<std::string, BookmarkEntry> bookmarks_;
     std::string database_path_;
@@ -89,11 +88,11 @@ inline std::unordered_map<std::string, std::string> get_directory_bookmarks() {
 }
 
 inline size_t get_max_bookmarks() {
-        return g_bookmark_db.get_max_bookmarks();
-    }
+    return g_bookmark_db.get_max_bookmarks();
+}
 
 inline void set_max_bookmarks(size_t max_bookmarks) {
-        g_bookmark_db.set_max_bookmarks(max_bookmarks);
-    }
+    g_bookmark_db.set_max_bookmarks(max_bookmarks);
+}
 
 }  // namespace bookmark_database

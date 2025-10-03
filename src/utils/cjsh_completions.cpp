@@ -111,8 +111,8 @@ bool trim_history_file(long max_entries, std::string* error_message) {
     std::ifstream history_stream(history_path);
     if (!history_stream.is_open()) {
         if (error_message) {
-            *error_message = "Failed to open history file '" + history_path.string() +
-                             "' for reading.";
+            *error_message =
+                "Failed to open history file '" + history_path.string() + "' for reading.";
         }
         return false;
     }
@@ -165,8 +165,8 @@ bool trim_history_file(long max_entries, std::string* error_message) {
         buffer << '\n';
     }
 
-    auto write_result = cjsh_filesystem::FileOperations::write_file_content(
-        history_path.string(), buffer.str());
+    auto write_result =
+        cjsh_filesystem::FileOperations::write_file_content(history_path.string(), buffer.str());
     if (write_result.is_error()) {
         if (error_message) {
             *error_message = write_result.error();
@@ -1230,7 +1230,9 @@ void initialize_completion_system() {
     ic_enable_multiline(true);
     ic_set_prompt_marker("", NULL);
     if (!enforce_history_limit_internal(nullptr)) {
-        std::cerr << "cjsh: warning: failed to enforce history limit; history file may exceed the configured size." << std::endl;
+        std::cerr << "cjsh: warning: failed to enforce history limit; history file may exceed the "
+                     "configured size."
+                  << std::endl;
     }
 }
 
@@ -1270,8 +1272,8 @@ bool set_history_max_entries(long max_entries, std::string* error_message) {
 
     if (resolved > kHistoryAbsoluteMaxEntries) {
         if (error_message) {
-            *error_message = "History limit cannot exceed " +
-                             std::to_string(kHistoryAbsoluteMaxEntries) + ".";
+            *error_message =
+                "History limit cannot exceed " + std::to_string(kHistoryAbsoluteMaxEntries) + ".";
         }
         return false;
     }

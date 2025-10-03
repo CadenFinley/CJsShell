@@ -11,11 +11,10 @@
 #include "shell.h"
 
 int set_command(const std::vector<std::string>& args, Shell* shell) {
-    if (builtin_handle_help(args,
-                            {"Usage: set [--] [ARG ...]",
-                             "Configure shell options or reset positional parameters.",
-                             "Use -e/+e or -o/+o mode to toggle supported options.",
-                             "Use -- to replace positional parameters."})) {
+    if (builtin_handle_help(args, {"Usage: set [--] [ARG ...]",
+                                   "Configure shell options or reset positional parameters.",
+                                   "Use -e/+e or -o/+o mode to toggle supported options.",
+                                   "Use -- to replace positional parameters."})) {
         return 0;
     }
     if (!shell) {
@@ -76,9 +75,8 @@ int set_command(const std::vector<std::string>& args, Shell* shell) {
 }
 
 int shift_command(const std::vector<std::string>& args, Shell* shell) {
-    if (builtin_handle_help(args,
-                            {"Usage: shift [N]",
-                             "Discard the first N positional parameters (default 1)."})) {
+    if (builtin_handle_help(
+            args, {"Usage: shift [N]", "Discard the first N positional parameters (default 1)."})) {
         return 0;
     }
     if (!shell) {

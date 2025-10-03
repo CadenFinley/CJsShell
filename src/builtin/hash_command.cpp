@@ -13,11 +13,10 @@ static std::unordered_map<std::string, int> command_hits;
 int hash_command(const std::vector<std::string>& args, Shell* shell) {
     (void)shell;
 
-    if (builtin_handle_help(args,
-                            {"Usage: hash [-r|-d] [NAME ...]",
-                             "Display or control the command path hash table.",
-                             "With no operands, list cached commands.",
-                             "-r clears entries, -d removes lookup caching for NAME."})) {
+    if (builtin_handle_help(args, {"Usage: hash [-r|-d] [NAME ...]",
+                                   "Display or control the command path hash table.",
+                                   "With no operands, list cached commands.",
+                                   "-r clears entries, -d removes lookup caching for NAME."})) {
         return 0;
     }
 
