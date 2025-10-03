@@ -27,10 +27,27 @@ Theme::Theme(std::string theme_dir, bool enabled)
 Theme::~Theme() {
 }
 
+void Theme::clear_theme_state() {
+    theme_data = ThemeDefinition{};
+    terminal_title_format.clear();
+    fill_char_.clear();
+    fill_fg_color_ = "RESET";
+    fill_bg_color_ = "RESET";
+    cleanup_ = false;
+    cleanup_add_empty_line_ = false;
+    newline_after_execution_ = false;
+    last_ps1_raw_length = 0;
+    last_git_raw_length = 0;
+    last_ai_raw_length = 0;
+    last_newline_raw_length = 0;
+}
+
 bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
     std::string theme_name_to_use = strip_theme_extension(theme_name);
     if (!is_enabled || theme_name_to_use.empty()) {
-        theme_name_to_use = "default";
+        clear_theme_state();
+        g_current_theme.clear();
+        return false;
     }
 
     std::filesystem::path theme_path = resolve_theme_file(theme_name_to_use);
@@ -84,7 +101,7 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
 
 bool Theme::load_theme_from_path(const std::filesystem::path& file_path, bool allow_fallback) {
     if (!is_enabled) {
-        return load_theme("default", allow_fallback);
+        return false;
     }
 
     std::filesystem::path normalized = file_path.lexically_normal();
@@ -150,7 +167,7 @@ bool Theme::load_theme_from_path(const std::filesystem::path& file_path, bool al
 bool Theme::load_theme_from_string(const std::string& theme_content, const std::string& source_name,
                                    bool allow_fallback) {
     if (!is_enabled) {
-        return load_theme("default", allow_fallback);
+        return false;
     }
 
     std::string source_label = source_name.empty() ? std::string("inline_theme") : source_name;
@@ -230,59 +247,41 @@ bool Theme::load_theme_from_string(const std::string& theme_content, const std::
 
 bool Theme::apply_theme_definition(const ThemeDefinition& definition, const std::string& theme_name,
                                    bool allow_fallback, const std::filesystem::path& source_path) {
-    theme_data = definition;
-
-    const auto& requirements = theme_data.requirements;
+    const auto& requirements = definition.requirements;
     bool has_requirements = !requirements.plugins.empty() || !requirements.colors.empty() ||
                             !requirements.fonts.empty() || !requirements.custom.empty();
+    const std::string source_hint = source_path.empty() ? theme_name : source_path.string();
 
-    if (has_requirements) {
-        if (!check_theme_requirements(requirements)) {
-            if (!allow_fallback) {
-                print_error({ErrorType::RUNTIME_ERROR,
-                             "load_theme",
-                             "Theme '" + theme_name + "' requirements not met, cannot load theme.",
-                             {}});
-                return false;
-            }
+    if (has_requirements && !check_theme_requirements(requirements)) {
+        if (!allow_fallback) {
+            print_error({ErrorType::RUNTIME_ERROR,
+                         "load_theme",
+                         "Theme '" + theme_name + "' requirements not met (" + source_hint +
+                             "), cannot load theme.",
+                         {}});
+            return false;
+        }
 
-            std::string previous_theme = (g_current_theme.empty() ? "default" : g_current_theme);
+        const std::string previous_theme = g_current_theme;
+        if (!previous_theme.empty() && theme_name != previous_theme) {
             print_error({ErrorType::RUNTIME_ERROR,
                          "load_theme",
                          "Theme '" + theme_name +
-                             "' requirements not met, falling back to previous "
-                             "theme: '" +
-                             previous_theme + "'.",
+                             "' requirements not met (" + source_hint +
+                             "), falling back to previous theme '" + previous_theme + "'.",
                          {}});
-
-            if (theme_name != previous_theme) {
-                return load_theme(previous_theme, allow_fallback);
-            } else {
-                if (theme_name != "default") {
-                    print_error({ErrorType::RUNTIME_ERROR,
-                                 "load_theme",
-                                 "Theme '" + theme_name +
-                                     "' requirements not met, falling back to "
-                                     "default theme.",
-                                 {}});
-                    return load_theme("default", allow_fallback);
-                }
-                print_error({ErrorType::FILE_NOT_FOUND,
-                             "load_theme",
-                             "Theme file '" + source_path.string() + "' does not exist.",
-                             {"Use 'theme' to see available themes."}});
-                return false;
-            }
+            return load_theme(previous_theme, allow_fallback);
         }
-    }
 
-    terminal_title_format = theme_data.terminal_title;
-    fill_char_ = theme_data.fill.character;
-    fill_fg_color_ = theme_data.fill.fg_color;
-    fill_bg_color_ = theme_data.fill.bg_color;
-    cleanup_ = theme_data.behavior.cleanup;
-    cleanup_add_empty_line_ = theme_data.behavior.cleanup_empty_line;
-    newline_after_execution_ = theme_data.behavior.newline_after_execution;
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "load_theme",
+                     "Theme '" + theme_name + "' requirements not met (" + source_hint +
+                         "), falling back to basic prompt.",
+                     {}});
+        clear_theme_state();
+        g_current_theme.clear();
+        return false;
+    }
 
     auto has_duplicate_tags = [](const std::vector<ThemeSegment>& segs) {
         std::unordered_set<std::string> seen;
@@ -294,15 +293,25 @@ bool Theme::apply_theme_definition(const ThemeDefinition& definition, const std:
         return false;
     };
 
-    if (has_duplicate_tags(ps1_segments) || has_duplicate_tags(git_segments) ||
-        has_duplicate_tags(ai_segments) || has_duplicate_tags(newline_segments) ||
-        has_duplicate_tags(inline_right_segments)) {
+    if (has_duplicate_tags(definition.ps1_segments) || has_duplicate_tags(definition.git_segments) ||
+        has_duplicate_tags(definition.ai_segments) ||
+        has_duplicate_tags(definition.newline_segments) ||
+        has_duplicate_tags(definition.inline_right_segments)) {
         print_error({ErrorType::SYNTAX_ERROR,
                      "load_theme",
-                     "Duplicate tags found in theme segments.",
+                     "Duplicate tags found in theme segments (" + source_hint + ").",
                      {"Ensure all segment tags are unique within their section."}});
         return false;
     }
+
+    theme_data = definition;
+    terminal_title_format = theme_data.terminal_title;
+    fill_char_ = theme_data.fill.character;
+    fill_fg_color_ = theme_data.fill.fg_color;
+    fill_bg_color_ = theme_data.fill.bg_color;
+    cleanup_ = theme_data.behavior.cleanup;
+    cleanup_add_empty_line_ = theme_data.behavior.cleanup_empty_line;
+    newline_after_execution_ = theme_data.behavior.newline_after_execution;
 
     g_current_theme = theme_name;
     return true;

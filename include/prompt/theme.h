@@ -49,6 +49,8 @@ class Theme {
     bool apply_theme_definition(const ThemeDefinition& definition, const std::string& theme_name,
                                 bool allow_fallback, const std::filesystem::path& source_path);
 
+    void clear_theme_state();
+
     std::string fill_char_{""};
     std::string fill_fg_color_{"RESET"};
     std::string fill_bg_color_{"RESET"};
