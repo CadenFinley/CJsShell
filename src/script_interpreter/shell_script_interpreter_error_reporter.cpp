@@ -19,9 +19,9 @@ std::string strip_internal_placeholders(const std::string& input, size_t* column
                                           "\x1E__SUBST_LITERAL_END__\x1E"};
 
     if (input.empty()) {
-        if (column_start)
+        if (column_start != nullptr)
             *column_start = 0;
-        if (column_end)
+        if (column_end != nullptr)
             *column_end = 0;
         return input;
     }
@@ -65,11 +65,11 @@ std::string strip_internal_placeholders(const std::string& input, size_t* column
 
     index_map[input.size()] = sanitized_index;
 
-    if (column_start) {
+    if (column_start != nullptr) {
         size_t original = std::min(*column_start, input.size());
         *column_start = index_map[original];
     }
-    if (column_end) {
+    if (column_end != nullptr) {
         size_t original = std::min(*column_end, input.size());
         *column_end = index_map[original];
     }
@@ -80,7 +80,7 @@ std::string strip_internal_placeholders(const std::string& input, size_t* column
 }  // namespace
 
 size_t ErrorReporter::get_terminal_width() {
-    struct winsize w;
+    struct winsize w{};
     if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == 0 && w.ws_col > 0) {
         return w.ws_col;
     }
@@ -95,7 +95,7 @@ void ErrorReporter::print_error_report(
 
     static thread_local int global_error_count = 0;
 
-    int actual_start_number;
+    int actual_start_number = 0;
     if (start_error_number == -1) {
         global_error_count++;
         actual_start_number = global_error_count;
@@ -111,14 +111,14 @@ void ErrorReporter::print_error_report(
     if (error_reporting_in_progress) {
         std::cerr << "cjsh: error: recursive error reporting detected, "
                      "aborting to prevent infinite loop"
-                  << std::endl;
+                  << '\n';
         return;
     }
     error_reporting_in_progress = true;
 
     try {
         if (errors.empty()) {
-            std::cout << "\033[32m✓ No syntax errors found.\033[0m" << std::endl;
+            std::cout << "\033[32m✓ No syntax errors found.\033[0m" << '\n';
             error_reporting_in_progress = false;
             return;
         }
@@ -130,11 +130,9 @@ void ErrorReporter::print_error_report(
         const std::string GREEN = "\033[32m";
         const std::string YELLOW = "\033[33m";
         const std::string BLUE = "\033[34m";
-        const std::string MAGENTA = "\033[35m";
         const std::string CYAN = "\033[36m";
         const std::string WHITE = "\033[37m";
         const std::string BG_RED = "\033[41m";
-        const std::string BG_YELLOW = "\033[43m";
 
         std::vector<SyntaxError> sorted_errors = errors;
         std::sort(sorted_errors.begin(), sorted_errors.end(),
@@ -185,18 +183,18 @@ void ErrorReporter::print_error_report(
 
             std::cout << BOLD << "┌─ " << error_count << ". " << severity_icon << " "
                       << severity_color << severity_prefix << RESET << BOLD << " [" << BLUE
-                      << error.error_code << RESET << BOLD << "]" << RESET << std::endl;
+                      << error.error_code << RESET << BOLD << "]" << RESET << '\n';
 
             std::cout << "│  " << DIM << "at line " << BOLD << error.position.line_number << RESET;
             if (column_start > 0) {
                 std::cout << DIM << ", column " << BOLD << column_start << RESET;
             }
-            std::cout << std::endl;
+            std::cout << '\n';
 
-            std::cout << "│  " << severity_color << sanitized_message << RESET << std::endl;
+            std::cout << "│  " << severity_color << sanitized_message << RESET << '\n';
 
             if (show_context && !sanitized_line_content.empty()) {
-                std::cout << "│" << std::endl;
+                std::cout << "│" << '\n';
 
                 std::string line_num_str = std::to_string(error.position.line_number);
                 std::cout << "│  " << DIM << line_num_str << " │ " << RESET;
@@ -275,10 +273,10 @@ void ErrorReporter::print_error_report(
                         i += 3;
                     } else if (display_line[i] == '\n' || display_line[i] == '\r') {
                         display_line[i] = ' ';
-                    } else if (display_line[i] < 32 && display_line[i] != ' ') {
+                    } else if (display_line[i] < 32) {
                         char hex_repr[5];
-                        snprintf(hex_repr, sizeof(hex_repr), "\\x%02x",
-                                 (unsigned char)display_line[i]);
+                        (void)snprintf(hex_repr, sizeof(hex_repr), "\\x%02x",
+                                       (unsigned char)display_line[i]);
                         display_line.replace(i, 1, hex_repr);
                         i += 3;
                     }
@@ -368,7 +366,7 @@ void ErrorReporter::print_error_report(
                 } else {
                     std::cout << display_line;
                 }
-                std::cout << std::endl;
+                std::cout << '\n';
 
                 if (column_start > 0 && adjusted_start < display_line.length()) {
                     std::cout << "│  " << DIM << std::string(line_num_str.length(), ' ') << " │ "
@@ -381,14 +379,14 @@ void ErrorReporter::print_error_report(
                                                       display_line.length() - adjusted_start - 1);
                         std::cout << std::string(tilde_count, '~');
                     }
-                    std::cout << RESET << std::endl;
+                    std::cout << RESET << '\n';
                 }
             }
 
             if (show_suggestions && !sanitized_suggestion.empty()) {
-                std::cout << "│" << std::endl;
+                std::cout << "│" << '\n';
                 std::cout << "│  " << GREEN << "Suggestion: " << RESET << sanitized_suggestion
-                          << std::endl;
+                          << '\n';
             }
 
             size_t terminal_width = get_terminal_width();
@@ -422,11 +420,11 @@ void ErrorReporter::print_error_report(
             for (size_t i = 0; i < footer_width; i++) {
                 std::cout << "—";
             }
-            std::cout << std::endl;
+            std::cout << '\n';
         }
 
     } catch (...) {
-        std::cerr << "cjsh: error: exception during error reporting" << std::endl;
+        std::cerr << "cjsh: error: exception during error reporting" << '\n';
     }
 
     error_reporting_in_progress = false;
@@ -438,7 +436,7 @@ void ErrorReporter::print_runtime_error(const std::string& error_message,
     using ErrorCategory = ShellScriptInterpreter::ErrorCategory;
     using SyntaxError = ShellScriptInterpreter::SyntaxError;
 
-    std::string suggestion = "";
+    std::string suggestion;
     if (error_message.find("command not found") != std::string::npos) {
         suggestion = "Try 'help' to see available commands.";
     } else if (error_message.find("Unclosed quote") != std::string::npos) {

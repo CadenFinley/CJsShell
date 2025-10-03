@@ -975,7 +975,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
         (void)signal(SIGCHLD, SIG_DFL);
         (void)signal(SIGTERM, SIG_DFL);
 
-        sigset_t set = 0;
+        sigset_t set{};
         sigemptyset(&set);
         sigaddset(&set, SIGINT);
         sigaddset(&set, SIGQUIT);
@@ -1242,7 +1242,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             (void)signal(SIGCHLD, SIG_DFL);
             (void)signal(SIGTERM, SIG_DFL);
 
-            sigset_t set = 0;
+            sigset_t set{};
             sigemptyset(&set);
             sigaddset(&set, SIGINT);
             sigaddset(&set, SIGQUIT);
