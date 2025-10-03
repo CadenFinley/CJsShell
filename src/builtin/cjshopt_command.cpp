@@ -24,9 +24,9 @@ void print_cjshopt_usage() {
     std::cout << "Usage: cjshopt <subcommand> [options]\n";
     std::cout << "Available subcommands:\n";
     std::cout << "  style_def <token_type> <style>   Define or redefine a syntax highlighting style\n";
-    std::cout << "  login-startup-arg [--flag-name]  Add a startup flag to be applied when sourcing the profile\n";
+    std::cout << "  login-startup-arg [--flag-name]  Add a startup flag (config file only)\n";
     std::cout << "  completion-case <on|off|status>  Configure completion case sensitivity\n";
-    std::cout << "  keybind <subcommand> [...]       Inspect or remap interactive key bindings\n";
+    std::cout << "  keybind <subcommand> [...]       Inspect or modify key bindings (modifications in config only)\n";
     std::cout << "  generate-profile [--force]       Create or overwrite ~/.cjprofile\n";
     std::cout << "  generate-rc [--force]            Create or overwrite ~/.cjshrc\n";
     std::cout << "  generate-logout [--force]        Create or overwrite ~/.cjsh_logout\n";
@@ -50,12 +50,12 @@ int cjshopt_command(const std::vector<std::string>& args) {
                          "Available subcommands:",
                          "  style_def <token_type> <style>   Define or redefine a syntax "
                          "highlighting style",
-                         "  login-startup-arg [--flag-name]  Add a startup flag to be "
-                         "applied when sourcing the profile",
+                         "  login-startup-arg [--flag-name]  Add a startup flag "
+                         "(config file only)",
                          "  completion-case <on|off|status>  Configure completion case "
                          "sensitivity",
-                         "  keybind <subcommand> [...]       Inspect or remap interactive key "
-                         "bindings",
+                         "  keybind <subcommand> [...]       Inspect or modify key bindings "
+                         "(modifications in config only)",
                          "  generate-profile [--force]       Create or overwrite ~/.cjprofile",
                          "  generate-rc [--force]            Create or overwrite ~/.cjshrc",
                          "  generate-logout [--force]        Create or overwrite ~/.cjsh_logout",
@@ -306,13 +306,18 @@ const std::vector<KeyBindingDefault> kKeyBindingDefaults = {
 
 const std::vector<std::string> kKeybindUsage = {
     "Usage: keybind <subcommand> [...]",
+    "",
+    "Note: Key binding modifications can ONLY be made in configuration files (e.g., ~/.cjshrc).",
+    "      They cannot be changed at runtime.",
+    "",
     "Subcommands:",
-    "  list                            Show current default and custom key bindings",
-    "  set <action> <keys...>          Replace bindings for an action (keys can be separated by |)",
-    "  add <action> <keys...>          Add key bindings for an action without removing existing ones",
-    "  clear <keys...>                 Remove bindings for the specified key(s)",
-    "  clear-action <action>           Remove all custom bindings for an action",
-    "  reset                           Clear all custom key bindings and restore defaults",
+    "  list                            Show current default and custom key bindings (works at runtime)",
+    "  set <action> <keys...>          Replace bindings for an action (config file only)",
+    "  add <action> <keys...>          Add key bindings for an action (config file only)",
+    "  clear <keys...>                 Remove bindings for the specified key(s) (config file only)",
+    "  clear-action <action>           Remove all custom bindings for an action (config file only)",
+    "  reset                           Clear all custom key bindings and restore defaults (config file only)",
+    "",
     "Use 'keybind --help' for detailed guidance.",
 };
 
@@ -536,10 +541,10 @@ int keybind_list_command() {
 
     if (entries.empty()) {
         std::cout << "\nNo custom key bindings are currently defined." << std::endl;
+        std::cout << "To customize key bindings, add 'cjshopt keybind ...' commands to your ~/.cjshrc file." << std::endl;
     } else {
-        std::cout << "\nCustom key bindings are session-only. Add matching `cjshopt keybind ...` "
-                     "lines to your configuration to persist them."
-                  << std::endl;
+        std::cout << "\nCustom key bindings are defined in your configuration files." << std::endl;
+        std::cout << "To modify them, edit your ~/.cjshrc file." << std::endl;
     }
 
     return 0;
@@ -735,6 +740,15 @@ int keybind_command(const std::vector<std::string>& args) {
         return 0;
     }
 
+    // Only allow modifications during startup (in config files)
+    if (subcommand != "list" && !g_startup_active) {
+        print_error({ErrorType::RUNTIME_ERROR, "keybind",
+                     "Key binding modifications can only be set in configuration files (e.g., ~/.cjshrc)",
+                     {"Use 'keybind list' to view current bindings.",
+                      "To modify bindings, add 'cjshopt keybind ...' commands to your ~/.cjshrc file."}});
+        return 1;
+    }
+
     if (subcommand == "list") {
         if (args.size() != 2) {
             print_error({ErrorType::INVALID_ARGUMENT, "keybind",
@@ -777,6 +791,14 @@ int keybind_command(const std::vector<std::string>& args) {
 extern std::vector<std::string> g_profile_startup_args;
 
 int startup_flag_command(const std::vector<std::string>& args) {
+    // Only allow setting startup flags during startup (in config files)
+    if (!g_startup_active) {
+        print_error({ErrorType::RUNTIME_ERROR, "login-startup-arg",
+                     "Startup flags can only be set in configuration files (e.g., ~/.cjprofile)",
+                     {"To set startup flags, add 'cjshopt login-startup-arg ...' commands to your ~/.cjprofile file."}});
+        return 1;
+    }
+
     if (args.size() < 2) {
         print_error(
             {ErrorType::INVALID_ARGUMENT,
