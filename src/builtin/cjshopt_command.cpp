@@ -12,7 +12,29 @@
 #include "isocline/isocline.h"
 #include "utils/cjsh_completions.h"
 
+extern bool g_startup_active;
+
+namespace {
+void print_cjshopt_usage() {
+    std::cout << "Usage: cjshopt <subcommand> [options]\n";
+    std::cout << "Available subcommands:\n";
+    std::cout << "  style_def <token_type> <style>   Define or redefine a syntax highlighting style\n";
+    std::cout << "  login-startup-arg [--flag-name]  Add a startup flag to be applied when sourcing the profile\n";
+    std::cout << "  completion-case <on|off|status>  Configure completion case sensitivity\n";
+    std::cout << "  generate-profile [--force]       Create or overwrite ~/.cjprofile\n";
+    std::cout << "  generate-rc [--force]            Create or overwrite ~/.cjshrc\n";
+    std::cout << "  generate-logout [--force]        Create or overwrite ~/.cjsh_logout\n";
+}
+}  // namespace
+
 int cjshopt_command(const std::vector<std::string>& args) {
+    if (args.size() > 1 && (args[1] == "--help" || args[1] == "-h")) {
+        if (!g_startup_active) {
+            print_cjshopt_usage();
+        }
+        return 0;
+    }
+
     if (args.size() < 2) {
         print_error({ErrorType::INVALID_ARGUMENT,
                      "cjshopt",
@@ -56,8 +78,6 @@ int cjshopt_command(const std::vector<std::string>& args) {
         return 1;
     }
 }
-
-extern bool g_startup_active;
 
 int handle_generate_command_common(const std::vector<std::string>& args,
                                    const std::string& command_name,

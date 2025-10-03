@@ -1,4 +1,7 @@
 #include "type_command.h"
+
+#include "builtin_help.h"
+
 #include <sys/stat.h>
 #include <unistd.h>
 #include <iostream>
@@ -9,6 +12,11 @@
 #include "shell_script_interpreter.h"
 
 int type_command(const std::vector<std::string>& args, Shell* shell) {
+    if (builtin_handle_help(args,
+                            {"Usage: type [-afptP] NAME [NAME ...]",
+                             "Display how the shell resolves each NAME."})) {
+        return 0;
+    }
     if (args.size() < 2) {
         print_error(
             {ErrorType::INVALID_ARGUMENT, "type", "usage: type [-afptP] name [name ...]", {}});

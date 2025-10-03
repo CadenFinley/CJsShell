@@ -1,11 +1,18 @@
 #include "loop_control_commands.h"
 
+#include "builtin_help.h"
+
 #include <iostream>
 #include <string>
 #include <vector>
 #include "error_out.h"
 
 int break_command(const std::vector<std::string>& args) {
+    if (builtin_handle_help(args,
+                            {"Usage: break [N]",
+                             "Exit N levels of enclosing loops (default 1)."})) {
+        return 0;
+    }
     int level = 1;
     if (args.size() > 1) {
         try {
@@ -27,6 +34,11 @@ int break_command(const std::vector<std::string>& args) {
 }
 
 int continue_command(const std::vector<std::string>& args) {
+    if (builtin_handle_help(args,
+                            {"Usage: continue [N]",
+                             "Skip to the next iteration of the current loop or Nth enclosing loop."})) {
+        return 0;
+    }
     int level = 1;
     if (args.size() > 1) {
         try {
@@ -48,6 +60,11 @@ int continue_command(const std::vector<std::string>& args) {
 }
 
 int return_command(const std::vector<std::string>& args) {
+    if (builtin_handle_help(args,
+                            {"Usage: return [N]",
+                             "Exit a function with status N (default uses last command status)."})) {
+        return 0;
+    }
     int exit_code = 0;
     if (args.size() > 1) {
         try {

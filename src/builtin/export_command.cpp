@@ -1,5 +1,7 @@
 #include "export_command.h"
 
+#include "builtin_help.h"
+
 #include <cerrno>
 #include <cstring>
 #include <fstream>
@@ -13,6 +15,12 @@
 #include "shell.h"
 
 int export_command(const std::vector<std::string>& args, Shell* shell) {
+    if (builtin_handle_help(args,
+                            {"Usage: export [NAME[=VALUE] ...]",
+                             "Set environment variables for the shell and subprocesses.",
+                             "Without operands, list exported variables."})) {
+        return 0;
+    }
     if (args.size() == 1) {
         extern char** environ;
         for (char** env = environ; *env; ++env) {
@@ -64,6 +72,11 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
 }
 
 int unset_command(const std::vector<std::string>& args, Shell* shell) {
+    if (builtin_handle_help(args,
+                            {"Usage: unset NAME [NAME ...]",
+                             "Remove variables from the environment and shell state."})) {
+        return 0;
+    }
     if (args.size() < 2) {
         print_error({ErrorType::INVALID_ARGUMENT, "unset", "not enough arguments", {}});
         return 1;

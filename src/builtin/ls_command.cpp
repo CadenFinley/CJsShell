@@ -65,6 +65,40 @@ static const std::unordered_set<std::string_view> source_extensions = {
 
 static const std::unordered_set<std::string_view> executable_extensions = {".so", ".dylib", ".exe"};
 
+namespace {
+void print_ls_usage() {
+    std::cout << "Usage: ls [OPTION]... [FILE]..." << std::endl;
+    std::cout << "List information about files." << std::endl << std::endl;
+    std::cout << "  -a             show all files, including hidden files" << std::endl;
+    std::cout << "  -A             show all files except . and .." << std::endl;
+    std::cout << "  -l             use long listing format" << std::endl;
+    std::cout << "  -S             sort by file size, largest first" << std::endl;
+    std::cout << "  -r             reverse order while sorting" << std::endl;
+    std::cout << "  -t             sort by modification time, newest first" << std::endl;
+    std::cout << "  -u             sort by access time" << std::endl;
+    std::cout << "  -c             sort by status change time" << std::endl;
+    std::cout << "  -h             print sizes in human readable format" << std::endl;
+    std::cout << "  -R             list subdirectories recursively" << std::endl;
+    std::cout << "  -1             list one file per line" << std::endl;
+    std::cout << "  -i             print the inode number" << std::endl;
+    std::cout << "  -C             list entries by columns" << std::endl;
+    std::cout << "  -F             append indicator to entries" << std::endl;
+    std::cout << "  -H             follow symlinks on command line" << std::endl;
+    std::cout << "  -L             follow all symlinks" << std::endl;
+    std::cout << "  -d             list directories themselves, not contents" << std::endl;
+    std::cout << "  -f             do not sort, enable -a" << std::endl;
+    std::cout << "  -g             long format without owner" << std::endl;
+    std::cout << "  -k             use 1024-byte blocks" << std::endl;
+    std::cout << "  -m             stream format with comma separators" << std::endl;
+    std::cout << "  -n             long format with numeric IDs" << std::endl;
+    std::cout << "  -o             long format without group" << std::endl;
+    std::cout << "  -p             append / to directories" << std::endl;
+    std::cout << "  -q             replace non-printable characters with ?" << std::endl;
+    std::cout << "  -s             print file system block counts" << std::endl;
+    std::cout << "  -x             list entries by lines instead of columns" << std::endl;
+}
+}  // namespace
+
 bool should_use_custom(Shell* shell) {
     if (!isatty(STDOUT_FILENO)) {
         return false;
@@ -111,6 +145,19 @@ struct FileInfo {
 };
 
 int ls_command(const std::vector<std::string>& args, Shell* shell) {
+    bool help_requested = false;
+    for (size_t i = 1; i < args.size(); ++i) {
+        if (args[i] == "--help" || args[i] == "-h") {
+            help_requested = true;
+            break;
+        }
+    }
+
+    if (help_requested) {
+        print_ls_usage();
+        return 0;
+    }
+
     if (config::disable_custom_ls || !should_use_custom(shell)) {
         std::vector<std::string> system_ls_args;
         system_ls_args.push_back("/bin/ls");
@@ -256,37 +303,6 @@ int ls_command(const std::vector<std::string>& args, Shell* shell) {
                         return 1;
                 }
             }
-        } else if (args[i] == "--help") {
-            std::cout << "Usage: ls [OPTION]... [FILE]..." << std::endl;
-            std::cout << "List information about files." << std::endl << std::endl;
-            std::cout << "  -a             show all files, including hidden files" << std::endl;
-            std::cout << "  -A             show all files except . and .." << std::endl;
-            std::cout << "  -l             use long listing format" << std::endl;
-            std::cout << "  -S             sort by file size, largest first" << std::endl;
-            std::cout << "  -r             reverse order while sorting" << std::endl;
-            std::cout << "  -t             sort by modification time, newest first" << std::endl;
-            std::cout << "  -u             sort by access time" << std::endl;
-            std::cout << "  -c             sort by status change time" << std::endl;
-            std::cout << "  -h             print sizes in human readable format" << std::endl;
-            std::cout << "  -R             list subdirectories recursively" << std::endl;
-            std::cout << "  -1             list one file per line" << std::endl;
-            std::cout << "  -i             print the inode number" << std::endl;
-            std::cout << "  -C             list entries by columns" << std::endl;
-            std::cout << "  -F             append indicator to entries" << std::endl;
-            std::cout << "  -H             follow symlinks on command line" << std::endl;
-            std::cout << "  -L             follow all symlinks" << std::endl;
-            std::cout << "  -d             list directories themselves, not contents" << std::endl;
-            std::cout << "  -f             do not sort, enable -a" << std::endl;
-            std::cout << "  -g             long format without owner" << std::endl;
-            std::cout << "  -k             use 1024-byte blocks" << std::endl;
-            std::cout << "  -m             stream format with comma separators" << std::endl;
-            std::cout << "  -n             long format with numeric IDs" << std::endl;
-            std::cout << "  -o             long format without group" << std::endl;
-            std::cout << "  -p             append / to directories" << std::endl;
-            std::cout << "  -q             replace non-printable characters with ?" << std::endl;
-            std::cout << "  -s             print file system block counts" << std::endl;
-            std::cout << "  -x             list entries by lines instead of columns" << std::endl;
-            return 0;
         } else if (args[i][0] == '-') {
             print_error({ErrorType::INVALID_ARGUMENT,
                          "ls",

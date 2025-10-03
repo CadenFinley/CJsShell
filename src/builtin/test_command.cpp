@@ -1,5 +1,7 @@
 #include "test_command.h"
 
+#include "builtin_help.h"
+
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -7,6 +9,12 @@
 #include <iostream>
 
 int test_command(const std::vector<std::string>& args) {
+    if (builtin_handle_help(args,
+                            {"Usage: test EXPRESSION",
+                             "Evaluate file attributes and comparisons.",
+                             "Aliases: [ EXPRESSION ]"})) {
+        return 0;
+    }
     if (args.empty()) {
         return 1;
     }

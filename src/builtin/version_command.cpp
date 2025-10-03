@@ -1,5 +1,7 @@
 #include "version_command.h"
 
+#include "builtin_help.h"
+
 #include <iostream>
 #include <string>
 
@@ -8,7 +10,11 @@
 static const std::string c_git_hash = CJSH_GIT_HASH;
 
 int version_command(const std::vector<std::string>& args) {
-    (void)args;
+    if (builtin_handle_help(args,
+                            {"Usage: version",
+                             "Display cjsh version and build information."})) {
+        return 0;
+    }
 
 #ifndef CJSH_BUILD_ARCH
 #define CJSH_BUILD_ARCH "unknown"

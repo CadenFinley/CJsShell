@@ -1,10 +1,19 @@
 #include "getopts_command.h"
+
+#include "builtin_help.h"
+
 #include <cstdlib>
 #include "cjsh.h"
 #include "error_out.h"
 #include "shell.h"
 
 int getopts_command(const std::vector<std::string>& args, Shell* shell) {
+    if (builtin_handle_help(args,
+                            {"Usage: getopts OPTSTRING NAME [ARG ...]",
+                             "Parse positional parameters as options, storing results in NAME.",
+                             "With no ARG values, uses the shell's positional parameters."})) {
+        return 0;
+    }
     if (!shell) {
         print_error({ErrorType::RUNTIME_ERROR, "getopts", "shell not available", {}});
         return 1;

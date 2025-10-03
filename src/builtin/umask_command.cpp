@@ -1,4 +1,7 @@
 #include "umask_command.h"
+
+#include "builtin_help.h"
+
 #include <sys/stat.h>
 #include <algorithm>
 #include <iomanip>
@@ -48,6 +51,12 @@ mode_t parse_symbolic_mode(const std::string& mode_str, mode_t current_mask) {
 }
 
 int umask_command(const std::vector<std::string>& args) {
+    if (builtin_handle_help(args,
+                            {"Usage: umask [-S] [MODE]",
+                             "Display or set the file creation mask.",
+                             "-S shows the mask in symbolic form."})) {
+        return 0;
+    }
     mode_t current_mask = umask(0);
     umask(current_mask);
 

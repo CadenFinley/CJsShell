@@ -1,5 +1,7 @@
 #include "printf_command.h"
 
+#include "builtin_help.h"
+
 #include <climits>
 #include <cstdlib>
 #include <iomanip>
@@ -208,6 +210,11 @@ std::string process_printf_escapes(const std::string& input) {
 }
 
 int printf_command(const std::vector<std::string>& args) {
+    if (builtin_handle_help(args,
+                            {"Usage: printf FORMAT [ARG ...]",
+                             "Format and print ARG values according to FORMAT."})) {
+        return 0;
+    }
     if (args.size() < 2) {
         print_error({ErrorType::INVALID_ARGUMENT, "printf", "missing format string", {}});
         return 1;

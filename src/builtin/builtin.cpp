@@ -1,5 +1,7 @@
 #include "builtin.h"
 
+#include "builtin_help.h"
+
 #include <fcntl.h>
 #include <limits.h>
 #include <sys/wait.h>
@@ -14,7 +16,6 @@
 #include "ai_command.h"
 #include "aihelp_command.h"
 #include "alias_command.h"
-#include "approot_command.h"
 #include "cd_command.h"
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
@@ -114,6 +115,12 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"ls", [this](const std::vector<std::string>& args) { return ::ls_command(args, shell); }},
         {"cd",
          [this](const std::vector<std::string>& args) {
+             if (builtin_handle_help(args,
+                                     {"Usage: cd [DIR]",
+                                      "Change the current directory.",
+                                      "Use '-' to switch to the previous directory."})) {
+                 return 0;
+             }
              if (args.size() > 2) {
                  ErrorInfo error = {ErrorType::INVALID_ARGUMENT,
                                     "cd",
@@ -152,11 +159,14 @@ Built_ins::Built_ins() : shell(nullptr) {
         {".", [](const std::vector<std::string>& args) { return ::source_command(args); }},
         {"theme", [](const std::vector<std::string>& args) { return ::theme_command(args); }},
         {"plugin", [](const std::vector<std::string>& args) { return ::plugin_command(args); }},
-        {"help", [](const std::vector<std::string>&) { return ::help_command(); }},
-        {"approot",
-         [this](const std::vector<std::string>&) {
-             return ::change_to_approot(current_directory, previous_directory,
-                                        last_terminal_output_error);
+        {"help",
+         [](const std::vector<std::string>& args) {
+             if (builtin_handle_help(args,
+                                     {"Usage: help",
+                                      "Display the CJSH command reference."})) {
+                 return 0;
+             }
+             return ::help_command();
          }},
         {"aihelp", [](const std::vector<std::string>& args) { return ::aihelp_command(args); }},
         {"version", [](const std::vector<std::string>& args) { return ::version_command(args); }},
@@ -213,6 +223,11 @@ Built_ins::Built_ins() : shell(nullptr) {
          [](const std::vector<std::string>& args) { return ::hash_command(args, nullptr); }},
         {"builtin",
          [this](const std::vector<std::string>& args) {
+             if (builtin_handle_help(args,
+                                     {"Usage: builtin COMMAND [ARGS...]",
+                                      "Invoke a builtin command bypassing functions and PATH lookup."})) {
+                 return 0;
+             }
              if (args.size() < 2) {
                  ErrorInfo error = {ErrorType::INVALID_ARGUMENT,
                                     "builtin",

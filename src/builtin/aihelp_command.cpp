@@ -12,15 +12,6 @@
 #include "system_prompts.h"
 
 int aihelp_command(const std::vector<std::string>& args) {
-    if (!config::ai_enabled) {
-        print_error({ErrorType::RUNTIME_ERROR, "aihelp", "AI is disabled", {}});
-        return 1;
-    }
-
-    if (g_ai == nullptr) {
-        initialize_ai();
-    }
-
     auto print_usage = []() {
         std::cout << "Usage: aihelp [-f] [-p prompt] [-m model] [error "
                      "description]\n";
@@ -34,6 +25,22 @@ int aihelp_command(const std::vector<std::string>& args) {
                      "analyzed automatically.\n";
     };
 
+    for (size_t i = 1; i < args.size(); ++i) {
+        if (args[i] == "--help" || args[i] == "-h") {
+            print_usage();
+            return 0;
+        }
+    }
+
+    if (!config::ai_enabled) {
+        print_error({ErrorType::RUNTIME_ERROR, "aihelp", "AI is disabled", {}});
+        return 1;
+    }
+
+    if (g_ai == nullptr) {
+        initialize_ai();
+    }
+
     if (!g_ai || g_ai->get_api_key().empty()) {
         print_error(
             {ErrorType::RUNTIME_ERROR, "aihelp", "Please set your OpenAI API key first", {}});
@@ -46,10 +53,7 @@ int aihelp_command(const std::vector<std::string>& args) {
     std::vector<std::string> remaining_args;
 
     for (size_t i = 1; i < args.size(); ++i) {
-        if (args[i] == "--help" || args[i] == "-h") {
-            print_usage();
-            return 0;
-        } else if (args[i] == "-f") {
+        if (args[i] == "-f") {
             force_mode = true;
         } else if (args[i] == "-p" && i + 1 < args.size()) {
             custom_prompt = args[++i];

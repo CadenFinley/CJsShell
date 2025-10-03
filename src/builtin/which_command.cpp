@@ -1,4 +1,7 @@
 #include "which_command.h"
+
+#include "builtin_help.h"
+
 #include <sys/stat.h>
 #include <unistd.h>
 #include <algorithm>
@@ -11,6 +14,11 @@
 #include "shell_script_interpreter.h"
 
 int which_command(const std::vector<std::string>& args, Shell* shell) {
+    if (builtin_handle_help(args,
+                            {"Usage: which [-as] NAME [NAME ...]",
+                             "Show how commands would be resolved in the current environment."})) {
+        return 0;
+    }
     if (args.size() < 2) {
         print_error(
             {ErrorType::INVALID_ARGUMENT, "which", "usage: which [-as] name [name ...]", {}});

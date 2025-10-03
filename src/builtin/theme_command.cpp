@@ -16,6 +16,17 @@
 
 namespace {
 
+void print_theme_help() {
+    std::cout << "Usage: theme [command] [args]\n"
+              << "Commands:\n"
+              << "  theme                      Show current theme and list available themes\n"
+              << "  theme load <name>          Load a theme by name\n"
+              << "  theme info <name>          Display theme metadata and requirements\n"
+              << "  theme preview <name|all>   Preview one or all local themes\n"
+              << "  theme reload               Reload the active theme from disk\n"
+              << "  theme uninstall <name>     Remove an installed theme\n";
+}
+
 std::filesystem::path resolve_theme_file_path(const std::string& theme_name) {
     return cjsh_filesystem::g_cjsh_theme_path / Theme::ensure_theme_extension(theme_name);
 }
@@ -23,6 +34,10 @@ std::filesystem::path resolve_theme_file_path(const std::string& theme_name) {
 }  // namespace
 
 int theme_command(const std::vector<std::string>& args) {
+    if (args.size() > 1 && (args[1] == "--help" || args[1] == "-h")) {
+        print_theme_help();
+        return 0;
+    }
     if (!config::themes_enabled) {
         print_error({ErrorType::RUNTIME_ERROR,
                      "theme",

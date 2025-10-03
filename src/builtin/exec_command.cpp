@@ -1,5 +1,7 @@
 #include "exec_command.h"
 
+#include "builtin_help.h"
+
 #include <fcntl.h>
 #include <string.h>
 #include <sys/types.h>
@@ -14,6 +16,12 @@
 
 int exec_command(const std::vector<std::string>& args, Shell* shell,
                  std::string& last_terminal_output_error) {
+    if (builtin_handle_help(args,
+                            {"Usage: exec [COMMAND [ARG ...]]",
+                             "Replace the current shell with COMMAND.",
+                             "If COMMAND is omitted, apply redirections to the shell."})) {
+        return 0;
+    }
     if (args.size() <= 1) {
         return 0;
     }

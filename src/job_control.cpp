@@ -1,5 +1,7 @@
 #include "job_control.h"
 
+#include "builtin_help.h"
+
 #include <signal.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -257,6 +259,11 @@ static int parse_signal(const std::string& signal_str) {
 }
 
 int jobs_command(const std::vector<std::string>& args) {
+    if (builtin_handle_help(args,
+                            {"Usage: jobs [-lp]",
+                             "List active jobs. -l shows PIDs, -p prints PIDs only."})) {
+        return 0;
+    }
     auto& job_manager = JobManager::instance();
     job_manager.update_job_status();
 
@@ -326,6 +333,11 @@ int jobs_command(const std::vector<std::string>& args) {
 }
 
 int fg_command(const std::vector<std::string>& args) {
+    if (builtin_handle_help(args,
+                            {"Usage: fg [%JOB]",
+                             "Bring a job to the foreground."})) {
+        return 0;
+    }
     auto& job_manager = JobManager::instance();
     job_manager.update_job_status();
 
@@ -400,6 +412,11 @@ int fg_command(const std::vector<std::string>& args) {
 }
 
 int bg_command(const std::vector<std::string>& args) {
+    if (builtin_handle_help(args,
+                            {"Usage: bg [%JOB]",
+                             "Resume a stopped job in the background."})) {
+        return 0;
+    }
     auto& job_manager = JobManager::instance();
     job_manager.update_job_status();
 
@@ -451,6 +468,11 @@ int bg_command(const std::vector<std::string>& args) {
 }
 
 int wait_command(const std::vector<std::string>& args) {
+    if (builtin_handle_help(args,
+                            {"Usage: wait [ID ...]",
+                             "Wait for specified jobs or processes. Without IDs, waits for all."})) {
+        return 0;
+    }
     auto& job_manager = JobManager::instance();
 
     if (args.size() == 1) {
@@ -536,6 +558,11 @@ int wait_command(const std::vector<std::string>& args) {
 }
 
 int kill_command(const std::vector<std::string>& args) {
+    if (builtin_handle_help(args,
+                            {"Usage: kill [-s SIGNAL| -SIGNAL] ID ...",
+                             "Send a signal to processes or jobs. Use -l to list signals."})) {
+        return 0;
+    }
     if (args.size() < 2) {
         print_error({ErrorType::INVALID_ARGUMENT,
                      "",

@@ -1,5 +1,7 @@
 #include "history_command.h"
 
+#include "builtin_help.h"
+
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -10,6 +12,11 @@
 #include "error_out.h"
 
 int history_command(const std::vector<std::string>& args) {
+    if (builtin_handle_help(args,
+                            {"Usage: history [COUNT]",
+                             "Display command history, optionally limiting to COUNT entries."})) {
+        return 0;
+    }
     cjsh_filesystem::initialize_cjsh_directories();
 
     auto read_result = cjsh_filesystem::FileOperations::read_file_content(

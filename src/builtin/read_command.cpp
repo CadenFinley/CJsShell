@@ -10,6 +10,30 @@
 #include "shell.h"
 
 int read_command(const std::vector<std::string>& args, Shell* shell) {
+    auto print_usage = []() {
+        std::cout << "Usage: read [-r] [-p prompt] [-n nchars] [-d delim] [name ...]\n";
+        std::cout << "Read a line from standard input and split it into fields.\n\n";
+        std::cout << "Options:\n";
+        std::cout << "  -r            do not allow backslashes to escape any characters\n";
+        std::cout << "  -p prompt     output PROMPT without a trailing newline before reading\n";
+        std::cout << "  -n nchars     return after reading NCHARS characters rather than waiting for a newline\n";
+        std::cout << "  -d delim      continue until the first character of DELIM is read, rather than newline\n";
+        std::cout << "Note: a timeout option (-t) is parsed but not yet implemented and will return an error.\n";
+    };
+
+    bool help_requested = false;
+    for (size_t i = 1; i < args.size(); ++i) {
+        if (args[i] == "--help") {
+            help_requested = true;
+            break;
+        }
+    }
+
+    if (help_requested) {
+        print_usage();
+        return 0;
+    }
+
     if (!shell) {
         print_error({ErrorType::RUNTIME_ERROR, "read", "internal error - no shell context", {}});
         return 1;
@@ -64,23 +88,6 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
         } else if (arg.substr(0, 2) == "-t" && arg.length() > 2) {
             print_error({ErrorType::RUNTIME_ERROR, "read", "timeout option not implemented", {}});
             return 1;
-        } else if (arg == "--help") {
-            std::cout << "Usage: read [-r] [-p prompt] [-n nchars] [-d delim] [name "
-                         "...]\n";
-            std::cout << "Read a line from standard input and split it into "
-                         "fields.\n\n";
-            std::cout << "Options:\n";
-            std::cout << "  -r            do not allow backslashes to escape any "
-                         "characters\n";
-            std::cout << "  -p prompt     output PROMPT without a trailing newline "
-                         "before reading\n";
-            std::cout << "  -n nchars     return after reading NCHARS characters "
-                         "rather than waiting for a newline\n";
-            std::cout << "  -d delim      continue until the first character of "
-                         "DELIM is read, rather than newline\n";
-            std::cout << "Note: a timeout option (-t) is parsed but not yet "
-                         "implemented and will return an error.\n";
-            return 0;
         } else if (arg[0] == '-') {
             print_error({ErrorType::INVALID_ARGUMENT,
                          "read",

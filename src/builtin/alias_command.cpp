@@ -1,5 +1,7 @@
 #include "alias_command.h"
 
+#include "builtin_help.h"
+
 #include <fstream>
 #include <iostream>
 #include <vector>
@@ -10,6 +12,13 @@
 #include "shell.h"
 
 int alias_command(const std::vector<std::string>& args, Shell* shell) {
+    if (builtin_handle_help(args,
+                            {"Usage: alias [NAME[=VALUE] ...]",
+                             "List or define aliases.",
+                             "With no operands, display all aliases.",
+                             "NAME=VALUE defines an alias, NAME shows its definition."})) {
+        return 0;
+    }
     if (args.size() == 1) {
         auto& aliases = shell->get_aliases();
         if (aliases.empty()) {
@@ -48,6 +57,12 @@ int alias_command(const std::vector<std::string>& args, Shell* shell) {
 }
 
 int unalias_command(const std::vector<std::string>& args, Shell* shell) {
+    if (builtin_handle_help(args,
+                            {"Usage: unalias NAME [NAME ...]",
+                             "Remove one or more aliases.",
+                             "Use 'alias --help' to learn how to create aliases."})) {
+        return 0;
+    }
     if (args.size() < 2) {
         print_error({ErrorType::INVALID_ARGUMENT, "unalias", "not enough arguments", {}});
         return 1;

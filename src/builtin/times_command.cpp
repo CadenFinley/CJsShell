@@ -1,4 +1,7 @@
 #include "times_command.h"
+
+#include "builtin_help.h"
+
 #include <sys/times.h>
 #include <unistd.h>
 #include <cerrno>
@@ -10,7 +13,11 @@
 #include "error_out.h"
 
 int times_command(const std::vector<std::string>& args, Shell* shell) {
-    (void)args;
+    if (builtin_handle_help(args,
+                            {"Usage: times",
+                             "Print accumulated process times for the shell and its children."})) {
+        return 0;
+    }
     (void)shell;
 
     struct tms time_buf;

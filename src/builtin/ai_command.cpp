@@ -21,6 +21,41 @@
 #include "shell.h"
 #include "system_prompts.h"
 
+namespace {
+
+void print_ai_command_help() {
+    std::cout
+        << "AI Command Help:\n"
+        << "  ai                             Enter AI mode and show chat history\n"
+        << "  ai --help                      Show this summary\n"
+        << "  ai help                        Show this summary\n"
+        << "  ai log                         Save the last chat to a file\n"
+        << "  ai apikey                      Show API key status\n"
+        << "  ai chat <message>              Send a chat message\n"
+        << "  ai chat history [clear]        Show or clear chat history\n"
+        << "  ai file <subcommand>           Manage attached context files\n"
+        << "      add <file>|all             Attach files from the current directory\n"
+        << "      remove <file>|all          Remove attached files\n"
+        << "      active                     List attached files\n"
+        << "      available                  List files in the current directory\n"
+        << "      refresh                    Re-read attached files from disk\n"
+        << "      clear                      Remove all attachments\n"
+        << "  ai directory [set|clear]       Show or change the save directory\n"
+        << "  ai mode [type]                 Get or set assistant mode\n"
+        << "  ai model [name]                Get or set the model ID\n"
+        << "  ai initialinstruction [text]   Get or set the system instruction\n"
+        << "  ai name [name]                 Get or set the assistant name\n"
+        << "  ai timeoutflag [seconds]       Get or set the request timeout\n"
+        << "  ai voice [voice]               Get or set dictation voice\n"
+        << "  ai voicedictation enable|disable Toggle voice dictation\n"
+        << "  ai voicedictationinstructions [text] Set dictation instructions\n"
+        << "  ai get <key>                   Show a specific response field\n"
+        << "  ai dump                        Dump all response data and last prompt\n"
+        << "  ai rejectchanges               Reject pending AI edits\n";
+}
+
+}
+
 int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
     if (!config::ai_enabled) {
         print_error({ErrorType::RUNTIME_ERROR, "ai", "AI is disabled", {}});
@@ -47,6 +82,13 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
     }
 
     const std::string& cmd = args[command_index];
+
+    if (cmd == "--help" || cmd == "-h") {
+        if (!g_startup_active) {
+            print_ai_command_help();
+        }
+        return 0;
+    }
 
     if (cmd == "log") {
         std::string lastChatSent = g_ai->get_last_prompt_used();
@@ -383,77 +425,9 @@ int ai_command(const std::vector<std::string>& args, Built_ins* built_ins) {
         return 0;
     }
 
-    if (cmd == "help") {
-        if (!g_startup_active) {
-            std::cout << "AI Command Help:\n"
-                      << "  ai                             Enter AI mode and show "
-                         "chat "
-                         "history\n"
-                      << "  ai log                         Save the last chat to a "
-                         "file\n"
-                      << "  ai apikey                      Show API key status\n"
-                      << "  ai chat <message>              Send a chat message\n"
-                      << "  ai chat history [clear]        Show or clear chat "
-                         "history\n"
-                      << "  ai chat help                   Show chat-specific help\n"
-                      << "  ai file                        List active files and "
-                         "files "
-                         "in "
-                         "the current directory\n"
-                      << "  ai file add <file>|all         Add file(s) from the "
-                         "current "
-                         "directory\n"
-                      << "  ai file remove <file>|all      Remove file(s) from "
-                         "context\n"
-                      << "  ai file active                 Show files currently in "
-                         "context\n"
-                      << "  ai file available              List files from the "
-                         "current "
-                         "directory\n"
-                      << "  ai file refresh                Re-read active files from "
-                         "disk\n"
-                      << "  ai file clear                  Remove all files from "
-                         "context\n"
-                      << "  ai directory                   Show the current save "
-                         "directory\n"
-                      << "  ai directory set               Use the present working "
-                         "directory for saves\n"
-                      << "  ai directory clear             Reset the save directory "
-                         "to "
-                         "default\n"
-                      << "  ai get <key>                   Show a specific response "
-                         "field\n"
-                      << "  ai dump                        Dump all response data "
-                         "and "
-                         "the "
-                         "last prompt\n"
-                      << "  ai mode [type]                 Get or set the assistant "
-                         "mode\n"
-                      << "  ai model [name]                Get or set the model\n"
-                      << "  ai initialinstruction [text]   Get or set the initial "
-                         "system "
-                         "instruction\n"
-                      << "  ai name [name]                 Get or set the assistant "
-                         "name\n"
-                      << "  ai timeoutflag [sec]           Get or set the request "
-                         "timeout "
-                         "in seconds\n"
-                      << "  ai rejectchanges               Reject the most recent AI "
-                         "suggested edits\n"
-                      << "  ai voice [voice]               Get or set the dictation "
-                         "voice\n"
-                      << "  ai voicedictation [enable|disable]  Toggle voice "
-                         "dictation\n"
-                      << "  ai voicedictationinstructions [text] Set dictation "
-                         "instructions\n"
-                      << "  ai help                        Show this summary\n";
-        }
-        return 0;
-    }
-
     print_error({ErrorType::INVALID_ARGUMENT,
                  "ai",
-                 "invalid argument. try 'help' for a list of commands",
+                 "invalid argument. try '--help' for a list of commands",
                  {}});
     return 1;
 }
@@ -462,7 +436,7 @@ int ai_chat_commands(const std::vector<std::string>& args, int cmd_index) {
     if (args.size() <= static_cast<unsigned int>(cmd_index) + 1) {
         print_error({ErrorType::INVALID_ARGUMENT,
                      "ai",
-                     "no arguments provided. Try 'help' for a list of commands",
+                     "no arguments provided. Try '--help' for a list of commands",
                      {}});
         return 1;
     }
@@ -491,17 +465,6 @@ int ai_chat_commands(const std::vector<std::string>& args, int cmd_index) {
             }
             return 0;
         }
-    }
-
-    if (subcmd == "help") {
-        if (!g_startup_active) {
-            std::cout << "AI Chat Help:\n"
-                      << "  ai chat <message>     - Send a chat message\n"
-                      << "  ai chat history       - Show chat history\n"
-                      << "  ai chat history clear - Clear chat history\n"
-                      << "  ai chat help          - Show this help message\n";
-        }
-        return 0;
     }
 
     std::string message = subcmd;

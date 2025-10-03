@@ -1,5 +1,7 @@
 #include "set_command.h"
 
+#include "builtin_help.h"
+
 #include <iostream>
 #include <string>
 #include <vector>
@@ -9,6 +11,13 @@
 #include "shell.h"
 
 int set_command(const std::vector<std::string>& args, Shell* shell) {
+    if (builtin_handle_help(args,
+                            {"Usage: set [--] [ARG ...]",
+                             "Configure shell options or reset positional parameters.",
+                             "Use -e/+e or -o/+o mode to toggle supported options.",
+                             "Use -- to replace positional parameters."})) {
+        return 0;
+    }
     if (!shell) {
         print_error({ErrorType::RUNTIME_ERROR, "set", "shell not available", {}});
         return 1;
@@ -67,6 +76,11 @@ int set_command(const std::vector<std::string>& args, Shell* shell) {
 }
 
 int shift_command(const std::vector<std::string>& args, Shell* shell) {
+    if (builtin_handle_help(args,
+                            {"Usage: shift [N]",
+                             "Discard the first N positional parameters (default 1)."})) {
+        return 0;
+    }
     if (!shell) {
         print_error({ErrorType::RUNTIME_ERROR, "shift", "shell not available", {}});
         return 1;

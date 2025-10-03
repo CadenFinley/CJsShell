@@ -1,5 +1,7 @@
 #include "eval_command.h"
 
+#include "builtin_help.h"
+
 #include <iostream>
 
 #include "cjsh.h"
@@ -7,6 +9,11 @@
 #include "shell.h"
 
 int eval_command(const std::vector<std::string>& args, Shell* shell) {
+    if (builtin_handle_help(args,
+                            {"Usage: eval STRING",
+                             "Evaluate STRING in the current shell context."})) {
+        return 0;
+    }
     if (args.size() < 2) {
         print_error({ErrorType::INVALID_ARGUMENT, "eval", "missing arguments", {}});
         return 1;

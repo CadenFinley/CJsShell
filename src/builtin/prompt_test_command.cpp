@@ -3,13 +3,18 @@
 #include <string>
 #include <vector>
 
+#include "builtin_help.h"
 #include "ai.h"
 #include "cjsh.h"
 #include "prompt.h"
 #include "prompt_info.h"
 
 int prompt_test_command(const std::vector<std::string>& args) {
-    (void)args;
+    if (builtin_handle_help(args,
+                            {"Usage: prompt_test",
+                             "Display all available prompt tags and diagnostic values."})) {
+        return 0;
+    }
     Prompt p;
     PromptInfo pi;
     std::filesystem::path repo_root;

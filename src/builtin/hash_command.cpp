@@ -1,4 +1,7 @@
 #include "hash_command.h"
+
+#include "builtin_help.h"
+
 #include <iostream>
 #include <unordered_map>
 #include "cjsh_filesystem.h"
@@ -9,6 +12,14 @@ static std::unordered_map<std::string, int> command_hits;
 
 int hash_command(const std::vector<std::string>& args, Shell* shell) {
     (void)shell;
+
+    if (builtin_handle_help(args,
+                            {"Usage: hash [-r|-d] [NAME ...]",
+                             "Display or control the command path hash table.",
+                             "With no operands, list cached commands.",
+                             "-r clears entries, -d removes lookup caching for NAME."})) {
+        return 0;
+    }
 
     if (args.size() == 1) {
         if (command_hash.empty()) {

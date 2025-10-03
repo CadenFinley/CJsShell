@@ -1,4 +1,7 @@
 #include "readonly_command.h"
+
+#include "builtin_help.h"
+
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
@@ -35,6 +38,12 @@ void ReadonlyManager::clear_all() {
 
 int readonly_command(const std::vector<std::string>& args, Shell* shell) {
     (void)shell;
+    if (builtin_handle_help(args,
+                            {"Usage: readonly [-p] NAME[=VALUE] ...",
+                             "Mark shell variables as readonly and optionally assign values.",
+                             "-p prints readonly variables."})) {
+        return 0;
+    }
     auto& readonly_manager = ReadonlyManager::instance();
 
     if (args.size() == 1) {

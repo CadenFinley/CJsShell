@@ -1,11 +1,19 @@
 #include "if_command.h"
 
+#include "builtin_help.h"
+
 #include <iostream>
 #include "error_out.h"
 #include "shell.h"
 
 int if_command(const std::vector<std::string>& args, Shell* shell,
                std::string& last_terminal_output_error) {
+    if (builtin_handle_help(args,
+                            {"Usage: if CONDITION; then COMMAND; fi",
+                             "Evaluate CONDITION and run COMMAND when it succeeds.",
+                             "Supports standard cjsh command syntax."})) {
+        return 0;
+    }
     auto record_error = [&](const ErrorInfo& info) {
         last_terminal_output_error = info.message;
         print_error(info);

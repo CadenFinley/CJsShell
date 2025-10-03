@@ -9,29 +9,44 @@
 #include "error_out.h"
 #include "shell.h"
 
+namespace {
+void print_syntax_usage() {
+    std::cout << "Usage: syntax [options] <script_file>" << std::endl;
+    std::cout << "       syntax [options] -c <command_string>" << std::endl;
+    std::cout << "Check syntax of shell scripts or commands" << std::endl;
+    std::cout << std::endl;
+    std::cout << "Options:" << std::endl;
+    std::cout << "  -h, --help          Show this help message" << std::endl;
+    std::cout << "  -v, --verbose       Show detailed error information" << std::endl;
+    std::cout << "  -q, --quiet         Only show error count" << std::endl;
+    std::cout << "  --no-suggestions    Don't show fix suggestions" << std::endl;
+    std::cout << "  --no-context        Don't show line context" << std::endl;
+    std::cout << "  --comprehensive     Run all validation checks" << std::endl;
+    std::cout << "  --semantic          Include semantic analysis" << std::endl;
+    std::cout << "  --style             Include style checking" << std::endl;
+    std::cout << "  --performance       Include performance analysis" << std::endl;
+    std::cout << "  --severity LEVEL    Filter by severity (info,warning,error,critical)" << std::endl;
+    std::cout << "  --category CAT      Filter by category (syntax,variables,redirection,etc.)" << std::endl;
+}
+}  // namespace
+
 int syntax_command(const std::vector<std::string>& args, Shell* shell) {
     if (args.size() < 2) {
-        std::cout << "Usage: syntax [options] <script_file>" << std::endl;
-        std::cout << "       syntax [options] -c <command_string>" << std::endl;
-        std::cout << "Check syntax of shell scripts or commands" << std::endl;
-        std::cout << std::endl;
-        std::cout << "Options:" << std::endl;
-        std::cout << "  -h, --help          Show this help message" << std::endl;
-        std::cout << "  -v, --verbose       Show detailed error information" << std::endl;
-        std::cout << "  -q, --quiet         Only show error count" << std::endl;
-        std::cout << "  --no-suggestions    Don't show fix suggestions" << std::endl;
-        std::cout << "  --no-context        Don't show line context" << std::endl;
-        std::cout << "  --comprehensive     Run all validation checks" << std::endl;
-        std::cout << "  --semantic          Include semantic analysis" << std::endl;
-        std::cout << "  --style             Include style checking" << std::endl;
-        std::cout << "  --performance       Include performance analysis" << std::endl;
-        std::cout << "  --severity LEVEL    Filter by severity "
-                     "(info,warning,error,critical)"
-                  << std::endl;
-        std::cout << "  --category CAT      Filter by category "
-                     "(syntax,variables,redirection,etc.)"
-                  << std::endl;
+        print_syntax_usage();
         return 1;
+    }
+
+    bool help_requested = false;
+    for (size_t i = 1; i < args.size(); ++i) {
+        if (args[i] == "-h" || args[i] == "--help") {
+            help_requested = true;
+            break;
+        }
+    }
+
+    if (help_requested) {
+        print_syntax_usage();
+        return 0;
     }
 
     if (!shell) {
@@ -55,9 +70,7 @@ int syntax_command(const std::vector<std::string>& args, Shell* shell) {
     for (size_t i = 1; i < args.size(); ++i) {
         const std::string& arg = args[i];
 
-        if (arg == "-h" || arg == "--help") {
-            return 0;
-        } else if (arg == "-q" || arg == "--quiet") {
+        if (arg == "-q" || arg == "--quiet") {
             quiet = true;
         } else if (arg == "--no-suggestions") {
             show_suggestions = false;

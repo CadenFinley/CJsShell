@@ -1,5 +1,7 @@
 #include "double_bracket_command.h"
 
+#include "builtin_help.h"
+
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -201,6 +203,11 @@ int evaluate_expression(const std::vector<std::string>& tokens) {
 }
 
 int double_bracket_command(const std::vector<std::string>& args) {
+    if (builtin_handle_help(args,
+                            {"Usage: [[ EXPRESSION ]]",
+                             "Evaluate a conditional expression with pattern matching and logical operators."})) {
+        return 0;
+    }
     if (args.empty()) {
         return 1;
     }

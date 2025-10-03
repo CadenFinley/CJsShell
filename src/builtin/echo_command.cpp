@@ -1,5 +1,7 @@
 #include "echo_command.h"
 
+#include "builtin_help.h"
+
 #include <unistd.h>
 
 #include <iostream>
@@ -68,6 +70,12 @@ std::string process_escape_sequences(const std::string& input) {
 }
 
 int echo_command(const std::vector<std::string>& args) {
+    if (builtin_handle_help(args,
+                            {"Usage: echo [-n] [-e|-E] [STRING ...]",
+                             "Display arguments separated by spaces.",
+                             "-n suppresses the trailing newline, -e enables escapes, -E disables them."})) {
+        return 0;
+    }
     std::vector<std::string> echo_args = args;
     bool redirect_to_stderr = false;
     bool suppress_newline = false;

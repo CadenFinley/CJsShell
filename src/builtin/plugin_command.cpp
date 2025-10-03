@@ -10,7 +10,32 @@
 #include "error_out.h"
 #include "plugin.h"
 
+namespace {
+
+void print_plugin_help() {
+    std::cout << "Usage: plugin <subcommand> [options]\n"
+              << "Subcommands:\n"
+              << "  available                List available plugins\n"
+              << "  enabled                  List enabled plugins\n"
+              << "  enable <name>            Enable a plugin\n"
+              << "  disable <name>           Disable a plugin\n"
+              << "  enableall                Enable all available plugins\n"
+              << "  disableall               Disable all enabled plugins\n"
+              << "  info <name>              Show plugin information\n"
+              << "  commands <name>          List commands for a plugin\n"
+              << "  stats                    Show plugin system statistics\n"
+              << "  settings [name]          Show or manage plugin settings\n"
+              << "  uninstall <name>         Remove an installed plugin\n"
+              << "  --help                     Show this help message\n";
+}
+
+}
+
 int plugin_command(const std::vector<std::string>& args) {
+    if (args.size() > 1 && (args[1] == "--help" || args[1] == "-h")) {
+        print_plugin_help();
+        return 0;
+    }
     if (!config::plugins_enabled) {
         print_error({ErrorType::RUNTIME_ERROR, "plugin", "Plugins are disabled", {}});
         return 1;
@@ -44,24 +69,6 @@ int plugin_command(const std::vector<std::string>& args) {
 
     const std::string& cmd = args[1];
 
-    if (cmd == "help") {
-        std::cout << "Plugin commands:" << std::endl;
-        std::cout << " available: List available plugins" << std::endl;
-        std::cout << " enabled: List enabled plugins" << std::endl;
-        std::cout << " enable [NAME]: Enable a plugin" << std::endl;
-        std::cout << " disable [NAME]: Disable a plugin" << std::endl;
-        std::cout << " info [NAME]: Show plugin information" << std::endl;
-        std::cout << " commands [NAME]: List commands for a plugin" << std::endl;
-        std::cout << " enableall: Enable all available plugins" << std::endl;
-        std::cout << " disableall: Disable all enabled plugins" << std::endl;
-        std::cout << " stats: Show plugin system statistics" << std::endl;
-        std::cout << " settings: Show settings for every plugin" << std::endl;
-        std::cout << " settings [NAME]: Show settings for one plugin" << std::endl;
-        std::cout << " settings [NAME] set [SETTING] [VALUE]: Modify a plugin setting" << std::endl;
-        std::cout << " help: Show this help message" << std::endl;
-        std::cout << " uninstall [NAME]: Remove an installed plugin" << std::endl;
-        return 0;
-    }
 
     if (cmd == "available") {
         if (g_plugin) {
