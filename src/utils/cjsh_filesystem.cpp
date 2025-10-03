@@ -1,6 +1,6 @@
 #include "utils/cjsh_filesystem.h"
 
-#include <errno.h>
+#include <cerrno>
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -31,6 +31,10 @@
 namespace cjsh_filesystem {
 
 namespace {
+std::string describe_errno(int err) {
+    return std::system_category().message(err);
+}
+
 std::atomic<bool> g_cache_refresh_in_progress{false};
 std::atomic<bool> g_cache_cleanup_in_progress{false};
 
@@ -58,7 +62,7 @@ Result<int> FileOperations::safe_open(const std::string& path, int flags, mode_t
     int fd = ::open(path.c_str(), flags, mode);
     if (fd == -1) {
         return Result<int>::error("Failed to open file '" + path +
-                                  "': " + std::string(strerror(errno)));
+                                  "': " + describe_errno(errno));
     }
     return Result<int>::ok(fd);
 }
@@ -67,7 +71,7 @@ Result<void> FileOperations::safe_dup2(int oldfd, int newfd) {
     if (::dup2(oldfd, newfd) == -1) {
         return Result<void>::error("Failed to duplicate file descriptor " + std::to_string(oldfd) +
                                    " to " + std::to_string(newfd) + ": " +
-                                   std::string(strerror(errno)));
+                                   describe_errno(errno));
     }
     return Result<void>::ok();
 }
@@ -101,7 +105,7 @@ Result<FILE*> FileOperations::safe_fopen(const std::string& path, const std::str
     FILE* file = std::fopen(path.c_str(), mode.c_str());
     if (file == nullptr) {
         return Result<FILE*>::error("Failed to open file '" + path + "' with mode '" + mode +
-                                    "': " + std::string(strerror(errno)));
+                                    "': " + describe_errno(errno));
     }
     return Result<FILE*>::ok(file);
 }
@@ -116,7 +120,7 @@ Result<FILE*> FileOperations::safe_popen(const std::string& command, const std::
     FILE* pipe = ::popen(command.c_str(), mode.c_str());
     if (pipe == nullptr) {
         return Result<FILE*>::error("Failed to execute command '" + command +
-                                    "': " + std::string(strerror(errno)));
+                                    "': " + describe_errno(errno));
     }
     return Result<FILE*>::ok(pipe);
 }
@@ -193,7 +197,7 @@ Result<void> FileOperations::write_file_content(const std::string& path,
     int fd = open_result.value();
     if (::fchmod(fd, S_IRUSR | S_IWUSR) == -1) {
         std::string error_message =
-            "Failed to set secure permissions on '" + path + "': " + std::string(strerror(errno));
+            "Failed to set secure permissions on '" + path + "': " + describe_errno(errno);
         safe_close(fd);
         return Result<void>::error(error_message);
     }
@@ -229,7 +233,7 @@ Result<void> FileOperations::write_all(int fd, std::string_view data) {
                 continue;
             }
             return Result<void>::error("Failed to write to file descriptor " + std::to_string(fd) +
-                                       ": " + std::string(strerror(errno)));
+                                       ": " + describe_errno(errno));
         }
         if (written == 0) {
             return Result<void>::error("Write to file descriptor " + std::to_string(fd) +
@@ -259,7 +263,7 @@ Result<std::string> FileOperations::read_file_content(const std::string& path) {
 
     if (bytes_read < 0) {
         return Result<std::string>::error("Failed to read from file '" + path +
-                                          "': " + std::string(strerror(errno)));
+                                          "': " + describe_errno(errno));
     }
 
     return Result<std::string>::ok(content);
@@ -396,7 +400,7 @@ bool initialize_cjsh_path() {
 #ifdef __APPLE__
     uint32_t size = PATH_MAX;
     if (_NSGetExecutablePath(path, &size) == 0) {
-        char* resolved_path = realpath(path, NULL);
+    char* resolved_path = realpath(path, nullptr);
         if (resolved_path != nullptr) {
             g_cjsh_path = resolved_path;
             free(resolved_path);

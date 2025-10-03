@@ -2761,7 +2761,7 @@ std::vector<std::string> Parser::expand_wildcards(const std::string& pattern) {
     glob_t glob_result;
     memset(&glob_result, 0, sizeof(glob_result));
 
-    int return_value = glob(unescaped.c_str(), GLOB_TILDE | GLOB_MARK, NULL, &glob_result);
+    int return_value = glob(unescaped.c_str(), GLOB_TILDE | GLOB_MARK, nullptr, &glob_result);
     if (return_value == 0) {
         for (size_t i = 0; i < glob_result.gl_pathc; ++i) {
             result.push_back(std::string(glob_result.gl_pathv[i]));

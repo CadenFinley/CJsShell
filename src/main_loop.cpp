@@ -1,8 +1,8 @@
 #include "main_loop.h"
 
-#include <errno.h>
+#include <cerrno>
 #include <fcntl.h>
-#include <signal.h>
+#include <csignal>
 #include <sys/types.h>
 #include <termios.h>
 #include <unistd.h>

@@ -2,7 +2,7 @@
 
 #include "builtin_help.h"
 
-#include <signal.h>
+#include <csignal>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <algorithm>

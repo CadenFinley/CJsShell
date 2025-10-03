@@ -1,7 +1,7 @@
 #include "shell.h"
 
-#include <errno.h>
-#include <string.h>
+#include <cerrno>
+#include <cstring>
 #include <sys/types.h>
 #include <unistd.h>
 #include <algorithm>
@@ -12,6 +12,7 @@
 #include <mutex>
 #include <sstream>
 #include <string_view>
+#include <system_error>
 #include <unordered_map>
 
 #include "builtin.h"
@@ -323,11 +324,11 @@ void Shell::setup_job_control() {
 
     if (setpgid(shell_pgid, shell_pgid) < 0) {
         if (errno != EPERM) {
-            print_error(
-                {ErrorType::RUNTIME_ERROR,
-                 "setpgid",
-                 "couldn't put the shell in its own process group: " + std::string(strerror(errno)),
-                 {}});
+            const auto error_text = std::system_category().message(errno);
+            print_error({ErrorType::RUNTIME_ERROR,
+                         "setpgid",
+                         "couldn't put the shell in its own process group: " + error_text,
+                         {}});
         }
     }
 
@@ -337,9 +338,10 @@ void Shell::setup_job_control() {
         int tpgrp = tcgetpgrp(shell_terminal);
         if (tpgrp != -1) {
             if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
+                const auto error_text = std::system_category().message(errno);
                 print_error({ErrorType::RUNTIME_ERROR,
                              "tcsetpgrp",
-                             "couldn't grab terminal control: " + std::string(strerror(errno)),
+                             "couldn't grab terminal control: " + error_text,
                              {}});
             }
         }

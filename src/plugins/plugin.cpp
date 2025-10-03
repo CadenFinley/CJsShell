@@ -958,7 +958,7 @@ std::string Plugin::get_file_architecture(const std::filesystem::path& path) con
     char buffer[128];
     std::string output = "";
     while (!feof(pipe)) {
-        if (fgets(buffer, 128, pipe) != NULL) {
+    if (fgets(buffer, 128, pipe) != nullptr) {
             output += buffer;
         }
     }
@@ -994,7 +994,7 @@ bool Plugin::is_rosetta_translated() const {
 #ifdef __APPLE__
     int ret = 0;
     size_t size = sizeof(ret);
-    if (sysctlbyname("sysctl.proc_translated", &ret, &size, NULL, 0) != -1) {
+    if (sysctlbyname("sysctl.proc_translated", &ret, &size, nullptr, 0) != -1) {
         return ret == 1;
     }
 #endif

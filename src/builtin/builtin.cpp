@@ -3,7 +3,6 @@
 #include "builtin_help.h"
 
 #include <fcntl.h>
-#include <limits.h>
 #include <sys/wait.h>
 #include <unistd.h>
 

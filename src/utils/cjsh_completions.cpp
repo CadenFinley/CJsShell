@@ -1085,8 +1085,8 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
 
                                 std::string completion_text = bookmark_name;
 
-                                if (!safe_add_completion_prim_with_source(
-                                        cenv, completion_text.c_str(), NULL, NULL, "bookmark",
+                if (!safe_add_completion_prim_with_source(
+                    cenv, completion_text.c_str(), nullptr, nullptr, "bookmark",
                                         delete_before, 0))
                                     return;
                             }
@@ -1202,14 +1202,14 @@ void initialize_completion_system() {
     load_custom_styles_from_config();
 
     if (config::completions_enabled) {
-        ic_set_default_completer(cjsh_default_completer, NULL);
+    ic_set_default_completer(cjsh_default_completer, nullptr);
         ic_enable_completion_preview(true);
         ic_enable_hint(true);
         ic_set_hint_delay(0);
         ic_enable_auto_tab(false);
         ic_enable_completion_preview(true);
     } else {
-        ic_set_default_completer(nullptr, NULL);
+    ic_set_default_completer(nullptr, nullptr);
         ic_enable_completion_preview(false);
         ic_enable_hint(false);
         ic_enable_auto_tab(false);
@@ -1217,10 +1217,10 @@ void initialize_completion_system() {
 
     if (config::syntax_highlighting_enabled) {
         SyntaxHighlighter::initialize();
-        ic_set_default_highlighter(SyntaxHighlighter::highlight, NULL);
+    ic_set_default_highlighter(SyntaxHighlighter::highlight, nullptr);
         ic_enable_highlight(true);
     } else {
-        ic_set_default_highlighter(nullptr, NULL);
+    ic_set_default_highlighter(nullptr, nullptr);
         ic_enable_highlight(false);
     }
 
@@ -1228,7 +1228,7 @@ void initialize_completion_system() {
     ic_enable_inline_help(false);
     ic_enable_multiline_indent(true);
     ic_enable_multiline(true);
-    ic_set_prompt_marker("", NULL);
+    ic_set_prompt_marker("", nullptr);
     if (!enforce_history_limit_internal(nullptr)) {
         std::cerr << "cjsh: warning: failed to enforce history limit; history file may exceed the "
                      "configured size."
