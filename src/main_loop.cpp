@@ -1,12 +1,12 @@
 #include "main_loop.h"
 
-#include <cerrno>
 #include <fcntl.h>
-#include <csignal>
 #include <sys/types.h>
 #include <termios.h>
 #include <unistd.h>
 #include <cctype>
+#include <cerrno>
+#include <csignal>
 #include <cstdio>
 #include <iostream>
 
@@ -28,7 +28,7 @@
 #include "theme.h"
 #include "typeahead.h"
 
-void notify_plugins(const std::string& trigger, const std::string& data) {
+static void notify_plugins(const std::string& trigger, const std::string& data) {
     if (g_plugin == nullptr) {
         return;
     }
@@ -45,7 +45,7 @@ struct TerminalStatus {
     bool parent_alive;
 };
 
-enum class TerminalCheckLevel {
+enum class TerminalCheckLevel : std::uint8_t {
     QUICK,
     RESPONSIVE,
     COMPREHENSIVE
@@ -58,7 +58,7 @@ TerminalStatus check_terminal_health(TerminalCheckLevel level = TerminalCheckLev
         return status;
     }
 
-    if (!isatty(STDIN_FILENO) || !isatty(STDOUT_FILENO)) {
+    if ((isatty(STDIN_FILENO) == 0) || (isatty(STDOUT_FILENO) == 0)) {
         status.terminal_alive = false;
         return status;
     }
@@ -68,7 +68,7 @@ TerminalStatus check_terminal_health(TerminalCheckLevel level = TerminalCheckLev
     }
 
     fd_set readfds;
-    struct timeval timeout;
+    struct timeval timeout{};
     FD_ZERO(&readfds);
     FD_SET(STDIN_FILENO, &readfds);
     timeout.tv_sec = 0;
@@ -76,12 +76,13 @@ TerminalStatus check_terminal_health(TerminalCheckLevel level = TerminalCheckLev
 
     int result = select(STDIN_FILENO + 1, &readfds, nullptr, nullptr, &timeout);
     if (result > 0 && FD_ISSET(STDIN_FILENO, &readfds)) {
-        char test_buf;
+        char test_buf = 0;
         ssize_t bytes = read(STDIN_FILENO, &test_buf, 0);
         if (bytes == 0) {
             status.terminal_alive = false;
             return status;
-        } else if (bytes < 0 && (errno == ECONNRESET || errno == EIO || errno == ENXIO)) {
+        }
+        if (bytes < 0 && (errno == ECONNRESET || errno == EIO || errno == ENXIO)) {
             status.terminal_alive = false;
             return status;
         }
@@ -91,7 +92,7 @@ TerminalStatus check_terminal_health(TerminalCheckLevel level = TerminalCheckLev
         return status;
     }
 
-    if (!isatty(STDERR_FILENO)) {
+    if (isatty(STDERR_FILENO) == 0) {
         status.terminal_alive = false;
         return status;
     }
@@ -111,9 +112,7 @@ TerminalStatus check_terminal_health(TerminalCheckLevel level = TerminalCheckLev
     }
 
     pid_t parent_pid = getppid();
-    if (parent_pid == 1) {
-        status.parent_alive = false;
-    } else if (kill(parent_pid, 0) == -1 && errno == ESRCH) {
+    if (parent_pid == 1 || (kill(parent_pid, 0) == -1 && errno == ESRCH)) {
         status.parent_alive = false;
     }
 
@@ -136,7 +135,7 @@ bool process_command_line(const std::string& command) {
     setenv("?", status_str.c_str(), 1);
 
 #ifdef __APPLE__
-    malloc_zone_pressure_relief(nullptr, 0);
+    (void)malloc_zone_pressure_relief(nullptr, 0);
 #elif defined(__linux__)
     malloc_trim(0);
 #else
@@ -149,20 +148,20 @@ bool process_command_line(const std::string& command) {
     }
 
     if (g_theme && g_theme->newline_after_execution()) {
-        std::fputc('\n', stdout);
-        std::fflush(stdout);
+        (void)std::fputc('\n', stdout);
+        (void)std::fflush(stdout);
     }
 
     return g_exit_flag;
 }
 }  // namespace
 
-void update_terminal_title() {
+static void update_terminal_title() {
     std::cout << "\033]0;" << g_shell->get_title_prompt() << "\007";
     std::cout.flush();
 }
 
-bool perform_terminal_check() {
+static bool perform_terminal_check() {
     TerminalStatus status = check_terminal_health(TerminalCheckLevel::QUICK);
     if (!status.terminal_alive) {
         g_exit_flag = true;
@@ -171,14 +170,14 @@ bool perform_terminal_check() {
     return true;
 }
 
-void update_job_management() {
+static void update_job_management() {
     JobManager::instance().update_job_status();
     JobManager::instance().cleanup_finished_jobs();
 }
 
-std::string generate_prompt() {
+static std::string generate_prompt() {
     std::printf(" \r");
-    std::fflush(stdout);
+    (void)std::fflush(stdout);
 
     std::string prompt;
     if (g_shell->get_menu_active()) {
@@ -198,18 +197,17 @@ std::string generate_prompt() {
     return prompt;
 }
 
-bool handle_null_input() {
+static bool handle_null_input() {
     TerminalStatus status = check_terminal_health(TerminalCheckLevel::COMPREHENSIVE);
 
     if (!status.terminal_alive || !status.parent_alive) {
         g_exit_flag = true;
         return true;
-    } else {
-        return false;
     }
+    return false;
 }
 
-std::pair<std::string, bool> get_next_command() {
+static std::pair<std::string, bool> get_next_command() {
     std::string command_to_run;
     bool command_available = false;
 
@@ -219,7 +217,7 @@ std::pair<std::string, bool> get_next_command() {
     typeahead::flush_pending_typeahead();
 
     const std::string& pending_buffer = typeahead::get_input_buffer();
-    thread_local std::string sanitized_buffer;
+    thread_local static std::string sanitized_buffer;
     sanitized_buffer.clear();
     if (!pending_buffer.empty()) {
         sanitized_buffer.reserve(pending_buffer.size());
@@ -239,10 +237,9 @@ std::pair<std::string, bool> get_next_command() {
     if (input == nullptr) {
         if (handle_null_input()) {
             return {command_to_run, false};
-        } else {
-            g_shell->reset_command_timing();
-            return {command_to_run, false};
         }
+        g_shell->reset_command_timing();
+        return {command_to_run, false};
     }
 
     command_to_run.assign(input);
@@ -295,7 +292,7 @@ void main_process_loop() {
         notify_plugins("main_process_end", "");
         if (exit_requested || g_exit_flag) {
             if (g_exit_flag) {
-                std::cerr << "Exiting main process loop..." << std::endl;
+                std::cerr << "Exiting main process loop..." << '\n';
             }
             break;
         }

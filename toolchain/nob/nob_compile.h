@@ -342,7 +342,8 @@ static inline bool add_compile_command_entry(Compile_Command_List* list, Nob_Cmd
     if (output != NULL) {
         entry.output = strdup(output);
         if (entry.output == NULL) {
-            nob_log(NOB_ERROR, "Failed to duplicate object path for compile_commands entry: %s", file);
+            nob_log(NOB_ERROR, "Failed to duplicate object path for compile_commands entry: %s",
+                    file);
             free_compile_command_entry(&entry);
             return false;
         }
@@ -866,8 +867,7 @@ static inline bool compile_cjsh(int override_parallel_jobs, bool generate_compil
             nob_log(NOB_ERROR, "Failed to write compile_commands.json");
         }
     } else if (generate_compile_commands && !capture_compile_commands) {
-        nob_log(NOB_WARNING,
-                "Skipping compile_commands.json generation due to previous errors");
+        nob_log(NOB_WARNING, "Skipping compile_commands.json generation due to previous errors");
     }
 
     free_compile_command_list(&compile_command_list);

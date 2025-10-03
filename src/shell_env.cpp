@@ -5,7 +5,6 @@
 #include <unistd.h>
 
 #include <filesystem>
-#include <iostream>
 
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
@@ -14,7 +13,7 @@
 namespace cjsh_env {
 
 void setup_environment_variables(const char* argv0) {
-    if (argv0) {
+    if (argv0 != nullptr) {
         setenv("0", argv0, 1);
     } else {
         setenv("0", "cjsh", 1);
@@ -36,7 +35,7 @@ void setup_environment_variables(const char* argv0) {
 
 void setup_path_variables(const struct passwd* pw) {
     const char* path_env = getenv("PATH");
-    if (!path_env || path_env[0] == '\0') {
+    if ((path_env == nullptr) || path_env[0] == '\0') {
         setenv("PATH", "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin", 1);
     }
 
@@ -45,9 +44,6 @@ void setup_path_variables(const struct passwd* pw) {
     (void)pw;
 
     if (config::login_mode && cjsh_filesystem::file_exists("/usr/libexec/path_helper")) {
-        std::string old_path = getenv("PATH") ? getenv("PATH") : "";
-        std::string old_manpath = getenv("MANPATH") ? getenv("MANPATH") : "";
-
         if (g_shell) {
             int result = g_shell->execute("eval \"$(/usr/libexec/path_helper -s)\"");
             (void)result;
@@ -127,7 +123,7 @@ std::vector<std::pair<const char*, const char*>> setup_user_system_vars(const st
     env_vars.emplace_back("IFS", " \t\n");
 
     const char* lang_env = getenv("LANG");
-    if (!lang_env || lang_env[0] == '\0') {
+    if ((lang_env == nullptr) || lang_env[0] == '\0') {
         env_vars.emplace_back("LANG", "en_US.UTF-8");
     }
 

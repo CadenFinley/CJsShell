@@ -2,18 +2,16 @@
 
 #include "builtin_help.h"
 
-#include <csignal>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <algorithm>
 #include <chrono>
+#include <csignal>
 #include <iomanip>
 #include <iostream>
 #include <memory>
 
-#include "cjsh.h"
 #include "error_out.h"
-#include "shell.h"
 
 JobManager& JobManager::instance() {
     static JobManager instance;
@@ -62,6 +60,7 @@ std::shared_ptr<JobControlJob> JobManager::get_job_by_pgid(pid_t pgid) {
 
 std::vector<std::shared_ptr<JobControlJob>> JobManager::get_all_jobs() {
     std::vector<std::shared_ptr<JobControlJob>> result;
+    result.reserve(jobs.size());
     for (const auto& pair : jobs) {
         result.push_back(pair.second);
     }
@@ -78,7 +77,7 @@ void JobManager::update_job_status() {
     for (auto& pair : jobs) {
         auto job = pair.second;
 
-        int status;
+        int status = 0;
         for (pid_t pid : job->pids) {
             pid_t result = waitpid(pid, &status, WNOHANG | WUNTRACED | WCONTINUED);
 
@@ -117,10 +116,9 @@ void JobManager::cleanup_finished_jobs() {
         if (job->state == JobState::DONE || job->state == JobState::TERMINATED) {
             if (!job->notified) {
                 if (job->state == JobState::DONE) {
-                    std::cerr << "\n[" << job->job_id << "] Done\t" << job->command << std::endl;
+                    std::cerr << "\n[" << job->job_id << "] Done\t" << job->command << '\n';
                 } else {
-                    std::cerr << "\n[" << job->job_id << "] Terminated\t" << job->command
-                              << std::endl;
+                    std::cerr << "\n[" << job->job_id << "] Terminated\t" << job->command << '\n';
                 }
                 job->notified = true;
             }
@@ -219,7 +217,7 @@ static int parse_signal(const std::string& signal_str) {
     if (signal_str.empty())
         return SIGTERM;
 
-    if (std::isdigit(signal_str[0])) {
+    if (std::isdigit(signal_str[0]) != 0) {
         try {
             return std::stoi(signal_str);
         } catch (...) {
@@ -290,16 +288,17 @@ int jobs_command(const std::vector<std::string>& args) {
     for (const auto& job : jobs) {
         if (pid_only) {
             for (pid_t pid : job->pids) {
-                std::cout << pid << std::endl;
+                std::cout << pid << '\n';
             }
             continue;
         }
 
         std::string status_char = " ";
-        if (job->job_id == current)
+        if (job->job_id == current) {
             status_char = "+";
-        else if (job->job_id == previous)
+        } else if (job->job_id == previous) {
             status_char = "-";
+        }
 
         std::string state_str;
         switch (job->state) {
@@ -323,7 +322,7 @@ int jobs_command(const std::vector<std::string>& args) {
             std::cout << std::setw(8) << job->pids[0] << " ";
         }
 
-        std::cout << std::setw(12) << std::left << state_str << " " << job->command << std::endl;
+        std::cout << std::setw(12) << std::left << state_str << " " << job->command << '\n';
 
         job->notified = true;
     }
@@ -366,7 +365,7 @@ int fg_command(const std::vector<std::string>& args) {
         return 1;
     }
 
-    if (isatty(STDIN_FILENO)) {
+    if (isatty(STDIN_FILENO) != 0) {
         if (tcsetpgrp(STDIN_FILENO, job->pgid) < 0) {
             perror("fg: tcsetpgrp");
             return 1;
@@ -383,24 +382,26 @@ int fg_command(const std::vector<std::string>& args) {
     job->state = JobState::RUNNING;
     job_manager.set_current_job(job_id);
 
-    std::cout << job->command << std::endl;
+    std::cout << job->command << '\n';
 
-    int status;
+    int status = 0;
     for (pid_t pid : job->pids) {
         waitpid(pid, &status, WUNTRACED);
     }
 
-    if (isatty(STDIN_FILENO)) {
+    if (isatty(STDIN_FILENO) != 0) {
         tcsetpgrp(STDIN_FILENO, getpgrp());
     }
 
     if (WIFEXITED(status)) {
         job_manager.remove_job(job_id);
         return WEXITSTATUS(status);
-    } else if (WIFSTOPPED(status)) {
+    }
+    if (WIFSTOPPED(status)) {
         job->state = JobState::STOPPED;
         return 128 + WSTOPSIG(status);
-    } else if (WIFSIGNALED(status)) {
+    }
+    if (WIFSIGNALED(status)) {
         job_manager.remove_job(job_id);
         return 128 + WTERMSIG(status);
     }
@@ -458,7 +459,7 @@ int bg_command(const std::vector<std::string>& args) {
     }
 
     job->state = JobState::RUNNING;
-    std::cout << "[" << job_id << "]+ " << job->command << " &" << std::endl;
+    std::cout << "[" << job_id << "]+ " << job->command << " &" << '\n';
 
     return 0;
 }
@@ -477,7 +478,7 @@ int wait_command(const std::vector<std::string>& args) {
 
         for (const auto& job : jobs) {
             if (job->state == JobState::RUNNING) {
-                int status;
+                int status = 0;
                 for (pid_t pid : job->pids) {
                     if (waitpid(pid, &status, 0) > 0) {
                         if (WIFEXITED(status)) {
@@ -503,11 +504,11 @@ int wait_command(const std::vector<std::string>& args) {
                 int job_id = std::stoi(target.substr(1));
                 auto job = job_manager.get_job(job_id);
                 if (!job) {
-                    std::cerr << "wait: %" << job_id << ": no such job" << std::endl;
+                    std::cerr << "wait: %" << job_id << ": no such job" << '\n';
                     return 1;
                 }
 
-                int status;
+                int status = 0;
                 for (pid_t pid : job->pids) {
                     if (waitpid(pid, &status, 0) > 0) {
                         if (WIFEXITED(status)) {
@@ -529,7 +530,7 @@ int wait_command(const std::vector<std::string>& args) {
         } else {
             try {
                 pid_t pid = std::stoi(target);
-                int status;
+                int status = 0;
                 if (waitpid(pid, &status, 0) < 0) {
                     perror("wait");
                     return 1;
@@ -575,7 +576,7 @@ int kill_command(const std::vector<std::string>& args) {
             std::cout << "HUP INT QUIT ILL TRAP ABRT BUS FPE KILL USR1 SEGV USR2 "
                          "PIPE ALRM TERM CHLD CONT STOP TSTP TTIN TTOU URG XCPU XFSZ "
                          "VTALRM PROF WINCH IO SYS"
-                      << std::endl;
+                      << '\n';
             return 0;
         }
 

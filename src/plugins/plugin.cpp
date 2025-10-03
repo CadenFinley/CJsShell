@@ -958,7 +958,7 @@ std::string Plugin::get_file_architecture(const std::filesystem::path& path) con
     char buffer[128];
     std::string output = "";
     while (!feof(pipe)) {
-    if (fgets(buffer, 128, pipe) != nullptr) {
+        if (fgets(buffer, 128, pipe) != nullptr) {
             output += buffer;
         }
     }

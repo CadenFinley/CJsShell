@@ -1,8 +1,8 @@
 #include "utils/cjsh_filesystem.h"
 
-#include <cerrno>
 #include <algorithm>
 #include <atomic>
+#include <cerrno>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -61,8 +61,7 @@ fs::path g_cjsh_path;
 Result<int> FileOperations::safe_open(const std::string& path, int flags, mode_t mode) {
     int fd = ::open(path.c_str(), flags, mode);
     if (fd == -1) {
-        return Result<int>::error("Failed to open file '" + path +
-                                  "': " + describe_errno(errno));
+        return Result<int>::error("Failed to open file '" + path + "': " + describe_errno(errno));
     }
     return Result<int>::ok(fd);
 }
@@ -70,8 +69,7 @@ Result<int> FileOperations::safe_open(const std::string& path, int flags, mode_t
 Result<void> FileOperations::safe_dup2(int oldfd, int newfd) {
     if (::dup2(oldfd, newfd) == -1) {
         return Result<void>::error("Failed to duplicate file descriptor " + std::to_string(oldfd) +
-                                   " to " + std::to_string(newfd) + ": " +
-                                   describe_errno(errno));
+                                   " to " + std::to_string(newfd) + ": " + describe_errno(errno));
     }
     return Result<void>::ok();
 }
@@ -400,7 +398,7 @@ bool initialize_cjsh_path() {
 #ifdef __APPLE__
     uint32_t size = PATH_MAX;
     if (_NSGetExecutablePath(path, &size) == 0) {
-    char* resolved_path = realpath(path, nullptr);
+        char* resolved_path = realpath(path, nullptr);
         if (resolved_path != nullptr) {
             g_cjsh_path = resolved_path;
             free(resolved_path);

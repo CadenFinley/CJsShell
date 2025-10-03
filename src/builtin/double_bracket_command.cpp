@@ -9,7 +9,6 @@
 #include <cstring>
 #include <regex>
 
-
 bool pattern_match(const std::string& text, const std::string& pattern) {
     std::string regex_pattern;
     for (size_t i = 0; i < pattern.size(); ++i) {

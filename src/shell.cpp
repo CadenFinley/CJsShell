@@ -1,12 +1,12 @@
 #include "shell.h"
 
-#include <cerrno>
-#include <cstring>
 #include <sys/types.h>
 #include <unistd.h>
 #include <algorithm>
 #include <cctype>
+#include <cerrno>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <mutex>
@@ -22,9 +22,9 @@
 #include "exec.h"
 #include "job_control.h"
 #include "plugin.h"
-#include "theme.h"
 #include "shell_script_interpreter.h"
 #include "suggestion_utils.h"
+#include "theme.h"
 #include "trap_command.h"
 
 namespace {

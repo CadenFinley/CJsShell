@@ -1,9 +1,9 @@
 #include "signal_handler.h"
 
-#include <csignal>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <algorithm>
+#include <csignal>
 #include <iostream>
 
 #include "cjsh.h"
@@ -116,7 +116,15 @@ const std::vector<SignalInfo> SignalHandler::s_signal_table = {
 
 SignalHandler* g_signal_handler = nullptr;
 
-SignalHandler::SignalHandler() {
+SignalHandler::SignalHandler()
+    : m_old_sigint_handler(),
+      m_old_sigchld_handler(),
+      m_old_sighup_handler(),
+      m_old_sigterm_handler(),
+      m_old_sigquit_handler(),
+      m_old_sigtstp_handler(),
+      m_old_sigttin_handler(),
+      m_old_sigttou_handler() {
     signal_unblock_all();
     s_instance.store(this);
 }
@@ -153,7 +161,7 @@ int SignalHandler::name_to_signal(const std::string& name) {
     }
 
     for (char& c : search_name) {
-        c = toupper(c);
+        c = static_cast<char>(toupper(static_cast<unsigned char>(c)));
     }
 
     for (const auto& signal : s_signal_table) {
@@ -179,7 +187,7 @@ bool SignalHandler::is_forked_child() {
 }
 
 void SignalHandler::signal_unblock_all() {
-    sigset_t iset;
+    sigset_t iset = 0;
     sigemptyset(&iset);
     sigprocmask(SIG_SETMASK, &iset, nullptr);
 }
@@ -189,12 +197,12 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
     (void)info;
 
     if (is_forked_child()) {
-        struct sigaction sa;
+        struct sigaction sa{};
         sa.sa_handler = SIG_DFL;
         sigemptyset(&sa.sa_mask);
         sa.sa_flags = 0;
         sigaction(signum, &sa, nullptr);
-        raise(signum);
+        (void)raise(signum);
         return;
     }
 
@@ -234,18 +242,17 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
             _exit(128 + SIGTERM);
         }
 
-#ifdef SIGWINCH
-        case SIGWINCH: {
+        default: {
+            // Handle any other signals
             break;
         }
-#endif
     }
 }
 
 void SignalHandler::setup_signal_handlers() {
-    struct sigaction sa;
+    struct sigaction sa{};
     sigemptyset(&sa.sa_mask);
-    sigset_t block_mask;
+    sigset_t block_mask = 0;
     sigfillset(&block_mask);
 
     sa.sa_handler = SIG_IGN;
@@ -271,9 +278,9 @@ void SignalHandler::setup_signal_handlers() {
 }
 
 void SignalHandler::setup_interactive_handlers() {
-    struct sigaction sa;
+    struct sigaction sa{};
     sigemptyset(&sa.sa_mask);
-    sigset_t block_mask;
+    sigset_t block_mask = 0;
     sigfillset(&block_mask);
 
     sa.sa_handler = SIG_IGN;
@@ -303,12 +310,12 @@ void SignalHandler::restore_original_handlers() {
 }
 
 void SignalHandler::process_pending_signals(Exec* shell_exec) {
-    if (s_sigint_received) {
+    if (s_sigint_received != 0) {
         s_sigint_received = 0;
 
         bool is_observed = is_signal_observed(SIGINT);
 
-        if (!is_observed && shell_exec) {
+        if (!is_observed && (shell_exec != nullptr)) {
             auto jobs = shell_exec->get_jobs();
             for (const auto& job_pair : jobs) {
                 const auto& job = job_pair.second;
@@ -321,15 +328,15 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
             }
         }
 
-        fflush(stdout);
+        (void)fflush(stdout);
     }
 
-    if (s_sigchld_received) {
+    if (s_sigchld_received != 0) {
         s_sigchld_received = 0;
 
-        if (shell_exec) {
-            pid_t pid;
-            int status;
+        if (shell_exec != nullptr) {
+            pid_t pid = 0;
+            int status = 0;
             int reaped_count = 0;
             const int max_reap_iterations = 100;
 
@@ -386,8 +393,7 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
 
             if (reaped_count >= max_reap_iterations) {
                 std::cerr << "WARNING: SIGCHLD handler hit maximum iteration limit ("
-                          << max_reap_iterations << "), breaking to prevent infinite loop"
-                          << std::endl;
+                          << max_reap_iterations << "), breaking to prevent infinite loop" << '\n';
             }
 
             // if (pid == -1 && errno == ECHILD && g_debug_mode) {
@@ -399,11 +405,11 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
         }
     }
 
-    if (s_sighup_received) {
+    if (s_sighup_received != 0) {
         s_sighup_received = 0;
         g_exit_flag = true;
 
-        if (shell_exec) {
+        if (shell_exec != nullptr) {
             shell_exec->terminate_all_child_process();
 
             auto& job_manager = JobManager::instance();
@@ -425,12 +431,12 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
         }
     }
 
-    if (s_sigterm_received) {
+    if (s_sigterm_received != 0) {
         s_sigterm_received = 0;
 
         g_exit_flag = true;
 
-        if (shell_exec) {
+        if (shell_exec != nullptr) {
             shell_exec->terminate_all_child_process();
 
             auto& job_manager = JobManager::instance();

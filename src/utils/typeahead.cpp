@@ -283,8 +283,8 @@ void ingest_typeahead_input(const std::string& raw_input) {
     if (combined.find('\x1b') != std::string::npos) {
         thread_local std::string sanitized_temp;
         sanitized_temp.clear();
-        std::size_t desired = std::clamp<std::size_t>(
-            combined.size() + kCommandReserveSlack, kDefaultInputReserve, kMaxInputReserve);
+        std::size_t desired = std::clamp<std::size_t>(combined.size() + kCommandReserveSlack,
+                                                      kDefaultInputReserve, kMaxInputReserve);
         if (sanitized_temp.capacity() < desired) {
             sanitized_temp.reserve(desired);
         }
@@ -418,10 +418,12 @@ std::string capture_available_input() {
     std::string captured_data;
     std::size_t requested_capacity = capture_reserve;
     if (queued_bytes > 0) {
-        requested_capacity = std::max<std::size_t>(requested_capacity, static_cast<std::size_t>(queued_bytes));
+        requested_capacity =
+            std::max<std::size_t>(requested_capacity, static_cast<std::size_t>(queued_bytes));
     }
     if (captured_data.capacity() < requested_capacity) {
-        captured_data.reserve(std::min<std::size_t>(requested_capacity + kCommandReserveSlack, kMaxInputReserve));
+        captured_data.reserve(
+            std::min<std::size_t>(requested_capacity + kCommandReserveSlack, kMaxInputReserve));
     }
     std::array<char, 256> buffer{};
 
@@ -462,7 +464,8 @@ std::string capture_available_input() {
         }
     }
 
-    capture_reserve = std::clamp<std::size_t>(captured_data.capacity(), kDefaultInputReserve, kMaxInputReserve);
+    capture_reserve =
+        std::clamp<std::size_t>(captured_data.capacity(), kDefaultInputReserve, kMaxInputReserve);
 
     return captured_data;
 }

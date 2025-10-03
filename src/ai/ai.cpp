@@ -754,7 +754,7 @@ void Ai::monitor_cancellation(std::atomic<bool>& loading, std::atomic<bool>& req
         tv.tv_sec = 0;
         tv.tv_usec = 100000;
 
-    int result = select(stdin_fd + 1, &readfds, nullptr, nullptr, &tv);
+        int result = select(stdin_fd + 1, &readfds, nullptr, nullptr, &tv);
 
         if (result > 0 && FD_ISSET(stdin_fd, &readfds)) {
             int c;

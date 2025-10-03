@@ -93,8 +93,8 @@ static int handle_non_interactive_mode(const std::string& script_file) {
             }
 
             print_error({error_type,
-                         script_file.c_str(),
-                         read_result.error().c_str(),
+                         script_file,
+                         read_result.error(),
                          {"Check file path and permissions"}});
             return 127;
         }
@@ -111,8 +111,12 @@ static int handle_non_interactive_mode(const std::string& script_file) {
         int code = g_shell ? g_shell->execute(script_content) : 1;
 
         const char* exit_code_str = getenv("EXIT_CODE");
-        if (exit_code_str) {
-            code = std::atoi(exit_code_str);
+        if (exit_code_str != nullptr) {
+            char* endptr = nullptr;
+            long exit_code_long = std::strtol(exit_code_str, &endptr, 10);
+            if (endptr != exit_code_str && *endptr == '\0') {
+                code = static_cast<int>(exit_code_long);
+            }
             unsetenv("EXIT_CODE");
         }
 
@@ -122,7 +126,7 @@ static int handle_non_interactive_mode(const std::string& script_file) {
     return 0;
 }
 
-void initialize_colors() {
+static void initialize_colors() {
     colors::initialize_color_support(config::colors_enabled);
 
     if (!config::colors_enabled) {
@@ -150,14 +154,9 @@ void initialize_ai() {
     if (!config::ai_enabled) {
         return;
     }
-    std::string api_key = "";
-    const char* env_key = getenv("OPENAI_API_KEY");
-    if (env_key) {
-        api_key = env_key;
-    }
-    g_ai = std::make_unique<Ai>(api_key, std::string("chat"), std::string(""),
-                                std::vector<std::string>{}, cjsh_filesystem::g_cjsh_data_path,
-                                config::ai_enabled);
+    g_ai =
+        std::make_unique<Ai>("", std::string("chat"), std::string(""), std::vector<std::string>{},
+                             cjsh_filesystem::g_cjsh_data_path, config::ai_enabled);
 }
 
 static int initialize_interactive_components() {
@@ -216,43 +215,43 @@ static void start_interactive_process() {
     }
 
     if (config::show_title_line) {
-        std::cout << " CJ's Shell v" << get_version() << " - Caden J Finley (c) 2025" << std::endl;
+        std::cout << " CJ's Shell v" << get_version() << " - Caden J Finley (c) 2025" << '\n';
         std::cout << " Created 2025 @ \033[1;35mAbilene Christian "
                      "University\033[0m"
-                  << std::endl;
+                  << '\n';
     }
 
     if (cjsh_filesystem::is_first_boot()) {
         // std::cout << " Thank you for installing CJ's Shell!" << std::endl;
-        std::cout << std::endl;
-        std::cout << " Type 'help' to see available commands and options." << std::endl;
+        std::cout << '\n';
+        std::cout << " Type 'help' to see available commands and options." << '\n';
         if (!cjsh_filesystem::file_exists(cjsh_filesystem::g_cjsh_source_path)) {
-            std::cout << " To create .cjshrc run 'cjshopt generate-source" << std::endl;
+            std::cout << " To create .cjshrc run 'cjshopt generate-source" << '\n';
         }
         if (!cjsh_filesystem::file_exists(cjsh_filesystem::g_cjsh_profile_path)) {
-            std::cout << " To create .cjprofile run 'cjshopt generate-profile" << std::endl;
+            std::cout << " To create .cjprofile run 'cjshopt generate-profile" << '\n';
         }
         if (!cjsh_filesystem::file_exists(cjsh_filesystem::g_cjsh_logout_path)) {
-            std::cout << " To create .cjsh_logout run 'cjshopt generate-logout" << std::endl;
+            std::cout << " To create .cjsh_logout run 'cjshopt generate-logout" << '\n';
         }
-        std::cout << std::endl;
+        std::cout << '\n';
         std::cout << " To suppress this help message run the command: 'touch "
-                  << cjsh_filesystem::g_cjsh_first_boot_path.string() << "'" << std::endl;
+                  << cjsh_filesystem::g_cjsh_first_boot_path.string() << "'" << '\n';
         std::cout << " To suppress the title line, put this command in .cjprofile: 'cjshopt "
                      "login-startup-arg --no-titleline'"
-                  << std::endl;
-        std::cout << " Or alternatively execute cjsh with this flag: --no-titleline" << std::endl;
-        std::cout << std::endl;
+                  << '\n';
+        std::cout << " Or alternatively execute cjsh with this flag: --no-titleline" << '\n';
+        std::cout << '\n';
         config::show_startup_time = true;
     }
 
     if (config::show_title_line && config::show_startup_time) {
-        std::cout << std::endl;
+        std::cout << '\n';
     }
 
     if (config::show_startup_time) {
         std::string startup_ms = g_shell->get_initial_duration();
-        std::cout << " Started in " << startup_ms << std::endl;
+        std::cout << " Started in " << startup_ms << '\n';
     }
 
     if (!config::startup_test) {
@@ -260,7 +259,7 @@ static void start_interactive_process() {
     }
 }
 
-void process_logout_file() {
+static void process_logout_file() {
     if (!config::secure_mode && (config::interactive_mode || config::force_interactive)) {
         const auto& logout_path = cjsh_filesystem::g_cjsh_logout_path;
         std::error_code logout_status_ec;
@@ -296,7 +295,7 @@ void cleanup_resources() {
     }
 
     if (config::interactive_mode) {
-        std::cerr << "Shutdown complete." << std::endl;
+        std::cerr << "Shutdown complete." << '\n';
     }
 }
 
@@ -323,7 +322,13 @@ int main(int argc, char* argv[]) {
     std::vector<std::string> script_args = parse_result.script_args;
 
     cjsh_filesystem::initialize_cjsh_directories();
-    std::atexit(cleanup_resources);
+    if (std::atexit(cleanup_resources) != 0) {
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "",
+                     "Failed to set exit handler",
+                     {"Resource cleanup may not occur properly"}});
+        return 1;
+    }
 
     g_shell = std::make_unique<Shell>();
 
@@ -349,8 +354,12 @@ int main(int argc, char* argv[]) {
         int code = g_shell ? g_shell->execute(config::cmd_to_execute) : 1;
 
         const char* exit_code_str = getenv("EXIT_CODE");
-        if (exit_code_str) {
-            code = std::atoi(exit_code_str);
+        if (exit_code_str != nullptr) {
+            char* endptr = nullptr;
+            long exit_code_long = std::strtol(exit_code_str, &endptr, 10);
+            if (endptr != exit_code_str && *endptr == '\0') {
+                code = static_cast<int>(exit_code_long);
+            }
             unsetenv("EXIT_CODE");
         }
 
@@ -376,12 +385,16 @@ int main(int argc, char* argv[]) {
         start_interactive_process();
     }
 
-    std::cerr << "Cleaning up resources." << std::endl;
+    std::cerr << "Cleaning up resources." << '\n';
 
     const char* exit_code_str = getenv("EXIT_CODE");
     int exit_code = 0;
-    if (exit_code_str) {
-        exit_code = std::atoi(exit_code_str);
+    if (exit_code_str != nullptr) {
+        char* endptr = nullptr;
+        long exit_code_long = std::strtol(exit_code_str, &endptr, 10);
+        if (endptr != exit_code_str && *endptr == '\0') {
+            exit_code = static_cast<int>(exit_code_long);
+        }
         unsetenv("EXIT_CODE");
     }
 

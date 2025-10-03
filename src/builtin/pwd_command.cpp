@@ -47,10 +47,7 @@ int pwd_command(const std::vector<std::string>& args) {
                 free(cwd);
             } else {
                 const auto error_text = std::system_category().message(errno);
-                print_error({ErrorType::RUNTIME_ERROR,
-                             "pwd",
-                             "getcwd failed: " + error_text,
-                             {}});
+                print_error({ErrorType::RUNTIME_ERROR, "pwd", "getcwd failed: " + error_text, {}});
                 return 1;
             }
         }
@@ -61,10 +58,7 @@ int pwd_command(const std::vector<std::string>& args) {
             free(cwd);
         } else {
             const auto error_text = std::system_category().message(errno);
-            print_error({ErrorType::RUNTIME_ERROR,
-                         "pwd",
-                         "getcwd failed: " + error_text,
-                         {}});
+            print_error({ErrorType::RUNTIME_ERROR, "pwd", "getcwd failed: " + error_text, {}});
             return 1;
         }
     }
