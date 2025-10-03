@@ -16,6 +16,7 @@ const std::unordered_set<std::string> SyntaxHighlighter::basic_unix_commands_ = 
     "cat",  "mv",    "cp",    "rm", "mkdir", "rmdir", "touch",  "grep",
     "find", "chmod", "chown", "ps", "man",   "which", "whereis"};
 std::unordered_set<std::string> SyntaxHighlighter::external_executables_;
+std::shared_mutex SyntaxHighlighter::external_cache_mutex_;
 const std::unordered_set<std::string> SyntaxHighlighter::command_operators_ = {"&&", "||", "|",
                                                                                ";"};
 
@@ -33,16 +34,24 @@ const std::unordered_set<std::string> SyntaxHighlighter::shell_built_ins_ = {
     "readonly", "read",   "umask",   "getopts", "times",    "type",     "hash"};
 
 void SyntaxHighlighter::initialize() {
+    std::unique_lock<std::shared_mutex> lock(external_cache_mutex_);
+    external_executables_.clear();
     for (const auto& e : cjsh_filesystem::read_cached_executables()) {
         external_executables_.insert(e.filename().string());
     }
 }
 
 void SyntaxHighlighter::refresh_executables_cache() {
+    std::unique_lock<std::shared_mutex> lock(external_cache_mutex_);
     external_executables_.clear();
     for (const auto& e : cjsh_filesystem::read_cached_executables()) {
         external_executables_.insert(e.filename().string());
     }
+}
+
+bool SyntaxHighlighter::is_external_command(const std::string& token) {
+    std::shared_lock<std::shared_mutex> lock(external_cache_mutex_);
+    return external_executables_.count(token) > 0;
 }
 
 bool SyntaxHighlighter::is_shell_keyword(const std::string& token) {
@@ -334,7 +343,7 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
                     ic_highlight(henv, 1, i - 1, "cjsh-builtin");
                 } else if (basic_unix_commands_.count(sub) > 0) {
                     ic_highlight(henv, 1, i - 1, "cjsh-system");
-                } else if (external_executables_.count(sub) > 0) {
+                } else if (is_external_command(sub)) {
                     ic_highlight(henv, 1, i - 1, "cjsh-installed");
                 } else {
                     ic_highlight(henv, 1, i - 1, "cjsh-unknown-command");
@@ -404,7 +413,7 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
                     ic_highlight(henv, cmd_start, token_end, "cjsh-builtin");
                 } else if (basic_unix_commands_.count(token) > 0) {
                     ic_highlight(henv, cmd_start, token_end, "cjsh-system");
-                } else if (external_executables_.count(token) > 0) {
+                } else if (is_external_command(token)) {
                     ic_highlight(henv, cmd_start, token_end, "cjsh-installed");
                 } else {
                     ic_highlight(henv, cmd_start, token_end, "cjsh-unknown-command");
@@ -463,7 +472,7 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
                         } else if (basic_unix_commands_.count(arg) > 0) {
                             ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start,
                                          "cjsh-system");
-                        } else if (external_executables_.count(arg) > 0) {
+                        } else if (is_external_command(arg)) {
                             ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start,
                                          "cjsh-installed");
                         } else {

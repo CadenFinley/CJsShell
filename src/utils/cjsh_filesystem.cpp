@@ -2,6 +2,7 @@
 
 #include <errno.h>
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -9,8 +10,10 @@
 #include <ctime>
 #include <fstream>
 #include <functional>
+#include <thread>
 #include <sstream>
 #include <string_view>
+#include <utility>
 #include <limits>
 #include <system_error>
 #include <vector>
@@ -30,6 +33,28 @@
 #endif
 
 namespace cjsh_filesystem {
+
+namespace {
+std::atomic<bool> g_cache_refresh_in_progress{false};
+std::atomic<bool> g_cache_cleanup_in_progress{false};
+
+template <typename Functor>
+void launch_async_once(std::atomic<bool>& guard, Functor&& fn) {
+    bool expected = false;
+    if (!guard.compare_exchange_strong(expected, true)) {
+        return;
+    }
+
+    std::thread([task = std::forward<Functor>(fn), &guard]() mutable {
+        try {
+            task();
+        } catch (...) {
+        }
+
+        guard.store(false);
+    }).detach();
+}
+}  // namespace
 
 fs::path g_cjsh_path;
 
@@ -702,6 +727,11 @@ bool init_interactive_filesystem() {
         bool home_exists = std::filesystem::exists(g_user_home_path);
         bool history_exists = std::filesystem::exists(g_cjsh_history_path);
         bool should_refresh_cache = should_refresh_executable_cache();
+        std::error_code cache_ec;
+        bool cache_exists = std::filesystem::exists(g_cjsh_found_executables_path, cache_ec);
+        if (cache_ec) {
+            cache_exists = false;
+        }
 
         if (!home_exists) {
             print_error({ErrorType::RUNTIME_ERROR,
@@ -724,11 +754,19 @@ bool init_interactive_filesystem() {
         }
 
         if (should_refresh_cache) {
-            build_executable_cache();
+            if (!cache_exists) {
+                build_executable_cache();
+            } else {
+                launch_async_once(g_cache_refresh_in_progress, []() {
+                    build_executable_cache();
+                });
+            }
         } else {
             static int cleanup_counter = 0;
             if (++cleanup_counter % 10 == 0) {
-                cleanup_stale_cache_entries();
+                launch_async_once(g_cache_cleanup_in_progress, []() {
+                    cleanup_stale_cache_entries();
+                });
             }
         }
 

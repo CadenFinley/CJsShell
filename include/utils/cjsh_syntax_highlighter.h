@@ -1,5 +1,6 @@
 #pragma once
 
+#include <shared_mutex>
 #include <string>
 #include <unordered_set>
 
@@ -15,10 +16,12 @@ class SyntaxHighlighter {
    private:
     static const std::unordered_set<std::string> basic_unix_commands_;
     static std::unordered_set<std::string> external_executables_;
+   static std::shared_mutex external_cache_mutex_;
     static const std::unordered_set<std::string> command_operators_;
     static const std::unordered_set<std::string> shell_keywords_;
     static const std::unordered_set<std::string> shell_built_ins_;
 
+   static bool is_external_command(const std::string& token);
     static bool is_shell_keyword(const std::string& token);
     static bool is_shell_builtin(const std::string& token);
     static bool is_variable_reference(const std::string& token);
