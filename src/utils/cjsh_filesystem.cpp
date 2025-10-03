@@ -661,11 +661,11 @@ bool create_source_file() {
         "\n"
     "# Key binding customization examples\n"
     "# Use 'cjshopt keybind --help' to view available key actions\n"
-    "# Example: Map Vim-style cursor movement to Ctrl+H/J/K/L\n"
-    "# cjshopt keybind set cursor-left ctrl+h\n"
-    "# cjshopt keybind set cursor-down ctrl+j\n"
-    "# cjshopt keybind set cursor-up ctrl+k\n"
-    "# cjshopt keybind set cursor-right ctrl+l\n"
+    "# Example: Map Vim-style cursor movement to Alt+H/J/K/L\n"
+    "# cjshopt keybind set cursor-left alt+h\n"
+    "# cjshopt keybind set cursor-down alt+j\n"
+    "# cjshopt keybind set cursor-up alt+k\n"
+    "# cjshopt keybind set cursor-right alt+l\n"
     "# Add these lines (without the leading #) to enable the bindings\n"
     "\n";
 
