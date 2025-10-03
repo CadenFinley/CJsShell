@@ -13,30 +13,9 @@ This is CJ's Shell! This is a fully custom login shell that I wrote after I got 
 
 > **WARNING**: CJ's Shell is not a 100% POSIX compliant shell. I also would not use it as your primary shell script interpreter. It is also super cool and you will never want to use another shell again.
 
-## What is CJ's Shell?
-
-CJ's Shell (cjsh) is a custom login shell with out of the box power. It comes with features like a built-in AI assistant who only offers help when you ask for it, a powerful plugin engine with a versatile language-agnostic plugin API, highly customizable themes, and a vibrant color engine.
-
-## Why Should You Choose CJ's Shell?
-
-- **Built-in AI Assistant**: First-class AI integration with context-aware code assistance, file searching, and multi-model support directly in your terminal; no external plugins required.
-- **Dynamic Plugin Engine**: Language-agnostic plugin API with compiled shared libraries, centralized management, and event hooks for deep integration—beyond just "sourced" scripts.
-- **Rich Theme System**: JSON-based themes with segmented prompts, dynamic variables (git status, CPU/memory usage), aligned fields managed through a built-in theme command, and optional newline-after-execution spacing when you want extra breathing room between commands.
-- **Modern Interactive Experience**: Syntax highlighting, rich, comprehensive, and dynamic completions, and clean configuration files with clear separation between login and interactive settings.
-
-## Why Developers Should Choose cjsh
-
-- **Streamlined Workflow**: AI assistance and rich tooling directly in your terminal means fewer context switches and external tools.
-- **Extensibility**: The formal plugin API lets you create powerful integrations in multiple languages, not just shell scripts.
-- **Modern UX with Familiar Syntax**: Advanced features without leaving the POSIX syntax you already know.
-- **Consistent Cross-Platform Experience**: Works consistently across macOS, Linux, and Windows (via WSL or Cygwin).
-- **Customization Without Configuration Pain**: Structured JSON themes and clean plugin management eliminate aannoying shell scripts.
-
-# Installation
-
 ## Quick Install (Recommended)
 
-The easiest way to install CJ's Shell is brew
+The easiest way to install CJ's Shell is with brew
 
 ```bash
     brew tap CadenFinley/tap
@@ -45,15 +24,20 @@ The easiest way to install CJ's Shell is brew
 
 ## Manual Installation
 
-For latest stable patch, you can build and install manually from a release on GitHub:
+To manually build cjsh:
 
-1. Download the source code from the [Releases page](https://github.com/CadenFinley/CJsShell/releases).
-2. Extract the archive and navigate to the project directory.
+1. Clone the repository:
+```bash
+    git clone https://github.com/CadenFinley/CJsShell.git
+```
+2. Change directory to the project:
+```bash
+    cd CJsShell
+```
 3. Build the project:
-
-   ```bash
+```bash
    ./toolchain/build.sh
-   ```
+```
    
 # Testing and POSIX Compliance
 
@@ -61,8 +45,7 @@ CJ's Shell includes a comprehensive test suite with over 900 POSIX compliance te
 This test can be ran from the root of the repository, and is recommended to run before setting cjsh as you default login shell.
 
 ```bash
-# Run the complete test suite
-./tests/run_shell_tests.sh
+    ./tests/run_shell_tests.sh
 ```
 
 # Third‑Party Components
