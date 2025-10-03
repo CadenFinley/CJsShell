@@ -1022,45 +1022,67 @@ void load_custom_styles_from_config() {
 }
 
 int set_max_bookmarks_command(const std::vector<std::string>& args) {
-    if (!g_startup_active) {
-        std::cout << "Usage: set-max-bookmarks <number>\n\n"
-                     "Set the maximum number of directory bookmarks to store.\n"
-                     "Default is 100. Minimum is 10. Maximum is 1000.\n\n"
-                     "Example:\n"
-                     "  set-max-bookmarks 200\n";
-    }
-    if (args.size() != 2) {
-        print_error({ErrorType::INVALID_ARGUMENT, "set-max-bookmarks",
-                     "expected 1 argument: <number>",
-                     {"Use 'set-max-bookmarks' to see usage"}});
-        return 1;
-    }
-    const std::string& number_str = args[1];
-    try {
-        int number = std::stoi(number_str);
-        if (number < 10 || number > 1000) {
-            print_error({ErrorType::INVALID_ARGUMENT, "set-max-bookmarks",  
-                         "number must be between 10 and 1000",
-                         {"Use 'set-max-bookmarks' to see usage"}});
-            return 1;
-        } else {
-            bookmark_database::g_bookmark_db.set_max_bookmarks(number);
-            if (!g_startup_active) {
-                std::cout << "Maximum bookmarks set to " << bookmark_database::g_bookmark_db.get_max_bookmarks() << ".\n";
+    static const std::vector<std::string> usage_lines = {
+        "Usage: set-max-bookmarks <number>",
+        "",
+        "Set the maximum number of directory bookmarks to store.",
+        "Default is 100. Minimum is 10. Maximum is 1000.",
+        "",
+        "Example:",
+        "  set-max-bookmarks 200"};
+
+    if (args.size() == 1) {
+        if (!g_startup_active) {
+            for (const auto& line : usage_lines) {
+                std::cout << line << '\n';
             }
         }
+        print_error({ErrorType::INVALID_ARGUMENT, "set-max-bookmarks",
+                     "expected 1 argument: <number>", usage_lines});
+        return 1;
+    }
+
+    if (args.size() > 2) {
+        print_error({ErrorType::INVALID_ARGUMENT, "set-max-bookmarks",
+                     "too many arguments provided", usage_lines});
+        return 1;
+    }
+
+    const std::string& option = args[1];
+    if (option == "--help" || option == "-h") {
+        if (!g_startup_active) {
+            for (const auto& line : usage_lines) {
+                std::cout << line << '\n';
+            }
+        }
+        return 0;
+    }
+
+    int number = 0;
+    try {
+        number = std::stoi(option);
     } catch (const std::invalid_argument&) {
-        print_error({ErrorType::INVALID_ARGUMENT, "set-max-bookmarks",  
-                     "invalid number: " + number_str,
-                     {"Use 'set-max-bookmarks' to see usage"}});
+        print_error({ErrorType::INVALID_ARGUMENT, "set-max-bookmarks",
+                     "invalid number: " + option, usage_lines});
         return 1;
     } catch (const std::out_of_range&) {
-        print_error({ErrorType::INVALID_ARGUMENT, "set-max-bookmarks",  
-                     "number out of range: " + number_str,
-                     {"Use 'set-max-bookmarks' to see usage"}});
-        return 1;   
-
+        print_error({ErrorType::INVALID_ARGUMENT, "set-max-bookmarks",
+                     "number out of range: " + option, usage_lines});
+        return 1;
     }
+
+    if (number < 10 || number > 1000) {
+        print_error({ErrorType::INVALID_ARGUMENT, "set-max-bookmarks",
+                     "number must be between 10 and 1000", usage_lines});
+        return 1;
+    }
+
+    bookmark_database::g_bookmark_db.set_max_bookmarks(number);
+    if (!g_startup_active) {
+        std::cout << "Maximum bookmarks set to "
+                  << bookmark_database::g_bookmark_db.get_max_bookmarks() << "." << std::endl;
+    }
+
     return 0;
 }
 
