@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <cstdlib>
 #include <sstream>
+#include <vector>
 
 DirectoryInfo::DirectoryInfo() {
 }

@@ -74,16 +74,6 @@ bool secure_mode = false;
 bool show_title_line = true;
 }  // namespace config
 
-// switch to sigaction when ever possible and csignal over signal.h
-// switch to cerrno when ever possible over errno.h
-// switch to cstring when ever possible over string.h
-// swtich to climits when ever possible over limits.h
-// switch to using instead of typedef
-// switch to nullptr over NULL
-// cstdint instead of stdint.h
-// cstdlib instead of stdlib.h
-// ctime instead of time.h
-
 static void save_startup_arguments(int argc, char* argv[]) {
     g_startup_args.clear();
     for (int i = 0; i < argc; i++) {
