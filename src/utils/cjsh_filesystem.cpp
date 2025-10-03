@@ -164,12 +164,18 @@ Result<std::string> FileOperations::read_command_output(const std::string& comma
 
 Result<void> FileOperations::write_file_content(const std::string& path,
                                                 const std::string& content) {
-    auto open_result = safe_open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    auto open_result = safe_open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
     if (open_result.is_error()) {
         return Result<void>::error(open_result.error());
     }
 
     int fd = open_result.value();
+    if (::fchmod(fd, S_IRUSR | S_IWUSR) == -1) {
+        std::string error_message = "Failed to set secure permissions on '" + path +
+                                    "': " + std::string(strerror(errno));
+        safe_close(fd);
+        return Result<void>::error(error_message);
+    }
     auto write_result = write_all(fd, std::string_view{content});
     safe_close(fd);
 
