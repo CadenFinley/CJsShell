@@ -17,4 +17,3 @@ const std::unordered_map<std::string, std::string>& get_custom_styles();
 int generate_profile_command(const std::vector<std::string>& args);
 int generate_rc_command(const std::vector<std::string>& args);
 int generate_logout_command(const std::vector<std::string>& args);
-int keybind_command(const std::vector<std::string>& args);

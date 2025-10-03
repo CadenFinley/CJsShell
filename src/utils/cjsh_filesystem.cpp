@@ -658,16 +658,7 @@ bool create_source_file() {
         "# cjshopt style_def comment \"italic color=green\"\n"
         "# cjshopt style_def string \"color=#F1FA8C\"\n"
         "# Run 'cjshopt style_def' for more information\n"
-        "\n"
-    "# Key binding customization examples\n"
-    "# Use 'cjshopt keybind --help' to view available key actions\n"
-    "# Example: Map Vim-style cursor movement to Ctrl+H/J/K/L\n"
-    "# cjshopt keybind set cursor-left ctrl+h\n"
-    "# cjshopt keybind set cursor-down ctrl+j\n"
-    "# cjshopt keybind set cursor-up ctrl+k\n"
-    "# cjshopt keybind set cursor-right ctrl+l\n"
-    "# Add these lines (without the leading #) to enable the bindings\n"
-    "\n";
+        "\n";
 
     auto write_result =
         FileOperations::write_file_content(g_cjsh_source_path.string(), source_content);
