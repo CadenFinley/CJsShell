@@ -156,7 +156,7 @@ std::string PromptInfo::get_basic_ai_prompt() {
 }
 
 std::string PromptInfo::get_basic_title() {
-    return "cjsh v" + c_version + " " + get_current_file_path();
+    return "cjsh v" + get_version() + " " + get_current_file_path();
 }
 
 bool PromptInfo::is_variable_used(const std::string& var_name,

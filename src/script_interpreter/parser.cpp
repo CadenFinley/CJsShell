@@ -96,7 +96,7 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
     };
 
     std::vector<std::string> lines;
-    lines.reserve(32);
+    lines.reserve(4);
     size_t start = 0;
     bool in_quotes = false;
     char quote_char = '\0';
@@ -107,11 +107,11 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
     size_t here_doc_operator_len = 0;
     size_t here_doc_delim_end_pos = std::string::npos;
     std::string here_doc_delimiter;
-    here_doc_delimiter.reserve(64);
+    here_doc_delimiter.reserve(32);
     std::string here_doc_content;
-    here_doc_content.reserve(1024);
+    here_doc_content.reserve(256);
     std::string current_here_doc_line;
-    current_here_doc_line.reserve(256);
+    current_here_doc_line.reserve(128);
 
     auto add_here_doc_placeholder_line = [&](std::string before, std::string rest) {
         std::string placeholder = "HEREDOC_PLACEHOLDER_" + std::to_string(lines.size());
@@ -737,9 +737,9 @@ void expand_command_paths_with_home(Command& cmd, const std::string& home) {
 
 std::vector<std::string> tokenize_command(const std::string& cmdline) {
     std::vector<std::string> tokens;
-    tokens.reserve(16);
+    tokens.reserve(8);
     std::string current_token;
-    current_token.reserve(128);
+    current_token.reserve(64);
     bool in_quotes = false;
     char quote_char = '\0';
     bool escaped = false;

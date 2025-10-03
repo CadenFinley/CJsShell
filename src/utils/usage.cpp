@@ -6,7 +6,7 @@
 
 void print_usage() {
     std::cout << "Usage: cjsh [options]\n"
-              << "CJ's Shell version " << c_version << "\n\n"
+              << "CJ's Shell version " << get_version() << "\n\n"
               << "Options:\n"
               << "  -l, --login                Start as a login shell\n"
               << "  -i, --interactive          Force interactive mode\n"

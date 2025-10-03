@@ -11,7 +11,10 @@ class Plugin;
 
 const bool PRE_RELEASE = true;
 // using semver.org principles MAJOR.MINOR.PATCH
-const std::string c_version = std::string("3.6.1") + (PRE_RELEASE ? " (pre-release)" : "");
+constexpr const char* c_version_base = "3.6.1";
+inline std::string get_version() {
+    return std::string(c_version_base) + (PRE_RELEASE ? " (pre-release)" : "");
+}
 
 #ifndef CJSH_GIT_HASH
 #define CJSH_GIT_HASH "unknown"

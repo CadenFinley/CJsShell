@@ -60,7 +60,7 @@
 #include "which_command.h"
 
 Built_ins::Built_ins() : shell(nullptr) {
-    builtins.reserve(64);
+    builtins.reserve(32);
 
     auto load_result = bookmark_database::g_bookmark_db.load();
     if (load_result.is_error()) {

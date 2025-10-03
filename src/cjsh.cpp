@@ -139,15 +139,24 @@ void initialize_colors() {
 }
 
 void initialize_plugins() {
+    if (!config::plugins_enabled) {
+        return;
+    }
     g_plugin = std::make_unique<Plugin>(cjsh_filesystem::g_cjsh_plugin_path,
                                         config::plugins_enabled, true);
 }
 
 void initialize_themes() {
+    if (!config::themes_enabled) {
+        return;
+    }
     g_theme = std::make_unique<Theme>(cjsh_filesystem::g_cjsh_theme_path, config::themes_enabled);
 }
 
 void initialize_ai() {
+    if (!config::ai_enabled) {
+        return;
+    }
     std::string api_key = "";
     const char* env_key = getenv("OPENAI_API_KEY");
     if (env_key) {
@@ -217,7 +226,7 @@ static void start_interactive_process() {
     }
 
     if (config::show_title_line) {
-        std::cout << " CJ's Shell v" << c_version << " - Caden J Finley (c) 2025" << std::endl;
+        std::cout << " CJ's Shell v" << get_version() << " - Caden J Finley (c) 2025" << std::endl;
         std::cout << " Created 2025 @ \033[1;35mAbilene Christian "
                      "University\033[0m"
                   << std::endl;

@@ -156,7 +156,8 @@ std::vector<std::pair<const char*, const char*>> setup_user_system_vars(const st
     std::string status_str = std::to_string(0);
     setenv("?", status_str.c_str(), 1);
 
-    env_vars.emplace_back("CJSH_VERSION", c_version.c_str());
+    auto version_str = get_version();
+    env_vars.emplace_back("CJSH_VERSION", version_str.c_str());
 
     return env_vars;
 }

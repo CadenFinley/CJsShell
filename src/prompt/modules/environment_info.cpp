@@ -134,6 +134,5 @@ std::string EnvironmentInfo::get_shell() {
 }
 
 std::string EnvironmentInfo::get_shell_version() {
-    extern const std::string c_version;
-    return c_version;
+    return get_version();
 }
