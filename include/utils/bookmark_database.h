@@ -8,6 +8,7 @@
 
 namespace bookmark_database {
 
+
 struct BookmarkEntry {
     std::string path;
     std::chrono::system_clock::time_point added_time;
@@ -34,6 +35,7 @@ class BookmarkDatabase {
     cjsh_filesystem::Result<void> add_bookmark(const std::string& name, const std::string& path);
     cjsh_filesystem::Result<void> remove_bookmark(const std::string& name);
     std::optional<std::string> get_bookmark(const std::string& name);
+    bool has_bookmark(const std::string& name) const;
 
     std::unordered_map<std::string, std::string> get_all_bookmarks();
     std::vector<std::string> search_bookmarks(const std::string& pattern);
@@ -58,6 +60,7 @@ class BookmarkDatabase {
     cjsh_filesystem::Result<void> from_text_format(const std::string& text_content);
     std::string time_to_iso_string(const std::chrono::system_clock::time_point& tp) const;
     std::chrono::system_clock::time_point time_from_iso_string(const std::string& iso_str) const;
+    void enforce_bookmark_limit();
 };
 
 extern BookmarkDatabase g_bookmark_db;

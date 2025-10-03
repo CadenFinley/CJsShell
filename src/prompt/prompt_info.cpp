@@ -165,11 +165,17 @@ bool PromptInfo::is_variable_used(const std::string& var_name,
 
     static std::unordered_map<std::string, bool> cache;
     static std::mutex cache_mutex;
+    static constexpr size_t MAX_CACHE_SIZE = 10;
 
     std::string cache_key = var_name + "_" + std::to_string(segments.size());
 
     {
         std::lock_guard<std::mutex> lock(cache_mutex);
+        
+        if (cache.size() > MAX_CACHE_SIZE) {
+            cache.clear();
+        }
+        
         auto it = cache.find(cache_key);
         if (it != cache.end()) {
             return it->second;
@@ -199,8 +205,63 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
         version_cache;
     static std::mutex cache_mutex;
     static const std::chrono::seconds CACHE_DURATION(30);
+    static constexpr size_t MAX_CACHE_SIZE = 100;
 
     auto now = std::chrono::steady_clock::now();
+
+    {
+        std::lock_guard<std::mutex> lock(cache_mutex);
+        
+        if (language_cache.size() > MAX_CACHE_SIZE) {
+            for (auto it = language_cache.begin(); it != language_cache.end();) {
+                if ((now - it->second.second) >= CACHE_DURATION) {
+                    it = language_cache.erase(it);
+                } else {
+                    ++it;
+                }
+            }
+            
+            if (language_cache.size() > MAX_CACHE_SIZE) {
+                std::vector<std::pair<std::string, std::chrono::steady_clock::time_point>> entries;
+                entries.reserve(language_cache.size());
+                for (const auto& [key, value] : language_cache) {
+                    entries.emplace_back(key, value.second);
+                }
+                std::sort(entries.begin(), entries.end(),
+                         [](const auto& a, const auto& b) { return a.second < b.second; });
+                
+                size_t to_remove = language_cache.size() - (MAX_CACHE_SIZE * 3 / 4);
+                for (size_t i = 0; i < to_remove && i < entries.size(); ++i) {
+                    language_cache.erase(entries[i].first);
+                }
+            }
+        }
+        
+        if (version_cache.size() > MAX_CACHE_SIZE) {
+            for (auto it = version_cache.begin(); it != version_cache.end();) {
+                if ((now - it->second.second) >= CACHE_DURATION) {
+                    it = version_cache.erase(it);
+                } else {
+                    ++it;
+                }
+            }
+            
+            if (version_cache.size() > MAX_CACHE_SIZE) {
+                std::vector<std::pair<std::string, std::chrono::steady_clock::time_point>> entries;
+                entries.reserve(version_cache.size());
+                for (const auto& [key, value] : version_cache) {
+                    entries.emplace_back(key, value.second);
+                }
+                std::sort(entries.begin(), entries.end(),
+                         [](const auto& a, const auto& b) { return a.second < b.second; });
+                
+                size_t to_remove = version_cache.size() - (MAX_CACHE_SIZE * 3 / 4);
+                for (size_t i = 0; i < to_remove && i < entries.size(); ++i) {
+                    version_cache.erase(entries[i].first);
+                }
+            }
+        }
+    }
 
     std::unordered_map<std::string, std::string> vars;
 

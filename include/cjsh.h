@@ -11,7 +11,7 @@ class Plugin;
 
 const bool PRE_RELEASE = true;
 // using semver.org principles MAJOR.MINOR.PATCH
-constexpr const char* c_version_base = "3.6.1";
+constexpr const char* c_version_base = "3.7.0";
 inline std::string get_version() {
     return std::string(c_version_base) + (PRE_RELEASE ? " (pre-release)" : "");
 }

@@ -216,6 +216,8 @@ cjsh_filesystem::Result<void> BookmarkDatabase::add_bookmark(const std::string& 
             bookmarks_[name] = entry;
         }
 
+        enforce_bookmark_limit();
+
         dirty_ = true;
         return cjsh_filesystem::Result<void>::ok();
 
@@ -246,6 +248,10 @@ std::optional<std::string> BookmarkDatabase::get_bookmark(const std::string& nam
     dirty_ = true;
 
     return it->second.path;
+}
+
+bool BookmarkDatabase::has_bookmark(const std::string& name) const {
+    return bookmarks_.find(name) != bookmarks_.end();
 }
 
 std::unordered_map<std::string, std::string> BookmarkDatabase::get_all_bookmarks() {
@@ -383,6 +389,33 @@ cjsh_filesystem::Result<void> BookmarkDatabase::import_from_map(
     }
 
     return cjsh_filesystem::Result<void>::ok();
+}
+
+void BookmarkDatabase::enforce_bookmark_limit() {
+    if (bookmarks_.size() <= MAX_BOOKMARKS) {
+        return;
+    }
+
+    size_t target_size = static_cast<size_t>(MAX_BOOKMARKS * 0.9);
+    size_t to_remove = bookmarks_.size() - target_size;
+
+    std::vector<std::pair<std::string, std::chrono::system_clock::time_point>> bookmark_times;
+    bookmark_times.reserve(bookmarks_.size());
+    
+    for (const auto& [name, entry] : bookmarks_) {
+        bookmark_times.emplace_back(name, entry.last_accessed);
+    }
+
+    std::sort(bookmark_times.begin(), bookmark_times.end(),
+              [](const auto& a, const auto& b) {
+                  return a.second < b.second;
+              });
+
+    for (size_t i = 0; i < to_remove && i < bookmark_times.size(); ++i) {
+        bookmarks_.erase(bookmark_times[i].first);
+    }
+
+    dirty_ = true;
 }
 
 }  // namespace bookmark_database

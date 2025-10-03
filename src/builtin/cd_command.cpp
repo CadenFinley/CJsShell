@@ -222,17 +222,25 @@ int change_directory_smart(const std::string& dir, std::string& current_director
 
         previous_directory = old_directory;
 
+        // Only add bookmark if:
+        // 1. We didn't navigate using an existing bookmark
+        // 2. This wasn't an absolute path (we bookmark relative navigation)
+        // 3. The directory basename doesn't already have a bookmark
         if (!used_bookmark && !std::filesystem::path(target_dir).is_absolute()) {
             std::filesystem::path path(current_directory);
             std::string basename = path.filename().string();
             if (!basename.empty() && basename != "." && basename != "..") {
-                auto add_result =
-                    bookmark_database::g_bookmark_db.add_bookmark(basename, current_directory);
-                if (add_result.is_error()) {
-                    print_error({ErrorType::RUNTIME_ERROR,
-                                 "cd",
-                                 "Failed to update bookmark: " + add_result.error(),
-                                 {}});
+                // Only add if this bookmark name doesn't already exist
+                // This avoids redundant updates and memory churn
+                if (!bookmark_database::g_bookmark_db.has_bookmark(basename)) {
+                    auto add_result =
+                        bookmark_database::g_bookmark_db.add_bookmark(basename, current_directory);
+                    if (add_result.is_error()) {
+                        print_error({ErrorType::RUNTIME_ERROR,
+                                     "cd",
+                                     "Failed to update bookmark: " + add_result.error(),
+                                     {}});
+                    }
                 }
             }
         }
