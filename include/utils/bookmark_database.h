@@ -8,8 +8,6 @@
 
 namespace bookmark_database {
 
-constexpr size_t MAX_BOOKMARKS = 10;
-
 struct BookmarkEntry {
     std::string path;
     std::chrono::system_clock::time_point added_time;
@@ -33,6 +31,15 @@ class BookmarkDatabase {
     cjsh_filesystem::Result<void> load();
     cjsh_filesystem::Result<void> save();
 
+    void set_max_bookmarks(size_t max_bookmarks) {
+        MAX_BOOKMARKS = max_bookmarks;
+        enforce_bookmark_limit();
+    }
+
+    size_t get_max_bookmarks() const {
+        return MAX_BOOKMARKS;
+    }
+
     cjsh_filesystem::Result<void> add_bookmark(const std::string& name, const std::string& path);
     cjsh_filesystem::Result<void> remove_bookmark(const std::string& name);
     std::optional<std::string> get_bookmark(const std::string& name);
@@ -52,6 +59,8 @@ class BookmarkDatabase {
         const std::unordered_map<std::string, std::string>& old_bookmarks);
 
    private:
+
+    size_t MAX_BOOKMARKS = 10;
     std::unordered_map<std::string, BookmarkEntry> bookmarks_;
     std::string database_path_;
     bool dirty_;
@@ -78,5 +87,13 @@ inline std::optional<std::string> find_directory_bookmark(const std::string& nam
 inline std::unordered_map<std::string, std::string> get_directory_bookmarks() {
     return g_bookmark_db.get_all_bookmarks();
 }
+
+inline size_t get_max_bookmarks() {
+        return g_bookmark_db.get_max_bookmarks();
+    }
+
+inline void set_max_bookmarks(size_t max_bookmarks) {
+        g_bookmark_db.set_max_bookmarks(max_bookmarks);
+    }
 
 }  // namespace bookmark_database

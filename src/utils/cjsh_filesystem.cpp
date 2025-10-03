@@ -722,26 +722,6 @@ bool create_logout_file() {
     return true;
 }
 
-bool init_login_filesystem() {
-    try {
-        if (!std::filesystem::exists(g_user_home_path)) {
-            print_error({ErrorType::RUNTIME_ERROR,
-                         nullptr,
-                         "User home path not found",
-                         {"Check user account configuration"}});
-            return false;
-        }
-
-    } catch (const std::exception& e) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     nullptr,
-                     "Failed to initialize login filesystem",
-                     {"Check file permissions", "Reinstall cjsh"}});
-        return false;
-    }
-    return true;
-}
-
 bool init_interactive_filesystem() {
     std::string current_path = std::filesystem::current_path().string();
     setenv("PWD", current_path.c_str(), 1);

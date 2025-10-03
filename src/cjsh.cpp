@@ -83,7 +83,6 @@ bool show_title_line = true;
 
 // TODO
 // add a way to limit size of history file
-// add a way to limit size of bookmark database
 // add a way to limit size of cached executable database
 
 static void save_startup_arguments(int argc, char* argv[]) {
@@ -213,12 +212,9 @@ static void process_profile_files() {
 }
 
 static int initialize_login_mode() {
-    if (cjsh_filesystem::init_login_filesystem()) {
-        process_profile_files();
-        cjsh::CommandLineParser::apply_profile_startup_flags();
-        return 0;
-    }
-    return 1;
+    process_profile_files();
+    cjsh::CommandLineParser::apply_profile_startup_flags();
+    return 0;
 }
 
 static void start_interactive_process() {
@@ -320,6 +316,17 @@ int main(int argc, char* argv[]) {
         return parse_result.exit_code;
     }
 
+    // Handle --version and --help early to avoid unnecessary initialization
+    if (config::show_version) {
+        std::vector<std::string> empty_args;
+        return version_command(empty_args);
+    }
+
+    if (config::show_help) {
+        print_usage();
+        return 0;
+    }
+
     std::string script_file = parse_result.script_file;
     std::vector<std::string> script_args = parse_result.script_args;
 
@@ -330,16 +337,6 @@ int main(int argc, char* argv[]) {
 
     if (!script_args.empty()) {
         g_shell->set_positional_parameters(script_args);
-    }
-
-    if (config::show_version) {
-        std::vector<std::string> empty_args;
-        return version_command(empty_args);
-    }
-
-    if (config::show_help) {
-        print_usage();
-        return 0;
     }
 
     cjsh_env::setup_environment_variables(argv[0]);

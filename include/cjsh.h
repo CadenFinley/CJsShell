@@ -12,8 +12,14 @@ class Plugin;
 const bool PRE_RELEASE = true;
 // using semver.org principles MAJOR.MINOR.PATCH
 constexpr const char* c_version_base = "3.7.0";
+
+extern std::string g_cached_version;
+
 inline std::string get_version() {
-    return std::string(c_version_base) + (PRE_RELEASE ? " (pre-release)" : "");
+    if (g_cached_version.empty()) {
+        g_cached_version = std::string(c_version_base) + (PRE_RELEASE ? " (pre-release)" : "");
+    }
+    return g_cached_version;
 }
 
 #ifndef CJSH_GIT_HASH

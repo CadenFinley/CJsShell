@@ -182,7 +182,6 @@ bool create_profile_file();
 bool create_source_file();
 bool create_logout_file();
 
-bool init_login_filesystem();
 bool init_interactive_filesystem();
 
 bool is_first_boot();
