@@ -1,17 +1,13 @@
 #include "git_info.h"
 
-#include <errno.h>
 #include <fcntl.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <cstdio>
 #include <cstring>
-#include <fstream>
-#include <iostream>
 #include <sstream>
 #include <vector>
 
-#include "cjsh.h"
 #include "utils/cjsh_filesystem.h"
 
 namespace {

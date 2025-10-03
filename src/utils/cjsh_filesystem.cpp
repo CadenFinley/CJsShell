@@ -8,9 +8,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
-#include <fstream>
 #include <functional>
-#include <limits>
 #include <sstream>
 #include <string_view>
 #include <system_error>
@@ -18,9 +16,7 @@
 #include <utility>
 #include <vector>
 
-#include "cjsh.h"
 #include "error_out.h"
-#include "utils/cjsh_completions.h"
 #include "utils/cjsh_syntax_highlighter.h"
 
 #ifdef __linux__

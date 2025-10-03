@@ -2,7 +2,6 @@
 
 #include "builtin_help.h"
 
-#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <sstream>

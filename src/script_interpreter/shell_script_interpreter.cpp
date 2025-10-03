@@ -13,10 +13,8 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
-#include <iomanip>
 #include <iostream>
 #include <optional>
-#include <regex>
 #include <sstream>
 #include <stdexcept>
 #include <system_error>
@@ -33,6 +31,7 @@
 #include "shell.h"
 #include "shell_script_interpreter_utils.h"
 #include "suggestion_utils.h"
+#include "theme.h"
 
 using shell_script_interpreter::detail::process_line_for_validation;
 using shell_script_interpreter::detail::strip_inline_comment;

@@ -4,12 +4,10 @@
 
 #include <algorithm>
 #include <cstdlib>
-#include <iostream>
 #include <string>
 #include <vector>
 
 #include "cjsh.h"
-#include "trap_command.h"
 
 int exit_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(args, {"Usage: exit [-f|--force] [N]",

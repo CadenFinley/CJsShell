@@ -2,12 +2,8 @@
 
 #include <sys/stat.h>
 #include <unistd.h>
-#include <algorithm>
 #include <cstdlib>
-#include <regex>
 #include <sstream>
-
-#include "cjsh.h"
 
 DirectoryInfo::DirectoryInfo() {
 }

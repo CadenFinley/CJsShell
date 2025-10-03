@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <csignal>
 #include <iostream>
-#include <sstream>
 #include "cjsh.h"
 #include "error_out.h"
 #include "shell.h"

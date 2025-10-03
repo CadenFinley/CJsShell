@@ -5,13 +5,9 @@
 #include <climits>
 #include <cmath>
 #include <cstdlib>
-#include <fstream>
-#include <iomanip>
 #include <regex>
 #include <sstream>
 #include <unordered_map>
-
-#include "cjsh_filesystem.h"
 
 namespace colors {
 

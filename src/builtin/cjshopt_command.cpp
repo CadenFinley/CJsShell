@@ -18,8 +18,6 @@
 #include "isocline/isocline.h"
 #include "isocline/keybinding_specs.h"
 
-extern bool g_startup_active;
-
 namespace {
 void print_cjshopt_usage() {
     std::cout << "Usage: cjshopt <subcommand> [options]\n";

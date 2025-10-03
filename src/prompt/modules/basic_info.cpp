@@ -4,9 +4,6 @@
 #include <unistd.h>
 #include <cstdlib>
 #include <filesystem>
-#include <iostream>
-
-#include "cjsh.h"
 
 bool BasicInfo::is_root_path(const std::filesystem::path& path) {
     return path == path.root_path();

@@ -1,9 +1,5 @@
 #include "command_preprocessor.h"
 
-#include <iostream>
-#include <regex>
-#include <sstream>
-
 int CommandPreprocessor::placeholder_counter = 0;
 
 CommandPreprocessor::PreprocessedCommand CommandPreprocessor::preprocess(

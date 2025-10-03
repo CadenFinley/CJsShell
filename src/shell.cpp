@@ -1,7 +1,6 @@
 #include "shell.h"
 
 #include <errno.h>
-#include <signal.h>
 #include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -11,7 +10,6 @@
 #include <filesystem>
 #include <fstream>
 #include <mutex>
-#include <set>
 #include <sstream>
 #include <string_view>
 #include <unordered_map>
@@ -23,6 +21,7 @@
 #include "exec.h"
 #include "job_control.h"
 #include "plugin.h"
+#include "theme.h"
 #include "shell_script_interpreter.h"
 #include "suggestion_utils.h"
 #include "trap_command.h"

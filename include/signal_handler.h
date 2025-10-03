@@ -3,7 +3,6 @@
 #include <signal.h>
 
 #include <atomic>
-#include <functional>
 #include <string>
 #include <vector>
 

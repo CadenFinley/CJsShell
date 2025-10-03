@@ -9,13 +9,8 @@
 #include <cstdio>
 #include <cstring>
 #include <ctime>
-#include <fstream>
-#include <iomanip>
-#include <iostream>
 #include <memory>
 #include <regex>
-#include <sstream>
-#include <stdexcept>
 #include <unordered_set>
 
 #include "ai.h"

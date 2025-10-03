@@ -7,7 +7,6 @@
 #include <iostream>
 
 #include "cjsh.h"
-#include "error_out.h"
 #include "exec.h"
 #include "job_control.h"
 

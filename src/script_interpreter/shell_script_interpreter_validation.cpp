@@ -6,7 +6,6 @@
 #include <cctype>
 #include <initializer_list>
 #include <map>
-#include <regex>
 #include <sstream>
 #include <string>
 #include <utility>

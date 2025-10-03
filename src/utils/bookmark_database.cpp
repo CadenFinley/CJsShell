@@ -1,7 +1,6 @@
 #include "utils/bookmark_database.h"
 #include <algorithm>
 #include <filesystem>
-#include <fstream>
 #include <iomanip>
 #include <regex>
 #include <sstream>

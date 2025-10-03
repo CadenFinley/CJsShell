@@ -6,7 +6,6 @@
 #include <unistd.h>
 
 #include <cstring>
-#include <iostream>
 
 int test_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(args,

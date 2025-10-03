@@ -3,8 +3,6 @@
 #include <getopt.h>
 #include <unistd.h>
 
-#include <iostream>
-
 #include "cjsh.h"
 #include "error_out.h"
 #include "usage.h"

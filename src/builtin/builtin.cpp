@@ -9,9 +9,6 @@
 
 #include <cstdlib>
 #include <filesystem>
-#include <fstream>
-#include <iomanip>
-#include <iostream>
 
 #include "ai_command.h"
 #include "aihelp_command.h"

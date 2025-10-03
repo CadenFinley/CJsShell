@@ -2,7 +2,6 @@
 
 #include "builtin_help.h"
 
-#include <iostream>
 #include "error_out.h"
 #include "shell.h"
 

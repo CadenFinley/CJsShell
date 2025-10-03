@@ -2,9 +2,7 @@
 
 #include "builtin_help.h"
 
-#include <climits>
 #include <cstdlib>
-#include <iomanip>
 #include <iostream>
 #include <sstream>
 #include <string>

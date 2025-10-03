@@ -5,7 +5,6 @@
 #include <unordered_map>
 
 #include "prompt_info.h"
-#include "theme.h"
 
 enum class PromptType {
     PS1,

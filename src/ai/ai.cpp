@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <chrono>
 #include <fstream>
-#include <future>
 #include <iostream>
 #include <thread>
 
@@ -13,7 +12,6 @@
 #include "cjsh_filesystem.h"
 #include "exec.h"
 #include "http_client.h"
-#include "libintl_shim.h"
 #include "shell.h"
 
 namespace {

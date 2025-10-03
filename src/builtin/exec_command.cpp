@@ -9,7 +9,6 @@
 #include <cctype>
 #include <cerrno>
 
-#include <iostream>
 #include "error_out.h"
 #include "shell.h"
 #include "utils/cjsh_filesystem.h"

@@ -2,7 +2,6 @@
 
 #include "builtin_help.h"
 
-#include <iostream>
 #include <string>
 #include <vector>
 #include "error_out.h"

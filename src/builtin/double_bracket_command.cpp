@@ -7,11 +7,8 @@
 
 #include <cstdlib>
 #include <cstring>
-#include <iostream>
 #include <regex>
-#include <sstream>
 
-#include "cjsh.h"
 
 bool pattern_match(const std::string& text, const std::string& pattern) {
     std::string regex_pattern;

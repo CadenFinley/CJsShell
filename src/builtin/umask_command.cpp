@@ -3,7 +3,6 @@
 #include "builtin_help.h"
 
 #include <sys/stat.h>
-#include <algorithm>
 #include <iomanip>
 #include <iostream>
 #include <sstream>

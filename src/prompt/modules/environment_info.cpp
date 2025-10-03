@@ -4,7 +4,6 @@
 #include <unistd.h>
 #include <cstdio>
 #include <cstdlib>
-#include <iostream>
 
 #include "cjsh.h"
 #include "utils/cjsh_filesystem.h"

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <signal.h>
 #include <string>
 #include <unordered_map>
 #include <vector>

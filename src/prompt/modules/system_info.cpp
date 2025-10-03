@@ -1,11 +1,6 @@
 #include "system_info.h"
 
 #include <cstdio>
-#include <fstream>
-#include <iostream>
-#include <sstream>
-
-#include "cjsh.h"
 #include "utils/cjsh_filesystem.h"
 
 std::string SystemInfo::get_disk_usage(const std::filesystem::path& path) {

@@ -1,8 +1,6 @@
 #include "cjsh.h"
 
-#include <errno.h>
 #include <getopt.h>
-#include <signal.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -10,13 +8,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
-#include <fstream>
-#include <functional>
 #include <iostream>
 #include <memory>
-#include <sstream>
 #include <system_error>
-#include <unordered_map>
 #include <vector>
 
 #ifdef __APPLE__
@@ -27,7 +21,6 @@
 
 #include "ai.h"
 #include "builtin.h"
-#include "cjsh_completions.h"
 #include "cjsh_filesystem.h"
 #include "colors.h"
 #include "error_out.h"
@@ -80,6 +73,16 @@ bool show_startup_time = false;
 bool secure_mode = false;
 bool show_title_line = true;
 }  // namespace config
+
+// switch to sigaction when ever possible and csignal over signal.h
+// switch to cerrno when ever possible over errno.h
+// switch to cstring when ever possible over string.h
+// swtich to climits when ever possible over limits.h
+// switch to using instead of typedef
+// switch to nullptr over NULL
+// cstdint instead of stdint.h
+// cstdlib instead of stdlib.h
+// ctime instead of time.h
 
 static void save_startup_arguments(int argc, char* argv[]) {
     g_startup_args.clear();

@@ -4,12 +4,9 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
-#include <iomanip>
-#include <sstream>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include "../utils/cjsh_syntax_highlighter.h"
 #include "cjsh_filesystem.h"
 
 namespace suggestion_utils {

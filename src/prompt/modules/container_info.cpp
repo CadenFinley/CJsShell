@@ -2,7 +2,6 @@
 
 #include <cstdio>
 #include <filesystem>
-#include <fstream>
 #include <regex>
 #include "utils/cjsh_filesystem.h"
 

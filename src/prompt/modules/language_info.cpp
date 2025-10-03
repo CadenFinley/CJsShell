@@ -5,9 +5,7 @@
 #include <cstdlib>
 #include <functional>
 #include <regex>
-#include <sstream>
 
-#include "cjsh.h"
 #include "utils/cjsh_filesystem.h"
 
 LanguageInfo::LanguageInfo() {

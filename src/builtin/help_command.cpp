@@ -5,7 +5,6 @@
 #include <string>
 #include <vector>
 
-#include "cjsh.h"
 #include "usage.h"
 
 int help_command() {

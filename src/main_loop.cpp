@@ -7,13 +7,8 @@
 #include <termios.h>
 #include <unistd.h>
 #include <cctype>
-#include <chrono>
 #include <cstdio>
-#include <deque>
-#include <filesystem>
-#include <iomanip>
 #include <iostream>
-#include <sstream>
 
 #ifdef __APPLE__
 #include <malloc/malloc.h>
@@ -223,9 +218,12 @@ std::pair<std::string, bool> get_next_command() {
 
     typeahead::flush_pending_typeahead();
 
-    std::string sanitized_buffer = typeahead::get_input_buffer();
-    if (!sanitized_buffer.empty()) {
-        sanitized_buffer = typeahead::filter_escape_sequences(sanitized_buffer);
+    const std::string& pending_buffer = typeahead::get_input_buffer();
+    thread_local std::string sanitized_buffer;
+    sanitized_buffer.clear();
+    if (!pending_buffer.empty()) {
+        sanitized_buffer.reserve(pending_buffer.size());
+        typeahead::filter_escape_sequences_into(pending_buffer, sanitized_buffer);
     }
 
     const char* initial_input = sanitized_buffer.empty() ? nullptr : sanitized_buffer.c_str();
@@ -236,6 +234,7 @@ std::pair<std::string, bool> get_next_command() {
         input = ic_readline(prompt.c_str(), initial_input);
     }
     typeahead::clear_input_buffer();
+    sanitized_buffer.clear();
 
     if (input == nullptr) {
         if (handle_null_input()) {

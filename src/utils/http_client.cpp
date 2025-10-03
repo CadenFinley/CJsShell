@@ -5,7 +5,6 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
-#include <memory>
 #include <sstream>
 #include "cjsh_filesystem.h"
 

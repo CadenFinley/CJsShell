@@ -6,7 +6,6 @@
 #include <vector>
 
 #include "cjsh.h"
-#include "cjsh_filesystem.h"
 #include "error_out.h"
 #include "plugin.h"
 

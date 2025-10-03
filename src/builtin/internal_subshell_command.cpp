@@ -5,7 +5,6 @@
 
 #include <cerrno>
 #include <cstring>
-#include <iostream>
 
 #include "error_out.h"
 #include "shell.h"
