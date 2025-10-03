@@ -19,6 +19,7 @@
 #include <optional>
 #include <sstream>
 #include <stdexcept>
+#include <string_view>
 #include <vector>
 
 #include "builtin.h"
@@ -31,6 +32,19 @@
 #include "suggestion_utils.h"
 
 namespace {
+
+bool set_close_on_exec(int fd, std::string& error_message) {
+    int flags = fcntl(fd, F_GETFD);
+    if (flags == -1) {
+        error_message = std::string(strerror(errno));
+        return false;
+    }
+    if (fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == -1) {
+        error_message = std::string(strerror(errno));
+        return false;
+    }
+    return true;
+}
 
 bool is_valid_env_name(const std::string& name) {
     if (name.empty()) {
@@ -156,17 +170,33 @@ std::optional<HereStringError> setup_here_string_stdin(const std::string& here_s
         return HereStringError{HereStringErrorType::Pipe, std::string(strerror(errno))};
     }
 
+    std::string cloexec_error;
+    if (!set_close_on_exec(here_pipe[0], cloexec_error)) {
+        cjsh_filesystem::FileOperations::safe_close(here_pipe[1]);
+        cjsh_filesystem::FileOperations::safe_close(here_pipe[0]);
+        return HereStringError{HereStringErrorType::Pipe,
+                               "failed to secure here string pipe: " + cloexec_error};
+    }
+    if (!set_close_on_exec(here_pipe[1], cloexec_error)) {
+        cjsh_filesystem::FileOperations::safe_close(here_pipe[1]);
+        cjsh_filesystem::FileOperations::safe_close(here_pipe[0]);
+        return HereStringError{HereStringErrorType::Pipe,
+                               "failed to secure here string pipe: " + cloexec_error};
+    }
+
     std::string content = here_string;
     if (g_shell && g_shell->get_parser()) {
         g_shell->get_parser()->expand_env_vars(content);
     }
-    content += "\n";
+    content.push_back('\n');
 
-    ssize_t bytes_written = write(here_pipe[1], content.c_str(), content.length());
-    if (bytes_written == -1) {
+    auto write_result = cjsh_filesystem::FileOperations::write_all(
+        here_pipe[1], std::string_view{content});
+    std::fill(content.begin(), content.end(), '\0');
+    if (write_result.is_error()) {
         cjsh_filesystem::FileOperations::safe_close(here_pipe[1]);
         cjsh_filesystem::FileOperations::safe_close(here_pipe[0]);
-        return HereStringError{HereStringErrorType::Write, std::string(strerror(errno))};
+        return HereStringError{HereStringErrorType::Write, write_result.error()};
     }
 
     cjsh_filesystem::FileOperations::safe_close(here_pipe[1]);
@@ -636,24 +666,31 @@ int Exec::execute_builtin_with_redirections(Command cmd) {
                                          std::string(strerror(errno)));
             }
 
-            auto write_all = [](int fd, const char* data, size_t len) {
-                size_t total_written = 0;
-                while (total_written < len) {
-                    ssize_t written = write(fd, data + total_written, len - total_written);
-                    if (written == -1) {
-                        if (errno == EINTR) {
-                            continue;
-                        }
-                        return std::string(strerror(errno));
-                    }
-                    total_written += static_cast<size_t>(written);
-                }
-                return std::string();
-            };
+            std::string cloexec_error;
+            if (!set_close_on_exec(here_pipe[0], cloexec_error)) {
+                cjsh_filesystem::FileOperations::safe_close(here_pipe[1]);
+                cjsh_filesystem::FileOperations::safe_close(here_pipe[0]);
+                throw std::runtime_error("cjsh: failed to secure here document pipe: " +
+                                         cloexec_error);
+            }
+            if (!set_close_on_exec(here_pipe[1], cloexec_error)) {
+                cjsh_filesystem::FileOperations::safe_close(here_pipe[1]);
+                cjsh_filesystem::FileOperations::safe_close(here_pipe[0]);
+                throw std::runtime_error("cjsh: failed to secure here document pipe: " +
+                                         cloexec_error);
+            }
 
-            std::string error = write_all(here_pipe[1], cmd.here_doc.c_str(), cmd.here_doc.size());
-            if (error.empty()) {
-                error = write_all(here_pipe[1], "\n", 1);
+            std::string error;
+            auto write_result = cjsh_filesystem::FileOperations::write_all(
+                here_pipe[1], std::string_view{cmd.here_doc});
+            if (write_result.is_error()) {
+                error = write_result.error();
+            } else {
+                auto newline_result = cjsh_filesystem::FileOperations::write_all(
+                    here_pipe[1], std::string_view("\n", 1));
+                if (newline_result.is_error()) {
+                    error = newline_result.error();
+                }
             }
 
             cjsh_filesystem::FileOperations::safe_close(here_pipe[1]);
@@ -1219,23 +1256,35 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                         _exit(EXIT_FAILURE);
                     }
 
-                    ssize_t bytes_written =
-                        write(here_pipe[1], cmd.here_doc.c_str(), cmd.here_doc.length());
-                    if (bytes_written == -1) {
-                        std::cerr << "cjsh: runtime error: write: failed to "
-                                     "write here "
-                                     "document content: "
-                                  << strerror(errno) << std::endl;
+                    std::string cloexec_error;
+                    if (!set_close_on_exec(here_pipe[0], cloexec_error) ||
+                        !set_close_on_exec(here_pipe[1], cloexec_error)) {
+                        std::cerr << "cjsh: runtime error: pipe: failed to secure here "
+                                     "document pipe: "
+                                  << cloexec_error << std::endl;
                         close(here_pipe[1]);
+                        close(here_pipe[0]);
                         _exit(EXIT_FAILURE);
                     }
-                    bytes_written = write(here_pipe[1], "\n", 1);
-                    if (bytes_written == -1) {
+
+                    auto write_result = cjsh_filesystem::FileOperations::write_all(
+                        here_pipe[1], std::string_view{cmd.here_doc});
+                    if (write_result.is_error()) {
                         std::cerr << "cjsh: runtime error: write: failed to "
-                                     "write here "
-                                     "document newline: "
-                                  << strerror(errno) << std::endl;
+                                     "write here document content: "
+                                  << write_result.error() << std::endl;
                         close(here_pipe[1]);
+                        close(here_pipe[0]);
+                        _exit(EXIT_FAILURE);
+                    }
+                    auto newline_result = cjsh_filesystem::FileOperations::write_all(
+                        here_pipe[1], std::string_view("\n", 1));
+                    if (newline_result.is_error()) {
+                        std::cerr << "cjsh: runtime error: write: failed to "
+                                     "write here document newline: "
+                                  << newline_result.error() << std::endl;
+                        close(here_pipe[1]);
+                        close(here_pipe[0]);
                         _exit(EXIT_FAILURE);
                     }
                     close(here_pipe[1]);
@@ -1577,17 +1626,32 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                             _exit(EXIT_FAILURE);
                         }
 
-                        ssize_t bytes_written =
-                            write(here_pipe[1], cmd.here_doc.c_str(), cmd.here_doc.length());
-                        if (bytes_written == -1) {
-                            perror("cjsh: write here document content");
+                        std::string cloexec_error;
+                        if (!set_close_on_exec(here_pipe[0], cloexec_error) ||
+                            !set_close_on_exec(here_pipe[1], cloexec_error)) {
+                            std::cerr << "cjsh: failed to secure here document pipe: "
+                                      << cloexec_error << std::endl;
                             close(here_pipe[1]);
+                            close(here_pipe[0]);
                             _exit(EXIT_FAILURE);
                         }
-                        bytes_written = write(here_pipe[1], "\n", 1);
-                        if (bytes_written == -1) {
-                            perror("cjsh: write here document newline");
+
+                        auto write_result = cjsh_filesystem::FileOperations::write_all(
+                            here_pipe[1], std::string_view{cmd.here_doc});
+                        if (write_result.is_error()) {
+                            std::cerr << "cjsh: failed to write here document content: "
+                                      << write_result.error() << std::endl;
                             close(here_pipe[1]);
+                            close(here_pipe[0]);
+                            _exit(EXIT_FAILURE);
+                        }
+                        auto newline_result = cjsh_filesystem::FileOperations::write_all(
+                            here_pipe[1], std::string_view("\n", 1));
+                        if (newline_result.is_error()) {
+                            std::cerr << "cjsh: failed to write here document newline: "
+                                      << newline_result.error() << std::endl;
+                            close(here_pipe[1]);
+                            close(here_pipe[0]);
                             _exit(EXIT_FAILURE);
                         }
                         close(here_pipe[1]);

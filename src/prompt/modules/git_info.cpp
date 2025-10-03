@@ -9,17 +9,49 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <vector>
 
 #include "cjsh.h"
 #include "utils/cjsh_filesystem.h"
 
-static int safe_execute_git_command(const std::string& command, std::string& result,
+namespace {
+
+bool set_close_on_exec(int fd) {
+    int flags = fcntl(fd, F_GETFD);
+    if (flags == -1) {
+        return false;
+    }
+    if (fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == -1) {
+        return false;
+    }
+    return true;
+}
+
+std::vector<char*> build_exec_argv(const std::vector<std::string>& args) {
+    std::vector<char*> argv;
+    argv.reserve(args.size() + 1);
+    for (const auto& arg : args) {
+        argv.push_back(const_cast<char*>(arg.c_str()));
+    }
+    argv.push_back(nullptr);
+    return argv;
+}
+
+}  // namespace
+
+static int safe_execute_git_command(const std::vector<std::string>& args, std::string& result,
                                     int& exit_code) {
     result.clear();
     exit_code = -1;
 
     int pipefd[2];
     if (pipe(pipefd) == -1) {
+        return -1;
+    }
+
+    if (!set_close_on_exec(pipefd[0]) || !set_close_on_exec(pipefd[1])) {
+        cjsh_filesystem::FileOperations::safe_close(pipefd[0]);
+        cjsh_filesystem::FileOperations::safe_close(pipefd[1]);
         return -1;
     }
 
@@ -46,7 +78,8 @@ static int safe_execute_git_command(const std::string& command, std::string& res
 
         cjsh_filesystem::FileOperations::safe_close(pipefd[1]);
 
-        execl("/bin/sh", "sh", "-c", command.c_str(), (char*)NULL);
+        auto argv = build_exec_argv(args);
+        execvp(argv[0], argv.data());
         _exit(127);
     }
 
@@ -87,7 +120,8 @@ GitInfo::~GitInfo() {
 }
 
 std::string GitInfo::get_git_remote(const std::filesystem::path& repo_root) {
-    std::string cmd = "git -C '" + repo_root.string() + "' remote get-url origin 2>/dev/null";
+    std::vector<std::string> cmd = {"git", "-C", repo_root.string(), "remote", "get-url",
+                                    "origin"};
     std::string result;
     int exit_code;
 
@@ -102,7 +136,8 @@ std::string GitInfo::get_git_remote(const std::filesystem::path& repo_root) {
 }
 
 std::string GitInfo::get_git_tag(const std::filesystem::path& repo_root) {
-    std::string cmd = "git -C '" + repo_root.string() + "' describe --tags --abbrev=0 2>/dev/null";
+    std::vector<std::string> cmd = {"git", "-C", repo_root.string(), "describe", "--tags",
+                                    "--abbrev=0"};
     std::string result;
     int exit_code;
 
@@ -117,8 +152,8 @@ std::string GitInfo::get_git_tag(const std::filesystem::path& repo_root) {
 }
 
 std::string GitInfo::get_git_last_commit(const std::filesystem::path& repo_root) {
-    std::string cmd =
-        "git -C '" + repo_root.string() + "' log -1 --pretty=format:%h:%s 2>/dev/null";
+    std::vector<std::string> cmd = {"git", "-C", repo_root.string(), "log", "-1",
+                                    "--pretty=format:%h:%s"};
     std::string result;
     int exit_code;
 
@@ -130,7 +165,8 @@ std::string GitInfo::get_git_last_commit(const std::filesystem::path& repo_root)
 }
 
 std::string GitInfo::get_git_author(const std::filesystem::path& repo_root) {
-    std::string cmd = "git -C '" + repo_root.string() + "' log -1 --pretty=format:%an 2>/dev/null";
+    std::vector<std::string> cmd = {"git", "-C", repo_root.string(), "log", "-1",
+                                    "--pretty=format:%an"};
     std::string result;
     int exit_code;
 
@@ -184,7 +220,7 @@ std::string GitInfo::get_git_status(const std::filesystem::path& repo_root) {
         if (!is_git_status_check_running) {
             is_git_status_check_running = true;
 
-            std::string cmd = "git -C '" + git_dir + "' status --porcelain 2>/dev/null";
+            std::vector<std::string> cmd = {"git", "-C", git_dir, "status", "--porcelain"};
             std::string result;
             int exit_code;
 
@@ -249,8 +285,8 @@ int GitInfo::get_git_ahead_behind(const std::filesystem::path& repo_root, int& a
         return -1;
     }
 
-    std::string upstream_cmd = "git -C '" + repo_root.string() + "' rev-parse --abbrev-ref " +
-                               branch + "@{upstream} 2>/dev/null";
+    std::vector<std::string> upstream_cmd = {"git", "-C", repo_root.string(), "rev-parse",
+                                             "--abbrev-ref", branch + "@{upstream}"};
     std::string upstream;
     int exit_code;
 
@@ -266,8 +302,9 @@ int GitInfo::get_git_ahead_behind(const std::filesystem::path& repo_root, int& a
         return -1;
     }
 
-    std::string count_cmd = "git -C '" + repo_root.string() + "' rev-list --left-right --count " +
-                            branch + "..." + upstream + " 2>/dev/null";
+    std::vector<std::string> count_cmd = {"git", "-C", repo_root.string(), "rev-list",
+                                          "--left-right", "--count",
+                                          branch + "..." + upstream};
     std::string count_result;
 
     if (safe_execute_git_command(count_cmd, count_result, exit_code) != 0 || exit_code != 0) {
@@ -288,7 +325,8 @@ int GitInfo::get_git_ahead_behind(const std::filesystem::path& repo_root, int& a
 }
 
 int GitInfo::get_git_stash_count(const std::filesystem::path& repo_root) {
-    std::string cmd = "git -C '" + repo_root.string() + "' stash list 2>/dev/null | wc -l";
+    std::vector<std::string> cmd = {"git", "-C", repo_root.string(), "stash", "list",
+                                    "--pretty=oneline"};
     std::string result;
     int exit_code;
 
@@ -296,15 +334,20 @@ int GitInfo::get_git_stash_count(const std::filesystem::path& repo_root) {
         return 0;
     }
 
-    try {
-        return std::stoi(result);
-    } catch (const std::exception& e) {
-        return 0;
+    int count = 0;
+    std::istringstream stream(result);
+    std::string line;
+    while (std::getline(stream, line)) {
+        if (!line.empty()) {
+            ++count;
+        }
     }
+    return count;
 }
 
 bool GitInfo::get_git_has_staged_changes(const std::filesystem::path& repo_root) {
-    std::string cmd = "git -C '" + repo_root.string() + "' diff --cached --quiet 2>/dev/null";
+    std::vector<std::string> cmd = {"git", "-C", repo_root.string(), "diff", "--cached",
+                                    "--quiet"};
     std::string result;
     int exit_code;
 
@@ -322,7 +365,8 @@ bool GitInfo::get_git_has_staged_changes(const std::filesystem::path& repo_root)
 }
 
 int GitInfo::get_git_uncommitted_changes(const std::filesystem::path& repo_root) {
-    std::string cmd = "git -C '" + repo_root.string() + "' status --porcelain 2>/dev/null | wc -l";
+    std::vector<std::string> cmd = {"git", "-C", repo_root.string(), "status",
+                                    "--porcelain"};
     std::string result;
     int exit_code;
 
@@ -330,9 +374,13 @@ int GitInfo::get_git_uncommitted_changes(const std::filesystem::path& repo_root)
         return 0;
     }
 
-    try {
-        return std::stoi(result);
-    } catch (const std::exception& e) {
-        return 0;
+    int count = 0;
+    std::istringstream stream(result);
+    std::string line;
+    while (std::getline(stream, line)) {
+        if (!line.empty()) {
+            ++count;
+        }
     }
+    return count;
 }

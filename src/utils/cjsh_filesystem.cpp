@@ -10,6 +10,8 @@
 #include <fstream>
 #include <functional>
 #include <sstream>
+#include <string_view>
+#include <limits>
 #include <system_error>
 #include <vector>
 
@@ -123,11 +125,11 @@ Result<void> FileOperations::write_temp_file(const std::string& path, const std:
     }
 
     int fd = open_result.value();
-    ssize_t written = write(fd, content.c_str(), content.length());
+    auto write_result = write_all(fd, std::string_view{content});
     safe_close(fd);
 
-    if (written != static_cast<ssize_t>(content.length())) {
-        return Result<void>::error("Failed to write complete content to file '" + path + "'");
+    if (write_result.is_error()) {
+        return Result<void>::error(write_result.error());
     }
 
     return Result<void>::ok();
@@ -168,13 +170,47 @@ Result<void> FileOperations::write_file_content(const std::string& path,
     }
 
     int fd = open_result.value();
-    ssize_t written = write(fd, content.c_str(), content.length());
+    auto write_result = write_all(fd, std::string_view{content});
     safe_close(fd);
 
-    if (written != static_cast<ssize_t>(content.length())) {
-        return Result<void>::error("Failed to write complete content to file '" + path + "'");
+    if (write_result.is_error()) {
+        return Result<void>::error(write_result.error());
     }
 
+    return Result<void>::ok();
+}
+
+Result<void> FileOperations::write_all(int fd, std::string_view data) {
+    size_t total_written = 0;
+    while (total_written < data.size()) {
+        size_t remaining = data.size() - total_written;
+#ifdef SSIZE_MAX
+        if (remaining > static_cast<size_t>(SSIZE_MAX)) {
+            remaining = static_cast<size_t>(SSIZE_MAX);
+        }
+#endif
+        ssize_t written = ::write(fd, data.data() + total_written, remaining);
+        if (written == -1) {
+            if (errno == EINTR
+#ifdef EAGAIN
+                || errno == EAGAIN
+#endif
+#ifdef EWOULDBLOCK
+                || errno == EWOULDBLOCK
+#endif
+            ) {
+                continue;
+            }
+            return Result<void>::error("Failed to write to file descriptor " +
+                                       std::to_string(fd) + ": " +
+                                       std::string(strerror(errno)));
+        }
+        if (written == 0) {
+            return Result<void>::error("Write to file descriptor " + std::to_string(fd) +
+                                       " returned zero bytes");
+        }
+        total_written += static_cast<size_t>(written);
+    }
     return Result<void>::ok();
 }
 

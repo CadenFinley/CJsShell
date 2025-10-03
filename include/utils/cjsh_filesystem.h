@@ -9,6 +9,7 @@
 #include <iostream>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace cjsh_filesystem {
@@ -118,6 +119,7 @@ class FileOperations {
     static Result<std::string> read_command_output(const std::string& command);
     static Result<void> write_file_content(const std::string& path, const std::string& content);
     static Result<std::string> read_file_content(const std::string& path);
+    static Result<void> write_all(int fd, std::string_view data);
 };
 
 const fs::path g_user_home_path = []() {
