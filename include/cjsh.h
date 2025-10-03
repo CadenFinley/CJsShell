@@ -9,7 +9,7 @@ class Theme;
 class Ai;
 class Plugin;
 
-const bool PRE_RELEASE = true;
+const bool PRE_RELEASE = false;
 const std::string pre_release_line = " (pre-release)";
 // using semver.org principles MAJOR.MINOR.PATCH
 const std::string c_version = "3.6.0" + (PRE_RELEASE ? pre_release_line : "");
