@@ -64,7 +64,7 @@ class CommandQueue {
     }
 
     std::string& next_slot() {
-        std::size_t index;
+        std::size_t index = 0;
         if (size_ < kMaxQueuedCommands) {
             index = (head_ + size_) % kMaxQueuedCommands;
             ++size_;
@@ -95,9 +95,9 @@ class CommandQueue {
 
 }  // namespace
 
-bool initialized = false;
-std::string g_input_buffer;
-CommandQueue g_typeahead_queue;
+static bool initialized = false;
+static std::string g_input_buffer;
+static CommandQueue g_typeahead_queue;
 
 std::string to_debug_visible(const std::string& data) {
     if (data.empty()) {
@@ -139,7 +139,7 @@ std::string to_debug_visible(const std::string& data) {
                 oss << "\\e";
                 break;
             default:
-                if (std::isprint(ch)) {
+                if (std::isprint(ch) != 0) {
                     oss << static_cast<char>(ch);
                 } else {
                     oss << "\\x" << std::setw(2) << std::setfill('0') << static_cast<int>(ch);
@@ -178,8 +178,8 @@ void filter_escape_sequences_into(std::string_view input, std::string& output) {
                         break;
                     }
 
-                    if (!((c >= '0' && c <= '9') || c == ';' || c == '?' || c == '!' || c == '=' ||
-                          c == '>' || c == '<')) {
+                    if ((c < '0' || c > '9') && c != ';' && c != '?' && c != '!' && c != '=' &&
+                        c != '>' && c != '<') {
                         break;
                     }
                     i++;
@@ -189,7 +189,8 @@ void filter_escape_sequences_into(std::string_view input, std::string& output) {
                 while (i < input.size()) {
                     if (input[i] == '\x07') {
                         break;
-                    } else if (input[i] == '\x1b' && i + 1 < input.size() && input[i + 1] == '\\') {
+                    }
+                    if (input[i] == '\x1b' && i + 1 < input.size() && input[i + 1] == '\\') {
                         i++;
                         break;
                     }
@@ -205,10 +206,8 @@ void filter_escape_sequences_into(std::string_view input, std::string& output) {
             } else {
                 i += 1;
             }
-        } else if (ch == '\x07') {
-            // Skip bell character
-        } else if (ch < 0x20 && ch != '\t' && ch != '\n' && ch != '\r') {
-            // Skip other control characters
+        } else if (ch == '\x07' || (ch < 0x20 && ch != '\t' && ch != '\n' && ch != '\r')) {
+            // Skip bell character and other control characters
         } else {
             output.push_back(static_cast<char>(ch));
         }
@@ -281,7 +280,7 @@ void ingest_typeahead_input(const std::string& raw_input) {
 
     std::string_view sanitized_view = combined;
     if (combined.find('\x1b') != std::string::npos) {
-        thread_local std::string sanitized_temp;
+        thread_local static std::string sanitized_temp;
         sanitized_temp.clear();
         std::size_t desired = std::clamp<std::size_t>(combined.size() + kCommandReserveSlack,
                                                       kDefaultInputReserve, kMaxInputReserve);
@@ -292,7 +291,7 @@ void ingest_typeahead_input(const std::string& raw_input) {
         sanitized_view = sanitized_temp;
     }
 
-    thread_local std::string normalized_temp;
+    thread_local static std::string normalized_temp;
     normalized_temp.clear();
     std::size_t normalized_desired = std::clamp<std::size_t>(
         sanitized_view.size() + kCommandReserveSlack, kDefaultInputReserve, kMaxInputReserve);
@@ -362,7 +361,7 @@ std::string capture_available_input() {
         return {};
     }
 
-    if (!isatty(STDIN_FILENO)) {
+    if (isatty(STDIN_FILENO) == 0) {
         return {};
     }
 
@@ -400,6 +399,11 @@ std::string capture_available_input() {
         struct termios original_termios;
         int fd_flags;
 
+        RestoreState(const RestoreState&) = delete;
+        RestoreState& operator=(const RestoreState&) = delete;
+        RestoreState(RestoreState&&) = delete;
+        RestoreState& operator=(RestoreState&&) = delete;
+
         ~RestoreState() {
             if (restore_termios) {
                 tcsetattr(STDIN_FILENO, TCSANOW, &original_termios);
@@ -414,7 +418,7 @@ std::string capture_available_input() {
     if (ioctl(STDIN_FILENO, FIONREAD, &queued_bytes) == 0) {
     }
 
-    thread_local std::size_t capture_reserve = kDefaultInputReserve;
+    thread_local static std::size_t capture_reserve = kDefaultInputReserve;
     std::string captured_data;
     std::size_t requested_capacity = capture_reserve;
     if (queued_bytes > 0) {

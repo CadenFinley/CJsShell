@@ -28,25 +28,25 @@ std::string build_system_prompt() {
 
     const char* username = getenv("USER");
     const char* hostname = getenv("HOSTNAME");
-    if (!hostname) {
+    if (hostname == nullptr) {
         hostname = getenv("HOST");
     }
 
     std::time_t now = std::time(nullptr);
     char time_buffer[80];
-    std::strftime(time_buffer, sizeof(time_buffer), "%H:%M:%S", std::localtime(&now));
+    (void)std::strftime(time_buffer, sizeof(time_buffer), "%H:%M:%S", std::localtime(&now));
 
     char date_buffer[80];
-    std::strftime(date_buffer, sizeof(date_buffer), "%Y-%m-%d", std::localtime(&now));
+    (void)std::strftime(date_buffer, sizeof(date_buffer), "%Y-%m-%d", std::localtime(&now));
 
     prompt << get_common_system_prompt() << " ";
     prompt << "Current context: ";
 
-    if (username) {
+    if (username != nullptr) {
         prompt << "User: " << username << " ";
     }
 
-    if (hostname) {
+    if (hostname != nullptr) {
         prompt << "Machine: " << hostname << " ";
     }
 
@@ -56,12 +56,12 @@ std::string build_system_prompt() {
     prompt << "Shell: cjsh ";
 
     const char* pwd = getenv("PWD");
-    if (pwd) {
+    if (pwd != nullptr) {
         prompt << "Directory: " << pwd << " ";
     }
 
     const char* status = getenv("?");
-    if (status) {
+    if (status != nullptr) {
         prompt << "Last command status: " << status << " ";
     }
 

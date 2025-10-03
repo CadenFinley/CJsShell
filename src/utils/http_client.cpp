@@ -75,9 +75,9 @@ HttpResponse HttpClient::system_curl_post(const std::string& url, const std::str
         return response;
     }
 
-    std::string temp_data_file = temp_data_result.value();
-    std::string temp_response_file = temp_response_result.value();
-    std::string temp_headers_file = temp_headers_result.value();
+    const std::string& temp_data_file = temp_data_result.value();
+    const std::string& temp_response_file = temp_response_result.value();
+    const std::string& temp_headers_file = temp_headers_result.value();
 
     auto write_result = cjsh_filesystem::FileOperations::write_temp_file(temp_data_file, data);
     if (write_result.is_error()) {
@@ -110,7 +110,12 @@ HttpResponse HttpClient::system_curl_post(const std::string& url, const std::str
 
     char status_buffer[16];
     if (fgets(status_buffer, sizeof(status_buffer), fp) != nullptr) {
-        response.status_code = std::atoi(status_buffer);
+        char* end = nullptr;
+        response.status_code = static_cast<int>(std::strtol(status_buffer, &end, 10));
+        if (status_buffer == end) {
+            response.status_code = 0;
+            response.error_message = "Failed to parse status code";
+        }
     }
     pclose(fp);
 

@@ -27,12 +27,12 @@ std::string CommandPreprocessor::process_here_documents(
     }
 
     size_t delim_start = here_pos + 2;
-    while (delim_start < result.size() && std::isspace(result[delim_start])) {
+    while (delim_start < result.size() && (std::isspace(result[delim_start]) != 0)) {
         delim_start++;
     }
 
     size_t delim_end = delim_start;
-    while (delim_end < result.size() && !std::isspace(result[delim_end])) {
+    while (delim_end < result.size() && (std::isspace(result[delim_end]) == 0)) {
         delim_end++;
     }
 

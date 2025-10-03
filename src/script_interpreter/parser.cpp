@@ -108,7 +108,7 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
     std::string current_here_doc_line;
     current_here_doc_line.reserve(128);
 
-    auto add_here_doc_placeholder_line = [&](std::string before, std::string rest) {
+    auto add_here_doc_placeholder_line = [&](std::string before, const std::string& rest) {
         std::string placeholder = "HEREDOC_PLACEHOLDER_" + std::to_string(lines.size());
 
         std::string stored_content = here_doc_content;
@@ -144,9 +144,7 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
                     bool segment_created = false;
                     if (here_doc_operator_pos != std::string::npos && here_doc_operator_len > 0) {
                         size_t delim_end_in_segment = here_doc_delim_end_pos;
-                        if (delim_end_in_segment > segment_view.size()) {
-                            delim_end_in_segment = segment_view.size();
-                        }
+                        delim_end_in_segment = std::min(delim_end_in_segment, segment_view.size());
 
                         std::string before_here{segment_view.substr(0, here_doc_operator_pos)};
                         size_t line_end = segment_view.find('\n', delim_end_in_segment);
@@ -158,8 +156,7 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
                             rest_of_line.assign(segment_view.substr(delim_end_in_segment));
                         }
 
-                        add_here_doc_placeholder_line(std::move(before_here),
-                                                      std::move(rest_of_line));
+                        add_here_doc_placeholder_line(std::move(before_here), rest_of_line);
                         segment_created = true;
                     }
 
@@ -183,15 +180,15 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
 
                             size_t delim_start_in_segment = here_pos + operator_len;
                             while (delim_start_in_segment < segment_view.size() &&
-                                   std::isspace(static_cast<unsigned char>(
-                                       segment_view[delim_start_in_segment]))) {
+                                   (std::isspace(static_cast<unsigned char>(
+                                        segment_view[delim_start_in_segment])) != 0)) {
                                 delim_start_in_segment++;
                             }
 
                             size_t delim_end_in_segment = delim_start_in_segment;
                             while (delim_end_in_segment < segment_view.size() &&
-                                   !std::isspace(static_cast<unsigned char>(
-                                       segment_view[delim_end_in_segment]))) {
+                                   (std::isspace(static_cast<unsigned char>(
+                                        segment_view[delim_end_in_segment])) == 0)) {
                                 delim_end_in_segment++;
                             }
 

@@ -124,7 +124,7 @@ bool IsInIntervals(unicode_codepoint_t cp, const Interval* table, size_t length)
     size_t low = 0;
     size_t high = length;
     while (low < high) {
-        size_t mid = low + (high - low) / 2;
+        size_t mid = low + ((high - low) / 2);
         if (cp > table[mid].last) {
             low = mid + 1;
         } else if (cp < table[mid].first) {

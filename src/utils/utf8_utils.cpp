@@ -78,10 +78,10 @@ size_t calculate_display_width(const std::string& str, size_t* count_ansi_chars,
         pos += bytes_read;
     }
 
-    if (count_ansi_chars) {
+    if (count_ansi_chars != nullptr) {
         *count_ansi_chars = ansi_chars;
     }
-    if (count_visible_chars) {
+    if (count_visible_chars != nullptr) {
         *count_visible_chars = visible_chars;
     }
 

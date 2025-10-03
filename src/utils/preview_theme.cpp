@@ -38,9 +38,9 @@ int preview_theme(const std::string& theme_name) {
         return 1;
     }
 
-    std::cout << "\nPreview of theme '" << canonical_theme << "':" << std::endl;
+    std::cout << "\nPreview of theme '" << canonical_theme << "':" << '\n';
     temp_theme->view_theme_requirements(canonical_theme);
-    std::cout << "==========================================\n" << std::endl;
+    std::cout << "==========================================\n" << '\n';
 
     PromptInfo prompt_info;
     Prompt prompt;
@@ -85,31 +85,31 @@ int preview_theme(const std::string& theme_name) {
             pos += value.length();
         }
     }
-    std::cout << title_format << std::endl;
-    std::cout << std::endl;
+    std::cout << title_format << '\n';
+    std::cout << '\n';
 
-    std::cout << "Standard Prompt:" << std::endl;
-    std::cout << temp_theme->get_ps1_prompt_format(vars) << std::endl;
-    std::cout << std::endl;
+    std::cout << "Standard Prompt:" << '\n';
+    std::cout << temp_theme->get_ps1_prompt_format(vars) << '\n';
+    std::cout << '\n';
 
-    std::cout << "Git Prompt:" << std::endl;
-    std::cout << temp_theme->get_git_prompt_format(vars) << std::endl;
-    std::cout << std::endl;
+    std::cout << "Git Prompt:" << '\n';
+    std::cout << temp_theme->get_git_prompt_format(vars) << '\n';
+    std::cout << '\n';
 
-    std::cout << "AI Prompt:" << std::endl;
-    std::cout << temp_theme->get_ai_prompt_format(vars) << std::endl;
-    std::cout << std::endl;
+    std::cout << "AI Prompt:" << '\n';
+    std::cout << temp_theme->get_ai_prompt_format(vars) << '\n';
+    std::cout << '\n';
 
     if (temp_theme->uses_newline()) {
-        std::cout << "Newline Prompt:" << std::endl;
-        std::cout << temp_theme->get_newline_prompt(vars) << std::endl;
-        std::cout << std::endl;
+        std::cout << "Newline Prompt:" << '\n';
+        std::cout << temp_theme->get_newline_prompt(vars) << '\n';
+        std::cout << '\n';
     }
 
-    std::cout << "==========================================" << std::endl;
+    std::cout << "==========================================" << '\n';
     std::cout << "Note: Actual appearance may vary based on your terminal and "
                  "environment.\n"
-              << std::endl;
+              << '\n';
 
     return 0;
 }

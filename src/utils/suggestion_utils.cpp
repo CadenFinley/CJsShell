@@ -97,6 +97,7 @@ std::vector<std::string> generate_cd_suggestions(const std::string& target_dir,
 
     std::vector<std::string> similar = find_similar_entries(target_dir, current_dir, 3);
 
+    suggestions.reserve(similar.size());
     for (const auto& dir : similar) {
         suggestions.push_back("Did you mean 'cd " + dir + "'?");
     }
@@ -134,11 +135,19 @@ std::vector<std::string> generate_ls_suggestions(const std::string& path,
     std::vector<std::string> similar = find_similar_entries(filename, directory, 3);
 
     for (const auto& item : similar) {
+        std::string suggestion;
         if (last_slash != std::string::npos) {
-            suggestions.push_back("Did you mean 'ls " + directory + "/" + item + "'?");
+            suggestion = "Did you mean 'ls ";
+            suggestion += directory;
+            suggestion += "/";
+            suggestion += item;
+            suggestion += "'?";
         } else {
-            suggestions.push_back("Did you mean 'ls " + item + "'?");
+            suggestion = "Did you mean 'ls ";
+            suggestion += item;
+            suggestion += "'?";
         }
+        suggestions.push_back(suggestion);
     }
 
     if (suggestions.empty()) {
@@ -409,7 +418,8 @@ std::vector<std::string> generate_fuzzy_suggestions(
         char target_char = std::tolower(command[0]);
 
         for (const auto& cmd : available_commands) {
-            if (!cmd.empty() && std::tolower(cmd[0]) == target_char && !seen_commands.count(cmd)) {
+            if (!cmd.empty() && std::tolower(cmd[0]) == target_char &&
+                (seen_commands.count(cmd) == 0u)) {
                 int priority = 0;
                 if (cmd == "ls" || cmd == "cd" || cmd == "ps" || cmd == "cp" || cmd == "mv") {
                     priority = 100;
@@ -443,7 +453,7 @@ std::vector<std::string> generate_fuzzy_suggestions(
     std::unordered_set<std::string> seen_commands;
 
     for (const auto& cmd : available_commands) {
-        if (cmd == command || seen_commands.count(cmd))
+        if (cmd == command || (seen_commands.count(cmd) != 0u))
             continue;
 
         int score = calculate_fuzzy_score(command, cmd);
@@ -499,7 +509,8 @@ int calculate_fuzzy_score(const std::string& input, const std::string& candidate
     }
 
     int common_chars = 0;
-    std::unordered_map<char, int> input_chars, candidate_chars;
+    std::unordered_map<char, int> input_chars;
+    std::unordered_map<char, int> candidate_chars;
     for (char c : input)
         input_chars[std::tolower(c)]++;
     for (char c : candidate)
@@ -508,7 +519,7 @@ int calculate_fuzzy_score(const std::string& input, const std::string& candidate
     for (const auto& pair : input_chars) {
         char ch = pair.first;
         int count = pair.second;
-        if (candidate_chars.count(ch)) {
+        if (candidate_chars.count(ch) != 0u) {
             common_chars += std::min(count, candidate_chars[ch]);
         }
     }
@@ -530,7 +541,7 @@ int calculate_fuzzy_score(const std::string& input, const std::string& candidate
         "jobs",    "fg",       "bg",          "wait",  "kill",   "readonly", "read",
         "umask",   "getopts",  "times",       "type",  "hash"};
 
-    if (shell_builtins.count(candidate)) {
+    if (shell_builtins.count(candidate) != 0u) {
         score += 15;
     }
 
