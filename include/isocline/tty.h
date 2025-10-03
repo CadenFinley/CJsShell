@@ -10,13 +10,14 @@
 #define IC_TTY_H
 
 #include "common.h"
+#include "keycodes.h"
 
 //-------------------------------------------------------------
 // TTY/Keyboard input
 //-------------------------------------------------------------
 
 // Key code
-typedef uint32_t code_t;
+typedef ic_keycode_t code_t;
 
 // TTY interface
 struct tty_s;
@@ -68,92 +69,91 @@ static inline code_t key_unicode(unicode_t u) {
     return u;
 }
 
-#define KEY_MOD_SHIFT (0x10000000U)
-#define KEY_MOD_ALT (0x20000000U)
-#define KEY_MOD_CTRL (0x40000000U)
+#define KEY_MOD_SHIFT IC_KEY_MOD_SHIFT
+#define KEY_MOD_ALT IC_KEY_MOD_ALT
+#define KEY_MOD_CTRL IC_KEY_MOD_CTRL
 
-#define KEY_NO_MODS(k) (k & 0x0FFFFFFFU)
-#define KEY_MODS(k) (k & 0xF0000000U)
+#define KEY_NO_MODS IC_KEY_NO_MODS
+#define KEY_MODS IC_KEY_MODS
 
-#define WITH_SHIFT(x) (x | KEY_MOD_SHIFT)
-#define WITH_ALT(x) (x | KEY_MOD_ALT)
-#define WITH_CTRL(x) (x | KEY_MOD_CTRL)
+#define WITH_SHIFT IC_KEY_WITH_SHIFT
+#define WITH_ALT IC_KEY_WITH_ALT
+#define WITH_CTRL IC_KEY_WITH_CTRL
 
-#define KEY_NONE (0)
-#define KEY_CTRL_A (1)
-#define KEY_CTRL_B (2)
-#define KEY_CTRL_C (3)
-#define KEY_CTRL_D (4)
-#define KEY_CTRL_E (5)
-#define KEY_CTRL_F (6)
-#define KEY_BELL (7)
-#define KEY_BACKSP (8)
-#define KEY_TAB (9)
-#define KEY_LINEFEED (10)  // ctrl/shift + enter is considered KEY_LINEFEED
-#define KEY_CTRL_K (11)
-#define KEY_CTRL_L (12)
-#define KEY_ENTER (13)
-#define KEY_CTRL_N (14)
-#define KEY_CTRL_O (15)
-#define KEY_CTRL_P (16)
-#define KEY_CTRL_Q (17)
-#define KEY_CTRL_R (18)
-#define KEY_CTRL_S (19)
-#define KEY_CTRL_T (20)
-#define KEY_CTRL_U (21)
-#define KEY_CTRL_V (22)
-#define KEY_CTRL_W (23)
-#define KEY_CTRL_X (24)
-#define KEY_CTRL_Y (25)
-#define KEY_CTRL_Z (26)
-#define KEY_ESC (27)
-#define KEY_SPACE (32)
-#define KEY_RUBOUT (127)  // always translated to KEY_BACKSP
-#define KEY_UNICODE_MAX (0x0010FFFFU)
+#define KEY_NONE IC_KEY_NONE
+#define KEY_CTRL_A IC_KEY_CTRL_A
+#define KEY_CTRL_B IC_KEY_CTRL_B
+#define KEY_CTRL_C IC_KEY_CTRL_C
+#define KEY_CTRL_D IC_KEY_CTRL_D
+#define KEY_CTRL_E IC_KEY_CTRL_E
+#define KEY_CTRL_F IC_KEY_CTRL_F
+#define KEY_BELL IC_KEY_BELL
+#define KEY_BACKSP IC_KEY_BACKSP
+#define KEY_TAB IC_KEY_TAB
+#define KEY_LINEFEED IC_KEY_LINEFEED
+#define KEY_CTRL_K IC_KEY_CTRL_K
+#define KEY_CTRL_L IC_KEY_CTRL_L
+#define KEY_ENTER IC_KEY_ENTER
+#define KEY_CTRL_N IC_KEY_CTRL_N
+#define KEY_CTRL_O IC_KEY_CTRL_O
+#define KEY_CTRL_P IC_KEY_CTRL_P
+#define KEY_CTRL_Q IC_KEY_CTRL_Q
+#define KEY_CTRL_R IC_KEY_CTRL_R
+#define KEY_CTRL_S IC_KEY_CTRL_S
+#define KEY_CTRL_T IC_KEY_CTRL_T
+#define KEY_CTRL_U IC_KEY_CTRL_U
+#define KEY_CTRL_V IC_KEY_CTRL_V
+#define KEY_CTRL_W IC_KEY_CTRL_W
+#define KEY_CTRL_X IC_KEY_CTRL_X
+#define KEY_CTRL_Y IC_KEY_CTRL_Y
+#define KEY_CTRL_Z IC_KEY_CTRL_Z
+#define KEY_ESC IC_KEY_ESC
+#define KEY_SPACE IC_KEY_SPACE
+#define KEY_RUBOUT IC_KEY_RUBOUT
+#define KEY_UNICODE_MAX IC_KEY_UNICODE_MAX
 
-#define KEY_VIRT (0x01000000U)
-#define KEY_UP (KEY_VIRT + 0)
-#define KEY_DOWN (KEY_VIRT + 1)
-#define KEY_LEFT (KEY_VIRT + 2)
-#define KEY_RIGHT (KEY_VIRT + 3)
-#define KEY_HOME (KEY_VIRT + 4)
-#define KEY_END (KEY_VIRT + 5)
-#define KEY_DEL (KEY_VIRT + 6)
-#define KEY_PAGEUP (KEY_VIRT + 7)
-#define KEY_PAGEDOWN (KEY_VIRT + 8)
-#define KEY_INS (KEY_VIRT + 9)
+#define KEY_VIRT IC_KEY_VIRT
+#define KEY_UP IC_KEY_UP
+#define KEY_DOWN IC_KEY_DOWN
+#define KEY_LEFT IC_KEY_LEFT
+#define KEY_RIGHT IC_KEY_RIGHT
+#define KEY_HOME IC_KEY_HOME
+#define KEY_END IC_KEY_END
+#define KEY_DEL IC_KEY_DEL
+#define KEY_PAGEUP IC_KEY_PAGEUP
+#define KEY_PAGEDOWN IC_KEY_PAGEDOWN
+#define KEY_INS IC_KEY_INS
 
-#define KEY_F1 (KEY_VIRT + 11)
-#define KEY_F2 (KEY_VIRT + 12)
-#define KEY_F3 (KEY_VIRT + 13)
-#define KEY_F4 (KEY_VIRT + 14)
-#define KEY_F5 (KEY_VIRT + 15)
-#define KEY_F6 (KEY_VIRT + 16)
-#define KEY_F7 (KEY_VIRT + 17)
-#define KEY_F8 (KEY_VIRT + 18)
-#define KEY_F9 (KEY_VIRT + 19)
-#define KEY_F10 (KEY_VIRT + 20)
-#define KEY_F11 (KEY_VIRT + 21)
-#define KEY_F12 (KEY_VIRT + 22)
-#define KEY_F(n) (KEY_F1 + (n) - 1)
+#define KEY_F1 IC_KEY_F1
+#define KEY_F2 IC_KEY_F2
+#define KEY_F3 IC_KEY_F3
+#define KEY_F4 IC_KEY_F4
+#define KEY_F5 IC_KEY_F5
+#define KEY_F6 IC_KEY_F6
+#define KEY_F7 IC_KEY_F7
+#define KEY_F8 IC_KEY_F8
+#define KEY_F9 IC_KEY_F9
+#define KEY_F10 IC_KEY_F10
+#define KEY_F11 IC_KEY_F11
+#define KEY_F12 IC_KEY_F12
+#define KEY_F IC_KEY_F
 
-#define KEY_EVENT_BASE (0x02000000U)
-#define KEY_EVENT_RESIZE (KEY_EVENT_BASE + 1)
-#define KEY_EVENT_AUTOTAB (KEY_EVENT_BASE + 2)
-#define KEY_EVENT_STOP (KEY_EVENT_BASE + 3)
+#define KEY_EVENT_BASE IC_KEY_EVENT_BASE
+#define KEY_EVENT_RESIZE IC_KEY_EVENT_RESIZE
+#define KEY_EVENT_AUTOTAB IC_KEY_EVENT_AUTOTAB
+#define KEY_EVENT_STOP IC_KEY_EVENT_STOP
 
-// Convenience
-#define KEY_CTRL_UP (WITH_CTRL(KEY_UP))
-#define KEY_CTRL_DOWN (WITH_CTRL(KEY_DOWN))
-#define KEY_CTRL_LEFT (WITH_CTRL(KEY_LEFT))
-#define KEY_CTRL_RIGHT (WITH_CTRL(KEY_RIGHT))
-#define KEY_CTRL_HOME (WITH_CTRL(KEY_HOME))
-#define KEY_CTRL_END (WITH_CTRL(KEY_END))
-#define KEY_CTRL_DEL (WITH_CTRL(KEY_DEL))
-#define KEY_CTRL_PAGEUP (WITH_CTRL(KEY_PAGEUP))
-#define KEY_CTRL_PAGEDOWN (WITH_CTRL(KEY_PAGEDOWN)))
-#define KEY_CTRL_INS (WITH_CTRL(KEY_INS))
+#define KEY_CTRL_UP IC_KEY_CTRL_UP
+#define KEY_CTRL_DOWN IC_KEY_CTRL_DOWN
+#define KEY_CTRL_LEFT IC_KEY_CTRL_LEFT
+#define KEY_CTRL_RIGHT IC_KEY_CTRL_RIGHT
+#define KEY_CTRL_HOME IC_KEY_CTRL_HOME
+#define KEY_CTRL_END IC_KEY_CTRL_END
+#define KEY_CTRL_DEL IC_KEY_CTRL_DEL
+#define KEY_CTRL_PAGEUP IC_KEY_CTRL_PAGEUP
+#define KEY_CTRL_PAGEDOWN IC_KEY_CTRL_PAGEDOWN
+#define KEY_CTRL_INS IC_KEY_CTRL_INS
 
-#define KEY_SHIFT_TAB (WITH_SHIFT(KEY_TAB))
+#define KEY_SHIFT_TAB IC_KEY_SHIFT_TAB
 
 #endif  // IC_TTY_H

@@ -10,74 +10,109 @@
 // Help: this is included into editline.c
 //-------------------------------------------------------------
 
-static const char* help[] = {
-    "", "Navigation:",
-    "left,"
-    "^b",
-    "go one character to the left",
-    "right,"
-    "^f",
-    "go one character to the right", "up", "go one row up, or back in the history", "down",
-    "go one row down, or forward in the history",
-#ifdef __APPLE__
-    "shift-left",
-#else
-    "^left",
-#endif
-    "go to the start of the previous word",
-#ifdef __APPLE__
-    "shift-right",
-#else
-    "^right",
-#endif
-    "go to the end the current word",
-    "home,"
-    "^a",
-    "go to the start of the current line",
-    "end,"
-    "^e",
-    "go to the end of the current line",
-    "pgup,"
-    "^home",
-    "go to the start of the current input",
-    "pgdn,"
-    "^end",
-    "go to the end of the current input", "alt-m", "jump to matching brace", "^p",
-    "go back in the history", "^n", "go forward in the history", "^r,^s",
-    "search the history starting with the current word", "", "",
+typedef enum help_line_type_e {
+    HELP_LINE_BLANK,
+    HELP_LINE_HEADING,
+    HELP_LINE_BINDING,
+    HELP_LINE_STATIC
+} help_line_type_t;
 
-    "", "Deletion:", "del,^d", "delete the current character", "backsp,^h",
-    "delete the previous character", "^w", "delete to preceding white space", "alt-backsp",
-    "delete to the start of the current word", "alt-d", "delete to the end of the current word",
-    "^u", "delete to the start of the current line", "^k", "delete to the end of the current line",
-    "esc", "delete the current input, or done with empty input", "", "",
+typedef struct help_line_s {
+    help_line_type_t type;
+    const char* text;
+    const char* description;
+    ic_key_action_t action;
+    const char* default_specs;
+} help_line_t;
 
-    "", "Editing:", "enter", "accept current input",
-#ifndef __APPLE__
-    "^enter, ^j", "", "shift-tab",
+#ifdef __APPLE__
+#define SPEC_CURSOR_WORD_PREV "shift+left|alt+b"
+#define SPEC_CURSOR_WORD_NEXT "shift+right|alt+f"
+#define SPEC_INSERT_NEWLINE "shift+tab|ctrl+j"
 #else
-    "shift-tab,^j",
+#define SPEC_CURSOR_WORD_PREV "ctrl+left|alt+b"
+#define SPEC_CURSOR_WORD_NEXT "ctrl+right|alt+f"
+#define SPEC_INSERT_NEWLINE "ctrl+enter|ctrl+j"
 #endif
-    "create a new line for multi-line input",
-    //" ",          "(or type '\\' followed by enter)",
-    "^l", "clear screen", "^t", "swap with previous character (move character backward)", "^z,^_",
-    "undo", "^y", "redo",
-    //"^C",         "done with empty input",
-    //"F1",         "show this help",
-    "tab", "try to complete the current input", "", "", "", "In the completion menu:", "enter,left",
-    "use the currently selected completion", "1 - 9", "use completion N from the menu", "tab,down",
-    "select the next completion", "shift-tab,up", "select the previous completion", "esc",
-    "exit menu without completing", "pgdn,^j", "show all further possible completions", "", "", "",
-    "In incremental history search:", "enter", "use the currently found history entry",
-    "backsp,"
-    "^z",
-    "go back to the previous match (undo)",
-    "tab,"
-    "^r",
-    "find the next match",
-    "shift-tab,"
-    "^s",
-    "find an earlier match", "esc", "exit search", " ", "", NULL, NULL};
+
+#define SPEC_CURSOR_LEFT "left|ctrl+b"
+#define SPEC_CURSOR_RIGHT "right|ctrl+f"
+#define SPEC_CURSOR_UP "up"
+#define SPEC_CURSOR_DOWN "down"
+#define SPEC_CURSOR_LINE_START "home|ctrl+a"
+#define SPEC_CURSOR_LINE_END "end|ctrl+e"
+#define SPEC_CURSOR_INPUT_START "ctrl+home|shift+home|pageup|alt+<"
+#define SPEC_CURSOR_INPUT_END "ctrl+end|shift+end|pagedown|alt+>"
+#define SPEC_CURSOR_MATCH_BRACE "alt+m"
+#define SPEC_HISTORY_PREV "ctrl+p"
+#define SPEC_HISTORY_NEXT "ctrl+n"
+#define SPEC_HISTORY_SEARCH "ctrl+r|ctrl+s"
+#define SPEC_DELETE_FORWARD "delete|ctrl+d"
+#define SPEC_DELETE_BACKWARD "backspace|ctrl+h"
+#define SPEC_DELETE_WORD_END "alt+d"
+#define SPEC_DELETE_WORD_START_WS "ctrl+w"
+#define SPEC_DELETE_WORD_START "alt+backspace|alt+delete"
+#define SPEC_DELETE_LINE_START "ctrl+u"
+#define SPEC_DELETE_LINE_END "ctrl+k"
+#define SPEC_TRANSPOSE "ctrl+t"
+#define SPEC_CLEAR_SCREEN "ctrl+l"
+#define SPEC_UNDO "ctrl+z|ctrl+_"
+#define SPEC_REDO "ctrl+y"
+#define SPEC_COMPLETE "tab|alt+?"
+
+static const help_line_t help_lines[] = {
+    {HELP_LINE_BLANK, NULL, NULL, IC_KEY_ACTION__MAX, NULL},
+    {HELP_LINE_HEADING, "Navigation:", NULL, IC_KEY_ACTION__MAX, NULL},
+    {HELP_LINE_BINDING, NULL, "go one character to the left", IC_KEY_ACTION_CURSOR_LEFT, SPEC_CURSOR_LEFT},
+    {HELP_LINE_BINDING, NULL, "go one character to the right", IC_KEY_ACTION_CURSOR_RIGHT_OR_COMPLETE, SPEC_CURSOR_RIGHT},
+    {HELP_LINE_BINDING, NULL, "go one row up, or back in the history", IC_KEY_ACTION_CURSOR_UP, SPEC_CURSOR_UP},
+    {HELP_LINE_BINDING, NULL, "go one row down, or forward in the history", IC_KEY_ACTION_CURSOR_DOWN, SPEC_CURSOR_DOWN},
+    {HELP_LINE_BINDING, NULL, "go to the start of the previous word", IC_KEY_ACTION_CURSOR_WORD_PREV, SPEC_CURSOR_WORD_PREV},
+    {HELP_LINE_BINDING, NULL, "go to the end of the current word", IC_KEY_ACTION_CURSOR_WORD_NEXT_OR_COMPLETE, SPEC_CURSOR_WORD_NEXT},
+    {HELP_LINE_BINDING, NULL, "go to the start of the current line", IC_KEY_ACTION_CURSOR_LINE_START, SPEC_CURSOR_LINE_START},
+    {HELP_LINE_BINDING, NULL, "go to the end of the current line", IC_KEY_ACTION_CURSOR_LINE_END, SPEC_CURSOR_LINE_END},
+    {HELP_LINE_BINDING, NULL, "go to the start of the current input", IC_KEY_ACTION_CURSOR_INPUT_START, SPEC_CURSOR_INPUT_START},
+    {HELP_LINE_BINDING, NULL, "go to the end of the current input", IC_KEY_ACTION_CURSOR_INPUT_END, SPEC_CURSOR_INPUT_END},
+    {HELP_LINE_BINDING, NULL, "jump to matching brace", IC_KEY_ACTION_CURSOR_MATCH_BRACE, SPEC_CURSOR_MATCH_BRACE},
+    {HELP_LINE_BINDING, NULL, "go back in the history", IC_KEY_ACTION_HISTORY_PREV, SPEC_HISTORY_PREV},
+    {HELP_LINE_BINDING, NULL, "go forward in the history", IC_KEY_ACTION_HISTORY_NEXT, SPEC_HISTORY_NEXT},
+    {HELP_LINE_BINDING, NULL, "search the history starting with the current word", IC_KEY_ACTION_HISTORY_SEARCH, SPEC_HISTORY_SEARCH},
+    {HELP_LINE_BLANK, NULL, NULL, IC_KEY_ACTION__MAX, NULL},
+    {HELP_LINE_HEADING, "Deletion:", NULL, IC_KEY_ACTION__MAX, NULL},
+    {HELP_LINE_BINDING, NULL, "delete the current character", IC_KEY_ACTION_DELETE_FORWARD, SPEC_DELETE_FORWARD},
+    {HELP_LINE_BINDING, NULL, "delete the previous character", IC_KEY_ACTION_DELETE_BACKWARD, SPEC_DELETE_BACKWARD},
+    {HELP_LINE_BINDING, NULL, "delete to preceding white space", IC_KEY_ACTION_DELETE_WORD_START_WS, SPEC_DELETE_WORD_START_WS},
+    {HELP_LINE_BINDING, NULL, "delete to the start of the current word", IC_KEY_ACTION_DELETE_WORD_START, SPEC_DELETE_WORD_START},
+    {HELP_LINE_BINDING, NULL, "delete to the end of the current word", IC_KEY_ACTION_DELETE_WORD_END, SPEC_DELETE_WORD_END},
+    {HELP_LINE_BINDING, NULL, "delete to the start of the current line", IC_KEY_ACTION_DELETE_LINE_START, SPEC_DELETE_LINE_START},
+    {HELP_LINE_BINDING, NULL, "delete to the end of the current line", IC_KEY_ACTION_DELETE_LINE_END, SPEC_DELETE_LINE_END},
+    {HELP_LINE_STATIC, "esc", "delete the current input, or done with empty input", IC_KEY_ACTION__MAX, NULL},
+    {HELP_LINE_BLANK, NULL, NULL, IC_KEY_ACTION__MAX, NULL},
+    {HELP_LINE_HEADING, "Editing:", NULL, IC_KEY_ACTION__MAX, NULL},
+    {HELP_LINE_STATIC, "enter", "accept current input", IC_KEY_ACTION__MAX, NULL},
+    {HELP_LINE_BINDING, NULL, "create a new line for multi-line input", IC_KEY_ACTION_INSERT_NEWLINE, SPEC_INSERT_NEWLINE},
+    {HELP_LINE_BINDING, NULL, "clear screen", IC_KEY_ACTION_CLEAR_SCREEN, SPEC_CLEAR_SCREEN},
+    {HELP_LINE_BINDING, NULL, "swap with previous character (move character backward)", IC_KEY_ACTION_TRANSPOSE_CHARS, SPEC_TRANSPOSE},
+    {HELP_LINE_BINDING, NULL, "undo", IC_KEY_ACTION_UNDO, SPEC_UNDO},
+    {HELP_LINE_BINDING, NULL, "redo", IC_KEY_ACTION_REDO, SPEC_REDO},
+    {HELP_LINE_BINDING, NULL, "try to complete the current input", IC_KEY_ACTION_COMPLETE, SPEC_COMPLETE},
+    {HELP_LINE_BLANK, NULL, NULL, IC_KEY_ACTION__MAX, NULL},
+    {HELP_LINE_HEADING, "In the completion menu:", NULL, IC_KEY_ACTION__MAX, NULL},
+    {HELP_LINE_STATIC, "enter,left", "use the currently selected completion", IC_KEY_ACTION__MAX, NULL},
+    {HELP_LINE_STATIC, "1 - 9", "use completion N from the menu", IC_KEY_ACTION__MAX, NULL},
+    {HELP_LINE_STATIC, "tab,down", "select the next completion", IC_KEY_ACTION__MAX, NULL},
+    {HELP_LINE_STATIC, "shift-tab,up", "select the previous completion", IC_KEY_ACTION__MAX, NULL},
+    {HELP_LINE_STATIC, "esc", "exit menu without completing", IC_KEY_ACTION__MAX, NULL},
+    {HELP_LINE_STATIC, "pgdn,^j", "show all further possible completions", IC_KEY_ACTION__MAX, NULL},
+    {HELP_LINE_BLANK, NULL, NULL, IC_KEY_ACTION__MAX, NULL},
+    {HELP_LINE_HEADING, "In incremental history search:", NULL, IC_KEY_ACTION__MAX, NULL},
+    {HELP_LINE_STATIC, "enter", "use the currently found history entry", IC_KEY_ACTION__MAX, NULL},
+    {HELP_LINE_STATIC, "backsp,^z", "go back to the previous match (undo)", IC_KEY_ACTION__MAX, NULL},
+    {HELP_LINE_STATIC, "tab,^r", "find the next match", IC_KEY_ACTION__MAX, NULL},
+    {HELP_LINE_STATIC, "shift-tab,^s", "find an earlier match", IC_KEY_ACTION__MAX, NULL},
+    {HELP_LINE_STATIC, "esc", "exit search", IC_KEY_ACTION__MAX, NULL},
+    {HELP_LINE_STATIC, " ", "", IC_KEY_ACTION__MAX, NULL},
+};
 
 static const char* help_initial =
     "[ic-info]"
@@ -112,15 +147,159 @@ static const char* help_initial =
     "       ctrl-u                          ctrl-k\n"
     "[/ansi-lightgray][/ic-info]\n";
 
+static bool key_triggers_action(ic_env_t* env, ic_keycode_t key, ic_key_action_t action) {
+    ic_key_action_t configured;
+    if (ic_get_key_binding(key, &configured)) {
+        return configured == action;
+    }
+    return true;
+}
+
+static void beautify_key_label(char* label) {
+    if (label == NULL)
+        return;
+    size_t len = strlen(label);
+    if (len >= 6 && ic_strnicmp(label, "ctrl+", 5) == 0 && strchr(label + 5, '+') == NULL &&
+        strlen(label + 5) == 1) {
+        label[0] = '^';
+        label[1] = label[5];
+        label[2] = '\0';
+        return;
+    }
+    for (size_t i = 0; i < len; ++i) {
+        if (label[i] == '+')
+            label[i] = '-';
+    }
+}
+
+#define HELP_MAX_LABELS 16
+#define HELP_LABEL_LEN 64
+
+static bool key_label_equals(const char* a, const char* b) {
+    return (ic_stricmp(a, b) == 0);
+}
+
+static bool help_label_exists(char labels[][HELP_LABEL_LEN], size_t count, const char* label) {
+    for (size_t i = 0; i < count; ++i) {
+        if (key_label_equals(labels[i], label))
+            return true;
+    }
+    return false;
+}
+
+static void help_label_add(char labels[][HELP_LABEL_LEN], size_t* count, const char* label) {
+    if (label == NULL || labels == NULL || count == NULL)
+        return;
+    if (*count >= HELP_MAX_LABELS)
+        return;
+    if (help_label_exists(labels, *count, label))
+        return;
+    ic_strncpy(labels[*count], HELP_LABEL_LEN, label, HELP_LABEL_LEN - 1);
+    beautify_key_label(labels[*count]);
+    (*count)++;
+}
+
+static void format_binding_keys(ic_env_t* env, ic_key_action_t action, const char* default_specs,
+                                char* buffer, size_t buflen) {
+    if (buffer == NULL || buflen == 0)
+        return;
+    char labels[HELP_MAX_LABELS][HELP_LABEL_LEN];
+    size_t label_count = 0;
+
+    if (default_specs != NULL && default_specs[0] != '\0') {
+        const char* spec = default_specs;
+        size_t len = strlen(default_specs);
+        size_t start = 0;
+        for (size_t i = 0; i <= len; ++i) {
+            if (default_specs[i] == '|' || default_specs[i] == '\0') {
+                size_t tok_len = i - start;
+                if (tok_len > 0 && tok_len < 64) {
+                    char token[64];
+                    memcpy(token, spec + start, tok_len);
+                    token[tok_len] = '\0';
+                    // trim spaces
+                    size_t left = 0;
+                    while (token[left] == ' ')
+                        left++;
+                    size_t right = strlen(token);
+                    while (right > left && token[right - 1] == ' ')
+                        right--;
+                    token[right] = '\0';
+                    if (right > left) {
+                        const char* trimmed = token + left;
+                        ic_keycode_t key;
+                        if (ic_parse_key_spec(trimmed, &key) &&
+                            key_triggers_action(env, key, action)) {
+                            char formatted[64];
+                            if (ic_format_key_spec(key, formatted, sizeof(formatted))) {
+                                help_label_add(labels, &label_count, formatted);
+                            }
+                        }
+                    }
+                }
+                start = i + 1;
+            }
+        }
+    }
+
+    if (env != NULL && env->key_binding_count > 0 && env->key_bindings != NULL) {
+        for (ssize_t i = 0; i < env->key_binding_count; ++i) {
+            ic_key_binding_entry_t entry = env->key_bindings[i];
+            if (entry.action != action)
+                continue;
+            char formatted[64];
+            if (ic_format_key_spec(entry.key, formatted, sizeof(formatted))) {
+                help_label_add(labels, &label_count, formatted);
+            }
+        }
+    }
+
+    if (label_count == 0) {
+        ic_strncpy(buffer, (ssize_t)buflen, "(unbound)", (ssize_t)buflen - 1);
+        return;
+    }
+
+    buffer[0] = '\0';
+    size_t pos = 0;
+    for (size_t i = 0; i < label_count; ++i) {
+        int written = snprintf(buffer + pos, buflen - pos, "%s%s", (i == 0 ? "" : ", "),
+                               labels[i]);
+        if (written < 0)
+            break;
+        pos += (size_t)written;
+        if (pos >= buflen)
+            break;
+    }
+}
+
 static void edit_show_help(ic_env_t* env, editor_t* eb) {
     edit_clear(env, eb);
     bbcode_println(env->bbcode, help_initial);
-    for (ssize_t i = 0; help[i] != NULL && help[i + 1] != NULL; i += 2) {
-        if (help[i][0] == 0) {
-            bbcode_printf(env->bbcode, "[ic-info]%s[/]\n", help[i + 1]);
-        } else {
-            bbcode_printf(env->bbcode, "  [ic-emphasis]%-13s[/][ansi-lightgray]%s%s[/]\n", help[i],
-                          (help[i + 1][0] == 0 ? "" : ": "), help[i + 1]);
+
+    const size_t line_count = sizeof(help_lines) / sizeof(help_lines[0]);
+    for (size_t i = 0; i < line_count; ++i) {
+        const help_line_t* line = &help_lines[i];
+        switch (line->type) {
+            case HELP_LINE_BLANK:
+                bbcode_println(env->bbcode, "");
+                break;
+            case HELP_LINE_HEADING:
+                bbcode_printf(env->bbcode, "[ic-info]%s[/]\n", line->text);
+                break;
+            case HELP_LINE_STATIC:
+                bbcode_printf(env->bbcode, "  [ic-emphasis]%-13s[/][ansi-lightgray]%s%s[/]\n",
+                              line->text, (line->description[0] == 0 ? "" : ": "),
+                              line->description);
+                break;
+            case HELP_LINE_BINDING: {
+                char key_buffer[256];
+                format_binding_keys(env, line->action, line->default_specs, key_buffer,
+                                    sizeof(key_buffer));
+                bbcode_printf(env->bbcode, "  [ic-emphasis]%-13s[/][ansi-lightgray]%s%s[/]\n",
+                              key_buffer, (line->description[0] == 0 ? "" : ": "),
+                              line->description);
+                break;
+            }
         }
     }
 

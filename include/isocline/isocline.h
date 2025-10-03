@@ -18,6 +18,8 @@ extern "C" {
 #include <stddef.h>   // size_t
 #include <stdint.h>   // uint32_t
 
+#include "keycodes.h"
+
 /*! \mainpage
 Isocline C API reference.
 
@@ -55,7 +57,7 @@ Contents:
 /// @returns the heap allocated input on succes, which should be `free`d by the
 /// caller.
 ///   Returns NULL on error, or if the user typed ctrl+d or ctrl+c.
-///
+/// 
 /// If the standard input (`stdin`) has no editing capability
 /// (like a dumb terminal (e.g. `TERM`=`dumb`), running in a debuggen, a pipe or
 /// redirected file, etc.) the input is read directly from the input stream up
@@ -466,6 +468,64 @@ bool ic_enable_brace_insertion(bool enable);
 /// Set matching brace pairs for automatic insertion.
 /// Pass \a NULL for the default `()[]{}\"\"''`
 void ic_set_insertion_braces(const char* brace_pairs);
+
+/// \}
+
+//--------------------------------------------------------------
+// Key bindings
+//--------------------------------------------------------------
+/// \defgroup keybinding Key binding
+/// Manage interactive key bindings.
+/// \{
+
+typedef enum ic_key_action_e {
+  IC_KEY_ACTION_NONE = 0,
+  IC_KEY_ACTION_COMPLETE,
+  IC_KEY_ACTION_HISTORY_SEARCH,
+  IC_KEY_ACTION_HISTORY_PREV,
+  IC_KEY_ACTION_HISTORY_NEXT,
+  IC_KEY_ACTION_CLEAR_SCREEN,
+  IC_KEY_ACTION_UNDO,
+  IC_KEY_ACTION_REDO,
+  IC_KEY_ACTION_SHOW_HELP,
+  IC_KEY_ACTION_CURSOR_LEFT,
+  IC_KEY_ACTION_CURSOR_RIGHT_OR_COMPLETE,
+  IC_KEY_ACTION_CURSOR_UP,
+  IC_KEY_ACTION_CURSOR_DOWN,
+  IC_KEY_ACTION_CURSOR_LINE_START,
+  IC_KEY_ACTION_CURSOR_LINE_END,
+  IC_KEY_ACTION_CURSOR_WORD_PREV,
+  IC_KEY_ACTION_CURSOR_WORD_NEXT_OR_COMPLETE,
+  IC_KEY_ACTION_CURSOR_INPUT_START,
+  IC_KEY_ACTION_CURSOR_INPUT_END,
+  IC_KEY_ACTION_CURSOR_MATCH_BRACE,
+  IC_KEY_ACTION_DELETE_BACKWARD,
+  IC_KEY_ACTION_DELETE_FORWARD,
+  IC_KEY_ACTION_DELETE_WORD_END,
+  IC_KEY_ACTION_DELETE_WORD_START_WS,
+  IC_KEY_ACTION_DELETE_WORD_START,
+  IC_KEY_ACTION_DELETE_LINE_START,
+  IC_KEY_ACTION_DELETE_LINE_END,
+  IC_KEY_ACTION_TRANSPOSE_CHARS,
+  IC_KEY_ACTION_INSERT_NEWLINE,
+  IC_KEY_ACTION__MAX
+} ic_key_action_t;
+
+typedef struct ic_key_binding_entry_s {
+  ic_keycode_t key;
+  ic_key_action_t action;
+} ic_key_binding_entry_t;
+
+bool ic_bind_key(ic_keycode_t key, ic_key_action_t action);
+bool ic_clear_key_binding(ic_keycode_t key);
+void ic_reset_key_bindings(void);
+bool ic_get_key_binding(ic_keycode_t key, ic_key_action_t* out_action);
+size_t ic_list_key_bindings(ic_key_binding_entry_t* buffer, size_t capacity);
+ic_key_action_t ic_key_action_from_name(const char* name);
+const char* ic_key_action_name(ic_key_action_t action);
+bool ic_parse_key_spec(const char* spec, ic_keycode_t* out_key);
+bool ic_bind_key_named(const char* key_spec, const char* action_name);
+bool ic_format_key_spec(ic_keycode_t key, char* buffer, size_t buflen);
 
 /// \}
 
