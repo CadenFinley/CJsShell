@@ -46,16 +46,6 @@ This test can be ran from the root of the repository, and is recommended to run 
     ./tests/run_shell_tests.sh
 ```
 
-# Key Binding Customization
-
-Isocline now ships with a lightweight key binding registry so you can remap shortcuts without patching the source. Use the new public API to register custom handlers at runtime:
-
-- `ic_bind_key(IC_KEY_CTRL_B, IC_KEY_ACTION_CURSOR_WORD_PREV);` – remap a key to one of the provided actions.
-- `ic_bind_key_named("alt+enter", "insert-newline");` – parse human-readable names.
-- `ic_clear_key_binding(IC_KEY_TAB);` – restore the default behaviour for a key.
-
-You can inspect active overrides with `ic_list_key_bindings` and render key names with `ic_format_key_spec`. See `include/isocline/isocline.h` for the full list of supported actions.
-
 # Third‑Party Components
 
 - **isocline**  

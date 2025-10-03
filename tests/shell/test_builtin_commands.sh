@@ -145,6 +145,15 @@ else
     pass_test "help command"
 fi
 
+# Test approot command
+"$CJSH_PATH" -c "approot" >/dev/null 2>&1
+if [ $? -ne 0 ]; then
+    fail_test "approot builtin"
+    exit 1
+else
+    pass_test "approot builtin"
+fi
+
 # Test eval builtin
 OUT=$("$CJSH_PATH" -c "CMD='echo hello'; eval \$CMD")
 if [ "$OUT" != "hello" ]; then
