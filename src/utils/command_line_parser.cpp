@@ -14,26 +14,26 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(int argc, char
 
     detect_login_mode(argv);
 
-    static struct option long_options[] = {{"login", no_argument, 0, 'l'},
-                                           {"interactive", no_argument, 0, 'i'},
-                                           {"command", required_argument, 0, 'c'},
-                                           {"version", no_argument, 0, 'v'},
-                                           {"help", no_argument, 0, 'h'},
-                                           {"no-plugins", no_argument, 0, 'P'},
-                                           {"no-themes", no_argument, 0, 'T'},
-                                           {"no-ai", no_argument, 0, 'A'},
-                                           {"no-colors", no_argument, 0, 'C'},
-                                           {"no-titleline", no_argument, 0, 'L'},
-                                           {"show-startup-time", no_argument, 0, 'U'},
-                                           {"no-source", no_argument, 0, 'N'},
-                                           {"no-completions", no_argument, 0, 'O'},
-                                           {"no-syntax-highlighting", no_argument, 0, 'S'},
-                                           {"no-smart-cd", no_argument, 0, 'M'},
-                                           {"startup-test", no_argument, 0, 'X'},
-                                           {"minimal", no_argument, 0, 'm'},
-                                           {"disable-custom-ls", no_argument, 0, 'D'},
-                                           {"secure", no_argument, 0, 's'},
-                                           {0, 0, 0, 0}};
+    static struct option long_options[] = {{"login", no_argument, nullptr, 'l'},
+                                           {"interactive", no_argument, nullptr, 'i'},
+                                           {"command", required_argument, nullptr, 'c'},
+                                           {"version", no_argument, nullptr, 'v'},
+                                           {"help", no_argument, nullptr, 'h'},
+                                           {"no-plugins", no_argument, nullptr, 'P'},
+                                           {"no-themes", no_argument, nullptr, 'T'},
+                                           {"no-ai", no_argument, nullptr, 'A'},
+                                           {"no-colors", no_argument, nullptr, 'C'},
+                                           {"no-titleline", no_argument, nullptr, 'L'},
+                                           {"show-startup-time", no_argument, nullptr, 'U'},
+                                           {"no-source", no_argument, nullptr, 'N'},
+                                           {"no-completions", no_argument, nullptr, 'O'},
+                                           {"no-syntax-highlighting", no_argument, nullptr, 'S'},
+                                           {"no-smart-cd", no_argument, nullptr, 'M'},
+                                           {"startup-test", no_argument, nullptr, 'X'},
+                                           {"minimal", no_argument, nullptr, 'm'},
+                                           {"disable-custom-ls", no_argument, nullptr, 'D'},
+                                           {"secure", no_argument, nullptr, 's'},
+                                           {nullptr, 0, nullptr, 0}};
 
     const char* short_options = "+lic:vhPTACLUNOSMXmDs";
 
@@ -111,7 +111,7 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(int argc, char
                 return result;
             default:
                 print_error({ErrorType::INVALID_ARGUMENT,
-                             std::string(1, c),
+                             std::string(1, static_cast<char>(c)),
                              "Unrecognized option",
                              {"Check command line arguments"}});
                 result.exit_code = 127;
@@ -129,7 +129,7 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(int argc, char
         }
     }
 
-    if (!config::force_interactive && !isatty(STDIN_FILENO)) {
+    if (!config::force_interactive && (isatty(STDIN_FILENO) == 0)) {
         config::interactive_mode = false;
     }
 
@@ -137,7 +137,7 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(int argc, char
 }
 
 void CommandLineParser::detect_login_mode(char* argv[]) {
-    if (argv && argv[0] && argv[0][0] == '-') {
+    if ((argv != nullptr) && (argv[0] != nullptr) && argv[0][0] == '-') {
         config::login_mode = true;
     }
 }

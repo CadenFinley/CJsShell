@@ -110,7 +110,7 @@ Result<FILE*> FileOperations::safe_fopen(const std::string& path, const std::str
 
 void FileOperations::safe_fclose(FILE* file) {
     if (file != nullptr) {
-        std::fclose(file);
+        (void)std::fclose(file);
     }
 }
 
@@ -159,7 +159,7 @@ Result<void> FileOperations::write_temp_file(const std::string& path, const std:
 }
 
 void FileOperations::cleanup_temp_file(const std::string& path) {
-    std::remove(path.c_str());
+    (void)std::remove(path.c_str());
 }
 
 Result<std::string> FileOperations::read_command_output(const std::string& command) {
@@ -214,9 +214,7 @@ Result<void> FileOperations::write_all(int fd, std::string_view data) {
     while (total_written < data.size()) {
         size_t remaining = data.size() - total_written;
 #ifdef SSIZE_MAX
-        if (remaining > static_cast<size_t>(SSIZE_MAX)) {
-            remaining = static_cast<size_t>(SSIZE_MAX);
-        }
+        remaining = std::min(remaining, static_cast<size_t>(SSIZE_MAX));
 #endif
         ssize_t written = ::write(fd, data.data() + total_written, remaining);
         if (written == -1) {
@@ -251,7 +249,7 @@ Result<std::string> FileOperations::read_file_content(const std::string& path) {
     int fd = open_result.value();
     std::string content;
     char buffer[4096];
-    ssize_t bytes_read;
+    ssize_t bytes_read = 0;
 
     while ((bytes_read = read(fd, buffer, sizeof(buffer))) > 0) {
         content.append(buffer, bytes_read);
@@ -288,7 +286,7 @@ bool should_refresh_executable_cache() {
 
 bool build_executable_cache() {
     const char* path_env = std::getenv("PATH");
-    if (!path_env) {
+    if (path_env == nullptr) {
         return false;
     }
 
@@ -398,15 +396,14 @@ bool initialize_cjsh_path() {
 #ifdef __APPLE__
     uint32_t size = PATH_MAX;
     if (_NSGetExecutablePath(path, &size) == 0) {
-        char* resolved_path = realpath(path, nullptr);
-        if (resolved_path != nullptr) {
-            g_cjsh_path = resolved_path;
-            free(resolved_path);
-            return true;
-        } else {
-            g_cjsh_path = path;
+        std::unique_ptr<char, decltype(&std::free)> resolved_path(realpath(path, nullptr),
+                                                                  std::free);
+        if (resolved_path) {
+            g_cjsh_path = resolved_path.get();
             return true;
         }
+        g_cjsh_path = path;
+        return true;
     }
 #endif
 
@@ -430,7 +427,7 @@ bool initialize_cjsh_directories() {
 
         return true;
     } catch (const fs::filesystem_error& e) {
-        std::cerr << "Error creating cjsh directories: " << e.what() << std::endl;
+        std::cerr << "Error creating cjsh directories: " << e.what() << '\n';
         return false;
     }
 }
@@ -444,7 +441,7 @@ std::filesystem::path get_cjsh_path() {
 
 std::string find_executable_in_path(const std::string& name) {
     const char* path_env = std::getenv("PATH");
-    if (!path_env) {
+    if (path_env == nullptr) {
         return "";
     }
 
@@ -533,10 +530,8 @@ bool create_profile_file() {
         FileOperations::write_file_content(g_cjsh_profile_path.string(), profile_content);
 
     if (!write_result.is_ok()) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     nullptr,
-                     write_result.error().c_str(),
-                     {"Check file permissions"}});
+        print_error(
+            {ErrorType::RUNTIME_ERROR, "", write_result.error(), {"Check file permissions"}});
         return false;
     }
 
@@ -684,10 +679,8 @@ bool create_source_file() {
         FileOperations::write_file_content(g_cjsh_source_path.string(), source_content);
 
     if (!write_result.is_ok()) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     nullptr,
-                     write_result.error().c_str(),
-                     {"Check file permissions"}});
+        print_error(
+            {ErrorType::RUNTIME_ERROR, "", write_result.error(), {"Check file permissions"}});
         return false;
     }
 
@@ -709,10 +702,8 @@ bool create_logout_file() {
         FileOperations::write_file_content(g_cjsh_logout_path.string(), logout_content);
 
     if (!write_result.is_ok()) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     nullptr,
-                     write_result.error().c_str(),
-                     {"Check file permissions"}});
+        print_error(
+            {ErrorType::RUNTIME_ERROR, "", write_result.error(), {"Check file permissions"}});
         return false;
     }
 
@@ -735,7 +726,7 @@ bool init_interactive_filesystem() {
 
         if (!home_exists) {
             print_error({ErrorType::RUNTIME_ERROR,
-                         nullptr,
+                         "",
                          "User home path not found",
                          {"Check user account configuration"}});
             return false;
@@ -747,7 +738,7 @@ bool init_interactive_filesystem() {
             if (!write_result.is_ok()) {
                 print_error({ErrorType::RUNTIME_ERROR,
                              g_cjsh_history_path.c_str(),
-                             write_result.error().c_str(),
+                             write_result.error(),
                              {"Check file permissions"}});
                 return false;
             }
@@ -769,7 +760,7 @@ bool init_interactive_filesystem() {
 
     } catch (const std::exception& e) {
         print_error({ErrorType::RUNTIME_ERROR,
-                     nullptr,
+                     "",
                      "Failed to initialize interactive filesystem",
                      {"Check file permissions", "Reinstall cjsh"}});
         return false;
@@ -835,7 +826,7 @@ bool is_executable_in_cache(const std::string& executable_name) {
 
 std::string get_current_path_hash() {
     const char* path_env = std::getenv("PATH");
-    if (!path_env) {
+    if (path_env == nullptr) {
         return "";
     }
 

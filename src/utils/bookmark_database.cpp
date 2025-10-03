@@ -133,7 +133,7 @@ cjsh_filesystem::Result<void> BookmarkDatabase::from_text_format(const std::stri
 
             if (parts.size() >= 2) {
                 BookmarkEntry entry;
-                std::string name = parts[0];
+                const std::string& name = parts[0];
                 entry.path = parts[1];
 
                 if (parts.size() > 2 && !parts[2].empty()) {
@@ -298,6 +298,7 @@ std::vector<std::pair<std::string, std::string>> BookmarkDatabase::get_most_used
     int limit) {
     std::vector<std::pair<std::string, std::string>> bookmarks_with_count;
 
+    bookmarks_with_count.reserve(bookmarks_.size());
     for (const auto& [name, entry] : bookmarks_) {
         bookmarks_with_count.emplace_back(name, entry.path);
     }
@@ -395,7 +396,7 @@ void BookmarkDatabase::enforce_bookmark_limit() {
         return;
     }
 
-    size_t target_size = static_cast<size_t>(MAX_BOOKMARKS * 0.9);
+    size_t target_size = static_cast<size_t>(static_cast<double>(MAX_BOOKMARKS) * 0.9);
     size_t to_remove = bookmarks_.size() - target_size;
 
     std::vector<std::pair<std::string, std::chrono::system_clock::time_point>> bookmark_times;

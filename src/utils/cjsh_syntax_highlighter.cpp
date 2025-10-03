@@ -1,6 +1,5 @@
 #include "cjsh_syntax_highlighter.h"
 
-#include <algorithm>
 #include <cctype>
 #include <cstring>
 #include <filesystem>
@@ -73,7 +72,7 @@ bool SyntaxHighlighter::is_variable_reference(const std::string& token) {
     if (eq_pos != std::string::npos && eq_pos > 0) {
         std::string var_name = token.substr(0, eq_pos);
 
-        if (!var_name.empty() && (std::isalpha(var_name[0]) || var_name[0] == '_')) {
+        if (!var_name.empty() && ((std::isalpha(var_name[0]) != 0) || var_name[0] == '_')) {
             return true;
         }
     }
@@ -113,7 +112,7 @@ bool SyntaxHighlighter::is_function_definition(const std::string& input, size_t&
     func_name_start = 0;
     func_name_end = 0;
 
-    std::string trimmed = input;
+    const std::string& trimmed = input;
 
     size_t first_non_space = trimmed.find_first_not_of(" \t");
     if (first_non_space == std::string::npos) {
@@ -123,7 +122,7 @@ bool SyntaxHighlighter::is_function_definition(const std::string& input, size_t&
     if (trimmed.substr(first_non_space, 8) == "function") {
         size_t name_start = first_non_space + 8;
 
-        while (name_start < trimmed.length() && std::isspace(trimmed[name_start])) {
+        while (name_start < trimmed.length() && (std::isspace(trimmed[name_start]) != 0)) {
             name_start++;
         }
 
@@ -132,7 +131,7 @@ bool SyntaxHighlighter::is_function_definition(const std::string& input, size_t&
         }
 
         size_t name_end = name_start;
-        while (name_end < trimmed.length() && !std::isspace(trimmed[name_end]) &&
+        while (name_end < trimmed.length() && (std::isspace(trimmed[name_end]) == 0) &&
                trimmed[name_end] != '{') {
             name_end++;
         }
@@ -149,7 +148,8 @@ bool SyntaxHighlighter::is_function_definition(const std::string& input, size_t&
         size_t name_start = first_non_space;
         size_t name_end = paren_pos;
 
-        while (name_end > name_start && std::isspace(trimmed[name_end - 1])) {
+        while (name_end > name_start &&
+               ((std::isspace(static_cast<int>(trimmed[name_end - 1] != 0))) != 0)) {
             name_end--;
         }
 
@@ -200,7 +200,8 @@ void SyntaxHighlighter::highlight_quotes_and_variables(ic_highlight_env_t* henv,
                 }
                 if (quote_end < length) {
                     quote_end++;
-                    ic_highlight(henv, start + quote_start, quote_end - quote_start, "cjsh-string");
+                    ic_highlight(henv, static_cast<long>(start + quote_start),
+                                 static_cast<long>(quote_end - quote_start), "cjsh-string");
                     i = quote_end - 1;
                     in_single_quote = false;
                 }
@@ -225,7 +226,8 @@ void SyntaxHighlighter::highlight_quotes_and_variables(ic_highlight_env_t* henv,
                 }
                 if (quote_end < length) {
                     quote_end++;
-                    ic_highlight(henv, start + quote_start, quote_end - quote_start, "cjsh-string");
+                    ic_highlight(henv, static_cast<long>(start + quote_start),
+                                 static_cast<long>(quote_end - quote_start), "cjsh-string");
                     i = quote_end - 1;
                     in_double_quote = false;
                 }
@@ -245,8 +247,8 @@ void SyntaxHighlighter::highlight_quotes_and_variables(ic_highlight_env_t* henv,
             } else {
                 while (var_end < length) {
                     char vc = input[start + var_end];
-                    if (std::isalnum(vc) || vc == '_' ||
-                        (var_end == var_start + 1 && std::isdigit(vc))) {
+                    if ((std::isalnum(vc) != 0) || vc == '_' ||
+                        (var_end == var_start + 1 && (std::isdigit(vc) != 0))) {
                         var_end++;
                     } else {
                         break;
@@ -255,7 +257,8 @@ void SyntaxHighlighter::highlight_quotes_and_variables(ic_highlight_env_t* henv,
             }
 
             if (var_end > var_start + 1) {
-                ic_highlight(henv, start + var_start, var_end - var_start, "cjsh-variable");
+                ic_highlight(henv, static_cast<long>(start + var_start),
+                             static_cast<long>(var_end - var_start), "cjsh-variable");
                 i = var_end - 1;
             }
         }
@@ -294,34 +297,36 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
         }
 
         if (!in_quotes && c == '#') {
-            ic_highlight(henv, i, len - i, "cjsh-comment");
+            ic_highlight(henv, static_cast<long>(i), static_cast<long>(len - i), "cjsh-comment");
             break;
         }
     }
 
-    size_t func_name_start, func_name_end;
+    size_t func_name_start = 0;
+    size_t func_name_end = 0;
     std::string input_str(input, len);
     if (is_function_definition(input_str, func_name_start, func_name_end)) {
-        ic_highlight(henv, func_name_start, func_name_end - func_name_start,
+        ic_highlight(henv, static_cast<long>(func_name_start),
+                     static_cast<long>(func_name_end - func_name_start),
                      "cjsh-function-definition");
 
         size_t paren_pos = input_str.find("()", func_name_end);
         if (paren_pos != std::string::npos && paren_pos < len) {
-            ic_highlight(henv, paren_pos, 2, "cjsh-function-definition");
+            ic_highlight(henv, static_cast<long>(paren_pos), 2L, "cjsh-function-definition");
         }
 
-        size_t brace_pos = input_str.find("{");
+        size_t brace_pos = input_str.find('{');
         if (brace_pos != std::string::npos && brace_pos < len) {
-            ic_highlight(henv, brace_pos, 1, "cjsh-operator");
+            ic_highlight(henv, static_cast<long>(brace_pos), 1L, "cjsh-operator");
         }
         return;
     }
 
     if (!g_shell->get_menu_active() && input[0] == ':') {
-        ic_highlight(henv, 0, 1, "cjsh-colon");
+        ic_highlight(henv, 0L, 1L, "cjsh-colon");
 
         size_t i = 0;
-        while (i < len && !std::isspace((unsigned char)input[i]))
+        while (i < len && (std::isspace((unsigned char)input[i]) == 0))
             ++i;
         std::string token(input, i);
 
@@ -329,24 +334,24 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
             std::string sub = token.substr(1);
             if (sub.rfind("./", 0) == 0) {
                 if (!std::filesystem::exists(sub) || !std::filesystem::is_regular_file(sub)) {
-                    ic_highlight(henv, 1, i - 1, "cjsh-unknown-command");
+                    ic_highlight(henv, 1L, static_cast<long>(i - 1), "cjsh-unknown-command");
                 } else {
-                    ic_highlight(henv, 1, i - 1, "cjsh-installed");
+                    ic_highlight(henv, 1L, static_cast<long>(i - 1), "cjsh-installed");
                 }
             } else if (is_shell_keyword(sub)) {
-                ic_highlight(henv, 1, i - 1, "cjsh-keyword");
+                ic_highlight(henv, 1L, static_cast<long>(i - 1), "cjsh-keyword");
             } else if (is_shell_builtin(sub)) {
-                ic_highlight(henv, 1, i - 1, "cjsh-builtin");
+                ic_highlight(henv, 1L, static_cast<long>(i - 1), "cjsh-builtin");
             } else {
                 auto cmds = g_shell->get_available_commands();
-                if (std::find(cmds.begin(), cmds.end(), sub) != cmds.end()) {
-                    ic_highlight(henv, 1, i - 1, "cjsh-builtin");
+                if (cmds.find(sub) != cmds.end()) {
+                    ic_highlight(henv, 1L, static_cast<long>(i - 1), "cjsh-builtin");
                 } else if (basic_unix_commands_.count(sub) > 0) {
-                    ic_highlight(henv, 1, i - 1, "cjsh-system");
+                    ic_highlight(henv, 1L, static_cast<long>(i - 1), "cjsh-system");
                 } else if (is_external_command(sub)) {
-                    ic_highlight(henv, 1, i - 1, "cjsh-installed");
+                    ic_highlight(henv, 1L, static_cast<long>(i - 1), "cjsh-installed");
                 } else {
-                    ic_highlight(henv, 1, i - 1, "cjsh-unknown-command");
+                    ic_highlight(henv, 1L, static_cast<long>(i - 1), "cjsh-unknown-command");
                 }
             }
         }
@@ -366,14 +371,15 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
         }
 
         size_t cmd_start = pos;
-        while (cmd_start < cmd_end && std::isspace((unsigned char)input[cmd_start])) {
+        while (cmd_start < cmd_end && (std::isspace((unsigned char)input[cmd_start]) != 0)) {
             cmd_start++;
         }
 
         std::string cmd_str(input + cmd_start, cmd_end - cmd_start);
 
         size_t token_end = 0;
-        while (token_end < cmd_str.length() && !std::isspace((unsigned char)cmd_str[token_end])) {
+        while (token_end < cmd_str.length() &&
+               (std::isspace((unsigned char)cmd_str[token_end]) == 0)) {
             token_end++;
         }
 
@@ -399,17 +405,21 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
                     path_to_check = std::filesystem::current_path().string() + "/" + token;
                 }
                 if (std::filesystem::exists(path_to_check)) {
-                    ic_highlight(henv, cmd_start, token_end, "cjsh-installed");
+                    ic_highlight(henv, static_cast<long>(cmd_start), static_cast<long>(token_end),
+                                 "cjsh-installed");
                 } else {
-                    ic_highlight(henv, cmd_start, token_end, "cjsh-unknown-command");
+                    ic_highlight(henv, static_cast<long>(cmd_start), static_cast<long>(token_end),
+                                 "cjsh-unknown-command");
                 }
             } else if (is_shell_keyword(token)) {
-                ic_highlight(henv, cmd_start, token_end, "cjsh-keyword");
+                ic_highlight(henv, static_cast<long>(cmd_start), static_cast<long>(token_end),
+                             "cjsh-keyword");
             } else if (is_shell_builtin(token)) {
-                ic_highlight(henv, cmd_start, token_end, "cjsh-builtin");
+                ic_highlight(henv, static_cast<long>(cmd_start), static_cast<long>(token_end),
+                             "cjsh-builtin");
             } else {
                 auto cmds = g_shell->get_available_commands();
-                if (std::find(cmds.begin(), cmds.end(), token) != cmds.end()) {
+                if (cmds.find(token) != cmds.end()) {
                     ic_highlight(henv, cmd_start, token_end, "cjsh-builtin");
                 } else if (basic_unix_commands_.count(token) > 0) {
                     ic_highlight(henv, cmd_start, token_end, "cjsh-system");
@@ -426,14 +436,15 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
 
         while (arg_start < cmd_str.length()) {
             while (arg_start < cmd_str.length() &&
-                   std::isspace((unsigned char)cmd_str[arg_start])) {
+                   (std::isspace((unsigned char)cmd_str[arg_start]) != 0)) {
                 arg_start++;
             }
             if (arg_start >= cmd_str.length())
                 break;
 
             size_t arg_end = arg_start;
-            while (arg_end < cmd_str.length() && !std::isspace((unsigned char)cmd_str[arg_end])) {
+            while (arg_end < cmd_str.length() &&
+                   (std::isspace((unsigned char)cmd_str[arg_end]) == 0)) {
                 arg_end++;
             }
 
@@ -448,7 +459,7 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
             }
 
             else {
-                char quote_type;
+                char quote_type = 0;
                 if (is_quoted_string(arg, quote_type)) {
                     ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start, "cjsh-string");
                 } else if (is_sudo_command && arg_start == token_end + 1) {
@@ -463,10 +474,7 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
                         }
                     } else {
                         auto cmds = g_shell->get_available_commands();
-                        if (std::find(cmds.begin(), cmds.end(), arg) != cmds.end()) {
-                            ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start,
-                                         "cjsh-builtin");
-                        } else if (is_shell_builtin(arg)) {
+                        if (cmds.find(arg) != cmds.end() || is_shell_builtin(arg)) {
                             ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start,
                                          "cjsh-builtin");
                         } else if (basic_unix_commands_.count(arg) > 0) {
@@ -509,7 +517,7 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
                                      "cjsh-path-exists");
                     } else {
                         bool is_bookmark = false;
-                        if (is_cd_command && g_shell && g_shell->get_built_ins()) {
+                        if (is_cd_command && g_shell && (g_shell->get_built_ins() != nullptr)) {
                             const auto& bookmarks =
                                 g_shell->get_built_ins()->get_directory_bookmarks();
                             is_bookmark = bookmarks.find(arg) != bookmarks.end();
@@ -536,31 +544,16 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
 
         pos = cmd_end;
         if (pos < len) {
-            if (pos + 1 < len && input[pos] == '&' && input[pos + 1] == '&') {
+            if (pos + 1 < len && ((input[pos] == '&' && input[pos + 1] == '&') ||
+                                  (input[pos] == '|' && input[pos + 1] == '|') ||
+                                  (input[pos] == '>' && input[pos + 1] == '>') ||
+                                  (input[pos] == '<' && input[pos + 1] == '<') ||
+                                  (input[pos] == '&' && input[pos + 1] == '>'))) {
                 ic_highlight(henv, pos, 2, "cjsh-operator");
                 pos += 2;
-            } else if (pos + 1 < len && input[pos] == '|' && input[pos + 1] == '|') {
-                ic_highlight(henv, pos, 2, "cjsh-operator");
-                pos += 2;
-            } else if (pos + 1 < len && input[pos] == '>' && input[pos + 1] == '>') {
-                ic_highlight(henv, pos, 2, "cjsh-operator");
-                pos += 2;
-            } else if (pos + 1 < len && input[pos] == '<' && input[pos + 1] == '<') {
-                ic_highlight(henv, pos, 2, "cjsh-operator");
-                pos += 2;
-            } else if (pos + 1 < len && input[pos] == '&' && input[pos + 1] == '>') {
-                ic_highlight(henv, pos, 2, "cjsh-operator");
-                pos += 2;
-            } else if (input[pos] == '|') {
-                ic_highlight(henv, pos, 1, "cjsh-operator");
-                pos += 1;
-            } else if (input[pos] == ';') {
-                ic_highlight(henv, pos, 1, "cjsh-operator");
-                pos += 1;
-            } else if (input[pos] == '>' || input[pos] == '<') {
-                ic_highlight(henv, pos, 1, "cjsh-operator");
-                pos += 1;
-            } else if (input[pos] == '&' && (pos == len - 1 || input[pos + 1] != '&')) {
+            } else if (input[pos] == '|' || input[pos] == ';' || input[pos] == '>' ||
+                       input[pos] == '<' ||
+                       (input[pos] == '&' && (pos == len - 1 || input[pos + 1] != '&'))) {
                 ic_highlight(henv, pos, 1, "cjsh-operator");
                 pos += 1;
             } else {
