@@ -81,8 +81,6 @@ bool secure_mode = false;
 bool show_title_line = true;
 }  // namespace config
 
-// cleanup and refactor parser
-
 static void save_startup_arguments(int argc, char* argv[]) {
     g_startup_args.clear();
     for (int i = 0; i < argc; i++) {
