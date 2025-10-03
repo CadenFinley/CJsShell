@@ -263,8 +263,201 @@ static inline bool nob_cmd_run_with_spinner(Nob_Cmd* cmd, const char* label) {
     }
 }
 
-static inline bool compile_cjsh(int override_parallel_jobs) {
+typedef struct {
+    String_Array arguments;
+    char* file;
+    char* output;
+} Compile_Command_Entry;
+
+typedef struct {
+    Compile_Command_Entry* items;
+    size_t count;
+    size_t capacity;
+} Compile_Command_List;
+
+static inline void free_compile_command_entry(Compile_Command_Entry* entry) {
+    if (entry == NULL) {
+        return;
+    }
+
+    for (size_t i = 0; i < entry->arguments.count; ++i) {
+        if (entry->arguments.items[i] != NULL) {
+            free((char*)entry->arguments.items[i]);
+        }
+    }
+    nob_da_free(entry->arguments);
+    free(entry->file);
+    free(entry->output);
+    entry->arguments.items = NULL;
+    entry->arguments.count = 0;
+    entry->arguments.capacity = 0;
+    entry->file = NULL;
+    entry->output = NULL;
+}
+
+static inline void free_compile_command_list(Compile_Command_List* list) {
+    if (list == NULL) {
+        return;
+    }
+
+    for (size_t i = 0; i < list->count; ++i) {
+        free_compile_command_entry(&list->items[i]);
+    }
+    nob_da_free(*list);
+    list->items = NULL;
+    list->count = 0;
+    list->capacity = 0;
+}
+
+static inline bool add_compile_command_entry(Compile_Command_List* list, Nob_Cmd* cmd,
+                                             const char* file, const char* output) {
+    if (list == NULL || cmd == NULL || file == NULL) {
+        return false;
+    }
+
+    Compile_Command_Entry entry = {0};
+
+    for (size_t i = 0; i < cmd->count; ++i) {
+        const char* arg = cmd->items[i];
+        if (arg == NULL) {
+            continue;
+        }
+
+        char* copy = strdup(arg);
+        if (copy == NULL) {
+            nob_log(NOB_ERROR, "Failed to duplicate compile command argument for %s", file);
+            free_compile_command_entry(&entry);
+            return false;
+        }
+        nob_da_append(&entry.arguments, copy);
+    }
+
+    entry.file = strdup(file);
+    if (entry.file == NULL) {
+        nob_log(NOB_ERROR, "Failed to duplicate source path for compile_commands entry: %s", file);
+        free_compile_command_entry(&entry);
+        return false;
+    }
+
+    if (output != NULL) {
+        entry.output = strdup(output);
+        if (entry.output == NULL) {
+            nob_log(NOB_ERROR, "Failed to duplicate object path for compile_commands entry: %s", file);
+            free_compile_command_entry(&entry);
+            return false;
+        }
+    }
+
+    nob_da_append(list, entry);
+    return true;
+}
+
+static inline void append_json_string(Nob_String_Builder* sb, const char* value) {
+    nob_da_append(sb, '"');
+    if (value != NULL) {
+        const unsigned char* ptr = (const unsigned char*)value;
+        while (*ptr) {
+            unsigned char c = *ptr++;
+            switch (c) {
+                case '\\':
+                    nob_sb_append_cstr(sb, "\\\\");
+                    break;
+                case '"':
+                    nob_sb_append_cstr(sb, "\\\"");
+                    break;
+                case '\n':
+                    nob_sb_append_cstr(sb, "\\n");
+                    break;
+                case '\r':
+                    nob_sb_append_cstr(sb, "\\r");
+                    break;
+                case '\t':
+                    nob_sb_append_cstr(sb, "\\t");
+                    break;
+                default:
+                    if (c < 0x20) {
+                        char buffer[7];
+                        snprintf(buffer, sizeof(buffer), "\\u%04x", c);
+                        nob_sb_append_cstr(sb, buffer);
+                    } else {
+                        nob_da_append(sb, (char)c);
+                    }
+                    break;
+            }
+        }
+    }
+    nob_da_append(sb, '"');
+}
+
+static inline bool write_compile_commands_file(const char* directory,
+                                               const Compile_Command_List* list) {
+    if (directory == NULL || list == NULL) {
+        return false;
+    }
+
+    Nob_String_Builder json = {0};
+    nob_sb_append_cstr(&json, "[\n");
+
+    for (size_t i = 0; i < list->count; ++i) {
+        const Compile_Command_Entry* entry = &list->items[i];
+        nob_sb_append_cstr(&json, "  {\n    \"directory\": ");
+        append_json_string(&json, directory);
+        nob_sb_append_cstr(&json, ",\n    \"file\": ");
+        append_json_string(&json, entry->file != NULL ? entry->file : "");
+        if (entry->output != NULL) {
+            nob_sb_append_cstr(&json, ",\n    \"output\": ");
+            append_json_string(&json, entry->output);
+        }
+        nob_sb_append_cstr(&json, ",\n    \"arguments\": [");
+
+        if (entry->arguments.count > 0) {
+            nob_sb_append_cstr(&json, "\n");
+            for (size_t j = 0; j < entry->arguments.count; ++j) {
+                nob_sb_append_cstr(&json, "      ");
+                append_json_string(&json, entry->arguments.items[j]);
+                if (j + 1 < entry->arguments.count) {
+                    nob_sb_append_cstr(&json, ",");
+                }
+                nob_sb_append_cstr(&json, "\n");
+            }
+            nob_sb_append_cstr(&json, "    ]\n");
+        } else {
+            nob_sb_append_cstr(&json, "]\n");
+        }
+
+        nob_sb_append_cstr(&json, "  }");
+        if (i + 1 < list->count) {
+            nob_sb_append_cstr(&json, ",");
+        }
+        nob_sb_append_cstr(&json, "\n");
+    }
+
+    nob_sb_append_cstr(&json, "]\n");
+
+    bool ok = nob_write_entire_file("compile_commands.json", json.items, json.count);
+    nob_sb_free(json);
+    return ok;
+}
+
+static inline bool compile_cjsh(int override_parallel_jobs, bool generate_compile_commands) {
     nob_log(NOB_INFO, "Compiling " PROJECT_NAME "...");
+    Compile_Command_List compile_command_list = {0};
+    char* compile_commands_directory = NULL;
+    bool capture_compile_commands = generate_compile_commands;
+
+    if (capture_compile_commands) {
+        const char* cwd_temp = nob_get_current_dir_temp();
+        if (cwd_temp != NULL) {
+            compile_commands_directory = strdup(cwd_temp);
+            if (compile_commands_directory == NULL) {
+                nob_log(NOB_ERROR, "Failed to allocate directory string for compile_commands.json");
+                capture_compile_commands = false;
+            }
+        } else {
+            nob_log(NOB_ERROR, "Failed to determine current directory for compile_commands.json");
+            capture_compile_commands = false;
+        }
+    }
 
     char git_hash_buffer[64] = {0};
     const char* env_git_hash = getenv("CJSH_GIT_HASH_OVERRIDE");
@@ -355,6 +548,38 @@ static inline bool compile_cjsh(int override_parallel_jobs) {
             nob_da_append(&files_to_compile, source);
             nob_da_append(&corresponding_obj_files, strdup(obj_name.items));
             nob_da_append(&corresponding_dep_files, strdup(dep_name.items));
+        }
+
+        if (capture_compile_commands) {
+            Nob_Cmd cc_cmd = {0};
+            if (!setup_build_flags(&cc_cmd)) {
+                nob_log(NOB_ERROR, "Failed to prepare compile command for %s", source);
+                capture_compile_commands = false;
+            } else {
+                nob_cmd_append(&cc_cmd, "-MMD", "-MF", dep_name.items, "-MT", obj_name.items);
+                nob_cmd_append(&cc_cmd, "-c", source, "-o", obj_name.items);
+                if (!add_compile_command_entry(&compile_command_list, &cc_cmd, source,
+                                               obj_name.items)) {
+                    capture_compile_commands = false;
+                }
+            }
+            nob_cmd_free(cc_cmd);
+        }
+
+        if (capture_compile_commands) {
+            Nob_Cmd cc_cmd = {0};
+            if (!setup_c_build_flags(&cc_cmd)) {
+                nob_log(NOB_ERROR, "Failed to prepare C compile command for %s", source);
+                capture_compile_commands = false;
+            } else {
+                nob_cmd_append(&cc_cmd, "-MMD", "-MF", dep_name.items, "-MT", obj_name.items);
+                nob_cmd_append(&cc_cmd, "-c", source, "-o", obj_name.items);
+                if (!add_compile_command_entry(&compile_command_list, &cc_cmd, source,
+                                               obj_name.items)) {
+                    capture_compile_commands = false;
+                }
+            }
+            nob_cmd_free(cc_cmd);
         }
 
         // Always add to obj_files for linking
@@ -631,6 +856,24 @@ static inline bool compile_cjsh(int override_parallel_jobs) {
                 total_files);
     } else {
         nob_log(NOB_INFO, "All %zu files are up to date!", total_files);
+    }
+
+    if (capture_compile_commands && compile_commands_directory != NULL) {
+        if (write_compile_commands_file(compile_commands_directory, &compile_command_list)) {
+            nob_log(NOB_INFO, "Generated compile_commands.json with %zu entries",
+                    compile_command_list.count);
+        } else {
+            nob_log(NOB_ERROR, "Failed to write compile_commands.json");
+        }
+    } else if (generate_compile_commands && !capture_compile_commands) {
+        nob_log(NOB_WARNING,
+                "Skipping compile_commands.json generation due to previous errors");
+    }
+
+    free_compile_command_list(&compile_command_list);
+    if (compile_commands_directory != NULL) {
+        free(compile_commands_directory);
+        compile_commands_directory = NULL;
     }
 
     // Check if linking is needed

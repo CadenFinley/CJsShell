@@ -107,6 +107,7 @@ int main(int argc, char** argv) {
     bool debug = false;
     bool force_32bit = false;
     bool dependencies = false;
+    bool generate_compile_commands = false;
     int override_jobs = -1;  // -1 means use automatic calculation
 
     // Skip the program name
@@ -126,6 +127,8 @@ int main(int argc, char** argv) {
             force_32bit = true;
         } else if (strcmp(arg, "--dependencies") == 0) {
             dependencies = true;
+        } else if (strcmp(arg, "--compile-commands") == 0) {
+            generate_compile_commands = true;
         } else if (strcmp(arg, "--jobs") == 0 || strcmp(arg, "-j") == 0) {
             if (argc == 0) {
                 nob_log(NOB_ERROR, "Expected number after %s", arg);
@@ -186,7 +189,7 @@ int main(int argc, char** argv) {
     }
 
     // Compile the project
-    if (!compile_cjsh(override_jobs)) {
+    if (!compile_cjsh(override_jobs, generate_compile_commands)) {
         nob_log(NOB_ERROR, "Compilation failed");
         return 1;
     }
