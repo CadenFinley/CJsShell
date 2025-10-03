@@ -8,6 +8,7 @@
 
 namespace bookmark_database {
 
+constexpr size_t MAX_BOOKMARKS = 10;
 
 struct BookmarkEntry {
     std::string path;
