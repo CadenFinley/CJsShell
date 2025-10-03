@@ -26,16 +26,14 @@ The easiest way to install CJ's Shell is with brew
 
 To manually build cjsh:
 
-1. Clone the repository:
 ```bash
+    # Clone the repo
     git clone https://github.com/CadenFinley/CJsShell.git
-```
-2. Change directory to the project:
-```bash
+
+    # Go to the cjsh directory
     cd CJsShell
-```
-3. Build the project:
-```bash
+
+    # Build the project:
    ./toolchain/build.sh
 ```
    
