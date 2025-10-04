@@ -5,7 +5,7 @@
 
 # CJ's Shell
 
-> **WARNING**: CJ's Shell is not a 100% POSIX compliant shell. I also would not use it as your primary shell script interpreter. It is also super cool and you will never want to use another shell again.
+> **WARNING**: CJ's Shell is not a 100% POSIX compliant shell yet. (like 95%) I also would not use it as your primary shell script interpreter for super complex tasks. It is also super cool and you will never want to use another shell again.
 
 ## Quick Install (Recommended)
 
@@ -25,7 +25,7 @@ To manually build cjsh:
     git clone https://github.com/CadenFinley/CJsShell.git
 
     # Go to the cjsh directory
-    cd CJsShell
+    cd CJsShell 
 
     # Build the project:
    ./toolchain/build.sh

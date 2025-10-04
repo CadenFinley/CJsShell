@@ -1,0 +1,100 @@
+site_name: CJ's Shell Documentation
+site_description: 'A modern, feature-rich shell with out of the box power, speed, and customization'
+site_author: 'Caden Finley'
+site_url: 'https://cadenfinley.github.io/CJsShell'
+
+repo_name: 'CadenFinley/CJsShell'
+repo_url: 'https://github.com/CadenFinley/CJsShell'
+edit_uri: 'edit/master/docs/'
+
+copyright: '© 2025 Caden Finley. Licensed under MIT License.'
+
+theme:
+  name: material
+  palette:
+    # Dark mode
+    - scheme: slate
+      primary: blue
+      accent: cyan
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+    # Light mode  
+    - scheme: default
+      primary: blue
+      accent: cyan
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.path
+    - navigation.indexes
+    - toc.integrate
+    - navigation.top
+    - search.highlight
+    - search.share
+    - content.tabs.link
+    - content.code.annotation
+    - content.code.copy
+  language: en
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search
+  - mermaid2
+  - glightbox:
+      effect: zoom
+      zoomable: true
+      draggable: true
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - admonition
+  - pymdownx.details
+  - pymdownx.tabbed:
+      alternate_style: true
+  - attr_list
+  - md_in_html
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - def_list
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - tables
+  - footnotes
+  - pymdownx.critic
+  - pymdownx.caret
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.tilde
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Quick Start: getting-started/quick-start.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/CadenFinley/CJsShell
+    - icon: fontawesome/solid/globe
+      link: https://cadenfinley.com
+    - icon: fontawesome/solid/envelope
+      link: mailto:caden@cadenfinley.com
+  version:
+    provider: mike

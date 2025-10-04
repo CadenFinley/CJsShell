@@ -12,3 +12,14 @@ build/
 nob
 !nob/
 nob.old
+
+# MkDocs build output
+site/
+
+# Python virtual environment (if using)
+venv/
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
