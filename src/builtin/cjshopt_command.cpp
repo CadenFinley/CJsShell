@@ -751,17 +751,6 @@ int keybind_command(const std::vector<std::string>& args) {
         return 0;
     }
 
-    // Only allow modifications during startup (in config files)
-    if (subcommand != "list" && !g_startup_active) {
-        print_error(
-            {ErrorType::RUNTIME_ERROR,
-             "keybind",
-             "Key binding modifications can only be set in configuration files (e.g., ~/.cjshrc)",
-             {"Use 'keybind list' to view current bindings.",
-              "To modify bindings, add 'cjshopt keybind ...' commands to your ~/.cjshrc file."}});
-        return 1;
-    }
-
     if (subcommand == "list") {
         if (args.size() != 2) {
             print_error({ErrorType::INVALID_ARGUMENT, "keybind",
