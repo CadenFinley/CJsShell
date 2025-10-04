@@ -283,7 +283,7 @@ ThemeParser::ThemeParser(const std::string& theme_content, std::string source_na
 }
 
 void ThemeParser::skip_whitespace() {
-    while (!is_at_end() && std::isspace(peek())) {
+    while (!is_at_end() && (std::isspace(peek()) != 0)) {
         if (peek() == '\n') {
             line_number++;
         }
@@ -332,7 +332,7 @@ bool ThemeParser::is_keyword(const std::string& keyword) const {
     size_t next_pos = position + keyword.size();
     if (next_pos < content.size()) {
         unsigned char next = static_cast<unsigned char>(content[next_pos]);
-        if (std::isalnum(next) || next == '_') {
+        if ((std::isalnum(next) != 0) || next == '_') {
             return false;
         }
     }
@@ -459,11 +459,11 @@ std::string ThemeParser::parse_string() {
 std::string ThemeParser::parse_identifier() {
     std::string result;
 
-    if (!std::isalpha(peek()) && peek() != '_') {
+    if ((std::isalpha(peek()) == 0) && peek() != '_') {
         parse_error("Expected identifier");
     }
 
-    while (!is_at_end() && (std::isalnum(peek()) || peek() == '_')) {
+    while (!is_at_end() && ((std::isalnum(peek()) != 0) || peek() == '_')) {
         result += advance();
     }
 
@@ -475,19 +475,22 @@ std::string ThemeParser::parse_value() {
 
     if (peek() == '"') {
         return parse_string();
-    } else if (std::isalpha(peek()) || peek() == '_' || peek() == '#') {
+    }
+    if (std::isalpha(peek()) || peek() == '_' || peek() == '#') {
         std::string result;
         while (!is_at_end() && !std::isspace(peek()) && peek() != ',' && peek() != '}') {
             result += advance();
         }
         return result;
-    } else if (std::isdigit(peek()) || peek() == '.') {
+    }
+    if (std::isdigit(peek()) || peek() == '.') {
         std::string result;
         while (!is_at_end() && (std::isdigit(peek()) || peek() == '.')) {
             result += advance();
         }
         return result;
-    } else if (peek() == '{') {
+    }
+    if (peek() == '{') {
         std::string result;
         int brace_count = 0;
         while (!is_at_end()) {

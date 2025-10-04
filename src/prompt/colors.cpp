@@ -20,14 +20,14 @@ ColorCapability detect_color_capability() {
     const char* no_color = std::getenv("NO_COLOR");
     const char* force_color = std::getenv("FORCE_COLOR");
 
-    if (no_color && no_color[0] != '\0') {
+    if ((no_color != nullptr) && no_color[0] != '\0') {
         return ColorCapability::NO_COLOR;
     }
 
-    if (force_color && std::string(force_color) == "true") {
+    if ((force_color != nullptr) && std::string(force_color) == "true") {
         return ColorCapability::TRUE_COLOR;
     }
-    if (colorterm) {
+    if (colorterm != nullptr) {
         std::string colortermStr = colorterm;
         std::transform(colortermStr.begin(), colortermStr.end(), colortermStr.begin(),
                        [](unsigned char c) { return std::tolower(c); });
@@ -38,7 +38,7 @@ ColorCapability detect_color_capability() {
         }
     }
 
-    if (term) {
+    if (term != nullptr) {
         std::string termStr = term;
         if (termStr.find("256") != std::string::npos ||
             termStr.find("xterm") != std::string::npos) {
@@ -73,7 +73,7 @@ std::string get_color_capability_string(ColorCapability capability) {
     }
 }
 
-uint8_t get_closest_ansi_color(const RGB& color) {
+static uint8_t get_closest_ansi_color(const RGB& color) {
     const std::array<RGB, 16> basic_colors = {{{0, 0, 0},
                                                {170, 0, 0},
                                                {0, 170, 0},
@@ -96,8 +96,8 @@ uint8_t get_closest_ansi_color(const RGB& color) {
 
     for (size_t i = 0; i < basic_colors.size(); i++) {
         const RGB& c = basic_colors[i];
-        int distance = (c.r - color.r) * (c.r - color.r) + (c.g - color.g) * (c.g - color.g) +
-                       (c.b - color.b) * (c.b - color.b);
+        int distance = ((c.r - color.r) * (c.r - color.r)) + ((c.g - color.g) * (c.g - color.g)) +
+                       ((c.b - color.b) * (c.b - color.b));
 
         if (distance < closest_distance) {
             closest_distance = distance;
@@ -115,7 +115,9 @@ constexpr HSL rgb_to_hsl(const RGB& rgb) {
 
     float max = std::max(std::max(r, g), b);
     float min = std::min(std::min(r, g), b);
-    float h = 0, s = 0, l = (max + min) / 2.0f;
+    float h = 0;
+    float s = 0;
+    float l = (max + min) / 2.0f;
 
     if (max != min) {
         float d = max - min;
@@ -151,20 +153,20 @@ constexpr RGB hsl_to_rgb(const HSL& hsl) {
         if (t > 1)
             t -= 1;
         if (t < 1.0f / 6.0f)
-            return p + (q - p) * 6.0f * t;
+            return p + ((q - p) * 6.0f * t);
         if (t < 1.0f / 2.0f)
             return q;
         if (t < 2.0f / 3.0f)
-            return p + (q - p) * (2.0f / 3.0f - t) * 6.0f;
+            return p + ((q - p) * (2.0f / 3.0f - t) * 6.0f);
         return p;
     };
 
-    float q = l < 0.5f ? l * (1 + s) : l + s - l * s;
-    float p = 2 * l - q;
+    float q = l < 0.5f ? l * (1 + s) : l + s - (l * s);
+    float p = (2 * l) - q;
 
-    float r = hue_to_rgb(p, q, h + 1.0f / 3.0f);
+    float r = hue_to_rgb(p, q, h + (1.0f / 3.0f));
     float g = hue_to_rgb(p, q, h);
-    float b = hue_to_rgb(p, q, h - 1.0f / 3.0f);
+    float b = hue_to_rgb(p, q, h - (1.0f / 3.0f));
 
     return RGB(static_cast<uint8_t>(r * 255), static_cast<uint8_t>(g * 255),
                static_cast<uint8_t>(b * 255));
@@ -295,9 +297,9 @@ std::string style_reset() {
 }
 
 RGB blend(const RGB& color1, const RGB& color2, float factor) {
-    return RGB(static_cast<uint8_t>(color1.r * (1 - factor) + color2.r * factor),
-               static_cast<uint8_t>(color1.g * (1 - factor) + color2.g * factor),
-               static_cast<uint8_t>(color1.b * (1 - factor) + color2.b * factor));
+    return RGB(static_cast<uint8_t>((color1.r * (1 - factor)) + (color2.r * factor)),
+               static_cast<uint8_t>((color1.g * (1 - factor)) + (color2.g * factor)),
+               static_cast<uint8_t>((color1.b * (1 - factor)) + (color2.b * factor)));
 }
 
 std::vector<RGB> gradient(const RGB& start, const RGB& end, size_t steps) {
@@ -432,9 +434,8 @@ std::string apply_gradient_bg_with_fg(const std::string& text, const std::string
         GradientSpec bg_spec = parse_gradient_value(bg_value);
         RGB fg_rgb = (fg_value == "RESET") ? RGB(255, 255, 255) : parse_color_value(fg_value);
         return gradient_bg_with_fg(text, bg_spec, fg_rgb);
-    } else {
-        return apply_color_or_gradient(text, fg_value, true);
     }
+    return apply_color_or_gradient(text, fg_value, true);
 }
 
 GradientSpec parse_gradient_value(const std::string& value) {
@@ -487,10 +488,9 @@ std::string apply_color_or_gradient(const std::string& text, const std::string& 
     if (is_gradient_value(color_value)) {
         GradientSpec gradient_spec = parse_gradient_value(color_value);
         return is_foreground ? gradient_fg(text, gradient_spec) : gradient_bg(text, gradient_spec);
-    } else {
-        RGB color = parse_color_value(color_value);
-        return is_foreground ? fg_color(color) : bg_color(color);
     }
+    RGB color = parse_color_value(color_value);
+    return is_foreground ? fg_color(color) : bg_color(color);
 }
 
 uint8_t rgb_to_xterm256(const RGB& color) {
@@ -498,7 +498,7 @@ uint8_t rgb_to_xterm256(const RGB& color) {
     int g = static_cast<int>(round(color.g / 255.0 * 5.0));
     int b = static_cast<int>(round(color.b / 255.0 * 5.0));
 
-    return static_cast<uint8_t>(16 + 36 * r + 6 * g + b);
+    return static_cast<uint8_t>(16 + (36 * r) + (6 * g) + b);
 }
 
 constexpr RGB xterm256_to_rgb(uint8_t index) {
@@ -548,7 +548,7 @@ constexpr RGB xterm256_to_rgb(uint8_t index) {
     }
 
     if (index >= 232) {
-        int gray = (index - 232) * 10 + 8;
+        int gray = ((index - 232) * 10) + 8;
         return RGB(gray, gray, gray);
     }
 

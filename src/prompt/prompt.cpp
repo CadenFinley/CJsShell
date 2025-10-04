@@ -21,10 +21,9 @@ std::string Prompt::get_prompt() {
     if (is_git_repo) {
         std::unordered_map<std::string, std::string> vars = get_variables(PromptType::GIT, true);
         return g_theme->get_git_prompt_format(vars);
-    } else {
-        std::unordered_map<std::string, std::string> vars = get_variables(PromptType::PS1, false);
-        return g_theme->get_ps1_prompt_format(vars);
     }
+    std::unordered_map<std::string, std::string> vars = get_variables(PromptType::PS1, false);
+    return g_theme->get_ps1_prompt_format(vars);
 }
 
 std::string Prompt::get_ai_prompt() {
@@ -82,7 +81,10 @@ std::string Prompt::get_title_prompt() {
     std::unordered_map<std::string, std::string> vars = get_variables(PromptType::TITLE);
 
     for (const auto& [key, value] : vars) {
-        prompt_format = replace_placeholder(prompt_format, "{" + key + "}", value);
+        std::string placeholder = "{";
+        placeholder += key;
+        placeholder += "}";
+        prompt_format = replace_placeholder(prompt_format, placeholder, value);
     }
 
     return prompt_format;

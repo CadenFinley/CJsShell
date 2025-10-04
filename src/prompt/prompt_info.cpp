@@ -301,10 +301,10 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
         {"SCALA_VERSION", "IS_SCALA_PROJECT"}};
 
     for (const auto& [version_var, project_var] : lang_dependencies) {
-        if (needed_vars.count(version_var)) {
+        if (needed_vars.count(version_var) != 0u) {
             needed_vars.insert(project_var);
         }
-        if (needed_vars.count(project_var)) {
+        if (needed_vars.count(project_var) != 0u) {
             needed_vars.insert(version_var);
         }
     }
@@ -319,32 +319,33 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
         }
 
         bool result = false;
-        if (lang == "python")
+        if (lang == "python") {
             result = is_python_project();
-        else if (lang == "nodejs")
+        } else if (lang == "nodejs") {
             result = is_nodejs_project();
-        else if (lang == "rust")
+        } else if (lang == "rust") {
             result = is_rust_project();
-        else if (lang == "golang")
+        } else if (lang == "golang") {
             result = is_golang_project();
-        else if (lang == "java")
+        } else if (lang == "java") {
             result = is_java_project();
-        else if (lang == "cpp")
+        } else if (lang == "cpp") {
             result = is_cpp_project();
-        else if (lang == "csharp")
+        } else if (lang == "csharp") {
             result = is_csharp_project();
-        else if (lang == "php")
+        } else if (lang == "php") {
             result = is_php_project();
-        else if (lang == "ruby")
+        } else if (lang == "ruby") {
             result = is_ruby_project();
-        else if (lang == "kotlin")
+        } else if (lang == "kotlin") {
             result = is_kotlin_project();
-        else if (lang == "swift")
+        } else if (lang == "swift") {
             result = is_swift_project();
-        else if (lang == "dart")
+        } else if (lang == "dart") {
             result = is_dart_project();
-        else if (lang == "scala")
+        } else if (lang == "scala") {
             result = is_scala_project();
+        }
 
         language_cache[key] = {result, now};
         return result;
@@ -363,119 +364,120 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
         }
 
         std::string result;
-        if (lang == "python")
+        if (lang == "python") {
             result = get_python_version();
-        else if (lang == "nodejs")
+        } else if (lang == "nodejs") {
             result = get_nodejs_version();
-        else if (lang == "rust")
+        } else if (lang == "rust") {
             result = get_rust_version();
-        else if (lang == "golang")
+        } else if (lang == "golang") {
             result = get_golang_version();
-        else if (lang == "java")
+        } else if (lang == "java") {
             result = get_java_version();
-        else if (lang == "cpp")
+        } else if (lang == "cpp") {
             result = get_cpp_version();
-        else if (lang == "csharp")
+        } else if (lang == "csharp") {
             result = get_csharp_version();
-        else if (lang == "php")
+        } else if (lang == "php") {
             result = get_php_version();
-        else if (lang == "ruby")
+        } else if (lang == "ruby") {
             result = get_ruby_version();
-        else if (lang == "kotlin")
+        } else if (lang == "kotlin") {
             result = get_kotlin_version();
-        else if (lang == "swift")
+        } else if (lang == "swift") {
             result = get_swift_version();
-        else if (lang == "dart")
+        } else if (lang == "dart") {
             result = get_dart_version();
-        else if (lang == "scala")
+        } else if (lang == "scala") {
             result = get_scala_version();
+        }
 
         version_cache[key] = {result, now};
         return result;
     };
 
-    if (needed_vars.count("USERNAME")) {
+    if (needed_vars.count("USERNAME") != 0u) {
         vars["USERNAME"] = get_username();
     }
 
-    if (needed_vars.count("HOSTNAME")) {
+    if (needed_vars.count("HOSTNAME") != 0u) {
         vars["HOSTNAME"] = get_hostname();
     }
 
-    if (needed_vars.count("SHELL")) {
+    if (needed_vars.count("SHELL") != 0u) {
         vars["SHELL"] = get_shell();
     }
 
-    if (needed_vars.count("SHELL_VER")) {
+    if (needed_vars.count("SHELL_VER") != 0u) {
         vars["SHELL_VER"] = get_shell_version();
     }
 
-    if (needed_vars.count("PATH")) {
+    if (needed_vars.count("PATH") != 0u) {
         vars["PATH"] = get_current_file_path();
     }
 
-    if (needed_vars.count("DIRECTORY")) {
+    if (needed_vars.count("DIRECTORY") != 0u) {
         vars["DIRECTORY"] = get_current_file_name();
     }
 
-    if (needed_vars.count("TIME") || needed_vars.count("TIME24")) {
+    if ((needed_vars.count("TIME") != 0u) || (needed_vars.count("TIME24") != 0u)) {
         vars["TIME"] = get_current_time(false);
         vars["TIME24"] = vars["TIME"];
     }
 
-    if (needed_vars.count("TIME12")) {
+    if (needed_vars.count("TIME12") != 0u) {
         vars["TIME12"] = get_current_time(true);
     }
 
-    if (needed_vars.count("DATE")) {
+    if (needed_vars.count("DATE") != 0u) {
         vars["DATE"] = get_current_date();
     }
 
-    if (needed_vars.count("DAY")) {
+    if (needed_vars.count("DAY") != 0u) {
         vars["DAY"] = std::to_string(get_current_day());
     }
-    if (needed_vars.count("MONTH")) {
+    if (needed_vars.count("MONTH") != 0u) {
         vars["MONTH"] = std::to_string(get_current_month());
     }
-    if (needed_vars.count("YEAR")) {
+    if (needed_vars.count("YEAR") != 0u) {
         vars["YEAR"] = std::to_string(get_current_year());
     }
-    if (needed_vars.count("DAY_NAME")) {
+    if (needed_vars.count("DAY_NAME") != 0u) {
         vars["DAY_NAME"] = get_current_day_name();
     }
-    if (needed_vars.count("MONTH_NAME")) {
+    if (needed_vars.count("MONTH_NAME") != 0u) {
         vars["MONTH_NAME"] = get_current_month_name();
     }
 
-    if (needed_vars.count("OS_INFO")) {
+    if (needed_vars.count("OS_INFO") != 0u) {
         vars["OS_INFO"] = get_os_info();
     }
 
-    if (needed_vars.count("KERNEL_VER")) {
+    if (needed_vars.count("KERNEL_VER") != 0u) {
         vars["KERNEL_VER"] = get_kernel_version();
     }
 
-    if (needed_vars.count("CPU_USAGE")) {
+    if (needed_vars.count("CPU_USAGE") != 0u) {
         vars["CPU_USAGE"] = std::to_string(static_cast<int>(get_cpu_usage())) + "%";
     }
 
-    if (needed_vars.count("MEM_USAGE")) {
+    if (needed_vars.count("MEM_USAGE") != 0u) {
         vars["MEM_USAGE"] = std::to_string(static_cast<int>(get_memory_usage())) + "%";
     }
 
-    if (needed_vars.count("BATTERY")) {
+    if (needed_vars.count("BATTERY") != 0u) {
         vars["BATTERY"] = get_battery_status();
     }
 
-    if (needed_vars.count("UPTIME")) {
+    if (needed_vars.count("UPTIME") != 0u) {
         vars["UPTIME"] = get_uptime();
     }
 
-    if (needed_vars.count("TERM_TYPE")) {
+    if (needed_vars.count("TERM_TYPE") != 0u) {
         vars["TERM_TYPE"] = get_terminal_type();
     }
 
-    if (needed_vars.count("TERM_SIZE")) {
+    if (needed_vars.count("TERM_SIZE") != 0u) {
         auto [width, height] = get_terminal_dimensions();
         vars["TERM_SIZE"] = std::to_string(width) + "x" + std::to_string(height);
     }
@@ -487,7 +489,7 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
         }
     }
 
-    if (needed_vars.count("VIRTUAL_ENV")) {
+    if (needed_vars.count("VIRTUAL_ENV") != 0u) {
         std::string env_name;
         if (is_in_virtual_environment(env_name)) {
             vars["VIRTUAL_ENV"] = env_name;
@@ -496,45 +498,45 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
         }
     }
 
-    if (needed_vars.count("BG_JOBS")) {
+    if (needed_vars.count("BG_JOBS") != 0u) {
         int job_count = get_background_jobs_count();
         vars["BG_JOBS"] = job_count > 0 ? std::to_string(job_count) : "";
     }
 
-    if (needed_vars.count("STATUS")) {
+    if (needed_vars.count("STATUS") != 0u) {
         char* status_env = getenv("?");
-        vars["STATUS"] = status_env ? std::string(status_env) : "0";
+        vars["STATUS"] = (status_env != nullptr) ? std::string(status_env) : "0";
     }
 
-    if (needed_vars.count("IP_LOCAL")) {
+    if (needed_vars.count("IP_LOCAL") != 0u) {
         vars["IP_LOCAL"] = get_ip_address(false);
     }
 
-    if (needed_vars.count("IP_EXTERNAL")) {
+    if (needed_vars.count("IP_EXTERNAL") != 0u) {
         vars["IP_EXTERNAL"] = get_ip_address(true);
     }
 
-    if (needed_vars.count("VPN_STATUS")) {
+    if (needed_vars.count("VPN_STATUS") != 0u) {
         vars["VPN_STATUS"] = is_vpn_active() ? "on" : "off";
     }
 
-    if (needed_vars.count("NET_IFACE")) {
+    if (needed_vars.count("NET_IFACE") != 0u) {
         vars["NET_IFACE"] = get_active_network_interface();
     }
 
-    if (needed_vars.count("DISPLAY_DIR")) {
+    if (needed_vars.count("DISPLAY_DIR") != 0u) {
         vars["DISPLAY_DIR"] = get_display_directory();
     }
 
-    if (needed_vars.count("TRUNCATED_PATH")) {
+    if (needed_vars.count("TRUNCATED_PATH") != 0u) {
         vars["TRUNCATED_PATH"] = get_truncated_path();
     }
 
-    if (needed_vars.count("DIR_TRUNCATED")) {
+    if (needed_vars.count("DIR_TRUNCATED") != 0u) {
         vars["DIR_TRUNCATED"] = is_directory_truncated() ? "true" : "false";
     }
 
-    if (needed_vars.count("CMD_DURATION")) {
+    if (needed_vars.count("CMD_DURATION") != 0u) {
         if (should_show_duration()) {
             vars["CMD_DURATION"] = get_formatted_duration();
         } else {
@@ -731,7 +733,8 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
         }
 
         if (needed_vars.count("GIT_AHEAD") || needed_vars.count("GIT_BEHIND")) {
-            int ahead = 0, behind = 0;
+            int ahead = 0;
+            int behind = 0;
             if (get_git_ahead_behind(repo_root, ahead, behind) == 0) {
                 vars["GIT_AHEAD"] = std::to_string(ahead);
                 vars["GIT_BEHIND"] = std::to_string(behind);

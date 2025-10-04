@@ -316,7 +316,7 @@ bool Theme::apply_theme_definition(const ThemeDefinition& definition, const std:
 }
 
 size_t Theme::get_terminal_width() const {
-    struct winsize w;
+    struct winsize w{};
     if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == 0 && w.ws_col > 0) {
         return w.ws_col;
     }
@@ -353,12 +353,8 @@ std::string Theme::render_line_aligned(
         };
 
         auto is_whitespace_only = [](const std::string& text) {
-            for (unsigned char ch : text) {
-                if (!std::isspace(ch)) {
-                    return false;
-                }
-            }
-            return true;
+            return std::all_of(text.begin(), text.end(),
+                               [](unsigned char ch) { return std::isspace(ch); });
         };
 
         for (const auto& segment : bucket) {
@@ -439,26 +435,30 @@ std::string Theme::render_line_aligned(
     };
 
     bool hasAlign = false;
-    for (const auto& seg : segments)
+    for (const auto& seg : segments) {
         if (!seg.alignment.empty()) {
             hasAlign = true;
             break;
         }
+    }
     if (!hasAlign) {
         auto result = build(segments);
         result += colors::ansi::RESET;
         return result;
     }
 
-    std::vector<ThemeSegment> left, center, right;
+    std::vector<ThemeSegment> left;
+    std::vector<ThemeSegment> center;
+    std::vector<ThemeSegment> right;
     for (const auto& seg : segments) {
         std::string alignment = seg.alignment.empty() ? "left" : seg.alignment;
-        if (alignment == "center")
+        if (alignment == "center") {
             center.push_back(seg);
-        else if (alignment == "right")
+        } else if (alignment == "right") {
             right.push_back(seg);
-        else
+        } else {
             left.push_back(seg);
+        }
     }
 
     auto L = build(left);
@@ -839,10 +839,10 @@ bool Theme::evaluate_condition(const std::string& condition,
     if (trimmed_condition.find("<=") != std::string::npos) {
         return evaluate_comparison(trimmed_condition, "<=", vars);
     }
-    if (trimmed_condition.find(">") != std::string::npos) {
+    if (trimmed_condition.find('>') != std::string::npos) {
         return evaluate_comparison(trimmed_condition, ">", vars);
     }
-    if (trimmed_condition.find("<") != std::string::npos) {
+    if (trimmed_condition.find('<') != std::string::npos) {
         return evaluate_comparison(trimmed_condition, "<", vars);
     }
 
@@ -870,9 +870,11 @@ bool Theme::evaluate_comparison(const std::string& condition, const std::string&
 
     if (op == "==") {
         return left_value == right_value;
-    } else if (op == "!=") {
+    }
+    if (op == "!=") {
         return left_value != right_value;
-    } else if (op == ">" || op == "<" || op == ">=" || op == "<=") {
+    }
+    if (op == ">" || op == "<" || op == ">=" || op == "<=") {
         try {
             double left_num = std::stod(left_value);
             double right_num = std::stod(right_value);
@@ -976,7 +978,7 @@ void Theme::view_theme_requirements(const std::string& theme) const {
 
         if (!requirements.colors.empty()) {
             std::cout << "Terminal color support for " << requirements.colors << " is required."
-                      << std::endl;
+                      << '\n';
         }
 
         if (!requirements.fonts.empty()) {
@@ -991,24 +993,24 @@ void Theme::view_theme_requirements(const std::string& theme) const {
                 first = false;
             }
 
-            std::cout << font_req.str() << std::endl;
+            std::cout << font_req.str() << '\n';
         }
 
         if (!requirements.plugins.empty()) {
             for (const auto& plugin_name : requirements.plugins) {
-                std::cout << "Plugin requirement for this theme: " << plugin_name << std::endl;
+                std::cout << "Plugin requirement for this theme: " << plugin_name << '\n';
             }
         }
 
         if (!requirements.custom.empty()) {
             for (const auto& [key, value] : requirements.custom) {
-                std::cout << "Custom requirement: " << key << " = " << value << std::endl;
+                std::cout << "Custom requirement: " << key << " = " << value << '\n';
             }
         }
 
         if (requirements.colors.empty() && requirements.fonts.empty() &&
             requirements.plugins.empty() && requirements.custom.empty()) {
-            std::cout << "No specific requirements found for theme " << theme << std::endl;
+            std::cout << "No specific requirements found for theme " << theme << '\n';
         }
     } catch (const ThemeParseException& e) {
         std::string message = "Failed to parse theme file '" + theme_file + "'";
@@ -1141,7 +1143,7 @@ bool Theme::check_theme_requirements(const ThemeRequirements& requirements) cons
 
     if (!requirements.custom.empty()) {
         for (const auto& [key, value] : requirements.custom) {
-            std::cout << "Custom requirement: " << key << " = " << value << std::endl;
+            std::cout << "Custom requirement: " << key << " = " << value << '\n';
         }
     }
 
