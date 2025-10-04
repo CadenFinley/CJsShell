@@ -17,6 +17,7 @@
 #define NOB_SELF_REBUILD_ENV "NOB_JUST_REBUILT"
 
 bool g_debug_build = false;
+bool g_minimal_build = false;
 
 static const char* nob_self_rebuild_sources[] = {
     __FILE__,          "nob.h",          "nob_build_config.h",
@@ -107,6 +108,7 @@ int main(int argc, char** argv) {
     bool version = false;
     bool clean_requested = auto_clean;
     bool debug = false;
+    bool minimal = false;
     bool force_32bit = false;
     bool dependencies = false;
     bool generate_compile_commands = false;
@@ -125,6 +127,8 @@ int main(int argc, char** argv) {
             clean_requested = true;
         } else if (strcmp(arg, "--debug") == 0) {
             debug = true;
+        } else if (strcmp(arg, "--minimal") == 0) {
+            minimal = true;
         } else if (strcmp(arg, "--force-32bit") == 0) {
             force_32bit = true;
         } else if (strcmp(arg, "--dependencies") == 0) {
@@ -151,11 +155,15 @@ int main(int argc, char** argv) {
     }
 
     g_debug_build = debug;
+    g_minimal_build = minimal;
 
     if (g_debug_build) {
         nob_log(NOB_INFO,
                 "Debug build requested: compiling without optimizations and with AddressSanitizer"
                 " enabled");
+    } else if (g_minimal_build) {
+        nob_log(NOB_INFO,
+                "Minimal build requested: compiling with ultra-aggressive size optimizations");
     }
     (void)force_32bit;
 

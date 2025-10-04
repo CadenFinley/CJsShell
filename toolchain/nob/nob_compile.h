@@ -929,6 +929,10 @@ static inline bool compile_cjsh(int override_parallel_jobs, bool generate_compil
 #endif
     if (!g_debug_build) {
         nob_cmd_append(&link_cmd, "-Wl,-dead_strip", "-Wl,-dead_strip_dylibs");
+        if (g_minimal_build) {
+            nob_cmd_append(&link_cmd, "-Wl,-no_compact_unwind");
+            nob_cmd_append(&link_cmd, "-Wl,-no_function_starts");
+        }
     }
 #endif
 
@@ -938,6 +942,12 @@ static inline bool compile_cjsh(int override_parallel_jobs, bool generate_compil
     }
     if (!g_debug_build) {
         nob_cmd_append(&link_cmd, "-Wl,--gc-sections", "-Wl,--as-needed");
+        if (g_minimal_build) {
+            nob_cmd_append(&link_cmd, "-Wl,--strip-all", "-Wl,--discard-all");
+            nob_cmd_append(&link_cmd, "-Wl,--no-undefined", "-Wl,--compress-debug-sections=zlib");
+            nob_cmd_append(&link_cmd, "-Wl,-O2");  // More aggressive linker optimization
+            nob_cmd_append(&link_cmd, "-Wl,--hash-style=gnu");  // Smaller hash table
+        }
     }
 #endif
 

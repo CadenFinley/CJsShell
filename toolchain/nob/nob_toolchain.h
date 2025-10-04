@@ -13,6 +13,7 @@ static const char* cached_c_compiler = NULL;
 static const char* cached_linker = NULL;
 
 extern bool g_debug_build;
+extern bool g_minimal_build;
 
 static char git_hash_define[128] = "-DCJSH_GIT_HASH=\"unknown\"";
 
@@ -96,9 +97,46 @@ static inline bool setup_build_flags(Nob_Cmd* cmd) {
         nob_cmd_append(cmd, "-O0", "-g", "-fno-omit-frame-pointer");
         nob_cmd_append(cmd, "-fsanitize=address");
         nob_cmd_append(cmd, "-DDEBUG");
+    } else if (g_minimal_build) {
+        // Ultra-aggressive memory optimization
+        nob_cmd_append(cmd, "-Oz", "-DNDEBUG");  // Optimize aggressively for size
+        nob_cmd_append(cmd, "-ffunction-sections", "-fdata-sections", "-flto");
+        nob_cmd_append(cmd, "-fomit-frame-pointer", "-fmerge-all-constants");
+        nob_cmd_append(cmd, "-fno-rtti");
+        nob_cmd_append(cmd, "-fvisibility=hidden", "-fvisibility-inlines-hidden");
+        nob_cmd_append(cmd, "-fno-unwind-tables", "-fno-asynchronous-unwind-tables");
+        nob_cmd_append(cmd, "-ftemplate-depth=64");  // Increase template instantiation depth for
+                                                     // std library compatibility
+        nob_cmd_append(cmd, "-fno-threadsafe-statics");
+
+        // Additional memory optimizations
+        nob_cmd_append(cmd, "-D_FORTIFY_SOURCE=1");
+        nob_cmd_append(cmd, "-DCJSH_MINIMAL_BUILD=1");
+        nob_cmd_append(cmd, "-DCJSH_NO_FANCY_FEATURES=1");
+
+        // Architecture-specific optimizations
+#ifdef ARCH_ARM64
+        nob_cmd_append(cmd, "-mcpu=apple-a14", "-mtune=apple-a14");
+#elif defined(ARCH_X86_64)
+        nob_cmd_append(cmd, "-march=x86-64", "-mtune=generic", "-msse2", "-mfpmath=sse");
+#endif
     } else {
+        // Standard size optimization flags
         nob_cmd_append(cmd, "-O2", "-DNDEBUG");
         nob_cmd_append(cmd, "-ffunction-sections", "-fdata-sections", "-flto");
+        nob_cmd_append(cmd, "-fomit-frame-pointer", "-fmerge-all-constants");
+        nob_cmd_append(cmd, "-fno-rtti");
+        nob_cmd_append(cmd, "-fvisibility=hidden", "-fvisibility-inlines-hidden");
+
+        // Additional memory optimizations
+        nob_cmd_append(cmd, "-D_FORTIFY_SOURCE=1");
+
+        // Architecture-specific optimizations
+#ifdef ARCH_ARM64
+        nob_cmd_append(cmd, "-mcpu=apple-a14");  // For Apple Silicon
+#elif defined(ARCH_X86_64)
+        nob_cmd_append(cmd, "-march=x86-64", "-mtune=generic");
+#endif
     }
 
     nob_cmd_append(cmd, "-DIC_SEPARATE_OBJS=1");
@@ -154,9 +192,40 @@ static inline bool setup_c_build_flags(Nob_Cmd* cmd) {
         nob_cmd_append(cmd, "-O0", "-g", "-fno-omit-frame-pointer");
         nob_cmd_append(cmd, "-fsanitize=address");
         nob_cmd_append(cmd, "-DDEBUG");
+    } else if (g_minimal_build) {
+        // Ultra-aggressive memory optimization for C
+        nob_cmd_append(cmd, "-Oz", "-DNDEBUG");  // Optimize aggressively for size
+        nob_cmd_append(cmd, "-ffunction-sections", "-fdata-sections", "-flto");
+        nob_cmd_append(cmd, "-fomit-frame-pointer", "-fmerge-all-constants");
+        nob_cmd_append(cmd, "-fvisibility=hidden");
+        nob_cmd_append(cmd, "-fno-unwind-tables", "-fno-asynchronous-unwind-tables");
+
+        // Additional memory optimizations
+        nob_cmd_append(cmd, "-D_FORTIFY_SOURCE=1");
+        nob_cmd_append(cmd, "-DCJSH_MINIMAL_BUILD=1");
+
+        // Architecture-specific optimizations
+#ifdef ARCH_ARM64
+        nob_cmd_append(cmd, "-mcpu=apple-a14", "-mtune=apple-a14");
+#elif defined(ARCH_X86_64)
+        nob_cmd_append(cmd, "-march=x86-64", "-mtune=generic", "-msse2", "-mfpmath=sse");
+#endif
     } else {
+        // Standard size optimization flags for C
         nob_cmd_append(cmd, "-O2", "-DNDEBUG");
         nob_cmd_append(cmd, "-ffunction-sections", "-fdata-sections", "-flto");
+        nob_cmd_append(cmd, "-fomit-frame-pointer", "-fmerge-all-constants");
+        nob_cmd_append(cmd, "-fvisibility=hidden");
+
+        // Additional memory optimizations
+        nob_cmd_append(cmd, "-D_FORTIFY_SOURCE=1");
+
+        // Architecture-specific optimizations
+#ifdef ARCH_ARM64
+        nob_cmd_append(cmd, "-mcpu=apple-a14");  // For Apple Silicon
+#elif defined(ARCH_X86_64)
+        nob_cmd_append(cmd, "-march=x86-64", "-mtune=generic");
+#endif
     }
     nob_cmd_append(cmd, "-DIC_SEPARATE_OBJS=1");
 

@@ -15,6 +15,7 @@ static inline void print_help(void) {
     printf("  -v, --version     Show version information\n");
     printf("  --clean           Clean build directory\n");
     printf("  --debug           Build with debug symbols\n");
+    printf("  --minimal         Build with ultra-aggressive size optimizations\n");
     printf("  --force-32bit     Force 32-bit build (if supported)\n");
     printf("  --dependencies    List project dependencies\n");
     printf("  --compile-commands Generate compile_commands.json for clangd\n");
@@ -25,6 +26,7 @@ static inline void print_help(void) {
     printf("  nob                # Build the project (auto parallel jobs)\n");
     printf("  nob --clean        # Clean build files\n");
     printf("  nob --debug        # Build with debug info\n");
+    printf("  nob --minimal      # Build with ultra-small memory footprint\n");
     printf("  nob -j 1           # Build with sequential compilation\n");
     printf("  nob -j 4           # Build with 4 parallel jobs\n");
     printf("  nob --compile-commands # Build and emit compile_commands.json\n");
