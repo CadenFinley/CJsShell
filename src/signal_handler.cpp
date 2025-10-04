@@ -187,7 +187,7 @@ bool SignalHandler::is_forked_child() {
 }
 
 void SignalHandler::signal_unblock_all() {
-    sigset_t iset = 0;
+    sigset_t iset{};
     sigemptyset(&iset);
     sigprocmask(SIG_SETMASK, &iset, nullptr);
 }
@@ -252,7 +252,7 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
 void SignalHandler::setup_signal_handlers() {
     struct sigaction sa{};
     sigemptyset(&sa.sa_mask);
-    sigset_t block_mask = 0;
+    sigset_t block_mask{};
     sigfillset(&block_mask);
 
     sa.sa_handler = SIG_IGN;
@@ -280,7 +280,7 @@ void SignalHandler::setup_signal_handlers() {
 void SignalHandler::setup_interactive_handlers() {
     struct sigaction sa{};
     sigemptyset(&sa.sa_mask);
-    sigset_t block_mask = 0;
+    sigset_t block_mask{};
     sigfillset(&block_mask);
 
     sa.sa_handler = SIG_IGN;
