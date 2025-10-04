@@ -9,9 +9,9 @@ class Theme;
 class Ai;
 class Plugin;
 
-const bool PRE_RELEASE = false;
+const bool PRE_RELEASE = true;
 // using semver.org principles MAJOR.MINOR.PATCH
-constexpr const char* c_version_base = "3.7.1";
+constexpr const char* c_version_base = "3.7.2";
 
 extern std::string g_cached_version;
 
