@@ -84,6 +84,18 @@ char* ic_readline(const char* prompt_text, const char* initial_input);
 char* ic_readline_inline(const char* prompt_text, const char* inline_right_text,
                          const char* initial_input);
 
+/// Queue a single key event so it is processed before the next read.
+/// Returns `false` if the readline environment is not yet initialized.
+bool ic_push_key_event(ic_keycode_t key);
+
+/// Queue multiple key events so they are processed before the next read.
+/// Returns `false` if the readline environment is not yet initialized.
+bool ic_push_key_sequence(const ic_keycode_t* keys, size_t count);
+
+/// Queue raw terminal bytes (including escape sequences) for processing.
+/// Returns `false` if the readline environment is not yet initialized.
+bool ic_push_raw_input(const uint8_t* data, size_t length);
+
 /// \}
 
 //--------------------------------------------------------------

@@ -9,95 +9,29 @@
 #include <array>
 #include <cctype>
 #include <cerrno>
+#include <cstdint>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
 #include <string>
 #include <string_view>
 
+#include "isocline/isocline.h"
 #include "job_control.h"
 
 namespace typeahead {
 
 namespace {
 
-constexpr std::size_t kMaxQueuedCommands = 32;
 constexpr std::size_t kDefaultInputReserve = 256;
 constexpr std::size_t kMaxInputReserve = 16 * 1024;
-constexpr std::size_t kDefaultCommandReserve = 128;
-constexpr std::size_t kCommandReserveSlack = 64;
-constexpr std::size_t kMaxCommandReserve = 8 * 1024;
-
-class CommandQueue {
-   public:
-    CommandQueue() {
-        reset();
-    }
-
-    void reset() {
-        head_ = 0;
-        size_ = 0;
-        for (auto& entry : storage_) {
-            entry.clear();
-            entry.reserve(kDefaultCommandReserve);
-        }
-    }
-
-    bool empty() const {
-        return size_ == 0;
-    }
-
-    std::string pop() {
-        if (empty()) {
-            return {};
-        }
-        std::size_t index = head_;
-        head_ = (head_ + 1) % kMaxQueuedCommands;
-        --size_;
-
-        std::string result = std::move(storage_[index]);
-        storage_[index].clear();
-        std::size_t reuse_capacity = std::clamp<std::size_t>(
-            result.capacity() + kCommandReserveSlack, kDefaultCommandReserve, kMaxCommandReserve);
-        storage_[index].reserve(reuse_capacity);
-        return result;
-    }
-
-    std::string& next_slot() {
-        std::size_t index = 0;
-        if (size_ < kMaxQueuedCommands) {
-            index = (head_ + size_) % kMaxQueuedCommands;
-            ++size_;
-        } else {
-            index = head_;
-            head_ = (head_ + 1) % kMaxQueuedCommands;
-        }
-        std::string& slot = storage_[index];
-        slot.clear();
-        return slot;
-    }
-
-    void push(std::string_view data) {
-        std::string& slot = next_slot();
-        if (slot.capacity() < data.size()) {
-            std::size_t desired = std::clamp<std::size_t>(
-                data.size() + kCommandReserveSlack, kDefaultCommandReserve, kMaxCommandReserve);
-            slot.reserve(desired);
-        }
-        slot.assign(data.data(), data.size());
-    }
-
-   private:
-    std::array<std::string, kMaxQueuedCommands> storage_{};
-    std::size_t head_ = 0;
-    std::size_t size_ = 0;
-};
+constexpr std::size_t kReserveSlack = 64;
 
 }  // namespace
 
 static bool initialized = false;
 static std::string g_input_buffer;
-static CommandQueue g_typeahead_queue;
+static std::string g_pending_raw_bytes;
 
 std::string to_debug_visible(const std::string& data) {
     if (data.empty()) {
@@ -264,69 +198,66 @@ std::string normalize_line_edit_sequences(std::string_view input) {
     return result;
 }
 
-void enqueue_queued_command(const std::string& command) {
-    std::string& slot = g_typeahead_queue.next_slot();
-    filter_escape_sequences_into(command, slot);
-}
-
 void ingest_typeahead_input(const std::string& raw_input) {
     if (raw_input.empty()) {
         return;
     }
 
+    g_pending_raw_bytes.append(raw_input);
+
     std::string combined;
-    combined.swap(g_input_buffer);
+    combined.reserve(g_input_buffer.size() + raw_input.size());
+    combined.append(g_input_buffer);
     combined.append(raw_input);
 
-    std::string_view sanitized_view = combined;
-    if (combined.find('\x1b') != std::string::npos) {
-        thread_local static std::string sanitized_temp;
-        sanitized_temp.clear();
-        std::size_t desired = std::clamp<std::size_t>(combined.size() + kCommandReserveSlack,
-                                                      kDefaultInputReserve, kMaxInputReserve);
-        if (sanitized_temp.capacity() < desired) {
-            sanitized_temp.reserve(desired);
+    thread_local static std::string sanitized_temp;
+    sanitized_temp.clear();
+    std::size_t desired = std::clamp<std::size_t>(combined.size() + kReserveSlack,
+                                                  kDefaultInputReserve, kMaxInputReserve);
+    if (sanitized_temp.capacity() < desired) {
+        sanitized_temp.reserve(desired);
+    }
+    filter_escape_sequences_into(combined, sanitized_temp);
+    for (char& ch : sanitized_temp) {
+        if (ch == '\r') {
+            ch = '\n';
         }
-        filter_escape_sequences_into(combined, sanitized_temp);
-        sanitized_view = sanitized_temp;
     }
 
     thread_local static std::string normalized_temp;
     normalized_temp.clear();
     std::size_t normalized_desired = std::clamp<std::size_t>(
-        sanitized_view.size() + kCommandReserveSlack, kDefaultInputReserve, kMaxInputReserve);
+        sanitized_temp.size() + kReserveSlack, kDefaultInputReserve, kMaxInputReserve);
     if (normalized_temp.capacity() < normalized_desired) {
         normalized_temp.reserve(normalized_desired);
     }
-    normalize_line_edit_sequences_into(sanitized_view, normalized_temp);
+    normalize_line_edit_sequences_into(sanitized_temp, normalized_temp);
 
     if (g_input_buffer.capacity() < kDefaultInputReserve) {
         g_input_buffer.reserve(kDefaultInputReserve);
     }
     g_input_buffer.clear();
 
-    std::size_t start = 0;
-    while (start < normalized_temp.size()) {
-        std::size_t newline_pos = normalized_temp.find('\n', start);
-        if (newline_pos == std::string::npos) {
-            std::size_t leftover_len = normalized_temp.size() - start;
-            if (leftover_len > 0) {
-                std::size_t desired = std::clamp<std::size_t>(
-                    leftover_len + kCommandReserveSlack, kDefaultInputReserve, kMaxInputReserve);
-                if (g_input_buffer.capacity() < desired) {
-                    g_input_buffer.reserve(desired);
-                }
-                g_input_buffer.assign(normalized_temp.data() + start, leftover_len);
+    std::size_t last_newline = normalized_temp.find_last_of('\n');
+    if (last_newline == std::string::npos) {
+        if (!normalized_temp.empty()) {
+            std::size_t leftover_len = normalized_temp.size();
+            std::size_t needed = std::clamp<std::size_t>(leftover_len + kReserveSlack,
+                                                         kDefaultInputReserve, kMaxInputReserve);
+            if (g_input_buffer.capacity() < needed) {
+                g_input_buffer.reserve(needed);
             }
-            return;
+            g_input_buffer.assign(normalized_temp.data(), leftover_len);
         }
-
-        std::string_view line_view(normalized_temp.data() + start, newline_pos - start);
-        g_typeahead_queue.push(line_view);
-        start = newline_pos + 1;
+    } else if (last_newline + 1 < normalized_temp.size()) {
+        std::size_t leftover_len = normalized_temp.size() - (last_newline + 1);
+        std::size_t needed = std::clamp<std::size_t>(leftover_len + kReserveSlack,
+                                                     kDefaultInputReserve, kMaxInputReserve);
+        if (g_input_buffer.capacity() < needed) {
+            g_input_buffer.reserve(needed);
+        }
+        g_input_buffer.assign(normalized_temp.data() + last_newline + 1, leftover_len);
     }
-
-    g_input_buffer.clear();
 }
 
 void flush_pending_typeahead() {
@@ -334,22 +265,17 @@ void flush_pending_typeahead() {
     if (!pending_input.empty()) {
         ingest_typeahead_input(pending_input);
     }
-}
-
-bool has_queued_commands() {
-    return !g_typeahead_queue.empty();
-}
-
-std::string dequeue_command() {
-    return g_typeahead_queue.pop();
+    if (!g_pending_raw_bytes.empty()) {
+        const auto* data = reinterpret_cast<const uint8_t*>(g_pending_raw_bytes.data());
+        if (ic_push_raw_input(data, g_pending_raw_bytes.size())) {
+            g_pending_raw_bytes.clear();
+            g_input_buffer.clear();
+        }
+    }
 }
 
 void clear_input_buffer() {
     g_input_buffer.clear();
-}
-
-void clear_command_queue() {
-    g_typeahead_queue.reset();
 }
 
 const std::string& get_input_buffer() {
@@ -427,7 +353,7 @@ std::string capture_available_input() {
     }
     if (captured_data.capacity() < requested_capacity) {
         captured_data.reserve(
-            std::min<std::size_t>(requested_capacity + kCommandReserveSlack, kMaxInputReserve));
+            std::min<std::size_t>(requested_capacity + kReserveSlack, kMaxInputReserve));
     }
     std::array<char, 256> buffer{};
 
@@ -462,12 +388,6 @@ std::string capture_available_input() {
         poll(&pfd, 1, 0);
     }
 
-    for (char& c : captured_data) {
-        if (c == '\r') {
-            c = '\n';
-        }
-    }
-
     capture_reserve =
         std::clamp<std::size_t>(captured_data.capacity(), kDefaultInputReserve, kMaxInputReserve);
 
@@ -480,14 +400,18 @@ void initialize() {
         g_input_buffer.reserve(kDefaultInputReserve);
     }
     g_input_buffer.clear();
-    g_typeahead_queue.reset();
+    if (g_pending_raw_bytes.capacity() < kDefaultInputReserve) {
+        g_pending_raw_bytes.reserve(kDefaultInputReserve);
+    }
+    g_pending_raw_bytes.clear();
 }
 
 void cleanup() {
     initialized = false;
     g_input_buffer.clear();
     g_input_buffer.shrink_to_fit();
-    g_typeahead_queue.reset();
+    g_pending_raw_bytes.clear();
+    g_pending_raw_bytes.shrink_to_fit();
 }
 
 }  // namespace typeahead

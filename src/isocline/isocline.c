@@ -1029,6 +1029,40 @@ ic_public void ic_term_init(void) {
     term_start_raw(env->term);
 }
 
+ic_public bool ic_push_key_event(ic_keycode_t key) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL || env->tty == NULL)
+        return false;
+    tty_code_pushback(env->tty, key);
+    return true;
+}
+
+ic_public bool ic_push_key_sequence(const ic_keycode_t* keys, size_t count) {
+    if (keys == NULL || count == 0)
+        return true;
+    ic_env_t* env = ic_get_env();
+    if (env == NULL || env->tty == NULL)
+        return false;
+    for (size_t i = count; i > 0; --i) {
+        tty_code_pushback(env->tty, keys[i - 1]);
+    }
+    return true;
+}
+
+ic_public bool ic_push_raw_input(const uint8_t* data, size_t length) {
+    if (length == 0)
+        return true;
+    ic_env_t* env = ic_get_env();
+    if (env == NULL || env->tty == NULL)
+        return false;
+    if (data == NULL)
+        return true;
+    for (size_t i = length; i > 0; --i) {
+        tty_cpush_char(env->tty, data[i - 1]);
+    }
+    return true;
+}
+
 ic_public void ic_term_done(void) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)
