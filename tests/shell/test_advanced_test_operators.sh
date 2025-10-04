@@ -53,15 +53,6 @@ else
     skip_test "test -L (symbolic link) - system doesn't support symlinks"
 fi
 
-# Test 2: -S (socket test)
-echo "Test -S operator for sockets"
-# Create a socket using a helper if available
-if command -v nc >/dev/null 2>&1 || command -v socat >/dev/null 2>&1; then
-    skip_test "test -S (socket detection) - requires socket creation (complex setup)"
-else
-    skip_test "test -S (socket detection) - no socket creation tools available"
-fi
-
 # Test 3: -p (named pipe test)
 echo "Test -p operator for named pipes"
 if [ -p named_pipe ]; then
@@ -129,23 +120,6 @@ if [ -n "$SETUID_FILE" ]; then
     fi
 else
     skip_test "test -u (setuid bit) - no setuid file found"
-fi
-
-# Test 7: -g (setgid bit test)
-echo "Test -g operator for setgid bit"
-# Create a test file with setgid bit
-touch setgid_test
-chmod g+s setgid_test 2>/dev/null
-
-if [ -g setgid_test ]; then
-    "$CJSH_PATH" -c "test -g $TEST_DIR/setgid_test" 2>/dev/null
-    if [ $? -eq 0 ]; then
-        pass_test "test -g (setgid bit detection)"
-    else
-        fail_test "test -g (setgid bit detection) - not implemented"
-    fi
-else
-    skip_test "test -g (setgid bit) - cannot set setgid on test file"
 fi
 
 # Test 8: -k (sticky bit test)

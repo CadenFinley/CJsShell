@@ -774,7 +774,6 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
         if (escaped) {
             if (in_quotes && quote_char == '"') {
                 if (c == '$') {
-                    current_token += '\\';
                     current_token += c;
                 } else if (c == '`' || c == '"' || c == '\\' || c == '\n') {
                     current_token += c;

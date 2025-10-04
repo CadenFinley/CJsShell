@@ -138,11 +138,6 @@ fi
 
 rm -rf "$TEST_DIR"
 
-# Test 11: set -a (allexport) - export all variables
-echo "Test set -a (allexport) option"
-# This test is complex as it requires checking environment
-skip_test "set -a (allexport) - requires environment inspection (complex)"
-
 # Test 12: set -C (noclobber) - Already implemented but test it
 echo "Test set -C (noclobber) option"
 TEST_FILE="/tmp/cjsh_noclobber_$$"

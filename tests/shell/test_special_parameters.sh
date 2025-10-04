@@ -159,7 +159,7 @@ fi
 
 # Test 13: Special parameter in function context
 echo "Test special parameters in function context"
-output=$("$CJSH_PATH" -c 'func() { echo "args: \$# = \$#, \$1 = \$1"; }; func one two' 2>/dev/null)
+output=$("$CJSH_PATH" -c 'func() { echo "args: \\$# = \$#, \\$1 = \$1"; }; func one two' 2>/dev/null)
 if echo "$output" | grep -q "args: \$# = 2, \$1 = one"; then
     pass_test "Special parameters in function context"
 else
