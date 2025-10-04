@@ -110,7 +110,7 @@ static inline bool setup_build_flags(Nob_Cmd* cmd) {
         nob_cmd_append(cmd, "-fno-threadsafe-statics");
 
         // Additional memory optimizations
-        nob_cmd_append(cmd, "-D_FORTIFY_SOURCE=1");
+        nob_cmd_append(cmd, "-U_FORTIFY_SOURCE", "-D_FORTIFY_SOURCE=1");
         nob_cmd_append(cmd, "-DCJSH_MINIMAL_BUILD=1");
         nob_cmd_append(cmd, "-DCJSH_NO_FANCY_FEATURES=1");
 
@@ -129,7 +129,7 @@ static inline bool setup_build_flags(Nob_Cmd* cmd) {
         nob_cmd_append(cmd, "-fvisibility=hidden", "-fvisibility-inlines-hidden");
 
         // Additional memory optimizations
-        nob_cmd_append(cmd, "-D_FORTIFY_SOURCE=1");
+        nob_cmd_append(cmd, "-U_FORTIFY_SOURCE", "-D_FORTIFY_SOURCE=1");
 
         // Architecture-specific optimizations
 #ifdef ARCH_ARM64
@@ -201,7 +201,7 @@ static inline bool setup_c_build_flags(Nob_Cmd* cmd) {
         nob_cmd_append(cmd, "-fno-unwind-tables", "-fno-asynchronous-unwind-tables");
 
         // Additional memory optimizations
-        nob_cmd_append(cmd, "-D_FORTIFY_SOURCE=1");
+        nob_cmd_append(cmd, "-U_FORTIFY_SOURCE", "-D_FORTIFY_SOURCE=1");
         nob_cmd_append(cmd, "-DCJSH_MINIMAL_BUILD=1");
 
         // Architecture-specific optimizations
@@ -218,7 +218,7 @@ static inline bool setup_c_build_flags(Nob_Cmd* cmd) {
         nob_cmd_append(cmd, "-fvisibility=hidden");
 
         // Additional memory optimizations
-        nob_cmd_append(cmd, "-D_FORTIFY_SOURCE=1");
+        nob_cmd_append(cmd, "-U_FORTIFY_SOURCE", "-D_FORTIFY_SOURCE=1");
 
         // Architecture-specific optimizations
 #ifdef ARCH_ARM64
