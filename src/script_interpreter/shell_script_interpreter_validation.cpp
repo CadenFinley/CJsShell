@@ -91,7 +91,7 @@ bool should_process_char(QuoteState& state, char c, bool ignore_single_quotes,
     return true;
 }
 
-enum class IterationAction {
+enum class IterationAction : std::uint8_t {
     Continue,
     Break
 };
@@ -170,10 +170,11 @@ void push_function_context(
 
             int brace_count = 1;
             for (char c : after_brace) {
-                if (c == '{')
+                if (c == '{') {
                     brace_count++;
-                else if (c == '}')
+                } else if (c == '}') {
                     brace_count--;
+                }
             }
 
             if (brace_count > 0) {
@@ -278,10 +279,11 @@ WhileUntilCheckResult analyze_while_until_syntax(const std::string& first_token,
     std::string after_kw =
         kw_pos != std::string::npos ? trimmed_line.substr(kw_pos + first_token.size()) : "";
     size_t non = after_kw.find_first_not_of(" \t");
-    if (non != std::string::npos)
+    if (non != std::string::npos) {
         after_kw = after_kw.substr(non);
-    else
+    } else {
         after_kw.clear();
+    }
 
     bool immediate_do =
         (after_kw == "do" || after_kw.find("do ") == 0 || after_kw.find("do\t") == 0);
@@ -298,7 +300,7 @@ WhileUntilCheckResult analyze_while_until_syntax(const std::string& first_token,
         after_kw = after_kw.substr(0, do_pos);
 
     std::string cond = after_kw;
-    while (!cond.empty() && isspace(static_cast<unsigned char>(cond.back())))
+    while (!cond.empty() && (isspace(static_cast<unsigned char>(cond.back())) != 0))
         cond.pop_back();
 
     if (cond.empty() || immediate_do) {
@@ -358,11 +360,11 @@ CaseCheckResult analyze_case_syntax(const std::vector<std::string>& tokens) {
 }
 
 bool is_valid_identifier_start(char c) {
-    return std::isalpha(static_cast<unsigned char>(c)) || c == '_';
+    return (std::isalpha(static_cast<unsigned char>(c)) != 0) || c == '_';
 }
 
 bool is_valid_identifier_char(char c) {
-    return std::isalnum(static_cast<unsigned char>(c)) || c == '_';
+    return (std::isalnum(static_cast<unsigned char>(c)) != 0) || c == '_';
 }
 
 bool is_valid_identifier(const std::string& text) {
@@ -376,7 +378,7 @@ bool is_valid_identifier(const std::string& text) {
 }
 
 bool is_allowed_array_index_char(char c) {
-    if (std::isalnum(static_cast<unsigned char>(c)) || c == '_')
+    if ((std::isalnum(static_cast<unsigned char>(c)) != 0) || c == '_')
         return true;
     switch (c) {
         case '+':
@@ -457,17 +459,17 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
             trimmed.find("case ") != std::string::npos && trimmed.find(" in ") != std::string::npos;
 
         bool looks_like_case_pattern =
-            (in_case_block || line_has_case) && (trimmed.find(")") != std::string::npos);
+            (in_case_block || line_has_case) && (trimmed.find(')') != std::string::npos);
 
-        if (in_case_block && trimmed.find(")") != std::string::npos) {
-            size_t paren_pos = trimmed.find(")");
+        if (in_case_block && trimmed.find(')') != std::string::npos) {
+            size_t paren_pos = trimmed.find(')');
             if (paren_pos != std::string::npos) {
                 std::string before_paren = trimmed.substr(0, paren_pos);
 
                 before_paren = trim(before_paren);
                 if (!before_paren.empty() &&
                     (before_paren.front() == '"' || before_paren.front() == '\'' ||
-                     before_paren == "*" || isalnum(before_paren.front()))) {
+                     before_paren == "*" || (isalnum(before_paren.front()) != 0))) {
                     looks_like_case_pattern = true;
                 }
             }
@@ -482,10 +484,11 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                 }
 
                 if (!quote_state.in_quotes) {
-                    if (c == '(')
+                    if (c == '(') {
                         paren_balance++;
-                    else if (c == ')')
+                    } else if (c == ')') {
                         paren_balance--;
+                    }
                 }
             }
 
@@ -640,8 +643,13 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
         }
 
         {
-            std::string msg = "Unclosed '" + opening_statement + "' from line " +
-                              std::to_string(opening_line) + " - missing '" + expected_close + "'";
+            std::string msg = "Unclosed '";
+            msg += opening_statement;
+            msg += "' from line ";
+            msg += std::to_string(opening_line);
+            msg += " - missing '";
+            msg += expected_close;
+            msg += "'";
             SyntaxError syn_err(opening_line, msg, "");
             if (opening_statement == "{" || opening_statement == "function") {
                 syn_err.error_code = "SYN007";
@@ -650,9 +658,13 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                 syn_err.severity = ErrorSeverity::CRITICAL;
             } else {
                 syn_err.error_code = "SYN001";
-                syn_err.suggestion = "Add '" + expected_close + "' to close the '" +
-                                     opening_statement + "' that started on line " +
-                                     std::to_string(opening_line);
+                std::string suggestion = "Add '";
+                suggestion += expected_close;
+                suggestion += "' to close the '";
+                suggestion += opening_statement;
+                suggestion += "' that started on line ";
+                suggestion += std::to_string(opening_line);
+                syn_err.suggestion = suggestion;
             }
             syn_err.category = ErrorCategory::CONTROL_FLOW;
             syn_err.severity = ErrorSeverity::CRITICAL;
@@ -790,9 +802,9 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                                                      line, "Add closing brace '}'"));
                         continue;
                     }
-                } else if (std::isalpha(line[var_start]) || line[var_start] == '_') {
+                } else if ((std::isalpha(line[var_start]) != 0) || line[var_start] == '_') {
                     while (var_end < line.length() &&
-                           (std::isalnum(line[var_end]) || line[var_end] == '_')) {
+                           ((std::isalnum(line[var_end]) != 0) || line[var_end] == '_')) {
                         var_end++;
                     }
                     var_name = line.substr(var_start, var_end - var_start);
@@ -812,7 +824,7 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                 var_name != "TMUX" && var_name != "DISPLAY" && var_name != "EDITOR" &&
                 var_name != "PAGER" && var_name != "LANG" && var_name != "LC_ALL" &&
                 var_name != "TZ" && var_name != "SSH_CLIENT" && var_name != "SSH_TTY" &&
-                !std::isdigit(var_name[0])) {
+                (std::isdigit(var_name[0]) == 0)) {
                 for (size_t line : usage_lines) {
                     errors.push_back(SyntaxError(
                         {line, 0, 0, 0}, ErrorSeverity::WARNING, ErrorCategory::VARIABLES, "VAR002",
@@ -1073,10 +1085,11 @@ ShellScriptInterpreter::validate_arithmetic_expressions(const std::vector<std::s
 
                                 int balance = 0;
                                 for (char ec : expr) {
-                                    if (ec == '(')
+                                    if (ec == '(') {
                                         balance++;
-                                    else if (ec == ')')
+                                    } else if (ec == ')') {
                                         balance--;
+                                    }
                                     if (balance < 0)
                                         break;
                                 }
@@ -1203,14 +1216,14 @@ ShellScriptInterpreter::validate_parameter_expansions(const std::vector<std::str
                             bool found_open = false;
                             while (pos > 0) {
                                 char bc = line[pos];
-                                if (bc == ']')
+                                if (bc == ']') {
                                     bracket_depth++;
-                                else if (bc == '[') {
+                                } else if (bc == '[') {
                                     if (bracket_depth == 0) {
                                         found_open = true;
                                         break;
-                                    } else
-                                        bracket_depth--;
+                                    }
+                                    bracket_depth--;
                                 }
                                 pos--;
                             }
@@ -1225,9 +1238,10 @@ ShellScriptInterpreter::validate_parameter_expansions(const std::vector<std::str
                                     size_t index_start = pos + 1;
                                     size_t index_end = i - 2;
                                     std::string index_text;
-                                    if (index_end >= index_start)
+                                    if (index_end >= index_start) {
                                         index_text =
                                             line.substr(index_start, index_end - index_start + 1);
+                                    }
                                     std::string var_name_only =
                                         line.substr(name_start, name_end - name_start);
 
@@ -1439,7 +1453,7 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
             std::vector<SyntaxError> line_errors;
 
             {
-                std::string work = trimmed_line;
+                const std::string& work = trimmed_line;
 
                 size_t eq = work.find('=');
                 if (eq != std::string::npos) {
@@ -1469,7 +1483,7 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
             }
 
             if (!trimmed_line.empty() && trimmed_line[0] == '|' &&
-                !(trimmed_line.size() > 1 && trimmed_line[1] == '|')) {
+                (trimmed_line.size() <= 1 || trimmed_line[1] != '|')) {
                 line_errors.push_back(
                     SyntaxError({display_line, first_non_space, first_non_space + 1, 0},
                                 ErrorSeverity::ERROR, ErrorCategory::REDIRECTION, "PIPE002",
@@ -1482,7 +1496,7 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                 [&](size_t i, char c, const QuoteState& state,
                     size_t& next_index) -> IterationAction {
                     if (!state.in_quotes && c == '|' && i + 1 < line.length()) {
-                        if (line[i + 1] == '|' && !(i + 2 < line.length() && line[i + 2] == '|')) {
+                        if (line[i + 1] == '|' && (i + 2 >= line.length() || line[i + 2] != '|')) {
                             size_t after_logical = i + 2;
                             while (after_logical < line.length() &&
                                    std::isspace(line[after_logical])) {
@@ -1543,7 +1557,7 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
             size_t paren_pos = trimmed_line.find("()");
             if (paren_pos != std::string::npos && paren_pos > 0 &&
                 trimmed_line.rfind("function", 0) != 0) {
-                if (trimmed_line.find("{", paren_pos) != std::string::npos) {
+                if (trimmed_line.find('{', paren_pos) != std::string::npos) {
                     std::string potential_func = trim(trimmed_line.substr(0, paren_pos));
                     append_function_name_errors(line_errors, display_line, line, potential_func,
                                                 "Add function name before parentheses");
@@ -1768,13 +1782,13 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
 
             if (!in_quotes) {
                 size_t delim_start = heredoc_pos + 2;
-                while (delim_start < line.length() && std::isspace(line[delim_start])) {
+                while (delim_start < line.length() && (std::isspace(line[delim_start]) != 0)) {
                     delim_start++;
                 }
 
                 if (delim_start < line.length()) {
                     size_t delim_end = delim_start;
-                    while (delim_end < line.length() && !std::isspace(line[delim_end]) &&
+                    while (delim_end < line.length() && (std::isspace(line[delim_end]) == 0) &&
                            line[delim_end] != ';' && line[delim_end] != '&' &&
                            line[delim_end] != '|') {
                         delim_end++;
