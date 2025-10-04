@@ -17,15 +17,15 @@ int set_command(const std::vector<std::string>& args, Shell* shell) {
                                    "Use -- to replace positional parameters."})) {
         return 0;
     }
-    if (!shell) {
+    if (shell == nullptr) {
         print_error({ErrorType::RUNTIME_ERROR, "set", "shell not available", {}});
         return 1;
     }
 
     if (args.size() == 1) {
         extern char** environ;
-        for (char** env = environ; *env; ++env) {
-            std::cout << *env << std::endl;
+        for (char** env = environ; *env != nullptr; ++env) {
+            std::cout << *env << '\n';
         }
         return 0;
     }
@@ -79,7 +79,7 @@ int shift_command(const std::vector<std::string>& args, Shell* shell) {
             args, {"Usage: shift [N]", "Discard the first N positional parameters (default 1)."})) {
         return 0;
     }
-    if (!shell) {
+    if (shell == nullptr) {
         print_error({ErrorType::RUNTIME_ERROR, "shift", "shell not available", {}});
         return 1;
     }

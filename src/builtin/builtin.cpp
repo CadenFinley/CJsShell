@@ -171,10 +171,7 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"exit", [](const std::vector<std::string>& args) { return ::exit_command(args); }},
         {"quit", [](const std::vector<std::string>& args) { return ::exit_command(args); }},
         {"prompt_test",
-         [](const std::vector<std::string>& args) {
-             extern int prompt_test_command(const std::vector<std::string>&);
-             return prompt_test_command(args);
-         }},
+         [](const std::vector<std::string>& args) { return prompt_test_command(args); }},
         {"test", [](const std::vector<std::string>& args) { return ::test_command(args); }},
         {"[", [](const std::vector<std::string>& args) { return ::test_command(args); }},
         {"[[", [](const std::vector<std::string>& args) { return ::double_bracket_command(args); }},

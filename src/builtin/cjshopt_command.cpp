@@ -319,13 +319,13 @@ const std::vector<std::string> kKeybindUsage = {
     "      They cannot be changed at runtime.",
     "",
     "Subcommands:",
-    "  list                            Show current default and custom key bindings (works at "
+    "  list                            Show current default and custom key bindings (works at ",
     "runtime)",
     "  set <action> <keys...>          Replace bindings for an action (config file only)",
     "  add <action> <keys...>          Add key bindings for an action (config file only)",
     "  clear <keys...>                 Remove bindings for the specified key(s) (config file only)",
     "  clear-action <action>           Remove all custom bindings for an action (config file only)",
-    "  reset                           Clear all custom key bindings and restore defaults (config "
+    "  reset                           Clear all custom key bindings and restore defaults (config ",
     "file only)",
     "",
     "Use 'keybind --help' for detailed guidance.",

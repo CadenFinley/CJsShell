@@ -38,7 +38,8 @@ int prompt_test_command(const std::vector<std::string>& args) {
         std::cout << "LOCAL_PATH: " << pi.get_local_path(repo_root) << "\n";
         std::cout << "GIT_BRANCH: " << pi.get_git_branch(repo_root / ".git/HEAD") << "\n";
         std::cout << "GIT_STATUS: " << pi.get_git_status(repo_root) << "\n";
-        int ahead = 0, behind = 0;
+        int ahead = 0;
+        int behind = 0;
         pi.get_git_ahead_behind(repo_root, ahead, behind);
         std::cout << "GIT_AHEAD: " << ahead << "\n";
         std::cout << "GIT_BEHIND: " << behind << "\n";

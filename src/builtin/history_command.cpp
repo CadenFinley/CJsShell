@@ -2,6 +2,7 @@
 
 #include "builtin_help.h"
 
+#include <algorithm>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -76,9 +77,7 @@ int history_command(const std::vector<std::string>& args) {
             return 1;
         }
 
-        if (limit > static_cast<int>(entries.size())) {
-            limit = static_cast<int>(entries.size());
-        }
+        limit = std::min(limit, static_cast<int>(entries.size()));
     }
 
     for (int i = 0; i < limit; ++i) {

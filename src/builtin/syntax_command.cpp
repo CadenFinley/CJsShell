@@ -51,7 +51,7 @@ int syntax_command(const std::vector<std::string>& args, Shell* shell) {
         return 0;
     }
 
-    if (!shell) {
+    if (shell == nullptr) {
         print_error({ErrorType::RUNTIME_ERROR, "syntax", "shell not initialized", {}});
         return 1;
     }
@@ -116,8 +116,8 @@ int syntax_command(const std::vector<std::string>& args, Shell* shell) {
             return 1;
         }
 
-        auto script_interpreter = shell->get_shell_script_interpreter();
-        if (!script_interpreter) {
+        auto* script_interpreter = shell->get_shell_script_interpreter();
+        if (script_interpreter == nullptr) {
             print_error(
                 {ErrorType::RUNTIME_ERROR, "syntax", "script interpreter not available", {}});
             return 1;
@@ -146,8 +146,8 @@ int syntax_command(const std::vector<std::string>& args, Shell* shell) {
         file.close();
     }
 
-    auto script_interpreter = shell->get_shell_script_interpreter();
-    if (!script_interpreter) {
+    auto* script_interpreter = shell->get_shell_script_interpreter();
+    if (script_interpreter == nullptr) {
         print_error({ErrorType::RUNTIME_ERROR, "syntax", "script interpreter not available", {}});
         return 1;
     }
@@ -233,7 +233,7 @@ int syntax_command(const std::vector<std::string>& args, Shell* shell) {
     }
 
     if (quiet) {
-        std::cout << errors.size() << std::endl;
+        std::cout << errors.size() << '\n';
     } else {
         shell_script_interpreter::ErrorReporter::print_error_report(errors, show_suggestions,
                                                                     show_context, 1);

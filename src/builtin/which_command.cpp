@@ -72,7 +72,8 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
             is_cjsh_custom = false;
         }
 
-        if (is_cjsh_custom && shell && shell->get_built_ins()->is_builtin_command(name)) {
+        if (is_cjsh_custom && (shell != nullptr) &&
+            (shell->get_built_ins()->is_builtin_command(name) != 0)) {
             if (!silent) {
                 std::cout << name << " is a cjsh builtin (custom implementation)" << std::endl;
             }
@@ -95,8 +96,8 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
         }
 
         if (!found_executable && (name.find('/') != std::string::npos)) {
-            struct stat st;
-            if (stat(name.c_str(), &st) == 0 && (st.st_mode & S_IXUSR)) {
+            struct stat st{};
+            if (stat(name.c_str(), &st) == 0 && ((st.st_mode & S_IXUSR) != 0)) {
                 if (!silent) {
                     if (name[0] != '/') {
                         char cwd[PATH_MAX];
@@ -118,14 +119,14 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
         }
 
         if (show_all || (!found_executable && !is_cjsh_custom)) {
-            if (shell && shell->get_built_ins()->is_builtin_command(name)) {
+            if ((shell != nullptr) && (shell->get_built_ins()->is_builtin_command(name) != 0)) {
                 if (!silent) {
                     std::cout << "which: " << name << " is a shell builtin" << std::endl;
                 }
                 found = true;
             }
 
-            if (shell && (show_all || !found)) {
+            if ((shell != nullptr) && (show_all || !found)) {
                 auto aliases = shell->get_aliases();
                 auto alias_it = aliases.find(name);
                 if (alias_it != aliases.end()) {
@@ -137,9 +138,9 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
                 }
             }
 
-            if (shell && (show_all || !found)) {
+            if ((shell != nullptr) && (show_all || !found)) {
                 auto* interpreter = shell->get_shell_script_interpreter();
-                if (interpreter && interpreter->has_function(name)) {
+                if ((interpreter != nullptr) && interpreter->has_function(name)) {
                     if (!silent) {
                         std::cout << "which: " << name << " is a function" << std::endl;
                     }

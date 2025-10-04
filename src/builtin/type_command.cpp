@@ -92,7 +92,8 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
         }
 
         if (!found || show_all) {
-            if (!force_path && shell && shell->get_built_ins()->is_builtin_command(name)) {
+            if (!force_path && (shell != nullptr) &&
+                (shell->get_built_ins()->is_builtin_command(name) != 0)) {
                 if (show_type_only) {
                     std::cout << "builtin" << std::endl;
                 } else {
@@ -105,7 +106,7 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
         }
 
         if (!found || show_all) {
-            if (!force_path && !inhibit_functions && shell) {
+            if (!force_path && !inhibit_functions && (shell != nullptr)) {
                 auto aliases = shell->get_aliases();
                 auto alias_it = aliases.find(name);
                 if (alias_it != aliases.end()) {

@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <memory>
 #include <system_error>
 
 #include "error_out.h"
@@ -38,13 +39,12 @@ int pwd_command(const std::vector<std::string>& args) {
 
     if (logical) {
         const char* pwd_env = getenv("PWD");
-        if (pwd_env && pwd_env[0] == '/') {
+        if ((pwd_env != nullptr) && pwd_env[0] == '/') {
             path = pwd_env;
         } else {
-            char* cwd = getcwd(nullptr, 0);
+            std::unique_ptr<char, decltype(&free)> cwd(getcwd(nullptr, 0), free);
             if (cwd) {
-                path = cwd;
-                free(cwd);
+                path = cwd.get();
             } else {
                 const auto error_text = std::system_category().message(errno);
                 print_error({ErrorType::RUNTIME_ERROR, "pwd", "getcwd failed: " + error_text, {}});
@@ -52,10 +52,9 @@ int pwd_command(const std::vector<std::string>& args) {
             }
         }
     } else {
-        char* cwd = getcwd(nullptr, 0);
+        std::unique_ptr<char, decltype(&free)> cwd(getcwd(nullptr, 0), free);
         if (cwd) {
-            path = cwd;
-            free(cwd);
+            path = cwd.get();
         } else {
             const auto error_text = std::system_category().message(errno);
             print_error({ErrorType::RUNTIME_ERROR, "pwd", "getcwd failed: " + error_text, {}});
@@ -63,6 +62,6 @@ int pwd_command(const std::vector<std::string>& args) {
         }
     }
 
-    std::cout << path << std::endl;
+    std::cout << path << '\n';
     return 0;
 }

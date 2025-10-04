@@ -107,8 +107,8 @@ int umask_command(const std::vector<std::string>& args) {
         return 2;
     }
 
-    std::string mode_str = args[mode_index];
-    mode_t new_mask;
+    const std::string& mode_str = args[mode_index];
+    mode_t new_mask = 0;
 
     if (symbolic_mode || mode_str.find('=') != std::string::npos) {
         new_mask = parse_symbolic_mode(mode_str, current_mask);

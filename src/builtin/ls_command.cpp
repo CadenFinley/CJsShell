@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
 #include <cstring>
 #include <ctime>
 #include <filesystem>
@@ -97,12 +98,12 @@ void print_ls_usage() {
 }
 }  // namespace
 
-bool should_use_custom(Shell* shell) {
-    if (!isatty(STDOUT_FILENO)) {
+static bool should_use_custom(Shell* shell) {
+    if (isatty(STDOUT_FILENO) == 0) {
         return false;
     }
 
-    if (shell && !shell->get_interactive_mode()) {
+    if ((shell != nullptr) && !shell->get_interactive_mode()) {
         return false;
     }
 
@@ -111,7 +112,7 @@ bool should_use_custom(Shell* shell) {
 
 struct FileInfo {
     std::filesystem::directory_entry entry;
-    struct stat stat_info;
+    struct stat stat_info{};
     bool stat_valid = false;
     std::string_view cached_name_view;
     std::string cached_name_storage;
@@ -120,7 +121,7 @@ struct FileInfo {
     bool size_calculated = false;
     uint8_t file_type = 0;
 
-    FileInfo(const std::filesystem::directory_entry& e) : entry(e) {
+    explicit FileInfo(const std::filesystem::directory_entry& e) : entry(e) {
         auto filename = entry.path().filename();
         cached_name_storage = filename.string();
         cached_name_view = cached_name_storage;
@@ -164,15 +165,14 @@ int ls_command(const std::vector<std::string>& args, Shell* shell) {
             system_ls_args.push_back(args[i]);
         }
 
-        if (shell) {
+        if (shell != nullptr) {
             return shell->execute_command(system_ls_args, false);
-        } else {
-            print_error({ErrorType::RUNTIME_ERROR,
-                         "ls_command",
-                         "Shell instance is null, cannot execute system ls.",
-                         {}});
-            return 1;
         }
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "ls_command",
+                     "Shell instance is null, cannot execute system ls.",
+                     {}});
+        return 1;
     }
 
     std::string path = ".";
@@ -332,8 +332,8 @@ int ls_command(const std::vector<std::string>& args, Shell* shell) {
 
             if (is_dir) {
                 if (i > 0)
-                    std::cout << std::endl;
-                std::cout << paths[i] << ":" << std::endl;
+                    std::cout << '\n';
+                std::cout << paths[i] << ":" << '\n';
             }
         }
 
@@ -353,7 +353,7 @@ int ls_command(const std::vector<std::string>& args, Shell* shell) {
     return exit_code;
 }
 
-std::string format_size_human_readable(uintmax_t size) {
+static std::string format_size_human_readable(uintmax_t size) {
     static const std::array<const char*, 7> units = {"B", "K", "M", "G", "T", "P", "E"};
     int unit_index = 0;
     double size_d = static_cast<double>(size);
@@ -365,11 +365,11 @@ std::string format_size_human_readable(uintmax_t size) {
 
     char buffer[16];
     if (unit_index == 0) {
-        snprintf(buffer, sizeof(buffer), "%lu%s", (unsigned long)size, units[unit_index]);
+        (void)snprintf(buffer, sizeof(buffer), "%lu%s", (unsigned long)size, units[unit_index]);
     } else if (size_d < 10.0) {
-        snprintf(buffer, sizeof(buffer), "%.1f%s", size_d, units[unit_index]);
+        (void)snprintf(buffer, sizeof(buffer), "%.1f%s", size_d, units[unit_index]);
     } else {
-        snprintf(buffer, sizeof(buffer), "%.0f%s", size_d, units[unit_index]);
+        (void)snprintf(buffer, sizeof(buffer), "%.0f%s", size_d, units[unit_index]);
     }
 
     return std::string(buffer);
@@ -381,30 +381,28 @@ uintmax_t calculate_directory_size_for_sorting(const std::filesystem::path& dir_
     return ec ? 0 : size;
 }
 
-std::string format_blocks(uintmax_t blocks, bool human_readable) {
+static std::string format_blocks(uintmax_t blocks, bool human_readable) {
     if (human_readable) {
         return format_size_human_readable(blocks);
-    } else {
-        return std::to_string(blocks);
     }
+    return std::to_string(blocks);
 }
 
-std::string format_size(uintmax_t size, bool human_readable) {
+static std::string format_size(uintmax_t size, bool human_readable) {
     if (human_readable) {
         return format_size_human_readable(size);
-    } else {
-        if (size < 1024)
-            return std::to_string(size) + " B";
-        else if (size < 1048576)
-            return std::to_string(size >> 10) + " KB";
-        else if (size < 1073741824)
-            return std::to_string(size >> 20) + " MB";
-        else
-            return std::to_string(size >> 30) + " GB";
     }
+    if (size < 1024)
+        return std::to_string(size) + " B";
+    else if (size < 1048576)
+        return std::to_string(size >> 10) + " KB";
+    else if (size < 1073741824)
+        return std::to_string(size >> 20) + " MB";
+    else
+        return std::to_string(size >> 30) + " GB";
 }
 
-bool get_file_stat(FileInfo& file_info) {
+static bool get_file_stat(FileInfo& file_info) {
     if (!file_info.stat_valid) {
         if (stat(file_info.entry.path().c_str(), &file_info.stat_info) == 0) {
             file_info.stat_valid = true;
@@ -413,7 +411,7 @@ bool get_file_stat(FileInfo& file_info) {
     return file_info.stat_valid;
 }
 
-void determine_file_type_and_color(FileInfo& file_info) {
+static void determine_file_type_and_color(FileInfo& file_info) {
     if (file_info.file_type != TYPE_UNKNOWN)
         return;
 
@@ -439,19 +437,19 @@ void determine_file_type_and_color(FileInfo& file_info) {
         if (last_dot != std::string::npos) {
             std::string_view ext(path_str.data() + last_dot, path_str.length() - last_dot);
 
-            if (source_extensions.count(ext)) {
+            if (source_extensions.count(ext) != 0u) {
                 file_info.file_type = TYPE_SOURCE;
-            } else if (executable_extensions.count(ext)) {
+            } else if (executable_extensions.count(ext) != 0u) {
                 file_info.file_type = TYPE_EXECUTABLE;
             } else {
-                if (get_file_stat(file_info) && (file_info.stat_info.st_mode & S_IXUSR)) {
+                if (get_file_stat(file_info) && ((file_info.stat_info.st_mode & S_IXUSR) != 0)) {
                     file_info.file_type = TYPE_EXECUTABLE;
                 } else {
                     file_info.file_type = TYPE_REGULAR;
                 }
             }
         } else {
-            if (get_file_stat(file_info) && (file_info.stat_info.st_mode & S_IXUSR)) {
+            if (get_file_stat(file_info) && ((file_info.stat_info.st_mode & S_IXUSR) != 0)) {
                 file_info.file_type = TYPE_EXECUTABLE;
             } else {
                 file_info.file_type = TYPE_REGULAR;
@@ -464,27 +462,27 @@ void determine_file_type_and_color(FileInfo& file_info) {
     file_info.cached_color = file_type_colors[file_info.file_type];
 }
 
-std::string format_posix_time(time_t mtime) {
+static std::string format_posix_time(time_t mtime) {
     time_t now = time(nullptr);
     struct tm* tm_info = localtime(&mtime);
     char buffer[32];
 
-    if (now - mtime > 6 * 30 * 24 * 60 * 60 || mtime > now) {
-        strftime(buffer, sizeof(buffer), "%e %b  %Y", tm_info);
+    if (now - mtime > static_cast<time_t>(6 * 30 * 24 * 60 * 60) || mtime > now) {
+        (void)strftime(buffer, sizeof(buffer), "%e %b  %Y", tm_info);
     } else {
-        strftime(buffer, sizeof(buffer), "%e %b %H:%M", tm_info);
+        (void)strftime(buffer, sizeof(buffer), "%e %b %H:%M", tm_info);
     }
 
     return std::string(buffer);
 }
 
-std::string quote_filename(const std::string& filename, bool quote_non_printable) {
+static std::string quote_filename(const std::string& filename, bool quote_non_printable) {
     if (!quote_non_printable)
         return filename;
 
     std::string result;
     for (char c : filename) {
-        if (isprint(c) && c != '\t') {
+        if ((isprint(c) != 0) && c != '\t') {
             result += c;
         } else {
             result += '?';
@@ -493,7 +491,7 @@ std::string quote_filename(const std::string& filename, bool quote_non_printable
     return result;
 }
 
-std::string format_permissions_with_colors(const char* perms) {
+static std::string format_permissions_with_colors(const char* perms) {
     std::string result;
 
     result += COLOR_BRIGHT_BLUE;
@@ -553,12 +551,12 @@ std::string format_permissions_with_colors(const char* perms) {
     return result;
 }
 
-void print_long_format_header(bool show_blocks) {
+static void print_long_format_header(bool show_blocks) {
     std::cout << "Permissions  Size";
     if (show_blocks) {
         std::cout << " Blocks";
     }
-    std::cout << " User        Date Modified Name" << std::endl;
+    std::cout << " User        Date Modified Name" << '\n';
 }
 
 static void build_permissions_fast(char* perms, mode_t mode,
@@ -580,7 +578,7 @@ static void build_permissions_fast(char* perms, mode_t mode,
 
     perms[1] = (mode & S_IRUSR) ? 'r' : '-';
     perms[2] = (mode & S_IWUSR) ? 'w' : '-';
-    if (mode & S_ISUID) {
+    if ((mode & S_ISUID) != 0) {
         perms[3] = (mode & S_IXUSR) ? 's' : 'S';
     } else {
         perms[3] = (mode & S_IXUSR) ? 'x' : '-';
@@ -588,7 +586,7 @@ static void build_permissions_fast(char* perms, mode_t mode,
 
     perms[4] = (mode & S_IRGRP) ? 'r' : '-';
     perms[5] = (mode & S_IWGRP) ? 'w' : '-';
-    if (mode & S_ISGID) {
+    if ((mode & S_ISGID) != 0) {
         perms[6] = (mode & S_IXGRP) ? 's' : 'S';
     } else {
         perms[6] = (mode & S_IXGRP) ? 'x' : '-';
@@ -596,7 +594,7 @@ static void build_permissions_fast(char* perms, mode_t mode,
 
     perms[7] = (mode & S_IROTH) ? 'r' : '-';
     perms[8] = (mode & S_IWOTH) ? 'w' : '-';
-    if (mode & S_ISVTX) {
+    if ((mode & S_ISVTX) != 0) {
         perms[9] = (mode & S_IXOTH) ? 't' : 'T';
     } else {
         perms[9] = (mode & S_IXOTH) ? 'x' : '-';
@@ -629,23 +627,24 @@ std::string get_file_indicator(const std::filesystem::directory_entry& entry, bo
     if (entry.is_symlink(ec))
         return "@";
 
-    struct stat st;
+    struct stat st{};
     if (stat(entry.path().c_str(), &st) == 0) {
         if (S_ISFIFO(st.st_mode))
             return "|";
-        if (st.st_mode & S_IXUSR)
+        if ((st.st_mode & S_IXUSR) != 0)
             return "*";
     }
 
     return "";
 }
 
-uintmax_t get_block_count(const struct stat& st, bool kilobyte_blocks) {
+static uintmax_t get_block_count(const struct stat& st, bool kilobyte_blocks) {
     uintmax_t block_size = kilobyte_blocks ? 1024 : 512;
     return (st.st_size + block_size - 1) / block_size;
 }
 
-time_t get_sort_time(const struct stat& st, bool sort_by_access_time, bool sort_by_status_time) {
+static time_t get_sort_time(const struct stat& st, bool sort_by_access_time,
+                            bool sort_by_status_time) {
     if (sort_by_access_time)
         return st.st_atime;
     if (sort_by_status_time)
@@ -733,7 +732,8 @@ int list_directory(const std::string& path, bool show_hidden, bool show_almost_a
 
         if (!unsorted) {
             auto compare_entries = [&](const FileInfo& a, const FileInfo& b) {
-                std::error_code ec_a, ec_b;
+                std::error_code ec_a;
+                std::error_code ec_b;
                 bool a_is_dir = a.entry.is_directory(ec_a);
                 bool b_is_dir = b.entry.is_directory(ec_b);
 
@@ -745,8 +745,8 @@ int list_directory(const std::string& path, bool show_hidden, bool show_almost_a
                 }
 
                 if (sort_by_time || sort_by_access_time || sort_by_status_time) {
-                    FileInfo& a_mut = const_cast<FileInfo&>(a);
-                    FileInfo& b_mut = const_cast<FileInfo&>(b);
+                    auto& a_mut = const_cast<FileInfo&>(a);
+                    auto& b_mut = const_cast<FileInfo&>(b);
 
                     if (get_file_stat(a_mut) && get_file_stat(b_mut)) {
                         time_t a_time = get_sort_time(a_mut.stat_info, sort_by_access_time,
@@ -759,8 +759,8 @@ int list_directory(const std::string& path, bool show_hidden, bool show_almost_a
                         }
                     }
                 } else if (sort_by_size) {
-                    FileInfo& a_mut = const_cast<FileInfo&>(a);
-                    FileInfo& b_mut = const_cast<FileInfo&>(b);
+                    auto& a_mut = const_cast<FileInfo&>(a);
+                    auto& b_mut = const_cast<FileInfo&>(b);
 
                     if (!a_mut.size_calculated) {
                         std::error_code ec;
@@ -813,9 +813,9 @@ int list_directory(const std::string& path, bool show_hidden, bool show_almost_a
         bool use_stream_format = stream_format && !use_long_format;
 
         if (recursive && level > 0) {
-            std::cout << "\n" << std::string(level, ' ') << path << ":" << std::endl;
+            std::cout << "\n" << std::string(level, ' ') << path << ":" << '\n';
         } else if (recursive) {
-            std::cout << path << ":" << std::endl;
+            std::cout << path << ":" << '\n';
         }
 
         if (use_long_format) {
@@ -838,7 +838,7 @@ int list_directory(const std::string& path, bool show_hidden, bool show_almost_a
                 std::cout << get_file_indicator(file_info.entry, indicator_style, append_slash);
             }
             if (!entries.empty())
-                std::cout << std::endl;
+                std::cout << '\n';
             return 0;
         }
 
@@ -887,7 +887,8 @@ int list_directory(const std::string& path, bool show_hidden, bool show_almost_a
                     owner = std::to_string(file_info.stat_info.st_uid);
                 } else {
                     struct passwd* pw = getpwuid(file_info.stat_info.st_uid);
-                    owner = pw ? pw->pw_name : std::to_string(file_info.stat_info.st_uid);
+                    owner =
+                        (pw != nullptr) ? pw->pw_name : std::to_string(file_info.stat_info.st_uid);
                 }
 
                 time_t display_time =
@@ -937,9 +938,9 @@ int list_directory(const std::string& path, bool show_hidden, bool show_almost_a
                         if (std::filesystem::is_directory(target_path, target_ec)) {
                             std::cout << COLOR_BLUE;
                         } else if (std::filesystem::is_regular_file(target_path, target_ec)) {
-                            struct stat target_st;
+                            struct stat target_st{};
                             if (stat(target_path.c_str(), &target_st) == 0 &&
-                                (target_st.st_mode & S_IXUSR)) {
+                                ((target_st.st_mode & S_IXUSR) != 0)) {
                                 std::cout << COLOR_RED;
                             }
                         }
@@ -948,7 +949,7 @@ int list_directory(const std::string& path, bool show_hidden, bool show_almost_a
                     }
                 }
 
-                std::cout << std::endl;
+                std::cout << '\n';
             } else {
                 std::string output;
 
@@ -966,7 +967,7 @@ int list_directory(const std::string& path, bool show_hidden, bool show_almost_a
                 output += COLOR_RESET;
                 output += get_file_indicator(file_info.entry, indicator_style, append_slash);
 
-                std::cout << output << std::endl;
+                std::cout << output << '\n';
             }
         }
 

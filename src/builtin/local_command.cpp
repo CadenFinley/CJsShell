@@ -16,8 +16,8 @@ int local_command(const std::vector<std::string>& args, Shell* shell) {
         return 0;
     }
 
-    auto script_interpreter = shell->get_shell_script_interpreter();
-    if (!script_interpreter) {
+    auto* script_interpreter = shell->get_shell_script_interpreter();
+    if (script_interpreter == nullptr) {
         print_error({ErrorType::RUNTIME_ERROR, "local", "not available outside of functions", {}});
         return 1;
     }
@@ -40,7 +40,7 @@ int local_command(const std::vector<std::string>& args, Shell* shell) {
 
             script_interpreter->set_local_variable(name, value);
         } else {
-            std::string name = arg;
+            const std::string& name = arg;
 
             if (name.empty()) {
                 print_error({ErrorType::INVALID_ARGUMENT, "local", "invalid variable name", {}});
@@ -49,7 +49,7 @@ int local_command(const std::vector<std::string>& args, Shell* shell) {
             }
 
             const char* current_value = getenv(name.c_str());
-            std::string value = current_value ? current_value : "";
+            std::string value = (current_value != nullptr) ? current_value : "";
 
             script_interpreter->set_local_variable(name, value);
         }

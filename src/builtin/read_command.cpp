@@ -37,7 +37,7 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
         return 0;
     }
 
-    if (!shell) {
+    if (shell == nullptr) {
         print_error({ErrorType::RUNTIME_ERROR, "read", "internal error - no shell context", {}});
         return 1;
     }
@@ -111,7 +111,7 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
     }
 
     std::string input;
-    char c;
+    char c = 0;
     int chars_read = 0;
 
     if (nchars > 0) {

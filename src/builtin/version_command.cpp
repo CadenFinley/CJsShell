@@ -23,7 +23,7 @@ int version_command(const std::vector<std::string>& args) {
 #endif
 
     std::cout << "cjsh v" << get_version() << " (git " << c_git_hash << ") (" << CJSH_BUILD_ARCH
-              << "-" << CJSH_BUILD_PLATFORM << ")" << std::endl;
-    std::cout << "Copyright (c) 2025 Caden Finley MIT License" << std::endl;
+              << "-" << CJSH_BUILD_PLATFORM << ")" << '\n';
+    std::cout << "Copyright (c) 2025 Caden Finley MIT License" << '\n';
     return 0;
 }

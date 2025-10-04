@@ -96,7 +96,7 @@ int theme_command(const std::vector<std::string>& args) {
     }
 
     if (args[1] == "info" && args.size() > 2) {
-        std::string theme_input = args[2];
+        const std::string& theme_input = args[2];
         std::string themeName = Theme::strip_theme_extension(theme_input);
         std::filesystem::path theme_file = resolve_theme_file_path(themeName);
 

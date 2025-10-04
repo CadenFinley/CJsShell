@@ -50,10 +50,10 @@ int readonly_command(const std::vector<std::string>& args, Shell* shell) {
 
         for (const std::string& var : readonly_vars) {
             const char* value = getenv(var.c_str());
-            if (value) {
-                std::cout << "readonly " << var << "=" << value << std::endl;
+            if (value != nullptr) {
+                std::cout << "readonly " << var << "=" << value << '\n';
             } else {
-                std::cout << "readonly " << var << std::endl;
+                std::cout << "readonly " << var << '\n';
             }
         }
         return 0;
@@ -84,10 +84,10 @@ int readonly_command(const std::vector<std::string>& args, Shell* shell) {
 
         for (const std::string& var : readonly_vars) {
             const char* value = getenv(var.c_str());
-            if (value) {
-                std::cout << "readonly " << var << "='" << value << "'" << std::endl;
+            if (value != nullptr) {
+                std::cout << "readonly " << var << "='" << value << "'" << '\n';
             } else {
-                std::cout << "readonly " << var << std::endl;
+                std::cout << "readonly " << var << '\n';
             }
         }
         return 0;
@@ -99,7 +99,7 @@ int readonly_command(const std::vector<std::string>& args, Shell* shell) {
     }
 
     for (size_t i = start_index; i < args.size(); ++i) {
-        std::string arg = args[i];
+        const std::string& arg = args[i];
 
         size_t eq_pos = arg.find('=');
         if (eq_pos != std::string::npos) {
