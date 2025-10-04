@@ -107,7 +107,7 @@ def main():
     os.chdir(project_root)
     
     # Set up excluded directories
-    excluded_dirs = {'vendor', 'plugins', 'themes', 'build', 'toolchain', 'tests'}
+    excluded_dirs = {'vendor', 'plugins', 'themes', 'build'}
     if args.exclude_dirs:
         excluded_dirs.update(args.exclude_dirs)
     if args.include_dirs:
