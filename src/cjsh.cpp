@@ -250,8 +250,26 @@ static void start_interactive_process() {
     }
 
     if (config::show_startup_time) {
-        std::string startup_ms = g_shell->get_initial_duration();
-        std::cout << " Started in " << startup_ms << '\n';
+        std::string startup_time_str;
+        if (g_shell && g_theme) {
+            startup_time_str = g_shell->get_initial_duration();
+        } else {
+            long microseconds = startup_duration.count();
+            if (microseconds < 1000) {
+                startup_time_str = std::to_string(microseconds) + "μs";
+            } else if (microseconds < 1000000) {
+                double milliseconds = microseconds / 1000.0;
+                char buffer[32];
+                (void) snprintf(buffer, sizeof(buffer), "%.2fms", milliseconds);
+                startup_time_str = buffer;
+            } else {
+                double seconds = microseconds / 1000000.0;
+                char buffer[32];
+                (void) snprintf(buffer, sizeof(buffer), "%.2fs", seconds);
+                startup_time_str = buffer;
+            }
+        }
+        std::cout << " Started in " << startup_time_str << '\n';
     }
 
     if (!config::startup_test) {
