@@ -3013,12 +3013,11 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
             continue;
         }
 
-        if (g_shell != nullptr && g_shell->get_shell_option("verbose")) {
-            std::cerr << line << '\n';
-        }
-
         if (line == "fi" || line == "then" || line == "else" || line == "done" || line == "esac" ||
             line == "}" || line == ";;") {
+            if (g_shell != nullptr && g_shell->get_shell_option("verbose")) {
+                std::cerr << line << '\n';
+            }
             continue;
         }
 
@@ -3310,6 +3309,13 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                     segs.push_back(semi);
                 for (size_t si = 0; si < segs.size(); ++si) {
                     const std::string& cmd_text = segs[si];
+
+                    if (g_shell != nullptr && g_shell->get_shell_option("verbose")) {
+                        std::string verbose_text = trim(strip_inline_comment(cmd_text));
+                        if (!verbose_text.empty()) {
+                            std::cerr << verbose_text << '\n';
+                        }
+                    }
 
                     std::string t = trim(strip_inline_comment(cmd_text));
 

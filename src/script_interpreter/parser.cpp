@@ -773,7 +773,10 @@ std::vector<std::string> tokenize_command(const std::string& cmdline) {
 
         if (escaped) {
             if (in_quotes && quote_char == '"') {
-                if (c == '$' || c == '`' || c == '"' || c == '\\' || c == '\n') {
+                if (c == '$') {
+                    current_token += '\\';
+                    current_token += c;
+                } else if (c == '`' || c == '"' || c == '\\' || c == '\n') {
                     current_token += c;
                 } else {
                     current_token += '\\';
@@ -1519,31 +1522,26 @@ std::string Parser::resolve_parameter_value(const std::string& var_name) {
 
     if (var_name == "-") {
         std::string flags;
+        auto append_flag = [&](char flag, bool enabled) {
+            if (enabled && flags.find(flag) == std::string::npos) {
+                flags.push_back(flag);
+            }
+        };
+
+        append_flag('h', true);
+        append_flag('B', true);
+
         if (shell != nullptr) {
-            if (shell->get_shell_option("errexit")) {
-                flags += "e";
-            }
-            if (shell->get_shell_option("noclobber")) {
-                flags += "C";
-            }
-            if (shell->get_shell_option("nounset")) {
-                flags += "u";
-            }
-            if (shell->get_shell_option("xtrace")) {
-                flags += "x";
-            }
-            if (shell->get_shell_option("verbose")) {
-                flags += "v";
-            }
-            if (shell->get_shell_option("noexec")) {
-                flags += "n";
-            }
-            if (shell->get_shell_option("noglob")) {
-                flags += "f";
-            }
-            if (shell->get_shell_option("allexport")) {
-                flags += "a";
-            }
+            append_flag('i', shell->get_interactive_mode());
+            append_flag('m', shell->is_job_control_enabled());
+            append_flag('e', shell->get_shell_option("errexit"));
+            append_flag('C', shell->get_shell_option("noclobber"));
+            append_flag('u', shell->get_shell_option("nounset"));
+            append_flag('x', shell->get_shell_option("xtrace"));
+            append_flag('v', shell->get_shell_option("verbose"));
+            append_flag('n', shell->get_shell_option("noexec"));
+            append_flag('f', shell->get_shell_option("noglob"));
+            append_flag('a', shell->get_shell_option("allexport"));
         }
         return flags;
     }
