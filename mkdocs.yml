@@ -87,6 +87,11 @@ nav:
   - Home: index.md
   - Getting Started:
     - Quick Start: getting-started/quick-start.md
+    - Want to help?: getting-started/development.md
+  - Themes:
+    - The Details: themes/thedetails.md
+  - Plugins:
+    - The Details: plugins/thedetails.md
 
 extra:
   social:
