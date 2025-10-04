@@ -3008,8 +3008,13 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
     for (size_t line_index = 0; line_index < lines.size(); ++line_index) {
         const auto& raw_line = lines[line_index];
         std::string line = trim(strip_inline_comment(raw_line));
+
         if (line.empty()) {
             continue;
+        }
+
+        if (g_shell != nullptr && g_shell->get_shell_option("verbose")) {
+            std::cerr << line << '\n';
         }
 
         if (line == "fi" || line == "then" || line == "else" || line == "done" || line == "esac" ||

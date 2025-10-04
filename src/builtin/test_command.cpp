@@ -60,6 +60,30 @@ int test_command(const std::vector<std::string>& args) {
         } else if (op == "-s") {
             struct stat st;
             return (stat(arg.c_str(), &st) == 0 && st.st_size > 0) ? 0 : 1;
+        } else if (op == "-L") {
+            struct stat st;
+            return (lstat(arg.c_str(), &st) == 0 && S_ISLNK(st.st_mode)) ? 0 : 1;
+        } else if (op == "-p") {
+            struct stat st;
+            return (stat(arg.c_str(), &st) == 0 && S_ISFIFO(st.st_mode)) ? 0 : 1;
+        } else if (op == "-b") {
+            struct stat st;
+            return (stat(arg.c_str(), &st) == 0 && S_ISBLK(st.st_mode)) ? 0 : 1;
+        } else if (op == "-c") {
+            struct stat st;
+            return (stat(arg.c_str(), &st) == 0 && S_ISCHR(st.st_mode)) ? 0 : 1;
+        } else if (op == "-S") {
+            struct stat st;
+            return (stat(arg.c_str(), &st) == 0 && S_ISSOCK(st.st_mode)) ? 0 : 1;
+        } else if (op == "-u") {
+            struct stat st;
+            return (stat(arg.c_str(), &st) == 0 && (st.st_mode & S_ISUID)) ? 0 : 1;
+        } else if (op == "-g") {
+            struct stat st;
+            return (stat(arg.c_str(), &st) == 0 && (st.st_mode & S_ISGID)) ? 0 : 1;
+        } else if (op == "-k") {
+            struct stat st;
+            return (stat(arg.c_str(), &st) == 0 && (st.st_mode & S_ISVTX)) ? 0 : 1;
         } else if (op == "!") {
             return arg.empty() ? 0 : 1;
         }
@@ -127,6 +151,27 @@ int test_command(const std::vector<std::string>& args) {
             } catch (...) {
                 return 1;
             }
+        } else if (op == "-nt") {
+            struct stat st1;
+            struct stat st2;
+            if (stat(arg1.c_str(), &st1) != 0 || stat(arg2.c_str(), &st2) != 0) {
+                return 1;
+            }
+            return (st1.st_mtime > st2.st_mtime) ? 0 : 1;
+        } else if (op == "-ot") {
+            struct stat st1;
+            struct stat st2;
+            if (stat(arg1.c_str(), &st1) != 0 || stat(arg2.c_str(), &st2) != 0) {
+                return 1;
+            }
+            return (st1.st_mtime < st2.st_mtime) ? 0 : 1;
+        } else if (op == "-ef") {
+            struct stat st1;
+            struct stat st2;
+            if (stat(arg1.c_str(), &st1) != 0 || stat(arg2.c_str(), &st2) != 0) {
+                return 1;
+            }
+            return (st1.st_dev == st2.st_dev && st1.st_ino == st2.st_ino) ? 0 : 1;
         }
     }
 

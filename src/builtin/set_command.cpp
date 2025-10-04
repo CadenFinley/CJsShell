@@ -56,6 +56,90 @@ int set_command(const std::vector<std::string>& args, Shell* shell) {
             if (arg == "+o") {
                 ++i;
             }
+        } else if (arg == "-u" ||
+                   (arg == "-o" && i + 1 < args.size() && args[i + 1] == "nounset")) {
+            shell->set_shell_option("nounset", true);
+            if (arg == "-o") {
+                ++i;
+            }
+        } else if (arg == "+u" ||
+                   (arg == "+o" && i + 1 < args.size() && args[i + 1] == "nounset")) {
+            shell->set_shell_option("nounset", false);
+            if (arg == "+o") {
+                ++i;
+            }
+        } else if (arg == "-x" || (arg == "-o" && i + 1 < args.size() && args[i + 1] == "xtrace")) {
+            shell->set_shell_option("xtrace", true);
+            if (arg == "-o") {
+                ++i;
+            }
+        } else if (arg == "+x" || (arg == "+o" && i + 1 < args.size() && args[i + 1] == "xtrace")) {
+            shell->set_shell_option("xtrace", false);
+            if (arg == "+o") {
+                ++i;
+            }
+        } else if (arg == "-v" ||
+                   (arg == "-o" && i + 1 < args.size() && args[i + 1] == "verbose")) {
+            shell->set_shell_option("verbose", true);
+            if (arg == "-o") {
+                ++i;
+            }
+        } else if (arg == "+v" ||
+                   (arg == "+o" && i + 1 < args.size() && args[i + 1] == "verbose")) {
+            shell->set_shell_option("verbose", false);
+            if (arg == "+o") {
+                ++i;
+            }
+        } else if (arg == "-n" || (arg == "-o" && i + 1 < args.size() && args[i + 1] == "noexec")) {
+            shell->set_shell_option("noexec", true);
+            if (arg == "-o") {
+                ++i;
+            }
+        } else if (arg == "+n" || (arg == "+o" && i + 1 < args.size() && args[i + 1] == "noexec")) {
+            shell->set_shell_option("noexec", false);
+            if (arg == "+o") {
+                ++i;
+            }
+        } else if (arg == "-f" || (arg == "-o" && i + 1 < args.size() && args[i + 1] == "noglob")) {
+            shell->set_shell_option("noglob", true);
+            if (arg == "-o") {
+                ++i;
+            }
+        } else if (arg == "+f" || (arg == "+o" && i + 1 < args.size() && args[i + 1] == "noglob")) {
+            shell->set_shell_option("noglob", false);
+            if (arg == "+o") {
+                ++i;
+            }
+        } else if (arg == "-a" ||
+                   (arg == "-o" && i + 1 < args.size() && args[i + 1] == "allexport")) {
+            shell->set_shell_option("allexport", true);
+            if (arg == "-o") {
+                ++i;
+            }
+        } else if (arg == "+a" ||
+                   (arg == "+o" && i + 1 < args.size() && args[i + 1] == "allexport")) {
+            shell->set_shell_option("allexport", false);
+            if (arg == "+o") {
+                ++i;
+            }
+        } else if (arg == "-o" && i + 1 >= args.size()) {
+            std::cout << "errexit        \t" << (shell->get_shell_option("errexit") ? "on" : "off")
+                      << '\n';
+            std::cout << "noclobber      \t"
+                      << (shell->get_shell_option("noclobber") ? "on" : "off") << '\n';
+            std::cout << "nounset        \t" << (shell->get_shell_option("nounset") ? "on" : "off")
+                      << '\n';
+            std::cout << "xtrace         \t" << (shell->get_shell_option("xtrace") ? "on" : "off")
+                      << '\n';
+            std::cout << "verbose        \t" << (shell->get_shell_option("verbose") ? "on" : "off")
+                      << '\n';
+            std::cout << "noexec         \t" << (shell->get_shell_option("noexec") ? "on" : "off")
+                      << '\n';
+            std::cout << "noglob         \t" << (shell->get_shell_option("noglob") ? "on" : "off")
+                      << '\n';
+            std::cout << "allexport      \t"
+                      << (shell->get_shell_option("allexport") ? "on" : "off") << '\n';
+            return 0;
         } else if (arg.substr(0, 2) == "--") {
             std::vector<std::string> positional_params;
             for (size_t j = i + 1; j < args.size(); ++j) {

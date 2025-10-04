@@ -1219,6 +1219,12 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
                         expand_env_vars(noenv_stripped);
                     }
                 } catch (const std::runtime_error& e) {
+                    std::string error_msg = e.what();
+                    if (shell != nullptr && shell->get_shell_option("nounset") &&
+                        error_msg.find("parameter not set") != std::string::npos) {
+                        std::cerr << "cjsh: " << e.what() << '\n';
+                        throw;
+                    }
                     std::cerr << "Warning: Error expanding environment variables: " << e.what()
                               << '\n';
                 }
@@ -1511,6 +1517,37 @@ std::string Parser::resolve_parameter_value(const std::string& var_name) {
         return "";
     }
 
+    if (var_name == "-") {
+        std::string flags;
+        if (shell != nullptr) {
+            if (shell->get_shell_option("errexit")) {
+                flags += "e";
+            }
+            if (shell->get_shell_option("noclobber")) {
+                flags += "C";
+            }
+            if (shell->get_shell_option("nounset")) {
+                flags += "u";
+            }
+            if (shell->get_shell_option("xtrace")) {
+                flags += "x";
+            }
+            if (shell->get_shell_option("verbose")) {
+                flags += "v";
+            }
+            if (shell->get_shell_option("noexec")) {
+                flags += "n";
+            }
+            if (shell->get_shell_option("noglob")) {
+                flags += "f";
+            }
+            if (shell->get_shell_option("allexport")) {
+                flags += "a";
+            }
+        }
+        return flags;
+    }
+
     if (!var_name.empty() && (std::isdigit(static_cast<unsigned char>(var_name[0])) != 0) &&
         var_name.length() == 1) {
         std::string value = get_variable_value(var_name);
@@ -1538,6 +1575,9 @@ std::string Parser::resolve_parameter_value(const std::string& var_name) {
         auto it = env_vars.find(var_name);
         if (it != env_vars.end()) {
             value = it->second;
+        } else if (shell != nullptr && shell->get_shell_option("nounset")) {
+            std::string error_msg = var_name + ": parameter not set";
+            throw std::runtime_error(error_msg);
         }
     }
     return value;
@@ -1679,8 +1719,9 @@ void Parser::expand_env_vars(std::string& arg) {
         if (in_var) {
             if ((isalnum(arg[i]) != 0) || arg[i] == '_' ||
                 (var_name.empty() && (isdigit(arg[i]) != 0)) ||
-                (var_name.empty() && (arg[i] == '?' || arg[i] == '$' || arg[i] == '#' ||
-                                      arg[i] == '*' || arg[i] == '@' || arg[i] == '!'))) {
+                (var_name.empty() &&
+                 (arg[i] == '?' || arg[i] == '$' || arg[i] == '#' || arg[i] == '*' ||
+                  arg[i] == '@' || arg[i] == '!' || arg[i] == '-'))) {
                 var_name += arg[i];
             } else {
                 in_var = false;
@@ -1751,7 +1792,8 @@ void Parser::expand_env_vars(std::string& arg) {
         } else if (arg[i] == '$' && (i + 1 < arg.length()) &&
                    ((isalpha(arg[i + 1]) != 0) || arg[i + 1] == '_' || (isdigit(arg[i + 1]) != 0) ||
                     arg[i + 1] == '?' || arg[i + 1] == '$' || arg[i + 1] == '#' ||
-                    arg[i + 1] == '*' || arg[i + 1] == '@' || arg[i + 1] == '!')) {
+                    arg[i + 1] == '*' || arg[i + 1] == '@' || arg[i + 1] == '!' ||
+                    arg[i + 1] == '-')) {
             in_var = true;
             var_name.clear();
             continue;
@@ -1910,7 +1952,7 @@ void Parser::expand_exported_env_vars_only(std::string& arg) {
                 }
             } else if ((std::isalnum(arg[i]) != 0) || arg[i] == '_' || arg[i] == '?' ||
                        arg[i] == '$' || arg[i] == '#' || arg[i] == '*' || arg[i] == '@' ||
-                       arg[i] == '!' || (std::isdigit(arg[i]) != 0)) {
+                       arg[i] == '!' || arg[i] == '-' || (std::isdigit(arg[i]) != 0)) {
                 var_name += arg[i];
             } else {
                 std::string value = get_exported_variable_value(var_name);
@@ -2729,6 +2771,11 @@ std::vector<std::string> Parser::parse_semicolon_commands(const std::string& com
 
 std::vector<std::string> Parser::expand_wildcards(const std::string& pattern) {
     std::vector<std::string> result;
+
+    if (shell != nullptr && shell->get_shell_option("noglob")) {
+        result.push_back(pattern);
+        return result;
+    }
 
     bool has_wildcards = false;
 

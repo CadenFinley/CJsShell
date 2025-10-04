@@ -416,6 +416,21 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
         return 1;
     }
 
+    if (get_shell_option("xtrace") && !args.empty()) {
+        std::cerr << "+ ";
+        for (size_t i = 0; i < args.size(); ++i) {
+            if (i > 0) {
+                std::cerr << " ";
+            }
+            std::cerr << args[i];
+        }
+        std::cerr << '\n';
+    }
+
+    if (get_shell_option("noexec")) {
+        return 0;
+    }
+
     if (args.size() == 1 && shell_parser) {
         std::string var_name, var_value;
         if (shell_parser->is_env_assignment(args[0], var_name, var_value)) {
