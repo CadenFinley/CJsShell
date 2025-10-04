@@ -12,6 +12,8 @@ static const char* cached_cxx_compiler = NULL;
 static const char* cached_c_compiler = NULL;
 static const char* cached_linker = NULL;
 
+extern bool g_debug_build;
+
 static char git_hash_define[128] = "-DCJSH_GIT_HASH=\"unknown\"";
 
 static inline void nob_set_git_hash_define(const char* hash) {
@@ -85,11 +87,19 @@ static inline bool setup_build_flags(Nob_Cmd* cmd) {
 #endif
 
 #ifdef PLATFORM_LINUX
-    nob_cmd_append(cmd, "-static-libgcc", "-static-libstdc++");
+    if (!g_debug_build) {
+        nob_cmd_append(cmd, "-static-libgcc", "-static-libstdc++");
+    }
 #endif
 
-    nob_cmd_append(cmd, "-O2", "-DNDEBUG");
-    nob_cmd_append(cmd, "-ffunction-sections", "-fdata-sections", "-flto");
+    if (g_debug_build) {
+        nob_cmd_append(cmd, "-O0", "-g", "-fno-omit-frame-pointer");
+        nob_cmd_append(cmd, "-fsanitize=address");
+        nob_cmd_append(cmd, "-DDEBUG");
+    } else {
+        nob_cmd_append(cmd, "-O2", "-DNDEBUG");
+        nob_cmd_append(cmd, "-ffunction-sections", "-fdata-sections", "-flto");
+    }
 
     nob_cmd_append(cmd, "-DIC_SEPARATE_OBJS=1");
     nob_cmd_append(cmd, "-DJSON_NOEXCEPTION=1");
@@ -140,8 +150,14 @@ static inline bool setup_c_build_flags(Nob_Cmd* cmd) {
 #endif
 #endif
 
-    nob_cmd_append(cmd, "-O2", "-DNDEBUG");
-    nob_cmd_append(cmd, "-ffunction-sections", "-fdata-sections", "-flto");
+    if (g_debug_build) {
+        nob_cmd_append(cmd, "-O0", "-g", "-fno-omit-frame-pointer");
+        nob_cmd_append(cmd, "-fsanitize=address");
+        nob_cmd_append(cmd, "-DDEBUG");
+    } else {
+        nob_cmd_append(cmd, "-O2", "-DNDEBUG");
+        nob_cmd_append(cmd, "-ffunction-sections", "-fdata-sections", "-flto");
+    }
     nob_cmd_append(cmd, "-DIC_SEPARATE_OBJS=1");
 
     // Define architecture and platform for runtime use

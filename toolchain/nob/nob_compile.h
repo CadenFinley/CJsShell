@@ -911,7 +911,12 @@ static inline bool compile_cjsh(int override_parallel_jobs, bool generate_compil
 
     const char* linker = get_linker();
     nob_cmd_append(&link_cmd, linker);
-    nob_cmd_append(&link_cmd, "-flto");
+
+    if (g_debug_build) {
+        nob_cmd_append(&link_cmd, "-g");
+    } else {
+        nob_cmd_append(&link_cmd, "-flto");
+    }
 
 #ifdef PLATFORM_MACOS
     if (strcmp(linker, "clang++") == 0) {
@@ -922,14 +927,18 @@ static inline bool compile_cjsh(int override_parallel_jobs, bool generate_compil
 #elif defined(ARCH_X86_64)
     nob_cmd_append(&link_cmd, "-arch", "x86_64");
 #endif
-    nob_cmd_append(&link_cmd, "-Wl,-dead_strip", "-Wl,-dead_strip_dylibs");
+    if (!g_debug_build) {
+        nob_cmd_append(&link_cmd, "-Wl,-dead_strip", "-Wl,-dead_strip_dylibs");
+    }
 #endif
 
 #ifdef PLATFORM_LINUX
-    if (strcmp(linker, "g++") == 0) {
+    if (!g_debug_build && strcmp(linker, "g++") == 0) {
         nob_cmd_append(&link_cmd, "-static-libgcc", "-static-libstdc++");
     }
-    nob_cmd_append(&link_cmd, "-Wl,--gc-sections", "-Wl,--as-needed");
+    if (!g_debug_build) {
+        nob_cmd_append(&link_cmd, "-Wl,--gc-sections", "-Wl,--as-needed");
+    }
 #endif
 
     for (size_t i = 0; i < obj_files.count; i++) {
@@ -947,6 +956,10 @@ static inline bool compile_cjsh(int override_parallel_jobs, bool generate_compil
 #else
     nob_cmd_append(&link_cmd, "-lstdc++", "-lpthread");
 #endif
+
+    if (g_debug_build) {
+        nob_cmd_append(&link_cmd, "-fsanitize=address");
+    }
 
 #if defined(PLATFORM_LINUX) || defined(PLATFORM_UNIX)
     nob_cmd_append(&link_cmd, "-ldl");
@@ -970,7 +983,7 @@ static inline bool compile_cjsh(int override_parallel_jobs, bool generate_compil
     if (strip_env != NULL && strip_env[0] != '\0') {
         strip_requested = strcmp(strip_env, "0") != 0;
     }
-    if (strip_requested) {
+    if (strip_requested && !g_debug_build) {
         Nob_Cmd strip_cmd = {0};
 #ifdef PLATFORM_MACOS
         nob_cmd_append(&strip_cmd, "strip", "-x", output_binary);

@@ -16,6 +16,8 @@
 
 #define NOB_SELF_REBUILD_ENV "NOB_JUST_REBUILT"
 
+bool g_debug_build = false;
+
 static const char* nob_self_rebuild_sources[] = {
     __FILE__,          "nob.h",          "nob_build_config.h",
     "nob_cli.h",       "nob_compile.h",  "nob_dependencies.h",
@@ -148,7 +150,13 @@ int main(int argc, char** argv) {
         }
     }
 
-    (void)debug;
+    g_debug_build = debug;
+
+    if (g_debug_build) {
+        nob_log(NOB_INFO,
+                "Debug build requested: compiling without optimizations and with AddressSanitizer"
+                " enabled");
+    }
     (void)force_32bit;
 
     if (help) {
