@@ -33,7 +33,6 @@
 #include "local_command.h"
 #include "loop_control_commands.h"
 #include "ls_command.h"
-#include "plugin_command.h"
 #include "printf_command.h"
 #include "prompt_test_command.h"
 #include "pwd_command.h"
@@ -152,7 +151,6 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"source", [](const std::vector<std::string>& args) { return ::source_command(args); }},
         {".", [](const std::vector<std::string>& args) { return ::source_command(args); }},
         {"theme", [](const std::vector<std::string>& args) { return ::theme_command(args); }},
-        {"plugin", [](const std::vector<std::string>& args) { return ::plugin_command(args); }},
         {"help",
          [](const std::vector<std::string>& args) {
              if (builtin_handle_help(args,

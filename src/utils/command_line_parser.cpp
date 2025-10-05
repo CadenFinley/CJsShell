@@ -19,7 +19,6 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(int argc, char
                                            {"command", required_argument, nullptr, 'c'},
                                            {"version", no_argument, nullptr, 'v'},
                                            {"help", no_argument, nullptr, 'h'},
-                                           {"no-plugins", no_argument, nullptr, 'P'},
                                            {"no-themes", no_argument, nullptr, 'T'},
                                            {"no-ai", no_argument, nullptr, 'A'},
                                            {"no-colors", no_argument, nullptr, 'C'},
@@ -35,7 +34,7 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(int argc, char
                                            {"secure", no_argument, nullptr, 's'},
                                            {nullptr, 0, nullptr, 0}};
 
-    const char* short_options = "+lic:vhPTACLUNOSMXmDs";
+    const char* short_options = "+lic:vhTACLUNOSMXmDs";
 
     int option_index = 0;
     int c;
@@ -61,9 +60,6 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(int argc, char
             case 'h':
                 config::show_help = true;
                 config::interactive_mode = false;
-                break;
-            case 'P':
-                config::plugins_enabled = false;
                 break;
             case 'T':
                 config::themes_enabled = false;
@@ -144,7 +140,6 @@ void CommandLineParser::detect_login_mode(char* argv[]) {
 
 void CommandLineParser::apply_minimal_mode() {
     config::minimal_mode = true;
-    config::plugins_enabled = false;
     config::themes_enabled = false;
     config::ai_enabled = false;
     config::colors_enabled = false;
@@ -161,9 +156,7 @@ void CommandLineParser::apply_profile_startup_flags() {
     extern std::vector<std::string> g_profile_startup_args;
 
     for (const std::string& flag : ::g_profile_startup_args) {
-        if (flag == "--no-plugins") {
-            config::plugins_enabled = false;
-        } else if (flag == "--no-themes") {
+        if (flag == "--no-themes") {
             config::themes_enabled = false;
         } else if (flag == "--no-ai") {
             config::ai_enabled = false;

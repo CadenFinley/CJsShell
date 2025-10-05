@@ -238,9 +238,6 @@ void apply_variables_to_theme(ThemeDefinition& theme,
     }
 
     substitute_variables_in_string(theme.requirements.colors, variables);
-    for (auto& plugin : theme.requirements.plugins) {
-        substitute_variables_in_string(plugin, variables);
-    }
     for (auto& font : theme.requirements.fonts) {
         substitute_variables_in_string(font, variables);
     }
@@ -735,9 +732,7 @@ ThemeRequirements ThemeParser::parse_requirements_block() {
 
         ThemeProperty prop = parse_property();
 
-        if (prop.key == "plugins") {
-            requirements.plugins.push_back(prop.value);
-        } else if (prop.key == "colors") {
+        if (prop.key == "colors") {
             requirements.colors = prop.value;
         } else if (prop.key == "fonts") {
             requirements.fonts.push_back(prop.value);

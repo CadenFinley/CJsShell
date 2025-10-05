@@ -98,13 +98,13 @@ int help_command() {
     std::cout << "  Shutdown sequence:\n";
     std::cout << "    - Registered EXIT traps run before teardown.\n";
     std::cout << "    - ~/.cjsh_logout is sourced for interactive sessions (when it exists).\n";
-    std::cout << "    - History, plugins, themes, and AI resources are flushed before exit.\n";
+    std::cout << "    - History, themes, and AI resources are flushed before exit.\n";
 
     heading("Primary cjsh directories");
     std::cout << "  ~/.cjprofile        Login configuration and persisted startup flags.\n";
-    std::cout << "  ~/.cjshrc           Interactive configuration (aliases, themes, plugins).\n";
+    std::cout << "  ~/.cjshrc           Interactive configuration (aliases, themes).\n";
     std::cout << "  ~/.cjsh_logout      Optional logout script sourced on exit.\n";
-    std::cout << "  ~/.config/cjsh/     Data directory (themes/, plugins/, colors/, prompts/).\n";
+    std::cout << "  ~/.config/cjsh/     Data directory (themes/, colors/, prompts/).\n";
     std::cout
         << "  ~/.cache/cjsh/      Cache directory (history.txt, AI transcripts, exec cache).\n";
     std::cout << "  ~/.cache/cjsh/.first_boot  Marker used to suppress the first-run banner.\n";

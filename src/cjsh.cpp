@@ -27,7 +27,6 @@
 #include "isocline.h"
 #include "job_control.h"
 #include "main_loop.h"
-#include "plugin.h"
 #include "shell.h"
 #include "shell_env.h"
 #include "theme.h"
@@ -45,7 +44,6 @@ bool g_startup_active = true;
 std::unique_ptr<Shell> g_shell = nullptr;
 std::unique_ptr<Ai> g_ai = nullptr;
 std::unique_ptr<Theme> g_theme = nullptr;
-std::unique_ptr<Plugin> g_plugin = nullptr;
 std::vector<std::string> g_startup_args;
 std::vector<std::string> g_profile_startup_args;
 std::chrono::steady_clock::time_point g_startup_begin_time;
@@ -56,7 +54,6 @@ bool interactive_mode = true;
 bool force_interactive = false;
 bool execute_command = false;
 std::string cmd_to_execute = "";
-bool plugins_enabled = true;
 bool themes_enabled = true;
 bool ai_enabled = true;
 bool colors_enabled = true;
@@ -133,14 +130,6 @@ static void initialize_colors() {
         ic_enable_color(false);
         ic_style_def("ic-prompt", "");
     }
-}
-
-void initialize_plugins() {
-    if (!config::plugins_enabled) {
-        return;
-    }
-    g_plugin = std::make_unique<Plugin>(cjsh_filesystem::g_cjsh_plugin_path,
-                                        config::plugins_enabled, true);
 }
 
 void initialize_themes() {
@@ -302,10 +291,6 @@ void cleanup_resources() {
 
     if (g_theme) {
         g_theme.reset();
-    }
-
-    if (g_plugin) {
-        g_plugin.reset();
     }
 
     if (g_shell) {

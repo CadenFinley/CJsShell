@@ -19,7 +19,6 @@
 #include "cjsh_filesystem.h"
 #include "cjsh_syntax_highlighter.h"
 #include "cjshopt_command.h"
-#include "plugin.h"
 #include "shell.h"
 #include "shell_script_interpreter.h"
 
@@ -40,8 +39,7 @@ enum SourcePriority : std::uint8_t {
     PRIORITY_UNKNOWN = 2,
     PRIORITY_FILE = 3,
     PRIORITY_DIRECTORY = 4,
-    PRIORITY_PLUGIN = 5,
-    PRIORITY_FUNCTION = 6
+    PRIORITY_FUNCTION = 5
 };
 
 static SourcePriority get_source_priority(const char* source) {
@@ -56,8 +54,6 @@ static SourcePriority get_source_priority(const char* source) {
         return PRIORITY_FILE;
     if (strcmp(source, "directory") == 0)
         return PRIORITY_DIRECTORY;
-    if (strcmp(source, "plugin") == 0)
-        return PRIORITY_PLUGIN;
     if (strcmp(source, "function") == 0)
         return PRIORITY_FUNCTION;
 
@@ -709,7 +705,6 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
 
     std::vector<std::string> builtin_cmds;
     std::vector<std::string> function_names;
-    std::vector<std::string> plugin_cmds;
     std::unordered_set<std::string> aliases;
     std::vector<std::filesystem::path> cached_executables;
 
@@ -719,14 +714,6 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
 
     if (g_shell && (g_shell->get_shell_script_interpreter() != nullptr)) {
         function_names = g_shell->get_shell_script_interpreter()->get_function_names();
-    }
-
-    if (g_plugin) {
-        auto enabled_plugins = g_plugin->get_enabled_plugins();
-        for (const auto& plugin : enabled_plugins) {
-            auto plugin_commands = g_plugin->get_plugin_commands(plugin);
-            plugin_cmds.insert(plugin_cmds.end(), plugin_commands.begin(), plugin_commands.end());
-        }
     }
 
     if (g_shell) {
@@ -748,11 +735,6 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
 
     process_command_candidates(cenv, function_names, prefix_str, prefix_len, "function",
                                "function commands", [](const std::string& value) { return value; });
-    if (completion_limit_hit() || ic_stop_completing(cenv))
-        return;
-
-    process_command_candidates(cenv, plugin_cmds, prefix_str, prefix_len, "plugin",
-                               "plugin commands", [](const std::string& value) { return value; });
     if (completion_limit_hit() || ic_stop_completing(cenv))
         return;
 

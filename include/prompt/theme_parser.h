@@ -67,7 +67,6 @@ struct ThemeSegment {
 };
 
 struct ThemeRequirements {
-    std::vector<std::string> plugins;
     std::string colors;
     std::vector<std::string> fonts;
     std::unordered_map<std::string, std::string> custom;

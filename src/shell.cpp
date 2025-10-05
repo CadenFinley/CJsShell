@@ -21,7 +21,6 @@
 #include "error_out.h"
 #include "exec.h"
 #include "job_control.h"
-#include "plugin.h"
 #include "shell_script_interpreter.h"
 #include "suggestion_utils.h"
 #include "theme.h"
@@ -462,19 +461,6 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
         return code;
     }
 
-    if (g_plugin) {
-        std::vector<std::string> enabled_plugins = g_plugin->get_enabled_plugins();
-        if (!args.empty() && !enabled_plugins.empty()) {
-            for (const auto& plugin : enabled_plugins) {
-                std::vector<std::string> plugin_commands = g_plugin->get_plugin_commands(plugin);
-                if (std::find(plugin_commands.begin(), plugin_commands.end(), args[0]) !=
-                    plugin_commands.end()) {
-                    return g_plugin->handle_plugin_command(plugin, args) ? 0 : 1;
-                }
-            }
-        }
-    }
-
     if (run_in_background) {
         int job_id = shell_exec->execute_command_async(args);
         if (job_id > 0) {
@@ -517,13 +503,6 @@ std::unordered_set<std::string> Shell::get_available_commands() const {
     }
     for (const auto& alias : aliases) {
         cmds.insert(alias.first);
-    }
-    if (g_plugin) {
-        auto enabled_plugins = g_plugin->get_enabled_plugins();
-        for (const auto& plugin : enabled_plugins) {
-            auto plugin_commands = g_plugin->get_plugin_commands(plugin);
-            cmds.insert(plugin_commands.begin(), plugin_commands.end());
-        }
     }
 
     if (shell_script_interpreter) {

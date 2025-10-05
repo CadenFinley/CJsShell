@@ -15,8 +15,6 @@
 
 #include "ai.h"
 #include "cjsh.h"
-#include "plugin.h"
-#include "pluginapi.h"
 #include "theme_parser.h"
 
 /* Available prompt placeholders:
@@ -755,31 +753,6 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
 
         if (needed_vars.count("GIT_CHANGES")) {
             vars["GIT_CHANGES"] = std::to_string(get_git_uncommitted_changes(repo_root));
-        }
-    }
-
-    if (g_plugin) {
-        for (const auto& plugin_name : g_plugin->get_enabled_plugins()) {
-            plugin_data* pd = g_plugin->get_plugin_data(plugin_name);
-            if (!pd)
-                continue;
-            for (const auto& kv : pd->prompt_variables) {
-                const std::string& tag = kv.first;
-                auto func = kv.second;
-                if (vars.find(tag) == vars.end() && needed_vars.count(tag)) {
-                    plugin_string_t res = func();
-                    std::string value;
-                    if (res.length > 0)
-                        value = std::string(res.data, res.length);
-                    else if (res.data)
-                        value = std::string(res.data);
-                    else
-                        value = "";
-                    if (pd->free_memory && res.data)
-                        pd->free_memory(res.data);
-                    vars[tag] = value;
-                }
-            }
         }
     }
 

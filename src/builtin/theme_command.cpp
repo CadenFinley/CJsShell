@@ -184,21 +184,9 @@ int theme_command(const std::vector<std::string>& args) {
         count_segments(theme_def.inline_right_segments);
 
         const ThemeRequirements& requirements = theme_def.requirements;
-        if (!requirements.plugins.empty() || !requirements.colors.empty() ||
+        if (!requirements.colors.empty() ||
             !requirements.fonts.empty() || !requirements.custom.empty()) {
             std::cout << "Requirements:" << std::endl;
-
-            if (!requirements.plugins.empty()) {
-                std::cout << "  Plugins: ";
-                bool first = true;
-                for (const auto& plugin : requirements.plugins) {
-                    if (!first)
-                        std::cout << ", ";
-                    std::cout << plugin;
-                    first = false;
-                }
-                std::cout << std::endl;
-            }
 
             if (!requirements.colors.empty()) {
                 std::cout << "  Colors: " << requirements.colors << std::endl;

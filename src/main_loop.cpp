@@ -23,20 +23,9 @@
 #include "cjsh_completions.h"
 #include "isocline.h"
 #include "job_control.h"
-#include "plugin.h"
 #include "shell.h"
 #include "theme.h"
 #include "typeahead.h"
-
-static void notify_plugins(const std::string& trigger, const std::string& data) {
-    if (g_plugin == nullptr) {
-        return;
-    }
-    if (g_plugin->get_enabled_plugins().empty()) {
-        return;
-    }
-    g_plugin->trigger_subscribed_global_event(trigger, data);
-}
 
 namespace {
 
@@ -255,8 +244,6 @@ void main_process_loop() {
 
     typeahead::flush_pending_typeahead();
 
-    notify_plugins("main_process_pre_run", "");
-
     while (true) {
         g_shell->process_pending_signals();
 
@@ -274,8 +261,6 @@ void main_process_loop() {
 
         typeahead::flush_pending_typeahead();
 
-        notify_plugins("main_process_start", "");
-
         auto [command_to_run, command_available] = get_next_command();
 
         if (g_exit_flag) {
@@ -286,10 +271,7 @@ void main_process_loop() {
             continue;
         }
 
-        notify_plugins("main_process_command_processed", command_to_run);
-
         bool exit_requested = process_command_line(command_to_run);
-        notify_plugins("main_process_end", "");
         if (exit_requested || g_exit_flag) {
             if (g_exit_flag) {
                 std::cerr << "Exiting main process loop..." << '\n';
@@ -297,8 +279,6 @@ void main_process_loop() {
             break;
         }
     }
-
-    notify_plugins("main_process_exit", "");
 
     typeahead::cleanup();
 }

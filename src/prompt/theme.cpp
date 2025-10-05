@@ -16,7 +16,6 @@
 #include "cjsh.h"
 #include "colors.h"
 #include "error_out.h"
-#include "plugin.h"
 
 Theme::Theme(std::string theme_dir, bool enabled)
     : theme_directory(std::move(theme_dir)), is_enabled(enabled) {
@@ -247,7 +246,7 @@ bool Theme::load_theme_from_string(const std::string& theme_content, const std::
 bool Theme::apply_theme_definition(const ThemeDefinition& definition, const std::string& theme_name,
                                    bool allow_fallback, const std::filesystem::path& source_path) {
     const auto& requirements = definition.requirements;
-    bool has_requirements = !requirements.plugins.empty() || !requirements.colors.empty() ||
+    bool has_requirements = !requirements.colors.empty() ||
                             !requirements.fonts.empty() || !requirements.custom.empty();
     const std::string source_hint = source_path.empty() ? theme_name : source_path.string();
 
@@ -996,12 +995,6 @@ void Theme::view_theme_requirements(const std::string& theme) const {
             std::cout << font_req.str() << '\n';
         }
 
-        if (!requirements.plugins.empty()) {
-            for (const auto& plugin_name : requirements.plugins) {
-                std::cout << "Plugin requirement for this theme: " << plugin_name << '\n';
-            }
-        }
-
         if (!requirements.custom.empty()) {
             for (const auto& [key, value] : requirements.custom) {
                 std::cout << "Custom requirement: " << key << " = " << value << '\n';
@@ -1009,7 +1002,7 @@ void Theme::view_theme_requirements(const std::string& theme) const {
         }
 
         if (requirements.colors.empty() && requirements.fonts.empty() &&
-            requirements.plugins.empty() && requirements.custom.empty()) {
+            requirements.custom.empty()) {
             std::cout << "No specific requirements found for theme " << theme << '\n';
         }
     } catch (const ThemeParseException& e) {
@@ -1092,52 +1085,6 @@ bool Theme::check_theme_requirements(const ThemeRequirements& requirements) cons
                 "256-color terminal support is required. Current terminal "
                 "support: " +
                 colors::get_color_capability_string(colors::g_color_capability));
-        }
-    }
-
-    if (!requirements.plugins.empty()) {
-        for (const auto& plugin_name : requirements.plugins) {
-            bool plugin_enabled = false;
-            if (g_plugin != nullptr) {
-                auto enabled_plugins = g_plugin->get_enabled_plugins();
-                plugin_enabled = std::find(enabled_plugins.begin(), enabled_plugins.end(),
-                                           plugin_name) != enabled_plugins.end();
-            }
-
-            if (!plugin_enabled) {
-                if (g_plugin->get_enabled()) {
-                    if (requirements_met) {
-                        if (!g_plugin->enable_plugin(plugin_name)) {
-                            auto available_plugins = g_plugin->get_available_plugins();
-                            requirements_met = false;
-                            if ((std::find(available_plugins.begin(), available_plugins.end(),
-                                           plugin_name) == available_plugins.end())) {
-                                missing_requirements.push_back("Plugin '" + plugin_name +
-                                                               "' is required but not found");
-                            } else {
-                                missing_requirements.push_back("Plugin '" + plugin_name +
-                                                               "' is required but not enabled");
-                            }
-                        }
-                    } else {
-                        auto available_plugins = g_plugin->get_available_plugins();
-                        if ((std::find(available_plugins.begin(), available_plugins.end(),
-                                       plugin_name) == available_plugins.end())) {
-                            missing_requirements.push_back("Plugin '" + plugin_name +
-                                                           "' is required but not found");
-                        } else {
-                            missing_requirements.push_back(
-                                "Other requirements are not passing. Not "
-                                "attempting to "
-                                "enable plugin '" +
-                                plugin_name + "'");
-                        }
-                    }
-                } else {
-                    requirements_met = false;
-                    missing_requirements.push_back("Plugin system is disabled");
-                }
-            }
         }
     }
 

@@ -26,7 +26,6 @@
 #include "error_out.h"
 #include "exec.h"
 #include "job_control.h"
-#include "plugin.h"
 #include "readonly_command.h"
 #include "shell.h"
 #include "shell_script_interpreter_utils.h"
@@ -1631,22 +1630,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                     if (!expanded_args.empty() && g_shell && g_shell->get_built_ins() &&
                         !g_shell->get_built_ins()->is_builtin_command(expanded_args[0])) {
                         bool is_function = functions.count(expanded_args[0]) > 0;
-                        bool is_plugin = false;
-                        if (g_plugin) {
-                            std::vector<std::string> enabled_plugins =
-                                g_plugin->get_enabled_plugins();
-                            for (const auto& plugin : enabled_plugins) {
-                                std::vector<std::string> plugin_commands =
-                                    g_plugin->get_plugin_commands(plugin);
-                                if (std::find(plugin_commands.begin(), plugin_commands.end(),
-                                              expanded_args[0]) != plugin_commands.end()) {
-                                    is_plugin = true;
-                                    break;
-                                }
-                            }
-                        }
 
-                        if (!is_function && !is_plugin) {
+                        if (!is_function) {
                             std::vector<std::string> external_args =
                                 shell_parser->parse_command_exported_vars_only(text);
                             if (!external_args.empty()) {

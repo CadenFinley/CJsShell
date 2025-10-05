@@ -7,7 +7,6 @@
 class Shell;
 class Theme;
 class Ai;
-class Plugin;
 
 const bool PRE_RELEASE = true;
 // using semver.org principles MAJOR.MINOR.PATCH
@@ -34,7 +33,6 @@ class Shell;
 extern std::unique_ptr<Shell> g_shell;
 extern std::unique_ptr<Theme> g_theme;
 extern std::unique_ptr<Ai> g_ai;
-extern std::unique_ptr<Plugin> g_plugin;
 extern std::vector<std::string> g_startup_args;
 extern std::vector<std::string> g_profile_startup_args;
 
@@ -44,7 +42,6 @@ extern bool interactive_mode;
 extern bool force_interactive;
 extern bool execute_command;
 extern std::string cmd_to_execute;
-extern bool plugins_enabled;
 extern bool themes_enabled;
 extern bool ai_enabled;
 extern bool colors_enabled;
@@ -62,7 +59,6 @@ extern bool secure_mode;
 extern bool show_title_line;
 }  // namespace config
 
-void initialize_plugins();
 void initialize_themes();
 void initialize_ai();
 
