@@ -154,7 +154,7 @@ ExitErrorResult make_exit_error_result(const std::string& command, int exit_code
     return result;
 }
 
-enum class HereStringErrorType {
+enum class HereStringErrorType : std::uint8_t {
     Pipe,
     Write,
     Dup
