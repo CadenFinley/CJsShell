@@ -6,11 +6,12 @@
 #include <cstdio>
 #include <cstring>
 #include <sstream>
+#include <unordered_map>
 #include <vector>
 
 #include "utils/cjsh_filesystem.h"
 
-bool set_close_on_exec(int fd) {
+static bool set_close_on_exec(int fd) {
     int flags = fcntl(fd, F_GETFD);
     if (flags == -1) {
         return false;
@@ -21,11 +22,16 @@ bool set_close_on_exec(int fd) {
     return true;
 }
 
-std::vector<char*> build_exec_argv(const std::vector<std::string>& args) {
+static std::vector<char*> build_exec_argv(const std::vector<std::string>& args) {
     std::vector<char*> argv;
+    std::vector<std::unique_ptr<char[]>> arg_storage;
     argv.reserve(args.size() + 1);
+    arg_storage.reserve(args.size());
     for (const auto& arg : args) {
-        argv.push_back(const_cast<char*>(arg.c_str()));
+        auto str_copy = std::make_unique<char[]>(arg.size() + 1);
+        std::strcpy(str_copy.get(), arg.c_str());
+        argv.push_back(str_copy.get());
+        arg_storage.push_back(std::move(str_copy));
     }
     argv.push_back(nullptr);
     return argv;
