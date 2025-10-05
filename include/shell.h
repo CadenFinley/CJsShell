@@ -89,13 +89,20 @@ class Shell {
         interactive_mode = flag;
     }
 
-    bool get_interactive_mode() {
+    bool get_interactive_mode() const {
         return interactive_mode;
     }
 
     int get_last_exit_code() const {
         const char* status_env = getenv("?");
-        return status_env ? std::atoi(status_env) : 0;
+        if (status_env != nullptr) {
+            char* end = nullptr;
+            long value = std::strtol(status_env, &end, 10);
+            if (*end == '\0' && end != status_env) {
+                return static_cast<int>(value);
+            }
+        }
+        return 0;
     }
 
     void set_aliases(const std::unordered_map<std::string, std::string>& new_aliases) {

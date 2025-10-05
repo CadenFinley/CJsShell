@@ -10,12 +10,12 @@ class Exec;
 
 class SignalMask {
    private:
-    sigset_t old_mask;
+    sigset_t old_mask{};
     bool active;
 
    public:
-    SignalMask(int signum) : active(false) {
-        sigset_t mask;
+    explicit SignalMask(int signum) : active(false) {
+        sigset_t mask = 0;
         sigemptyset(&mask);
         sigaddset(&mask, signum);
         if (sigprocmask(SIG_BLOCK, &mask, &old_mask) == 0) {
@@ -23,10 +23,10 @@ class SignalMask {
         }
     }
 
-    SignalMask(const std::vector<int>& signals) : active(false) {
+    explicit SignalMask(const std::vector<int>& signals) : active(false) {
         if (signals.empty())
             return;
-        sigset_t mask;
+        sigset_t mask = 0;
         sigemptyset(&mask);
         for (int sig : signals) {
             sigaddset(&mask, sig);

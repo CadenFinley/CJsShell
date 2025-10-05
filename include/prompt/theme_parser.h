@@ -148,7 +148,7 @@ class ThemeParser {
     void parse_error(const std::string& message);
 
    public:
-    ThemeParser(const std::string& theme_content, std::string source_name = "");
+    explicit ThemeParser(const std::string& theme_content, std::string source_name = "");
 
     ThemeDefinition parse();
 

@@ -3,9 +3,7 @@
 #include <chrono>
 #include <filesystem>
 #include <functional>
-#include <mutex>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 struct CachedVersion {

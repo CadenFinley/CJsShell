@@ -112,7 +112,7 @@ class Theme {
     std::string render_line(const std::string& line,
                             const std::unordered_map<std::string, std::string>& vars) const;
 
-    static inline constexpr std::string_view kThemeFileExtension = ".cjsh";
+    static constexpr std::string_view kThemeFileExtension = ".cjsh";
     static std::string ensure_theme_extension(const std::string& theme_name);
     static std::string strip_theme_extension(const std::string& theme_name);
 };

@@ -10,7 +10,7 @@
 
 namespace colors {
 
-enum class ColorCapability {
+enum class ColorCapability : std::uint8_t {
     NO_COLOR,
     BASIC_COLOR,
     XTERM_256_COLOR,

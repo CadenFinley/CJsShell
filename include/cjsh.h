@@ -6,7 +6,6 @@
 
 class Shell;
 class Theme;
-class Ai;
 
 const bool PRE_RELEASE = false;
 // using semver.org principles MAJOR.MINOR.PATCH

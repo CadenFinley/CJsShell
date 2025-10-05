@@ -20,14 +20,14 @@ class ShellScriptInterpreter {
         return shell_parser->parse_into_lines(script);
     }
 
-    enum class ErrorSeverity {
+    enum class ErrorSeverity : std::uint8_t {
         INFO = 0,
         WARNING = 1,
         ERROR = 2,
         CRITICAL = 3
     };
 
-    enum class ErrorCategory {
+    enum class ErrorCategory : std::uint8_t {
         SYNTAX,
         CONTROL_FLOW,
         REDIRECTION,

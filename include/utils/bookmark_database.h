@@ -16,7 +16,7 @@ struct BookmarkEntry {
 
     BookmarkEntry() : access_count(0) {
     }
-    BookmarkEntry(const std::string& p) : path(p), access_count(1) {
+    explicit BookmarkEntry(const std::string& p) : path(p), access_count(1) {
         auto now = std::chrono::system_clock::now();
         added_time = now;
         last_accessed = now;

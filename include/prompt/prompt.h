@@ -1,12 +1,13 @@
 #pragma once
 
+#include <cstdint>
 #include <filesystem>
 #include <string>
 #include <unordered_map>
 
 #include "prompt_info.h"
 
-enum class PromptType {
+enum class PromptType : std::uint8_t {
     PS1,
     GIT,
     NEWLINE,

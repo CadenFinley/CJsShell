@@ -3,6 +3,7 @@
 #include <sys/types.h>
 
 #include <chrono>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -10,7 +11,7 @@
 
 class Shell;
 
-enum class JobState {
+enum class JobState : std::uint8_t {
     RUNNING,
     STOPPED,
     DONE,
@@ -22,14 +23,14 @@ struct JobControlJob {
     pid_t pgid;
     std::vector<pid_t> pids;
     std::string command;
-    JobState state;
-    int exit_status;
-    bool notified;
+    JobState state{};
+    int exit_status{};
+    bool notified{};
     bool background;
     bool reads_stdin;
-    bool awaiting_stdin_signal;
-    int last_stdin_signal;
-    int stdin_signal_count;
+    bool awaiting_stdin_signal{};
+    int last_stdin_signal{};
+    int stdin_signal_count{};
     std::chrono::steady_clock::time_point last_stdin_signal_time;
 
     JobControlJob(int id, pid_t group_id, const std::vector<pid_t>& process_ids,
@@ -38,14 +39,8 @@ struct JobControlJob {
           pgid(group_id),
           pids(process_ids),
           command(cmd),
-          state(JobState::RUNNING),
-          exit_status(0),
-          notified(false),
           background(is_background),
           reads_stdin(consumes_stdin),
-          awaiting_stdin_signal(false),
-          last_stdin_signal(0),
-          stdin_signal_count(0),
           last_stdin_signal_time(std::chrono::steady_clock::time_point::min()) {
     }
 };

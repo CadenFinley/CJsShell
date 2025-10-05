@@ -37,21 +37,19 @@
 bool g_exit_flag = false;
 std::string g_cached_version;
 std::string g_current_theme;
-std::string title_line;
-std::string created_line;
 bool g_startup_active = true;
 std::unique_ptr<Shell> g_shell = nullptr;
 std::unique_ptr<Theme> g_theme = nullptr;
 std::vector<std::string> g_startup_args;
 std::vector<std::string> g_profile_startup_args;
-std::chrono::steady_clock::time_point g_startup_begin_time;
+static std::chrono::steady_clock::time_point g_startup_begin_time;
 
 namespace config {
 bool login_mode = false;
 bool interactive_mode = true;
 bool force_interactive = false;
 bool execute_command = false;
-std::string cmd_to_execute = "";
+std::string cmd_to_execute;
 bool themes_enabled = true;
 bool colors_enabled = true;
 bool source_enabled = true;
@@ -236,12 +234,12 @@ static void start_interactive_process() {
             if (microseconds < 1000) {
                 startup_time_str = std::to_string(microseconds) + "μs";
             } else if (microseconds < 1000000) {
-                double milliseconds = microseconds / 1000.0;
+                double milliseconds = static_cast<double>(microseconds) / 1000.0;
                 char buffer[32];
                 (void)snprintf(buffer, sizeof(buffer), "%.2fms", milliseconds);
                 startup_time_str = buffer;
             } else {
-                double seconds = microseconds / 1000000.0;
+                double seconds = static_cast<double>(microseconds) / 1000000.0;
                 char buffer[32];
                 (void)snprintf(buffer, sizeof(buffer), "%.2fs", seconds);
                 startup_time_str = buffer;

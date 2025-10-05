@@ -4,7 +4,6 @@
 #include <filesystem>
 #include <mutex>
 #include <string>
-#include <unordered_map>
 
 extern std::chrono::steady_clock::time_point last_git_status_check;
 extern std::string cached_git_dir;

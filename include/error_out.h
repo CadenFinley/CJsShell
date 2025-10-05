@@ -8,7 +8,9 @@
 // cjsh: <error type>: <command used>: <message>
 // Suggestions (if any)
 
-enum class ErrorType {
+#include <cstdint>
+
+enum class ErrorType : std::uint8_t {
     COMMAND_NOT_FOUND,
     SYNTAX_ERROR,
     PERMISSION_DENIED,
