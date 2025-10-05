@@ -164,7 +164,7 @@ There is also the fill behavior. It defines what should fill the space in betwee
 
 ### Prompt Information Variables
 
-The information variables are defined like {VAR_NAME} and will replace the var with the proper information. Some basic vars are: {USERNAME} {HOSTNAME} {PATH} {DIRECTORY} {TIME} Vars can be defined in any content field, and prompt type, conditional, and separator. You can see a comprehesive list at the bottom of this page. Some prompt tags should only be used while within a certain prompt, but you can kinda just put whatever information you want anywhere. Nothing is stopping you.
+The information variables are defined like {VAR_NAME} and will replace the var with the proper information. Some basic vars are: {USERNAME} {HOSTNAME} {PATH} {DIRECTORY} {TIME} Vars can be defined in any content field, and prompt type, conditional, and separator. You can see a comprehesive list at the bottom of this page. Some prompt tags should only be used while within a certain prompt, but you can kinda just put whatever information you want anywhere. Nothing is stopping you. Additionally custom EXEC prompt variables can be defined, see below.
 
 ### Default cjsh Theme
 
@@ -359,5 +359,34 @@ theme_definition {
  * {AI_CONTEXT}    - Current working directory path
  * {AI_CONTEXT_COMPARISON} - Check mark for when the context is local and equal
  * to current directory, ✔ and ✖ for when it is not
- */
+```
+### Command Execution Tags
+
+The shell supports executing arbitrary commands in your prompt with automatic caching:
+
+ * {EXEC%%%<command>%%%<cache_duration>} - Execute a shell command with caching
+   - `command`: The shell command to execute
+   - `cache_duration`: Cache duration in seconds (optional, defaults to 30)
+                       Use `-1` for permanent caching (execute once, cache forever)
+
+Here are some examples:
+
+```bash
+# Show current time, cached for 60 seconds
+{EXEC%%%date +%H:%M%%%60}
+
+# Show git commit count, cached for 30 seconds (default)
+{EXEC%%%git rev-list --count HEAD%%%}
+
+# Show battery percentage on macOS, cached for 120 seconds
+{EXEC%%%pmset -g batt | grep -Eo "\d+%" | cut -d% -f1%%%120}
+
+# Show kubernetes context, cached for 10 seconds
+{EXEC%%%kubectl config current-context%%%10}
+
+# Show kernel version, cached permanently (execute only once)
+{EXEC%%%uname -r%%%-1}
+
+# Show hostname, cached permanently
+{EXEC%%%hostname%%%-1}
 ```

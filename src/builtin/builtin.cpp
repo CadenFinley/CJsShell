@@ -34,7 +34,6 @@
 #include "loop_control_commands.h"
 #include "ls_command.h"
 #include "printf_command.h"
-#include "prompt_test_command.h"
 #include "pwd_command.h"
 #include "read_command.h"
 #include "readonly_command.h"
@@ -168,8 +167,6 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"history", [](const std::vector<std::string>& args) { return ::history_command(args); }},
         {"exit", [](const std::vector<std::string>& args) { return ::exit_command(args); }},
         {"quit", [](const std::vector<std::string>& args) { return ::exit_command(args); }},
-        {"prompt_test",
-         [](const std::vector<std::string>& args) { return prompt_test_command(args); }},
         {"test", [](const std::vector<std::string>& args) { return ::test_command(args); }},
         {"[", [](const std::vector<std::string>& args) { return ::test_command(args); }},
         {"[[", [](const std::vector<std::string>& args) { return ::double_bracket_command(args); }},
