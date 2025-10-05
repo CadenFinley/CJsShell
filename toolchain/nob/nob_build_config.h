@@ -13,7 +13,7 @@ static const Build_Config build_config = {
     .module_directories =
         (const char*[]){"src/builtin", "src/ai", "src/prompt", "src/prompt/modules",
                         "src/script_interpreter", "src/utils"},
-    .module_directories_count = 7,
+    .module_directories_count = 6,
 
     .isocline_c_sources =
         (const char*[]){
