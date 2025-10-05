@@ -676,8 +676,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                 close(fd);
             std::string path = tmpl;
 
-            auto saved_stdout_result =
-                cjsh_filesystem::safe_dup2(STDOUT_FILENO, -1);
+            auto saved_stdout_result = cjsh_filesystem::safe_dup2(STDOUT_FILENO, -1);
             int saved_stdout = dup(STDOUT_FILENO);
 
             auto temp_file_result = cjsh_filesystem::safe_fopen(path, "w");
@@ -731,8 +730,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
 
             (void)fflush(stdout);
             cjsh_filesystem::safe_fclose(temp_file);
-            auto restore_result =
-                cjsh_filesystem::safe_dup2(saved_stdout, STDOUT_FILENO);
+            auto restore_result = cjsh_filesystem::safe_dup2(saved_stdout, STDOUT_FILENO);
             cjsh_filesystem::safe_close(saved_stdout);
 
             auto content_result = cjsh_filesystem::read_file_content(path);

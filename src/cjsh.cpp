@@ -80,7 +80,7 @@ static int handle_non_interactive_mode(const std::string& script_file) {
     std::string script_content;
 
     if (!script_file.empty()) {
-    auto read_result = cjsh_filesystem::read_file_content(script_file);
+        auto read_result = cjsh_filesystem::read_file_content(script_file);
         if (!read_result.is_ok()) {
             ErrorType error_type = ErrorType::FILE_NOT_FOUND;
             if (read_result.error().find("Permission denied") != std::string::npos) {

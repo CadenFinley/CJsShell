@@ -46,8 +46,7 @@ int exec_command(const std::vector<std::string>& args, Shell* shell,
 
                 if (op == "<" && i + 1 < args.size()) {
                     std::string filename = args[i + 1];
-                    auto redirect_result =
-                        cjsh_filesystem::redirect_fd(filename, fd_num, O_RDONLY);
+                    auto redirect_result = cjsh_filesystem::redirect_fd(filename, fd_num, O_RDONLY);
                     if (redirect_result.is_error()) {
                         record_error(
                             {ErrorType::RUNTIME_ERROR, "exec", redirect_result.error(), {}});

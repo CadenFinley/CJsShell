@@ -77,8 +77,7 @@ cjsh_filesystem::Result<void> BookmarkDatabase::save() {
 
     std::string text_content = to_text_format();
 
-    auto write_result =
-        cjsh_filesystem::write_file_content(database_path_, text_content);
+    auto write_result = cjsh_filesystem::write_file_content(database_path_, text_content);
     if (write_result.is_error()) {
         return cjsh_filesystem::Result<void>::error("Failed to write bookmark database: " +
                                                     write_result.error());

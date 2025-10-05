@@ -176,8 +176,7 @@ std::string get_git_author(const std::filesystem::path& repo_root) {
 
 std::string get_git_branch(const std::filesystem::path& git_head_path) {
     try {
-        auto read_result =
-            cjsh_filesystem::read_file_content(git_head_path.string());
+        auto read_result = cjsh_filesystem::read_file_content(git_head_path.string());
         if (read_result.is_error()) {
             return "";
         }

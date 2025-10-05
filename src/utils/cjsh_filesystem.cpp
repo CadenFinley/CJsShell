@@ -349,8 +349,7 @@ bool build_executable_cache() {
         content.push_back('\n');
     }
 
-    auto write_result =
-        write_file_content(g_cjsh_found_executables_path.string(), content);
+    auto write_result = write_file_content(g_cjsh_found_executables_path.string(), content);
 
     if (write_result.is_ok()) {
         notify_cache_systems_of_update();
@@ -862,8 +861,7 @@ void remove_executable_from_cache(const std::string& executable_name) {
             content += exec.filename().string() + "\n";
         }
 
-        auto write_result =
-            write_file_content(g_cjsh_found_executables_path.string(), content);
+        auto write_result = write_file_content(g_cjsh_found_executables_path.string(), content);
         if (write_result.is_ok()) {
             notify_cache_systems_of_update();
         }
@@ -892,8 +890,7 @@ void cleanup_stale_cache_entries() {
             content += exec.filename().string() + "\n";
         }
 
-        auto write_result =
-            write_file_content(g_cjsh_found_executables_path.string(), content);
+        auto write_result = write_file_content(g_cjsh_found_executables_path.string(), content);
 
         if (write_result.is_ok()) {
             notify_cache_systems_of_update();
