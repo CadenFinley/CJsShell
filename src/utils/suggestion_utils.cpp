@@ -44,11 +44,11 @@ std::vector<std::string> generate_command_suggestions(const std::string& command
     static const std::vector<std::string> shell_builtins = {
         "echo",    "printf",   "pwd",         "cd",    "ls",     "alias",    "export",
         "unalias", "unset",    "set",         "shift", "break",  "continue", "return",
-        "ai",      "source",   ".",           "theme", "plugin", "help",     "approot",
-        "aihelp",  "version",  "uninstall",   "eval",  "syntax", "history",  "exit",
-        "quit",    "terminal", "prompt_test", "test",  "[",      "exec",     "trap",
-        "jobs",    "fg",       "bg",          "wait",  "kill",   "readonly", "read",
-        "umask",   "getopts",  "times",       "type",  "hash"};
+        "source",  ".",        "theme",       "help",  "approot", "version",  "uninstall",
+        "eval",    "syntax",   "history",     "exit",  "quit",   "terminal", "test",
+        "[",       "exec",     "trap",        "jobs",  "fg",     "bg",       "wait",
+        "kill",    "readonly", "read",        "umask", "getopts", "times",   "type",
+        "hash"};
 
     for (const auto& builtin : shell_builtins) {
         all_commands_set.insert(builtin);
@@ -535,11 +535,11 @@ int calculate_fuzzy_score(const std::string& input, const std::string& candidate
     static const std::unordered_set<std::string> shell_builtins = {
         "echo",    "printf",   "pwd",         "cd",    "ls",     "alias",    "export",
         "unalias", "unset",    "set",         "shift", "break",  "continue", "return",
-        "ai",      "source",   ".",           "theme", "plugin", "help",     "approot",
-        "aihelp",  "version",  "uninstall",   "eval",  "syntax", "history",  "exit",
-        "quit",    "terminal", "prompt_test", "test",  "[",      "exec",     "trap",
-        "jobs",    "fg",       "bg",          "wait",  "kill",   "readonly", "read",
-        "umask",   "getopts",  "times",       "type",  "hash"};
+        "source",  ".",        "theme",       "help",  "approot", "version",  "uninstall",
+        "eval",    "syntax",   "history",     "exit",  "quit",   "terminal", "test",
+        "[",       "exec",     "trap",        "jobs",  "fg",     "bg",       "wait",
+        "kill",    "readonly", "read",        "umask", "getopts", "times",   "type",
+        "hash"};
 
     if (shell_builtins.count(candidate) != 0u) {
         score += 15;

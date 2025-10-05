@@ -421,9 +421,7 @@ bool initialize_cjsh_directories() {
         fs::create_directories(g_cache_path);
         fs::create_directories(g_cjsh_data_path);
         fs::create_directories(g_cjsh_cache_path);
-        fs::create_directories(g_cjsh_plugin_path);
         fs::create_directories(g_cjsh_theme_path);
-        fs::create_directories(g_cjsh_ai_conversations_path);
 
         return true;
     } catch (const fs::filesystem_error& e) {
@@ -486,9 +484,7 @@ bool create_profile_file() {
         "# if test -n \"$TMUX\"; then\n"
         "#     echo \"In tmux session, no flags required\"\n"
         "# else\n"
-        "#     cjshopt login-startup-arg --no-plugins\n"
         "#     cjshopt login-startup-arg --no-themes\n"
-        "#     cjshopt login-startup-arg --no-ai\n"
         "#     cjshopt login-startup-arg --no-colors\n"
         "#     cjshopt login-startup-arg --no-titleline\n"
         "# fi\n"
@@ -499,12 +495,9 @@ bool create_profile_file() {
         "mode\n"
         "# cjshopt login-startup-arg --minimal             # Disable all "
         "unique cjsh "
-        "features (plugins, themes, AI, colors, completions, syntax "
+        "features (themes, colors, completions, syntax "
         "highlighting, smart cd, sourcing, custom ls, startup time display)\n"
-        "# cjshopt login-startup-arg --no-plugins          # Disable plugins\n"
         "# cjshopt login-startup-arg --no-themes           # Disable themes\n"
-        "# cjshopt login-startup-arg --no-ai               # Disable AI "
-        "features\n"
         "# cjshopt login-startup-arg --no-colors           # Disable colors\n"
         "# cjshopt login-startup-arg --no-titleline        # Disable title "
         "line\n"
@@ -543,8 +536,7 @@ bool create_source_file() {
         "#!/usr/bin/env cjsh\n"
         "# cjsh Source File\n"
         "# this file is sourced when the shell starts in interactive mode\n"
-        "# this is where your aliases, theme setup, enabled "
-        "plugins will be stored by default.\n"
+        "# this is where your aliases and theme setup will be stored by default.\n"
         "\n"
         "# Alias examples\n"
         "alias ll='ls -la'\n"
@@ -609,22 +601,6 @@ bool create_source_file() {
         "    }\n"
         "  }\n"
         "\n"
-        "  ai_segments {\n"
-        "    segment \"model\" {\n"
-        "      content \" {AI_MODEL} \"\n"
-        "      fg \"#FF55FF\"\n"
-        "      bg \"RESET\"\n"
-        "      separator \" / \"\n"
-        "      separator_fg \"#FFFFFF\"\n"
-        "      separator_bg \"RESET\"\n"
-        "    }\n"
-        "    segment \"mode\" {\n"
-        "      content \"{AI_AGENT_TYPE} \"\n"
-        "      fg \"#55FFFF\"\n"
-        "      bg \"RESET\"\n"
-        "    }\n"
-        "  }\n"
-        "\n"
         "  inline_right {\n"
         "    segment \"time\" {\n"
         "      content \"[{TIME}]\"\n"
@@ -639,9 +615,6 @@ bool create_source_file() {
         "    newline_after_execution false\n"
         "  }\n"
         "}\n"
-        "\n"
-        "# Plugin examples\n"
-        "# plugin example_plugin enable\n"
         "\n"
         "# Syntax highlighting customization examples\n"
         "# Use 'cjshopt style_def' to customize syntax highlighting colors\n"

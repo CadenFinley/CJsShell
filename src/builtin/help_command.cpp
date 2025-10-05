@@ -26,8 +26,6 @@ int help_command() {
     };
 
     const std::vector<BuiltinInfo> builtins = {
-        {"ai", "Interact with the AI assistant (chat, files, configuration)"},
-        {"aihelp", "Send recent command errors to the AI troubleshooter"},
         {"alias", "Create or list command aliases"},
         {"unalias", "Remove command aliases"},
         {"builtin", "Run a builtin directly, bypassing functions and PATH"},
@@ -70,9 +68,7 @@ int help_command() {
         {":", "No-op command that always succeeds"},
         {"if", "Run conditional blocks in scripts"},
         {"theme", "Manage themes and previews"},
-        {"plugin", "Enable, disable, and inspect plugins"},
         {"cjshopt", "Generate config files and adjust cjsh options"},
-        {"prompt_test", "Preview prompt metrics and tokens"},
         {"validate", "Toggle command validation or verify names"},
         {"version", "Show cjsh version information"}};
 
@@ -98,7 +94,7 @@ int help_command() {
     std::cout << "  Shutdown sequence:\n";
     std::cout << "    - Registered EXIT traps run before teardown.\n";
     std::cout << "    - ~/.cjsh_logout is sourced for interactive sessions (when it exists).\n";
-    std::cout << "    - History, themes, and AI resources are flushed before exit.\n";
+    std::cout << "    - History and themes are flushed before exit.\n";
 
     heading("Primary cjsh directories");
     std::cout << "  ~/.cjprofile        Login configuration and persisted startup flags.\n";
@@ -106,7 +102,7 @@ int help_command() {
     std::cout << "  ~/.cjsh_logout      Optional logout script sourced on exit.\n";
     std::cout << "  ~/.config/cjsh/     Data directory (themes/, colors/, prompts/).\n";
     std::cout
-        << "  ~/.cache/cjsh/      Cache directory (history.txt, AI transcripts, exec cache).\n";
+        << "  ~/.cache/cjsh/      Cache directory (history.txt, exec cache).\n";
     std::cout << "  ~/.cache/cjsh/.first_boot  Marker used to suppress the first-run banner.\n";
 
     heading("cjsh invocation and startup flags");

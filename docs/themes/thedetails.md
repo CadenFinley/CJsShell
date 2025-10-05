@@ -1,6 +1,6 @@
 # Themes
 
-Programming and designing themes uses its own proprietary cjsh DSL language inspired by json and ruby. I know, its cursed, but it works, its pretty flexible and fairly easy to write and im stuck with it so yea. Themes are data oriented, heirarchical, and strongly typed. Upon loading a theme, the theme is stored in a theme cache to avoid repeated file reads for themes. Also many prompt info variables are cached to avoid repeated unneeded calculations and executions for information. Any and all white space defined in content areas or in conditionals is rendered in the main prompt output. Frequently I brag about my themes being 2-4 times faster than starship and powerlevel10k at fastest, but you do have to create the themes in a crappy, custom scripting languages so there are trade offs. 
+Programming and designing themes uses its own proprietary cjsh DSL language inspired by json and ruby. I know, it's cursed, but it works, it's pretty flexible and fairly easy to write and I'm stuck with it so yeah. Themes are data oriented, hierarchical, and strongly typed. Upon loading a theme, the theme is stored in a theme cache to avoid repeated file reads for themes. Also many prompt info variables are cached to avoid repeated unneeded calculations and executions for information. Any and all white space defined in content areas or in conditionals is rendered in the main prompt output. Frequently I brag about my themes being 2-4 times faster than starship and powerlevel10k at fastest, but you do have to create the themes in a crappy, custom scripting language so there are trade offs. 
 
 ### Theme Definition
 
@@ -14,7 +14,7 @@ theme_definition [optional name] {
 
 ### Prompt Definitions and Theme Structure
 
-Themes are made up of 3 different prompt types: PS1, GIT, and AI. The PS1 is the default prompt that is used at all times except if with in a git repo or if in the ai menu, at which then the respective GIT or AI prompt is used. There are two more additional prompts that have special features. Those prompts are the newline and inline_right prompts. It does not matter the order in which each prompt is defined in the theme file. The terminal window title can also be defined here in the theme file.
+Themes are made up of different prompt types: PS1 and GIT. The PS1 is the default prompt that is used at all times except when within a git repo, at which point the GIT prompt is used. There are two more additional prompts that have special features. Those prompts are the newline and inline_right prompts. It does not matter the order in which each prompt is defined in the theme file. The terminal window title can also be defined here in the theme file.
 
 ```bash
 theme_definition "theme_name" {
@@ -36,10 +36,6 @@ theme_definition "theme_name" {
     }
 
     git {
-
-    }
-
-    ai {
 
     }
 
@@ -119,13 +115,13 @@ use_segment "shared_user_segment" as "userseg"
 ```
 ### Theme Segment behaviors
 
-Segments use a tag system to that certain segments can be separated from the main prompt and can have their own behaviors defined only for a given tag. One prompt may have many different segments that make up its self. Segments are evaluated and rendered by heirarchical definition from top to bottom as defined in the prompt definition.
+Segments use a tag system to that certain segments can be separated from the main prompt and can have their own behaviors defined only for a given tag. One prompt may have many different segments that make up its self. Segments are evaluated and rendered by hierarchical definition from top to bottom as defined in the prompt definition.
 
 Here is an example of all available segment behaviors being used:
 
 ```bash
-segment "ai_userseg" {
-      content " {AI_MODEL} "
+segment "user_segment" {
+      content " {USERNAME} "
       fg "#d3869b"
       bg "#282828"
       separator "\uE0B0"
@@ -138,11 +134,11 @@ segment "ai_userseg" {
     }
 ```
 
-The sepator is the separator to the right of the content and the forward separator is the one to the left. The allignment value allows the prompt to be anchored to a given side of the screen, center, left, or right. This placement will dynamically scale with terminal window size.
+The separator is the separator to the right of the content and the forward separator is the one to the left. The alignment value allows the prompt to be anchored to a given side of the screen, center, left, or right. This placement will dynamically scale with terminal window size.
 
 ### Theme Behaviors
 
-Theme Behaviors have 3 potential toggles: cleanup, cleanup_empty_line, and newline_after_execution. Cleanup is only able to be used with a newline prompt and it removes the main prompt upon the user pressing enter on input and it will move the newline prompts and all text up to where the main prompt line started. cleanup_empty_line places a newline after the cleanup before execution. newline_after_execution is self explainable.
+Theme Behaviors have 3 potential toggles: cleanup, cleanup_empty_line, and newline_after_execution. Cleanup is only able to be used with a newline prompt and it removes the main prompt upon the user pressing enter on input and it will move the newline prompts and all text up to where the main prompt line started. cleanup_empty_line places a newline after the cleanup before execution. newline_after_execution is self-explanatory.
 
 ```bash
 behavior {
@@ -164,7 +160,7 @@ There is also the fill behavior. It defines what should fill the space in betwee
 
 ### Prompt Information Variables
 
-The information variables are defined like {VAR_NAME} and will replace the var with the proper information. Some basic vars are: {USERNAME} {HOSTNAME} {PATH} {DIRECTORY} {TIME} Vars can be defined in any content field, and prompt type, conditional, and separator. You can see a comprehesive list at the bottom of this page. Some prompt tags should only be used while within a certain prompt, but you can kinda just put whatever information you want anywhere. Nothing is stopping you. Additionally custom EXEC prompt variables can be defined, see below.
+The information variables are defined like {VAR_NAME} and will replace the var with the proper information. Some basic vars are: {USERNAME} {HOSTNAME} {PATH} {DIRECTORY} {TIME} Vars can be defined in any content field, and prompt type, conditional, and separator. You can see a comprehensive list at the bottom of this page. Some prompt tags should only be used while within a certain prompt, but you can kind of just put whatever information you want anywhere. Nothing is stopping you. Additionally custom EXEC prompt variables can be defined, see below.
 
 ### Default cjsh Theme
 
@@ -224,22 +220,6 @@ theme_definition {
       separator " $ "
       separator_fg "#FFFFFF"
       separator_bg "RESET"
-    }
-  }
-
-  ai_segments {
-    segment "model" {
-      content " {AI_MODEL} "
-      fg "#FF55FF"
-      bg "RESET"
-      separator " / "
-      separator_fg "#FFFFFF"
-      separator_bg "RESET"
-    }
-    segment "mode" {
-      content "{AI_AGENT_TYPE} "
-      fg "#55FFFF"
-      bg "RESET"
     }
   }
 
@@ -351,14 +331,6 @@ theme_definition {
  * {IP_EXTERNAL} - External IP address
  * {VPN_STATUS}  - VPN connection status (on/off)
  * {NET_IFACE}   - Active network interface
- *
- * AI prompt placeholders:
- * {AI_MODEL}      - Current AI model name
- * {AI_AGENT_TYPE} - AI assistant type (Chat, etc.)
- * {AI_DIVIDER}    - Divider for AI prompt (>)
- * {AI_CONTEXT}    - Current working directory path
- * {AI_CONTEXT_COMPARISON} - Check mark for when the context is local and equal
- * to current directory, ✔ and ✖ for when it is not
 ```
 ### Command Execution Tags
 

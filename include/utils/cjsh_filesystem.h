@@ -146,11 +146,8 @@ const fs::path g_cache_path = g_user_home_path / ".cache";
 const fs::path g_cjsh_data_path = g_config_path / "cjsh";
 const fs::path g_cjsh_cache_path = g_cache_path / "cjsh";
 
-const fs::path g_cjsh_plugin_path = g_cjsh_data_path / "plugins";
 const fs::path g_cjsh_theme_path = g_cjsh_data_path / "themes";
 const fs::path g_cjsh_history_path = g_cjsh_cache_path / "history.txt";
-
-const fs::path g_cjsh_ai_conversations_path = g_cjsh_cache_path / "conversations";
 
 const fs::path g_cjsh_found_executables_path = g_cjsh_cache_path / "cached_executables.cache";
 

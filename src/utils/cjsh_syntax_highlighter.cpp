@@ -26,8 +26,8 @@ const std::unordered_set<std::string> SyntaxHighlighter::shell_keywords_ = {
 
 const std::unordered_set<std::string> SyntaxHighlighter::shell_built_ins_ = {
     "echo",     "printf", "pwd",     "cd",      "ls",       "alias",    "export",      "unalias",
-    "unset",    "set",    "shift",   "break",   "continue", "return",   "ai",          "source",
-    ".",        "theme",  "plugin",  "help",    "approot",  "aihelp",   "version",     "uninstall",
+    "unset",    "set",    "shift",   "break",   "continue", "return",   "source",
+    ".",        "theme",  "help",    "approot",  "version",     "uninstall",
     "eval",     "syntax", "history", "exit",    "quit",     "terminal", "prompt_test", "test",
     "[",        "exec",   "trap",    "jobs",    "fg",       "bg",       "wait",        "kill",
     "readonly", "read",   "umask",   "getopts", "times",    "type",     "hash"};

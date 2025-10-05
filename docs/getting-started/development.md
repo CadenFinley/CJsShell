@@ -22,9 +22,9 @@ To build a clean build of cjsh run;
     ./toolchain/build.sh --clean
 ```
 
-## Themes and Plugins
+## Themes
 
-I love themes and plugins, the more the merrier! If you have one you would liek to contribute please do so! Plugins and themes can be hosted on the main repository if you would like. See the themes and plugins pages respectably for details on how to develop these and what tools you have at your disposal for each.
+I love themes, the more the merrier! If you have one you would like to contribute please do so! Themes can be hosted on the main repository if you would like. See the themes page for details on how to develop these and what tools you have at your disposal.
 
 ## Documentation 
 
