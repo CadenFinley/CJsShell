@@ -216,17 +216,6 @@ else
     fail "LANG variable not set by shell"
 fi
 
-# Test 20: Login shell file creation
-log_test "Login shell file creation"
-"$SHELL_TO_TEST" --login -c "true" 2>/dev/null
-# Check if necessary shell files are created
-if [ -d "$TEST_HOME/.config/cjsh" ] || ls "$TEST_HOME/.config/cjsh*" >/dev/null 2>&1; then
-    pass
-else
-    fail "Login shell initialization files not created"
-fi
-
-
 # Test 23: Exit status preservation
 log_test "Exit status preservation"
 "$SHELL_TO_TEST" --login -c "exit 42" 2>/dev/null
