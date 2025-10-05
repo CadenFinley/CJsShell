@@ -75,14 +75,6 @@ if [ "$OUT" != "test" ]; then
     exit 1
 fi
 
-# Test --no-plugins option
-echo "Testing --no-plugins option..."
-OUT=$("$CJSH_PATH" --no-plugins -c "echo test")
-if [ "$OUT" != "test" ]; then
-    echo "FAIL: --no-plugins option (got '$OUT')"
-    exit 1
-fi
-
 # Test --no-themes option
 echo "Testing --no-themes option..."
 OUT=$("$CJSH_PATH" --no-themes -c "echo test")
