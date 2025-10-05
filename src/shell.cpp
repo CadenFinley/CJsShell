@@ -9,6 +9,7 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <mutex>
 #include <sstream>
 #include <string_view>
@@ -17,7 +18,6 @@
 
 #include "builtin.h"
 #include "cjsh.h"
-#include "cjsh_filesystem.h"
 #include "error_out.h"
 #include "exec.h"
 #include "job_control.h"
@@ -53,21 +53,21 @@ bool has_theme_extension(const std::filesystem::path& path) {
 }  // namespace
 
 void raw_mode_state_init(RawModeState* state) {
-    if (!state) {
+    if (state == nullptr) {
         return;
     }
     raw_mode_state_init_with_fd(state, STDIN_FILENO);
 }
 
 void raw_mode_state_init_with_fd(RawModeState* state, int fd) {
-    if (!state) {
+    if (state == nullptr) {
         return;
     }
 
     state->entered = false;
     state->fd = fd;
 
-    if (fd < 0 || !isatty(fd)) {
+    if (fd < 0 || (isatty(fd) == 0)) {
         return;
     }
 
@@ -88,7 +88,7 @@ void raw_mode_state_init_with_fd(RawModeState* state, int fd) {
 }
 
 void raw_mode_state_release(RawModeState* state) {
-    if (!state || !state->entered) {
+    if ((state == nullptr) || !state->entered) {
         return;
     }
 
@@ -101,7 +101,7 @@ void raw_mode_state_release(RawModeState* state) {
 }
 
 bool raw_mode_state_entered(const RawModeState* state) {
-    return state && state->entered;
+    return (state != nullptr) && state->entered;
 }
 
 void Shell::process_pending_signals() {
@@ -110,7 +110,7 @@ void Shell::process_pending_signals() {
     }
 }
 
-Shell::Shell() {
+Shell::Shell() : shell_pgid(0), shell_tmodes() {
     save_terminal_state();
 
     shell_prompt = std::make_unique<Prompt>();
@@ -140,7 +140,7 @@ Shell::Shell() {
 
 Shell::~Shell() {
     if (interactive_mode) {
-        std::cerr << "Destroying Shell." << std::endl;
+        std::cerr << "Destroying Shell.\n";
     }
 
     shell_exec->terminate_all_child_process();
@@ -289,7 +289,7 @@ void Shell::setup_interactive_handlers() {
 }
 
 void Shell::save_terminal_state() {
-    if (isatty(STDIN_FILENO)) {
+    if (isatty(STDIN_FILENO) != 0) {
         if (tcgetattr(STDIN_FILENO, &shell_tmodes) == 0) {
             terminal_state_saved = true;
         }
@@ -298,7 +298,7 @@ void Shell::save_terminal_state() {
 
 void Shell::restore_terminal_state() {
     if (interactive_mode) {
-        std::cerr << "Restoring terminal state." << std::endl;
+        std::cerr << "Restoring terminal state.\n";
     }
 
     if (terminal_state_saved) {
@@ -308,12 +308,12 @@ void Shell::restore_terminal_state() {
         terminal_state_saved = false;
     }
 
-    fflush(stdout);
-    fflush(stderr);
+    (void)fflush(stdout);
+    (void)fflush(stderr);
 }
 
 void Shell::setup_job_control() {
-    if (!isatty(STDIN_FILENO)) {
+    if (isatty(STDIN_FILENO) == 0) {
         job_control_enabled = false;
         return;
     }
@@ -379,7 +379,8 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
     }
 
     if (args.size() == 1 && shell_parser) {
-        std::string var_name, var_value;
+        std::string var_name;
+        std::string var_value;
         if (shell_parser->is_env_assignment(args[0], var_name, var_value)) {
             shell_parser->expand_env_vars(var_value);
 
@@ -402,7 +403,7 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
         }
     }
 
-    if (!args.empty() && built_ins->is_builtin_command(args[0])) {
+    if (!args.empty() && (built_ins->is_builtin_command(args[0]) != 0)) {
         int code = built_ins->builtin_command(args);
         last_terminal_output_error = built_ins->get_last_error();
 
@@ -423,24 +424,23 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
         }
         last_terminal_output_error = "Background command launched";
         return 0;
-    } else {
-        shell_exec->execute_command_sync(args);
-        last_terminal_output_error = shell_exec->get_error_string();
-        int exit_code = shell_exec->get_exit_code();
-
-        if (exit_code == 0 && !args.empty()) {
-            suggestion_utils::update_command_usage_stats(args[0]);
-        }
-
-        if (exit_code != 0) {
-            ErrorInfo error = shell_exec->get_error();
-            if (error.type != ErrorType::RUNTIME_ERROR ||
-                error.message.find("command failed with exit code") == std::string::npos) {
-                shell_exec->print_last_error();
-            }
-        }
-        return exit_code;
     }
+    shell_exec->execute_command_sync(args);
+    last_terminal_output_error = shell_exec->get_error_string();
+    int exit_code = shell_exec->get_exit_code();
+
+    if (exit_code == 0 && !args.empty()) {
+        suggestion_utils::update_command_usage_stats(args[0]);
+    }
+
+    if (exit_code != 0) {
+        ErrorInfo error = shell_exec->get_error();
+        if (error.type != ErrorType::RUNTIME_ERROR ||
+            error.message.find("command failed with exit code") == std::string::npos) {
+            shell_exec->print_last_error();
+        }
+    }
+    return exit_code;
 }
 
 std::unordered_set<std::string> Shell::get_available_commands() const {

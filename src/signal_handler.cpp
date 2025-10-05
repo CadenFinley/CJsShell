@@ -395,13 +395,6 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
                 std::cerr << "WARNING: SIGCHLD handler hit maximum iteration limit ("
                           << max_reap_iterations << "), breaking to prevent infinite loop" << '\n';
             }
-
-            // if (pid == -1 && errno == ECHILD && g_debug_mode) {
-            //     static int echild_count = 0;
-            //     if (++echild_count <= 5) {
-            //         std::cerr << "DEBUG: All children have been reaped" << std::endl;
-            //     }
-            // }
         }
     }
 

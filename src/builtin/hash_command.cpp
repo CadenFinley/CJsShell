@@ -25,10 +25,10 @@ int hash_command(const std::vector<std::string>& args, Shell* shell) {
             return 0;
         }
 
-        std::cout << "hits\tcommand" << std::endl;
+        std::cout << "hits\tcommand\n";
         for (const auto& pair : command_hash) {
-            int hits = command_hits.count(pair.first) ? command_hits[pair.first] : 0;
-            std::cout << hits << "\t" << pair.second << std::endl;
+            int hits = (command_hits.count(pair.first) != 0u) ? command_hits[pair.first] : 0;
+            std::cout << hits << "\t" << pair.second << '\n';
         }
         return 0;
     }
@@ -81,7 +81,7 @@ int hash_command(const std::vector<std::string>& args, Shell* shell) {
                     command_hits[name] = 0;
                 }
 
-                std::cout << path << std::endl;
+                std::cout << path << '\n';
             } else {
                 print_error({ErrorType::COMMAND_NOT_FOUND, "hash", name + ": not found", {}});
                 return 1;
@@ -92,18 +92,18 @@ int hash_command(const std::vector<std::string>& args, Shell* shell) {
     return 0;
 }
 
-std::string get_hashed_command(const std::string& name) {
-    auto it = command_hash.find(name);
-    if (it != command_hash.end()) {
-        command_hits[name]++;
-        return it->second;
-    }
-    return "";
-}
+// static std::string get_hashed_command(const std::string& name) {
+//     auto it = command_hash.find(name);
+//     if (it != command_hash.end()) {
+//         command_hits[name]++;
+//         return it->second;
+//     }
+//     return "";
+// }
 
-void add_to_hash(const std::string& name, const std::string& path) {
-    command_hash[name] = path;
-    if (command_hits.count(name) == 0) {
-        command_hits[name] = 0;
-    }
-}
+// static void add_to_hash(const std::string& name, const std::string& path) {
+//     command_hash[name] = path;
+//     if (command_hits.count(name) == 0) {
+//         command_hits[name] = 0;
+//     }
+// }

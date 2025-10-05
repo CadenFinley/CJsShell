@@ -40,9 +40,11 @@ std::string format_octal_mode(mode_t mode) {
 mode_t parse_symbolic_mode(const std::string& mode_str, mode_t current_mask) {
     if (mode_str == "u=rwx,g=rx,o=rx") {
         return 022;
-    } else if (mode_str == "u=rw,g=r,o=r") {
+    }
+    if (mode_str == "u=rw,g=r,o=r") {
         return 022;
-    } else if (mode_str == "u=rwx,g=,o=") {
+    }
+    if (mode_str == "u=rwx,g=,o=") {
         return 077;
     }
 
@@ -59,7 +61,7 @@ int umask_command(const std::vector<std::string>& args) {
     umask(current_mask);
 
     if (args.size() == 1) {
-        std::cout << format_octal_mode(current_mask) << std::endl;
+        std::cout << format_octal_mode(current_mask) << '\n';
         return 0;
     }
 
@@ -71,30 +73,30 @@ int umask_command(const std::vector<std::string>& args) {
             mode_t perms = (~current_mask) & 0777;
 
             std::cout << "u=";
-            if (perms & S_IRUSR)
+            if ((perms & S_IRUSR) != 0)
                 std::cout << "r";
-            if (perms & S_IWUSR)
+            if ((perms & S_IWUSR) != 0)
                 std::cout << "w";
-            if (perms & S_IXUSR)
+            if ((perms & S_IXUSR) != 0)
                 std::cout << "x";
 
             std::cout << ",g=";
-            if (perms & S_IRGRP)
+            if ((perms & S_IRGRP) != 0)
                 std::cout << "r";
-            if (perms & S_IWGRP)
+            if ((perms & S_IWGRP) != 0)
                 std::cout << "w";
-            if (perms & S_IXGRP)
+            if ((perms & S_IXGRP) != 0)
                 std::cout << "x";
 
             std::cout << ",o=";
-            if (perms & S_IROTH)
+            if ((perms & S_IROTH) != 0)
                 std::cout << "r";
-            if (perms & S_IWOTH)
+            if ((perms & S_IWOTH) != 0)
                 std::cout << "w";
-            if (perms & S_IXOTH)
+            if ((perms & S_IXOTH) != 0)
                 std::cout << "x";
 
-            std::cout << std::endl;
+            std::cout << '\n';
             return 0;
         }
 

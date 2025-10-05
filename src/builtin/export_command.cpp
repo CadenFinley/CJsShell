@@ -20,8 +20,8 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
     }
     if (args.size() == 1) {
         extern char** environ;
-        for (char** env = environ; *env; ++env) {
-            std::cout << "export " << *env << std::endl;
+        for (char** env = environ; *env != nullptr; ++env) {
+            std::cout << "export " << *env << '\n';
         }
         return 0;
     }
@@ -30,7 +30,8 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
     auto& env_vars = shell->get_env_vars();
 
     for (size_t i = 1; i < args.size(); ++i) {
-        std::string name, value;
+        std::string name;
+        std::string value;
         if (parse_env_assignment(args[i], name, value)) {
             if (readonly_manager_is(name)) {
                 print_error(
@@ -39,7 +40,7 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
                 continue;
             }
 
-            if (shell) {
+            if (shell != nullptr) {
                 shell->expand_env_vars(value);
             }
 
@@ -47,12 +48,12 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
 
             setenv(name.c_str(), value.c_str(), 1);
 
-            if (shell && shell->get_parser()) {
+            if ((shell != nullptr) && (shell->get_parser() != nullptr)) {
                 shell->get_parser()->set_env_vars(env_vars);
             }
         } else {
             const char* env_val = getenv(args[i].c_str());
-            if (env_val) {
+            if (env_val != nullptr) {
                 env_vars[args[i]] = env_val;
             } else {
                 print_error({ErrorType::INVALID_ARGUMENT, "export", args[i] + ": not found", {}});
@@ -61,7 +62,7 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
         }
     }
 
-    if (shell) {
+    if (shell != nullptr) {
         shell->set_env_vars(env_vars);
     }
 
@@ -101,7 +102,7 @@ int unset_command(const std::vector<std::string>& args, Shell* shell) {
         }
     }
 
-    if (shell) {
+    if (shell != nullptr) {
         shell->set_env_vars(env_vars);
     }
 

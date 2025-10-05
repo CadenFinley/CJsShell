@@ -11,24 +11,22 @@
 
 namespace {
 void print_syntax_usage() {
-    std::cout << "Usage: syntax [options] <script_file>" << std::endl;
-    std::cout << "       syntax [options] -c <command_string>" << std::endl;
-    std::cout << "Check syntax of shell scripts or commands" << std::endl;
-    std::cout << std::endl;
-    std::cout << "Options:" << std::endl;
-    std::cout << "  -h, --help          Show this help message" << std::endl;
-    std::cout << "  -v, --verbose       Show detailed error information" << std::endl;
-    std::cout << "  -q, --quiet         Only show error count" << std::endl;
-    std::cout << "  --no-suggestions    Don't show fix suggestions" << std::endl;
-    std::cout << "  --no-context        Don't show line context" << std::endl;
-    std::cout << "  --comprehensive     Run all validation checks" << std::endl;
-    std::cout << "  --semantic          Include semantic analysis" << std::endl;
-    std::cout << "  --style             Include style checking" << std::endl;
-    std::cout << "  --performance       Include performance analysis" << std::endl;
-    std::cout << "  --severity LEVEL    Filter by severity (info,warning,error,critical)"
-              << std::endl;
-    std::cout << "  --category CAT      Filter by category (syntax,variables,redirection,etc.)"
-              << std::endl;
+    std::cout << "Usage: syntax [options] <script_file>\n";
+    std::cout << "       syntax [options] -c <command_string>\n";
+    std::cout << "Check syntax of shell scripts or commands\n";
+    std::cout << '\n';
+    std::cout << "Options:\n";
+    std::cout << "  -h, --help          Show this help message\n";
+    std::cout << "  -v, --verbose       Show detailed error information\n";
+    std::cout << "  -q, --quiet         Only show error count\n";
+    std::cout << "  --no-suggestions    Don't show fix suggestions\n";
+    std::cout << "  --no-context        Don't show line context\n";
+    std::cout << "  --comprehensive     Run all validation checks\n";
+    std::cout << "  --semantic          Include semantic analysis\n";
+    std::cout << "  --style             Include style checking\n";
+    std::cout << "  --performance       Include performance analysis\n";
+    std::cout << "  --severity LEVEL    Filter by severity (info,warning,error,critical)\n";
+    std::cout << "  --category CAT      Filter by category (syntax,variables,redirection,etc.)\n";
 }
 }  // namespace
 
@@ -63,10 +61,10 @@ int syntax_command(const std::vector<std::string>& args, Shell* shell) {
     bool check_semantics = false;
     bool check_style = false;
     bool check_performance = false;
-    std::string severity_filter = "";
-    std::string category_filter = "";
-    std::string target_file = "";
-    std::string command_string = "";
+    std::string severity_filter;
+    std::string category_filter;
+    std::string target_file;
+    std::string command_string;
     bool is_command_string = false;
 
     for (size_t i = 1; i < args.size(); ++i) {
@@ -173,15 +171,15 @@ int syntax_command(const std::vector<std::string>& args, Shell* shell) {
 
     if (!severity_filter.empty()) {
         ShellScriptInterpreter::ErrorSeverity filter_severity;
-        if (severity_filter == "info")
+        if (severity_filter == "info") {
             filter_severity = ShellScriptInterpreter::ErrorSeverity::INFO;
-        else if (severity_filter == "warning")
+        } else if (severity_filter == "warning") {
             filter_severity = ShellScriptInterpreter::ErrorSeverity::WARNING;
-        else if (severity_filter == "error")
+        } else if (severity_filter == "error") {
             filter_severity = ShellScriptInterpreter::ErrorSeverity::ERROR;
-        else if (severity_filter == "critical")
+        } else if (severity_filter == "critical") {
             filter_severity = ShellScriptInterpreter::ErrorSeverity::CRITICAL;
-        else {
+        } else {
             print_error({ErrorType::INVALID_ARGUMENT,
                          "syntax",
                          "unknown severity level '" + severity_filter + "'",
@@ -199,23 +197,23 @@ int syntax_command(const std::vector<std::string>& args, Shell* shell) {
 
     if (!category_filter.empty()) {
         ShellScriptInterpreter::ErrorCategory filter_category;
-        if (category_filter == "syntax")
+        if (category_filter == "syntax") {
             filter_category = ShellScriptInterpreter::ErrorCategory::SYNTAX;
-        else if (category_filter == "variables")
+        } else if (category_filter == "variables") {
             filter_category = ShellScriptInterpreter::ErrorCategory::VARIABLES;
-        else if (category_filter == "redirection")
+        } else if (category_filter == "redirection") {
             filter_category = ShellScriptInterpreter::ErrorCategory::REDIRECTION;
-        else if (category_filter == "control")
+        } else if (category_filter == "control") {
             filter_category = ShellScriptInterpreter::ErrorCategory::CONTROL_FLOW;
-        else if (category_filter == "commands")
+        } else if (category_filter == "commands") {
             filter_category = ShellScriptInterpreter::ErrorCategory::COMMANDS;
-        else if (category_filter == "semantics")
+        } else if (category_filter == "semantics") {
             filter_category = ShellScriptInterpreter::ErrorCategory::SEMANTICS;
-        else if (category_filter == "style")
+        } else if (category_filter == "style") {
             filter_category = ShellScriptInterpreter::ErrorCategory::STYLE;
-        else if (category_filter == "performance")
+        } else if (category_filter == "performance") {
             filter_category = ShellScriptInterpreter::ErrorCategory::PERFORMANCE;
-        else {
+        } else {
             print_error({ErrorType::INVALID_ARGUMENT,
                          "syntax",
                          "unknown category '" + category_filter + "'",

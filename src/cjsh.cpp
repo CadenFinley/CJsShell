@@ -200,7 +200,7 @@ static void start_interactive_process() {
     }
 
     if (cjsh_filesystem::is_first_boot()) {
-        // std::cout << " Thank you for installing CJ's Shell!" << std::endl;
+        // std::cout << " Thank you for installing CJ's Shell!" << '\n';
         std::cout << '\n';
         std::cout << " Type 'help' to see available commands and options." << '\n';
         if (!cjsh_filesystem::file_exists(cjsh_filesystem::g_cjsh_source_path)) {

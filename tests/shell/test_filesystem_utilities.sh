@@ -91,7 +91,7 @@ bool initialize_cjsh_directories() {
     fs::create_directories(g_cjsh_ai_conversations_path);
         return true;
     } catch (const fs::filesystem_error& e) {
-        std::cerr << "Error creating cjsh directories: " << e.what() << std::endl;
+    std::cerr << "Error creating cjsh directories: " << e.what() << '\n';
         return false;
     }
 }
@@ -249,7 +249,7 @@ using namespace cjsh_filesystem;
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " <test_name>" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " <test_name>" << '\n';
         return 1;
     }
     
@@ -272,27 +272,27 @@ int main(int argc, char* argv[]) {
                                fs::exists(g_cjsh_ai_conversations_path);
                 
                 if (all_exist) {
-                    std::cout << "SUCCESS" << std::endl;
+                    std::cout << "SUCCESS" << '\n';
                 } else {
-                    std::cout << "ERROR: Not all directories were created" << std::endl;
+                    std::cout << "ERROR: Not all directories were created" << '\n';
                 }
             } else {
-                std::cout << "ERROR: initialize_cjsh_directories returned false" << std::endl;
+                std::cout << "ERROR: initialize_cjsh_directories returned false" << '\n';
             }
         }
         else if (test_name == "test_file_exists") {
             // Create a test file
             std::ofstream test_file("test_exists.txt");
-            test_file << "test" << std::endl;
+            test_file << "test" << '\n';
             test_file.close();
             
             bool exists = file_exists("test_exists.txt");
             bool not_exists = !file_exists("nonexistent_file.txt");
             
             if (exists && not_exists) {
-                std::cout << "SUCCESS" << std::endl;
+                std::cout << "SUCCESS" << '\n';
             } else {
-                std::cout << "ERROR: file_exists() failed" << std::endl;
+                std::cout << "ERROR: file_exists() failed" << '\n';
             }
         }
         else if (test_name == "test_should_refresh_cache_no_file") {
@@ -301,22 +301,22 @@ int main(int argc, char* argv[]) {
             
             bool should_refresh = should_refresh_executable_cache();
             if (should_refresh) {
-                std::cout << "SUCCESS" << std::endl;
+                std::cout << "SUCCESS" << '\n';
             } else {
-                std::cout << "ERROR: should_refresh_executable_cache() should return true when file doesn't exist" << std::endl;
+                std::cout << "ERROR: should_refresh_executable_cache() should return true when file doesn't exist" << '\n';
             }
         }
         else if (test_name == "test_should_refresh_cache_old_file") {
             // Create an old cache file
             fs::create_directories(g_cjsh_cache_path);
             std::ofstream cache_file(g_cjsh_found_executables_path);
-            cache_file << "test" << std::endl;
+            cache_file << "test" << '\n';
             cache_file.close();
             
             // Make the file old (this is a simplified test - in reality we'd need to set the timestamp)
             bool should_refresh = should_refresh_executable_cache();
             // This test might not work perfectly due to timestamp manipulation complexity
-            std::cout << "SUCCESS" << std::endl;
+            std::cout << "SUCCESS" << '\n';
         }
         else if (test_name == "test_build_executable_cache") {
             bool result = build_executable_cache();
@@ -334,15 +334,15 @@ int main(int argc, char* argv[]) {
                     }
                     
                     if (has_content) {
-                        std::cout << "SUCCESS" << std::endl;
+                        std::cout << "SUCCESS" << '\n';
                     } else {
-                        std::cout << "ERROR: Cache file created but is empty" << std::endl;
+                        std::cout << "ERROR: Cache file created but is empty" << '\n';
                     }
                 } else {
-                    std::cout << "ERROR: Cache file was not created" << std::endl;
+                    std::cout << "ERROR: Cache file was not created" << '\n';
                 }
             } else {
-                std::cout << "ERROR: build_executable_cache() returned false" << std::endl;
+                std::cout << "ERROR: build_executable_cache() returned false" << '\n';
             }
         }
         else if (test_name == "test_read_cached_executables") {
@@ -351,27 +351,27 @@ int main(int argc, char* argv[]) {
             
             auto executables = read_cached_executables();
             if (!executables.empty()) {
-                std::cout << "SUCCESS" << std::endl;
+                std::cout << "SUCCESS" << '\n';
             } else {
-                std::cout << "ERROR: No executables read from cache" << std::endl;
+                std::cout << "ERROR: No executables read from cache" << '\n';
             }
         }
         else if (test_name == "test_find_executable_in_path") {
             // Test with a common executable that should exist
             std::string path = find_executable_in_path("ls");
             if (!path.empty()) {
-                std::cout << "SUCCESS" << std::endl;
+                std::cout << "SUCCESS" << '\n';
             } else {
-                std::cout << "ERROR: Could not find 'ls' in PATH" << std::endl;
+                std::cout << "ERROR: Could not find 'ls' in PATH" << '\n';
             }
         }
         else if (test_name == "test_find_nonexistent_executable") {
             // Test with a nonexistent executable
             std::string path = find_executable_in_path("nonexistent_command_12345");
             if (path.empty()) {
-                std::cout << "SUCCESS" << std::endl;
+                std::cout << "SUCCESS" << '\n';
             } else {
-                std::cout << "ERROR: Found path for nonexistent executable: " << path << std::endl;
+                std::cout << "ERROR: Found path for nonexistent executable: " << path << '\n';
             }
         }
         else if (test_name == "test_path_environment_error") {
@@ -388,9 +388,9 @@ int main(int argc, char* argv[]) {
             }
             
             if (path.empty() && !cache_result) {
-                std::cout << "SUCCESS" << std::endl;
+                std::cout << "SUCCESS" << '\n';
             } else {
-                std::cout << "ERROR: Functions should fail gracefully when PATH is not set" << std::endl;
+                std::cout << "ERROR: Functions should fail gracefully when PATH is not set" << '\n';
             }
         }
         else if (test_name == "test_path_initialization") {
@@ -401,9 +401,9 @@ int main(int argc, char* argv[]) {
                 !g_config_path.empty() && 
                 !g_cache_path.empty() &&
                 !g_cjsh_data_path.empty()) {
-                std::cout << "SUCCESS" << std::endl;
+                std::cout << "SUCCESS" << '\n';
             } else {
-                std::cout << "ERROR: Path initialization failed" << std::endl;
+                std::cout << "ERROR: Path initialization failed" << '\n';
             }
         }
         else if (test_name == "test_home_environment_fallback") {
@@ -419,17 +419,17 @@ int main(int argc, char* argv[]) {
             }
             
             if (g_user_home_path == "/tmp") {
-                std::cout << "SUCCESS" << std::endl;
+                std::cout << "SUCCESS" << '\n';
             } else {
-                std::cout << "ERROR: HOME fallback failed" << std::endl;
+                std::cout << "ERROR: HOME fallback failed" << '\n';
             }
         }
         else {
-            std::cout << "ERROR: Unknown test: " << test_name << std::endl;
+            std::cout << "ERROR: Unknown test: " << test_name << '\n';
             return 1;
         }
     } catch (const std::exception& e) {
-        std::cout << "EXCEPTION: " << e.what() << std::endl;
+    std::cout << "EXCEPTION: " << e.what() << '\n';
         return 1;
     }
     
@@ -610,9 +610,9 @@ std::string find_executable_in_path(const std::string& name) {
 int main() {
     std::string bash_path = find_executable_in_path("bash");
     if (!bash_path.empty() && std::filesystem::exists(bash_path)) {
-        std::cout << "SUCCESS" << std::endl;
+    std::cout << "SUCCESS" << '\n';
     } else {
-        std::cout << "ERROR: Could not find bash executable" << std::endl;
+    std::cout << "ERROR: Could not find bash executable" << '\n';
     }
     return 0;
 }
@@ -703,9 +703,9 @@ int main() {
     
     // Should complete within reasonable time (< 1 second for these operations)
     if (duration.count() < 1000) {
-        std::cout << "SUCCESS" << std::endl;
+    std::cout << "SUCCESS" << '\n';
     } else {
-        std::cout << "ERROR: Performance test took too long: " << duration.count() << "ms" << std::endl;
+    std::cout << "ERROR: Performance test took too long: " << duration.count() << "ms" << '\n';
     }
     
     return 0;

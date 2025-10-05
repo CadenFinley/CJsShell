@@ -18,10 +18,10 @@ int alias_command(const std::vector<std::string>& args, Shell* shell) {
     if (args.size() == 1) {
         auto& aliases = shell->get_aliases();
         if (aliases.empty()) {
-            std::cout << "No aliases defined." << std::endl;
+            std::cout << "No aliases defined." << '\n';
         } else {
             for (const auto& [name, value] : aliases) {
-                std::cout << "alias " << name << "='" << value << "'" << std::endl;
+                std::cout << "alias " << name << "='" << value << "'" << '\n';
             }
         }
         return 0;
@@ -31,13 +31,14 @@ int alias_command(const std::vector<std::string>& args, Shell* shell) {
     auto& aliases = shell->get_aliases();
 
     for (size_t i = 1; i < args.size(); ++i) {
-        std::string name, value;
+        std::string name;
+        std::string value;
         if (parse_assignment(args[i], name, value)) {
             aliases[name] = value;
         } else {
             auto it = aliases.find(args[i]);
             if (it != aliases.end()) {
-                std::cout << "alias " << it->first << "='" << it->second << "'" << std::endl;
+                std::cout << "alias " << it->first << "='" << it->second << "'" << '\n';
             } else {
                 print_error({ErrorType::COMMAND_NOT_FOUND, "alias", args[i] + ": not found", {}});
                 all_successful = false;
@@ -45,7 +46,7 @@ int alias_command(const std::vector<std::string>& args, Shell* shell) {
         }
     }
 
-    if (shell) {
+    if (shell != nullptr) {
         shell->set_aliases(aliases);
     }
 
@@ -77,7 +78,7 @@ int unalias_command(const std::vector<std::string>& args, Shell* shell) {
         }
     }
 
-    if (shell) {
+    if (shell != nullptr) {
         shell->set_aliases(aliases);
     }
 

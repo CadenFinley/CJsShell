@@ -123,7 +123,7 @@ const fs::path g_user_home_path = []() {
     if (!home || home[0] == '\0') {
         std::cerr << "Warning: HOME environment variable not set or empty. Using "
                      "/tmp as fallback."
-                  << std::endl;
+                  << '\n';
         return fs::path("/tmp");
     }
     return fs::path(home);

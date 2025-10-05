@@ -252,7 +252,7 @@ using namespace cjsh_filesystem;
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " <test_name>" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " <test_name>" << '\n';
         return 1;
     }
     
@@ -263,9 +263,9 @@ int main(int argc, char* argv[]) {
             auto result = safe_open("test_file.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644);
             if (result.is_ok()) {
                 safe_close(result.value());
-                std::cout << "SUCCESS" << std::endl;
+                std::cout << "SUCCESS" << '\n';
             } else {
-                std::cout << "ERROR: " << result.error() << std::endl;
+                std::cout << "ERROR: " << result.error() << '\n';
             }
         }
         else if (test_name == "test_safe_open_nonexistent") {
@@ -273,13 +273,13 @@ int main(int argc, char* argv[]) {
             if (result.is_error()) {
                 if (result.error().find("No such file or directory") != std::string::npos ||
                     result.error().find("ENOENT") != std::string::npos) {
-                    std::cout << "SUCCESS" << std::endl;
+                    std::cout << "SUCCESS" << '\n';
                 } else {
-                    std::cout << "ERROR: Unexpected error message: " << result.error() << std::endl;
+                    std::cout << "ERROR: Unexpected error message: " << result.error() << '\n';
                 }
             } else {
                 safe_close(result.value());
-                std::cout << "ERROR: Expected failure but got success" << std::endl;
+                std::cout << "ERROR: Expected failure but got success" << '\n';
             }
         }
         else if (test_name == "test_safe_open_permission_denied") {
@@ -289,13 +289,13 @@ int main(int argc, char* argv[]) {
             if (result.is_error()) {
                 if (result.error().find("Permission denied") != std::string::npos ||
                     result.error().find("EACCES") != std::string::npos) {
-                    std::cout << "SUCCESS" << std::endl;
+                    std::cout << "SUCCESS" << '\n';
                 } else {
-                    std::cout << "ERROR: Unexpected error message: " << result.error() << std::endl;
+                    std::cout << "ERROR: Unexpected error message: " << result.error() << '\n';
                 }
             } else {
                 safe_close(result.value());
-                std::cout << "ERROR: Expected permission denied but got success" << std::endl;
+                std::cout << "ERROR: Expected permission denied but got success" << '\n';
             }
             rmdir("no_permission");
         }
@@ -306,12 +306,12 @@ int main(int argc, char* argv[]) {
                 safe_close(result1.value());
                 safe_close(10);
                 if (result2.is_ok()) {
-                    std::cout << "SUCCESS" << std::endl;
+                    std::cout << "SUCCESS" << '\n';
                 } else {
-                    std::cout << "ERROR: " << result2.error() << std::endl;
+                    std::cout << "ERROR: " << result2.error() << '\n';
                 }
             } else {
-                std::cout << "ERROR: Failed to create test file" << std::endl;
+                std::cout << "ERROR: Failed to create test file" << '\n';
             }
         }
         else if (test_name == "test_safe_dup2_invalid_fd") {
@@ -319,39 +319,39 @@ int main(int argc, char* argv[]) {
             if (result.is_error()) {
                 if (result.error().find("Bad file descriptor") != std::string::npos ||
                     result.error().find("EBADF") != std::string::npos) {
-                    std::cout << "SUCCESS" << std::endl;
+                    std::cout << "SUCCESS" << '\n';
                 } else {
-                    std::cout << "ERROR: Unexpected error message: " << result.error() << std::endl;
+                    std::cout << "ERROR: Unexpected error message: " << result.error() << '\n';
                 }
             } else {
-                std::cout << "ERROR: Expected failure but got success" << std::endl;
+                std::cout << "ERROR: Expected failure but got success" << '\n';
             }
         }
         else if (test_name == "test_safe_fopen_success") {
             auto result = safe_fopen("test_file.txt", "w");
             if (result.is_ok()) {
                 safe_fclose(result.value());
-                std::cout << "SUCCESS" << std::endl;
+                std::cout << "SUCCESS" << '\n';
             } else {
-                std::cout << "ERROR: " << result.error() << std::endl;
+                std::cout << "ERROR: " << result.error() << '\n';
             }
         }
         else if (test_name == "test_safe_fopen_invalid_mode") {
             auto result = safe_fopen("test_file.txt", "invalid_mode");
             if (result.is_error()) {
-                std::cout << "SUCCESS" << std::endl;
+                std::cout << "SUCCESS" << '\n';
             } else {
                 safe_fclose(result.value());
-                std::cout << "ERROR: Expected failure but got success" << std::endl;
+                std::cout << "ERROR: Expected failure but got success" << '\n';
             }
         }
         else if (test_name == "test_safe_popen_success") {
             auto result = safe_popen("echo hello", "r");
             if (result.is_ok()) {
                 safe_pclose(result.value());
-                std::cout << "SUCCESS" << std::endl;
+                std::cout << "SUCCESS" << '\n';
             } else {
-                std::cout << "ERROR: " << result.error() << std::endl;
+                std::cout << "ERROR: " << result.error() << '\n';
             }
         }
         else if (test_name == "test_safe_popen_invalid_command") {
@@ -361,12 +361,12 @@ int main(int argc, char* argv[]) {
             if (result.is_ok()) {
                 int exit_code = safe_pclose(result.value());
                 if (exit_code != 0) {
-                    std::cout << "SUCCESS" << std::endl;
+                    std::cout << "SUCCESS" << '\n';
                 } else {
-                    std::cout << "ERROR: Expected non-zero exit code but got 0" << std::endl;
+                    std::cout << "ERROR: Expected non-zero exit code but got 0" << '\n';
                 }
             } else {
-                std::cout << "ERROR: popen failed unexpectedly: " << result.error() << std::endl;
+                std::cout << "ERROR: popen failed unexpectedly: " << result.error() << '\n';
             }
         }
         else if (test_name == "test_create_temp_file") {
@@ -375,12 +375,12 @@ int main(int argc, char* argv[]) {
                 std::string temp_path = result.value();
                 if (access(temp_path.c_str(), F_OK) == 0) {
                     cleanup_temp_file(temp_path);
-                    std::cout << "SUCCESS" << std::endl;
+                    std::cout << "SUCCESS" << '\n';
                 } else {
-                    std::cout << "ERROR: Temp file was not created" << std::endl;
+                    std::cout << "ERROR: Temp file was not created" << '\n';
                 }
             } else {
-                std::cout << "ERROR: " << result.error() << std::endl;
+                std::cout << "ERROR: " << result.error() << '\n';
             }
         }
         else if (test_name == "test_write_temp_file") {
@@ -393,40 +393,40 @@ int main(int argc, char* argv[]) {
                     std::string content((std::istreambuf_iterator<char>(file)),
                                        std::istreambuf_iterator<char>());
                     if (content == "test content") {
-                        std::cout << "SUCCESS" << std::endl;
+                        std::cout << "SUCCESS" << '\n';
                     } else {
-                        std::cout << "ERROR: Content mismatch" << std::endl;
+                        std::cout << "ERROR: Content mismatch" << '\n';
                     }
                 } else {
-                    std::cout << "ERROR: " << write_result.error() << std::endl;
+                    std::cout << "ERROR: " << write_result.error() << '\n';
                 }
                 cleanup_temp_file(temp_path);
             } else {
-                std::cout << "ERROR: Failed to create temp file" << std::endl;
+                std::cout << "ERROR: Failed to create temp file" << '\n';
             }
         }
         else if (test_name == "test_read_command_output_success") {
             auto result = read_command_output("echo 'hello world'");
             if (result.is_ok()) {
                 if (result.value().find("hello world") != std::string::npos) {
-                    std::cout << "SUCCESS" << std::endl;
+                    std::cout << "SUCCESS" << '\n';
                 } else {
-                    std::cout << "ERROR: Unexpected output: " << result.value() << std::endl;
+                    std::cout << "ERROR: Unexpected output: " << result.value() << '\n';
                 }
             } else {
-                std::cout << "ERROR: " << result.error() << std::endl;
+                std::cout << "ERROR: " << result.error() << '\n';
             }
         }
         else if (test_name == "test_read_command_output_failure") {
             auto result = read_command_output("false");
             if (result.is_error()) {
                 if (result.error().find("failed with exit code") != std::string::npos) {
-                    std::cout << "SUCCESS" << std::endl;
+                    std::cout << "SUCCESS" << '\n';
                 } else {
-                    std::cout << "ERROR: Unexpected error message: " << result.error() << std::endl;
+                    std::cout << "ERROR: Unexpected error message: " << result.error() << '\n';
                 }
             } else {
-                std::cout << "ERROR: Expected failure but got success" << std::endl;
+                std::cout << "ERROR: Expected failure but got success" << '\n';
             }
         }
         else if (test_name == "test_write_read_file_content") {
@@ -436,15 +436,15 @@ int main(int argc, char* argv[]) {
                 auto read_result = read_file_content("test_content.txt");
                 if (read_result.is_ok()) {
                     if (read_result.value() == test_content) {
-                        std::cout << "SUCCESS" << std::endl;
+                        std::cout << "SUCCESS" << '\n';
                     } else {
-                        std::cout << "ERROR: Content mismatch" << std::endl;
+                        std::cout << "ERROR: Content mismatch" << '\n';
                     }
                 } else {
-                    std::cout << "ERROR: " << read_result.error() << std::endl;
+                    std::cout << "ERROR: " << read_result.error() << '\n';
                 }
             } else {
-                std::cout << "ERROR: " << write_result.error() << std::endl;
+                std::cout << "ERROR: " << write_result.error() << '\n';
             }
         }
         else if (test_name == "test_read_file_content_nonexistent") {
@@ -452,52 +452,52 @@ int main(int argc, char* argv[]) {
             if (result.is_error()) {
                 if (result.error().find("No such file or directory") != std::string::npos ||
                     result.error().find("ENOENT") != std::string::npos) {
-                    std::cout << "SUCCESS" << std::endl;
+                    std::cout << "SUCCESS" << '\n';
                 } else {
-                    std::cout << "ERROR: Unexpected error message: " << result.error() << std::endl;
+                    std::cout << "ERROR: Unexpected error message: " << result.error() << '\n';
                 }
             } else {
-                std::cout << "ERROR: Expected failure but got success" << std::endl;
+                std::cout << "ERROR: Expected failure but got success" << '\n';
             }
         }
         else if (test_name == "test_result_template_ok") {
             auto result = Result<int>::ok(42);
             if (result.is_ok() && !result.is_error() && result.value() == 42) {
-                std::cout << "SUCCESS" << std::endl;
+                std::cout << "SUCCESS" << '\n';
             } else {
-                std::cout << "ERROR: Result template ok() failed" << std::endl;
+                std::cout << "ERROR: Result template ok() failed" << '\n';
             }
         }
         else if (test_name == "test_result_template_error") {
             auto result = Result<int>::error("Test error message");
             if (result.is_error() && !result.is_ok() && result.error() == "Test error message") {
-                std::cout << "SUCCESS" << std::endl;
+                std::cout << "SUCCESS" << '\n';
             } else {
-                std::cout << "ERROR: Result template error() failed" << std::endl;
+                std::cout << "ERROR: Result template error() failed" << '\n';
             }
         }
         else if (test_name == "test_result_void_ok") {
             auto result = Result<void>::ok();
             if (result.is_ok() && !result.is_error()) {
-                std::cout << "SUCCESS" << std::endl;
+                std::cout << "SUCCESS" << '\n';
             } else {
-                std::cout << "ERROR: Result<void> ok() failed" << std::endl;
+                std::cout << "ERROR: Result<void> ok() failed" << '\n';
             }
         }
         else if (test_name == "test_result_void_error") {
             auto result = Result<void>::error("Void error message");
             if (result.is_error() && !result.is_ok() && result.error() == "Void error message") {
-                std::cout << "SUCCESS" << std::endl;
+                std::cout << "SUCCESS" << '\n';
             } else {
-                std::cout << "ERROR: Result<void> error() failed" << std::endl;
+                std::cout << "ERROR: Result<void> error() failed" << '\n';
             }
         }
         else {
-            std::cout << "ERROR: Unknown test: " << test_name << std::endl;
+            std::cout << "ERROR: Unknown test: " << test_name << '\n';
             return 1;
         }
     } catch (const std::exception& e) {
-        std::cout << "EXCEPTION: " << e.what() << std::endl;
+    std::cout << "EXCEPTION: " << e.what() << '\n';
         return 1;
     }
     
@@ -707,7 +707,7 @@ int main() {
     safe_close(-1);
     safe_close(999999);
     safe_close(0);  // stdin - this might be valid, so it's a real test
-    std::cout << "SUCCESS" << std::endl;
+    std::cout << "SUCCESS" << '\n';
     return 0;
 }
 EOF
@@ -738,7 +738,7 @@ void safe_fclose(FILE* file) {
 int main() {
     // This should not crash
     safe_fclose(nullptr);
-    std::cout << "SUCCESS" << std::endl;
+    std::cout << "SUCCESS" << '\n';
     return 0;
 }
 EOF
@@ -770,9 +770,9 @@ int safe_pclose(FILE* file) {
 int main() {
     int result = safe_pclose(nullptr);
     if (result == -1) {
-        std::cout << "SUCCESS" << std::endl;
+    std::cout << "SUCCESS" << '\n';
     } else {
-        std::cout << "ERROR: Expected -1 but got " << result << std::endl;
+    std::cout << "ERROR: Expected -1 but got " << result << '\n';
     }
     return 0;
 }

@@ -75,7 +75,7 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
         if (is_cjsh_custom && (shell != nullptr) &&
             (shell->get_built_ins()->is_builtin_command(name) != 0)) {
             if (!silent) {
-                std::cout << name << " is a cjsh builtin (custom implementation)" << std::endl;
+                std::cout << name << " is a cjsh builtin (custom implementation)\n";
             }
             found = true;
             if (!show_all) {
@@ -86,7 +86,7 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
         std::string path = cjsh_filesystem::find_executable_in_path(name);
         if (!path.empty()) {
             if (!silent) {
-                std::cout << path << std::endl;
+                std::cout << path << '\n';
             }
             found = true;
             found_executable = true;
@@ -102,12 +102,12 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
                     if (name[0] != '/') {
                         char cwd[PATH_MAX];
                         if (getcwd(cwd, sizeof(cwd)) != nullptr) {
-                            std::cout << cwd << "/" << name << std::endl;
+                            std::cout << cwd << "/" << name << '\n';
                         } else {
-                            std::cout << name << std::endl;
+                            std::cout << name << '\n';
                         }
                     } else {
-                        std::cout << name << std::endl;
+                        std::cout << name << '\n';
                     }
                 }
                 found = true;
@@ -121,7 +121,7 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
         if (show_all || (!found_executable && !is_cjsh_custom)) {
             if ((shell != nullptr) && (shell->get_built_ins()->is_builtin_command(name) != 0)) {
                 if (!silent) {
-                    std::cout << "which: " << name << " is a shell builtin" << std::endl;
+                    std::cout << "which: " << name << " is a shell builtin\n";
                 }
                 found = true;
             }
@@ -132,7 +132,7 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
                 if (alias_it != aliases.end()) {
                     if (!silent) {
                         std::cout << "which: " << name << " is aliased to `" << alias_it->second
-                                  << "'" << std::endl;
+                                  << "'" << '\n';
                     }
                     found = true;
                 }
@@ -142,7 +142,7 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
                 auto* interpreter = shell->get_shell_script_interpreter();
                 if ((interpreter != nullptr) && interpreter->has_function(name)) {
                     if (!silent) {
-                        std::cout << "which: " << name << " is a function" << std::endl;
+                        std::cout << "which: " << name << " is a function\n";
                     }
                     found = true;
                 }
@@ -151,7 +151,7 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
 
         if (!found) {
             if (!silent) {
-                std::cout << "which: " << name << " not found" << std::endl;
+                std::cout << "which: " << name << " not found\n";
             }
             return_code = 1;
         }

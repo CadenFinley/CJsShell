@@ -80,9 +80,9 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
             for (const auto& keyword : keywords) {
                 if (name == keyword) {
                     if (show_type_only) {
-                        std::cout << "keyword" << std::endl;
+                        std::cout << "keyword\n";
                     } else {
-                        std::cout << name << " is a shell keyword" << std::endl;
+                        std::cout << name << " is a shell keyword\n";
                     }
                     found = true;
                     if (!show_all)
@@ -95,9 +95,9 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
             if (!force_path && (shell != nullptr) &&
                 (shell->get_built_ins()->is_builtin_command(name) != 0)) {
                 if (show_type_only) {
-                    std::cout << "builtin" << std::endl;
+                    std::cout << "builtin\n";
                 } else {
-                    std::cout << name << " is a shell builtin" << std::endl;
+                    std::cout << name << " is a shell builtin\n";
                 }
                 found = true;
                 if (!show_all && found)
@@ -111,10 +111,9 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
                 auto alias_it = aliases.find(name);
                 if (alias_it != aliases.end()) {
                     if (show_type_only) {
-                        std::cout << "alias" << std::endl;
+                        std::cout << "alias\n";
                     } else {
-                        std::cout << name << " is aliased to `" << alias_it->second << "'"
-                                  << std::endl;
+                        std::cout << name << " is aliased to `" << alias_it->second << "'" << '\n';
                     }
                     found = true;
                     if (!show_all)
@@ -124,13 +123,13 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
         }
 
         if (!found || show_all) {
-            if (!force_path && !inhibit_functions && shell) {
+            if (!force_path && !inhibit_functions && (shell != nullptr)) {
                 auto* interpreter = shell->get_shell_script_interpreter();
-                if (interpreter && interpreter->has_function(name)) {
+                if ((interpreter != nullptr) && interpreter->has_function(name)) {
                     if (show_type_only) {
-                        std::cout << "function" << std::endl;
+                        std::cout << "function\n";
                     } else {
-                        std::cout << name << " is a function" << std::endl;
+                        std::cout << name << " is a function\n";
                     }
                     found = true;
                     if (!show_all)
@@ -144,9 +143,9 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
                 std::string path = cjsh_filesystem::find_executable_in_path(name);
                 if (!path.empty()) {
                     if (show_type_only) {
-                        std::cout << "file" << std::endl;
+                        std::cout << "file\n";
                     } else {
-                        std::cout << name << " is " << path << std::endl;
+                        std::cout << name << " is " << path << '\n';
                     }
                     found = true;
                 }
@@ -156,7 +155,7 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
         if (!found) {
             if (show_type_only) {
             } else {
-                std::cout << name << ": not found" << std::endl;
+                std::cout << name << ": not found\n";
             }
             return_code = 1;
         }

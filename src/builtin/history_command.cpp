@@ -81,7 +81,7 @@ int history_command(const std::vector<std::string>& args) {
     }
 
     for (int i = 0; i < limit; ++i) {
-        std::cout << std::setw(5) << i << "  " << entries[i] << std::endl;
+        std::cout << std::setw(5) << i << "  " << entries[i] << '\n';
     }
 
     return 0;

@@ -8,7 +8,7 @@ bool builtin_handle_help(const std::vector<std::string>& args,
         const std::string& flag = args[1];
         if (flag == "--help" || flag == "-h") {
             for (const auto& line : help_lines) {
-                std::cout << line << std::endl;
+                std::cout << line << '\n';
             }
             return true;
         }

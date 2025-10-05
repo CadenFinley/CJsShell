@@ -66,35 +66,35 @@ static const std::unordered_set<std::string_view> executable_extensions = {".so"
 
 namespace {
 void print_ls_usage() {
-    std::cout << "Usage: ls [OPTION]... [FILE]..." << std::endl;
-    std::cout << "List information about files." << std::endl << std::endl;
-    std::cout << "  -a             show all files, including hidden files" << std::endl;
-    std::cout << "  -A             show all files except . and .." << std::endl;
-    std::cout << "  -l             use long listing format" << std::endl;
-    std::cout << "  -S             sort by file size, largest first" << std::endl;
-    std::cout << "  -r             reverse order while sorting" << std::endl;
-    std::cout << "  -t             sort by modification time, newest first" << std::endl;
-    std::cout << "  -u             sort by access time" << std::endl;
-    std::cout << "  -c             sort by status change time" << std::endl;
-    std::cout << "  -h             print sizes in human readable format" << std::endl;
-    std::cout << "  -R             list subdirectories recursively" << std::endl;
-    std::cout << "  -1             list one file per line" << std::endl;
-    std::cout << "  -i             print the inode number" << std::endl;
-    std::cout << "  -C             list entries by columns" << std::endl;
-    std::cout << "  -F             append indicator to entries" << std::endl;
-    std::cout << "  -H             follow symlinks on command line" << std::endl;
-    std::cout << "  -L             follow all symlinks" << std::endl;
-    std::cout << "  -d             list directories themselves, not contents" << std::endl;
-    std::cout << "  -f             do not sort, enable -a" << std::endl;
-    std::cout << "  -g             long format without owner" << std::endl;
-    std::cout << "  -k             use 1024-byte blocks" << std::endl;
-    std::cout << "  -m             stream format with comma separators" << std::endl;
-    std::cout << "  -n             long format with numeric IDs" << std::endl;
-    std::cout << "  -o             long format without group" << std::endl;
-    std::cout << "  -p             append / to directories" << std::endl;
-    std::cout << "  -q             replace non-printable characters with ?" << std::endl;
-    std::cout << "  -s             print file system block counts" << std::endl;
-    std::cout << "  -x             list entries by lines instead of columns" << std::endl;
+    std::cout << "Usage: ls [OPTION]... [FILE]...\n";
+    std::cout << "List information about files.\n\n";
+    std::cout << "  -a             show all files, including hidden files\n";
+    std::cout << "  -A             show all files except . and ..\n";
+    std::cout << "  -l             use long listing format\n";
+    std::cout << "  -S             sort by file size, largest first\n";
+    std::cout << "  -r             reverse order while sorting\n";
+    std::cout << "  -t             sort by modification time, newest first\n";
+    std::cout << "  -u             sort by access time\n";
+    std::cout << "  -c             sort by status change time\n";
+    std::cout << "  -h             print sizes in human readable format\n";
+    std::cout << "  -R             list subdirectories recursively\n";
+    std::cout << "  -1             list one file per line\n";
+    std::cout << "  -i             print the inode number\n";
+    std::cout << "  -C             list entries by columns\n";
+    std::cout << "  -F             append indicator to entries\n";
+    std::cout << "  -H             follow symlinks on command line\n";
+    std::cout << "  -L             follow all symlinks\n";
+    std::cout << "  -d             list directories themselves, not contents\n";
+    std::cout << "  -f             do not sort, enable -a\n";
+    std::cout << "  -g             long format without owner\n";
+    std::cout << "  -k             use 1024-byte blocks\n";
+    std::cout << "  -m             stream format with comma separators\n";
+    std::cout << "  -n             long format with numeric IDs\n";
+    std::cout << "  -o             long format without group\n";
+    std::cout << "  -p             append / to directories\n";
+    std::cout << "  -q             replace non-printable characters with ?\n";
+    std::cout << "  -s             print file system block counts\n";
+    std::cout << "  -x             list entries by lines instead of columns\n";
 }
 }  // namespace
 
@@ -392,14 +392,16 @@ static std::string format_size(uintmax_t size, bool human_readable) {
     if (human_readable) {
         return format_size_human_readable(size);
     }
-    if (size < 1024)
+    if (size < 1024) {
         return std::to_string(size) + " B";
-    else if (size < 1048576)
+    }
+    if (size < 1048576) {
         return std::to_string(size >> 10) + " KB";
-    else if (size < 1073741824)
+    }
+    if (size < 1073741824) {
         return std::to_string(size >> 20) + " MB";
-    else
-        return std::to_string(size >> 30) + " GB";
+    }
+    return std::to_string(size >> 30) + " GB";
 }
 
 static bool get_file_stat(FileInfo& file_info) {
@@ -561,43 +563,44 @@ static void print_long_format_header(bool show_blocks) {
 
 static void build_permissions_fast(char* perms, mode_t mode,
                                    const std::string& filepath [[maybe_unused]]) {
-    if (S_ISDIR(mode))
+    if (S_ISDIR(mode)) {
         perms[0] = 'd';
-    else if (S_ISLNK(mode))
+    } else if (S_ISLNK(mode)) {
         perms[0] = 'l';
-    else if (S_ISBLK(mode))
+    } else if (S_ISBLK(mode)) {
         perms[0] = 'b';
-    else if (S_ISCHR(mode))
+    } else if (S_ISCHR(mode)) {
         perms[0] = 'c';
-    else if (S_ISFIFO(mode))
+    } else if (S_ISFIFO(mode)) {
         perms[0] = 'p';
-    else if (S_ISSOCK(mode))
+    } else if (S_ISSOCK(mode)) {
         perms[0] = 's';
-    else
+    } else {
         perms[0] = '-';
+    }
 
-    perms[1] = (mode & S_IRUSR) ? 'r' : '-';
-    perms[2] = (mode & S_IWUSR) ? 'w' : '-';
+    perms[1] = ((mode & S_IRUSR) != 0) ? 'r' : '-';
+    perms[2] = ((mode & S_IWUSR) != 0) ? 'w' : '-';
     if ((mode & S_ISUID) != 0) {
-        perms[3] = (mode & S_IXUSR) ? 's' : 'S';
+        perms[3] = ((mode & S_IXUSR) != 0) ? 's' : 'S';
     } else {
-        perms[3] = (mode & S_IXUSR) ? 'x' : '-';
+        perms[3] = ((mode & S_IXUSR) != 0) ? 'x' : '-';
     }
 
-    perms[4] = (mode & S_IRGRP) ? 'r' : '-';
-    perms[5] = (mode & S_IWGRP) ? 'w' : '-';
+    perms[4] = ((mode & S_IRGRP) != 0) ? 'r' : '-';
+    perms[5] = ((mode & S_IWGRP) != 0) ? 'w' : '-';
     if ((mode & S_ISGID) != 0) {
-        perms[6] = (mode & S_IXGRP) ? 's' : 'S';
+        perms[6] = ((mode & S_IXGRP) != 0) ? 's' : 'S';
     } else {
-        perms[6] = (mode & S_IXGRP) ? 'x' : '-';
+        perms[6] = ((mode & S_IXGRP) != 0) ? 'x' : '-';
     }
 
-    perms[7] = (mode & S_IROTH) ? 'r' : '-';
-    perms[8] = (mode & S_IWOTH) ? 'w' : '-';
+    perms[7] = ((mode & S_IROTH) != 0) ? 'r' : '-';
+    perms[8] = ((mode & S_IWOTH) != 0) ? 'w' : '-';
     if ((mode & S_ISVTX) != 0) {
-        perms[9] = (mode & S_IXOTH) ? 't' : 'T';
+        perms[9] = ((mode & S_IXOTH) != 0) ? 't' : 'T';
     } else {
-        perms[9] = (mode & S_IXOTH) ? 'x' : '-';
+        perms[9] = ((mode & S_IXOTH) != 0) ? 'x' : '-';
     }
 
 #ifdef __APPLE__

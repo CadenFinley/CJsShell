@@ -23,24 +23,25 @@ int validate_command(const std::vector<std::string>& args, Shell* shell) {
         return 1;
     }
 
-    auto* parser = shell ? shell->get_parser() : nullptr;
-    if (!parser) {
+    auto* parser = (shell != nullptr) ? shell->get_parser() : nullptr;
+    if (parser == nullptr) {
         print_error({ErrorType::RUNTIME_ERROR, "validate", "Parser not available", {}});
         return 1;
     }
 
     if (args[1] == "on") {
         parser->set_command_validation_enabled(true);
-        std::cout << "Command validation enabled" << std::endl;
+        std::cout << "Command validation enabled\n";
         return 0;
-    } else if (args[1] == "off") {
+    }
+    if (args[1] == "off") {
         parser->set_command_validation_enabled(false);
-        std::cout << "Command validation disabled" << std::endl;
+        std::cout << "Command validation disabled\n";
         return 0;
-    } else if (args[1] == "status") {
+    }
+    if (args[1] == "status") {
         std::cout << "Command validation is "
-                  << (parser->get_command_validation_enabled() ? "enabled" : "disabled")
-                  << std::endl;
+                  << (parser->get_command_validation_enabled() ? "enabled" : "disabled") << '\n';
         return 0;
     }
 
@@ -49,7 +50,7 @@ int validate_command(const std::vector<std::string>& args, Shell* shell) {
         const std::string& cmd_name = args[i];
 
         if (parser->is_valid_command(cmd_name)) {
-            std::cout << cmd_name << ": valid command" << std::endl;
+            std::cout << cmd_name << ": valid command\n";
         } else {
             auto suggestions = suggestion_utils::generate_command_suggestions(cmd_name);
             ErrorInfo error = {ErrorType::COMMAND_NOT_FOUND, cmd_name, "command not found",

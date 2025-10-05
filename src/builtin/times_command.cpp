@@ -20,7 +20,7 @@ int times_command(const std::vector<std::string>& args, Shell* shell) {
     }
     (void)shell;
 
-    struct tms time_buf;
+    struct tms time_buf{};
     clock_t wall_time = times(&time_buf);
 
     if (wall_time == (clock_t)-1) {
@@ -53,7 +53,7 @@ int times_command(const std::vector<std::string>& args, Shell* shell) {
     };
 
     std::cout << format_time(user_time) << " " << format_time(system_time) << " "
-              << format_time(child_user_time) << " " << format_time(child_system_time) << std::endl;
+              << format_time(child_user_time) << " " << format_time(child_system_time) << '\n';
 
     return 0;
 }
