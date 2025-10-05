@@ -696,8 +696,7 @@ bool ShellScriptInterpreter::has_syntax_errors(const std::vector<std::string>& l
             }
         }
         if (!blocking_errors.empty()) {
-            shell_script_interpreter::ErrorReporter::print_error_report(blocking_errors, true,
-                                                                        true);
+            shell_script_interpreter::print_error_report(blocking_errors, true, true);
         }
     }
 

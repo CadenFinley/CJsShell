@@ -1385,7 +1385,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                             try {
                                 out += std::to_string(eval_arith(expanded_expr));
                             } catch (const std::runtime_error& e) {
-                                shell_script_interpreter::ErrorReporter::print_runtime_error(
+                                shell_script_interpreter::print_runtime_error(
                                     "cjsh: " + std::string(e.what()), "$((" + expr + "))");
 
                                 throw;
@@ -1705,7 +1705,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
             error.suggestion = "Command may be too complex or system is low on memory";
             errors.push_back(error);
 
-            shell_script_interpreter::ErrorReporter::print_error_report(errors, true, true);
+            shell_script_interpreter::print_error_report(errors, true, true);
 
             return set_last_status(3);
         } catch (const std::system_error& e) {
@@ -1717,7 +1717,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
             error.suggestion = "Check system resources and permissions";
             errors.push_back(error);
 
-            shell_script_interpreter::ErrorReporter::print_error_report(errors, true, true);
+            shell_script_interpreter::print_error_report(errors, true, true);
 
             return set_last_status(4);
         } catch (const std::runtime_error& e) {
@@ -1781,7 +1781,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                 }
 
                 errors.push_back(error);
-                shell_script_interpreter::ErrorReporter::print_error_report(errors, true, true);
+                shell_script_interpreter::print_error_report(errors, true, true);
 
                 return set_last_status(127);
             }
@@ -1813,7 +1813,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
             }
 
             errors.push_back(error);
-            shell_script_interpreter::ErrorReporter::print_error_report(errors, true, true);
+            shell_script_interpreter::print_error_report(errors, true, true);
 
             return set_last_status(2);
         } catch (const std::exception& e) {
@@ -1828,7 +1828,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                 "how to replicate it.";
             errors.push_back(error);
 
-            shell_script_interpreter::ErrorReporter::print_error_report(errors, true, true);
+            shell_script_interpreter::print_error_report(errors, true, true);
 
             return set_last_status(5);
         } catch (...) {
@@ -1843,7 +1843,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                 "how to replicate it.";
             errors.push_back(error);
 
-            shell_script_interpreter::ErrorReporter::print_error_report(errors, true, true);
+            shell_script_interpreter::print_error_report(errors, true, true);
 
             return set_last_status(6);
         }
@@ -3646,7 +3646,7 @@ std::string ShellScriptInterpreter::expand_parameter_expression(const std::strin
         if (!is_set || var_value.empty()) {
             std::string error_msg = "cjsh: " + var_name + ": " +
                                     (operand.empty() ? "parameter null or not set" : operand);
-            shell_script_interpreter::ErrorReporter::print_runtime_error(
+            shell_script_interpreter::print_runtime_error(
                 error_msg, "${" + var_name + op + operand + "}");
             throw std::runtime_error(error_msg);
         }
@@ -3656,7 +3656,7 @@ std::string ShellScriptInterpreter::expand_parameter_expression(const std::strin
         if (!is_set) {
             std::string error_msg =
                 "cjsh: " + var_name + ": " + (operand.empty() ? "parameter not set" : operand);
-            shell_script_interpreter::ErrorReporter::print_runtime_error(
+            shell_script_interpreter::print_runtime_error(
                 error_msg, "${" + var_name + op + operand + "}");
             throw std::runtime_error(error_msg);
         }

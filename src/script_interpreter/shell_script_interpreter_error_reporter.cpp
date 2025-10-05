@@ -79,7 +79,7 @@ std::string strip_internal_placeholders(const std::string& input, size_t* column
 
 }  // namespace
 
-size_t ErrorReporter::get_terminal_width() {
+static size_t get_terminal_width() {
     struct winsize w{};
     if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == 0 && w.ws_col > 0) {
         return w.ws_col;
@@ -87,7 +87,7 @@ size_t ErrorReporter::get_terminal_width() {
     return 80;
 }
 
-void ErrorReporter::print_error_report(
+void print_error_report(
     const std::vector<ShellScriptInterpreter::SyntaxError>& errors, bool show_suggestions,
     bool show_context, int start_error_number) {
     using ErrorSeverity = ShellScriptInterpreter::ErrorSeverity;
@@ -123,16 +123,16 @@ void ErrorReporter::print_error_report(
             return;
         }
 
-        const std::string RESET = "\033[0m";
-        const std::string BOLD = "\033[1m";
-        const std::string DIM = "\033[2m";
-        const std::string RED = "\033[31m";
-        const std::string GREEN = "\033[32m";
-        const std::string YELLOW = "\033[33m";
-        const std::string BLUE = "\033[34m";
-        const std::string CYAN = "\033[36m";
-        const std::string WHITE = "\033[37m";
-        const std::string BG_RED = "\033[41m";
+        const std::string reset_color = "\033[0m";
+        const std::string bold_style = "\033[1m";
+        const std::string dim_style = "\033[2m";
+        const std::string red_color = "\033[31m";
+        const std::string green_color = "\033[32m";
+        const std::string yellow_color = "\033[33m";
+        const std::string blue_color = "\033[34m";
+        const std::string cyan_color = "\033[36m";
+        const std::string white_color = "\033[37m";
+        const std::string bg_red_color = "\033[41m";
 
         std::vector<SyntaxError> sorted_errors = errors;
         std::sort(sorted_errors.begin(), sorted_errors.end(),
@@ -160,44 +160,47 @@ void ErrorReporter::print_error_report(
 
             switch (error.severity) {
                 case ErrorSeverity::CRITICAL:
-                    severity_color = BOLD + RED;
+                    severity_color = bold_style + red_color;
                     severity_icon = "";
                     severity_prefix = "CRITICAL";
                     break;
                 case ErrorSeverity::ERROR:
-                    severity_color = RED;
+                    severity_color = red_color;
                     severity_icon = "";
                     severity_prefix = "ERROR";
                     break;
                 case ErrorSeverity::WARNING:
-                    severity_color = YELLOW;
+                    severity_color = yellow_color;
                     severity_icon = "";
                     severity_prefix = "WARNING";
                     break;
                 case ErrorSeverity::INFO:
-                    severity_color = CYAN;
+                    severity_color = cyan_color;
                     severity_icon = "";
                     severity_prefix = "INFO";
                     break;
             }
 
-            std::cout << BOLD << "┌─ " << error_count << ". " << severity_icon << " "
-                      << severity_color << severity_prefix << RESET << BOLD << " [" << BLUE
-                      << error.error_code << RESET << BOLD << "]" << RESET << '\n';
+            std::cout << bold_style << "┌─ " << error_count << ". " << severity_icon << " "
+                      << severity_color << severity_prefix << reset_color << bold_style << " ["
+                      << blue_color << error.error_code << reset_color << bold_style << "]"
+                      << reset_color << '\n';
 
-            std::cout << "│  " << DIM << "at line " << BOLD << error.position.line_number << RESET;
+            std::cout << "│  " << dim_style << "at line " << bold_style
+                      << error.position.line_number << reset_color;
             if (column_start > 0) {
-                std::cout << DIM << ", column " << BOLD << column_start << RESET;
+                std::cout << dim_style << ", column " << bold_style << column_start
+                          << reset_color;
             }
             std::cout << '\n';
 
-            std::cout << "│  " << severity_color << sanitized_message << RESET << '\n';
+            std::cout << "│  " << severity_color << sanitized_message << reset_color << '\n';
 
             if (show_context && !sanitized_line_content.empty()) {
                 std::cout << "│" << '\n';
 
                 std::string line_num_str = std::to_string(error.position.line_number);
-                std::cout << "│  " << DIM << line_num_str << " │ " << RESET;
+                std::cout << "│  " << dim_style << line_num_str << " │ " << reset_color;
 
                 size_t terminal_width = get_terminal_width();
                 size_t line_prefix_width = 6 + line_num_str.length();
@@ -350,15 +353,15 @@ void ErrorReporter::print_error_report(
 
                     if (start < display_line.length()) {
                         std::cout << display_line.substr(0, start);
-                        std::cout << BG_RED << WHITE;
+                        std::cout << bg_red_color << white_color;
                         if (end <= display_line.length()) {
                             std::cout << display_line.substr(start, end - start);
-                            std::cout << RESET;
+                            std::cout << reset_color;
                             if (end < display_line.length()) {
                                 std::cout << display_line.substr(end);
                             }
                         } else {
-                            std::cout << display_line.substr(start) << RESET;
+                            std::cout << display_line.substr(start) << reset_color;
                         }
                     } else {
                         std::cout << display_line;
@@ -369,8 +372,9 @@ void ErrorReporter::print_error_report(
                 std::cout << '\n';
 
                 if (column_start > 0 && adjusted_start < display_line.length()) {
-                    std::cout << "│  " << DIM << std::string(line_num_str.length(), ' ') << " │ "
-                              << RESET;
+                    std::cout << "│  " << dim_style
+                              << std::string(line_num_str.length(), ' ') << " │ "
+                              << reset_color;
                     std::cout << std::string(adjusted_start, ' ');
                     std::cout << severity_color << "^";
                     if (adjusted_end > adjusted_start + 1 &&
@@ -379,14 +383,14 @@ void ErrorReporter::print_error_report(
                                                       display_line.length() - adjusted_start - 1);
                         std::cout << std::string(tilde_count, '~');
                     }
-                    std::cout << RESET << '\n';
+                    std::cout << reset_color << '\n';
                 }
             }
 
             if (show_suggestions && !sanitized_suggestion.empty()) {
                 std::cout << "│" << '\n';
-                std::cout << "│  " << GREEN << "Suggestion: " << RESET << sanitized_suggestion
-                          << '\n';
+                std::cout << "│  " << green_color << "Suggestion: " << reset_color
+                          << sanitized_suggestion << '\n';
             }
 
             size_t terminal_width = get_terminal_width();
@@ -430,8 +434,8 @@ void ErrorReporter::print_error_report(
     error_reporting_in_progress = false;
 }
 
-void ErrorReporter::print_runtime_error(const std::string& error_message,
-                                        const std::string& context, size_t line_number) {
+void print_runtime_error(const std::string& error_message, const std::string& context,
+                         size_t line_number) {
     using ErrorSeverity = ShellScriptInterpreter::ErrorSeverity;
     using ErrorCategory = ShellScriptInterpreter::ErrorCategory;
     using SyntaxError = ShellScriptInterpreter::SyntaxError;
@@ -450,7 +454,7 @@ void ErrorReporter::print_runtime_error(const std::string& error_message,
     print_error_report(errors, true, !context.empty());
 }
 
-void ErrorReporter::reset_error_count() {
+void reset_error_count() {
 }
 
 }  // namespace shell_script_interpreter

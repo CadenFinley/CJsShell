@@ -235,8 +235,7 @@ int syntax_command(const std::vector<std::string>& args, Shell* shell) {
     if (quiet) {
         std::cout << errors.size() << '\n';
     } else {
-        shell_script_interpreter::ErrorReporter::print_error_report(errors, show_suggestions,
-                                                                    show_context, 1);
+        shell_script_interpreter::print_error_report(errors, show_suggestions, show_context, 1);
     }
 
     return errors.empty() ? 0 : 1;
