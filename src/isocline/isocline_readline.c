@@ -15,6 +15,7 @@
 #include "common.h"
 #include "env.h"
 #include "env_internal.h"
+#include "isocline.h"
 #include "stringbuf.h"
 
 //-------------------------------------------------------------
@@ -31,16 +32,27 @@ static char* ic_getline(alloc_t* mem) {
     getline_interrupt = false;
     stringbuf_t* sb = sbuf_new(mem);
     int c;
+    int last_char = 0;
     while (true) {
         c = fgetc(stdin);
         if (c == EOF || c == '\n') {
+            last_char = c;
             break;
         } else {
             sbuf_append_char(sb, (char)c);
         }
         if (getline_interrupt) {
+            last_char = 0;
             break;
         }
+    }
+    if (getline_interrupt && sbuf_len(sb) == 0) {
+        sbuf_free(sb);
+        return mem_strdup(mem, IC_READLINE_TOKEN_CTRL_C);
+    }
+    if (last_char == EOF && sbuf_len(sb) == 0) {
+        sbuf_free(sb);
+        return mem_strdup(mem, IC_READLINE_TOKEN_CTRL_D);
     }
     return sbuf_free_dup(sb);
 }

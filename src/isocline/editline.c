@@ -14,6 +14,7 @@
 #include "env.h"
 #include "highlight.h"
 #include "history.h"
+#include "isocline.h"
 #include "stringbuf.h"
 #include "term.h"
 #include "tty.h"
@@ -1319,6 +1320,9 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
 
     // process keys
     code_t c;  // current key code
+    bool ctrl_c_pressed = false;
+    bool ctrl_d_pressed = false;
+
     while (true) {
         // read a character
         term_flush(env->term);
@@ -1376,11 +1380,14 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
                 break;
             }
         } else if (c == KEY_CTRL_D) {
-            if (eb.pos == 0 && editor_pos_is_at_end(&eb))
-                break;                   // ctrl+D on empty quits with NULL
+            if (eb.pos == 0 && editor_pos_is_at_end(&eb)) {
+                ctrl_d_pressed = true;
+                break;  // ctrl+D on empty quits with CTRL+D token
+            }
             edit_delete_char(env, &eb);  // otherwise it is like delete
         } else if (c == KEY_CTRL_C || c == KEY_EVENT_STOP) {
-            break;  // ctrl+C or STOP event quits with NULL
+            ctrl_c_pressed = true;
+            break;  // ctrl+C or STOP event quits with CTRL+C token
         } else if (c == KEY_ESC) {
             if (eb.pos == 0 && editor_pos_is_at_end(&eb))
                 break;                  // ESC on empty input returns with empty input
@@ -1548,7 +1555,12 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
 
     // save result
     char* res;
-    if ((c == KEY_CTRL_D && sbuf_len(eb.input) == 0) || c == KEY_CTRL_C || c == KEY_EVENT_STOP) {
+    if (ctrl_d_pressed) {
+        res = mem_strdup(env->mem, IC_READLINE_TOKEN_CTRL_D);
+    } else if (ctrl_c_pressed) {
+        res = mem_strdup(env->mem, IC_READLINE_TOKEN_CTRL_C);
+    } else if ((c == KEY_CTRL_D && sbuf_len(eb.input) == 0) || c == KEY_CTRL_C ||
+               c == KEY_EVENT_STOP) {
         res = NULL;
     } else if (!tty_is_utf8(env->tty)) {
         res = sbuf_strdup_from_utf8(eb.input);
@@ -1645,6 +1657,9 @@ static char* edit_line_inline(ic_env_t* env, const char* prompt_text,
 
     // process keys
     code_t c;  // current key code
+    bool ctrl_c_pressed = false;
+    bool ctrl_d_pressed = false;
+
     while (true) {
         // read a character
         term_flush(env->term);
@@ -1702,11 +1717,14 @@ static char* edit_line_inline(ic_env_t* env, const char* prompt_text,
                 break;
             }
         } else if (c == KEY_CTRL_D) {
-            if (eb.pos == 0 && editor_pos_is_at_end(&eb))
-                break;                   // ctrl+D on empty quits with NULL
+            if (eb.pos == 0 && editor_pos_is_at_end(&eb)) {
+                ctrl_d_pressed = true;
+                break;  // ctrl+D on empty quits with CTRL+D token
+            }
             edit_delete_char(env, &eb);  // otherwise it is like delete
         } else if (c == KEY_CTRL_C || c == KEY_EVENT_STOP) {
-            break;  // ctrl+C or STOP event quits with NULL
+            ctrl_c_pressed = true;
+            break;  // ctrl+C or STOP event quits with CTRL+C token
         } else if (c == KEY_ESC) {
             if (eb.pos == 0 && editor_pos_is_at_end(&eb))
                 break;                  // ESC on empty input returns with empty input
@@ -1874,7 +1892,12 @@ static char* edit_line_inline(ic_env_t* env, const char* prompt_text,
 
     // save result
     char* res;
-    if ((c == KEY_CTRL_D && sbuf_len(eb.input) == 0) || c == KEY_CTRL_C || c == KEY_EVENT_STOP) {
+    if (ctrl_d_pressed) {
+        res = mem_strdup(env->mem, IC_READLINE_TOKEN_CTRL_D);
+    } else if (ctrl_c_pressed) {
+        res = mem_strdup(env->mem, IC_READLINE_TOKEN_CTRL_C);
+    } else if ((c == KEY_CTRL_D && sbuf_len(eb.input) == 0) || c == KEY_CTRL_C ||
+               c == KEY_EVENT_STOP) {
         res = NULL;
     } else if (!tty_is_utf8(env->tty)) {
         res = sbuf_strdup_from_utf8(eb.input);

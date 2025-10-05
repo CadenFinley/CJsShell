@@ -230,6 +230,17 @@ static std::pair<std::string, bool> get_next_command(bool command_was_available)
 
     command_to_run.assign(input);
     ic_free(input);
+
+    if (command_to_run == IC_READLINE_TOKEN_CTRL_D) {
+        g_exit_flag = true;
+        return {std::string(), false};
+    }
+
+    if (command_to_run == IC_READLINE_TOKEN_CTRL_C) {
+        g_shell->reset_command_timing();
+        return {std::string(), false};
+    }
+
     command_available = true;
 
     return {command_to_run, command_available};

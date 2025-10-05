@@ -21,6 +21,11 @@ extern "C" {
 #include "keybindings.h"
 #include "keycodes.h"
 
+/// Token returned from ic_readline* when Ctrl+C is pressed with an empty buffer.
+#define IC_READLINE_TOKEN_CTRL_C "<CTRL+C>"
+/// Token returned from ic_readline* when Ctrl+D is pressed with an empty buffer (EOF).
+#define IC_READLINE_TOKEN_CTRL_D "<CTRL+D>"
+
 /*! \mainpage
 Isocline C API reference.
 
@@ -57,7 +62,9 @@ Contents:
 ///   ("> ").
 /// @returns the heap allocated input on succes, which should be `free`d by the
 /// caller.
-///   Returns NULL on error, or if the user typed ctrl+d or ctrl+c.
+///   Returns NULL on error. When the user presses ctrl+d or ctrl+c on an empty
+///   buffer the functions return the tokens `IC_READLINE_TOKEN_CTRL_D` and
+///   `IC_READLINE_TOKEN_CTRL_C` respectively so callers can react accordingly.
 ///
 /// If the standard input (`stdin`) has no editing capability
 /// (like a dumb terminal (e.g. `TERM`=`dumb`), running in a debuggen, a pipe or
@@ -79,7 +86,9 @@ char* ic_readline(const char* prompt_text, const char* initial_input);
 ///   it will be overridden.
 /// @returns the heap allocated input on success, which should be `free`d by the
 /// caller.
-///   Returns NULL on error, or if the user typed ctrl+d or ctrl+c.
+///   Returns NULL on error. When the user presses ctrl+d or ctrl+c on an empty
+///   buffer the functions return the tokens `IC_READLINE_TOKEN_CTRL_D` and
+///   `IC_READLINE_TOKEN_CTRL_C` respectively so callers can react accordingly.
 ///
 /// @see ic_readline(), ic_set_prompt_marker(), ic_style_def()
 char* ic_readline_inline(const char* prompt_text, const char* inline_right_text,
