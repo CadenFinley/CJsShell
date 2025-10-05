@@ -15,7 +15,7 @@ class SignalMask {
 
    public:
     explicit SignalMask(int signum) : active(false) {
-        sigset_t mask = 0;
+        sigset_t mask{};
         sigemptyset(&mask);
         sigaddset(&mask, signum);
         if (sigprocmask(SIG_BLOCK, &mask, &old_mask) == 0) {
@@ -26,7 +26,7 @@ class SignalMask {
     explicit SignalMask(const std::vector<int>& signals) : active(false) {
         if (signals.empty())
             return;
-        sigset_t mask = 0;
+        sigset_t mask{};
         sigemptyset(&mask);
         for (int sig : signals) {
             sigaddset(&mask, sig);

@@ -25,13 +25,14 @@ struct JobControlJob {
     std::string command;
     JobState state{};
     int exit_status{};
-    bool notified{};
-    bool background;
-    bool reads_stdin;
-    bool awaiting_stdin_signal{};
-    int last_stdin_signal{};
-    int stdin_signal_count{};
-    std::chrono::steady_clock::time_point last_stdin_signal_time;
+    bool notified{false};
+    bool background{false};
+    bool reads_stdin{false};
+    bool awaiting_stdin_signal{false};
+    std::uint8_t last_stdin_signal{0};
+    std::uint16_t stdin_signal_count{0};
+    std::chrono::steady_clock::time_point last_stdin_signal_time{
+        std::chrono::steady_clock::time_point::min()};
 
     JobControlJob(int id, pid_t group_id, const std::vector<pid_t>& process_ids,
                   const std::string& cmd, bool is_background, bool consumes_stdin)
@@ -40,8 +41,7 @@ struct JobControlJob {
           pids(process_ids),
           command(cmd),
           background(is_background),
-          reads_stdin(consumes_stdin),
-          last_stdin_signal_time(std::chrono::steady_clock::time_point::min()) {
+          reads_stdin(consumes_stdin) {
     }
 };
 

@@ -9,6 +9,7 @@
 #include <csignal>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <memory>
 
 #include "error_out.h"
@@ -189,8 +190,11 @@ void JobManager::record_stdin_signal(pid_t pid, int signal_number) {
             std::find(job->pids.begin(), job->pids.end(), pid) != job->pids.end()) {
             job->reads_stdin = true;
             job->awaiting_stdin_signal = true;
-            job->last_stdin_signal = signal_number;
-            job->stdin_signal_count += 1;
+            const auto clamped_signal = std::clamp(signal_number, 0, 255);
+            job->last_stdin_signal = static_cast<std::uint8_t>(clamped_signal);
+            if (job->stdin_signal_count < std::numeric_limits<std::uint16_t>::max()) {
+                job->stdin_signal_count = static_cast<std::uint16_t>(job->stdin_signal_count + 1);
+            }
             job->last_stdin_signal_time = now;
             return;
         }

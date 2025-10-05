@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <string>
 
@@ -28,5 +29,5 @@ class CommandPreprocessor {
 
     static bool is_inside_quotes(const std::string& text, size_t pos);
 
-    static int placeholder_counter;
+    static std::uint32_t next_placeholder_id();
 };

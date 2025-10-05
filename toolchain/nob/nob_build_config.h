@@ -10,10 +10,9 @@ static const Build_Config build_config = {
                         "src/utils/libintl_shim.cpp", "src/shell_env.cpp"},
     .main_sources_count = 9,
 
-    .module_directories =
-        (const char*[]){"src/builtin", "src/ai", "src/prompt", "src/prompt/modules",
-                        "src/script_interpreter", "src/utils"},
-    .module_directories_count = 6,
+    .module_directories = (const char*[]){"src/builtin", "src/prompt", "src/prompt/modules",
+                                          "src/script_interpreter", "src/utils"},
+    .module_directories_count = 5,
 
     .isocline_c_sources = (const char*[]){"src/isocline/attr.c",
                                           "src/isocline/bbcode.c",

@@ -13,15 +13,15 @@
 struct Command;
 
 struct Job {
-    pid_t pgid;
+    pid_t pgid{0};
     std::string command;
-    bool background;
-    bool completed;
-    bool stopped;
-    int status;
+    bool background{false};
+    bool completed{false};
+    bool stopped{false};
+    int status{0};
     std::vector<pid_t> pids;
-    pid_t last_pid = -1;
-    int last_status = 0;
+    pid_t last_pid{-1};
+    int last_status{0};
 };
 
 class Exec {

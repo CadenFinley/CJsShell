@@ -1,6 +1,6 @@
 #include "command_preprocessor.h"
 
-int CommandPreprocessor::placeholder_counter = 0;
+#include <limits>
 
 CommandPreprocessor::PreprocessedCommand CommandPreprocessor::preprocess(
     const std::string& command) {
@@ -67,7 +67,7 @@ std::string CommandPreprocessor::process_here_documents(
 
     std::string content = result.substr(content_start, content_end - content_start);
 
-    std::string placeholder = "HEREDOC_PLACEHOLDER_" + std::to_string(++placeholder_counter);
+    std::string placeholder = "HEREDOC_PLACEHOLDER_" + std::to_string(next_placeholder_id());
 
     std::string rest_of_line = result.substr(delim_end, content_start - delim_end);
 
@@ -135,7 +135,15 @@ std::string CommandPreprocessor::process_subshells(const std::string& command) {
 }
 
 std::string CommandPreprocessor::generate_placeholder() {
-    return "HEREDOC_PLACEHOLDER_" + std::to_string(++placeholder_counter);
+    return "HEREDOC_PLACEHOLDER_" + std::to_string(next_placeholder_id());
+}
+
+std::uint32_t CommandPreprocessor::next_placeholder_id() {
+    static std::uint32_t counter = 0;
+    if (counter == std::numeric_limits<std::uint32_t>::max()) {
+        counter = 0;
+    }
+    return ++counter;
 }
 
 size_t CommandPreprocessor::find_matching_paren(const std::string& text, size_t start_pos) {
