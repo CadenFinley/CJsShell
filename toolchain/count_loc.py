@@ -61,6 +61,12 @@ def count_lines_in_file(file_path: Path, count_blank: bool = True, count_comment
     
     code_lines = total_lines - blank_lines - comment_lines
     
+    # If stripping comments and blanks, only count code lines
+    if not count_blank and not count_comments:
+        total_lines = code_lines
+        blank_lines = 0
+        comment_lines = 0
+    
     return {
         'total': total_lines,
         'blank': blank_lines,
@@ -119,6 +125,8 @@ def main():
                        help='Show detailed breakdown of line types')
     parser.add_argument('--by-extension', '-e', action='store_true',
                        help='Group results by file extension')
+    parser.add_argument('--strip', '-s', action='store_true',
+                       help='Strip comments and blank lines from count (only count code lines)')
     parser.add_argument('--include-dirs', nargs='*', 
                        help='Additional directories to include (default excludes: vendor, plugins, themes, build, toolchain, tests)')
     parser.add_argument('--exclude-dirs', nargs='*',
@@ -151,7 +159,7 @@ def main():
     extension_stats: Dict[str, Dict[str, int]] = {}
     
     for file_path in source_files:
-        line_counts = count_lines_in_file(file_path, count_blank=True, count_comments=True)
+        line_counts = count_lines_in_file(file_path, count_blank=not args.strip, count_comments=not args.strip)
         category = categorize_file(file_path, project_root)
         file_info.append((line_counts, file_path, category))
         
