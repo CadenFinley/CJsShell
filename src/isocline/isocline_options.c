@@ -10,9 +10,9 @@
     Runtime configuration helpers split from the original isocline.c file.
 -----------------------------------------------------------------------------*/
 
-#include "isocline/common.h"
-#include "isocline/env.h"
-#include "isocline/internal/env_internal.h"
+#include "common.h"
+#include "env.h"
+#include "env_internal.h"
 
 ic_public const char* ic_get_prompt_marker(void) {
     ic_env_t* env = ic_get_env();

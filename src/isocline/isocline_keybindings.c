@@ -16,10 +16,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "isocline/common.h"
-#include "isocline/env.h"
-#include "isocline/internal/keybinding_internal.h"
-#include "isocline/keybinding_specs.h"
+#include "common.h"
+#include "env.h"
+#include "keybinding_internal.h"
+#include "keybinding_specs.h"
 
 //-------------------------------------------------------------
 // Key binding helpers

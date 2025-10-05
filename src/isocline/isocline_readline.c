@@ -12,10 +12,10 @@
 
 #include <stdio.h>
 
-#include "isocline/common.h"
-#include "isocline/env.h"
-#include "isocline/internal/env_internal.h"
-#include "isocline/stringbuf.h"
+#include "common.h"
+#include "env.h"
+#include "env_internal.h"
+#include "stringbuf.h"
 
 //-------------------------------------------------------------
 // Global variables

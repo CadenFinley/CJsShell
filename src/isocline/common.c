@@ -6,7 +6,7 @@
   found in the "LICENSE" file at the root of this distribution.
 -----------------------------------------------------------------------------*/
 
-#include "isocline/common.h"
+#include "common.h"
 
 #include <stdarg.h>
 #include <stdio.h>

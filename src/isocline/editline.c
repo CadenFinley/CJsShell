@@ -9,15 +9,15 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "isocline/common.h"
-#include "isocline/completions.h"
-#include "isocline/env.h"
-#include "isocline/highlight.h"
-#include "isocline/history.h"
-#include "isocline/stringbuf.h"
-#include "isocline/term.h"
-#include "isocline/tty.h"
-#include "isocline/undo.h"
+#include "common.h"
+#include "completions.h"
+#include "env.h"
+#include "highlight.h"
+#include "history.h"
+#include "stringbuf.h"
+#include "term.h"
+#include "tty.h"
+#include "undo.h"
 
 //-------------------------------------------------------------
 // The editor state

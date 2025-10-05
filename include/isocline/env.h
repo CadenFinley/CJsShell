@@ -15,7 +15,7 @@
 #include "common.h"
 #include "completions.h"
 #include "history.h"
-#include "isocline/isocline.h"
+#include "isocline.h"
 #include "stringbuf.h"
 #include "term.h"
 #include "tty.h"

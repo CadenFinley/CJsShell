@@ -2,7 +2,7 @@
 #ifndef IC_INTERNAL_KEYBINDING_H
 #define IC_INTERNAL_KEYBINDING_H
 
-#include "isocline/common.h"
+#include "common.h"
 
 struct ic_env_s;
 struct ic_keybinding_profile_s;

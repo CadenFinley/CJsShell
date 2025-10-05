@@ -27,11 +27,11 @@
 #define S_ISVTX 01000 /* save swapped text even after use */
 #endif
 
-#include "isocline/common.h"
-#include "isocline/completions.h"
-#include "isocline/env.h"
-#include "isocline/isocline.h"
-#include "isocline/stringbuf.h"
+#include "common.h"
+#include "completions.h"
+#include "env.h"
+#include "isocline.h"
+#include "stringbuf.h"
 
 //-------------------------------------------------------------
 // Word completion

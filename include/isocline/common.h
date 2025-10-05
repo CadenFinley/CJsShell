@@ -19,9 +19,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <sys/types.h>  // ssize_t
+#include <sys/types.h>
 
-#include "isocline/isocline.h"  // ic_malloc_fun_t, ic_color_t etc.
+#include "isocline.h"
 
 #ifdef __cplusplus
 #define ic_extern_c extern "C"

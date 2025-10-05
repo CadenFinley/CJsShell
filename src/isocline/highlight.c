@@ -8,11 +8,11 @@
 
 #include <string.h>
 
-#include "isocline/attr.h"
-#include "isocline/bbcode.h"
-#include "isocline/common.h"
-#include "isocline/stringbuf.h"
-#include "isocline/term.h"
+#include "attr.h"
+#include "bbcode.h"
+#include "common.h"
+#include "stringbuf.h"
+#include "term.h"
 
 //-------------------------------------------------------------
 // Syntax highlighting

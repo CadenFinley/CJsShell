@@ -5,16 +5,16 @@
   under the terms of the MIT License. A copy of the license can be
   found in the "LICENSE" file at the root of this distribution.
 -----------------------------------------------------------------------------*/
-#include "isocline/completions.h"
+#include "completions.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "isocline/common.h"
-#include "isocline/env.h"
-#include "isocline/isocline.h"
-#include "isocline/stringbuf.h"
+#include "common.h"
+#include "env.h"
+#include "isocline.h"
+#include "stringbuf.h"
 
 //-------------------------------------------------------------
 // Completions

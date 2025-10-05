@@ -5,13 +5,13 @@
   under the terms of the MIT License. A copy of the license can be
   found in the "LICENSE" file at the root of this distribution.
 -----------------------------------------------------------------------------*/
-#include "isocline/attr.h"
+#include "attr.h"
 
 #include <string.h>
 
-#include "isocline/common.h"
-#include "isocline/stringbuf.h"  // str_next_ofs
-#include "isocline/term.h"       // color_from_ansi256
+#include "common.h"
+#include "stringbuf.h"
+#include "term.h"
 
 //-------------------------------------------------------------
 // Attributes

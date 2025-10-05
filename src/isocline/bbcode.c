@@ -5,16 +5,16 @@
   under the terms of the MIT License. A copy of the license can be
   found in the "LICENSE" file at the root of this distribution.
 -----------------------------------------------------------------------------*/
-#include "isocline/bbcode.h"
+#include "bbcode.h"
 
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "isocline/attr.h"
-#include "isocline/common.h"
-#include "isocline/term.h"
+#include "attr.h"
+#include "common.h"
+#include "term.h"
 
 //-------------------------------------------------------------
 // HTML color table

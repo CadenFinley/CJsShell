@@ -12,8 +12,8 @@
 
 #include <stdarg.h>
 
-#include "isocline/common.h"
-#include "isocline/env.h"
+#include "common.h"
+#include "env.h"
 
 ic_public void ic_printf(const char* fmt, ...) {
     va_list ap;

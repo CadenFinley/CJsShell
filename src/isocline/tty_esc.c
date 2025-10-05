@@ -7,7 +7,7 @@
 -----------------------------------------------------------------------------*/
 #include <string.h>
 
-#include "isocline/tty.h"
+#include "tty.h"
 
 /*-------------------------------------------------------------
 Decoding escape sequences to key codes.

@@ -25,7 +25,7 @@ typedef struct help_line_s {
     const char* default_specs;
 } help_line_t;
 
-#include "isocline/isocline.h"
+#include "isocline.h"
 
 static const help_line_t help_lines[] = {
     {HELP_LINE_BLANK, NULL, NULL, IC_KEY_ACTION__MAX, NULL},

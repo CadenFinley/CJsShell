@@ -12,10 +12,10 @@
 
 #include <stdlib.h>
 
-#include "isocline/common.h"
-#include "isocline/env.h"
-#include "isocline/internal/env_internal.h"
-#include "isocline/internal/keybinding_internal.h"
+#include "common.h"
+#include "env.h"
+#include "env_internal.h"
+#include "keybinding_internal.h"
 
 //-------------------------------------------------------------
 // Prompt helpers shared with other modules

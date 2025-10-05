@@ -12,8 +12,8 @@
 
 #include <stdarg.h>
 
-#include "isocline/common.h"
-#include "isocline/env.h"
+#include "common.h"
+#include "env.h"
 
 ic_public void ic_term_init(void) {
     ic_env_t* env = ic_get_env();

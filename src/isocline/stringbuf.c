@@ -12,8 +12,8 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "isocline/common.h"
-#include "isocline/stringbuf.h"
+#include "common.h"
+#include "stringbuf.h"
 
 //-------------------------------------------------------------
 // In place growable utf-8 strings

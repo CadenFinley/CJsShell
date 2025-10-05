@@ -5,7 +5,7 @@
   under the terms of the MIT License. A copy of the license can be
   found in the "LICENSE" file at the root of this distribution.
 -----------------------------------------------------------------------------*/
-#include "isocline/term.h"
+#include "term.h"
 
 #include <inttypes.h>
 #include <stdarg.h>
@@ -13,9 +13,9 @@
 #include <stdlib.h>  // getenv
 #include <string.h>
 
-#include "isocline/common.h"
-#include "isocline/stringbuf.h"  // str_next_ofs
-#include "isocline/tty.h"
+#include "common.h"
+#include "stringbuf.h"  // str_next_ofs
+#include "tty.h"
 
 #if defined(_WIN32)
 #include <windows.h>

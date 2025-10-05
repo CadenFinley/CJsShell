@@ -8,7 +8,7 @@
 
 // This file is included from "bbcode.c" and contains html color names
 
-#include "isocline/common.h"
+#include "common.h"
 
 typedef struct style_color_s {
     const char* name;

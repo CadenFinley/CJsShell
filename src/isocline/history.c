@@ -5,15 +5,15 @@
   under the terms of the MIT License. A copy of the license can be
   found in the "LICENSE" file at the root of this distribution.
 -----------------------------------------------------------------------------*/
-#include "isocline/history.h"
+#include "history.h"
 
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
 
-#include "isocline/common.h"
-#include "isocline/isocline.h"
-#include "isocline/stringbuf.h"
+#include "common.h"
+#include "isocline.h"
+#include "stringbuf.h"
 
 #define IC_DEFAULT_HISTORY (200)
 #define IC_ABSOLUTE_MAX_HISTORY (5000)

@@ -2,7 +2,7 @@
 #ifndef IC_INTERNAL_ENV_H
 #define IC_INTERNAL_ENV_H
 
-#include "isocline/common.h"
+#include "common.h"
 
 struct ic_env_s;
 

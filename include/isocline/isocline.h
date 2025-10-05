@@ -13,10 +13,10 @@
 extern "C" {
 #endif
 
-#include <stdarg.h>   // term_vprintf
-#include <stdbool.h>  // bool
-#include <stddef.h>   // size_t
-#include <stdint.h>   // uint32_t
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #include "keybindings.h"
 #include "keycodes.h"
