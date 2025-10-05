@@ -271,7 +271,7 @@ void main_process_loop() {
             }
             break;
         }
-        if (g_theme && g_theme->newline_after_execution() && command_available) {
+        if (g_theme && g_theme->newline_after_execution() && command_available && (command_to_run != "clear")) {
             (void)std::fputc('\n', stdout);
             (void)std::fflush(stdout);
         }
