@@ -38,4 +38,4 @@ typedef struct {
     size_t dependency_urls_count;
 } Build_Config;
 
-#endif  // CJSH_NOB_TYPES_H
+#endif

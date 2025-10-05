@@ -60,4 +60,4 @@ static inline bool collect_c_sources(String_Array* c_sources) {
     return true;
 }
 
-#endif  // CJSH_NOB_SOURCES_H
+#endif

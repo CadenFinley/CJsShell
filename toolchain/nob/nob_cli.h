@@ -62,4 +62,4 @@ static inline void print_dependencies(void) {
     printf("and builds all components from the source tree.\n");
 }
 
-#endif  // CJSH_NOB_CLI_H
+#endif

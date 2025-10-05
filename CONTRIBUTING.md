@@ -61,7 +61,7 @@ Before committing, ensure code is formatted:
 
 ```bash
 # Format all C/C++ files
-clang-format -i src/**/*.cpp include/**/*.h
+clang-format -i src/**/*.cpp include/**/*.h toolchain/nob/*.c toolchain/nob/*.h
 ```
 
 ### 2. Build Verification

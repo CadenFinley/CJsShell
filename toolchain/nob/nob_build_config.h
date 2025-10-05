@@ -27,8 +27,8 @@ static const Build_Config build_config = {
     .include_directories =
         (const char*[]){"include", "include/isocline", "include/builtin", "include/utils",
                         "include/prompt", "include/prompt/modules", "include/ai", "include/plugins",
-                        "include/script_interpreter", "build/vendor"},
-    .include_directories_count = 10,
+                        "include/script_interpreter"},
+    .include_directories_count = 9,
 
     .c_include_directories = (const char*[]){"include", "include/isocline"},
     .c_include_directories_count = 2,
@@ -45,4 +45,4 @@ static const Build_Config build_config = {
     .dependency_urls = NULL,
     .dependency_urls_count = 0};
 
-#endif  // CJSH_NOB_BUILD_CONFIG_H
+#endif

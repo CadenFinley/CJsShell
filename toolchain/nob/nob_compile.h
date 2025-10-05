@@ -8,7 +8,6 @@
 #include <string.h>
 
 #include "nob_dependencies.h"
-#include "nob_progress.h"
 #include "nob_sources.h"
 #include "nob_toolchain.h"
 
@@ -162,7 +161,6 @@ static inline bool parse_dependency_file(const char* dep_path, String_Array* dep
         } else {
             size_t token_len = strlen(ptr);
             if (token_len > 0 && ptr[token_len - 1] == ':') {
-                // Skip phony targets produced by dependency generators
             } else if (!string_array_contains(deps, ptr)) {
                 nob_da_append(deps, strdup(ptr));
             }
@@ -215,52 +213,28 @@ static inline bool nob_cmd_run_with_spinner(Nob_Cmd* cmd, const char* label) {
         label = "Working";
     }
 
+    extern bool nob_suppress_cmd_output;
+    nob_suppress_cmd_output = true;
+
+    nob_log(NOB_INFO, "%s...", label);
     Nob_Proc proc = nob__cmd_start_process(*cmd, NULL, NULL, NULL);
+
+    nob_suppress_cmd_output = false;
+
     if (proc == NOB_INVALID_PROC) {
         cmd->count = 0;
         return false;
     }
 
-    static const char spinner_chars[] = "|/-\\";
-    const size_t spinner_count = sizeof(spinner_chars) - 1;
-    size_t spinner_index = 0;
-    size_t tick = 0;
-    const int wait_interval_ms = 120;
-    bool show_spinner = should_show_progress();
-
-    for (;;) {
-        int wait_result = nob__proc_wait_async(proc, wait_interval_ms);
-        if (wait_result < 0) {
-            if (show_spinner) {
-                clear_progress_line();
-                fflush(stdout);
-            }
-            cmd->count = 0;
-            return false;
-        }
-
-        if (wait_result > 0) {
-            if (show_spinner) {
-                clear_progress_line();
-                printf("%s %s\n", label, "✓");
-                fflush(stdout);
-            } else {
-                nob_log(NOB_INFO, "%s complete.", label);
-            }
-            cmd->count = 0;
-            return true;
-        }
-
-        if (show_spinner && spinner_count > 0) {
-            printf("\r\033[K%s %c", label, spinner_chars[spinner_index]);
-            fflush(stdout);
-            spinner_index = (spinner_index + 1) % spinner_count;
-        } else if (tick > 0 && tick % 25 == 0) {
-            nob_log(NOB_INFO, "%s still running...", label);
-        }
-
-        tick++;
+    bool wait_result = nob_proc_wait(proc);
+    if (!wait_result) {
+        cmd->count = 0;
+        return false;
     }
+
+    nob_log(NOB_INFO, "%s complete.", label);
+    cmd->count = 0;
+    return true;
 }
 
 typedef struct {
@@ -494,10 +468,6 @@ static inline bool compile_cjsh(int override_parallel_jobs, bool generate_compil
 
     size_t total_source_files = cpp_sources.count + c_sources.count;
 
-    Nob_Log_Level original_log_level = nob_minimal_log_level;
-    size_t completed_cpp_files = 0;
-
-    // First pass: determine which files need to be compiled
     String_Array files_to_compile = {0};
     String_Array corresponding_obj_files = {0};
     String_Array corresponding_dep_files = {0};
@@ -522,7 +492,6 @@ static inline bool compile_cjsh(int override_parallel_jobs, bool generate_compil
         }
         nob_sb_append_null(&obj_name);
 
-        // Determine dependency file path
         Nob_String_Builder dep_name = {0};
         nob_sb_append_cstr(&dep_name, "build/obj/");
         if (base_len > 4 && strcmp(basename + base_len - 4, ".cpp") == 0) {
@@ -534,7 +503,6 @@ static inline bool compile_cjsh(int override_parallel_jobs, bool generate_compil
         }
         nob_sb_append_null(&dep_name);
 
-        // Check if compilation is needed
         int rebuild_result =
             needs_rebuild_with_dependency_file(obj_name.items, source, dep_name.items);
         if (rebuild_result < 0) {
@@ -545,7 +513,6 @@ static inline bool compile_cjsh(int override_parallel_jobs, bool generate_compil
         }
 
         if (rebuild_result > 0) {
-            // File needs to be compiled
             nob_da_append(&files_to_compile, source);
             nob_da_append(&corresponding_obj_files, strdup(obj_name.items));
             nob_da_append(&corresponding_dep_files, strdup(dep_name.items));
@@ -583,34 +550,29 @@ static inline bool compile_cjsh(int override_parallel_jobs, bool generate_compil
             nob_cmd_free(cc_cmd);
         }
 
-        // Always add to obj_files for linking
         nob_da_append(&obj_files, strdup(obj_name.items));
         nob_sb_free(dep_name);
         nob_sb_free(obj_name);
     }
 
-    // Calculate parallel jobs based on files that actually need compilation
-    // (but consider total project size for context)
     int max_parallel_jobs;
     if (override_parallel_jobs > 0) {
-        max_parallel_jobs = override_parallel_jobs;  // Use user-specified value
+        max_parallel_jobs = override_parallel_jobs;
     } else {
-        // Automatic calculation based on files to compile and project size:
         size_t files_needing_compilation = files_to_compile.count;
 
         if (files_needing_compilation == 0) {
-            max_parallel_jobs = 1;  // Doesn't matter, no compilation needed
+            max_parallel_jobs = 1;
         } else if (files_needing_compilation <= 2) {
-            max_parallel_jobs = 1;  // Sequential for very few files
+            max_parallel_jobs = 1;
         } else if (files_needing_compilation <= 8 || total_source_files <= 8) {
-            // For small compilations or small projects, use limited parallelism
             max_parallel_jobs = (int)files_needing_compilation < max_cpu_cores / 2
                                     ? (int)files_needing_compilation
                                     : max_cpu_cores / 2;
             if (max_parallel_jobs < 1)
                 max_parallel_jobs = 1;
         } else {
-            max_parallel_jobs = max_cpu_cores;  // Use all cores for larger compilations
+            max_parallel_jobs = max_cpu_cores;
         }
     }
 
@@ -630,11 +592,15 @@ static inline bool compile_cjsh(int override_parallel_jobs, bool generate_compil
                 "Starting parallel compilation of %zu C++ files (skipping %zu "
                 "up-to-date)...",
                 files_to_compile.count, cpp_sources.count - files_to_compile.count);
-        nob_minimal_log_level = NOB_WARNING;
+
+        extern size_t nob_compile_current;
+        extern size_t nob_compile_total;
+        extern const char* nob_compile_filename;
+        nob_compile_total = files_to_compile.count;
+
         for (size_t i = 0; i < files_to_compile.count; i++) {
             Nob_Cmd cmd = {0};
             if (!setup_build_flags(&cmd)) {
-                nob_minimal_log_level = original_log_level;
                 return false;
             }
 
@@ -652,37 +618,37 @@ static inline bool compile_cjsh(int override_parallel_jobs, bool generate_compil
 
             nob_cmd_append(&cmd, "-o", corresponding_obj_files.items[i]);
 
+            nob_compile_current = i + 1;
+            nob_compile_filename = basename;
+
             if (!nob_cmd_run(&cmd, .async = &procs, .max_procs = max_parallel_jobs)) {
-                nob_minimal_log_level = original_log_level;
                 nob_log(NOB_ERROR, "Failed to start compilation of %s", source);
+                nob_compile_total = 0;
+                nob_compile_filename = NULL;
                 return false;
             }
-
-            const char* progress_label = (i + 1 == files_to_compile.count) ? "Complete!" : basename;
-            update_progress_safe(progress_label, i + 1, files_to_compile.count);
-            completed_cpp_files++;
         }
     }
 
-    nob_minimal_log_level = original_log_level;
     if (files_to_compile.count > 0) {
-        clear_progress_line();
         nob_log(NOB_INFO, "Waiting for C++ compilation to complete...");
-        nob_minimal_log_level = NOB_WARNING;
         if (!nob_procs_flush(&procs)) {
-            handle_compiler_output_interruption();
-            clear_progress_line();
-            nob_minimal_log_level = original_log_level;
             nob_log(NOB_ERROR, "C++ compilation failed");
+
+            extern size_t nob_compile_total;
+            extern const char* nob_compile_filename;
+            nob_compile_total = 0;
+            nob_compile_filename = NULL;
             return false;
         }
-        handle_compiler_output_interruption();
-        clear_progress_line();
-        nob_minimal_log_level = original_log_level;
         nob_log(NOB_INFO, "All %zu C++ files compiled successfully", files_to_compile.count);
+
+        extern size_t nob_compile_total;
+        extern const char* nob_compile_filename;
+        nob_compile_total = 0;
+        nob_compile_filename = NULL;
     }
 
-    // Clean up temporary arrays and track totals
     size_t cpp_files_compiled = files_to_compile.count;
     nob_da_free(files_to_compile);
     for (size_t i = 0; i < corresponding_obj_files.count; i++) {
@@ -694,7 +660,6 @@ static inline bool compile_cjsh(int override_parallel_jobs, bool generate_compil
     }
     nob_da_free(corresponding_dep_files);
 
-    // Second pass: determine which C files need to be compiled
     String_Array c_files_to_compile = {0};
     String_Array c_corresponding_obj_files = {0};
     String_Array c_corresponding_dep_files = {0};
@@ -730,7 +695,6 @@ static inline bool compile_cjsh(int override_parallel_jobs, bool generate_compil
         }
         nob_sb_append_null(&dep_name);
 
-        // Check if compilation is needed
         int rebuild_result =
             needs_rebuild_with_dependency_file(obj_name.items, source, dep_name.items);
         if (rebuild_result < 0) {
@@ -741,36 +705,30 @@ static inline bool compile_cjsh(int override_parallel_jobs, bool generate_compil
         }
 
         if (rebuild_result > 0) {
-            // File needs to be compiled
             nob_da_append(&c_files_to_compile, source);
             nob_da_append(&c_corresponding_obj_files, strdup(obj_name.items));
             nob_da_append(&c_corresponding_dep_files, strdup(dep_name.items));
         }
 
-        // Always add to obj_files for linking
         nob_da_append(&obj_files, strdup(obj_name.items));
         nob_sb_free(dep_name);
         nob_sb_free(obj_name);
     }
 
-    // Recalculate parallel jobs for C files if needed
     if (c_files_to_compile.count > 0) {
         if (override_parallel_jobs <= 0) {
-            // Only recalculate if we're using automatic calculation
             size_t c_files_needing_compilation = c_files_to_compile.count;
 
             if (c_files_needing_compilation <= 2) {
-                max_parallel_jobs = 1;  // Sequential for very few files
+                max_parallel_jobs = 1;
             } else if (c_files_needing_compilation <= 8 || total_source_files <= 8) {
-                // For small compilations or small projects, use limited
-                // parallelism
                 max_parallel_jobs = (int)c_files_needing_compilation < max_cpu_cores / 2
                                         ? (int)c_files_needing_compilation
                                         : max_cpu_cores / 2;
                 if (max_parallel_jobs < 1)
                     max_parallel_jobs = 1;
             } else {
-                max_parallel_jobs = max_cpu_cores;  // Use all cores for larger compilations
+                max_parallel_jobs = max_cpu_cores;
             }
         }
     }
@@ -787,11 +745,15 @@ static inline bool compile_cjsh(int override_parallel_jobs, bool generate_compil
             nob_log(NOB_INFO, "Using %d parallel compilation jobs (auto) for %zu C files",
                     max_parallel_jobs, c_files_to_compile.count);
         }
-        nob_minimal_log_level = NOB_WARNING;
+
+        extern size_t nob_compile_current;
+        extern size_t nob_compile_total;
+        extern const char* nob_compile_filename;
+        nob_compile_total = c_files_to_compile.count;
+
         for (size_t i = 0; i < c_files_to_compile.count; i++) {
             Nob_Cmd cmd = {0};
             if (!setup_c_build_flags(&cmd)) {
-                nob_minimal_log_level = original_log_level;
                 return false;
             }
 
@@ -809,36 +771,36 @@ static inline bool compile_cjsh(int override_parallel_jobs, bool generate_compil
 
             nob_cmd_append(&cmd, "-o", c_corresponding_obj_files.items[i]);
 
+            nob_compile_current = i + 1;
+            nob_compile_filename = basename;
+
             if (!nob_cmd_run(&cmd, .async = &procs, .max_procs = max_parallel_jobs)) {
-                nob_minimal_log_level = original_log_level;
                 nob_log(NOB_ERROR, "Failed to start compilation of %s", source);
+                nob_compile_total = 0;
+                nob_compile_filename = NULL;
                 return false;
             }
-
-            const char* progress_label =
-                (i + 1 == c_files_to_compile.count) ? "Complete!" : basename;
-            update_progress_safe(progress_label, i + 1, c_files_to_compile.count);
         }
     }
 
-    nob_minimal_log_level = original_log_level;
     if (c_files_to_compile.count > 0) {
-        clear_progress_line();
         nob_log(NOB_INFO, "Waiting for C compilation to complete...");
-        nob_minimal_log_level = NOB_WARNING;
         if (!nob_procs_flush(&procs)) {
-            handle_compiler_output_interruption();
-            clear_progress_line();
-            nob_minimal_log_level = original_log_level;
             nob_log(NOB_ERROR, "C compilation failed");
+
+            extern size_t nob_compile_total;
+            extern const char* nob_compile_filename;
+            nob_compile_total = 0;
+            nob_compile_filename = NULL;
             return false;
         }
-        handle_compiler_output_interruption();
-        clear_progress_line();
-        nob_minimal_log_level = original_log_level;
+
+        extern size_t nob_compile_total;
+        extern const char* nob_compile_filename;
+        nob_compile_total = 0;
+        nob_compile_filename = NULL;
     }
 
-    // Clean up temporary arrays
     size_t c_files_compiled = c_files_to_compile.count;
     nob_da_free(c_files_to_compile);
     for (size_t i = 0; i < c_corresponding_obj_files.count; i++) {
@@ -876,12 +838,10 @@ static inline bool compile_cjsh(int override_parallel_jobs, bool generate_compil
         compile_commands_directory = NULL;
     }
 
-    // Check if linking is needed
     const char* output_binary = "build/" PROJECT_NAME;
-    bool needs_linking = (total_compiled > 0);  // If we compiled anything, we need to relink
+    bool needs_linking = (total_compiled > 0);
 
     if (!needs_linking) {
-        // Check if binary exists and is newer than all object files
         const char** obj_file_ptrs = (const char**)obj_files.items;
         int rebuild_result = nob_needs_rebuild(output_binary, obj_file_ptrs, obj_files.count);
         if (rebuild_result < 0) {
@@ -893,8 +853,7 @@ static inline bool compile_cjsh(int override_parallel_jobs, bool generate_compil
 
     if (!needs_linking) {
         nob_log(NOB_INFO, "Binary is up to date, skipping linking");
-        nob_minimal_log_level = original_log_level;
-        // Clean up and return
+
         nob_da_free(cpp_sources);
         nob_da_free(c_sources);
         for (size_t i = 0; i < obj_files.count; i++) {
@@ -906,7 +865,6 @@ static inline bool compile_cjsh(int override_parallel_jobs, bool generate_compil
     }
 
     nob_log(NOB_INFO, "Linking binary...");
-    nob_minimal_log_level = NOB_WARNING;
     Nob_Cmd link_cmd = {0};
 
     const char* linker = get_linker();
@@ -945,8 +903,8 @@ static inline bool compile_cjsh(int override_parallel_jobs, bool generate_compil
         if (g_minimal_build) {
             nob_cmd_append(&link_cmd, "-Wl,--strip-all", "-Wl,--discard-all");
             nob_cmd_append(&link_cmd, "-Wl,--no-undefined", "-Wl,--compress-debug-sections=zlib");
-            nob_cmd_append(&link_cmd, "-Wl,-O2");  // More aggressive linker optimization
-            nob_cmd_append(&link_cmd, "-Wl,--hash-style=gnu");  // Smaller hash table
+            nob_cmd_append(&link_cmd, "-Wl,-O2");
+            nob_cmd_append(&link_cmd, "-Wl,--hash-style=gnu");
         }
     }
 #endif
@@ -980,12 +938,9 @@ static inline bool compile_cjsh(int override_parallel_jobs, bool generate_compil
     }
 
     if (!nob_cmd_run_with_spinner(&link_cmd, "Linking cjsh")) {
-        nob_minimal_log_level = original_log_level;
         nob_log(NOB_ERROR, "Linking failed");
         return false;
     }
-
-    nob_minimal_log_level = original_log_level;
 
     const char* strip_env = getenv("CJSH_STRIP_BINARY");
 #if defined(PLATFORM_MACOS) || defined(PLATFORM_LINUX)
@@ -1025,4 +980,4 @@ static inline bool compile_cjsh(int override_parallel_jobs, bool generate_compil
     return true;
 }
 
-#endif  // CJSH_NOB_COMPILE_H
+#endif

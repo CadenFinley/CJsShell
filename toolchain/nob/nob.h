@@ -941,6 +941,12 @@ NOBDEF void nob__go_rebuild_urself(int argc, char** argv, const char* source_pat
 static size_t nob_temp_size = 0;
 static char nob_temp[NOB_TEMP_CAPACITY] = {0};
 
+// Compile progress tracking (for CMake-style output)
+static size_t nob_compile_current = 0;
+static size_t nob_compile_total = 0;
+static const char* nob_compile_filename = NULL;
+static bool nob_suppress_cmd_output = false;  // Flag to suppress verbose command output
+
 NOBDEF bool nob_mkdir_if_not_exists(const char* path) {
 #ifdef _WIN32
     int result = _mkdir(path);
@@ -1189,9 +1195,16 @@ static Nob_Proc nob__cmd_start_process(Nob_Cmd cmd, Nob_Fd* fdin, Nob_Fd* fdout,
     }
 
     Nob_String_Builder sb = {0};
-    nob_cmd_render(cmd, &sb);
-    nob_sb_append_null(&sb);
-    nob_log(NOB_INFO, "CMD: %s", sb.items);
+    // Use CMake-style output if compile tracking is active
+    if (nob_compile_total > 0 && nob_compile_filename != NULL) {
+        int percentage = (int)((nob_compile_current * 100) / nob_compile_total);
+        nob_log(NOB_INFO, "[%3d%%] Building %s", percentage, nob_compile_filename);
+    } else if (!nob_suppress_cmd_output) {
+        // Only log full command if not suppressed
+        nob_cmd_render(cmd, &sb);
+        nob_sb_append_null(&sb);
+        nob_log(NOB_INFO, "CMD: %s", sb.items);
+    }
     nob_sb_free(sb);
     memset(&sb, 0, sizeof(sb));
 

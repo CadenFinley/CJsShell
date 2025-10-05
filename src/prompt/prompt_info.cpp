@@ -70,13 +70,13 @@
  * {RUST_VERSION} - Rust version if in Rust project
  * {GOLANG_VERSION} - Go version if in Go project
  * {JAVA_VERSION} - Java version if in Java project
- * {LANGUAGE_VERSIONS} - Combined language versions (only shows detected projects) 
- * {PYTHON_VENV} - Python virtual environment name 
- * {NODEJS_PM} - Node.js package manager (npm, yarn, pnpm) 
- * {IS_PYTHON_PROJECT} - Whether current directory is a Python project 
- * {IS_NODEJS_PROJECT} - Whether current directory is a Node.js project 
- * {IS_RUST_PROJECT} - Whether current directory is a Rust project 
- * {IS_GOLANG_PROJECT} - Whether current directory is a Go project 
+ * {LANGUAGE_VERSIONS} - Combined language versions (only shows detected projects)
+ * {PYTHON_VENV} - Python virtual environment name
+ * {NODEJS_PM} - Node.js package manager (npm, yarn, pnpm)
+ * {IS_PYTHON_PROJECT} - Whether current directory is a Python project
+ * {IS_NODEJS_PROJECT} - Whether current directory is a Node.js project
+ * {IS_RUST_PROJECT} - Whether current directory is a Rust project
+ * {IS_GOLANG_PROJECT} - Whether current directory is a Go project
  * {IS_JAVA_PROJECT} - Whether current directory is a Java project
  *
  * Container placeholders:

@@ -44,4 +44,4 @@ static inline bool download_dependencies(void) {
     return true;
 }
 
-#endif  // CJSH_NOB_DEPENDENCIES_H
+#endif
