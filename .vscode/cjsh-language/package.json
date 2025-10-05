@@ -13,6 +13,7 @@
         "id": "cjsh-theme",
         "aliases": ["CJsShell Theme", "cjsh"],
         "extensions": [".cjsh"],
+        "filenames": [".cjshrc", ".cjsh_logout", ".cjprofile"],
         "configuration": "./language-configuration.json"
       }
     ],
