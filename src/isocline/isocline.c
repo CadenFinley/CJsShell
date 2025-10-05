@@ -50,6 +50,7 @@
 #include "isocline/common.h"
 #include "isocline/env.h"
 #include "isocline/isocline.h"
+#include "isocline/keybinding_specs.h"
 
 //-------------------------------------------------------------
 // Global variables
@@ -139,6 +140,102 @@ static size_t key_action_name_count(void) {
     return sizeof(key_action_names) / sizeof(key_action_names[0]);
 }
 
+typedef struct keybinding_profile_action_spec_s {
+    ic_key_action_t action;
+    const char* specs;
+} keybinding_profile_action_spec_t;
+
+typedef struct keybinding_profile_binding_s {
+    ic_key_action_t action;
+    const char* specs;
+} keybinding_profile_binding_t;
+
+typedef struct ic_keybinding_profile_s {
+    const char* name;
+    const char* description;
+    const struct ic_keybinding_profile_s* parent;
+    const keybinding_profile_action_spec_t* specs;
+    size_t spec_count;
+    const keybinding_profile_binding_t* bindings;
+    size_t binding_count;
+} keybinding_profile_t;
+
+static const keybinding_profile_action_spec_t keybinding_profile_default_spec_entries[] = {
+    {IC_KEY_ACTION_CURSOR_LEFT, SPEC_CURSOR_LEFT},
+    {IC_KEY_ACTION_CURSOR_RIGHT_OR_COMPLETE, SPEC_CURSOR_RIGHT},
+    {IC_KEY_ACTION_CURSOR_UP, SPEC_CURSOR_UP},
+    {IC_KEY_ACTION_CURSOR_DOWN, SPEC_CURSOR_DOWN},
+    {IC_KEY_ACTION_CURSOR_WORD_PREV, SPEC_CURSOR_WORD_PREV},
+    {IC_KEY_ACTION_CURSOR_WORD_NEXT_OR_COMPLETE, SPEC_CURSOR_WORD_NEXT},
+    {IC_KEY_ACTION_CURSOR_LINE_START, SPEC_CURSOR_LINE_START},
+    {IC_KEY_ACTION_CURSOR_LINE_END, SPEC_CURSOR_LINE_END},
+    {IC_KEY_ACTION_CURSOR_INPUT_START, SPEC_CURSOR_INPUT_START},
+    {IC_KEY_ACTION_CURSOR_INPUT_END, SPEC_CURSOR_INPUT_END},
+    {IC_KEY_ACTION_CURSOR_MATCH_BRACE, SPEC_CURSOR_MATCH_BRACE},
+    {IC_KEY_ACTION_HISTORY_PREV, SPEC_HISTORY_PREV},
+    {IC_KEY_ACTION_HISTORY_NEXT, SPEC_HISTORY_NEXT},
+    {IC_KEY_ACTION_HISTORY_SEARCH, SPEC_HISTORY_SEARCH},
+    {IC_KEY_ACTION_DELETE_FORWARD, SPEC_DELETE_FORWARD},
+    {IC_KEY_ACTION_DELETE_BACKWARD, SPEC_DELETE_BACKWARD},
+    {IC_KEY_ACTION_DELETE_WORD_START_WS, SPEC_DELETE_WORD_START_WS},
+    {IC_KEY_ACTION_DELETE_WORD_START, SPEC_DELETE_WORD_START},
+    {IC_KEY_ACTION_DELETE_WORD_END, SPEC_DELETE_WORD_END},
+    {IC_KEY_ACTION_DELETE_LINE_START, SPEC_DELETE_LINE_START},
+    {IC_KEY_ACTION_DELETE_LINE_END, SPEC_DELETE_LINE_END},
+    {IC_KEY_ACTION_TRANSPOSE_CHARS, SPEC_TRANSPOSE},
+    {IC_KEY_ACTION_CLEAR_SCREEN, SPEC_CLEAR_SCREEN},
+    {IC_KEY_ACTION_UNDO, SPEC_UNDO},
+    {IC_KEY_ACTION_REDO, SPEC_REDO},
+    {IC_KEY_ACTION_COMPLETE, SPEC_COMPLETE},
+    {IC_KEY_ACTION_INSERT_NEWLINE, SPEC_INSERT_NEWLINE},
+};
+
+static const keybinding_profile_t keybinding_profile_default = {
+    "emacs",
+    "Emacs-style bindings (default)",
+    NULL,
+    keybinding_profile_default_spec_entries,
+    sizeof(keybinding_profile_default_spec_entries) /
+        sizeof(keybinding_profile_default_spec_entries[0]),
+    NULL,
+    0,
+};
+
+static const keybinding_profile_action_spec_t keybinding_profile_vim_spec_entries[] = {
+    {IC_KEY_ACTION_CURSOR_LEFT, SPEC_CURSOR_LEFT "|alt+h"},
+    {IC_KEY_ACTION_CURSOR_RIGHT_OR_COMPLETE, SPEC_CURSOR_RIGHT "|alt+l"},
+    {IC_KEY_ACTION_CURSOR_UP, SPEC_CURSOR_UP "|alt+k"},
+    {IC_KEY_ACTION_CURSOR_DOWN, SPEC_CURSOR_DOWN "|alt+j"},
+    {IC_KEY_ACTION_CURSOR_WORD_NEXT_OR_COMPLETE, SPEC_CURSOR_WORD_NEXT "|alt+w"},
+};
+
+static const keybinding_profile_binding_t keybinding_profile_vim_bindings[] = {
+    {IC_KEY_ACTION_CURSOR_LEFT, "alt+h"},
+    {IC_KEY_ACTION_CURSOR_RIGHT_OR_COMPLETE, "alt+l"},
+    {IC_KEY_ACTION_CURSOR_UP, "alt+k"},
+    {IC_KEY_ACTION_CURSOR_DOWN, "alt+j"},
+    {IC_KEY_ACTION_CURSOR_WORD_NEXT_OR_COMPLETE, "alt+w"},
+};
+
+static const keybinding_profile_t keybinding_profile_vim = {
+    "vim",
+    "Vim-inspired navigation bindings (Alt+H/J/K/L, Alt+W)",
+    &keybinding_profile_default,
+    keybinding_profile_vim_spec_entries,
+    sizeof(keybinding_profile_vim_spec_entries) / sizeof(keybinding_profile_vim_spec_entries[0]),
+    keybinding_profile_vim_bindings,
+    sizeof(keybinding_profile_vim_bindings) / sizeof(keybinding_profile_vim_bindings[0]),
+};
+
+static const keybinding_profile_t* const keybinding_profiles[] = {
+    &keybinding_profile_default,
+    &keybinding_profile_vim,
+};
+
+static size_t keybinding_profile_count(void) {
+    return sizeof(keybinding_profiles) / sizeof(keybinding_profiles[0]);
+}
+
 static ic_key_binding_entry_t* key_binding_find_entry(ic_env_t* env, ic_keycode_t key,
                                                       ssize_t* index_out) {
     if (env == NULL || env->key_bindings == NULL)
@@ -212,6 +309,82 @@ static const key_name_entry_t key_name_map[] = {
     {"f11", IC_KEY_F11},
     {"f12", IC_KEY_F12},
 };
+
+static const keybinding_profile_t* keybinding_profile_lookup(const char* name) {
+    if (name == NULL)
+        return NULL;
+    for (size_t i = 0; i < keybinding_profile_count(); ++i) {
+        const keybinding_profile_t* profile = keybinding_profiles[i];
+        if (profile != NULL && ic_stricmp(name, profile->name) == 0)
+            return profile;
+    }
+    return NULL;
+}
+
+static const char* keybinding_profile_find_spec(const keybinding_profile_t* profile,
+                                                ic_key_action_t action) {
+    if (profile == NULL)
+        return NULL;
+    for (size_t i = 0; i < profile->spec_count; ++i) {
+        if (profile->specs[i].action == action)
+            return profile->specs[i].specs;
+    }
+    return keybinding_profile_find_spec(profile->parent, action);
+}
+
+static bool keybinding_profile_bind_string(ic_env_t* env, ic_key_action_t action,
+                                           const char* specs) {
+    if (env == NULL || specs == NULL)
+        return true;
+    const char* p = specs;
+    while (*p != '\0') {
+        while (*p == ' ' || *p == '\t' || *p == '|')
+            p++;
+        if (*p == '\0')
+            break;
+        const char* start = p;
+        while (*p != '\0' && *p != '|')
+            p++;
+        const char* end = p;
+        while (start < end && (end[-1] == ' ' || end[-1] == '\t'))
+            end--;
+        while (start < end && (*start == ' ' || *start == '\t'))
+            start++;
+        if (start >= end)
+            continue;
+        size_t len = (size_t)(end - start);
+        if (len >= 64)
+            return false;
+        char token[64];
+        memcpy(token, start, len);
+        token[len] = '\0';
+        ic_keycode_t key;
+        if (!ic_parse_key_spec(token, &key))
+            return false;
+        if (!ic_bind_key(key, action))
+            return false;
+    }
+    return true;
+}
+
+static bool keybinding_profile_apply_bindings(ic_env_t* env, const keybinding_profile_t* profile) {
+    if (env == NULL || profile == NULL)
+        return true;
+    if (!keybinding_profile_apply_bindings(env, profile->parent))
+        return false;
+    for (size_t i = 0; i < profile->binding_count; ++i) {
+        const keybinding_profile_binding_t* binding = &profile->bindings[i];
+        if (!keybinding_profile_bind_string(env, binding->action, binding->specs))
+            return false;
+    }
+    return true;
+}
+
+static void key_binding_clear_all(ic_env_t* env) {
+    if (env == NULL)
+        return;
+    env->key_binding_count = 0;
+}
 
 static bool key_lookup_named(const char* token, ic_keycode_t* out_key) {
     for (size_t i = 0; i < sizeof(key_name_map) / sizeof(key_name_map[0]); ++i) {
@@ -694,7 +867,10 @@ ic_public void ic_reset_key_bindings(void) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)
         return;
-    env->key_binding_count = 0;
+    key_binding_clear_all(env);
+    if (env->key_binding_profile != NULL) {
+        keybinding_profile_apply_bindings(env, env->key_binding_profile);
+    }
 }
 
 ic_public bool ic_get_key_binding(ic_keycode_t key, ic_key_action_t* out_action) {
@@ -952,6 +1128,62 @@ ic_public bool ic_format_key_spec(ic_keycode_t key, char* buffer, size_t buflen)
     }
 
     return true;
+}
+
+ic_public bool ic_set_key_binding_profile(const char* name) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return false;
+    const keybinding_profile_t* profile =
+        (name == NULL ? &keybinding_profile_default : keybinding_profile_lookup(name));
+    if (profile == NULL)
+        return false;
+    if (env->key_binding_profile == profile) {
+        key_binding_clear_all(env);
+        return keybinding_profile_apply_bindings(env, profile);
+    }
+    const keybinding_profile_t* previous =
+        (env->key_binding_profile != NULL ? env->key_binding_profile : &keybinding_profile_default);
+    env->key_binding_profile = profile;
+    key_binding_clear_all(env);
+    if (!keybinding_profile_apply_bindings(env, profile)) {
+        env->key_binding_profile = previous;
+        key_binding_clear_all(env);
+        keybinding_profile_apply_bindings(env, env->key_binding_profile);
+        return false;
+    }
+    return true;
+}
+
+ic_public const char* ic_get_key_binding_profile(void) {
+    ic_env_t* env = ic_get_env();
+    const keybinding_profile_t* profile =
+        (env != NULL && env->key_binding_profile != NULL ? env->key_binding_profile
+                                                         : &keybinding_profile_default);
+    return profile->name;
+}
+
+ic_public size_t ic_list_key_binding_profiles(ic_key_binding_profile_info_t* buffer,
+                                              size_t capacity) {
+    size_t count = keybinding_profile_count();
+    if (buffer == NULL || capacity == 0)
+        return count;
+    size_t limit = (count < capacity ? count : capacity);
+    for (size_t i = 0; i < limit; ++i) {
+        buffer[i].name = keybinding_profiles[i]->name;
+        buffer[i].description = keybinding_profiles[i]->description;
+    }
+    return limit;
+}
+
+ic_public const char* ic_key_binding_profile_default_specs(ic_key_action_t action) {
+    if (action <= IC_KEY_ACTION_NONE || action >= IC_KEY_ACTION__MAX)
+        return NULL;
+    ic_env_t* env = ic_get_env();
+    const keybinding_profile_t* profile =
+        (env != NULL && env->key_binding_profile != NULL ? env->key_binding_profile
+                                                         : &keybinding_profile_default);
+    return keybinding_profile_find_spec(profile, action);
 }
 
 ic_private const char* ic_env_get_match_braces(ic_env_t* env) {
@@ -1355,6 +1587,7 @@ static ic_env_t* ic_env_create(ic_malloc_fun_t* _malloc, ic_realloc_fun_t* _real
     bbcode_style_def(env->bbcode, "constant", "#569cd6");
 
     set_prompt_marker(env, NULL, NULL);
+    env->key_binding_profile = &keybinding_profile_default;
     return env;
 }
 

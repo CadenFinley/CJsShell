@@ -25,69 +25,62 @@ typedef struct help_line_s {
     const char* default_specs;
 } help_line_t;
 
-#include "isocline/keybinding_specs.h"
+#include "isocline/isocline.h"
 
 static const help_line_t help_lines[] = {
     {HELP_LINE_BLANK, NULL, NULL, IC_KEY_ACTION__MAX, NULL},
     {HELP_LINE_HEADING, "Navigation:", NULL, IC_KEY_ACTION__MAX, NULL},
-    {HELP_LINE_BINDING, NULL, "go one character to the left", IC_KEY_ACTION_CURSOR_LEFT,
-     SPEC_CURSOR_LEFT},
+    {HELP_LINE_BINDING, NULL, "go one character to the left", IC_KEY_ACTION_CURSOR_LEFT, NULL},
     {HELP_LINE_BINDING, NULL, "go one character to the right",
-     IC_KEY_ACTION_CURSOR_RIGHT_OR_COMPLETE, SPEC_CURSOR_RIGHT},
+     IC_KEY_ACTION_CURSOR_RIGHT_OR_COMPLETE, NULL},
     {HELP_LINE_BINDING, NULL, "go one row up, or back in the history", IC_KEY_ACTION_CURSOR_UP,
-     SPEC_CURSOR_UP},
+     NULL},
     {HELP_LINE_BINDING, NULL, "go one row down, or forward in the history",
-     IC_KEY_ACTION_CURSOR_DOWN, SPEC_CURSOR_DOWN},
+     IC_KEY_ACTION_CURSOR_DOWN, NULL},
     {HELP_LINE_BINDING, NULL, "go to the start of the previous word",
-     IC_KEY_ACTION_CURSOR_WORD_PREV, SPEC_CURSOR_WORD_PREV},
+     IC_KEY_ACTION_CURSOR_WORD_PREV, NULL},
     {HELP_LINE_BINDING, NULL, "go to the end of the current word",
-     IC_KEY_ACTION_CURSOR_WORD_NEXT_OR_COMPLETE, SPEC_CURSOR_WORD_NEXT},
+     IC_KEY_ACTION_CURSOR_WORD_NEXT_OR_COMPLETE, NULL},
     {HELP_LINE_BINDING, NULL, "go to the start of the current line",
-     IC_KEY_ACTION_CURSOR_LINE_START, SPEC_CURSOR_LINE_START},
+     IC_KEY_ACTION_CURSOR_LINE_START, NULL},
     {HELP_LINE_BINDING, NULL, "go to the end of the current line", IC_KEY_ACTION_CURSOR_LINE_END,
-     SPEC_CURSOR_LINE_END},
+     NULL},
     {HELP_LINE_BINDING, NULL, "go to the start of the current input",
-     IC_KEY_ACTION_CURSOR_INPUT_START, SPEC_CURSOR_INPUT_START},
+     IC_KEY_ACTION_CURSOR_INPUT_START, NULL},
     {HELP_LINE_BINDING, NULL, "go to the end of the current input", IC_KEY_ACTION_CURSOR_INPUT_END,
-     SPEC_CURSOR_INPUT_END},
-    {HELP_LINE_BINDING, NULL, "jump to matching brace", IC_KEY_ACTION_CURSOR_MATCH_BRACE,
-     SPEC_CURSOR_MATCH_BRACE},
-    {HELP_LINE_BINDING, NULL, "go back in the history", IC_KEY_ACTION_HISTORY_PREV,
-     SPEC_HISTORY_PREV},
-    {HELP_LINE_BINDING, NULL, "go forward in the history", IC_KEY_ACTION_HISTORY_NEXT,
-     SPEC_HISTORY_NEXT},
+     NULL},
+    {HELP_LINE_BINDING, NULL, "jump to matching brace", IC_KEY_ACTION_CURSOR_MATCH_BRACE, NULL},
+    {HELP_LINE_BINDING, NULL, "go back in the history", IC_KEY_ACTION_HISTORY_PREV, NULL},
+    {HELP_LINE_BINDING, NULL, "go forward in the history", IC_KEY_ACTION_HISTORY_NEXT, NULL},
     {HELP_LINE_BINDING, NULL, "search the history starting with the current word",
-     IC_KEY_ACTION_HISTORY_SEARCH, SPEC_HISTORY_SEARCH},
+     IC_KEY_ACTION_HISTORY_SEARCH, NULL},
     {HELP_LINE_BLANK, NULL, NULL, IC_KEY_ACTION__MAX, NULL},
     {HELP_LINE_HEADING, "Deletion:", NULL, IC_KEY_ACTION__MAX, NULL},
-    {HELP_LINE_BINDING, NULL, "delete the current character", IC_KEY_ACTION_DELETE_FORWARD,
-     SPEC_DELETE_FORWARD},
-    {HELP_LINE_BINDING, NULL, "delete the previous character", IC_KEY_ACTION_DELETE_BACKWARD,
-     SPEC_DELETE_BACKWARD},
+    {HELP_LINE_BINDING, NULL, "delete the current character", IC_KEY_ACTION_DELETE_FORWARD, NULL},
+    {HELP_LINE_BINDING, NULL, "delete the previous character", IC_KEY_ACTION_DELETE_BACKWARD, NULL},
     {HELP_LINE_BINDING, NULL, "delete to preceding white space", IC_KEY_ACTION_DELETE_WORD_START_WS,
-     SPEC_DELETE_WORD_START_WS},
+     NULL},
     {HELP_LINE_BINDING, NULL, "delete to the start of the current word",
-     IC_KEY_ACTION_DELETE_WORD_START, SPEC_DELETE_WORD_START},
+     IC_KEY_ACTION_DELETE_WORD_START, NULL},
     {HELP_LINE_BINDING, NULL, "delete to the end of the current word",
-     IC_KEY_ACTION_DELETE_WORD_END, SPEC_DELETE_WORD_END},
+     IC_KEY_ACTION_DELETE_WORD_END, NULL},
     {HELP_LINE_BINDING, NULL, "delete to the start of the current line",
-     IC_KEY_ACTION_DELETE_LINE_START, SPEC_DELETE_LINE_START},
+     IC_KEY_ACTION_DELETE_LINE_START, NULL},
     {HELP_LINE_BINDING, NULL, "delete to the end of the current line",
-     IC_KEY_ACTION_DELETE_LINE_END, SPEC_DELETE_LINE_END},
+     IC_KEY_ACTION_DELETE_LINE_END, NULL},
     {HELP_LINE_STATIC, "esc", "delete the current input, or done with empty input",
      IC_KEY_ACTION__MAX, NULL},
     {HELP_LINE_BLANK, NULL, NULL, IC_KEY_ACTION__MAX, NULL},
     {HELP_LINE_HEADING, "Editing:", NULL, IC_KEY_ACTION__MAX, NULL},
     {HELP_LINE_STATIC, "enter", "accept current input", IC_KEY_ACTION__MAX, NULL},
     {HELP_LINE_BINDING, NULL, "create a new line for multi-line input",
-     IC_KEY_ACTION_INSERT_NEWLINE, SPEC_INSERT_NEWLINE},
-    {HELP_LINE_BINDING, NULL, "clear screen", IC_KEY_ACTION_CLEAR_SCREEN, SPEC_CLEAR_SCREEN},
+     IC_KEY_ACTION_INSERT_NEWLINE, NULL},
+    {HELP_LINE_BINDING, NULL, "clear screen", IC_KEY_ACTION_CLEAR_SCREEN, NULL},
     {HELP_LINE_BINDING, NULL, "swap with previous character (move character backward)",
-     IC_KEY_ACTION_TRANSPOSE_CHARS, SPEC_TRANSPOSE},
-    {HELP_LINE_BINDING, NULL, "undo", IC_KEY_ACTION_UNDO, SPEC_UNDO},
-    {HELP_LINE_BINDING, NULL, "redo", IC_KEY_ACTION_REDO, SPEC_REDO},
-    {HELP_LINE_BINDING, NULL, "try to complete the current input", IC_KEY_ACTION_COMPLETE,
-     SPEC_COMPLETE},
+     IC_KEY_ACTION_TRANSPOSE_CHARS, NULL},
+    {HELP_LINE_BINDING, NULL, "undo", IC_KEY_ACTION_UNDO, NULL},
+    {HELP_LINE_BINDING, NULL, "redo", IC_KEY_ACTION_REDO, NULL},
+    {HELP_LINE_BINDING, NULL, "try to complete the current input", IC_KEY_ACTION_COMPLETE, NULL},
     {HELP_LINE_BLANK, NULL, NULL, IC_KEY_ACTION__MAX, NULL},
     {HELP_LINE_HEADING, "In the completion menu:", NULL, IC_KEY_ACTION__MAX, NULL},
     {HELP_LINE_STATIC, "enter,left", "use the currently selected completion", IC_KEY_ACTION__MAX,
@@ -201,12 +194,18 @@ static void format_binding_keys(ic_env_t* env, ic_key_action_t action, const cha
     char labels[HELP_MAX_LABELS][HELP_LABEL_LEN];
     size_t label_count = 0;
 
-    if (default_specs != NULL && default_specs[0] != '\0') {
-        const char* spec = default_specs;
-        size_t len = strlen(default_specs);
+    const char* specs_to_use = default_specs;
+    if ((specs_to_use == NULL || specs_to_use[0] == '\0') && action > IC_KEY_ACTION_NONE &&
+        action < IC_KEY_ACTION__MAX) {
+        specs_to_use = ic_key_binding_profile_default_specs(action);
+    }
+
+    if (specs_to_use != NULL && specs_to_use[0] != '\0') {
+        const char* spec = specs_to_use;
+        size_t len = strlen(specs_to_use);
         size_t start = 0;
         for (size_t i = 0; i <= len; ++i) {
-            if (default_specs[i] == '|' || default_specs[i] == '\0') {
+            if (specs_to_use[i] == '|' || specs_to_use[i] == '\0') {
                 size_t tok_len = i - start;
                 if (tok_len > 0 && tok_len < 64) {
                     char token[64];

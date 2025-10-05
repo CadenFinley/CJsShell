@@ -246,8 +246,8 @@ bool Theme::load_theme_from_string(const std::string& theme_content, const std::
 bool Theme::apply_theme_definition(const ThemeDefinition& definition, const std::string& theme_name,
                                    bool allow_fallback, const std::filesystem::path& source_path) {
     const auto& requirements = definition.requirements;
-    bool has_requirements = !requirements.colors.empty() ||
-                            !requirements.fonts.empty() || !requirements.custom.empty();
+    bool has_requirements =
+        !requirements.colors.empty() || !requirements.fonts.empty() || !requirements.custom.empty();
     const std::string source_hint = source_path.empty() ? theme_name : source_path.string();
 
     if (has_requirements && !check_theme_requirements(requirements)) {

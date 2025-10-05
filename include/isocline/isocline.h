@@ -528,6 +528,11 @@ typedef struct ic_key_binding_entry_s {
     ic_key_action_t action;
 } ic_key_binding_entry_t;
 
+typedef struct ic_key_binding_profile_info_s {
+    const char* name;
+    const char* description;
+} ic_key_binding_profile_info_t;
+
 bool ic_bind_key(ic_keycode_t key, ic_key_action_t action);
 bool ic_clear_key_binding(ic_keycode_t key);
 void ic_reset_key_bindings(void);
@@ -538,6 +543,10 @@ const char* ic_key_action_name(ic_key_action_t action);
 bool ic_parse_key_spec(const char* spec, ic_keycode_t* out_key);
 bool ic_bind_key_named(const char* key_spec, const char* action_name);
 bool ic_format_key_spec(ic_keycode_t key, char* buffer, size_t buflen);
+bool ic_set_key_binding_profile(const char* name);
+const char* ic_get_key_binding_profile(void);
+size_t ic_list_key_binding_profiles(ic_key_binding_profile_info_t* buffer, size_t capacity);
+const char* ic_key_binding_profile_default_specs(ic_key_action_t action);
 
 /// \}
 

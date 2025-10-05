@@ -184,8 +184,8 @@ int theme_command(const std::vector<std::string>& args) {
         count_segments(theme_def.inline_right_segments);
 
         const ThemeRequirements& requirements = theme_def.requirements;
-        if (!requirements.colors.empty() ||
-            !requirements.fonts.empty() || !requirements.custom.empty()) {
+        if (!requirements.colors.empty() || !requirements.fonts.empty() ||
+            !requirements.custom.empty()) {
             std::cout << "Requirements:" << std::endl;
 
             if (!requirements.colors.empty()) {

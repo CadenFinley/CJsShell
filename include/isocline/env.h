@@ -18,6 +18,8 @@
 #include "term.h"
 #include "tty.h"
 
+struct ic_keybinding_profile_s;
+
 //-------------------------------------------------------------
 // Environment
 //-------------------------------------------------------------
@@ -63,6 +65,7 @@ struct ic_env_s {
     ic_key_binding_entry_t* key_bindings;  // dynamic array of custom key bindings
     ssize_t key_binding_count;
     ssize_t key_binding_capacity;
+    const struct ic_keybinding_profile_s* key_binding_profile;
 };
 
 ic_private char* ic_editline(ic_env_t* env, const char* prompt_text);

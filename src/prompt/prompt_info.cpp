@@ -269,10 +269,10 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     std::unordered_map<std::string, std::string> vars;
 
     std::unordered_set<std::string> needed_vars;
-    
+
     // Track EXEC%%% commands separately for execution
     std::vector<std::tuple<std::string, std::string, int>> exec_commands;
-    
+
     for (const auto& segment : segments) {
         if (!segment.content.empty()) {
             std::string content = segment.content;
@@ -281,13 +281,15 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
             std::regex exec_pattern("\\{EXEC%%%([^%]+)%%%(-?[0-9]*)\\}");
             std::smatch exec_matches;
             std::string::const_iterator exec_search_start(content.cbegin());
-            
-            while (std::regex_search(exec_search_start, content.cend(), exec_matches, exec_pattern)) {
+
+            while (
+                std::regex_search(exec_search_start, content.cend(), exec_matches, exec_pattern)) {
                 std::string full_match = exec_matches[0];
                 std::string command = exec_matches[1];
                 std::string cache_duration_str = exec_matches[2];
-                int cache_duration = cache_duration_str.empty() ? 30 : std::stoi(cache_duration_str);
-                
+                int cache_duration =
+                    cache_duration_str.empty() ? 30 : std::stoi(cache_duration_str);
+
                 exec_commands.emplace_back(full_match, command, cache_duration);
                 exec_search_start = exec_matches.suffix().first;
             }
@@ -299,7 +301,7 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
 
             while (std::regex_search(search_start, content.cend(), matches, placeholder_pattern)) {
                 std::string var_name = matches[1];
-                
+
                 // Skip EXEC%%% patterns as they're already handled
                 if (var_name.find("EXEC%%%") == std::string::npos) {
                     needed_vars.insert(var_name);
@@ -790,28 +792,32 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     }
 
     // Execute EXEC%%% commands with caching
-    static std::unordered_map<std::string, std::pair<std::string, std::chrono::steady_clock::time_point>> exec_cache;
+    static std::unordered_map<std::string,
+                              std::pair<std::string, std::chrono::steady_clock::time_point>>
+        exec_cache;
     auto exec_now = std::chrono::steady_clock::now();
-    
+
     for (const auto& [full_match, command, cache_duration] : exec_commands) {
         std::string cache_key = command + ":" + std::to_string(cache_duration);
-        
+
         // Check if we have a cached result that's still valid
         auto it = exec_cache.find(cache_key);
         bool use_cache = false;
-        
+
         if (it != exec_cache.end()) {
             // -1 means cache forever (permanent cache)
             if (cache_duration == -1) {
                 use_cache = true;
             } else {
-                auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(exec_now - it->second.second).count();
+                auto elapsed =
+                    std::chrono::duration_cast<std::chrono::seconds>(exec_now - it->second.second)
+                        .count();
                 if (elapsed < cache_duration) {
                     use_cache = true;
                 }
             }
         }
-        
+
         std::string result;
         if (use_cache) {
             result = exec_cache[cache_key].first;
@@ -828,7 +834,7 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
             // Cache the result
             exec_cache[cache_key] = {result, exec_now};
         }
-        
+
         // Store in vars using the full match as the key (without braces)
         vars[full_match.substr(1, full_match.length() - 2)] = result;
     }

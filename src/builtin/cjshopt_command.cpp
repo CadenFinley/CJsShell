@@ -16,7 +16,6 @@
 #include "cjsh_filesystem.h"
 #include "error_out.h"
 #include "isocline/isocline.h"
-#include "isocline/keybinding_specs.h"
 
 namespace {
 void print_cjshopt_usage() {
@@ -194,7 +193,7 @@ int completion_case_command(const std::vector<std::string>& args) {
                 std::cout << line << '\n';
             }
             std::cout << "Current: " << (is_completion_case_sensitive() ? "enabled" : "disabled")
-                      << std::endl;
+                      << '\n';
         }
         return 0;
     }
@@ -213,8 +212,7 @@ int completion_case_command(const std::vector<std::string>& args) {
     if (normalized == "status" || normalized == "--status") {
         if (!g_startup_active) {
             std::cout << "Completion case sensitivity is currently "
-                      << (is_completion_case_sensitive() ? "enabled" : "disabled") << "."
-                      << std::endl;
+                      << (is_completion_case_sensitive() ? "enabled" : "disabled") << "." << '\n';
         }
         return 0;
     }
@@ -249,7 +247,7 @@ int completion_case_command(const std::vector<std::string>& args) {
 
     if (!g_startup_active) {
         std::cout << "Completion case sensitivity "
-                  << (enable_case_sensitive ? "enabled" : "disabled") << "." << std::endl;
+                  << (enable_case_sensitive ? "enabled" : "disabled") << ".\n";
     }
 
     return 0;
@@ -260,56 +258,42 @@ struct KeyBindingDefault {
     ic_key_action_t action;
     const char* canonical_name;
     const char* description;
-    const char* default_specs;
 };
 
 const std::vector<KeyBindingDefault> kKeyBindingDefaults = {
-    {IC_KEY_ACTION_CURSOR_LEFT, "cursor-left", "go one character to the left", SPEC_CURSOR_LEFT},
-    {IC_KEY_ACTION_CURSOR_RIGHT_OR_COMPLETE, "cursor-right", "go one character to the right",
-     SPEC_CURSOR_RIGHT},
-    {IC_KEY_ACTION_CURSOR_UP, "cursor-up", "go one row up, or back in the history", SPEC_CURSOR_UP},
-    {IC_KEY_ACTION_CURSOR_DOWN, "cursor-down", "go one row down, or forward in the history",
-     SPEC_CURSOR_DOWN},
-    {IC_KEY_ACTION_CURSOR_WORD_PREV, "cursor-word-prev", "go to the start of the previous word",
-     SPEC_CURSOR_WORD_PREV},
+    {IC_KEY_ACTION_CURSOR_LEFT, "cursor-left", "go one character to the left"},
+    {IC_KEY_ACTION_CURSOR_RIGHT_OR_COMPLETE, "cursor-right", "go one character to the right"},
+    {IC_KEY_ACTION_CURSOR_UP, "cursor-up", "go one row up, or back in the history"},
+    {IC_KEY_ACTION_CURSOR_DOWN, "cursor-down", "go one row down, or forward in the history"},
+    {IC_KEY_ACTION_CURSOR_WORD_PREV, "cursor-word-prev", "go to the start of the previous word"},
     {IC_KEY_ACTION_CURSOR_WORD_NEXT_OR_COMPLETE, "cursor-word-next",
-     "go to the end of the current word", SPEC_CURSOR_WORD_NEXT},
-    {IC_KEY_ACTION_CURSOR_LINE_START, "cursor-line-start", "go to the start of the current line",
-     SPEC_CURSOR_LINE_START},
-    {IC_KEY_ACTION_CURSOR_LINE_END, "cursor-line-end", "go to the end of the current line",
-     SPEC_CURSOR_LINE_END},
-    {IC_KEY_ACTION_CURSOR_INPUT_START, "cursor-input-start", "go to the start of the current input",
-     SPEC_CURSOR_INPUT_START},
-    {IC_KEY_ACTION_CURSOR_INPUT_END, "cursor-input-end", "go to the end of the current input",
-     SPEC_CURSOR_INPUT_END},
-    {IC_KEY_ACTION_CURSOR_MATCH_BRACE, "cursor-match-brace", "jump to matching brace",
-     SPEC_CURSOR_MATCH_BRACE},
-    {IC_KEY_ACTION_HISTORY_PREV, "history-prev", "go back in the history", SPEC_HISTORY_PREV},
-    {IC_KEY_ACTION_HISTORY_NEXT, "history-next", "go forward in the history", SPEC_HISTORY_NEXT},
+     "go to the end of the current word"},
+    {IC_KEY_ACTION_CURSOR_LINE_START, "cursor-line-start", "go to the start of the current line"},
+    {IC_KEY_ACTION_CURSOR_LINE_END, "cursor-line-end", "go to the end of the current line"},
+    {IC_KEY_ACTION_CURSOR_INPUT_START, "cursor-input-start",
+     "go to the start of the current input"},
+    {IC_KEY_ACTION_CURSOR_INPUT_END, "cursor-input-end", "go to the end of the current input"},
+    {IC_KEY_ACTION_CURSOR_MATCH_BRACE, "cursor-match-brace", "jump to matching brace"},
+    {IC_KEY_ACTION_HISTORY_PREV, "history-prev", "go back in the history"},
+    {IC_KEY_ACTION_HISTORY_NEXT, "history-next", "go forward in the history"},
     {IC_KEY_ACTION_HISTORY_SEARCH, "history-search",
-     "search the history starting with the current word", SPEC_HISTORY_SEARCH},
-    {IC_KEY_ACTION_DELETE_FORWARD, "delete-forward", "delete the current character",
-     SPEC_DELETE_FORWARD},
-    {IC_KEY_ACTION_DELETE_BACKWARD, "delete-backward", "delete the previous character",
-     SPEC_DELETE_BACKWARD},
-    {IC_KEY_ACTION_DELETE_WORD_START_WS, "delete-word-start-ws", "delete to preceding white space",
-     SPEC_DELETE_WORD_START_WS},
+     "search the history starting with the current word"},
+    {IC_KEY_ACTION_DELETE_FORWARD, "delete-forward", "delete the current character"},
+    {IC_KEY_ACTION_DELETE_BACKWARD, "delete-backward", "delete the previous character"},
+    {IC_KEY_ACTION_DELETE_WORD_START_WS, "delete-word-start-ws", "delete to preceding white space"},
     {IC_KEY_ACTION_DELETE_WORD_START, "delete-word-start",
-     "delete to the start of the current word", SPEC_DELETE_WORD_START},
-    {IC_KEY_ACTION_DELETE_WORD_END, "delete-word-end", "delete to the end of the current word",
-     SPEC_DELETE_WORD_END},
+     "delete to the start of the current word"},
+    {IC_KEY_ACTION_DELETE_WORD_END, "delete-word-end", "delete to the end of the current word"},
     {IC_KEY_ACTION_DELETE_LINE_START, "delete-line-start",
-     "delete to the start of the current line", SPEC_DELETE_LINE_START},
-    {IC_KEY_ACTION_DELETE_LINE_END, "delete-line-end", "delete to the end of the current line",
-     SPEC_DELETE_LINE_END},
+     "delete to the start of the current line"},
+    {IC_KEY_ACTION_DELETE_LINE_END, "delete-line-end", "delete to the end of the current line"},
     {IC_KEY_ACTION_TRANSPOSE_CHARS, "transpose-chars",
-     "swap with previous character (move character backward)", SPEC_TRANSPOSE},
-    {IC_KEY_ACTION_CLEAR_SCREEN, "clear-screen", "clear screen", SPEC_CLEAR_SCREEN},
-    {IC_KEY_ACTION_UNDO, "undo", "undo", SPEC_UNDO},
-    {IC_KEY_ACTION_REDO, "redo", "redo", SPEC_REDO},
-    {IC_KEY_ACTION_COMPLETE, "complete", "try to complete the current input", SPEC_COMPLETE},
-    {IC_KEY_ACTION_INSERT_NEWLINE, "insert-newline", "create a new line for multi-line input",
-     SPEC_INSERT_NEWLINE},
+     "swap with previous character (move character backward)"},
+    {IC_KEY_ACTION_CLEAR_SCREEN, "clear-screen", "clear screen"},
+    {IC_KEY_ACTION_UNDO, "undo", "undo"},
+    {IC_KEY_ACTION_REDO, "redo", "redo"},
+    {IC_KEY_ACTION_COMPLETE, "complete", "try to complete the current input"},
+    {IC_KEY_ACTION_INSERT_NEWLINE, "insert-newline", "create a new line for multi-line input"},
 };
 
 const std::vector<std::string> kKeybindUsage = {
@@ -327,6 +311,8 @@ const std::vector<std::string> kKeybindUsage = {
     "  clear-action <action>           Remove all custom bindings for an action (config file only)",
     "  reset                           Clear all custom key bindings and restore defaults (config ",
     "file only)",
+    "  profile list                    List available key binding profiles (runtime)",
+    "  profile set <name>              Activate a key binding profile (config file only)",
     "",
     "Use 'keybind --help' for detailed guidance.",
 };
@@ -395,6 +381,13 @@ std::string pipe_join_specs(const std::vector<std::string>& specs) {
         oss << specs[i];
     }
     return oss.str();
+}
+
+std::string to_lower_copy(const std::string& input) {
+    std::string result = input;
+    std::transform(result.begin(), result.end(), result.begin(),
+                   [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+    return result;
 }
 
 std::vector<ic_key_binding_entry_t> collect_bindings() {
@@ -494,6 +487,41 @@ std::string canonical_action_name(ic_key_action_t action) {
     return "(unknown)";
 }
 
+void remove_profile_defaults_from_group(
+    std::unordered_map<ic_key_action_t, std::vector<std::string>>* grouped, ic_key_action_t action,
+    const char* spec_string) {
+    if (grouped == nullptr || spec_string == nullptr || spec_string[0] == '\0')
+        return;
+    auto it = grouped->find(action);
+    if (it == grouped->end())
+        return;
+    auto tokens = split_key_spec_string(std::string(spec_string));
+    if (tokens.empty())
+        return;
+    auto& specs = it->second;
+    if (specs.empty())
+        return;
+    for (const auto& token : tokens) {
+        ic_keycode_t key = 0;
+        if (!ic_parse_key_spec(token.c_str(), &key))
+            continue;
+        char formatted[64];
+        if (!ic_format_key_spec(key, formatted, sizeof(formatted)))
+            continue;
+        const std::string canonical = to_lower_copy(formatted);
+        for (size_t idx = 0; idx < specs.size();) {
+            if (to_lower_copy(specs[idx]) == canonical) {
+                specs.erase(specs.begin() + static_cast<std::ptrdiff_t>(idx));
+            } else {
+                ++idx;
+            }
+        }
+    }
+    if (specs.empty()) {
+        grouped->erase(it);
+    }
+}
+
 int keybind_list_command() {
     auto entries = collect_bindings();
     auto grouped = group_bindings_by_action(entries);
@@ -501,6 +529,10 @@ int keybind_list_command() {
     if (g_startup_active) {
         return 0;
     }
+
+    const char* active_profile = ic_get_key_binding_profile();
+    std::cout << "Active key binding profile: "
+              << (active_profile != nullptr ? active_profile : "emacs") << "\n\n";
 
     size_t name_width = std::strlen("Action");
     for (const auto& entry : kKeyBindingDefaults) {
@@ -516,25 +548,31 @@ int keybind_list_command() {
         }
     }
 
-    constexpr size_t kDefaultColumnWidth = 28;
+    constexpr size_t default_column_width = 28;
     std::cout << std::left << std::setw(static_cast<int>(name_width) + 2) << "Action"
-              << std::setw(static_cast<int>(kDefaultColumnWidth)) << "Default"
+              << std::setw(static_cast<int>(default_column_width)) << "Default"
               << "Custom" << '\n';
-    std::cout << std::string(name_width + 2 + kDefaultColumnWidth + 6, '-') << '\n';
+    std::cout << std::string(name_width + 2 + default_column_width + 6, '-') << '\n';
 
     std::unordered_set<ic_key_action_t> printed;
 
     for (const auto& entry : kKeyBindingDefaults) {
-        std::vector<std::string> default_specs = split_key_spec_string(entry.default_specs);
+        const char* spec_cstr = ic_key_binding_profile_default_specs(entry.action);
+        std::string spec_string = (spec_cstr != nullptr ? spec_cstr : "");
+        std::vector<std::string> default_specs = split_key_spec_string(spec_string);
         std::string default_display = join_specs(default_specs);
+
+        remove_profile_defaults_from_group(&grouped, entry.action, spec_cstr);
+
         std::string custom_display = "(none)";
         auto it = grouped.find(entry.action);
         if (it != grouped.end()) {
             custom_display = join_specs(it->second);
             printed.insert(entry.action);
         }
+
         std::cout << std::left << std::setw(static_cast<int>(name_width) + 2)
-                  << entry.canonical_name << std::setw(static_cast<int>(kDefaultColumnWidth))
+                  << entry.canonical_name << std::setw(static_cast<int>(default_column_width))
                   << default_display << custom_display << '\n';
     }
 
@@ -544,20 +582,92 @@ int keybind_list_command() {
         }
         std::string name = canonical_action_name(pair.first);
         std::cout << std::left << std::setw(static_cast<int>(name_width) + 2) << name
-                  << std::setw(static_cast<int>(kDefaultColumnWidth)) << "(none)"
+                  << std::setw(static_cast<int>(default_column_width)) << "(none)"
                   << join_specs(pair.second) << '\n';
     }
 
     if (entries.empty()) {
-        std::cout << "\nNo custom key bindings are currently defined." << std::endl;
+        std::cout << "\nNo custom key bindings are currently defined.\n";
         std::cout << "To customize key bindings, add 'cjshopt keybind ...' commands to your "
-                     "~/.cjshrc file."
-                  << std::endl;
+                     "~/.cjshrc file.\n";
     } else {
-        std::cout << "\nCustom key bindings are defined in your configuration files." << std::endl;
-        std::cout << "To modify them, edit your ~/.cjshrc file." << std::endl;
+        std::cout << "\nCustom key bindings are defined in your configuration files.\n";
+        std::cout << "To modify them, edit your ~/.cjshrc file.\n";
     }
 
+    return 0;
+}
+
+int keybind_profile_list_command() {
+    if (g_startup_active) {
+        return 0;
+    }
+
+    size_t count = ic_list_key_binding_profiles(nullptr, 0);
+    std::vector<ic_key_binding_profile_info_t> profiles(count);
+    if (count > 0) {
+        ic_list_key_binding_profiles(profiles.data(), count);
+    }
+
+    const char* active = ic_get_key_binding_profile();
+    std::string active_lower = (active != nullptr ? to_lower_copy(active) : "");
+    std::cout << "Available key binding profiles:\n";
+    for (const auto& profile : profiles) {
+        bool is_active = (profile.name != nullptr && to_lower_copy(profile.name) == active_lower);
+        std::cout << "  " << (is_active ? "* " : "  ")
+                  << (profile.name != nullptr ? profile.name : "(unknown)");
+        if (profile.description != nullptr && profile.description[0] != '\0') {
+            std::cout << " - " << profile.description;
+        }
+        std::cout << '\n';
+    }
+    if (profiles.empty()) {
+        std::cout << "  (no profiles available)\n";
+    }
+    return 0;
+}
+
+int keybind_profile_set_command(const std::vector<std::string>& args) {
+    if (args.size() != 4) {
+        print_error({ErrorType::INVALID_ARGUMENT, "keybind", "profile set requires a profile name",
+                     kKeybindUsage});
+        return 1;
+    }
+
+    const std::string& profile_name = args[3];
+    if (!ic_set_key_binding_profile(profile_name.c_str())) {
+        size_t count = ic_list_key_binding_profiles(nullptr, 0);
+        std::vector<ic_key_binding_profile_info_t> profiles(count);
+        if (count > 0) {
+            ic_list_key_binding_profiles(profiles.data(), count);
+        }
+        std::vector<std::string> names;
+        names.reserve(profiles.size());
+        for (const auto& profile : profiles) {
+            if (profile.name != nullptr) {
+                names.emplace_back(profile.name);
+            }
+        }
+        std::ostringstream oss;
+        for (size_t i = 0; i < names.size(); ++i) {
+            if (i != 0) {
+                oss << ", ";
+            }
+            oss << names[i];
+        }
+        print_error(
+            {ErrorType::INVALID_ARGUMENT,
+             "keybind",
+             "Unknown key binding profile '" + profile_name + "'",
+             {"Available profiles: " + (names.empty() ? std::string("(none)") : oss.str())}});
+        return 1;
+    }
+
+    if (!g_startup_active) {
+        std::cout << "Key binding profile set to '" << profile_name << "'.\n";
+        std::cout << "Add `cjshopt keybind profile set " << profile_name
+                  << "` to your ~/.cjshrc to persist this change.\n";
+    }
     return 0;
 }
 
@@ -636,7 +746,7 @@ int keybind_set_or_add_command(const std::vector<std::string>& args, bool replac
                   << join_specs(spec_strings) << '\n';
         std::cout << "Add `cjshopt keybind " << (replace_existing ? "set " : "add ")
                   << action_display << " '" << pipe_join_specs(spec_strings)
-                  << "'` to your ~/.cjshrc to persist this change." << std::endl;
+                  << "'` to your ~/.cjshrc to persist this change.\n";
     }
 
     return 0;
@@ -682,7 +792,7 @@ int keybind_clear_keys_command(const std::vector<std::string>& args) {
             std::cout << "No custom binding found for: " << join_specs(missing) << '\n';
         }
         if (removed.empty() && missing.empty()) {
-            std::cout << "Nothing to clear." << std::endl;
+            std::cout << "Nothing to clear.\n";
         }
     }
 
@@ -719,10 +829,10 @@ int keybind_clear_action_command(const std::vector<std::string>& args) {
     if (!g_startup_active) {
         if (!removed.empty()) {
             std::cout << "Cleared custom bindings for " << canonical_action_name(action) << ": "
-                      << join_specs(removed) << std::endl;
+                      << join_specs(removed) << '\n';
         } else {
-            std::cout << "No custom bindings were set for " << canonical_action_name(action) << '.'
-                      << std::endl;
+            std::cout << "No custom bindings were set for " << canonical_action_name(action)
+                      << ".\n";
         }
     }
 
@@ -732,7 +842,7 @@ int keybind_clear_action_command(const std::vector<std::string>& args) {
 int keybind_reset_command() {
     ic_reset_key_bindings();
     if (!g_startup_active) {
-        std::cout << "All custom key bindings cleared." << std::endl;
+        std::cout << "All custom key bindings cleared.\n";
     }
     return 0;
 }
@@ -758,6 +868,35 @@ int keybind_command(const std::vector<std::string>& args) {
             return 1;
         }
         return keybind_list_command();
+    }
+
+    if (subcommand == "profile") {
+        if (args.size() < 3) {
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         "keybind",
+                         "profile requires a subcommand",
+                         {"Usage:", "  keybind profile list", "  keybind profile set <name>"}});
+            return 1;
+        }
+        const std::string& profile_sub = args[2];
+        if (profile_sub == "list") {
+            if (args.size() != 3) {
+                print_error({ErrorType::INVALID_ARGUMENT,
+                             "keybind",
+                             "profile list does not accept additional arguments",
+                             {}});
+                return 1;
+            }
+            return keybind_profile_list_command();
+        }
+        if (profile_sub == "set") {
+            return keybind_profile_set_command(args);
+        }
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     "keybind",
+                     "Unknown profile subcommand '" + profile_sub + "'",
+                     {"Valid profile subcommands are: list, set"}});
+        return 1;
     }
 
     if (subcommand == "set") {
@@ -790,8 +929,6 @@ int keybind_command(const std::vector<std::string>& args) {
     return 1;
 }
 
-extern std::vector<std::string> g_profile_startup_args;
-
 int startup_flag_command(const std::vector<std::string>& args) {
     // Only allow setting startup flags during startup (in config files)
     if (!g_startup_active) {
@@ -819,12 +956,8 @@ int startup_flag_command(const std::vector<std::string>& args) {
               "  --no-completions     Disable tab completions",
               "  --no-syntax-highlighting Disable syntax highlighting",
               "  --no-smart-cd        Disable smart cd functionality",
-              "  --minimal            Disable all unique cjsh features "
-              "(plugins, "
-              "themes, AI, colors, completions, syntax highlighting, smart cd, "
-              "sourcing, custom ls, startup time display)",
-              "  --disable-custom-ls  Use system ls command instead of builtin "
-              "ls",
+              R"(  --minimal            Disable all unique cjsh features (plugins, themes, AI, colors, completions, syntax highlighting, smart cd, sourcing, custom ls, startup time display))",
+              R"(  --disable-custom-ls  Use system ls command instead of builtin ls)",
               "  --startup-test       Enable startup test mode"}});
         return 1;
     }
@@ -832,9 +965,9 @@ int startup_flag_command(const std::vector<std::string>& args) {
     const std::string& flag = args[1];
 
     if (flag == "--login" || flag == "--interactive" || flag == "--debug" ||
-        flag == "--no-themes" || flag == "--no-ai" ||
-        flag == "--no-colors" || flag == "--no-titleline" || flag == "--show-startup-time" ||
-        flag == "--no-source" || flag == "--no-completions" || flag == "--no-syntax-highlighting" ||
+        flag == "--no-themes" || flag == "--no-ai" || flag == "--no-colors" ||
+        flag == "--no-titleline" || flag == "--show-startup-time" || flag == "--no-source" ||
+        flag == "--no-completions" || flag == "--no-syntax-highlighting" ||
         flag == "--no-smart-cd" || flag == "--minimal" || flag == "--startup-test" ||
         flag == "--disable-custom-ls") {
         bool flag_exists = false;
@@ -857,7 +990,7 @@ int startup_flag_command(const std::vector<std::string>& args) {
     return 0;
 }
 
-static std::unordered_map<std::string, std::string> g_custom_styles;
+static std::unordered_map<std::string, std::string> g_custom_styles;  // NOLINT
 static const std::unordered_map<std::string, std::string> default_styles = {
     {"unknown-command", "bold color=#FF5555"},
     {"colon", "bold color=#8BE9FD"},
@@ -985,7 +1118,8 @@ void load_custom_styles_from_config() {
 
         if (trimmed.find("style_def ") == 0) {
             std::istringstream iss(trimmed);
-            std::string command, token_type, style;
+            std::string command;
+            std::string token_type;
 
             iss >> command;
 
@@ -1075,7 +1209,7 @@ int set_max_bookmarks_command(const std::vector<std::string>& args) {
     bookmark_database::g_bookmark_db.set_max_bookmarks(number);
     if (!g_startup_active) {
         std::cout << "Maximum bookmarks set to "
-                  << bookmark_database::g_bookmark_db.get_max_bookmarks() << "." << std::endl;
+                  << bookmark_database::g_bookmark_db.get_max_bookmarks() << ".\n";
     }
 
     return 0;
@@ -1128,10 +1262,9 @@ int set_history_max_command(const std::vector<std::string>& args) {
         if (!g_startup_active) {
             long current_limit = get_history_max_entries();
             if (current_limit <= 0) {
-                std::cout << "History persistence is currently disabled." << std::endl;
+                std::cout << "History persistence is currently disabled.\n";
             } else {
-                std::cout << "History file retains up to " << current_limit << " entries."
-                          << std::endl;
+                std::cout << "History file retains up to " << current_limit << " entries." << '\n';
             }
         }
         return 0;
@@ -1182,10 +1315,9 @@ int set_history_max_command(const std::vector<std::string>& args) {
     if (!g_startup_active) {
         long applied_limit = get_history_max_entries();
         if (applied_limit <= 0) {
-            std::cout << "History persistence disabled." << std::endl;
+            std::cout << "History persistence disabled.\n";
         } else {
-            std::cout << "History file will retain up to " << applied_limit << " entries."
-                      << std::endl;
+            std::cout << "History file will retain up to " << applied_limit << " entries." << '\n';
         }
     }
 
