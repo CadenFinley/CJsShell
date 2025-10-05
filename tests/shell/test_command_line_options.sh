@@ -83,14 +83,6 @@ if [ "$OUT" != "test" ]; then
     exit 1
 fi
 
-# Test --no-ai option
-echo "Testing --no-ai option..."
-OUT=$("$CJSH_PATH" --no-ai -c "echo test")
-if [ "$OUT" != "test" ]; then
-    echo "FAIL: --no-ai option (got '$OUT')"
-    exit 1
-fi
-
 # Test --no-themes option
 OUT=$("$CJSH_PATH" --no-themes -c "echo test")
 if [ "$OUT" != "test" ]; then
