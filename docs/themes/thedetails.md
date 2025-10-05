@@ -131,10 +131,49 @@ segment "user_segment" {
       forward_separator_fg "#282828"
       forward_separator_bg RESET
       alignment "left"
+      bold true
+      italic false
+      underline false
+      dim false
+      strikethrough false
     }
 ```
 
 The separator is the separator to the right of the content and the forward separator is the one to the left. The alignment value allows the prompt to be anchored to a given side of the screen, center, left, or right. This placement will dynamically scale with terminal window size.
+
+#### Text Style Properties
+
+Segments support text styling properties;xw
+
+- **`bold`** - Makes text bold/thicker (values: `true`, `false`, `yes`, `no`, `1`, `0`)
+- **`italic`** - Renders text in italics (values: `true`, `false`, `yes`, `no`, `1`, `0`)
+- **`underline`** - Underlines the text (values: `true`, `false`, `yes`, `no`, `1`, `0`)
+- **`dim`** - Renders text with reduced intensity/dimmed (values: `true`, `false`, `yes`, `no`, `1`, `0`)
+- **`strikethrough`** - Strikes through the text (values: `true`, `false`, `yes`, `no`, `1`, `0`)
+
+All text style properties are optional and default to `false`. Multiple styles can be combined on the same segment. For example:
+
+```bash
+segment "emphasized_segment" {
+      content " IMPORTANT "
+      fg "#ff0000"
+      bg "#000000"
+      bold true
+      underline true
+      alignment "left"
+    }
+
+segment "subtle_segment" {
+      content " (optional) "
+      fg "#888888"
+      bg "RESET"
+      dim true
+      italic true
+      alignment "left"
+    }
+```
+
+**Note:** Text style support depends on your terminal emulator. Most modern terminals support bold, italic, underline, and dim. Support for strikethrough varies by terminal.
 
 ### Theme Behaviors
 

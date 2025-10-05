@@ -397,7 +397,6 @@ std::string Theme::render_line_aligned(
             if (segment.bold) style_codes += colors::ansi::BOLD;
             if (segment.italic) style_codes += colors::ansi::ITALIC;
             if (segment.underline) style_codes += colors::ansi::UNDERLINE;
-            if (segment.reverse) style_codes += colors::ansi::REVERSE;
             if (segment.dim) style_codes += colors::ansi::DIM;
             if (segment.strikethrough) style_codes += colors::ansi::STRIKETHROUGH;
 

@@ -62,7 +62,6 @@ struct ThemeSegment {
     bool bold = false;
     bool italic = false;
     bool underline = false;
-    bool reverse = false;
     bool dim = false;
     bool strikethrough = false;
 

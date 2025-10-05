@@ -147,7 +147,7 @@ inline constexpr const char* DIM = "\033[2m";
 inline constexpr const char* ITALIC = "\033[3m";
 inline constexpr const char* UNDERLINE = "\033[4m";
 inline constexpr const char* BLINK = "\033[5m";
-inline constexpr const char* REVERSE = "\033[7m";
+
 inline constexpr const char* HIDDEN = "\033[8m";
 inline constexpr const char* STRIKETHROUGH = "\033[9m";
 
