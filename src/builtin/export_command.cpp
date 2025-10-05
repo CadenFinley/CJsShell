@@ -84,7 +84,7 @@ int unset_command(const std::vector<std::string>& args, Shell* shell) {
     for (size_t i = 1; i < args.size(); ++i) {
         const std::string& name = args[i];
 
-    if (readonly_manager_is(name)) {
+        if (readonly_manager_is(name)) {
             print_error({ErrorType::INVALID_ARGUMENT, "unset", name + ": readonly variable", {}});
             success = false;
             continue;

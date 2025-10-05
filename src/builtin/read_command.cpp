@@ -196,7 +196,7 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
     for (size_t i = 0; i < var_names.size(); ++i) {
         const std::string& var_name = var_names[i];
 
-    if (readonly_manager_is(var_name)) {
+        if (readonly_manager_is(var_name)) {
             print_error(
                 {ErrorType::INVALID_ARGUMENT, "read", var_name + ": readonly variable", {}});
             return 1;
