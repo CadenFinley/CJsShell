@@ -541,7 +541,7 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     }
 
     if (needed_vars.count("DIR_TRUNCATED") != 0u) {
-        vars["DIR_TRUNCATED"] = is_directory_truncated() ? "true" : "false";
+        vars["DIR_TRUNCATED"] = ::is_truncated() ? "true" : "false";
     }
 
     if (needed_vars.count("CMD_DURATION") != 0u) {

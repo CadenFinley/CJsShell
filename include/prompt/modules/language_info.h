@@ -18,9 +18,6 @@ struct CachedVersion {
     }
 };
 
-extern std::unordered_map<std::string, CachedVersion> version_cache;
-extern std::mutex cache_mutex;
-
 extern const std::vector<std::string> python_files;
 extern const std::vector<std::string> python_extensions;
 extern const std::vector<std::string> python_folders;
@@ -80,7 +77,6 @@ bool scan_directory_recursive(const std::filesystem::path& dir,
                               const std::vector<std::string>& files,
                               const std::vector<std::string>& extensions,
                               const std::vector<std::string>& folders, int max_depth = 3);
-std::string execute_command(const std::string& command);
 std::string extract_version(const std::string& output);
 
 std::string get_cached_version(const std::string& language_key,

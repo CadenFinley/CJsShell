@@ -14,13 +14,6 @@ extern std::string cached_status_symbols;
 extern bool cached_is_clean_repo;
 extern std::mutex git_status_mutex;
 extern bool is_git_status_check_running;
-extern std::unordered_map<std::string, std::pair<std::string, std::chrono::steady_clock::time_point>>
-    cache;
-extern std::mutex cache_mutex;
-
-
-template <typename F>
-std::string get_cached_value(const std::string& key, F value_func, int ttl_seconds = 60);
 
 
 std::string get_git_branch(const std::filesystem::path& git_head_path);
@@ -34,31 +27,3 @@ int get_git_ahead_behind(const std::filesystem::path& repo_root, int& ahead, int
 int get_git_stash_count(const std::filesystem::path& repo_root);
 bool get_git_has_staged_changes(const std::filesystem::path& repo_root);
 int get_git_uncommitted_changes(const std::filesystem::path& repo_root);
-
-
-template <typename F>
-std::string get_cached_value(const std::string& key, F value_func, int ttl_seconds) {
-    auto now = std::chrono::steady_clock::now();
-
-    {
-        std::lock_guard<std::mutex> lock(cache_mutex);
-        auto it = cache.find(key);
-        if (it != cache.end()) {
-            auto& [value, timestamp] = it->second;
-            auto elapsed =
-                std::chrono::duration_cast<std::chrono::seconds>(now - timestamp).count();
-            if (elapsed < ttl_seconds) {
-                return value;
-            }
-        }
-    }
-
-    std::string value = value_func();
-
-    {
-        std::lock_guard<std::mutex> lock(cache_mutex);
-        cache[key] = {value, now};
-    }
-
-    return value;
-}

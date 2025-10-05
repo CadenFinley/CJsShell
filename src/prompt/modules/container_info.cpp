@@ -14,7 +14,7 @@ std::string read_file_content(const std::string& path) {
     return result.is_ok() ? result.value() : "";
 }
 
-std::string execute_command(const std::string& command) {
+static std::string execute_command(const std::string& command) {
     auto result = cjsh_filesystem::FileOperations::read_command_output(command);
     if (result.is_error()) {
         return "";

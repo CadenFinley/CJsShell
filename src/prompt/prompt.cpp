@@ -1,6 +1,7 @@
 #include "prompt.h"
 
 #include "cjsh.h"
+#include "command_info.h"
 #include "theme.h"
 #include "theme_parser.h"
 
@@ -135,4 +136,20 @@ bool Prompt::is_git_repository(std::filesystem::path& repo_root) {
         repo_root = repo_root.parent_path();
     }
     return false;
+}
+
+void Prompt::start_command_timing() {
+    ::start_command_timing();
+}
+
+void Prompt::end_command_timing(int exit_code) {
+    ::end_command_timing(exit_code);
+}
+
+void Prompt::reset_command_timing() {
+    ::reset_command_timing();
+}
+
+void Prompt::set_initial_duration(long long microseconds) {
+    ::set_initial_duration(microseconds);
 }

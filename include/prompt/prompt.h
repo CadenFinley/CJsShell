@@ -36,4 +36,9 @@ class Prompt {
     std::string get_initial_duration() {
         return get_formatted_duration();
     }
+
+    void start_command_timing();
+    void end_command_timing(int exit_code);
+    void reset_command_timing();
+    void set_initial_duration(long long microseconds);
 };

@@ -4,7 +4,6 @@
 
 bool file_exists(const std::string& path);
 std::string read_file_content(const std::string& path);
-std::string execute_command(const std::string& command);
 
 std::string get_container_name();
 bool is_in_container();

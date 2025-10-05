@@ -9,8 +9,8 @@
 #include "utils/cjsh_filesystem.h"
 
 // Static data definitions
-std::unordered_map<std::string, CachedVersion> version_cache;
-std::mutex cache_mutex;
+static std::unordered_map<std::string, CachedVersion> version_cache;
+static std::mutex cache_mutex;
 
 const std::vector<std::string> python_files = {"requirements.txt", "setup.py", "pyproject.toml", "Pipfile", "setup.cfg", "tox.ini"};
 const std::vector<std::string> python_extensions = {".py"};
@@ -125,7 +125,7 @@ bool is_project_detected(const std::vector<std::string>& files,
     return scan_directory_recursive(current_path, files, extensions, folders, 3);
 }
 
-std::string execute_command(const std::string& command) {
+static std::string execute_command(const std::string& command) {
     auto result = cjsh_filesystem::FileOperations::read_command_output(command);
     if (result.is_error()) {
         return "";
