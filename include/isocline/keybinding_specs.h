@@ -2,6 +2,8 @@
 #ifndef CJSH_KEYBINDING_SPECS_H
 #define CJSH_KEYBINDING_SPECS_H
 
+// Emacs-style keybindings, this is the default
+
 #ifdef __APPLE__
 #define SPEC_CURSOR_WORD_PREV "shift+left|alt+b"
 #define SPEC_CURSOR_WORD_NEXT "shift+right|alt+f"
