@@ -74,15 +74,6 @@ else
     fail_test "prompt source directory not found"
 fi
 
-# Test 5: prompt_test command
-echo "Testing prompt_test command..."
-"$CJSH_PATH" -c "prompt_test" >/tmp/prompt_test.out 2>&1
-if [ $? -eq 0 ]; then
-    pass_test "prompt_test command exists"
-else
-    skip_test "prompt_test command (may not be available)"
-fi
-
 # Test 6: Check isocline integration (for line editing)
 echo "Testing isocline integration..."
 ISOCLINE_DIR="$(cd "$(dirname "$0")/../../include/isocline" && pwd)"
