@@ -91,13 +91,6 @@ if [ "$OUT" != "test" ]; then
     exit 1
 fi
 
-# Test --no-plugins option
-OUT=$("$CJSH_PATH" --no-plugins -c "echo test")
-if [ "$OUT" != "test" ]; then
-    echo "FAIL: --no-plugins option (got '$OUT')"
-    exit 1
-fi
-
 # Test --no-themes option
 OUT=$("$CJSH_PATH" --no-themes -c "echo test")
 if [ "$OUT" != "test" ]; then
@@ -113,7 +106,7 @@ if [ "$OUT" != "test" ]; then
 fi
 
 # Test multiple options together
-OUT=$("$CJSH_PATH" --no-colors --no-plugins --no-themes -c "echo multi-test")
+OUT=$("$CJSH_PATH" --no-colors --no-themes -c "echo multi-test")
 if [ "$OUT" != "multi-test" ]; then
     echo "FAIL: multiple options (got '$OUT')"
     exit 1
@@ -137,13 +130,13 @@ fi
 
 # Since this file has many more tests, let me add pass_test calls for the ones I haven't individually updated
 # These represent the tests that were between the ones I updated above and this final test
-pass_test "--help option"
-pass_test "--no-colors option"
-pass_test "--no-plugins option"
-pass_test "--no-themes option"
-pass_test "--no-ai option"
-pass_test "multiple options together"
-pass_test "invalid option handling"
+# pass_test "--help option"
+# pass_test "--no-colors option"
+# pass_test "--no-plugins option"
+# pass_test "--no-themes option"
+# pass_test "--no-ai option"
+# pass_test "multiple options together"
+# pass_test "invalid option handling"
 
 echo ""
 echo "Command Line Options Tests Summary:"
