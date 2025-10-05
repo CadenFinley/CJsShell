@@ -69,6 +69,27 @@ def count_lines_in_file(file_path: Path, count_blank: bool = True, count_comment
     }
 
 
+def categorize_file(file_path: Path, project_root: Path) -> str:
+    """Categorize a file by its directory."""
+    relative_path = file_path.relative_to(project_root)
+    parts = relative_path.parts
+    
+    if not parts:
+        return 'other'
+    
+    first_dir = parts[0]
+    
+    # Categorize based on top-level directory
+    if first_dir in ['src', 'include']:
+        return 'source_code'
+    elif first_dir == 'tests':
+        return 'tests'
+    elif first_dir == 'toolchain':
+        return 'toolchain'
+    else:
+        return 'other'
+
+
 def find_source_files(project_root: Path, excluded_dirs: Set[str], 
                      included_extensions: Set[str]) -> List[Path]:
     """Find all source files that should be included in the count."""
@@ -120,17 +141,26 @@ def main():
     source_files = find_source_files(project_root, excluded_dirs, included_extensions)
     
     # Count lines in each file and collect results
-    file_info: List[Tuple[Dict[str, int], Path]] = []
+    file_info: List[Tuple[Dict[str, int], Path, str]] = []
     totals = {'total': 0, 'blank': 0, 'comment': 0, 'code': 0}
+    category_stats: Dict[str, Dict[str, int]] = {}
     extension_stats: Dict[str, Dict[str, int]] = {}
     
     for file_path in source_files:
         line_counts = count_lines_in_file(file_path, count_blank=True, count_comments=True)
-        file_info.append((line_counts, file_path))
+        category = categorize_file(file_path, project_root)
+        file_info.append((line_counts, file_path, category))
         
         # Add to totals
         for key in totals:
             totals[key] += line_counts[key]
+        
+        # Add to category stats
+        if category not in category_stats:
+            category_stats[category] = {'total': 0, 'blank': 0, 'comment': 0, 'code': 0, 'files': 0}
+        for key in ['total', 'blank', 'comment', 'code']:
+            category_stats[category][key] += line_counts[key]
+        category_stats[category]['files'] += 1
         
         # Add to extension stats
         ext = file_path.suffix
@@ -143,24 +173,56 @@ def main():
     # Sort by total line count (descending)
     file_info.sort(key=lambda x: x[0]['total'], reverse=True)
     
-    # Print results
-    if args.detailed:
-        print(f"{'Lines':>6} {'Blank':>6} {'Comment':>8} {'Code':>6} File")
-        print("-" * 60)
-        for line_counts, file_path in file_info:
-            relative_path = file_path.relative_to(project_root)
-            print(f"{line_counts['total']:6d} {line_counts['blank']:6d} "
-                  f"{line_counts['comment']:8d} {line_counts['code']:6d} ./{relative_path}")
-    else:
-        for line_counts, file_path in file_info:
-            relative_path = file_path.relative_to(project_root)
-            print(f"{line_counts['total']:6d} lines: ./{relative_path}")
+    # Define category order and display names
+    category_order = ['source_code', 'tests', 'toolchain', 'other']
+    category_names = {
+        'source_code': 'Source Code (src/, include/)',
+        'tests': 'Tests',
+        'toolchain': 'Toolchain',
+        'other': 'Other'
+    }
     
-    print()
+    # Print results organized by category
+    for category in category_order:
+        if category not in category_stats:
+            continue
+        
+        print(f"\n{'='*70}")
+        print(f"{category_names[category]}")
+        print(f"{'='*70}")
+        
+        # Filter files for this category
+        category_files = [(lc, fp) for lc, fp, cat in file_info if cat == category]
+        
+        if args.detailed:
+            print(f"{'Lines':>6} {'Blank':>6} {'Comment':>8} {'Code':>6} File")
+            print("-" * 70)
+            for line_counts, file_path in category_files:
+                relative_path = file_path.relative_to(project_root)
+                print(f"{line_counts['total']:6d} {line_counts['blank']:6d} "
+                      f"{line_counts['comment']:8d} {line_counts['code']:6d} ./{relative_path}")
+        else:
+            for line_counts, file_path in category_files:
+                relative_path = file_path.relative_to(project_root)
+                print(f"{line_counts['total']:6d} lines: ./{relative_path}")
+        
+        # Print category summary
+        stats = category_stats[category]
+        print(f"\n{category_names[category]} Summary:")
+        print(f"  Files: {stats['files']}")
+        if args.detailed:
+            print(f"  Total lines: {format_number(stats['total'])}")
+            print(f"  Code lines: {format_number(stats['code'])} ({stats['code']/stats['total']*100:.1f}%)")
+            print(f"  Comment lines: {format_number(stats['comment'])} ({stats['comment']/stats['total']*100:.1f}%)")
+            print(f"  Blank lines: {format_number(stats['blank'])} ({stats['blank']/stats['total']*100:.1f}%)")
+        else:
+            print(f"  Total lines: {format_number(stats['total'])}")
+    
+    print(f"\n{'='*70}")
     
     # Print extension breakdown if requested
     if args.by_extension:
-        print("By Extension:")
+        print("\nBy Extension:")
         print(f"{'Ext':>6} {'Files':>6} {'Total':>8} {'Blank':>6} {'Comment':>8} {'Code':>6}")
         print("-" * 50)
         for ext in sorted(extension_stats.keys()):
@@ -169,7 +231,8 @@ def main():
                   f"{stats['blank']:6d} {stats['comment']:8d} {stats['code']:6d}")
         print()
     
-    # Print summary
+    # Print overall summary
+    print("\nOverall Project Summary:")
     print(f"Total files included in count: {len(source_files)}")
     if args.detailed:
         print(f"Total lines: {format_number(totals['total'])}")
@@ -177,7 +240,7 @@ def main():
         print(f"  Comment lines: {format_number(totals['comment'])} ({totals['comment']/totals['total']*100:.1f}%)")
         print(f"  Blank lines: {format_number(totals['blank'])} ({totals['blank']/totals['total']*100:.1f}%)")
     else:
-        print(f"{totals['total']}")
+        print(f"Total lines: {format_number(totals['total'])}")
 
 
 if __name__ == "__main__":
