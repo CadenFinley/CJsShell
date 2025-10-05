@@ -5,21 +5,14 @@
 
 namespace cjsh {
 
-class CommandLineParser {
-   public:
-    struct ParseResult {
-        std::string script_file;
-        std::vector<std::string> script_args;
-        int exit_code = 0;
-        bool should_exit = false;
-    };
-
-    static ParseResult parse_arguments(int argc, char* argv[]);
-    static void apply_profile_startup_flags();
-
-   private:
-    static void detect_login_mode(char* argv[]);
-    static void apply_minimal_mode();
+struct ParseResult {
+    std::string script_file;
+    std::vector<std::string> script_args;
+    int exit_code = 0;
+    bool should_exit = false;
 };
+
+ParseResult parse_arguments(int argc, char* argv[]);
+void apply_profile_startup_flags();
 
 }  // namespace cjsh

@@ -3604,7 +3604,7 @@ std::string ShellScriptInterpreter::expand_parameter_expression(const std::strin
     }
     if (op == ":=") {
         if (!is_set || var_value.empty()) {
-            if (ReadonlyManager::instance().is_readonly(var_name)) {
+            if (readonly_manager_is(var_name)) {
                 std::cerr << "cjsh: " << var_name << ": readonly variable" << '\n';
                 return var_value;
             }
@@ -3624,7 +3624,7 @@ std::string ShellScriptInterpreter::expand_parameter_expression(const std::strin
     }
     if (op == "=") {
         if (!is_set) {
-            if (ReadonlyManager::instance().is_readonly(var_name)) {
+            if (readonly_manager_is(var_name)) {
                 std::cerr << "cjsh: " << var_name << ": readonly variable" << '\n';
                 return var_value;
             }

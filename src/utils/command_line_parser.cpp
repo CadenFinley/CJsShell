@@ -9,7 +9,30 @@
 
 namespace cjsh {
 
-CommandLineParser::ParseResult CommandLineParser::parse_arguments(int argc, char* argv[]) {
+namespace {
+
+void detect_login_mode(char* argv[]) {
+    if ((argv != nullptr) && (argv[0] != nullptr) && argv[0][0] == '-') {
+        config::login_mode = true;
+    }
+}
+
+void apply_minimal_mode() {
+    config::minimal_mode = true;
+    config::themes_enabled = false;
+    config::colors_enabled = false;
+    config::source_enabled = false;
+    config::completions_enabled = false;
+    config::syntax_highlighting_enabled = false;
+    config::smart_cd_enabled = false;
+    config::disable_custom_ls = true;
+    config::show_startup_time = false;
+    config::show_title_line = false;
+}
+
+}  // namespace
+
+ParseResult parse_arguments(int argc, char* argv[]) {
     ParseResult result;
 
     detect_login_mode(argv);
@@ -133,26 +156,7 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(int argc, char
     return result;
 }
 
-void CommandLineParser::detect_login_mode(char* argv[]) {
-    if ((argv != nullptr) && (argv[0] != nullptr) && argv[0][0] == '-') {
-        config::login_mode = true;
-    }
-}
-
-void CommandLineParser::apply_minimal_mode() {
-    config::minimal_mode = true;
-    config::themes_enabled = false;
-    config::colors_enabled = false;
-    config::source_enabled = false;
-    config::completions_enabled = false;
-    config::syntax_highlighting_enabled = false;
-    config::smart_cd_enabled = false;
-    config::disable_custom_ls = true;
-    config::show_startup_time = false;
-    config::show_title_line = false;
-}
-
-void CommandLineParser::apply_profile_startup_flags() {
+void apply_profile_startup_flags() {
     extern std::vector<std::string> g_profile_startup_args;
 
     for (const std::string& flag : ::g_profile_startup_args) {

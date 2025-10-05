@@ -18,23 +18,16 @@ class Built_ins;
 class ShellScriptInterpreter;
 struct Command;
 
-class ScopedRawMode {
-   public:
-    ScopedRawMode();
-    explicit ScopedRawMode(int fd);
-    ~ScopedRawMode();
-
-    bool entered() const {
-        return entered_;
-    }
-
-    void release();
-
-   private:
-    bool entered_;
-    int fd_;
-    struct termios saved_modes_;
+struct RawModeState {
+    bool entered;
+    int fd;
+    struct termios saved_modes;
 };
+
+void raw_mode_state_init(RawModeState* state);
+void raw_mode_state_init_with_fd(RawModeState* state, int fd);
+void raw_mode_state_release(RawModeState* state);
+bool raw_mode_state_entered(const RawModeState* state);
 
 class Shell {
    public:

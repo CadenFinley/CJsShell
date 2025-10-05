@@ -329,30 +329,17 @@ struct CompletionTracker {
 
 thread_local static CompletionTracker* g_current_completion_tracker = nullptr;
 
-class CompletionSession {
-   public:
-    CompletionSession(ic_completion_env_t* cenv, const char* prefix) {
+static void completion_session_begin(ic_completion_env_t* cenv, const char* prefix) {
+    delete g_current_completion_tracker;
+    g_current_completion_tracker = new CompletionTracker(cenv, prefix);
+}
+
+static void completion_session_end() {
+    if (g_current_completion_tracker != nullptr) {
         delete g_current_completion_tracker;
-        g_current_completion_tracker = new CompletionTracker(cenv, prefix);
+        g_current_completion_tracker = nullptr;
     }
-
-    ~CompletionSession() {
-        if (g_current_completion_tracker != nullptr) {
-            delete g_current_completion_tracker;
-            g_current_completion_tracker = nullptr;
-        }
-    }
-
-    CompletionSession(const CompletionSession&) = delete;
-    CompletionSession& operator=(const CompletionSession&) = delete;
-};
-
-// static bool safe_add_completion(ic_completion_env_t* cenv, const char* completion_text) {
-//     if (g_current_completion_tracker != nullptr) {
-//         return g_current_completion_tracker->add_completion_if_unique(completion_text);
-//     }
-//     return ic_add_completion_ex_with_source(cenv, completion_text, nullptr, nullptr, nullptr);
-// }
+}
 
 static bool safe_add_completion_with_source(ic_completion_env_t* cenv, const char* completion_text,
                                             const char* source) {
@@ -362,17 +349,6 @@ static bool safe_add_completion_with_source(ic_completion_env_t* cenv, const cha
     }
     return ic_add_completion_ex_with_source(cenv, completion_text, nullptr, nullptr, source);
 }
-
-// static bool safe_add_completion_prim(ic_completion_env_t* cenv, const char* completion_text,
-//                                      const char* display, const char* help, long delete_before,
-//                                      long delete_after) {
-//     if (g_current_completion_tracker != nullptr) {
-//         return g_current_completion_tracker->add_completion_prim_if_unique(
-//             completion_text, display, help, delete_before, delete_after);
-//     }
-//     return ic_add_completion_prim_with_source(cenv, completion_text, display, help, nullptr,
-//                                               delete_before, delete_after);
-// }
 
 static bool safe_add_completion_prim_with_source(ic_completion_env_t* cenv,
                                                  const char* completion_text, const char* display,
@@ -1128,7 +1104,7 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
     if (ic_stop_completing(cenv))
         return;
 
-    CompletionSession session(cenv, prefix);
+    completion_session_begin(cenv, prefix);
 
     CompletionContext context = detect_completion_context(prefix);
 
@@ -1136,11 +1112,13 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
         case CONTEXT_COMMAND:
             cjsh_history_completer(cenv, prefix);
             if (ic_has_completions(cenv) && ic_stop_completing(cenv)) {
+                completion_session_end();
                 return;
             }
 
             cjsh_command_completer(cenv, prefix);
             if (ic_has_completions(cenv) && ic_stop_completing(cenv)) {
+                completion_session_end();
                 return;
             }
 
@@ -1165,6 +1143,8 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
             break;
         }
     }
+
+    completion_session_end();
 }
 
 void initialize_completion_system() {

@@ -52,45 +52,56 @@ bool has_theme_extension(const std::filesystem::path& path) {
 }
 }  // namespace
 
-ScopedRawMode::ScopedRawMode() : ScopedRawMode(STDIN_FILENO) {
+void raw_mode_state_init(RawModeState* state) {
+    if (!state) {
+        return;
+    }
+    raw_mode_state_init_with_fd(state, STDIN_FILENO);
 }
 
-ScopedRawMode::ScopedRawMode(int fd) : entered_(false), fd_(fd) {
-    if (fd_ < 0 || !isatty(fd_)) {
+void raw_mode_state_init_with_fd(RawModeState* state, int fd) {
+    if (!state) {
         return;
     }
 
-    if (tcgetattr(fd_, &saved_modes_) == -1) {
+    state->entered = false;
+    state->fd = fd;
+
+    if (fd < 0 || !isatty(fd)) {
         return;
     }
 
-    struct termios raw_modes = saved_modes_;
+    if (tcgetattr(fd, &state->saved_modes) == -1) {
+        return;
+    }
+
+    struct termios raw_modes = state->saved_modes;
     raw_modes.c_lflag &= ~ICANON;
     raw_modes.c_cc[VMIN] = 0;
     raw_modes.c_cc[VTIME] = 0;
 
-    if (tcsetattr(fd_, TCSANOW, &raw_modes) == -1) {
+    if (tcsetattr(fd, TCSANOW, &raw_modes) == -1) {
         return;
     }
 
-    entered_ = true;
+    state->entered = true;
 }
 
-ScopedRawMode::~ScopedRawMode() {
-    release();
-}
-
-void ScopedRawMode::release() {
-    if (!entered_) {
+void raw_mode_state_release(RawModeState* state) {
+    if (!state || !state->entered) {
         return;
     }
 
-    if (tcsetattr(fd_, TCSANOW, &saved_modes_) == -1) {
+    if (tcsetattr(state->fd, TCSANOW, &state->saved_modes) == -1) {
         // Failed to restore terminal modes, but there's not much we can do here as shell is likely
         // exiting.
     }
 
-    entered_ = false;
+    state->entered = false;
+}
+
+bool raw_mode_state_entered(const RawModeState* state) {
+    return state && state->entered;
 }
 
 void Shell::process_pending_signals() {
@@ -120,7 +131,7 @@ Shell::Shell() {
     shell_terminal = STDIN_FILENO;
 
     JobManager::instance().set_shell(this);
-    TrapManager::instance().set_shell(this);
+    trap_manager_set_shell(this);
 
     setup_signal_handlers();
     g_signal_handler = signal_handler.get();

@@ -23,6 +23,23 @@ static const std::unordered_map<std::string, int> signal_map = {
 
 static std::unordered_map<int, std::string> reverse_signal_map;
 
+namespace {
+struct TrapManagerState {
+    std::unordered_map<int, std::string> traps;
+    Shell* shell_ref = nullptr;
+    bool exit_trap_executed = false;
+};
+
+TrapManagerState& trap_manager_state() {
+    static TrapManagerState state;
+    return state;
+}
+
+void dispatch_signal(int sig) {
+    trap_manager_execute_trap(sig);
+}
+}  // namespace
+
 static void init_reverse_signal_map() {
     if (reverse_signal_map.empty()) {
         for (const auto& pair : signal_map) {
@@ -31,31 +48,28 @@ static void init_reverse_signal_map() {
     }
 }
 
-TrapManager& TrapManager::instance() {
-    static TrapManager instance;
-    return instance;
-}
-
-void TrapManager::set_trap(int signal, const std::string& command) {
+void trap_manager_set_trap(int signal, const std::string& command) {
     if (signal == SIGKILL || signal == SIGSTOP) {
         return;
     }
 
-    traps[signal] = command;
+    auto& state = trap_manager_state();
+    state.traps[signal] = command;
 
     if (signal == 0 || signal == -2 || signal == -3 || signal == -4) {
         return;
     }
 
     struct sigaction sa{};
-    sa.sa_handler = [](int sig) { TrapManager::instance().execute_trap(sig); };
+    sa.sa_handler = dispatch_signal;
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = SA_RESTART;
     sigaction(signal, &sa, nullptr);
 }
 
-void TrapManager::remove_trap(int signal) {
-    traps.erase(signal);
+void trap_manager_remove_trap(int signal) {
+    auto& state = trap_manager_state();
+    state.traps.erase(signal);
 
     if (signal == 0 || signal == -2 || signal == -3 || signal == -4) {
         return;
@@ -68,72 +82,81 @@ void TrapManager::remove_trap(int signal) {
     sigaction(signal, &sa, nullptr);
 }
 
-std::string TrapManager::get_trap(int signal) const {
-    auto it = traps.find(signal);
-    return it != traps.end() ? it->second : "";
+std::string trap_manager_get_trap(int signal) {
+    auto& state = trap_manager_state();
+    auto it = state.traps.find(signal);
+    return it != state.traps.end() ? it->second : "";
 }
 
-void TrapManager::execute_trap(int signal) {
-    auto it = traps.find(signal);
-    if (it != traps.end() && (shell_ref != nullptr)) {
-        shell_ref->execute(it->second);
+void trap_manager_execute_trap(int signal) {
+    auto& state = trap_manager_state();
+    auto it = state.traps.find(signal);
+    if (it != state.traps.end() && (state.shell_ref != nullptr)) {
+        state.shell_ref->execute(it->second);
     }
 }
 
-std::vector<std::pair<int, std::string>> TrapManager::list_traps() const {
+std::vector<std::pair<int, std::string>> trap_manager_list_traps() {
+    auto& state = trap_manager_state();
     std::vector<std::pair<int, std::string>> result;
-    result.reserve(traps.size());
-    for (const auto& pair : traps) {
+    result.reserve(state.traps.size());
+    for (const auto& pair : state.traps) {
         result.push_back(pair);
     }
     return result;
 }
 
-void TrapManager::reset_all_traps() {
-    for (const auto& pair : traps) {
-        remove_trap(pair.first);
+void trap_manager_reset_all_traps() {
+    auto keys = trap_manager_list_traps();
+    for (const auto& pair : keys) {
+        trap_manager_remove_trap(pair.first);
     }
-    traps.clear();
+    trap_manager_state().traps.clear();
 }
 
-bool TrapManager::has_trap(int signal) const {
-    return traps.find(signal) != traps.end();
+bool trap_manager_has_trap(int signal) {
+    auto& state = trap_manager_state();
+    return state.traps.find(signal) != state.traps.end();
 }
 
-void TrapManager::set_shell(Shell* shell) {
-    shell_ref = shell;
+void trap_manager_set_shell(Shell* shell) {
+    trap_manager_state().shell_ref = shell;
 }
 
-void TrapManager::execute_exit_trap() {
-    if (exit_trap_executed) {
+void trap_manager_execute_exit_trap() {
+    auto& state = trap_manager_state();
+    if (state.exit_trap_executed) {
         return;
     }
-    exit_trap_executed = true;
+    state.exit_trap_executed = true;
 
-    auto it = traps.find(0);
-    if (it != traps.end() && (shell_ref != nullptr)) {
-        shell_ref->execute(it->second);
+    auto it = state.traps.find(0);
+    if (it != state.traps.end() && (state.shell_ref != nullptr)) {
+        state.shell_ref->execute(it->second);
     }
 }
 
-void TrapManager::execute_err_trap() {
-    auto it = traps.find(-2);
-    if (it != traps.end() && (shell_ref != nullptr)) {
-        shell_ref->execute(it->second);
+void trap_manager_execute_err_trap() {
+    auto& state = trap_manager_state();
+    auto it = state.traps.find(-2);
+    if (it != state.traps.end() && (state.shell_ref != nullptr)) {
+        state.shell_ref->execute(it->second);
     }
 }
 
-void TrapManager::execute_debug_trap() {
-    auto it = traps.find(-3);
-    if (it != traps.end() && (shell_ref != nullptr)) {
-        shell_ref->execute(it->second);
+void trap_manager_execute_debug_trap() {
+    auto& state = trap_manager_state();
+    auto it = state.traps.find(-3);
+    if (it != state.traps.end() && (state.shell_ref != nullptr)) {
+        state.shell_ref->execute(it->second);
     }
 }
 
-void TrapManager::execute_return_trap() {
-    auto it = traps.find(-4);
-    if (it != traps.end() && (shell_ref != nullptr)) {
-        shell_ref->execute(it->second);
+void trap_manager_execute_return_trap() {
+    auto& state = trap_manager_state();
+    auto it = state.traps.find(-4);
+    if (it != state.traps.end() && (state.shell_ref != nullptr)) {
+        state.shell_ref->execute(it->second);
     }
 }
 
@@ -185,6 +208,8 @@ std::string signal_number_to_name(int signal_number) {
             return "DEBUG";
         case -4:
             return "RETURN";
+        default:
+            break;
     }
 
     init_reverse_signal_map();
@@ -199,8 +224,7 @@ int trap_command(const std::vector<std::string>& args) {
         return 0;
     }
     if (args.size() == 1) {
-        auto& trap_manager = TrapManager::instance();
-        auto traps = trap_manager.list_traps();
+        auto traps = trap_manager_list_traps();
 
         if (traps.empty()) {
             return 0;
@@ -222,8 +246,7 @@ int trap_command(const std::vector<std::string>& args) {
     }
 
     if (args.size() >= 2 && args[1] == "-p") {
-        auto& trap_manager = TrapManager::instance();
-        auto traps = trap_manager.list_traps();
+        auto traps = trap_manager_list_traps();
 
         for (const auto& pair : traps) {
             std::cout << "trap -- '" << pair.second << "' " << signal_number_to_name(pair.first)
@@ -239,8 +262,6 @@ int trap_command(const std::vector<std::string>& args) {
     }
 
     const std::string& command = args[1];
-    auto& trap_manager = TrapManager::instance();
-
     for (size_t i = 2; i < args.size(); ++i) {
         int signal_num = signal_name_to_number(args[i]);
         if (signal_num == -1) {
@@ -252,9 +273,9 @@ int trap_command(const std::vector<std::string>& args) {
         }
 
         if (command.empty() || command == "-") {
-            trap_manager.remove_trap(signal_num);
+            trap_manager_remove_trap(signal_num);
         } else {
-            trap_manager.set_trap(signal_num, command);
+            trap_manager_set_trap(signal_num, command);
         }
     }
 

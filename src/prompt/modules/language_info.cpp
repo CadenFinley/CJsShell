@@ -30,11 +30,11 @@ const std::vector<std::string> golang_folders = {};
 
 const std::vector<std::string> java_files = {"pom.xml", "build.gradle", "build.gradle.kts", "gradlew", "mvnw"};
 const std::vector<std::string> java_extensions = {".java"};
-const std::vector<std::string> java_folders = {"target", "build", ".gradle"};
+const std::vector<std::string> java_folders = {"target",".gradle"};
 
 const std::vector<std::string> cpp_files = {"CMakeLists.txt", "Makefile", "configure.ac", "meson.build"};
 const std::vector<std::string> cpp_extensions = {".cpp", ".cc", ".cxx", ".c", ".h", ".hpp", ".hxx"};
-const std::vector<std::string> cpp_folders = {"build", "cmake-build-debug", "cmake-build-release"};
+const std::vector<std::string> cpp_folders = { "cmake-build-debug", "cmake-build-release"};
 
 const std::vector<std::string> csharp_files = {".csproj", ".sln", "nuget.config", "global.json"};
 const std::vector<std::string> csharp_extensions = {".cs"};
@@ -50,7 +50,7 @@ const std::vector<std::string> ruby_folders = {};
 
 const std::vector<std::string> kotlin_files = {"build.gradle.kts", "settings.gradle.kts"};
 const std::vector<std::string> kotlin_extensions = {".kt", ".kts"};
-const std::vector<std::string> kotlin_folders = {"build"};
+const std::vector<std::string> kotlin_folders = {};
 
 const std::vector<std::string> swift_files = {"Package.swift", ".swift-version"};
 const std::vector<std::string> swift_extensions = {".swift"};
@@ -58,7 +58,7 @@ const std::vector<std::string> swift_folders = {".build", "Packages"};
 
 const std::vector<std::string> dart_files = {"pubspec.yaml", "pubspec.lock"};
 const std::vector<std::string> dart_extensions = {".dart"};
-const std::vector<std::string> dart_folders = {".dart_tool", "build"};
+const std::vector<std::string> dart_folders = {".dart_tool"};
 
 const std::vector<std::string> scala_files = {"build.sbt", "build.sc"};
 const std::vector<std::string> scala_extensions = {".scala", ".sc"};

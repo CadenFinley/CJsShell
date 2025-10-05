@@ -2590,7 +2590,7 @@ bool Parser::is_env_assignment(const std::string& command, std::string& var_name
     var_name = name_part;
     var_value = command.substr(equals_pos + 1);
 
-    if (ReadonlyManager::instance().is_readonly(var_name)) {
+    if (readonly_manager_is(var_name)) {
         std::cerr << "cjsh: " << var_name << ": readonly variable" << '\n';
         return false;
     }

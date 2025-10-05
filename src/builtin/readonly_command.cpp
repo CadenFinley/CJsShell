@@ -6,34 +6,43 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <unordered_set>
 #include "error_out.h"
 #include "shell.h"
 
-ReadonlyManager& ReadonlyManager::instance() {
-    static ReadonlyManager instance;
-    return instance;
+namespace {
+struct ReadonlyState {
+    std::unordered_set<std::string> readonly_vars;
+};
+
+ReadonlyState& readonly_state() {
+    static ReadonlyState state;
+    return state;
+}
+}  // namespace
+
+void readonly_manager_set(const std::string& name) {
+    readonly_state().readonly_vars.insert(name);
 }
 
-void ReadonlyManager::set_readonly(const std::string& name) {
-    readonly_vars.insert(name);
+bool readonly_manager_is(const std::string& name) {
+    const auto& vars = readonly_state().readonly_vars;
+    return vars.find(name) != vars.end();
 }
 
-bool ReadonlyManager::is_readonly(const std::string& name) const {
-    return readonly_vars.find(name) != readonly_vars.end();
+void readonly_manager_remove(const std::string& name) {
+    readonly_state().readonly_vars.erase(name);
 }
 
-void ReadonlyManager::remove_readonly(const std::string& name) {
-    readonly_vars.erase(name);
-}
-
-std::vector<std::string> ReadonlyManager::get_readonly_variables() const {
-    std::vector<std::string> result(readonly_vars.begin(), readonly_vars.end());
+std::vector<std::string> readonly_manager_list() {
+    const auto& vars = readonly_state().readonly_vars;
+    std::vector<std::string> result(vars.begin(), vars.end());
     std::sort(result.begin(), result.end());
     return result;
 }
 
-void ReadonlyManager::clear_all() {
-    readonly_vars.clear();
+void readonly_manager_clear() {
+    readonly_state().readonly_vars.clear();
 }
 
 int readonly_command(const std::vector<std::string>& args, Shell* shell) {
@@ -43,10 +52,8 @@ int readonly_command(const std::vector<std::string>& args, Shell* shell) {
                                    "-p prints readonly variables."})) {
         return 0;
     }
-    auto& readonly_manager = ReadonlyManager::instance();
-
     if (args.size() == 1) {
-        auto readonly_vars = readonly_manager.get_readonly_variables();
+        auto readonly_vars = readonly_manager_list();
 
         for (const std::string& var : readonly_vars) {
             const char* value = getenv(var.c_str());
@@ -80,7 +87,7 @@ int readonly_command(const std::vector<std::string>& args, Shell* shell) {
     }
 
     if (print_mode) {
-        auto readonly_vars = readonly_manager.get_readonly_variables();
+        auto readonly_vars = readonly_manager_list();
 
         for (const std::string& var : readonly_vars) {
             const char* value = getenv(var.c_str());
@@ -106,7 +113,7 @@ int readonly_command(const std::vector<std::string>& args, Shell* shell) {
             std::string name = arg.substr(0, eq_pos);
             std::string value = arg.substr(eq_pos + 1);
 
-            if (readonly_manager.is_readonly(name)) {
+            if (readonly_manager_is(name)) {
                 print_error(
                     {ErrorType::RUNTIME_ERROR, "readonly", name + ": readonly variable", {}});
                 return 1;
@@ -120,7 +127,7 @@ int readonly_command(const std::vector<std::string>& args, Shell* shell) {
                 return 1;
             }
 
-            readonly_manager.set_readonly(name);
+            readonly_manager_set(name);
         } else {
             const char* value = getenv(arg.c_str());
             if (value == nullptr) {
@@ -133,7 +140,7 @@ int readonly_command(const std::vector<std::string>& args, Shell* shell) {
                 }
             }
 
-            readonly_manager.set_readonly(arg);
+            readonly_manager_set(arg);
         }
     }
 
@@ -141,5 +148,5 @@ int readonly_command(const std::vector<std::string>& args, Shell* shell) {
 }
 
 bool check_readonly_assignment(const std::string& name) {
-    return ReadonlyManager::instance().is_readonly(name);
+    return readonly_manager_is(name);
 }

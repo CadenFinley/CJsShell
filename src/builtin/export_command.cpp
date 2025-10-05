@@ -32,7 +32,7 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
     for (size_t i = 1; i < args.size(); ++i) {
         std::string name, value;
         if (parse_env_assignment(args[i], name, value)) {
-            if (ReadonlyManager::instance().is_readonly(name)) {
+            if (readonly_manager_is(name)) {
                 print_error(
                     {ErrorType::INVALID_ARGUMENT, "export", name + ": readonly variable", {}});
                 all_successful = false;
@@ -84,7 +84,7 @@ int unset_command(const std::vector<std::string>& args, Shell* shell) {
     for (size_t i = 1; i < args.size(); ++i) {
         const std::string& name = args[i];
 
-        if (ReadonlyManager::instance().is_readonly(name)) {
+    if (readonly_manager_is(name)) {
             print_error({ErrorType::INVALID_ARGUMENT, "unset", name + ": readonly variable", {}});
             success = false;
             continue;

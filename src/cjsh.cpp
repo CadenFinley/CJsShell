@@ -179,7 +179,7 @@ static void process_profile_files() {
 
 static int initialize_login_mode() {
     process_profile_files();
-    cjsh::CommandLineParser::apply_profile_startup_flags();
+    cjsh::apply_profile_startup_flags();
     return 0;
 }
 
@@ -269,8 +269,8 @@ static void process_logout_file() {
 
 void cleanup_resources() {
     if (g_shell) {
-        TrapManager::instance().set_shell(g_shell.get());
-        TrapManager::instance().execute_exit_trap();
+    trap_manager_set_shell(g_shell.get());
+    trap_manager_execute_exit_trap();
         process_logout_file();
     }
 
@@ -290,7 +290,7 @@ void cleanup_resources() {
 int main(int argc, char* argv[]) {
     g_startup_begin_time = std::chrono::steady_clock::now();
 
-    auto parse_result = cjsh::CommandLineParser::parse_arguments(argc, argv);
+    auto parse_result = cjsh::parse_arguments(argc, argv);
     if (parse_result.should_exit) {
         return parse_result.exit_code;
     }
@@ -351,8 +351,8 @@ int main(int argc, char* argv[]) {
         }
 
         if (g_shell) {
-            TrapManager::instance().set_shell(g_shell.get());
-            TrapManager::instance().execute_exit_trap();
+            trap_manager_set_shell(g_shell.get());
+            trap_manager_execute_exit_trap();
         }
 
         return code;

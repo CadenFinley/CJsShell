@@ -1,28 +1,18 @@
 #pragma once
 
 #include <string>
-#include <unordered_set>
 #include <vector>
 
 class Shell;
 
-class ReadonlyManager {
-   public:
-    static ReadonlyManager& instance();
+void readonly_manager_set(const std::string& name);
 
-    void set_readonly(const std::string& name);
+bool readonly_manager_is(const std::string& name);
 
-    bool is_readonly(const std::string& name) const;
+void readonly_manager_remove(const std::string& name);
 
-    void remove_readonly(const std::string& name);
+std::vector<std::string> readonly_manager_list();
 
-    std::vector<std::string> get_readonly_variables() const;
-
-    void clear_all();
-
-   private:
-    ReadonlyManager() = default;
-    std::unordered_set<std::string> readonly_vars;
-};
+void readonly_manager_clear();
 
 int readonly_command(const std::vector<std::string>& args, Shell* shell);
