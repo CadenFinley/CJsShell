@@ -2,7 +2,9 @@
 
 #include "utils/cjsh_filesystem.h"
 
-std::string NetworkInfo::get_ip_address(bool external) {
+namespace network_info {
+
+std::string get_ip_address(bool external) {
     std::string cmd;
 
     if (external) {
@@ -41,7 +43,7 @@ std::string NetworkInfo::get_ip_address(bool external) {
     return result.empty() ? "N/A" : result;
 }
 
-bool NetworkInfo::is_vpn_active() {
+bool is_vpn_active() {
 #ifdef __APPLE__
     std::string cmd = R"(
     scutil --nwi | grep -q "utun\|tun\|ppp" && echo "1" || echo "0"
@@ -62,7 +64,7 @@ bool NetworkInfo::is_vpn_active() {
     return (result_data.value().length() > 0 && result_data.value()[0] == '1');
 }
 
-std::string NetworkInfo::get_active_network_interface() {
+std::string get_active_network_interface() {
 #ifdef __APPLE__
     std::string cmd = R"(
     route get default | grep interface | awk '{print $2}'
@@ -87,3 +89,5 @@ std::string NetworkInfo::get_active_network_interface() {
 
     return result.empty() ? "N/A" : result;
 }
+
+}  // namespace network_info

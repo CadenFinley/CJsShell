@@ -8,18 +8,20 @@
 #include "cjsh.h"
 #include "utils/cjsh_filesystem.h"
 
-std::string EnvironmentInfo::get_terminal_type() {
+namespace environment_info {
+
+std::string get_terminal_type() {
     const char* term = getenv("TERM");
     return term ? std::string(term) : "unknown";
 }
 
-std::pair<int, int> EnvironmentInfo::get_terminal_dimensions() {
+std::pair<int, int> get_terminal_dimensions() {
     struct winsize w;
     ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
     return {w.ws_col, w.ws_row};
 }
 
-std::string EnvironmentInfo::get_active_language_version(const std::string& language) {
+std::string get_active_language_version(const std::string& language) {
     std::string cmd;
 
     if (language == "python") {
@@ -80,7 +82,7 @@ std::string EnvironmentInfo::get_active_language_version(const std::string& lang
     return result;
 }
 
-bool EnvironmentInfo::is_in_virtual_environment(std::string& env_name) {
+bool is_in_virtual_environment(std::string& env_name) {
     // Check for Python virtual environments
     const char* venv = getenv("VIRTUAL_ENV");
     if (venv) {
@@ -111,7 +113,7 @@ bool EnvironmentInfo::is_in_virtual_environment(std::string& env_name) {
     return false;
 }
 
-int EnvironmentInfo::get_background_jobs_count() {
+int get_background_jobs_count() {
     std::string cmd = "jobs | wc -l";
     auto cmd_result = cjsh_filesystem::FileOperations::read_command_output(cmd);
     if (cmd_result.is_error()) {
@@ -128,10 +130,12 @@ int EnvironmentInfo::get_background_jobs_count() {
     return count;
 }
 
-std::string EnvironmentInfo::get_shell() {
+std::string get_shell() {
     return "cjsh";
 }
 
-std::string EnvironmentInfo::get_shell_version() {
+std::string get_shell_version() {
     return get_version();
 }
+
+}  // namespace environment_info

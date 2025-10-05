@@ -3,7 +3,9 @@
 #include <cstdio>
 #include "utils/cjsh_filesystem.h"
 
-std::string SystemInfo::get_disk_usage(const std::filesystem::path& path) {
+namespace system_info {
+
+std::string get_disk_usage(const std::filesystem::path& path) {
     std::string cmd = "df -h '" + path.string() + "' | awk 'NR==2{print $5}'";
     auto result = cjsh_filesystem::FileOperations::read_command_output(cmd);
     if (result.is_error()) {
@@ -16,7 +18,7 @@ std::string SystemInfo::get_disk_usage(const std::filesystem::path& path) {
     return output;
 }
 
-std::string SystemInfo::get_swap_usage() {
+std::string get_swap_usage() {
 #ifdef __APPLE__
     std::string cmd = "sysctl vm.swapusage | awk '{print $7}' | sed 's/[(),]//g'";
 #elif defined(__linux__)
@@ -35,7 +37,7 @@ std::string SystemInfo::get_swap_usage() {
     return output;
 }
 
-std::string SystemInfo::get_load_avg() {
+std::string get_load_avg() {
     std::string cmd = "uptime | awk -F'load averages?: ' '{print $2}'";
     auto result = cjsh_filesystem::FileOperations::read_command_output(cmd);
     if (result.is_error()) {
@@ -48,7 +50,7 @@ std::string SystemInfo::get_load_avg() {
     return output;
 }
 
-std::string SystemInfo::get_os_info() {
+std::string get_os_info() {
 #ifdef __APPLE__
     std::string cmd = "sw_vers -productName && sw_vers -productVersion";
 #elif defined(__linux__)
@@ -93,7 +95,7 @@ std::string SystemInfo::get_os_info() {
     return result.empty() ? "Unknown" : result;
 }
 
-std::string SystemInfo::get_kernel_version() {
+std::string get_kernel_version() {
 #ifdef __APPLE__
     std::string cmd = "uname -r";
 #elif defined(__linux__)
@@ -115,7 +117,7 @@ std::string SystemInfo::get_kernel_version() {
     return result.empty() ? "Unknown" : result;
 }
 
-float SystemInfo::get_cpu_usage() {
+float get_cpu_usage() {
 #ifdef __APPLE__
     std::string cmd = "top -l 1 -n 0 | awk '/CPU usage/ {print $3}' | sed 's/%//'";
 #elif defined(__linux__)
@@ -141,7 +143,7 @@ float SystemInfo::get_cpu_usage() {
     return usage;
 }
 
-float SystemInfo::get_memory_usage() {
+float get_memory_usage() {
 #ifdef __APPLE__
     std::string cmd = R"(
     vm_stat | awk '
@@ -177,7 +179,7 @@ float SystemInfo::get_memory_usage() {
     return usage;
 }
 
-std::string SystemInfo::get_battery_status() {
+std::string get_battery_status() {
 #ifdef __APPLE__
     std::string cmd = R"(
     pmset -g batt | awk '/InternalBattery/ {
@@ -217,7 +219,7 @@ std::string SystemInfo::get_battery_status() {
     return result.empty() ? "N/A" : result;
 }
 
-std::string SystemInfo::get_uptime() {
+std::string get_uptime() {
 #ifdef __APPLE__
     std::string cmd = "uptime | awk '{print $3, $4}' | sed 's/,$//g'";
 #elif defined(__linux__)
@@ -238,3 +240,5 @@ std::string SystemInfo::get_uptime() {
 
     return result.empty() ? "Unknown" : result;
 }
+
+}  // namespace system_info

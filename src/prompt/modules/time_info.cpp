@@ -5,7 +5,9 @@
 #include <iomanip>
 #include <sstream>
 
-std::string TimeInfo::get_current_time(bool twelve_hour_format) {
+namespace time_info {
+
+std::string get_current_time(bool twelve_hour_format) {
     auto now = std::chrono::system_clock::now();
     std::time_t time_t = std::chrono::system_clock::to_time_t(now);
     std::tm* tm = std::localtime(&time_t);
@@ -19,7 +21,7 @@ std::string TimeInfo::get_current_time(bool twelve_hour_format) {
     return oss.str();
 }
 
-std::string TimeInfo::get_current_date() {
+std::string get_current_date() {
     auto now = std::chrono::system_clock::now();
     std::time_t time_t = std::chrono::system_clock::to_time_t(now);
     std::tm* tm = std::localtime(&time_t);
@@ -29,28 +31,28 @@ std::string TimeInfo::get_current_date() {
     return oss.str();
 }
 
-int TimeInfo::get_current_day() {
+int get_current_day() {
     auto now = std::chrono::system_clock::now();
     std::time_t time_t = std::chrono::system_clock::to_time_t(now);
     std::tm* tm = std::localtime(&time_t);
     return tm->tm_mday;
 }
 
-int TimeInfo::get_current_month() {
+int get_current_month() {
     auto now = std::chrono::system_clock::now();
     std::time_t time_t = std::chrono::system_clock::to_time_t(now);
     std::tm* tm = std::localtime(&time_t);
     return tm->tm_mon + 1;
 }
 
-int TimeInfo::get_current_year() {
+int get_current_year() {
     auto now = std::chrono::system_clock::now();
     std::time_t time_t = std::chrono::system_clock::to_time_t(now);
     std::tm* tm = std::localtime(&time_t);
     return tm->tm_year + 1900;
 }
 
-std::string TimeInfo::get_current_day_name() {
+std::string get_current_day_name() {
     auto now = std::chrono::system_clock::now();
     std::time_t time_t = std::chrono::system_clock::to_time_t(now);
     std::tm* tm = std::localtime(&time_t);
@@ -60,7 +62,7 @@ std::string TimeInfo::get_current_day_name() {
     return oss.str();
 }
 
-std::string TimeInfo::get_current_month_name() {
+std::string get_current_month_name() {
     auto now = std::chrono::system_clock::now();
     std::time_t time_t = std::chrono::system_clock::to_time_t(now);
     std::tm* tm = std::localtime(&time_t);
@@ -69,3 +71,5 @@ std::string TimeInfo::get_current_month_name() {
     oss << std::put_time(tm, "%B");
     return oss.str();
 }
+
+}  // namespace time_info

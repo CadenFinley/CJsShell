@@ -5,11 +5,13 @@
 #include <cstdlib>
 #include <filesystem>
 
-bool BasicInfo::is_root_path(const std::filesystem::path& path) {
+namespace basic_info {
+
+bool is_root_path(const std::filesystem::path& path) {
     return path == path.root_path();
 }
 
-std::string BasicInfo::get_current_file_path() {
+std::string get_current_file_path() {
     std::string path = std::filesystem::current_path().string();
 
     if (path == "/") {
@@ -30,7 +32,7 @@ std::string BasicInfo::get_current_file_path() {
     return path;
 }
 
-std::string BasicInfo::get_current_file_name() {
+std::string get_current_file_name() {
     std::filesystem::path current_path = std::filesystem::current_path();
     std::string filename = current_path.filename().string();
 
@@ -55,7 +57,7 @@ std::string BasicInfo::get_current_file_name() {
     return filename;
 }
 
-std::string BasicInfo::get_username() {
+std::string get_username() {
     uid_t uid = getuid();
     struct passwd* pw = getpwuid(uid);
     if (pw) {
@@ -64,10 +66,12 @@ std::string BasicInfo::get_username() {
     return "unknown";
 }
 
-std::string BasicInfo::get_hostname() {
+std::string get_hostname() {
     char hostname[256];
     if (gethostname(hostname, sizeof(hostname)) == 0) {
         return std::string(hostname);
     }
     return "unknown";
 }
+
+}  // namespace basic_info
