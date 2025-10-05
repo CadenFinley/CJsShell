@@ -79,6 +79,10 @@ def categorize_file(file_path: Path, project_root: Path) -> str:
     
     first_dir = parts[0]
     
+    # Check for isocline subdirectories first
+    if 'isocline' in parts:
+        return 'isocline'
+    
     # Categorize based on top-level directory
     if first_dir in ['src', 'include']:
         return 'source_code'
@@ -174,9 +178,10 @@ def main():
     file_info.sort(key=lambda x: x[0]['total'], reverse=True)
     
     # Define category order and display names
-    category_order = ['source_code', 'tests', 'toolchain', 'other']
+    category_order = ['source_code', 'isocline', 'tests', 'toolchain', 'other']
     category_names = {
         'source_code': 'Source Code (src/, include/)',
+        'isocline': 'Isocline (src/isocline/, include/isocline/)',
         'tests': 'Tests',
         'toolchain': 'Toolchain',
         'other': 'Other'

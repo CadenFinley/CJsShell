@@ -498,19 +498,79 @@ void ic_set_insertion_braces(const char* brace_pairs);
 /// Manage interactive key bindings.
 /// \{
 
+/// Bind a key to an action.
+/// @param key The key code to bind.
+/// @param action The action to perform when the key is pressed.
+/// @returns `true` if the binding was successful, `false` otherwise.
 bool ic_bind_key(ic_keycode_t key, ic_key_action_t action);
+
+/// Clear a key binding.
+/// @param key The key code whose binding should be removed.
+/// @returns `true` if the binding was cleared, `false` if no binding existed.
 bool ic_clear_key_binding(ic_keycode_t key);
+
+/// Reset all key bindings to their default values.
 void ic_reset_key_bindings(void);
+
+/// Get the action bound to a specific key.
+/// @param key The key code to query.
+/// @param out_action Pointer to receive the action bound to the key.
+/// @returns `true` if a binding exists, `false` otherwise.
 bool ic_get_key_binding(ic_keycode_t key, ic_key_action_t* out_action);
+
+/// List all current key bindings.
+/// @param buffer Buffer to receive the key binding entries.
+/// @param capacity Maximum number of entries the buffer can hold.
+/// @returns The number of entries written to the buffer.
 size_t ic_list_key_bindings(ic_key_binding_entry_t* buffer, size_t capacity);
+
+/// Get a key action from its name.
+/// @param name The name of the action.
+/// @returns The corresponding key action, or a default value if not found.
 ic_key_action_t ic_key_action_from_name(const char* name);
+
+/// Get the name of a key action.
+/// @param action The key action.
+/// @returns The name of the action, or NULL if invalid.
 const char* ic_key_action_name(ic_key_action_t action);
+
+/// Parse a key specification string into a keycode.
+/// @param spec The key specification string (e.g., "ctrl-c", "alt-x").
+/// @param out_key Pointer to receive the parsed keycode.
+/// @returns `true` if parsing was successful, `false` otherwise.
 bool ic_parse_key_spec(const char* spec, ic_keycode_t* out_key);
+
+/// Bind a key to an action using string names.
+/// @param key_spec The key specification string (e.g., "ctrl-c").
+/// @param action_name The name of the action to bind.
+/// @returns `true` if the binding was successful, `false` otherwise.
 bool ic_bind_key_named(const char* key_spec, const char* action_name);
+
+/// Format a keycode into a human-readable specification string.
+/// @param key The keycode to format.
+/// @param buffer Buffer to receive the formatted string.
+/// @param buflen Length of the buffer.
+/// @returns `true` if formatting was successful, `false` if the buffer was too small.
 bool ic_format_key_spec(ic_keycode_t key, char* buffer, size_t buflen);
+
+/// Set the active key binding profile.
+/// @param name The name of the profile to activate (e.g., "emacs", "vi").
+/// @returns `true` if the profile was set successfully, `false` otherwise.
 bool ic_set_key_binding_profile(const char* name);
+
+/// Get the name of the current key binding profile.
+/// @returns The name of the active profile.
 const char* ic_get_key_binding_profile(void);
+
+/// List all available key binding profiles.
+/// @param buffer Buffer to receive the profile information.
+/// @param capacity Maximum number of profiles the buffer can hold.
+/// @returns The number of profiles written to the buffer.
 size_t ic_list_key_binding_profiles(ic_key_binding_profile_info_t* buffer, size_t capacity);
+
+/// Get the default key specification strings for a given action.
+/// @param action The key action to query.
+/// @returns A string containing the default key specs, or NULL if none exist.
 const char* ic_key_binding_profile_default_specs(ic_key_action_t action);
 
 /// \}
@@ -680,9 +740,6 @@ void ic_term_writeln(const char* s);
 /// @param continuation_line   If true, uses the continuation prompt marker
 /// instead of the primary one.
 void ic_print_prompt(const char* prompt_text, bool continuation_line);
-
-/// Write formatted text to the console (and process CSI escape sequences).
-void ic_term_writeln(const char* s);
 
 /// Write a formatted string to the console.
 /// (and process CSI escape sequences)
