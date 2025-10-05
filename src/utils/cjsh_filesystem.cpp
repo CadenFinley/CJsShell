@@ -417,11 +417,8 @@ bool initialize_cjsh_path() {
 
 bool initialize_cjsh_directories() {
     try {
-        fs::create_directories(g_config_path);
         fs::create_directories(g_cache_path);
-        fs::create_directories(g_cjsh_data_path);
         fs::create_directories(g_cjsh_cache_path);
-        fs::create_directories(g_cjsh_theme_path);
 
         return true;
     } catch (const fs::filesystem_error& e) {
@@ -545,7 +542,7 @@ bool create_source_file() {
         "# This is the default cjsh theme\n"
         "# Theme definitions placed in the cjshrc file are always\n"
         "# activated when starting an interactive session\n"
-        "# alternatively, you can create theme files in the .config/cjsh/themes directory\n"
+        "# You can also load external theme files with: source path/to/theme.cjsh\n"
         "\n"
         "theme_definition {\n"
         "  terminal_title \"{PATH}\"\n"

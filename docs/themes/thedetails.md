@@ -2,6 +2,25 @@
 
 Programming and designing themes uses its own proprietary cjsh DSL language inspired by json and ruby. I know, it's cursed, but it works, it's pretty flexible and fairly easy to write and I'm stuck with it so yeah. Themes are data oriented, hierarchical, and strongly typed. Upon loading a theme, the theme is stored in a theme cache to avoid repeated file reads for themes. Also many prompt info variables are cached to avoid repeated unneeded calculations and executions for information. Any and all white space defined in content areas or in conditionals is rendered in the main prompt output. Frequently I brag about my themes being 2-4 times faster than starship and powerlevel10k at fastest, but you do have to create the themes in a crappy, custom scripting language so there are trade offs. 
 
+## Loading Themes
+
+To load a theme file, use the `source` command:
+
+```bash
+source path/to/theme.cjsh
+```
+
+For automatic loading on shell startup, add the source command to your `~/.cjshrc` file:
+
+```bash
+# In ~/.cjshrc
+source ~/mythemes/gruvbox_dark.cjsh
+```
+
+Alternativly, theme definitions inlined in .cjshrc with be automattically loaded
+
+Theme files included with cjsh can be found in the `themes/` directory of the repository.
+
 ### Theme Definition
 
 Themes are started with a beginning structure:

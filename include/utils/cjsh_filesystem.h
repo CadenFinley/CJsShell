@@ -140,13 +140,10 @@ const fs::path g_cjsh_source_path = g_user_home_path / ".cjshrc";
 
 const fs::path g_cjsh_logout_path = g_user_home_path / ".cjsh_logout";
 
-const fs::path g_config_path = g_user_home_path / ".config";
 const fs::path g_cache_path = g_user_home_path / ".cache";
 
-const fs::path g_cjsh_data_path = g_config_path / "cjsh";
 const fs::path g_cjsh_cache_path = g_cache_path / "cjsh";
 
-const fs::path g_cjsh_theme_path = g_cjsh_data_path / "themes";
 const fs::path g_cjsh_history_path = g_cjsh_cache_path / "history.txt";
 
 const fs::path g_cjsh_found_executables_path = g_cjsh_cache_path / "cached_executables.cache";

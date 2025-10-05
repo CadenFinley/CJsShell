@@ -347,12 +347,14 @@ umask [mode]
 
 ## Theming and Customization
 
-### theme
-Manage themes and previews.
+### Loading Themes
+To load custom themes, use the `source` command with your theme file:
 
 ```bash
-theme [load|list|current] [theme_name]
+source path/to/theme.cjsh
 ```
+
+You can add this to your `~/.cjshrc` file to automatically load a theme on startup.
 
 ### cjshopt
 Generate config files and adjust cjsh options.

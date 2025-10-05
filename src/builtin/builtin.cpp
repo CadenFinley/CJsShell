@@ -41,7 +41,6 @@
 #include "suggestion_utils.h"
 #include "syntax_command.h"
 #include "test_command.h"
-#include "theme_command.h"
 #include "times_command.h"
 #include "trap_command.h"
 #include "type_command.h"
@@ -146,7 +145,6 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"return", [](const std::vector<std::string>& args) { return ::return_command(args); }},
         {"source", [](const std::vector<std::string>& args) { return ::source_command(args); }},
         {".", [](const std::vector<std::string>& args) { return ::source_command(args); }},
-        {"theme", [](const std::vector<std::string>& args) { return ::theme_command(args); }},
         {"help",
          [](const std::vector<std::string>& args) {
              if (builtin_handle_help(args,

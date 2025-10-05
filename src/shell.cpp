@@ -218,7 +218,7 @@ int Shell::load_theme_from_file(const std::filesystem::path& path, bool optional
         print_error({ErrorType::FILE_NOT_FOUND,
                      "load_theme",
                      "Theme file '" + display_path + "' does not exist.",
-                     {"Use 'theme' to see available themes."}});
+                     {"Check the file path and try again."}});
         return 1;
     }
 

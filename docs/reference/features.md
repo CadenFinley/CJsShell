@@ -118,8 +118,9 @@ See the themes documentation for complete variable list.
 - `~/.cjshrc` - Interactive session configuration
 - `~/.cjsh_logout` - Optional logout script
 
+**Note**: To load custom themes, use `source path/to/theme.cjsh` in your `~/.cjshrc` file or directly at the command line.
+
 #### Configuration Directories
-- `~/.config/cjsh/` - Data directory (themes, colors, prompts)
 - `~/.cache/cjsh/` - Cache directory (history, exec cache)
 
 #### Runtime Options

@@ -133,7 +133,7 @@ void initialize_themes() {
     if (!config::themes_enabled) {
         return;
     }
-    g_theme = std::make_unique<Theme>(cjsh_filesystem::g_cjsh_theme_path, config::themes_enabled);
+    g_theme = std::make_unique<Theme>("", config::themes_enabled);
 }
 
 static int initialize_interactive_components() {
