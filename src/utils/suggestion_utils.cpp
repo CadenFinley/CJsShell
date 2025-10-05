@@ -42,13 +42,12 @@ std::vector<std::string> generate_command_suggestions(const std::string& command
     std::unordered_set<std::string> all_commands_set;
 
     static const std::vector<std::string> shell_builtins = {
-        "echo",    "printf",   "pwd",         "cd",    "ls",     "alias",    "export",
-        "unalias", "unset",    "set",         "shift", "break",  "continue", "return",
-        "source",  ".",        "theme",       "help",  "approot", "version",  "uninstall",
-        "eval",    "syntax",   "history",     "exit",  "quit",   "terminal", "test",
-        "[",       "exec",     "trap",        "jobs",  "fg",     "bg",       "wait",
-        "kill",    "readonly", "read",        "umask", "getopts", "times",   "type",
-        "hash"};
+        "echo",  "printf", "pwd",      "cd",      "ls",        "alias",  "export", "unalias",
+        "unset", "set",    "shift",    "break",   "continue",  "return", "source", ".",
+        "theme", "help",   "approot",  "version", "uninstall", "eval",   "syntax", "history",
+        "exit",  "quit",   "terminal", "test",    "[",         "exec",   "trap",   "jobs",
+        "fg",    "bg",     "wait",     "kill",    "readonly",  "read",   "umask",  "getopts",
+        "times", "type",   "hash"};
 
     for (const auto& builtin : shell_builtins) {
         all_commands_set.insert(builtin);
@@ -533,13 +532,12 @@ int calculate_fuzzy_score(const std::string& input, const std::string& candidate
     }
 
     static const std::unordered_set<std::string> shell_builtins = {
-        "echo",    "printf",   "pwd",         "cd",    "ls",     "alias",    "export",
-        "unalias", "unset",    "set",         "shift", "break",  "continue", "return",
-        "source",  ".",        "theme",       "help",  "approot", "version",  "uninstall",
-        "eval",    "syntax",   "history",     "exit",  "quit",   "terminal", "test",
-        "[",       "exec",     "trap",        "jobs",  "fg",     "bg",       "wait",
-        "kill",    "readonly", "read",        "umask", "getopts", "times",   "type",
-        "hash"};
+        "echo",  "printf", "pwd",      "cd",      "ls",        "alias",  "export", "unalias",
+        "unset", "set",    "shift",    "break",   "continue",  "return", "source", ".",
+        "theme", "help",   "approot",  "version", "uninstall", "eval",   "syntax", "history",
+        "exit",  "quit",   "terminal", "test",    "[",         "exec",   "trap",   "jobs",
+        "fg",    "bg",     "wait",     "kill",    "readonly",  "read",   "umask",  "getopts",
+        "times", "type",   "hash"};
 
     if (shell_builtins.count(candidate) != 0u) {
         score += 15;

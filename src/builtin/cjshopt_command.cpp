@@ -964,8 +964,8 @@ int startup_flag_command(const std::vector<std::string>& args) {
 
     const std::string& flag = args[1];
 
-    if (flag == "--login" || flag == "--interactive" || flag == "--debug" || flag == "--no-prompt" ||
-        flag == "--no-themes" || flag == "--no-colors" ||
+    if (flag == "--login" || flag == "--interactive" || flag == "--debug" ||
+        flag == "--no-prompt" || flag == "--no-themes" || flag == "--no-colors" ||
         flag == "--no-titleline" || flag == "--show-startup-time" || flag == "--no-source" ||
         flag == "--no-completions" || flag == "--no-syntax-highlighting" ||
         flag == "--no-smart-cd" || flag == "--minimal" || flag == "--startup-test" ||

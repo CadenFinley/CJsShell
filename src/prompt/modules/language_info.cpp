@@ -8,18 +8,65 @@
 
 #include "utils/cjsh_filesystem.h"
 
-LanguageInfo::LanguageInfo() {
-}
+namespace language_info {
 
-bool LanguageInfo::is_project_detected(const std::vector<std::string>& files,
-                                       const std::vector<std::string>& extensions,
-                                       const std::vector<std::string>& folders) {
-    std::filesystem::path current_path = std::filesystem::current_path();
+// Static data definitions
+std::unordered_map<std::string, CachedVersion> version_cache;
+std::mutex cache_mutex;
 
-    return scan_directory_recursive(current_path, files, extensions, folders);
-}
+const std::vector<std::string> python_files = {"requirements.txt", "setup.py", "pyproject.toml", "Pipfile", "setup.cfg", "tox.ini"};
+const std::vector<std::string> python_extensions = {".py"};
+const std::vector<std::string> python_folders = {"venv", ".venv", "env", "__pycache__"};
 
-bool LanguageInfo::scan_directory_recursive(const std::filesystem::path& dir,
+const std::vector<std::string> nodejs_files = {"package.json", "package-lock.json", "yarn.lock", "pnpm-lock.yaml"};
+const std::vector<std::string> nodejs_extensions = {".js", ".mjs", ".cjs", ".ts"};
+const std::vector<std::string> nodejs_folders = {"node_modules"};
+
+const std::vector<std::string> rust_files = {"Cargo.toml", "Cargo.lock"};
+const std::vector<std::string> rust_extensions = {".rs"};
+const std::vector<std::string> rust_folders = {"target"};
+
+const std::vector<std::string> golang_files = {"go.mod", "go.sum"};
+const std::vector<std::string> golang_extensions = {".go"};
+const std::vector<std::string> golang_folders = {};
+
+const std::vector<std::string> java_files = {"pom.xml", "build.gradle", "build.gradle.kts", "gradlew", "mvnw"};
+const std::vector<std::string> java_extensions = {".java"};
+const std::vector<std::string> java_folders = {"target", "build", ".gradle"};
+
+const std::vector<std::string> cpp_files = {"CMakeLists.txt", "Makefile", "configure.ac", "meson.build"};
+const std::vector<std::string> cpp_extensions = {".cpp", ".cc", ".cxx", ".c", ".h", ".hpp", ".hxx"};
+const std::vector<std::string> cpp_folders = {"build", "cmake-build-debug", "cmake-build-release"};
+
+const std::vector<std::string> csharp_files = {".csproj", ".sln", "nuget.config", "global.json"};
+const std::vector<std::string> csharp_extensions = {".cs"};
+const std::vector<std::string> csharp_folders = {"bin", "obj"};
+
+const std::vector<std::string> php_files = {"composer.json", "composer.lock"};
+const std::vector<std::string> php_extensions = {".php"};
+const std::vector<std::string> php_folders = {"vendor"};
+
+const std::vector<std::string> ruby_files = {"Gemfile", "Gemfile.lock", ".ruby-version", "Rakefile"};
+const std::vector<std::string> ruby_extensions = {".rb"};
+const std::vector<std::string> ruby_folders = {};
+
+const std::vector<std::string> kotlin_files = {"build.gradle.kts", "settings.gradle.kts"};
+const std::vector<std::string> kotlin_extensions = {".kt", ".kts"};
+const std::vector<std::string> kotlin_folders = {"build"};
+
+const std::vector<std::string> swift_files = {"Package.swift", ".swift-version"};
+const std::vector<std::string> swift_extensions = {".swift"};
+const std::vector<std::string> swift_folders = {".build", "Packages"};
+
+const std::vector<std::string> dart_files = {"pubspec.yaml", "pubspec.lock"};
+const std::vector<std::string> dart_extensions = {".dart"};
+const std::vector<std::string> dart_folders = {".dart_tool", "build"};
+
+const std::vector<std::string> scala_files = {"build.sbt", "build.sc"};
+const std::vector<std::string> scala_extensions = {".scala", ".sc"};
+const std::vector<std::string> scala_folders = {"target", "project/target"};
+
+bool scan_directory_recursive(const std::filesystem::path& dir,
                                             const std::vector<std::string>& files,
                                             const std::vector<std::string>& extensions,
                                             const std::vector<std::string>& folders,
@@ -72,7 +119,15 @@ bool LanguageInfo::scan_directory_recursive(const std::filesystem::path& dir,
     return false;
 }
 
-std::string LanguageInfo::execute_command(const std::string& command) {
+bool is_project_detected(const std::vector<std::string>& files,
+                                       const std::vector<std::string>& extensions,
+                                       const std::vector<std::string>& folders) {
+    std::filesystem::path current_path = std::filesystem::current_path();
+
+    return scan_directory_recursive(current_path, files, extensions, folders, 3);
+}
+
+std::string execute_command(const std::string& command) {
     auto result = cjsh_filesystem::FileOperations::read_command_output(command);
     if (result.is_error()) {
         return "";
@@ -87,7 +142,7 @@ std::string LanguageInfo::execute_command(const std::string& command) {
     return output;
 }
 
-std::string LanguageInfo::extract_version(const std::string& output) {
+std::string extract_version(const std::string& output) {
     std::regex version_regex("(\\d+\\.\\d+(?:\\.\\d+)?(?:\\S*)?)");
     std::smatch match;
 
@@ -98,8 +153,8 @@ std::string LanguageInfo::extract_version(const std::string& output) {
     return "";
 }
 
-std::string LanguageInfo::get_cached_version(
-    const std::string& language_key, const std::function<std::string()>& version_func) const {
+std::string get_cached_version(
+    const std::string& language_key, const std::function<std::string()>& version_func) {
     std::lock_guard<std::mutex> lock(cache_mutex);
 
     auto it = version_cache.find(language_key);
@@ -114,60 +169,60 @@ std::string LanguageInfo::get_cached_version(
     return version;
 }
 
-bool LanguageInfo::is_python_project() {
+bool is_python_project() {
     return is_project_detected(python_files, python_extensions, python_folders);
 }
 
-bool LanguageInfo::is_nodejs_project() {
+bool is_nodejs_project() {
     return is_project_detected(nodejs_files, nodejs_extensions, nodejs_folders);
 }
 
-bool LanguageInfo::is_rust_project() {
+bool is_rust_project() {
     return is_project_detected(rust_files, rust_extensions, rust_folders);
 }
 
-bool LanguageInfo::is_golang_project() {
+bool is_golang_project() {
     return is_project_detected(golang_files, golang_extensions, golang_folders);
 }
 
-bool LanguageInfo::is_java_project() {
+bool is_java_project() {
     return is_project_detected(java_files, java_extensions, java_folders);
 }
 
-bool LanguageInfo::is_cpp_project() {
+bool is_cpp_project() {
     return is_project_detected(cpp_files, cpp_extensions, cpp_folders);
 }
 
-bool LanguageInfo::is_csharp_project() {
+bool is_csharp_project() {
     return is_project_detected(csharp_files, csharp_extensions, csharp_folders);
 }
 
-bool LanguageInfo::is_php_project() {
+bool is_php_project() {
     return is_project_detected(php_files, php_extensions, php_folders);
 }
 
-bool LanguageInfo::is_ruby_project() {
+bool is_ruby_project() {
     return is_project_detected(ruby_files, ruby_extensions, ruby_folders);
 }
 
-bool LanguageInfo::is_kotlin_project() {
+bool is_kotlin_project() {
     return is_project_detected(kotlin_files, kotlin_extensions, kotlin_folders);
 }
 
-bool LanguageInfo::is_swift_project() {
+bool is_swift_project() {
     return is_project_detected(swift_files, swift_extensions, swift_folders);
 }
 
-bool LanguageInfo::is_dart_project() {
+bool is_dart_project() {
     return is_project_detected(dart_files, dart_extensions, dart_folders);
 }
 
-bool LanguageInfo::is_scala_project() {
+bool is_scala_project() {
     return is_project_detected(scala_files, scala_extensions, scala_folders);
 }
 
-std::string LanguageInfo::get_python_version() {
-    return get_cached_version("python", [this]() -> std::string {
+std::string get_python_version() {
+    return get_cached_version("python", []() -> std::string {
         std::string output =
             execute_command("python3 --version 2>/dev/null || python --version 2>/dev/null");
         if (output.empty()) {
@@ -179,8 +234,8 @@ std::string LanguageInfo::get_python_version() {
     });
 }
 
-std::string LanguageInfo::get_nodejs_version() {
-    return get_cached_version("nodejs", [this]() -> std::string {
+std::string get_nodejs_version() {
+    return get_cached_version("nodejs", []() -> std::string {
         std::string output = execute_command("node --version 2>/dev/null");
         if (output.empty()) {
             return "";
@@ -194,8 +249,8 @@ std::string LanguageInfo::get_nodejs_version() {
     });
 }
 
-std::string LanguageInfo::get_rust_version() {
-    return get_cached_version("rust", [this]() -> std::string {
+std::string get_rust_version() {
+    return get_cached_version("rust", []() -> std::string {
         std::string output = execute_command("rustc --version 2>/dev/null");
         if (output.empty()) {
             return "";
@@ -206,8 +261,8 @@ std::string LanguageInfo::get_rust_version() {
     });
 }
 
-std::string LanguageInfo::get_golang_version() {
-    return get_cached_version("golang", [this]() -> std::string {
+std::string get_golang_version() {
+    return get_cached_version("golang", []() -> std::string {
         std::string output = execute_command("go version 2>/dev/null");
         if (output.empty()) {
             return "";
@@ -224,8 +279,8 @@ std::string LanguageInfo::get_golang_version() {
     });
 }
 
-std::string LanguageInfo::get_java_version() {
-    return get_cached_version("java", [this]() -> std::string {
+std::string get_java_version() {
+    return get_cached_version("java", []() -> std::string {
         std::string output = execute_command("java -version 2>&1 | head -n 1");
         if (output.empty()) {
             return "";
@@ -243,8 +298,8 @@ std::string LanguageInfo::get_java_version() {
     });
 }
 
-std::string LanguageInfo::get_cpp_version() {
-    return get_cached_version("cpp", [this]() -> std::string {
+std::string get_cpp_version() {
+    return get_cached_version("cpp", []() -> std::string {
         std::string output = execute_command("g++ --version 2>/dev/null | head -n 1");
         if (output.empty()) {
             output = execute_command("clang++ --version 2>/dev/null | head -n 1");
@@ -261,8 +316,8 @@ std::string LanguageInfo::get_cpp_version() {
     });
 }
 
-std::string LanguageInfo::get_csharp_version() {
-    return get_cached_version("csharp", [this]() -> std::string {
+std::string get_csharp_version() {
+    return get_cached_version("csharp", []() -> std::string {
         std::string output = execute_command("dotnet --version 2>/dev/null");
         if (output.empty()) {
             return "";
@@ -271,8 +326,8 @@ std::string LanguageInfo::get_csharp_version() {
     });
 }
 
-std::string LanguageInfo::get_php_version() {
-    return get_cached_version("php", [this]() -> std::string {
+std::string get_php_version() {
+    return get_cached_version("php", []() -> std::string {
         std::string output = execute_command("php --version 2>/dev/null | head -n 1");
         if (output.empty()) {
             return "";
@@ -283,8 +338,8 @@ std::string LanguageInfo::get_php_version() {
     });
 }
 
-std::string LanguageInfo::get_ruby_version() {
-    return get_cached_version("ruby", [this]() -> std::string {
+std::string get_ruby_version() {
+    return get_cached_version("ruby", []() -> std::string {
         std::string output = execute_command("ruby --version 2>/dev/null");
         if (output.empty()) {
             return "";
@@ -302,8 +357,8 @@ std::string LanguageInfo::get_ruby_version() {
     });
 }
 
-std::string LanguageInfo::get_kotlin_version() {
-    return get_cached_version("kotlin", [this]() -> std::string {
+std::string get_kotlin_version() {
+    return get_cached_version("kotlin", []() -> std::string {
         std::string output = execute_command("kotlin -version 2>&1");
         if (output.empty()) {
             return "";
@@ -314,8 +369,8 @@ std::string LanguageInfo::get_kotlin_version() {
     });
 }
 
-std::string LanguageInfo::get_swift_version() {
-    return get_cached_version("swift", [this]() -> std::string {
+std::string get_swift_version() {
+    return get_cached_version("swift", []() -> std::string {
         std::string output = execute_command("swift --version 2>/dev/null");
         if (output.empty()) {
             return "";
@@ -335,8 +390,8 @@ std::string LanguageInfo::get_swift_version() {
     });
 }
 
-std::string LanguageInfo::get_dart_version() {
-    return get_cached_version("dart", [this]() -> std::string {
+std::string get_dart_version() {
+    return get_cached_version("dart", []() -> std::string {
         std::string output = execute_command("dart --version 2>&1");
         if (output.empty()) {
             return "";
@@ -354,8 +409,8 @@ std::string LanguageInfo::get_dart_version() {
     });
 }
 
-std::string LanguageInfo::get_scala_version() {
-    return get_cached_version("scala", [this]() -> std::string {
+std::string get_scala_version() {
+    return get_cached_version("scala", []() -> std::string {
         std::string output = execute_command("scala -version 2>&1");
         if (output.empty()) {
             return "";
@@ -373,7 +428,7 @@ std::string LanguageInfo::get_scala_version() {
     });
 }
 
-std::string LanguageInfo::get_python_virtual_env() {
+std::string get_python_virtual_env() {
     const char* venv = getenv("VIRTUAL_ENV");
     if (venv) {
         std::string venv_path(venv);
@@ -398,7 +453,7 @@ std::string LanguageInfo::get_python_virtual_env() {
     return "";
 }
 
-std::string LanguageInfo::get_nodejs_package_manager() {
+std::string get_nodejs_package_manager() {
     std::filesystem::path current_path = std::filesystem::current_path();
 
     if (std::filesystem::exists(current_path / "yarn.lock")) {
@@ -412,7 +467,7 @@ std::string LanguageInfo::get_nodejs_package_manager() {
     return "npm";
 }
 
-std::string LanguageInfo::get_language_version(const std::string& language) {
+std::string get_language_version(const std::string& language) {
     if (language == "python") {
         return get_python_version();
     } else if (language == "node" || language == "nodejs") {
@@ -444,7 +499,7 @@ std::string LanguageInfo::get_language_version(const std::string& language) {
     return "";
 }
 
-bool LanguageInfo::is_language_project(const std::string& language) {
+bool is_language_project(const std::string& language) {
     if (language == "python") {
         return is_python_project();
     } else if (language == "node" || language == "nodejs") {
@@ -476,7 +531,9 @@ bool LanguageInfo::is_language_project(const std::string& language) {
     return false;
 }
 
-void LanguageInfo::clear_version_cache() {
+void clear_version_cache() {
     std::lock_guard<std::mutex> lock(cache_mutex);
     version_cache.clear();
 }
+
+}  // namespace language_info

@@ -6,10 +6,17 @@
 #include <sstream>
 #include <vector>
 
-DirectoryInfo::DirectoryInfo() {
-}
+namespace directory_info {
 
-std::string DirectoryInfo::get_display_directory() {
+
+bool use_logical_path = false;
+bool truncate_to_repo = true;
+int truncation_length = 3;
+std::string truncation_symbol = "…";
+std::string home_symbol = "~";
+std::unordered_map<std::string, std::string> substitutions;
+
+std::string get_display_directory() {
     std::filesystem::path current_dir = std::filesystem::current_path();
     std::filesystem::path home_dir;
 
@@ -46,27 +53,27 @@ std::string DirectoryInfo::get_display_directory() {
     return dir_string;
 }
 
-std::string DirectoryInfo::get_directory_name() {
+std::string get_directory_name() {
     std::filesystem::path current_dir = std::filesystem::current_path();
     return current_dir.filename().string();
 }
 
-std::string DirectoryInfo::get_truncated_path() {
+std::string get_truncated_path() {
     return get_display_directory();
 }
 
-std::string DirectoryInfo::get_repo_relative_path(const std::filesystem::path& repo_root) {
+std::string get_repo_relative_path(const std::filesystem::path& repo_root) {
     std::filesystem::path current_dir = std::filesystem::current_path();
     return contract_repo_path(current_dir, repo_root);
 }
 
-bool DirectoryInfo::is_truncated() {
+bool is_truncated() {
     std::string full_path = std::filesystem::current_path().string();
     std::string display_path = get_display_directory();
     return full_path.length() != display_path.length();
 }
 
-std::string DirectoryInfo::contract_path(const std::filesystem::path& path,
+std::string contract_path(const std::filesystem::path& path,
                                          const std::filesystem::path& home_dir,
                                          const std::string& home_symbol) {
     std::string path_str = path.string();
@@ -84,7 +91,7 @@ std::string DirectoryInfo::contract_path(const std::filesystem::path& path,
     return path_str;
 }
 
-std::string DirectoryInfo::contract_repo_path(const std::filesystem::path& path,
+std::string contract_repo_path(const std::filesystem::path& path,
                                               const std::filesystem::path& repo_root) {
     std::string path_str = path.string();
     std::string repo_str = repo_root.string();
@@ -102,7 +109,7 @@ std::string DirectoryInfo::contract_repo_path(const std::filesystem::path& path,
     return path_str;
 }
 
-std::string DirectoryInfo::substitute_path(
+std::string substitute_path(
     const std::string& path, const std::unordered_map<std::string, std::string>& substitutions) {
     std::string result = path;
 
@@ -117,7 +124,7 @@ std::string DirectoryInfo::substitute_path(
     return result;
 }
 
-std::string DirectoryInfo::truncate_path(const std::string& path, int max_length) {
+std::string truncate_path(const std::string& path, int max_length) {
     if (max_length <= 0) {
         return path;
     }
@@ -144,7 +151,7 @@ std::string DirectoryInfo::truncate_path(const std::string& path, int max_length
     return result;
 }
 
-std::string DirectoryInfo::to_fish_style(int dir_length, const std::string& full_path,
+std::string to_fish_style(int dir_length, const std::string& full_path,
                                          const std::string& truncated_path) {
     if (dir_length <= 0) {
         return truncated_path;
@@ -180,26 +187,28 @@ std::string DirectoryInfo::to_fish_style(int dir_length, const std::string& full
     return result;
 }
 
-bool DirectoryInfo::is_readonly_dir(const std::filesystem::path& path) {
+bool is_readonly_dir(const std::filesystem::path& path) {
     return access(path.c_str(), W_OK) != 0;
 }
 
-void DirectoryInfo::set_use_logical_path(bool use_logical) {
+void set_use_logical_path(bool use_logical) {
     use_logical_path = use_logical;
 }
 
-void DirectoryInfo::set_truncate_to_repo(bool truncate) {
+void set_truncate_to_repo(bool truncate) {
     truncate_to_repo = truncate;
 }
 
-void DirectoryInfo::set_truncation_length(int length) {
+void set_truncation_length(int length) {
     truncation_length = length;
 }
 
-void DirectoryInfo::set_home_symbol(const std::string& symbol) {
+void set_home_symbol(const std::string& symbol) {
     home_symbol = symbol;
 }
 
-void DirectoryInfo::add_substitution(const std::string& from, const std::string& to) {
+void add_substitution(const std::string& from, const std::string& to) {
     substitutions[from] = to;
 }
+
+}  

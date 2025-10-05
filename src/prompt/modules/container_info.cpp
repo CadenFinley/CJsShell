@@ -5,19 +5,18 @@
 #include <regex>
 #include "utils/cjsh_filesystem.h"
 
-ContainerInfo::ContainerInfo() {
-}
+namespace container_info {
 
-bool ContainerInfo::file_exists(const std::string& path) {
+bool file_exists(const std::string& path) {
     return std::filesystem::exists(path);
 }
 
-std::string ContainerInfo::read_file_content(const std::string& path) {
+std::string read_file_content(const std::string& path) {
     auto result = cjsh_filesystem::FileOperations::read_file_content(path);
     return result.is_ok() ? result.value() : "";
 }
 
-std::string ContainerInfo::execute_command(const std::string& command) {
+std::string execute_command(const std::string& command) {
     auto result = cjsh_filesystem::FileOperations::read_command_output(command);
     if (result.is_error()) {
         return "";
@@ -32,7 +31,7 @@ std::string ContainerInfo::execute_command(const std::string& command) {
     return output;
 }
 
-std::string ContainerInfo::get_container_name() {
+std::string get_container_name() {
     if (is_in_docker()) {
         return "Docker";
     }
@@ -97,15 +96,15 @@ std::string ContainerInfo::get_container_name() {
     return "";
 }
 
-bool ContainerInfo::is_in_container() {
+bool is_in_container() {
     return !get_container_name().empty();
 }
 
-std::string ContainerInfo::get_container_type() {
+std::string get_container_type() {
     return get_container_name();
 }
 
-bool ContainerInfo::is_in_docker() {
+bool is_in_docker() {
     if (file_exists("/.dockerenv")) {
         return true;
     }
@@ -120,12 +119,12 @@ bool ContainerInfo::is_in_docker() {
     return false;
 }
 
-std::string ContainerInfo::get_docker_context() {
+std::string get_docker_context() {
     std::string context = execute_command("docker context show 2>/dev/null");
     return context.empty() ? "default" : context;
 }
 
-std::string ContainerInfo::get_docker_image() {
+std::string get_docker_image() {
     if (!is_in_docker()) {
         return "";
     }
@@ -143,11 +142,11 @@ std::string ContainerInfo::get_docker_image() {
     return "";
 }
 
-bool ContainerInfo::is_in_podman() {
+bool is_in_podman() {
     return file_exists("/run/.containerenv");
 }
 
-bool ContainerInfo::is_in_lxc() {
+bool is_in_lxc() {
     if (file_exists("/proc/1/environ")) {
         std::string content = read_file_content("/proc/1/environ");
         return content.find("container=lxc") != std::string::npos;
@@ -155,15 +154,15 @@ bool ContainerInfo::is_in_lxc() {
     return false;
 }
 
-bool ContainerInfo::is_in_openvz() {
+bool is_in_openvz() {
     return file_exists("/proc/vz") && !file_exists("/proc/bc");
 }
 
-bool ContainerInfo::is_in_systemd_nspawn() {
+bool is_in_systemd_nspawn() {
     return file_exists("/run/systemd/container");
 }
 
-bool ContainerInfo::is_in_wsl() {
+bool is_in_wsl() {
     if (file_exists("/proc/version")) {
         std::string content = read_file_content("/proc/version");
         return content.find("Microsoft") != std::string::npos ||
@@ -171,3 +170,5 @@ bool ContainerInfo::is_in_wsl() {
     }
     return false;
 }
+
+}  

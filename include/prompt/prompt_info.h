@@ -19,21 +19,6 @@
 struct ThemeSegment;
 
 class PromptInfo {
-   private:
-    // Stateful modules that still need class instances
-    GitInfo git_info;
-    DirectoryInfo directory_info;
-    CommandInfo command_info;
-    LanguageInfo language_info;
-    ContainerInfo container_info;
-    
-    // Stateless modules converted to namespaces:
-    // - basic_info
-    // - time_info
-    // - system_info
-    // - environment_info
-    // - network_info
-
    public:
     std::string get_basic_prompt();
     std::string get_basic_title();
@@ -59,37 +44,37 @@ class PromptInfo {
     }
 
     std::string get_git_branch(const std::filesystem::path& git_head_path) {
-        return git_info.get_git_branch(git_head_path);
+        return git_info::get_git_branch(git_head_path);
     }
     std::string get_git_status(const std::filesystem::path& repo_root) {
-        return git_info.get_git_status(repo_root);
+        return git_info::get_git_status(repo_root);
     }
     std::string get_local_path(const std::filesystem::path& repo_root) {
-        return git_info.get_local_path(repo_root);
+        return git_info::get_local_path(repo_root);
     }
     std::string get_git_remote(const std::filesystem::path& repo_root) {
-        return git_info.get_git_remote(repo_root);
+        return git_info::get_git_remote(repo_root);
     }
     std::string get_git_tag(const std::filesystem::path& repo_root) {
-        return git_info.get_git_tag(repo_root);
+        return git_info::get_git_tag(repo_root);
     }
     std::string get_git_last_commit(const std::filesystem::path& repo_root) {
-        return git_info.get_git_last_commit(repo_root);
+        return git_info::get_git_last_commit(repo_root);
     }
     std::string get_git_author(const std::filesystem::path& repo_root) {
-        return git_info.get_git_author(repo_root);
+        return git_info::get_git_author(repo_root);
     }
     int get_git_ahead_behind(const std::filesystem::path& repo_root, int& ahead, int& behind) {
-        return git_info.get_git_ahead_behind(repo_root, ahead, behind);
+        return git_info::get_git_ahead_behind(repo_root, ahead, behind);
     }
     int get_git_stash_count(const std::filesystem::path& repo_root) {
-        return git_info.get_git_stash_count(repo_root);
+        return git_info::get_git_stash_count(repo_root);
     }
     bool get_git_has_staged_changes(const std::filesystem::path& repo_root) {
-        return git_info.get_git_has_staged_changes(repo_root);
+        return git_info::get_git_has_staged_changes(repo_root);
     }
     int get_git_uncommitted_changes(const std::filesystem::path& repo_root) {
-        return git_info.get_git_uncommitted_changes(repo_root);
+        return git_info::get_git_uncommitted_changes(repo_root);
     }
 
     std::string get_os_info() {
@@ -175,159 +160,159 @@ class PromptInfo {
     }
 
     std::string get_display_directory() {
-        return directory_info.get_display_directory();
+        return directory_info::get_display_directory();
     }
     std::string get_directory_name() {
-        return directory_info.get_directory_name();
+        return directory_info::get_directory_name();
     }
     std::string get_truncated_path() {
-        return directory_info.get_truncated_path();
+        return directory_info::get_truncated_path();
     }
     std::string get_repo_relative_path(const std::filesystem::path& repo_root) {
-        return directory_info.get_repo_relative_path(repo_root);
+        return directory_info::get_repo_relative_path(repo_root);
     }
     bool is_directory_truncated() {
-        return directory_info.is_truncated();
+        return directory_info::is_truncated();
     }
 
     void start_command_timing() {
-        command_info.start_command_timing();
+        command_info::start_command_timing();
     }
     void end_command_timing(int exit_code) {
-        command_info.end_command_timing(exit_code);
+        command_info::end_command_timing(exit_code);
     }
     void reset_command_timing() {
-        command_info.reset_command_timing();
+        command_info::reset_command_timing();
     }
     void set_initial_duration(long long microseconds) {
-        command_info.set_initial_duration(microseconds);
+        command_info::set_initial_duration(microseconds);
     }
     long long get_last_command_duration_us() {
-        return command_info.get_last_command_duration_us();
+        return command_info::get_last_command_duration_us();
     }
     std::string get_formatted_duration() {
-        return command_info.get_formatted_duration();
+        return command_info::get_formatted_duration();
     }
     bool should_show_duration() {
-        return command_info.should_show_duration();
+        return command_info::should_show_duration();
     }
     int get_last_exit_code() {
-        return command_info.get_last_exit_code();
+        return command_info::get_last_exit_code();
     }
     std::string get_exit_status_symbol() {
-        return command_info.get_exit_status_symbol();
+        return command_info::get_exit_status_symbol();
     }
     bool is_last_command_success() {
-        return command_info.is_last_command_success();
+        return command_info::is_last_command_success();
     }
 
     bool is_python_project() {
-        return language_info.is_python_project();
+        return language_info::is_python_project();
     }
     bool is_nodejs_project() {
-        return language_info.is_nodejs_project();
+        return language_info::is_nodejs_project();
     }
     bool is_rust_project() {
-        return language_info.is_rust_project();
+        return language_info::is_rust_project();
     }
     bool is_golang_project() {
-        return language_info.is_golang_project();
+        return language_info::is_golang_project();
     }
     bool is_java_project() {
-        return language_info.is_java_project();
+        return language_info::is_java_project();
     }
     bool is_cpp_project() {
-        return language_info.is_cpp_project();
+        return language_info::is_cpp_project();
     }
     bool is_csharp_project() {
-        return language_info.is_csharp_project();
+        return language_info::is_csharp_project();
     }
     bool is_php_project() {
-        return language_info.is_php_project();
+        return language_info::is_php_project();
     }
     bool is_ruby_project() {
-        return language_info.is_ruby_project();
+        return language_info::is_ruby_project();
     }
     bool is_kotlin_project() {
-        return language_info.is_kotlin_project();
+        return language_info::is_kotlin_project();
     }
     bool is_swift_project() {
-        return language_info.is_swift_project();
+        return language_info::is_swift_project();
     }
     bool is_dart_project() {
-        return language_info.is_dart_project();
+        return language_info::is_dart_project();
     }
     bool is_scala_project() {
-        return language_info.is_scala_project();
+        return language_info::is_scala_project();
     }
     std::string get_python_version() {
-        return language_info.get_python_version();
+        return language_info::get_python_version();
     }
     std::string get_nodejs_version() {
-        return language_info.get_nodejs_version();
+        return language_info::get_nodejs_version();
     }
     std::string get_rust_version() {
-        return language_info.get_rust_version();
+        return language_info::get_rust_version();
     }
     std::string get_golang_version() {
-        return language_info.get_golang_version();
+        return language_info::get_golang_version();
     }
     std::string get_java_version() {
-        return language_info.get_java_version();
+        return language_info::get_java_version();
     }
     std::string get_cpp_version() {
-        return language_info.get_cpp_version();
+        return language_info::get_cpp_version();
     }
     std::string get_csharp_version() {
-        return language_info.get_csharp_version();
+        return language_info::get_csharp_version();
     }
     std::string get_php_version() {
-        return language_info.get_php_version();
+        return language_info::get_php_version();
     }
     std::string get_ruby_version() {
-        return language_info.get_ruby_version();
+        return language_info::get_ruby_version();
     }
     std::string get_kotlin_version() {
-        return language_info.get_kotlin_version();
+        return language_info::get_kotlin_version();
     }
     std::string get_swift_version() {
-        return language_info.get_swift_version();
+        return language_info::get_swift_version();
     }
     std::string get_dart_version() {
-        return language_info.get_dart_version();
+        return language_info::get_dart_version();
     }
     std::string get_scala_version() {
-        return language_info.get_scala_version();
+        return language_info::get_scala_version();
     }
     std::string get_python_virtual_env() {
-        return language_info.get_python_virtual_env();
+        return language_info::get_python_virtual_env();
     }
     std::string get_nodejs_package_manager() {
-        return language_info.get_nodejs_package_manager();
+        return language_info::get_nodejs_package_manager();
     }
     std::string get_language_version(const std::string& language) {
-        return language_info.get_language_version(language);
+        return language_info::get_language_version(language);
     }
     bool is_language_project(const std::string& language) {
-        return language_info.is_language_project(language);
+        return language_info::is_language_project(language);
     }
 
     std::string get_container_name() {
-        return container_info.get_container_name();
+        return container_info::get_container_name();
     }
     bool is_in_container() {
-        return container_info.is_in_container();
+        return container_info::is_in_container();
     }
     std::string get_container_type() {
-        return container_info.get_container_type();
+        return container_info::get_container_type();
     }
     bool is_in_docker() {
-        return container_info.is_in_docker();
+        return container_info::is_in_docker();
     }
     std::string get_docker_context() {
-        return container_info.get_docker_context();
+        return container_info::get_docker_context();
     }
     std::string get_docker_image() {
-        return container_info.get_docker_image();
+        return container_info::get_docker_image();
     }
 };

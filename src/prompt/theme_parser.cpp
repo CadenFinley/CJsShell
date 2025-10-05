@@ -587,7 +587,8 @@ ThemeSegment ThemeParser::parse_segment_body(ThemeSegment segment) {
         } else if (prop.key == "dim") {
             segment.dim = (prop.value == "true" || prop.value == "1" || prop.value == "yes");
         } else if (prop.key == "strikethrough") {
-            segment.strikethrough = (prop.value == "true" || prop.value == "1" || prop.value == "yes");
+            segment.strikethrough =
+                (prop.value == "true" || prop.value == "1" || prop.value == "yes");
         }
     }
 
@@ -1034,8 +1035,8 @@ std::string ThemeParser::write_theme(const ThemeDefinition& theme) {
         << "\n";
     oss << "    newline_after_execution "
         << (theme.behavior.newline_after_execution ? "true" : "false") << "\n";
-    oss << "    cleanup_nl_after_exec "
-        << (theme.behavior.cleanup_nl_after_exec ? "true" : "false") << "\n";
+    oss << "    cleanup_nl_after_exec " << (theme.behavior.cleanup_nl_after_exec ? "true" : "false")
+        << "\n";
     oss << "  }\n";
 
     oss << "}\n";

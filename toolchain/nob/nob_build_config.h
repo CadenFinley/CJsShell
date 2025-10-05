@@ -40,8 +40,7 @@ static const Build_Config build_config = {
 
     .include_directories =
         (const char*[]){"include", "include/isocline", "include/builtin", "include/utils",
-                        "include/prompt", "include/prompt/modules",
-                        "include/script_interpreter"},
+                        "include/prompt", "include/prompt/modules", "include/script_interpreter"},
     .include_directories_count = 7,
 
     .c_include_directories = (const char*[]){"include", "include/isocline"},

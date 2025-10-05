@@ -106,16 +106,20 @@ static int safe_execute_git_command(const std::vector<std::string>& args, std::s
     return 0;
 }
 
-GitInfo::GitInfo() {
-    last_git_status_check = std::chrono::steady_clock::now() - std::chrono::seconds(30);
-    is_git_status_check_running = false;
-    cached_is_clean_repo = true;
-}
+namespace git_info {
 
-GitInfo::~GitInfo() {
-}
+// Define the external state variables with initial values
+std::chrono::steady_clock::time_point last_git_status_check = 
+    std::chrono::steady_clock::now() - std::chrono::seconds(30);
+std::string cached_git_dir;
+std::string cached_status_symbols;
+bool cached_is_clean_repo = true;
+std::mutex git_status_mutex;
+bool is_git_status_check_running = false;
+std::unordered_map<std::string, std::pair<std::string, std::chrono::steady_clock::time_point>> cache;
+std::mutex cache_mutex;
 
-std::string GitInfo::get_git_remote(const std::filesystem::path& repo_root) {
+std::string get_git_remote(const std::filesystem::path& repo_root) {
     std::vector<std::string> cmd = {"git", "-C", repo_root.string(), "remote", "get-url", "origin"};
     std::string result;
     int exit_code;
@@ -130,7 +134,7 @@ std::string GitInfo::get_git_remote(const std::filesystem::path& repo_root) {
     return result;
 }
 
-std::string GitInfo::get_git_tag(const std::filesystem::path& repo_root) {
+std::string get_git_tag(const std::filesystem::path& repo_root) {
     std::vector<std::string> cmd = {"git",      "-C",     repo_root.string(),
                                     "describe", "--tags", "--abbrev=0"};
     std::string result;
@@ -146,7 +150,7 @@ std::string GitInfo::get_git_tag(const std::filesystem::path& repo_root) {
     return result;
 }
 
-std::string GitInfo::get_git_last_commit(const std::filesystem::path& repo_root) {
+std::string get_git_last_commit(const std::filesystem::path& repo_root) {
     std::vector<std::string> cmd = {"git", "-C", repo_root.string(),
                                     "log", "-1", "--pretty=format:%h:%s"};
     std::string result;
@@ -159,7 +163,7 @@ std::string GitInfo::get_git_last_commit(const std::filesystem::path& repo_root)
     return result;
 }
 
-std::string GitInfo::get_git_author(const std::filesystem::path& repo_root) {
+std::string get_git_author(const std::filesystem::path& repo_root) {
     std::vector<std::string> cmd = {"git", "-C", repo_root.string(),
                                     "log", "-1", "--pretty=format:%an"};
     std::string result;
@@ -175,7 +179,7 @@ std::string GitInfo::get_git_author(const std::filesystem::path& repo_root) {
     return result;
 }
 
-std::string GitInfo::get_git_branch(const std::filesystem::path& git_head_path) {
+std::string get_git_branch(const std::filesystem::path& git_head_path) {
     try {
         auto read_result =
             cjsh_filesystem::FileOperations::read_file_content(git_head_path.string());
@@ -201,7 +205,7 @@ std::string GitInfo::get_git_branch(const std::filesystem::path& git_head_path) 
     }
 }
 
-std::string GitInfo::get_git_status(const std::filesystem::path& repo_root) {
+std::string get_git_status(const std::filesystem::path& repo_root) {
     std::string status_symbols = "";
     std::string git_dir = repo_root.string();
     bool is_clean_repo = true;
@@ -250,7 +254,7 @@ std::string GitInfo::get_git_status(const std::filesystem::path& repo_root) {
     }
 }
 
-std::string GitInfo::get_local_path(const std::filesystem::path& repo_root) {
+std::string get_local_path(const std::filesystem::path& repo_root) {
     std::filesystem::path cwd = std::filesystem::current_path();
     std::string repo_root_path = repo_root.string();
     std::string repo_root_name = repo_root.filename().string();
@@ -270,7 +274,7 @@ std::string GitInfo::get_local_path(const std::filesystem::path& repo_root) {
     return result;
 }
 
-int GitInfo::get_git_ahead_behind(const std::filesystem::path& repo_root, int& ahead, int& behind) {
+int get_git_ahead_behind(const std::filesystem::path& repo_root, int& ahead, int& behind) {
     ahead = 0;
     behind = 0;
 
@@ -319,7 +323,7 @@ int GitInfo::get_git_ahead_behind(const std::filesystem::path& repo_root, int& a
     return 0;
 }
 
-int GitInfo::get_git_stash_count(const std::filesystem::path& repo_root) {
+int get_git_stash_count(const std::filesystem::path& repo_root) {
     std::vector<std::string> cmd = {"git",   "-C",   repo_root.string(),
                                     "stash", "list", "--pretty=oneline"};
     std::string result;
@@ -340,7 +344,7 @@ int GitInfo::get_git_stash_count(const std::filesystem::path& repo_root) {
     return count;
 }
 
-bool GitInfo::get_git_has_staged_changes(const std::filesystem::path& repo_root) {
+bool get_git_has_staged_changes(const std::filesystem::path& repo_root) {
     std::vector<std::string> cmd = {"git", "-C", repo_root.string(), "diff", "--cached", "--quiet"};
     std::string result;
     int exit_code;
@@ -358,7 +362,7 @@ bool GitInfo::get_git_has_staged_changes(const std::filesystem::path& repo_root)
     }
 }
 
-int GitInfo::get_git_uncommitted_changes(const std::filesystem::path& repo_root) {
+int get_git_uncommitted_changes(const std::filesystem::path& repo_root) {
     std::vector<std::string> cmd = {"git", "-C", repo_root.string(), "status", "--porcelain"};
     std::string result;
     int exit_code;
@@ -377,3 +381,4 @@ int GitInfo::get_git_uncommitted_changes(const std::filesystem::path& repo_root)
     }
     return count;
 }
+}  // namespace git_info

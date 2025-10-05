@@ -62,7 +62,7 @@ struct ic_env_s {
     bool prompt_cleanup;                 // after enter, rewrite prompt inline?
     bool prompt_cleanup_add_empty_line;  // optionally add empty line after
                                          // cleanup
-  size_t prompt_cleanup_extra_lines;   // additional terminal lines to erase during cleanup
+    size_t prompt_cleanup_extra_lines;   // additional terminal lines to erase during cleanup
     long hint_delay;                     // delay before displaying a hint in milliseconds
 
     ic_key_binding_entry_t* key_bindings;  // dynamic array of custom key bindings

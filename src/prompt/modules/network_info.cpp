@@ -90,4 +90,4 @@ std::string get_active_network_interface() {
     return result.empty() ? "N/A" : result;
 }
 
-}  // namespace network_info
+}  

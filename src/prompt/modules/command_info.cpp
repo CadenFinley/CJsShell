@@ -4,16 +4,23 @@
 #include <iomanip>
 #include <sstream>
 
-CommandInfo::CommandInfo() : timing_active(false) {
-}
+namespace command_info {
 
-void CommandInfo::start_command_timing() {
+// Define the external state variables with initial values
+int min_time_threshold = 0;
+bool show_microseconds = false;
+std::chrono::time_point<std::chrono::high_resolution_clock> last_command_start{};
+std::chrono::time_point<std::chrono::high_resolution_clock> last_command_end{};
+bool timing_active = false;
+int last_exit_code = 0;
+
+void start_command_timing() {
     last_command_start = std::chrono::high_resolution_clock::now();
     timing_active = true;
 }
 
-void CommandInfo::end_command_timing(int exit_code) {
-    (void)exit_code;
+void end_command_timing(int exit_code) {
+    last_exit_code = exit_code;
 
     if (timing_active) {
         last_command_end = std::chrono::high_resolution_clock::now();
@@ -21,14 +28,13 @@ void CommandInfo::end_command_timing(int exit_code) {
     }
 }
 
-void CommandInfo::reset_command_timing() {
+void reset_command_timing() {
     timing_active = false;
-
     last_command_start = std::chrono::high_resolution_clock::time_point{};
     last_command_end = std::chrono::high_resolution_clock::time_point{};
 }
 
-long long CommandInfo::get_last_command_duration_us() {
+long long get_last_command_duration_us() {
     if (timing_active) {
         auto now = std::chrono::high_resolution_clock::now();
         return std::chrono::duration_cast<std::chrono::microseconds>(now - last_command_start)
@@ -40,21 +46,20 @@ long long CommandInfo::get_last_command_duration_us() {
     }
 }
 
-std::string CommandInfo::get_formatted_duration() {
+std::string get_formatted_duration() {
     long long us = get_last_command_duration_us();
     return format_duration(us);
 }
 
-bool CommandInfo::should_show_duration() {
+bool should_show_duration() {
     return get_last_command_duration_us() >= min_time_threshold;
 }
 
-int CommandInfo::get_last_exit_code() {
-    const char* status_env = getenv("?");
-    return status_env ? std::atoi(status_env) : 0;
+int get_last_exit_code() {
+    return last_exit_code;
 }
 
-std::string CommandInfo::get_exit_status_symbol() {
+std::string get_exit_status_symbol() {
     int exit_code = get_last_exit_code();
     if (exit_code == 0) {
         return "✓";
@@ -63,26 +68,26 @@ std::string CommandInfo::get_exit_status_symbol() {
     }
 }
 
-bool CommandInfo::is_last_command_success() {
+bool is_last_command_success() {
     return get_last_exit_code() == 0;
 }
 
-void CommandInfo::set_min_time_threshold(int microseconds) {
+void set_min_time_threshold(int microseconds) {
     min_time_threshold = microseconds;
 }
 
-void CommandInfo::set_show_microseconds(bool show) {
+void set_show_microseconds(bool show) {
     show_microseconds = show;
 }
 
-void CommandInfo::set_initial_duration(long long microseconds) {
+void set_initial_duration(long long microseconds) {
     timing_active = false;
     auto now = std::chrono::high_resolution_clock::now();
     last_command_end = now;
     last_command_start = now - std::chrono::microseconds(microseconds);
 }
 
-std::string CommandInfo::format_duration(long long microseconds) {
+std::string format_duration(long long microseconds) {
     std::ostringstream oss;
 
     if (microseconds < 1000) {
@@ -120,10 +125,12 @@ std::string CommandInfo::format_duration(long long microseconds) {
     return oss.str();
 }
 
-std::string CommandInfo::format_exit_code(int exit_code) {
+std::string format_exit_code(int exit_code) {
     if (exit_code == 0) {
         return "";
     } else {
         return "[" + std::to_string(exit_code) + "]";
     }
 }
+
+}  // namespace command_info

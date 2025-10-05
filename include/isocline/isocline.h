@@ -444,10 +444,9 @@ bool ic_enable_inline_help(bool enable);
 /// \p extra_lines parameter specifies how many additional terminal lines
 /// beyond the prompt should be cleared while rewriting (defaults to 0).
 /// Returns the previous setting.
-bool ic_enable_prompt_cleanup(bool enable,
-                              size_t extra_lines
+bool ic_enable_prompt_cleanup(bool enable, size_t extra_lines
 #ifdef __cplusplus
-                              = 0
+                                           = 0
 #endif
 );
 

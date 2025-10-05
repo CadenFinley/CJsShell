@@ -100,8 +100,7 @@ int help_command() {
     std::cout << "  ~/.cjprofile        Login configuration and persisted startup flags.\n";
     std::cout << "  ~/.cjshrc           Interactive configuration (aliases, themes).\n";
     std::cout << "  ~/.cjsh_logout      Optional logout script sourced on exit.\n";
-    std::cout
-        << "  ~/.cache/cjsh/      Cache directory (history.txt, exec cache).\n";
+    std::cout << "  ~/.cache/cjsh/      Cache directory (history.txt, exec cache).\n";
     std::cout << "  ~/.cache/cjsh/.first_boot  Marker used to suppress the first-run banner.\n";
 
     heading("cjsh invocation and startup flags");
