@@ -164,7 +164,7 @@ There is also the fill behavior. It defines what should fill the space in betwee
 
 ### Prompt Information Variables
 
-The information variables are defined like {VAR_NAME} and will replace the var with the proper information. Some basic vars are: {USERNAME} {HOSTNAME} {PATH} {DIRECTORY} {TIME} Vars can be defined in any content field, and prompt type, conditional, and separator. You can see a comprehesive list at the bottom of this page. Addionally, prompt tags can be added and registered through enabled plugins. Some prompt tags should only be used while within a certain prompt, but you can kinda just put whatever information you want anywhere. Nothing is stopping you.
+The information variables are defined like {VAR_NAME} and will replace the var with the proper information. Some basic vars are: {USERNAME} {HOSTNAME} {PATH} {DIRECTORY} {TIME} Vars can be defined in any content field, and prompt type, conditional, and separator. You can see a comprehesive list at the bottom of this page. Some prompt tags should only be used while within a certain prompt, but you can kinda just put whatever information you want anywhere. Nothing is stopping you.
 
 ### Default cjsh Theme
 
