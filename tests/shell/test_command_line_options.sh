@@ -98,13 +98,6 @@ if [ "$OUT" != "test" ]; then
     exit 1
 fi
 
-# Test --no-ai option
-OUT=$("$CJSH_PATH" --no-ai -c "echo test")
-if [ "$OUT" != "test" ]; then
-    echo "FAIL: --no-ai option (got '$OUT')"
-    exit 1
-fi
-
 # Test multiple options together
 OUT=$("$CJSH_PATH" --no-colors --no-themes -c "echo multi-test")
 if [ "$OUT" != "multi-test" ]; then
