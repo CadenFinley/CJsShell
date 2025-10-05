@@ -18,8 +18,8 @@ extern "C" {
 #include <stddef.h>   // size_t
 #include <stdint.h>   // uint32_t
 
-#include "keycodes.h"
 #include "keybindings.h"
+#include "keycodes.h"
 
 /*! \mainpage
 Isocline C API reference.
