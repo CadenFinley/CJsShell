@@ -175,7 +175,7 @@ static std::string generate_prompt() {
         prompt += g_shell->get_newline_prompt();
     }
     if (g_theme) {
-        ic_enable_prompt_cleanup(g_theme->uses_cleanup());
+        ic_enable_prompt_cleanup(g_theme->uses_cleanup(), 1);
         ic_enable_prompt_cleanup_empty_line(g_theme->cleanup_adds_empty_line());
     }
 

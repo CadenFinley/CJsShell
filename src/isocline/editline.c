@@ -691,7 +691,8 @@ static void edit_clear_screen(ic_env_t* env, editor_t* eb) {
 static void edit_cleanup_erase_prompt(ic_env_t* env, editor_t* eb) {
     if (env == NULL || eb == NULL)
         return;
-    if (eb->cur_rows <= 0 && eb->prompt_prefix_lines <= 0)
+    ssize_t extra = to_ssize_t(env->prompt_cleanup_extra_lines);
+    if (eb->cur_rows <= 0 && eb->prompt_prefix_lines <= 0 && extra <= 0)
         return;
 
     term_attr_reset(env->term);
@@ -699,11 +700,14 @@ static void edit_cleanup_erase_prompt(ic_env_t* env, editor_t* eb) {
 
     ssize_t rows = (eb->cur_rows < 0 ? 0 : eb->cur_rows);
     ssize_t prefixes = (eb->prompt_prefix_lines < 0 ? 0 : eb->prompt_prefix_lines);
-    ssize_t total = rows + prefixes;
+    ssize_t total = rows + prefixes + (extra > 0 ? extra : 0);
     if (total <= 0)
         return;
 
     ssize_t up = (eb->cur_row < 0 ? 0 : eb->cur_row) + prefixes;
+    if (extra > 0) {
+        up += extra;
+    }
     if (up > 0) {
         term_up(env->term, up);
         term_start_of_line(env->term);

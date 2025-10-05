@@ -176,12 +176,13 @@ ic_public bool ic_enable_inline_help(bool enable) {
     return !prev;
 }
 
-ic_public bool ic_enable_prompt_cleanup(bool enable) {
+ic_public bool ic_enable_prompt_cleanup(bool enable, size_t extra_lines) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)
         return false;
     bool prev = env->prompt_cleanup;
     env->prompt_cleanup = enable;
+    env->prompt_cleanup_extra_lines = extra_lines;
     return prev;
 }
 

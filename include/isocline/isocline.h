@@ -440,9 +440,16 @@ bool ic_enable_inline_help(bool enable);
 
 /// Enable or disable prompt cleanup after accepting input.
 /// When enabled, accepting a line removes the prompt and rewrites just the
-/// trailing prompt segment next to the submitted input. Returns the previous
-/// setting.
-bool ic_enable_prompt_cleanup(bool enable);
+/// trailing prompt segment next to the submitted input. The optional
+/// \p extra_lines parameter specifies how many additional terminal lines
+/// beyond the prompt should be cleared while rewriting (defaults to 0).
+/// Returns the previous setting.
+bool ic_enable_prompt_cleanup(bool enable,
+                              size_t extra_lines
+#ifdef __cplusplus
+                              = 0
+#endif
+);
 
 /// Enable or disable inserting an empty line after prompt cleanup output.
 /// Returns the previous setting.
