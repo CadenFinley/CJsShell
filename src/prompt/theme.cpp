@@ -393,16 +393,25 @@ std::string Theme::render_line_aligned(
 
             std::string styled_content = content;
 
+            std::string style_codes;
+            if (segment.bold) style_codes += colors::ansi::BOLD;
+            if (segment.italic) style_codes += colors::ansi::ITALIC;
+            if (segment.underline) style_codes += colors::ansi::UNDERLINE;
+            if (segment.reverse) style_codes += colors::ansi::REVERSE;
+            if (segment.dim) style_codes += colors::ansi::DIM;
+            if (segment.strikethrough) style_codes += colors::ansi::STRIKETHROUGH;
+
             if (colors::is_gradient_value(bg_color_name)) {
                 styled_content =
                     colors::apply_gradient_bg_with_fg(content, bg_color_name, fg_color_name);
-                segment_result += styled_content;
+                segment_result += style_codes + styled_content;
             } else if (colors::is_gradient_value(fg_color_name)) {
                 if (bg_color_name != "RESET") {
                     segment_result += colors::bg_color(colors::parse_color_value(bg_color_name));
                 } else {
                     segment_result += colors::ansi::BG_RESET;
                 }
+                segment_result += style_codes;
                 styled_content = colors::apply_color_or_gradient(content, fg_color_name, true);
                 segment_result += styled_content;
             } else {
@@ -414,7 +423,7 @@ std::string Theme::render_line_aligned(
                 if (fg_color_name != "RESET") {
                     segment_result += colors::fg_color(colors::parse_color_value(fg_color_name));
                 }
-                segment_result += content;
+                segment_result += style_codes + content;
             }
 
             if (!separator.empty()) {

@@ -578,6 +578,18 @@ ThemeSegment ThemeParser::parse_segment_body(ThemeSegment segment) {
             segment.forward_separator_bg = prop.value;
         } else if (prop.key == "alignment") {
             segment.alignment = prop.value;
+        } else if (prop.key == "bold") {
+            segment.bold = (prop.value == "true" || prop.value == "1" || prop.value == "yes");
+        } else if (prop.key == "italic") {
+            segment.italic = (prop.value == "true" || prop.value == "1" || prop.value == "yes");
+        } else if (prop.key == "underline") {
+            segment.underline = (prop.value == "true" || prop.value == "1" || prop.value == "yes");
+        } else if (prop.key == "reverse") {
+            segment.reverse = (prop.value == "true" || prop.value == "1" || prop.value == "yes");
+        } else if (prop.key == "dim") {
+            segment.dim = (prop.value == "true" || prop.value == "1" || prop.value == "yes");
+        } else if (prop.key == "strikethrough") {
+            segment.strikethrough = (prop.value == "true" || prop.value == "1" || prop.value == "yes");
         }
     }
 

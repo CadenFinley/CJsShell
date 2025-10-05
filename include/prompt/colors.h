@@ -49,20 +49,6 @@ struct RGB {
     }
 };
 
-struct HSL {
-    float h;
-    float s;
-    float l;
-
-    constexpr HSL() noexcept : h(0), s(0), l(0) {
-    }
-    constexpr HSL(float h, float s, float l) noexcept : h(h), s(s), l(l) {
-    }
-};
-
-constexpr HSL rgb_to_hsl(const RGB& rgb);
-constexpr RGB hsl_to_rgb(const HSL& hsl);
-
 namespace basic {
 inline constexpr RGB BLACK(0, 0, 0);
 inline constexpr RGB RED(170, 0, 0);
@@ -87,16 +73,6 @@ std::string fg_color(const RGB& color);
 std::string bg_color(const RGB& color);
 std::string fg_color(uint8_t index);
 std::string bg_color(uint8_t index);
-
-std::string style(const std::string& text, const RGB& fg);
-std::string style(const std::string& text, const RGB& fg, const RGB& bg);
-std::string style_bold(const std::string& text);
-std::string style_italic(const std::string& text);
-std::string style_underline(const std::string& text);
-std::string style_blink(const std::string& text);
-std::string style_reverse(const std::string& text);
-std::string style_hidden(const std::string& text);
-std::string style_reset();
 
 RGB blend(const RGB& color1, const RGB& color2, float factor);
 

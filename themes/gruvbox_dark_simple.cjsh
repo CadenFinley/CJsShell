@@ -133,53 +133,6 @@ theme_definition {
     use_segment "shared_duration_segment" as "durationseg"
   }
 
-  ai_segments {
-    segment "ai_userseg" {
-      content " {AI_MODEL} "
-      fg "#d3869b"
-      bg "#282828"
-      separator "\uE0B0"
-      separator_fg "#282828"
-      separator_bg "#3c3836"
-      forward_separator "\uE0B6"
-      forward_separator_fg "#282828"
-      forward_separator_bg RESET
-      alignment "left"
-    }
-
-    segment "ai_typeseg" {
-      content " {AI_AGENT_TYPE} "
-      fg "#8ec07c"
-      bg "#3c3836"
-      separator "\uE0B0"
-      separator_fg "#3c3836"
-      separator_bg "${project_type_bg}"
-      alignment "left"
-    }
-
-    use_segment "shared_language_badge_segment" as "ai_langseg"
-
-    segment "ai_dirseg" {
-      content " {DIRECTORY} "
-      fg "#ebdbb2"
-      bg "#665c54"
-      separator "\uE0B0"
-      separator_fg "#665c54"
-      separator_bg "#3c3836"
-      alignment "left"
-    }
-
-    segment "ai_contextseg" {
-      content " {AI_CONTEXT_COMPARISON} "
-      fg "#ebdbb2"
-      bg "#3c3836"
-      separator "\uE0B0"
-      separator_fg "#3c3836"
-      separator_bg RESET
-      alignment "left"
-    }
-  }
-
   newline {
     segment "promptseg" {
       content " > "

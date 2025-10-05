@@ -60,7 +60,7 @@
     },
     "keywords": {
       "name": "keyword.control.cjsh",
-      "match": "\\b(theme_definition|terminal_title|requirements|colors|fonts|plugins|fill|char|fg|bg|ps1|git_segments|ai_segments|newline|inline_right|variables|segment|use_segment|as|content|separator|separator_fg|separator_bg|forward_separator|forward_separator_fg|forward_separator_bg|alignment|behavior|cleanup|cleanup_empty_line|newline_after_execution|true|false)\\b"
+      "match": "\\b(theme_definition|terminal_title|requirements|colors|fonts|plugins|fill|char|fg|bg|ps1|git_segments|ai_segments|newline|inline_right|variables|segment|use_segment|as|content|separator|separator_fg|separator_bg|forward_separator|forward_separator_fg|forward_separator_bg|alignment|behavior|cleanup|cleanup_empty_line|newline_after_execution|bold|italic|underline|reverse|dim|strikethrough|true|false)\\b"
     },
     "strings": {
       "name": "string.quoted.double.cjsh",

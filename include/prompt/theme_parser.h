@@ -59,6 +59,12 @@ struct ThemeSegment {
     std::string forward_separator_fg;
     std::string forward_separator_bg;
     std::string alignment;
+    bool bold = false;
+    bool italic = false;
+    bool underline = false;
+    bool reverse = false;
+    bool dim = false;
+    bool strikethrough = false;
 
     ThemeSegment() = default;
     ThemeSegment(const std::string& n) : name(n) {
