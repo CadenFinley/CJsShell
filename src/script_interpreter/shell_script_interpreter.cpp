@@ -3646,8 +3646,8 @@ std::string ShellScriptInterpreter::expand_parameter_expression(const std::strin
         if (!is_set || var_value.empty()) {
             std::string error_msg = "cjsh: " + var_name + ": " +
                                     (operand.empty() ? "parameter null or not set" : operand);
-            shell_script_interpreter::print_runtime_error(
-                error_msg, "${" + var_name + op + operand + "}");
+            shell_script_interpreter::print_runtime_error(error_msg,
+                                                          "${" + var_name + op + operand + "}");
             throw std::runtime_error(error_msg);
         }
         return var_value;
@@ -3656,8 +3656,8 @@ std::string ShellScriptInterpreter::expand_parameter_expression(const std::strin
         if (!is_set) {
             std::string error_msg =
                 "cjsh: " + var_name + ": " + (operand.empty() ? "parameter not set" : operand);
-            shell_script_interpreter::print_runtime_error(
-                error_msg, "${" + var_name + op + operand + "}");
+            shell_script_interpreter::print_runtime_error(error_msg,
+                                                          "${" + var_name + op + operand + "}");
             throw std::runtime_error(error_msg);
         }
         return var_value;

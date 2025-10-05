@@ -238,12 +238,12 @@ static void start_interactive_process() {
             } else if (microseconds < 1000000) {
                 double milliseconds = microseconds / 1000.0;
                 char buffer[32];
-                (void) snprintf(buffer, sizeof(buffer), "%.2fms", milliseconds);
+                (void)snprintf(buffer, sizeof(buffer), "%.2fms", milliseconds);
                 startup_time_str = buffer;
             } else {
                 double seconds = microseconds / 1000000.0;
                 char buffer[32];
-                (void) snprintf(buffer, sizeof(buffer), "%.2fs", seconds);
+                (void)snprintf(buffer, sizeof(buffer), "%.2fs", seconds);
                 startup_time_str = buffer;
             }
         }
@@ -269,8 +269,8 @@ static void process_logout_file() {
 
 void cleanup_resources() {
     if (g_shell) {
-    trap_manager_set_shell(g_shell.get());
-    trap_manager_execute_exit_trap();
+        trap_manager_set_shell(g_shell.get());
+        trap_manager_execute_exit_trap();
         process_logout_file();
     }
 

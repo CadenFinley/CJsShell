@@ -87,9 +87,8 @@ static size_t get_terminal_width() {
     return 80;
 }
 
-void print_error_report(
-    const std::vector<ShellScriptInterpreter::SyntaxError>& errors, bool show_suggestions,
-    bool show_context, int start_error_number) {
+void print_error_report(const std::vector<ShellScriptInterpreter::SyntaxError>& errors,
+                        bool show_suggestions, bool show_context, int start_error_number) {
     using ErrorSeverity = ShellScriptInterpreter::ErrorSeverity;
     using SyntaxError = ShellScriptInterpreter::SyntaxError;
 
@@ -189,8 +188,7 @@ void print_error_report(
             std::cout << "│  " << dim_style << "at line " << bold_style
                       << error.position.line_number << reset_color;
             if (column_start > 0) {
-                std::cout << dim_style << ", column " << bold_style << column_start
-                          << reset_color;
+                std::cout << dim_style << ", column " << bold_style << column_start << reset_color;
             }
             std::cout << '\n';
 
@@ -372,9 +370,8 @@ void print_error_report(
                 std::cout << '\n';
 
                 if (column_start > 0 && adjusted_start < display_line.length()) {
-                    std::cout << "│  " << dim_style
-                              << std::string(line_num_str.length(), ' ') << " │ "
-                              << reset_color;
+                    std::cout << "│  " << dim_style << std::string(line_num_str.length(), ' ')
+                              << " │ " << reset_color;
                     std::cout << std::string(adjusted_start, ' ');
                     std::cout << severity_color << "^";
                     if (adjusted_end > adjusted_start + 1 &&

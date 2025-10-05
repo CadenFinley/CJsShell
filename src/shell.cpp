@@ -275,9 +275,9 @@ int Shell::execute(const std::string& script) {
         last_command = script;
         return exit_code;
     }
-        print_error(ErrorInfo{
-            ErrorType::RUNTIME_ERROR, "", "No script interpreter available", {"Restart cjsh"}});
-        return 1;
+    print_error(ErrorInfo{
+        ErrorType::RUNTIME_ERROR, "", "No script interpreter available", {"Restart cjsh"}});
+    return 1;
 }
 
 void Shell::setup_signal_handlers() {

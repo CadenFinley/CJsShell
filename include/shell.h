@@ -141,7 +141,7 @@ class Shell {
     std::string last_terminal_output_error;
     std::string last_command;
     std::unique_ptr<Exec> shell_exec;
-    
+
     std::unordered_set<std::string> get_available_commands() const;
 
     std::string get_previous_directory() const;
