@@ -56,6 +56,7 @@ class Theme {
     bool cleanup_{false};
     bool cleanup_add_empty_line_{false};
     bool newline_after_execution_{false};
+    bool cleanup_nl_after_exec_{false};
 
    public:
     Theme(std::string theme_dir, bool enabled);
@@ -104,6 +105,9 @@ class Theme {
     bool uses_cleanup() const;
     bool cleanup_adds_empty_line() const;
     bool newline_after_execution() const;
+    bool cleanup_nl_after_exec() const;
+
+    void set_cleanup_nl_after_exec(bool enabled);
 
     std::string render_line(const std::string& line,
                             const std::unordered_map<std::string, std::string>& vars) const;

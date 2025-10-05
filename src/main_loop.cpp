@@ -136,11 +136,6 @@ bool process_command_line(const std::string& command) {
         typeahead::ingest_typeahead_input(typeahead_input);
     }
 
-    if (g_theme && g_theme->newline_after_execution()) {
-        (void)std::fputc('\n', stdout);
-        (void)std::fflush(stdout);
-    }
-
     return g_exit_flag;
 }
 }  // namespace
@@ -175,7 +170,7 @@ static std::string generate_prompt() {
         prompt += g_shell->get_newline_prompt();
     }
     if (g_theme) {
-        ic_enable_prompt_cleanup(g_theme->uses_cleanup(), 1);
+        ic_enable_prompt_cleanup(g_theme->uses_cleanup(), g_theme->cleanup_nl_after_exec() ? 1 : 0);
         ic_enable_prompt_cleanup_empty_line(g_theme->cleanup_adds_empty_line());
     }
 
@@ -273,6 +268,10 @@ void main_process_loop() {
                 std::cerr << "Exiting main process loop..." << '\n';
             }
             break;
+        }
+        if (g_theme && g_theme->newline_after_execution()) {
+            (void)std::fputc('\n', stdout);
+            (void)std::fflush(stdout);
         }
     }
 

@@ -34,6 +34,7 @@ void Theme::clear_theme_state() {
     cleanup_ = false;
     cleanup_add_empty_line_ = false;
     newline_after_execution_ = false;
+    cleanup_nl_after_exec_ = false;
     last_ps1_raw_length = 0;
     last_git_raw_length = 0;
     last_newline_raw_length = 0;
@@ -308,6 +309,7 @@ bool Theme::apply_theme_definition(const ThemeDefinition& definition, const std:
     cleanup_ = theme_data.behavior.cleanup;
     cleanup_add_empty_line_ = theme_data.behavior.cleanup_empty_line;
     newline_after_execution_ = theme_data.behavior.newline_after_execution;
+    cleanup_nl_after_exec_ = theme_data.behavior.cleanup_nl_after_exec;
 
     g_current_theme = theme_name;
     return true;
@@ -681,6 +683,15 @@ bool Theme::cleanup_adds_empty_line() const {
 
 bool Theme::newline_after_execution() const {
     return newline_after_execution_;
+}
+
+bool Theme::cleanup_nl_after_exec() const {
+    return cleanup_nl_after_exec_;
+}
+
+void Theme::set_cleanup_nl_after_exec(bool enabled) {
+    cleanup_nl_after_exec_ = enabled;
+    theme_data.behavior.cleanup_nl_after_exec = enabled;
 }
 
 std::string Theme::get_terminal_title_format() const {

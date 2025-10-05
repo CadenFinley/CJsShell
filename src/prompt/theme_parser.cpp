@@ -708,6 +708,8 @@ ThemeBehavior ThemeParser::parse_behavior_block() {
             behavior.cleanup_empty_line = (prop.value == "true");
         } else if (prop.key == "newline_after_execution") {
             behavior.newline_after_execution = (prop.value == "true");
+        } else if (prop.key == "cleanup_nl_after_exec") {
+            behavior.cleanup_nl_after_exec = (prop.value == "true");
         }
     }
 
@@ -1022,6 +1024,8 @@ std::string ThemeParser::write_theme(const ThemeDefinition& theme) {
         << "\n";
     oss << "    newline_after_execution "
         << (theme.behavior.newline_after_execution ? "true" : "false") << "\n";
+    oss << "    cleanup_nl_after_exec "
+        << (theme.behavior.cleanup_nl_after_exec ? "true" : "false") << "\n";
     oss << "  }\n";
 
     oss << "}\n";
