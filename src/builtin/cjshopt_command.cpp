@@ -955,6 +955,7 @@ int startup_flag_command(const std::vector<std::string>& args) {
               "  --no-completions     Disable tab completions",
               "  --no-syntax-highlighting Disable syntax highlighting",
               "  --no-smart-cd        Disable smart cd functionality",
+              "  --no-prompt          Use simple '#' prompt instead of themed prompt",
               R"(  --minimal            Disable all unique cjsh features (themes, colors, completions, syntax highlighting, smart cd, sourcing, custom ls, startup time display))",
               R"(  --disable-custom-ls  Use system ls command instead of builtin ls)",
               "  --startup-test       Enable startup test mode"}});
@@ -963,7 +964,7 @@ int startup_flag_command(const std::vector<std::string>& args) {
 
     const std::string& flag = args[1];
 
-    if (flag == "--login" || flag == "--interactive" || flag == "--debug" ||
+    if (flag == "--login" || flag == "--interactive" || flag == "--debug" || flag == "--no-prompt" ||
         flag == "--no-themes" || flag == "--no-colors" ||
         flag == "--no-titleline" || flag == "--show-startup-time" || flag == "--no-source" ||
         flag == "--no-completions" || flag == "--no-syntax-highlighting" ||

@@ -66,6 +66,7 @@ bool disable_custom_ls = false;
 bool show_startup_time = false;
 bool secure_mode = false;
 bool show_title_line = true;
+bool no_prompt = false;
 }  // namespace config
 
 static void save_startup_arguments(int argc, char* argv[]) {

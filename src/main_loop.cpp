@@ -163,6 +163,10 @@ static std::string generate_prompt(bool command_was_available) {
     std::printf(" \r");
     (void)std::fflush(stdout);
 
+    if(config::no_prompt) {
+        return "# ";
+    }
+
     std::string prompt = g_shell->get_prompt();
 
     if (g_theme && g_theme->uses_newline()) {

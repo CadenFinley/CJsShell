@@ -27,13 +27,14 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(int argc, char
                                            {"no-completions", no_argument, nullptr, 'O'},
                                            {"no-syntax-highlighting", no_argument, nullptr, 'S'},
                                            {"no-smart-cd", no_argument, nullptr, 'M'},
+                                           {"no-prompt", no_argument, nullptr, 'P'},
                                            {"startup-test", no_argument, nullptr, 'X'},
                                            {"minimal", no_argument, nullptr, 'm'},
                                            {"disable-custom-ls", no_argument, nullptr, 'D'},
                                            {"secure", no_argument, nullptr, 's'},
                                            {nullptr, 0, nullptr, 0}};
 
-    const char* short_options = "+lic:vhTCLUNOSMXmDs";
+    const char* short_options = "+lic:vhTCLUNOSMPXmDs";
 
     int option_index = 0;
     int c;
@@ -83,6 +84,10 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(int argc, char
                 break;
             case 'M':
                 config::smart_cd_enabled = false;
+                break;
+            case 'P':
+                config::no_prompt = true;
+                config::themes_enabled = false;
                 break;
             case 'X':
                 config::startup_test = true;
@@ -167,6 +172,9 @@ void CommandLineParser::apply_profile_startup_flags() {
             config::syntax_highlighting_enabled = false;
         } else if (flag == "--no-smart-cd") {
             config::smart_cd_enabled = false;
+        } else if (flag == "--no-prompt") {
+            config::no_prompt = true;
+            config::themes_enabled = false;
         } else if (flag == "--startup-test") {
             config::startup_test = true;
         } else if (flag == "--interactive") {
