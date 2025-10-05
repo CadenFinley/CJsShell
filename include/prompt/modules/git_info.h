@@ -6,7 +6,6 @@
 #include <string>
 #include <unordered_map>
 
-namespace git_info {
 
 
 extern std::chrono::steady_clock::time_point last_git_status_check;
@@ -63,5 +62,3 @@ std::string get_cached_value(const std::string& key, F value_func, int ttl_secon
 
     return value;
 }
-
-}  

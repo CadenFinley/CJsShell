@@ -10,8 +10,6 @@
 
 #include "utils/cjsh_filesystem.h"
 
-namespace {
-
 bool set_close_on_exec(int fd) {
     int flags = fcntl(fd, F_GETFD);
     if (flags == -1) {
@@ -32,8 +30,6 @@ std::vector<char*> build_exec_argv(const std::vector<std::string>& args) {
     argv.push_back(nullptr);
     return argv;
 }
-
-}  // namespace
 
 static int safe_execute_git_command(const std::vector<std::string>& args, std::string& result,
                                     int& exit_code) {
@@ -106,9 +102,6 @@ static int safe_execute_git_command(const std::vector<std::string>& args, std::s
     return 0;
 }
 
-namespace git_info {
-
-// Define the external state variables with initial values
 std::chrono::steady_clock::time_point last_git_status_check = 
     std::chrono::steady_clock::now() - std::chrono::seconds(30);
 std::string cached_git_dir;
@@ -381,4 +374,3 @@ int get_git_uncommitted_changes(const std::filesystem::path& repo_root) {
     }
     return count;
 }
-}  // namespace git_info

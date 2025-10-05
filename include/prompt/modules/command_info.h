@@ -3,8 +3,6 @@
 #include <chrono>
 #include <string>
 
-namespace command_info {
-
 
 extern int min_time_threshold;
 extern bool show_microseconds;
@@ -32,5 +30,3 @@ bool is_last_command_success();
 void set_min_time_threshold(int microseconds);
 void set_show_microseconds(bool show);
 void set_initial_duration(long long microseconds);
-
-}  

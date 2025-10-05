@@ -5,8 +5,6 @@
 #include <iomanip>
 #include <sstream>
 
-namespace time_info {
-
 std::string get_current_time(bool twelve_hour_format) {
     auto now = std::chrono::system_clock::now();
     std::time_t time_t = std::chrono::system_clock::to_time_t(now);
@@ -71,5 +69,3 @@ std::string get_current_month_name() {
     oss << std::put_time(tm, "%B");
     return oss.str();
 }
-
-}  // namespace time_info

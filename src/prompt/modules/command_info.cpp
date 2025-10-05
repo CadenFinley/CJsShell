@@ -4,8 +4,6 @@
 #include <iomanip>
 #include <sstream>
 
-namespace command_info {
-
 // Define the external state variables with initial values
 int min_time_threshold = 0;
 bool show_microseconds = false;
@@ -132,5 +130,3 @@ std::string format_exit_code(int exit_code) {
         return "[" + std::to_string(exit_code) + "]";
     }
 }
-
-}  // namespace command_info

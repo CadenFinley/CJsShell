@@ -8,8 +8,6 @@
 #include "cjsh.h"
 #include "utils/cjsh_filesystem.h"
 
-namespace environment_info {
-
 std::string get_terminal_type() {
     const char* term = getenv("TERM");
     return term ? std::string(term) : "unknown";
@@ -137,5 +135,3 @@ std::string get_shell() {
 std::string get_shell_version() {
     return get_version();
 }
-
-}  // namespace environment_info

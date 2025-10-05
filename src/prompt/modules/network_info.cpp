@@ -2,8 +2,6 @@
 
 #include "utils/cjsh_filesystem.h"
 
-namespace network_info {
-
 std::string get_ip_address(bool external) {
     std::string cmd;
 
@@ -89,5 +87,3 @@ std::string get_active_network_interface() {
 
     return result.empty() ? "N/A" : result;
 }
-
-}  

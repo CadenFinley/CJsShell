@@ -3,7 +3,6 @@
 #include <string>
 #include <utility>
 
-namespace environment_info {
 
 std::string get_terminal_type();
 std::pair<int, int> get_terminal_dimensions();
@@ -12,20 +11,3 @@ bool is_in_virtual_environment(std::string& env_name);
 int get_background_jobs_count();
 std::string get_shell();
 std::string get_shell_version();
-
-}  // namespace environment_infolude <string>
-#include <utility>
-
-class EnvironmentInfo {
-   public:
-    EnvironmentInfo() = default;
-    ~EnvironmentInfo() = default;
-
-    std::string get_terminal_type();
-    std::pair<int, int> get_terminal_dimensions();
-    std::string get_active_language_version(const std::string& language);
-    bool is_in_virtual_environment(std::string& env_name);
-    int get_background_jobs_count();
-    std::string get_shell();
-    std::string get_shell_version();
-};

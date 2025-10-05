@@ -5,8 +5,6 @@
 #include <cstdlib>
 #include <filesystem>
 
-namespace basic_info {
-
 bool is_root_path(const std::filesystem::path& path) {
     return path == path.root_path();
 }
@@ -73,5 +71,3 @@ std::string get_hostname() {
     }
     return "unknown";
 }
-
-}  // namespace basic_info

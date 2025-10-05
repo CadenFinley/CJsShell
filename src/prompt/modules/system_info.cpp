@@ -3,8 +3,6 @@
 #include <cstdio>
 #include "utils/cjsh_filesystem.h"
 
-namespace system_info {
-
 std::string get_disk_usage(const std::filesystem::path& path) {
     std::string cmd = "df -h '" + path.string() + "' | awk 'NR==2{print $5}'";
     auto result = cjsh_filesystem::FileOperations::read_command_output(cmd);
@@ -240,5 +238,3 @@ std::string get_uptime() {
 
     return result.empty() ? "Unknown" : result;
 }
-
-}  // namespace system_info

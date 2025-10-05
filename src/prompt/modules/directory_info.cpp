@@ -6,9 +6,6 @@
 #include <sstream>
 #include <vector>
 
-namespace directory_info {
-
-
 bool use_logical_path = false;
 bool truncate_to_repo = true;
 int truncation_length = 3;
@@ -210,5 +207,3 @@ void set_home_symbol(const std::string& symbol) {
 void add_substitution(const std::string& from, const std::string& to) {
     substitutions[from] = to;
 }
-
-}  

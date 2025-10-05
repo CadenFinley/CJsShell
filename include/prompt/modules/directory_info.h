@@ -4,8 +4,6 @@
 #include <string>
 #include <unordered_map>
 
-namespace directory_info {
-
 
 extern bool use_logical_path;
 extern bool truncate_to_repo;
@@ -39,5 +37,3 @@ void set_truncate_to_repo(bool truncate);
 void set_truncation_length(int length);
 void set_home_symbol(const std::string& symbol);
 void add_substitution(const std::string& from, const std::string& to);
-
-}  

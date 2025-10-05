@@ -8,8 +8,6 @@
 #include <unordered_map>
 #include <vector>
 
-namespace language_info {
-
 struct CachedVersion {
     std::string version;
     std::chrono::steady_clock::time_point timestamp;
@@ -123,5 +121,3 @@ std::string get_language_version(const std::string& language);
 bool is_language_project(const std::string& language);
 
 void clear_version_cache();
-
-}  

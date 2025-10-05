@@ -127,7 +127,7 @@ bool Prompt::is_git_repository(std::filesystem::path& repo_root) {
 
     repo_root = current_path;
 
-    while (!info.is_root_path(repo_root)) {
+    while (!is_root_path(repo_root)) {
         git_head_path = repo_root / ".git" / "HEAD";
         if (std::filesystem::exists(git_head_path)) {
             return true;

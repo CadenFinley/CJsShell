@@ -5,8 +5,6 @@
 #include <regex>
 #include "utils/cjsh_filesystem.h"
 
-namespace container_info {
-
 bool file_exists(const std::string& path) {
     return std::filesystem::exists(path);
 }
@@ -170,5 +168,3 @@ bool is_in_wsl() {
     }
     return false;
 }
-
-}  

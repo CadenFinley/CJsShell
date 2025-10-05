@@ -8,8 +8,6 @@
 
 #include "utils/cjsh_filesystem.h"
 
-namespace language_info {
-
 // Static data definitions
 std::unordered_map<std::string, CachedVersion> version_cache;
 std::mutex cache_mutex;
@@ -535,5 +533,3 @@ void clear_version_cache() {
     std::lock_guard<std::mutex> lock(cache_mutex);
     version_cache.clear();
 }
-
-}  // namespace language_info
