@@ -85,6 +85,15 @@ bool clean(void) {
             return false;
         }
     }
+
+    if (nob_get_file_type("compile_commands.json") == NOB_FILE_REGULAR) {
+        if (remove("compile_commands.json") != 0) {
+            nob_log(NOB_WARNING, "Failed to delete compile_commands.json");
+        } else {
+            nob_log(NOB_INFO, "Deleted compile_commands.json");
+        }
+    }
+
     return true;
 }
 
