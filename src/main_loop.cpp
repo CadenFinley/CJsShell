@@ -159,7 +159,7 @@ static void update_job_management() {
     JobManager::instance().cleanup_finished_jobs();
 }
 
-static std::string generate_prompt() {
+static std::string generate_prompt(bool command_was_available) {
     std::printf(" \r");
     (void)std::fflush(stdout);
 
@@ -170,7 +170,7 @@ static std::string generate_prompt() {
         prompt += g_shell->get_newline_prompt();
     }
     if (g_theme) {
-        ic_enable_prompt_cleanup(g_theme->uses_cleanup(), g_theme->cleanup_nl_after_exec() ? 1 : 0);
+        ic_enable_prompt_cleanup(g_theme->uses_cleanup(), (g_theme->cleanup_nl_after_exec() && command_was_available) ? 1 : 0);
         ic_enable_prompt_cleanup_empty_line(g_theme->cleanup_adds_empty_line());
     }
 
@@ -187,11 +187,11 @@ static bool handle_null_input() {
     return false;
 }
 
-static std::pair<std::string, bool> get_next_command() {
+static std::pair<std::string, bool> get_next_command(bool command_was_available) {
     std::string command_to_run;
     bool command_available = false;
 
-    std::string prompt = generate_prompt();
+    std::string prompt = generate_prompt(command_was_available);
     std::string inline_right_text = g_shell->get_inline_right_prompt();
 
     typeahead::flush_pending_typeahead();
@@ -234,6 +234,8 @@ void main_process_loop() {
     typeahead::initialize();
 
     typeahead::flush_pending_typeahead();
+    std::string command_to_run;
+    bool command_available = false;
 
     while (true) {
         g_shell->process_pending_signals();
@@ -252,7 +254,7 @@ void main_process_loop() {
 
         typeahead::flush_pending_typeahead();
 
-        auto [command_to_run, command_available] = get_next_command();
+        std::tie(command_to_run, command_available) = get_next_command(command_available);
 
         if (g_exit_flag) {
             break;
@@ -269,7 +271,7 @@ void main_process_loop() {
             }
             break;
         }
-        if (g_theme && g_theme->newline_after_execution()) {
+        if (g_theme && g_theme->newline_after_execution() && command_available) {
             (void)std::fputc('\n', stdout);
             (void)std::fflush(stdout);
         }
