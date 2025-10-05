@@ -247,7 +247,6 @@ void apply_variables_to_theme(ThemeDefinition& theme,
 
     apply_variables_to_segments(theme.ps1_segments, variables);
     apply_variables_to_segments(theme.git_segments, variables);
-    apply_variables_to_segments(theme.ai_segments, variables);
     apply_variables_to_segments(theme.newline_segments, variables);
     apply_variables_to_segments(theme.inline_right_segments, variables);
 }
@@ -887,8 +886,6 @@ ThemeDefinition ThemeParser::parse() {
             theme.ps1_segments = parse_segments_block();
         } else if (block_name == "git_segments") {
             theme.git_segments = parse_segments_block();
-        } else if (block_name == "ai_segments") {
-            theme.ai_segments = parse_segments_block();
         } else if (block_name == "newline") {
             theme.newline_segments = parse_segments_block();
         } else if (block_name == "inline_right") {
@@ -1016,7 +1013,6 @@ std::string ThemeParser::write_theme(const ThemeDefinition& theme) {
 
     write_segments("ps1", theme.ps1_segments);
     write_segments("git_segments", theme.git_segments);
-    write_segments("ai_segments", theme.ai_segments);
     write_segments("newline", theme.newline_segments);
     write_segments("inline_right", theme.inline_right_segments);
 

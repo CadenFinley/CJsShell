@@ -19,7 +19,6 @@
 #include <malloc.h>
 #endif
 
-#include "ai.h"
 #include "builtin.h"
 #include "cjsh_filesystem.h"
 #include "colors.h"
@@ -42,7 +41,6 @@ std::string title_line;
 std::string created_line;
 bool g_startup_active = true;
 std::unique_ptr<Shell> g_shell = nullptr;
-std::unique_ptr<Ai> g_ai = nullptr;
 std::unique_ptr<Theme> g_theme = nullptr;
 std::vector<std::string> g_startup_args;
 std::vector<std::string> g_profile_startup_args;
@@ -55,7 +53,6 @@ bool force_interactive = false;
 bool execute_command = false;
 std::string cmd_to_execute = "";
 bool themes_enabled = true;
-bool ai_enabled = true;
 bool colors_enabled = true;
 bool source_enabled = true;
 bool completions_enabled = true;
@@ -137,15 +134,6 @@ void initialize_themes() {
         return;
     }
     g_theme = std::make_unique<Theme>(cjsh_filesystem::g_cjsh_theme_path, config::themes_enabled);
-}
-
-void initialize_ai() {
-    if (!config::ai_enabled) {
-        return;
-    }
-    g_ai =
-        std::make_unique<Ai>("", std::string("chat"), std::string(""), std::vector<std::string>{},
-                             cjsh_filesystem::g_cjsh_data_path, config::ai_enabled);
 }
 
 static int initialize_interactive_components() {
@@ -285,10 +273,6 @@ void cleanup_resources() {
         process_logout_file();
     }
 
-    if (g_ai) {
-        g_ai.reset();
-    }
-
     if (g_theme) {
         g_theme.reset();
     }
@@ -310,7 +294,6 @@ int main(int argc, char* argv[]) {
         return parse_result.exit_code;
     }
 
-    // Handle --version and --help early to avoid unnecessary initialization
     if (config::show_version) {
         std::vector<std::string> empty_args;
         return version_command(empty_args);

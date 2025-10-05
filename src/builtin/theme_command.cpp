@@ -179,7 +179,6 @@ int theme_command(const std::vector<std::string>& args) {
 
         count_segments(theme_def.ps1_segments);
         count_segments(theme_def.git_segments);
-        count_segments(theme_def.ai_segments);
         count_segments(theme_def.newline_segments);
         count_segments(theme_def.inline_right_segments);
 

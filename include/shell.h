@@ -43,15 +43,10 @@ class Shell {
     int execute(const std::string& script);
 
     int execute_command(std::vector<std::string> args, bool run_in_background = false);
-    int do_ai_request(const std::string& command);
     void process_pending_signals();
 
     std::string get_prompt() {
         return shell_prompt->get_prompt();
-    }
-
-    std::string get_ai_prompt() {
-        return shell_prompt->get_ai_prompt();
     }
 
     std::string get_newline_prompt() {
@@ -153,14 +148,7 @@ class Shell {
     std::string last_terminal_output_error;
     std::string last_command;
     std::unique_ptr<Exec> shell_exec;
-
-    bool get_menu_active() {
-        return menu_active;
-    }
-
-    void set_menu_active(bool active) {
-        menu_active = active;
-    }
+    
     std::unordered_set<std::string> get_available_commands() const;
 
     std::string get_previous_directory() const;
@@ -196,7 +184,6 @@ class Shell {
 
    private:
     bool interactive_mode = false;
-    bool menu_active = true;
     int shell_terminal;
     pid_t shell_pgid;
     struct termios shell_tmodes;

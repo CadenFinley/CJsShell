@@ -96,7 +96,6 @@ struct ThemeDefinition {
 
     std::vector<ThemeSegment> ps1_segments;
     std::vector<ThemeSegment> git_segments;
-    std::vector<ThemeSegment> ai_segments;
     std::vector<ThemeSegment> newline_segments;
     std::vector<ThemeSegment> inline_right_segments;
 

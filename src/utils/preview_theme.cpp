@@ -53,8 +53,6 @@ int preview_theme(const std::string& theme_name) {
                         temp_theme->ps1_segments.end());
     all_segments.insert(all_segments.end(), temp_theme->git_segments.begin(),
                         temp_theme->git_segments.end());
-    all_segments.insert(all_segments.end(), temp_theme->ai_segments.begin(),
-                        temp_theme->ai_segments.end());
     all_segments.insert(all_segments.end(), temp_theme->newline_segments.begin(),
                         temp_theme->newline_segments.end());
     ThemeSegment title_segment("title");
@@ -62,12 +60,6 @@ int preview_theme(const std::string& theme_name) {
     all_segments.push_back(title_segment);
 
     auto vars = prompt_info.get_variables(all_segments, is_git_repo, repo_root);
-
-    vars["AI_MODEL"] = "AI_MODEL";
-    vars["AI_AGENT_TYPE"] = "AI_AGENT_TYPE";
-    vars["AI_DIVIDER"] = ">";
-    vars["AI_CONTEXT"] = std::filesystem::current_path().string() + "/";
-    vars["AI_CONTEXT_COMPARISON"] = "✔";
 
     if (!is_git_repo) {
         vars["GIT_BRANCH"] = "main";
@@ -94,10 +86,6 @@ int preview_theme(const std::string& theme_name) {
 
     std::cout << "Git Prompt:" << '\n';
     std::cout << temp_theme->get_git_prompt_format(vars) << '\n';
-    std::cout << '\n';
-
-    std::cout << "AI Prompt:" << '\n';
-    std::cout << temp_theme->get_ai_prompt_format(vars) << '\n';
     std::cout << '\n';
 
     if (temp_theme->uses_newline()) {

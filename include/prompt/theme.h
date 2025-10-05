@@ -17,7 +17,6 @@ class Theme {
 
     mutable size_t last_ps1_raw_length = 0;
     mutable size_t last_git_raw_length = 0;
-    mutable size_t last_ai_raw_length = 0;
     mutable size_t last_newline_raw_length = 0;
 
     std::string process_conditionals(
@@ -66,7 +65,6 @@ class Theme {
 
     std::vector<ThemeSegment>& ps1_segments = theme_data.ps1_segments;
     std::vector<ThemeSegment>& git_segments = theme_data.git_segments;
-    std::vector<ThemeSegment>& ai_segments = theme_data.ai_segments;
     std::vector<ThemeSegment>& newline_segments = theme_data.newline_segments;
     std::vector<ThemeSegment>& inline_right_segments = theme_data.inline_right_segments;
 
@@ -87,9 +85,6 @@ class Theme {
     size_t get_git_raw_length() const {
         return last_git_raw_length;
     }
-    size_t get_ai_raw_length() const {
-        return last_ai_raw_length;
-    }
     size_t get_newline_raw_length() const {
         return last_newline_raw_length;
     }
@@ -98,8 +93,6 @@ class Theme {
     std::string get_ps1_prompt_format(
         const std::unordered_map<std::string, std::string>& vars) const;
     std::string get_git_prompt_format(
-        const std::unordered_map<std::string, std::string>& vars) const;
-    std::string get_ai_prompt_format(
         const std::unordered_map<std::string, std::string>& vars) const;
     std::string get_inline_right_prompt(
         const std::unordered_map<std::string, std::string>& vars) const;

@@ -255,30 +255,18 @@ int Shell::execute(const std::string& script) {
     if (script.empty()) {
         return 0;
     }
-    std::string processed_script = script;
-    if (!get_menu_active()) {
-        if (script == ":") {
-            set_menu_active(true);
-            return 0;
-        } else if (script[0] == ':') {
-            processed_script = script.substr(1);
-        } else {
-            return do_ai_request(script);
-        }
-    }
     std::vector<std::string> lines;
 
-    lines = shell_parser->parse_into_lines(processed_script);
+    lines = shell_parser->parse_into_lines(script);
 
     if (shell_script_interpreter) {
         int exit_code = shell_script_interpreter->execute_block(lines);
-        last_command = processed_script;
+        last_command = script;
         return exit_code;
-    } else {
+    }
         print_error(ErrorInfo{
             ErrorType::RUNTIME_ERROR, "", "No script interpreter available", {"Restart cjsh"}});
         return 1;
-    }
 }
 
 void Shell::setup_signal_handlers() {
@@ -351,57 +339,6 @@ void Shell::setup_job_control() {
             {ErrorType::RUNTIME_ERROR, "", e.what(), {"Check terminal settings", "Restart cjsh"}});
         job_control_enabled = false;
     }
-}
-
-int Shell::do_ai_request(const std::string& command) {
-    if (command == "exit" || command == "clear" || command == "quit") {
-        return execute(command);
-    }
-    std::string first_word;
-    std::istringstream iss(command);
-    iss >> first_word;
-
-    if (!first_word.empty()) {
-        auto cached_executables = cjsh_filesystem::read_cached_executables();
-        std::unordered_set<std::string> available_commands = get_available_commands();
-
-        bool is_executable = false;
-        for (const auto& exec_path : cached_executables) {
-            if (exec_path.filename().string() == first_word) {
-                is_executable = true;
-                break;
-            }
-        }
-
-        if (!is_executable && available_commands.find(first_word) != available_commands.end()) {
-            is_executable = true;
-        }
-
-        if (is_executable) {
-            std::cout << "It looks like you're trying to run a command '" << first_word
-                      << "' in AI mode. Did you mean to run it as a shell "
-                         "command? (y/n): ";
-            std::string response;
-            std::getline(std::cin, response);
-
-            if (!response.empty() && (response[0] == 'y' || response[0] == 'Y')) {
-                std::vector<std::string> lines = shell_parser->parse_into_lines(command);
-                if (shell_script_interpreter) {
-                    int exit_code = shell_script_interpreter->execute_block(lines);
-                    last_command = command;
-                    return exit_code;
-                } else {
-                    print_error(ErrorInfo{ErrorType::RUNTIME_ERROR,
-                                          "",
-                                          "No script interpreter available",
-                                          {"Restart cjsh"}});
-                    return 1;
-                }
-            }
-        }
-    }
-
-    return built_ins->do_ai_request(command);
 }
 
 int Shell::execute_command(std::vector<std::string> args, bool run_in_background) {

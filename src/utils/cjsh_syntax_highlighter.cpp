@@ -266,9 +266,6 @@ void SyntaxHighlighter::highlight_quotes_and_variables(ic_highlight_env_t* henv,
 }
 
 void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, void*) {
-    if (!g_shell->get_menu_active() && input[0] != ':') {
-        return;
-    }
     size_t len = std::strlen(input);
 
     bool in_quotes = false;
@@ -318,42 +315,6 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
         size_t brace_pos = input_str.find('{');
         if (brace_pos != std::string::npos && brace_pos < len) {
             ic_highlight(henv, static_cast<long>(brace_pos), 1L, "cjsh-operator");
-        }
-        return;
-    }
-
-    if (!g_shell->get_menu_active() && input[0] == ':') {
-        ic_highlight(henv, 0L, 1L, "cjsh-colon");
-
-        size_t i = 0;
-        while (i < len && (std::isspace((unsigned char)input[i]) == 0))
-            ++i;
-        std::string token(input, i);
-
-        if (token.size() > 1) {
-            std::string sub = token.substr(1);
-            if (sub.rfind("./", 0) == 0) {
-                if (!std::filesystem::exists(sub) || !std::filesystem::is_regular_file(sub)) {
-                    ic_highlight(henv, 1L, static_cast<long>(i - 1), "cjsh-unknown-command");
-                } else {
-                    ic_highlight(henv, 1L, static_cast<long>(i - 1), "cjsh-installed");
-                }
-            } else if (is_shell_keyword(sub)) {
-                ic_highlight(henv, 1L, static_cast<long>(i - 1), "cjsh-keyword");
-            } else if (is_shell_builtin(sub)) {
-                ic_highlight(henv, 1L, static_cast<long>(i - 1), "cjsh-builtin");
-            } else {
-                auto cmds = g_shell->get_available_commands();
-                if (cmds.find(sub) != cmds.end()) {
-                    ic_highlight(henv, 1L, static_cast<long>(i - 1), "cjsh-builtin");
-                } else if (basic_unix_commands_.count(sub) > 0) {
-                    ic_highlight(henv, 1L, static_cast<long>(i - 1), "cjsh-system");
-                } else if (is_external_command(sub)) {
-                    ic_highlight(henv, 1L, static_cast<long>(i - 1), "cjsh-installed");
-                } else {
-                    ic_highlight(henv, 1L, static_cast<long>(i - 1), "cjsh-unknown-command");
-                }
-            }
         }
         return;
     }

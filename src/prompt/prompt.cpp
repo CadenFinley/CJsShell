@@ -1,6 +1,5 @@
 #include "prompt.h"
 
-#include "ai.h"
 #include "cjsh.h"
 #include "theme.h"
 #include "theme_parser.h"
@@ -24,31 +23,6 @@ std::string Prompt::get_prompt() {
     }
     std::unordered_map<std::string, std::string> vars = get_variables(PromptType::PS1, false);
     return g_theme->get_ps1_prompt_format(vars);
-}
-
-std::string Prompt::get_ai_prompt() {
-    std::string modelInfo = g_ai->get_model();
-    std::string modeInfo = g_ai->get_assistant_type();
-
-    if (g_current_theme.empty() || (!g_ai->is_enabled() || !g_theme || !g_theme->get_enabled())) {
-        return info.get_basic_ai_prompt();
-    }
-
-    if (modelInfo.empty())
-        modelInfo = "Unknown";
-    if (modeInfo.empty())
-        modeInfo = "Chat";
-
-    std::unordered_map<std::string, std::string> vars = get_variables(PromptType::AI);
-
-    vars["AI_MODEL"] = modelInfo;
-    vars["AI_AGENT_TYPE"] = modeInfo;
-    vars["AI_DIVIDER"] = ">";
-    vars["AI_CONTEXT"] = g_ai->get_save_directory();
-    vars["AI_CONTEXT_COMPARISON"] =
-        (std::filesystem::current_path().string() + "/" == g_ai->get_save_directory()) ? "✔" : "✖";
-
-    return g_theme->get_ai_prompt_format(vars);
 }
 
 std::string Prompt::get_newline_prompt() {
@@ -114,10 +88,6 @@ std::unordered_map<std::string, std::string> Prompt::get_variables(PromptType ty
             segments.insert(segments.end(), g_theme->git_segments.begin(),
                             g_theme->git_segments.end());
             break;
-        case PromptType::AI:
-            segments.insert(segments.end(), g_theme->ai_segments.begin(),
-                            g_theme->ai_segments.end());
-            break;
         case PromptType::NEWLINE:
             segments.insert(segments.end(), g_theme->newline_segments.begin(),
                             g_theme->newline_segments.end());
@@ -137,8 +107,6 @@ std::unordered_map<std::string, std::string> Prompt::get_variables(PromptType ty
                             g_theme->ps1_segments.end());
             segments.insert(segments.end(), g_theme->git_segments.begin(),
                             g_theme->git_segments.end());
-            segments.insert(segments.end(), g_theme->ai_segments.begin(),
-                            g_theme->ai_segments.end());
             segments.insert(segments.end(), g_theme->newline_segments.begin(),
                             g_theme->newline_segments.end());
             segments.insert(segments.end(), g_theme->inline_right_segments.begin(),

@@ -9,7 +9,6 @@
 enum class PromptType {
     PS1,
     GIT,
-    AI,
     NEWLINE,
     INLINE_RIGHT,
     TITLE,
@@ -29,7 +28,6 @@ class Prompt {
     Prompt();
     ~Prompt();
     std::string get_prompt();
-    std::string get_ai_prompt();
     std::string get_title_prompt();
     std::string get_newline_prompt();
     std::string get_inline_right_prompt();

@@ -13,7 +13,6 @@
 #include <regex>
 #include <unordered_set>
 
-#include "ai.h"
 #include "cjsh.h"
 #include "theme_parser.h"
 #include "utils/cjsh_filesystem.h"
@@ -110,13 +109,6 @@
  * {VPN_STATUS}  - VPN connection status (on/off)
  * {NET_IFACE}   - Active network interface
  *
- * AI prompt placeholders:
- * {AI_MODEL}      - Current AI model name
- * {AI_AGENT_TYPE} - AI assistant type (Chat, etc.)
- * {AI_DIVIDER}    - Divider for AI prompt (>)
- * {AI_CONTEXT}    - Current working directory path
- * {AI_CONTEXT_COMPARISON} - Check mark for when the context is local and equal
- * to current directory, ✔ and ✖ for when it is not
  *
  * Command execution placeholders:
  * {EXEC%%%<command>%%%<cache_duration>} - Execute command with caching
@@ -137,24 +129,6 @@ std::string PromptInfo::get_basic_prompt() {
     prompt.reserve(size);
 
     prompt = username + "@" + hostname + " : " + cwd + " $ ";
-    return prompt;
-}
-
-std::string PromptInfo::get_basic_ai_prompt() {
-    std::string cwd = get_current_file_path();
-    std::string ai_model = g_ai->get_model();
-    std::string ai_context = g_ai->get_save_directory();
-    std::string ai_type = g_ai->get_assistant_type();
-    std::string ai_context_comparison =
-        (std::filesystem::current_path().string() + "/" == ai_context) ? "✔" : "✖";
-
-    size_t size = ai_model.length() + ai_context.length() + cwd.length() + ai_type.length() +
-                  ai_context_comparison.length() + 10;
-    std::string prompt;
-    prompt.reserve(size);
-
-    prompt = ai_model + " " + ai_context + " " + ai_context_comparison + " " + cwd + " " + ai_type +
-             " > ";
     return prompt;
 }
 

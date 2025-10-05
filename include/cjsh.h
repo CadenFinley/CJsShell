@@ -32,7 +32,6 @@ extern bool g_startup_active;
 class Shell;
 extern std::unique_ptr<Shell> g_shell;
 extern std::unique_ptr<Theme> g_theme;
-extern std::unique_ptr<Ai> g_ai;
 extern std::vector<std::string> g_startup_args;
 extern std::vector<std::string> g_profile_startup_args;
 
@@ -43,7 +42,6 @@ extern bool force_interactive;
 extern bool execute_command;
 extern std::string cmd_to_execute;
 extern bool themes_enabled;
-extern bool ai_enabled;
 extern bool colors_enabled;
 extern bool source_enabled;
 extern bool completions_enabled;
@@ -60,6 +58,4 @@ extern bool show_title_line;
 }  // namespace config
 
 void initialize_themes();
-void initialize_ai();
-
 void cleanup_resources();

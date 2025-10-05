@@ -168,12 +168,8 @@ static std::string generate_prompt() {
     std::printf(" \r");
     (void)std::fflush(stdout);
 
-    std::string prompt;
-    if (g_shell->get_menu_active()) {
-        prompt = g_shell->get_prompt();
-    } else {
-        prompt = g_shell->get_ai_prompt();
-    }
+    std::string prompt = g_shell->get_prompt();
+
     if (g_theme && g_theme->uses_newline()) {
         prompt += "\n";
         prompt += g_shell->get_newline_prompt();

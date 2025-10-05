@@ -19,7 +19,7 @@ extern "C" {
 #include <stdint.h>   // uint32_t
 
 #include "keycodes.h"
-#include "isocline/keybindings.h"
+#include "keybindings.h"
 
 /*! \mainpage
 Isocline C API reference.

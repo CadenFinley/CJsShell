@@ -9,8 +9,6 @@
 #include <cstdlib>
 #include <filesystem>
 
-#include "ai_command.h"
-#include "aihelp_command.h"
 #include "alias_command.h"
 #include "cd_command.h"
 #include "cjsh.h"
@@ -146,7 +144,6 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"break", [](const std::vector<std::string>& args) { return ::break_command(args); }},
         {"continue", [](const std::vector<std::string>& args) { return ::continue_command(args); }},
         {"return", [](const std::vector<std::string>& args) { return ::return_command(args); }},
-        {"ai", [this](const std::vector<std::string>& args) { return ::ai_command(args, this); }},
         {"source", [](const std::vector<std::string>& args) { return ::source_command(args); }},
         {".", [](const std::vector<std::string>& args) { return ::source_command(args); }},
         {"theme", [](const std::vector<std::string>& args) { return ::theme_command(args); }},
@@ -158,7 +155,6 @@ Built_ins::Built_ins() : shell(nullptr) {
              }
              return ::help_command();
          }},
-        {"aihelp", [](const std::vector<std::string>& args) { return ::aihelp_command(args); }},
         {"version", [](const std::vector<std::string>& args) { return ::version_command(args); }},
         {"eval",
          [this](const std::vector<std::string>& args) { return ::eval_command(args, shell); }},
@@ -311,10 +307,6 @@ int Built_ins::is_builtin_command(const std::string& cmd) const {
     }
 
     return builtins.find(cmd) != builtins.end();
-}
-
-int Built_ins::do_ai_request(const std::string& prompt) {
-    return ::ai_command({"ai", "chat", prompt}, this);
 }
 
 void Built_ins::add_directory_bookmark(const std::string& dir_path) {

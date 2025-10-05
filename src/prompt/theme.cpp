@@ -36,7 +36,6 @@ void Theme::clear_theme_state() {
     newline_after_execution_ = false;
     last_ps1_raw_length = 0;
     last_git_raw_length = 0;
-    last_ai_raw_length = 0;
     last_newline_raw_length = 0;
 }
 
@@ -291,7 +290,7 @@ bool Theme::apply_theme_definition(const ThemeDefinition& definition, const std:
     };
 
     if (has_duplicate_tags(definition.ps1_segments) ||
-        has_duplicate_tags(definition.git_segments) || has_duplicate_tags(definition.ai_segments) ||
+        has_duplicate_tags(definition.git_segments) ||
         has_duplicate_tags(definition.newline_segments) ||
         has_duplicate_tags(definition.inline_right_segments)) {
         print_error({ErrorType::SYNTAX_ERROR,
@@ -635,13 +634,6 @@ std::string Theme::get_git_prompt_format(
     const std::unordered_map<std::string, std::string>& vars) const {
     auto result = render_line_aligned(git_segments, vars);
     last_git_raw_length = calculate_raw_length(result);
-    return result;
-}
-
-std::string Theme::get_ai_prompt_format(
-    const std::unordered_map<std::string, std::string>& vars) const {
-    auto result = render_line_aligned(ai_segments, vars);
-    last_ai_raw_length = calculate_raw_length(result);
     return result;
 }
 

@@ -20,7 +20,6 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(int argc, char
                                            {"version", no_argument, nullptr, 'v'},
                                            {"help", no_argument, nullptr, 'h'},
                                            {"no-themes", no_argument, nullptr, 'T'},
-                                           {"no-ai", no_argument, nullptr, 'A'},
                                            {"no-colors", no_argument, nullptr, 'C'},
                                            {"no-titleline", no_argument, nullptr, 'L'},
                                            {"show-startup-time", no_argument, nullptr, 'U'},
@@ -34,7 +33,7 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(int argc, char
                                            {"secure", no_argument, nullptr, 's'},
                                            {nullptr, 0, nullptr, 0}};
 
-    const char* short_options = "+lic:vhTACLUNOSMXmDs";
+    const char* short_options = "+lic:vhTCLUNOSMXmDs";
 
     int option_index = 0;
     int c;
@@ -63,9 +62,6 @@ CommandLineParser::ParseResult CommandLineParser::parse_arguments(int argc, char
                 break;
             case 'T':
                 config::themes_enabled = false;
-                break;
-            case 'A':
-                config::ai_enabled = false;
                 break;
             case 'C':
                 config::colors_enabled = false;
@@ -141,7 +137,6 @@ void CommandLineParser::detect_login_mode(char* argv[]) {
 void CommandLineParser::apply_minimal_mode() {
     config::minimal_mode = true;
     config::themes_enabled = false;
-    config::ai_enabled = false;
     config::colors_enabled = false;
     config::source_enabled = false;
     config::completions_enabled = false;
@@ -158,8 +153,6 @@ void CommandLineParser::apply_profile_startup_flags() {
     for (const std::string& flag : ::g_profile_startup_args) {
         if (flag == "--no-themes") {
             config::themes_enabled = false;
-        } else if (flag == "--no-ai") {
-            config::ai_enabled = false;
         } else if (flag == "--no-colors") {
             config::colors_enabled = false;
         } else if (flag == "--no-titleline") {

@@ -34,7 +34,6 @@ class PromptInfo {
    public:
     std::string get_basic_prompt();
     std::string get_basic_title();
-    std::string get_basic_ai_prompt();
     bool is_variable_used(const std::string& var_name, const std::vector<ThemeSegment>& segments);
     std::unordered_map<std::string, std::string> get_variables(
         const std::vector<ThemeSegment>& segments, bool is_git_repo = false,
