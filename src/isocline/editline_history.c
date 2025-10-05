@@ -86,7 +86,12 @@ static void edit_history_prefix_search(ic_env_t* env, editor_t* eb, bool backwar
             term_beep(env->term);
         }
     } else {
-        term_beep(env->term);
+        // No prefix match found; fall back to regular history navigation
+        if (backward) {
+            edit_history_prev(env, eb);
+        } else {
+            edit_history_next(env, eb);
+        }
     }
 }
 
