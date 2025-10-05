@@ -5,36 +5,23 @@
 
 # CJ's Shell
 
-> **WARNING**: CJ's Shell is not a 100% POSIX compliant shell yet. (like 95%) I also would not use it as your primary shell script interpreter for super complex tasks. It is also super cool and you will never want to use another shell again.
+> **WARNING**: CJ's Shell is not a 100% POSIX compliant shell yet. (like 95%) It is also super cool and you will never want to use another shell again.
 
 ## Quick Install (Recommended)
 
-The easiest way to install CJ's Shell is with brew
+The easiest way to get started with CJ's Shell is with brew
+- **[Getting Started](docs/getting-started/quick-start.md)**
 
 ```bash
     brew tap CadenFinley/tap
     brew install cjsh
-```
-
-## Manual Installation
-
-To manually build cjsh:
-
-```bash
-    # Clone the repo
-    git clone https://github.com/CadenFinley/CJsShell.git
-
-    # Go to the cjsh directory
-    cd CJsShell 
-
-    # Build the project:
-   ./toolchain/build.sh
 ```
    
 # Testing and POSIX Compliance
 
 CJ's Shell includes a comprehensive test suite with over 1000 POSIX compliance tests to ensure reliability and standards compliance.
 This test can be run from the root of the repository, and is recommended to run before setting cjsh as your default login shell.
+- **[Development Guide](docs/getting-started/development.md)** - Contributing and development setup
 
 ```bash
     ./tests/run_shell_tests.sh
