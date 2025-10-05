@@ -47,7 +47,7 @@ int exec_command(const std::vector<std::string>& args, Shell* shell,
                 if (op == "<" && i + 1 < args.size()) {
                     std::string filename = args[i + 1];
                     auto redirect_result =
-                        cjsh_filesystem::FileOperations::redirect_fd(filename, fd_num, O_RDONLY);
+                        cjsh_filesystem::redirect_fd(filename, fd_num, O_RDONLY);
                     if (redirect_result.is_error()) {
                         record_error(
                             {ErrorType::RUNTIME_ERROR, "exec", redirect_result.error(), {}});
@@ -58,7 +58,7 @@ int exec_command(const std::vector<std::string>& args, Shell* shell,
                     continue;
                 } else if (op == ">" && i + 1 < args.size()) {
                     std::string filename = args[i + 1];
-                    auto redirect_result = cjsh_filesystem::FileOperations::redirect_fd(
+                    auto redirect_result = cjsh_filesystem::redirect_fd(
                         filename, fd_num, O_WRONLY | O_CREAT | O_TRUNC);
                     if (redirect_result.is_error()) {
                         record_error(
@@ -71,8 +71,7 @@ int exec_command(const std::vector<std::string>& args, Shell* shell,
                 } else if (op.find("<&") == 0 && op.size() > 2) {
                     try {
                         int src_fd = std::stoi(op.substr(2));
-                        auto dup_result =
-                            cjsh_filesystem::FileOperations::safe_dup2(src_fd, fd_num);
+                        auto dup_result = cjsh_filesystem::safe_dup2(src_fd, fd_num);
                         if (dup_result.is_error()) {
                             record_error(
                                 {ErrorType::RUNTIME_ERROR, "exec", dup_result.error(), {}});
@@ -85,8 +84,7 @@ int exec_command(const std::vector<std::string>& args, Shell* shell,
                 } else if (op.find(">&") == 0 && op.size() > 2) {
                     try {
                         int src_fd = std::stoi(op.substr(2));
-                        auto dup_result =
-                            cjsh_filesystem::FileOperations::safe_dup2(src_fd, fd_num);
+                        auto dup_result = cjsh_filesystem::safe_dup2(src_fd, fd_num);
                         if (dup_result.is_error()) {
                             record_error(
                                 {ErrorType::RUNTIME_ERROR, "exec", dup_result.error(), {}});

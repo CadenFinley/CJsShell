@@ -6,15 +6,12 @@
 #include <string>
 #include <unordered_map>
 
-
-
 extern std::chrono::steady_clock::time_point last_git_status_check;
 extern std::string cached_git_dir;
 extern std::string cached_status_symbols;
 extern bool cached_is_clean_repo;
 extern std::mutex git_status_mutex;
 extern bool is_git_status_check_running;
-
 
 std::string get_git_branch(const std::filesystem::path& git_head_path);
 std::string get_git_status(const std::filesystem::path& repo_root);

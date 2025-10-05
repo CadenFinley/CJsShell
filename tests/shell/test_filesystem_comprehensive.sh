@@ -30,7 +30,7 @@ skip_test() {
 TEST_DIR=$(mktemp -d)
 cd "$TEST_DIR"
 
-echo "=== Testing FileOperations class ==="
+echo "=== Testing filesystem utilities ==="
 
 # Create a simple C++ test program to test our filesystem utilities
 cat << 'EOF' > test_filesystem.cpp
@@ -101,153 +101,150 @@ private:
     bool has_value_;
 };
 
-class FileOperations {
-public:
-    static Result<int> safe_open(const std::string& path, int flags, mode_t mode = 0644) {
-        int fd = ::open(path.c_str(), flags, mode);
-        if (fd == -1) {
-            return Result<int>::error("Failed to open file '" + path + "': " + std::string(strerror(errno)));
-        }
-        return Result<int>::ok(fd);
+Result<int> safe_open(const std::string& path, int flags, mode_t mode = 0644) {
+    int fd = ::open(path.c_str(), flags, mode);
+    if (fd == -1) {
+        return Result<int>::error("Failed to open file '" + path + "': " + std::string(strerror(errno)));
     }
-    
-    static Result<void> safe_dup2(int oldfd, int newfd) {
-        if (::dup2(oldfd, newfd) == -1) {
-            return Result<void>::error("Failed to duplicate file descriptor " + std::to_string(oldfd) + 
-                               " to " + std::to_string(newfd) + ": " + std::string(strerror(errno)));
-        }
-        return Result<void>::ok();
+    return Result<int>::ok(fd);
+}
+
+Result<void> safe_dup2(int oldfd, int newfd) {
+    if (::dup2(oldfd, newfd) == -1) {
+        return Result<void>::error("Failed to duplicate file descriptor " + std::to_string(oldfd) +
+                                   " to " + std::to_string(newfd) + ": " + std::string(strerror(errno)));
     }
-    
-    static void safe_close(int fd) {
-        if (fd >= 0) {
-            ::close(fd);
-        }
+    return Result<void>::ok();
+}
+
+void safe_close(int fd) {
+    if (fd >= 0) {
+        ::close(fd);
     }
-    
-    static Result<FILE*> safe_fopen(const std::string& path, const std::string& mode) {
-        FILE* file = std::fopen(path.c_str(), mode.c_str());
-        if (file == nullptr) {
-            return Result<FILE*>::error("Failed to open file '" + path + "' with mode '" + mode + "': " + std::string(strerror(errno)));
-        }
-        return Result<FILE*>::ok(file);
+}
+
+Result<FILE*> safe_fopen(const std::string& path, const std::string& mode) {
+    FILE* file = std::fopen(path.c_str(), mode.c_str());
+    if (file == nullptr) {
+        return Result<FILE*>::error("Failed to open file '" + path + "' with mode '" + mode + "': " + std::string(strerror(errno)));
     }
-    
-    static void safe_fclose(FILE* file) {
-        if (file != nullptr) {
-            std::fclose(file);
-        }
+    return Result<FILE*>::ok(file);
+}
+
+void safe_fclose(FILE* file) {
+    if (file != nullptr) {
+        std::fclose(file);
     }
-    
-    static Result<FILE*> safe_popen(const std::string& command, const std::string& mode) {
-        FILE* pipe = ::popen(command.c_str(), mode.c_str());
-        if (pipe == nullptr) {
-            return Result<FILE*>::error("Failed to execute command '" + command + "': " + std::string(strerror(errno)));
-        }
-        return Result<FILE*>::ok(pipe);
+}
+
+Result<FILE*> safe_popen(const std::string& command, const std::string& mode) {
+    FILE* pipe = ::popen(command.c_str(), mode.c_str());
+    if (pipe == nullptr) {
+        return Result<FILE*>::error("Failed to execute command '" + command + "': " + std::string(strerror(errno)));
     }
-    
-    static int safe_pclose(FILE* file) {
-        if (file == nullptr) {
-            return -1;
-        }
-        return ::pclose(file);
+    return Result<FILE*>::ok(pipe);
+}
+
+int safe_pclose(FILE* file) {
+    if (file == nullptr) {
+        return -1;
     }
-    
-    static Result<std::string> create_temp_file(const std::string& prefix = "cjsh_temp") {
-        std::string temp_path = "/tmp/" + prefix + "_" + std::to_string(getpid()) + "_" + std::to_string(time(nullptr));
-        auto open_result = safe_open(temp_path, O_WRONLY | O_CREAT | O_EXCL, 0600);
-        if (open_result.is_error()) {
-            return Result<std::string>::error(open_result.error());
-        }
-        safe_close(open_result.value());
-        return Result<std::string>::ok(temp_path);
+    return ::pclose(file);
+}
+
+Result<std::string> create_temp_file(const std::string& prefix = "cjsh_temp") {
+    std::string temp_path = "/tmp/" + prefix + "_" + std::to_string(getpid()) + "_" + std::to_string(time(nullptr));
+    auto open_result = safe_open(temp_path, O_WRONLY | O_CREAT | O_EXCL, 0600);
+    if (open_result.is_error()) {
+        return Result<std::string>::error(open_result.error());
     }
-    
-    static Result<void> write_temp_file(const std::string& path, const std::string& content) {
-        auto open_result = safe_open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
-        if (open_result.is_error()) {
-            return Result<void>::error(open_result.error());
-        }
-        
-        int fd = open_result.value();
-        ssize_t written = write(fd, content.c_str(), content.length());
-        safe_close(fd);
-        
-        if (written != static_cast<ssize_t>(content.length())) {
-            return Result<void>::error("Failed to write complete content to file '" + path + "'");
-        }
-        
-        return Result<void>::ok();
+    safe_close(open_result.value());
+    return Result<std::string>::ok(temp_path);
+}
+
+Result<void> write_temp_file(const std::string& path, const std::string& content) {
+    auto open_result = safe_open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+    if (open_result.is_error()) {
+        return Result<void>::error(open_result.error());
     }
-    
-    static void cleanup_temp_file(const std::string& path) {
-        std::remove(path.c_str());
+
+    int fd = open_result.value();
+    ssize_t written = write(fd, content.c_str(), content.length());
+    safe_close(fd);
+
+    if (written != static_cast<ssize_t>(content.length())) {
+        return Result<void>::error("Failed to write complete content to file '" + path + "'");
     }
-    
-    static Result<std::string> read_command_output(const std::string& command) {
-        auto pipe_result = safe_popen(command, "r");
-        if (pipe_result.is_error()) {
-            return Result<std::string>::error(pipe_result.error());
-        }
-        
-        FILE* pipe = pipe_result.value();
-        std::string output;
-        char buffer[256];
-        
-        while (std::fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-            output += buffer;
-        }
-        
-        int exit_code = safe_pclose(pipe);
-        if (exit_code != 0) {
-            return Result<std::string>::error("Command '" + command + "' failed with exit code " + std::to_string(exit_code));
-        }
-        
-        return Result<std::string>::ok(output);
+
+    return Result<void>::ok();
+}
+
+void cleanup_temp_file(const std::string& path) {
+    std::remove(path.c_str());
+}
+
+Result<std::string> read_command_output(const std::string& command) {
+    auto pipe_result = safe_popen(command, "r");
+    if (pipe_result.is_error()) {
+        return Result<std::string>::error(pipe_result.error());
     }
-    
-    static Result<void> write_file_content(const std::string& path, const std::string& content) {
-        auto open_result = safe_open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-        if (open_result.is_error()) {
-            return Result<void>::error(open_result.error());
-        }
-        
-        int fd = open_result.value();
-        ssize_t written = write(fd, content.c_str(), content.length());
-        safe_close(fd);
-        
-        if (written != static_cast<ssize_t>(content.length())) {
-            return Result<void>::error("Failed to write complete content to file '" + path + "'");
-        }
-        
-        return Result<void>::ok();
+
+    FILE* pipe = pipe_result.value();
+    std::string output;
+    char buffer[256];
+
+    while (std::fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        output += buffer;
     }
-    
-    static Result<std::string> read_file_content(const std::string& path) {
-        auto open_result = safe_open(path, O_RDONLY);
-        if (open_result.is_error()) {
-            return Result<std::string>::error(open_result.error());
-        }
-        
-        int fd = open_result.value();
-        std::string content;
-        char buffer[4096];
-        ssize_t bytes_read;
-        
-        while ((bytes_read = read(fd, buffer, sizeof(buffer))) > 0) {
-            content.append(buffer, bytes_read);
-        }
-        
-        safe_close(fd);
-        
-        if (bytes_read < 0) {
-            return Result<std::string>::error("Failed to read from file '" + path + "': " + std::string(strerror(errno)));
-        }
-        
-        return Result<std::string>::ok(content);
+
+    int exit_code = safe_pclose(pipe);
+    if (exit_code != 0) {
+        return Result<std::string>::error("Command '" + command + "' failed with exit code " + std::to_string(exit_code));
     }
-};
+
+    return Result<std::string>::ok(output);
+}
+
+Result<void> write_file_content(const std::string& path, const std::string& content) {
+    auto open_result = safe_open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (open_result.is_error()) {
+        return Result<void>::error(open_result.error());
+    }
+
+    int fd = open_result.value();
+    ssize_t written = write(fd, content.c_str(), content.length());
+    safe_close(fd);
+
+    if (written != static_cast<ssize_t>(content.length())) {
+        return Result<void>::error("Failed to write complete content to file '" + path + "'");
+    }
+
+    return Result<void>::ok();
+}
+
+Result<std::string> read_file_content(const std::string& path) {
+    auto open_result = safe_open(path, O_RDONLY);
+    if (open_result.is_error()) {
+        return Result<std::string>::error(open_result.error());
+    }
+
+    int fd = open_result.value();
+    std::string content;
+    char buffer[4096];
+    ssize_t bytes_read;
+
+    while ((bytes_read = read(fd, buffer, sizeof(buffer))) > 0) {
+        content.append(buffer, bytes_read);
+    }
+
+    safe_close(fd);
+
+    if (bytes_read < 0) {
+        return Result<std::string>::error("Failed to read from file '" + path + "': " + std::string(strerror(errno)));
+    }
+
+    return Result<std::string>::ok(content);
+}
 
 } // namespace cjsh_filesystem
 
@@ -263,16 +260,16 @@ int main(int argc, char* argv[]) {
     
     try {
         if (test_name == "test_safe_open_success") {
-            auto result = FileOperations::safe_open("test_file.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+            auto result = safe_open("test_file.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644);
             if (result.is_ok()) {
-                FileOperations::safe_close(result.value());
+                safe_close(result.value());
                 std::cout << "SUCCESS" << std::endl;
             } else {
                 std::cout << "ERROR: " << result.error() << std::endl;
             }
         }
         else if (test_name == "test_safe_open_nonexistent") {
-            auto result = FileOperations::safe_open("/nonexistent/dir/file.txt", O_RDONLY);
+            auto result = safe_open("/nonexistent/dir/file.txt", O_RDONLY);
             if (result.is_error()) {
                 if (result.error().find("No such file or directory") != std::string::npos ||
                     result.error().find("ENOENT") != std::string::npos) {
@@ -281,14 +278,14 @@ int main(int argc, char* argv[]) {
                     std::cout << "ERROR: Unexpected error message: " << result.error() << std::endl;
                 }
             } else {
-                FileOperations::safe_close(result.value());
+                safe_close(result.value());
                 std::cout << "ERROR: Expected failure but got success" << std::endl;
             }
         }
         else if (test_name == "test_safe_open_permission_denied") {
             // Create a directory with no permissions
             mkdir("no_permission", 0000);
-            auto result = FileOperations::safe_open("no_permission/file.txt", O_WRONLY | O_CREAT);
+            auto result = safe_open("no_permission/file.txt", O_WRONLY | O_CREAT);
             if (result.is_error()) {
                 if (result.error().find("Permission denied") != std::string::npos ||
                     result.error().find("EACCES") != std::string::npos) {
@@ -297,17 +294,17 @@ int main(int argc, char* argv[]) {
                     std::cout << "ERROR: Unexpected error message: " << result.error() << std::endl;
                 }
             } else {
-                FileOperations::safe_close(result.value());
+                safe_close(result.value());
                 std::cout << "ERROR: Expected permission denied but got success" << std::endl;
             }
             rmdir("no_permission");
         }
         else if (test_name == "test_safe_dup2_success") {
-            auto result1 = FileOperations::safe_open("test_file.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644);
+            auto result1 = safe_open("test_file.txt", O_WRONLY | O_CREAT | O_TRUNC, 0644);
             if (result1.is_ok()) {
-                auto result2 = FileOperations::safe_dup2(result1.value(), 10);
-                FileOperations::safe_close(result1.value());
-                FileOperations::safe_close(10);
+                auto result2 = safe_dup2(result1.value(), 10);
+                safe_close(result1.value());
+                safe_close(10);
                 if (result2.is_ok()) {
                     std::cout << "SUCCESS" << std::endl;
                 } else {
@@ -318,7 +315,7 @@ int main(int argc, char* argv[]) {
             }
         }
         else if (test_name == "test_safe_dup2_invalid_fd") {
-            auto result = FileOperations::safe_dup2(-1, 10);
+            auto result = safe_dup2(-1, 10);
             if (result.is_error()) {
                 if (result.error().find("Bad file descriptor") != std::string::npos ||
                     result.error().find("EBADF") != std::string::npos) {
@@ -331,27 +328,27 @@ int main(int argc, char* argv[]) {
             }
         }
         else if (test_name == "test_safe_fopen_success") {
-            auto result = FileOperations::safe_fopen("test_file.txt", "w");
+            auto result = safe_fopen("test_file.txt", "w");
             if (result.is_ok()) {
-                FileOperations::safe_fclose(result.value());
+                safe_fclose(result.value());
                 std::cout << "SUCCESS" << std::endl;
             } else {
                 std::cout << "ERROR: " << result.error() << std::endl;
             }
         }
         else if (test_name == "test_safe_fopen_invalid_mode") {
-            auto result = FileOperations::safe_fopen("test_file.txt", "invalid_mode");
+            auto result = safe_fopen("test_file.txt", "invalid_mode");
             if (result.is_error()) {
                 std::cout << "SUCCESS" << std::endl;
             } else {
-                FileOperations::safe_fclose(result.value());
+                safe_fclose(result.value());
                 std::cout << "ERROR: Expected failure but got success" << std::endl;
             }
         }
         else if (test_name == "test_safe_popen_success") {
-            auto result = FileOperations::safe_popen("echo hello", "r");
+            auto result = safe_popen("echo hello", "r");
             if (result.is_ok()) {
-                FileOperations::safe_pclose(result.value());
+                safe_pclose(result.value());
                 std::cout << "SUCCESS" << std::endl;
             } else {
                 std::cout << "ERROR: " << result.error() << std::endl;
@@ -360,9 +357,9 @@ int main(int argc, char* argv[]) {
         else if (test_name == "test_safe_popen_invalid_command") {
             // popen doesn't fail for nonexistent commands, it creates the pipe
             // but the command itself fails, which we can detect with pclose
-            auto result = FileOperations::safe_popen("/nonexistent/command", "r");
+            auto result = safe_popen("/nonexistent/command", "r");
             if (result.is_ok()) {
-                int exit_code = FileOperations::safe_pclose(result.value());
+                int exit_code = safe_pclose(result.value());
                 if (exit_code != 0) {
                     std::cout << "SUCCESS" << std::endl;
                 } else {
@@ -373,11 +370,11 @@ int main(int argc, char* argv[]) {
             }
         }
         else if (test_name == "test_create_temp_file") {
-            auto result = FileOperations::create_temp_file("test_prefix");
+            auto result = create_temp_file("test_prefix");
             if (result.is_ok()) {
                 std::string temp_path = result.value();
                 if (access(temp_path.c_str(), F_OK) == 0) {
-                    FileOperations::cleanup_temp_file(temp_path);
+                    cleanup_temp_file(temp_path);
                     std::cout << "SUCCESS" << std::endl;
                 } else {
                     std::cout << "ERROR: Temp file was not created" << std::endl;
@@ -387,10 +384,10 @@ int main(int argc, char* argv[]) {
             }
         }
         else if (test_name == "test_write_temp_file") {
-            auto create_result = FileOperations::create_temp_file("write_test");
+            auto create_result = create_temp_file("write_test");
             if (create_result.is_ok()) {
                 std::string temp_path = create_result.value();
-                auto write_result = FileOperations::write_temp_file(temp_path, "test content");
+                auto write_result = write_temp_file(temp_path, "test content");
                 if (write_result.is_ok()) {
                     std::ifstream file(temp_path);
                     std::string content((std::istreambuf_iterator<char>(file)),
@@ -403,13 +400,13 @@ int main(int argc, char* argv[]) {
                 } else {
                     std::cout << "ERROR: " << write_result.error() << std::endl;
                 }
-                FileOperations::cleanup_temp_file(temp_path);
+                cleanup_temp_file(temp_path);
             } else {
                 std::cout << "ERROR: Failed to create temp file" << std::endl;
             }
         }
         else if (test_name == "test_read_command_output_success") {
-            auto result = FileOperations::read_command_output("echo 'hello world'");
+            auto result = read_command_output("echo 'hello world'");
             if (result.is_ok()) {
                 if (result.value().find("hello world") != std::string::npos) {
                     std::cout << "SUCCESS" << std::endl;
@@ -421,7 +418,7 @@ int main(int argc, char* argv[]) {
             }
         }
         else if (test_name == "test_read_command_output_failure") {
-            auto result = FileOperations::read_command_output("false");
+            auto result = read_command_output("false");
             if (result.is_error()) {
                 if (result.error().find("failed with exit code") != std::string::npos) {
                     std::cout << "SUCCESS" << std::endl;
@@ -434,9 +431,9 @@ int main(int argc, char* argv[]) {
         }
         else if (test_name == "test_write_read_file_content") {
             std::string test_content = "This is a test file content with multiple lines.\nLine 2\nLine 3";
-            auto write_result = FileOperations::write_file_content("test_content.txt", test_content);
+            auto write_result = write_file_content("test_content.txt", test_content);
             if (write_result.is_ok()) {
-                auto read_result = FileOperations::read_file_content("test_content.txt");
+                auto read_result = read_file_content("test_content.txt");
                 if (read_result.is_ok()) {
                     if (read_result.value() == test_content) {
                         std::cout << "SUCCESS" << std::endl;
@@ -451,7 +448,7 @@ int main(int argc, char* argv[]) {
             }
         }
         else if (test_name == "test_read_file_content_nonexistent") {
-            auto result = FileOperations::read_file_content("/nonexistent/file.txt");
+            auto result = read_file_content("/nonexistent/file.txt");
             if (result.is_error()) {
                 if (result.error().find("No such file or directory") != std::string::npos ||
                     result.error().find("ENOENT") != std::string::npos) {
@@ -553,7 +550,7 @@ else
     fail_test "Result<void>::error() functionality - $OUTPUT"
 fi
 
-echo "--- Testing FileOperations::safe_open ---"
+echo "--- Testing safe_open ---"
 
 # Test safe_open - success case
 OUTPUT=$(./test_filesystem test_safe_open_success 2>&1)
@@ -583,7 +580,7 @@ else
     skip_test "safe_open() permission denied (running as root)"
 fi
 
-echo "--- Testing FileOperations::safe_dup2 ---"
+echo "--- Testing safe_dup2 ---"
 
 # Test safe_dup2 - success case
 OUTPUT=$(./test_filesystem test_safe_dup2_success 2>&1)
@@ -601,7 +598,7 @@ else
     fail_test "safe_dup2() with invalid file descriptor error handling - $OUTPUT"
 fi
 
-echo "--- Testing FileOperations::safe_fopen ---"
+echo "--- Testing safe_fopen ---"
 
 # Test safe_fopen - success case
 OUTPUT=$(./test_filesystem test_safe_fopen_success 2>&1)
@@ -619,7 +616,7 @@ else
     fail_test "safe_fopen() with invalid mode error handling - $OUTPUT"
 fi
 
-echo "--- Testing FileOperations::safe_popen ---"
+echo "--- Testing safe_popen ---"
 
 # Test safe_popen - success case
 OUTPUT=$(./test_filesystem test_safe_popen_success 2>&1)

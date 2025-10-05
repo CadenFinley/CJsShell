@@ -58,7 +58,7 @@ void launch_async_once(std::atomic<bool>& guard, Functor&& fn) {
 
 fs::path g_cjsh_path;
 
-Result<int> FileOperations::safe_open(const std::string& path, int flags, mode_t mode) {
+Result<int> safe_open(const std::string& path, int flags, mode_t mode) {
     int fd = ::open(path.c_str(), flags, mode);
     if (fd == -1) {
         return Result<int>::error("Failed to open file '" + path + "': " + describe_errno(errno));
@@ -66,7 +66,7 @@ Result<int> FileOperations::safe_open(const std::string& path, int flags, mode_t
     return Result<int>::ok(fd);
 }
 
-Result<void> FileOperations::safe_dup2(int oldfd, int newfd) {
+Result<void> safe_dup2(int oldfd, int newfd) {
     if (::dup2(oldfd, newfd) == -1) {
         return Result<void>::error("Failed to duplicate file descriptor " + std::to_string(oldfd) +
                                    " to " + std::to_string(newfd) + ": " + describe_errno(errno));
@@ -74,13 +74,13 @@ Result<void> FileOperations::safe_dup2(int oldfd, int newfd) {
     return Result<void>::ok();
 }
 
-void FileOperations::safe_close(int fd) {
+void safe_close(int fd) {
     if (fd >= 0) {
         ::close(fd);
     }
 }
 
-Result<void> FileOperations::redirect_fd(const std::string& file, int target_fd, int flags) {
+Result<void> redirect_fd(const std::string& file, int target_fd, int flags) {
     auto open_result = safe_open(file, flags, 0644);
     if (open_result.is_error()) {
         return Result<void>::error(open_result.error());
@@ -99,7 +99,7 @@ Result<void> FileOperations::redirect_fd(const std::string& file, int target_fd,
     return Result<void>::ok();
 }
 
-Result<FILE*> FileOperations::safe_fopen(const std::string& path, const std::string& mode) {
+Result<FILE*> safe_fopen(const std::string& path, const std::string& mode) {
     FILE* file = std::fopen(path.c_str(), mode.c_str());
     if (file == nullptr) {
         return Result<FILE*>::error("Failed to open file '" + path + "' with mode '" + mode +
@@ -108,13 +108,13 @@ Result<FILE*> FileOperations::safe_fopen(const std::string& path, const std::str
     return Result<FILE*>::ok(file);
 }
 
-void FileOperations::safe_fclose(FILE* file) {
+void safe_fclose(FILE* file) {
     if (file != nullptr) {
         (void)std::fclose(file);
     }
 }
 
-Result<FILE*> FileOperations::safe_popen(const std::string& command, const std::string& mode) {
+Result<FILE*> safe_popen(const std::string& command, const std::string& mode) {
     FILE* pipe = ::popen(command.c_str(), mode.c_str());
     if (pipe == nullptr) {
         return Result<FILE*>::error("Failed to execute command '" + command +
@@ -123,14 +123,14 @@ Result<FILE*> FileOperations::safe_popen(const std::string& command, const std::
     return Result<FILE*>::ok(pipe);
 }
 
-int FileOperations::safe_pclose(FILE* file) {
+int safe_pclose(FILE* file) {
     if (file == nullptr) {
         return -1;
     }
     return ::pclose(file);
 }
 
-Result<std::string> FileOperations::create_temp_file(const std::string& prefix) {
+Result<std::string> create_temp_file(const std::string& prefix) {
     std::string temp_path =
         "/tmp/" + prefix + "_" + std::to_string(getpid()) + "_" + std::to_string(time(nullptr));
     auto open_result = safe_open(temp_path, O_WRONLY | O_CREAT | O_EXCL, 0600);
@@ -141,7 +141,7 @@ Result<std::string> FileOperations::create_temp_file(const std::string& prefix) 
     return Result<std::string>::ok(temp_path);
 }
 
-Result<void> FileOperations::write_temp_file(const std::string& path, const std::string& content) {
+Result<void> write_temp_file(const std::string& path, const std::string& content) {
     auto open_result = safe_open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
     if (open_result.is_error()) {
         return Result<void>::error(open_result.error());
@@ -158,11 +158,11 @@ Result<void> FileOperations::write_temp_file(const std::string& path, const std:
     return Result<void>::ok();
 }
 
-void FileOperations::cleanup_temp_file(const std::string& path) {
+void cleanup_temp_file(const std::string& path) {
     (void)std::remove(path.c_str());
 }
 
-Result<std::string> FileOperations::read_command_output(const std::string& command) {
+Result<std::string> read_command_output(const std::string& command) {
     auto pipe_result = safe_popen(command, "r");
     if (pipe_result.is_error()) {
         return Result<std::string>::error(pipe_result.error());
@@ -185,8 +185,7 @@ Result<std::string> FileOperations::read_command_output(const std::string& comma
     return Result<std::string>::ok(output);
 }
 
-Result<void> FileOperations::write_file_content(const std::string& path,
-                                                const std::string& content) {
+Result<void> write_file_content(const std::string& path, const std::string& content) {
     auto open_result = safe_open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
     if (open_result.is_error()) {
         return Result<void>::error(open_result.error());
@@ -209,7 +208,7 @@ Result<void> FileOperations::write_file_content(const std::string& path,
     return Result<void>::ok();
 }
 
-Result<void> FileOperations::write_all(int fd, std::string_view data) {
+Result<void> write_all(int fd, std::string_view data) {
     size_t total_written = 0;
     while (total_written < data.size()) {
         size_t remaining = data.size() - total_written;
@@ -240,7 +239,7 @@ Result<void> FileOperations::write_all(int fd, std::string_view data) {
     return Result<void>::ok();
 }
 
-Result<std::string> FileOperations::read_file_content(const std::string& path) {
+Result<std::string> read_file_content(const std::string& path) {
     auto open_result = safe_open(path, O_RDONLY);
     if (open_result.is_error()) {
         return Result<std::string>::error(open_result.error());
@@ -351,7 +350,7 @@ bool build_executable_cache() {
     }
 
     auto write_result =
-        FileOperations::write_file_content(g_cjsh_found_executables_path.string(), content);
+        write_file_content(g_cjsh_found_executables_path.string(), content);
 
     if (write_result.is_ok()) {
         notify_cache_systems_of_update();
@@ -363,7 +362,7 @@ bool build_executable_cache() {
 std::vector<fs::path> read_cached_executables() {
     std::vector<fs::path> executables;
 
-    auto read_result = FileOperations::read_file_content(g_cjsh_found_executables_path.string());
+    auto read_result = read_file_content(g_cjsh_found_executables_path.string());
     if (read_result.is_error()) {
         return executables;
     }
@@ -516,8 +515,7 @@ bool create_profile_file() {
         "test "
         "mode\n";
 
-    auto write_result =
-        FileOperations::write_file_content(g_cjsh_profile_path.string(), profile_content);
+    auto write_result = write_file_content(g_cjsh_profile_path.string(), profile_content);
 
     if (!write_result.is_ok()) {
         print_error(
@@ -650,8 +648,7 @@ bool create_source_file() {
         "# Run 'cjshopt keybind --help' for more information\n"
         "\n";
 
-    auto write_result =
-        FileOperations::write_file_content(g_cjsh_source_path.string(), source_content);
+    auto write_result = write_file_content(g_cjsh_source_path.string(), source_content);
 
     if (!write_result.is_ok()) {
         print_error(
@@ -673,8 +670,7 @@ bool create_logout_file() {
         "# Example: Display a goodbye message\n"
         "# echo \"Thank you for using cjsh! Goodbye!\"\n";
 
-    auto write_result =
-        FileOperations::write_file_content(g_cjsh_logout_path.string(), logout_content);
+    auto write_result = write_file_content(g_cjsh_logout_path.string(), logout_content);
 
     if (!write_result.is_ok()) {
         print_error(
@@ -708,8 +704,7 @@ bool init_interactive_filesystem() {
         }
 
         if (!history_exists) {
-            auto write_result =
-                FileOperations::write_file_content(g_cjsh_history_path.string(), "");
+            auto write_result = write_file_content(g_cjsh_history_path.string(), "");
             if (!write_result.is_ok()) {
                 print_error({ErrorType::RUNTIME_ERROR,
                              g_cjsh_history_path.c_str(),
@@ -765,8 +760,7 @@ void add_executable_to_cache(const std::string& executable_name, const std::stri
         content += exec.filename().string() + "\n";
     }
 
-    auto write_result =
-        FileOperations::write_file_content(g_cjsh_found_executables_path.string(), content);
+    auto write_result = write_file_content(g_cjsh_found_executables_path.string(), content);
 
     if (write_result.is_ok()) {
         notify_cache_systems_of_update();
@@ -817,8 +811,7 @@ void set_last_path_hash(const std::string& path_hash) {
         return;
     }
 
-    auto write_result =
-        FileOperations::write_file_content(g_cjsh_path_hash_cache_path.string(), path_hash);
+    auto write_result = write_file_content(g_cjsh_path_hash_cache_path.string(), path_hash);
 }
 
 bool has_path_changed() {
@@ -827,7 +820,7 @@ bool has_path_changed() {
         return true;
     }
 
-    auto read_result = FileOperations::read_file_content(g_cjsh_path_hash_cache_path.string());
+    auto read_result = read_file_content(g_cjsh_path_hash_cache_path.string());
 
     if (read_result.is_error()) {
         set_last_path_hash(current_hash);
@@ -870,7 +863,7 @@ void remove_executable_from_cache(const std::string& executable_name) {
         }
 
         auto write_result =
-            FileOperations::write_file_content(g_cjsh_found_executables_path.string(), content);
+            write_file_content(g_cjsh_found_executables_path.string(), content);
         if (write_result.is_ok()) {
             notify_cache_systems_of_update();
         }
@@ -900,7 +893,7 @@ void cleanup_stale_cache_entries() {
         }
 
         auto write_result =
-            FileOperations::write_file_content(g_cjsh_found_executables_path.string(), content);
+            write_file_content(g_cjsh_found_executables_path.string(), content);
 
         if (write_result.is_ok()) {
             notify_cache_systems_of_update();

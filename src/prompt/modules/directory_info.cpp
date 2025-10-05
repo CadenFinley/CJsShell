@@ -70,9 +70,8 @@ bool is_truncated() {
     return full_path.length() != display_path.length();
 }
 
-std::string contract_path(const std::filesystem::path& path,
-                                         const std::filesystem::path& home_dir,
-                                         const std::string& home_symbol) {
+std::string contract_path(const std::filesystem::path& path, const std::filesystem::path& home_dir,
+                          const std::string& home_symbol) {
     std::string path_str = path.string();
     std::string home_str = home_dir.string();
 
@@ -89,7 +88,7 @@ std::string contract_path(const std::filesystem::path& path,
 }
 
 std::string contract_repo_path(const std::filesystem::path& path,
-                                              const std::filesystem::path& repo_root) {
+                               const std::filesystem::path& repo_root) {
     std::string path_str = path.string();
     std::string repo_str = repo_root.string();
 
@@ -106,8 +105,8 @@ std::string contract_repo_path(const std::filesystem::path& path,
     return path_str;
 }
 
-std::string substitute_path(
-    const std::string& path, const std::unordered_map<std::string, std::string>& substitutions) {
+std::string substitute_path(const std::string& path,
+                            const std::unordered_map<std::string, std::string>& substitutions) {
     std::string result = path;
 
     for (const auto& [from, to] : substitutions) {
@@ -149,7 +148,7 @@ std::string truncate_path(const std::string& path, int max_length) {
 }
 
 std::string to_fish_style(int dir_length, const std::string& full_path,
-                                         const std::string& truncated_path) {
+                          const std::string& truncated_path) {
     if (dir_length <= 0) {
         return truncated_path;
     }

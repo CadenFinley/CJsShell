@@ -131,7 +131,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                 break;
             size_t end = *end_opt;
             std::string command = text.substr(start + 2, end - start - 2);
-            auto cmd_output = cjsh_filesystem::FileOperations::read_command_output(command);
+            auto cmd_output = cjsh_filesystem::read_command_output(command);
             if (!cmd_output.is_ok()) {
                 search_pos = end + 1;
                 continue;
@@ -677,10 +677,10 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
             std::string path = tmpl;
 
             auto saved_stdout_result =
-                cjsh_filesystem::FileOperations::safe_dup2(STDOUT_FILENO, -1);
+                cjsh_filesystem::safe_dup2(STDOUT_FILENO, -1);
             int saved_stdout = dup(STDOUT_FILENO);
 
-            auto temp_file_result = cjsh_filesystem::FileOperations::safe_fopen(path, "w");
+            auto temp_file_result = cjsh_filesystem::safe_fopen(path, "w");
             if (temp_file_result.is_error()) {
                 int pipefd[2];
                 if (pipe(pipefd) != 0) {
@@ -721,22 +721,22 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
 
             FILE* temp_file = temp_file_result.value();
             int temp_fd = fileno(temp_file);
-            auto dup_result = cjsh_filesystem::FileOperations::safe_dup2(temp_fd, STDOUT_FILENO);
+            auto dup_result = cjsh_filesystem::safe_dup2(temp_fd, STDOUT_FILENO);
             if (dup_result.is_error()) {
-                cjsh_filesystem::FileOperations::safe_fclose(temp_file);
+                cjsh_filesystem::safe_fclose(temp_file);
                 return "";
             }
 
             execute_simple_or_pipeline(content);
 
             (void)fflush(stdout);
-            cjsh_filesystem::FileOperations::safe_fclose(temp_file);
+            cjsh_filesystem::safe_fclose(temp_file);
             auto restore_result =
-                cjsh_filesystem::FileOperations::safe_dup2(saved_stdout, STDOUT_FILENO);
-            cjsh_filesystem::FileOperations::safe_close(saved_stdout);
+                cjsh_filesystem::safe_dup2(saved_stdout, STDOUT_FILENO);
+            cjsh_filesystem::safe_close(saved_stdout);
 
-            auto content_result = cjsh_filesystem::FileOperations::read_file_content(path);
-            cjsh_filesystem::FileOperations::cleanup_temp_file(path);
+            auto content_result = cjsh_filesystem::read_file_content(path);
+            cjsh_filesystem::cleanup_temp_file(path);
 
             if (content_result.is_error()) {
                 return "";

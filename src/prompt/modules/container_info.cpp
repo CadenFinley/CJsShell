@@ -10,12 +10,12 @@ bool file_exists(const std::string& path) {
 }
 
 std::string read_file_content(const std::string& path) {
-    auto result = cjsh_filesystem::FileOperations::read_file_content(path);
+    auto result = cjsh_filesystem::read_file_content(path);
     return result.is_ok() ? result.value() : "";
 }
 
 static std::string execute_command(const std::string& command) {
-    auto result = cjsh_filesystem::FileOperations::read_command_output(command);
+    auto result = cjsh_filesystem::read_command_output(command);
     if (result.is_error()) {
         return "";
     }

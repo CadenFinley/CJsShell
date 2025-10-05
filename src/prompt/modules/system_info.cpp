@@ -5,7 +5,7 @@
 
 std::string get_disk_usage(const std::filesystem::path& path) {
     std::string cmd = "df -h '" + path.string() + "' | awk 'NR==2{print $5}'";
-    auto result = cjsh_filesystem::FileOperations::read_command_output(cmd);
+    auto result = cjsh_filesystem::read_command_output(cmd);
     if (result.is_error()) {
         return "";
     }
@@ -24,7 +24,7 @@ std::string get_swap_usage() {
 #else
     std::string cmd = "echo \"N/A\"";
 #endif
-    auto result = cjsh_filesystem::FileOperations::read_command_output(cmd);
+    auto result = cjsh_filesystem::read_command_output(cmd);
     if (result.is_error()) {
         return "";
     }
@@ -37,7 +37,7 @@ std::string get_swap_usage() {
 
 std::string get_load_avg() {
     std::string cmd = "uptime | awk -F'load averages?: ' '{print $2}'";
-    auto result = cjsh_filesystem::FileOperations::read_command_output(cmd);
+    auto result = cjsh_filesystem::read_command_output(cmd);
     if (result.is_error()) {
         return "";
     }
@@ -71,7 +71,7 @@ std::string get_os_info() {
     std::string cmd = "uname -s";
 #endif
 
-    auto result_data = cjsh_filesystem::FileOperations::read_command_output(cmd);
+    auto result_data = cjsh_filesystem::read_command_output(cmd);
     if (result_data.is_error()) {
         return "Unknown";
     }
@@ -102,7 +102,7 @@ std::string get_kernel_version() {
     std::string cmd = "uname -r";
 #endif
 
-    auto result_data = cjsh_filesystem::FileOperations::read_command_output(cmd);
+    auto result_data = cjsh_filesystem::read_command_output(cmd);
     if (result_data.is_error()) {
         return "Unknown";
     }
@@ -126,7 +126,7 @@ float get_cpu_usage() {
     return 0.0f;
 #endif
 
-    auto result_data = cjsh_filesystem::FileOperations::read_command_output(cmd);
+    auto result_data = cjsh_filesystem::read_command_output(cmd);
     if (result_data.is_error()) {
         return 0.0f;
     }
@@ -162,7 +162,7 @@ float get_memory_usage() {
     return 0.0f;
 #endif
 
-    auto result_data = cjsh_filesystem::FileOperations::read_command_output(cmd);
+    auto result_data = cjsh_filesystem::read_command_output(cmd);
     if (result_data.is_error()) {
         return 0.0f;
     }
@@ -204,7 +204,7 @@ std::string get_battery_status() {
     return "N/A";
 #endif
 
-    auto result_data = cjsh_filesystem::FileOperations::read_command_output(cmd);
+    auto result_data = cjsh_filesystem::read_command_output(cmd);
     if (result_data.is_error()) {
         return "N/A";
     }
@@ -226,7 +226,7 @@ std::string get_uptime() {
     std::string cmd = "uptime";
 #endif
 
-    auto result_data = cjsh_filesystem::FileOperations::read_command_output(cmd);
+    auto result_data = cjsh_filesystem::read_command_output(cmd);
     if (result_data.is_error()) {
         return "Unknown";
     }

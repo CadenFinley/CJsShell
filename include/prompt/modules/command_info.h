@@ -3,7 +3,6 @@
 #include <chrono>
 #include <string>
 
-
 extern int min_time_threshold;
 extern bool show_microseconds;
 extern std::chrono::time_point<std::chrono::high_resolution_clock> last_command_start;
@@ -11,10 +10,8 @@ extern std::chrono::time_point<std::chrono::high_resolution_clock> last_command_
 extern bool timing_active;
 extern int last_exit_code;
 
-
 std::string format_duration(long long microseconds);
 std::string format_exit_code(int exit_code);
-
 
 void start_command_timing();
 void end_command_timing(int exit_code);

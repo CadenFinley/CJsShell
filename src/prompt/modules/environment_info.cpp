@@ -67,7 +67,7 @@ std::string get_active_language_version(const std::string& language) {
         return "";
     }
 
-    auto cmd_result = cjsh_filesystem::FileOperations::read_command_output(cmd);
+    auto cmd_result = cjsh_filesystem::read_command_output(cmd);
     if (cmd_result.is_error()) {
         return "";
     }
@@ -113,7 +113,7 @@ bool is_in_virtual_environment(std::string& env_name) {
 
 int get_background_jobs_count() {
     std::string cmd = "jobs | wc -l";
-    auto cmd_result = cjsh_filesystem::FileOperations::read_command_output(cmd);
+    auto cmd_result = cjsh_filesystem::read_command_output(cmd);
     if (cmd_result.is_error()) {
         return 0;
     }

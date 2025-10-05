@@ -99,27 +99,24 @@ class Result<void> {
     bool has_value_;
 };
 
-class FileOperations {
-   public:
-    static Result<int> safe_open(const std::string& path, int flags, mode_t mode = 0644);
-    static Result<void> safe_dup2(int oldfd, int newfd);
-    static void safe_close(int fd);
-    static Result<void> redirect_fd(const std::string& file, int target_fd, int flags);
+Result<int> safe_open(const std::string& path, int flags, mode_t mode = 0644);
+Result<void> safe_dup2(int oldfd, int newfd);
+void safe_close(int fd);
+Result<void> redirect_fd(const std::string& file, int target_fd, int flags);
 
-    static Result<FILE*> safe_fopen(const std::string& path, const std::string& mode);
-    static void safe_fclose(FILE* file);
-    static Result<FILE*> safe_popen(const std::string& command, const std::string& mode);
-    static int safe_pclose(FILE* file);
+Result<FILE*> safe_fopen(const std::string& path, const std::string& mode);
+void safe_fclose(FILE* file);
+Result<FILE*> safe_popen(const std::string& command, const std::string& mode);
+int safe_pclose(FILE* file);
 
-    static Result<std::string> create_temp_file(const std::string& prefix = "cjsh_temp");
-    static Result<void> write_temp_file(const std::string& path, const std::string& content);
-    static void cleanup_temp_file(const std::string& path);
+Result<std::string> create_temp_file(const std::string& prefix = "cjsh_temp");
+Result<void> write_temp_file(const std::string& path, const std::string& content);
+void cleanup_temp_file(const std::string& path);
 
-    static Result<std::string> read_command_output(const std::string& command);
-    static Result<void> write_file_content(const std::string& path, const std::string& content);
-    static Result<std::string> read_file_content(const std::string& path);
-    static Result<void> write_all(int fd, std::string_view data);
-};
+Result<std::string> read_command_output(const std::string& command);
+Result<void> write_file_content(const std::string& path, const std::string& content);
+Result<std::string> read_file_content(const std::string& path);
+Result<void> write_all(int fd, std::string_view data);
 
 const fs::path g_user_home_path = []() {
     const char* home = std::getenv("HOME");

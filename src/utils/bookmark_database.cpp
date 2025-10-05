@@ -54,7 +54,7 @@ cjsh_filesystem::Result<void> BookmarkDatabase::load() {
         return cjsh_filesystem::Result<void>::ok();
     }
 
-    auto content_result = cjsh_filesystem::FileOperations::read_file_content(database_path_);
+    auto content_result = cjsh_filesystem::read_file_content(database_path_);
     if (content_result.is_error()) {
         return cjsh_filesystem::Result<void>::error("Failed to read bookmark database: " +
                                                     content_result.error());
@@ -78,7 +78,7 @@ cjsh_filesystem::Result<void> BookmarkDatabase::save() {
     std::string text_content = to_text_format();
 
     auto write_result =
-        cjsh_filesystem::FileOperations::write_file_content(database_path_, text_content);
+        cjsh_filesystem::write_file_content(database_path_, text_content);
     if (write_result.is_error()) {
         return cjsh_filesystem::Result<void>::error("Failed to write bookmark database: " +
                                                     write_result.error());

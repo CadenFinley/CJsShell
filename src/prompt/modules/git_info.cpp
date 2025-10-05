@@ -42,40 +42,40 @@ static int safe_execute_git_command(const std::vector<std::string>& args, std::s
     }
 
     if (!set_close_on_exec(pipefd[0]) || !set_close_on_exec(pipefd[1])) {
-        cjsh_filesystem::FileOperations::safe_close(pipefd[0]);
-        cjsh_filesystem::FileOperations::safe_close(pipefd[1]);
+        cjsh_filesystem::safe_close(pipefd[0]);
+        cjsh_filesystem::safe_close(pipefd[1]);
         return -1;
     }
 
     pid_t pid = fork();
     if (pid == -1) {
-        cjsh_filesystem::FileOperations::safe_close(pipefd[0]);
-        cjsh_filesystem::FileOperations::safe_close(pipefd[1]);
+        cjsh_filesystem::safe_close(pipefd[0]);
+        cjsh_filesystem::safe_close(pipefd[1]);
         return -1;
     }
 
     if (pid == 0) {
-        cjsh_filesystem::FileOperations::safe_close(pipefd[0]);
+        cjsh_filesystem::safe_close(pipefd[0]);
 
-        auto dup_result = cjsh_filesystem::FileOperations::safe_dup2(pipefd[1], STDOUT_FILENO);
+        auto dup_result = cjsh_filesystem::safe_dup2(pipefd[1], STDOUT_FILENO);
         if (dup_result.is_error()) {
             _exit(127);
         }
 
-        auto devnull_result = cjsh_filesystem::FileOperations::safe_open("/dev/null", O_WRONLY);
+        auto devnull_result = cjsh_filesystem::safe_open("/dev/null", O_WRONLY);
         if (devnull_result.is_ok()) {
-            cjsh_filesystem::FileOperations::safe_dup2(devnull_result.value(), STDERR_FILENO);
-            cjsh_filesystem::FileOperations::safe_close(devnull_result.value());
+            cjsh_filesystem::safe_dup2(devnull_result.value(), STDERR_FILENO);
+            cjsh_filesystem::safe_close(devnull_result.value());
         }
 
-        cjsh_filesystem::FileOperations::safe_close(pipefd[1]);
+        cjsh_filesystem::safe_close(pipefd[1]);
 
         auto argv = build_exec_argv(args);
         execvp(argv[0], argv.data());
         _exit(127);
     }
 
-    cjsh_filesystem::FileOperations::safe_close(pipefd[1]);
+    cjsh_filesystem::safe_close(pipefd[1]);
 
     char buffer[4096];
     ssize_t bytes_read;
@@ -84,7 +84,7 @@ static int safe_execute_git_command(const std::vector<std::string>& args, std::s
         result += buffer;
     }
 
-    cjsh_filesystem::FileOperations::safe_close(pipefd[0]);
+    cjsh_filesystem::safe_close(pipefd[0]);
 
     int status;
     if (waitpid(pid, &status, 0) == -1) {
@@ -102,14 +102,16 @@ static int safe_execute_git_command(const std::vector<std::string>& args, std::s
     return 0;
 }
 
-std::chrono::steady_clock::time_point last_git_status_check = 
+std::chrono::steady_clock::time_point last_git_status_check =
     std::chrono::steady_clock::now() - std::chrono::seconds(30);
 std::string cached_git_dir;
 std::string cached_status_symbols;
 bool cached_is_clean_repo = true;
 std::mutex git_status_mutex;
 bool is_git_status_check_running = false;
-static std::unordered_map<std::string, std::pair<std::string, std::chrono::steady_clock::time_point>> git_info_cache;
+static std::unordered_map<std::string,
+                          std::pair<std::string, std::chrono::steady_clock::time_point>>
+    git_info_cache;
 static std::mutex git_info_cache_mutex;
 
 std::string get_git_remote(const std::filesystem::path& repo_root) {
@@ -175,7 +177,7 @@ std::string get_git_author(const std::filesystem::path& repo_root) {
 std::string get_git_branch(const std::filesystem::path& git_head_path) {
     try {
         auto read_result =
-            cjsh_filesystem::FileOperations::read_file_content(git_head_path.string());
+            cjsh_filesystem::read_file_content(git_head_path.string());
         if (read_result.is_error()) {
             return "";
         }

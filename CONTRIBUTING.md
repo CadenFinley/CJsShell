@@ -61,7 +61,7 @@ Before committing, ensure code is formatted:
 
 ```bash
 # Format all C/C++ files
-clang-format -i src/**/*.cpp include/**/*.h toolchain/nob/*.c toolchain/nob/*.h
+find . \( -name "*.cpp" -o -name "*.c" -o -name "*.h" -o -name "*.hpp" \) -exec clang-format -i {} +
 ```
 
 ### 2. Build Verification

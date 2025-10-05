@@ -12,11 +12,13 @@
 static std::unordered_map<std::string, CachedVersion> version_cache;
 static std::mutex cache_mutex;
 
-const std::vector<std::string> python_files = {"requirements.txt", "setup.py", "pyproject.toml", "Pipfile", "setup.cfg", "tox.ini"};
+const std::vector<std::string> python_files = {"requirements.txt", "setup.py",  "pyproject.toml",
+                                               "Pipfile",          "setup.cfg", "tox.ini"};
 const std::vector<std::string> python_extensions = {".py"};
 const std::vector<std::string> python_folders = {"venv", ".venv", "env", "__pycache__"};
 
-const std::vector<std::string> nodejs_files = {"package.json", "package-lock.json", "yarn.lock", "pnpm-lock.yaml"};
+const std::vector<std::string> nodejs_files = {"package.json", "package-lock.json", "yarn.lock",
+                                               "pnpm-lock.yaml"};
 const std::vector<std::string> nodejs_extensions = {".js", ".mjs", ".cjs", ".ts"};
 const std::vector<std::string> nodejs_folders = {"node_modules"};
 
@@ -28,13 +30,15 @@ const std::vector<std::string> golang_files = {"go.mod", "go.sum"};
 const std::vector<std::string> golang_extensions = {".go"};
 const std::vector<std::string> golang_folders = {};
 
-const std::vector<std::string> java_files = {"pom.xml", "build.gradle", "build.gradle.kts", "gradlew", "mvnw"};
+const std::vector<std::string> java_files = {"pom.xml", "build.gradle", "build.gradle.kts",
+                                             "gradlew", "mvnw"};
 const std::vector<std::string> java_extensions = {".java"};
-const std::vector<std::string> java_folders = {"target",".gradle"};
+const std::vector<std::string> java_folders = {"target", ".gradle"};
 
-const std::vector<std::string> cpp_files = {"CMakeLists.txt", "Makefile", "configure.ac", "meson.build"};
+const std::vector<std::string> cpp_files = {"CMakeLists.txt", "Makefile", "configure.ac",
+                                            "meson.build"};
 const std::vector<std::string> cpp_extensions = {".cpp", ".cc", ".cxx", ".c", ".h", ".hpp", ".hxx"};
-const std::vector<std::string> cpp_folders = { "cmake-build-debug", "cmake-build-release"};
+const std::vector<std::string> cpp_folders = {"cmake-build-debug", "cmake-build-release"};
 
 const std::vector<std::string> csharp_files = {".csproj", ".sln", "nuget.config", "global.json"};
 const std::vector<std::string> csharp_extensions = {".cs"};
@@ -44,7 +48,8 @@ const std::vector<std::string> php_files = {"composer.json", "composer.lock"};
 const std::vector<std::string> php_extensions = {".php"};
 const std::vector<std::string> php_folders = {"vendor"};
 
-const std::vector<std::string> ruby_files = {"Gemfile", "Gemfile.lock", ".ruby-version", "Rakefile"};
+const std::vector<std::string> ruby_files = {"Gemfile", "Gemfile.lock", ".ruby-version",
+                                             "Rakefile"};
 const std::vector<std::string> ruby_extensions = {".rb"};
 const std::vector<std::string> ruby_folders = {};
 
@@ -65,10 +70,9 @@ const std::vector<std::string> scala_extensions = {".scala", ".sc"};
 const std::vector<std::string> scala_folders = {"target", "project/target"};
 
 bool scan_directory_recursive(const std::filesystem::path& dir,
-                                            const std::vector<std::string>& files,
-                                            const std::vector<std::string>& extensions,
-                                            const std::vector<std::string>& folders,
-                                            int max_depth) {
+                              const std::vector<std::string>& files,
+                              const std::vector<std::string>& extensions,
+                              const std::vector<std::string>& folders, int max_depth) {
     if (max_depth <= 0) {
         return false;
     }
@@ -118,15 +122,15 @@ bool scan_directory_recursive(const std::filesystem::path& dir,
 }
 
 bool is_project_detected(const std::vector<std::string>& files,
-                                       const std::vector<std::string>& extensions,
-                                       const std::vector<std::string>& folders) {
+                         const std::vector<std::string>& extensions,
+                         const std::vector<std::string>& folders) {
     std::filesystem::path current_path = std::filesystem::current_path();
 
     return scan_directory_recursive(current_path, files, extensions, folders, 3);
 }
 
 static std::string execute_command(const std::string& command) {
-    auto result = cjsh_filesystem::FileOperations::read_command_output(command);
+    auto result = cjsh_filesystem::read_command_output(command);
     if (result.is_error()) {
         return "";
     }
@@ -151,8 +155,8 @@ std::string extract_version(const std::string& output) {
     return "";
 }
 
-std::string get_cached_version(
-    const std::string& language_key, const std::function<std::string()>& version_func) {
+std::string get_cached_version(const std::string& language_key,
+                               const std::function<std::string()>& version_func) {
     std::lock_guard<std::mutex> lock(cache_mutex);
 
     auto it = version_cache.find(language_key);

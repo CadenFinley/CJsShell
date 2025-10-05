@@ -162,7 +162,7 @@ bool trim_history_file(long max_entries, std::string* error_message) {
     }
 
     auto write_result =
-        cjsh_filesystem::FileOperations::write_file_content(history_path.string(), buffer.str());
+        cjsh_filesystem::write_file_content(history_path.string(), buffer.str());
     if (write_result.is_error()) {
         if (error_message != nullptr) {
             *error_message = write_result.error();

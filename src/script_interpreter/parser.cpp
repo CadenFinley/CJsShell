@@ -606,7 +606,7 @@ static void expand_command_substitutions_in_string(std::string& text) {
 
             if (depth == 0 && pos < text.size()) {
                 std::string command = text.substr(i + 2, pos - (i + 2));
-                auto output = cjsh_filesystem::FileOperations::read_command_output(command);
+                auto output = cjsh_filesystem::read_command_output(command);
                 if (output.is_ok()) {
                     std::string value = output.value();
                     while (!value.empty() && (value.back() == '\n' || value.back() == '\r')) {
@@ -641,7 +641,7 @@ static void expand_command_substitutions_in_string(std::string& text) {
                         cleaned.push_back(command[k]);
                     }
                 }
-                auto output = cjsh_filesystem::FileOperations::read_command_output(cleaned);
+                auto output = cjsh_filesystem::read_command_output(cleaned);
                 if (output.is_ok()) {
                     std::string value = output.value();
                     while (!value.empty() && (value.back() == '\n' || value.back() == '\r')) {

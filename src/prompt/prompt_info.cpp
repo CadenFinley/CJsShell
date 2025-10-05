@@ -797,7 +797,7 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
             result = exec_cache[cache_key].first;
         } else {
             // Execute the command
-            auto cmd_result = cjsh_filesystem::FileOperations::read_command_output(command);
+            auto cmd_result = cjsh_filesystem::read_command_output(command);
             if (!cmd_result.is_error()) {
                 result = cmd_result.value();
                 // Remove trailing newline if present

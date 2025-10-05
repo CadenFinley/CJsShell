@@ -28,7 +28,7 @@ std::string get_ip_address(bool external) {
 #endif
     }
 
-    auto result_data = cjsh_filesystem::FileOperations::read_command_output(cmd);
+    auto result_data = cjsh_filesystem::read_command_output(cmd);
     if (result_data.is_error()) {
         return "N/A";
     }
@@ -54,7 +54,7 @@ bool is_vpn_active() {
     return false;
 #endif
 
-    auto result_data = cjsh_filesystem::FileOperations::read_command_output(cmd);
+    auto result_data = cjsh_filesystem::read_command_output(cmd);
     if (result_data.is_error()) {
         return false;
     }
@@ -75,7 +75,7 @@ std::string get_active_network_interface() {
     return "N/A";
 #endif
 
-    auto result_data = cjsh_filesystem::FileOperations::read_command_output(cmd);
+    auto result_data = cjsh_filesystem::read_command_output(cmd);
     if (result_data.is_error()) {
         return "N/A";
     }
