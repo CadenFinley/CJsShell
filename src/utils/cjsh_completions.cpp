@@ -24,8 +24,8 @@
 
 std::map<std::string, int> g_completion_frequency;
 bool g_completion_case_sensitive = false;
-static const size_t MAX_COMPLETION_TRACKER_ENTRIES = 500;
-static const size_t MAX_TOTAL_COMPLETIONS = 100;
+static const size_t MAX_COMPLETION_TRACKER_ENTRIES = 250;
+static const size_t MAX_TOTAL_COMPLETIONS = 50;
 
 enum CompletionContext : std::uint8_t {
     CONTEXT_COMMAND,

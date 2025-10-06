@@ -6,7 +6,11 @@
   found in the "LICENSE" file at the root of this distribution.
 -----------------------------------------------------------------------------*/
 #pragma once
+#ifdef __cplusplus
 #include <cstdint>
+#else
+#include <stdint.h>
+#endif
 #ifndef IC_TERM_H
 #define IC_TERM_H
 
@@ -18,11 +22,21 @@
 struct term_s;
 typedef struct term_s term_t;
 
-typedef enum buffer_mode_e : uint8_t {
+typedef enum buffer_mode_e
+#ifdef __cplusplus
+    : std::uint8_t
+#endif
+{
     UNBUFFERED,
     LINEBUFFERED,
     BUFFERED,
-} buffer_mode_t;
+} buffer_mode_e;
+
+#ifdef __cplusplus
+typedef buffer_mode_e buffer_mode_t;
+#else
+typedef uint8_t buffer_mode_t;
+#endif
 
 // Primitives
 ic_private term_t* term_new(alloc_t* mem, tty_t* tty, bool nocolor, bool silent, int fd_out);

@@ -4,7 +4,11 @@
   `isocline.h` lighter for callers that don't need key binding metadata.
 -----------------------------------------------------------------------------*/
 #pragma once
+#ifdef __cplusplus
 #include <cstdint>
+#else
+#include <stdint.h>
+#endif
 #ifndef IC_KEYBINDINGS_H
 #define IC_KEYBINDINGS_H
 
@@ -15,7 +19,11 @@ extern "C" {
 #include "keycodes.h"
 
 /// Key action identifiers returned by key binding queries and APIs.
-typedef enum ic_key_action_e : uint8_t {
+typedef enum ic_key_action_e
+#ifdef __cplusplus
+    : std::uint8_t
+#endif
+{
     IC_KEY_ACTION_NONE = 0,
     IC_KEY_ACTION_COMPLETE,
     IC_KEY_ACTION_HISTORY_SEARCH,
@@ -46,7 +54,13 @@ typedef enum ic_key_action_e : uint8_t {
     IC_KEY_ACTION_TRANSPOSE_CHARS,
     IC_KEY_ACTION_INSERT_NEWLINE,
     IC_KEY_ACTION__MAX
-} ic_key_action_t;
+} ic_key_action_e;
+
+#ifdef __cplusplus
+typedef ic_key_action_e ic_key_action_t;
+#else
+typedef uint8_t ic_key_action_t;
+#endif
 
 /// Entry describing a single key binding.
 typedef struct ic_key_binding_entry_s {
