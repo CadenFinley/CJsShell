@@ -448,6 +448,19 @@ bool ic_enable_multiline_indent(bool enable);
 /// Returns the previous setting.
 bool ic_enable_line_numbers(bool enable);
 
+/// Enable or disable relative numbering for multiline line numbers.
+/// Relative numbering displays the distance from the active cursor line instead of the absolute
+/// line index (the current line shows "0"). Enabling relative numbering automatically enables
+/// line numbers.
+/// Returns the previous relative-numbering state.
+bool ic_enable_relative_line_numbers(bool enable);
+
+/// Returns whether line numbers are currently enabled (either absolute or relative).
+bool ic_line_numbers_are_enabled(void);
+
+/// Returns whether relative line numbers are currently active.
+bool ic_line_numbers_are_relative(void);
+
 /// Disable or enable display of short help messages for history search etc. (enabled by default)
 /// (full help is always dispayed when pressing F1 regardless of this setting)
 /// @returns the previous setting.

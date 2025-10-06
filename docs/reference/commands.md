@@ -457,21 +457,22 @@ Persist the choice by placing the command in `~/.cjshrc`.
 
 #### line-numbers
 
-Enable, disable, or inspect line numbers in multiline input mode. When enabled, cjsh will display line numbers on the left side of multiline input, making it easier to navigate and edit multi-line commands or scripts.
+Enable, disable, or inspect line numbers in multiline input mode. When enabled, cjsh will display numbers on the left side of multiline input, making it easier to navigate and edit multi-line commands or scripts. You can choose between absolute numbering (the default) or relative numbering, which shows the distance to the active cursor line.
 
 ```bash
-cjshopt line-numbers <on|off|status>
+cjshopt line-numbers <on|off|relative|absolute|status>
 ```
 
 Examples:
 
 ```bash
 cjshopt line-numbers on       # Enable line numbers in multiline input
+cjshopt line-numbers relative # Switch to relative numbering
 cjshopt line-numbers off      # Disable line numbers in multiline input
 cjshopt line-numbers status   # Show the current setting
 ```
 
-Add the command to `~/.cjshrc` to persist the setting across sessions. The subcommand also accepts synonyms such as `enable`, `disable`, `true`, and `false`.
+Add the command to `~/.cjshrc` to persist the setting across sessions. The subcommand also accepts synonyms such as `enable`, `disable`, `true`, `false`, `absolute`, and `rel`/`relative`.
 
 > **Tip:** Style the line numbers themselves with `cjshopt style_def ic-linenumbers "color=#FFB86C"` (or any other style). See `cjshopt style_def` for the full list of supported style directives.
 

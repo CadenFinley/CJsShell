@@ -131,7 +131,36 @@ ic_public bool ic_enable_line_numbers(bool enable) {
         return false;
     bool prev = env->show_line_numbers;
     env->show_line_numbers = enable;
+    if (!enable) {
+        env->relative_line_numbers = false;
+    }
     return prev;
+}
+
+ic_public bool ic_enable_relative_line_numbers(bool enable) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return false;
+    bool prev = env->relative_line_numbers;
+    env->relative_line_numbers = enable;
+    if (enable) {
+        env->show_line_numbers = true;
+    }
+    return prev;
+}
+
+ic_public bool ic_line_numbers_are_enabled(void) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return false;
+    return env->show_line_numbers;
+}
+
+ic_public bool ic_line_numbers_are_relative(void) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return false;
+    return env->relative_line_numbers;
 }
 
 ic_public bool ic_enable_hint(bool enable) {

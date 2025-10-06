@@ -571,7 +571,29 @@ static ssize_t print_prompt_prefix_lines(ic_env_t* env, const char* prompt_text)
     return lines;
 }
 
-static void edit_write_prompt(ic_env_t* env, editor_t* eb, ssize_t row, bool in_extra) {
+static void format_line_number_prompt(char* buffer, size_t buffer_size, ssize_t row,
+                                      ssize_t cursor_row, bool relative) {
+    if (buffer == NULL || buffer_size == 0)
+        return;
+    if (relative) {
+        if (cursor_row < 0) {
+            snprintf(buffer, buffer_size, "%zd| ", row + 1);
+            return;
+        }
+        ssize_t diff = (row >= cursor_row ? row - cursor_row : cursor_row - row);
+        if (diff == 0) {
+            // current line number
+            snprintf(buffer, buffer_size, "%zd| ", row + 1);
+        } else {
+            snprintf(buffer, buffer_size, "%zd| ", diff);
+        }
+    } else {
+        snprintf(buffer, buffer_size, "%zd| ", row + 1);
+    }
+}
+
+static void edit_write_prompt(ic_env_t* env, editor_t* eb, ssize_t row, bool in_extra,
+                              ssize_t cursor_row) {
     if (in_extra)
         return;
     bbcode_style_open(env->bbcode, "ic-prompt");
@@ -583,7 +605,8 @@ static void edit_write_prompt(ic_env_t* env, editor_t* eb, ssize_t row, bool in_
         bbcode_style_close(env->bbcode, NULL);
         bbcode_style_open(env->bbcode, "ic-linenumbers");
         char line_number_str[16];
-        snprintf(line_number_str, sizeof(line_number_str), "%zd| ", row + 1);
+        format_line_number_prompt(line_number_str, sizeof(line_number_str), row, cursor_row,
+                                  env->relative_line_numbers);
         bbcode_print(env->bbcode, line_number_str);
         bbcode_style_close(env->bbcode, NULL);
         bbcode_style_open(env->bbcode, "ic-prompt");
@@ -615,6 +638,7 @@ typedef struct refresh_info_s {
     bool in_extra;
     ssize_t first_row;
     ssize_t last_row;
+    ssize_t cursor_row;
 } refresh_info_t;
 
 static bool edit_refresh_rows_iter(const char* s, ssize_t row, ssize_t row_start, ssize_t row_len,
@@ -631,7 +655,7 @@ static bool edit_refresh_rows_iter(const char* s, ssize_t row, ssize_t row_start
         return true;  // should not occur
 
     // term_clear_line(term);
-    edit_write_prompt(info->env, info->eb, row, info->in_extra);
+    edit_write_prompt(info->env, info->eb, row, info->in_extra, info->cursor_row);
 
     //' write output
     if (info->attrs == NULL || (info->env->no_highlight && info->env->no_bracematch)) {
@@ -713,7 +737,7 @@ static bool edit_refresh_rows_iter(const char* s, ssize_t row, ssize_t row_start
 
 static void edit_refresh_rows(ic_env_t* env, editor_t* eb, stringbuf_t* input, attrbuf_t* attrs,
                               ssize_t promptw, ssize_t cpromptw, bool in_extra, ssize_t first_row,
-                              ssize_t last_row) {
+                              ssize_t last_row, ssize_t cursor_row) {
     if (input == NULL)
         return;
     refresh_info_t info;
@@ -723,6 +747,7 @@ static void edit_refresh_rows(ic_env_t* env, editor_t* eb, stringbuf_t* input, a
     info.in_extra = in_extra;
     info.first_row = first_row;
     info.last_row = last_row;
+    info.cursor_row = cursor_row;
     sbuf_for_each_row(input, eb->termw, promptw, cpromptw, &edit_refresh_rows_iter, &info, NULL);
 }
 
@@ -802,13 +827,15 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
     // prompt
 
     // render rows
-    edit_refresh_rows(env, eb, eb->input, eb->attrs, promptw, cpromptw, false, first_row, last_row);
+    edit_refresh_rows(env, eb, eb->input, eb->attrs, promptw, cpromptw, false, first_row, last_row,
+                      rc.row);
     if (rows_extra > 0) {
         assert(extra != NULL);
         const ssize_t first_rowx = (first_row > rows_input ? first_row - rows_input : 0);
         const ssize_t last_rowx = last_row - rows_input;
         assert(last_rowx >= 0);
-        edit_refresh_rows(env, eb, extra, eb->attrs_extra, 0, 0, true, first_rowx, last_rowx);
+        edit_refresh_rows(env, eb, extra, eb->attrs_extra, 0, 0, true, first_rowx, last_rowx,
+                          rc.row);
     }
 
     // overwrite trailing rows we do not use anymore
@@ -834,8 +861,9 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
     } else if (env->show_line_numbers) {
         // Calculate the actual width of the line number for this specific row
         char line_number_str[16];
-        snprintf(line_number_str, sizeof(line_number_str), "%zd| ", rc.row + 1);
-        actual_prompt_width = strlen(line_number_str);
+        format_line_number_prompt(line_number_str, sizeof(line_number_str), rc.row, rc.row,
+                                  env->relative_line_numbers);
+        actual_prompt_width = (ssize_t)strlen(line_number_str);
     } else {
         actual_prompt_width = cpromptw;
     }
@@ -1508,7 +1536,7 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
     }
 
     // show prompt
-    edit_write_prompt(env, &eb, 0, false);
+    edit_write_prompt(env, &eb, 0, false, 0);
 
     // Force refresh if initial input was provided to display it immediately
     if (env->initial_input != NULL) {
@@ -1845,7 +1873,7 @@ static char* edit_line_inline(ic_env_t* env, const char* prompt_text,
     }
 
     // show prompt
-    edit_write_prompt(env, &eb, 0, false);
+    edit_write_prompt(env, &eb, 0, false, 0);
 
     // Force refresh if initial input was provided to display it immediately
     if (env->initial_input != NULL) {

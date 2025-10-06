@@ -27,7 +27,7 @@ void print_cjshopt_usage() {
     std::cout << "  login-startup-arg [--flag-name]  Add a startup flag (config file only)\n";
     std::cout << "  completion-case <on|off|status>  Configure completion case sensitivity (default: enabled)\n";
     std::cout << "  completion-spell <on|off|status> Configure completion spell correction (default: enabled)\n";
-    std::cout << "  line-numbers <on|off|status>    Configure line numbers in multiline input (default: enabled)\n";
+    std::cout << "  line-numbers <on|off|relative|absolute|status>    Configure line numbers in multiline input (default: enabled)\n";
     std::cout << "  hint-delay <milliseconds>        Set hint display delay in milliseconds\n";
     std::cout << "  completion-preview <on|off|status> Configure completion preview (default: enabled)\n";
     std::cout << "  hint <on|off|status>            Configure inline hints (default: enabled)\n";
@@ -202,7 +202,7 @@ int cjshopt_command(const std::vector<std::string>& args) {
                  "  completion-case <on|off|status>  Configure completion case "
                  "sensitivity (default: disabled)",
                  "  completion-spell <on|off|status> Configure completion spell correction (default: enabled)",
-                 "  line-numbers <on|off|status>    Configure line numbers in multiline input (default: enabled)",
+                 "  line-numbers <on|off|relative|absolute|status>    Configure line numbers in multiline input (default: enabled)",
                  "  hint-delay <milliseconds>        Set hint display delay in milliseconds",
                  "  completion-preview <on|off|status> Configure completion preview (default: enabled)",
                  "  hint <on|off|status>            Configure inline hints (default: enabled)",
@@ -393,27 +393,92 @@ int completion_spell_command(const std::vector<std::string>& args) {
 
 int line_numbers_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {
-        "Usage: line-numbers <on|off|status>",
-        "Examples:", "  line-numbers on       Enable line numbers in multiline input",
-        "  line-numbers off      Disable line numbers in multiline input",
-        "  line-numbers status   Show the current setting"};
+        "Usage: line-numbers <on|off|relative|absolute|status>",
+        "Examples:",
+        "  line-numbers on        Enable absolute line numbers in multiline input",
+        "  line-numbers relative  Enable relative line numbers in multiline input",
+        "  line-numbers off       Disable line numbers in multiline input",
+        "  line-numbers status    Show the current setting"};
 
-    static const ToggleCommandConfig config{
-        "line-numbers",
-        usage_lines,
-        []() {
-            bool current_status = ic_enable_line_numbers(true);
-            ic_enable_line_numbers(current_status);
-            return current_status;
-        },
-        [](bool enable) { ic_enable_line_numbers(enable); },
-        "Line numbers in multiline input",
-        true,
-        std::nullopt,
-        {},
-        {}};
+    const auto describe_status = []() {
+        if (!ic_line_numbers_are_enabled()) {
+            return std::string("Line numbers are currently disabled.");
+        }
+        if (ic_line_numbers_are_relative()) {
+            return std::string("Line numbers are currently enabled (relative numbering).");
+        }
+        return std::string("Line numbers are currently enabled (absolute numbering).");
+    };
 
-    return handle_toggle_command(config, args);
+    if (args.size() == 1) {
+        print_error({ErrorType::INVALID_ARGUMENT, "line-numbers", "Missing option argument",
+                     usage_lines});
+        return 1;
+    }
+
+    if (args.size() == 2 && (args[1] == "--help" || args[1] == "-h")) {
+        if (!g_startup_active) {
+            for (const auto& line : usage_lines) {
+                std::cout << line << '\n';
+            }
+        }
+        return 0;
+    }
+
+    if (args.size() != 2) {
+        print_error({ErrorType::INVALID_ARGUMENT, "line-numbers", "Too many arguments provided",
+                     usage_lines});
+        return 1;
+    }
+
+    const std::string& option = args[1];
+    const std::string normalized = normalize_option(option);
+
+    if (matches_token(normalized, {"status", "--status"})) {
+        if (!g_startup_active) {
+            std::cout << describe_status() << '\n';
+        }
+        return 0;
+    }
+
+    const bool was_enabled = ic_line_numbers_are_enabled();
+    const bool was_relative = ic_line_numbers_are_relative();
+    bool changed = false;
+
+    if (matches_token(normalized,
+                      {"off", "disable", "disabled", "false", "0", "--disable"})) {
+        ic_enable_line_numbers(false);
+        changed = (was_enabled || was_relative);
+    } else if (matches_token(normalized, {"relative", "rel", "--relative"})) {
+        ic_enable_relative_line_numbers(true);
+        changed = (!was_enabled || !was_relative);
+    } else if (matches_token(normalized, {"absolute", "abs", "--absolute"}) ||
+               matches_token(normalized, {"on", "enable", "enabled", "true", "1",
+                                          "--enable"})) {
+        ic_enable_line_numbers(true);
+        ic_enable_relative_line_numbers(false);
+        changed = (!was_enabled || was_relative);
+    } else {
+        print_error({ErrorType::INVALID_ARGUMENT, "line-numbers",
+                     "Unknown option '" + option + "'", usage_lines});
+        return 1;
+    }
+
+    if (!g_startup_active && changed) {
+        std::cout << describe_status() << '\n';
+        std::string persist_token;
+        if (!ic_line_numbers_are_enabled()) {
+            persist_token = "off";
+        } else if (ic_line_numbers_are_relative()) {
+            persist_token = "relative";
+        } else {
+            persist_token = "absolute";
+        }
+        std::cout << "Add `cjshopt line-numbers " << persist_token
+                  << "` to your ~/.cjshrc to persist this change.\n";
+    }
+
+    return 0;
 }
 
 int hint_delay_command(const std::vector<std::string>& args) {
