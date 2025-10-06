@@ -234,12 +234,13 @@ int change_directory_smart(const std::string& dir, std::string& current_director
                 if (!bookmark_database::g_bookmark_db.has_bookmark(basename)) {
                     auto add_result =
                         bookmark_database::g_bookmark_db.add_bookmark(basename, current_directory);
-                    if (add_result.is_error()) {
-                        print_error({ErrorType::RUNTIME_ERROR,
-                                     "cd",
-                                     "Failed to update bookmark: " + add_result.error(),
-                                     {}});
-                    }
+                    // Silently ignore bookmark failures (e.g., blacklisted paths)
+                    // if (add_result.is_error()) {
+                    //     print_error({ErrorType::RUNTIME_ERROR,
+                    //                  "cd",
+                    //                  "Failed to update bookmark: " + add_result.error(),
+                    //                  {}});
+                    // }
                 }
             }
         }

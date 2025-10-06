@@ -532,9 +532,10 @@ bool BookmarkDatabase::is_blacklisted(const std::string& path) const {
             return true;
         }
 
-        // Check if any parent directory is blacklisted
+        // Check if path is a parent of any blacklisted directory
+        // This prevents bookmarking parent directories of blacklisted paths
         for (const auto& blacklisted : blacklisted_paths_) {
-            if (canonical_path.find(blacklisted + "/") == 0) {
+            if (blacklisted.find(canonical_path + "/") == 0) {
                 return true;
             }
         }
