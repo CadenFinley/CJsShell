@@ -31,12 +31,10 @@ void print_cjshopt_usage() {
     std::cout << "  generate-profile [--force]       Create or overwrite ~/.cjprofile\n";
     std::cout << "  generate-rc [--force]            Create or overwrite ~/.cjshrc\n";
     std::cout << "  generate-logout [--force]        Create or overwrite ~/.cjsh_logout\n";
+    std::cout << "  set-max-bookmarks <number>       Limit stored directory bookmarks (10-1000)\n";
+    std::cout << "  set-history-max <number|default|status> Configure history persistence\n";
     std::cout
-        << "  set-max-bookmarks <number>       Set the maximum number of bookmarks to store\n";
-    std::cout
-        << "  set-history-max <value>          Configure the maximum size of the history file\n";
-    std::cout
-        << "  bookmark-blacklist <subcommand>  Manage directories that cannot be bookmarked\n";
+        << "  bookmark-blacklist <subcommand>  Manage directories excluded from bookmarking\n";
     std::cout << "Use 'cjshopt <subcommand> --help' to see usage for a specific subcommand.\n";
 }
 }  // namespace
@@ -69,10 +67,9 @@ int cjshopt_command(const std::vector<std::string>& args) {
                  "  generate-profile [--force]       Create or overwrite ~/.cjprofile",
                  "  generate-rc [--force]            Create or overwrite ~/.cjshrc",
                  "  generate-logout [--force]        Create or overwrite ~/.cjsh_logout",
-                 "  set-max-bookmarks <number>       Set the maximum number of bookmarks to store",
-                 "  set-history-max <value>          Configure the maximum size of the history "
-                 "file",
-                 "  bookmark-blacklist <subcommand>  Manage directories that cannot be bookmarked",
+                 "  set-max-bookmarks <number>       Limit stored directory bookmarks (10-1000)",
+                 "  set-history-max <number|default|status> Configure history persistence",
+                 "  bookmark-blacklist <subcommand>  Manage directories excluded from bookmarking",
              }});
         return 1;
     }

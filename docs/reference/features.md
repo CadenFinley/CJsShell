@@ -53,6 +53,8 @@ Enhanced `cd` command with intelligent features:
 
 - Fuzzy directory matching
 - Directory bookmarks
+- Adjustable bookmark limit with `cjshopt set-max-bookmarks`
+- Blacklist unwanted locations via `cjshopt bookmark-blacklist`
 - Previous directory switching with `cd -`
 - Can be disabled with `--no-smart-cd` flag
 
@@ -159,7 +161,7 @@ Theme rendering is typically 2-4x faster than popular alternatives like Starship
 
 #### History Management
 - Persistent command history
-- Configurable history size
+- Configurable history size with `cjshopt set-history-max`
 - History search and editing
 
 #### Debugging Support

@@ -372,14 +372,67 @@ Available subcommands:
 - `generate-profile` - Create or overwrite ~/.cjprofile
 - `generate-rc` - Create or overwrite ~/.cjshrc
 - `generate-logout` - Create or overwrite ~/.cjsh_logout
-- `set-max-bookmarks` - Set maximum number of bookmarks
-- `set-history-max` - Configure history file size
-- `bookmark-blacklist` - Manage directories that cannot be bookmarked
+- `set-max-bookmarks` - Limit stored directory bookmarks
+- `set-history-max` - Configure history persistence limits
+- `bookmark-blacklist` - Manage directories excluded from bookmarking
+
+#### login-startup-arg
+
+Persist startup flags that should be applied before the interactive configuration is sourced. This command is only honored inside startup files such as `~/.cjprofile`; running it at an interactive prompt prints an error.
+
+```bash
+cjshopt login-startup-arg <flag>
+```
+
+Supported flags:
+
+| Flag | Effect |
+| --- | --- |
+| `--login` | Mark the current shell instance as a login shell |
+| `--interactive` | Force interactive startup behavior |
+| `--debug` | Enable verbose startup debugging |
+| `--no-themes` | Disable theme initialization |
+| `--no-colors` | Disable colored output |
+| `--no-titleline` | Skip the dynamic title line |
+| `--show-startup-time` | Print how long startup took |
+| `--no-source` | Skip sourcing `~/.cjshrc` |
+| `--no-completions` | Disable the completion system |
+| `--no-syntax-highlighting` | Disable syntax highlighting |
+| `--no-smart-cd` | Use the basic `cd` implementation |
+| `--no-prompt` | Use a minimal `#` prompt instead of the themed prompt |
+| `--minimal` | Disable all cjsh extras (themes, colors, completions, smart cd, etc.) |
+| `--disable-custom-ls` | Use the system `ls` instead of cjsh's enhanced version |
+| `--startup-test` | Enable startup test mode |
+
+Add one line per flag in `~/.cjprofile` to persist the desired behavior:
+
+```bash
+# Inside ~/.cjprofile
+cjshopt login-startup-arg --minimal
+cjshopt login-startup-arg --show-startup-time
+```
+
+#### completion-case
+
+Toggle whether tab completions treat case as significant. Synonyms such as `enable`, `disable`, `true`, and `false` are also accepted for convenience.
+
+```bash
+cjshopt completion-case <on|off|status>
+```
+
+Examples:
+
+```bash
+cjshopt completion-case on      # Case-sensitive matching
+cjshopt completion-case off     # Case-insensitive matching (default)
+cjshopt completion-case status  # Show the current mode
+```
+
+Add the command to `~/.cjshrc` if you want the preference remembered across sessions.
 
 #### completion-spell
 
-Enable, disable, or inspect the completion spell correction feature. When enabled, the
-completer will attempt to correct minor typos when generating suggestions.
+Enable, disable, or inspect spell correction inside the completion engine. When enabled, cjsh will try to fix minor typos before offering suggestions. The subcommand also accepts synonyms such as `enable`, `disable`, `true`, `false`, and `--status`.
 
 ```bash
 cjshopt completion-spell <on|off|status>
@@ -388,43 +441,97 @@ cjshopt completion-spell <on|off|status>
 Examples:
 
 ```bash
-# Enable spell correction for new completions
-cjshopt completion-spell on
-
-# Show the current setting
-cjshopt completion-spell status
+cjshopt completion-spell on       # Turn on spell correction
+cjshopt completion-spell status   # Display the current state
 ```
 
-Add the command to your `~/.cjshrc` to make the preference persistent across sessions.
+Persist the choice by placing the command in `~/.cjshrc`.
+
+#### keybind
+
+Inspect or customize isocline key bindings. Modifying bindings requires running the command from a configuration file (`~/.cjshrc`); runtime changes are only supported for inspection.
+
+```bash
+cjshopt keybind <subcommand> [...]
+```
+
+Key subcommands include:
+
+- `list` — Show the active profile plus default vs. custom bindings (runtime safe)
+- `set <action> <keys...>` — Replace bindings for an action
+- `add <action> <keys...>` — Add additional bindings for an action
+- `clear <keys...>` — Remove the provided key specifications
+- `clear-action <action>` — Remove all custom bindings for an action
+- `reset` — Drop every custom binding and restore defaults
+- `profile list` — List available key binding profiles (runtime safe)
+- `profile set <name>` — Persist the named profile
+
+Key specifications accept pipe (`|`) separated alternatives, so `Ctrl+K|Ctrl+X` is a single argument covering both sequences. Place commands like `cjshopt keybind set cursor-left "Ctrl+H"` in `~/.cjshrc` to keep them between sessions.
+
+#### set-max-bookmarks
+
+Control how many directory bookmarks the smart `cd` feature retains.
+
+```bash
+cjshopt set-max-bookmarks <number>
+```
+
+- Valid range: **10 – 1000**
+- Default: **100**
+
+Examples:
+
+```bash
+cjshopt set-max-bookmarks 200
+```
+
+Persist the limit by adding the command to `~/.cjshrc`.
+
+#### set-history-max
+
+Adjust the number of entries stored in the persistent history file.
+
+```bash
+cjshopt set-history-max <number|default|status>
+```
+
+- Provide a number between **0** and **5000** (0 disables history persistence entirely)
+- Use `default` to restore the built-in limit of **200** entries
+- Use `status` (or `--status`) to display the current setting
+
+Examples:
+
+```bash
+cjshopt set-history-max 0        # Disable history persistence
+cjshopt set-history-max 500      # Retain the latest 500 commands
+cjshopt set-history-max default  # Go back to the default limit
+cjshopt set-history-max status   # Show the current limit
+```
+
+Commands added to `~/.cjshrc` are applied automatically at startup.
 
 #### bookmark-blacklist
 
-The `bookmark-blacklist` subcommand allows you to manage a list of directories that should not be automatically bookmarked by the smart CD feature.
+Manage a list of directories that should never be bookmarked by the smart `cd` feature. Adding a path automatically removes any existing bookmarks that point to it.
 
 ```bash
 cjshopt bookmark-blacklist <subcommand> [path]
 ```
 
 Available subcommands:
-- `add <path>` - Add a directory to the blacklist
-- `remove <path>` - Remove a directory from the blacklist
-- `list` - Display all blacklisted directories
-- `clear` - Remove all entries from the blacklist
+- `add <path>` — Add a directory to the blacklist
+- `remove <path>` — Remove a directory from the blacklist
+- `list` — Display all blacklisted directories
+- `clear` — Remove every entry from the blacklist
 
 Examples:
+
 ```bash
-# Add directories to the blacklist
 cjshopt bookmark-blacklist add /tmp
 cjshopt bookmark-blacklist add ~/.cache
-
-# List blacklisted directories
 cjshopt bookmark-blacklist list
-
-# Remove a directory from the blacklist
 cjshopt bookmark-blacklist remove /tmp
-
-# Clear all blacklisted directories
 cjshopt bookmark-blacklist clear
 ```
 
-This is particularly useful for preventing temporary or system directories from cluttering your bookmark list. Blacklist entries can be added to your `~/.cjshrc` file to persist across sessions.
+This is ideal for keeping temporary or system directories out of your bookmark suggestions. Add the relevant commands to `~/.cjshrc` to keep the blacklist synchronized between sessions.
