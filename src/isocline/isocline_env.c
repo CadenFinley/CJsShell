@@ -92,6 +92,7 @@ static ic_env_t* ic_env_create(ic_malloc_fun_t* _malloc, ic_realloc_fun_t* _real
     env->multiline_eol = '\\';
 
     bbcode_style_def(env->bbcode, "ic-prompt", "ansi-green");
+    bbcode_style_def(env->bbcode, "ic-linenumbers", "ansi-lightgray");
     bbcode_style_def(env->bbcode, "ic-info", "ansi-darkgray");
     bbcode_style_def(env->bbcode, "ic-diminish", "ansi-lightgray");
     bbcode_style_def(env->bbcode, "ic-emphasis", "#ffffd7");

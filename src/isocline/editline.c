@@ -580,9 +580,13 @@ static void edit_write_prompt(ic_env_t* env, editor_t* eb, ssize_t row, bool in_
         bbcode_print(env->bbcode, eb->prompt_text);
     } else if (env->show_line_numbers) {
         // show line numbers for multiline input
+        bbcode_style_close(env->bbcode, NULL);
+        bbcode_style_open(env->bbcode, "ic-linenumbers");
         char line_number_str[16];
         snprintf(line_number_str, sizeof(line_number_str), "%zd| ", row + 1);
-        term_write(env->term, line_number_str);
+        bbcode_print(env->bbcode, line_number_str);
+        bbcode_style_close(env->bbcode, NULL);
+        bbcode_style_open(env->bbcode, "ic-prompt");
     } else if (!env->no_multiline_indent) {
         // multiline continuation indentation
         // todo: cache prompt widths
