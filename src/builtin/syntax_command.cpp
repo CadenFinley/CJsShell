@@ -4,7 +4,7 @@
 #include <fstream>
 #include <iostream>
 
-#include "../script_interpreter/shell_script_interpreter_error_reporter.h"
+#include "shell_script_interpreter_error_reporter.h"
 #include "cjsh.h"
 #include "error_out.h"
 #include "shell.h"

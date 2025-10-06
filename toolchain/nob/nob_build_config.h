@@ -11,7 +11,7 @@ static const Build_Config build_config = {
     .main_sources_count = 9,
 
     .module_directories = (const char*[]){"src/builtin", "src/prompt", "src/prompt/modules",
-                                          "src/script_interpreter", "src/utils"},
+                                          "src/interpreter", "src/utils"},
     .module_directories_count = 5,
 
     .isocline_c_sources = (const char*[]){"src/isocline/attr.c",
@@ -39,14 +39,14 @@ static const Build_Config build_config = {
 
     .include_directories =
         (const char*[]){"include", "include/isocline", "include/builtin", "include/utils",
-                        "include/prompt", "include/prompt/modules", "include/script_interpreter"},
+                        "include/prompt", "include/prompt/modules", "include/interpreter"},
     .include_directories_count = 7,
 
     .c_include_directories = (const char*[]){"include", "include/isocline"},
     .c_include_directories_count = 2,
 
-    .required_directories = (const char*[]){"build", "build/obj", "build/vendor"},
-    .required_directories_count = 3,
+    .required_directories = (const char*[]){"build", "build/obj"},
+    .required_directories_count = 2,
 
     .external_dependencies = NULL,
     .external_dependencies_count = 0,

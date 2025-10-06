@@ -17,7 +17,7 @@
 #include "cjsh.h"
 #include "colors.h"
 #include "error_out.h"
-#include "script_interpreter/shell_script_interpreter_error_reporter.h"
+#include "shell_script_interpreter_error_reporter.h"
 
 namespace {
 
