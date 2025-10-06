@@ -1383,7 +1383,15 @@ static const std::unordered_map<std::string, std::string> default_styles = {
     {"variable", "color=#8BE9FD"},
     {"string", "color=#F1FA8C"},
     {"comment", "color=#6272A4"},
-    {"function-definition", "bold color=#F1FA8C"}};
+    {"function-definition", "bold color=#F1FA8C"},
+    {"ic-linenumbers", "ansi-lightgray"}};
+
+static std::string resolve_style_registry_name(const std::string& token_type) {
+    if (token_type.rfind("ic-", 0) == 0) {
+        return token_type;
+    }
+    return "cjsh-" + token_type;
+}
 
 int style_def_command(const std::vector<std::string>& args) {
     if (args.size() == 1) {
@@ -1444,7 +1452,7 @@ int style_def_command(const std::vector<std::string>& args) {
 }
 
 void apply_custom_style(const std::string& token_type, const std::string& style) {
-    std::string full_style_name = "cjsh-" + token_type;
+    std::string full_style_name = resolve_style_registry_name(token_type);
 
     auto default_it = default_styles.find(token_type);
     if (default_it != default_styles.end() && default_it->second == style) {
@@ -1470,7 +1478,7 @@ void reset_to_default_styles() {
     g_custom_styles.clear();
 
     for (const auto& pair : default_styles) {
-        std::string full_style_name = "cjsh-" + pair.first;
+        std::string full_style_name = resolve_style_registry_name(pair.first);
         ic_style_def(full_style_name.c_str(), pair.second.c_str());
     }
 }
@@ -1494,8 +1502,26 @@ void load_custom_styles_from_config() {
             continue;
         }
 
-        if (trimmed.find("style_def ") == 0) {
-            std::istringstream iss(trimmed);
+        std::string command_line = trimmed;
+
+        if (command_line.rfind("cjshopt", 0) == 0 &&
+            (command_line.size() == 7 || command_line[7] == ' ' || command_line[7] == '\t')) {
+            command_line.erase(0, 7);
+            auto after_prefix = command_line.find_first_not_of(" \t");
+            if (after_prefix == std::string::npos) {
+                continue;
+            }
+            command_line.erase(0, after_prefix);
+        }
+
+        auto first_non_space = command_line.find_first_not_of(" \t");
+        if (first_non_space == std::string::npos) {
+            continue;
+        }
+        command_line.erase(0, first_non_space);
+
+        if (command_line.rfind("style_def ", 0) == 0) {
+            std::istringstream iss(command_line);
             std::string command;
             std::string token_type;
 
