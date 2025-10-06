@@ -153,7 +153,7 @@ ic_private ssize_t completions_count(completions_t* cms) {
     return cms->count;
 }
 // Source priority levels (higher number = higher priority)
-typedef enum : uint8_t {
+typedef enum {
     SOURCE_PRIORITY_HISTORY = 0,  // Lowest priority - history should never override other sources
     SOURCE_PRIORITY_UNKNOWN = 1,
     SOURCE_PRIORITY_FILE = 2,
