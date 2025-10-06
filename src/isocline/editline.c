@@ -1059,24 +1059,48 @@ static void edit_cleanup_print(ic_env_t* env, editor_t* eb, const char* final_in
     bbcode_print(env->bbcode, prompt_marker);
     bbcode_style_close(env->bbcode, NULL);
 
+    attrbuf_t* cleanup_attrs = NULL;
+    const attr_t* cleanup_attr_data = NULL;
+    ssize_t final_len = 0;
+
     if (final_input != NULL && final_input[0] != '\0') {
-        const char* cursor = final_input;
-        while (*cursor != '\0') {
-            const char* newline = strchr(cursor, '\n');
-            if (newline == NULL) {
-                ssize_t remaining = to_ssize_t(strlen(cursor));
-                term_write_n(env->term, cursor, remaining);
-                break;
-            } else {
-                ssize_t segment = to_ssize_t(newline - cursor + 1);
-                term_write_n(env->term, cursor, segment);
-                cursor = newline + 1;
-                if (*cursor != '\0' && promptw > 0) {
+        final_len = ic_strlen(final_input);
+        if (final_len > 0) {
+            cleanup_attrs = attrbuf_new(env->mem);
+            if (cleanup_attrs != NULL) {
+                highlight(env->mem, env->bbcode, final_input, cleanup_attrs,
+                          (env->no_highlight ? NULL : env->highlighter), env->highlighter_arg);
+                if (!env->no_bracematch) {
+                    highlight_match_braces(final_input, cleanup_attrs, final_len,
+                                           ic_env_get_match_braces(env),
+                                           bbcode_style(env->bbcode, "ic-bracematch"),
+                                           bbcode_style(env->bbcode, "ic-error"));
+                }
+                if (attrbuf_len(cleanup_attrs) >= final_len) {
+                    cleanup_attr_data = attrbuf_attrs(cleanup_attrs, final_len);
+                }
+            }
+
+            ssize_t offset = 0;
+            while (offset < final_len) {
+                const char* segment_start = final_input + offset;
+                const char* newline = memchr(segment_start, '\n', final_len - offset);
+                ssize_t segment_len = (newline == NULL ? (final_len - offset)
+                                                       : to_ssize_t(newline - segment_start + 1));
+                const attr_t* segment_attrs =
+                    (cleanup_attr_data != NULL ? cleanup_attr_data + offset : NULL);
+
+                term_write_formatted_n(env->term, segment_start, segment_attrs, segment_len);
+                offset += segment_len;
+
+                if (newline != NULL && offset < final_len && promptw > 0) {
                     term_write_repeat(env->term, " ", promptw);
                 }
             }
         }
     }
+
+    attrbuf_free(cleanup_attrs);
 
     if (add_empty_line) {
         term_write_char(env->term, '\n');
