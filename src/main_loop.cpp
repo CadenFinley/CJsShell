@@ -114,6 +114,9 @@ bool process_command_line(const std::string& command) {
         return g_exit_flag;
     }
 
+    // Execute preexec hooks before running the command
+    g_shell->execute_hooks("preexec");
+
     g_shell->start_command_timing();
     int exit_code = g_shell->execute(command);
     g_shell->end_command_timing(exit_code);
@@ -196,6 +199,9 @@ static bool handle_null_input() {
 static std::pair<std::string, bool> get_next_command(bool command_was_available) {
     std::string command_to_run;
     bool command_available = false;
+
+    // Execute precmd hooks before displaying prompt
+    g_shell->execute_hooks("precmd");
 
     std::string prompt = generate_prompt(command_was_available);
     std::string inline_right_text = g_shell->get_inline_right_prompt();

@@ -526,3 +526,64 @@ void Shell::sync_env_vars_from_system() {
         shell_parser->set_env_vars(env_vars);
     }
 }
+
+// Hook system implementation
+void Shell::register_hook(const std::string& hook_type, const std::string& function_name) {
+    if (function_name.empty()) {
+        return;
+    }
+
+    auto& hook_list = hooks[hook_type];
+
+    // Avoid duplicate registrations
+    if (std::find(hook_list.begin(), hook_list.end(), function_name) == hook_list.end()) {
+        hook_list.push_back(function_name);
+    }
+}
+
+void Shell::unregister_hook(const std::string& hook_type, const std::string& function_name) {
+    auto it = hooks.find(hook_type);
+    if (it == hooks.end()) {
+        return;
+    }
+
+    auto& hook_list = it->second;
+    hook_list.erase(std::remove(hook_list.begin(), hook_list.end(), function_name),
+                    hook_list.end());
+
+    // Clean up empty hook types
+    if (hook_list.empty()) {
+        hooks.erase(it);
+    }
+}
+
+std::vector<std::string> Shell::get_hooks(const std::string& hook_type) const {
+    auto it = hooks.find(hook_type);
+    if (it != hooks.end()) {
+        return it->second;
+    }
+    return {};
+}
+
+void Shell::clear_hooks(const std::string& hook_type) {
+    hooks.erase(hook_type);
+}
+
+void Shell::execute_hooks(const std::string& hook_type) {
+    auto it = hooks.find(hook_type);
+    if (it == hooks.end()) {
+        return;
+    }
+
+    const auto& hook_list = it->second;
+    if (hook_list.empty()) {
+        return;
+    }
+
+    // Execute each registered hook function
+    for (const auto& function_name : hook_list) {
+        // Execute the hook function/command
+        // Hooks are expected to be shell functions or commands
+        execute(function_name);
+    }
+}

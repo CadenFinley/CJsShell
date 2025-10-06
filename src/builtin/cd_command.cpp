@@ -8,6 +8,7 @@
 #include <filesystem>
 
 #include "error_out.h"
+#include "shell.h"
 #include "suggestion_utils.h"
 #include "utils/bookmark_database.h"
 
@@ -21,7 +22,8 @@ void update_directory_bookmarks(const std::string& dir_path,
 }
 
 int change_directory(const std::string& dir, std::string& current_directory,
-                     std::string& previous_directory, std::string& last_terminal_output_error) {
+                     std::string& previous_directory, std::string& last_terminal_output_error,
+                     Shell* shell) {
     std::string target_dir = dir;
 
     if (target_dir.empty() || target_dir == "~") {
@@ -104,6 +106,11 @@ int change_directory(const std::string& dir, std::string& current_directory,
 
         previous_directory = old_directory;
 
+        // Execute chpwd hooks after successful directory change
+        if (shell != nullptr && old_directory != current_directory) {
+            shell->execute_hooks("chpwd");
+        }
+
         return 0;
     } catch (const std::filesystem::filesystem_error& e) {
         ErrorInfo error = {ErrorType::RUNTIME_ERROR, "cd", std::string(e.what()), {}};
@@ -120,8 +127,8 @@ int change_directory(const std::string& dir, std::string& current_directory,
 }
 
 int change_directory_smart(const std::string& dir, std::string& current_directory,
-                           std::string& previous_directory,
-                           std::string& last_terminal_output_error) {
+                           std::string& previous_directory, std::string& last_terminal_output_error,
+                           Shell* shell) {
     std::string target_dir = dir;
 
     if (target_dir.empty() || target_dir == "~") {
@@ -243,6 +250,11 @@ int change_directory_smart(const std::string& dir, std::string& current_director
                     // }
                 }
             }
+        }
+
+        // Execute chpwd hooks after successful directory change
+        if (shell != nullptr && old_directory != current_directory) {
+            shell->execute_hooks("chpwd");
         }
 
         return 0;

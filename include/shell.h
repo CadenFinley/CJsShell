@@ -145,6 +145,13 @@ class Shell {
     void restore_terminal_state();
     void setup_job_control();
 
+    // Hook system
+    void register_hook(const std::string& hook_type, const std::string& function_name);
+    void unregister_hook(const std::string& hook_type, const std::string& function_name);
+    std::vector<std::string> get_hooks(const std::string& hook_type) const;
+    void clear_hooks(const std::string& hook_type);
+    void execute_hooks(const std::string& hook_type);
+
     std::string last_terminal_output_error;
     std::string last_command;
     std::unique_ptr<Exec> shell_exec;
@@ -200,4 +207,8 @@ class Shell {
     std::unordered_map<std::string, std::string> env_vars;
     std::vector<std::string> positional_parameters;
     std::unordered_map<std::string, bool> shell_options;
+
+    // Hook storage: hook_type -> list of function names
+    std::unordered_map<std::string, std::vector<std::string>> hooks;
+    std::string last_directory;  // For chpwd hook
 };

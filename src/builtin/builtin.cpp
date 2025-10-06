@@ -25,6 +25,7 @@
 #include "hash_command.h"
 #include "help_command.h"
 #include "history_command.h"
+#include "hook_command.h"
 #include "if_command.h"
 #include "internal_subshell_command.h"
 #include "job_control.h"
@@ -120,10 +121,11 @@ Built_ins::Built_ins() : shell(nullptr) {
              }
              if (config::smart_cd_enabled) {
                  return ::change_directory_smart(args.size() > 1 ? args[1] : "", current_directory,
-                                                 previous_directory, last_terminal_output_error);
+                                                 previous_directory, last_terminal_output_error,
+                                                 shell);
              } else {
                  return ::change_directory(args.size() > 1 ? args[1] : "", current_directory,
-                                           previous_directory, last_terminal_output_error);
+                                           previous_directory, last_terminal_output_error, shell);
              }
          }},
         {"local",
@@ -200,6 +202,8 @@ Built_ins::Built_ins() : shell(nullptr) {
          [this](const std::vector<std::string>& args) { return ::validate_command(args, shell); }},
         {"hash",
          [](const std::vector<std::string>& args) { return ::hash_command(args, nullptr); }},
+        {"hook",
+         [this](const std::vector<std::string>& args) { return ::hook_command(args, shell); }},
         {"builtin",
          [this](const std::vector<std::string>& args) {
              if (builtin_handle_help(
