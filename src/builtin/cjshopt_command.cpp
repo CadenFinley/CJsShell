@@ -25,16 +25,23 @@ void print_cjshopt_usage() {
     std::cout
         << "  style_def <token_type> <style>   Define or redefine a syntax highlighting style\n";
     std::cout << "  login-startup-arg [--flag-name]  Add a startup flag (config file only)\n";
-    std::cout << "  completion-case <on|off|status>  Configure completion case sensitivity (default: enabled)\n";
-    std::cout << "  completion-spell <on|off|status> Configure completion spell correction (default: enabled)\n";
-    std::cout << "  line-numbers <on|off|relative|absolute|status>    Configure line numbers in multiline input (default: enabled)\n";
+    std::cout << "  completion-case <on|off|status>  Configure completion case sensitivity "
+                 "(default: enabled)\n";
+    std::cout << "  completion-spell <on|off|status> Configure completion spell correction "
+                 "(default: enabled)\n";
+    std::cout << "  line-numbers <on|off|relative|absolute|status>    Configure line numbers in "
+                 "multiline input (default: enabled)\n";
     std::cout << "  hint-delay <milliseconds>        Set hint display delay in milliseconds\n";
-    std::cout << "  completion-preview <on|off|status> Configure completion preview (default: enabled)\n";
+    std::cout
+        << "  completion-preview <on|off|status> Configure completion preview (default: enabled)\n";
     std::cout << "  hint <on|off|status>            Configure inline hints (default: enabled)\n";
-    std::cout << "  multiline-indent <on|off|status> Configure auto-indent in multiline (default: enabled)\n";
+    std::cout << "  multiline-indent <on|off|status> Configure auto-indent in multiline (default: "
+                 "enabled)\n";
     std::cout << "  multiline <on|off|status>       Configure multiline input (default: enabled)\n";
-    std::cout << "  inline-help <on|off|status>     Configure inline help messages (default: enabled)\n";
-    std::cout << "  auto-tab <on|off|status>        Configure automatic tab completion (default: enabled)\n";
+    std::cout
+        << "  inline-help <on|off|status>     Configure inline help messages (default: enabled)\n";
+    std::cout << "  auto-tab <on|off|status>        Configure automatic tab completion (default: "
+                 "enabled)\n";
     std::cout << "  keybind <subcommand> [...]       Inspect or modify key bindings (modifications "
                  "in config only)\n";
     std::cout << "  generate-profile [--force]       Create or overwrite ~/.cjprofile\n";
@@ -136,8 +143,8 @@ int handle_toggle_command(const ToggleCommandConfig& config, const std::vector<s
     }
 
     if (args.size() != 2) {
-        print_error({ErrorType::INVALID_ARGUMENT, config.command_name, "Too many arguments provided",
-                     config.usage_lines});
+        print_error({ErrorType::INVALID_ARGUMENT, config.command_name,
+                     "Too many arguments provided", config.usage_lines});
         return 1;
     }
 
@@ -201,15 +208,21 @@ int cjshopt_command(const std::vector<std::string>& args) {
                  "(config file only)",
                  "  completion-case <on|off|status>  Configure completion case "
                  "sensitivity (default: disabled)",
-                 "  completion-spell <on|off|status> Configure completion spell correction (default: enabled)",
-                 "  line-numbers <on|off|relative|absolute|status>    Configure line numbers in multiline input (default: enabled)",
+                 "  completion-spell <on|off|status> Configure completion spell correction "
+                 "(default: enabled)",
+                 "  line-numbers <on|off|relative|absolute|status>    Configure line numbers in "
+                 "multiline input (default: enabled)",
                  "  hint-delay <milliseconds>        Set hint display delay in milliseconds",
-                 "  completion-preview <on|off|status> Configure completion preview (default: enabled)",
+                 "  completion-preview <on|off|status> Configure completion preview (default: "
+                 "enabled)",
                  "  hint <on|off|status>            Configure inline hints (default: enabled)",
-                 "  multiline-indent <on|off|status> Configure auto-indent in multiline (default: enabled)",
+                 "  multiline-indent <on|off|status> Configure auto-indent in multiline (default: "
+                 "enabled)",
                  "  multiline <on|off|status>       Configure multiline input (default: enabled)",
-                 "  inline-help <on|off|status>     Configure inline help messages (default: enabled)",
-                 "  auto-tab <on|off|status>        Configure automatic tab completion (default: enabled)",
+                 "  inline-help <on|off|status>     Configure inline help messages (default: "
+                 "enabled)",
+                 "  auto-tab <on|off|status>        Configure automatic tab completion (default: "
+                 "enabled)",
                  "  keybind <subcommand> [...]       Inspect or modify key bindings "
                  "(modifications in config only)",
                  "  generate-profile [--force]       Create or overwrite ~/.cjprofile",
@@ -263,13 +276,15 @@ int cjshopt_command(const std::vector<std::string>& args) {
     } else if (subcommand == "bookmark-blacklist") {
         return bookmark_blacklist_command(std::vector<std::string>(args.begin() + 1, args.end()));
     } else {
-        print_error({ErrorType::INVALID_ARGUMENT,
-                     "cjshopt",
-                     "unknown subcommand '" + subcommand + "'",
-                     {"Available subcommands: style_def, login-startup-arg, completion-case, "
-                      "completion-spell, line-numbers, hint-delay, completion-preview, hint, "
-                      "multiline-indent, multiline, inline-help, auto-tab, keybind, generate-profile, "
-                      "generate-rc, generate-logout, set-max-bookmarks, set-history-max, bookmark-blacklist"}});
+        print_error(
+            {ErrorType::INVALID_ARGUMENT,
+             "cjshopt",
+             "unknown subcommand '" + subcommand + "'",
+             {"Available subcommands: style_def, login-startup-arg, completion-case, "
+              "completion-spell, line-numbers, hint-delay, completion-preview, hint, "
+              "multiline-indent, multiline, inline-help, auto-tab, keybind, generate-profile, "
+              "generate-rc, generate-logout, set-max-bookmarks, set-history-max, "
+              "bookmark-blacklist"}});
         return 1;
     }
 }
@@ -411,8 +426,8 @@ int line_numbers_command(const std::vector<std::string>& args) {
     };
 
     if (args.size() == 1) {
-        print_error({ErrorType::INVALID_ARGUMENT, "line-numbers", "Missing option argument",
-                     usage_lines});
+        print_error(
+            {ErrorType::INVALID_ARGUMENT, "line-numbers", "Missing option argument", usage_lines});
         return 1;
     }
 
@@ -445,22 +460,20 @@ int line_numbers_command(const std::vector<std::string>& args) {
     const bool was_relative = ic_line_numbers_are_relative();
     bool changed = false;
 
-    if (matches_token(normalized,
-                      {"off", "disable", "disabled", "false", "0", "--disable"})) {
+    if (matches_token(normalized, {"off", "disable", "disabled", "false", "0", "--disable"})) {
         ic_enable_line_numbers(false);
         changed = (was_enabled || was_relative);
     } else if (matches_token(normalized, {"relative", "rel", "--relative"})) {
         ic_enable_relative_line_numbers(true);
         changed = (!was_enabled || !was_relative);
     } else if (matches_token(normalized, {"absolute", "abs", "--absolute"}) ||
-               matches_token(normalized, {"on", "enable", "enabled", "true", "1",
-                                          "--enable"})) {
+               matches_token(normalized, {"on", "enable", "enabled", "true", "1", "--enable"})) {
         ic_enable_line_numbers(true);
         ic_enable_relative_line_numbers(false);
         changed = (!was_enabled || was_relative);
     } else {
-        print_error({ErrorType::INVALID_ARGUMENT, "line-numbers",
-                     "Unknown option '" + option + "'", usage_lines});
+        print_error({ErrorType::INVALID_ARGUMENT, "line-numbers", "Unknown option '" + option + "'",
+                     usage_lines});
         return 1;
     }
 
@@ -489,8 +502,8 @@ int hint_delay_command(const std::vector<std::string>& args) {
         "  hint-delay status Show the current delay setting"};
 
     if (args.size() == 1) {
-        print_error({ErrorType::INVALID_ARGUMENT, "hint-delay", "Missing delay value",
-                     usage_lines});
+        print_error(
+            {ErrorType::INVALID_ARGUMENT, "hint-delay", "Missing delay value", usage_lines});
         return 1;
     }
 
@@ -526,8 +539,8 @@ int hint_delay_command(const std::vector<std::string>& args) {
     try {
         long delay_ms = std::stol(option);
         if (delay_ms < 0) {
-            print_error({ErrorType::INVALID_ARGUMENT, "hint-delay",
-                         "Delay must be non-negative", usage_lines});
+            print_error({ErrorType::INVALID_ARGUMENT, "hint-delay", "Delay must be non-negative",
+                         usage_lines});
             return 1;
         }
 
@@ -573,10 +586,8 @@ int completion_preview_command(const std::vector<std::string>& args) {
 
 int hint_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {
-        "Usage: hint <on|off|status>",
-        "Examples:", "  hint on      Enable inline hints",
-        "  hint off     Disable inline hints",
-        "  hint status  Show the current setting"};
+        "Usage: hint <on|off|status>", "Examples:", "  hint on      Enable inline hints",
+        "  hint off     Disable inline hints", "  hint status  Show the current setting"};
 
     static const ToggleCommandConfig config{
         "hint",

@@ -59,20 +59,25 @@ struct QuoteInfo {
     QuoteInfo(const std::string& token)
         : is_single(is_single_quoted_token(token)),
           is_double(is_double_quoted_token(token)),
-          value(strip_quote_tag(token)) {}
+          value(strip_quote_tag(token)) {
+    }
 
-    bool is_quoted() const { return is_single || is_double; }
-    bool is_unquoted() const { return !is_single && !is_double; }
+    bool is_quoted() const {
+        return is_single || is_double;
+    }
+    bool is_unquoted() const {
+        return !is_single && !is_double;
+    }
 
-private:
+   private:
     static bool is_single_quoted_token(const std::string& s) {
         return s.size() >= 2 && s[0] == '\x1F' && s[1] == 'S';
     }
-    
+
     static bool is_double_quoted_token(const std::string& s) {
         return s.size() >= 2 && s[0] == '\x1F' && s[1] == 'D';
     }
-    
+
     static std::string strip_quote_tag(const std::string& s) {
         if (s.size() >= 2 && s[0] == '\x1F' && (s[1] == 'S' || s[1] == 'D')) {
             return s.substr(2);
@@ -560,13 +565,14 @@ inline std::string trim_whitespace(const std::string& s) {
 
 namespace {
 
-template<typename ExpandFunc, typename EvalFunc>
-std::pair<bool, std::string> try_expand_arithmetic_expression(
-    const std::string& arg, size_t& i, ExpandFunc expand_func, EvalFunc eval_func) {
+template <typename ExpandFunc, typename EvalFunc>
+std::pair<bool, std::string> try_expand_arithmetic_expression(const std::string& arg, size_t& i,
+                                                              ExpandFunc expand_func,
+                                                              EvalFunc eval_func) {
     if (!(arg[i] == '$' && i + 2 < arg.length() && arg[i + 1] == '(' && arg[i + 2] == '(')) {
         return {false, ""};
     }
-    
+
     size_t start = i + 3;
     size_t paren_depth = 1;
     size_t end = start;
@@ -599,13 +605,13 @@ std::pair<bool, std::string> try_expand_arithmetic_expression(
             return {true, arg.substr(i - (end - start + 3), end - start + 3)};
         }
     }
-    
+
     return {false, ""};
 }
 
-template<typename GetVarFunc, typename ExpandFunc>
-std::string expand_parameter_with_default(
-    const std::string& param_expr, GetVarFunc get_var, ExpandFunc expand_func) {
+template <typename GetVarFunc, typename ExpandFunc>
+std::string expand_parameter_with_default(const std::string& param_expr, GetVarFunc get_var,
+                                          ExpandFunc expand_func) {
     size_t colon_pos = param_expr.find(':');
     size_t dash_pos = param_expr.find('-', colon_pos != std::string::npos ? colon_pos + 1 : 0);
 
@@ -619,7 +625,7 @@ std::string expand_parameter_with_default(
         expand_func(default_val);
         return default_val;
     }
-    
+
     if (colon_pos == std::string::npos && param_expr.find('-') != std::string::npos) {
         dash_pos = param_expr.find('-');
         std::string var_name = param_expr.substr(0, dash_pos);
@@ -631,7 +637,7 @@ std::string expand_parameter_with_default(
         expand_func(default_val);
         return default_val;
     }
-    
+
     return get_var(param_expr);
 }
 
@@ -832,7 +838,7 @@ std::vector<std::string> expand_tilde_tokens(const std::vector<std::string>& tok
 
     for (const auto& raw : tokens) {
         QuoteInfo qi(raw);
-        
+
         if (qi.is_unquoted() && has_home && contains_tilde(qi.value)) {
             result.push_back(expand_tilde_value(qi.value, home));
         } else if (qi.is_unquoted()) {
@@ -1334,7 +1340,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
     std::vector<std::string> pre_expanded_args;
     for (const auto& raw_arg : args) {
         QuoteInfo qi(raw_arg);
-        
+
         if (qi.is_double && qi.value == "$@" && (shell != nullptr)) {
             auto params = shell->get_positional_parameters();
             for (const auto& param : params) {
@@ -1348,7 +1354,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
 
     for (auto& raw_arg : args) {
         QuoteInfo qi(raw_arg);
-        
+
         if (!qi.is_single) {
             auto [noenv_stripped, had_noenv] = strip_noenv_sentinels(qi.value);
             if (!had_noenv) {
@@ -1380,7 +1386,8 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
                 strip_subst_literal_markers(noenv_stripped);
             }
 
-            raw_arg = qi.is_double ? create_quote_tag(QUOTE_DOUBLE, noenv_stripped) : noenv_stripped;
+            raw_arg =
+                qi.is_double ? create_quote_tag(QUOTE_DOUBLE, noenv_stripped) : noenv_stripped;
         }
     }
 
@@ -1388,7 +1395,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
     ifs_expanded_args.reserve(args.size() * 2);
     for (const auto& raw_arg : args) {
         QuoteInfo qi(raw_arg);
-        
+
         if (qi.is_unquoted()) {
             std::vector<std::string> split_words = split_by_ifs(raw_arg);
             ifs_expanded_args.insert(ifs_expanded_args.end(),
@@ -1409,7 +1416,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
 
     for (const auto& raw_arg : tilde_expanded_args) {
         QuoteInfo qi(raw_arg);
-        
+
         if (qi.is_unquoted() && !is_double_bracket_command) {
             auto gw = expand_wildcards(qi.value);
             final_args.insert(final_args.end(), gw.begin(), gw.end());
@@ -1724,7 +1731,7 @@ void Parser::expand_env_vars(std::string& arg) {
         auto [handled, arith_result] = try_expand_arithmetic_expression(
             arg, i, [this](std::string& s) { expand_env_vars(s); },
             [this](const std::string& s) { return evaluate_arithmetic(s); });
-        
+
         if (handled) {
             result += arith_result;
             continue;
@@ -1757,7 +1764,8 @@ void Parser::expand_env_vars(std::string& arg) {
                 std::string param_expr = arg.substr(start, end - start);
                 std::string value;
 
-                if (param_expr.find(':') != std::string::npos || param_expr.find('-') != std::string::npos) {
+                if (param_expr.find(':') != std::string::npos ||
+                    param_expr.find('-') != std::string::npos) {
                     value = expand_parameter_with_default(
                         param_expr,
                         [this](const std::string& name) { return get_variable_value(name); },
@@ -1765,7 +1773,9 @@ void Parser::expand_env_vars(std::string& arg) {
                 } else {
                     if ((shell != nullptr) && (shell->get_shell_script_interpreter() != nullptr)) {
                         try {
-                            value = shell->get_shell_script_interpreter()->expand_parameter_expression(param_expr);
+                            value =
+                                shell->get_shell_script_interpreter()->expand_parameter_expression(
+                                    param_expr);
                         } catch (...) {
                             value = get_variable_value(param_expr);
                         }
@@ -1922,7 +1932,7 @@ void Parser::expand_exported_env_vars_only(std::string& arg) {
         auto [handled, arith_result] = try_expand_arithmetic_expression(
             arg, i, [this](std::string& s) { expand_exported_env_vars_only(s); },
             [this](const std::string& s) { return evaluate_arithmetic(s); });
-        
+
         if (handled) {
             result += arith_result.empty() ? "0" : arith_result;
             continue;
@@ -1950,11 +1960,14 @@ void Parser::expand_exported_env_vars_only(std::string& arg) {
                 if (brace_depth == 0) {
                     std::string param_expr = arg.substr(brace_start, brace_end - brace_start);
                     std::string value;
-                    
-                    if (param_expr.find(":-") != std::string::npos || param_expr.find(":=") != std::string::npos) {
+
+                    if (param_expr.find(":-") != std::string::npos ||
+                        param_expr.find(":=") != std::string::npos) {
                         value = expand_parameter_with_default(
                             param_expr,
-                            [this](const std::string& name) { return get_exported_variable_value(name); },
+                            [this](const std::string& name) {
+                                return get_exported_variable_value(name);
+                            },
                             [this](std::string& val) { expand_exported_env_vars_only(val); });
                     } else {
                         value = get_exported_variable_value(param_expr);
@@ -2339,20 +2352,19 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
 
         for (size_t i = 0; i < tokens.size(); ++i) {
             QuoteInfo qi(tokens[i]);
-            if ((qi.value == "<" || qi.value == ">" || qi.value == ">>" || qi.value == ">|" || qi.value == "&>" ||
-                 qi.value == "<<" || qi.value == "<<-" || qi.value == "<<<" || qi.value == "2>" || qi.value == "2>>") &&
+            if ((qi.value == "<" || qi.value == ">" || qi.value == ">>" || qi.value == ">|" ||
+                 qi.value == "&>" || qi.value == "<<" || qi.value == "<<-" || qi.value == "<<<" ||
+                 qi.value == "2>" || qi.value == "2>>") &&
                 (i + 1 >= tokens.size())) {
                 throw std::runtime_error("cjsh: syntax error near unexpected token `newline'");
             }
         }
 
-        auto get_next_token_value = [&tokens](size_t& i) {
-            return QuoteInfo(tokens[++i]).value;
-        };
+        auto get_next_token_value = [&tokens](size_t& i) { return QuoteInfo(tokens[++i]).value; };
 
         for (size_t i = 0; i < tokens.size(); ++i) {
             QuoteInfo qi(tokens[i]);
-            
+
             if (qi.value == "<" && i + 1 < tokens.size()) {
                 cmd.input_file = get_next_token_value(i);
             } else if (qi.value == ">" && i + 1 < tokens.size()) {
@@ -2934,9 +2946,12 @@ long long Parser::evaluate_arithmetic(const std::string& expr) {
             long long right_val = evaluate_arithmetic(right);
 
             switch (op[0]) {
-                case '+': return left_val + right_val;
-                case '-': return left_val - right_val;
-                case '*': return left_val * right_val;
+                case '+':
+                    return left_val + right_val;
+                case '-':
+                    return left_val - right_val;
+                case '*':
+                    return left_val * right_val;
                 case '/':
                     if (right_val == 0)
                         throw std::runtime_error("Division by zero");

@@ -4,10 +4,10 @@
 #include <fstream>
 #include <iostream>
 
-#include "shell_script_interpreter_error_reporter.h"
 #include "cjsh.h"
 #include "error_out.h"
 #include "shell.h"
+#include "shell_script_interpreter_error_reporter.h"
 
 namespace {
 void print_syntax_usage() {

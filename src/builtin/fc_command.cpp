@@ -19,23 +19,22 @@
 
 namespace {
 
-
 std::vector<std::string> read_history_entries() {
     cjsh_filesystem::initialize_cjsh_directories();
-    
+
     auto read_result =
         cjsh_filesystem::read_file_content(cjsh_filesystem::g_cjsh_history_path.string());
-    
+
     std::vector<std::string> entries;
     entries.reserve(256);
-    
+
     if (read_result.is_error()) {
         return entries;
     }
-    
+
     std::stringstream content_stream(read_result.value());
     std::string line;
-    
+
     while (std::getline(content_stream, line)) {
         if (line.empty()) {
             continue;
@@ -45,24 +44,22 @@ std::vector<std::string> read_history_entries() {
         }
         entries.push_back(line);
     }
-    
+
     return entries;
 }
-
 
 bool parse_history_index(const std::string& arg, int history_size, int& result) {
     try {
         int index = std::stoi(arg);
-        
-        
+
         if (index < 0) {
             index = history_size + index;
         }
-        
+
         if (index < 0 || index >= history_size) {
             return false;
         }
-        
+
         result = index;
         return true;
     } catch (...) {
@@ -70,20 +67,19 @@ bool parse_history_index(const std::string& arg, int history_size, int& result) 
     }
 }
 
-
 int list_history(const std::vector<std::string>& entries, int first, int last, bool show_numbers,
-                bool reverse_order) {
+                 bool reverse_order) {
     if (first < 0 || first >= static_cast<int>(entries.size())) {
         first = 0;
     }
     if (last < 0 || last >= static_cast<int>(entries.size())) {
         last = static_cast<int>(entries.size()) - 1;
     }
-    
+
     if (first > last) {
         std::swap(first, last);
     }
-    
+
     if (reverse_order) {
         for (int i = last; i >= first; --i) {
             if (show_numbers) {
@@ -99,83 +95,74 @@ int list_history(const std::vector<std::string>& entries, int first, int last, b
             std::cout << entries[i] << '\n';
         }
     }
-    
+
     return 0;
 }
-
 
 std::string get_editor() {
     const char* fcedit = std::getenv("FCEDIT");
     if (fcedit && fcedit[0] != '\0') {
         return std::string(fcedit);
     }
-    
+
     const char* editor = std::getenv("EDITOR");
     if (editor && editor[0] != '\0') {
         return std::string(editor);
     }
-    
+
     return "ed";
 }
 
-
 int edit_and_execute(const std::vector<std::string>& entries, int first, int last,
-                    const std::string& editor, Shell* shell) {
+                     const std::string& editor, Shell* shell) {
     if (first < 0 || first >= static_cast<int>(entries.size())) {
         first = static_cast<int>(entries.size()) - 1;
     }
     if (last < 0 || last >= static_cast<int>(entries.size())) {
         last = first;
     }
-    
+
     if (first > last) {
         std::swap(first, last);
     }
-    
-    
+
     cjsh_filesystem::initialize_cjsh_directories();
     auto temp_dir = cjsh_filesystem::g_cjsh_cache_path;
     auto temp_file = temp_dir / ("fc_edit_" + std::to_string(getpid()) + ".sh");
-    
-    
+
     std::ofstream out(temp_file);
     if (!out) {
         print_error({ErrorType::RUNTIME_ERROR, "fc", "Failed to create temporary file", {}});
         return 1;
     }
-    
+
     for (int i = first; i <= last; ++i) {
         out << entries[i] << '\n';
     }
     out.close();
-    
-    
+
     std::vector<std::string> editor_args = {editor, temp_file.string()};
     int editor_exit_code = shell->execute_command(editor_args, false);
-    
+
     if (editor_exit_code != 0) {
-        
         cjsh_filesystem::fs::remove(temp_file);
         return editor_exit_code;
     }
-    
-    
+
     auto read_result = cjsh_filesystem::read_file_content(temp_file.string());
     cjsh_filesystem::fs::remove(temp_file);
-    
+
     if (read_result.is_error()) {
         print_error({ErrorType::RUNTIME_ERROR, "fc", "Failed to read edited commands", {}});
         return 1;
     }
-    
+
     std::string edited_content = read_result.value();
-    
-    
+
     if (edited_content.empty()) {
         return 0;
     }
-    
-    
+
     std::istringstream iss(edited_content);
     std::string line;
     while (std::getline(iss, line)) {
@@ -183,65 +170,57 @@ int edit_and_execute(const std::vector<std::string>& entries, int first, int las
             std::cout << line << '\n';
         }
     }
-    
-    
+
     int exit_code = shell->execute(edited_content);
-    
+
     return exit_code;
 }
 
-
-int substitute_and_execute(const std::vector<std::string>& entries, 
-                          const std::string& old_str, const std::string& new_str,
-                          const std::string& pattern, Shell* shell) {
+int substitute_and_execute(const std::vector<std::string>& entries, const std::string& old_str,
+                           const std::string& new_str, const std::string& pattern, Shell* shell) {
     int target_idx = static_cast<int>(entries.size()) - 1;
-    
-    
+
     if (!pattern.empty()) {
-        
         for (int i = static_cast<int>(entries.size()) - 1; i >= 0; --i) {
             if (entries[i].find(pattern) == 0) {
                 target_idx = i;
                 break;
             }
         }
-        
-        
+
         if (target_idx >= 0 && entries[target_idx].find(pattern) != 0) {
-            print_error({ErrorType::RUNTIME_ERROR, "fc", 
-                        "No command in history starting with: " + pattern, {}});
+            print_error({ErrorType::RUNTIME_ERROR,
+                         "fc",
+                         "No command in history starting with: " + pattern,
+                         {}});
             return 1;
         }
     }
-    
+
     if (target_idx < 0 || target_idx >= static_cast<int>(entries.size())) {
         print_error({ErrorType::RUNTIME_ERROR, "fc", "No commands in history", {}});
         return 1;
     }
-    
+
     std::string command = entries[target_idx];
-    
-    
+
     if (!old_str.empty()) {
         size_t pos = command.find(old_str);
         if (pos != std::string::npos) {
             command.replace(pos, old_str.length(), new_str);
         }
     }
-    
-    
+
     std::cout << command << '\n';
-    
-    
+
     int exit_code = shell->execute(command);
-    
+
     return exit_code;
 }
 
-}  
+}  // namespace
 
 int fc_command(const std::vector<std::string>& args, Shell* shell) {
-    
     bool list_mode = false;
     bool substitute_mode = false;
     bool show_numbers = true;
@@ -252,11 +231,11 @@ int fc_command(const std::vector<std::string>& args, Shell* shell) {
     std::string command_pattern;
     int first_idx = -1;
     int last_idx = -1;
-    
+
     size_t i = 1;
     while (i < args.size()) {
         const std::string& arg = args[i];
-        
+
         if (arg == "-h" || arg == "--help") {
             std::cout << "Usage: fc [-e editor] [-lnr] [first [last]]\n";
             std::cout << "       fc -s [old=new] [command]\n";
@@ -284,7 +263,8 @@ int fc_command(const std::vector<std::string>& args, Shell* shell) {
             std::cout << "  fc -e nano      Edit previous command with nano\n";
             std::cout << "  fc -s           Re-execute the previous command\n";
             std::cout << "  fc -s echo      Re-execute most recent 'echo' command\n";
-            std::cout << "  fc -s old=new   Re-execute previous command, replacing 'old' with 'new'\n";
+            std::cout
+                << "  fc -s old=new   Re-execute previous command, replacing 'old' with 'new'\n";
             return 0;
         } else if (arg == "-l") {
             list_mode = true;
@@ -297,7 +277,8 @@ int fc_command(const std::vector<std::string>& args, Shell* shell) {
             ++i;
         } else if (arg == "-e") {
             if (i + 1 >= args.size()) {
-                print_error({ErrorType::INVALID_ARGUMENT, "fc", "-e requires an editor argument", {}});
+                print_error(
+                    {ErrorType::INVALID_ARGUMENT, "fc", "-e requires an editor argument", {}});
                 return 1;
             }
             editor = args[i + 1];
@@ -309,9 +290,7 @@ int fc_command(const std::vector<std::string>& args, Shell* shell) {
             print_error({ErrorType::INVALID_ARGUMENT, "fc", "Unknown option: " + arg, {}});
             return 1;
         } else {
-            
             if (substitute_mode) {
-                
                 size_t eq_pos = arg.find('=');
                 if (eq_pos != std::string::npos) {
                     old_pattern = arg.substr(0, eq_pos);
@@ -321,11 +300,11 @@ int fc_command(const std::vector<std::string>& args, Shell* shell) {
                     command_pattern = arg;
                     ++i;
                 } else {
-                    print_error({ErrorType::INVALID_ARGUMENT, "fc", "Too many arguments for -s", {}});
+                    print_error(
+                        {ErrorType::INVALID_ARGUMENT, "fc", "Too many arguments for -s", {}});
                     return 1;
                 }
             } else {
-                
                 if (first_idx == -1) {
                     first_idx = i;
                     ++i;
@@ -339,31 +318,30 @@ int fc_command(const std::vector<std::string>& args, Shell* shell) {
             }
         }
     }
-    
-    
+
     std::vector<std::string> entries = read_history_entries();
-    
+
     if (entries.empty()) {
         print_error({ErrorType::RUNTIME_ERROR, "fc", "No commands in history", {}});
         return 1;
     }
-    
-    
+
     if (substitute_mode) {
         return substitute_and_execute(entries, old_pattern, new_pattern, command_pattern, shell);
     }
-    
-    
+
     int first = -1;
     int last = -1;
-    
+
     if (first_idx != -1) {
         if (!parse_history_index(args[first_idx], entries.size(), first)) {
-            print_error({ErrorType::INVALID_ARGUMENT, "fc", "Invalid history index: " + args[first_idx], {}});
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         "fc",
+                         "Invalid history index: " + args[first_idx],
+                         {}});
             return 1;
         }
     } else {
-        
         if (list_mode) {
             first = std::max(0, static_cast<int>(entries.size()) - 16);
             last = static_cast<int>(entries.size()) - 1;
@@ -372,18 +350,19 @@ int fc_command(const std::vector<std::string>& args, Shell* shell) {
             last = first;
         }
     }
-    
+
     if (last_idx != -1) {
         if (!parse_history_index(args[last_idx], entries.size(), last)) {
-            print_error({ErrorType::INVALID_ARGUMENT, "fc", "Invalid history index: " + args[last_idx], {}});
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         "fc",
+                         "Invalid history index: " + args[last_idx],
+                         {}});
             return 1;
         }
     } else if (first_idx != -1) {
-        
         last = first;
     }
-    
-    
+
     if (list_mode) {
         return list_history(entries, first, last, show_numbers, reverse_order);
     } else {

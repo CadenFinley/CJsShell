@@ -351,8 +351,8 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
         while (cmd_end < len) {
             if ((cmd_end + 1 < len && analysis[cmd_end] == '&' && analysis[cmd_end + 1] == '&') ||
                 (cmd_end + 1 < len && analysis[cmd_end] == '|' && analysis[cmd_end + 1] == '|') ||
-                analysis[cmd_end] == '|' || analysis[cmd_end] == ';' ||
-                analysis[cmd_end] == '\n' || analysis[cmd_end] == '\r') {
+                analysis[cmd_end] == '|' || analysis[cmd_end] == ';' || analysis[cmd_end] == '\n' ||
+                analysis[cmd_end] == '\r') {
                 break;
             }
             cmd_end++;
@@ -408,17 +408,17 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
             } else {
                 auto cmds = g_shell->get_available_commands();
                 if (cmds.find(token) != cmds.end()) {
-                    ic_highlight(henv, static_cast<long>(cmd_start),
-                                 static_cast<long>(token_end), "cjsh-builtin");
+                    ic_highlight(henv, static_cast<long>(cmd_start), static_cast<long>(token_end),
+                                 "cjsh-builtin");
                 } else if (basic_unix_commands_.count(token) > 0) {
-                    ic_highlight(henv, static_cast<long>(cmd_start),
-                                 static_cast<long>(token_end), "cjsh-system");
+                    ic_highlight(henv, static_cast<long>(cmd_start), static_cast<long>(token_end),
+                                 "cjsh-system");
                 } else if (is_external_command(token)) {
-                    ic_highlight(henv, static_cast<long>(cmd_start),
-                                 static_cast<long>(token_end), "cjsh-installed");
+                    ic_highlight(henv, static_cast<long>(cmd_start), static_cast<long>(token_end),
+                                 "cjsh-installed");
                 } else {
-                    ic_highlight(henv, static_cast<long>(cmd_start),
-                                 static_cast<long>(token_end), "cjsh-unknown-command");
+                    ic_highlight(henv, static_cast<long>(cmd_start), static_cast<long>(token_end),
+                                 "cjsh-unknown-command");
                 }
             }
         }
@@ -466,23 +466,19 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
                                          "cjsh-unknown-command");
                         } else {
                             ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
-                                         static_cast<long>(arg_end - arg_start),
-                                         "cjsh-installed");
+                                         static_cast<long>(arg_end - arg_start), "cjsh-installed");
                         }
                     } else {
                         auto cmds = g_shell->get_available_commands();
                         if (cmds.find(arg) != cmds.end() || is_shell_builtin(arg)) {
                             ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
-                                         static_cast<long>(arg_end - arg_start),
-                                         "cjsh-builtin");
+                                         static_cast<long>(arg_end - arg_start), "cjsh-builtin");
                         } else if (basic_unix_commands_.count(arg) > 0) {
                             ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
-                                         static_cast<long>(arg_end - arg_start),
-                                         "cjsh-system");
+                                         static_cast<long>(arg_end - arg_start), "cjsh-system");
                         } else if (is_external_command(arg)) {
                             ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
-                                         static_cast<long>(arg_end - arg_start),
-                                         "cjsh-installed");
+                                         static_cast<long>(arg_end - arg_start), "cjsh-installed");
                         } else {
                             ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
                                          static_cast<long>(arg_end - arg_start),
@@ -515,8 +511,7 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
 
                     if (std::filesystem::exists(path_to_check)) {
                         ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
-                                     static_cast<long>(arg_end - arg_start),
-                                     "cjsh-path-exists");
+                                     static_cast<long>(arg_end - arg_start), "cjsh-path-exists");
                     } else {
                         bool is_bookmark = false;
                         if (is_cd_command && g_shell && (g_shell->get_built_ins() != nullptr)) {

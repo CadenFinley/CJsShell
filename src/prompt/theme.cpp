@@ -54,10 +54,10 @@ bool report_theme_parse_error_with_script_reporter(const ThemeParseException& ex
         suggestion = exception.error_info()->suggestions.front();
     }
 
-    ShellScriptInterpreter::SyntaxError error(
-        position, ShellScriptInterpreter::ErrorSeverity::ERROR,
-        ShellScriptInterpreter::ErrorCategory::SYNTAX, "THEME001", message, ctx.line_content,
-        suggestion);
+    ShellScriptInterpreter::SyntaxError error(position,
+                                              ShellScriptInterpreter::ErrorSeverity::ERROR,
+                                              ShellScriptInterpreter::ErrorCategory::SYNTAX,
+                                              "THEME001", message, ctx.line_content, suggestion);
 
     if (!source_hint.empty()) {
         error.related_info.push_back("Source: " + source_hint);

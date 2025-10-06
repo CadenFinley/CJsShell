@@ -2662,7 +2662,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                         header_accum += " ";
                         header_accum += before_do;
                     }
-                    std::string after_do = strip_leading_semicolons_and_space(cur.substr(inline_do_pos + 4));
+                    std::string after_do =
+                        strip_leading_semicolons_and_space(cur.substr(inline_do_pos + 4));
                     if (!after_do.empty()) {
                         inline_body = std::move(after_do);
                         do_line_has_inline_body = true;
@@ -2724,8 +2725,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
             }
         }
 
-    size_t k = inline_consumes_done ? j : (j + 1);
-    int depth = inline_consumes_done ? 0 : 1;
+        size_t k = inline_consumes_done ? j : (j + 1);
+        int depth = inline_consumes_done ? 0 : 1;
         while (k < src_lines.size() && depth > 0) {
             const std::string& cur_raw = src_lines[k];
             std::string cur = trim(strip_inline_comment(cur_raw));

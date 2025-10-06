@@ -11,14 +11,14 @@
 #include "utils/unicode_support.h"
 
 ThemeParseException::ThemeParseException(size_t line, std::string detail, std::string source,
-                             std::optional<ErrorInfo> error_info,
-                             std::optional<ThemeParseContext> context)
+                                         std::optional<ErrorInfo> error_info,
+                                         std::optional<ThemeParseContext> context)
     : std::runtime_error(build_message(line, detail, source)),
       line_(line),
       detail_(std::move(detail)),
       source_(std::move(source)),
-    error_info_(std::move(error_info)),
-    context_(std::move(context)) {
+      error_info_(std::move(error_info)),
+      context_(std::move(context)) {
 }
 
 std::string ThemeParseException::build_message(size_t line, const std::string& detail,
