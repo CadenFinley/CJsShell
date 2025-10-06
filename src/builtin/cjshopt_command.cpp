@@ -7,6 +7,7 @@
 #include <functional>
 #include <iomanip>
 #include <iostream>
+#include <optional>
 #include <sstream>
 #include <unordered_map>
 #include <unordered_set>
@@ -44,6 +45,137 @@ void print_cjshopt_usage() {
     std::cout
         << "  bookmark-blacklist <subcommand>  Manage directories excluded from bookmarking\n";
     std::cout << "Use 'cjshopt <subcommand> --help' to see usage for a specific subcommand.\n";
+}
+
+struct ToggleCommandConfig {
+    std::string command_name;
+    std::vector<std::string> usage_lines;
+    std::function<bool()> get_current;
+    std::function<void(bool)> set_state;
+    std::string status_label;
+    bool status_label_is_plural = false;
+    std::optional<std::string> persist_template;
+    std::vector<std::string> true_synonyms;
+    std::vector<std::string> false_synonyms;
+};
+
+std::string normalize_option(const std::string& option) {
+    std::string normalized = option;
+    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return normalized;
+}
+
+bool matches_token(const std::string& value, std::initializer_list<const char*> tokens) {
+    return std::any_of(tokens.begin(), tokens.end(),
+                       [&](const char* token) { return value == token; });
+}
+
+bool parse_toggle_value(const ToggleCommandConfig& config, const std::string& normalized,
+                        bool* enable) {
+    if (matches_token(normalized, {"on", "enable", "enabled", "true", "1", "--enable"})) {
+        *enable = true;
+        return true;
+    }
+    if (matches_token(normalized, {"off", "disable", "disabled", "false", "0", "--disable"})) {
+        *enable = false;
+        return true;
+    }
+
+    if (std::any_of(config.true_synonyms.begin(), config.true_synonyms.end(),
+                    [&](const std::string& token) { return normalized == token; })) {
+        *enable = true;
+        return true;
+    }
+    if (std::any_of(config.false_synonyms.begin(), config.false_synonyms.end(),
+                    [&](const std::string& token) { return normalized == token; })) {
+        *enable = false;
+        return true;
+    }
+
+    return false;
+}
+
+std::string format_persist_message(const ToggleCommandConfig& config, bool enable) {
+    if (!config.persist_template) {
+        return {};
+    }
+
+    std::string result = *config.persist_template;
+    const std::string state_word = enable ? "on" : "off";
+
+    auto replace_all = [](std::string* target, const std::string& from, const std::string& to) {
+        size_t position = 0;
+        while ((position = target->find(from, position)) != std::string::npos) {
+            target->replace(position, from.size(), to);
+            position += to.size();
+        }
+    };
+
+    replace_all(&result, "{command}", config.command_name);
+    replace_all(&result, "{state}", state_word);
+
+    return result;
+}
+
+int handle_toggle_command(const ToggleCommandConfig& config, const std::vector<std::string>& args) {
+    if (args.size() == 1) {
+        print_error({ErrorType::INVALID_ARGUMENT, config.command_name, "Missing option argument",
+                     config.usage_lines});
+        return 1;
+    }
+
+    if (args.size() == 2 && (args[1] == "--help" || args[1] == "-h")) {
+        if (!g_startup_active) {
+            for (const auto& line : config.usage_lines) {
+                std::cout << line << '\n';
+            }
+            std::cout << "Current: " << (config.get_current() ? "enabled" : "disabled") << '\n';
+        }
+        return 0;
+    }
+
+    if (args.size() != 2) {
+        print_error({ErrorType::INVALID_ARGUMENT, config.command_name, "Too many arguments provided",
+                     config.usage_lines});
+        return 1;
+    }
+
+    const std::string& option = args[1];
+    const std::string normalized = normalize_option(option);
+
+    if (normalized == "status" || normalized == "--status") {
+        if (!g_startup_active) {
+            const char* verb = config.status_label_is_plural ? "are" : "is";
+            std::cout << config.status_label << ' ' << verb << " currently "
+                      << (config.get_current() ? "enabled" : "disabled") << ".\n";
+        }
+        return 0;
+    }
+
+    bool enable = false;
+    if (!parse_toggle_value(config, normalized, &enable)) {
+        print_error({ErrorType::INVALID_ARGUMENT, config.command_name,
+                     "Unknown option '" + option + "'", config.usage_lines});
+        return 1;
+    }
+
+    const bool previously_enabled = config.get_current();
+    if (previously_enabled == enable) {
+        return 0;
+    }
+
+    config.set_state(enable);
+
+    if (!g_startup_active) {
+        std::cout << config.status_label << ' ' << (enable ? "enabled" : "disabled") << ".\n";
+        const std::string extra = format_persist_message(config, enable);
+        if (!extra.empty()) {
+            std::cout << extra;
+        }
+    }
+
+    return 0;
 }
 }  // namespace
 
@@ -224,76 +356,18 @@ int completion_case_command(const std::vector<std::string>& args) {
         "  completion-case off      Use case insensitive completions",
         "  completion-case status   Show the current setting"};
 
-    if (args.size() == 1) {
-        print_error({ErrorType::INVALID_ARGUMENT, "completion-case", "Missing option argument",
-                     usage_lines});
-        return 1;
-    }
+    static const ToggleCommandConfig config{
+        "completion-case",
+        usage_lines,
+        []() { return is_completion_case_sensitive(); },
+        [](bool enable) { set_completion_case_sensitive(enable); },
+        "Completion case sensitivity",
+        false,
+        std::nullopt,
+        {"case-sensitive", "--case-sensitive"},
+        {"case-insensitive", "--case-insensitive"}};
 
-    if (args.size() == 2 && (args[1] == "--help" || args[1] == "-h")) {
-        if (!g_startup_active) {
-            for (const auto& line : usage_lines) {
-                std::cout << line << '\n';
-            }
-            std::cout << "Current: " << (is_completion_case_sensitive() ? "enabled" : "disabled")
-                      << '\n';
-        }
-        return 0;
-    }
-
-    if (args.size() != 2) {
-        print_error({ErrorType::INVALID_ARGUMENT, "completion-case", "Too many arguments provided",
-                     usage_lines});
-        return 1;
-    }
-
-    std::string option = args[1];
-    std::string normalized = option;
-    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
-                   [](unsigned char c) { return std::tolower(c); });
-
-    if (normalized == "status" || normalized == "--status") {
-        if (!g_startup_active) {
-            std::cout << "Completion case sensitivity is currently "
-                      << (is_completion_case_sensitive() ? "enabled" : "disabled") << "." << '\n';
-        }
-        return 0;
-    }
-
-    bool enable_case_sensitive = false;
-    bool recognized_option = true;
-
-    if (normalized == "on" || normalized == "enable" || normalized == "enabled" ||
-        normalized == "true" || normalized == "1" || normalized == "case-sensitive" ||
-        normalized == "--enable" || normalized == "--case-sensitive") {
-        enable_case_sensitive = true;
-    } else if (normalized == "off" || normalized == "disable" || normalized == "disabled" ||
-               normalized == "false" || normalized == "0" || normalized == "case-insensitive" ||
-               normalized == "--disable" || normalized == "--case-insensitive") {
-        enable_case_sensitive = false;
-    } else {
-        recognized_option = false;
-    }
-
-    if (!recognized_option) {
-        print_error({ErrorType::INVALID_ARGUMENT, "completion-case",
-                     "Unknown option '" + option + "'", usage_lines});
-        return 1;
-    }
-
-    bool currently_enabled = is_completion_case_sensitive();
-    if (currently_enabled == enable_case_sensitive) {
-        return 0;
-    }
-
-    set_completion_case_sensitive(enable_case_sensitive);
-
-    if (!g_startup_active) {
-        std::cout << "Completion case sensitivity "
-                  << (enable_case_sensitive ? "enabled" : "disabled") << ".\n";
-    }
-
-    return 0;
+    return handle_toggle_command(config, args);
 }
 
 int completion_spell_command(const std::vector<std::string>& args) {
@@ -303,79 +377,18 @@ int completion_spell_command(const std::vector<std::string>& args) {
         "  completion-spell off     Disable spell correction in completions",
         "  completion-spell status  Show the current setting"};
 
-    if (args.size() == 1) {
-        print_error({ErrorType::INVALID_ARGUMENT, "completion-spell", "Missing option argument",
-                     usage_lines});
-        return 1;
-    }
+    static const ToggleCommandConfig config{
+        "completion-spell",
+        usage_lines,
+        []() { return is_completion_spell_correction_enabled(); },
+        [](bool enable) { set_completion_spell_correction_enabled(enable); },
+        "Completion spell correction",
+        false,
+        "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
+        {"spell", "--spell"},
+        {}};
 
-    if (args.size() == 2 && (args[1] == "--help" || args[1] == "-h")) {
-        if (!g_startup_active) {
-            for (const auto& line : usage_lines) {
-                std::cout << line << '\n';
-            }
-            std::cout << "Current: "
-                      << (is_completion_spell_correction_enabled() ? "enabled" : "disabled")
-                      << '\n';
-        }
-        return 0;
-    }
-
-    if (args.size() != 2) {
-        print_error({ErrorType::INVALID_ARGUMENT, "completion-spell", "Too many arguments provided",
-                     usage_lines});
-        return 1;
-    }
-
-    std::string option = args[1];
-    std::string normalized = option;
-    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-
-    if (normalized == "status" || normalized == "--status") {
-        if (!g_startup_active) {
-            std::cout << "Completion spell correction is currently "
-                      << (is_completion_spell_correction_enabled() ? "enabled" : "disabled") << "."
-                      << '\n';
-        }
-        return 0;
-    }
-
-    bool enable_spell_correction = false;
-    bool recognized_option = true;
-
-    if (normalized == "on" || normalized == "enable" || normalized == "enabled" ||
-        normalized == "true" || normalized == "1" || normalized == "spell" ||
-        normalized == "--enable" || normalized == "--spell") {
-        enable_spell_correction = true;
-    } else if (normalized == "off" || normalized == "disable" || normalized == "disabled" ||
-               normalized == "false" || normalized == "0" || normalized == "--disable") {
-        enable_spell_correction = false;
-    } else {
-        recognized_option = false;
-    }
-
-    if (!recognized_option) {
-        print_error({ErrorType::INVALID_ARGUMENT, "completion-spell",
-                     "Unknown option '" + option + "'", usage_lines});
-        return 1;
-    }
-
-    bool currently_enabled = is_completion_spell_correction_enabled();
-    if (currently_enabled == enable_spell_correction) {
-        return 0;
-    }
-
-    set_completion_spell_correction_enabled(enable_spell_correction);
-
-    if (!g_startup_active) {
-        std::cout << "Completion spell correction "
-                  << (enable_spell_correction ? "enabled" : "disabled") << ".\n";
-        std::cout << "Add `cjshopt completion-spell " << (enable_spell_correction ? "on" : "off")
-                  << "` to your ~/.cjshrc to persist this change.\n";
-    }
-
-    return 0;
+    return handle_toggle_command(config, args);
 }
 
 int line_numbers_command(const std::vector<std::string>& args) {
@@ -385,76 +398,22 @@ int line_numbers_command(const std::vector<std::string>& args) {
         "  line-numbers off      Disable line numbers in multiline input",
         "  line-numbers status   Show the current setting"};
 
-    if (args.size() == 1) {
-        print_error({ErrorType::INVALID_ARGUMENT, "line-numbers", "Missing option argument",
-                     usage_lines});
-        return 1;
-    }
-
-    if (args.size() == 2 && (args[1] == "--help" || args[1] == "-h")) {
-        if (!g_startup_active) {
-            for (const auto& line : usage_lines) {
-                std::cout << line << '\n';
-            }
-            // Get current status by calling ic_enable_line_numbers with the same value
+    static const ToggleCommandConfig config{
+        "line-numbers",
+        usage_lines,
+        []() {
             bool current_status = ic_enable_line_numbers(true);
-            ic_enable_line_numbers(current_status);  // Restore original value
-            std::cout << "Current: " << (current_status ? "enabled" : "disabled") << '\n';
-        }
-        return 0;
-    }
+            ic_enable_line_numbers(current_status);
+            return current_status;
+        },
+        [](bool enable) { ic_enable_line_numbers(enable); },
+        "Line numbers in multiline input",
+        true,
+        std::nullopt,
+        {},
+        {}};
 
-    if (args.size() != 2) {
-        print_error({ErrorType::INVALID_ARGUMENT, "line-numbers", "Too many arguments provided",
-                     usage_lines});
-        return 1;
-    }
-
-    std::string option = args[1];
-    std::string normalized = option;
-    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-
-    if (normalized == "status" || normalized == "--status") {
-        if (!g_startup_active) {
-            // Get current status by calling ic_enable_line_numbers with the same value
-            bool current_status = ic_enable_line_numbers(true);
-            ic_enable_line_numbers(current_status);  // Restore original value
-            std::cout << "Line numbers in multiline input are currently "
-                      << (current_status ? "enabled" : "disabled") << "." << '\n';
-        }
-        return 0;
-    }
-
-    bool enable_line_numbers = false;
-    bool recognized_option = true;
-
-    if (normalized == "on" || normalized == "enable" || normalized == "enabled" ||
-        normalized == "true" || normalized == "1" || normalized == "--enable") {
-        enable_line_numbers = true;
-    } else if (normalized == "off" || normalized == "disable" || normalized == "disabled" ||
-               normalized == "false" || normalized == "0" || normalized == "--disable") {
-        enable_line_numbers = false;
-    } else {
-        recognized_option = false;
-    }
-
-    if (!recognized_option) {
-        print_error({ErrorType::INVALID_ARGUMENT, "line-numbers",
-                     "Unknown option '" + option + "'", usage_lines});
-        return 1;
-    }
-
-    // Set the new value and get the previous value
-    bool previously_enabled = ic_enable_line_numbers(enable_line_numbers);
-    
-    // Only show message if the setting actually changed
-    if (previously_enabled != enable_line_numbers && !g_startup_active) {
-        std::cout << "Line numbers in multiline input "
-                  << (enable_line_numbers ? "enabled" : "disabled") << ".\n";
-    }
-
-    return 0;
+    return handle_toggle_command(config, args);
 }
 
 int hint_delay_command(const std::vector<std::string>& args) {
@@ -529,73 +488,22 @@ int completion_preview_command(const std::vector<std::string>& args) {
         "  completion-preview off     Disable completion preview",
         "  completion-preview status  Show the current setting"};
 
-    if (args.size() == 1) {
-        print_error({ErrorType::INVALID_ARGUMENT, "completion-preview", "Missing option argument",
-                     usage_lines});
-        return 1;
-    }
-
-    if (args.size() == 2 && (args[1] == "--help" || args[1] == "-h")) {
-        if (!g_startup_active) {
-            for (const auto& line : usage_lines) {
-                std::cout << line << '\n';
-            }
+    static const ToggleCommandConfig config{
+        "completion-preview",
+        usage_lines,
+        []() {
             bool current_status = ic_enable_completion_preview(true);
             ic_enable_completion_preview(current_status);
-            std::cout << "Current: " << (current_status ? "enabled" : "disabled") << '\n';
-        }
-        return 0;
-    }
+            return current_status;
+        },
+        [](bool enable) { ic_enable_completion_preview(enable); },
+        "Completion preview",
+        false,
+        "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
+        {},
+        {}};
 
-    if (args.size() != 2) {
-        print_error({ErrorType::INVALID_ARGUMENT, "completion-preview", "Too many arguments provided",
-                     usage_lines});
-        return 1;
-    }
-
-    std::string option = args[1];
-    std::string normalized = option;
-    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-
-    if (normalized == "status" || normalized == "--status") {
-        if (!g_startup_active) {
-            bool current_status = ic_enable_completion_preview(true);
-            ic_enable_completion_preview(current_status);
-            std::cout << "Completion preview is currently "
-                      << (current_status ? "enabled" : "disabled") << "." << '\n';
-        }
-        return 0;
-    }
-
-    bool enable_preview = false;
-    bool recognized_option = true;
-
-    if (normalized == "on" || normalized == "enable" || normalized == "enabled" ||
-        normalized == "true" || normalized == "1" || normalized == "--enable") {
-        enable_preview = true;
-    } else if (normalized == "off" || normalized == "disable" || normalized == "disabled" ||
-               normalized == "false" || normalized == "0" || normalized == "--disable") {
-        enable_preview = false;
-    } else {
-        recognized_option = false;
-    }
-
-    if (!recognized_option) {
-        print_error({ErrorType::INVALID_ARGUMENT, "completion-preview",
-                     "Unknown option '" + option + "'", usage_lines});
-        return 1;
-    }
-
-    bool previously_enabled = ic_enable_completion_preview(enable_preview);
-    
-    if (previously_enabled != enable_preview && !g_startup_active) {
-        std::cout << "Completion preview " << (enable_preview ? "enabled" : "disabled") << ".\n";
-        std::cout << "Add `cjshopt completion-preview " << (enable_preview ? "on" : "off")
-                  << "` to your ~/.cjshrc to persist this change.\n";
-    }
-
-    return 0;
+    return handle_toggle_command(config, args);
 }
 
 int hint_command(const std::vector<std::string>& args) {
@@ -605,73 +513,22 @@ int hint_command(const std::vector<std::string>& args) {
         "  hint off     Disable inline hints",
         "  hint status  Show the current setting"};
 
-    if (args.size() == 1) {
-        print_error({ErrorType::INVALID_ARGUMENT, "hint", "Missing option argument",
-                     usage_lines});
-        return 1;
-    }
-
-    if (args.size() == 2 && (args[1] == "--help" || args[1] == "-h")) {
-        if (!g_startup_active) {
-            for (const auto& line : usage_lines) {
-                std::cout << line << '\n';
-            }
+    static const ToggleCommandConfig config{
+        "hint",
+        usage_lines,
+        []() {
             bool current_status = ic_enable_hint(true);
             ic_enable_hint(current_status);
-            std::cout << "Current: " << (current_status ? "enabled" : "disabled") << '\n';
-        }
-        return 0;
-    }
+            return current_status;
+        },
+        [](bool enable) { ic_enable_hint(enable); },
+        "Inline hints",
+        true,
+        "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
+        {},
+        {}};
 
-    if (args.size() != 2) {
-        print_error({ErrorType::INVALID_ARGUMENT, "hint", "Too many arguments provided",
-                     usage_lines});
-        return 1;
-    }
-
-    std::string option = args[1];
-    std::string normalized = option;
-    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-
-    if (normalized == "status" || normalized == "--status") {
-        if (!g_startup_active) {
-            bool current_status = ic_enable_hint(true);
-            ic_enable_hint(current_status);
-            std::cout << "Inline hints are currently "
-                      << (current_status ? "enabled" : "disabled") << "." << '\n';
-        }
-        return 0;
-    }
-
-    bool enable_hints = false;
-    bool recognized_option = true;
-
-    if (normalized == "on" || normalized == "enable" || normalized == "enabled" ||
-        normalized == "true" || normalized == "1" || normalized == "--enable") {
-        enable_hints = true;
-    } else if (normalized == "off" || normalized == "disable" || normalized == "disabled" ||
-               normalized == "false" || normalized == "0" || normalized == "--disable") {
-        enable_hints = false;
-    } else {
-        recognized_option = false;
-    }
-
-    if (!recognized_option) {
-        print_error({ErrorType::INVALID_ARGUMENT, "hint",
-                     "Unknown option '" + option + "'", usage_lines});
-        return 1;
-    }
-
-    bool previously_enabled = ic_enable_hint(enable_hints);
-    
-    if (previously_enabled != enable_hints && !g_startup_active) {
-        std::cout << "Inline hints " << (enable_hints ? "enabled" : "disabled") << ".\n";
-        std::cout << "Add `cjshopt hint " << (enable_hints ? "on" : "off")
-                  << "` to your ~/.cjshrc to persist this change.\n";
-    }
-
-    return 0;
+    return handle_toggle_command(config, args);
 }
 
 int multiline_indent_command(const std::vector<std::string>& args) {
@@ -681,73 +538,22 @@ int multiline_indent_command(const std::vector<std::string>& args) {
         "  multiline-indent off     Disable automatic indentation in multiline",
         "  multiline-indent status  Show the current setting"};
 
-    if (args.size() == 1) {
-        print_error({ErrorType::INVALID_ARGUMENT, "multiline-indent", "Missing option argument",
-                     usage_lines});
-        return 1;
-    }
-
-    if (args.size() == 2 && (args[1] == "--help" || args[1] == "-h")) {
-        if (!g_startup_active) {
-            for (const auto& line : usage_lines) {
-                std::cout << line << '\n';
-            }
+    static const ToggleCommandConfig config{
+        "multiline-indent",
+        usage_lines,
+        []() {
             bool current_status = ic_enable_multiline_indent(true);
             ic_enable_multiline_indent(current_status);
-            std::cout << "Current: " << (current_status ? "enabled" : "disabled") << '\n';
-        }
-        return 0;
-    }
+            return current_status;
+        },
+        [](bool enable) { ic_enable_multiline_indent(enable); },
+        "Multiline auto-indent",
+        false,
+        "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
+        {},
+        {}};
 
-    if (args.size() != 2) {
-        print_error({ErrorType::INVALID_ARGUMENT, "multiline-indent", "Too many arguments provided",
-                     usage_lines});
-        return 1;
-    }
-
-    std::string option = args[1];
-    std::string normalized = option;
-    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-
-    if (normalized == "status" || normalized == "--status") {
-        if (!g_startup_active) {
-            bool current_status = ic_enable_multiline_indent(true);
-            ic_enable_multiline_indent(current_status);
-            std::cout << "Multiline auto-indent is currently "
-                      << (current_status ? "enabled" : "disabled") << "." << '\n';
-        }
-        return 0;
-    }
-
-    bool enable_indent = false;
-    bool recognized_option = true;
-
-    if (normalized == "on" || normalized == "enable" || normalized == "enabled" ||
-        normalized == "true" || normalized == "1" || normalized == "--enable") {
-        enable_indent = true;
-    } else if (normalized == "off" || normalized == "disable" || normalized == "disabled" ||
-               normalized == "false" || normalized == "0" || normalized == "--disable") {
-        enable_indent = false;
-    } else {
-        recognized_option = false;
-    }
-
-    if (!recognized_option) {
-        print_error({ErrorType::INVALID_ARGUMENT, "multiline-indent",
-                     "Unknown option '" + option + "'", usage_lines});
-        return 1;
-    }
-
-    bool previously_enabled = ic_enable_multiline_indent(enable_indent);
-    
-    if (previously_enabled != enable_indent && !g_startup_active) {
-        std::cout << "Multiline auto-indent " << (enable_indent ? "enabled" : "disabled") << ".\n";
-        std::cout << "Add `cjshopt multiline-indent " << (enable_indent ? "on" : "off")
-                  << "` to your ~/.cjshrc to persist this change.\n";
-    }
-
-    return 0;
+    return handle_toggle_command(config, args);
 }
 
 int multiline_command(const std::vector<std::string>& args) {
@@ -757,73 +563,22 @@ int multiline_command(const std::vector<std::string>& args) {
         "  multiline off     Disable multiline input",
         "  multiline status  Show the current setting"};
 
-    if (args.size() == 1) {
-        print_error({ErrorType::INVALID_ARGUMENT, "multiline", "Missing option argument",
-                     usage_lines});
-        return 1;
-    }
-
-    if (args.size() == 2 && (args[1] == "--help" || args[1] == "-h")) {
-        if (!g_startup_active) {
-            for (const auto& line : usage_lines) {
-                std::cout << line << '\n';
-            }
+    static const ToggleCommandConfig config{
+        "multiline",
+        usage_lines,
+        []() {
             bool current_status = ic_enable_multiline(true);
             ic_enable_multiline(current_status);
-            std::cout << "Current: " << (current_status ? "enabled" : "disabled") << '\n';
-        }
-        return 0;
-    }
+            return current_status;
+        },
+        [](bool enable) { ic_enable_multiline(enable); },
+        "Multiline input",
+        false,
+        "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
+        {},
+        {}};
 
-    if (args.size() != 2) {
-        print_error({ErrorType::INVALID_ARGUMENT, "multiline", "Too many arguments provided",
-                     usage_lines});
-        return 1;
-    }
-
-    std::string option = args[1];
-    std::string normalized = option;
-    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-
-    if (normalized == "status" || normalized == "--status") {
-        if (!g_startup_active) {
-            bool current_status = ic_enable_multiline(true);
-            ic_enable_multiline(current_status);
-            std::cout << "Multiline input is currently "
-                      << (current_status ? "enabled" : "disabled") << "." << '\n';
-        }
-        return 0;
-    }
-
-    bool enable_multiline_input = false;
-    bool recognized_option = true;
-
-    if (normalized == "on" || normalized == "enable" || normalized == "enabled" ||
-        normalized == "true" || normalized == "1" || normalized == "--enable") {
-        enable_multiline_input = true;
-    } else if (normalized == "off" || normalized == "disable" || normalized == "disabled" ||
-               normalized == "false" || normalized == "0" || normalized == "--disable") {
-        enable_multiline_input = false;
-    } else {
-        recognized_option = false;
-    }
-
-    if (!recognized_option) {
-        print_error({ErrorType::INVALID_ARGUMENT, "multiline",
-                     "Unknown option '" + option + "'", usage_lines});
-        return 1;
-    }
-
-    bool previously_enabled = ic_enable_multiline(enable_multiline_input);
-    
-    if (previously_enabled != enable_multiline_input && !g_startup_active) {
-        std::cout << "Multiline input " << (enable_multiline_input ? "enabled" : "disabled") << ".\n";
-        std::cout << "Add `cjshopt multiline " << (enable_multiline_input ? "on" : "off")
-                  << "` to your ~/.cjshrc to persist this change.\n";
-    }
-
-    return 0;
+    return handle_toggle_command(config, args);
 }
 
 int inline_help_command(const std::vector<std::string>& args) {
@@ -833,73 +588,22 @@ int inline_help_command(const std::vector<std::string>& args) {
         "  inline-help off     Disable inline help messages",
         "  inline-help status  Show the current setting"};
 
-    if (args.size() == 1) {
-        print_error({ErrorType::INVALID_ARGUMENT, "inline-help", "Missing option argument",
-                     usage_lines});
-        return 1;
-    }
-
-    if (args.size() == 2 && (args[1] == "--help" || args[1] == "-h")) {
-        if (!g_startup_active) {
-            for (const auto& line : usage_lines) {
-                std::cout << line << '\n';
-            }
+    static const ToggleCommandConfig config{
+        "inline-help",
+        usage_lines,
+        []() {
             bool current_status = ic_enable_inline_help(true);
             ic_enable_inline_help(current_status);
-            std::cout << "Current: " << (current_status ? "enabled" : "disabled") << '\n';
-        }
-        return 0;
-    }
+            return current_status;
+        },
+        [](bool enable) { ic_enable_inline_help(enable); },
+        "Inline help messages",
+        true,
+        "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
+        {},
+        {}};
 
-    if (args.size() != 2) {
-        print_error({ErrorType::INVALID_ARGUMENT, "inline-help", "Too many arguments provided",
-                     usage_lines});
-        return 1;
-    }
-
-    std::string option = args[1];
-    std::string normalized = option;
-    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-
-    if (normalized == "status" || normalized == "--status") {
-        if (!g_startup_active) {
-            bool current_status = ic_enable_inline_help(true);
-            ic_enable_inline_help(current_status);
-            std::cout << "Inline help messages are currently "
-                      << (current_status ? "enabled" : "disabled") << "." << '\n';
-        }
-        return 0;
-    }
-
-    bool enable_help = false;
-    bool recognized_option = true;
-
-    if (normalized == "on" || normalized == "enable" || normalized == "enabled" ||
-        normalized == "true" || normalized == "1" || normalized == "--enable") {
-        enable_help = true;
-    } else if (normalized == "off" || normalized == "disable" || normalized == "disabled" ||
-               normalized == "false" || normalized == "0" || normalized == "--disable") {
-        enable_help = false;
-    } else {
-        recognized_option = false;
-    }
-
-    if (!recognized_option) {
-        print_error({ErrorType::INVALID_ARGUMENT, "inline-help",
-                     "Unknown option '" + option + "'", usage_lines});
-        return 1;
-    }
-
-    bool previously_enabled = ic_enable_inline_help(enable_help);
-    
-    if (previously_enabled != enable_help && !g_startup_active) {
-        std::cout << "Inline help messages " << (enable_help ? "enabled" : "disabled") << ".\n";
-        std::cout << "Add `cjshopt inline-help " << (enable_help ? "on" : "off")
-                  << "` to your ~/.cjshrc to persist this change.\n";
-    }
-
-    return 0;
+    return handle_toggle_command(config, args);
 }
 
 int auto_tab_command(const std::vector<std::string>& args) {
@@ -909,73 +613,22 @@ int auto_tab_command(const std::vector<std::string>& args) {
         "  auto-tab off     Disable automatic tab completion",
         "  auto-tab status  Show the current setting"};
 
-    if (args.size() == 1) {
-        print_error({ErrorType::INVALID_ARGUMENT, "auto-tab", "Missing option argument",
-                     usage_lines});
-        return 1;
-    }
-
-    if (args.size() == 2 && (args[1] == "--help" || args[1] == "-h")) {
-        if (!g_startup_active) {
-            for (const auto& line : usage_lines) {
-                std::cout << line << '\n';
-            }
+    static const ToggleCommandConfig config{
+        "auto-tab",
+        usage_lines,
+        []() {
             bool current_status = ic_enable_auto_tab(true);
             ic_enable_auto_tab(current_status);
-            std::cout << "Current: " << (current_status ? "enabled" : "disabled") << '\n';
-        }
-        return 0;
-    }
+            return current_status;
+        },
+        [](bool enable) { ic_enable_auto_tab(enable); },
+        "Automatic tab completion",
+        false,
+        "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
+        {},
+        {}};
 
-    if (args.size() != 2) {
-        print_error({ErrorType::INVALID_ARGUMENT, "auto-tab", "Too many arguments provided",
-                     usage_lines});
-        return 1;
-    }
-
-    std::string option = args[1];
-    std::string normalized = option;
-    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-
-    if (normalized == "status" || normalized == "--status") {
-        if (!g_startup_active) {
-            bool current_status = ic_enable_auto_tab(true);
-            ic_enable_auto_tab(current_status);
-            std::cout << "Automatic tab completion is currently "
-                      << (current_status ? "enabled" : "disabled") << "." << '\n';
-        }
-        return 0;
-    }
-
-    bool enable_auto = false;
-    bool recognized_option = true;
-
-    if (normalized == "on" || normalized == "enable" || normalized == "enabled" ||
-        normalized == "true" || normalized == "1" || normalized == "--enable") {
-        enable_auto = true;
-    } else if (normalized == "off" || normalized == "disable" || normalized == "disabled" ||
-               normalized == "false" || normalized == "0" || normalized == "--disable") {
-        enable_auto = false;
-    } else {
-        recognized_option = false;
-    }
-
-    if (!recognized_option) {
-        print_error({ErrorType::INVALID_ARGUMENT, "auto-tab",
-                     "Unknown option '" + option + "'", usage_lines});
-        return 1;
-    }
-
-    bool previously_enabled = ic_enable_auto_tab(enable_auto);
-    
-    if (previously_enabled != enable_auto && !g_startup_active) {
-        std::cout << "Automatic tab completion " << (enable_auto ? "enabled" : "disabled") << ".\n";
-        std::cout << "Add `cjshopt auto-tab " << (enable_auto ? "on" : "off")
-                  << "` to your ~/.cjshrc to persist this change.\n";
-    }
-
-    return 0;
+    return handle_toggle_command(config, args);
 }
 
 namespace {
