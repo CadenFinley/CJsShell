@@ -12,7 +12,6 @@ BookmarkDatabase g_bookmark_db;
 
 BookmarkDatabase::BookmarkDatabase() : dirty_(false) {
     database_path_ = (cjsh_filesystem::g_cjsh_cache_path / "directory_bookmarks.txt").string();
-    blacklist_path_ = (cjsh_filesystem::g_cjsh_cache_path / "bookmark_blacklist.txt").string();
 }
 
 BookmarkDatabase::~BookmarkDatabase() {
@@ -68,30 +67,7 @@ cjsh_filesystem::Result<void> BookmarkDatabase::load() {
         dirty_ = false;
     }
 
-    // Load blacklist
-    if (std::filesystem::exists(blacklist_path_)) {
-        auto blacklist_content = cjsh_filesystem::read_file_content(blacklist_path_);
-        if (!blacklist_content.is_error()) {
-            std::stringstream ss(blacklist_content.value());
-            std::string line;
-            blacklisted_paths_.clear();
-
-            while (std::getline(ss, line)) {
-                if (!line.empty() && line[0] != '#') {
-                    try {
-                        std::filesystem::path p(line);
-                        if (std::filesystem::exists(p)) {
-                            blacklisted_paths_.insert(std::filesystem::canonical(p).string());
-                        } else {
-                            blacklisted_paths_.insert(line);
-                        }
-                    } catch (...) {
-                        blacklisted_paths_.insert(line);
-                    }
-                }
-            }
-        }
-    }
+    blacklisted_paths_.clear();
 
     return cjsh_filesystem::Result<void>::ok();
 }
@@ -108,18 +84,6 @@ cjsh_filesystem::Result<void> BookmarkDatabase::save() {
     if (write_result.is_error()) {
         return cjsh_filesystem::Result<void>::error("Failed to write bookmark database: " +
                                                     write_result.error());
-    }
-
-    // Save blacklist
-    std::stringstream blacklist_ss;
-    blacklist_ss << "# Blacklisted paths - directories that cannot be bookmarked\n";
-    for (const auto& path : blacklisted_paths_) {
-        blacklist_ss << path << "\n";
-    }
-    auto blacklist_write = cjsh_filesystem::write_file_content(blacklist_path_, blacklist_ss.str());
-    if (blacklist_write.is_error()) {
-        return cjsh_filesystem::Result<void>::error("Failed to write bookmark blacklist: " +
-                                                    blacklist_write.error());
     }
 
     dirty_ = false;
@@ -475,7 +439,7 @@ cjsh_filesystem::Result<void> BookmarkDatabase::add_to_blacklist(const std::stri
         // Remove any existing bookmarks for this path
         std::vector<std::string> to_remove;
         for (const auto& [name, entry] : bookmarks_) {
-            if (entry.path == canonical_path || entry.path.find(canonical_path + "/") == 0) {
+            if (entry.path == canonical_path) {
                 to_remove.push_back(name);
             }
         }
@@ -484,7 +448,9 @@ cjsh_filesystem::Result<void> BookmarkDatabase::add_to_blacklist(const std::stri
             bookmarks_.erase(name);
         }
 
-        dirty_ = true;
+        if (!to_remove.empty()) {
+            dirty_ = true;
+        }
         return cjsh_filesystem::Result<void>::ok();
     } catch (const std::filesystem::filesystem_error& e) {
         return cjsh_filesystem::Result<void>::error("Filesystem error: " + std::string(e.what()));
@@ -509,7 +475,6 @@ cjsh_filesystem::Result<void> BookmarkDatabase::remove_from_blacklist(const std:
         }
 
         blacklisted_paths_.erase(it);
-        dirty_ = true;
         return cjsh_filesystem::Result<void>::ok();
     } catch (const std::filesystem::filesystem_error& e) {
         return cjsh_filesystem::Result<void>::error("Filesystem error: " + std::string(e.what()));
@@ -554,7 +519,6 @@ std::vector<std::string> BookmarkDatabase::get_blacklist() const {
 
 cjsh_filesystem::Result<void> BookmarkDatabase::clear_blacklist() {
     blacklisted_paths_.clear();
-    dirty_ = true;
     return cjsh_filesystem::Result<void>::ok();
 }
 

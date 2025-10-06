@@ -72,7 +72,6 @@ class BookmarkDatabase {
     std::unordered_map<std::string, BookmarkEntry> bookmarks_;
     std::unordered_set<std::string> blacklisted_paths_;
     std::string database_path_;
-    std::string blacklist_path_;
     bool dirty_;
 
     cjsh_filesystem::Result<void> ensure_database_directory();

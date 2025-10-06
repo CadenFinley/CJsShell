@@ -1483,8 +1483,7 @@ int bookmark_blacklist_command(const std::vector<std::string>& args) {
 
                 auto all_bookmarks = bookmark_database::get_directory_bookmarks();
                 for (const auto& [name, bookmark_path] : all_bookmarks) {
-                    if (bookmark_path == canonical_path ||
-                        bookmark_path.find(canonical_path + "/") == 0) {
+                    if (bookmark_path == canonical_path) {
                         affected_bookmarks.push_back(name);
                     }
                 }
