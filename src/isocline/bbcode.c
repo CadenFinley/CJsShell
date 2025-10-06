@@ -31,11 +31,11 @@ typedef struct style_s {
     attr_t attr;       // attribute to apply
 } style_t;
 
-typedef enum align_e : uint8_t {
-    IC_ALIGN_LEFT,
-    IC_ALIGN_CENTER,
-    IC_ALIGN_RIGHT
-} align_t;
+typedef uint8_t align_t;
+
+#define IC_ALIGN_LEFT ((align_t)0)
+#define IC_ALIGN_CENTER ((align_t)1)
+#define IC_ALIGN_RIGHT ((align_t)2)
 
 typedef struct width_s {
     ssize_t w;  // > 0
