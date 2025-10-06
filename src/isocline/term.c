@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>  // getenv
 #include <string.h>
+#include <sys/types.h>
 
 #include "common.h"
 #include "stringbuf.h"  // str_next_ofs
@@ -33,7 +34,7 @@
 
 // color support; colors are auto mapped smaller palettes if needed. (see
 // `term_color.c`)
-typedef enum palette_e {
+typedef enum palette_e : uint8_t {
     MONOCHROME,  // no color
     ANSI8,       // only basic 8 ANSI color     (ESC[<idx>m, idx: 30-37, +10 for
                  // background)

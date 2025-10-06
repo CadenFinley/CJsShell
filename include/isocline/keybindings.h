@@ -4,6 +4,7 @@
   `isocline.h` lighter for callers that don't need key binding metadata.
 -----------------------------------------------------------------------------*/
 #pragma once
+#include <cstdint>
 #ifndef IC_KEYBINDINGS_H
 #define IC_KEYBINDINGS_H
 
@@ -14,7 +15,7 @@ extern "C" {
 #include "keycodes.h"
 
 /// Key action identifiers returned by key binding queries and APIs.
-typedef enum ic_key_action_e {
+typedef enum ic_key_action_e : uint8_t {
     IC_KEY_ACTION_NONE = 0,
     IC_KEY_ACTION_COMPLETE,
     IC_KEY_ACTION_HISTORY_SEARCH,

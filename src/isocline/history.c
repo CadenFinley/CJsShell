@@ -98,7 +98,10 @@ ic_private bool history_push(history_t* h, const char* entry) {
         history_delete_at(h, 0);
     }
     assert(h->count < h->len);
-    h->elems[h->count] = mem_strdup(h->mem, entry);
+    char* copy = mem_strdup(h->mem, entry);
+    if (copy == NULL)
+        return false;
+    h->elems[h->count] = copy;
     h->count++;
     return true;
 }

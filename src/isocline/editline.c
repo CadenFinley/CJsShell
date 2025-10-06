@@ -1298,6 +1298,11 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
     }
 
     if (eb.input == NULL || eb.extra == NULL || eb.hint == NULL || eb.hint_help == NULL) {
+        sbuf_free(eb.input);
+        sbuf_free(eb.extra);
+        sbuf_free(eb.hint);
+        sbuf_free(eb.hint_help);
+        mem_free(env->mem, (void*)eb.prompt_text);
         return NULL;
     }
 
@@ -1630,6 +1635,11 @@ static char* edit_line_inline(ic_env_t* env, const char* prompt_text,
     }
 
     if (eb.input == NULL || eb.extra == NULL || eb.hint == NULL || eb.hint_help == NULL) {
+        sbuf_free(eb.input);
+        sbuf_free(eb.extra);
+        sbuf_free(eb.hint);
+        sbuf_free(eb.hint_help);
+        mem_free(env->mem, (void*)eb.prompt_text);
         return NULL;
     }
 

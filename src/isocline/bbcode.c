@@ -31,7 +31,7 @@ typedef struct style_s {
     attr_t attr;       // attribute to apply
 } style_t;
 
-typedef enum align_e {
+typedef enum align_e : uint8_t {
     IC_ALIGN_LEFT,
     IC_ALIGN_CENTER,
     IC_ALIGN_RIGHT

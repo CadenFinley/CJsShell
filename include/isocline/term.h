@@ -6,6 +6,7 @@
   found in the "LICENSE" file at the root of this distribution.
 -----------------------------------------------------------------------------*/
 #pragma once
+#include <cstdint>
 #ifndef IC_TERM_H
 #define IC_TERM_H
 
@@ -17,7 +18,7 @@
 struct term_s;
 typedef struct term_s term_t;
 
-typedef enum buffer_mode_e {
+typedef enum buffer_mode_e : uint8_t {
     UNBUFFERED,
     LINEBUFFERED,
     BUFFERED,

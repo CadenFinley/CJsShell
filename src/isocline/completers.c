@@ -296,7 +296,7 @@ ic_public void ic_complete_qword_ex(ic_completion_env_t* cenv, const char* prefi
 //-------------------------------------------------------------
 #include <stdlib.h>
 
-typedef enum file_type_e {
+typedef enum file_type_e : uint8_t {
     // must follow BSD style LSCOLORS order
     FT_DEFAULT = 0,
     FT_DIR,
