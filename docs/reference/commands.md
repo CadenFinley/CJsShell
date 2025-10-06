@@ -368,6 +368,14 @@ Available subcommands:
 - `login-startup-arg` - Add startup flags (config file only)
 - `completion-case` - Configure completion case sensitivity
 - `completion-spell` - Toggle spell correction suggestions in completions
+- `line-numbers` - Configure line numbers in multiline input
+- `hint-delay` - Set hint display delay in milliseconds
+- `completion-preview` - Configure completion preview
+- `hint` - Configure inline hints
+- `multiline-indent` - Configure auto-indent in multiline input
+- `multiline` - Configure multiline input mode
+- `inline-help` - Configure inline help messages
+- `auto-tab` - Configure automatic tab completion
 - `keybind` - Inspect or modify key bindings
 - `generate-profile` - Create or overwrite ~/.cjprofile
 - `generate-rc` - Create or overwrite ~/.cjshrc
@@ -446,6 +454,153 @@ cjshopt completion-spell status   # Display the current state
 ```
 
 Persist the choice by placing the command in `~/.cjshrc`.
+
+#### line-numbers
+
+Enable, disable, or inspect line numbers in multiline input mode. When enabled, cjsh will display line numbers on the left side of multiline input, making it easier to navigate and edit multi-line commands or scripts.
+
+```bash
+cjshopt line-numbers <on|off|status>
+```
+
+Examples:
+
+```bash
+cjshopt line-numbers on       # Enable line numbers in multiline input
+cjshopt line-numbers off      # Disable line numbers in multiline input
+cjshopt line-numbers status   # Show the current setting
+```
+
+Add the command to `~/.cjshrc` to persist the setting across sessions. The subcommand also accepts synonyms such as `enable`, `disable`, `true`, and `false`.
+
+#### hint-delay
+
+Configure the delay (in milliseconds) before inline hints are displayed. This controls how quickly the shell shows suggestions and hints as you type.
+
+```bash
+cjshopt hint-delay <milliseconds>
+```
+
+Examples:
+
+```bash
+cjshopt hint-delay 100     # Set hint delay to 100 milliseconds
+cjshopt hint-delay 0       # Show hints immediately
+cjshopt hint-delay status  # Show the current delay setting
+```
+
+- Valid range: **0 and above** (0 shows hints immediately)
+- Default: Varies based on system configuration
+
+Place the command in `~/.cjshrc` to keep the delay setting between sessions.
+
+#### completion-preview
+
+Toggle the completion preview feature, which shows a preview of the selected completion as you navigate through completion options.
+
+```bash
+cjshopt completion-preview <on|off|status>
+```
+
+Examples:
+
+```bash
+cjshopt completion-preview on      # Enable completion preview
+cjshopt completion-preview off     # Disable completion preview
+cjshopt completion-preview status  # Show the current setting
+```
+
+The subcommand accepts synonyms such as `enable`, `disable`, `true`, and `false`. Add to `~/.cjshrc` to persist the preference.
+
+#### hint
+
+Enable, disable, or inspect inline hints that appear as you type commands. Hints can include suggestions, command completions, and other helpful information.
+
+```bash
+cjshopt hint <on|off|status>
+```
+
+Examples:
+
+```bash
+cjshopt hint on       # Enable inline hints
+cjshopt hint off      # Disable inline hints
+cjshopt hint status   # Show the current setting
+```
+
+Synonyms like `enable`, `disable`, `true`, and `false` are supported. Persist the setting by adding the command to `~/.cjshrc`.
+
+#### multiline-indent
+
+Configure automatic indentation in multiline input mode. When enabled, the shell will automatically indent continuation lines based on the context (e.g., after opening braces, parentheses, or control structures).
+
+```bash
+cjshopt multiline-indent <on|off|status>
+```
+
+Examples:
+
+```bash
+cjshopt multiline-indent on       # Enable automatic indentation
+cjshopt multiline-indent off      # Disable automatic indentation
+cjshopt multiline-indent status   # Show the current setting
+```
+
+This is particularly useful when writing shell scripts or complex commands directly in the shell. Add to `~/.cjshrc` to keep the setting. Accepts synonyms such as `enable`, `disable`, `true`, and `false`.
+
+#### multiline
+
+Enable or disable multiline input mode entirely. When enabled, you can enter commands that span multiple lines. When disabled, the shell treats each line as a separate command.
+
+```bash
+cjshopt multiline <on|off|status>
+```
+
+Examples:
+
+```bash
+cjshopt multiline on       # Enable multiline input
+cjshopt multiline off      # Disable multiline input
+cjshopt multiline status   # Show the current setting
+```
+
+Disabling multiline mode may be useful for simple command execution or when working with scripts that don't require multi-line editing. Accepts synonyms like `enable`, `disable`, `true`, and `false`. Persist by adding to `~/.cjshrc`.
+
+#### inline-help
+
+Toggle inline help messages that appear as you type commands. These messages can provide quick information about command syntax, options, and usage.
+
+```bash
+cjshopt inline-help <on|off|status>
+```
+
+Examples:
+
+```bash
+cjshopt inline-help on       # Enable inline help messages
+cjshopt inline-help off      # Disable inline help messages
+cjshopt inline-help status   # Show the current setting
+```
+
+Supports synonyms such as `enable`, `disable`, `true`, and `false`. Add the command to `~/.cjshrc` to make the setting permanent.
+
+#### auto-tab
+
+Configure automatic tab completion behavior. When enabled, the shell may automatically complete commands or show completions without requiring explicit tab key presses.
+
+```bash
+cjshopt auto-tab <on|off|status>
+```
+
+Examples:
+
+```bash
+cjshopt auto-tab on       # Enable automatic tab completion
+cjshopt auto-tab off      # Disable automatic tab completion
+cjshopt auto-tab status   # Show the current setting
+```
+
+Accepts synonyms including `enable`, `disable`, `true`, and `false`. Place in `~/.cjshrc` to persist the preference across sessions.
 
 #### keybind
 
