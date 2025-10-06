@@ -49,24 +49,29 @@ int cjshopt_command(const std::vector<std::string>& args) {
     }
 
     if (args.size() < 2) {
-        print_error({ErrorType::INVALID_ARGUMENT,
-                     "cjshopt",
-                     "Missing subcommand argument",
-                     {
-                         "Usage: cjshopt <subcommand> [options]",
-                         "Available subcommands:",
-                         "  style_def <token_type> <style>   Define or redefine a syntax "
-                         "highlighting style",
-                         "  login-startup-arg [--flag-name]  Add a startup flag "
-                         "(config file only)",
-                         "  completion-case <on|off|status>  Configure completion case "
-                         "sensitivity",
-                         "  keybind <subcommand> [...]       Inspect or modify key bindings "
-                         "(modifications in config only)",
-                         "  generate-profile [--force]       Create or overwrite ~/.cjprofile",
-                         "  generate-rc [--force]            Create or overwrite ~/.cjshrc",
-                         "  generate-logout [--force]        Create or overwrite ~/.cjsh_logout",
-                     }});
+        print_error(
+            {ErrorType::INVALID_ARGUMENT,
+             "cjshopt",
+             "Missing subcommand argument",
+             {
+                 "Usage: cjshopt <subcommand> [options]",
+                 "Available subcommands:",
+                 "  style_def <token_type> <style>   Define or redefine a syntax "
+                 "highlighting style",
+                 "  login-startup-arg [--flag-name]  Add a startup flag "
+                 "(config file only)",
+                 "  completion-case <on|off|status>  Configure completion case "
+                 "sensitivity",
+                 "  keybind <subcommand> [...]       Inspect or modify key bindings "
+                 "(modifications in config only)",
+                 "  generate-profile [--force]       Create or overwrite ~/.cjprofile",
+                 "  generate-rc [--force]            Create or overwrite ~/.cjshrc",
+                 "  generate-logout [--force]        Create or overwrite ~/.cjsh_logout",
+                 "  set-max-bookmarks <number>       Set the maximum number of bookmarks to store",
+                 "  set-history-max <value>          Configure the maximum size of the history "
+                 "file",
+                 "  bookmark-blacklist <subcommand>  Manage directories that cannot be bookmarked",
+             }});
         return 1;
     }
 

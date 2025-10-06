@@ -373,3 +373,36 @@ Available subcommands:
 - `generate-logout` - Create or overwrite ~/.cjsh_logout
 - `set-max-bookmarks` - Set maximum number of bookmarks
 - `set-history-max` - Configure history file size
+- `bookmark-blacklist` - Manage directories that cannot be bookmarked
+
+#### bookmark-blacklist
+
+The `bookmark-blacklist` subcommand allows you to manage a list of directories that should not be automatically bookmarked by the smart CD feature.
+
+```bash
+cjshopt bookmark-blacklist <subcommand> [path]
+```
+
+Available subcommands:
+- `add <path>` - Add a directory to the blacklist
+- `remove <path>` - Remove a directory from the blacklist
+- `list` - Display all blacklisted directories
+- `clear` - Remove all entries from the blacklist
+
+Examples:
+```bash
+# Add directories to the blacklist
+cjshopt bookmark-blacklist add /tmp
+cjshopt bookmark-blacklist add ~/.cache
+
+# List blacklisted directories
+cjshopt bookmark-blacklist list
+
+# Remove a directory from the blacklist
+cjshopt bookmark-blacklist remove /tmp
+
+# Clear all blacklisted directories
+cjshopt bookmark-blacklist clear
+```
+
+This is particularly useful for preventing temporary or system directories from cluttering your bookmark list. Blacklist entries can be added to your `~/.cjshrc` file to persist across sessions.
