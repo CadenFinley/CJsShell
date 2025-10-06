@@ -914,19 +914,20 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
     std::string prefix_before;
     std::string special_part;
 
-    if (last_space != std::string::npos && last_space + 1 < prefix_str.length()) {
-        if (prefix_str[last_space + 1] == '~') {
-            has_tilde = true;
-            prefix_before = prefix_str.substr(0, last_space + 1);
+    if (last_space != std::string::npos) {
+        prefix_before = prefix_str.substr(0, last_space + 1);
+
+        if (last_space + 1 < prefix_str.length()) {
             special_part = prefix_str.substr(last_space + 1);
-        } else if (prefix_str[last_space + 1] == '-' &&
-                   (prefix_str.length() == last_space + 2 || prefix_str[last_space + 2] == '/')) {
-            has_dash = true;
-            prefix_before = prefix_str.substr(0, last_space + 1);
-            special_part = prefix_str.substr(last_space + 1);
+
+            if (!special_part.empty() && special_part[0] == '~') {
+                has_tilde = true;
+            } else if (!special_part.empty() && special_part[0] == '-' &&
+                       (special_part.length() == 1 || special_part[1] == '/')) {
+                has_dash = true;
+            }
         } else {
-            prefix_before = prefix_str.substr(0, last_space + 1);
-            special_part = prefix_str.substr(last_space + 1);
+            special_part.clear();
         }
     } else if (!prefix_str.empty() && prefix_str[0] == '~') {
         has_tilde = true;
@@ -935,9 +936,6 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                (prefix_str.length() == 1 || prefix_str[1] == '/')) {
         has_dash = true;
         special_part = prefix_str;
-    } else if (starts_with_token(prefix_str, "cd ") && prefix_str.length() > 3) {
-        prefix_before = prefix_str.substr(0, 3);
-        special_part = prefix_str.substr(3);
     }
 
     if (has_tilde && (special_part.length() == 1 || special_part[1] == '/')) {
@@ -1044,8 +1042,9 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
         }
     }
 
-    std::string path_to_check =
-        special_part.empty() ? unquote_path(prefix_str) : unquote_path(special_part);
+    const bool has_command_prefix = !prefix_before.empty();
+    std::string raw_path_input = has_command_prefix ? special_part : prefix_str;
+    std::string path_to_check = unquote_path(raw_path_input);
 
     if (!ic_stop_completing(cenv) && !path_to_check.empty() && path_to_check.back() == '/') {
         namespace fs = std::filesystem;
@@ -1062,8 +1061,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
     }
 
     if (directories_only) {
-        std::string path_to_complete =
-            special_part.empty() ? unquote_path(prefix_str) : unquote_path(special_part);
+        std::string path_to_complete = unquote_path(raw_path_input);
 
         namespace fs = std::filesystem;
         fs::path dir_path;
@@ -1080,8 +1078,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
         } catch (const std::exception& e) {
         }
     } else {
-        std::string path_to_complete =
-            special_part.empty() ? unquote_path(prefix_str) : unquote_path(special_part);
+        std::string path_to_complete = unquote_path(raw_path_input);
 
         namespace fs = std::filesystem;
         fs::path dir_path;
