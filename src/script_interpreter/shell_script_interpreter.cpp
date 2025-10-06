@@ -2404,6 +2404,74 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
             bool is_ascending = true;
         } range_info;
 
+        auto extract_keyword_suffix = [](const std::string& text,
+                                         std::string_view keyword) -> std::optional<std::string> {
+            if (text.size() < keyword.size()) {
+                return std::nullopt;
+            }
+            if (text.compare(0, keyword.size(), keyword) != 0) {
+                return std::nullopt;
+            }
+
+            if (text.size() > keyword.size()) {
+                char next = text[keyword.size()];
+                if (next != ';' && (std::isspace(static_cast<unsigned char>(next)) == 0)) {
+                    return std::nullopt;
+                }
+            }
+
+            std::string suffix = text.substr(keyword.size());
+            size_t advance = 0;
+            while (advance < suffix.size() &&
+                   (std::isspace(static_cast<unsigned char>(suffix[advance])) != 0)) {
+                advance++;
+            }
+            suffix.erase(0, advance);
+            return suffix;
+        };
+
+        auto strip_leading_semicolons_and_space = [](std::string value) {
+            size_t pos = 0;
+            while (pos < value.size() &&
+                   (std::isspace(static_cast<unsigned char>(value[pos])) != 0)) {
+                pos++;
+            }
+            while (pos < value.size() && value[pos] == ';') {
+                pos++;
+                while (pos < value.size() &&
+                       (std::isspace(static_cast<unsigned char>(value[pos])) != 0)) {
+                    pos++;
+                }
+            }
+            return value.substr(pos);
+        };
+
+        auto matches_keyword_only = [](const std::string& text, std::string_view keyword) {
+            if (text.size() < keyword.size()) {
+                return false;
+            }
+            if (text.compare(0, keyword.size(), keyword) != 0) {
+                return false;
+            }
+            size_t pos = keyword.size();
+            while (pos < text.size() &&
+                   (std::isspace(static_cast<unsigned char>(text[pos])) != 0)) {
+                pos++;
+            }
+            while (pos < text.size() && text[pos] == ';') {
+                pos++;
+                while (pos < text.size() &&
+                       (std::isspace(static_cast<unsigned char>(text[pos])) != 0)) {
+                    pos++;
+                }
+            }
+            while (pos < text.size() &&
+                   (std::isspace(static_cast<unsigned char>(text[pos])) != 0)) {
+                pos++;
+            }
+            return pos == text.size();
+        };
+
         auto parse_header = [&](const std::string& header) -> bool {
             std::vector<std::string> raw_toks;
 
@@ -2571,6 +2639,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
         std::string header_accum = first;
         size_t j = idx;
         bool have_do = false;
+        bool do_line_has_inline_body = false;
+        std::string inline_body;
 
         if (first.find("; do") != std::string::npos && first.rfind("; do") == first.length() - 4) {
             have_do = true;
@@ -2582,9 +2652,30 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                     have_do = true;
                     break;
                 }
-                if (cur.find("; do") != std::string::npos) {
-                    header_accum += " ";
-                    header_accum += cur;
+                if (cur.empty()) {
+                    continue;
+                }
+                size_t inline_do_pos = cur.find("; do");
+                if (inline_do_pos != std::string::npos) {
+                    std::string before_do = trim(cur.substr(0, inline_do_pos));
+                    if (!before_do.empty()) {
+                        header_accum += " ";
+                        header_accum += before_do;
+                    }
+                    std::string after_do = strip_leading_semicolons_and_space(cur.substr(inline_do_pos + 4));
+                    if (!after_do.empty()) {
+                        inline_body = std::move(after_do);
+                        do_line_has_inline_body = true;
+                    }
+                    have_do = true;
+                    break;
+                }
+                if (auto do_suffix = extract_keyword_suffix(cur, "do")) {
+                    std::string after_do = strip_leading_semicolons_and_space(*do_suffix);
+                    if (!after_do.empty()) {
+                        inline_body = std::move(after_do);
+                        do_line_has_inline_body = true;
+                    }
                     have_do = true;
                     break;
                 }
@@ -2604,14 +2695,43 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
         }
 
         std::vector<std::string> body_lines;
-        size_t k = j + 1;
-        int depth = 1;
+        bool inline_consumes_done = false;
+        if (do_line_has_inline_body) {
+            std::string inline_content = trim(inline_body);
+            if (!inline_content.empty()) {
+                if (matches_keyword_only(inline_content, "done")) {
+                    inline_consumes_done = true;
+                    inline_content.clear();
+                } else {
+                    size_t done_marker = inline_content.rfind(" done");
+                    if (done_marker != std::string::npos) {
+                        std::string after_done = trim(inline_content.substr(done_marker + 1));
+                        if (matches_keyword_only(after_done, "done")) {
+                            inline_content = trim(inline_content.substr(0, done_marker));
+                            inline_consumes_done = true;
+                        }
+                    }
+                }
+
+                if (!inline_content.empty()) {
+                    auto inline_segments = shell_parser->parse_into_lines(inline_content);
+                    for (auto& segment : inline_segments) {
+                        if (!trim(segment).empty()) {
+                            body_lines.push_back(segment);
+                        }
+                    }
+                }
+            }
+        }
+
+    size_t k = inline_consumes_done ? j : (j + 1);
+    int depth = inline_consumes_done ? 0 : 1;
         while (k < src_lines.size() && depth > 0) {
             const std::string& cur_raw = src_lines[k];
             std::string cur = trim(strip_inline_comment(cur_raw));
             if (cur == "for" || cur.rfind("for ", 0) == 0) {
                 depth++;
-            } else if (cur == "done") {
+            } else if (matches_keyword_only(cur, "done")) {
                 depth--;
                 if (depth == 0)
                     break;
