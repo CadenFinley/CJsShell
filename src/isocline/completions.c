@@ -147,6 +147,10 @@ static void completions_replace(completions_t* cms, ssize_t index, const char* r
         return;
 
     completion_t* cm = &cms->elems[index];
+    mem_free(cms->mem, cm->replacement);
+    mem_free(cms->mem, cm->display);
+    mem_free(cms->mem, cm->help);
+    mem_free(cms->mem, cm->source);
     cm->replacement = mem_strdup(cms->mem, replacement);
     cm->display = mem_strdup(cms->mem, display);
     cm->help = mem_strdup(cms->mem, help);

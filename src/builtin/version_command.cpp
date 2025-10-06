@@ -2,12 +2,10 @@
 
 #include "builtin_help.h"
 
-#include <iostream>
+#include <cstdio>
 #include <string>
 
 #include "cjsh.h"
-
-static const std::string c_git_hash = CJSH_GIT_HASH;
 
 int version_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(args,
@@ -22,8 +20,9 @@ int version_command(const std::vector<std::string>& args) {
 #define CJSH_BUILD_PLATFORM "unknown"
 #endif
 
-    std::cout << "cjsh v" << get_version() << " (git " << c_git_hash << ") (" << CJSH_BUILD_ARCH
-              << "-" << CJSH_BUILD_PLATFORM << ")" << '\n';
-    std::cout << "Copyright (c) 2025 Caden Finley MIT License" << '\n';
+    const std::string version = get_version();
+    (void)std::fprintf(stdout, "cjsh v%s (git %s) (%s-%s)\n", version.c_str(), CJSH_GIT_HASH,
+                       CJSH_BUILD_ARCH, CJSH_BUILD_PLATFORM);
+    (void)std::fputs("Copyright (c) 2025 Caden Finley MIT License\n", stdout);
     return 0;
 }
