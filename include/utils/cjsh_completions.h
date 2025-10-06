@@ -18,6 +18,8 @@ void cleanup_completion_system();
 void update_previous_directory(const std::string& old_dir);
 void set_completion_case_sensitive(bool case_sensitive);
 bool is_completion_case_sensitive();
+void set_completion_spell_correction_enabled(bool enabled);
+bool is_completion_spell_correction_enabled();
 bool set_history_max_entries(long max_entries, std::string* error_message = nullptr);
 long get_history_max_entries();
 long get_history_default_history_limit();

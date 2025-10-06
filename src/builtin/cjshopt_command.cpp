@@ -25,6 +25,7 @@ void print_cjshopt_usage() {
         << "  style_def <token_type> <style>   Define or redefine a syntax highlighting style\n";
     std::cout << "  login-startup-arg [--flag-name]  Add a startup flag (config file only)\n";
     std::cout << "  completion-case <on|off|status>  Configure completion case sensitivity\n";
+    std::cout << "  completion-spell <on|off|status> Configure completion spell correction\n";
     std::cout << "  keybind <subcommand> [...]       Inspect or modify key bindings (modifications "
                  "in config only)\n";
     std::cout << "  generate-profile [--force]       Create or overwrite ~/.cjprofile\n";
@@ -62,6 +63,7 @@ int cjshopt_command(const std::vector<std::string>& args) {
                  "(config file only)",
                  "  completion-case <on|off|status>  Configure completion case "
                  "sensitivity",
+                 "  completion-spell <on|off|status> Configure completion spell correction",
                  "  keybind <subcommand> [...]       Inspect or modify key bindings "
                  "(modifications in config only)",
                  "  generate-profile [--force]       Create or overwrite ~/.cjprofile",
@@ -83,6 +85,8 @@ int cjshopt_command(const std::vector<std::string>& args) {
         return startup_flag_command(std::vector<std::string>(args.begin() + 1, args.end()));
     } else if (subcommand == "completion-case") {
         return completion_case_command(std::vector<std::string>(args.begin() + 1, args.end()));
+    } else if (subcommand == "completion-spell") {
+        return completion_spell_command(std::vector<std::string>(args.begin() + 1, args.end()));
     } else if (subcommand == "keybind") {
         return keybind_command(std::vector<std::string>(args.begin() + 1, args.end()));
     } else if (subcommand == "generate-profile") {
@@ -102,7 +106,7 @@ int cjshopt_command(const std::vector<std::string>& args) {
                      "cjshopt",
                      "unknown subcommand '" + subcommand + "'",
                      {"Available subcommands: style_def, login-startup-arg, completion-case, "
-                      "keybind, generate-profile, generate-rc, generate-logout, "
+                      "completion-spell, keybind, generate-profile, generate-rc, generate-logout, "
                       "set-max-bookmarks, set-history-max, bookmark-blacklist"}});
         return 1;
     }
@@ -257,6 +261,88 @@ int completion_case_command(const std::vector<std::string>& args) {
     if (!g_startup_active) {
         std::cout << "Completion case sensitivity "
                   << (enable_case_sensitive ? "enabled" : "disabled") << ".\n";
+    }
+
+    return 0;
+}
+
+int completion_spell_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: completion-spell <on|off|status>",
+        "Examples:", "  completion-spell on      Enable spell correction in completions",
+        "  completion-spell off     Disable spell correction in completions",
+        "  completion-spell status  Show the current setting"};
+
+    if (args.size() == 1) {
+        print_error({ErrorType::INVALID_ARGUMENT, "completion-spell", "Missing option argument",
+                     usage_lines});
+        return 1;
+    }
+
+    if (args.size() == 2 && (args[1] == "--help" || args[1] == "-h")) {
+        if (!g_startup_active) {
+            for (const auto& line : usage_lines) {
+                std::cout << line << '\n';
+            }
+            std::cout << "Current: "
+                      << (is_completion_spell_correction_enabled() ? "enabled" : "disabled")
+                      << '\n';
+        }
+        return 0;
+    }
+
+    if (args.size() != 2) {
+        print_error({ErrorType::INVALID_ARGUMENT, "completion-spell", "Too many arguments provided",
+                     usage_lines});
+        return 1;
+    }
+
+    std::string option = args[1];
+    std::string normalized = option;
+    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+    if (normalized == "status" || normalized == "--status") {
+        if (!g_startup_active) {
+            std::cout << "Completion spell correction is currently "
+                      << (is_completion_spell_correction_enabled() ? "enabled" : "disabled") << "."
+                      << '\n';
+        }
+        return 0;
+    }
+
+    bool enable_spell_correction = false;
+    bool recognized_option = true;
+
+    if (normalized == "on" || normalized == "enable" || normalized == "enabled" ||
+        normalized == "true" || normalized == "1" || normalized == "spell" ||
+        normalized == "--enable" || normalized == "--spell") {
+        enable_spell_correction = true;
+    } else if (normalized == "off" || normalized == "disable" || normalized == "disabled" ||
+               normalized == "false" || normalized == "0" || normalized == "--disable") {
+        enable_spell_correction = false;
+    } else {
+        recognized_option = false;
+    }
+
+    if (!recognized_option) {
+        print_error({ErrorType::INVALID_ARGUMENT, "completion-spell",
+                     "Unknown option '" + option + "'", usage_lines});
+        return 1;
+    }
+
+    bool currently_enabled = is_completion_spell_correction_enabled();
+    if (currently_enabled == enable_spell_correction) {
+        return 0;
+    }
+
+    set_completion_spell_correction_enabled(enable_spell_correction);
+
+    if (!g_startup_active) {
+        std::cout << "Completion spell correction "
+                  << (enable_spell_correction ? "enabled" : "disabled") << ".\n";
+        std::cout << "Add `cjshopt completion-spell " << (enable_spell_correction ? "on" : "off")
+                  << "` to your ~/.cjshrc to persist this change.\n";
     }
 
     return 0;

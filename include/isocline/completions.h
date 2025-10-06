@@ -34,6 +34,7 @@ ic_private void completions_set_completer(completions_t* cms, ic_completer_fun_t
                                           void* arg);
 ic_private const char* completions_get_display(completions_t* cms, ssize_t index,
                                                const char** help);
+ic_private const char* completions_get_replacement(completions_t* cms, ssize_t index);
 ic_private const char* completions_get_source(completions_t* cms, ssize_t index);
 ic_private const char* completions_get_hint(completions_t* cms, ssize_t index, const char** help);
 ic_private void completions_get_completer(completions_t* cms, ic_completer_fun_t** completer,

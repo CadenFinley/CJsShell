@@ -7,6 +7,8 @@
 -----------------------------------------------------------------------------*/
 
 //-------------------------------------------------------------
+
+static bool edit_try_spell_correct(ic_env_t* env, editor_t* eb);
 // Completion menu: this file is included in editline.c
 //-------------------------------------------------------------
 
@@ -282,7 +284,9 @@ static void edit_generate_completions(ic_env_t* env, editor_t* eb, bool autotab)
     if (count <= 0) {
         // no completions
         if (!autotab) {
-            term_beep(env->term);
+            if (!edit_try_spell_correct(env, eb)) {
+                term_beep(env->term);
+            }
         }
     } else if (count == 1) {
         // complete if only one match

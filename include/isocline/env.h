@@ -16,7 +16,6 @@
 #include "completions.h"
 #include "history.h"
 #include "isocline.h"
-#include "stringbuf.h"
 #include "term.h"
 #include "tty.h"
 
@@ -59,6 +58,7 @@ struct ic_env_s {
     bool no_autobrace;                   // enable automatic brace insertion?
     bool no_lscolors;                    // use LSCOLORS/LS_COLORS to colorize file name
                                          // completions?
+    bool spell_correct;                  // enable spell correction on completions?
     bool prompt_cleanup;                 // after enter, rewrite prompt inline?
     bool prompt_cleanup_add_empty_line;  // optionally add empty line after
                                          // cleanup

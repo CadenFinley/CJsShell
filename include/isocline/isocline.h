@@ -468,6 +468,12 @@ bool ic_enable_prompt_cleanup_empty_line(bool enable);
 /// @returns the previous setting.
 bool ic_enable_hint(bool enable);
 
+/// Disable or enable spell correction in completion (disabled by default).
+/// When enabled and no completion matches, tab will try to correct the
+/// current token to the closest available completion.
+/// @returns the previous setting.
+bool ic_enable_spell_correct(bool enable);
+
 /// Set millisecond delay before a hint is displayed. Can be zero. (500ms by
 /// default).
 long ic_set_hint_delay(long delay_ms);
@@ -829,8 +835,8 @@ typedef void(ic_free_fun_t)(void* p);
 
 /// Initialize with custom allocation functions.
 /// This must be called as the first function in a program!
-void ic_init_custom_alloc(ic_malloc_fun_t* _malloc, ic_realloc_fun_t* _realloc,
-                          ic_free_fun_t* _free);
+void ic_init_custom_alloc(ic_malloc_fun_t* custom_malloc, ic_realloc_fun_t* custom_realloc,
+                          ic_free_fun_t* custom_free);
 
 /// Free a potentially custom alloc'd pointer (in particular, the result
 /// returned from `ic_readline`)

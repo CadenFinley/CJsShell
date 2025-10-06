@@ -257,6 +257,13 @@ ic_private const char* completions_get_display(completions_t* cms, ssize_t index
     return (cm->display != NULL ? cm->display : cm->replacement);
 }
 
+ic_private const char* completions_get_replacement(completions_t* cms, ssize_t index) {
+    completion_t* cm = completions_get(cms, index);
+    if (cm == NULL)
+        return NULL;
+    return cm->replacement;
+}
+
 ic_private const char* completions_get_help(completions_t* cms, ssize_t index) {
     completion_t* cm = completions_get(cms, index);
     if (cm == NULL)

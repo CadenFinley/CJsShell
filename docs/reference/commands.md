@@ -367,6 +367,7 @@ Available subcommands:
 - `style_def` - Define or redefine syntax highlighting styles
 - `login-startup-arg` - Add startup flags (config file only)
 - `completion-case` - Configure completion case sensitivity
+- `completion-spell` - Toggle spell correction suggestions in completions
 - `keybind` - Inspect or modify key bindings
 - `generate-profile` - Create or overwrite ~/.cjprofile
 - `generate-rc` - Create or overwrite ~/.cjshrc
@@ -374,6 +375,27 @@ Available subcommands:
 - `set-max-bookmarks` - Set maximum number of bookmarks
 - `set-history-max` - Configure history file size
 - `bookmark-blacklist` - Manage directories that cannot be bookmarked
+
+#### completion-spell
+
+Enable, disable, or inspect the completion spell correction feature. When enabled, the
+completer will attempt to correct minor typos when generating suggestions.
+
+```bash
+cjshopt completion-spell <on|off|status>
+```
+
+Examples:
+
+```bash
+# Enable spell correction for new completions
+cjshopt completion-spell on
+
+# Show the current setting
+cjshopt completion-spell status
+```
+
+Add the command to your `~/.cjshrc` to make the preference persistent across sessions.
 
 #### bookmark-blacklist
 

@@ -24,6 +24,7 @@
 
 std::map<std::string, int> g_completion_frequency;
 bool g_completion_case_sensitive = false;
+bool g_completion_spell_correction_enabled = false;  // NOLINT
 static const size_t MAX_COMPLETION_TRACKER_ENTRIES = 250;
 static const size_t MAX_TOTAL_COMPLETIONS = 50;
 
@@ -1187,6 +1188,7 @@ void initialize_completion_system() {
     ic_enable_multiline_indent(true);
     ic_enable_multiline(true);
     ic_set_prompt_marker("", nullptr);
+    ic_enable_spell_correct(g_completion_spell_correction_enabled);
     if (!enforce_history_limit_internal(nullptr)) {
         std::cerr << "cjsh: warning: failed to enforce history limit; history file may exceed the "
                      "configured size."
@@ -1213,6 +1215,15 @@ void set_completion_case_sensitive(bool case_sensitive) {
 
 bool is_completion_case_sensitive() {
     return g_completion_case_sensitive;
+}
+
+void set_completion_spell_correction_enabled(bool enabled) {
+    g_completion_spell_correction_enabled = enabled;
+    ic_enable_spell_correct(enabled);
+}
+
+bool is_completion_spell_correction_enabled() {
+    return g_completion_spell_correction_enabled;
 }
 
 bool set_history_max_entries(long max_entries, std::string* error_message) {

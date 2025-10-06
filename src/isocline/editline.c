@@ -5,6 +5,8 @@
   under the terms of the MIT License. A copy of the license can be
   found in the "LICENSE" file at the root of this distribution.
 -----------------------------------------------------------------------------*/
+#include <ctype.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -349,6 +351,167 @@ static bool edit_pos_is_at_row_end(ic_env_t* env, editor_t* eb) {
     rowcol_t rc;
     edit_get_rowcol(env, eb, &rc);
     return rc.last_on_row;
+}
+
+static bool edit_complete(ic_env_t* env, editor_t* eb, ssize_t idx);
+
+static ssize_t edit_find_word_start(const char* input, ssize_t pos) {
+    ssize_t start = pos;
+    while (start > 0) {
+        ssize_t prev = str_prev_ofs(input, start, NULL);
+        if (prev <= 0)
+            break;
+        if (ic_char_is_separator(input + start - prev, (long)prev))
+            break;
+        start -= prev;
+    }
+    return start;
+}
+
+static inline char ascii_tolower_char(char c) {
+    if (c >= 'A' && c <= 'Z')
+        return (char)(c + ('a' - 'A'));
+    return c;
+}
+
+static size_t levenshtein_casefold(alloc_t* mem, const char* left, const char* right) {
+    if (left == NULL || right == NULL)
+        return SIZE_MAX;
+    size_t len_left = strlen(left);
+    size_t len_right = strlen(right);
+    if (len_left == 0)
+        return len_right;
+    if (len_right == 0)
+        return len_left;
+
+    size_t* prev = mem_malloc_tp_n(mem, size_t, len_right + 1);
+    size_t* curr = mem_malloc_tp_n(mem, size_t, len_right + 1);
+    if (prev == NULL || curr == NULL) {
+        mem_free(mem, prev);
+        mem_free(mem, curr);
+        return SIZE_MAX;
+    }
+
+    for (size_t j = 0; j <= len_right; ++j) {
+        prev[j] = j;
+    }
+
+    for (size_t i = 1; i <= len_left; ++i) {
+        curr[0] = i;
+        char cl = ascii_tolower_char(left[i - 1]);
+        for (size_t j = 1; j <= len_right; ++j) {
+            char cr = ascii_tolower_char(right[j - 1]);
+            size_t cost = (cl == cr ? 0 : 1);
+            size_t deletion = prev[j] + 1;
+            size_t insertion = curr[j - 1] + 1;
+            size_t substitution = prev[j - 1] + cost;
+            size_t best = deletion;
+            if (insertion < best)
+                best = insertion;
+            if (substitution < best)
+                best = substitution;
+            curr[j] = best;
+        }
+        size_t* tmp = prev;
+        prev = curr;
+        curr = tmp;
+    }
+
+    size_t result = prev[len_right];
+    mem_free(mem, prev);
+    mem_free(mem, curr);
+    return result;
+}
+
+static size_t edit_spell_threshold(size_t left_len, size_t right_len) {
+    size_t max_len = (left_len > right_len ? left_len : right_len);
+    if (max_len <= 2)
+        return 1;
+    if (max_len <= 4)
+        return 1;
+    if (max_len <= 6)
+        return 2;
+    return max_len / 2;
+}
+
+static bool edit_try_spell_correct(ic_env_t* env, editor_t* eb) {
+    if (!env->spell_correct)
+        return false;
+
+    const char* input = sbuf_string(eb->input);
+    if (input == NULL)
+        return false;
+    ssize_t pos = eb->pos;
+    if (pos <= 0)
+        return false;
+
+    ssize_t prev = str_prev_ofs(input, pos, NULL);
+    if (prev <= 0)
+        return false;
+    if (ic_char_is_separator(input + pos - prev, (long)prev))
+        return false;
+
+    ssize_t word_start = edit_find_word_start(input, pos);
+    if (word_start < 0 || word_start >= pos)
+        return false;
+
+    ssize_t word_len = pos - word_start;
+    char* original_word = mem_strndup(env->mem, input + word_start, word_len);
+    if (original_word == NULL)
+        return false;
+
+    editor_start_modify(eb);
+    sbuf_delete_from_to(eb->input, word_start, pos);
+    eb->pos = word_start;
+
+    ssize_t candidate_count = completions_generate(env, env->completions, sbuf_string(eb->input),
+                                                   eb->pos, IC_MAX_COMPLETIONS_TO_TRY);
+    if (candidate_count <= 0) {
+        editor_undo_restore(eb, false);
+        completions_clear(env->completions);
+        mem_free(env->mem, original_word);
+        return false;
+    }
+
+    ssize_t best_index = -1;
+    size_t best_distance = SIZE_MAX;
+    long best_length_diff = LONG_MAX;
+    ssize_t original_len = ic_strlen(original_word);
+
+    for (ssize_t i = 0; i < candidate_count; ++i) {
+        const char* replacement = completions_get_replacement(env->completions, i);
+        if (replacement == NULL || *replacement == '\0')
+            continue;
+        size_t distance = levenshtein_casefold(env->mem, original_word, replacement);
+        if (distance == SIZE_MAX)
+            continue;
+        ssize_t replacement_len = ic_strlen(replacement);
+        long len_diff = labs((long)replacement_len - (long)original_len);
+        if (distance < best_distance ||
+            (distance == best_distance && len_diff < best_length_diff)) {
+            best_distance = distance;
+            best_length_diff = len_diff;
+            best_index = i;
+        }
+    }
+
+    bool applied = false;
+    if (best_index >= 0) {
+        const char* best_replacement = completions_get_replacement(env->completions, best_index);
+        size_t replacement_len =
+            (best_replacement == NULL ? 0 : (size_t)ic_strlen(best_replacement));
+        size_t threshold = edit_spell_threshold((size_t)original_len, replacement_len);
+        if (best_distance <= threshold) {
+            applied = edit_complete(env, eb, best_index);
+        }
+    }
+
+    if (!applied) {
+        editor_undo_restore(eb, false);
+    }
+    completions_clear(env->completions);
+    mem_free(env->mem, original_word);
+    return applied;
 }
 
 // Helper function to extract the last line from a multi-line prompt
