@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <functional>
+#include <mutex>
 #include <regex>
 
 #include "utils/cjsh_filesystem.h"
