@@ -31,16 +31,15 @@ theme_definition [optional name] {
 }
 ```
 
+> **Heads up:** Comment syntax (for example lines beginning with `#`) isn't currently supported inside a theme definition. Including comment markers will usually cause the parser to error out.
+
 ### Prompt Definitions and Theme Structure
 
 Themes are made up of different prompt types: PS1 and GIT. The PS1 is the default prompt that is used at all times except when within a git repo, at which point the GIT prompt is used. There are two more additional prompts that have special features. Those prompts are the newline and inline_right prompts. It does not matter the order in which each prompt is defined in the theme file. The terminal window title can also be defined here in the theme file.
 
 ```bash
 theme_definition "theme_name" {
-
-    # This is a comment
-
-    variables { # This is not a valid comment and will produce an error
+  variables {
 
     }
 
@@ -75,7 +74,7 @@ theme_definition "theme_name" {
 
 ### Theme Variables
 
-Then structure and behaviors are designed inside. Variables can be used to define commonly used characters, colors, conditional structures, and prompt segments. Comments can be used but not inline they must have their own separate line and are defined like '#'
+Then structure and behaviors are designed inside. Variables can be used to define commonly used characters, colors, conditional structures, and prompt segments. Comments are not supported anywhere in theme files right now, so avoid adding `#` or other comment-like markers.
 
 ```bash
 variables {

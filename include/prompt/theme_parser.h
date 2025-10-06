@@ -8,10 +8,18 @@
 
 #include "error_out.h"
 
+struct ThemeParseContext {
+    size_t column_start = 0;
+    size_t column_end = 0;
+    size_t char_offset = 0;
+    std::string line_content;
+};
+
 class ThemeParseException : public std::runtime_error {
    public:
     ThemeParseException(size_t line, std::string detail, std::string source = "",
-                        std::optional<ErrorInfo> error_info = std::nullopt);
+                        std::optional<ErrorInfo> error_info = std::nullopt,
+                        std::optional<ThemeParseContext> context = std::nullopt);
 
     size_t line() const noexcept {
         return line_;
@@ -25,6 +33,9 @@ class ThemeParseException : public std::runtime_error {
     const std::optional<ErrorInfo>& error_info() const noexcept {
         return error_info_;
     }
+    const std::optional<ThemeParseContext>& context() const noexcept {
+        return context_;
+    }
 
    private:
     static std::string build_message(size_t line, const std::string& detail,
@@ -34,6 +45,7 @@ class ThemeParseException : public std::runtime_error {
     std::string detail_;
     std::string source_;
     std::optional<ErrorInfo> error_info_;
+    std::optional<ThemeParseContext> context_;
 };
 
 struct ThemeSegment;

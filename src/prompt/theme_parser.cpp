@@ -11,12 +11,14 @@
 #include "utils/unicode_support.h"
 
 ThemeParseException::ThemeParseException(size_t line, std::string detail, std::string source,
-                                         std::optional<ErrorInfo> error_info)
+                             std::optional<ErrorInfo> error_info,
+                             std::optional<ThemeParseContext> context)
     : std::runtime_error(build_message(line, detail, source)),
       line_(line),
       detail_(std::move(detail)),
       source_(std::move(source)),
-      error_info_(std::move(error_info)) {
+    error_info_(std::move(error_info)),
+    context_(std::move(context)) {
 }
 
 std::string ThemeParseException::build_message(size_t line, const std::string& detail,
@@ -825,11 +827,73 @@ void ThemeParser::expect_token(const std::string& expected) {
 }
 
 void ThemeParser::parse_error(const std::string& message) {
+    std::optional<ThemeParseContext> context;
+
+    if (!content.empty()) {
+        ThemeParseContext ctx;
+
+        size_t highlight_index = std::min(position, content.size());
+        bool at_content_end = highlight_index >= content.size();
+        bool at_line_break = false;
+        if (!at_content_end) {
+            char current_char = content[highlight_index];
+            at_line_break = current_char == '\n' || current_char == '\r';
+        }
+
+        size_t reference_index = highlight_index;
+        if ((at_content_end || at_line_break) && reference_index > 0) {
+            reference_index -= 1;
+        }
+        if (!content.empty() && reference_index >= content.size()) {
+            reference_index = content.size() - 1;
+        }
+
+        size_t line_start = reference_index;
+        while (line_start > 0) {
+            char ch = content[line_start - 1];
+            if (ch == '\n' || ch == '\r') {
+                break;
+            }
+            --line_start;
+        }
+
+        size_t line_end = reference_index;
+        while (line_end < content.size()) {
+            char ch = content[line_end];
+            if (ch == '\n' || ch == '\r') {
+                break;
+            }
+            ++line_end;
+        }
+
+        ctx.line_content = content.substr(line_start, line_end - line_start);
+
+        if (!ctx.line_content.empty()) {
+            if (at_content_end || at_line_break) {
+                ctx.column_start = ctx.line_content.size();
+            } else if (reference_index >= line_start) {
+                ctx.column_start = reference_index - line_start;
+            }
+
+            ctx.column_end = std::min(ctx.column_start + 1, ctx.line_content.size());
+            if (ctx.column_end == ctx.column_start && ctx.column_start < ctx.line_content.size()) {
+                ctx.column_end = ctx.column_start + 1;
+            }
+        } else {
+            ctx.column_start = 0;
+            ctx.column_end = 0;
+        }
+
+        ctx.char_offset = highlight_index;
+
+        context = std::move(ctx);
+    }
+
     ErrorInfo info{ErrorType::SYNTAX_ERROR,
                    source_name.empty() ? "theme_parser" : source_name,
                    message,
                    {"Check theme syntax and try again."}};
-    throw ThemeParseException(line_number, message, source_name, info);
+    throw ThemeParseException(line_number, message, source_name, info, context);
 }
 
 ThemeDefinition ThemeParser::parse() {

@@ -10,12 +10,70 @@
 #include <sstream>
 #include <unordered_set>
 #include <utility>
+#include <vector>
 
 #include "utils/utf8_utils.h"
 
 #include "cjsh.h"
 #include "colors.h"
 #include "error_out.h"
+#include "script_interpreter/shell_script_interpreter_error_reporter.h"
+
+namespace {
+
+bool report_theme_parse_error_with_script_reporter(const ThemeParseException& exception,
+                                                   const std::string& source_hint) {
+    if (!exception.context()) {
+        return false;
+    }
+
+    const ThemeParseContext& ctx = *exception.context();
+
+    ShellScriptInterpreter::ErrorPosition position{exception.line(), ctx.column_start,
+                                                   ctx.column_end, ctx.char_offset};
+
+    std::string message;
+    if (!source_hint.empty()) {
+        message = "Theme parse error in '" + source_hint + "'";
+    } else if (!exception.source().empty()) {
+        message = "Theme parse error in '" + exception.source() + "'";
+    } else {
+        message = "Theme parse error";
+    }
+
+    if (!exception.detail().empty()) {
+        if (!message.empty()) {
+            message += ": " + exception.detail();
+        } else {
+            message = exception.detail();
+        }
+    }
+
+    std::string suggestion = "Check theme syntax and try again.";
+    if (exception.error_info() && !exception.error_info()->suggestions.empty()) {
+        suggestion = exception.error_info()->suggestions.front();
+    }
+
+    ShellScriptInterpreter::SyntaxError error(
+        position, ShellScriptInterpreter::ErrorSeverity::ERROR,
+        ShellScriptInterpreter::ErrorCategory::SYNTAX, "THEME001", message, ctx.line_content,
+        suggestion);
+
+    if (!source_hint.empty()) {
+        error.related_info.push_back("Source: " + source_hint);
+    } else if (!exception.source().empty()) {
+        error.related_info.push_back("Source: " + exception.source());
+    }
+
+    std::vector<ShellScriptInterpreter::SyntaxError> errors;
+    errors.push_back(std::move(error));
+
+    shell_script_interpreter::reset_error_count();
+    shell_script_interpreter::print_error_report(errors, true, !ctx.line_content.empty());
+    return true;
+}
+
+}  // namespace
 
 Theme::Theme(std::string theme_dir, bool enabled)
     : theme_directory(std::move(theme_dir)), is_enabled(enabled) {
@@ -64,6 +122,7 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
         return apply_theme_definition(parsed_definition, theme_name_to_use, allow_fallback,
                                       theme_path);
     } catch (const ThemeParseException& e) {
+        bool reported = report_theme_parse_error_with_script_reporter(e, theme_file);
         std::string message = "Failed to parse theme file '" + theme_file + "'";
         if (e.line() > 0) {
             message += " at line " + std::to_string(e.line());
@@ -72,20 +131,22 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
             message += ": " + e.detail();
         }
 
-        if (e.error_info()) {
-            ErrorInfo error = *e.error_info();
-            error.type = ErrorType::SYNTAX_ERROR;
-            error.command_used = "load_theme";
-            error.message = message;
-            if (error.suggestions.empty()) {
-                error.suggestions.push_back("Check theme syntax and try again.");
+        if (!reported) {
+            if (e.error_info()) {
+                ErrorInfo error = *e.error_info();
+                error.type = ErrorType::SYNTAX_ERROR;
+                error.command_used = "load_theme";
+                error.message = message;
+                if (error.suggestions.empty()) {
+                    error.suggestions.push_back("Check theme syntax and try again.");
+                }
+                print_error(error);
+            } else {
+                print_error({ErrorType::SYNTAX_ERROR,
+                             "load_theme",
+                             message,
+                             {"Check theme syntax and try again."}});
             }
-            print_error(error);
-        } else {
-            print_error({ErrorType::SYNTAX_ERROR,
-                         "load_theme",
-                         message,
-                         {"Check theme syntax and try again."}});
         }
         return false;
     } catch (const std::exception& e) {
@@ -130,6 +191,7 @@ bool Theme::load_theme_from_path(const std::filesystem::path& file_path, bool al
         return apply_theme_definition(parsed_definition, theme_name_to_use, allow_fallback,
                                       normalized);
     } catch (const ThemeParseException& e) {
+        bool reported = report_theme_parse_error_with_script_reporter(e, normalized.string());
         std::string message = "Failed to parse theme file '" + normalized.string() + "'";
         if (e.line() > 0) {
             message += " at line " + std::to_string(e.line());
@@ -137,20 +199,22 @@ bool Theme::load_theme_from_path(const std::filesystem::path& file_path, bool al
         if (!e.detail().empty()) {
             message += ": " + e.detail();
         }
-        if (e.error_info()) {
-            ErrorInfo error = *e.error_info();
-            error.type = ErrorType::SYNTAX_ERROR;
-            error.command_used = "load_theme";
-            error.message = message;
-            if (error.suggestions.empty()) {
-                error.suggestions.push_back("Check theme syntax and try again.");
+        if (!reported) {
+            if (e.error_info()) {
+                ErrorInfo error = *e.error_info();
+                error.type = ErrorType::SYNTAX_ERROR;
+                error.command_used = "load_theme";
+                error.message = message;
+                if (error.suggestions.empty()) {
+                    error.suggestions.push_back("Check theme syntax and try again.");
+                }
+                print_error(error);
+            } else {
+                print_error({ErrorType::SYNTAX_ERROR,
+                             "load_theme",
+                             message,
+                             {"Check theme syntax and try again."}});
             }
-            print_error(error);
-        } else {
-            print_error({ErrorType::SYNTAX_ERROR,
-                         "load_theme",
-                         message,
-                         {"Check theme syntax and try again."}});
         }
         return false;
     } catch (const std::exception& e) {
@@ -207,6 +271,7 @@ bool Theme::load_theme_from_string(const std::string& theme_content, const std::
         return apply_theme_definition(parsed_definition, theme_name_to_use, allow_fallback,
                                       pseudo_source);
     } catch (const ThemeParseException& e) {
+        bool reported = report_theme_parse_error_with_script_reporter(e, source_label);
         std::string message = "Failed to parse inline theme";
         if (!source_label.empty()) {
             message += " '" + source_label + "'";
@@ -218,20 +283,22 @@ bool Theme::load_theme_from_string(const std::string& theme_content, const std::
             message += ": " + e.detail();
         }
 
-        if (e.error_info()) {
-            ErrorInfo error = *e.error_info();
-            error.type = ErrorType::SYNTAX_ERROR;
-            error.command_used = "load_theme";
-            error.message = message;
-            if (error.suggestions.empty()) {
-                error.suggestions.push_back("Check theme syntax and try again.");
+        if (!reported) {
+            if (e.error_info()) {
+                ErrorInfo error = *e.error_info();
+                error.type = ErrorType::SYNTAX_ERROR;
+                error.command_used = "load_theme";
+                error.message = message;
+                if (error.suggestions.empty()) {
+                    error.suggestions.push_back("Check theme syntax and try again.");
+                }
+                print_error(error);
+            } else {
+                print_error({ErrorType::SYNTAX_ERROR,
+                             "load_theme",
+                             message,
+                             {"Check theme syntax and try again."}});
             }
-            print_error(error);
-        } else {
-            print_error({ErrorType::SYNTAX_ERROR,
-                         "load_theme",
-                         message,
-                         {"Check theme syntax and try again."}});
         }
         return false;
     } catch (const std::exception& e) {
@@ -1022,6 +1089,7 @@ void Theme::view_theme_requirements(const std::string& theme) const {
             std::cout << "No specific requirements found for theme " << theme << '\n';
         }
     } catch (const ThemeParseException& e) {
+        bool reported = report_theme_parse_error_with_script_reporter(e, theme_file);
         std::string message = "Failed to parse theme file '" + theme_file + "'";
         if (e.line() > 0) {
             message += " at line " + std::to_string(e.line());
@@ -1029,20 +1097,22 @@ void Theme::view_theme_requirements(const std::string& theme) const {
         if (!e.detail().empty()) {
             message += ": " + e.detail();
         }
-        if (e.error_info()) {
-            ErrorInfo error = *e.error_info();
-            error.type = ErrorType::SYNTAX_ERROR;
-            error.command_used = "view_theme_requirements";
-            error.message = message;
-            if (error.suggestions.empty()) {
-                error.suggestions.push_back("Check theme syntax and try again.");
+        if (!reported) {
+            if (e.error_info()) {
+                ErrorInfo error = *e.error_info();
+                error.type = ErrorType::SYNTAX_ERROR;
+                error.command_used = "view_theme_requirements";
+                error.message = message;
+                if (error.suggestions.empty()) {
+                    error.suggestions.push_back("Check theme syntax and try again.");
+                }
+                print_error(error);
+            } else {
+                print_error({ErrorType::SYNTAX_ERROR,
+                             "view_theme_requirements",
+                             message,
+                             {"Check theme syntax and try again."}});
             }
-            print_error(error);
-        } else {
-            print_error({ErrorType::SYNTAX_ERROR,
-                         "view_theme_requirements",
-                         message,
-                         {"Check theme syntax and try again."}});
         }
     } catch (const std::exception& e) {
         print_error({ErrorType::RUNTIME_ERROR,
