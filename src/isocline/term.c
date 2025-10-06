@@ -34,7 +34,7 @@
 
 // color support; colors are auto mapped smaller palettes if needed. (see
 // `term_color.c`)
-typedef enum palette_e : uint8_t {
+typedef enum palette_e {
     MONOCHROME,  // no color
     ANSI8,       // only basic 8 ANSI color     (ESC[<idx>m, idx: 30-37, +10 for
                  // background)
