@@ -1,5 +1,14 @@
 # Quick Start
 
+## Prerequisites
+
+A standard C/C++ Compiler:
+
+ - GCC
+ - clang
+
+And that is it! cjsh has no external dependencies and was designed like this for pure simplicity. To just work where ever.
+
 ## Installation
 
 cjsh can be downloaded or built in multiple different ways.

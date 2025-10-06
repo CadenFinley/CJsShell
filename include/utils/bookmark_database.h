@@ -4,6 +4,8 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
+#include <vector>
 #include "utils/cjsh_filesystem.h"
 
 namespace bookmark_database {
@@ -58,10 +60,19 @@ class BookmarkDatabase {
     cjsh_filesystem::Result<void> import_from_map(
         const std::unordered_map<std::string, std::string>& old_bookmarks);
 
+    // Blacklist management
+    cjsh_filesystem::Result<void> add_to_blacklist(const std::string& path);
+    cjsh_filesystem::Result<void> remove_from_blacklist(const std::string& path);
+    bool is_blacklisted(const std::string& path) const;
+    std::vector<std::string> get_blacklist() const;
+    cjsh_filesystem::Result<void> clear_blacklist();
+
    private:
     size_t MAX_BOOKMARKS = 10;
     std::unordered_map<std::string, BookmarkEntry> bookmarks_;
+    std::unordered_set<std::string> blacklisted_paths_;
     std::string database_path_;
+    std::string blacklist_path_;
     bool dirty_;
 
     cjsh_filesystem::Result<void> ensure_database_directory();
@@ -93,6 +104,26 @@ inline size_t get_max_bookmarks() {
 
 inline void set_max_bookmarks(size_t max_bookmarks) {
     g_bookmark_db.set_max_bookmarks(max_bookmarks);
+}
+
+inline cjsh_filesystem::Result<void> add_path_to_blacklist(const std::string& path) {
+    return g_bookmark_db.add_to_blacklist(path);
+}
+
+inline cjsh_filesystem::Result<void> remove_path_from_blacklist(const std::string& path) {
+    return g_bookmark_db.remove_from_blacklist(path);
+}
+
+inline bool is_path_blacklisted(const std::string& path) {
+    return g_bookmark_db.is_blacklisted(path);
+}
+
+inline std::vector<std::string> get_bookmark_blacklist() {
+    return g_bookmark_db.get_blacklist();
+}
+
+inline cjsh_filesystem::Result<void> clear_bookmark_blacklist() {
+    return g_bookmark_db.clear_blacklist();
 }
 
 }  // namespace bookmark_database

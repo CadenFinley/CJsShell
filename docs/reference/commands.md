@@ -373,8 +373,3 @@ Available subcommands:
 - `generate-logout` - Create or overwrite ~/.cjsh_logout
 - `set-max-bookmarks` - Set maximum number of bookmarks
 - `set-history-max` - Configure history file size
-
-## Special Internal Commands
-
-### __INTERNAL_SUBSHELL__
-Internal command used for subshell execution. Not intended for direct use.

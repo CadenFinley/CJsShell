@@ -34,6 +34,8 @@ void print_cjshopt_usage() {
         << "  set-max-bookmarks <number>       Set the maximum number of bookmarks to store\n";
     std::cout
         << "  set-history-max <value>          Configure the maximum size of the history file\n";
+    std::cout
+        << "  bookmark-blacklist <subcommand>  Manage directories that cannot be bookmarked\n";
     std::cout << "Use 'cjshopt <subcommand> --help' to see usage for a specific subcommand.\n";
 }
 }  // namespace
@@ -88,13 +90,15 @@ int cjshopt_command(const std::vector<std::string>& args) {
         return set_max_bookmarks_command(std::vector<std::string>(args.begin() + 1, args.end()));
     } else if (subcommand == "set-history-max") {
         return set_history_max_command(std::vector<std::string>(args.begin() + 1, args.end()));
+    } else if (subcommand == "bookmark-blacklist") {
+        return bookmark_blacklist_command(std::vector<std::string>(args.begin() + 1, args.end()));
     } else {
         print_error({ErrorType::INVALID_ARGUMENT,
                      "cjshopt",
                      "unknown subcommand '" + subcommand + "'",
                      {"Available subcommands: style_def, login-startup-arg, completion-case, "
                       "keybind, generate-profile, generate-rc, generate-logout, "
-                      "set-max-bookmarks, set-history-max"}});
+                      "set-max-bookmarks, set-history-max, bookmark-blacklist"}});
         return 1;
     }
 }
@@ -1319,6 +1323,163 @@ int set_history_max_command(const std::vector<std::string>& args) {
         } else {
             std::cout << "History file will retain up to " << applied_limit << " entries." << '\n';
         }
+    }
+
+    return 0;
+}
+
+int bookmark_blacklist_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: bookmark-blacklist <subcommand> [path]",
+        "",
+        "Manage directories that cannot be bookmarked.",
+        "",
+        "Subcommands:",
+        "  add <path>      Add a directory to the blacklist",
+        "  remove <path>   Remove a directory from the blacklist",
+        "  list            List all blacklisted directories",
+        "  clear           Clear the entire blacklist",
+        "",
+        "Examples:",
+        "  cjshopt bookmark-blacklist add /tmp",
+        "  cjshopt bookmark-blacklist remove /tmp",
+        "  cjshopt bookmark-blacklist list",
+        "  cjshopt bookmark-blacklist clear"};
+
+    if (args.size() < 2) {
+        if (!g_startup_active) {
+            for (const auto& line : usage_lines) {
+                std::cout << line << '\n';
+            }
+        }
+        print_error({ErrorType::INVALID_ARGUMENT, "bookmark-blacklist", "expected a subcommand",
+                     usage_lines});
+        return 1;
+    }
+
+    const std::string& subcommand = args[1];
+
+    if (subcommand == "--help" || subcommand == "-h") {
+        if (!g_startup_active) {
+            for (const auto& line : usage_lines) {
+                std::cout << line << '\n';
+            }
+        }
+        return 0;
+    }
+
+    if (subcommand == "add") {
+        if (args.size() < 3) {
+            print_error({ErrorType::INVALID_ARGUMENT, "bookmark-blacklist add",
+                         "expected a path argument", usage_lines});
+            return 1;
+        }
+
+        const std::string& path = args[2];
+
+        // First, check if any bookmarks will be removed
+        std::vector<std::string> affected_bookmarks;
+        if (!g_startup_active) {
+            try {
+                std::filesystem::path fs_path(path);
+                std::string canonical_path;
+
+                if (std::filesystem::exists(fs_path)) {
+                    canonical_path = std::filesystem::canonical(fs_path).string();
+                } else {
+                    canonical_path = std::filesystem::absolute(fs_path).string();
+                }
+
+                auto all_bookmarks = bookmark_database::get_directory_bookmarks();
+                for (const auto& [name, bookmark_path] : all_bookmarks) {
+                    if (bookmark_path == canonical_path ||
+                        bookmark_path.find(canonical_path + "/") == 0) {
+                        affected_bookmarks.push_back(name);
+                    }
+                }
+            } catch (...) {
+                // Ignore errors during check
+            }
+        }
+
+        auto result = bookmark_database::add_path_to_blacklist(path);
+
+        if (result.is_error()) {
+            print_error({ErrorType::RUNTIME_ERROR, "bookmark-blacklist add", result.error(), {}});
+            return 1;
+        }
+
+        if (!g_startup_active) {
+            std::cout << "Added to blacklist: " << path << '\n';
+            if (!affected_bookmarks.empty()) {
+                std::cout << "Removed " << affected_bookmarks.size() << " existing bookmark(s): ";
+                for (size_t i = 0; i < affected_bookmarks.size(); ++i) {
+                    if (i > 0)
+                        std::cout << ", ";
+                    std::cout << affected_bookmarks[i];
+                }
+                std::cout << '\n';
+            }
+        }
+        return 0;
+
+    } else if (subcommand == "remove") {
+        if (args.size() < 3) {
+            print_error({ErrorType::INVALID_ARGUMENT, "bookmark-blacklist remove",
+                         "expected a path argument", usage_lines});
+            return 1;
+        }
+
+        const std::string& path = args[2];
+        auto result = bookmark_database::remove_path_from_blacklist(path);
+
+        if (result.is_error()) {
+            print_error(
+                {ErrorType::RUNTIME_ERROR, "bookmark-blacklist remove", result.error(), {}});
+            return 1;
+        }
+
+        if (!g_startup_active) {
+            std::cout << "Removed from blacklist: " << path << '\n';
+        }
+        return 0;
+
+    } else if (subcommand == "list") {
+        auto blacklist = bookmark_database::get_bookmark_blacklist();
+
+        if (blacklist.empty()) {
+            if (!g_startup_active) {
+                std::cout << "No directories are currently blacklisted.\n";
+            }
+        } else {
+            if (!g_startup_active) {
+                std::cout << "Blacklisted directories:\n";
+                for (const auto& path : blacklist) {
+                    std::cout << "  " << path << '\n';
+                }
+            }
+        }
+        return 0;
+
+    } else if (subcommand == "clear") {
+        auto result = bookmark_database::clear_bookmark_blacklist();
+
+        if (result.is_error()) {
+            print_error({ErrorType::RUNTIME_ERROR, "bookmark-blacklist clear", result.error(), {}});
+            return 1;
+        }
+
+        if (!g_startup_active) {
+            std::cout << "Blacklist cleared.\n";
+        }
+        return 0;
+
+    } else {
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     "bookmark-blacklist",
+                     "unknown subcommand '" + subcommand + "'",
+                     {"Available subcommands: add, remove, list, clear"}});
+        return 1;
     }
 
     return 0;
