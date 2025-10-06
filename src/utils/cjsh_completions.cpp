@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -11,6 +12,7 @@
 #include <sstream>
 #include <string>
 #include <system_error>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -64,7 +66,7 @@ static SourcePriority get_source_priority(const char* source) {
 namespace {
 constexpr long kHistoryMinEntries = 0;
 constexpr long kHistoryDefaultEntries = 200;
-constexpr long kHistoryAbsoluteMaxEntries = 5000;  // Keep in sync with isocline/history.c
+constexpr long kHistoryAbsoluteMaxEntries = 5000;
 
 long g_history_max_entries_value = kHistoryDefaultEntries;
 
@@ -519,6 +521,167 @@ static size_t find_last_unquoted_space(const std::string& str) {
     return std::string::npos;
 }
 
+static std::string normalize_for_comparison(const std::string& value) {
+    if (g_completion_case_sensitive) {
+        return value;
+    }
+
+    std::string lower_value = value;
+    std::transform(lower_value.begin(), lower_value.end(), lower_value.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return lower_value;
+}
+
+static bool is_adjacent_transposition(const std::string& a, const std::string& b) {
+    if (a.length() != b.length() || a.length() < 2) {
+        return false;
+    }
+
+    size_t first_diff = std::string::npos;
+
+    for (size_t i = 0; i < a.length(); ++i) {
+        if (a[i] != b[i]) {
+            if (first_diff == std::string::npos) {
+                first_diff = i;
+            } else {
+                if (i == first_diff + 1 && a[first_diff] == b[i] && a[i] == b[first_diff]) {
+                    for (size_t k = i + 1; k < a.length(); ++k) {
+                        if (a[k] != b[k]) {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+                return false;
+            }
+        }
+    }
+
+    return false;
+}
+
+static int compute_edit_distance_with_limit(const std::string& source, const std::string& target,
+                                            int max_distance) {
+    const size_t source_length = source.length();
+    const size_t target_length = target.length();
+
+    if (std::abs(static_cast<int>(source_length) - static_cast<int>(target_length)) >
+        max_distance) {
+        return max_distance + 1;
+    }
+
+    std::vector<int> previous_row(target_length + 1);
+    std::vector<int> current_row(target_length + 1);
+
+    for (size_t j = 0; j <= target_length; ++j) {
+        previous_row[j] = static_cast<int>(j);
+    }
+
+    for (size_t i = 1; i <= source_length; ++i) {
+        current_row[0] = static_cast<int>(i);
+        int row_min = current_row[0];
+
+        for (size_t j = 1; j <= target_length; ++j) {
+            int cost = (source[i - 1] == target[j - 1]) ? 0 : 1;
+            current_row[j] =
+                std::min({previous_row[j] + 1, current_row[j - 1] + 1, previous_row[j - 1] + cost});
+            row_min = std::min(row_min, current_row[j]);
+        }
+
+        if (row_min > max_distance) {
+            return max_distance + 1;
+        }
+
+        std::swap(previous_row, current_row);
+    }
+
+    return previous_row[target_length];
+}
+
+static bool should_consider_spell_correction(const std::string& normalized_prefix) {
+    return normalized_prefix.length() >= 2;
+}
+
+struct SpellCorrectionMatch {
+    std::string candidate;
+    int distance{};
+    bool is_transposition{};
+};
+
+template <typename Container, typename Extractor>
+static void collect_spell_correction_candidates(
+    const Container& container, Extractor extractor,
+    const std::function<bool(const std::string&)>& filter, const std::string& normalized_prefix,
+    std::unordered_map<std::string, SpellCorrectionMatch>& matches) {
+    for (const auto& item : container) {
+        std::string candidate = extractor(item);
+        if (filter && !filter(candidate)) {
+            continue;
+        }
+
+        std::string normalized_candidate = normalize_for_comparison(candidate);
+        if (normalized_candidate == normalized_prefix) {
+            continue;
+        }
+
+        bool is_transposition_match =
+            is_adjacent_transposition(normalized_candidate, normalized_prefix);
+        int distance = compute_edit_distance_with_limit(normalized_candidate, normalized_prefix, 2);
+        if (!is_transposition_match && distance > 2) {
+            continue;
+        }
+
+        int effective_distance = is_transposition_match ? 1 : distance;
+        auto it = matches.find(candidate);
+
+        if (it == matches.end() || effective_distance < it->second.distance) {
+            matches[candidate] =
+                SpellCorrectionMatch{candidate, effective_distance, is_transposition_match};
+        }
+    }
+}
+
+static void add_spell_correction_matches(
+    ic_completion_env_t* cenv, const std::unordered_map<std::string, SpellCorrectionMatch>& matches,
+    size_t prefix_length) {
+    std::vector<SpellCorrectionMatch> ordered_matches;
+    ordered_matches.reserve(matches.size());
+
+    for (const auto& entry : matches) {
+        ordered_matches.push_back(entry.second);
+    }
+
+    std::sort(ordered_matches.begin(), ordered_matches.end(),
+              [](const SpellCorrectionMatch& a, const SpellCorrectionMatch& b) {
+                  if (a.distance != b.distance) {
+                      return a.distance < b.distance;
+                  }
+                  if (a.is_transposition != b.is_transposition) {
+                      return a.is_transposition && !b.is_transposition;
+                  }
+                  return a.candidate < b.candidate;
+              });
+
+    const size_t kMaxSpellMatches = 10;
+    size_t added = 0;
+
+    for (const auto& match : ordered_matches) {
+        if (completion_limit_hit_with_log("spell correction")) {
+            return;
+        }
+        if (!add_command_completion(cenv, match.candidate, prefix_length, "spell",
+                                    "spell correction")) {
+            return;
+        }
+        if (ic_stop_completing(cenv)) {
+            return;
+        }
+        if (++added >= kMaxSpellMatches) {
+            return;
+        }
+    }
+}
+
 static std::vector<std::string> tokenize_command_line(const std::string& line) {
     std::vector<std::string> tokens;
     std::string current_token;
@@ -722,6 +885,34 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
     process_command_candidates(
         cenv, cached_executables, prefix_str, prefix_len, "system", "cached executables",
         [](const std::filesystem::path& value) { return value.filename().string(); });
+
+    if (!ic_has_completions(cenv) && g_completion_spell_correction_enabled) {
+        std::string normalized_prefix = normalize_for_comparison(prefix_str);
+        if (should_consider_spell_correction(normalized_prefix)) {
+            std::unordered_map<std::string, SpellCorrectionMatch> spell_matches;
+
+            collect_spell_correction_candidates(
+                builtin_cmds, [](const std::string& value) { return value; }, builtin_filter,
+                normalized_prefix, spell_matches);
+
+            collect_spell_correction_candidates(
+                function_names, [](const std::string& value) { return value; },
+                std::function<bool(const std::string&)>{}, normalized_prefix, spell_matches);
+
+            collect_spell_correction_candidates(
+                aliases, [](const std::string& value) { return value; },
+                std::function<bool(const std::string&)>{}, normalized_prefix, spell_matches);
+
+            collect_spell_correction_candidates(
+                cached_executables,
+                [](const std::filesystem::path& value) { return value.filename().string(); },
+                std::function<bool(const std::string&)>{}, normalized_prefix, spell_matches);
+
+            if (!spell_matches.empty()) {
+                add_spell_correction_matches(cenv, spell_matches, prefix_len);
+            }
+        }
+    }
 }
 
 static bool looks_like_file_path(const std::string& str) {
