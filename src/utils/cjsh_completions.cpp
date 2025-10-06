@@ -1103,41 +1103,49 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
     if (ic_stop_completing(cenv))
         return;
 
-    completion_session_begin(cenv, prefix);
+    const char* effective_prefix = (prefix != nullptr) ? prefix : "";
 
-    CompletionContext context = detect_completion_context(prefix);
+    completion_session_begin(cenv, effective_prefix);
+
+    if (effective_prefix[0] == '\0') {
+        cjsh_history_completer(cenv, effective_prefix);
+        completion_session_end();
+        return;
+    }
+
+    CompletionContext context = detect_completion_context(effective_prefix);
 
     switch (context) {
         case CONTEXT_COMMAND:
-            cjsh_history_completer(cenv, prefix);
+            cjsh_history_completer(cenv, effective_prefix);
             if (ic_has_completions(cenv) && ic_stop_completing(cenv)) {
                 completion_session_end();
                 return;
             }
 
-            cjsh_command_completer(cenv, prefix);
+            cjsh_command_completer(cenv, effective_prefix);
             if (ic_has_completions(cenv) && ic_stop_completing(cenv)) {
                 completion_session_end();
                 return;
             }
 
-            cjsh_filename_completer(cenv, prefix);
+            cjsh_filename_completer(cenv, effective_prefix);
             break;
 
         case CONTEXT_PATH:
-            cjsh_history_completer(cenv, prefix);
-            cjsh_filename_completer(cenv, prefix);
+            cjsh_history_completer(cenv, effective_prefix);
+            cjsh_filename_completer(cenv, effective_prefix);
             break;
 
         case CONTEXT_ARGUMENT: {
-            std::string prefix_str(prefix);
+            std::string prefix_str(effective_prefix);
             std::vector<std::string> tokens = tokenize_command_line(prefix_str);
 
             if (!tokens.empty() && equals_completion_token(tokens[0], "cd")) {
-                cjsh_filename_completer(cenv, prefix);
+                cjsh_filename_completer(cenv, effective_prefix);
             } else {
-                cjsh_history_completer(cenv, prefix);
-                cjsh_filename_completer(cenv, prefix);
+                cjsh_history_completer(cenv, effective_prefix);
+                cjsh_filename_completer(cenv, effective_prefix);
             }
             break;
         }
