@@ -64,6 +64,26 @@ static SourcePriority get_source_priority(const char* source) {
     return PRIORITY_UNKNOWN;
 }
 
+static const char* extract_current_line_prefix(const char* prefix) {
+    if (prefix == nullptr) {
+        return "";
+    }
+
+    const char* last_newline = strrchr(prefix, '\n');
+    const char* last_carriage = strrchr(prefix, '\r');
+    const char* last_break = last_newline;
+
+    if (last_carriage != nullptr && (last_break == nullptr || last_carriage > last_break)) {
+        last_break = last_carriage;
+    }
+
+    if (last_break != nullptr) {
+        return last_break + 1;
+    }
+
+    return prefix;
+}
+
 namespace {
 constexpr long kHistoryMinEntries = 0;
 constexpr long kHistoryDefaultEntries = 200;
@@ -1294,48 +1314,49 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
         return;
 
     const char* effective_prefix = (prefix != nullptr) ? prefix : "";
+    const char* current_line_prefix = extract_current_line_prefix(effective_prefix);
 
     completion_session_begin(cenv, effective_prefix);
 
-    if (effective_prefix[0] == '\0') {
-        cjsh_history_completer(cenv, effective_prefix);
+    if (current_line_prefix[0] == '\0') {
+        cjsh_history_completer(cenv, current_line_prefix);
         completion_session_end();
         return;
     }
 
-    CompletionContext context = detect_completion_context(effective_prefix);
+    CompletionContext context = detect_completion_context(current_line_prefix);
 
     switch (context) {
         case CONTEXT_COMMAND:
-            cjsh_history_completer(cenv, effective_prefix);
+            cjsh_history_completer(cenv, current_line_prefix);
             if (ic_has_completions(cenv) && ic_stop_completing(cenv)) {
                 completion_session_end();
                 return;
             }
 
-            cjsh_command_completer(cenv, effective_prefix);
+            cjsh_command_completer(cenv, current_line_prefix);
             if (ic_has_completions(cenv) && ic_stop_completing(cenv)) {
                 completion_session_end();
                 return;
             }
 
-            cjsh_filename_completer(cenv, effective_prefix);
+            cjsh_filename_completer(cenv, current_line_prefix);
             break;
 
         case CONTEXT_PATH:
-            cjsh_history_completer(cenv, effective_prefix);
-            cjsh_filename_completer(cenv, effective_prefix);
+            cjsh_history_completer(cenv, current_line_prefix);
+            cjsh_filename_completer(cenv, current_line_prefix);
             break;
 
         case CONTEXT_ARGUMENT: {
-            std::string prefix_str(effective_prefix);
+            std::string prefix_str(current_line_prefix);
             std::vector<std::string> tokens = tokenize_command_line(prefix_str);
 
             if (!tokens.empty() && equals_completion_token(tokens[0], "cd")) {
-                cjsh_filename_completer(cenv, effective_prefix);
+                cjsh_filename_completer(cenv, current_line_prefix);
             } else {
-                cjsh_history_completer(cenv, effective_prefix);
-                cjsh_filename_completer(cenv, effective_prefix);
+                cjsh_history_completer(cenv, current_line_prefix);
+                cjsh_filename_completer(cenv, current_line_prefix);
             }
             break;
         }
