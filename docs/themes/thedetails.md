@@ -17,7 +17,7 @@ For automatic loading on shell startup, add the source command to your `~/.cjshr
 source ~/mythemes/gruvbox_dark.cjsh
 ```
 
-Alternativly, theme definitions inlined in .cjshrc with be automattically loaded
+Alternatively, theme definitions inlined in .cjshrc will be automatically loaded
 
 Theme files included with cjsh can be found in the `themes/` directory of the repository.
 

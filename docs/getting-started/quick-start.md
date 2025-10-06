@@ -35,7 +35,7 @@ cjsh is still in active, rapid development so even the latest release can still 
 
 ```bash
     # First clone the repo
-    https://github.com/CadenFinley/CJsShell && cd CJsShell
+    git clone https://github.com/CadenFinley/CJsShell && cd CJsShell
 
     # Run the build script
     chmod +x toolchain/build.sh && ./toolchain/build.sh
@@ -44,7 +44,7 @@ cjsh is still in active, rapid development so even the latest release can still 
     chmod +x toolchain/debug_install.sh && ./toolchain/debug_install.sh
 ```
 
-The debug installer installs automattically to the most sensable path for the user
+The debug installer installs automatically to the most sensible path for the user
 
 ## Build info
 
