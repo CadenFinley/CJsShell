@@ -24,8 +24,9 @@ void print_cjshopt_usage() {
     std::cout
         << "  style_def <token_type> <style>   Define or redefine a syntax highlighting style\n";
     std::cout << "  login-startup-arg [--flag-name]  Add a startup flag (config file only)\n";
-    std::cout << "  completion-case <on|off|status>  Configure completion case sensitivity\n";
-    std::cout << "  completion-spell <on|off|status> Configure completion spell correction\n";
+    std::cout << "  completion-case <on|off|status>  Configure completion case sensitivity (default: disabled)\n";
+    std::cout << "  completion-spell <on|off|status> Configure completion spell correction (default: disabled)\n";
+    std::cout << "  line-numbers <on|off|status>    Configure line numbers in multiline input (default: disabled)\n";
     std::cout << "  keybind <subcommand> [...]       Inspect or modify key bindings (modifications "
                  "in config only)\n";
     std::cout << "  generate-profile [--force]       Create or overwrite ~/.cjprofile\n";
@@ -60,8 +61,9 @@ int cjshopt_command(const std::vector<std::string>& args) {
                  "  login-startup-arg [--flag-name]  Add a startup flag "
                  "(config file only)",
                  "  completion-case <on|off|status>  Configure completion case "
-                 "sensitivity",
-                 "  completion-spell <on|off|status> Configure completion spell correction",
+                 "sensitivity (default: disabled)",
+                 "  completion-spell <on|off|status> Configure completion spell correction (default: disabled)",
+                 "  line-numbers <on|off|status>    Configure line numbers in multiline input (default: disabled)",
                  "  keybind <subcommand> [...]       Inspect or modify key bindings "
                  "(modifications in config only)",
                  "  generate-profile [--force]       Create or overwrite ~/.cjprofile",
@@ -84,6 +86,8 @@ int cjshopt_command(const std::vector<std::string>& args) {
         return completion_case_command(std::vector<std::string>(args.begin() + 1, args.end()));
     } else if (subcommand == "completion-spell") {
         return completion_spell_command(std::vector<std::string>(args.begin() + 1, args.end()));
+    } else if (subcommand == "line-numbers") {
+        return line_numbers_command(std::vector<std::string>(args.begin() + 1, args.end()));
     } else if (subcommand == "keybind") {
         return keybind_command(std::vector<std::string>(args.begin() + 1, args.end()));
     } else if (subcommand == "generate-profile") {
@@ -340,6 +344,85 @@ int completion_spell_command(const std::vector<std::string>& args) {
                   << (enable_spell_correction ? "enabled" : "disabled") << ".\n";
         std::cout << "Add `cjshopt completion-spell " << (enable_spell_correction ? "on" : "off")
                   << "` to your ~/.cjshrc to persist this change.\n";
+    }
+
+    return 0;
+}
+
+int line_numbers_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: line-numbers <on|off|status>",
+        "Examples:", "  line-numbers on       Enable line numbers in multiline input",
+        "  line-numbers off      Disable line numbers in multiline input",
+        "  line-numbers status   Show the current setting"};
+
+    if (args.size() == 1) {
+        print_error({ErrorType::INVALID_ARGUMENT, "line-numbers", "Missing option argument",
+                     usage_lines});
+        return 1;
+    }
+
+    if (args.size() == 2 && (args[1] == "--help" || args[1] == "-h")) {
+        if (!g_startup_active) {
+            for (const auto& line : usage_lines) {
+                std::cout << line << '\n';
+            }
+            // Get current status by calling ic_enable_line_numbers with the same value
+            bool current_status = ic_enable_line_numbers(true);
+            ic_enable_line_numbers(current_status);  // Restore original value
+            std::cout << "Current: " << (current_status ? "enabled" : "disabled") << '\n';
+        }
+        return 0;
+    }
+
+    if (args.size() != 2) {
+        print_error({ErrorType::INVALID_ARGUMENT, "line-numbers", "Too many arguments provided",
+                     usage_lines});
+        return 1;
+    }
+
+    std::string option = args[1];
+    std::string normalized = option;
+    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+    if (normalized == "status" || normalized == "--status") {
+        if (!g_startup_active) {
+            // Get current status by calling ic_enable_line_numbers with the same value
+            bool current_status = ic_enable_line_numbers(true);
+            ic_enable_line_numbers(current_status);  // Restore original value
+            std::cout << "Line numbers in multiline input are currently "
+                      << (current_status ? "enabled" : "disabled") << "." << '\n';
+        }
+        return 0;
+    }
+
+    bool enable_line_numbers = false;
+    bool recognized_option = true;
+
+    if (normalized == "on" || normalized == "enable" || normalized == "enabled" ||
+        normalized == "true" || normalized == "1" || normalized == "--enable") {
+        enable_line_numbers = true;
+    } else if (normalized == "off" || normalized == "disable" || normalized == "disabled" ||
+               normalized == "false" || normalized == "0" || normalized == "--disable") {
+        enable_line_numbers = false;
+    } else {
+        recognized_option = false;
+    }
+
+    if (!recognized_option) {
+        print_error({ErrorType::INVALID_ARGUMENT, "line-numbers",
+                     "Unknown option '" + option + "'", usage_lines});
+        return 1;
+    }
+
+    // Set the new value and get the previous value
+    bool previously_enabled = ic_enable_line_numbers(enable_line_numbers);
+    
+    // Only show message if the setting actually changed
+    if (previously_enabled != enable_line_numbers && !g_startup_active) {
+        std::cout << "Line numbers in multiline input "
+                  << (enable_line_numbers ? "enabled" : "disabled") << ".\n";
     }
 
     return 0;

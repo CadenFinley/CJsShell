@@ -59,6 +59,7 @@ struct ic_env_s {
     bool no_lscolors;                    // use LSCOLORS/LS_COLORS to colorize file name
                                          // completions?
     bool spell_correct;                  // enable spell correction on completions?
+    bool show_line_numbers;              // show line numbers in multiline mode?
     bool prompt_cleanup;                 // after enter, rewrite prompt inline?
     bool prompt_cleanup_add_empty_line;  // optionally add empty line after
                                          // cleanup

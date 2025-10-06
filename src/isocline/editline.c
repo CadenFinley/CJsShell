@@ -310,7 +310,14 @@ static void edit_get_prompt_width(ic_env_t* env, editor_t* eb, bool in_extra, ss
         ssize_t markerw = bbcode_column_width(env->bbcode, env->prompt_marker);
         ssize_t cmarkerw = bbcode_column_width(env->bbcode, env->cprompt_marker);
         *promptw = markerw + textw;
-        *cpromptw = (env->no_multiline_indent || *promptw < cmarkerw ? cmarkerw : *promptw);
+
+        if (env->show_line_numbers) {
+            // For line numbers, use a reasonable default estimate
+            // The actual width is calculated precisely where needed for cursor positioning
+            *cpromptw = 4;  // Most common case: "X| " where X is 1-2 digits
+        } else {
+            *cpromptw = (env->no_multiline_indent || *promptw < cmarkerw ? cmarkerw : *promptw);
+        }
 
         // Update cached inline right text width
         if (eb->inline_right_text != NULL) {
@@ -571,6 +578,11 @@ static void edit_write_prompt(ic_env_t* env, editor_t* eb, ssize_t row, bool in_
     if (row == 0) {
         // regular prompt text
         bbcode_print(env->bbcode, eb->prompt_text);
+    } else if (env->show_line_numbers) {
+        // show line numbers for multiline input
+        char line_number_str[16];
+        snprintf(line_number_str, sizeof(line_number_str), "%zd| ", row + 1);
+        term_write(env->term, line_number_str);
     } else if (!env->no_multiline_indent) {
         // multiline continuation indentation
         // todo: cache prompt widths
@@ -581,8 +593,10 @@ static void edit_write_prompt(ic_env_t* env, editor_t* eb, ssize_t row, bool in_
             term_write_repeat(env->term, " ", markerw + textw - cmarkerw);
         }
     }
-    // the marker
-    bbcode_print(env->bbcode, (row == 0 ? env->prompt_marker : env->cprompt_marker));
+    // the marker (skip for line numbers since we include our own separator)
+    if (row == 0 || !env->show_line_numbers) {
+        bbcode_print(env->bbcode, (row == 0 ? env->prompt_marker : env->cprompt_marker));
+    }
     bbcode_style_close(env->bbcode, NULL);
 }
 
@@ -808,7 +822,21 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
     // move cursor back to edit position
     term_start_of_line(env->term);
     term_up(env->term, first_row + rrows - 1 - rc.row);
-    term_right(env->term, rc.col + (rc.row == 0 ? promptw : cpromptw));
+
+    // Calculate the actual prompt width for the current row
+    ssize_t actual_prompt_width;
+    if (rc.row == 0) {
+        actual_prompt_width = promptw;
+    } else if (env->show_line_numbers) {
+        // Calculate the actual width of the line number for this specific row
+        char line_number_str[16];
+        snprintf(line_number_str, sizeof(line_number_str), "%zd| ", rc.row + 1);
+        actual_prompt_width = strlen(line_number_str);
+    } else {
+        actual_prompt_width = cpromptw;
+    }
+
+    term_right(env->term, rc.col + actual_prompt_width);
 
     // and refresh
     term_flush(env->term);

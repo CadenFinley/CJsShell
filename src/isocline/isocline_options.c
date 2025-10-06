@@ -125,6 +125,15 @@ ic_public bool ic_enable_multiline_indent(bool enable) {
     return !prev;
 }
 
+ic_public bool ic_enable_line_numbers(bool enable) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return false;
+    bool prev = env->show_line_numbers;
+    env->show_line_numbers = enable;
+    return prev;
+}
+
 ic_public bool ic_enable_hint(bool enable) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)

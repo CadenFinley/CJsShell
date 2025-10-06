@@ -442,6 +442,12 @@ bool ic_enable_completion_preview(bool enable);
 /// Returns the previous setting.
 bool ic_enable_multiline_indent(bool enable);
 
+/// Enable or disable line numbers in multiline input mode.
+/// When enabled, each line will be prefixed with a line number (e.g., "2| ", "3| ", etc.).
+/// The first line continues to use the regular prompt.
+/// Returns the previous setting.
+bool ic_enable_line_numbers(bool enable);
+
 /// Disable or enable display of short help messages for history search etc.
 /// (full help is always dispayed when pressing F1 regardless of this setting)
 /// @returns the previous setting.

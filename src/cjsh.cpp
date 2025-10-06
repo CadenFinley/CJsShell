@@ -122,9 +122,9 @@ static int handle_non_interactive_mode(const std::string& script_file) {
 static void initialize_colors() {
     colors::initialize_color_support(config::colors_enabled);
 
+    ic_style_def("ic-prompt", "ansi-lightgray");
     if (!config::colors_enabled) {
         ic_enable_color(false);
-        ic_style_def("ic-prompt", "");
     }
 }
 

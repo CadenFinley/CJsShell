@@ -9,6 +9,7 @@ int cjshopt_command(const std::vector<std::string>& args);
 int startup_flag_command(const std::vector<std::string>& args);
 int completion_case_command(const std::vector<std::string>& args);
 int completion_spell_command(const std::vector<std::string>& args);
+int line_numbers_command(const std::vector<std::string>& args);
 int style_def_command(const std::vector<std::string>& args);
 
 void reset_to_default_styles();
