@@ -267,41 +267,67 @@ void SyntaxHighlighter::highlight_quotes_and_variables(ic_highlight_env_t* henv,
 
 void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, void*) {
     size_t len = std::strlen(input);
+    if (len == 0)
+        return;
+
+    std::string sanitized_input(input, len);
 
     bool in_quotes = false;
     char quote_char = '\0';
     bool escaped = false;
 
-    for (size_t i = 0; i < len; ++i) {
+    size_t i = 0;
+    while (i < len) {
         char c = input[i];
 
         if (escaped) {
             escaped = false;
+            ++i;
             continue;
         }
 
         if (c == '\\' && (!in_quotes || quote_char != '\'')) {
             escaped = true;
+            ++i;
             continue;
         }
 
         if ((c == '"' || c == '\'') && !in_quotes) {
             in_quotes = true;
             quote_char = c;
-        } else if (c == quote_char && in_quotes) {
+            ++i;
+            continue;
+        }
+
+        if (c == quote_char && in_quotes) {
             in_quotes = false;
             quote_char = '\0';
+            ++i;
+            continue;
         }
 
         if (!in_quotes && c == '#') {
-            ic_highlight(henv, static_cast<long>(i), static_cast<long>(len - i), "cjsh-comment");
-            break;
+            size_t comment_end = i;
+            while (comment_end < len && input[comment_end] != '\n' && input[comment_end] != '\r') {
+                sanitized_input[comment_end] = ' ';
+                comment_end++;
+            }
+            if (comment_end > i) {
+                ic_highlight(henv, static_cast<long>(i), static_cast<long>(comment_end - i),
+                             "cjsh-comment");
+            }
+            i = comment_end;
+            continue;
         }
+
+        ++i;
     }
+
+    const char* analysis = sanitized_input.c_str();
 
     size_t func_name_start = 0;
     size_t func_name_end = 0;
-    std::string input_str(input, len);
+    std::string input_str = sanitized_input;
     if (is_function_definition(input_str, func_name_start, func_name_end)) {
         ic_highlight(henv, static_cast<long>(func_name_start),
                      static_cast<long>(func_name_end - func_name_start),
@@ -323,20 +349,21 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
     while (pos < len) {
         size_t cmd_end = pos;
         while (cmd_end < len) {
-            if ((cmd_end + 1 < len && input[cmd_end] == '&' && input[cmd_end + 1] == '&') ||
-                (cmd_end + 1 < len && input[cmd_end] == '|' && input[cmd_end + 1] == '|') ||
-                input[cmd_end] == '|' || input[cmd_end] == ';') {
+            if ((cmd_end + 1 < len && analysis[cmd_end] == '&' && analysis[cmd_end + 1] == '&') ||
+                (cmd_end + 1 < len && analysis[cmd_end] == '|' && analysis[cmd_end + 1] == '|') ||
+                analysis[cmd_end] == '|' || analysis[cmd_end] == ';' ||
+                analysis[cmd_end] == '\n' || analysis[cmd_end] == '\r') {
                 break;
             }
             cmd_end++;
         }
 
         size_t cmd_start = pos;
-        while (cmd_start < cmd_end && (std::isspace((unsigned char)input[cmd_start]) != 0)) {
+        while (cmd_start < cmd_end && (std::isspace((unsigned char)analysis[cmd_start]) != 0)) {
             cmd_start++;
         }
 
-        std::string cmd_str(input + cmd_start, cmd_end - cmd_start);
+        std::string cmd_str(analysis + cmd_start, cmd_end - cmd_start);
 
         size_t token_end = 0;
         while (token_end < cmd_str.length() &&
@@ -381,13 +408,17 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
             } else {
                 auto cmds = g_shell->get_available_commands();
                 if (cmds.find(token) != cmds.end()) {
-                    ic_highlight(henv, cmd_start, token_end, "cjsh-builtin");
+                    ic_highlight(henv, static_cast<long>(cmd_start),
+                                 static_cast<long>(token_end), "cjsh-builtin");
                 } else if (basic_unix_commands_.count(token) > 0) {
-                    ic_highlight(henv, cmd_start, token_end, "cjsh-system");
+                    ic_highlight(henv, static_cast<long>(cmd_start),
+                                 static_cast<long>(token_end), "cjsh-system");
                 } else if (is_external_command(token)) {
-                    ic_highlight(henv, cmd_start, token_end, "cjsh-installed");
+                    ic_highlight(henv, static_cast<long>(cmd_start),
+                                 static_cast<long>(token_end), "cjsh-installed");
                 } else {
-                    ic_highlight(henv, cmd_start, token_end, "cjsh-unknown-command");
+                    ic_highlight(henv, static_cast<long>(cmd_start),
+                                 static_cast<long>(token_end), "cjsh-unknown-command");
                 }
             }
         }
@@ -412,49 +443,58 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
             std::string arg = cmd_str.substr(arg_start, arg_end - arg_start);
 
             if (is_redirection_operator(arg)) {
-                ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start, "cjsh-operator");
+                ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
+                             static_cast<long>(arg_end - arg_start), "cjsh-operator");
             }
 
             else if (is_variable_reference(arg)) {
-                ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start, "cjsh-variable");
+                ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
+                             static_cast<long>(arg_end - arg_start), "cjsh-variable");
             }
 
             else {
                 char quote_type = 0;
                 if (is_quoted_string(arg, quote_type)) {
-                    ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start, "cjsh-string");
+                    ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
+                                 static_cast<long>(arg_end - arg_start), "cjsh-string");
                 } else if (is_sudo_command && arg_start == token_end + 1) {
                     if (arg.rfind("./", 0) == 0) {
                         if (!std::filesystem::exists(arg) ||
                             !std::filesystem::is_regular_file(arg)) {
-                            ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start,
+                            ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
+                                         static_cast<long>(arg_end - arg_start),
                                          "cjsh-unknown-command");
                         } else {
-                            ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start,
+                            ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
+                                         static_cast<long>(arg_end - arg_start),
                                          "cjsh-installed");
                         }
                     } else {
                         auto cmds = g_shell->get_available_commands();
                         if (cmds.find(arg) != cmds.end() || is_shell_builtin(arg)) {
-                            ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start,
+                            ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
+                                         static_cast<long>(arg_end - arg_start),
                                          "cjsh-builtin");
                         } else if (basic_unix_commands_.count(arg) > 0) {
-                            ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start,
+                            ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
+                                         static_cast<long>(arg_end - arg_start),
                                          "cjsh-system");
                         } else if (is_external_command(arg)) {
-                            ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start,
+                            ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
+                                         static_cast<long>(arg_end - arg_start),
                                          "cjsh-installed");
                         } else {
-                            ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start,
+                            ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
+                                         static_cast<long>(arg_end - arg_start),
                                          "cjsh-unknown-command");
                         }
                     }
                 } else if (is_cd_command && (arg == "~" || arg == "-")) {
-                    ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start,
-                                 "cjsh-path-exists");
+                    ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
+                                 static_cast<long>(arg_end - arg_start), "cjsh-path-exists");
                 } else if (is_glob_pattern(arg)) {
-                    ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start,
-                                 "cjsh-glob-pattern");
+                    ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
+                                 static_cast<long>(arg_end - arg_start), "cjsh-glob-pattern");
                 } else if (is_cd_command || arg[0] == '/' || arg.rfind("./", 0) == 0 ||
                            arg.rfind("../", 0) == 0 || arg.rfind("~/", 0) == 0 ||
                            arg.rfind("-/", 0) == 0 || arg.find('/') != std::string::npos) {
@@ -474,7 +514,8 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
                     }
 
                     if (std::filesystem::exists(path_to_check)) {
-                        ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start,
+                        ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
+                                     static_cast<long>(arg_end - arg_start),
                                      "cjsh-path-exists");
                     } else {
                         bool is_bookmark = false;
@@ -485,10 +526,12 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
                         }
 
                         if (is_bookmark) {
-                            ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start,
+                            ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
+                                         static_cast<long>(arg_end - arg_start),
                                          "cjsh-path-exists");
                         } else {
-                            ic_highlight(henv, cmd_start + arg_start, arg_end - arg_start,
+                            ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
+                                         static_cast<long>(arg_end - arg_start),
                                          "cjsh-path-not-exists");
                         }
                     }
@@ -505,20 +548,24 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
 
         pos = cmd_end;
         if (pos < len) {
-            if (pos + 1 < len && ((input[pos] == '&' && input[pos + 1] == '&') ||
-                                  (input[pos] == '|' && input[pos + 1] == '|') ||
-                                  (input[pos] == '>' && input[pos + 1] == '>') ||
-                                  (input[pos] == '<' && input[pos + 1] == '<') ||
-                                  (input[pos] == '&' && input[pos + 1] == '>'))) {
-                ic_highlight(henv, pos, 2, "cjsh-operator");
+            if (pos + 1 < len && ((analysis[pos] == '&' && analysis[pos + 1] == '&') ||
+                                  (analysis[pos] == '|' && analysis[pos + 1] == '|') ||
+                                  (analysis[pos] == '>' && analysis[pos + 1] == '>') ||
+                                  (analysis[pos] == '<' && analysis[pos + 1] == '<') ||
+                                  (analysis[pos] == '&' && analysis[pos + 1] == '>'))) {
+                ic_highlight(henv, static_cast<long>(pos), 2, "cjsh-operator");
                 pos += 2;
-            } else if (input[pos] == '|' || input[pos] == ';' || input[pos] == '>' ||
-                       input[pos] == '<' ||
-                       (input[pos] == '&' && (pos == len - 1 || input[pos + 1] != '&'))) {
-                ic_highlight(henv, pos, 1, "cjsh-operator");
+            } else if (analysis[pos] == '|' || analysis[pos] == ';' || analysis[pos] == '>' ||
+                       analysis[pos] == '<' ||
+                       (analysis[pos] == '&' && (pos == len - 1 || analysis[pos + 1] != '&'))) {
+                ic_highlight(henv, static_cast<long>(pos), 1, "cjsh-operator");
                 pos += 1;
             } else {
-                pos += 1;
+                if (analysis[pos] == '\r' && pos + 1 < len && analysis[pos + 1] == '\n') {
+                    pos += 2;
+                } else {
+                    pos += 1;
+                }
             }
         }
     }
