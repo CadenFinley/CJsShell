@@ -522,6 +522,137 @@ inline std::string strip_quote_tag(const std::string& s) {
     return s;
 }
 
+inline std::string create_quote_tag(char quote_type, const std::string& content) {
+    return std::string(1, QUOTE_PREFIX) + quote_type + content;
+}
+
+inline std::string trim_whitespace(const std::string& s) {
+    size_t start = s.find_first_not_of(" \t\n\r");
+    if (start == std::string::npos) {
+        return "";
+    }
+    size_t end = s.find_last_not_of(" \t\n\r");
+    return s.substr(start, end - start + 1);
+}
+
+template<typename ExpandFunc, typename EvalFunc>
+std::pair<bool, std::string> try_expand_arithmetic_expression(
+    const std::string& arg, size_t& i, ExpandFunc expand_func, EvalFunc eval_func) {
+    if (!(arg[i] == '$' && i + 2 < arg.length() && arg[i + 1] == '(' && arg[i + 2] == '(')) {
+        return {false, ""};
+    }
+    
+    size_t start = i + 3;
+    size_t paren_depth = 1;
+    size_t end = start;
+
+    while (end < arg.length() && paren_depth > 0) {
+        if (arg[end] == '(' && end + 1 < arg.length() && arg[end + 1] == '(') {
+            paren_depth++;
+            end += 2;
+        } else if (arg[end] == ')' && end + 1 < arg.length() && arg[end + 1] == ')') {
+            paren_depth--;
+            if (paren_depth == 0) {
+                break;
+            }
+            end += 2;
+        } else {
+            end++;
+        }
+    }
+
+    if (paren_depth == 0 && end + 1 < arg.length()) {
+        std::string expr = arg.substr(start, end - start);
+        expand_func(expr);
+
+        try {
+            long long result = eval_func(expr);
+            i = end + 1;
+            return {true, std::to_string(result)};
+        } catch (const std::exception&) {
+            i = end + 1;
+            return {true, arg.substr(i - (end - start + 3), end - start + 3)};
+        }
+    }
+    
+    return {false, ""};
+}
+
+template<typename GetVarFunc, typename ExpandFunc>
+std::string expand_parameter_with_default(
+    const std::string& param_expr, GetVarFunc get_var, ExpandFunc expand_func) {
+    size_t colon_pos = param_expr.find(':');
+    size_t dash_pos = param_expr.find('-', colon_pos != std::string::npos ? colon_pos + 1 : 0);
+
+    if (colon_pos != std::string::npos && dash_pos != std::string::npos) {
+        std::string var_name = param_expr.substr(0, colon_pos);
+        std::string default_val = param_expr.substr(dash_pos + 1);
+        std::string env_val = get_var(var_name);
+        if (!env_val.empty()) {
+            return env_val;
+        }
+        expand_func(default_val);
+        return default_val;
+    }
+    
+    if (colon_pos == std::string::npos && param_expr.find('-') != std::string::npos) {
+        dash_pos = param_expr.find('-');
+        std::string var_name = param_expr.substr(0, dash_pos);
+        std::string default_val = param_expr.substr(dash_pos + 1);
+        std::string env_val = get_var(var_name);
+        if (!env_val.empty()) {
+            return env_val;
+        }
+        expand_func(default_val);
+        return default_val;
+    }
+    
+    return get_var(param_expr);
+}
+
+inline bool looks_like_assignment(const std::string& value) {
+    size_t equals_pos = value.find('=');
+    if (equals_pos == std::string::npos || equals_pos == 0) {
+        return false;
+    }
+
+    size_t name_end = equals_pos;
+    if (name_end > 0 && value[name_end - 1] == '+') {
+        name_end--;
+    }
+
+    if (name_end == 0) {
+        return false;
+    }
+
+    auto is_name_char = [](unsigned char ch) { return std::isalnum(ch) || ch == '_'; };
+
+    auto first = static_cast<unsigned char>(value[0]);
+    if (!std::isalpha(first) && first != '_') {
+        return false;
+    }
+
+    for (size_t i = 1; i < name_end; ++i) {
+        if (!is_name_char(static_cast<unsigned char>(value[i]))) {
+            return false;
+        }
+    }
+    return true;
+}
+
+inline bool is_valid_identifier(const std::string& name) {
+    if (name.empty() || (!std::isalpha(static_cast<unsigned char>(name[0])) && name[0] != '_')) {
+        return false;
+    }
+    for (size_t i = 1; i < name.length(); ++i) {
+        unsigned char ch = static_cast<unsigned char>(name[i]);
+        if (!std::isalnum(ch) && ch != '_') {
+            return false;
+        }
+    }
+    return true;
+}
+
 inline std::pair<std::string, bool> strip_noenv_sentinels(const std::string& s) {
     const std::string start = "\x1E__NOENV_START__\x1E";
     const std::string end = "\x1E__NOENV_END__\x1E";
@@ -696,9 +827,9 @@ std::vector<std::string> expand_tilde_tokens(const std::vector<std::string>& tok
         } else if (!is_single && !is_double) {
             result.push_back(value);
         } else if (is_single) {
-            result.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE + value);
+            result.push_back(create_quote_tag(QUOTE_SINGLE, value));
         } else {
-            result.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE + value);
+            result.push_back(create_quote_tag(QUOTE_DOUBLE, value));
         }
     }
 
@@ -1181,9 +1312,9 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
                                  std::make_move_iterator(brace_expansions.end()));
         } else {
             if (is_single) {
-                expanded_args.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE + arg);
+                expanded_args.push_back(create_quote_tag(QUOTE_SINGLE, arg));
             } else if (is_double) {
-                expanded_args.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE + arg);
+                expanded_args.push_back(create_quote_tag(QUOTE_DOUBLE, arg));
             } else {
                 expanded_args.push_back(arg);
             }
@@ -1199,8 +1330,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
             if (tmp == "$@" && (shell != nullptr)) {
                 auto params = shell->get_positional_parameters();
                 for (const auto& param : params) {
-                    pre_expanded_args.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE +
-                                                param);
+                    pre_expanded_args.push_back(create_quote_tag(QUOTE_DOUBLE, param));
                 }
                 continue;
             }
@@ -1245,7 +1375,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
             }
 
             if (is_double_quoted_token(raw_arg)) {
-                raw_arg = std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE + noenv_stripped;
+                raw_arg = create_quote_tag(QUOTE_DOUBLE, noenv_stripped);
             } else {
                 raw_arg = noenv_stripped;
             }
@@ -1588,46 +1718,13 @@ void Parser::expand_env_vars(std::string& arg) {
     var_name.reserve(64);
 
     for (size_t i = 0; i < arg.length(); ++i) {
-        if (arg[i] == '$' && i + 2 < arg.length() && arg[i + 1] == '(' && arg[i + 2] == '(') {
-            size_t start = i + 3;
-            size_t paren_depth = 1;
-            size_t end = start;
-
-            while (end < arg.length() && paren_depth > 0) {
-                if (arg[end] == '(' && end + 1 < arg.length() && arg[end + 1] == '(') {
-                    paren_depth++;
-                    end += 2;
-                } else if (arg[end] == ')' && end + 1 < arg.length() && arg[end + 1] == ')') {
-                    paren_depth--;
-                    if (paren_depth == 0) {
-                        break;
-                    }
-                    end += 2;
-                } else {
-                    end++;
-                }
-            }
-
-            if (paren_depth == 0 && end + 1 < arg.length()) {
-                std::string expr = arg.substr(start, end - start);
-                std::string expanded_expr = expr;
-                expand_env_vars(expanded_expr);
-
-                try {
-                    long long arithmetic_result = evaluate_arithmetic(expanded_expr);
-                    std::string result_str = std::to_string(arithmetic_result);
-                    result += result_str;
-                    i = end + 1;
-                    continue;
-                } catch (const std::exception& e) {
-                    result += arg.substr(i, end - i + 2);
-                    i = end + 1;
-                    continue;
-                }
-            } else {
-                result += arg[i];
-                continue;
-            }
+        auto [handled, arith_result] = try_expand_arithmetic_expression(
+            arg, i, [this](std::string& s) { expand_env_vars(s); },
+            [this](const std::string& s) { return evaluate_arithmetic(s); });
+        
+        if (handled) {
+            result += arith_result;
+            continue;
         }
 
         if (arg[i] == '$' && i > 0 && arg[i - 1] == '\\') {
@@ -1657,48 +1754,15 @@ void Parser::expand_env_vars(std::string& arg) {
                 std::string param_expr = arg.substr(start, end - start);
                 std::string value;
 
-                size_t colon_pos = param_expr.find(':');
-                size_t dash_pos =
-                    param_expr.find('-', colon_pos != std::string::npos ? colon_pos + 1 : 0);
-
-                if (colon_pos != std::string::npos && dash_pos != std::string::npos) {
-                    std::string var_name = param_expr.substr(0, colon_pos);
-                    std::string default_val = param_expr.substr(dash_pos + 1);
-
-                    std::string env_val = get_variable_value(var_name);
-                    if (!env_val.empty()) {
-                        value = env_val;
-                    } else {
-                        expand_env_vars(default_val);
-                        value = default_val;
-                    }
-                } else if (colon_pos == std::string::npos &&
-                           param_expr.find('-') != std::string::npos) {
-                    size_t dash_pos = param_expr.find('-');
-                    std::string var_name = param_expr.substr(0, dash_pos);
-                    std::string default_val = param_expr.substr(dash_pos + 1);
-
-                    std::string env_val = get_variable_value(var_name);
-                    if (!env_val.empty()) {
-                        value = env_val;
-                    } else {
-                        expand_env_vars(default_val);
-                        value = default_val;
-                    }
+                if (param_expr.find(':') != std::string::npos || param_expr.find('-') != std::string::npos) {
+                    value = expand_parameter_with_default(
+                        param_expr,
+                        [this](const std::string& name) { return get_variable_value(name); },
+                        [this](std::string& val) { expand_env_vars(val); });
                 } else {
                     if ((shell != nullptr) && (shell->get_shell_script_interpreter() != nullptr)) {
                         try {
-                            value =
-                                shell->get_shell_script_interpreter()->expand_parameter_expression(
-                                    param_expr);
-                        } catch (const std::runtime_error& e) {
-                            std::string error_msg = e.what();
-                            if (error_msg.find("parameter null or not set") != std::string::npos ||
-                                error_msg.find("parameter not set") != std::string::npos) {
-                                value = get_variable_value(param_expr);
-                            } else {
-                                value = get_variable_value(param_expr);
-                            }
+                            value = shell->get_shell_script_interpreter()->expand_parameter_expression(param_expr);
                         } catch (...) {
                             value = get_variable_value(param_expr);
                         }
@@ -1852,41 +1916,13 @@ void Parser::expand_exported_env_vars_only(std::string& arg) {
     var_name.reserve(64);
 
     for (size_t i = 0; i < arg.length(); ++i) {
-        if (arg[i] == '$' && i + 2 < arg.length() && arg[i + 1] == '(' && arg[i + 2] == '(') {
-            size_t start = i + 3;
-            size_t paren_depth = 1;
-            size_t end = start;
-
-            while (end < arg.length() && paren_depth > 0) {
-                if (arg[end] == '(' && end + 1 < arg.length() && arg[end + 1] == '(') {
-                    paren_depth++;
-                    end += 2;
-                } else if (arg[end] == ')' && end + 1 < arg.length() && arg[end + 1] == ')') {
-                    paren_depth--;
-                    if (paren_depth == 0) {
-                        break;
-                    }
-                    end += 2;
-                } else {
-                    end++;
-                }
-            }
-
-            if (paren_depth == 0 && end + 1 < arg.length()) {
-                std::string expr = arg.substr(start, end - start);
-                std::string expanded_expr = expr;
-                expand_exported_env_vars_only(expanded_expr);
-
-                try {
-                    long long arithmetic_result = evaluate_arithmetic(expanded_expr);
-                    result += std::to_string(arithmetic_result);
-                } catch (const std::exception& e) {
-                    result += "0";
-                }
-
-                i = end + 1;
-                continue;
-            }
+        auto [handled, arith_result] = try_expand_arithmetic_expression(
+            arg, i, [this](std::string& s) { expand_exported_env_vars_only(s); },
+            [this](const std::string& s) { return evaluate_arithmetic(s); });
+        
+        if (handled) {
+            result += arith_result.empty() ? "0" : arith_result;
+            continue;
         }
 
         if (arg[i] == '$' && !in_var) {
@@ -1910,33 +1946,13 @@ void Parser::expand_exported_env_vars_only(std::string& arg) {
 
                 if (brace_depth == 0) {
                     std::string param_expr = arg.substr(brace_start, brace_end - brace_start);
-
                     std::string value;
-                    if (param_expr.find(":-") != std::string::npos) {
-                        size_t sep_pos = param_expr.find(":-");
-                        std::string var_name = param_expr.substr(0, sep_pos);
-                        std::string default_val = param_expr.substr(sep_pos + 2);
-
-                        std::string env_val = get_exported_variable_value(var_name);
-                        if (env_val.empty()) {
-                            expand_exported_env_vars_only(default_val);
-                            value = default_val;
-                        } else {
-                            value = env_val;
-                        }
-                    } else if (param_expr.find(":=") != std::string::npos) {
-                        size_t sep_pos = param_expr.find(":=");
-                        std::string var_name = param_expr.substr(0, sep_pos);
-                        std::string default_val = param_expr.substr(sep_pos + 2);
-
-                        std::string env_val = get_exported_variable_value(var_name);
-                        if (env_val.empty()) {
-                            expand_exported_env_vars_only(default_val);
-                            value = default_val;
-
-                        } else {
-                            value = env_val;
-                        }
+                    
+                    if (param_expr.find(":-") != std::string::npos || param_expr.find(":=") != std::string::npos) {
+                        value = expand_parameter_with_default(
+                            param_expr,
+                            [this](const std::string& name) { return get_exported_variable_value(name); },
+                            [this](std::string& val) { expand_exported_env_vars_only(val); });
                     } else {
                         value = get_exported_variable_value(param_expr);
                     }
@@ -2014,36 +2030,6 @@ std::vector<std::string> Parser::split_by_ifs(const std::string& input) {
     if (input.empty()) {
         return result;
     }
-
-    auto looks_like_assignment = [](const std::string& value) -> bool {
-        size_t equals_pos = value.find('=');
-        if (equals_pos == std::string::npos || equals_pos == 0) {
-            return false;
-        }
-
-        size_t name_end = equals_pos;
-        if (name_end > 0 && value[name_end - 1] == '+') {
-            name_end--;
-        }
-
-        if (name_end == 0) {
-            return false;
-        }
-
-        auto is_name_char = [](unsigned char ch) { return std::isalnum(ch) || ch == '_'; };
-
-        auto first = static_cast<unsigned char>(value[0]);
-        if (!std::isalpha(first) && first != '_') {
-            return false;
-        }
-
-        for (size_t i = 1; i < name_end; ++i) {
-            if (!is_name_char(static_cast<unsigned char>(value[i]))) {
-                return false;
-            }
-        }
-        return true;
-    };
 
     if (looks_like_assignment(input)) {
         result.push_back(input);
@@ -2570,21 +2556,10 @@ bool Parser::is_env_assignment(const std::string& command, std::string& var_name
         return false;
     }
 
-    std::string name_part = command.substr(0, equals_pos);
+    std::string name_part = trim_whitespace(command.substr(0, equals_pos));
 
-    size_t name_start = name_part.find_first_not_of(" \t\n\r");
-    if (name_start == std::string::npos) {
+    if (!is_valid_identifier(name_part)) {
         return false;
-    }
-    name_part = name_part.substr(name_start);
-
-    if (name_part.empty() || ((std::isalpha(name_part[0]) == 0) && name_part[0] != '_')) {
-        return false;
-    }
-    for (size_t i = 1; i < name_part.length(); ++i) {
-        if ((std::isalnum(name_part[i]) == 0) && name_part[i] != '_') {
-            return false;
-        }
     }
 
     var_name = name_part;
@@ -2826,21 +2801,8 @@ std::vector<std::string> Parser::expand_wildcards(const std::string& pattern) {
 }
 
 bool Parser::should_validate_command(const std::string& command) const {
-    size_t equals_pos = command.find('=');
-    if (equals_pos != std::string::npos) {
-        std::string var_name = command.substr(0, equals_pos);
-        if (!var_name.empty()) {
-            bool valid_var_name = true;
-            for (char c : var_name) {
-                if ((std::isalnum(c) == 0) && c != '_') {
-                    valid_var_name = false;
-                    break;
-                }
-            }
-            if (valid_var_name && (std::isalpha(var_name[0]) != 0)) {
-                return false;
-            }
-        }
+    if (looks_like_assignment(command)) {
+        return false;
     }
 
     if (command == "&&" || command == "||" || command == "|" || command == ";" || command == "(" ||
@@ -2900,14 +2862,10 @@ std::string Parser::get_command_validation_error(const std::string& command_name
 }
 
 long long Parser::evaluate_arithmetic(const std::string& expr) {
-    std::string trimmed = expr;
-
-    size_t start = trimmed.find_first_not_of(" \t\n\r");
-    size_t end = trimmed.find_last_not_of(" \t\n\r");
-    if (start == std::string::npos) {
+    std::string trimmed = trim_whitespace(expr);
+    if (trimmed.empty()) {
         return 0;
     }
-    trimmed = trimmed.substr(start, end - start + 1);
 
     auto find_operator = [](const std::string& s, const std::string& op) -> size_t {
         int paren_depth = 0;
@@ -2930,16 +2888,9 @@ long long Parser::evaluate_arithmetic(const std::string& expr) {
     };
 
     auto parse_number = [](const std::string& s) -> long long {
-        if (s.empty())
+        std::string clean = trim_whitespace(s);
+        if (clean.empty())
             return 0;
-        std::string clean = s;
-
-        size_t start = clean.find_first_not_of(" \t\n\r");
-        size_t end = clean.find_last_not_of(" \t\n\r");
-        if (start == std::string::npos)
-            return 0;
-        clean = clean.substr(start, end - start + 1);
-
         try {
             return std::stoll(clean);
         } catch (...) {
@@ -2979,24 +2930,18 @@ long long Parser::evaluate_arithmetic(const std::string& expr) {
             long long left_val = evaluate_arithmetic(left);
             long long right_val = evaluate_arithmetic(right);
 
-            if (op == "+") {
-                return left_val + right_val;
-            }
-            if (op == "-") {
-                return left_val - right_val;
-            }
-            if (op == "*") {
-                return left_val * right_val;
-            }
-            if (op == "/") {
-                if (right_val == 0)
-                    throw std::runtime_error("Division by zero");
-                return left_val / right_val;
-            }
-            if (op == "%") {
-                if (right_val == 0)
-                    throw std::runtime_error("Division by zero");
-                return left_val % right_val;
+            switch (op[0]) {
+                case '+': return left_val + right_val;
+                case '-': return left_val - right_val;
+                case '*': return left_val * right_val;
+                case '/':
+                    if (right_val == 0)
+                        throw std::runtime_error("Division by zero");
+                    return left_val / right_val;
+                case '%':
+                    if (right_val == 0)
+                        throw std::runtime_error("Division by zero");
+                    return left_val % right_val;
             }
         }
     }
