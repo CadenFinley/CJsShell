@@ -21,6 +21,7 @@
 #include "exec_command.h"
 #include "exit_command.h"
 #include "export_command.h"
+#include "fc_command.h"
 #include "getopts_command.h"
 #include "hash_command.h"
 #include "help_command.h"
@@ -161,6 +162,8 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"syntax",
          [this](const std::vector<std::string>& args) { return ::syntax_command(args, shell); }},
         {"history", [](const std::vector<std::string>& args) { return ::history_command(args); }},
+        {"fc",
+         [this](const std::vector<std::string>& args) { return ::fc_command(args, shell); }},
         {"exit", [](const std::vector<std::string>& args) { return ::exit_command(args); }},
         {"quit", [](const std::vector<std::string>& args) { return ::exit_command(args); }},
         {"test", [](const std::vector<std::string>& args) { return ::test_command(args); }},

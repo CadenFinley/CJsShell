@@ -326,7 +326,70 @@ Display command history.
 
 ```bash
 history [n]
-history -c  # Clear history
+```
+
+- Without arguments, displays all history entries
+- With a number `n`, displays the last `n` entries
+- History is stored in `~/.cache/cjsh/history.txt`
+
+### fc
+Fix Command - edit and re-execute commands from history (POSIX-compliant).
+
+```bash
+fc [-e editor] [-ln] [first [last]]
+```
+
+**Options:**
+- `-e editor` - Use specified editor (default: `$FCEDIT`, `$EDITOR`, or `vi`)
+- `-l` - List commands instead of editing
+- `-n` - Suppress line numbers when listing
+- `-r` - Reverse order of commands when listing
+
+**Arguments:**
+- `first` - First command to edit/list (default: previous command)
+- `last` - Last command to edit/list (default: same as first)
+
+**Examples:**
+
+```bash
+# Edit the previous command in your editor
+fc
+
+# Edit command number 53
+fc 53
+
+# Edit commands 10 through 15
+fc 10 15
+
+# List last 16 commands
+fc -l
+
+# List commands 10 through 20
+fc -l 10 20
+
+# Edit with a specific editor
+fc -e nano
+
+# Use with environment variables
+export FCEDIT=nano
+fc  # Will use nano as the editor
+```
+
+**How it works:**
+1. Opens the specified command(s) in your editor
+2. When you save and exit the editor, the modified command is displayed
+3. The modified command is automatically executed
+4. The result is added to history
+
+**Environment Variables:**
+- `FCEDIT` - Preferred editor for `fc` (checked first)
+- `EDITOR` - Fallback editor if `FCEDIT` is not set
+- Default is `ed` if neither variable is set (POSIX requirement)
+
+**Tip:** For a better editing experience, set your preferred editor:
+```bash
+export FCEDIT=vi     # or nano, emacs, etc.
+export EDITOR=vi     # fallback for other tools too
 ```
 
 ## System Information

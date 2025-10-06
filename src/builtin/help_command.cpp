@@ -52,6 +52,7 @@ int help_command() {
         {"read", "Read user input into variables"},
         {"hash", "Cache command lookups or display the cache"},
         {"history", "Display command history"},
+        {"fc", "Fix command - edit and re-execute commands from history"},
         {"type", "Explain how a command name will be resolved"},
         {"which", "Locate executables in PATH"},
         {"umask", "Show or set the file creation mask"},

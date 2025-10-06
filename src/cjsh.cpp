@@ -67,8 +67,6 @@ bool show_title_line = true;
 bool no_prompt = false;
 }  // namespace config
 
-// add $EDITOR support for launching external editor, also add support for automattically placing current command into editor
-
 static void save_startup_arguments(int argc, char* argv[]) {
     g_startup_args.clear();
     for (int i = 0; i < argc; i++) {
