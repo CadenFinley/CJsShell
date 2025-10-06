@@ -429,7 +429,7 @@ bool ic_enable_color(bool enable);
 bool ic_enable_history_duplicates(bool enable);
 
 /// Disable or enable automatic tab completion after a completion
-/// to expand as far as possible if the completions are unique. (disabled by
+/// to expand as far as possible if the completions are unique. (enabled by
 /// default). Returns the previous setting.
 bool ic_enable_auto_tab(bool enable);
 
@@ -438,17 +438,17 @@ bool ic_enable_auto_tab(bool enable);
 bool ic_enable_completion_preview(bool enable);
 
 /// Disable or enable automatic identation of continuation lines in multiline
-/// input so it aligns with the initial prompt.
+/// input so it aligns with the initial prompt. (enabled by default)
 /// Returns the previous setting.
 bool ic_enable_multiline_indent(bool enable);
 
-/// Enable or disable line numbers in multiline input mode.
+/// Enable or disable line numbers in multiline input mode. (enabled by default)
 /// When enabled, each line will be prefixed with a line number (e.g., "2| ", "3| ", etc.).
 /// The first line continues to use the regular prompt.
 /// Returns the previous setting.
 bool ic_enable_line_numbers(bool enable);
 
-/// Disable or enable display of short help messages for history search etc.
+/// Disable or enable display of short help messages for history search etc. (enabled by default)
 /// (full help is always dispayed when pressing F1 regardless of this setting)
 /// @returns the previous setting.
 bool ic_enable_inline_help(bool enable);
@@ -474,13 +474,13 @@ bool ic_enable_prompt_cleanup_empty_line(bool enable);
 /// @returns the previous setting.
 bool ic_enable_hint(bool enable);
 
-/// Disable or enable spell correction in completion (disabled by default).
+/// Disable or enable spell correction in completion (enabled by default).
 /// When enabled and no completion matches, tab will try to correct the
 /// current token to the closest available completion.
 /// @returns the previous setting.
 bool ic_enable_spell_correct(bool enable);
 
-/// Set millisecond delay before a hint is displayed. Can be zero. (500ms by
+/// Set millisecond delay before a hint is displayed. Can be zero. (0ms by
 /// default).
 long ic_set_hint_delay(long delay_ms);
 

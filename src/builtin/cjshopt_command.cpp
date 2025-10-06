@@ -62,8 +62,8 @@ int cjshopt_command(const std::vector<std::string>& args) {
                  "(config file only)",
                  "  completion-case <on|off|status>  Configure completion case "
                  "sensitivity (default: disabled)",
-                 "  completion-spell <on|off|status> Configure completion spell correction (default: disabled)",
-                 "  line-numbers <on|off|status>    Configure line numbers in multiline input (default: disabled)",
+                 "  completion-spell <on|off|status> Configure completion spell correction (default: enabled)",
+                 "  line-numbers <on|off|status>    Configure line numbers in multiline input (default: enabled)",
                  "  keybind <subcommand> [...]       Inspect or modify key bindings "
                  "(modifications in config only)",
                  "  generate-profile [--force]       Create or overwrite ~/.cjprofile",
