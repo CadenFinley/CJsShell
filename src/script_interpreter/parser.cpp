@@ -50,6 +50,46 @@ struct DelimiterState {
         *this = {};
     }
 };
+
+struct QuoteInfo {
+    bool is_single;
+    bool is_double;
+    std::string value;
+
+    QuoteInfo(const std::string& token)
+        : is_single(is_single_quoted_token(token)),
+          is_double(is_double_quoted_token(token)),
+          value(strip_quote_tag(token)) {}
+
+    bool is_quoted() const { return is_single || is_double; }
+    bool is_unquoted() const { return !is_single && !is_double; }
+
+private:
+    static bool is_single_quoted_token(const std::string& s) {
+        return s.size() >= 2 && s[0] == '\x1F' && s[1] == 'S';
+    }
+    
+    static bool is_double_quoted_token(const std::string& s) {
+        return s.size() >= 2 && s[0] == '\x1F' && s[1] == 'D';
+    }
+    
+    static std::string strip_quote_tag(const std::string& s) {
+        if (s.size() >= 2 && s[0] == '\x1F' && (s[1] == 'S' || s[1] == 'D')) {
+            return s.substr(2);
+        }
+        return s;
+    }
+};
+
+inline std::string trim_trailing_whitespace(std::string s) {
+    s.erase(s.find_last_not_of(" \t\n\r") + 1);
+    return s;
+}
+
+inline std::string trim_leading_whitespace(std::string s) {
+    size_t start = s.find_first_not_of(" \t\n\r");
+    return (start == std::string::npos) ? "" : s.substr(start);
+}
 }  // namespace
 
 std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
@@ -499,28 +539,11 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
     return lines;
 }
 
-namespace {
-
 const char QUOTE_PREFIX = '\x1F';
 const char QUOTE_SINGLE = 'S';
 const char QUOTE_DOUBLE = 'D';
 const std::string SUBST_LITERAL_START = "\x1E__SUBST_LITERAL_START__\x1E";
 const std::string SUBST_LITERAL_END = "\x1E__SUBST_LITERAL_END__\x1E";
-
-inline bool is_single_quoted_token(const std::string& s) {
-    return s.size() >= 2 && s[0] == QUOTE_PREFIX && s[1] == QUOTE_SINGLE;
-}
-
-inline bool is_double_quoted_token(const std::string& s) {
-    return s.size() >= 2 && s[0] == QUOTE_PREFIX && s[1] == QUOTE_DOUBLE;
-}
-
-inline std::string strip_quote_tag(const std::string& s) {
-    if (s.size() >= 2 && s[0] == QUOTE_PREFIX && (s[1] == QUOTE_SINGLE || s[1] == QUOTE_DOUBLE)) {
-        return s.substr(2);
-    }
-    return s;
-}
 
 inline std::string create_quote_tag(char quote_type, const std::string& content) {
     return std::string(1, QUOTE_PREFIX) + quote_type + content;
@@ -534,6 +557,8 @@ inline std::string trim_whitespace(const std::string& s) {
     size_t end = s.find_last_not_of(" \t\n\r");
     return s.substr(start, end - start + 1);
 }
+
+namespace {
 
 template<typename ExpandFunc, typename EvalFunc>
 std::pair<bool, std::string> try_expand_arithmetic_expression(
@@ -610,6 +635,19 @@ std::string expand_parameter_with_default(
     return get_var(param_expr);
 }
 
+inline bool is_valid_identifier(const std::string& name) {
+    if (name.empty() || (!std::isalpha(static_cast<unsigned char>(name[0])) && name[0] != '_')) {
+        return false;
+    }
+    for (size_t i = 1; i < name.length(); ++i) {
+        unsigned char ch = static_cast<unsigned char>(name[i]);
+        if (!std::isalnum(ch) && ch != '_') {
+            return false;
+        }
+    }
+    return true;
+}
+
 inline bool looks_like_assignment(const std::string& value) {
     size_t equals_pos = value.find('=');
     if (equals_pos == std::string::npos || equals_pos == 0) {
@@ -625,32 +663,7 @@ inline bool looks_like_assignment(const std::string& value) {
         return false;
     }
 
-    auto is_name_char = [](unsigned char ch) { return std::isalnum(ch) || ch == '_'; };
-
-    auto first = static_cast<unsigned char>(value[0]);
-    if (!std::isalpha(first) && first != '_') {
-        return false;
-    }
-
-    for (size_t i = 1; i < name_end; ++i) {
-        if (!is_name_char(static_cast<unsigned char>(value[i]))) {
-            return false;
-        }
-    }
-    return true;
-}
-
-inline bool is_valid_identifier(const std::string& name) {
-    if (name.empty() || (!std::isalpha(static_cast<unsigned char>(name[0])) && name[0] != '_')) {
-        return false;
-    }
-    for (size_t i = 1; i < name.length(); ++i) {
-        unsigned char ch = static_cast<unsigned char>(name[i]);
-        if (!std::isalnum(ch) && ch != '_') {
-            return false;
-        }
-    }
-    return true;
+    return is_valid_identifier(value.substr(0, name_end));
 }
 
 inline std::pair<std::string, bool> strip_noenv_sentinels(const std::string& s) {
@@ -818,18 +831,16 @@ std::vector<std::string> expand_tilde_tokens(const std::vector<std::string>& tok
     const std::string home = has_home ? std::string(home_dir) : std::string();
 
     for (const auto& raw : tokens) {
-        const bool is_single = is_single_quoted_token(raw);
-        const bool is_double = is_double_quoted_token(raw);
-        std::string value = strip_quote_tag(raw);
-
-        if (!is_single && !is_double && has_home && contains_tilde(value)) {
-            result.push_back(expand_tilde_value(value, home));
-        } else if (!is_single && !is_double) {
-            result.push_back(value);
-        } else if (is_single) {
-            result.push_back(create_quote_tag(QUOTE_SINGLE, value));
+        QuoteInfo qi(raw);
+        
+        if (qi.is_unquoted() && has_home && contains_tilde(qi.value)) {
+            result.push_back(expand_tilde_value(qi.value, home));
+        } else if (qi.is_unquoted()) {
+            result.push_back(qi.value);
+        } else if (qi.is_single) {
+            result.push_back(create_quote_tag(QUOTE_SINGLE, qi.value));
         } else {
-            result.push_back(create_quote_tag(QUOTE_DOUBLE, value));
+            result.push_back(create_quote_tag(QUOTE_DOUBLE, qi.value));
         }
     }
 
@@ -1299,24 +1310,22 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
     std::vector<std::string> expanded_args;
     expanded_args.reserve(args.size() * 2);
     for (const auto& raw_arg : args) {
-        const bool is_single = is_single_quoted_token(raw_arg);
-        const bool is_double = is_double_quoted_token(raw_arg);
-        const std::string arg = strip_quote_tag(raw_arg);
+        QuoteInfo qi(raw_arg);
 
-        if (!is_single && !is_double && arg.find('{') != std::string::npos &&
-            arg.find('}') != std::string::npos) {
-            std::vector<std::string> brace_expansions = expand_braces(arg);
+        if (qi.is_unquoted() && qi.value.find('{') != std::string::npos &&
+            qi.value.find('}') != std::string::npos) {
+            std::vector<std::string> brace_expansions = expand_braces(qi.value);
             brace_expansions.reserve(8);
             expanded_args.insert(expanded_args.end(),
                                  std::make_move_iterator(brace_expansions.begin()),
                                  std::make_move_iterator(brace_expansions.end()));
         } else {
-            if (is_single) {
-                expanded_args.push_back(create_quote_tag(QUOTE_SINGLE, arg));
-            } else if (is_double) {
-                expanded_args.push_back(create_quote_tag(QUOTE_DOUBLE, arg));
+            if (qi.is_single) {
+                expanded_args.push_back(create_quote_tag(QUOTE_SINGLE, qi.value));
+            } else if (qi.is_double) {
+                expanded_args.push_back(create_quote_tag(QUOTE_DOUBLE, qi.value));
             } else {
-                expanded_args.push_back(arg);
+                expanded_args.push_back(qi.value);
             }
         }
     }
@@ -1324,25 +1333,24 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
 
     std::vector<std::string> pre_expanded_args;
     for (const auto& raw_arg : args) {
-        if (is_double_quoted_token(raw_arg)) {
-            std::string tmp = strip_quote_tag(raw_arg);
-
-            if (tmp == "$@" && (shell != nullptr)) {
-                auto params = shell->get_positional_parameters();
-                for (const auto& param : params) {
-                    pre_expanded_args.push_back(create_quote_tag(QUOTE_DOUBLE, param));
-                }
-                continue;
+        QuoteInfo qi(raw_arg);
+        
+        if (qi.is_double && qi.value == "$@" && (shell != nullptr)) {
+            auto params = shell->get_positional_parameters();
+            for (const auto& param : params) {
+                pre_expanded_args.push_back(create_quote_tag(QUOTE_DOUBLE, param));
             }
+            continue;
         }
         pre_expanded_args.push_back(raw_arg);
     }
     args = pre_expanded_args;
 
     for (auto& raw_arg : args) {
-        if (!is_single_quoted_token(raw_arg)) {
-            std::string tmp = strip_quote_tag(raw_arg);
-            auto [noenv_stripped, had_noenv] = strip_noenv_sentinels(tmp);
+        QuoteInfo qi(raw_arg);
+        
+        if (!qi.is_single) {
+            auto [noenv_stripped, had_noenv] = strip_noenv_sentinels(qi.value);
             if (!had_noenv) {
                 try {
                     if (use_exported_vars_only) {
@@ -1363,29 +1371,25 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
                 strip_subst_literal_markers(noenv_stripped);
             } else {
                 try {
-                    expand_env_vars_selective(tmp);
-                    noenv_stripped = tmp;
+                    expand_env_vars_selective(noenv_stripped);
                 } catch (const std::runtime_error& e) {
                     std::cerr << "Warning: Error in selective environment "
                                  "variable expansion: "
                               << e.what() << '\n';
-                    noenv_stripped = tmp;
                 }
                 strip_subst_literal_markers(noenv_stripped);
             }
 
-            if (is_double_quoted_token(raw_arg)) {
-                raw_arg = create_quote_tag(QUOTE_DOUBLE, noenv_stripped);
-            } else {
-                raw_arg = noenv_stripped;
-            }
+            raw_arg = qi.is_double ? create_quote_tag(QUOTE_DOUBLE, noenv_stripped) : noenv_stripped;
         }
     }
 
     std::vector<std::string> ifs_expanded_args;
     ifs_expanded_args.reserve(args.size() * 2);
     for (const auto& raw_arg : args) {
-        if (!is_single_quoted_token(raw_arg) && !is_double_quoted_token(raw_arg)) {
+        QuoteInfo qi(raw_arg);
+        
+        if (qi.is_unquoted()) {
             std::vector<std::string> split_words = split_by_ifs(raw_arg);
             ifs_expanded_args.insert(ifs_expanded_args.end(),
                                      std::make_move_iterator(split_words.begin()),
@@ -1401,17 +1405,16 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
     final_args.reserve(tilde_expanded_args.size() * 2);
 
     bool is_double_bracket_command =
-        !tilde_expanded_args.empty() && strip_quote_tag(tilde_expanded_args[0]) == "[[";
+        !tilde_expanded_args.empty() && QuoteInfo(tilde_expanded_args[0]).value == "[[";
 
     for (const auto& raw_arg : tilde_expanded_args) {
-        const bool is_single = is_single_quoted_token(raw_arg);
-        const bool is_double = is_double_quoted_token(raw_arg);
-        std::string arg = strip_quote_tag(raw_arg);
-        if (!is_single && !is_double && !is_double_bracket_command) {
-            auto gw = expand_wildcards(arg);
+        QuoteInfo qi(raw_arg);
+        
+        if (qi.is_unquoted() && !is_double_bracket_command) {
+            auto gw = expand_wildcards(qi.value);
             final_args.insert(final_args.end(), gw.begin(), gw.end());
         } else {
-            final_args.push_back(arg);
+            final_args.push_back(qi.value);
         }
     }
     return final_args;
@@ -2173,9 +2176,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
         std::string cmd_part = cmd_str;
 
         bool is_background = false;
-        std::string trimmed = cmd_part;
-
-        trimmed.erase(trimmed.find_last_not_of(" \t\n\r") + 1);
+        std::string trimmed = trim_trailing_whitespace(cmd_part);
 
         if (!trimmed.empty() && trimmed.back() == '&') {
             bool inside_arithmetic = false;
@@ -2245,8 +2246,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
 
         if (is_background) {
             cmd.background = true;
-            cmd_part = trimmed.substr(0, trimmed.length() - 1);
-            cmd_part.erase(cmd_part.find_last_not_of(" \t\n\r") + 1);
+            cmd_part = trim_trailing_whitespace(trimmed.substr(0, trimmed.length() - 1));
         }
 
         if (!cmd_part.empty()) {
@@ -2267,14 +2267,15 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                             merge_redirection_tokens(redir_tokens);
 
                         for (size_t i = 0; i < merged_redir.size(); ++i) {
-                            const std::string tok = strip_quote_tag(merged_redir[i]);
+                            QuoteInfo qi_redir(merged_redir[i]);
+                            const std::string& tok = qi_redir.value;
                             if (tok == "2>&1") {
                                 cmd.stderr_to_stdout = true;
                             } else if (tok == ">&2") {
                                 cmd.stdout_to_stderr = true;
                             } else if ((tok == "2>" || tok == "2>>") &&
                                        i + 1 < merged_redir.size()) {
-                                cmd.stderr_file = strip_quote_tag(merged_redir[++i]);
+                                cmd.stderr_file = QuoteInfo(merged_redir[++i]).value;
                                 cmd.stderr_append = (tok == "2>>");
                             }
                         }
@@ -2337,63 +2338,68 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
         };
 
         for (size_t i = 0; i < tokens.size(); ++i) {
-            const std::string tok = strip_quote_tag(tokens[i]);
-            if ((tok == "<" || tok == ">" || tok == ">>" || tok == ">|" || tok == "&>" ||
-                 tok == "<<" || tok == "<<-" || tok == "<<<" || tok == "2>" || tok == "2>>") &&
+            QuoteInfo qi(tokens[i]);
+            if ((qi.value == "<" || qi.value == ">" || qi.value == ">>" || qi.value == ">|" || qi.value == "&>" ||
+                 qi.value == "<<" || qi.value == "<<-" || qi.value == "<<<" || qi.value == "2>" || qi.value == "2>>") &&
                 (i + 1 >= tokens.size())) {
                 throw std::runtime_error("cjsh: syntax error near unexpected token `newline'");
             }
         }
 
+        auto get_next_token_value = [&tokens](size_t& i) {
+            return QuoteInfo(tokens[++i]).value;
+        };
+
         for (size_t i = 0; i < tokens.size(); ++i) {
-            const std::string tok = strip_quote_tag(tokens[i]);
-            if (tok == "<" && i + 1 < tokens.size()) {
-                cmd.input_file = strip_quote_tag(tokens[++i]);
-            } else if (tok == ">" && i + 1 < tokens.size()) {
-                cmd.output_file = strip_quote_tag(tokens[++i]);
-            } else if (tok == ">>" && i + 1 < tokens.size()) {
-                cmd.append_file = strip_quote_tag(tokens[++i]);
-            } else if (tok == ">|" && i + 1 < tokens.size()) {
-                cmd.output_file = strip_quote_tag(tokens[++i]);
+            QuoteInfo qi(tokens[i]);
+            
+            if (qi.value == "<" && i + 1 < tokens.size()) {
+                cmd.input_file = get_next_token_value(i);
+            } else if (qi.value == ">" && i + 1 < tokens.size()) {
+                cmd.output_file = get_next_token_value(i);
+            } else if (qi.value == ">>" && i + 1 < tokens.size()) {
+                cmd.append_file = get_next_token_value(i);
+            } else if (qi.value == ">|" && i + 1 < tokens.size()) {
+                cmd.output_file = get_next_token_value(i);
                 cmd.force_overwrite = true;
-            } else if (tok == "&>" && i + 1 < tokens.size()) {
-                cmd.both_output_file = strip_quote_tag(tokens[++i]);
+            } else if (qi.value == "&>" && i + 1 < tokens.size()) {
+                cmd.both_output_file = get_next_token_value(i);
                 cmd.both_output = true;
-            } else if ((tok == "<<" || tok == "<<-") && i + 1 < tokens.size()) {
-                cmd.here_doc = strip_quote_tag(tokens[++i]);
-            } else if (tok == "<<<" && i + 1 < tokens.size()) {
-                cmd.here_string = strip_quote_tag(tokens[++i]);
-            } else if ((tok == "2>" || tok == "2>>") && i + 1 < tokens.size()) {
-                cmd.stderr_file = strip_quote_tag(tokens[++i]);
-                cmd.stderr_append = (tok == "2>>");
-            } else if (tok == "2>&1") {
+            } else if ((qi.value == "<<" || qi.value == "<<-") && i + 1 < tokens.size()) {
+                cmd.here_doc = get_next_token_value(i);
+            } else if (qi.value == "<<<" && i + 1 < tokens.size()) {
+                cmd.here_string = get_next_token_value(i);
+            } else if ((qi.value == "2>" || qi.value == "2>>") && i + 1 < tokens.size()) {
+                cmd.stderr_file = get_next_token_value(i);
+                cmd.stderr_append = (qi.value == "2>>");
+            } else if (qi.value == "2>&1") {
                 cmd.stderr_to_stdout = true;
-            } else if (tok == ">&2") {
+            } else if (qi.value == ">&2") {
                 cmd.stdout_to_stderr = true;
-            } else if (handle_fd_duplication_token(tok)) {
+            } else if (handle_fd_duplication_token(qi.value)) {
                 continue;
-            } else if (tok.find('<') == tok.length() - 1 && tok.length() > 1 &&
-                       (std::isdigit(tok[0]) != 0) && i + 1 < tokens.size()) {
+            } else if (qi.value.find('<') == qi.value.length() - 1 && qi.value.length() > 1 &&
+                       (std::isdigit(qi.value[0]) != 0) && i + 1 < tokens.size()) {
                 try {
-                    int fd = std::stoi(tok.substr(0, tok.length() - 1));
-                    std::string file = strip_quote_tag(tokens[++i]);
+                    int fd = std::stoi(qi.value.substr(0, qi.value.length() - 1));
+                    std::string file = get_next_token_value(i);
                     cmd.fd_redirections[fd] = "input:" + file;
                 } catch (const std::exception&) {
                     filtered_args.push_back(tokens[i]);
                 }
-            } else if (tok.find('>') == tok.length() - 1 && tok.length() > 1 &&
-                       (std::isdigit(tok[0]) != 0) && i + 1 < tokens.size()) {
+            } else if (qi.value.find('>') == qi.value.length() - 1 && qi.value.length() > 1 &&
+                       (std::isdigit(qi.value[0]) != 0) && i + 1 < tokens.size()) {
                 try {
-                    int fd = std::stoi(tok.substr(0, tok.length() - 1));
-                    std::string file = strip_quote_tag(tokens[++i]);
+                    int fd = std::stoi(qi.value.substr(0, qi.value.length() - 1));
+                    std::string file = get_next_token_value(i);
                     cmd.fd_redirections[fd] = "output:" + file;
                 } catch (const std::exception&) {
                     filtered_args.push_back(tokens[i]);
                 }
             } else {
-                if ((tok.find("<(") == 0 && tok.back() == ')') ||
-                    (tok.find(">(") == 0 && tok.back() == ')')) {
-                    cmd.process_substitutions.push_back(tok);
+                if ((qi.value.find("<(") == 0 && qi.value.back() == ')') ||
+                    (qi.value.find(">(") == 0 && qi.value.back() == ')')) {
+                    cmd.process_substitutions.push_back(qi.value);
                     filtered_args.push_back(tokens[i]);
                 } else {
                     filtered_args.push_back(tokens[i]);
@@ -2402,28 +2408,27 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
         }
 
         bool is_double_bracket_cmd =
-            !filtered_args.empty() && strip_quote_tag(filtered_args[0]) == "[[";
+            !filtered_args.empty() && QuoteInfo(filtered_args[0]).value == "[[";
 
         auto tilde_expanded_args = expand_tilde_tokens(filtered_args);
 
         std::vector<std::string> final_args_local;
         bool is_subshell_command =
-            !filtered_args.empty() && strip_quote_tag(filtered_args[0]) == "__INTERNAL_SUBSHELL__";
+            !filtered_args.empty() && QuoteInfo(filtered_args[0]).value == "__INTERNAL_SUBSHELL__";
 
         for (size_t arg_idx = 0; arg_idx < tilde_expanded_args.size(); ++arg_idx) {
             const auto& raw = tilde_expanded_args[arg_idx];
-            bool is_single = is_single_quoted_token(raw);
-            bool is_double = is_double_quoted_token(raw);
-            std::string val = strip_quote_tag(raw);
+            QuoteInfo qi(raw);
+            std::string& val = qi.value;
 
-            if (!is_single && (!is_subshell_command || arg_idx != 1)) {
+            if (!qi.is_single && (!is_subshell_command || arg_idx != 1)) {
                 try {
                     expand_env_vars(val);
                 } catch (const std::runtime_error&) {
                 }
             }
 
-            if (!is_single && !is_double && val.find('{') != std::string::npos &&
+            if (qi.is_unquoted() && val.find('{') != std::string::npos &&
                 val.find('}') != std::string::npos) {
                 std::vector<std::string> brace_expansions = expand_braces(val);
                 for (const auto& expanded_val : brace_expansions) {
@@ -2436,7 +2441,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                         final_args_local.push_back(expanded_val);
                     }
                 }
-            } else if (!is_single && !is_double && !is_double_bracket_cmd &&
+            } else if (qi.is_unquoted() && !is_double_bracket_cmd &&
                        val.find_first_of("*?[]") != std::string::npos) {
                 auto expanded = expand_wildcards(val);
                 final_args_local.insert(final_args_local.end(), expanded.begin(), expanded.end());
@@ -2718,8 +2723,7 @@ std::vector<std::string> Parser::parse_semicolon_commands(const std::string& com
             current += command[i];
         } else if (command[i] == ';' && is_semicolon_split_point[i]) {
             if (!current.empty()) {
-                current.erase(0, current.find_first_not_of(" \t\n\r"));
-                current.erase(current.find_last_not_of(" \t\n\r") + 1);
+                current = trim_trailing_whitespace(trim_leading_whitespace(current));
                 if (!current.empty()) {
                     commands.push_back(current);
                 }
@@ -2731,8 +2735,7 @@ std::vector<std::string> Parser::parse_semicolon_commands(const std::string& com
     }
 
     if (!current.empty()) {
-        current.erase(0, current.find_first_not_of(" \t\n\r"));
-        current.erase(current.find_last_not_of(" \t\n\r") + 1);
+        current = trim_trailing_whitespace(trim_leading_whitespace(current));
         if (!current.empty()) {
             commands.push_back(current);
         }
