@@ -44,3 +44,4 @@ coverage:
 exclude_paths:
   - plugins/**
   - themes/**
+  - toolchain/*.py
