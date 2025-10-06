@@ -27,6 +27,79 @@ struct history_s {
     bool allow_duplicates;  // allow duplicate entries?
 };
 
+static bool history_char_is_blank(char c) {
+    return (c == ' ' || c == '\t');
+}
+
+static ssize_t history_find_first_content(const char* entry, ssize_t len) {
+    bool line_has_content = false;
+    ssize_t line_start = 0;
+
+    for (ssize_t i = 0; i < len; i++) {
+        char c = entry[i];
+        if (c == '\n' || c == '\r') {
+            if (line_has_content) {
+                return line_start;
+            }
+            line_start = i + 1;
+            line_has_content = false;
+        } else if (!history_char_is_blank(c)) {
+            line_has_content = true;
+        }
+    }
+
+    if (line_has_content) {
+        return line_start;
+    }
+
+    return len;  // all empty
+}
+
+static ssize_t history_find_last_content(const char* entry, ssize_t len) {
+    ssize_t last_non_empty_end = 0;
+    bool line_has_content = false;
+
+    for (ssize_t i = 0; i < len; i++) {
+        char c = entry[i];
+        if (c == '\n' || c == '\r') {
+            if (line_has_content) {
+                last_non_empty_end = i;
+            }
+            line_has_content = false;
+        } else if (!history_char_is_blank(c)) {
+            line_has_content = true;
+        }
+    }
+
+    if (line_has_content) {
+        last_non_empty_end = len;
+    }
+
+    return last_non_empty_end;
+}
+
+static char* history_entry_dup_trimmed(alloc_t* mem, const char* entry) {
+    if (entry == NULL) {
+        return NULL;
+    }
+
+    ssize_t len = ic_strlen(entry);
+    ssize_t start = history_find_first_content(entry, len);
+
+    if (start >= len) {
+        // all empty lines, return empty string
+        return mem_strdup(mem, "");
+    }
+
+    ssize_t end = history_find_last_content(entry, len);
+
+    if (start == 0 && end == len) {
+        return mem_strdup(mem, entry);
+    }
+
+    return mem_strndup(mem, entry + start, end - start);
+}
+
 ic_private history_t* history_new(alloc_t* mem) {
     history_t* h = mem_zalloc_tp(mem, history_t);
     h->mem = mem;
@@ -84,11 +157,15 @@ static void history_delete_at(history_t* h, ssize_t idx) {
 ic_private bool history_push(history_t* h, const char* entry) {
     if (h->len <= 0 || entry == NULL)
         return false;
+    char* normalized = history_entry_dup_trimmed(h->mem, entry);
+    if (normalized == NULL)
+        return false;
     // remove any older duplicate
     if (!h->allow_duplicates) {
         for (int i = 0; i < h->count; i++) {
-            if (strcmp(h->elems[i], entry) == 0) {
+            if (strcmp(h->elems[i], normalized) == 0) {
                 history_delete_at(h, i);
+                i--;
             }
         }
     }
@@ -98,10 +175,7 @@ ic_private bool history_push(history_t* h, const char* entry) {
         history_delete_at(h, 0);
     }
     assert(h->count < h->len);
-    char* copy = mem_strdup(h->mem, entry);
-    if (copy == NULL)
-        return false;
-    h->elems[h->count] = copy;
+    h->elems[h->count] = normalized;
     h->count++;
     return true;
 }

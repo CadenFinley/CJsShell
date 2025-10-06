@@ -67,7 +67,6 @@ bool show_title_line = true;
 bool no_prompt = false;
 }  // namespace config
 
-// before saving to history, strip trailing empty lines
 // bug: completions are not provided except for the first line
 // add $EDITOR support for launching external editor, also add support for automattically placing current command into editor
 
