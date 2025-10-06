@@ -103,6 +103,7 @@ int change_directory(const std::string& dir, std::string& current_directory,
         }
 
         setenv("PWD", current_directory.c_str(), 1);
+        setenv("OLDPWD", old_directory.c_str(), 1);
 
         previous_directory = old_directory;
 
@@ -225,6 +226,7 @@ int change_directory_smart(const std::string& dir, std::string& current_director
         }
 
         setenv("PWD", current_directory.c_str(), 1);
+        setenv("OLDPWD", old_directory.c_str(), 1);
 
         previous_directory = old_directory;
 
