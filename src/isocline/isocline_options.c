@@ -312,14 +312,6 @@ ic_public void ic_set_default_highlighter(ic_highlight_fun_t* highlighter, void*
     env->highlighter_arg = arg;
 }
 
-ic_public void ic_set_multiline_checker(ic_multiline_check_fun_t* checker, void* arg) {
-    ic_env_t* env = ic_get_env();
-    if (env == NULL)
-        return;
-    env->multiline_checker = checker;
-    env->multiline_checker_arg = arg;
-}
-
 ic_public void ic_free(void* p) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)

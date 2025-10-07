@@ -22,7 +22,6 @@
 #include "cjsh_syntax_highlighter.h"
 #include "cjshopt_command.h"
 #include "isocline.h"
-#include "multiline_checker.h"
 #include "shell.h"
 #include "shell_script_interpreter.h"
 
@@ -1389,9 +1388,6 @@ void initialize_completion_system() {
         ic_set_default_highlighter(nullptr, nullptr);
         ic_enable_highlight(false);
     }
-
-    // Set up multiline continuation checker for quotes, brackets, and heredocs
-    ic_set_multiline_checker(multiline_continuation_check, nullptr);
 
     ic_enable_history_duplicates(false);
     ic_set_prompt_marker("", nullptr);
