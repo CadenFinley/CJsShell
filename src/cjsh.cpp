@@ -67,8 +67,8 @@ bool show_title_line = true;
 bool no_prompt = false;
 }  // namespace config
 
-// with shell script interpreter class and parser class, make sure they are created in g_shell->execute and then destroyed afterwards to free memory
 // when using line numbers and prompt cleanup, the line numbers need to be placed along with the prompt cleanup to retain styling
+// here doc still not functioning properly in interactive mode (cat << EOF) just that command will break the next isocline call
 
 static void save_startup_arguments(int argc, char* argv[]) {
     g_startup_args.clear();
