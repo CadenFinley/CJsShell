@@ -168,3 +168,72 @@ ic_public char* ic_readline_ex(const char* prompt_text, ic_completer_fun_t* comp
     ic_set_default_highlighter(prev_highlighter, prev_highlighter_arg);
     return res;
 }
+
+ic_public char* ic_read_heredoc(const char* delimiter, bool strip_tabs) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL || delimiter == NULL)
+        return NULL;
+
+    stringbuf_t* content = sbuf_new(env->mem);
+    if (content == NULL)
+        return NULL;
+
+    size_t line_number = 1;
+
+    // Read lines until we encounter the delimiter
+    while (true) {
+        // Build prompt with line number for heredoc lines
+        char prompt[32];
+        snprintf(prompt, sizeof(prompt), "%3zu > ", line_number);
+
+        char* line = ic_readline(prompt, NULL);
+
+        // Check for cancellation (Ctrl-C or Ctrl-D)
+        if (line == NULL || strcmp(line, IC_READLINE_TOKEN_CTRL_C) == 0 ||
+            strcmp(line, IC_READLINE_TOKEN_CTRL_D) == 0) {
+            if (line != NULL) {
+                ic_free(line);
+            }
+            sbuf_free(content);
+            return NULL;
+        }
+
+        // Check if this line is the delimiter
+        const char* check_line = line;
+
+        // If strip_tabs is enabled (<<- syntax), skip leading tabs
+        if (strip_tabs) {
+            while (*check_line == '\t') {
+                check_line++;
+            }
+        }
+
+        // Trim trailing whitespace from delimiter check
+        size_t len = strlen(check_line);
+        while (len > 0 && (check_line[len - 1] == ' ' || check_line[len - 1] == '\t' ||
+                           check_line[len - 1] == '\r' || check_line[len - 1] == '\n')) {
+            len--;
+        }
+
+        // Check if trimmed line matches delimiter
+        if (len == strlen(delimiter) && strncmp(check_line, delimiter, len) == 0) {
+            // Found delimiter, we're done
+            ic_free(line);
+            break;
+        }
+
+        // Not the delimiter, add line to content
+        // If strip_tabs, use the tab-stripped version
+        if (strip_tabs) {
+            sbuf_append(content, check_line);
+        } else {
+            sbuf_append(content, line);
+        }
+        sbuf_append_char(content, '\n');
+
+        ic_free(line);
+        line_number++;
+    }
+
+    return sbuf_free_dup(content);
+}
