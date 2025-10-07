@@ -872,8 +872,8 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
         builtin_cmds = g_shell->get_built_ins()->get_builtin_commands();
     }
 
-    if (g_shell && (g_shell->get_shell_script_interpreter() != nullptr)) {
-        function_names = g_shell->get_shell_script_interpreter()->get_function_names();
+    if (g_shell) {
+        function_names = g_shell->get_function_names();
     }
 
     if (g_shell) {

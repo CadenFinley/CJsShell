@@ -114,6 +114,12 @@ class ShellScriptInterpreter {
 
     bool has_function(const std::string& name) const;
     std::vector<std::string> get_function_names() const;
+    void set_function_definitions(
+        const std::unordered_map<std::string, std::vector<std::string>>& definitions);
+    void set_function_definitions(
+        std::unordered_map<std::string, std::vector<std::string>>&& definitions);
+    const std::unordered_map<std::string, std::vector<std::string>>& get_function_definitions()
+        const;
 
     std::string expand_parameter_expression(const std::string& param_expr);
 
