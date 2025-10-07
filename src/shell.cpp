@@ -15,7 +15,6 @@
 #include <string_view>
 #include <system_error>
 #include <unordered_map>
-#include <unordered_set>
 
 #include "builtin.h"
 #include "cjsh.h"
@@ -52,29 +51,6 @@ bool has_theme_extension(const std::filesystem::path& path) {
     return ext_lower == expected;
 }
 }  // namespace
-
-class Shell::InterpreterScope {
-   public:
-    explicit InterpreterScope(Shell& shell_instance) : shell(&shell_instance) {
-        if (shell != nullptr) {
-            shell->acquire_interpreter_context();
-        }
-    }
-
-    InterpreterScope(const InterpreterScope&) = delete;
-    InterpreterScope& operator=(const InterpreterScope&) = delete;
-    InterpreterScope(InterpreterScope&&) = delete;
-    InterpreterScope& operator=(InterpreterScope&&) = delete;
-
-    ~InterpreterScope() {
-        if (shell != nullptr) {
-            shell->release_interpreter_context();
-        }
-    }
-
-   private:
-    Shell* shell;
-};
 
 void raw_mode_state_init(RawModeState* state) {
     if (state == nullptr) {
@@ -128,55 +104,6 @@ bool raw_mode_state_entered(const RawModeState* state) {
     return (state != nullptr) && state->entered;
 }
 
-void Shell::acquire_interpreter_context() {
-    if (interpreter_context_depth == 0) {
-        shell_parser = std::make_unique<Parser>();
-        initialize_parser_state();
-
-        shell_script_interpreter = std::make_unique<ShellScriptInterpreter>();
-        if (shell_script_interpreter) {
-            shell_script_interpreter->set_parser(shell_parser.get());
-            shell_script_interpreter->set_function_definitions(persisted_functions);
-        }
-    }
-
-    interpreter_context_depth++;
-}
-
-void Shell::release_interpreter_context() {
-    if (interpreter_context_depth == 0) {
-        return;
-    }
-
-    interpreter_context_depth--;
-    if (interpreter_context_depth == 0) {
-        persist_interpreter_state();
-        shell_script_interpreter.reset();
-        shell_parser.reset();
-    }
-}
-
-void Shell::initialize_parser_state() {
-    if (!shell_parser) {
-        return;
-    }
-
-    shell_parser->set_shell(this);
-    shell_parser->set_aliases(aliases);
-    shell_parser->set_env_vars(env_vars);
-    shell_parser->set_command_validation_enabled(parser_validation_enabled);
-}
-
-void Shell::persist_interpreter_state() {
-    if (shell_script_interpreter) {
-        persisted_functions = shell_script_interpreter->get_function_definitions();
-    }
-
-    if (shell_parser) {
-        parser_validation_enabled = shell_parser->get_command_validation_enabled();
-    }
-}
-
 void Shell::process_pending_signals() {
     if (signal_handler && shell_exec) {
         signal_handler->process_pending_signals(shell_exec.get());
@@ -189,7 +116,15 @@ Shell::Shell() : shell_pgid(0), shell_tmodes() {
     shell_prompt = std::make_unique<Prompt>();
     shell_exec = std::make_unique<Exec>();
     signal_handler = std::make_unique<SignalHandler>();
+
+    shell_parser = std::make_unique<Parser>();
     built_ins = std::make_unique<Built_ins>();
+    shell_script_interpreter = std::make_unique<ShellScriptInterpreter>();
+
+    if (shell_script_interpreter && shell_parser) {
+        shell_script_interpreter->set_parser(shell_parser.get());
+        shell_parser->set_shell(this);
+    }
     built_ins->set_shell(this);
     built_ins->set_current_directory();
 
@@ -213,8 +148,6 @@ Shell::~Shell() {
 }
 
 int Shell::execute_script_file(const std::filesystem::path& path, bool optional) {
-    InterpreterScope scope(*this);
-
     if (!shell_script_interpreter) {
         print_error({ErrorType::RUNTIME_ERROR, "source", "script interpreter not available", {}});
         return 1;
@@ -259,11 +192,6 @@ int Shell::execute_script_file(const std::filesystem::path& path, bool optional)
 
         std::stringstream buffer;
         buffer << file.rdbuf();
-        if (!shell_parser) {
-            print_error({ErrorType::RUNTIME_ERROR, "source", "parser not available", {}});
-            return 1;
-        }
-
         auto parsed_lines = std::make_shared<std::vector<std::string>>(
             shell_script_interpreter->parse_into_lines(buffer.str()));
         cached_lines = parsed_lines;
@@ -338,19 +266,18 @@ int Shell::execute(const std::string& script) {
     if (script.empty()) {
         return 0;
     }
-    InterpreterScope scope(*this);
+    std::vector<std::string> lines;
 
-    if (!shell_parser || !shell_script_interpreter) {
-        print_error(ErrorInfo{ErrorType::RUNTIME_ERROR, "", "No script interpreter available",
-                              {"Restart cjsh"}});
-        return 1;
+    lines = shell_parser->parse_into_lines(script);
+
+    if (shell_script_interpreter) {
+        int exit_code = shell_script_interpreter->execute_block(lines);
+        last_command = script;
+        return exit_code;
     }
-
-    std::vector<std::string> lines = shell_parser->parse_into_lines(script);
-
-    int exit_code = shell_script_interpreter->execute_block(lines);
-    last_command = script;
-    return exit_code;
+    print_error(ErrorInfo{
+        ErrorType::RUNTIME_ERROR, "", "No script interpreter available", {"Restart cjsh"}});
+    return 1;
 }
 
 void Shell::setup_signal_handlers() {
@@ -516,21 +443,6 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
     return exit_code;
 }
 
-std::vector<std::string> Shell::get_function_names() const {
-    std::unordered_set<std::string> unique_names;
-
-    for (const auto& entry : persisted_functions) {
-        unique_names.insert(entry.first);
-    }
-
-    if (shell_script_interpreter) {
-        auto active_names = shell_script_interpreter->get_function_names();
-        unique_names.insert(active_names.begin(), active_names.end());
-    }
-
-    return std::vector<std::string>(unique_names.begin(), unique_names.end());
-}
-
 std::unordered_set<std::string> Shell::get_available_commands() const {
     std::unordered_set<std::string> cmds;
     if (built_ins) {
@@ -541,8 +453,10 @@ std::unordered_set<std::string> Shell::get_available_commands() const {
         cmds.insert(alias.first);
     }
 
-    auto function_names = get_function_names();
-    cmds.insert(function_names.begin(), function_names.end());
+    if (shell_script_interpreter) {
+        auto function_names = shell_script_interpreter->get_function_names();
+        cmds.insert(function_names.begin(), function_names.end());
+    }
     return cmds;
 }
 

@@ -4208,21 +4208,6 @@ std::vector<std::string> ShellScriptInterpreter::get_function_names() const {
     return names;
 }
 
-void ShellScriptInterpreter::set_function_definitions(
-    const std::unordered_map<std::string, std::vector<std::string>>& definitions) {
-    functions = definitions;
-}
-
-void ShellScriptInterpreter::set_function_definitions(
-    std::unordered_map<std::string, std::vector<std::string>>&& definitions) {
-    functions = std::move(definitions);
-}
-
-const std::unordered_map<std::string, std::vector<std::string>>&
-ShellScriptInterpreter::get_function_definitions() const {
-    return functions;
-}
-
 void ShellScriptInterpreter::push_function_scope() {
     local_variable_stack.emplace_back();
 }

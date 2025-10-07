@@ -156,7 +156,6 @@ class Shell {
     std::string last_command;
     std::unique_ptr<Exec> shell_exec;
 
-    std::vector<std::string> get_function_names() const;
     std::unordered_set<std::string> get_available_commands() const;
 
     std::string get_previous_directory() const;
@@ -212,16 +211,4 @@ class Shell {
     // Hook storage: hook_type -> list of function names
     std::unordered_map<std::string, std::vector<std::string>> hooks;
     std::string last_directory;  // For chpwd hook
-
-    class InterpreterScope;
-    friend class InterpreterScope;
-
-    void acquire_interpreter_context();
-    void release_interpreter_context();
-    void initialize_parser_state();
-    void persist_interpreter_state();
-
-    std::unordered_map<std::string, std::vector<std::string>> persisted_functions;
-    bool parser_validation_enabled = true;
-    size_t interpreter_context_depth = 0;
 };
