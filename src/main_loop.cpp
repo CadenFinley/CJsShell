@@ -235,7 +235,7 @@ static std::pair<std::string, bool> get_next_command(bool command_was_available)
     }
 
     command_to_run.assign(input);
-    ic_free(input);
+    free(input);
 
     if (command_to_run == IC_READLINE_TOKEN_CTRL_D) {
         g_exit_flag = true;
