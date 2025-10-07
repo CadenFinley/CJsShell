@@ -68,7 +68,7 @@ bool no_prompt = false;
 }  // namespace config
 
 // when using line numbers and prompt cleanup, the line numbers need to be placed along with the prompt cleanup to retain styling
-// here doc still not functioning properly in interactive mode (cat << EOF) just that command will break the next isocline call
+// here doc still not functioning properly in interactive mode (cat << EOF) just that command will break the next isocline call (might be a hack but what if we just piped it into a subshell becasue we know that works)
 
 static void save_startup_arguments(int argc, char* argv[]) {
     g_startup_args.clear();
