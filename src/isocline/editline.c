@@ -1086,6 +1086,8 @@ static void edit_cleanup_print(ic_env_t* env, editor_t* eb, const char* final_in
             }
 
             ssize_t offset = 0;
+            ssize_t line_number =
+                1;  // Track current line number (first line is 0, continuation lines start at 1)
             while (offset < final_len) {
                 const char* segment_start = final_input + offset;
                 const char* newline = memchr(segment_start, '\n', final_len - offset);
@@ -1097,8 +1099,36 @@ static void edit_cleanup_print(ic_env_t* env, editor_t* eb, const char* final_in
                 term_write_formatted_n(env->term, segment_start, segment_attrs, segment_len);
                 offset += segment_len;
 
-                if (newline != NULL && offset < final_len && promptw > 0) {
-                    term_write_repeat(env->term, " ", promptw);
+                if (newline != NULL && offset < final_len) {
+                    // Print line number prefix for continuation lines if line numbers are enabled
+                    if (env->show_line_numbers) {
+                        bbcode_style_open(env->bbcode, "ic-linenumbers");
+                        char line_number_str[16];
+                        format_line_number_prompt(line_number_str, sizeof(line_number_str),
+                                                  line_number, -1, env->relative_line_numbers);
+
+                        ssize_t line_number_width = (ssize_t)strlen(line_number_str);
+                        ssize_t indent_target =
+                            compute_continuation_indent_target(env, eb, promptw);
+                        ssize_t desired_width = indent_target;
+                        if (eb->line_number_column_width > desired_width) {
+                            desired_width = eb->line_number_column_width;
+                        }
+                        if (line_number_width > desired_width) {
+                            desired_width = line_number_width;
+                        }
+
+                        ssize_t leading_spaces = desired_width - line_number_width;
+                        if (leading_spaces > 0) {
+                            term_write_repeat(env->term, " ", leading_spaces);
+                        }
+
+                        bbcode_print(env->bbcode, line_number_str);
+                        bbcode_style_close(env->bbcode, NULL);
+                    } else if (promptw > 0) {
+                        term_write_repeat(env->term, " ", promptw);
+                    }
+                    line_number++;
                 }
             }
         }

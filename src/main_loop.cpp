@@ -8,7 +8,9 @@
 #include <cerrno>
 #include <csignal>
 #include <cstdio>
+#include <cstring>
 #include <iostream>
+#include <memory>
 
 #ifdef __APPLE__
 #include <malloc/malloc.h>
@@ -28,6 +30,203 @@
 #include "typeahead.h"
 
 namespace {
+
+// Helper structure to hold heredoc parsing results
+struct HeredocInfo {
+    bool has_heredoc = false;
+    bool strip_tabs = false;
+    std::string delimiter;
+    size_t operator_pos = std::string::npos;
+};
+
+// Structure to hold command information including heredoc history
+struct CommandInfo {
+    std::string command;           // The actual command to execute
+    std::string history_entry;     // What to save to history (may differ for heredocs)
+    bool available = false;
+};
+
+// Parse command to detect heredoc operator (<< or <<-)
+// Returns info about any heredoc found
+HeredocInfo detect_heredoc(const std::string& command) {
+    HeredocInfo info;
+    
+    size_t pos = 0;
+    bool in_single_quote = false;
+    bool in_double_quote = false;
+    
+    while (pos < command.length()) {
+        char c = command[pos];
+        
+        // Track quote context
+        if (c == '\'' && !in_double_quote) {
+            in_single_quote = !in_single_quote;
+            pos++;
+            continue;
+        }
+        if (c == '"' && !in_single_quote) {
+            in_double_quote = !in_double_quote;
+            pos++;
+            continue;
+        }
+        
+        // Skip if we're inside quotes
+        if (in_single_quote || in_double_quote) {
+            pos++;
+            continue;
+        }
+        
+        // Look for << operator (not in quotes)
+        if (c == '<' && pos + 1 < command.length() && command[pos + 1] == '<') {
+            info.has_heredoc = true;
+            info.operator_pos = pos;
+            
+            // Check for <<- (tab-stripping variant)
+            if (pos + 2 < command.length() && command[pos + 2] == '-') {
+                info.strip_tabs = true;
+                pos += 3;
+            } else {
+                pos += 2;
+            }
+            
+            // Skip whitespace after operator
+            while (pos < command.length() && std::isspace(static_cast<unsigned char>(command[pos])) != 0) {
+                pos++;
+            }
+            
+            // Extract delimiter (can be quoted or unquoted)
+            bool delimiter_quoted = false;
+            char quote_char = '\0';
+            
+            if (pos < command.length() && (command[pos] == '\'' || command[pos] == '"' || command[pos] == '\\')) {
+                quote_char = command[pos];
+                delimiter_quoted = true;
+                pos++;
+            }
+            
+            // Read delimiter until whitespace, quote end, or special char
+            while (pos < command.length()) {
+                char dc = command[pos];
+                
+                if (delimiter_quoted && dc == quote_char) {
+                    break;
+                }
+                if (!delimiter_quoted && (std::isspace(static_cast<unsigned char>(dc)) != 0 || dc == ';' || dc == '&' || dc == '|' || dc == '<' || dc == '>')) {
+                    break;
+                }
+                
+                info.delimiter += dc;
+                pos++;
+            }
+            
+            // We found the heredoc, return immediately
+            return info;
+        }
+        
+        pos++;
+    }
+    
+    return info;
+}
+
+// Process a command that contains a heredoc
+// Reads the heredoc content and reconstructs the full command
+// Returns a pair: {processed_command, original_heredoc_command_for_history}
+std::pair<std::string, std::string> process_heredoc_command(const std::string& initial_command) {
+    HeredocInfo info = detect_heredoc(initial_command);
+    
+    if (!info.has_heredoc || info.delimiter.empty()) {
+        return {initial_command, ""};
+    }
+    
+    // Read heredoc content using isocline's heredoc reader
+    char* heredoc_content = ic_read_heredoc(info.delimiter.c_str(), info.strip_tabs);
+    
+    if (heredoc_content == nullptr) {
+        // User cancelled (Ctrl-C or Ctrl-D)
+        return {"", ""};
+    }
+    
+    // Use unique_ptr for RAII memory management
+    std::unique_ptr<char, decltype(&free)> heredoc_ptr(heredoc_content, &free);
+    
+    // Build the original heredoc command for history
+    std::string original_for_history = initial_command;
+    original_for_history += "\n";
+    original_for_history += heredoc_content;
+    // Note: Don't add the delimiter to history - it's implied
+    
+    // Create a temporary file to hold the heredoc content
+    char temp_template[] = "/tmp/cjsh_heredoc_XXXXXX";
+    int temp_fd = mkstemp(temp_template);
+    
+    if (temp_fd == -1) {
+        std::cerr << "cjsh: failed to create temporary file for heredoc\n";
+        return {"", ""};
+    }
+    
+    // Write heredoc content to temp file
+    ssize_t written = write(temp_fd, heredoc_content, strlen(heredoc_content));
+    if (written == -1) {
+        std::cerr << "cjsh: failed to write heredoc content\n";
+        close(temp_fd);
+        unlink(temp_template);
+        return {"", ""};
+    }
+    
+    close(temp_fd);
+    
+    // Reconstruct the command with input redirection from temp file
+    std::string reconstructed;
+    
+    // Add the command up to the heredoc operator
+    reconstructed += initial_command.substr(0, info.operator_pos);
+    
+    // Replace << with < (input redirection)
+    reconstructed += "< ";
+    reconstructed += temp_template;
+    
+    // Find the end of the delimiter and any trailing content
+    size_t after_delimiter = info.operator_pos + 2; // Skip <<
+    if (info.strip_tabs) {
+        after_delimiter++; // Skip -
+    }
+    
+    // Skip whitespace and delimiter
+    while (after_delimiter < initial_command.length() && 
+           std::isspace(static_cast<unsigned char>(initial_command[after_delimiter])) != 0) {
+        after_delimiter++;
+    }
+    
+    // Skip past the delimiter itself
+    bool found_quote = false;
+    if (after_delimiter < initial_command.length()) {
+        char fc = initial_command[after_delimiter];
+        if (fc == '\'' || fc == '"' || fc == '\\') {
+            found_quote = true;
+            after_delimiter++; // Skip opening quote
+        }
+    }
+    
+    // Skip delimiter text
+    size_t delim_len = info.delimiter.length();
+    after_delimiter += delim_len;
+    
+    if (found_quote && after_delimiter < initial_command.length()) {
+        after_delimiter++; // Skip closing quote
+    }
+    
+    // Add any trailing content after the delimiter
+    if (after_delimiter < initial_command.length()) {
+        reconstructed += initial_command.substr(after_delimiter);
+    }
+    
+    // Add cleanup command to remove temp file
+    reconstructed += "; rm -f ";
+    reconstructed += temp_template;
+    
+    return {reconstructed, original_for_history};
+}
 
 struct TerminalStatus {
     bool terminal_alive;
@@ -108,7 +307,7 @@ TerminalStatus check_terminal_health(TerminalCheckLevel level = TerminalCheckLev
     return status;
 }
 
-bool process_command_line(const std::string& command) {
+bool process_command_line(const std::string& command, bool skip_history = false) {
     if (command.empty()) {
         g_shell->reset_command_timing();
         return g_exit_flag;
@@ -123,7 +322,10 @@ bool process_command_line(const std::string& command) {
 
     std::string status_str = std::to_string(exit_code);
 
-    ic_history_add(command.c_str());
+    // Only add to history if not already added (e.g., for heredocs)
+    if (!skip_history) {
+        ic_history_add(command.c_str());
+    }
     setenv("?", status_str.c_str(), 1);
 
 #ifdef __APPLE__
@@ -196,9 +398,10 @@ static bool handle_null_input() {
     return false;
 }
 
-static std::pair<std::string, bool> get_next_command(bool command_was_available) {
+static std::pair<std::string, bool> get_next_command(bool command_was_available, bool& history_already_added) {
     std::string command_to_run;
     bool command_available = false;
+    history_already_added = false;
 
     // Execute precmd hooks before displaying prompt
     g_shell->execute_hooks("precmd");
@@ -252,6 +455,25 @@ static std::pair<std::string, bool> get_next_command(bool command_was_available)
 
     command_available = true;
 
+    // Check if command contains a heredoc and process it
+    HeredocInfo heredoc_info = detect_heredoc(command_to_run);
+    if (heredoc_info.has_heredoc && !heredoc_info.delimiter.empty()) {
+        auto [processed_command, original_for_history] = process_heredoc_command(command_to_run);
+        if (processed_command.empty()) {
+            // User cancelled heredoc input
+            g_shell->reset_command_timing();
+            return {std::string(), false};
+        }
+        
+        // Add the original heredoc command to history, not the processed one
+        if (!original_for_history.empty()) {
+            ic_history_add(original_for_history.c_str());
+            history_already_added = true;
+        }
+        
+        command_to_run = processed_command;
+    }
+
     return {command_to_run, command_available};
 }
 
@@ -262,6 +484,7 @@ void main_process_loop() {
     typeahead::flush_pending_typeahead();
     std::string command_to_run;
     bool command_available = false;
+    bool history_already_added = false;
 
     while (true) {
         g_shell->process_pending_signals();
@@ -280,7 +503,7 @@ void main_process_loop() {
 
         typeahead::flush_pending_typeahead();
 
-        std::tie(command_to_run, command_available) = get_next_command(command_available);
+        std::tie(command_to_run, command_available) = get_next_command(command_available, history_already_added);
 
         if (g_exit_flag) {
             break;
@@ -290,7 +513,7 @@ void main_process_loop() {
             continue;
         }
 
-        bool exit_requested = process_command_line(command_to_run);
+        bool exit_requested = process_command_line(command_to_run, history_already_added);
         if (exit_requested || g_exit_flag) {
             if (g_exit_flag) {
                 std::cerr << "Exiting main process loop..." << '\n';
@@ -302,6 +525,9 @@ void main_process_loop() {
             (void)std::fputc('\n', stdout);
             (void)std::fflush(stdout);
         }
+        
+        // Reset flag for next iteration
+        history_already_added = false;
     }
 
     typeahead::cleanup();
