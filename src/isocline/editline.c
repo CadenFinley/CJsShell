@@ -1762,6 +1762,20 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
                 edit_pos_is_at_row_end(env, &eb)) {
                 // replace line-continuation with newline
                 edit_multiline_eol(env, &eb);
+            } else if (!env->singleline_only && env->multiline_checker != NULL &&
+                       edit_pos_is_at_row_end(env, &eb)) {
+                // check if custom multiline checker indicates continuation needed
+                const char* input = sbuf_string(eb.input);
+                if (env->multiline_checker(input, env->multiline_checker_arg)) {
+                    // insert a newline to continue input
+                    editor_start_modify(&eb);
+                    sbuf_insert_at(eb.input, "\n", eb.pos);
+                    eb.pos++;
+                    edit_refresh(env, &eb);
+                } else {
+                    // otherwise done
+                    break;
+                }
             } else {
                 // otherwise done
                 break;
@@ -2105,6 +2119,20 @@ static char* edit_line_inline(ic_env_t* env, const char* prompt_text,
                 edit_pos_is_at_row_end(env, &eb)) {
                 // replace line-continuation with newline
                 edit_multiline_eol(env, &eb);
+            } else if (!env->singleline_only && env->multiline_checker != NULL &&
+                       edit_pos_is_at_row_end(env, &eb)) {
+                // check if custom multiline checker indicates continuation needed
+                const char* input = sbuf_string(eb.input);
+                if (env->multiline_checker(input, env->multiline_checker_arg)) {
+                    // insert a newline to continue input
+                    editor_start_modify(&eb);
+                    sbuf_insert_at(eb.input, "\n", eb.pos);
+                    eb.pos++;
+                    edit_refresh(env, &eb);
+                } else {
+                    // otherwise done
+                    break;
+                }
             } else {
                 // otherwise done
                 break;

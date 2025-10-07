@@ -38,6 +38,8 @@ struct ic_env_s {
                                          // (defaults to `prompt_marker`)
     ic_highlight_fun_t* highlighter;     // highlight callback
     void* highlighter_arg;               // user state for the highlighter.
+    ic_multiline_check_fun_t* multiline_checker;  // multiline continuation checker
+    void* multiline_checker_arg;         // user state for the multiline checker
     const char* match_braces;            // matching braces, e.g "()[]{}"
     const char* auto_braces;             // auto insertion braces, e.g "()[]{}\"\"''"
     const char* initial_input;           // initial input text to insert into editor

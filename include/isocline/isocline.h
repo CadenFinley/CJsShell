@@ -375,6 +375,25 @@ void ic_highlight_formatted(ic_highlight_env_t* henv, const char* input, const c
 /// \}
 
 //--------------------------------------------------------------
+// Multiline Continuation
+//--------------------------------------------------------------
+
+/// Callback to check if multiline input should continue.
+/// This is called when Enter is pressed to determine if a new line should be started
+/// or if input should be accepted. Return true to continue to a new line, false to accept input.
+/// @param input The current input buffer
+/// @param arg   User-defined argument
+/// @returns true if input has open delimiters and should continue, false otherwise
+typedef bool(ic_multiline_check_fun_t)(const char* input, void* arg);
+
+/// Set a custom multiline continuation checker.
+/// This allows checking for unclosed quotes, brackets, here documents, etc.
+/// If not set, only the backslash line continuation (\\) is checked.
+/// @param checker  The callback function, or NULL to disable custom checking
+/// @param arg      User-defined argument passed to the callback
+void ic_set_multiline_checker(ic_multiline_check_fun_t* checker, void* arg);
+
+//--------------------------------------------------------------
 // Readline with a specific completer and highlighter
 //--------------------------------------------------------------
 
