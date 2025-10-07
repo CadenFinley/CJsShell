@@ -461,6 +461,16 @@ bool ic_line_numbers_are_enabled(void);
 /// Returns whether relative line numbers are currently active.
 bool ic_line_numbers_are_relative(void);
 
+/// Enable or disable highlighting of the current line number.
+/// When enabled (default), the line number for the line containing the cursor
+/// is displayed in a different color ("ic-linenumber-current" style) compared to
+/// other line numbers ("ic-linenumbers" style).
+/// Returns the previous setting.
+bool ic_enable_current_line_number_highlight(bool enable);
+
+/// Returns whether current line number highlighting is enabled.
+bool ic_current_line_number_highlight_is_enabled(void);
+
 /// Disable or enable display of short help messages for history search etc. (enabled by default)
 /// (full help is always dispayed when pressing F1 regardless of this setting)
 /// @returns the previous setting.

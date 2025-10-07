@@ -126,6 +126,7 @@ static void initialize_colors() {
         ic_enable_color(false);
         ic_style_def("ic-prompt", "");
         ic_style_def("ic-linenumbers", "");
+        ic_style_def("ic-linenumber-current", "");
     }
 }
 

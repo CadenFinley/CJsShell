@@ -75,16 +75,17 @@ static ic_env_t* ic_env_create(ic_malloc_fun_t* _malloc, ic_realloc_fun_t* _real
     env->bbcode = bbcode_new(env->mem, env->term);
 
     // Set default enabled features
-    env->hint_delay = 0;                 // hint delay (0)
-    env->spell_correct = true;           // completion spell fixing
-    env->show_line_numbers = true;       // line numbers
-    env->relative_line_numbers = false;  // absolute numbering by default
-    env->complete_nopreview = false;     // completion preview (inverted: false = enabled)
-    env->no_hint = false;                // hint (inverted: false = enabled)
-    env->complete_autotab = true;        // auto tab
-    env->no_help = false;                // inline help (inverted: false = enabled)
-    env->no_multiline_indent = false;    // multiline indent (inverted: false = enabled)
-    env->singleline_only = false;        // multiline (inverted: false = enabled)
+    env->hint_delay = 0;                        // hint delay (0)
+    env->spell_correct = true;                  // completion spell fixing
+    env->show_line_numbers = true;              // line numbers
+    env->relative_line_numbers = false;         // absolute numbering by default
+    env->highlight_current_line_number = true;  // highlight current line number by default
+    env->complete_nopreview = false;            // completion preview (inverted: false = enabled)
+    env->no_hint = false;                       // hint (inverted: false = enabled)
+    env->complete_autotab = true;               // auto tab
+    env->no_help = false;                       // inline help (inverted: false = enabled)
+    env->no_multiline_indent = false;           // multiline indent (inverted: false = enabled)
+    env->singleline_only = false;               // multiline (inverted: false = enabled)
 
     if (env->tty == NULL || env->term == NULL || env->completions == NULL || env->history == NULL ||
         env->bbcode == NULL || !term_is_interactive(env->term)) {
@@ -94,6 +95,7 @@ static ic_env_t* ic_env_create(ic_malloc_fun_t* _malloc, ic_realloc_fun_t* _real
 
     bbcode_style_def(env->bbcode, "ic-prompt", "ansi-green");
     bbcode_style_def(env->bbcode, "ic-linenumbers", "ansi-lightgray");
+    bbcode_style_def(env->bbcode, "ic-linenumber-current", "ansi-yellow");
     bbcode_style_def(env->bbcode, "ic-info", "ansi-darkgray");
     bbcode_style_def(env->bbcode, "ic-diminish", "ansi-lightgray");
     bbcode_style_def(env->bbcode, "ic-emphasis", "#ffffd7");

@@ -163,6 +163,22 @@ ic_public bool ic_line_numbers_are_relative(void) {
     return env->relative_line_numbers;
 }
 
+ic_public bool ic_enable_current_line_number_highlight(bool enable) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return false;
+    bool prev = env->highlight_current_line_number;
+    env->highlight_current_line_number = enable;
+    return prev;
+}
+
+ic_public bool ic_current_line_number_highlight_is_enabled(void) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return false;
+    return env->highlight_current_line_number;
+}
+
 ic_public bool ic_enable_hint(bool enable) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)

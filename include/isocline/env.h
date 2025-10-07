@@ -61,6 +61,7 @@ struct ic_env_s {
     bool spell_correct;                  // enable spell correction on completions?
     bool show_line_numbers;              // show line numbers in multiline mode?
     bool relative_line_numbers;          // use relative line numbers when enabled?
+    bool highlight_current_line_number;  // highlight the current line number differently?
     bool prompt_cleanup;                 // after enter, rewrite prompt inline?
     bool prompt_cleanup_add_empty_line;  // optionally add empty line after
                                          // cleanup

@@ -627,7 +627,11 @@ static void edit_write_prompt(ic_env_t* env, editor_t* eb, ssize_t row, bool in_
     } else if (env->show_line_numbers) {
         // show line numbers for multiline input
         bbcode_style_close(env->bbcode, NULL);
-        bbcode_style_open(env->bbcode, "ic-linenumbers");
+        // Use different color for current line number if highlighting is enabled
+        const char* style = (env->highlight_current_line_number && row == cursor_row)
+                                ? "ic-linenumber-current"
+                                : "ic-linenumbers";
+        bbcode_style_open(env->bbcode, style);
         char line_number_str[16];
         format_line_number_prompt(line_number_str, sizeof(line_number_str), row, cursor_row,
                                   env->relative_line_numbers);

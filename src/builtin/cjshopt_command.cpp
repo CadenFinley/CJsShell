@@ -1460,7 +1460,8 @@ static const std::unordered_map<std::string, std::string> default_styles = {
     {"string", "color=#F1FA8C"},
     {"comment", "color=#6272A4"},
     {"function-definition", "bold color=#F1FA8C"},
-    {"ic-linenumbers", "ansi-lightgray"}};
+    {"ic-linenumbers", "ansi-lightgray"},
+    {"ic-linenumber-current", "ansi-yellow"}};
 
 static std::string resolve_style_registry_name(const std::string& token_type) {
     if (token_type.rfind("ic-", 0) == 0) {
