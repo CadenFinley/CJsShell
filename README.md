@@ -5,7 +5,7 @@
 
 # CJ's Shell
 
-> **WARNING**: CJ's Shell is not a 100% POSIX compliant shell yet. (like 95%) It is also super cool and you will never want to use another shell again.
+> **WARNING**: CJ's Shell is not a 100% POSIX compliant shell yet. (like 98%) It is also super cool and you will never want to use another shell again.
 
 ## Quick Install (Recommended)
 
@@ -31,6 +31,8 @@ This test can be run from the root of the repository, and is recommended to run 
 
 - **isocline**
   https://github.com/daanx/isocline (MIT License)
+
+> **ALERT** This library has been HEAVILY modified and is far different from its original state.
 
 # License
 
