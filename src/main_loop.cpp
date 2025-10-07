@@ -420,12 +420,7 @@ static std::pair<std::string, bool> get_next_command(bool command_was_available,
     }
 
     const char* initial_input = sanitized_buffer.empty() ? nullptr : sanitized_buffer.c_str();
-    char* input = nullptr;
-    if (!inline_right_text.empty()) {
-        input = ic_readline_inline(prompt.c_str(), inline_right_text.c_str(), initial_input);
-    } else {
-        input = ic_readline(prompt.c_str(), initial_input);
-    }
+    char* input = ic_readline_inline(prompt.c_str(), inline_right_text.c_str(), initial_input);
     typeahead::clear_input_buffer();
     sanitized_buffer.clear();
 
