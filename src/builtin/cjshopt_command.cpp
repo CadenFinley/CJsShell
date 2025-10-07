@@ -31,6 +31,8 @@ void print_cjshopt_usage() {
                  "(default: enabled)\n";
     std::cout << "  line-numbers <on|off|relative|absolute|status>    Configure line numbers in "
                  "multiline input (default: enabled)\n";
+    std::cout << "  current-line-number-highlight <on|off|status>    Configure current line number "
+                 "highlighting (default: enabled)\n";
     std::cout << "  hint-delay <milliseconds>        Set hint display delay in milliseconds\n";
     std::cout
         << "  completion-preview <on|off|status> Configure completion preview (default: enabled)\n";
@@ -184,6 +186,28 @@ int handle_toggle_command(const ToggleCommandConfig& config, const std::vector<s
 
     return 0;
 }
+
+int current_line_number_highlight_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: current-line-number-highlight <on|off|status>",
+        "Examples:",
+        "  current-line-number-highlight on      Enable highlighting of the current line number",
+        "  current-line-number-highlight off     Disable highlighting of the current line number",
+        "  current-line-number-highlight status  Show the current setting"};
+
+    static const ToggleCommandConfig config{
+        "current-line-number-highlight",
+        usage_lines,
+        []() { return ic_current_line_number_highlight_is_enabled(); },
+        [](bool enable) { ic_enable_current_line_number_highlight(enable); },
+        "Current line number highlighting",
+        false,
+        "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
+        {},
+        {}};
+
+    return handle_toggle_command(config, args);
+}
 }  // namespace
 
 int cjshopt_command(const std::vector<std::string>& args) {
@@ -212,6 +236,8 @@ int cjshopt_command(const std::vector<std::string>& args) {
                  "(default: enabled)",
                  "  line-numbers <on|off|relative|absolute|status>    Configure line numbers in "
                  "multiline input (default: enabled)",
+                 "  current-line-number-highlight <on|off|status>    Configure current line "
+                 "number highlighting (default: enabled)",
                  "  hint-delay <milliseconds>        Set hint display delay in milliseconds",
                  "  completion-preview <on|off|status> Configure completion preview (default: "
                  "enabled)",
@@ -247,6 +273,8 @@ int cjshopt_command(const std::vector<std::string>& args) {
         return completion_spell_command(std::vector<std::string>(args.begin() + 1, args.end()));
     } else if (subcommand == "line-numbers") {
         return line_numbers_command(std::vector<std::string>(args.begin() + 1, args.end()));
+    } else if (subcommand == "current-line-number-highlight") {
+        return current_line_number_highlight_command(std::vector<std::string>(args.begin() + 1, args.end()));
     } else if (subcommand == "hint-delay") {
         return hint_delay_command(std::vector<std::string>(args.begin() + 1, args.end()));
     } else if (subcommand == "completion-preview") {
@@ -281,10 +309,10 @@ int cjshopt_command(const std::vector<std::string>& args) {
              "cjshopt",
              "unknown subcommand '" + subcommand + "'",
              {"Available subcommands: style_def, login-startup-arg, completion-case, "
-              "completion-spell, line-numbers, hint-delay, completion-preview, hint, "
-              "multiline-indent, multiline, inline-help, auto-tab, keybind, generate-profile, "
-              "generate-rc, generate-logout, set-max-bookmarks, set-history-max, "
-              "bookmark-blacklist"}});
+              "completion-spell, line-numbers, current-line-number-highlight, hint-delay, "
+              "completion-preview, hint, multiline-indent, multiline, inline-help, auto-tab, "
+              "keybind, generate-profile, generate-rc, generate-logout, set-max-bookmarks, "
+              "set-history-max, bookmark-blacklist"}});
         return 1;
     }
 }
