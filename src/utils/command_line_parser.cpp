@@ -5,6 +5,7 @@
 
 #include "cjsh.h"
 #include "error_out.h"
+#include "isocline/isocline.h"
 #include "usage.h"
 
 namespace cjsh {
@@ -28,6 +29,8 @@ void apply_minimal_mode() {
     config::disable_custom_ls = true;
     config::show_startup_time = false;
     config::show_title_line = false;
+    ic_enable_line_numbers(false);
+    ic_enable_multiline_indent(false);
 }
 
 }  // namespace
