@@ -226,7 +226,7 @@ static code_t modify_code(code_t code) {
 ic_private code_t tty_read(tty_t* tty) {
     code_t code;
     if (!tty_read_timeout(tty, -1, &code))
-        return KEY_NONE;
+        return KEY_CTRL_D;
     return code;
 }
 
