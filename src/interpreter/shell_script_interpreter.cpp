@@ -25,6 +25,7 @@
 #include "case_evaluator.h"
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
+#include "command_substitution_evaluator.h"
 #include "conditional_evaluator.h"
 #include "error_out.h"
 #include "exec.h"
@@ -61,6 +62,88 @@ ShellScriptInterpreter::ShellScriptInterpreter() : shell_parser(nullptr) {
 }
 
 ShellScriptInterpreter::~ShellScriptInterpreter() = default;
+
+namespace {
+std::string execute_command_for_substitution(
+    const std::string& command, const std::function<int(const std::string&)>& executor) {
+    char tmpl[] = "/tmp/cjsh_subst_XXXXXX";
+    int fd = mkstemp(tmpl);
+    if (fd >= 0)
+        close(fd);
+    std::string path = tmpl;
+
+    int saved_stdout = dup(STDOUT_FILENO);
+
+    auto temp_file_result = cjsh_filesystem::safe_fopen(path, "w");
+    if (temp_file_result.is_error()) {
+        int pipefd[2];
+        if (pipe(pipefd) != 0) {
+            return "";
+        }
+
+        pid_t pid = fork();
+        if (pid == 0) {
+            close(pipefd[0]);
+            dup2(pipefd[1], STDOUT_FILENO);
+            close(pipefd[1]);
+
+            int exit_code = executor(command);
+            exit(exit_code);
+        } else if (pid > 0) {
+            close(pipefd[1]);
+            std::string result;
+            char buf[4096];
+            ssize_t n = 0;
+            while ((n = read(pipefd[0], buf, sizeof(buf))) > 0) {
+                result.append(buf, n);
+            }
+            close(pipefd[0]);
+
+            int status = 0;
+            waitpid(pid, &status, 0);
+
+            while (!result.empty() && (result.back() == '\n' || result.back() == '\r'))
+                result.pop_back();
+
+            return result;
+        } else {
+            close(pipefd[0]);
+            close(pipefd[1]);
+            return "";
+        }
+    }
+
+    FILE* temp_file = temp_file_result.value();
+    int temp_fd = fileno(temp_file);
+    auto dup_result = cjsh_filesystem::safe_dup2(temp_fd, STDOUT_FILENO);
+    if (dup_result.is_error()) {
+        cjsh_filesystem::safe_fclose(temp_file);
+        cjsh_filesystem::safe_close(saved_stdout);
+        return "";
+    }
+
+    executor(command);
+
+    (void)fflush(stdout);
+    cjsh_filesystem::safe_fclose(temp_file);
+    auto restore_result = cjsh_filesystem::safe_dup2(saved_stdout, STDOUT_FILENO);
+    cjsh_filesystem::safe_close(saved_stdout);
+
+    auto content_result = cjsh_filesystem::read_file_content(path);
+    cjsh_filesystem::cleanup_temp_file(path);
+
+    if (content_result.is_error()) {
+        return "";
+    }
+
+    std::string out = content_result.value();
+
+    while (!out.empty() && (out.back() == '\n' || out.back() == '\r'))
+        out.pop_back();
+
+    return out;
+}
+}  // namespace
 
 int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines) {
     if (g_shell == nullptr) {
@@ -117,148 +200,28 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
             }
         }
 
-        auto capture_internal_output = [&](const std::string& content) -> std::string {
-            char tmpl[] = "/tmp/cjsh_subst_XXXXXX";
-            int fd = mkstemp(tmpl);
-            if (fd >= 0)
-                close(fd);
-            std::string path = tmpl;
-
-            auto saved_stdout_result = cjsh_filesystem::safe_dup2(STDOUT_FILENO, -1);
-            int saved_stdout = dup(STDOUT_FILENO);
-
-            auto temp_file_result = cjsh_filesystem::safe_fopen(path, "w");
-            if (temp_file_result.is_error()) {
-                int pipefd[2];
-                if (pipe(pipefd) != 0) {
-                    return "";
-                }
-
-                pid_t pid = fork();
-                if (pid == 0) {
-                    close(pipefd[0]);
-                    dup2(pipefd[1], STDOUT_FILENO);
-                    close(pipefd[1]);
-
-                    int exit_code = execute_simple_or_pipeline(content);
-                    exit(exit_code);
-                } else if (pid > 0) {
-                    close(pipefd[1]);
-                    std::string result;
-                    char buf[4096];
-                    ssize_t n = 0;
-                    while ((n = read(pipefd[0], buf, sizeof(buf))) > 0) {
-                        result.append(buf, n);
-                    }
-                    close(pipefd[0]);
-
-                    int status = 0;
-                    waitpid(pid, &status, 0);
-
-                    while (!result.empty() && (result.back() == '\n' || result.back() == '\r'))
-                        result.pop_back();
-
-                    return result;
-                } else {
-                    close(pipefd[0]);
-                    close(pipefd[1]);
-                    return "";
-                }
-            }
-
-            FILE* temp_file = temp_file_result.value();
-            int temp_fd = fileno(temp_file);
-            auto dup_result = cjsh_filesystem::safe_dup2(temp_fd, STDOUT_FILENO);
-            if (dup_result.is_error()) {
-                cjsh_filesystem::safe_fclose(temp_file);
-                return "";
-            }
-
-            execute_simple_or_pipeline(content);
-
-            (void)fflush(stdout);
-            cjsh_filesystem::safe_fclose(temp_file);
-            auto restore_result = cjsh_filesystem::safe_dup2(saved_stdout, STDOUT_FILENO);
-            cjsh_filesystem::safe_close(saved_stdout);
-
-            auto content_result = cjsh_filesystem::read_file_content(path);
-            cjsh_filesystem::cleanup_temp_file(path);
-
-            if (content_result.is_error()) {
-                return "";
-            }
-
-            std::string out = content_result.value();
-
-            while (!out.empty() && (out.back() == '\n' || out.back() == '\r'))
-                out.pop_back();
-
-            return out;
-        };
-
-        const std::string subst_literal_start = "\x1E__SUBST_LITERAL_START__\x1E";
-        const std::string subst_literal_end = "\x1E__SUBST_LITERAL_END__\x1E";
+        // Create command substitution evaluator with executor callback
+        CommandSubstitutionEvaluator cmd_subst_evaluator(
+            [&](const std::string& command) -> std::string {
+                return execute_command_for_substitution(command, execute_simple_or_pipeline);
+            });
 
         auto expand_substitutions = [&](const std::string& in) -> std::string {
+            // First, expand command substitutions using the evaluator
+            auto expansion_result = cmd_subst_evaluator.expand_substitutions(in);
+            std::string result = expansion_result.text;
+
+            // Now handle arithmetic expansion and parameter expansion that the
+            // CommandSubstitutionEvaluator passes through
             std::string out;
-            out.reserve(in.size());
+            out.reserve(result.size());
 
             bool in_quotes = false;
             char q = '\0';
             bool escaped = false;
 
-            auto append_substitution_result = [&](const std::string& content) {
-                if (in_quotes && q == '"') {
-                    std::string esc;
-                    esc.reserve(content.size() + (content.size() / 10) + 1);
-                    for (char rc : content) {
-                        if (rc == '"' || rc == '\\') {
-                            esc += '\\';
-                        }
-                        esc += rc;
-                    }
-                    out += "\x1E__NOENV_START__\x1E";
-                    out += esc;
-                    out += "\x1E__NOENV_END__\x1E";
-                    return;
-                }
-                out += subst_literal_start;
-                out += content;
-                out += subst_literal_end;
-            };
-
-            auto find_matching = [&](const std::string& s, size_t start, char open_c, char close_c,
-                                     size_t& end_out) -> bool {
-                int depth = 1;
-                bool local_in_q = false;
-                char local_q = '\0';
-                for (size_t j = start; j < s.size(); ++j) {
-                    char d = s[j];
-                    if ((d == '"' || d == '\'') && (j == start || s[j - 1] != '\\')) {
-                        if (!local_in_q) {
-                            local_in_q = true;
-                            local_q = d;
-                        } else if (local_q == d) {
-                            local_in_q = false;
-                            local_q = '\0';
-                        }
-                    } else if (!local_in_q) {
-                        if (d == open_c) {
-                            depth++;
-                        } else if (d == close_c) {
-                            depth--;
-                            if (depth == 0) {
-                                end_out = j;
-                                return true;
-                            }
-                        }
-                    }
-                }
-                return false;
-            };
-
-            for (size_t i = 0; i < in.size(); ++i) {
-                char c = in[i];
+            for (size_t i = 0; i < result.size(); ++i) {
+                char c = result[i];
 
                 if (escaped) {
                     out += '\\';
@@ -285,46 +248,33 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                     continue;
                 }
 
+                // Handle arithmetic expansion $((expr))
                 if (!in_quotes || q == '"') {
-                    if (c == '$' && i + 2 < in.size() && in[i + 1] == '(' && in[i + 2] == '(') {
-                        size_t end_idx = 0;
-
+                    if (c == '$' && i + 2 < result.size() && result[i + 1] == '(' &&
+                        result[i + 2] == '(') {
                         size_t inner_start = i + 3;
                         int depth = 1;
-                        bool local_in_q = false;
-                        char local_q = '\0';
                         size_t j = inner_start;
                         bool found = false;
-                        for (; j < in.size(); ++j) {
-                            char d = in[j];
-                            if ((d == '"' || d == '\'') &&
-                                (j == inner_start || in[j - 1] != '\\')) {
-                                if (!local_in_q) {
-                                    local_in_q = true;
-                                    local_q = d;
-                                } else if (local_q == d) {
-                                    local_in_q = false;
-                                    local_q = '\0';
-                                }
-                            } else if (!local_in_q) {
-                                if (d == '(') {
-                                    depth++;
-                                } else if (d == ')') {
-                                    depth--;
-                                    if (depth == 0) {
-                                        if (j + 1 < in.size() && in[j + 1] == ')') {
-                                            end_idx = j + 1;
-                                            found = true;
-                                        }
-                                        break;
-                                    }
+
+                        for (; j < result.size(); ++j) {
+                            if (j + 1 < result.size() && result[j] == '(' &&
+                                result[j - 1] != '\\') {
+                                depth++;
+                            } else if (result[j] == ')' && (j == 0 || result[j - 1] != '\\')) {
+                                depth--;
+                                if (depth == 0 && j + 1 < result.size() && result[j + 1] == ')') {
+                                    found = true;
+                                    break;
                                 }
                             }
                         }
-                        if (found) {
-                            size_t expr_len = (j > inner_start + 1) ? (j - inner_start) : 0;
-                            std::string expr = in.substr(inner_start, expr_len);
 
+                        if (found) {
+                            size_t expr_len = (j > inner_start) ? (j - inner_start) : 0;
+                            std::string expr = result.substr(inner_start, expr_len);
+
+                            // Expand variables in arithmetic expression
                             std::string expanded_expr;
                             for (size_t k = 0; k < expr.size(); ++k) {
                                 if (expr[k] == '$' && k + 1 < expr.size()) {
@@ -367,69 +317,37 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                             } catch (const std::runtime_error& e) {
                                 shell_script_interpreter::print_runtime_error(
                                     "cjsh: " + std::string(e.what()), "$((" + expr + "))");
-
                                 throw;
                             }
-                            i = end_idx;
+                            i = j + 1;  // Skip past the closing ))
                             continue;
                         }
                     }
 
-                    if (c == '$' && i + 1 < in.size() && in[i + 1] == '(' &&
-                        (i + 2 >= in.size() || in[i + 2] != '(')) {
-                        size_t end_paren = 0;
-                        if (find_matching(in, i + 2, '(', ')', end_paren)) {
-                            std::string inner = in.substr(i + 2, end_paren - (i + 2));
-                            std::string repl = capture_internal_output(inner);
-                            append_substitution_result(repl);
-                            i = end_paren;
-                            continue;
-                        }
-                    }
-
-                    if (c == '`') {
-                        size_t j = i + 1;
+                    // Handle ${parameter} expansion
+                    if (c == '$' && i + 1 < result.size() && result[i + 1] == '{') {
+                        size_t brace_depth = 1;
+                        size_t j = i + 2;
                         bool found = false;
-                        while (j < in.size()) {
-                            if (in[j] == '\\') {
-                                if (j + 1 < in.size()) {
-                                    j += 2;
-                                    continue;
+
+                        while (j < result.size() && brace_depth > 0) {
+                            if (result[j] == '{') {
+                                brace_depth++;
+                            } else if (result[j] == '}') {
+                                brace_depth--;
+                                if (brace_depth == 0) {
+                                    found = true;
+                                    break;
                                 }
                             }
-                            if (in[j] == '`' && (j == 0 || in[j - 1] != '\\')) {
-                                found = true;
-                                break;
-                            }
-                            ++j;
+                            j++;
                         }
+
                         if (found) {
-                            std::string inner = in.substr(i + 1, j - (i + 1));
-
-                            std::string content;
-                            content.reserve(inner.size());
-                            for (size_t k = 0; k < inner.size(); ++k) {
-                                if (inner[k] == '\\' && k + 1 < inner.size() &&
-                                    inner[k + 1] == '`') {
-                                    content.push_back('`');
-                                    ++k;
-                                } else {
-                                    content.push_back(inner[k]);
-                                }
-                            }
-                            std::string repl = capture_internal_output(content);
-                            append_substitution_result(repl);
-                            i = j;
-                            continue;
-                        }
-                    }
-
-                    if (c == '$' && i + 1 < in.size() && in[i + 1] == '{') {
-                        size_t end_brace = 0;
-                        if (find_matching(in, i + 2, '{', '}', end_brace)) {
-                            std::string param_expr = in.substr(i + 2, end_brace - (i + 2));
+                            std::string param_expr = result.substr(i + 2, j - (i + 2));
                             std::string expanded_result = expand_parameter_expression(param_expr);
 
+                            // Re-expand any remaining variable references
                             if (expanded_result.find('$') != std::string::npos) {
                                 size_t dollar_pos = 0;
                                 while ((dollar_pos = expanded_result.find('$', dollar_pos)) !=
@@ -455,7 +373,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                             }
 
                             out += expanded_result;
-                            i = end_brace;
+                            i = j;
                             continue;
                         }
                     }
@@ -1073,54 +991,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                                                   execute_simple_or_pipeline, shell_parser);
     };
 
-    auto try_execute_inline_do_block =
-        [&](const std::string& first_segment, const std::vector<std::string>& segments,
-            size_t& segment_index,
-            const std::function<int(const std::vector<std::string>&, size_t&)>& handler)
-        -> std::optional<int> {
-        if (first_segment.find("; do") != std::string::npos)
-            return std::nullopt;
-
-        size_t lookahead = segment_index + 1;
-        if (lookahead >= segments.size())
-            return std::optional<int>{1};
-
-        std::string next_segment = trim(strip_inline_comment(segments[lookahead]));
-        if (next_segment != "do" && next_segment.rfind("do ", 0) != 0)
-            return std::optional<int>{1};
-
-        std::string body = next_segment.size() > 3 && next_segment.rfind("do ", 0) == 0
-                               ? trim(next_segment.substr(3))
-                               : "";
-
-        size_t scan = lookahead + 1;
-        bool found_done = false;
-        for (; scan < segments.size(); ++scan) {
-            std::string seg = trim(strip_inline_comment(segments[scan]));
-            if (seg == "done") {
-                found_done = true;
-                break;
-            }
-            if (!body.empty())
-                body += "; ";
-            body += seg;
-        }
-
-        if (!found_done)
-            return std::optional<int>{1};
-
-        std::string combined = first_segment + "; do";
-        if (!body.empty())
-            combined += " " + body;
-        combined += "; done";
-
-        size_t local_idx = 0;
-        std::vector<std::string> inline_lines{combined};
-        int rc = handler(inline_lines, local_idx);
-        segment_index = scan;
-        return std::optional<int>{rc};
-    };
-
     for (size_t line_index = 0; line_index < lines.size(); ++line_index) {
         const auto& raw_line = lines[line_index];
         std::string line = trim(strip_inline_comment(raw_line));
@@ -1410,23 +1280,23 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                     }
 
                     if ((t.rfind("for ", 0) == 0 || t == "for")) {
-                        if (auto inline_result =
-                                try_execute_inline_do_block(t, semis, k, handle_for_block)) {
+                        if (auto inline_result = loop_evaluator::try_execute_inline_do_block(
+                                t, semis, k, handle_for_block)) {
                             last_code = *inline_result;
                             break;
                         }
                     }
                     if ((t.rfind("while ", 0) == 0 || t == "while")) {
-                        if (auto inline_result =
-                                try_execute_inline_do_block(t, semis, k, handle_while_block)) {
+                        if (auto inline_result = loop_evaluator::try_execute_inline_do_block(
+                                t, semis, k, handle_while_block)) {
                             last_code = *inline_result;
                             break;
                         }
                     }
 
                     if ((t.rfind("until ", 0) == 0 || t == "until")) {
-                        if (auto inline_result =
-                                try_execute_inline_do_block(t, semis, k, handle_until_block)) {
+                        if (auto inline_result = loop_evaluator::try_execute_inline_do_block(
+                                t, semis, k, handle_until_block)) {
                             last_code = *inline_result;
                             break;
                         }

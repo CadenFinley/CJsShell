@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <functional>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -37,5 +38,10 @@ int handle_until_block(const std::vector<std::string>& src_lines, size_t& idx,
                        const std::function<int(const std::vector<std::string>&)>& execute_block,
                        const std::function<int(const std::string&)>& execute_simple_or_pipeline,
                        Parser* shell_parser);
+
+std::optional<int> try_execute_inline_do_block(
+    const std::string& first_segment, const std::vector<std::string>& segments,
+    size_t& segment_index,
+    const std::function<int(const std::vector<std::string>&, size_t&)>& handler);
 
 }  // namespace loop_evaluator

@@ -557,4 +557,51 @@ int handle_until_block(const std::vector<std::string>& src_lines, size_t& idx,
                              execute_simple_or_pipeline, shell_parser);
 }
 
+std::optional<int> try_execute_inline_do_block(
+    const std::string& first_segment, const std::vector<std::string>& segments,
+    size_t& segment_index,
+    const std::function<int(const std::vector<std::string>&, size_t&)>& handler) {
+    if (first_segment.find("; do") != std::string::npos)
+        return std::nullopt;
+
+    size_t lookahead = segment_index + 1;
+    if (lookahead >= segments.size())
+        return std::optional<int>{1};
+
+    std::string next_segment = trim(strip_inline_comment(segments[lookahead]));
+    if (next_segment != "do" && next_segment.rfind("do ", 0) != 0)
+        return std::optional<int>{1};
+
+    std::string body = next_segment.size() > 3 && next_segment.rfind("do ", 0) == 0
+                           ? trim(next_segment.substr(3))
+                           : "";
+
+    size_t scan = lookahead + 1;
+    bool found_done = false;
+    for (; scan < segments.size(); ++scan) {
+        std::string seg = trim(strip_inline_comment(segments[scan]));
+        if (seg == "done") {
+            found_done = true;
+            break;
+        }
+        if (!body.empty())
+            body += "; ";
+        body += seg;
+    }
+
+    if (!found_done)
+        return std::optional<int>{1};
+
+    std::string combined = first_segment + "; do";
+    if (!body.empty())
+        combined += " " + body;
+    combined += "; done";
+
+    size_t local_idx = 0;
+    std::vector<std::string> inline_lines{combined};
+    int rc = handler(inline_lines, local_idx);
+    segment_index = scan;
+    return std::optional<int>{rc};
+}
+
 }  // namespace loop_evaluator
