@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -11,6 +13,11 @@ class ShellScriptInterpreter {
    public:
     ShellScriptInterpreter();
     ~ShellScriptInterpreter();
+
+    ShellScriptInterpreter(const ShellScriptInterpreter&) = delete;
+    ShellScriptInterpreter& operator=(const ShellScriptInterpreter&) = delete;
+    ShellScriptInterpreter(ShellScriptInterpreter&&) = delete;
+    ShellScriptInterpreter& operator=(ShellScriptInterpreter&&) = delete;
 
     void set_parser(Parser* parser) {
         this->shell_parser = parser;
@@ -142,4 +149,42 @@ class ShellScriptInterpreter {
     bool matches_char_class(char c, const std::string& char_class);
     int set_last_status(int code);
     int run_pipeline(const std::vector<Command>& cmds);
+
+    struct CommandSubstitutionExpansion {
+        std::string text;
+        std::vector<std::string> outputs;
+    };
+
+    struct CaseSectionData {
+        std::string raw_pattern;
+        std::string pattern;
+        std::string command;
+    };
+
+    bool should_interpret_as_cjsh_script(const std::string& path) const;
+    static std::optional<size_t> find_matching_paren(const std::string& text, size_t start_index);
+    CommandSubstitutionExpansion expand_command_substitutions(const std::string& input) const;
+    std::pair<std::string, size_t> collect_case_body(const std::vector<std::string>& src_lines,
+                                                     size_t start_index) const;
+    std::vector<std::string> split_case_sections(const std::string& input,
+                                                 bool trim_sections) const;
+    std::string normalize_case_pattern(std::string pattern) const;
+    bool parse_case_section(const std::string& section, CaseSectionData& out) const;
+    bool execute_case_sections(const std::vector<std::string>& sections,
+                               const std::string& case_value,
+                               const std::function<int(const std::string&)>& executor,
+                               int& matched_exit_code);
+    std::string sanitize_case_patterns(const std::string& patterns) const;
+    std::pair<bool, int> evaluate_case_patterns(
+        const std::string& patterns, const std::string& case_value, bool trim_sections,
+        const std::function<int(const std::string&)>& executor);
+    std::optional<int> handle_inline_case(const std::string& text,
+                                          const std::function<int(const std::string&)>& executor,
+                                          bool allow_command_substitution, bool trim_sections);
+    std::string simplify_parentheses_in_condition(
+        const std::string& condition,
+        const std::function<int(const std::string&)>& evaluator) const;
+    int evaluate_logical_condition_internal(const std::string& condition,
+                                            const std::function<int(const std::string&)>& executor);
+    long long evaluate_arithmetic_expression(const std::string& expr);
 };

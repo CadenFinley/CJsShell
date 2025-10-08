@@ -36,11 +36,25 @@ using shell_script_interpreter::detail::process_line_for_validation;
 using shell_script_interpreter::detail::strip_inline_comment;
 using shell_script_interpreter::detail::trim;
 
+namespace {
+
+std::string to_lower_copy(std::string value) {
+    std::transform(value.begin(), value.end(), value.begin(),
+                   [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+    return value;
+}
+
+bool is_readable_file(const std::string& path) {
+    struct stat st{};
+    return ::stat(path.c_str(), &st) == 0 && S_ISREG(st.st_mode) && access(path.c_str(), R_OK) == 0;
+}
+
+}  // namespace
+
 ShellScriptInterpreter::ShellScriptInterpreter() : shell_parser(nullptr) {
 }
 
-ShellScriptInterpreter::~ShellScriptInterpreter() {
-}
+ShellScriptInterpreter::~ShellScriptInterpreter() = default;
 
 int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines) {
     if (g_shell == nullptr) {
@@ -61,589 +75,17 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
         return 2;
     }
 
-    auto to_lower_copy = [](std::string value) {
-        std::transform(value.begin(), value.end(), value.begin(),
-                       [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
-        return value;
-    };
-
-    auto is_readable_file = [](const std::string& path) -> bool {
-        struct stat st{};
-        return ::stat(path.c_str(), &st) == 0 && S_ISREG(st.st_mode) &&
-               access(path.c_str(), R_OK) == 0;
-    };
-
-    auto should_interpret_as_cjsh_script = [&](const std::string& path) -> bool {
-        if (!is_readable_file(path))
-            return false;
-
-        std::filesystem::path candidate(path);
-        if (candidate.has_extension()) {
-            std::string ext_lower = to_lower_copy(candidate.extension().string());
-            std::string theme_ext = to_lower_copy(std::string(Theme::kThemeFileExtension));
-            if (ext_lower == theme_ext)
-                return true;
-        }
-
-        std::ifstream f(path);
-        if (!f)
-            return false;
-        std::string first_line;
-        std::getline(f, first_line);
-        if (first_line.rfind("#!", 0) == 0 && first_line.find("cjsh") != std::string::npos)
-            return true;
-        if (first_line.find("cjsh") != std::string::npos)
-            return true;
-        return false;
-    };
-
-    struct CommandSubstitutionExpansion {
-        std::string text;
-        std::vector<std::string> outputs;
-    };
-
-    auto find_matching_paren = [&](const std::string& text,
-                                   size_t start_index) -> std::optional<size_t> {
-        int depth = 1;
-        for (size_t i = start_index; i < text.size(); ++i) {
-            if (text[i] == '(') {
-                depth++;
-            } else if (text[i] == ')') {
-                depth--;
-                if (depth == 0)
-                    return i;
-            }
-        }
-        return std::nullopt;
-    };
-
-    auto expand_command_substitutions =
-        [&](const std::string& input) -> CommandSubstitutionExpansion {
-        CommandSubstitutionExpansion info{input, {}};
-        std::string text = input;
-        size_t search_pos = 0;
-        while (true) {
-            size_t start = text.find("$(", search_pos);
-            if (start == std::string::npos)
-                break;
-            auto end_opt = find_matching_paren(text, start + 2);
-            if (!end_opt)
-                break;
-            size_t end = *end_opt;
-            std::string command = text.substr(start + 2, end - start - 2);
-            auto cmd_output = cjsh_filesystem::read_command_output(command);
-            if (!cmd_output.is_ok()) {
-                search_pos = end + 1;
-                continue;
-            }
-            std::string result = cmd_output.value();
-            while (!result.empty() && (result.back() == '\n' || result.back() == '\r'))
-                result.pop_back();
-            info.outputs.push_back(result);
-
-            std::string new_text;
-            new_text.reserve(text.size() - (end - start) + result.size());
-            new_text.append(text, 0, start);
-            new_text.append(result);
-            new_text.append(text, end + 1, std::string::npos);
-            text = std::move(new_text);
-
-            search_pos = start + result.size();
-        }
-        info.text = text;
-        return info;
-    };
-
-    auto collect_case_body = [&](const std::vector<std::string>& src_lines,
-                                 size_t start_index) -> std::pair<std::string, size_t> {
-        std::ostringstream body_stream;
-        bool appended = false;
-        size_t end_index = start_index;
-        for (size_t i = start_index; i < src_lines.size(); ++i) {
-            std::string raw = strip_inline_comment(src_lines[i]);
-            std::string trimmed_line = trim(raw);
-            if (trimmed_line.empty())
-                continue;
-            size_t esac_pos = trimmed_line.find("esac");
-            if (esac_pos != std::string::npos) {
-                std::string before_esac = trim(trimmed_line.substr(0, esac_pos));
-                if (!before_esac.empty()) {
-                    if (appended)
-                        body_stream << '\n';
-                    body_stream << before_esac;
-                    appended = true;
-                }
-                end_index = i;
-                return {body_stream.str(), end_index};
-            }
-            if (appended)
-                body_stream << '\n';
-            body_stream << trimmed_line;
-            appended = true;
-        }
-        return {body_stream.str(), src_lines.size()};
-    };
-
-    auto split_case_sections = [&](const std::string& input,
-                                   bool trim_sections) -> std::vector<std::string> {
-        std::vector<std::string> sections;
-        size_t start = 0;
-        while (start < input.length()) {
-            size_t sep_pos = input.find(";;", start);
-            std::string section;
-            if (sep_pos == std::string::npos) {
-                section = input.substr(start);
-                start = input.length();
-            } else {
-                section = input.substr(start, sep_pos - start);
-                start = sep_pos + 2;
-            }
-            if (trim_sections)
-                section = trim(section);
-            sections.push_back(section);
-        }
-        return sections;
-    };
-
-    struct CaseSectionData {
-        std::string raw_pattern;
-        std::string pattern;
-        std::string command;
-    };
-
-    auto normalize_case_pattern = [&](std::string pattern) -> std::string {
-        if (pattern.length() >= 2) {
-            char first_char = pattern.front();
-            char last_char = pattern.back();
-            if ((first_char == '"' && last_char == '"') ||
-                (first_char == '\'' && last_char == '\'')) {
-                pattern = pattern.substr(1, pattern.length() - 2);
-            }
-        }
-        std::string processed;
-        processed.reserve(pattern.length());
-        for (size_t i = 0; i < pattern.length(); ++i) {
-            if (pattern[i] == '\\' && i + 1 < pattern.length()) {
-                processed += pattern[i + 1];
-                ++i;
-            } else {
-                processed += pattern[i];
-            }
-        }
-        shell_parser->expand_env_vars(processed);
-        return processed;
-    };
-
-    auto parse_case_section = [&](const std::string& section, CaseSectionData& out) -> bool {
-        size_t paren_pos = section.find(')');
-        if (paren_pos == std::string::npos)
-            return false;
-        out.raw_pattern = trim(section.substr(0, paren_pos));
-        out.command = trim(section.substr(paren_pos + 1));
-        if (out.command.length() >= 2 && out.command.substr(out.command.length() - 2) == ";;") {
-            out.command = trim(out.command.substr(0, out.command.length() - 2));
-        }
-        out.pattern = normalize_case_pattern(out.raw_pattern);
-        return true;
-    };
-
     std::function<int(const std::string&, bool)> execute_simple_or_pipeline_impl;
     std::function<int(const std::string&)> execute_simple_or_pipeline;
 
-    auto execute_case_sections = [&](const std::vector<std::string>& sections,
-                                     const std::string& case_value,
-                                     const std::function<int(const std::string&)>& executor,
-                                     int& matched_exit_code) -> bool {
-        matched_exit_code = 0;
-        std::vector<std::string> filtered_sections;
-        filtered_sections.reserve(sections.size());
-        for (const auto& raw_section : sections) {
-            std::string trimmed_section = trim(raw_section);
-            if (!trimmed_section.empty())
-                filtered_sections.push_back(trimmed_section);
-        }
-
-        for (size_t idx = 0; idx < filtered_sections.size(); ++idx) {
-            const auto& section = filtered_sections[idx];
-
-            CaseSectionData data;
-            if (!parse_case_section(section, data))
-                continue;
-
-            bool pattern_matches = matches_pattern(case_value, data.pattern);
-            if (!pattern_matches)
-                continue;
-
-            if (!data.command.empty()) {
-                auto semicolon_commands = shell_parser->parse_semicolon_commands(data.command);
-                for (const auto& subcmd : semicolon_commands) {
-                    matched_exit_code = executor(subcmd);
-                    if (matched_exit_code != 0)
-                        break;
-                }
-            }
-
-            return true;
-        }
-
-        return false;
-    };
-
-    auto sanitize_case_patterns = [&](const std::string& patterns) -> std::string {
-        size_t esac_pos = patterns.rfind("esac");
-        if (esac_pos != std::string::npos)
-            return patterns.substr(0, esac_pos);
-        return patterns;
-    };
-
-    auto evaluate_case_patterns = [&](const std::string& patterns, const std::string& case_value,
-                                      bool trim_sections) -> std::pair<bool, int> {
-        auto sanitized = sanitize_case_patterns(patterns);
-        auto sections = split_case_sections(sanitized, trim_sections);
-        int matched_exit_code = 0;
-        bool matched = execute_case_sections(sections, case_value, execute_simple_or_pipeline,
-                                             matched_exit_code);
-        return {matched, matched_exit_code};
-    };
-
-    auto handle_inline_case = [&](const std::string& text, bool allow_command_substitution,
-                                  bool trim_sections) -> std::optional<int> {
-        if (text != "case" && text.rfind("case ", 0) != 0)
-            return std::nullopt;
-        if (text.find(" in ") == std::string::npos || text.find("esac") == std::string::npos)
-            return std::nullopt;
-
-        size_t in_pos = text.find(" in ");
-        std::string case_part = text.substr(0, in_pos);
-        std::string patterns_part = text.substr(in_pos + 4);
-        std::string processed_case_part = case_part;
-
-        if (allow_command_substitution && processed_case_part.find("$(") != std::string::npos) {
-            auto expansion = expand_command_substitutions(processed_case_part);
-            processed_case_part = expansion.text;
-        }
-
-        std::string case_value;
-        std::string raw_case_value;
-
-        auto extract_case_value = [&]() {
-            size_t space_pos = processed_case_part.find(' ');
-            if (space_pos != std::string::npos &&
-                processed_case_part.substr(0, space_pos) == "case") {
-                return trim(processed_case_part.substr(space_pos + 1));
-            }
-            return std::string{};
-        };
-
-        raw_case_value = extract_case_value();
-
-        if (raw_case_value.empty()) {
-            std::vector<std::string> case_tokens = shell_parser->parse_command(processed_case_part);
-            if (case_tokens.size() >= 2 && case_tokens[0] == "case") {
-                raw_case_value = case_tokens[1];
-            }
-        }
-
-        case_value = raw_case_value;
-
-        if (case_value.length() >= 2) {
-            if ((case_value.front() == '"' && case_value.back() == '"') ||
-                (case_value.front() == '\'' && case_value.back() == '\'')) {
-                case_value = case_value.substr(1, case_value.length() - 2);
-            }
-        }
-
-        if (!case_value.empty())
-            shell_parser->expand_env_vars(case_value);
-
-        auto case_result = evaluate_case_patterns(patterns_part, case_value, trim_sections);
-        return case_result.first ? std::optional<int>{case_result.second} : std::optional<int>{0};
-    };
-
     std::function<int(const std::string&)> evaluate_logical_condition;
-
-    auto handle_parentheses = [&](const std::string& condition) -> std::string {
-        std::string result = condition;
-
-        while (true) {
-            size_t start = std::string::npos;
-            size_t end = std::string::npos;
-            int depth = 0;
-            bool in_quotes = false;
-            char quote_char = '\0';
-            bool escaped = false;
-
-            for (size_t i = 0; i < result.length(); ++i) {
-                char c = result[i];
-
-                if (escaped) {
-                    escaped = false;
-                    continue;
-                }
-
-                if (c == '\\') {
-                    escaped = true;
-                    continue;
-                }
-
-                if (!in_quotes) {
-                    if (c == '"' || c == '\'' || c == '`') {
-                        in_quotes = true;
-                        quote_char = c;
-                        continue;
-                    }
-                    if (c == '(') {
-                        if (depth == 0) {
-                            start = i;
-                        }
-                        depth++;
-                    } else if (c == ')') {
-                        depth--;
-                        if (depth == 0 && start != std::string::npos) {
-                            end = i;
-                            break;
-                        }
-                    }
-                } else {
-                    if (c == quote_char) {
-                        in_quotes = false;
-                        quote_char = '\0';
-                    }
-                }
-            }
-
-            if (start == std::string::npos || end == std::string::npos) {
-                break;
-            }
-
-            std::string inner = result.substr(start + 1, end - start - 1);
-            int inner_result = evaluate_logical_condition(inner);
-            std::string replacement = (inner_result == 0) ? "true" : "false";
-
-            std::string temp = result.substr(0, start);
-            temp.append(replacement);
-            temp.append(result.substr(end + 1));
-            result = std::move(temp);
-        }
-
-        return result;
-    };
-
-    evaluate_logical_condition = [&](const std::string& condition) -> int {
-        std::string cond = trim(condition);
-        if (cond.empty())
-            return 1;
-
-        std::string processed_cond = cond;
-        size_t pos = 0;
-        while ((pos = processed_cond.find("$((", pos)) != std::string::npos) {
-            size_t start = pos + 3;
-            size_t depth = 1;
-            size_t end = start;
-
-            while (end < processed_cond.length() && depth > 0) {
-                if (end + 1 < processed_cond.length() && processed_cond.substr(end, 2) == "((") {
-                    depth++;
-                    end += 2;
-                } else if (end + 1 < processed_cond.length() &&
-                           processed_cond.substr(end, 2) == "))") {
-                    depth--;
-                    if (depth == 0) {
-                        break;
-                    }
-                    end += 2;
-                } else {
-                    end++;
-                }
-            }
-
-            if (depth == 0 && end + 1 < processed_cond.length()) {
-                std::string expr = processed_cond.substr(start, end - start);
-
-                shell_parser->expand_env_vars(expr);
-
-                try {
-                    long long result = shell_parser->evaluate_arithmetic(expr);
-                    std::string result_str = std::to_string(result);
-
-                    std::string new_cond;
-                    new_cond.reserve(processed_cond.size() - (end + 2 - pos) + result_str.size());
-                    new_cond.append(processed_cond, 0, pos);
-                    new_cond.append(result_str);
-                    new_cond.append(processed_cond, end + 2, std::string::npos);
-                    processed_cond = std::move(new_cond);
-                    pos = pos + result_str.length();
-                } catch (const std::exception& e) {
-                    pos = end + 2;
-                }
-            } else {
-                pos++;
-            }
-        }
-
-        cond = processed_cond;
-
-        cond = handle_parentheses(cond);
-
-        bool has_logical_ops = false;
-        bool in_quotes = false;
-        char quote_char = '\0';
-        bool escaped = false;
-        int bracket_depth = 0;
-        int paren_depth = 0;
-
-        for (size_t i = 0; i < cond.length() - 1; ++i) {
-            char c = cond[i];
-
-            if (escaped) {
-                escaped = false;
-                continue;
-            }
-
-            if (c == '\\') {
-                escaped = true;
-                continue;
-            }
-
-            if (!in_quotes) {
-                if (c == '"' || c == '\'' || c == '`') {
-                    in_quotes = true;
-                    quote_char = c;
-                    continue;
-                }
-                if (c == '[') {
-                    bracket_depth++;
-                } else if (c == ']') {
-                    bracket_depth--;
-                } else if (c == '(') {
-                    paren_depth++;
-                } else if (c == ')') {
-                    paren_depth--;
-                }
-            } else {
-                if (c == quote_char) {
-                    in_quotes = false;
-                    quote_char = '\0';
-                }
-                continue;
-            }
-
-            if (!in_quotes && bracket_depth == 0 && paren_depth == 0) {
-                if ((cond[i] == '&' && cond[i + 1] == '&') ||
-                    (cond[i] == '|' && cond[i + 1] == '|')) {
-                    has_logical_ops = true;
-                    break;
-                }
-            }
-        }
-
-        if (!has_logical_ops) {
-            return execute_simple_or_pipeline(cond);
-        }
-
-        std::vector<std::pair<std::string, std::string>> parts;
-        std::string current_part;
-        in_quotes = false;
-        quote_char = '\0';
-        escaped = false;
-        bracket_depth = 0;
-        paren_depth = 0;
-
-        for (size_t i = 0; i < cond.length(); ++i) {
-            char c = cond[i];
-
-            if (escaped) {
-                current_part += c;
-                escaped = false;
-                continue;
-            }
-
-            if (c == '\\') {
-                escaped = true;
-                current_part += c;
-                continue;
-            }
-
-            if (!in_quotes) {
-                if (c == '"' || c == '\'' || c == '`') {
-                    in_quotes = true;
-                    quote_char = c;
-                    current_part += c;
-                    continue;
-                }
-                if (c == '[') {
-                    bracket_depth++;
-                } else if (c == ']') {
-                    bracket_depth--;
-                } else if (c == '(') {
-                    paren_depth++;
-                } else if (c == ')') {
-                    paren_depth--;
-                }
-            } else {
-                if (c == quote_char) {
-                    in_quotes = false;
-                    quote_char = '\0';
-                }
-                current_part += c;
-                continue;
-            }
-
-            if (!in_quotes && bracket_depth == 0 && paren_depth == 0) {
-                if (i < cond.length() - 1) {
-                    if (cond[i] == '&' && cond[i + 1] == '&') {
-                        parts.push_back({trim(current_part), "&&"});
-                        current_part.clear();
-                        i++;
-                        continue;
-                    }
-                    if (cond[i] == '|' && cond[i + 1] == '|') {
-                        parts.push_back({trim(current_part), "||"});
-                        current_part.clear();
-                        i++;
-                        continue;
-                    }
-                }
-            }
-
-            current_part += c;
-        }
-
-        if (!current_part.empty()) {
-            parts.push_back({trim(current_part), ""});
-        }
-
-        if (parts.empty())
-            return 1;
-
-        int result = 0;
-
-        std::string first_cond = parts[0].first;
-
-        result = execute_simple_or_pipeline(first_cond);
-
-        for (size_t i = 1; i < parts.size(); ++i) {
-            const std::string& op = parts[i - 1].second;
-            const std::string& cond_part = parts[i].first;
-
-            if (op == "&&") {
-                if (result != 0) {
-                    break;
-                }
-            } else if (op == "||") {
-                if (result == 0) {
-                    break;
-                }
-            }
-
-            result = execute_simple_or_pipeline(cond_part);
-        }
-
-        return result;
-    };
 
     execute_simple_or_pipeline = [&](const std::string& cmd_text) -> int {
         return execute_simple_or_pipeline_impl(cmd_text, true);
+    };
+
+    evaluate_logical_condition = [&](const std::string& condition) -> int {
+        return evaluate_logical_condition_internal(condition, execute_simple_or_pipeline);
     };
 
     execute_simple_or_pipeline_impl = [&](const std::string& cmd_text,
@@ -748,473 +190,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
             return out;
         };
 
-        auto eval_arith = [&](const std::string& expr) -> long long {
-            struct Token {
-                enum Type : std::uint8_t {
-                    NUMBER,
-                    OPERATOR,
-                    VARIABLE,
-                    LPAREN,
-                    RPAREN,
-                    TERNARY_Q,
-                    TERNARY_COLON
-                } type{};
-                long long value{};
-                std::string str_value;
-                std::string op;
-            };
-
-            auto is_space = [](char c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r'; };
-
-            auto get_precedence = [](const std::string& op) -> int {
-                if (op == "=" || op == "+=" || op == "-=" || op == "*=" || op == "/=" || op == "%=")
-                    return 1;
-                if (op == "?:" || op == "?")
-                    return 2;
-                if (op == "||")
-                    return 3;
-                if (op == "&&")
-                    return 4;
-                if (op == "|")
-                    return 5;
-                if (op == "^")
-                    return 6;
-                if (op == "&")
-                    return 7;
-                if (op == "==" || op == "!=")
-                    return 8;
-                if (op == "<" || op == ">" || op == "<=" || op == ">=")
-                    return 9;
-                if (op == "<<" || op == ">>")
-                    return 10;
-                if (op == "+" || op == "-")
-                    return 11;
-                if (op == "*" || op == "/" || op == "%")
-                    return 12;
-                if (op == "**")
-                    return 13;
-                if (op == "!" || op == "~" || op == "unary+" || op == "unary-")
-                    return 14;
-                if (op == "++" || op == "--")
-                    return 15;
-                return 0;
-            };
-
-            auto is_right_associative = [](const std::string& op) -> bool {
-                return op == "**" || op == "?" || op == "=" || op == "+=" || op == "-=" ||
-                       op == "*=" || op == "/=" || op == "%=";
-            };
-
-            auto get_variable_value = [&](const std::string& name) -> long long {
-                if (g_shell) {
-                    const auto& env_vars = g_shell->get_env_vars();
-                    auto it = env_vars.find(name);
-                    if (it != env_vars.end()) {
-                        try {
-                            return std::stoll(it->second);
-                        } catch (...) {
-                            return 0;
-                        }
-                    }
-                }
-
-                const char* env_val = getenv(name.c_str());
-                if (env_val) {
-                    try {
-                        return std::stoll(env_val);
-                    } catch (...) {
-                        return 0;
-                    }
-                }
-                return 0;
-            };
-
-            auto set_variable_value = [&](const std::string& name, long long value) {
-                std::string value_str = std::to_string(value);
-
-                if (g_shell) {
-                    g_shell->get_env_vars()[name] = value_str;
-
-                    if (name == "PATH" || name == "PWD" || name == "HOME" || name == "USER" ||
-                        name == "SHELL") {
-                        setenv(name.c_str(), value_str.c_str(), 1);
-                    }
-
-                    if (shell_parser) {
-                        shell_parser->set_env_vars(g_shell->get_env_vars());
-                    }
-                }
-            };
-
-            auto apply_operator = [&](long long a, long long b,
-                                      const std::string& op) -> long long {
-                if (op == "+")
-                    return a + b;
-                if (op == "-")
-                    return a - b;
-                if (op == "*")
-                    return a * b;
-                if (op == "/") {
-                    if (b == 0) {
-                        throw std::runtime_error("Division by zero");
-                    }
-                    return a / b;
-                }
-                if (op == "%") {
-                    if (b == 0) {
-                        throw std::runtime_error("Division by zero");
-                    }
-                    return a % b;
-                }
-                if (op == "==")
-                    return (a == b) ? 1 : 0;
-                if (op == "!=")
-                    return (a != b) ? 1 : 0;
-                if (op == "<")
-                    return (a < b) ? 1 : 0;
-                if (op == ">")
-                    return (a > b) ? 1 : 0;
-                if (op == "<=")
-                    return (a <= b) ? 1 : 0;
-                if (op == ">=")
-                    return (a >= b) ? 1 : 0;
-                if (op == "&&")
-                    return (a && b) ? 1 : 0;
-                if (op == "||")
-                    return (a || b) ? 1 : 0;
-                if (op == "&")
-                    return a & b;
-                if (op == "|")
-                    return a | b;
-                if (op == "^")
-                    return a ^ b;
-                if (op == "<<")
-                    return a << b;
-                if (op == ">>")
-                    return a >> b;
-                if (op == "**") {
-                    long long result = 1;
-                    for (long long i = 0; i < b; ++i) {
-                        result *= a;
-                    }
-                    return result;
-                }
-                return 0;
-            };
-
-            auto apply_unary = [](long long a, const std::string& op) -> long long {
-                if (op == "unary+")
-                    return a;
-                if (op == "unary-")
-                    return -a;
-                if (op == "!")
-                    return !a ? 1 : 0;
-                if (op == "~")
-                    return ~a;
-                return a;
-            };
-
-            std::vector<Token> tokens;
-            bool expect_number = true;
-
-            for (size_t i = 0; i < expr.size();) {
-                if (is_space(expr[i])) {
-                    ++i;
-                    continue;
-                }
-
-                if (isdigit(expr[i]) || (expr[i] == '-' && expect_number && i + 1 < expr.size() &&
-                                         isdigit(expr[i + 1]))) {
-                    long long val = 0;
-                    bool negative = false;
-                    size_t j = i;
-
-                    if (expr[j] == '-') {
-                        negative = true;
-                        ++j;
-                    }
-
-                    while (j < expr.size() && isdigit(expr[j])) {
-                        val = val * 10 + (expr[j] - '0');
-                        ++j;
-                    }
-
-                    if (negative)
-                        val = -val;
-                    tokens.push_back({Token::NUMBER, val, "", ""});
-                    i = j;
-                    expect_number = false;
-                    continue;
-                }
-
-                if (isalpha(expr[i]) || expr[i] == '_') {
-                    size_t j = i;
-                    while (j < expr.size() && (isalnum(expr[j]) || expr[j] == '_')) {
-                        ++j;
-                    }
-                    std::string name = expr.substr(i, j - i);
-
-                    if (j + 1 < expr.size() &&
-                        ((expr.substr(j, 2) == "++" || expr.substr(j, 2) == "--"))) {
-                        std::string op = expr.substr(j, 2);
-                        long long old_val = get_variable_value(name);
-                        long long new_val = old_val + (op == "++" ? 1 : -1);
-                        set_variable_value(name, new_val);
-                        tokens.push_back({Token::NUMBER, old_val, "", ""});
-                        i = j + 2;
-                        expect_number = false;
-                        continue;
-                    }
-
-                    tokens.push_back({Token::VARIABLE, get_variable_value(name), name, ""});
-                    i = j;
-                    expect_number = false;
-                    continue;
-                }
-
-                if (expr[i] == '(') {
-                    tokens.push_back({Token::LPAREN, 0, "", ""});
-                    ++i;
-                    expect_number = true;
-                    continue;
-                }
-                if (expr[i] == ')') {
-                    tokens.push_back({Token::RPAREN, 0, "", ""});
-                    ++i;
-                    expect_number = false;
-                    continue;
-                }
-
-                if (expr[i] == '?') {
-                    tokens.push_back({Token::TERNARY_Q, 0, "", "?"});
-                    ++i;
-                    expect_number = true;
-                    continue;
-                }
-                if (expr[i] == ':') {
-                    tokens.push_back({Token::TERNARY_COLON, 0, "", ":"});
-                    ++i;
-                    expect_number = true;
-                    continue;
-                }
-
-                if (i + 1 < expr.size()) {
-                    std::string two_char = expr.substr(i, 2);
-                    if (two_char == "==" || two_char == "!=" || two_char == "<=" ||
-                        two_char == ">=" || two_char == "&&" || two_char == "||" ||
-                        two_char == "<<" || two_char == ">>" || two_char == "++" ||
-                        two_char == "--" || two_char == "**" || two_char == "+=" ||
-                        two_char == "-=" || two_char == "*=" || two_char == "/=" ||
-                        two_char == "%=") {
-                        if ((two_char == "++" || two_char == "--") && expect_number) {
-                            tokens.push_back({Token::OPERATOR, 0, "", "pre" + two_char});
-                            i += 2;
-                            expect_number = true;
-                            continue;
-                        }
-
-                        tokens.push_back({Token::OPERATOR, 0, "", two_char});
-                        i += 2;
-                        expect_number = (two_char != "++" && two_char != "--");
-                        continue;
-                    }
-                }
-
-                char op_char = expr[i];
-                if (op_char == '+' || op_char == '-' || op_char == '*' || op_char == '/' ||
-                    op_char == '%' || op_char == '<' || op_char == '>' || op_char == '&' ||
-                    op_char == '|' || op_char == '^' || op_char == '!' || op_char == '~' ||
-                    op_char == '=') {
-                    std::string op_str(1, op_char);
-
-                    if (expect_number &&
-                        (op_char == '+' || op_char == '-' || op_char == '!' || op_char == '~')) {
-                        if (op_char == '+') {
-                            op_str = "unary+";
-                        } else if (op_char == '-') {
-                            op_str = "unary-";
-                        }
-                        tokens.push_back({Token::OPERATOR, 0, "", op_str});
-                        ++i;
-                        expect_number = true;
-                        continue;
-                    }
-
-                    tokens.push_back({Token::OPERATOR, 0, "", op_str});
-                    ++i;
-                    expect_number = true;
-                    continue;
-                }
-
-                ++i;
-            }
-
-            for (size_t i = 0; i < tokens.size(); ++i) {
-                if (tokens[i].type == Token::OPERATOR &&
-                    (tokens[i].op == "+=" || tokens[i].op == "-=" || tokens[i].op == "*=" ||
-                     tokens[i].op == "/=" || tokens[i].op == "%=" || tokens[i].op == "=")) {
-                    if (i > 0 && tokens[i - 1].type == Token::VARIABLE) {
-                        std::string var_name = tokens[i - 1].str_value;
-
-                        if (i + 1 < tokens.size()) {
-                            long long current_val = get_variable_value(var_name);
-                            long long assign_val = 0;
-
-                            if (tokens[i + 1].type == Token::NUMBER) {
-                                assign_val = tokens[i + 1].value;
-                            } else if (tokens[i + 1].type == Token::VARIABLE) {
-                                assign_val = get_variable_value(tokens[i + 1].str_value);
-                            }
-
-                            long long result = assign_val;
-                            if (tokens[i].op == "+=") {
-                                result = current_val + assign_val;
-                            } else if (tokens[i].op == "-=") {
-                                result = current_val - assign_val;
-                            } else if (tokens[i].op == "*=") {
-                                result = current_val * assign_val;
-                            } else if (tokens[i].op == "/=") {
-                                if (assign_val == 0)
-                                    throw std::runtime_error("Division by zero");
-                                result = current_val / assign_val;
-                            } else if (tokens[i].op == "%=") {
-                                if (assign_val == 0)
-                                    throw std::runtime_error("Division by zero");
-                                result = current_val % assign_val;
-                            }
-
-                            set_variable_value(var_name, result);
-
-                            tokens[i - 1] = {Token::NUMBER, result, "", ""};
-                            tokens.erase(tokens.begin() + i, tokens.begin() + i + 2);
-                            i = i - 1;
-                        }
-                    }
-                }
-
-                if (tokens[i].type == Token::OPERATOR &&
-                    (tokens[i].op == "pre++" || tokens[i].op == "pre--")) {
-                    if (i + 1 < tokens.size() && tokens[i + 1].type == Token::VARIABLE) {
-                        std::string var_name = tokens[i + 1].str_value;
-                        long long current_val = get_variable_value(var_name);
-                        long long new_val = current_val + (tokens[i].op == "pre++" ? 1 : -1);
-                        set_variable_value(var_name, new_val);
-
-                        tokens[i] = {Token::NUMBER, new_val, "", ""};
-                        tokens.erase(tokens.begin() + i + 1);
-                    }
-                }
-            }
-
-            std::vector<Token> output;
-            std::vector<Token> operator_stack;
-
-            for (const auto& token : tokens) {
-                if (token.type == Token::NUMBER || token.type == Token::VARIABLE) {
-                    output.push_back(token);
-                } else if (token.type == Token::OPERATOR) {
-                    while (!operator_stack.empty() &&
-                           operator_stack.back().type == Token::OPERATOR &&
-                           operator_stack.back().op != "(" &&
-                           ((get_precedence(operator_stack.back().op) > get_precedence(token.op)) ||
-                            (get_precedence(operator_stack.back().op) == get_precedence(token.op) &&
-                             !is_right_associative(token.op)))) {
-                        output.push_back(operator_stack.back());
-                        operator_stack.pop_back();
-                    }
-                    operator_stack.push_back(token);
-                } else if (token.type == Token::LPAREN) {
-                    operator_stack.push_back(token);
-                } else if (token.type == Token::RPAREN) {
-                    while (!operator_stack.empty() && operator_stack.back().type != Token::LPAREN) {
-                        output.push_back(operator_stack.back());
-                        operator_stack.pop_back();
-                    }
-                    if (!operator_stack.empty()) {
-                        operator_stack.pop_back();
-                    }
-                } else if (token.type == Token::TERNARY_Q) {
-                    while (!operator_stack.empty() &&
-                           operator_stack.back().type == Token::OPERATOR &&
-                           get_precedence(operator_stack.back().op) > get_precedence("?")) {
-                        output.push_back(operator_stack.back());
-                        operator_stack.pop_back();
-                    }
-                    operator_stack.push_back(token);
-                } else if (token.type == Token::TERNARY_COLON) {
-                    while (!operator_stack.empty() &&
-                           operator_stack.back().type != Token::TERNARY_Q) {
-                        output.push_back(operator_stack.back());
-                        operator_stack.pop_back();
-                    }
-                    if (!operator_stack.empty()) {
-                        operator_stack.pop_back();
-                        Token ternary_op;
-                        ternary_op.type = Token::OPERATOR;
-                        ternary_op.op = "?:";
-                        operator_stack.push_back(ternary_op);
-                    }
-                }
-            }
-
-            while (!operator_stack.empty()) {
-                if (operator_stack.back().type == Token::OPERATOR ||
-                    operator_stack.back().type == Token::TERNARY_Q) {
-                    output.push_back(operator_stack.back());
-                }
-                operator_stack.pop_back();
-            }
-
-            std::vector<long long> eval_stack;
-
-            for (const auto& token : output) {
-                if (token.type == Token::NUMBER) {
-                    eval_stack.push_back(token.value);
-                } else if (token.type == Token::VARIABLE) {
-                    eval_stack.push_back(get_variable_value(token.str_value));
-                } else if (token.type == Token::OPERATOR) {
-                    if (token.op == "unary+" || token.op == "unary-" || token.op == "!" ||
-                        token.op == "~") {
-                        if (!eval_stack.empty()) {
-                            long long a = eval_stack.back();
-                            eval_stack.pop_back();
-                            eval_stack.push_back(apply_unary(a, token.op));
-                        }
-                    } else if (token.op == "?:") {
-                        if (eval_stack.size() >= 3) {
-                            long long false_val = eval_stack.back();
-                            eval_stack.pop_back();
-                            long long true_val = eval_stack.back();
-                            eval_stack.pop_back();
-                            long long condition = eval_stack.back();
-                            eval_stack.pop_back();
-                            eval_stack.push_back(condition ? true_val : false_val);
-                        }
-                    } else {
-                        if (eval_stack.size() >= 2) {
-                            long long b = eval_stack.back();
-                            eval_stack.pop_back();
-                            long long a = eval_stack.back();
-                            eval_stack.pop_back();
-                            eval_stack.push_back(apply_operator(a, b, token.op));
-                        }
-                    }
-                } else if (token.type == Token::TERNARY_Q && token.op == "?:") {
-                    if (eval_stack.size() >= 3) {
-                        long long false_val = eval_stack.back();
-                        eval_stack.pop_back();
-                        long long true_val = eval_stack.back();
-                        eval_stack.pop_back();
-                        long long condition = eval_stack.back();
-                        eval_stack.pop_back();
-                        eval_stack.push_back(condition ? true_val : false_val);
-                    }
-                }
-            }
-
-            return eval_stack.empty() ? 0 : eval_stack.back();
-        };
-
         const std::string subst_literal_start = "\x1E__SUBST_LITERAL_START__\x1E";
         const std::string subst_literal_end = "\x1E__SUBST_LITERAL_END__\x1E";
 
@@ -1229,7 +204,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
             auto append_substitution_result = [&](const std::string& content) {
                 if (in_quotes && q == '"') {
                     std::string esc;
-                    esc.reserve(content.size() * 1.1);
+                    esc.reserve(content.size() + (content.size() / 10) + 1);
                     for (char rc : content) {
                         if (rc == '"' || rc == '\\') {
                             esc += '\\';
@@ -1381,7 +356,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                             }
 
                             try {
-                                out += std::to_string(eval_arith(expanded_expr));
+                                out +=
+                                    std::to_string(evaluate_arithmetic_expression(expanded_expr));
                             } catch (const std::runtime_error& e) {
                                 shell_script_interpreter::print_runtime_error(
                                     "cjsh: " + std::string(e.what()), "$((" + expr + "))");
@@ -1523,7 +499,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
             return execute_simple_or_pipeline(completed_case);
         }
 
-        if (auto inline_case_result = handle_inline_case(text, false, true)) {
+        if (auto inline_case_result =
+                handle_inline_case(text, execute_simple_or_pipeline, false, true)) {
             return *inline_case_result;
         }
 
@@ -2814,7 +1791,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
         if (first != "case" && first.rfind("case ", 0) != 0)
             return 1;
 
-        if (auto inline_case_result = handle_inline_case(first, true, true)) {
+        if (auto inline_case_result =
+                handle_inline_case(first, execute_simple_or_pipeline, true, true)) {
             return *inline_case_result;
         }
 
@@ -2910,7 +1888,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
             esac_index = j;
         }
 
-        auto case_result = evaluate_case_patterns(combined_patterns, case_value, false);
+        auto case_result = evaluate_case_patterns(combined_patterns, case_value, false,
+                                                  execute_simple_or_pipeline);
         idx = esac_index;
         return case_result.first ? case_result.second : 0;
     };
@@ -3594,6 +2573,1022 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
     }
 
     return last_code;
+}
+
+bool ShellScriptInterpreter::should_interpret_as_cjsh_script(const std::string& path) const {
+    if (!is_readable_file(path))
+        return false;
+
+    std::filesystem::path candidate(path);
+    if (candidate.has_extension()) {
+        std::string ext_lower = to_lower_copy(candidate.extension().string());
+        std::string theme_ext = to_lower_copy(std::string(Theme::kThemeFileExtension));
+        if (ext_lower == theme_ext)
+            return true;
+    }
+
+    std::ifstream f(path);
+    if (!f)
+        return false;
+    std::string first_line;
+    std::getline(f, first_line);
+    if (first_line.rfind("#!", 0) == 0 && first_line.find("cjsh") != std::string::npos)
+        return true;
+    if (first_line.find("cjsh") != std::string::npos)
+        return true;
+    return false;
+}
+
+std::optional<size_t> ShellScriptInterpreter::find_matching_paren(const std::string& text,
+                                                                  size_t start_index) {
+    int depth = 1;
+    for (size_t i = start_index; i < text.size(); ++i) {
+        if (text[i] == '(') {
+            depth++;
+        } else if (text[i] == ')') {
+            depth--;
+            if (depth == 0)
+                return i;
+        }
+    }
+    return std::nullopt;
+}
+
+ShellScriptInterpreter::CommandSubstitutionExpansion
+ShellScriptInterpreter::expand_command_substitutions(const std::string& input) const {
+    CommandSubstitutionExpansion info{input, {}};
+    std::string text = input;
+    size_t search_pos = 0;
+    while (true) {
+        size_t start = text.find("$(", search_pos);
+        if (start == std::string::npos)
+            break;
+        auto end_opt = find_matching_paren(text, start + 2);
+        if (!end_opt)
+            break;
+        size_t end = *end_opt;
+        std::string command = text.substr(start + 2, end - start - 2);
+        auto cmd_output = cjsh_filesystem::read_command_output(command);
+        if (!cmd_output.is_ok()) {
+            search_pos = end + 1;
+            continue;
+        }
+        std::string result = cmd_output.value();
+        while (!result.empty() && (result.back() == '\n' || result.back() == '\r'))
+            result.pop_back();
+        info.outputs.push_back(result);
+
+        std::string new_text;
+        new_text.reserve(text.size() - (end - start) + result.size());
+        new_text.append(text, 0, start);
+        new_text.append(result);
+        new_text.append(text, end + 1, std::string::npos);
+        text = std::move(new_text);
+
+        search_pos = start + result.size();
+    }
+    info.text = text;
+    return info;
+}
+
+std::pair<std::string, size_t> ShellScriptInterpreter::collect_case_body(
+    const std::vector<std::string>& src_lines, size_t start_index) const {
+    std::ostringstream body_stream;
+    bool appended = false;
+    size_t end_index = start_index;
+    for (size_t i = start_index; i < src_lines.size(); ++i) {
+        std::string raw = strip_inline_comment(src_lines[i]);
+        std::string trimmed_line = trim(raw);
+        if (trimmed_line.empty())
+            continue;
+        size_t esac_pos = trimmed_line.find("esac");
+        if (esac_pos != std::string::npos) {
+            std::string before_esac = trim(trimmed_line.substr(0, esac_pos));
+            if (!before_esac.empty()) {
+                if (appended)
+                    body_stream << '\n';
+                body_stream << before_esac;
+                appended = true;
+            }
+            end_index = i;
+            return {body_stream.str(), end_index};
+        }
+        if (appended)
+            body_stream << '\n';
+        body_stream << trimmed_line;
+        appended = true;
+    }
+    return {body_stream.str(), src_lines.size()};
+}
+
+std::vector<std::string> ShellScriptInterpreter::split_case_sections(const std::string& input,
+                                                                     bool trim_sections) const {
+    std::vector<std::string> sections;
+    size_t start = 0;
+    while (start < input.length()) {
+        size_t sep_pos = input.find(";;", start);
+        std::string section;
+        if (sep_pos == std::string::npos) {
+            section = input.substr(start);
+            start = input.length();
+        } else {
+            section = input.substr(start, sep_pos - start);
+            start = sep_pos + 2;
+        }
+        if (trim_sections)
+            section = trim(section);
+        sections.push_back(section);
+    }
+    return sections;
+}
+
+std::string ShellScriptInterpreter::normalize_case_pattern(std::string pattern) const {
+    if (pattern.length() >= 2) {
+        char first_char = pattern.front();
+        char last_char = pattern.back();
+        if ((first_char == '"' && last_char == '"') || (first_char == '\'' && last_char == '\'')) {
+            pattern = pattern.substr(1, pattern.length() - 2);
+        }
+    }
+    std::string processed;
+    processed.reserve(pattern.length());
+    for (size_t i = 0; i < pattern.length(); ++i) {
+        if (pattern[i] == '\\' && i + 1 < pattern.length()) {
+            processed += pattern[i + 1];
+            ++i;
+        } else {
+            processed += pattern[i];
+        }
+    }
+    if (shell_parser != nullptr)
+        shell_parser->expand_env_vars(processed);
+    return processed;
+}
+
+bool ShellScriptInterpreter::parse_case_section(const std::string& section,
+                                                CaseSectionData& out) const {
+    size_t paren_pos = section.find(')');
+    if (paren_pos == std::string::npos)
+        return false;
+    out.raw_pattern = trim(section.substr(0, paren_pos));
+    out.command = trim(section.substr(paren_pos + 1));
+    if (out.command.length() >= 2 && out.command.substr(out.command.length() - 2) == ";;") {
+        out.command = trim(out.command.substr(0, out.command.length() - 2));
+    }
+    out.pattern = normalize_case_pattern(out.raw_pattern);
+    return true;
+}
+
+bool ShellScriptInterpreter::execute_case_sections(
+    const std::vector<std::string>& sections, const std::string& case_value,
+    const std::function<int(const std::string&)>& executor, int& matched_exit_code) {
+    matched_exit_code = 0;
+    std::vector<std::string> filtered_sections;
+    filtered_sections.reserve(sections.size());
+    for (const auto& raw_section : sections) {
+        std::string trimmed_section = trim(raw_section);
+        if (!trimmed_section.empty())
+            filtered_sections.push_back(trimmed_section);
+    }
+
+    for (const auto& section : filtered_sections) {
+        CaseSectionData data;
+        if (!parse_case_section(section, data))
+            continue;
+
+        bool pattern_matches = matches_pattern(case_value, data.pattern);
+        if (!pattern_matches)
+            continue;
+
+        if (!data.command.empty()) {
+            auto semicolon_commands = shell_parser->parse_semicolon_commands(data.command);
+            for (const auto& subcmd : semicolon_commands) {
+                matched_exit_code = executor(subcmd);
+                if (matched_exit_code != 0)
+                    break;
+            }
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
+std::string ShellScriptInterpreter::sanitize_case_patterns(const std::string& patterns) const {
+    size_t esac_pos = patterns.rfind("esac");
+    if (esac_pos != std::string::npos)
+        return patterns.substr(0, esac_pos);
+    return patterns;
+}
+
+std::pair<bool, int> ShellScriptInterpreter::evaluate_case_patterns(
+    const std::string& patterns, const std::string& case_value, bool trim_sections,
+    const std::function<int(const std::string&)>& executor) {
+    auto sanitized = sanitize_case_patterns(patterns);
+    auto sections = split_case_sections(sanitized, trim_sections);
+    int matched_exit_code = 0;
+    bool matched = execute_case_sections(sections, case_value, executor, matched_exit_code);
+    return {matched, matched_exit_code};
+}
+
+std::optional<int> ShellScriptInterpreter::handle_inline_case(
+    const std::string& text, const std::function<int(const std::string&)>& executor,
+    bool allow_command_substitution, bool trim_sections) {
+    if (text != "case" && text.rfind("case ", 0) != 0)
+        return std::nullopt;
+    if (text.find(" in ") == std::string::npos || text.find("esac") == std::string::npos)
+        return std::nullopt;
+
+    size_t in_pos = text.find(" in ");
+    std::string case_part = text.substr(0, in_pos);
+    std::string patterns_part = text.substr(in_pos + 4);
+    std::string processed_case_part = case_part;
+
+    if (allow_command_substitution && processed_case_part.find("$(") != std::string::npos) {
+        auto expansion = expand_command_substitutions(processed_case_part);
+        processed_case_part = expansion.text;
+    }
+
+    std::string case_value;
+    std::string raw_case_value;
+
+    auto extract_case_value = [&]() {
+        size_t space_pos = processed_case_part.find(' ');
+        if (space_pos != std::string::npos && processed_case_part.substr(0, space_pos) == "case") {
+            return trim(processed_case_part.substr(space_pos + 1));
+        }
+        return std::string{};
+    };
+
+    raw_case_value = extract_case_value();
+
+    if (raw_case_value.empty() && shell_parser != nullptr) {
+        std::vector<std::string> case_tokens = shell_parser->parse_command(processed_case_part);
+        if (case_tokens.size() >= 2 && case_tokens[0] == "case") {
+            raw_case_value = case_tokens[1];
+        }
+    }
+
+    case_value = raw_case_value;
+
+    if (case_value.length() >= 2) {
+        if ((case_value.front() == '"' && case_value.back() == '"') ||
+            (case_value.front() == '\'' && case_value.back() == '\'')) {
+            case_value = case_value.substr(1, case_value.length() - 2);
+        }
+    }
+
+    if (!case_value.empty() && shell_parser != nullptr)
+        shell_parser->expand_env_vars(case_value);
+
+    auto case_result = evaluate_case_patterns(patterns_part, case_value, trim_sections, executor);
+    return case_result.first ? std::optional<int>{case_result.second} : std::optional<int>{0};
+}
+
+std::string ShellScriptInterpreter::simplify_parentheses_in_condition(
+    const std::string& condition, const std::function<int(const std::string&)>& evaluator) const {
+    std::string result = condition;
+
+    while (true) {
+        size_t start = std::string::npos;
+        size_t end = std::string::npos;
+        int depth = 0;
+        bool in_quotes = false;
+        char quote_char = '\0';
+        bool escaped = false;
+
+        for (size_t i = 0; i < result.length(); ++i) {
+            char c = result[i];
+
+            if (escaped) {
+                escaped = false;
+                continue;
+            }
+
+            if (c == '\\') {
+                escaped = true;
+                continue;
+            }
+
+            if (!in_quotes) {
+                if (c == '"' || c == '\'' || c == '`') {
+                    in_quotes = true;
+                    quote_char = c;
+                    continue;
+                }
+                if (c == '(') {
+                    if (depth == 0) {
+                        start = i;
+                    }
+                    depth++;
+                } else if (c == ')') {
+                    if (depth > 0) {
+                        depth--;
+                        if (depth == 0 && start != std::string::npos) {
+                            end = i;
+                            break;
+                        }
+                    }
+                }
+            } else {
+                if (c == quote_char) {
+                    in_quotes = false;
+                    quote_char = '\0';
+                }
+            }
+        }
+
+        if (start == std::string::npos || end == std::string::npos) {
+            break;
+        }
+
+        std::string inner = result.substr(start + 1, end - start - 1);
+        int inner_result = evaluator(inner);
+        std::string replacement = (inner_result == 0) ? "true" : "false";
+
+        std::string temp = result.substr(0, start);
+        temp.append(replacement);
+        temp.append(result.substr(end + 1));
+        result = std::move(temp);
+    }
+
+    return result;
+}
+
+int ShellScriptInterpreter::evaluate_logical_condition_internal(
+    const std::string& condition, const std::function<int(const std::string&)>& executor) {
+    std::string cond = trim(condition);
+    if (cond.empty())
+        return 1;
+
+    std::string processed_cond = cond;
+    size_t pos = 0;
+    while ((pos = processed_cond.find("$((", pos)) != std::string::npos) {
+        size_t start = pos + 3;
+        size_t depth = 1;
+        size_t end = start;
+
+        while (end < processed_cond.length() && depth > 0) {
+            if (end + 1 < processed_cond.length() && processed_cond.substr(end, 2) == "((") {
+                depth++;
+                end += 2;
+            } else if (end + 1 < processed_cond.length() && processed_cond.substr(end, 2) == "))") {
+                depth--;
+                if (depth == 0) {
+                    break;
+                }
+                end += 2;
+            } else {
+                end++;
+            }
+        }
+
+        if (depth == 0 && end + 1 < processed_cond.length()) {
+            std::string expr = processed_cond.substr(start, end - start);
+
+            if (shell_parser != nullptr) {
+                shell_parser->expand_env_vars(expr);
+            }
+
+            try {
+                long long result =
+                    shell_parser != nullptr ? shell_parser->evaluate_arithmetic(expr) : 0;
+                std::string result_str = std::to_string(result);
+
+                std::string new_cond;
+                new_cond.reserve(processed_cond.size() - (end + 2 - pos) + result_str.size());
+                new_cond.append(processed_cond, 0, pos);
+                new_cond.append(result_str);
+                new_cond.append(processed_cond, end + 2, std::string::npos);
+                processed_cond = std::move(new_cond);
+                pos = pos + result_str.length();
+            } catch (const std::exception&) {
+                pos = end + 2;
+            }
+        } else {
+            pos++;
+        }
+    }
+
+    cond = processed_cond;
+
+    std::function<int(const std::string&)> self_eval = [&](const std::string& inner) -> int {
+        return evaluate_logical_condition_internal(inner, executor);
+    };
+
+    cond = simplify_parentheses_in_condition(cond, self_eval);
+
+    bool has_logical_ops = false;
+    bool in_quotes = false;
+    char quote_char = '\0';
+    bool escaped = false;
+    int bracket_depth = 0;
+    int paren_depth = 0;
+
+    for (size_t i = 0; i + 1 < cond.length(); ++i) {
+        char c = cond[i];
+
+        if (escaped) {
+            escaped = false;
+            continue;
+        }
+
+        if (c == '\\') {
+            escaped = true;
+            continue;
+        }
+
+        if (!in_quotes) {
+            if (c == '"' || c == '\'' || c == '`') {
+                in_quotes = true;
+                quote_char = c;
+                continue;
+            }
+            if (c == '[') {
+                bracket_depth++;
+            } else if (c == ']') {
+                bracket_depth--;
+            } else if (c == '(') {
+                paren_depth++;
+            } else if (c == ')') {
+                paren_depth--;
+            }
+        } else {
+            if (c == quote_char) {
+                in_quotes = false;
+                quote_char = '\0';
+            }
+            continue;
+        }
+
+        if (!in_quotes && bracket_depth == 0 && paren_depth == 0) {
+            if ((cond[i] == '&' && cond[i + 1] == '&') || (cond[i] == '|' && cond[i + 1] == '|')) {
+                has_logical_ops = true;
+                break;
+            }
+        }
+    }
+
+    if (!has_logical_ops) {
+        return executor(cond);
+    }
+
+    std::vector<std::pair<std::string, std::string>> parts;
+    std::string current_part;
+    in_quotes = false;
+    quote_char = '\0';
+    escaped = false;
+    bracket_depth = 0;
+    paren_depth = 0;
+
+    for (size_t i = 0; i < cond.length(); ++i) {
+        char c = cond[i];
+
+        if (escaped) {
+            current_part += c;
+            escaped = false;
+            continue;
+        }
+
+        if (c == '\\') {
+            escaped = true;
+            current_part += c;
+            continue;
+        }
+
+        if (!in_quotes) {
+            if (c == '"' || c == '\'' || c == '`') {
+                in_quotes = true;
+                quote_char = c;
+                current_part += c;
+                continue;
+            }
+            if (c == '[') {
+                bracket_depth++;
+            } else if (c == ']') {
+                bracket_depth--;
+            } else if (c == '(') {
+                paren_depth++;
+            } else if (c == ')') {
+                paren_depth--;
+            }
+        } else {
+            if (c == quote_char) {
+                in_quotes = false;
+                quote_char = '\0';
+            }
+            current_part += c;
+            continue;
+        }
+
+        if (!in_quotes && bracket_depth == 0 && paren_depth == 0 && i + 1 < cond.length()) {
+            if (cond[i] == '&' && cond[i + 1] == '&') {
+                parts.push_back({trim(current_part), "&&"});
+                current_part.clear();
+                ++i;
+                continue;
+            }
+            if (cond[i] == '|' && cond[i + 1] == '|') {
+                parts.push_back({trim(current_part), "||"});
+                current_part.clear();
+                ++i;
+                continue;
+            }
+        }
+
+        current_part += c;
+    }
+
+    if (!current_part.empty()) {
+        parts.push_back({trim(current_part), ""});
+    }
+
+    if (parts.empty())
+        return 1;
+
+    int result = executor(parts[0].first);
+
+    for (size_t i = 1; i < parts.size(); ++i) {
+        const std::string& op = parts[i - 1].second;
+        const std::string& cond_part = parts[i].first;
+
+        if (op == "&&") {
+            if (result != 0) {
+                break;
+            }
+        } else if (op == "||") {
+            if (result == 0) {
+                break;
+            }
+        }
+
+        result = executor(cond_part);
+    }
+
+    return result;
+}
+
+long long ShellScriptInterpreter::evaluate_arithmetic_expression(const std::string& expr) {
+    struct Token {
+        enum Type : std::uint8_t {
+            NUMBER,
+            OPERATOR,
+            VARIABLE,
+            LPAREN,
+            RPAREN,
+            TERNARY_Q,
+            TERNARY_COLON
+        } type{};
+        long long value{};
+        std::string str_value;
+        std::string op;
+    };
+
+    auto is_space = [](char c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r'; };
+
+    auto get_precedence = [](const std::string& op) -> int {
+        if (op == "=" || op == "+=" || op == "-=" || op == "*=" || op == "/=" || op == "%=")
+            return 1;
+        if (op == "?:" || op == "?")
+            return 2;
+        if (op == "||")
+            return 3;
+        if (op == "&&")
+            return 4;
+        if (op == "|")
+            return 5;
+        if (op == "^")
+            return 6;
+        if (op == "&")
+            return 7;
+        if (op == "==" || op == "!=")
+            return 8;
+        if (op == "<" || op == ">" || op == "<=" || op == ">=")
+            return 9;
+        if (op == "<<" || op == ">>")
+            return 10;
+        if (op == "+" || op == "-")
+            return 11;
+        if (op == "*" || op == "/" || op == "%")
+            return 12;
+        if (op == "**")
+            return 13;
+        if (op == "!" || op == "~" || op == "unary+" || op == "unary-")
+            return 14;
+        if (op == "++" || op == "--")
+            return 15;
+        return 0;
+    };
+
+    auto is_right_associative = [](const std::string& op) -> bool {
+        return op == "**" || op == "?" || op == "=" || op == "+=" || op == "-=" || op == "*=" ||
+               op == "/=" || op == "%=";
+    };
+
+    auto read_numeric_variable = [&](const std::string& name) -> long long {
+        if (g_shell) {
+            const auto& env_vars = g_shell->get_env_vars();
+            auto it = env_vars.find(name);
+            if (it != env_vars.end()) {
+                try {
+                    return std::stoll(it->second);
+                } catch (...) {
+                    return 0;
+                }
+            }
+        }
+
+        const char* env_val = getenv(name.c_str());
+        if (env_val) {
+            try {
+                return std::stoll(env_val);
+            } catch (...) {
+                return 0;
+            }
+        }
+        return 0;
+    };
+
+    auto write_numeric_variable = [&](const std::string& name, long long value) {
+        std::string value_str = std::to_string(value);
+
+        if (g_shell) {
+            g_shell->get_env_vars()[name] = value_str;
+
+            if (name == "PATH" || name == "PWD" || name == "HOME" || name == "USER" ||
+                name == "SHELL") {
+                setenv(name.c_str(), value_str.c_str(), 1);
+            }
+
+            if (shell_parser) {
+                shell_parser->set_env_vars(g_shell->get_env_vars());
+            }
+        }
+    };
+
+    auto apply_operator = [&](long long a, long long b, const std::string& op) -> long long {
+        if (op == "+")
+            return a + b;
+        if (op == "-")
+            return a - b;
+        if (op == "*")
+            return a * b;
+        if (op == "/") {
+            if (b == 0) {
+                throw std::runtime_error("Division by zero");
+            }
+            return a / b;
+        }
+        if (op == "%") {
+            if (b == 0) {
+                throw std::runtime_error("Division by zero");
+            }
+            return a % b;
+        }
+        if (op == "==")
+            return (a == b) ? 1 : 0;
+        if (op == "!=")
+            return (a != b) ? 1 : 0;
+        if (op == "<")
+            return (a < b) ? 1 : 0;
+        if (op == ">")
+            return (a > b) ? 1 : 0;
+        if (op == "<=")
+            return (a <= b) ? 1 : 0;
+        if (op == ">=")
+            return (a >= b) ? 1 : 0;
+        if (op == "&&")
+            return (a && b) ? 1 : 0;
+        if (op == "||")
+            return (a || b) ? 1 : 0;
+        if (op == "&")
+            return a & b;
+        if (op == "|")
+            return a | b;
+        if (op == "^")
+            return a ^ b;
+        if (op == "<<")
+            return a << b;
+        if (op == ">>")
+            return a >> b;
+        if (op == "**") {
+            long long result = 1;
+            for (long long i = 0; i < b; ++i) {
+                result *= a;
+            }
+            return result;
+        }
+        return 0;
+    };
+
+    auto apply_unary = [](long long a, const std::string& op) -> long long {
+        if (op == "unary+")
+            return a;
+        if (op == "unary-")
+            return -a;
+        if (op == "!")
+            return !a ? 1 : 0;
+        if (op == "~")
+            return ~a;
+        return a;
+    };
+
+    std::vector<Token> tokens;
+    bool expect_number = true;
+
+    for (size_t i = 0; i < expr.size();) {
+        if (is_space(expr[i])) {
+            ++i;
+            continue;
+        }
+
+        if (std::isdigit(static_cast<unsigned char>(expr[i])) != 0 ||
+            (expr[i] == '-' && expect_number && i + 1 < expr.size() &&
+             std::isdigit(static_cast<unsigned char>(expr[i + 1])) != 0)) {
+            long long val = 0;
+            bool negative = false;
+            size_t j = i;
+
+            if (expr[j] == '-') {
+                negative = true;
+                ++j;
+            }
+
+            while (j < expr.size() && std::isdigit(static_cast<unsigned char>(expr[j])) != 0) {
+                val = val * 10 + (expr[j] - '0');
+                ++j;
+            }
+
+            if (negative)
+                val = -val;
+            tokens.push_back({Token::NUMBER, val, "", ""});
+            i = j;
+            expect_number = false;
+            continue;
+        }
+
+        if (std::isalpha(static_cast<unsigned char>(expr[i])) != 0 || expr[i] == '_') {
+            size_t j = i;
+            while (j < expr.size() &&
+                   (std::isalnum(static_cast<unsigned char>(expr[j])) != 0 || expr[j] == '_')) {
+                ++j;
+            }
+            std::string name = expr.substr(i, j - i);
+
+            if (j + 1 < expr.size() && ((expr.substr(j, 2) == "++" || expr.substr(j, 2) == "--"))) {
+                std::string op = expr.substr(j, 2);
+                long long old_val = read_numeric_variable(name);
+                long long new_val = old_val + (op == "++" ? 1 : -1);
+                write_numeric_variable(name, new_val);
+                tokens.push_back({Token::NUMBER, old_val, "", ""});
+                i = j + 2;
+                expect_number = false;
+                continue;
+            }
+
+            tokens.push_back({Token::VARIABLE, read_numeric_variable(name), name, ""});
+            i = j;
+            expect_number = false;
+            continue;
+        }
+
+        if (expr[i] == '(') {
+            tokens.push_back({Token::LPAREN, 0, "", ""});
+            ++i;
+            expect_number = true;
+            continue;
+        }
+        if (expr[i] == ')') {
+            tokens.push_back({Token::RPAREN, 0, "", ""});
+            ++i;
+            expect_number = false;
+            continue;
+        }
+
+        if (expr[i] == '?') {
+            tokens.push_back({Token::TERNARY_Q, 0, "", "?"});
+            ++i;
+            expect_number = true;
+            continue;
+        }
+        if (expr[i] == ':') {
+            tokens.push_back({Token::TERNARY_COLON, 0, "", ":"});
+            ++i;
+            expect_number = true;
+            continue;
+        }
+
+        if (i + 1 < expr.size()) {
+            std::string two_char = expr.substr(i, 2);
+            if (two_char == "==" || two_char == "!=" || two_char == "<=" || two_char == ">=" ||
+                two_char == "&&" || two_char == "||" || two_char == "<<" || two_char == ">>" ||
+                two_char == "++" || two_char == "--" || two_char == "**" || two_char == "+=" ||
+                two_char == "-=" || two_char == "*=" || two_char == "/=" || two_char == "%=") {
+                if ((two_char == "++" || two_char == "--") && expect_number) {
+                    tokens.push_back({Token::OPERATOR, 0, "", "pre" + two_char});
+                    i += 2;
+                    expect_number = true;
+                    continue;
+                }
+
+                tokens.push_back({Token::OPERATOR, 0, "", two_char});
+                i += 2;
+                expect_number = (two_char != "++" && two_char != "--");
+                continue;
+            }
+        }
+
+        char op_char = expr[i];
+        if (op_char == '+' || op_char == '-' || op_char == '*' || op_char == '/' ||
+            op_char == '%' || op_char == '<' || op_char == '>' || op_char == '&' ||
+            op_char == '|' || op_char == '^' || op_char == '!' || op_char == '~' ||
+            op_char == '=') {
+            std::string op_str(1, op_char);
+
+            if (expect_number &&
+                (op_char == '+' || op_char == '-' || op_char == '!' || op_char == '~')) {
+                if (op_char == '+') {
+                    op_str = "unary+";
+                } else if (op_char == '-') {
+                    op_str = "unary-";
+                }
+                tokens.push_back({Token::OPERATOR, 0, "", op_str});
+                ++i;
+                expect_number = true;
+                continue;
+            }
+
+            tokens.push_back({Token::OPERATOR, 0, "", op_str});
+            ++i;
+            expect_number = true;
+            continue;
+        }
+
+        ++i;
+    }
+
+    for (size_t i = 0; i < tokens.size(); ++i) {
+        if (tokens[i].type == Token::OPERATOR &&
+            (tokens[i].op == "+=" || tokens[i].op == "-=" || tokens[i].op == "*=" ||
+             tokens[i].op == "/=" || tokens[i].op == "%=" || tokens[i].op == "=")) {
+            if (i > 0 && tokens[i - 1].type == Token::VARIABLE) {
+                std::string var_name = tokens[i - 1].str_value;
+
+                if (i + 1 < tokens.size()) {
+                    long long current_val = read_numeric_variable(var_name);
+                    long long assign_val = 0;
+
+                    if (tokens[i + 1].type == Token::NUMBER) {
+                        assign_val = tokens[i + 1].value;
+                    } else if (tokens[i + 1].type == Token::VARIABLE) {
+                        assign_val = read_numeric_variable(tokens[i + 1].str_value);
+                    }
+
+                    long long result = assign_val;
+                    if (tokens[i].op == "+=") {
+                        result = current_val + assign_val;
+                    } else if (tokens[i].op == "-=") {
+                        result = current_val - assign_val;
+                    } else if (tokens[i].op == "*=") {
+                        result = current_val * assign_val;
+                    } else if (tokens[i].op == "/=") {
+                        if (assign_val == 0)
+                            throw std::runtime_error("Division by zero");
+                        result = current_val / assign_val;
+                    } else if (tokens[i].op == "%=") {
+                        if (assign_val == 0)
+                            throw std::runtime_error("Division by zero");
+                        result = current_val % assign_val;
+                    }
+
+                    write_numeric_variable(var_name, result);
+
+                    tokens[i - 1] = {Token::NUMBER, result, "", ""};
+                    tokens.erase(tokens.begin() + i, tokens.begin() + i + 2);
+                    i = i - 1;
+                }
+            }
+        }
+
+        if (tokens[i].type == Token::OPERATOR &&
+            (tokens[i].op == "pre++" || tokens[i].op == "pre--")) {
+            if (i + 1 < tokens.size() && tokens[i + 1].type == Token::VARIABLE) {
+                std::string var_name = tokens[i + 1].str_value;
+                long long current_val = read_numeric_variable(var_name);
+                long long new_val = current_val + (tokens[i].op == "pre++" ? 1 : -1);
+                write_numeric_variable(var_name, new_val);
+
+                tokens[i] = {Token::NUMBER, new_val, "", ""};
+                tokens.erase(tokens.begin() + i + 1);
+            }
+        }
+    }
+
+    std::vector<Token> output;
+    std::vector<Token> operator_stack;
+
+    for (const auto& token : tokens) {
+        if (token.type == Token::NUMBER || token.type == Token::VARIABLE) {
+            output.push_back(token);
+        } else if (token.type == Token::OPERATOR) {
+            while (!operator_stack.empty() && operator_stack.back().type == Token::OPERATOR &&
+                   operator_stack.back().op != "(" &&
+                   ((get_precedence(operator_stack.back().op) > get_precedence(token.op)) ||
+                    (get_precedence(operator_stack.back().op) == get_precedence(token.op) &&
+                     !is_right_associative(token.op)))) {
+                output.push_back(operator_stack.back());
+                operator_stack.pop_back();
+            }
+            operator_stack.push_back(token);
+        } else if (token.type == Token::LPAREN) {
+            operator_stack.push_back(token);
+        } else if (token.type == Token::RPAREN) {
+            while (!operator_stack.empty() && operator_stack.back().type != Token::LPAREN) {
+                output.push_back(operator_stack.back());
+                operator_stack.pop_back();
+            }
+            if (!operator_stack.empty()) {
+                operator_stack.pop_back();
+            }
+        } else if (token.type == Token::TERNARY_Q) {
+            while (!operator_stack.empty() && operator_stack.back().type == Token::OPERATOR &&
+                   get_precedence(operator_stack.back().op) > get_precedence("?")) {
+                output.push_back(operator_stack.back());
+                operator_stack.pop_back();
+            }
+            operator_stack.push_back(token);
+        } else if (token.type == Token::TERNARY_COLON) {
+            while (!operator_stack.empty() && operator_stack.back().type != Token::TERNARY_Q) {
+                output.push_back(operator_stack.back());
+                operator_stack.pop_back();
+            }
+            if (!operator_stack.empty()) {
+                operator_stack.pop_back();
+                Token ternary_op;
+                ternary_op.type = Token::OPERATOR;
+                ternary_op.op = "?:";
+                operator_stack.push_back(ternary_op);
+            }
+        }
+    }
+
+    while (!operator_stack.empty()) {
+        if (operator_stack.back().type == Token::OPERATOR ||
+            operator_stack.back().type == Token::TERNARY_Q) {
+            output.push_back(operator_stack.back());
+        }
+        operator_stack.pop_back();
+    }
+
+    std::vector<long long> eval_stack;
+
+    for (const auto& token : output) {
+        if (token.type == Token::NUMBER) {
+            eval_stack.push_back(token.value);
+        } else if (token.type == Token::VARIABLE) {
+            eval_stack.push_back(read_numeric_variable(token.str_value));
+        } else if (token.type == Token::OPERATOR) {
+            if (token.op == "unary+" || token.op == "unary-" || token.op == "!" ||
+                token.op == "~") {
+                if (!eval_stack.empty()) {
+                    long long a = eval_stack.back();
+                    eval_stack.pop_back();
+                    eval_stack.push_back(apply_unary(a, token.op));
+                }
+            } else if (token.op == "?:") {
+                if (eval_stack.size() >= 3) {
+                    long long false_val = eval_stack.back();
+                    eval_stack.pop_back();
+                    long long true_val = eval_stack.back();
+                    eval_stack.pop_back();
+                    long long condition = eval_stack.back();
+                    eval_stack.pop_back();
+                    eval_stack.push_back(condition ? true_val : false_val);
+                }
+            } else {
+                if (eval_stack.size() >= 2) {
+                    long long b = eval_stack.back();
+                    eval_stack.pop_back();
+                    long long a = eval_stack.back();
+                    eval_stack.pop_back();
+                    eval_stack.push_back(apply_operator(a, b, token.op));
+                }
+            }
+        } else if (token.type == Token::TERNARY_Q && token.op == "?:") {
+            if (eval_stack.size() >= 3) {
+                long long false_val = eval_stack.back();
+                eval_stack.pop_back();
+                long long true_val = eval_stack.back();
+                eval_stack.pop_back();
+                long long condition = eval_stack.back();
+                eval_stack.pop_back();
+                eval_stack.push_back(condition ? true_val : false_val);
+            }
+        }
+    }
+
+    return eval_stack.empty() ? 0 : eval_stack.back();
 }
 
 int ShellScriptInterpreter::set_last_status(int code) {
