@@ -79,21 +79,32 @@ std::vector<std::string> ExpansionEngine::expand_braces(const std::string& patte
             return result;
         }
         
-        // Try character range
+        // Try character range - must be same case
         if (start_str.length() == 1 && end_str.length() == 1 &&
             (std::isalpha(start_str[0]) != 0) && (std::isalpha(end_str[0]) != 0)) {
             char start_char = start_str[0];
             char end_char = end_str[0];
-
-            size_t char_range_size = std::abs(end_char - start_char) + 1;
-            if (char_range_size > MAX_EXPANSION_SIZE) {
-                result.push_back(pattern);
+            
+            // Ensure both characters are the same case
+            bool both_lower = std::islower(start_char) && std::islower(end_char);
+            bool both_upper = std::isupper(start_char) && std::isupper(end_char);
+            
+            if (both_lower || both_upper) {
+                size_t char_range_size = std::abs(end_char - start_char) + 1;
+                if (char_range_size > MAX_EXPANSION_SIZE) {
+                    result.push_back(pattern);
+                    return result;
+                }
+                result.reserve(char_range_size);
+                expand_range(start_char, end_char, prefix, suffix, result);
                 return result;
             }
-            result.reserve(char_range_size);
-            expand_range(start_char, end_char, prefix, suffix, result);
-            return result;
         }
+        
+        // If we found ".." but couldn't parse as either integer or character range,
+        // return the literal pattern
+        result.push_back(pattern);
+        return result;
     }
 
     std::vector<std::string> options;
