@@ -166,7 +166,6 @@ class ShellScriptInterpreter {
                                             const std::function<int(const std::string&)>& executor);
     long long evaluate_arithmetic_expression(const std::string& expr);
 
-    // Extracted methods from execute_block refactoring
     std::string expand_all_substitutions(const std::string& input,
                                          const std::function<int(const std::string&)>& executor);
 
