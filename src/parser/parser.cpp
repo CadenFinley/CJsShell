@@ -519,7 +519,8 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
             alias_args.reserve(8);
 
             try {
-                std::vector<std::string> raw_alias_args = Tokenizer::tokenize_command(alias_it->second);
+                std::vector<std::string> raw_alias_args =
+                    Tokenizer::tokenize_command(alias_it->second);
                 alias_args = Tokenizer::merge_redirection_tokens(raw_alias_args);
 
                 if (!alias_args.empty()) {
@@ -815,7 +816,8 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                     cmd.args.push_back(subshell_content);
 
                     if (!remaining.empty()) {
-                        std::vector<std::string> redir_tokens = Tokenizer::tokenize_command(remaining);
+                        std::vector<std::string> redir_tokens =
+                            Tokenizer::tokenize_command(remaining);
                         std::vector<std::string> merged_redir =
                             Tokenizer::merge_redirection_tokens(redir_tokens);
 
