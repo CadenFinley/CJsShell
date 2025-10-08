@@ -9,6 +9,7 @@
 
 #include "function_evaluator.h"
 #include "parser.h"
+#include "variable_manager.h"
 
 class ShellScriptInterpreter {
    public:
@@ -142,7 +143,8 @@ class ShellScriptInterpreter {
     Parser* shell_parser = nullptr;
     function_evaluator::FunctionMap functions;
 
-    function_evaluator::LocalVariableStack local_variable_stack;
+    VariableManager variable_manager;
+
     bool variable_is_set(const std::string& var_name);
     bool matches_pattern(const std::string& text, const std::string& pattern);
     bool matches_char_class(char c, const std::string& char_class);

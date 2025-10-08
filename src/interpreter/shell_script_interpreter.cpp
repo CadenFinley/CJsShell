@@ -1538,9 +1538,8 @@ int ShellScriptInterpreter::run_pipeline(const std::vector<Command>& cmds) {
 }
 
 std::string ShellScriptInterpreter::expand_parameter_expression(const std::string& param_expr) {
-    // Create callbacks for the parameter expansion evaluator
     auto var_reader = [this](const std::string& name) -> std::string {
-        return get_variable_value(name);
+        return variable_manager.get_variable_value(name);
     };
 
     auto var_writer = [](const std::string& name, const std::string& value) {
@@ -1560,124 +1559,24 @@ std::string ShellScriptInterpreter::expand_parameter_expression(const std::strin
         }
     };
 
-    auto var_checker = [this](const std::string& name) -> bool { return variable_is_set(name); };
+    auto var_checker = [this](const std::string& name) -> bool {
+        return variable_manager.variable_is_set(name);
+    };
 
     auto pattern_matcher = [this](const std::string& text, const std::string& pattern) -> bool {
         return matches_pattern(text, pattern);
     };
 
-    // Create the evaluator and delegate to it
     ParameterExpansionEvaluator evaluator(var_reader, var_writer, var_checker, pattern_matcher);
     return evaluator.expand(param_expr);
 }
 
 std::string ShellScriptInterpreter::get_variable_value(const std::string& var_name) {
-    if (!local_variable_stack.empty()) {
-        auto& current_scope = local_variable_stack.back();
-        auto it = current_scope.find(var_name);
-        if (it != current_scope.end()) {
-            return it->second;
-        }
-    }
-
-    if (var_name == "?") {
-        const char* status_env = getenv("?");
-        return (status_env != nullptr) ? status_env : "0";
-    }
-    if (var_name == "$") {
-        return std::to_string(getpid());
-    }
-    if (var_name == "#") {
-        if (g_shell) {
-            return std::to_string(g_shell->get_positional_parameter_count());
-        }
-        return "0";
-    }
-    if (var_name == "*" || var_name == "@") {
-        if (g_shell) {
-            auto params = g_shell->get_positional_parameters();
-            std::string result;
-            for (size_t i = 0; i < params.size(); ++i) {
-                if (i > 0)
-                    result += " ";
-                result += params[i];
-            }
-            return result;
-        }
-        return "";
-    }
-    if (var_name == "!") {
-        const char* last_bg_pid = getenv("!");
-        if (last_bg_pid != nullptr) {
-            return last_bg_pid;
-        }
-        pid_t last_pid = JobManager::instance().get_last_background_pid();
-        if (last_pid > 0) {
-            return std::to_string(last_pid);
-        }
-        return "";
-    }
-    if (var_name.length() == 1 && (isdigit(var_name[0]) != 0)) {
-        const char* env_val = getenv(var_name.c_str());
-        if (env_val != nullptr) {
-            return env_val;
-        }
-
-        int param_num = var_name[0] - '0';
-        if (g_shell && param_num > 0) {
-            auto params = g_shell->get_positional_parameters();
-            if (static_cast<size_t>(param_num - 1) < params.size()) {
-                return params[param_num - 1];
-            }
-        }
-        return "";
-    }
-
-    if (g_shell) {
-        const auto& env_vars = g_shell->get_env_vars();
-        auto it = env_vars.find(var_name);
-        if (it != env_vars.end()) {
-            return it->second;
-        }
-    }
-
-    const char* env_val = getenv(var_name.c_str());
-    return (env_val != nullptr) ? env_val : "";
+    return variable_manager.get_variable_value(var_name);
 }
 
 bool ShellScriptInterpreter::variable_is_set(const std::string& var_name) {
-    if (!local_variable_stack.empty()) {
-        auto& current_scope = local_variable_stack.back();
-        if (current_scope.find(var_name) != current_scope.end()) {
-            return true;
-        }
-    }
-
-    if (var_name == "?" || var_name == "$" || var_name == "#" || var_name == "*" ||
-        var_name == "@" || var_name == "!") {
-        return true;
-    }
-    if (var_name.length() == 1 && (isdigit(var_name[0]) != 0)) {
-        if (getenv(var_name.c_str()) != nullptr) {
-            return true;
-        }
-
-        int param_num = var_name[0] - '0';
-        if (g_shell && param_num > 0) {
-            auto params = g_shell->get_positional_parameters();
-            return static_cast<size_t>(param_num - 1) < params.size();
-        }
-        return false;
-    }
-
-    if (g_shell) {
-        const auto& env_vars = g_shell->get_env_vars();
-        if (env_vars.find(var_name) != env_vars.end()) {
-            return true;
-        }
-    }
-
-    return getenv(var_name.c_str()) != nullptr;
+    return variable_manager.variable_is_set(var_name);
 }
 
 bool ShellScriptInterpreter::matches_char_class(char c, const std::string& char_class) {
@@ -1817,31 +1716,19 @@ std::vector<std::string> ShellScriptInterpreter::get_function_names() const {
 }
 
 void ShellScriptInterpreter::push_function_scope() {
-    function_evaluator::push_function_scope(local_variable_stack);
+    variable_manager.push_scope();
 }
 
 void ShellScriptInterpreter::pop_function_scope() {
-    function_evaluator::pop_function_scope(local_variable_stack);
+    variable_manager.pop_scope();
 }
 
 void ShellScriptInterpreter::set_local_variable(const std::string& name, const std::string& value) {
-    auto set_global_var = [](const std::string& var_name, const std::string& var_value) {
-        if (g_shell) {
-            auto& env_vars = g_shell->get_env_vars();
-            env_vars[var_name] = var_value;
-
-            if (var_name == "PATH" || var_name == "PWD" || var_name == "HOME" ||
-                var_name == "USER" || var_name == "SHELL") {
-                setenv(var_name.c_str(), var_value.c_str(), 1);
-            }
-        }
-    };
-
-    function_evaluator::set_local_variable(local_variable_stack, name, value, set_global_var);
+    variable_manager.set_local_variable(name, value);
 }
 
 bool ShellScriptInterpreter::is_local_variable(const std::string& name) const {
-    return function_evaluator::is_local_variable(local_variable_stack, name);
+    return variable_manager.is_local_variable(name);
 }
 
 ShellScriptInterpreter::BlockHandlerResult ShellScriptInterpreter::try_dispatch_block_statement(
