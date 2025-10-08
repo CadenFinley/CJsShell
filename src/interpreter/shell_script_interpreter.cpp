@@ -759,83 +759,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
 
     int last_code = 0;
 
-    auto split_ampersand = [&](const std::string& s) -> std::vector<std::string> {
-        std::vector<std::string> parts;
-        bool in_quotes = false;
-        char q = '\0';
-        int arith_depth = 0;
-        int bracket_depth = 0;
-        std::string cur;
-        for (size_t i = 0; i < s.size(); ++i) {
-            char c = s[i];
-            if ((c == '"' || c == '\'') && (i == 0 || s[i - 1] != '\\')) {
-                if (!in_quotes) {
-                    in_quotes = true;
-                    q = c;
-                } else if (q == c) {
-                    in_quotes = false;
-                    q = '\0';
-                }
-                cur += c;
-            } else if (!in_quotes) {
-                if (i >= 2 && s[i - 2] == '$' && s[i - 1] == '(' && s[i] == '(') {
-                    arith_depth++;
-                    cur += c;
-                }
-
-                else if (i + 1 < s.size() && s[i] == ')' && s[i + 1] == ')' && arith_depth > 0) {
-                    arith_depth--;
-                    cur += c;
-                    cur += s[i + 1];
-                    i++;
-                }
-
-                else if (i + 1 < s.size() && s[i] == '[' && s[i + 1] == '[') {
-                    bracket_depth++;
-                    cur += c;
-                    cur += s[i + 1];
-                    i++;
-                }
-
-                else if (i + 1 < s.size() && s[i] == ']' && s[i + 1] == ']' && bracket_depth > 0) {
-                    bracket_depth--;
-                    cur += c;
-                    cur += s[i + 1];
-                    i++;
-                }
-
-                else if (c == '&' && arith_depth == 0 && bracket_depth == 0) {
-                    if (i + 1 < s.size() && s[i + 1] == '&') {
-                        cur += c;
-                    } else if (i > 0 && s[i - 1] == '>' && i + 1 < s.size() &&
-                               (std::isdigit(s[i + 1]) || s[i + 1] == '-')) {
-                        cur += c;
-                    } else if (i > 0 && s[i - 1] == '<' && i + 1 < s.size() &&
-                               (std::isdigit(s[i + 1]) || s[i + 1] == '-')) {
-                        cur += c;
-                    } else if (i + 1 < s.size() && s[i + 1] == '>') {
-                        cur += c;
-                    } else {
-                        std::string seg = trim(cur);
-                        if (!seg.empty() && seg.back() != '&')
-                            seg += " &";
-                        if (!seg.empty())
-                            parts.push_back(seg);
-                        cur.clear();
-                    }
-                } else {
-                    cur += c;
-                }
-            } else {
-                cur += c;
-            }
-        }
-        std::string tail = trim(cur);
-        if (!tail.empty())
-            parts.push_back(tail);
-        return parts;
-    };
-
     auto handle_if_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
         auto execute_block_wrapper = [&](const std::vector<std::string>& block_lines) -> int {
             return execute_block(block_lines);
@@ -1204,7 +1127,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
             }
             for (size_t k = 0; k < semis.size(); ++k) {
                 const std::string& semi = semis[k];
-                auto segs = split_ampersand(semi);
+                auto segs = shell_script_interpreter::detail::split_ampersand(semi);
                 if (segs.empty())
                     segs.push_back(semi);
                 for (size_t si = 0; si < segs.size(); ++si) {

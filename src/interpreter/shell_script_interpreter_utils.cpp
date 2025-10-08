@@ -1,6 +1,7 @@
 #include "shell_script_interpreter_utils.h"
 
 #include <cctype>
+#include <vector>
 
 namespace shell_script_interpreter::detail {
 
@@ -65,6 +66,83 @@ std::string strip_inline_comment(const std::string& s) {
 
 std::string process_line_for_validation(const std::string& line) {
     return trim(strip_inline_comment(line));
+}
+
+std::vector<std::string> split_ampersand(const std::string& s) {
+    std::vector<std::string> parts;
+    bool in_quotes = false;
+    char q = '\0';
+    int arith_depth = 0;
+    int bracket_depth = 0;
+    std::string cur;
+    for (size_t i = 0; i < s.size(); ++i) {
+        char c = s[i];
+        if ((c == '"' || c == '\'') && (i == 0 || s[i - 1] != '\\')) {
+            if (!in_quotes) {
+                in_quotes = true;
+                q = c;
+            } else if (q == c) {
+                in_quotes = false;
+                q = '\0';
+            }
+            cur += c;
+        } else if (!in_quotes) {
+            if (i >= 2 && s[i - 2] == '$' && s[i - 1] == '(' && s[i] == '(') {
+                arith_depth++;
+                cur += c;
+            }
+
+            else if (i + 1 < s.size() && s[i] == ')' && s[i + 1] == ')' && arith_depth > 0) {
+                arith_depth--;
+                cur += c;
+                cur += s[i + 1];
+                i++;
+            }
+
+            else if (i + 1 < s.size() && s[i] == '[' && s[i + 1] == '[') {
+                bracket_depth++;
+                cur += c;
+                cur += s[i + 1];
+                i++;
+            }
+
+            else if (i + 1 < s.size() && s[i] == ']' && s[i + 1] == ']' && bracket_depth > 0) {
+                bracket_depth--;
+                cur += c;
+                cur += s[i + 1];
+                i++;
+            }
+
+            else if (c == '&' && arith_depth == 0 && bracket_depth == 0) {
+                if (i + 1 < s.size() && s[i + 1] == '&') {
+                    cur += c;
+                } else if (i > 0 && s[i - 1] == '>' && i + 1 < s.size() &&
+                           (std::isdigit(s[i + 1]) || s[i + 1] == '-')) {
+                    cur += c;
+                } else if (i > 0 && s[i - 1] == '<' && i + 1 < s.size() &&
+                           (std::isdigit(s[i + 1]) || s[i + 1] == '-')) {
+                    cur += c;
+                } else if (i + 1 < s.size() && s[i + 1] == '>') {
+                    cur += c;
+                } else {
+                    std::string seg = trim(cur);
+                    if (!seg.empty() && seg.back() != '&')
+                        seg += " &";
+                    if (!seg.empty())
+                        parts.push_back(seg);
+                    cur.clear();
+                }
+            } else {
+                cur += c;
+            }
+        } else {
+            cur += c;
+        }
+    }
+    std::string tail = trim(cur);
+    if (!tail.empty())
+        parts.push_back(tail);
+    return parts;
 }
 
 }  // namespace shell_script_interpreter::detail
