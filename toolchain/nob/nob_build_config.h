@@ -11,8 +11,8 @@ static const Build_Config build_config = {
     .main_sources_count = 9,
 
     .module_directories = (const char*[]){"src/builtin", "src/prompt", "src/prompt/modules",
-                                          "src/interpreter", "src/utils"},
-    .module_directories_count = 5,
+                                          "src/interpreter", "src/utils", "src/parser"},
+    .module_directories_count = 6,
 
     .isocline_c_sources = (const char*[]){"src/isocline/attr.c",
                                           "src/isocline/bbcode.c",
@@ -39,8 +39,9 @@ static const Build_Config build_config = {
 
     .include_directories =
         (const char*[]){"include", "include/isocline", "include/builtin", "include/utils",
-                        "include/prompt", "include/prompt/modules", "include/interpreter"},
-    .include_directories_count = 7,
+                        "include/prompt", "include/prompt/modules", "include/interpreter",
+                        "include/parser"},
+    .include_directories_count = 8,
 
     .c_include_directories = (const char*[]){"include", "include/isocline"},
     .c_include_directories_count = 2,
