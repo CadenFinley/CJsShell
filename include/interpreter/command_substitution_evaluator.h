@@ -20,6 +20,28 @@ class CommandSubstitutionEvaluator {
 
     std::string escape_for_double_quotes(const std::string& content);
 
+    bool try_handle_arithmetic_expansion(const std::string& input, size_t& i,
+                                         std::string& output_text);
+
+    bool try_handle_command_substitution(const std::string& input, size_t& i,
+                                         ExpansionResult& result, bool in_double_quotes);
+
+    bool try_handle_backtick_substitution(const std::string& input, size_t& i,
+                                          ExpansionResult& result, bool in_double_quotes);
+
+    bool try_handle_parameter_expansion(const std::string& input, size_t& i,
+                                        std::string& output_text);
+
+    size_t find_closing_backtick(const std::string& input, size_t start);
+
+    void append_substitution_result(const std::string& content, bool in_double_quotes,
+                                    std::string& output);
+
+    bool handle_escape_sequence(char c, bool& escaped, std::string& output);
+
+    bool handle_quote_toggle(char c, bool in_single_quotes, bool& in_quotes, char& quote_char,
+                             std::string& output);
+
     CommandExecutor command_executor_;
     static constexpr const char* SUBST_LITERAL_START = "\x1E__SUBST_LITERAL_START__\x1E";
     static constexpr const char* SUBST_LITERAL_END = "\x1E__SUBST_LITERAL_END__\x1E";

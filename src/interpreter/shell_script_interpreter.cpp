@@ -145,6 +145,262 @@ std::string execute_command_for_substitution(
 }
 }  // namespace
 
+int ShellScriptInterpreter::handle_memory_allocation_error(const std::string& text) {
+    std::vector<SyntaxError> errors;
+    SyntaxError error(1, "Memory allocation failed", text);
+    error.severity = ErrorSeverity::ERROR;
+    error.category = ErrorCategory::COMMANDS;
+    error.error_code = "MEM001";
+    error.suggestion = "Command may be too complex or system is low on memory";
+    errors.push_back(error);
+
+    shell_script_interpreter::print_error_report(errors, true, true);
+    return set_last_status(3);
+}
+
+int ShellScriptInterpreter::handle_system_error(const std::string& text,
+                                                const std::system_error& e) {
+    std::vector<SyntaxError> errors;
+    SyntaxError error(1, "System error: " + std::string(e.what()), text);
+    error.severity = ErrorSeverity::ERROR;
+    error.category = ErrorCategory::COMMANDS;
+    error.error_code = "SYS001";
+    error.suggestion = "Check system resources and permissions";
+    errors.push_back(error);
+
+    shell_script_interpreter::print_error_report(errors, true, true);
+    return set_last_status(4);
+}
+
+int ShellScriptInterpreter::handle_runtime_error(const std::string& text,
+                                                 const std::runtime_error& e) {
+    std::vector<SyntaxError> errors;
+    SyntaxError error(1, e.what(), text);
+    std::string error_msg = e.what();
+
+    if (error_msg.find("command not found: ") != std::string::npos) {
+        size_t pos = error_msg.find("command not found: ");
+        if (pos != std::string::npos) {
+            std::string command_name = error_msg.substr(pos + 19);
+            auto suggestions = suggestion_utils::generate_command_suggestions(command_name);
+
+            error.message = "cjsh: command not found: " + command_name;
+            error.severity = ErrorSeverity::ERROR;
+            error.category = ErrorCategory::COMMANDS;
+            error.error_code = "RUN001";
+
+            if (!suggestions.empty()) {
+                std::string suggestion_text;
+                std::vector<std::string> commands;
+
+                for (const auto& suggestion : suggestions) {
+                    if (suggestion.find("Did you mean") != std::string::npos) {
+                        size_t start = suggestion.find("'");
+                        if (start != std::string::npos) {
+                            start++;
+                            size_t end = suggestion.find("'", start);
+                            if (end != std::string::npos) {
+                                commands.push_back(suggestion.substr(start, end - start));
+                            }
+                        }
+                    }
+                }
+
+                if (!commands.empty()) {
+                    suggestion_text = "Did you mean: ";
+                    for (size_t i = 0; i < commands.size(); ++i) {
+                        suggestion_text += commands[i];
+                        if (i < commands.size() - 1) {
+                            suggestion_text += ", ";
+                        }
+                    }
+                    suggestion_text += "?";
+                } else {
+                    suggestion_text = suggestions.empty()
+                                          ? "Check command syntax and system resources"
+                                          : suggestions[0];
+                }
+
+                error.suggestion = suggestion_text;
+            } else {
+                error.suggestion = "Check command syntax and system resources";
+            }
+        } else {
+            error.severity = ErrorSeverity::ERROR;
+            error.category = ErrorCategory::COMMANDS;
+            error.error_code = "RUN001";
+            error.suggestion = "Check command syntax and system resources";
+        }
+
+        errors.push_back(error);
+        shell_script_interpreter::print_error_report(errors, true, true);
+        return set_last_status(127);
+    }
+
+    if (error_msg.find("Unclosed quote") != std::string::npos ||
+        error_msg.find("missing closing") != std::string::npos ||
+        error_msg.find("syntax error near unexpected token") != std::string::npos) {
+        error.severity = ErrorSeverity::ERROR;
+        error.category = ErrorCategory::SYNTAX;
+        error.error_code = "SYN001";
+        if (error_msg.find("syntax error near unexpected token") != std::string::npos) {
+            error.suggestion = "Check for incomplete redirections or missing command arguments";
+        } else {
+            error.suggestion = "Make sure all quotes are properly closed";
+        }
+    } else if (error_msg.find("Failed to open") != std::string::npos ||
+               error_msg.find("Failed to redirect") != std::string::npos ||
+               error_msg.find("Failed to write") != std::string::npos) {
+        error.severity = ErrorSeverity::ERROR;
+        error.category = ErrorCategory::REDIRECTION;
+        error.error_code = "IO001";
+        error.suggestion = "Check file permissions and paths";
+    } else {
+        error.severity = ErrorSeverity::ERROR;
+        error.category = ErrorCategory::COMMANDS;
+        error.error_code = "RUN001";
+        error.suggestion = "Check command syntax and system resources";
+    }
+
+    errors.push_back(error);
+    shell_script_interpreter::print_error_report(errors, true, true);
+    return set_last_status(2);
+}
+
+int ShellScriptInterpreter::handle_generic_exception(const std::string& text,
+                                                     const std::exception& e) {
+    std::vector<SyntaxError> errors;
+    SyntaxError error(1, "Unexpected error: " + std::string(e.what()), text);
+    error.severity = ErrorSeverity::ERROR;
+    error.category = ErrorCategory::COMMANDS;
+    error.error_code = "UNK001";
+    error.suggestion =
+        "An unexpected error occurred, please report this as an issue, and how to replicate it.";
+    errors.push_back(error);
+
+    shell_script_interpreter::print_error_report(errors, true, true);
+    return set_last_status(5);
+}
+
+int ShellScriptInterpreter::handle_unknown_error(const std::string& text) {
+    std::vector<SyntaxError> errors;
+    SyntaxError error(1, "Unknown error occurred", text);
+    error.severity = ErrorSeverity::ERROR;
+    error.category = ErrorCategory::COMMANDS;
+    error.error_code = "UNK002";
+    error.suggestion =
+        "An unexpected error occurred, please report this as an issue, and how to replicate it.";
+    errors.push_back(error);
+
+    shell_script_interpreter::print_error_report(errors, true, true);
+    return set_last_status(6);
+}
+
+int ShellScriptInterpreter::execute_subshell(const std::string& subshell_content) {
+    pid_t pid = fork();
+    if (pid == 0) {
+        if (setpgid(0, 0) < 0) {
+            perror("cjsh: setpgid failed in subshell child");
+        }
+
+        int exit_code = g_shell->execute(subshell_content);
+
+        const char* exit_code_str = getenv("EXIT_CODE");
+        if (exit_code_str) {
+            exit_code = std::atoi(exit_code_str);
+            unsetenv("EXIT_CODE");
+        }
+
+        int child_status = 0;
+        while (waitpid(-1, &child_status, WNOHANG) > 0) {
+        }
+
+        exit(exit_code);
+    } else if (pid > 0) {
+        int status = 0;
+        waitpid(pid, &status, 0);
+        int exit_code = WIFEXITED(status) ? WEXITSTATUS(status) : 1;
+        return set_last_status(exit_code);
+    } else {
+        std::cerr << "Failed to fork for subshell execution" << '\n';
+        return 1;
+    }
+}
+
+int ShellScriptInterpreter::execute_function_call(const std::vector<std::string>& expanded_args) {
+    push_function_scope();
+
+    std::vector<std::string> saved_params;
+    if (g_shell) {
+        saved_params = g_shell->get_positional_parameters();
+    }
+
+    std::vector<std::string> func_params;
+    for (size_t pi = 1; pi < expanded_args.size(); ++pi) {
+        func_params.push_back(expanded_args[pi]);
+    }
+    if (g_shell) {
+        g_shell->set_positional_parameters(func_params);
+    }
+
+    std::vector<std::string> param_names;
+    for (size_t pi = 1; pi < expanded_args.size() && pi <= 9; ++pi) {
+        std::string name = std::to_string(pi);
+        param_names.push_back(name);
+        setenv(name.c_str(), expanded_args[pi].c_str(), 1);
+    }
+
+    int exit_code = execute_block(functions[expanded_args[0]]);
+
+    if (exit_code == exit_break) {
+        const char* return_code_env = getenv("CJSH_RETURN_CODE");
+        if (return_code_env) {
+            try {
+                exit_code = std::stoi(return_code_env);
+                unsetenv("CJSH_RETURN_CODE");
+            } catch (const std::exception&) {
+                exit_code = 0;
+            }
+        }
+    }
+
+    if (g_shell) {
+        g_shell->set_positional_parameters(saved_params);
+    }
+
+    for (const auto& n : param_names)
+        unsetenv(n.c_str());
+
+    pop_function_scope();
+
+    return set_last_status(exit_code);
+}
+
+int ShellScriptInterpreter::handle_env_assignment(const std::vector<std::string>& expanded_args) {
+    std::string var_name;
+    std::string var_value;
+    if (shell_parser->is_env_assignment(expanded_args[0], var_name, var_value)) {
+        shell_parser->expand_env_vars(var_value);
+
+        if (g_shell) {
+            auto& env_vars = g_shell->get_env_vars();
+            env_vars[var_name] = var_value;
+
+            if (var_name == "PATH" || var_name == "PWD" || var_name == "HOME" ||
+                var_name == "USER" || var_name == "SHELL") {
+                setenv(var_name.c_str(), var_value.c_str(), 1);
+            }
+
+            if (shell_parser) {
+                shell_parser->set_env_vars(env_vars);
+            }
+        }
+
+        return 0;
+    }
+    return -1;
+}
+
 int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines) {
     if (g_shell == nullptr) {
         print_error({ErrorType::RUNTIME_ERROR, "", "No shell instance available", {}});
@@ -278,38 +534,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                         return run_pipeline(cmds);
                     }
                     if (c.args.size() >= 2) {
-                        std::string subshell_content = c.args[1];
-
-                        pid_t pid = fork();
-                        if (pid == 0) {
-                            if (setpgid(0, 0) < 0) {
-                                perror(
-                                    "cjsh: setpgid failed in subshell "
-                                    "child");
-                            }
-
-                            int exit_code = g_shell->execute(subshell_content);
-
-                            const char* exit_code_str = getenv("EXIT_CODE");
-                            if (exit_code_str) {
-                                exit_code = std::atoi(exit_code_str);
-                                unsetenv("EXIT_CODE");
-                            }
-
-                            int child_status = 0;
-                            while (waitpid(-1, &child_status, WNOHANG) > 0) {
-                            }
-
-                            exit(exit_code);
-                        } else if (pid > 0) {
-                            int status = 0;
-                            waitpid(pid, &status, 0);
-                            int exit_code = WIFEXITED(status) ? WEXITSTATUS(status) : 1;
-                            return set_last_status(exit_code);
-                        } else {
-                            std::cerr << "Failed to fork for subshell execution" << '\n';
-                            return 1;
-                        }
+                        return execute_subshell(c.args[1]);
                     } else {
                         return 1;
                     }
@@ -326,27 +551,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                     }
 
                     if (expanded_args.size() == 1) {
-                        std::string var_name;
-                        std::string var_value;
-                        if (shell_parser->is_env_assignment(expanded_args[0], var_name,
-                                                            var_value)) {
-                            shell_parser->expand_env_vars(var_value);
-
-                            if (g_shell) {
-                                auto& env_vars = g_shell->get_env_vars();
-                                env_vars[var_name] = var_value;
-
-                                if (var_name == "PATH" || var_name == "PWD" || var_name == "HOME" ||
-                                    var_name == "USER" || var_name == "SHELL") {
-                                    setenv(var_name.c_str(), var_value.c_str(), 1);
-                                }
-
-                                if (shell_parser) {
-                                    shell_parser->set_env_vars(env_vars);
-                                }
-                            }
-
-                            return 0;
+                        int env_result = handle_env_assignment(expanded_args);
+                        if (env_result >= 0) {
+                            return env_result;
                         }
                     }
 
@@ -364,52 +571,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                     }
 
                     if (!expanded_args.empty() && functions.count(expanded_args[0])) {
-                        push_function_scope();
-
-                        std::vector<std::string> saved_params;
-                        if (g_shell) {
-                            saved_params = g_shell->get_positional_parameters();
-                        }
-
-                        std::vector<std::string> func_params;
-                        for (size_t pi = 1; pi < expanded_args.size(); ++pi) {
-                            func_params.push_back(expanded_args[pi]);
-                        }
-                        if (g_shell) {
-                            g_shell->set_positional_parameters(func_params);
-                        }
-
-                        std::vector<std::string> param_names;
-                        for (size_t pi = 1; pi < expanded_args.size() && pi <= 9; ++pi) {
-                            std::string name = std::to_string(pi);
-                            param_names.push_back(name);
-                            setenv(name.c_str(), expanded_args[pi].c_str(), 1);
-                        }
-
-                        int exit_code = execute_block(functions[expanded_args[0]]);
-
-                        if (exit_code == exit_break) {
-                            const char* return_code_env = getenv("CJSH_RETURN_CODE");
-                            if (return_code_env) {
-                                try {
-                                    exit_code = std::stoi(return_code_env);
-                                    unsetenv("CJSH_RETURN_CODE");
-                                } catch (const std::exception&) {
-                                    exit_code = 0;
-                                }
-                            }
-                        }
-
-                        if (g_shell) {
-                            g_shell->set_positional_parameters(saved_params);
-                        }
-
-                        for (const auto& n : param_names)
-                            unsetenv(n.c_str());
-
-                        pop_function_scope();
-
-                        return set_last_status(exit_code);
+                        return execute_function_call(expanded_args);
                     }
                     int exit_code = g_shell->execute_command(expanded_args, c.background);
                     return set_last_status(exit_code);
@@ -420,155 +582,15 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                 return 0;
             return run_pipeline(cmds);
         } catch (const std::bad_alloc& e) {
-            std::vector<SyntaxError> errors;
-            SyntaxError error(1, "Memory allocation failed", text);
-            error.severity = ErrorSeverity::ERROR;
-            error.category = ErrorCategory::COMMANDS;
-            error.error_code = "MEM001";
-            error.suggestion = "Command may be too complex or system is low on memory";
-            errors.push_back(error);
-
-            shell_script_interpreter::print_error_report(errors, true, true);
-
-            return set_last_status(3);
+            return handle_memory_allocation_error(text);
         } catch (const std::system_error& e) {
-            std::vector<SyntaxError> errors;
-            SyntaxError error(1, "System error: " + std::string(e.what()), text);
-            error.severity = ErrorSeverity::ERROR;
-            error.category = ErrorCategory::COMMANDS;
-            error.error_code = "SYS001";
-            error.suggestion = "Check system resources and permissions";
-            errors.push_back(error);
-
-            shell_script_interpreter::print_error_report(errors, true, true);
-
-            return set_last_status(4);
+            return handle_system_error(text, e);
         } catch (const std::runtime_error& e) {
-            std::vector<SyntaxError> errors;
-            SyntaxError error(1, e.what(), text);
-            std::string error_msg = e.what();
-
-            if (error_msg.find("command not found: ") != std::string::npos) {
-                size_t pos = error_msg.find("command not found: ");
-                if (pos != std::string::npos) {
-                    std::string command_name = error_msg.substr(pos + 19);
-
-                    auto suggestions = suggestion_utils::generate_command_suggestions(command_name);
-
-                    error.message = "cjsh: command not found: " + command_name;
-                    error.severity = ErrorSeverity::ERROR;
-                    error.category = ErrorCategory::COMMANDS;
-                    error.error_code = "RUN001";
-
-                    if (!suggestions.empty()) {
-                        std::string suggestion_text;
-
-                        std::vector<std::string> commands;
-                        for (const auto& suggestion : suggestions) {
-                            if (suggestion.find("Did you mean") != std::string::npos) {
-                                size_t start = suggestion.find("'");
-                                if (start != std::string::npos) {
-                                    start++;
-                                    size_t end = suggestion.find("'", start);
-                                    if (end != std::string::npos) {
-                                        commands.push_back(suggestion.substr(start, end - start));
-                                    }
-                                }
-                            }
-                        }
-
-                        if (!commands.empty()) {
-                            suggestion_text = "Did you mean: ";
-                            for (size_t i = 0; i < commands.size(); ++i) {
-                                suggestion_text += commands[i];
-                                if (i < commands.size() - 1) {
-                                    suggestion_text += ", ";
-                                }
-                            }
-                            suggestion_text += "?";
-                        } else {
-                            suggestion_text = suggestions.empty() ? "Check command syntax and "
-                                                                    "system resources"
-                                                                  : suggestions[0];
-                        }
-
-                        error.suggestion = suggestion_text;
-                    } else {
-                        error.suggestion = "Check command syntax and system resources";
-                    }
-                } else {
-                    error.severity = ErrorSeverity::ERROR;
-                    error.category = ErrorCategory::COMMANDS;
-                    error.error_code = "RUN001";
-                    error.suggestion = "Check command syntax and system resources";
-                }
-
-                errors.push_back(error);
-                shell_script_interpreter::print_error_report(errors, true, true);
-
-                return set_last_status(127);
-            }
-            if (error_msg.find("Unclosed quote") != std::string::npos ||
-                error_msg.find("missing closing") != std::string::npos ||
-                error_msg.find("syntax error near unexpected token") != std::string::npos) {
-                error.severity = ErrorSeverity::ERROR;
-                error.category = ErrorCategory::SYNTAX;
-                error.error_code = "SYN001";
-                if (error_msg.find("syntax error near unexpected token") != std::string::npos) {
-                    error.suggestion =
-                        "Check for incomplete redirections or missing command "
-                        "arguments";
-                } else {
-                    error.suggestion = "Make sure all quotes are properly closed";
-                }
-            } else if (error_msg.find("Failed to open") != std::string::npos ||
-                       error_msg.find("Failed to redirect") != std::string::npos ||
-                       error_msg.find("Failed to write") != std::string::npos) {
-                error.severity = ErrorSeverity::ERROR;
-                error.category = ErrorCategory::REDIRECTION;
-                error.error_code = "IO001";
-                error.suggestion = "Check file permissions and paths";
-            } else {
-                error.severity = ErrorSeverity::ERROR;
-                error.category = ErrorCategory::COMMANDS;
-                error.error_code = "RUN001";
-                error.suggestion = "Check command syntax and system resources";
-            }
-
-            errors.push_back(error);
-            shell_script_interpreter::print_error_report(errors, true, true);
-
-            return set_last_status(2);
+            return handle_runtime_error(text, e);
         } catch (const std::exception& e) {
-            std::vector<SyntaxError> errors;
-            SyntaxError error(1, "Unexpected error: " + std::string(e.what()), text);
-            error.severity = ErrorSeverity::ERROR;
-            error.category = ErrorCategory::COMMANDS;
-            error.error_code = "UNK001";
-            error.suggestion =
-                "An unexpected error occurred, please report this as an issue, "
-                "and "
-                "how to replicate it.";
-            errors.push_back(error);
-
-            shell_script_interpreter::print_error_report(errors, true, true);
-
-            return set_last_status(5);
+            return handle_generic_exception(text, e);
         } catch (...) {
-            std::vector<SyntaxError> errors;
-            SyntaxError error(1, "Unknown error occurred", text);
-            error.severity = ErrorSeverity::ERROR;
-            error.category = ErrorCategory::COMMANDS;
-            error.error_code = "UNK002";
-            error.suggestion =
-                "An unexpected error occurred, please report this as an issue, "
-                "and "
-                "how to replicate it.";
-            errors.push_back(error);
-
-            shell_script_interpreter::print_error_report(errors, true, true);
-
-            return set_last_status(6);
+            return handle_unknown_error(text);
         }
     };
 

@@ -151,6 +151,16 @@ class ShellScriptInterpreter {
     int set_last_status(int code);
     int run_pipeline(const std::vector<Command>& cmds);
 
+    int handle_memory_allocation_error(const std::string& text);
+    int handle_system_error(const std::string& text, const std::system_error& e);
+    int handle_runtime_error(const std::string& text, const std::runtime_error& e);
+    int handle_generic_exception(const std::string& text, const std::exception& e);
+    int handle_unknown_error(const std::string& text);
+
+    int execute_subshell(const std::string& subshell_content);
+    int execute_function_call(const std::vector<std::string>& expanded_args);
+    int handle_env_assignment(const std::vector<std::string>& expanded_args);
+
     struct CommandSubstitutionExpansion {
         std::string text;
         std::vector<std::string> outputs;

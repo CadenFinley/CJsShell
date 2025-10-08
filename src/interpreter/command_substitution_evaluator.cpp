@@ -6,8 +6,6 @@
 #include <cstdio>
 #include <utility>
 
-#include "cjsh_filesystem.h"
-
 CommandSubstitutionEvaluator::CommandSubstitutionEvaluator(CommandExecutor executor)
     : command_executor_(std::move(executor)) {
 }
@@ -64,6 +62,159 @@ std::string CommandSubstitutionEvaluator::escape_for_double_quotes(const std::st
     return result;
 }
 
+bool CommandSubstitutionEvaluator::try_handle_arithmetic_expansion(const std::string& input,
+                                                                   size_t& i,
+                                                                   std::string& output_text) {
+    char c = input[i];
+    if (c != '$' || i + 2 >= input.size() || input[i + 1] != '(' || input[i + 2] != '(') {
+        return false;
+    }
+
+    size_t arith_end = 0;
+    if (!find_matching_delimiter(input, i + 3, '(', ')', arith_end)) {
+        return false;
+    }
+
+    if (arith_end + 1 >= input.size() || input[arith_end + 1] != ')') {
+        return false;
+    }
+
+    for (size_t k = i; k <= arith_end + 1; ++k) {
+        output_text += input[k];
+    }
+    i = arith_end + 1;
+    return true;
+}
+
+bool CommandSubstitutionEvaluator::try_handle_command_substitution(const std::string& input,
+                                                                   size_t& i,
+                                                                   ExpansionResult& result,
+                                                                   bool in_double_quotes) {
+    char c = input[i];
+    if (c != '$' || i + 1 >= input.size() || input[i + 1] != '(') {
+        return false;
+    }
+
+    if (i + 2 < input.size() && input[i + 2] == '(') {
+        return false;
+    }
+
+    size_t cmd_end = 0;
+    if (!find_matching_delimiter(input, i + 2, '(', ')', cmd_end)) {
+        return false;
+    }
+
+    std::string cmd_content = input.substr(i + 2, cmd_end - i - 2);
+    std::string cmd_output = capture_command_output(cmd_content);
+    result.outputs.push_back(cmd_output);
+    append_substitution_result(cmd_output, in_double_quotes, result.text);
+    i = cmd_end;
+    return true;
+}
+
+bool CommandSubstitutionEvaluator::try_handle_backtick_substitution(const std::string& input,
+                                                                    size_t& i,
+                                                                    ExpansionResult& result,
+                                                                    bool in_double_quotes) {
+    if (input[i] != '`') {
+        return false;
+    }
+
+    size_t backtick_end = find_closing_backtick(input, i + 1);
+    if (backtick_end == std::string::npos) {
+        return false;
+    }
+
+    std::string cmd_content = input.substr(i + 1, backtick_end - i - 1);
+    std::string cmd_output = capture_command_output(cmd_content);
+    result.outputs.push_back(cmd_output);
+    append_substitution_result(cmd_output, in_double_quotes, result.text);
+    i = backtick_end;
+    return true;
+}
+
+bool CommandSubstitutionEvaluator::try_handle_parameter_expansion(const std::string& input,
+                                                                  size_t& i,
+                                                                  std::string& output_text) {
+    char c = input[i];
+    if (c != '$' || i + 1 >= input.size() || input[i + 1] != '{') {
+        return false;
+    }
+
+    size_t brace_end = 0;
+    if (!find_matching_delimiter(input, i + 2, '{', '}', brace_end)) {
+        return false;
+    }
+
+    for (size_t k = i; k <= brace_end; ++k) {
+        output_text += input[k];
+    }
+    i = brace_end;
+    return true;
+}
+
+size_t CommandSubstitutionEvaluator::find_closing_backtick(const std::string& input, size_t start) {
+    bool bt_escaped = false;
+    for (size_t pos = start; pos < input.size(); ++pos) {
+        if (bt_escaped) {
+            bt_escaped = false;
+            continue;
+        }
+        if (input[pos] == '\\') {
+            bt_escaped = true;
+            continue;
+        }
+        if (input[pos] == '`') {
+            return pos;
+        }
+    }
+    return std::string::npos;
+}
+
+void CommandSubstitutionEvaluator::append_substitution_result(const std::string& content,
+                                                              bool in_double_quotes,
+                                                              std::string& output) {
+    if (in_double_quotes) {
+        std::string esc = escape_for_double_quotes(content);
+        output += NOENV_START;
+        output += esc;
+        output += NOENV_END;
+    } else {
+        output += SUBST_LITERAL_START;
+        output += content;
+        output += SUBST_LITERAL_END;
+    }
+}
+
+bool CommandSubstitutionEvaluator::handle_escape_sequence(char c, bool& escaped,
+                                                          std::string& output) {
+    if (escaped) {
+        output += '\\';
+        output += c;
+        escaped = false;
+        return true;
+    }
+    return false;
+}
+
+bool CommandSubstitutionEvaluator::handle_quote_toggle(char c, bool /* in_single_quotes */,
+                                                       bool& in_quotes, char& quote_char,
+                                                       std::string& output) {
+    if ((c == '"' || c == '\'') && !in_quotes) {
+        in_quotes = true;
+        quote_char = c;
+        output += c;
+        return true;
+    }
+    if (in_quotes && c == quote_char) {
+        in_quotes = false;
+        quote_char = '\0';
+        output += c;
+        return true;
+    }
+    return false;
+}
+
 CommandSubstitutionEvaluator::ExpansionResult CommandSubstitutionEvaluator::expand_substitutions(
     const std::string& input) {
     ExpansionResult result;
@@ -73,26 +224,10 @@ CommandSubstitutionEvaluator::ExpansionResult CommandSubstitutionEvaluator::expa
     char q = '\0';
     bool escaped = false;
 
-    auto append_substitution_result = [&](const std::string& content) {
-        if (in_quotes && q == '"') {
-            std::string esc = escape_for_double_quotes(content);
-            result.text += NOENV_START;
-            result.text += esc;
-            result.text += NOENV_END;
-            return;
-        }
-        result.text += SUBST_LITERAL_START;
-        result.text += content;
-        result.text += SUBST_LITERAL_END;
-    };
-
     for (size_t i = 0; i < input.size(); ++i) {
         char c = input[i];
 
-        if (escaped) {
-            result.text += '\\';
-            result.text += c;
-            escaped = false;
+        if (handle_escape_sequence(c, escaped, result.text)) {
             continue;
         }
 
@@ -101,96 +236,28 @@ CommandSubstitutionEvaluator::ExpansionResult CommandSubstitutionEvaluator::expa
             continue;
         }
 
-        if ((c == '"' || c == '\'') && (!in_quotes)) {
-            in_quotes = true;
-            q = c;
-            result.text += c;
-            continue;
-        }
-        if (in_quotes && c == q) {
-            in_quotes = false;
-            q = '\0';
-            result.text += c;
+        if (handle_quote_toggle(c, q == '\'', in_quotes, q, result.text)) {
             continue;
         }
 
-        // Handle substitutions (only if not in single quotes, or in double quotes)
-        if (!in_quotes || q == '"') {
-            // Handle $((arithmetic))
-            if (c == '$' && i + 2 < input.size() && input[i + 1] == '(' && input[i + 2] == '(') {
-                size_t arith_end = 0;
-                if (find_matching_delimiter(input, i + 3, '(', ')', arith_end)) {
-                    if (arith_end + 1 < input.size() && input[arith_end + 1] == ')') {
-                        // This is arithmetic expansion - just pass it through
-                        // The caller will handle arithmetic evaluation
-                        for (size_t k = i; k <= arith_end + 1; ++k) {
-                            result.text += input[k];
-                        }
-                        i = arith_end + 1;
-                        continue;
-                    }
-                }
+        bool can_substitute = !in_quotes || q == '"';
+        if (can_substitute) {
+            bool in_double_quotes = in_quotes && q == '"';
+
+            if (try_handle_arithmetic_expansion(input, i, result.text)) {
+                continue;
             }
 
-            // Handle $(command)
-            if (c == '$' && i + 1 < input.size() && input[i + 1] == '(' &&
-                (i + 2 >= input.size() || input[i + 2] != '(')) {
-                size_t cmd_end = 0;
-                if (find_matching_delimiter(input, i + 2, '(', ')', cmd_end)) {
-                    std::string cmd_content = input.substr(i + 2, cmd_end - i - 2);
-                    std::string cmd_output = capture_command_output(cmd_content);
-                    result.outputs.push_back(cmd_output);
-                    append_substitution_result(cmd_output);
-                    i = cmd_end;
-                    continue;
-                }
+            if (try_handle_command_substitution(input, i, result, in_double_quotes)) {
+                continue;
             }
 
-            // Handle `command`
-            if (c == '`') {
-                size_t backtick_end = i + 1;
-                bool found_close = false;
-                bool bt_escaped = false;
-
-                while (backtick_end < input.size()) {
-                    if (bt_escaped) {
-                        bt_escaped = false;
-                        backtick_end++;
-                        continue;
-                    }
-                    if (input[backtick_end] == '\\') {
-                        bt_escaped = true;
-                        backtick_end++;
-                        continue;
-                    }
-                    if (input[backtick_end] == '`') {
-                        found_close = true;
-                        break;
-                    }
-                    backtick_end++;
-                }
-
-                if (found_close) {
-                    std::string cmd_content = input.substr(i + 1, backtick_end - i - 1);
-                    std::string cmd_output = capture_command_output(cmd_content);
-                    result.outputs.push_back(cmd_output);
-                    append_substitution_result(cmd_output);
-                    i = backtick_end;
-                    continue;
-                }
+            if (try_handle_backtick_substitution(input, i, result, in_double_quotes)) {
+                continue;
             }
 
-            // Handle ${parameter}
-            if (c == '$' && i + 1 < input.size() && input[i + 1] == '{') {
-                size_t brace_end = 0;
-                if (find_matching_delimiter(input, i + 2, '{', '}', brace_end)) {
-                    // Just pass through - parameter expansion is handled elsewhere
-                    for (size_t k = i; k <= brace_end; ++k) {
-                        result.text += input[k];
-                    }
-                    i = brace_end;
-                    continue;
-                }
+            if (try_handle_parameter_expansion(input, i, result.text)) {
+                continue;
             }
         }
 
