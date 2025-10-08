@@ -11,6 +11,8 @@ CJ's Shell aims for approximately 95% POSIX compliance, making it compatible wit
 - Compatible with most sh/bash scripts
 - Comprehensive test suite with over 1000 POSIX compliance tests
 
+**See Also**: [Non-POSIX Features](non-posix-features.md) for detailed documentation of features that extend beyond POSIX compliance.
+
 ### Shell Scripting
 
 #### Conditionals

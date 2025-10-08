@@ -5,7 +5,7 @@
 
 # CJ's Shell
 
-> **WARNING**: CJ's Shell is not a 100% POSIX compliant shell yet. (like 98%) It is also super cool and you will never want to use another shell again. (btw cjsh is POSIX compliant via -c flag or when typing piped ( | ) into)
+> **WARNING**: CJ's Shell is not a 100% POSIX compliant shell yet. (like 98%) It is also super cool and you will never want to use another shell again. (btw cjsh is POSIX compliant via -c flag or when typing piped ( | ) into) To see all non POSIX compliant parts of cjsh see: **(docs/reference/non-posix-features.md)**
 
 ## Quick Install (Recommended)
 
@@ -21,7 +21,6 @@ The easiest way to get started with CJ's Shell is with brew
 
 CJ's Shell includes a comprehensive test suite with over 1000 POSIX compliance tests to ensure reliability and standards compliance.
 This test can be run from the root of the repository, and is recommended to run before setting cjsh as your default login shell.
-- **[Development Guide](docs/getting-started/development.md)** - Contributing and development setup
 
 ```bash
     ./tests/run_shell_tests.sh
