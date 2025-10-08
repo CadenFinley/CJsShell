@@ -440,7 +440,7 @@ bool ic_enable_color(bool enable);
 bool ic_enable_history_duplicates(bool enable);
 
 /// Disable or enable automatic tab completion after a completion
-/// to expand as far as possible if the completions are unique. (enabled by
+/// to expand as far as possible if the completions are unique. (disabled by
 /// default). Returns the previous setting.
 bool ic_enable_auto_tab(bool enable);
 

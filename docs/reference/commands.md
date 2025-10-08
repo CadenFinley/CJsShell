@@ -652,7 +652,7 @@ Supports synonyms such as `enable`, `disable`, `true`, and `false`. Add the comm
 
 #### auto-tab
 
-Configure automatic tab completion behavior. When enabled, the shell may automatically complete commands or show completions without requiring explicit tab key presses.
+Configure automatic tab completion behavior. When enabled, the shell may automatically complete commands or show completions without requiring explicit tab key presses. **Disabled by default.**
 
 ```bash
 cjshopt auto-tab <on|off|status>
@@ -662,7 +662,7 @@ Examples:
 
 ```bash
 cjshopt auto-tab on       # Enable automatic tab completion
-cjshopt auto-tab off      # Disable automatic tab completion
+cjshopt auto-tab off      # Disable automatic tab completion (default)
 cjshopt auto-tab status   # Show the current setting
 ```
 
