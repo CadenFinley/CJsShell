@@ -25,6 +25,18 @@
 
 static bool getline_interrupt = false;
 
+static void restore_heredoc_env(ic_env_t* env, bool singleline_only, char multiline_eol,
+                                bool prompt_cleanup, bool prompt_cleanup_add_empty_line,
+                                size_t prompt_cleanup_extra_lines) {
+    if (env == NULL)
+        return;
+    env->singleline_only = singleline_only;
+    env->multiline_eol = multiline_eol;
+    env->prompt_cleanup = prompt_cleanup;
+    env->prompt_cleanup_add_empty_line = prompt_cleanup_add_empty_line;
+    env->prompt_cleanup_extra_lines = prompt_cleanup_extra_lines;
+}
+
 //-------------------------------------------------------------
 // Fallback getline implementation
 //-------------------------------------------------------------
@@ -174,11 +186,28 @@ ic_public char* ic_read_heredoc(const char* delimiter, bool strip_tabs) {
     if (env == NULL || delimiter == NULL)
         return NULL;
 
+    const bool prev_singleline_only = env->singleline_only;
+    const char prev_multiline_eol = env->multiline_eol;
+    const bool prev_prompt_cleanup = env->prompt_cleanup;
+    const bool prev_prompt_cleanup_add_empty_line = env->prompt_cleanup_add_empty_line;
+    const size_t prev_prompt_cleanup_extra_lines = env->prompt_cleanup_extra_lines;
+
+    env->singleline_only = true;
+    env->multiline_eol = 0;
+    env->prompt_cleanup = false;
+    env->prompt_cleanup_add_empty_line = false;
+    env->prompt_cleanup_extra_lines = 0;
+
     stringbuf_t* content = sbuf_new(env->mem);
-    if (content == NULL)
+    if (content == NULL) {
+        restore_heredoc_env(env, prev_singleline_only, prev_multiline_eol, prev_prompt_cleanup,
+                            prev_prompt_cleanup_add_empty_line, prev_prompt_cleanup_extra_lines);
         return NULL;
+    }
 
     size_t line_number = 1;
+    const size_t delimiter_len = strlen(delimiter);
+    char* result = NULL;
 
     // Read lines until we encounter the delimiter
     while (true) {
@@ -195,6 +224,9 @@ ic_public char* ic_read_heredoc(const char* delimiter, bool strip_tabs) {
                 ic_free(line);
             }
             sbuf_free(content);
+            restore_heredoc_env(env, prev_singleline_only, prev_multiline_eol, prev_prompt_cleanup,
+                                prev_prompt_cleanup_add_empty_line,
+                                prev_prompt_cleanup_extra_lines);
             return NULL;
         }
 
@@ -216,7 +248,7 @@ ic_public char* ic_read_heredoc(const char* delimiter, bool strip_tabs) {
         }
 
         // Check if trimmed line matches delimiter
-        if (len == strlen(delimiter) && strncmp(check_line, delimiter, len) == 0) {
+        if (len == delimiter_len && strncmp(check_line, delimiter, len) == 0) {
             // Found delimiter, we're done
             ic_free(line);
             break;
@@ -235,5 +267,10 @@ ic_public char* ic_read_heredoc(const char* delimiter, bool strip_tabs) {
         line_number++;
     }
 
-    return sbuf_free_dup(content);
+    result = sbuf_free_dup(content);
+
+    restore_heredoc_env(env, prev_singleline_only, prev_multiline_eol, prev_prompt_cleanup,
+                        prev_prompt_cleanup_add_empty_line, prev_prompt_cleanup_extra_lines);
+
+    return result;
 }

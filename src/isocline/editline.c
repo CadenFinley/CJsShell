@@ -343,8 +343,7 @@ static bool editor_input_has_unclosed_heredoc(editor_t* eb) {
             char quote_char = '\0';
 
             if (lookahead < len &&
-                (input[lookahead] == '\'' || input[lookahead] == '"' ||
-                 input[lookahead] == '\\')) {
+                (input[lookahead] == '\'' || input[lookahead] == '"' || input[lookahead] == '\\')) {
                 delimiter_quoted = true;
                 quote_char = input[lookahead];
                 lookahead++;
