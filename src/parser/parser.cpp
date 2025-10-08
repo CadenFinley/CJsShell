@@ -20,82 +20,13 @@
 #include "cjsh.h"
 #include "command_preprocessor.h"
 #include "job_control.h"
+#include "parser/delimiter_state.h"
+#include "parser/parser_utils.h"
+#include "parser/quote_info.h"
 #include "readonly_command.h"
 #include "shell.h"
 #include "shell_script_interpreter.h"
 #include "utils/cjsh_filesystem.h"
-
-namespace {
-struct DelimiterState {
-    bool in_quotes = false;
-    char quote_char = '\0';
-    int paren_depth = 0;
-    int bracket_depth = 0;
-    int brace_depth = 0;
-
-    bool update_quote(char c) {
-        if (c == '"' || c == '\'') {
-            if (!in_quotes) {
-                in_quotes = true;
-                quote_char = c;
-            } else if (quote_char == c) {
-                in_quotes = false;
-            }
-            return true;
-        }
-        return false;
-    }
-
-    void reset() {
-        *this = {};
-    }
-};
-
-struct QuoteInfo {
-    bool is_single;
-    bool is_double;
-    std::string value;
-
-    QuoteInfo(const std::string& token)
-        : is_single(is_single_quoted_token(token)),
-          is_double(is_double_quoted_token(token)),
-          value(strip_quote_tag(token)) {
-    }
-
-    bool is_quoted() const {
-        return is_single || is_double;
-    }
-    bool is_unquoted() const {
-        return !is_single && !is_double;
-    }
-
-   private:
-    static bool is_single_quoted_token(const std::string& s) {
-        return s.size() >= 2 && s[0] == '\x1F' && s[1] == 'S';
-    }
-
-    static bool is_double_quoted_token(const std::string& s) {
-        return s.size() >= 2 && s[0] == '\x1F' && s[1] == 'D';
-    }
-
-    static std::string strip_quote_tag(const std::string& s) {
-        if (s.size() >= 2 && s[0] == '\x1F' && (s[1] == 'S' || s[1] == 'D')) {
-            return s.substr(2);
-        }
-        return s;
-    }
-};
-
-inline std::string trim_trailing_whitespace(std::string s) {
-    s.erase(s.find_last_not_of(" \t\n\r") + 1);
-    return s;
-}
-
-inline std::string trim_leading_whitespace(std::string s) {
-    size_t start = s.find_first_not_of(" \t\n\r");
-    return (start == std::string::npos) ? "" : s.substr(start);
-}
-}  // namespace
 
 std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
     auto strip_inline_comment = [](std::string_view s) -> std::string {
@@ -544,25 +475,6 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
     return lines;
 }
 
-const char QUOTE_PREFIX = '\x1F';
-const char QUOTE_SINGLE = 'S';
-const char QUOTE_DOUBLE = 'D';
-const std::string SUBST_LITERAL_START = "\x1E__SUBST_LITERAL_START__\x1E";
-const std::string SUBST_LITERAL_END = "\x1E__SUBST_LITERAL_END__\x1E";
-
-inline std::string create_quote_tag(char quote_type, const std::string& content) {
-    return std::string(1, QUOTE_PREFIX) + quote_type + content;
-}
-
-inline std::string trim_whitespace(const std::string& s) {
-    size_t start = s.find_first_not_of(" \t\n\r");
-    if (start == std::string::npos) {
-        return "";
-    }
-    size_t end = s.find_last_not_of(" \t\n\r");
-    return s.substr(start, end - start + 1);
-}
-
 namespace {
 
 template <typename ExpandFunc, typename EvalFunc>
@@ -639,82 +551,6 @@ std::string expand_parameter_with_default(const std::string& param_expr, GetVarF
     }
 
     return get_var(param_expr);
-}
-
-inline bool is_valid_identifier(const std::string& name) {
-    if (name.empty() || (!std::isalpha(static_cast<unsigned char>(name[0])) && name[0] != '_')) {
-        return false;
-    }
-    for (size_t i = 1; i < name.length(); ++i) {
-        unsigned char ch = static_cast<unsigned char>(name[i]);
-        if (!std::isalnum(ch) && ch != '_') {
-            return false;
-        }
-    }
-    return true;
-}
-
-inline bool looks_like_assignment(const std::string& value) {
-    size_t equals_pos = value.find('=');
-    if (equals_pos == std::string::npos || equals_pos == 0) {
-        return false;
-    }
-
-    size_t name_end = equals_pos;
-    if (name_end > 0 && value[name_end - 1] == '+') {
-        name_end--;
-    }
-
-    if (name_end == 0) {
-        return false;
-    }
-
-    return is_valid_identifier(value.substr(0, name_end));
-}
-
-inline std::pair<std::string, bool> strip_noenv_sentinels(const std::string& s) {
-    const std::string start = "\x1E__NOENV_START__\x1E";
-    const std::string end = "\x1E__NOENV_END__\x1E";
-    size_t a = s.find(start);
-    size_t b = s.rfind(end);
-    if (a != std::string::npos && b != std::string::npos && b >= a + start.size()) {
-        std::string mid = s.substr(a + start.size(), b - (a + start.size()));
-        std::string out = s.substr(0, a) + mid + s.substr(b + end.size());
-        return {out, true};
-    }
-    return {s, false};
-}
-
-inline bool strip_subst_literal_markers(std::string& value) {
-    if (value.empty()) {
-        return false;
-    }
-
-    bool changed = false;
-    std::string result;
-    result.reserve(value.size());
-
-    for (size_t i = 0; i < value.size();) {
-        if (value.compare(i, SUBST_LITERAL_START.size(), SUBST_LITERAL_START) == 0) {
-            i += SUBST_LITERAL_START.size();
-            changed = true;
-            continue;
-        }
-        if (value.compare(i, SUBST_LITERAL_END.size(), SUBST_LITERAL_END) == 0) {
-            i += SUBST_LITERAL_END.size();
-            changed = true;
-            continue;
-        }
-
-        result.push_back(value[i]);
-        ++i;
-    }
-
-    if (changed) {
-        value.swap(result);
-    }
-
-    return changed;
 }
 
 static void expand_command_substitutions_in_string(std::string& text) {
@@ -809,48 +645,6 @@ static void expand_command_substitutions_in_string(std::string& text) {
     }
 
     text.swap(result);
-}
-
-inline bool contains_tilde(const std::string& value) {
-    if (value.empty()) {
-        return false;
-    }
-    if (value.front() == '~') {
-        return true;
-    }
-    return value.find('~', 1) != std::string::npos;
-}
-
-inline std::string expand_tilde_value(const std::string& value, const std::string& home) {
-    if (!value.empty() && value.front() == '~') {
-        return home + value.substr(1);
-    }
-    return value;
-}
-
-std::vector<std::string> expand_tilde_tokens(const std::vector<std::string>& tokens) {
-    std::vector<std::string> result;
-    result.reserve(tokens.size());
-
-    const char* home_dir = std::getenv("HOME");
-    const bool has_home = home_dir != nullptr;
-    const std::string home = has_home ? std::string(home_dir) : std::string();
-
-    for (const auto& raw : tokens) {
-        QuoteInfo qi(raw);
-
-        if (qi.is_unquoted() && has_home && contains_tilde(qi.value)) {
-            result.push_back(expand_tilde_value(qi.value, home));
-        } else if (qi.is_unquoted()) {
-            result.push_back(qi.value);
-        } else if (qi.is_single) {
-            result.push_back(create_quote_tag(QUOTE_SINGLE, qi.value));
-        } else {
-            result.push_back(create_quote_tag(QUOTE_DOUBLE, qi.value));
-        }
-    }
-
-    return result;
 }
 
 void expand_command_paths_with_home(Command& cmd, const std::string& home) {
