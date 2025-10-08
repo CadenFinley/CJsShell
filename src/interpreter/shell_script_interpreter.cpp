@@ -28,7 +28,9 @@
 #include "conditional_evaluator.h"
 #include "error_out.h"
 #include "exec.h"
+#include "function_evaluator.h"
 #include "job_control.h"
+#include "loop_evaluator.h"
 #include "parameter_expansion_evaluator.h"
 #include "readonly_command.h"
 #include "shell.h"
@@ -916,60 +918,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
         return parts;
     };
 
-    auto adjust_loop_signal = [&](const char* env_name, int consumed_rc, int propagate_rc) -> int {
-        int level = 1;
-        if (const char* level_str = getenv(env_name)) {
-            try {
-                level = std::stoi(level_str);
-            } catch (...) {
-                level = 1;
-            }
-            unsetenv(env_name);
-        }
-        if (level > 1) {
-            std::string next_level = std::to_string(level - 1);
-            setenv(env_name, next_level.c_str(), 1);
-            return propagate_rc;
-        }
-        return consumed_rc;
-    };
-
-    enum class LoopFlow : std::uint8_t {
-        None,
-        Continue,
-        Break
-    };
-
-    struct LoopCommandOutcome {
-        LoopFlow flow;
-        int code;
-    };
-
-    auto handle_loop_command_result = [&](int rc, int break_consumed_rc, int break_propagate_rc,
-                                          int continue_consumed_rc, int continue_propagate_rc,
-                                          bool allow_error_continue) -> LoopCommandOutcome {
-        if (rc == 255) {
-            int adjusted =
-                adjust_loop_signal("CJSH_BREAK_LEVEL", break_consumed_rc, break_propagate_rc);
-            return {LoopFlow::Break, adjusted};
-        }
-        if (rc == 254) {
-            int adjusted = adjust_loop_signal("CJSH_CONTINUE_LEVEL", continue_consumed_rc,
-                                              continue_propagate_rc);
-            if (adjusted == continue_consumed_rc)
-                return {LoopFlow::Continue, adjusted};
-            return {LoopFlow::Break, adjusted};
-        }
-        if (rc != 0) {
-            if (g_shell && g_shell->is_errexit_enabled())
-                return {LoopFlow::Break, rc};
-            if (allow_error_continue)
-                return {LoopFlow::Continue, rc};
-            return {LoopFlow::Break, rc};
-        }
-        return {LoopFlow::None, 0};
-    };
-
     auto handle_if_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
         auto execute_block_wrapper = [&](const std::vector<std::string>& block_lines) -> int {
             return execute_block(block_lines);
@@ -981,423 +929,12 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
     };
 
     auto handle_for_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
-        std::string first = trim(strip_inline_comment(src_lines[idx]));
-        if (first != "for" && first.rfind("for ", 0) != 0)
-            return 1;
-
-        std::string var;
-        std::vector<std::string> items;
-
-        struct RangeInfo {
-            bool is_range = false;
-            int start = 0;
-            int end = 0;
-            bool is_ascending = true;
-        } range_info;
-
-        auto extract_keyword_suffix = [](const std::string& text,
-                                         std::string_view keyword) -> std::optional<std::string> {
-            if (text.size() < keyword.size()) {
-                return std::nullopt;
-            }
-            if (text.compare(0, keyword.size(), keyword) != 0) {
-                return std::nullopt;
-            }
-
-            if (text.size() > keyword.size()) {
-                char next = text[keyword.size()];
-                if (next != ';' && (std::isspace(static_cast<unsigned char>(next)) == 0)) {
-                    return std::nullopt;
-                }
-            }
-
-            std::string suffix = text.substr(keyword.size());
-            size_t advance = 0;
-            while (advance < suffix.size() &&
-                   (std::isspace(static_cast<unsigned char>(suffix[advance])) != 0)) {
-                advance++;
-            }
-            suffix.erase(0, advance);
-            return suffix;
+        auto execute_block_wrapper = [&](const std::vector<std::string>& block_lines) -> int {
+            return execute_block(block_lines);
         };
 
-        auto strip_leading_semicolons_and_space = [](std::string value) {
-            size_t pos = 0;
-            while (pos < value.size() &&
-                   (std::isspace(static_cast<unsigned char>(value[pos])) != 0)) {
-                pos++;
-            }
-            while (pos < value.size() && value[pos] == ';') {
-                pos++;
-                while (pos < value.size() &&
-                       (std::isspace(static_cast<unsigned char>(value[pos])) != 0)) {
-                    pos++;
-                }
-            }
-            return value.substr(pos);
-        };
-
-        auto matches_keyword_only = [](const std::string& text, std::string_view keyword) {
-            if (text.size() < keyword.size()) {
-                return false;
-            }
-            if (text.compare(0, keyword.size(), keyword) != 0) {
-                return false;
-            }
-            size_t pos = keyword.size();
-            while (pos < text.size() &&
-                   (std::isspace(static_cast<unsigned char>(text[pos])) != 0)) {
-                pos++;
-            }
-            while (pos < text.size() && text[pos] == ';') {
-                pos++;
-                while (pos < text.size() &&
-                       (std::isspace(static_cast<unsigned char>(text[pos])) != 0)) {
-                    pos++;
-                }
-            }
-            while (pos < text.size() &&
-                   (std::isspace(static_cast<unsigned char>(text[pos])) != 0)) {
-                pos++;
-            }
-            return pos == text.size();
-        };
-
-        auto parse_header = [&](const std::string& header) -> bool {
-            std::vector<std::string> raw_toks;
-
-            try {
-                std::istringstream iss(header);
-                std::string token;
-                while (iss >> token) {
-                    raw_toks.push_back(token);
-                }
-            } catch (...) {
-                return false;
-            }
-
-            size_t i = 0;
-            if (i < raw_toks.size() && raw_toks[i] == "for")
-                ++i;
-            if (i >= raw_toks.size())
-                return false;
-            var = raw_toks[i++];
-
-            if (i < raw_toks.size() && raw_toks[i] == "in") {
-                ++i;
-
-                if (i < raw_toks.size() && raw_toks[i].find('{') != std::string::npos &&
-                    raw_toks[i].find("..") != std::string::npos &&
-                    raw_toks[i].find('}') != std::string::npos) {
-                    const std::string& range_token = raw_toks[i];
-                    size_t open_pos = range_token.find('{');
-                    size_t close_pos = range_token.find('}');
-                    size_t range_pos = range_token.find("..");
-
-                    if (open_pos != std::string::npos && close_pos != std::string::npos &&
-                        range_pos != std::string::npos && open_pos < range_pos &&
-                        range_pos < close_pos) {
-                        std::string content =
-                            range_token.substr(open_pos + 1, close_pos - open_pos - 1);
-                        std::string start_str = content.substr(0, range_pos - open_pos - 1);
-                        std::string end_str = content.substr(range_pos - open_pos + 1);
-
-                        try {
-                            range_info.start = std::stoi(start_str);
-                            range_info.end = std::stoi(end_str);
-                            range_info.is_range = true;
-                            range_info.is_ascending = range_info.start <= range_info.end;
-                            return !var.empty();
-                        } catch (...) {
-                        }
-                    }
-                }
-
-                std::vector<std::string> toks = shell_parser->parse_command(header);
-                i = 0;
-                if (i < toks.size() && toks[i] == "for")
-                    ++i;
-                if (i >= toks.size())
-                    return false;
-                var = toks[i++];
-                if (i < toks.size() && toks[i] == "in") {
-                    ++i;
-                    for (; i < toks.size(); ++i) {
-                        if (toks[i] == ";" || toks[i] == "do")
-                            break;
-                        items.push_back(toks[i]);
-                    }
-                }
-            }
-            return !var.empty();
-        };
-
-        if (first.find("; do") != std::string::npos && first.find("done") != std::string::npos) {
-            size_t do_pos = first.find("; do");
-            std::string header = trim(first.substr(0, do_pos));
-            if (!parse_header(header))
-                return 1;
-            std::string tail = trim(first.substr(do_pos + 4));
-            size_t done_pos = tail.rfind("; done");
-            if (done_pos == std::string::npos)
-                done_pos = tail.rfind("done");
-            std::string body =
-                done_pos == std::string::npos ? tail : trim(tail.substr(0, done_pos));
-            int rc = 0;
-
-            if (range_info.is_range) {
-                auto execute_range_iteration = [&](int value) -> int {
-                    std::string value_str = std::to_string(value);
-
-                    if (g_shell) {
-                        auto& env_vars = g_shell->get_env_vars();
-                        env_vars[var] = value_str;
-
-                        if (var == "PATH" || var == "PWD" || var == "HOME" || var == "USER" ||
-                            var == "SHELL") {
-                            setenv(var.c_str(), value_str.c_str(), 1);
-                        }
-                    }
-                    auto cmds = shell_parser->parse_semicolon_commands(body);
-                    for (const auto& c : cmds) {
-                        auto outcome = handle_loop_command_result(execute_simple_or_pipeline(c),
-                                                                  255, 255, 254, 255, false);
-                        if (outcome.flow != LoopFlow::None)
-                            return outcome.code;
-                    }
-                    return 0;
-                };
-
-                auto iterate_range = [&](int start, int end, int step) -> int {
-                    int value = start;
-                    int rc_local = 0;
-                    while (step > 0 ? value <= end : value >= end) {
-                        rc_local = execute_range_iteration(value);
-                        if (rc_local == 0) {
-                            value += step;
-                            continue;
-                        }
-                        if (rc_local == 254) {
-                            rc_local = 0;
-                            value += step;
-                            continue;
-                        }
-                        if (rc_local == 255)
-                            rc_local = 0;
-                        break;
-                    }
-                    return rc_local;
-                };
-
-                rc = iterate_range(range_info.start, range_info.end,
-                                   range_info.is_ascending ? 1 : -1);
-            } else {
-                bool break_outer = false;
-                for (const auto& it : items) {
-                    if (g_shell) {
-                        auto& env_vars = g_shell->get_env_vars();
-                        env_vars[var] = it;
-
-                        if (var == "PATH" || var == "PWD" || var == "HOME" || var == "USER" ||
-                            var == "SHELL") {
-                            setenv(var.c_str(), it.c_str(), 1);
-                        }
-                    }
-                    auto cmds = shell_parser->parse_semicolon_commands(body);
-                    bool continue_outer = false;
-                    for (const auto& c : cmds) {
-                        auto outcome = handle_loop_command_result(execute_simple_or_pipeline(c), 0,
-                                                                  255, 0, 254, true);
-                        rc = outcome.code;
-                        if (outcome.flow == LoopFlow::None)
-                            continue;
-                        if (outcome.flow == LoopFlow::Continue) {
-                            continue_outer = true;
-                            break;
-                        }
-                        break_outer = true;
-                        break;
-                    }
-                    if (break_outer)
-                        break;
-                    if (continue_outer)
-                        continue;
-                }
-            }
-            return rc;
-        }
-
-        std::string header_accum = first;
-        size_t j = idx;
-        bool have_do = false;
-        bool do_line_has_inline_body = false;
-        std::string inline_body;
-
-        if (first.find("; do") != std::string::npos && first.rfind("; do") == first.length() - 4) {
-            have_do = true;
-            header_accum = first.substr(0, first.length() - 4);
-        } else {
-            while (!have_do && ++j < src_lines.size()) {
-                std::string cur = trim(strip_inline_comment(src_lines[j]));
-                if (cur == "do") {
-                    have_do = true;
-                    break;
-                }
-                if (cur.empty()) {
-                    continue;
-                }
-                size_t inline_do_pos = cur.find("; do");
-                if (inline_do_pos != std::string::npos) {
-                    std::string before_do = trim(cur.substr(0, inline_do_pos));
-                    if (!before_do.empty()) {
-                        header_accum += " ";
-                        header_accum += before_do;
-                    }
-                    std::string after_do =
-                        strip_leading_semicolons_and_space(cur.substr(inline_do_pos + 4));
-                    if (!after_do.empty()) {
-                        inline_body = std::move(after_do);
-                        do_line_has_inline_body = true;
-                    }
-                    have_do = true;
-                    break;
-                }
-                if (auto do_suffix = extract_keyword_suffix(cur, "do")) {
-                    std::string after_do = strip_leading_semicolons_and_space(*do_suffix);
-                    if (!after_do.empty()) {
-                        inline_body = std::move(after_do);
-                        do_line_has_inline_body = true;
-                    }
-                    have_do = true;
-                    break;
-                }
-                if (!cur.empty()) {
-                    header_accum += " ";
-                    header_accum += cur;
-                }
-            }
-        }
-        if (!parse_header(header_accum)) {
-            idx = j;
-            return 1;
-        }
-        if (!have_do) {
-            idx = j;
-            return 1;
-        }
-
-        std::vector<std::string> body_lines;
-        bool inline_consumes_done = false;
-        if (do_line_has_inline_body) {
-            std::string inline_content = trim(inline_body);
-            if (!inline_content.empty()) {
-                if (matches_keyword_only(inline_content, "done")) {
-                    inline_consumes_done = true;
-                    inline_content.clear();
-                } else {
-                    size_t done_marker = inline_content.rfind(" done");
-                    if (done_marker != std::string::npos) {
-                        std::string after_done = trim(inline_content.substr(done_marker + 1));
-                        if (matches_keyword_only(after_done, "done")) {
-                            inline_content = trim(inline_content.substr(0, done_marker));
-                            inline_consumes_done = true;
-                        }
-                    }
-                }
-
-                if (!inline_content.empty()) {
-                    auto inline_segments = shell_parser->parse_into_lines(inline_content);
-                    for (auto& segment : inline_segments) {
-                        if (!trim(segment).empty()) {
-                            body_lines.push_back(segment);
-                        }
-                    }
-                }
-            }
-        }
-
-        size_t k = inline_consumes_done ? j : (j + 1);
-        int depth = inline_consumes_done ? 0 : 1;
-        while (k < src_lines.size() && depth > 0) {
-            const std::string& cur_raw = src_lines[k];
-            std::string cur = trim(strip_inline_comment(cur_raw));
-            if (cur == "for" || cur.rfind("for ", 0) == 0) {
-                depth++;
-            } else if (matches_keyword_only(cur, "done")) {
-                depth--;
-                if (depth == 0)
-                    break;
-            }
-            if (depth > 0)
-                body_lines.push_back(cur_raw);
-            k++;
-        }
-        if (depth != 0) {
-            idx = k;
-            return 1;
-        }
-
-        int rc = 0;
-
-        auto run_body_and_handle_result = [&]() -> LoopCommandOutcome {
-            return handle_loop_command_result(execute_block(body_lines), 0, 255, 0, 254, true);
-        };
-
-        if (range_info.is_range) {
-            auto iterate_range_body = [&](int start, int end, int step) -> int {
-                int value = start;
-                int rc_local = 0;
-                while (step > 0 ? value <= end : value >= end) {
-                    std::string value_str = std::to_string(value);
-
-                    if (g_shell) {
-                        auto& env_vars = g_shell->get_env_vars();
-                        env_vars[var] = value_str;
-
-                        if (var == "PATH" || var == "PWD" || var == "HOME" || var == "USER" ||
-                            var == "SHELL") {
-                            setenv(var.c_str(), value_str.c_str(), 1);
-                        }
-                    }
-                    auto outcome = run_body_and_handle_result();
-                    rc_local = outcome.code;
-                    if (outcome.flow == LoopFlow::None) {
-                        value += step;
-                        continue;
-                    }
-                    if (outcome.flow == LoopFlow::Continue) {
-                        value += step;
-                        continue;
-                    }
-                    break;
-                }
-                return rc_local;
-            };
-
-            rc = iterate_range_body(range_info.start, range_info.end,
-                                    range_info.is_ascending ? 1 : -1);
-        } else {
-            for (const auto& it : items) {
-                if (g_shell) {
-                    auto& env_vars = g_shell->get_env_vars();
-                    env_vars[var] = it;
-
-                    if (var == "PATH" || var == "PWD" || var == "HOME" || var == "USER" ||
-                        var == "SHELL") {
-                        setenv(var.c_str(), it.c_str(), 1);
-                    }
-                }
-                auto outcome = run_body_and_handle_result();
-                rc = outcome.code;
-                if (outcome.flow == LoopFlow::None)
-                    continue;
-                if (outcome.flow == LoopFlow::Continue)
-                    continue;
-                break;
-            }
-        }
-        idx = k;
-        return rc;
+        return loop_evaluator::handle_for_block(src_lines, idx, execute_block_wrapper,
+                                                shell_parser);
     };
 
     auto handle_case_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
@@ -1518,150 +1055,22 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
         return case_result.first ? case_result.second : 0;
     };
 
-    auto handle_loop_block = [&](const std::vector<std::string>& src_lines, size_t& idx,
-                                 const std::string& keyword, bool is_until) -> int {
-        std::string first = trim(strip_inline_comment(src_lines[idx]));
-        if (first != keyword && first.rfind(keyword + " ", 0) != 0)
-            return 1;
-
-        auto parse_cond_from = [&](const std::string& s, std::string& cond, bool& inline_do,
-                                   std::string& body_inline) {
-            inline_do = false;
-            body_inline.clear();
-            cond.clear();
-            std::string tmp = s;
-            if (tmp == keyword) {
-                return true;
-            }
-            if (tmp.rfind(keyword + " ", 0) == 0)
-                tmp = tmp.substr(keyword.length() + 1);
-            size_t do_pos = tmp.find("; do");
-            if (do_pos != std::string::npos) {
-                cond = trim(tmp.substr(0, do_pos));
-                inline_do = true;
-                body_inline = trim(tmp.substr(do_pos + 4));
-                return true;
-            }
-            if (tmp == "do") {
-                inline_do = true;
-                return true;
-            }
-            if (tmp.rfind("do ", 0) == 0) {
-                inline_do = true;
-                body_inline = trim(tmp.substr(3));
-                return true;
-            }
-            cond = trim(tmp);
-            return true;
+    auto handle_while_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
+        auto execute_block_wrapper = [&](const std::vector<std::string>& block_lines) -> int {
+            return execute_block(block_lines);
         };
 
-        std::string cond;
-        bool inline_do = false;
-        std::string body_inline;
-        parse_cond_from(first, cond, inline_do, body_inline);
-        size_t j = idx;
-        if (!inline_do) {
-            while (++j < src_lines.size()) {
-                const std::string& cur_raw = src_lines[j];
-                std::string cur = trim(strip_inline_comment(cur_raw));
-                if (cur == "do") {
-                    inline_do = true;
-                    break;
-                }
-                if (cur.rfind("do ", 0) == 0) {
-                    inline_do = true;
-                    body_inline = trim(cur.substr(3));
-                    break;
-                }
-                if (cur.find("; do") != std::string::npos) {
-                    parse_cond_from(cur, cond, inline_do, body_inline);
-                    break;
-                }
-                if (!cur.empty()) {
-                    if (!cond.empty())
-                        cond += " ";
-                    cond += cur;
-                }
-            }
-        }
-        if (!inline_do) {
-            idx = j;
-            return 1;
-        }
-
-        std::vector<std::string> body_lines;
-        if (!body_inline.empty()) {
-            std::string bi = body_inline;
-            size_t done_pos = bi.rfind("; done");
-            if (done_pos != std::string::npos)
-                bi = trim(bi.substr(0, done_pos));
-            body_lines = shell_parser->parse_into_lines(bi);
-        } else {
-            size_t k = j + 1;
-            int depth = 1;
-            while (k < src_lines.size() && depth > 0) {
-                const std::string& cur_raw = src_lines[k];
-                std::string cur = trim(strip_inline_comment(cur_raw));
-                if (cur == keyword || cur.rfind(keyword + " ", 0) == 0) {
-                    depth++;
-                } else if (cur == "done") {
-                    depth--;
-                    if (depth == 0)
-                        break;
-                }
-                if (depth > 0)
-                    body_lines.push_back(cur_raw);
-                k++;
-            }
-            if (depth != 0) {
-                idx = k;
-                return 1;
-            }
-            idx = k;
-        }
-
-        int rc = 0;
-        int guard = 0;
-        const int GUARD_MAX = 100000;
-        while (true) {
-            int c = 0;
-            if (!cond.empty()) {
-                c = evaluate_logical_condition(cond);
-            }
-
-            bool continue_loop = is_until ? (c != 0) : (c == 0);
-            if (!continue_loop)
-                break;
-
-            rc = execute_block(body_lines);
-            auto outcome = handle_loop_command_result(rc, 0, 255, 0, 254, true);
-            rc = outcome.code;
-            if (outcome.flow == LoopFlow::Break)
-                break;
-            if (outcome.flow == LoopFlow::Continue)
-                continue;
-            if (++guard > GUARD_MAX) {
-                if (keyword == "while") {
-                    print_error({ErrorType::RUNTIME_ERROR,
-                                 "",
-                                 "while loop exceeded max iterations (guard)",
-                                 {}});
-                } else {
-                    std::cerr << "cjsh: " << keyword << " loop aborted (guard)" << '\n';
-                }
-                rc = 1;
-                break;
-            }
-        }
-        return rc;
-    };
-
-    auto handle_while_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
-        return handle_loop_block(src_lines, idx, "while", false);
+        return loop_evaluator::handle_while_block(src_lines, idx, execute_block_wrapper,
+                                                  execute_simple_or_pipeline, shell_parser);
     };
 
     auto handle_until_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
-        return handle_loop_block(src_lines, idx, "until", true);
+        auto execute_block_wrapper = [&](const std::vector<std::string>& block_lines) -> int {
+            return execute_block(block_lines);
+        };
+
+        return loop_evaluator::handle_until_block(src_lines, idx, execute_block_wrapper,
+                                                  execute_simple_or_pipeline, shell_parser);
     };
 
     auto try_execute_inline_do_block =
@@ -1853,97 +1262,11 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
         }
 
         if (line.find("()") != std::string::npos && line.find('{') != std::string::npos) {
-            std::string current_line = line;
-            bool found_function = true;
-            while (!current_line.empty() && found_function) {
-                found_function = false;
-                size_t name_end = current_line.find("()");
-                size_t brace_pos = current_line.find('{');
-                if (name_end != std::string::npos && brace_pos != std::string::npos &&
-                    name_end < brace_pos) {
-                    std::string func_name = trim(current_line.substr(0, name_end));
-                    if (!func_name.empty() && func_name.find(' ') == std::string::npos) {
-                        std::vector<std::string> body_lines;
-                        bool handled_single_line = false;
-                        std::string after_brace = trim(current_line.substr(brace_pos + 1));
-                        if (!after_brace.empty()) {
-                            size_t end_brace = after_brace.find('}');
-                            if (end_brace != std::string::npos) {
-                                std::string body_part = trim(after_brace.substr(0, end_brace));
-                                if (!body_part.empty())
-                                    body_lines.push_back(body_part);
+            auto parse_result = function_evaluator::parse_and_register_functions(
+                line, lines, line_index, functions, trim, strip_inline_comment);
 
-                                functions[func_name] = body_lines;
-
-                                std::string remainder = trim(after_brace.substr(end_brace + 1));
-
-                                size_t start_pos = 0;
-                                while (start_pos < remainder.length() &&
-                                       (remainder[start_pos] == ';' ||
-                                        (std::isspace(remainder[start_pos]) != 0))) {
-                                    start_pos++;
-                                }
-                                remainder = remainder.substr(start_pos);
-                                current_line = remainder;
-                                found_function = true;
-                                handled_single_line = true;
-                            } else if (!after_brace.empty()) {
-                                body_lines.push_back(after_brace);
-                            }
-                        }
-                        if (!handled_single_line) {
-                            int depth = 1;
-                            std::string after_closing_brace;
-                            while (++line_index < lines.size() && depth > 0) {
-                                const std::string& func_line_raw = lines[line_index];
-                                std::string func_line = trim(strip_inline_comment(func_line_raw));
-                                for (char ch : func_line) {
-                                    if (ch == '{') {
-                                        depth++;
-                                    } else if (ch == '}') {
-                                        depth--;
-                                    }
-                                }
-                                if (depth <= 0) {
-                                    size_t pos = func_line.find('}');
-                                    if (pos != std::string::npos) {
-                                        std::string before = trim(func_line.substr(0, pos));
-                                        if (!before.empty())
-                                            body_lines.push_back(before);
-
-                                        if (pos + 1 < func_line.length()) {
-                                            after_closing_brace = trim(func_line.substr(pos + 1));
-                                        }
-                                    }
-                                    break;
-                                }
-                                if (!func_line.empty()) {
-                                    body_lines.push_back(func_line_raw);
-                                }
-                            }
-                            functions[func_name] = body_lines;
-
-                            if (after_closing_brace.empty()) {
-                                current_line.clear();
-                            } else {
-                                size_t start_pos = 0;
-                                while (start_pos < after_closing_brace.length() &&
-                                       (after_closing_brace[start_pos] == ';' ||
-                                        (std::isspace(after_closing_brace[start_pos]) != 0))) {
-                                    start_pos++;
-                                }
-                                current_line = after_closing_brace.substr(start_pos);
-                            }
-
-                            break;
-                        }
-                    }
-                }
-            }
-
-            if (!current_line.empty()) {
-                line = current_line;
-
+            if (!parse_result.remaining_line.empty()) {
+                line = parse_result.remaining_line;
             } else {
                 continue;
             }
@@ -2899,52 +2222,37 @@ bool ShellScriptInterpreter::matches_pattern(const std::string& text, const std:
 }
 
 bool ShellScriptInterpreter::has_function(const std::string& name) const {
-    return functions.find(name) != functions.end();
+    return function_evaluator::has_function(functions, name);
 }
 
 std::vector<std::string> ShellScriptInterpreter::get_function_names() const {
-    std::vector<std::string> names;
-    names.reserve(functions.size());
-    for (const auto& pair : functions) {
-        names.push_back(pair.first);
-    }
-    return names;
+    return function_evaluator::get_function_names(functions);
 }
 
 void ShellScriptInterpreter::push_function_scope() {
-    local_variable_stack.emplace_back();
+    function_evaluator::push_function_scope(local_variable_stack);
 }
 
 void ShellScriptInterpreter::pop_function_scope() {
-    if (local_variable_stack.empty()) {
-        return;
-    }
-
-    local_variable_stack.pop_back();
+    function_evaluator::pop_function_scope(local_variable_stack);
 }
 
 void ShellScriptInterpreter::set_local_variable(const std::string& name, const std::string& value) {
-    if (local_variable_stack.empty()) {
+    auto set_global_var = [](const std::string& var_name, const std::string& var_value) {
         if (g_shell) {
             auto& env_vars = g_shell->get_env_vars();
-            env_vars[name] = value;
+            env_vars[var_name] = var_value;
 
-            if (name == "PATH" || name == "PWD" || name == "HOME" || name == "USER" ||
-                name == "SHELL") {
-                setenv(name.c_str(), value.c_str(), 1);
+            if (var_name == "PATH" || var_name == "PWD" || var_name == "HOME" ||
+                var_name == "USER" || var_name == "SHELL") {
+                setenv(var_name.c_str(), var_value.c_str(), 1);
             }
         }
-        return;
-    }
+    };
 
-    local_variable_stack.back()[name] = value;
+    function_evaluator::set_local_variable(local_variable_stack, name, value, set_global_var);
 }
 
 bool ShellScriptInterpreter::is_local_variable(const std::string& name) const {
-    if (local_variable_stack.empty()) {
-        return false;
-    }
-
-    const auto& current_scope = local_variable_stack.back();
-    return current_scope.find(name) != current_scope.end();
+    return function_evaluator::is_local_variable(local_variable_stack, name);
 }

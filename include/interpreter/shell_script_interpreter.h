@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "function_evaluator.h"
 #include "parser.h"
 
 class ShellScriptInterpreter {
@@ -133,9 +134,9 @@ class ShellScriptInterpreter {
 
    private:
     Parser* shell_parser = nullptr;
-    std::unordered_map<std::string, std::vector<std::string>> functions;
+    function_evaluator::FunctionMap functions;
 
-    std::vector<std::unordered_map<std::string, std::string>> local_variable_stack;
+    function_evaluator::LocalVariableStack local_variable_stack;
     bool variable_is_set(const std::string& var_name);
     bool matches_pattern(const std::string& text, const std::string& pattern);
     bool matches_char_class(char c, const std::string& char_class);

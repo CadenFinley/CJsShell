@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cctype>
 
+#include "cjsh.h"
 #include "parser.h"
 #include "shell_script_interpreter_utils.h"
 
@@ -192,6 +193,37 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                             body_rc = rc2;
                             if (rc2 != 0)
                                 break;
+                        }
+                    }
+
+                    // Check if there are commands after 'fi' on the same line
+                    // But only execute them if we didn't hit break/continue/return/exit
+                    if (body_rc != 253 && body_rc != 254 && body_rc != 255 && !g_exit_flag) {
+                        size_t after_fi_pos = fi_pos + 2;  // Position after "fi"
+                        while (after_fi_pos < rem.length() &&
+                               std::isspace(static_cast<unsigned char>(rem[after_fi_pos]))) {
+                            after_fi_pos++;
+                        }
+                        if (after_fi_pos < rem.length() && rem[after_fi_pos] == ';') {
+                            after_fi_pos++;  // Skip the semicolon
+                            while (after_fi_pos < rem.length() &&
+                                   std::isspace(static_cast<unsigned char>(rem[after_fi_pos]))) {
+                                after_fi_pos++;
+                            }
+                        }
+                        if (after_fi_pos < rem.length()) {
+                            std::string after_commands = trim(rem.substr(after_fi_pos));
+                            if (!after_commands.empty()) {
+                                // Execute commands that come after the 'fi'
+                                auto after_cmds =
+                                    shell_parser->parse_semicolon_commands(after_commands);
+                                for (const auto& c : after_cmds) {
+                                    int rc3 = execute_simple_or_pipeline(c);
+                                    body_rc = rc3;
+                                    if (rc3 != 0 || g_exit_flag)
+                                        break;
+                                }
+                            }
                         }
                     }
 
