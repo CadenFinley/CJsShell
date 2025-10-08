@@ -56,11 +56,6 @@ struct QuoteState {
     bool escaped = false;
 };
 
-bool should_skip_line(const std::string& line) {
-    size_t first_non_space = line.find_first_not_of(" \t");
-    return first_non_space == std::string::npos || line[first_non_space] == '#';
-}
-
 bool should_process_char(QuoteState& state, char c, bool ignore_single_quotes,
                          bool process_escaped_chars = true) {
     if (state.escaped) {

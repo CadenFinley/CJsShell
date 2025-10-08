@@ -12,6 +12,12 @@
 
 class ShellScriptInterpreter {
    public:
+    // Special exit codes for control flow
+    static constexpr int exit_break = 253;
+    static constexpr int exit_continue = 254;
+    static constexpr int exit_return = 255;
+    static constexpr int exit_command_not_found = 127;
+
     ShellScriptInterpreter();
     ~ShellScriptInterpreter();
 
@@ -157,6 +163,22 @@ class ShellScriptInterpreter {
     int evaluate_logical_condition_internal(const std::string& condition,
                                             const std::function<int(const std::string&)>& executor);
     long long evaluate_arithmetic_expression(const std::string& expr);
+
+    // Extracted methods from execute_block refactoring
+    std::string expand_all_substitutions(const std::string& input,
+                                         const std::function<int(const std::string&)>& executor);
+
+    int execute_command_internal(const std::string& cmd_text, bool allow_semicolon_split,
+                                 const std::function<int(const std::string&)>& executor);
+
+    int process_theme_definition_block(const std::vector<std::string>& lines, size_t& line_index);
+
+    int process_function_definition_line(const std::string& line,
+                                         const std::vector<std::string>& lines, size_t& line_index,
+                                         std::string& remaining_line);
+
+    static bool is_control_flow_exit_code(int code);
+    static bool should_skip_line(const std::string& line);
 
     struct BlockHandlerResult {
         bool handled;

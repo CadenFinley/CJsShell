@@ -192,7 +192,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                     last_code = execute_simple_or_pipeline_impl(part, false);
 
                     if (g_shell && g_shell->is_errexit_enabled() && last_code != 0 &&
-                        last_code != 253 && last_code != 254 && last_code != 255) {
+                        !is_control_flow_exit_code(last_code)) {
                         return last_code;
                     }
                 }
@@ -200,193 +200,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
             }
         }
 
-        // Create command substitution evaluator with executor callback
-        CommandSubstitutionEvaluator cmd_subst_evaluator(
-            [&](const std::string& command) -> std::string {
-                return execute_command_for_substitution(command, execute_simple_or_pipeline);
-            });
-
-        auto expand_substitutions = [&](const std::string& in) -> std::string {
-            // First, expand command substitutions using the evaluator
-            auto expansion_result = cmd_subst_evaluator.expand_substitutions(in);
-            std::string result = expansion_result.text;
-
-            // Now handle arithmetic expansion and parameter expansion that the
-            // CommandSubstitutionEvaluator passes through
-            std::string out;
-            out.reserve(result.size());
-
-            bool in_quotes = false;
-            char q = '\0';
-            bool escaped = false;
-
-            for (size_t i = 0; i < result.size(); ++i) {
-                char c = result[i];
-
-                if (escaped) {
-                    out += '\\';
-                    out += c;
-                    escaped = false;
-                    continue;
-                }
-
-                if (c == '\\' && (!in_quotes || q != '\'')) {
-                    escaped = true;
-                    continue;
-                }
-
-                if ((c == '"' || c == '\'') && (!in_quotes)) {
-                    in_quotes = true;
-                    q = c;
-                    out += c;
-                    continue;
-                }
-                if (in_quotes && c == q) {
-                    in_quotes = false;
-                    q = '\0';
-                    out += c;
-                    continue;
-                }
-
-                // Handle arithmetic expansion $((expr))
-                if (!in_quotes || q == '"') {
-                    if (c == '$' && i + 2 < result.size() && result[i + 1] == '(' &&
-                        result[i + 2] == '(') {
-                        size_t inner_start = i + 3;
-                        int depth = 1;
-                        size_t j = inner_start;
-                        bool found = false;
-
-                        for (; j < result.size(); ++j) {
-                            if (j + 1 < result.size() && result[j] == '(' &&
-                                result[j - 1] != '\\') {
-                                depth++;
-                            } else if (result[j] == ')' && (j == 0 || result[j - 1] != '\\')) {
-                                depth--;
-                                if (depth == 0 && j + 1 < result.size() && result[j + 1] == ')') {
-                                    found = true;
-                                    break;
-                                }
-                            }
-                        }
-
-                        if (found) {
-                            size_t expr_len = (j > inner_start) ? (j - inner_start) : 0;
-                            std::string expr = result.substr(inner_start, expr_len);
-
-                            // Expand variables in arithmetic expression
-                            std::string expanded_expr;
-                            for (size_t k = 0; k < expr.size(); ++k) {
-                                if (expr[k] == '$' && k + 1 < expr.size()) {
-                                    if (isdigit(expr[k + 1])) {
-                                        std::string param_name(1, expr[k + 1]);
-                                        expanded_expr += get_variable_value(param_name);
-                                        k++;
-                                    } else if (isalpha(expr[k + 1]) || expr[k + 1] == '_') {
-                                        size_t var_start = k + 1;
-                                        size_t var_end = var_start;
-                                        while (var_end < expr.size() &&
-                                               (isalnum(expr[var_end]) || expr[var_end] == '_')) {
-                                            var_end++;
-                                        }
-                                        std::string var_name =
-                                            expr.substr(var_start, var_end - var_start);
-                                        expanded_expr += get_variable_value(var_name);
-                                        k = var_end - 1;
-                                    } else if (expr[k + 1] == '{') {
-                                        size_t close_brace = expr.find('}', k + 2);
-                                        if (close_brace != std::string::npos) {
-                                            std::string var_name =
-                                                expr.substr(k + 2, close_brace - (k + 2));
-                                            expanded_expr += get_variable_value(var_name);
-                                            k = close_brace;
-                                        } else {
-                                            expanded_expr += expr[k];
-                                        }
-                                    } else {
-                                        expanded_expr += expr[k];
-                                    }
-                                } else {
-                                    expanded_expr += expr[k];
-                                }
-                            }
-
-                            try {
-                                out +=
-                                    std::to_string(evaluate_arithmetic_expression(expanded_expr));
-                            } catch (const std::runtime_error& e) {
-                                shell_script_interpreter::print_runtime_error(
-                                    "cjsh: " + std::string(e.what()), "$((" + expr + "))");
-                                throw;
-                            }
-                            i = j + 1;  // Skip past the closing ))
-                            continue;
-                        }
-                    }
-
-                    // Handle ${parameter} expansion
-                    if (c == '$' && i + 1 < result.size() && result[i + 1] == '{') {
-                        size_t brace_depth = 1;
-                        size_t j = i + 2;
-                        bool found = false;
-
-                        while (j < result.size() && brace_depth > 0) {
-                            if (result[j] == '{') {
-                                brace_depth++;
-                            } else if (result[j] == '}') {
-                                brace_depth--;
-                                if (brace_depth == 0) {
-                                    found = true;
-                                    break;
-                                }
-                            }
-                            j++;
-                        }
-
-                        if (found) {
-                            std::string param_expr = result.substr(i + 2, j - (i + 2));
-                            std::string expanded_result = expand_parameter_expression(param_expr);
-
-                            // Re-expand any remaining variable references
-                            if (expanded_result.find('$') != std::string::npos) {
-                                size_t dollar_pos = 0;
-                                while ((dollar_pos = expanded_result.find('$', dollar_pos)) !=
-                                       std::string::npos) {
-                                    size_t var_start = dollar_pos + 1;
-                                    size_t var_end = var_start;
-                                    while (var_end < expanded_result.length() &&
-                                           (std::isalnum(expanded_result[var_end]) ||
-                                            expanded_result[var_end] == '_')) {
-                                        var_end++;
-                                    }
-                                    if (var_end > var_start) {
-                                        std::string var_name =
-                                            expanded_result.substr(var_start, var_end - var_start);
-                                        std::string var_value = get_variable_value(var_name);
-                                        expanded_result.replace(dollar_pos, var_end - dollar_pos,
-                                                                var_value);
-                                        dollar_pos += var_value.length();
-                                    } else {
-                                        dollar_pos++;
-                                    }
-                                }
-                            }
-
-                            out += expanded_result;
-                            i = j;
-                            continue;
-                        }
-                    }
-                }
-
-                out += c;
-            }
-
-            return out;
-        };
-
         try {
-            text = expand_substitutions(text);
+            text = expand_all_substitutions(text, execute_simple_or_pipeline);
 
             std::vector<std::string> head = shell_parser->parse_command(text);
             if (!head.empty()) {
@@ -573,7 +388,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
 
                         int exit_code = execute_block(functions[expanded_args[0]]);
 
-                        if (exit_code == 253) {
+                        if (exit_code == exit_break) {
                             const char* return_code_env = getenv("CJSH_RETURN_CODE");
                             if (return_code_env) {
                                 try {
@@ -922,8 +737,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
             continue;
         }
 
-        if (line == "fi" || line == "then" || line == "else" || line == "done" || line == "esac" ||
-            line == "}" || line == ";;") {
+        if (should_skip_line(line)) {
             if (g_shell != nullptr && g_shell->get_shell_option("verbose")) {
                 std::cerr << line << '\n';
             }
@@ -1056,7 +870,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
             if (i > 0) {
                 const std::string& prev_op = lcmds[i - 1].op;
 
-                bool is_control_flow = (last_code == 253 || last_code == 254 || last_code == 255);
+                bool is_control_flow = is_control_flow_exit_code(last_code);
                 if (prev_op == "&&" && last_code != 0 && !is_control_flow) {
                     continue;
                 }
@@ -1236,7 +1050,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
 
                             code = execute_block(functions[first_toks[0]]);
 
-                            if (code == 253) {
+                            if (code == exit_break) {
                                 const char* return_code_env = getenv("CJSH_RETURN_CODE");
                                 if (return_code_env != nullptr) {
                                     try {
@@ -1274,7 +1088,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                         }
                     }
 
-                    if (!is_function_call && (code == 253 || code == 254 || code == 255)) {
+                    if (!is_function_call && is_control_flow_exit_code(code)) {
                         goto control_flow_exit;
                     }
                 }
@@ -1283,9 +1097,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
 
     control_flow_exit:
 
-        if (last_code == 127) {
+        if (last_code == exit_command_not_found) {
             return last_code;
-        } else if (last_code == 253 || last_code == 254 || last_code == 255) {
+        } else if (is_control_flow_exit_code(last_code)) {
             return last_code;
         } else if (last_code != 0) {
             continue;
@@ -2068,4 +1882,195 @@ ShellScriptInterpreter::BlockHandlerResult ShellScriptInterpreter::try_dispatch_
     }
 
     return {false, 0, line_index};
+}
+
+bool ShellScriptInterpreter::is_control_flow_exit_code(int code) {
+    return code == exit_break || code == exit_continue || code == exit_return;
+}
+
+bool ShellScriptInterpreter::should_skip_line(const std::string& line) {
+    return line == "fi" || line == "then" || line == "else" || line == "done" || line == "esac" ||
+           line == "}" || line == ";;";
+}
+
+std::string ShellScriptInterpreter::expand_all_substitutions(
+    const std::string& input, const std::function<int(const std::string&)>& executor) {
+    // Create command substitution evaluator with executor callback
+    CommandSubstitutionEvaluator cmd_subst_evaluator(
+        [&](const std::string& command) -> std::string {
+            return execute_command_for_substitution(command, executor);
+        });
+
+    // First, expand command substitutions using the evaluator
+    auto expansion_result = cmd_subst_evaluator.expand_substitutions(input);
+    std::string result = expansion_result.text;
+
+    // Now handle arithmetic expansion and parameter expansion that the
+    // CommandSubstitutionEvaluator passes through
+    std::string out;
+    out.reserve(result.size());
+
+    bool in_quotes = false;
+    char q = '\0';
+    bool escaped = false;
+
+    for (size_t i = 0; i < result.size(); ++i) {
+        char c = result[i];
+
+        if (escaped) {
+            out += '\\';
+            out += c;
+            escaped = false;
+            continue;
+        }
+
+        if (c == '\\' && (!in_quotes || q != '\'')) {
+            escaped = true;
+            continue;
+        }
+
+        if ((c == '"' || c == '\'') && (!in_quotes)) {
+            in_quotes = true;
+            q = c;
+            out += c;
+            continue;
+        }
+        if (in_quotes && c == q) {
+            in_quotes = false;
+            q = '\0';
+            out += c;
+            continue;
+        }
+
+        // Handle arithmetic expansion $((expr))
+        if (!in_quotes || q == '"') {
+            if (c == '$' && i + 2 < result.size() && result[i + 1] == '(' && result[i + 2] == '(') {
+                size_t inner_start = i + 3;
+                int depth = 1;
+                size_t j = inner_start;
+                bool found = false;
+
+                for (; j < result.size(); ++j) {
+                    if (j + 1 < result.size() && result[j] == '(' && result[j - 1] != '\\') {
+                        depth++;
+                    } else if (result[j] == ')' && (j == 0 || result[j - 1] != '\\')) {
+                        depth--;
+                        if (depth == 0 && j + 1 < result.size() && result[j + 1] == ')') {
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (found) {
+                    size_t expr_len = (j > inner_start) ? (j - inner_start) : 0;
+                    std::string expr = result.substr(inner_start, expr_len);
+
+                    // Expand variables in arithmetic expression
+                    std::string expanded_expr;
+                    for (size_t k = 0; k < expr.size(); ++k) {
+                        if (expr[k] == '$' && k + 1 < expr.size()) {
+                            if (isdigit(expr[k + 1])) {
+                                std::string param_name(1, expr[k + 1]);
+                                expanded_expr += get_variable_value(param_name);
+                                k++;
+                            } else if (isalpha(expr[k + 1]) || expr[k + 1] == '_') {
+                                size_t var_start = k + 1;
+                                size_t var_end = var_start;
+                                while (var_end < expr.size() &&
+                                       (isalnum(expr[var_end]) || expr[var_end] == '_')) {
+                                    var_end++;
+                                }
+                                std::string var_name = expr.substr(var_start, var_end - var_start);
+                                expanded_expr += get_variable_value(var_name);
+                                k = var_end - 1;
+                            } else if (expr[k + 1] == '{') {
+                                size_t close_brace = expr.find('}', k + 2);
+                                if (close_brace != std::string::npos) {
+                                    std::string var_name =
+                                        expr.substr(k + 2, close_brace - (k + 2));
+                                    expanded_expr += get_variable_value(var_name);
+                                    k = close_brace;
+                                } else {
+                                    expanded_expr += expr[k];
+                                }
+                            } else {
+                                expanded_expr += expr[k];
+                            }
+                        } else {
+                            expanded_expr += expr[k];
+                        }
+                    }
+
+                    try {
+                        out += std::to_string(evaluate_arithmetic_expression(expanded_expr));
+                    } catch (const std::runtime_error& e) {
+                        shell_script_interpreter::print_runtime_error(
+                            "cjsh: " + std::string(e.what()), "$((" + expr + "))");
+                        throw;
+                    }
+                    i = j + 1;  // Skip past the closing ))
+                    continue;
+                }
+            }
+
+            // Handle ${parameter} expansion
+            if (c == '$' && i + 1 < result.size() && result[i + 1] == '{') {
+                size_t brace_depth = 1;
+                size_t j = i + 2;
+                bool found = false;
+
+                while (j < result.size() && brace_depth > 0) {
+                    if (result[j] == '{') {
+                        brace_depth++;
+                    } else if (result[j] == '}') {
+                        brace_depth--;
+                        if (brace_depth == 0) {
+                            found = true;
+                            break;
+                        }
+                    }
+                    j++;
+                }
+
+                if (found) {
+                    std::string param_expr = result.substr(i + 2, j - (i + 2));
+                    std::string expanded_result = expand_parameter_expression(param_expr);
+
+                    // Re-expand any remaining variable references
+                    if (expanded_result.find('$') != std::string::npos) {
+                        size_t dollar_pos = 0;
+                        while ((dollar_pos = expanded_result.find('$', dollar_pos)) !=
+                               std::string::npos) {
+                            size_t var_start = dollar_pos + 1;
+                            size_t var_end = var_start;
+                            while (var_end < expanded_result.length() &&
+                                   (std::isalnum(expanded_result[var_end]) ||
+                                    expanded_result[var_end] == '_')) {
+                                var_end++;
+                            }
+                            if (var_end > var_start) {
+                                std::string var_name =
+                                    expanded_result.substr(var_start, var_end - var_start);
+                                std::string var_value = get_variable_value(var_name);
+                                expanded_result.replace(dollar_pos, var_end - dollar_pos,
+                                                        var_value);
+                                dollar_pos += var_value.length();
+                            } else {
+                                dollar_pos++;
+                            }
+                        }
+                    }
+
+                    out += expanded_result;
+                    i = j;
+                    continue;
+                }
+            }
+        }
+
+        out += c;
+    }
+
+    return out;
 }
