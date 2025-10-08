@@ -418,7 +418,7 @@ static std::pair<std::string, bool> get_next_command(bool command_was_available,
 
     command_to_run.assign(input);
     if (input != nullptr) {
-        free(input);
+        ic_free(input);
         input = nullptr;
     }
 
