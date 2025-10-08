@@ -45,7 +45,7 @@ def count_lines_in_file(file_path: Path, count_blank: bool = True, count_comment
             lines = f.readlines()
     except (IOError, OSError) as e:
         print(f"Warning: Could not read {file_path}: {e}", file=sys.stderr)
-        return {'total': 0, 'blank': 0, 'comment': 0, 'code': 0}
+        return {'total': 0, 'blank': 0, 'comment': 0, 'code': 0, 'size': 0}
     
     total_lines = len(lines)
     blank_lines = 0
@@ -61,6 +61,12 @@ def count_lines_in_file(file_path: Path, count_blank: bool = True, count_comment
     
     code_lines = total_lines - blank_lines - comment_lines
     
+    # Get file size
+    try:
+        file_size = file_path.stat().st_size
+    except OSError:
+        file_size = 0
+    
     # If stripping comments and blanks, only count code lines
     if not count_blank and not count_comments:
         total_lines = code_lines
@@ -71,7 +77,8 @@ def count_lines_in_file(file_path: Path, count_blank: bool = True, count_comment
         'total': total_lines,
         'blank': blank_lines,
         'comment': comment_lines,
-        'code': code_lines
+        'code': code_lines,
+        'size': file_size
     }
 
 
@@ -118,6 +125,18 @@ def format_number(num: int) -> str:
     return f"{num:,}"
 
 
+def format_file_size(size_bytes: int) -> str:
+    """Format file size in human-readable format."""
+    if size_bytes < 1024:
+        return f"{size_bytes}B"
+    elif size_bytes < 1024 * 1024:
+        return f"{size_bytes / 1024:.1f}KB"
+    elif size_bytes < 1024 * 1024 * 1024:
+        return f"{size_bytes / (1024 * 1024):.1f}MB"
+    else:
+        return f"{size_bytes / (1024 * 1024 * 1024):.1f}GB"
+
+
 def main():
     """Main function to count lines of code."""
     parser = argparse.ArgumentParser(description='Count lines of code in CJsShell project')
@@ -154,7 +173,7 @@ def main():
     
     # Count lines in each file and collect results
     file_info: List[Tuple[Dict[str, int], Path, str]] = []
-    totals = {'total': 0, 'blank': 0, 'comment': 0, 'code': 0}
+    totals = {'total': 0, 'blank': 0, 'comment': 0, 'code': 0, 'size': 0}
     category_stats: Dict[str, Dict[str, int]] = {}
     extension_stats: Dict[str, Dict[str, int]] = {}
     
@@ -169,16 +188,16 @@ def main():
         
         # Add to category stats
         if category not in category_stats:
-            category_stats[category] = {'total': 0, 'blank': 0, 'comment': 0, 'code': 0, 'files': 0}
-        for key in ['total', 'blank', 'comment', 'code']:
+            category_stats[category] = {'total': 0, 'blank': 0, 'comment': 0, 'code': 0, 'size': 0, 'files': 0}
+        for key in ['total', 'blank', 'comment', 'code', 'size']:
             category_stats[category][key] += line_counts[key]
         category_stats[category]['files'] += 1
         
         # Add to extension stats
         ext = file_path.suffix
         if ext not in extension_stats:
-            extension_stats[ext] = {'total': 0, 'blank': 0, 'comment': 0, 'code': 0, 'files': 0}
-        for key in ['total', 'blank', 'comment', 'code']:
+            extension_stats[ext] = {'total': 0, 'blank': 0, 'comment': 0, 'code': 0, 'size': 0, 'files': 0}
+        for key in ['total', 'blank', 'comment', 'code', 'size']:
             extension_stats[ext][key] += line_counts[key]
         extension_stats[ext]['files'] += 1
     
@@ -208,21 +227,24 @@ def main():
         category_files = [(lc, fp) for lc, fp, cat in file_info if cat == category]
         
         if args.detailed:
-            print(f"{'Lines':>6} {'Blank':>6} {'Comment':>8} {'Code':>6} File")
-            print("-" * 70)
+            print(f"{'Lines':>6} {'Blank':>6} {'Comment':>8} {'Code':>6} {'Size':>8} File")
+            print("-" * 80)
             for line_counts, file_path in category_files:
                 relative_path = file_path.relative_to(project_root)
+                size_str = format_file_size(line_counts['size'])
                 print(f"{line_counts['total']:6d} {line_counts['blank']:6d} "
-                      f"{line_counts['comment']:8d} {line_counts['code']:6d} ./{relative_path}")
+                      f"{line_counts['comment']:8d} {line_counts['code']:6d} {size_str:>8} ./{relative_path}")
         else:
             for line_counts, file_path in category_files:
                 relative_path = file_path.relative_to(project_root)
-                print(f"{line_counts['total']:6d} lines: ./{relative_path}")
+                size_str = format_file_size(line_counts['size'])
+                print(f"{line_counts['total']:6d} lines ({size_str:>8}): ./{relative_path}")
         
         # Print category summary
         stats = category_stats[category]
         print(f"\n{category_names[category]} Summary:")
         print(f"  Files: {stats['files']}")
+        print(f"  Total size: {format_file_size(stats['size'])}")
         if args.detailed:
             print(f"  Total lines: {format_number(stats['total'])}")
             print(f"  Code lines: {format_number(stats['code'])} ({stats['code']/stats['total']*100:.1f}%)")
@@ -236,17 +258,19 @@ def main():
     # Print extension breakdown if requested
     if args.by_extension:
         print("\nBy Extension:")
-        print(f"{'Ext':>6} {'Files':>6} {'Total':>8} {'Blank':>6} {'Comment':>8} {'Code':>6}")
-        print("-" * 50)
+        print(f"{'Ext':>6} {'Files':>6} {'Total':>8} {'Blank':>6} {'Comment':>8} {'Code':>6} {'Size':>8}")
+        print("-" * 60)
         for ext in sorted(extension_stats.keys()):
             stats = extension_stats[ext]
+            size_str = format_file_size(stats['size'])
             print(f"{ext:>6} {stats['files']:6d} {stats['total']:8d} "
-                  f"{stats['blank']:6d} {stats['comment']:8d} {stats['code']:6d}")
+                  f"{stats['blank']:6d} {stats['comment']:8d} {stats['code']:6d} {size_str:>8}")
         print()
     
     # Print overall summary
     print("\nOverall Project Summary:")
     print(f"Total files included in count: {len(source_files)}")
+    print(f"Total project size: {format_file_size(totals['size'])}")
     if args.detailed:
         print(f"Total lines: {format_number(totals['total'])}")
         print(f"  Code lines: {format_number(totals['code'])} ({totals['code']/totals['total']*100:.1f}%)")
