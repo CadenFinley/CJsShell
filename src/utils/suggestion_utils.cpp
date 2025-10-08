@@ -94,7 +94,7 @@ std::vector<std::string> generate_cd_suggestions(const std::string& target_dir,
                                                  const std::string& current_dir) {
     std::vector<std::string> suggestions;
 
-    std::vector<std::string> similar = find_similar_entries(target_dir, current_dir, 3);
+    std::vector<std::string> similar = find_similar_entries(target_dir, current_dir, 5);
 
     suggestions.reserve(similar.size());
     for (const auto& dir : similar) {
@@ -204,13 +204,52 @@ std::vector<std::string> find_similar_entries(const std::string& target_name,
             }
 
             int distance = edit_distance(target_name, name);
+            int score = 0;
+            
+            int max_distance = std::max(3, static_cast<int>(std::max(target_name.length(), name.length()) / 2));
+            
+            if (distance <= max_distance && distance > 0) {
+                score = 1000 - distance * 10;
+                
 
-            if (distance <= 3 && distance > 0) {
-                candidates.emplace_back(distance, name);
+                if (!target_name.empty() && !name.empty() && 
+                    std::tolower(target_name[0]) == std::tolower(name[0])) {
+                    score += 50;
+                }
+                
+                std::string target_lower = target_name;
+                std::string name_lower = name;
+                std::transform(target_lower.begin(), target_lower.end(), target_lower.begin(), ::tolower);
+                std::transform(name_lower.begin(), name_lower.end(), name_lower.begin(), ::tolower);
+                
+                if (name_lower.find(target_lower) != std::string::npos) {
+                    score += 100;
+                }
+                
+                int consecutive_matches = 0;
+                size_t name_idx = 0;
+                for (size_t i = 0; i < target_lower.length() && name_idx < name_lower.length(); i++) {
+                    bool found = false;
+                    for (size_t j = name_idx; j < name_lower.length(); j++) {
+                        if (target_lower[i] == name_lower[j]) {
+                            consecutive_matches++;
+                            name_idx = j + 1;
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found) break;
+                }
+                
+                if (consecutive_matches >= static_cast<int>(target_name.length() * 0.8)) {
+                    score += 200;
+                }
+                
+                candidates.emplace_back(score, name);
             }
         }
 
-        std::sort(candidates.begin(), candidates.end());
+        std::sort(candidates.begin(), candidates.end(), std::greater<std::pair<int, std::string>>());
 
         for (size_t i = 0; i < candidates.size() && i < static_cast<size_t>(max_suggestions); i++) {
             suggestions.push_back(candidates[i].second);
