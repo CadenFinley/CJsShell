@@ -5,7 +5,7 @@
 
 # CJ's Shell
 
-> **WARNING**: CJ's Shell is not a 100% POSIX compliant shell yet. (like 98%) It is also super cool and you will never want to use another shell again. (btw cjsh is POSIX compliant via -c flag or when typing piped ( | ) into) There are known bugs specifically regarding HEREDOCS while in interactive mode.
+> **WARNING**: CJ's Shell is not a 100% POSIX compliant shell yet. (like 98%) It is also super cool and you will never want to use another shell again. (btw cjsh is POSIX compliant via -c flag or when typing piped ( | ) into)
 
 ## Quick Install (Recommended)
 
