@@ -1,13 +1,15 @@
 #pragma once
 
 #include <map>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 class Shell;
-
-std::vector<std::string> tokenize_command(const std::string& cmdline);
+#include "parser/tokenizer.h"
+#include "parser/variable_expander.h"
+#include "parser/expansion_engine.h"
 
 struct Command {
     std::vector<std::string> args;
@@ -78,20 +80,17 @@ class Parser {
         this->env_vars = new_env_vars;
     }
 
-    void set_shell(Shell* shell) {
-        this->shell = shell;
-    }
+    void set_shell(Shell* shell);
 
    private:
-    std::string get_variable_value(const std::string& var_name);
-    std::string get_exported_variable_value(const std::string& var_name);
-    std::string resolve_parameter_value(const std::string& var_name);
-    std::vector<std::string> expand_braces(const std::string& pattern);
     std::unordered_map<std::string, std::string> aliases;
     std::unordered_map<std::string, std::string> env_vars;
     Shell* shell = nullptr;
     bool command_validation_enabled = true;
-    bool use_exported_vars_only = false;
 
     std::map<std::string, std::string> current_here_docs;
+
+    std::unique_ptr<Tokenizer> tokenizer;
+    std::unique_ptr<VariableExpander> variableExpander;
+    std::unique_ptr<ExpansionEngine> expansionEngine;
 };
