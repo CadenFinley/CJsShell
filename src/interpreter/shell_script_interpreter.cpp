@@ -238,8 +238,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
             return execute_simple_or_pipeline(completed_case);
         }
 
-        auto pattern_matcher = [this](const std::string& text, const std::string& pattern) {
-            return matches_pattern(text, pattern);
+        auto pattern_match_fn = [this](const std::string& text, const std::string& pattern) {
+            return pattern_matcher.matches_pattern(text, pattern);
         };
         auto cmd_sub_expander = [this](const std::string& input) {
             auto exp = expand_command_substitutions(input);
@@ -247,7 +247,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
         };
 
         if (auto inline_case_result = case_evaluator::handle_inline_case(
-                text, execute_simple_or_pipeline, false, true, shell_parser, pattern_matcher,
+                text, execute_simple_or_pipeline, false, true, shell_parser, pattern_match_fn,
                 cmd_sub_expander)) {
             return *inline_case_result;
         }
@@ -598,8 +598,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
         if (first != "case" && first.rfind("case ", 0) != 0)
             return 1;
 
-        auto pattern_matcher = [this](const std::string& text, const std::string& pattern) {
-            return matches_pattern(text, pattern);
+        auto pattern_match_fn = [this](const std::string& text, const std::string& pattern) {
+            return pattern_matcher.matches_pattern(text, pattern);
         };
         auto cmd_sub_expander = [this](const std::string& input) {
             auto exp = expand_command_substitutions(input);
@@ -607,7 +607,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
         };
 
         if (auto inline_case_result = case_evaluator::handle_inline_case(
-                first, execute_simple_or_pipeline, true, true, shell_parser, pattern_matcher,
+                first, execute_simple_or_pipeline, true, true, shell_parser, pattern_match_fn,
                 cmd_sub_expander)) {
             return *inline_case_result;
         }
@@ -704,9 +704,13 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
             esac_index = j;
         }
 
-        auto case_result = case_evaluator::evaluate_case_patterns(combined_patterns, case_value,
-                                                                  false, execute_simple_or_pipeline,
-                                                                  shell_parser, pattern_matcher);
+        auto case_pattern_match_fn = [this](const std::string& text, const std::string& pattern) {
+            return pattern_matcher.matches_pattern(text, pattern);
+        };
+
+        auto case_result = case_evaluator::evaluate_case_patterns(
+            combined_patterns, case_value, false, execute_simple_or_pipeline, shell_parser,
+            case_pattern_match_fn);
         idx = esac_index;
         return case_result.first ? case_result.second : 0;
     };
@@ -1563,11 +1567,11 @@ std::string ShellScriptInterpreter::expand_parameter_expression(const std::strin
         return variable_manager.variable_is_set(name);
     };
 
-    auto pattern_matcher = [this](const std::string& text, const std::string& pattern) -> bool {
-        return matches_pattern(text, pattern);
+    auto pattern_match_fn = [this](const std::string& text, const std::string& pattern) -> bool {
+        return pattern_matcher.matches_pattern(text, pattern);
     };
 
-    ParameterExpansionEvaluator evaluator(var_reader, var_writer, var_checker, pattern_matcher);
+    ParameterExpansionEvaluator evaluator(var_reader, var_writer, var_checker, pattern_match_fn);
     return evaluator.expand(param_expr);
 }
 
@@ -1577,134 +1581,6 @@ std::string ShellScriptInterpreter::get_variable_value(const std::string& var_na
 
 bool ShellScriptInterpreter::variable_is_set(const std::string& var_name) {
     return variable_manager.variable_is_set(var_name);
-}
-
-bool ShellScriptInterpreter::matches_char_class(char c, const std::string& char_class) {
-    if (char_class.length() < 3 || char_class[0] != '[' || char_class.back() != ']') {
-        return false;
-    }
-
-    std::string class_content = char_class.substr(1, char_class.length() - 2);
-    bool negated = false;
-
-    if (!class_content.empty() && (class_content[0] == '^' || class_content[0] == '!')) {
-        negated = true;
-        class_content = class_content.substr(1);
-    }
-
-    bool matches = false;
-
-    for (size_t i = 0; i < class_content.length(); ++i) {
-        if (i + 2 < class_content.length() && class_content[i + 1] == '-') {
-            char start = class_content[i];
-            char end = class_content[i + 2];
-            if (c >= start && c <= end) {
-                matches = true;
-                break;
-            }
-            i += 2;
-        } else {
-            if (c == class_content[i]) {
-                matches = true;
-                break;
-            }
-        }
-    }
-
-    return negated ? !matches : matches;
-}
-
-bool ShellScriptInterpreter::matches_pattern(const std::string& text, const std::string& pattern) {
-    if (pattern.find('|') != std::string::npos) {
-        size_t start = 0;
-        while (start < pattern.length()) {
-            size_t pipe_pos = pattern.find('|', start);
-            std::string sub_pattern;
-            if (pipe_pos == std::string::npos) {
-                sub_pattern = pattern.substr(start);
-                start = pattern.length();
-            } else {
-                sub_pattern = pattern.substr(start, pipe_pos - start);
-                start = pipe_pos + 1;
-            }
-
-            if (matches_pattern(text, sub_pattern)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    size_t ti = 0;
-    size_t pi = 0;
-    size_t star_idx = std::string::npos;
-    size_t match_idx = 0;
-
-    while (ti < text.length() || pi < pattern.length()) {
-        if (ti >= text.length()) {
-            while (pi < pattern.length() && pattern[pi] == '*') {
-                pi++;
-            }
-            return pi == pattern.length();
-        }
-
-        if (pi >= pattern.length()) {
-            if (star_idx != std::string::npos) {
-                pi = star_idx + 1;
-                ti = ++match_idx;
-            } else {
-                return false;
-            }
-        } else if (pattern[pi] == '[') {
-            size_t class_end = pattern.find(']', pi);
-            if (class_end != std::string::npos) {
-                std::string char_class = pattern.substr(pi, class_end - pi + 1);
-                if (matches_char_class(text[ti], char_class)) {
-                    ti++;
-                    pi = class_end + 1;
-                } else if (star_idx != std::string::npos) {
-                    pi = star_idx + 1;
-                    ti = ++match_idx;
-                } else {
-                    return false;
-                }
-            } else {
-                if (pattern[pi] == text[ti]) {
-                    ti++;
-                    pi++;
-                } else if (star_idx != std::string::npos) {
-                    pi = star_idx + 1;
-                    ti = ++match_idx;
-                } else {
-                    return false;
-                }
-            }
-        } else if (pattern[pi] == '\\' && pi + 1 < pattern.length()) {
-            char escaped_char = pattern[pi + 1];
-            if (escaped_char == text[ti]) {
-                ti++;
-                pi += 2;
-            } else if (star_idx != std::string::npos) {
-                pi = star_idx + 1;
-                ti = ++match_idx;
-            } else {
-                return false;
-            }
-        } else if (pattern[pi] == '?' || pattern[pi] == text[ti]) {
-            ti++;
-            pi++;
-        } else if (pattern[pi] == '*') {
-            star_idx = pi++;
-            match_idx = ti;
-        } else if (star_idx != std::string::npos) {
-            pi = star_idx + 1;
-            ti = ++match_idx;
-        } else {
-            return false;
-        }
-    }
-
-    return true;
 }
 
 bool ShellScriptInterpreter::has_function(const std::string& name) const {
