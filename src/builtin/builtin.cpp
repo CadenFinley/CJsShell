@@ -250,6 +250,8 @@ Built_ins::Built_ins() : shell(nullptr) {
              return builtin_it->second(forwarded_args);
          }},
         {"cjshopt", [](const std::vector<std::string>& args) { return ::cjshopt_command(args); }},
+        {"true", [](const std::vector<std::string>&) { return 0; }},
+        {"false", [](const std::vector<std::string>&) { return 1; }},
     };
 }
 
