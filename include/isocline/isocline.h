@@ -110,7 +110,7 @@ bool ic_push_raw_input(const uint8_t* data, size_t length);
 /// Reads lines from the user until the specified delimiter is encountered on a line by itself.
 /// Each line is read with full isocline editing capabilities (history, completion, etc.).
 /// The delimiter line is NOT included in the returned content.
-/// @param delimiter The heredoc delimiter string (e.g., "EOF").  
+/// @param delimiter The heredoc delimiter string (e.g., "EOF").
 /// @param strip_tabs If true, leading tabs are stripped from each line (for <<- syntax).
 /// @returns A heap-allocated string containing all heredoc lines joined with newlines,
 ///          or NULL on error/cancellation. The caller must free() the result.

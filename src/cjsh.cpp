@@ -67,8 +67,6 @@ bool show_title_line = true;
 bool no_prompt = false;
 }  // namespace config
 
-// create new isolcine readline call called, ic_shell_readline that supports heredocs and unclosed quotes so that unclosed heredocs are automattically expanded into multiline mode
-
 static void save_startup_arguments(int argc, char* argv[]) {
     g_startup_args.clear();
     for (int i = 0; i < argc; i++) {

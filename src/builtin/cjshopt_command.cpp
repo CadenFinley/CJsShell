@@ -189,8 +189,7 @@ int handle_toggle_command(const ToggleCommandConfig& config, const std::vector<s
 
 int current_line_number_highlight_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {
-        "Usage: current-line-number-highlight <on|off|status>",
-        "Examples:",
+        "Usage: current-line-number-highlight <on|off|status>", "Examples:",
         "  current-line-number-highlight on      Enable highlighting of the current line number",
         "  current-line-number-highlight off     Disable highlighting of the current line number",
         "  current-line-number-highlight status  Show the current setting"};
@@ -274,7 +273,8 @@ int cjshopt_command(const std::vector<std::string>& args) {
     } else if (subcommand == "line-numbers") {
         return line_numbers_command(std::vector<std::string>(args.begin() + 1, args.end()));
     } else if (subcommand == "current-line-number-highlight") {
-        return current_line_number_highlight_command(std::vector<std::string>(args.begin() + 1, args.end()));
+        return current_line_number_highlight_command(
+            std::vector<std::string>(args.begin() + 1, args.end()));
     } else if (subcommand == "hint-delay") {
         return hint_delay_command(std::vector<std::string>(args.begin() + 1, args.end()));
     } else if (subcommand == "completion-preview") {
