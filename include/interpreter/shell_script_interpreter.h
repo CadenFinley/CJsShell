@@ -157,4 +157,18 @@ class ShellScriptInterpreter {
     int evaluate_logical_condition_internal(const std::string& condition,
                                             const std::function<int(const std::string&)>& executor);
     long long evaluate_arithmetic_expression(const std::string& expr);
+
+    struct BlockHandlerResult {
+        bool handled;
+        int exit_code;
+        size_t next_line_index;
+    };
+
+    BlockHandlerResult try_dispatch_block_statement(
+        const std::vector<std::string>& lines, size_t line_index, const std::string& line,
+        const std::function<int(const std::vector<std::string>&, size_t&)>& handle_if_block,
+        const std::function<int(const std::vector<std::string>&, size_t&)>& handle_for_block,
+        const std::function<int(const std::vector<std::string>&, size_t&)>& handle_while_block,
+        const std::function<int(const std::vector<std::string>&, size_t&)>& handle_until_block,
+        const std::function<int(const std::vector<std::string>&, size_t&)>& handle_case_block);
 };

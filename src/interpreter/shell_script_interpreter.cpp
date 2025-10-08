@@ -930,33 +930,13 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
             continue;
         }
 
-        if (line == "if" || line.rfind("if ", 0) == 0) {
-            int rc = handle_if_block(lines, line_index);
-            last_code = rc;
-            continue;
-        }
+        auto block_result =
+            try_dispatch_block_statement(lines, line_index, line, handle_if_block, handle_for_block,
+                                         handle_while_block, handle_until_block, handle_case_block);
 
-        if (line == "for" || line.rfind("for ", 0) == 0) {
-            int rc = handle_for_block(lines, line_index);
-            last_code = rc;
-            continue;
-        }
-
-        if (line == "while" || line.rfind("while ", 0) == 0) {
-            int rc = handle_while_block(lines, line_index);
-            last_code = rc;
-            continue;
-        }
-
-        if (line == "until" || line.rfind("until ", 0) == 0) {
-            int rc = handle_until_block(lines, line_index);
-            last_code = rc;
-            continue;
-        }
-
-        if (line == "case" || line.rfind("case ", 0) == 0) {
-            int rc = handle_case_block(lines, line_index);
-            last_code = rc;
+        if (block_result.handled) {
+            last_code = block_result.exit_code;
+            line_index = block_result.next_line_index;
             continue;
         }
 
@@ -2048,4 +2028,44 @@ void ShellScriptInterpreter::set_local_variable(const std::string& name, const s
 
 bool ShellScriptInterpreter::is_local_variable(const std::string& name) const {
     return function_evaluator::is_local_variable(local_variable_stack, name);
+}
+
+ShellScriptInterpreter::BlockHandlerResult ShellScriptInterpreter::try_dispatch_block_statement(
+    const std::vector<std::string>& lines, size_t line_index, const std::string& line,
+    const std::function<int(const std::vector<std::string>&, size_t&)>& handle_if_block,
+    const std::function<int(const std::vector<std::string>&, size_t&)>& handle_for_block,
+    const std::function<int(const std::vector<std::string>&, size_t&)>& handle_while_block,
+    const std::function<int(const std::vector<std::string>&, size_t&)>& handle_until_block,
+    const std::function<int(const std::vector<std::string>&, size_t&)>& handle_case_block) {
+    if (line == "if" || line.rfind("if ", 0) == 0) {
+        size_t idx = line_index;
+        int rc = handle_if_block(lines, idx);
+        return {true, rc, idx};
+    }
+
+    if (line == "for" || line.rfind("for ", 0) == 0) {
+        size_t idx = line_index;
+        int rc = handle_for_block(lines, idx);
+        return {true, rc, idx};
+    }
+
+    if (line == "while" || line.rfind("while ", 0) == 0) {
+        size_t idx = line_index;
+        int rc = handle_while_block(lines, idx);
+        return {true, rc, idx};
+    }
+
+    if (line == "until" || line.rfind("until ", 0) == 0) {
+        size_t idx = line_index;
+        int rc = handle_until_block(lines, idx);
+        return {true, rc, idx};
+    }
+
+    if (line == "case" || line.rfind("case ", 0) == 0) {
+        size_t idx = line_index;
+        int rc = handle_case_block(lines, idx);
+        return {true, rc, idx};
+    }
+
+    return {false, 0, line_index};
 }
