@@ -15,7 +15,6 @@ Any other installation method supported by zoxide works too—cjsh only needs th
 Add the following block to your `~/.cjshrc`.
 
 ```bash
-if command -v zoxide >/dev/null 2>&1; then
     if [ -z "${__CJSH_ZOXIDE_INITIALIZED:-}" ]; then
         __cjsh_zoxide_cd() {
             if builtin cd "$@"; then
@@ -74,5 +73,4 @@ if command -v zoxide >/dev/null 2>&1; then
 
         __CJSH_ZOXIDE_INITIALIZED=1
     fi
-fi
 ```
