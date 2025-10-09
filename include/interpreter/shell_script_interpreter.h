@@ -154,7 +154,8 @@ class ShellScriptInterpreter {
 
     int handle_memory_allocation_error(const std::string& text);
     int handle_system_error(const std::string& text, const std::system_error& e);
-    int handle_runtime_error(const std::string& text, const std::runtime_error& e);
+    int handle_runtime_error(const std::string& text, const std::runtime_error& e,
+                             size_t line_number);
     int handle_generic_exception(const std::string& text, const std::exception& e);
     int handle_unknown_error(const std::string& text);
 
@@ -166,6 +167,8 @@ class ShellScriptInterpreter {
         std::string text;
         std::vector<std::string> outputs;
     };
+
+    size_t current_line_number = 1;
 
     bool should_interpret_as_cjsh_script(const std::string& path) const;
     static std::optional<size_t> find_matching_paren(const std::string& text, size_t start_index);

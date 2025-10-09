@@ -268,9 +268,16 @@ def main():
         print()
     
     # Print overall summary
+    project_size_categories = {'source_code', 'isocline'}
+    project_size_bytes = sum(
+        category_stats[cat]['size']
+        for cat in project_size_categories
+        if cat in category_stats
+    )
+
     print("\nOverall Project Summary:")
     print(f"Total files included in count: {len(source_files)}")
-    print(f"Total project size: {format_file_size(totals['size'])}")
+    print(f"Total project size: {format_file_size(project_size_bytes)}")
     if args.detailed:
         print(f"Total lines: {format_number(totals['total'])}")
         print(f"  Code lines: {format_number(totals['code'])} ({totals['code']/totals['total']*100:.1f}%)")

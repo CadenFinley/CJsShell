@@ -6,7 +6,7 @@
   found in the "LICENSE" file at the root of this distribution.
 -----------------------------------------------------------------------------*/
 
-#include "utils/unicode_support.h"
+#include "unicode/unicode_support.h"
 
 #include <inttypes.h>
 #include <stdio.h>

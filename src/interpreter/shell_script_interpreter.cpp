@@ -173,9 +173,10 @@ int ShellScriptInterpreter::handle_system_error(const std::string& text,
 }
 
 int ShellScriptInterpreter::handle_runtime_error(const std::string& text,
-                                                 const std::runtime_error& e) {
+                                                 const std::runtime_error& e, size_t line_number) {
     std::vector<SyntaxError> errors;
-    SyntaxError error(1, e.what(), text);
+    size_t normalized_line = line_number == 0 ? 1 : line_number;
+    SyntaxError error(normalized_line, e.what(), text);
     std::string error_msg = e.what();
 
     if (error_msg.find("command not found: ") != std::string::npos) {
@@ -232,6 +233,7 @@ int ShellScriptInterpreter::handle_runtime_error(const std::string& text,
             error.suggestion = "Check command syntax and system resources";
         }
 
+        error.position.line_number = normalized_line;
         errors.push_back(error);
         shell_script_interpreter::print_error_report(errors, true, true);
         return set_last_status(127);
@@ -262,6 +264,7 @@ int ShellScriptInterpreter::handle_runtime_error(const std::string& text,
         error.suggestion = "Check command syntax and system resources";
     }
 
+    error.position.line_number = normalized_line;
     errors.push_back(error);
     shell_script_interpreter::print_error_report(errors, true, true);
     return set_last_status(2);
@@ -586,7 +589,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
         } catch (const std::system_error& e) {
             return handle_system_error(text, e);
         } catch (const std::runtime_error& e) {
-            return handle_runtime_error(text, e);
+            return handle_runtime_error(text, e, current_line_number);
         } catch (const std::exception& e) {
             return handle_generic_exception(text, e);
         } catch (...) {
@@ -756,6 +759,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
     };
 
     for (size_t line_index = 0; line_index < lines.size(); ++line_index) {
+        current_line_number = line_index + 1;
         const auto& raw_line = lines[line_index];
         std::string line = trim(strip_inline_comment(raw_line));
 
@@ -1791,7 +1795,8 @@ std::string ShellScriptInterpreter::expand_all_substitutions(
                         out += std::to_string(evaluate_arithmetic_expression(expanded_expr));
                     } catch (const std::runtime_error& e) {
                         shell_script_interpreter::print_runtime_error(
-                            "cjsh: " + std::string(e.what()), "$((" + expr + "))");
+                            "cjsh: " + std::string(e.what()), "$(" + expr + "))",
+                            current_line_number);
                         throw;
                     }
                     i = j + 1;  // Skip past the closing ))

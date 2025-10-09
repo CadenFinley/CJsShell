@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include "utils/unicode_support.h"
+#include "unicode_support.h"
 
 namespace utf8_utils {
 

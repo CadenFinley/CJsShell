@@ -12,7 +12,7 @@
 #include <utility>
 #include <vector>
 
-#include "utils/utf8_utils.h"
+#include "utf8_utils.h"
 
 #include "cjsh.h"
 #include "colors.h"

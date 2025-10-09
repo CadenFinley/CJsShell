@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-namespace cjsh {
+namespace flags {
 
 struct ParseResult {
     std::string script_file;
@@ -15,4 +15,4 @@ struct ParseResult {
 ParseResult parse_arguments(int argc, char* argv[]);
 void apply_profile_startup_flags();
 
-}  // namespace cjsh
+}  // namespace flags

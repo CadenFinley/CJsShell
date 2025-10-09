@@ -8,7 +8,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <utility>
-#include "utils/unicode_support.h"
+#include "unicode_support.h"
 
 ThemeParseException::ThemeParseException(size_t line, std::string detail, std::string source,
                                          std::optional<ErrorInfo> error_info,

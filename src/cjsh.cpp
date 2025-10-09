@@ -23,6 +23,7 @@
 #include "cjsh_filesystem.h"
 #include "colors.h"
 #include "error_out.h"
+#include "flags.h"
 #include "isocline.h"
 #include "job_control.h"
 #include "main_loop.h"
@@ -31,7 +32,6 @@
 #include "theme.h"
 #include "trap_command.h"
 #include "usage.h"
-#include "utils/command_line_parser.h"
 #include "version_command.h"
 
 bool g_exit_flag = false;
@@ -179,7 +179,7 @@ static void process_profile_files() {
 
 static int initialize_login_mode() {
     process_profile_files();
-    cjsh::apply_profile_startup_flags();
+    flags::apply_profile_startup_flags();
     return 0;
 }
 
@@ -290,7 +290,7 @@ void cleanup_resources() {
 int main(int argc, char* argv[]) {
     g_startup_begin_time = std::chrono::steady_clock::now();
 
-    auto parse_result = cjsh::parse_arguments(argc, argv);
+    auto parse_result = flags::parse_arguments(argc, argv);
     if (parse_result.should_exit) {
         return parse_result.exit_code;
     }

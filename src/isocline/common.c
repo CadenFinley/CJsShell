@@ -14,7 +14,7 @@
 #include <string.h>
 
 // Unicode helpers provided by CJ's Shell utilities
-#include "utils/unicode_support.h"
+#include "unicode/unicode_support.h"
 
 //-------------------------------------------------------------
 // String wrappers for ssize_t

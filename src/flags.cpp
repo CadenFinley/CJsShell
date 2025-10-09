@@ -1,4 +1,4 @@
-#include "command_line_parser.h"
+#include "flags.h"
 
 #include <getopt.h>
 #include <unistd.h>
@@ -8,7 +8,7 @@
 #include "isocline/isocline.h"
 #include "usage.h"
 
-namespace cjsh {
+namespace flags {
 
 namespace {
 
@@ -197,4 +197,4 @@ void apply_profile_startup_flags() {
     }
 }
 
-}  // namespace cjsh
+}  // namespace flags
