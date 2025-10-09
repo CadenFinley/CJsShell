@@ -7,9 +7,9 @@
 class Shell;
 class Theme;
 
-const bool PRE_RELEASE = false;
+const bool PRE_RELEASE = true;
 // using semver.org principles MAJOR.MINOR.PATCH
-constexpr const char* c_version_base = "3.9.1";
+constexpr const char* c_version_base = "3.9.2";
 
 extern std::string g_cached_version;
 

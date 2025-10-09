@@ -57,13 +57,17 @@ std::vector<std::string> ExpansionEngine::expand_braces(const std::string& patte
 
         // Check if strings are numeric before attempting conversion
         auto is_numeric = [](const std::string& str) {
-            if (str.empty()) return false;
+            if (str.empty())
+                return false;
             size_t start = 0;
-            if (str[0] == '-' || str[0] == '+') start = 1;
-            if (start >= str.length()) return false;
-            return std::all_of(str.begin() + start, str.end(), [](char c) { return std::isdigit(c); });
+            if (str[0] == '-' || str[0] == '+')
+                start = 1;
+            if (start >= str.length())
+                return false;
+            return std::all_of(str.begin() + start, str.end(),
+                               [](char c) { return std::isdigit(c); });
         };
-        
+
         bool is_numeric_range = is_numeric(start_str) && is_numeric(end_str);
 
         if (is_numeric_range) {
@@ -78,17 +82,17 @@ std::vector<std::string> ExpansionEngine::expand_braces(const std::string& patte
             expand_range(start_int, end_int, prefix, suffix, result);
             return result;
         }
-        
+
         // Try character range - must be same case
-        if (start_str.length() == 1 && end_str.length() == 1 &&
-            (std::isalpha(start_str[0]) != 0) && (std::isalpha(end_str[0]) != 0)) {
+        if (start_str.length() == 1 && end_str.length() == 1 && (std::isalpha(start_str[0]) != 0) &&
+            (std::isalpha(end_str[0]) != 0)) {
             char start_char = start_str[0];
             char end_char = end_str[0];
-            
+
             // Ensure both characters are the same case
             bool both_lower = std::islower(start_char) && std::islower(end_char);
             bool both_upper = std::isupper(start_char) && std::isupper(end_char);
-            
+
             if (both_lower || both_upper) {
                 size_t char_range_size = std::abs(end_char - start_char) + 1;
                 if (char_range_size > MAX_EXPANSION_SIZE) {
@@ -100,7 +104,7 @@ std::vector<std::string> ExpansionEngine::expand_braces(const std::string& patte
                 return result;
             }
         }
-        
+
         // If we found ".." but couldn't parse as either integer or character range,
         // return the literal pattern
         result.push_back(pattern);
@@ -196,14 +200,16 @@ std::vector<std::string> ExpansionEngine::expand_wildcards(const std::string& pa
     return result;
 }
 
-void ExpansionEngine::expand_and_append_results(const std::string& combined, std::vector<std::string>& result) {
+void ExpansionEngine::expand_and_append_results(const std::string& combined,
+                                                std::vector<std::string>& result) {
     std::vector<std::string> expanded_results = expand_braces(combined);
     result.insert(result.end(), std::make_move_iterator(expanded_results.begin()),
                   std::make_move_iterator(expanded_results.end()));
 }
 
-template<typename T>
-void ExpansionEngine::expand_range(T start, T end, const std::string& prefix, const std::string& suffix, std::vector<std::string>& result) {
+template <typename T>
+void ExpansionEngine::expand_range(T start, T end, const std::string& prefix,
+                                   const std::string& suffix, std::vector<std::string>& result) {
     if constexpr (std::is_same_v<T, int>) {
         if (start <= end) {
             for (T i = start; i <= end; ++i) {
@@ -236,5 +242,9 @@ void ExpansionEngine::expand_range(T start, T end, const std::string& prefix, co
 }
 
 // Explicit template instantiations
-template void ExpansionEngine::expand_range<int>(int start, int end, const std::string& prefix, const std::string& suffix, std::vector<std::string>& result);
-template void ExpansionEngine::expand_range<char>(char start, char end, const std::string& prefix, const std::string& suffix, std::vector<std::string>& result);
+template void ExpansionEngine::expand_range<int>(int start, int end, const std::string& prefix,
+                                                 const std::string& suffix,
+                                                 std::vector<std::string>& result);
+template void ExpansionEngine::expand_range<char>(char start, char end, const std::string& prefix,
+                                                  const std::string& suffix,
+                                                  std::vector<std::string>& result);

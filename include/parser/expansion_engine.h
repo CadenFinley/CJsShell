@@ -18,7 +18,8 @@ class ExpansionEngine {
 
     // Helper methods to reduce duplication
     void expand_and_append_results(const std::string& combined, std::vector<std::string>& result);
-    
-    template<typename T>
-    void expand_range(T start, T end, const std::string& prefix, const std::string& suffix, std::vector<std::string>& result);
+
+    template <typename T>
+    void expand_range(T start, T end, const std::string& prefix, const std::string& suffix,
+                      std::vector<std::string>& result);
 };
