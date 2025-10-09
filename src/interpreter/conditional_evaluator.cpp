@@ -234,10 +234,10 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
     // For simple single-line if without elif, use the fast path below
     if (src_lines.size() == 1 && shell_parser != nullptr) {
         const std::string& line = src_lines[idx];
-        bool has_elif = (line.find(" elif ") != std::string::npos || 
-                        line.find(";elif ") != std::string::npos ||
-                        line.find("; elif") != std::string::npos);
-        
+        bool has_elif =
+            (line.find(" elif ") != std::string::npos || line.find(";elif ") != std::string::npos ||
+             line.find("; elif") != std::string::npos);
+
         // Check if there are commands after 'fi'
         bool has_trailing_commands = false;
         size_t fi_pos = line.find(" fi");
@@ -245,15 +245,17 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
             fi_pos = line.find(";fi");
         if (fi_pos != std::string::npos) {
             size_t after_fi = (line[fi_pos] == ' ') ? fi_pos + 3 : fi_pos + 3;
-            while (after_fi < line.length() && std::isspace(static_cast<unsigned char>(line[after_fi])))
+            while (after_fi < line.length() &&
+                   std::isspace(static_cast<unsigned char>(line[after_fi])))
                 after_fi++;
             if (after_fi < line.length() && line[after_fi] == ';')
                 after_fi++;
-            while (after_fi < line.length() && std::isspace(static_cast<unsigned char>(line[after_fi])))
+            while (after_fi < line.length() &&
+                   std::isspace(static_cast<unsigned char>(line[after_fi])))
                 after_fi++;
             has_trailing_commands = (after_fi < line.length());
         }
-        
+
         if (has_elif || has_trailing_commands) {
             if (auto expanded = expand_single_line_if(src_lines[idx])) {
                 size_t local_idx = 0;
