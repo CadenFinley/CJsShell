@@ -44,8 +44,3 @@ This project is licensed under the MIT License.
 
 - Website: [cadenfinley.com](https://cadenfinley.com)
 - Email: [caden@cadenfinley.com](mailto:caden@cadenfinley.com)
-
-cat << EOF >> text.txt
-testing
-hard
-EOF
