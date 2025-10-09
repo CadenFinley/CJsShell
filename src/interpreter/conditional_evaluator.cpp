@@ -230,27 +230,52 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                     const std::function<int(const std::string&)>& execute_simple_or_pipeline,
                     const std::function<int(const std::string&)>& evaluate_logical_condition,
                     Parser* shell_parser) {
+    // Only use single-line expansion for cases with elif or trailing commands
+    // For simple single-line if without elif, use the fast path below
     if (src_lines.size() == 1 && shell_parser != nullptr) {
-        if (auto expanded = expand_single_line_if(src_lines[idx])) {
-            size_t local_idx = 0;
-            int rc = handle_if_block(expanded->lines, local_idx, execute_block,
-                                     execute_simple_or_pipeline, evaluate_logical_condition,
-                                     shell_parser);
+        const std::string& line = src_lines[idx];
+        bool has_elif = (line.find(" elif ") != std::string::npos || 
+                        line.find(";elif ") != std::string::npos ||
+                        line.find("; elif") != std::string::npos);
+        
+        // Check if there are commands after 'fi'
+        bool has_trailing_commands = false;
+        size_t fi_pos = line.find(" fi");
+        if (fi_pos == std::string::npos)
+            fi_pos = line.find(";fi");
+        if (fi_pos != std::string::npos) {
+            size_t after_fi = (line[fi_pos] == ' ') ? fi_pos + 3 : fi_pos + 3;
+            while (after_fi < line.length() && std::isspace(static_cast<unsigned char>(line[after_fi])))
+                after_fi++;
+            if (after_fi < line.length() && line[after_fi] == ';')
+                after_fi++;
+            while (after_fi < line.length() && std::isspace(static_cast<unsigned char>(line[after_fi])))
+                after_fi++;
+            has_trailing_commands = (after_fi < line.length());
+        }
+        
+        if (has_elif || has_trailing_commands) {
+            if (auto expanded = expand_single_line_if(src_lines[idx])) {
+                size_t local_idx = 0;
+                int rc = handle_if_block(expanded->lines, local_idx, execute_block,
+                                         execute_simple_or_pipeline, evaluate_logical_condition,
+                                         shell_parser);
 
-            if (!expanded->trailing_commands.empty() && rc != 253 && rc != 254 && rc != 255 &&
-                !g_exit_flag) {
-                auto trailing_cmds =
-                    shell_parser->parse_semicolon_commands(expanded->trailing_commands);
-                for (const auto& cmd : trailing_cmds) {
-                    int follow_rc = execute_simple_or_pipeline(cmd);
-                    rc = follow_rc;
-                    if (follow_rc != 0 || g_exit_flag)
-                        break;
+                if (!expanded->trailing_commands.empty() && rc != 253 && rc != 254 && rc != 255 &&
+                    !g_exit_flag) {
+                    auto trailing_cmds =
+                        shell_parser->parse_semicolon_commands(expanded->trailing_commands);
+                    for (const auto& cmd : trailing_cmds) {
+                        int follow_rc = execute_simple_or_pipeline(cmd);
+                        rc = follow_rc;
+                        if (follow_rc != 0 || g_exit_flag)
+                            break;
+                    }
                 }
-            }
 
-            idx = 0;
-            return rc;
+                idx = 0;
+                return rc;
+            }
         }
     }
 
