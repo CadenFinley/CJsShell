@@ -19,8 +19,6 @@
 #include "builtin.h"
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
-#include "cjsh_syntax_highlighter.h"
-#include "cjshopt_command.h"
 #include "isocline.h"
 #include "shell.h"
 #include "shell_script_interpreter.h"
@@ -1366,10 +1364,6 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
 }
 
 void initialize_completion_system() {
-    reset_to_default_styles();
-
-    load_custom_styles_from_config();
-
     if (config::completions_enabled) {
         ic_set_default_completer(cjsh_default_completer, nullptr);
     } else {
@@ -1379,18 +1373,6 @@ void initialize_completion_system() {
         ic_enable_auto_tab(false);
         ic_enable_inline_help(false);
     }
-
-    if (config::syntax_highlighting_enabled) {
-        SyntaxHighlighter::initialize();
-        ic_set_default_highlighter(SyntaxHighlighter::highlight, nullptr);
-        ic_enable_highlight(true);
-    } else {
-        ic_set_default_highlighter(nullptr, nullptr);
-        ic_enable_highlight(false);
-    }
-
-    ic_enable_history_duplicates(false);
-    ic_set_prompt_marker("", nullptr);
     if (!enforce_history_limit_internal(nullptr)) {
         std::cerr << "cjsh: warning: failed to enforce history limit; history file may exceed the "
                      "configured size."

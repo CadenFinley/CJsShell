@@ -24,6 +24,8 @@
 
 #include "cjsh.h"
 #include "cjsh_completions.h"
+#include "cjsh_syntax_highlighter.h"
+#include "cjshopt_command.h"
 #include "isocline.h"
 #include "job_control.h"
 #include "shell.h"
@@ -456,8 +458,17 @@ static std::pair<std::string, bool> get_next_command(bool command_was_available,
     return {command_to_run, command_available};
 }
 
-void main_process_loop() {
+void initialize_isocline() {
+    reset_to_default_styles();
+    load_custom_styles_from_config();
     initialize_completion_system();
+    SyntaxHighlighter::initialize_syntax_highlighting();
+    ic_enable_history_duplicates(false);
+    ic_set_prompt_marker("", nullptr);
+}
+
+void main_process_loop() {
+    initialize_isocline();
     typeahead::initialize();
 
     typeahead::flush_pending_typeahead();

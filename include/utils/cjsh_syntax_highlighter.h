@@ -12,6 +12,7 @@ class SyntaxHighlighter {
     static void refresh_executables_cache();
 
     static void highlight(ic_highlight_env_t* henv, const char* input, void* arg);
+    static void initialize_syntax_highlighting();
 
    private:
     static const std::unordered_set<std::string> basic_unix_commands_;  // NOLINT

@@ -36,6 +36,17 @@ const std::unordered_set<std::string> SyntaxHighlighter::shell_built_ins_ = {
     "jobs",    "fg",     "bg",       "wait",        "kill",      "readonly", "read",   "umask",
     "getopts", "times",  "type",     "hash"};
 
+void SyntaxHighlighter::initialize_syntax_highlighting() {
+    if (config::syntax_highlighting_enabled) {
+        SyntaxHighlighter::initialize();
+        ic_set_default_highlighter(SyntaxHighlighter::highlight, nullptr);
+        ic_enable_highlight(true);
+    } else {
+        ic_set_default_highlighter(nullptr, nullptr);
+        ic_enable_highlight(false);
+    }
+}
+
 void SyntaxHighlighter::initialize() {
     std::unique_lock<std::shared_mutex> lock(external_cache_mutex_);
     external_executables_.clear();
