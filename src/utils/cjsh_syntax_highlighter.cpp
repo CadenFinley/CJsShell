@@ -11,6 +11,10 @@
 #include "cjsh_filesystem.h"
 #include "shell.h"
 
+const std::unordered_set<std::string> comparison_operators = {
+    "=",   "==",  "!=",  "<",   "<=",  ">",   ">=",  "-eq",
+    "-ne", "-gt", "-ge", "-lt", "-le", "-ef", "-nt", "-ot"};
+
 const std::unordered_set<std::string> SyntaxHighlighter::basic_unix_commands_ = {
     "cat",  "mv",    "cp",    "rm", "mkdir", "rmdir", "touch",  "grep",
     "find", "chmod", "chown", "ps", "man",   "which", "whereis"};
@@ -107,6 +111,91 @@ bool SyntaxHighlighter::is_glob_pattern(const std::string& token) {
     return token.find_first_of("*?[]{}") != std::string::npos;
 }
 
+bool SyntaxHighlighter::is_option(const std::string& token) {
+    if (token.size() < 2 || token[0] != '-') {
+        return false;
+    }
+
+    if (token == "-" || token == "--") {
+        return false;
+    }
+
+    if (token.rfind("--", 0) == 0) {
+        return token.size() > 2;
+    }
+
+    bool numeric_like = true;
+    for (size_t idx = 1; idx < token.size(); ++idx) {
+        unsigned char uch = static_cast<unsigned char>(token[idx]);
+        if ((std::isdigit(uch) == 0) && token[idx] != '.') {
+            numeric_like = false;
+            break;
+        }
+    }
+
+    return !numeric_like;
+}
+
+bool SyntaxHighlighter::is_numeric_literal(const std::string& token) {
+    if (token.empty()) {
+        return false;
+    }
+
+    size_t start = 0;
+    if (token[start] == '+' || token[start] == '-') {
+        start++;
+    }
+
+    if (start >= token.size()) {
+        return false;
+    }
+
+    if (token.size() - start > 2 && token[start] == '0' &&
+        (token[start + 1] == 'x' || token[start + 1] == 'X')) {
+        if (start + 2 >= token.size()) {
+            return false;
+        }
+        for (size_t idx = start + 2; idx < token.size(); ++idx) {
+            unsigned char uch = static_cast<unsigned char>(token[idx]);
+            if ((std::isdigit(uch) == 0) && (uch < 'a' || uch > 'f') && (uch < 'A' || uch > 'F')) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    bool saw_digit = false;
+    bool saw_dot = false;
+    bool saw_exponent = false;
+
+    for (size_t i = start; i < token.size(); ++i) {
+        unsigned char uch = static_cast<unsigned char>(token[i]);
+
+        if ((std::isdigit(uch) != 0)) {
+            saw_digit = true;
+            continue;
+        }
+
+        if (token[i] == '.' && !saw_dot && !saw_exponent) {
+            saw_dot = true;
+            continue;
+        }
+
+        if ((token[i] == 'e' || token[i] == 'E') && !saw_exponent && saw_digit) {
+            saw_exponent = true;
+            saw_digit = false;
+            if (i + 1 < token.size() && (token[i + 1] == '+' || token[i + 1] == '-')) {
+                ++i;
+            }
+            continue;
+        }
+
+        return false;
+    }
+
+    return saw_digit;
+}
+
 bool SyntaxHighlighter::is_function_definition(const std::string& input, size_t& func_name_start,
                                                size_t& func_name_end) {
     func_name_start = 0;
@@ -149,7 +238,7 @@ bool SyntaxHighlighter::is_function_definition(const std::string& input, size_t&
         size_t name_end = paren_pos;
 
         while (name_end > name_start &&
-               ((std::isspace(static_cast<int>(trimmed[name_end - 1] != 0))) != 0)) {
+               (std::isspace(static_cast<unsigned char>(trimmed[name_end - 1])) != 0)) {
             name_end--;
         }
 
@@ -167,89 +256,242 @@ bool SyntaxHighlighter::is_function_definition(const std::string& input, size_t&
     return false;
 }
 
-void SyntaxHighlighter::highlight_quotes_and_variables(ic_highlight_env_t* henv, const char* input,
-                                                       size_t start, size_t length) {
-    if (length == 0)
+void SyntaxHighlighter::highlight_variable_assignment(ic_highlight_env_t* henv, const char* input,
+                                                      size_t absolute_start,
+                                                      const std::string& token) {
+    size_t eq_pos = token.find('=');
+    if (eq_pos == std::string::npos) {
+        highlight_quotes_and_variables(henv, input, absolute_start, token.length());
         return;
+    }
+
+    if (eq_pos == 0) {
+        ic_highlight(henv, static_cast<long>(absolute_start), static_cast<long>(token.length()),
+                     "cjsh-variable");
+        return;
+    }
+
+    ic_highlight(henv, static_cast<long>(absolute_start), static_cast<long>(eq_pos),
+                 "cjsh-variable");
+    ic_highlight(henv, static_cast<long>(absolute_start + eq_pos), 1L, "cjsh-operator");
+
+    if (eq_pos + 1 >= token.length()) {
+        return;
+    }
+
+    std::string value = token.substr(eq_pos + 1);
+    highlight_assignment_value(henv, input, absolute_start + eq_pos + 1, value);
+}
+
+void SyntaxHighlighter::highlight_assignment_value(ic_highlight_env_t* henv, const char* input,
+                                                   size_t absolute_start,
+                                                   const std::string& value) {
+    if (value.empty()) {
+        return;
+    }
+
+    ic_highlight(henv, static_cast<long>(absolute_start), static_cast<long>(value.length()),
+                 "cjsh-assignment-value");
+
+    char quote_type = 0;
+    if (is_quoted_string(value, quote_type)) {
+        ic_highlight(henv, static_cast<long>(absolute_start), static_cast<long>(value.length()),
+                     "cjsh-string");
+        return;
+    }
+
+    if (is_numeric_literal(value)) {
+        ic_highlight(henv, static_cast<long>(absolute_start), static_cast<long>(value.length()),
+                     "cjsh-number");
+        return;
+    }
+
+    if (!value.empty() && value[0] == '$') {
+        ic_highlight(henv, static_cast<long>(absolute_start), static_cast<long>(value.length()),
+                     "cjsh-variable");
+        highlight_quotes_and_variables(henv, input, absolute_start, value.length());
+        return;
+    }
+
+    if (value.find('$') != std::string::npos || value.find('`') != std::string::npos ||
+        value.find("$(") != std::string::npos) {
+        highlight_quotes_and_variables(henv, input, absolute_start, value.length());
+    }
+}
+
+void SyntaxHighlighter::highlight_quotes_and_variables(ic_highlight_env_t* henv, const char* input,
+                                                       size_t start,
+                                                       size_t length) {  // NOLINT
+    if (length == 0) {
+        return;
+    }
+
+    const size_t end = start + length;
 
     bool in_single_quote = false;
     bool in_double_quote = false;
     bool escaped = false;
+    size_t single_quote_start = 0;
+    size_t double_quote_start = 0;
 
-    for (size_t i = 0; i < length; ++i) {
-        char c = input[start + i];
+    for (size_t i = start; i < end; ++i) {
+        char c = input[i];
 
         if (escaped) {
             escaped = false;
             continue;
         }
 
-        if (c == '\\' && (!in_single_quote)) {
+        if (c == '\\' && !in_single_quote) {
             escaped = true;
             continue;
+        }
+
+        if (!in_single_quote && c == '$' && i + 1 < end && input[i + 1] == '(') {
+            bool is_arithmetic = (i + 2 < end && input[i + 2] == '(');
+            size_t j = i + 2;
+            int depth = 1;
+            bool inner_single = false;
+            bool inner_double = false;
+            bool inner_escaped = false;
+            while (j < end) {
+                char inner = input[j];
+                if (inner_escaped) {
+                    inner_escaped = false;
+                } else if (inner == '\\' && !inner_single) {
+                    inner_escaped = true;
+                } else if (inner == '\'' && !inner_double) {
+                    inner_single = !inner_single;
+                } else if (inner == '"' && !inner_single) {
+                    inner_double = !inner_double;
+                } else if (!inner_single) {
+                    if (inner == '(') {
+                        depth++;
+                    } else if (inner == ')') {
+                        depth--;
+                        if (depth == 0) {
+                            break;
+                        }
+                    }
+                }
+                ++j;
+            }
+
+            if (depth == 0 && j < end) {
+                size_t highlight_len = (j + 1) - i;
+                ic_highlight(henv, static_cast<long>(i), static_cast<long>(highlight_len),
+                             is_arithmetic ? "cjsh-arithmetic" : "cjsh-command-substitution");
+                i = j;
+                continue;
+            }
+        }
+
+        if (!in_single_quote && c == '`') {
+            size_t j = i + 1;
+            bool inner_escaped = false;
+            while (j < end) {
+                char inner = input[j];
+                if (inner_escaped) {
+                    inner_escaped = false;
+                } else if (inner == '\\') {
+                    inner_escaped = true;
+                } else if (inner == '`') {
+                    break;
+                }
+                ++j;
+            }
+
+            if (j < end) {
+                size_t highlight_len = (j + 1) - i;
+                ic_highlight(henv, static_cast<long>(i), static_cast<long>(highlight_len),
+                             "cjsh-command-substitution");
+                i = j;
+                continue;
+            }
+        }
+
+        if (!in_single_quote && !in_double_quote && c == '(' && i + 1 < end &&
+            input[i + 1] == '(') {
+            size_t j = i + 2;
+            int depth = 2;
+            bool inner_single = false;
+            bool inner_double = false;
+            bool inner_escaped = false;
+            while (j < end) {
+                char inner = input[j];
+                if (inner_escaped) {
+                    inner_escaped = false;
+                } else if (inner == '\\' && !inner_single) {
+                    inner_escaped = true;
+                } else if (inner == '\'' && !inner_double) {
+                    inner_single = !inner_single;
+                } else if (inner == '"' && !inner_single) {
+                    inner_double = !inner_double;
+                } else if (!inner_single) {
+                    if (inner == '(') {
+                        depth++;
+                    } else if (inner == ')') {
+                        depth--;
+                        if (depth == 0) {
+                            break;
+                        }
+                    }
+                }
+                ++j;
+            }
+
+            if (depth == 0 && j < end) {
+                size_t highlight_len = (j + 1) - i;
+                ic_highlight(henv, static_cast<long>(i), static_cast<long>(highlight_len),
+                             "cjsh-arithmetic");
+                i = j;
+                continue;
+            }
         }
 
         if (c == '\'' && !in_double_quote) {
             if (!in_single_quote) {
                 in_single_quote = true;
-
-                size_t quote_start = i;
-                size_t quote_end = i + 1;
-                while (quote_end < length && input[start + quote_end] != '\'') {
-                    quote_end++;
-                }
-                if (quote_end < length) {
-                    quote_end++;
-                    ic_highlight(henv, static_cast<long>(start + quote_start),
-                                 static_cast<long>(quote_end - quote_start), "cjsh-string");
-                    i = quote_end - 1;
-                    in_single_quote = false;
-                }
+                single_quote_start = i;
+            } else {
+                in_single_quote = false;
+                ic_highlight(henv, static_cast<long>(single_quote_start),
+                             static_cast<long>(i - single_quote_start + 1), "cjsh-string");
             }
-        } else if (c == '"' && !in_single_quote) {
+            continue;
+        }
+
+        if (c == '"' && !in_single_quote) {
             if (!in_double_quote) {
                 in_double_quote = true;
-
-                size_t quote_start = i;
-                size_t quote_end = i + 1;
-                bool quote_escaped = false;
-                while (quote_end < length) {
-                    char qc = input[start + quote_end];
-                    if (quote_escaped) {
-                        quote_escaped = false;
-                    } else if (qc == '\\') {
-                        quote_escaped = true;
-                    } else if (qc == '"') {
-                        break;
-                    }
-                    quote_end++;
-                }
-                if (quote_end < length) {
-                    quote_end++;
-                    ic_highlight(henv, static_cast<long>(start + quote_start),
-                                 static_cast<long>(quote_end - quote_start), "cjsh-string");
-                    i = quote_end - 1;
-                    in_double_quote = false;
-                }
+                double_quote_start = i;
+            } else {
+                in_double_quote = false;
+                ic_highlight(henv, static_cast<long>(double_quote_start),
+                             static_cast<long>(i - double_quote_start + 1), "cjsh-string");
             }
-        } else if (c == '$' && !in_single_quote) {
+            continue;
+        }
+
+        if (c == '$' && !in_single_quote) {
             size_t var_start = i;
             size_t var_end = i + 1;
 
-            if (var_end < length && input[start + var_end] == '{') {
-                var_end++;
-                while (var_end < length && input[start + var_end] != '}') {
-                    var_end++;
+            if (var_end < end && input[var_end] == '{') {
+                ++var_end;
+                while (var_end < end && input[var_end] != '}') {
+                    ++var_end;
                 }
-                if (var_end < length) {
-                    var_end++;
+                if (var_end < end) {
+                    ++var_end;
                 }
             } else {
-                while (var_end < length) {
-                    char vc = input[start + var_end];
-                    if ((std::isalnum(vc) != 0) || vc == '_' ||
-                        (var_end == var_start + 1 && (std::isdigit(vc) != 0))) {
-                        var_end++;
+                while (var_end < end) {
+                    char vc = input[var_end];
+                    if ((std::isalnum(static_cast<unsigned char>(vc)) != 0) || vc == '_' ||
+                        (var_end == var_start + 1 &&
+                         (std::isdigit(static_cast<unsigned char>(vc)) != 0))) {
+                        ++var_end;
                     } else {
                         break;
                     }
@@ -257,7 +499,7 @@ void SyntaxHighlighter::highlight_quotes_and_variables(ic_highlight_env_t* henv,
             }
 
             if (var_end > var_start + 1) {
-                ic_highlight(henv, static_cast<long>(start + var_start),
+                ic_highlight(henv, static_cast<long>(var_start),
                              static_cast<long>(var_end - var_start), "cjsh-variable");
                 i = var_end - 1;
             }
@@ -265,7 +507,8 @@ void SyntaxHighlighter::highlight_quotes_and_variables(ic_highlight_env_t* henv,
     }
 }
 
-void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, void*) {
+void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input,
+                                  void*) {  // NOLINT
     size_t len = std::strlen(input);
     if (len == 0)
         return;
@@ -376,9 +619,16 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
         bool is_sudo_command = (token == "sudo");
 
         if (!token.empty()) {
-            if (token.rfind("./", 0) == 0 || token.rfind("../", 0) == 0 ||
-                token.rfind("~/", 0) == 0 || token.rfind("-/", 0) == 0 || token[0] == '/' ||
-                token.find('/') != std::string::npos) {
+            bool handled_first_token = false;
+
+            if (is_variable_reference(token)) {
+                highlight_variable_assignment(henv, input, cmd_start, token);
+                handled_first_token = true;
+            }
+
+            if (!handled_first_token && (token.rfind("./", 0) == 0 || token.rfind("../", 0) == 0 ||
+                                         token.rfind("~/", 0) == 0 || token.rfind("-/", 0) == 0 ||
+                                         token[0] == '/' || token.find('/') != std::string::npos)) {
                 std::string path_to_check = token;
                 if (token.rfind("~/", 0) == 0) {
                     path_to_check = cjsh_filesystem::g_user_home_path.string() + token.substr(1);
@@ -399,13 +649,20 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
                     ic_highlight(henv, static_cast<long>(cmd_start), static_cast<long>(token_end),
                                  "cjsh-unknown-command");
                 }
-            } else if (is_shell_keyword(token)) {
+                handled_first_token = true;
+            }
+
+            if (!handled_first_token && is_shell_keyword(token)) {
                 ic_highlight(henv, static_cast<long>(cmd_start), static_cast<long>(token_end),
                              "cjsh-keyword");
-            } else if (is_shell_builtin(token)) {
+                handled_first_token = true;
+            } else if (!handled_first_token && is_shell_builtin(token)) {
                 ic_highlight(henv, static_cast<long>(cmd_start), static_cast<long>(token_end),
                              "cjsh-builtin");
-            } else {
+                handled_first_token = true;
+            }
+
+            if (!handled_first_token) {
                 auto cmds = g_shell->get_available_commands();
                 if (cmds.find(token) != cmds.end()) {
                     ic_highlight(henv, static_cast<long>(cmd_start), static_cast<long>(token_end),
@@ -442,14 +699,33 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
 
             std::string arg = cmd_str.substr(arg_start, arg_end - arg_start);
 
-            if (is_redirection_operator(arg)) {
+            if (is_redirection_operator(arg) || comparison_operators.count(arg) > 0) {
                 ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
                              static_cast<long>(arg_end - arg_start), "cjsh-operator");
             }
 
             else if (is_variable_reference(arg)) {
+                highlight_variable_assignment(henv, input, cmd_start + arg_start, arg);
+            }
+
+            else if (arg == "((" || arg == "))") {
                 ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
-                             static_cast<long>(arg_end - arg_start), "cjsh-variable");
+                             static_cast<long>(arg_end - arg_start), "cjsh-arithmetic");
+            }
+
+            else if (is_shell_keyword(arg)) {
+                ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
+                             static_cast<long>(arg_end - arg_start), "cjsh-keyword");
+            }
+
+            else if (is_option(arg)) {
+                ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
+                             static_cast<long>(arg_end - arg_start), "cjsh-option");
+            }
+
+            else if (is_numeric_literal(arg)) {
+                ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
+                             static_cast<long>(arg_end - arg_start), "cjsh-number");
             }
 
             else {
@@ -533,7 +809,8 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
                 }
             }
 
-            if (!is_variable_reference(arg) && arg.find('$') != std::string::npos) {
+            if (!is_variable_reference(arg) &&
+                (arg.find('$') != std::string::npos || arg.find('`') != std::string::npos)) {
                 highlight_quotes_and_variables(henv, input, cmd_start + arg_start,
                                                arg_end - arg_start);
             }

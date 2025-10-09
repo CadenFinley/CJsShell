@@ -47,7 +47,7 @@ const std::vector<std::string> csharp_folders = {"bin", "obj"};
 
 const std::vector<std::string> php_files = {"composer.json", "composer.lock"};
 const std::vector<std::string> php_extensions = {".php"};
-const std::vector<std::string> php_folders = {"vendor"};
+const std::vector<std::string> php_folders = {};
 
 const std::vector<std::string> ruby_files = {"Gemfile", "Gemfile.lock", ".ruby-version",
                                              "Rakefile"};
