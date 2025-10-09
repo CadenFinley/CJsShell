@@ -5,7 +5,7 @@
 
 # CJ's Shell
 
-> **WARNING**: CJ's Shell is not a 100% POSIX compliant shell yet. (like 98%) It is also super cool and you will never want to use another shell again. (btw cjsh is POSIX compliant via -c flag or when typing piped ( | ) into) To see all non POSIX compliant parts of cjsh see: **(docs/reference/non-posix-features.md)**
+> **WARNING**: CJ's Shell is not a 100% POSIX compliant shell yet. (like 98%) It is also super cool and you will never want to use another shell again. (btw cjsh is POSIX compliant via -c flag or when typing piped ( | ) into) To see all non POSIX compliant parts of cjsh see: **[Non-POSIX Specs](docs/reference/non-posix-features.md)**
 
 ## Quick Install (Recommended)
 
