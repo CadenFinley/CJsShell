@@ -511,6 +511,34 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
 
                 std::get<0>(control_stack.back()) = "then";
             }
+
+            // Validate elif in single-line if statements
+            size_t elif_pos = 0;
+            while ((elif_pos = trimmed_for_parsing.find("; elif", elif_pos)) != std::string::npos) {
+                size_t after_elif = elif_pos + 6;  // position after "; elif"
+
+                // Skip any whitespace after elif
+                while (after_elif < trimmed_for_parsing.length() &&
+                       std::isspace(static_cast<unsigned char>(trimmed_for_parsing[after_elif]))) {
+                    after_elif++;
+                }
+
+                // Check if next character is ';' or if we hit 'then' immediately
+                if (after_elif >= trimmed_for_parsing.length() ||
+                    trimmed_for_parsing[after_elif] == ';' ||
+                    (after_elif + 4 <= trimmed_for_parsing.length() &&
+                     trimmed_for_parsing.substr(after_elif, 4) == "then")) {
+                    errors.push_back({{display_line, 0, 0, 0},
+                                      ErrorSeverity::CRITICAL,
+                                      ErrorCategory::SYNTAX,
+                                      "SYN012",
+                                      "'elif' without condition",
+                                      line,
+                                      "Add a condition after 'elif'"});
+                }
+
+                elif_pos = after_elif;
+            }
         } else if (handle_inline_loop_header(trimmed_for_parsing, "while", display_line,
                                              control_stack) ||
                    handle_inline_loop_header(trimmed_for_parsing, "until", display_line,
@@ -548,6 +576,16 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                 } else if (first_token == "elif") {
                     if (require_top({"then", "elif"}, "'elif' without matching 'if...then'")) {
                         std::get<0>(control_stack.back()) = "elif";
+                        // Validate that elif has a condition
+                        if (tokens.size() == 1) {
+                            errors.push_back({{display_line, 0, 0, 0},
+                                              ErrorSeverity::CRITICAL,
+                                              ErrorCategory::SYNTAX,
+                                              "SYN012",
+                                              "'elif' without condition",
+                                              line,
+                                              "Add a condition after 'elif'"});
+                        }
                     }
                 } else if (first_token == "else") {
                     if (require_top({"then", "elif"}, "'else' without matching 'if...then'")) {

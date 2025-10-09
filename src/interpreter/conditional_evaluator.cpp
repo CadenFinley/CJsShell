@@ -284,7 +284,14 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
             bool condition_met = false;
 
             while (pos < remaining.length()) {
+                // Look for elif in various forms: "; elif ", "; elif;", "; elif\t"
                 size_t elif_pos = remaining.find("; elif ", pos);
+                if (elif_pos == std::string::npos) {
+                    size_t elif_semi = remaining.find("; elif;", pos);
+                    if (elif_semi != std::string::npos) {
+                        elif_pos = elif_semi;
+                    }
+                }
                 size_t else_pos = remaining.find("; else ", pos);
 
                 size_t fi_pos = std::string::npos;
@@ -326,11 +333,27 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                         }
                     }
 
-                    pos = next_pos + 7;
+                    // Determine how many characters to skip based on what we matched
+                    size_t skip_len = 7;  // Default for "; elif "
+                    if (elif_pos != std::string::npos && elif_pos + 6 < remaining.length() &&
+                        remaining[elif_pos + 6] == ';') {
+                        skip_len = 6;  // For "; elif;" skip to the ; after elif
+                    }
+
+                    pos = next_pos + skip_len;
                     size_t elif_then = remaining.find("; then", pos);
+                    if (elif_then == std::string::npos) {
+                        // Also check for ;then (no space)
+                        elif_then = remaining.find(";then", pos);
+                    }
                     if (elif_then != std::string::npos) {
                         std::string elif_cond = trim(remaining.substr(pos, elif_then - pos));
-                        int elif_result = execute_simple_or_pipeline(elif_cond);
+                        // Check for empty elif condition (syntax error)
+                        if (elif_cond.empty()) {
+                            idx = 0;
+                            return 2;  // Syntax error
+                        }
+                        int elif_result = evaluate_logical_condition(elif_cond);
 
                         if (elif_result == 0 && !condition_met) {
                             size_t elif_body_start = elif_then + 6;
@@ -550,6 +573,12 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                     elif_cond_str += " ";
                 }
                 elif_cond_str += trim(strip_inline_comment(line));
+            }
+
+            // Check for empty elif condition (syntax error)
+            if (elif_cond_str.empty()) {
+                idx = k;
+                return 2;  // Syntax error
             }
 
             int elif_rc = evaluate_logical_condition(elif_cond_str);
