@@ -408,28 +408,116 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
         }
     }
 
+    // Track elif branches
+    std::vector<std::pair<std::vector<std::string>, std::vector<std::string>>>
+        elif_branches;  // condition lines, body lines
+    std::vector<std::string> current_elif_cond;
+    std::vector<std::string> current_elif_body;
+    bool in_elif = false;
+    bool in_elif_body = false;
+    bool condition_met = (cond_rc == 0);
+
     while (k < src_lines.size() && depth > 0) {
         const std::string& cur_raw = src_lines[k];
         std::string cur = trim(strip_inline_comment(cur_raw));
+
+        // Check for elif BEFORE checking for '; then' since elif lines may contain '; then'
+        if (depth == 1 && (cur == "elif" || cur.rfind("elif ", 0) == 0)) {
+            // Starting a new elif - save previous branch if we were in one
+            if (in_elif_body && !current_elif_cond.empty()) {
+                elif_branches.push_back({current_elif_cond, current_elif_body});
+            }
+
+            in_elif = true;
+            in_elif_body = false;
+            in_else = false;
+            current_elif_cond.clear();
+            current_elif_body.clear();
+
+            // Extract condition from this line if present
+            std::string elif_cond;
+            if (cur.rfind("elif ", 0) == 0) {
+                elif_cond = trim(cur.substr(5));
+            }
+
+            // Check if 'then' is on the same line
+            auto then_pos = elif_cond.find("; then");
+            if (then_pos == std::string::npos) {
+                then_pos = elif_cond.find(";then");
+            }
+
+            if (then_pos != std::string::npos) {
+                // then is on same line
+                current_elif_cond.push_back(trim(elif_cond.substr(0, then_pos)));
+                in_elif = false;
+                in_elif_body = true;
+            } else if (!elif_cond.empty()) {
+                current_elif_cond.push_back(elif_cond);
+            }
+            k++;
+            continue;
+        }
+
         if (cur == "if" || cur.rfind("if ", 0) == 0) {
             depth++;
         } else if (cur.find("; then") != std::string::npos ||
                    cur.find(";then") != std::string::npos) {
             if (cur.rfind("if ", 0) == 0 || cur == "if") {
                 depth++;
+            } else if (depth == 1 && in_elif) {
+                // Found 'then' for current elif
+                in_elif = false;
+                in_elif_body = true;
+
+                // Add the last line of condition (the one with '; then')
+                auto then_pos = cur.find("; then");
+                if (then_pos == std::string::npos) {
+                    then_pos = cur.find(";then");
+                }
+                if (then_pos != std::string::npos) {
+                    std::string cond_part = trim(cur.substr(0, then_pos));
+                    if (!cond_part.empty()) {
+                        current_elif_cond.push_back(cond_part);
+                    }
+                }
+                k++;
+                continue;
             }
         } else if (cur == "fi") {
             depth--;
             if (depth == 0)
                 break;
         } else if (depth == 1 && cur == "else") {
+            // Save current elif if we were in one
+            if (in_elif_body && !current_elif_cond.empty()) {
+                elif_branches.push_back({current_elif_cond, current_elif_body});
+                current_elif_cond.clear();
+                current_elif_body.clear();
+            }
+
             in_else = true;
+            in_elif = false;
+            in_elif_body = false;
+            else_lines.clear();
             k++;
             continue;
+        } else if (depth == 1 && cur == "then") {
+            if (in_elif) {
+                in_elif = false;
+                in_elif_body = true;
+                k++;
+                continue;
+            }
         }
 
         if (depth > 0) {
-            if (!in_else) {
+            if (in_elif) {
+                // Accumulating elif condition
+                current_elif_cond.push_back(cur_raw);
+            } else if (in_elif_body) {
+                // In elif body
+                current_elif_body.push_back(cur_raw);
+            } else if (!in_else) {
                 then_lines.push_back(cur_raw);
             } else {
                 else_lines.push_back(cur_raw);
@@ -437,6 +525,12 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
         }
         k++;
     }
+
+    // Save last elif if we were in one
+    if (in_elif_body && !current_elif_cond.empty()) {
+        elif_branches.push_back({current_elif_cond, current_elif_body});
+    }
+
     if (depth != 0) {
         idx = k;
         return 1;
@@ -445,8 +539,31 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
     int body_rc = 0;
     if (cond_rc == 0) {
         body_rc = execute_block(then_lines);
-    } else if (!else_lines.empty()) {
-        body_rc = execute_block(else_lines);
+        condition_met = true;
+    } else {
+        // Try elif branches
+        for (const auto& elif_branch : elif_branches) {
+            // Build condition string from lines
+            std::string elif_cond_str;
+            for (const auto& line : elif_branch.first) {
+                if (!elif_cond_str.empty()) {
+                    elif_cond_str += " ";
+                }
+                elif_cond_str += trim(strip_inline_comment(line));
+            }
+
+            int elif_rc = evaluate_logical_condition(elif_cond_str);
+            if (elif_rc == 0) {
+                body_rc = execute_block(elif_branch.second);
+                condition_met = true;
+                break;
+            }
+        }
+
+        // If no condition met, try else
+        if (!condition_met && !else_lines.empty()) {
+            body_rc = execute_block(else_lines);
+        }
     }
 
     idx = k;
