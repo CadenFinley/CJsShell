@@ -1159,17 +1159,25 @@ std::vector<LogicalCommand> Parser::parse_logical_commands(const std::string& co
     std::string current;
     DelimiterState delimiters;
     int arith_depth = 0;
+    int single_bracket_depth = 0;  // Track single brackets for test commands
+    int control_depth = 0;         // Track if/for/while/case/until depth
 
     for (size_t i = 0; i < command.length(); ++i) {
         if (delimiters.update_quote(command[i])) {
             current += command[i];
-        } else if (!delimiters.in_quotes && command[i] == '(') {
+            continue;
+        }
+
+        if (!delimiters.in_quotes && command[i] == '(') {
             if (i >= 2 && command[i - 2] == '$' && command[i - 1] == '(' && command[i] == '(') {
                 arith_depth++;
             }
             delimiters.paren_depth++;
             current += command[i];
-        } else if (!delimiters.in_quotes && command[i] == ')') {
+            continue;
+        }
+
+        if (!delimiters.in_quotes && command[i] == ')') {
             delimiters.paren_depth--;
 
             if (delimiters.paren_depth >= 0 && i + 1 < command.length() && command[i + 1] == ')' &&
@@ -1178,46 +1186,124 @@ std::vector<LogicalCommand> Parser::parse_logical_commands(const std::string& co
                 current += command[i];
                 current += command[i + 1];
                 i++;
+                continue;
             } else {
                 current += command[i];
+                continue;
             }
-        } else if (!delimiters.in_quotes && command[i] == '[' && i + 1 < command.length() &&
-                   command[i + 1] == '[') {
-            delimiters.bracket_depth++;
-            current += command[i];
-            current += command[i + 1];
-            i++;
-        } else if (!delimiters.in_quotes && command[i] == ']' && i + 1 < command.length() &&
-                   command[i + 1] == ']' && delimiters.bracket_depth > 0) {
-            delimiters.bracket_depth--;
-            current += command[i];
-            current += command[i + 1];
-            i++;
-        } else if (!delimiters.in_quotes && delimiters.paren_depth == 0 && arith_depth == 0 &&
-                   delimiters.bracket_depth == 0 && i < command.length() - 1) {
+        }
+
+        if (!delimiters.in_quotes && command[i] == '[') {
+            // Check if it's a double bracket
+            if (i + 1 < command.length() && command[i + 1] == '[') {
+                delimiters.bracket_depth++;
+                current += command[i];
+                current += command[i + 1];
+                i++;
+                continue;
+            } else {
+                // Single bracket - check if it's a test command
+                // It's a test command if it's at word boundary (preceded by space or start)
+                bool is_test_bracket = (i == 0 || command[i - 1] == ' ' || command[i - 1] == '\t' ||
+                                        command[i - 1] == ';' || command[i - 1] == '\n');
+                if (is_test_bracket) {
+                    single_bracket_depth++;
+                }
+                current += command[i];
+                continue;
+            }
+        }
+
+        if (!delimiters.in_quotes && command[i] == ']') {
+            // Check if it's a double bracket
+            if (i + 1 < command.length() && command[i + 1] == ']' && delimiters.bracket_depth > 0) {
+                delimiters.bracket_depth--;
+                current += command[i];
+                current += command[i + 1];
+                i++;
+                continue;
+            } else {
+                // Single bracket - close it if we're tracking
+                if (single_bracket_depth > 0) {
+                    // Check if it's actually closing a test command (followed by space, semicolon,
+                    // etc.)
+                    bool is_test_close =
+                        (i + 1 >= command.length() || command[i + 1] == ' ' ||
+                         command[i + 1] == '\t' || command[i + 1] == ';' || command[i + 1] == '&' ||
+                         command[i + 1] == '|' || command[i + 1] == '\n');
+                    if (is_test_close) {
+                        single_bracket_depth--;
+                    }
+                }
+                current += command[i];
+                continue;
+            }
+        }
+
+        // Check for control structure keywords
+        if (!delimiters.in_quotes && delimiters.paren_depth == 0 && delimiters.brace_depth == 0) {
+            if (command[i] == ' ' || command[i] == '\t' || i == 0) {
+                size_t word_start = i;
+                if (command[i] == ' ' || command[i] == '\t') {
+                    word_start = i + 1;
+                }
+
+                std::string word;
+                size_t j = word_start;
+                while (j < command.length() && std::isalpha(command[j])) {
+                    word += command[j];
+                    j++;
+                }
+
+                if (word == "if" || word == "for" || word == "while" || word == "until" ||
+                    word == "case") {
+                    control_depth++;
+                    // std::cerr << "DEBUG: Found opening keyword '" << word << "' at pos " << i <<
+                    // ", depth now " << control_depth << std::endl;
+                } else if ((word == "fi" || word == "done" || word == "esac") &&
+                           control_depth > 0) {
+                    control_depth--;
+                    // std::cerr << "DEBUG: Found closing keyword '" << word << "' at pos " << i <<
+                    // ", depth now " << control_depth << std::endl;
+                }
+            }
+        }
+
+        // Check for logical operators && and ||
+        if (!delimiters.in_quotes && delimiters.paren_depth == 0 && arith_depth == 0 &&
+            delimiters.bracket_depth == 0 && single_bracket_depth == 0 && control_depth == 0 &&
+            i < command.length() - 1) {
             if (command[i] == '&' && command[i + 1] == '&') {
                 if (!current.empty()) {
+                    // std::cerr << "DEBUG: Splitting on && at pos " << i << ", left part: '" <<
+                    // current << "'" << std::endl;
                     logical_commands.push_back({current, "&&"});
                     current.clear();
                 }
                 i++;
-            } else if (command[i] == '|' && command[i + 1] == '|') {
+                continue;
+            }
+            if (command[i] == '|' && command[i + 1] == '|') {
                 if (!current.empty()) {
+                    // std::cerr << "DEBUG: Splitting on || at pos " << i << ", left part: '" <<
+                    // current << "'" << std::endl;
                     logical_commands.push_back({current, "||"});
                     current.clear();
                 }
                 i++;
-            } else {
-                current += command[i];
+                continue;
             }
-        } else {
-            current += command[i];
         }
+
+        current += command[i];
     }
 
     if (!current.empty()) {
+        // std::cerr << "DEBUG: Final command: '" << current << "'" << std::endl;
         logical_commands.push_back({current, ""});
     }
+
+    // std::cerr << "DEBUG: Total logical commands: " << logical_commands.size() << std::endl;
 
     return logical_commands;
 }

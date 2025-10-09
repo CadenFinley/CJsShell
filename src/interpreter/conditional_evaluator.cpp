@@ -116,10 +116,51 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                 search_pos++;
             }
 
-            // Don't use simple parsing for elif - it's handled later in the function
-            // This was originally here to skip elif handling, but we now have proper
-            // elif support in the is_simple_single_line section below
-            if (fi_pos != std::string::npos && rem.find("elif") == std::string::npos) {
+            // Don't use simple parsing for elif at the top level - it's handled later
+            // But we can still use simple parsing if elif is nested inside the if
+            bool has_top_level_elif = false;
+            if (fi_pos != std::string::npos) {
+                // Check if there's an elif at the top level (not nested)
+                size_t check_pos = 0;
+                int nested_depth = 0;
+                bool check_in_quotes = false;
+                char check_quote = '\0';
+
+                while (check_pos < fi_pos) {
+                    char ch = rem[check_pos];
+
+                    if (!check_in_quotes && (ch == '"' || ch == '\'' || ch == '`')) {
+                        check_in_quotes = true;
+                        check_quote = ch;
+                    } else if (check_in_quotes && ch == check_quote) {
+                        check_in_quotes = false;
+                        check_quote = '\0';
+                    } else if (!check_in_quotes) {
+                        if (check_pos + 3 <= fi_pos && rem.substr(check_pos, 3) == "if ") {
+                            nested_depth++;
+                            check_pos += 2;
+                        } else if (check_pos + 2 <= fi_pos && rem.substr(check_pos, 2) == "fi") {
+                            bool is_word =
+                                (check_pos == 0 || !std::isalnum(rem[check_pos - 1])) &&
+                                (check_pos + 2 >= fi_pos || !std::isalnum(rem[check_pos + 2]));
+                            if (is_word && nested_depth > 0) {
+                                nested_depth--;
+                            }
+                        } else if (nested_depth == 0 && check_pos + 5 <= fi_pos &&
+                                   rem.substr(check_pos, 5) == "elif ") {
+                            has_top_level_elif = true;
+                            break;
+                        } else if (nested_depth == 0 && check_pos + 6 <= fi_pos &&
+                                   rem.substr(check_pos, 6) == "; elif") {
+                            has_top_level_elif = true;
+                            break;
+                        }
+                    }
+                    check_pos++;
+                }
+            }
+
+            if (fi_pos != std::string::npos && !has_top_level_elif) {
                 std::string body = trim(rem.substr(0, fi_pos));
 
                 std::string then_body = body;
