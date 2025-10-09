@@ -116,119 +116,119 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                 search_pos++;
             }
 
-            if (rem.find("elif") != std::string::npos) {
-            } else {
-                if (fi_pos != std::string::npos) {
-                    std::string body = trim(rem.substr(0, fi_pos));
+            // Don't use simple parsing for elif - it's handled later in the function
+            // This was originally here to skip elif handling, but we now have proper
+            // elif support in the is_simple_single_line section below
+            if (fi_pos != std::string::npos && rem.find("elif") == std::string::npos) {
+                std::string body = trim(rem.substr(0, fi_pos));
 
-                    std::string then_body = body;
-                    std::string else_body;
+                std::string then_body = body;
+                std::string else_body;
 
-                    size_t else_pos = std::string::npos;
-                    int nested_if_depth = 0;
-                    size_t search_else = 0;
-                    in_quotes = false;
-                    quote_char = '\0';
+                size_t else_pos = std::string::npos;
+                int nested_if_depth = 0;
+                size_t search_else = 0;
+                in_quotes = false;
+                quote_char = '\0';
 
-                    while (search_else < body.length()) {
-                        char c = body[search_else];
+                while (search_else < body.length()) {
+                    char c = body[search_else];
 
-                        if (!in_quotes && (c == '"' || c == '\'' || c == '`')) {
-                            in_quotes = true;
-                            quote_char = c;
-                        } else if (in_quotes && c == quote_char) {
-                            in_quotes = false;
-                            quote_char = '\0';
-                        } else if (!in_quotes) {
-                            if (search_else + 3 < body.length() &&
-                                body.substr(search_else, 3) == "if ") {
-                                nested_if_depth++;
-                                search_else += 2;
-                            }
+                    if (!in_quotes && (c == '"' || c == '\'' || c == '`')) {
+                        in_quotes = true;
+                        quote_char = c;
+                    } else if (in_quotes && c == quote_char) {
+                        in_quotes = false;
+                        quote_char = '\0';
+                    } else if (!in_quotes) {
+                        if (search_else + 3 < body.length() &&
+                            body.substr(search_else, 3) == "if ") {
+                            nested_if_depth++;
+                            search_else += 2;
+                        }
 
-                            else if (search_else + 2 <= body.length() &&
-                                     body.substr(search_else, 2) == "fi") {
-                                bool is_word_start =
-                                    (search_else == 0 || !std::isalnum(body[search_else - 1]));
-                                bool is_word_end = (search_else + 2 >= body.length() ||
-                                                    !std::isalnum(body[search_else + 2]));
-                                if (is_word_start && is_word_end && nested_if_depth > 0) {
-                                    nested_if_depth--;
-                                }
-                            }
-
-                            else if (nested_if_depth == 0) {
-                                if (search_else + 6 < body.length() &&
-                                    body.substr(search_else, 6) == "; else") {
-                                    else_pos = search_else;
-                                    break;
-                                }
-                                if (search_else + 5 < body.length() &&
-                                    body.substr(search_else, 5) == " else") {
-                                    else_pos = search_else;
-                                    break;
-                                }
+                        else if (search_else + 2 <= body.length() &&
+                                 body.substr(search_else, 2) == "fi") {
+                            bool is_word_start =
+                                (search_else == 0 || !std::isalnum(body[search_else - 1]));
+                            bool is_word_end = (search_else + 2 >= body.length() ||
+                                                !std::isalnum(body[search_else + 2]));
+                            if (is_word_start && is_word_end && nested_if_depth > 0) {
+                                nested_if_depth--;
                             }
                         }
-                        search_else++;
-                    }
-                    if (else_pos != std::string::npos) {
-                        then_body = trim(body.substr(0, else_pos));
-                        else_body = trim(body.substr(else_pos + 6));
-                    } else {
-                    }
-                    int body_rc = 0;
-                    if (cond_rc == 0) {
-                        auto cmds = shell_parser->parse_semicolon_commands(then_body);
-                        for (const auto& c : cmds) {
-                            int rc2 = execute_simple_or_pipeline(c);
-                            body_rc = rc2;
-                            if (rc2 != 0)
+
+                        else if (nested_if_depth == 0) {
+                            if (search_else + 6 < body.length() &&
+                                body.substr(search_else, 6) == "; else") {
+                                else_pos = search_else;
                                 break;
-                        }
-                    } else if (!else_body.empty()) {
-                        auto cmds = shell_parser->parse_semicolon_commands(else_body);
-                        for (const auto& c : cmds) {
-                            int rc2 = execute_simple_or_pipeline(c);
-                            body_rc = rc2;
-                            if (rc2 != 0)
+                            }
+                            if (search_else + 5 < body.length() &&
+                                body.substr(search_else, 5) == " else") {
+                                else_pos = search_else;
                                 break;
+                            }
                         }
                     }
+                    search_else++;
+                }
+                if (else_pos != std::string::npos) {
+                    then_body = trim(body.substr(0, else_pos));
+                    else_body = trim(body.substr(else_pos + 6));
+                } else {
+                }
+                int body_rc = 0;
+                if (cond_rc == 0) {
+                    auto cmds = shell_parser->parse_semicolon_commands(then_body);
+                    for (const auto& c : cmds) {
+                        int rc2 = execute_simple_or_pipeline(c);
+                        body_rc = rc2;
+                        if (rc2 != 0)
+                            break;
+                    }
+                } else if (!else_body.empty()) {
+                    auto cmds = shell_parser->parse_semicolon_commands(else_body);
+                    for (const auto& c : cmds) {
+                        int rc2 = execute_simple_or_pipeline(c);
+                        body_rc = rc2;
+                        if (rc2 != 0)
+                            break;
+                    }
+                }
 
-                    // Check if there are commands after 'fi' on the same line
-                    // But only execute them if we didn't hit break/continue/return/exit
-                    if (body_rc != 253 && body_rc != 254 && body_rc != 255 && !g_exit_flag) {
-                        size_t after_fi_pos = fi_pos + 2;  // Position after "fi"
+                // Check if there are commands after 'fi' on the same line
+                // But only execute them if we didn't hit break/continue/return/exit
+                if (body_rc != 253 && body_rc != 254 && body_rc != 255 && !g_exit_flag) {
+                    size_t after_fi_pos = fi_pos + 2;  // Position after "fi"
+                    while (after_fi_pos < rem.length() &&
+                           std::isspace(static_cast<unsigned char>(rem[after_fi_pos]))) {
+                        after_fi_pos++;
+                    }
+                    if (after_fi_pos < rem.length() && rem[after_fi_pos] == ';') {
+                        after_fi_pos++;  // Skip the semicolon
                         while (after_fi_pos < rem.length() &&
                                std::isspace(static_cast<unsigned char>(rem[after_fi_pos]))) {
                             after_fi_pos++;
                         }
-                        if (after_fi_pos < rem.length() && rem[after_fi_pos] == ';') {
-                            after_fi_pos++;  // Skip the semicolon
-                            while (after_fi_pos < rem.length() &&
-                                   std::isspace(static_cast<unsigned char>(rem[after_fi_pos]))) {
-                                after_fi_pos++;
-                            }
-                        }
-                        if (after_fi_pos < rem.length()) {
-                            std::string after_commands = trim(rem.substr(after_fi_pos));
-                            if (!after_commands.empty()) {
-                                // Execute commands that come after the 'fi'
-                                auto after_cmds =
-                                    shell_parser->parse_semicolon_commands(after_commands);
-                                for (const auto& c : after_cmds) {
-                                    int rc3 = execute_simple_or_pipeline(c);
-                                    body_rc = rc3;
-                                    if (rc3 != 0 || g_exit_flag)
-                                        break;
-                                }
+                    }
+                    if (after_fi_pos < rem.length()) {
+                        std::string after_commands = trim(rem.substr(after_fi_pos));
+                        if (!after_commands.empty()) {
+                            // Execute commands that come after the 'fi'
+                            auto after_cmds =
+                                shell_parser->parse_semicolon_commands(after_commands);
+                            for (const auto& c : after_cmds) {
+                                int rc3 = execute_simple_or_pipeline(c);
+                                body_rc = rc3;
+                                if (rc3 != 0 || g_exit_flag)
+                                    break;
                             }
                         }
                     }
-
-                    return body_rc;
                 }
+
+                return body_rc;
             }
         }
     }
