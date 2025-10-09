@@ -1,7 +1,7 @@
 #include "system_info.h"
 
 #include <cstdio>
-#include "utils/cjsh_filesystem.h"
+#include "cjsh_filesystem.h"
 
 std::string get_disk_usage(const std::filesystem::path& path) {
     std::string cmd = "df -h '" + path.string() + "' | awk 'NR==2{print $5}'";

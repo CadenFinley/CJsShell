@@ -3,7 +3,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <regex>
-#include "utils/cjsh_filesystem.h"
+#include "cjsh_filesystem.h"
 
 bool file_exists(const std::string& path) {
     return std::filesystem::exists(path);

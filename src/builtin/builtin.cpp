@@ -10,6 +10,7 @@
 #include <filesystem>
 
 #include "alias_command.h"
+#include "bookmark_database.h"
 #include "cd_command.h"
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
@@ -48,7 +49,6 @@
 #include "trap_command.h"
 #include "type_command.h"
 #include "umask_command.h"
-#include "utils/bookmark_database.h"
 #include "validate_command.h"
 #include "version_command.h"
 #include "which_command.h"

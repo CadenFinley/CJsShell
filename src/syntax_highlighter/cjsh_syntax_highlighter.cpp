@@ -331,8 +331,7 @@ void SyntaxHighlighter::highlight_assignment_value(ic_highlight_env_t* henv, con
 }
 
 void SyntaxHighlighter::highlight_quotes_and_variables(ic_highlight_env_t* henv, const char* input,
-                                                       size_t start,
-                                                       size_t length) {  // NOLINT
+                                                       size_t start, size_t length) {
     if (length == 0) {
         return;
     }
@@ -518,8 +517,7 @@ void SyntaxHighlighter::highlight_quotes_and_variables(ic_highlight_env_t* henv,
     }
 }
 
-void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input,
-                                  void*) {  // NOLINT
+void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, void*) {
     size_t len = std::strlen(input);
     if (len == 0)
         return;

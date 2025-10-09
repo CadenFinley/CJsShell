@@ -7,10 +7,10 @@
 #include <cstring>
 #include <filesystem>
 
+#include "bookmark_database.h"
 #include "error_out.h"
 #include "shell.h"
 #include "suggestion_utils.h"
-#include "utils/bookmark_database.h"
 
 void update_directory_bookmarks(const std::string& dir_path,
                                 std::unordered_map<std::string, std::string>& directory_bookmarks) {

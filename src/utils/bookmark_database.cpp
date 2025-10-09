@@ -1,4 +1,4 @@
-#include "utils/bookmark_database.h"
+#include "bookmark_database.h"
 #include <algorithm>
 #include <filesystem>
 #include <iomanip>

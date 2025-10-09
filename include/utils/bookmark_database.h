@@ -6,7 +6,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include "utils/cjsh_filesystem.h"
+#include "cjsh_filesystem.h"
 
 namespace bookmark_database {
 

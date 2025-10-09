@@ -1,6 +1,6 @@
 #include "network_info.h"
 
-#include "utils/cjsh_filesystem.h"
+#include "cjsh_filesystem.h"
 
 std::string get_ip_address(bool external) {
     std::string cmd;

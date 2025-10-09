@@ -7,7 +7,7 @@
 #include <mutex>
 #include <regex>
 
-#include "utils/cjsh_filesystem.h"
+#include "cjsh_filesystem.h"
 
 // Static data definitions
 static std::unordered_map<std::string, CachedVersion> version_cache;

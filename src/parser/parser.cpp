@@ -18,18 +18,18 @@
 
 #include "builtin.h"
 #include "cjsh.h"
+#include "cjsh_filesystem.h"
 #include "command_preprocessor.h"
+#include "delimiter_state.h"
+#include "expansion_engine.h"
 #include "job_control.h"
-#include "parser/delimiter_state.h"
-#include "parser/expansion_engine.h"
-#include "parser/parser_utils.h"
-#include "parser/quote_info.h"
-#include "parser/tokenizer.h"
-#include "parser/variable_expander.h"
+#include "parser_utils.h"
+#include "quote_info.h"
 #include "readonly_command.h"
 #include "shell.h"
 #include "shell_script_interpreter.h"
-#include "utils/cjsh_filesystem.h"
+#include "tokenizer.h"
+#include "variable_expander.h"
 
 void Parser::set_shell(Shell* shell) {
     this->shell = shell;

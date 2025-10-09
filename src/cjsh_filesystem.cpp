@@ -1,4 +1,4 @@
-#include "utils/cjsh_filesystem.h"
+#include "cjsh_filesystem.h"
 
 #include <algorithm>
 #include <atomic>
@@ -16,8 +16,8 @@
 #include <utility>
 #include <vector>
 
+#include "cjsh_syntax_highlighter.h"
 #include "error_out.h"
-#include "utils/cjsh_syntax_highlighter.h"
 
 #ifdef __linux__
 #include <linux/limits.h>

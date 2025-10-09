@@ -4,16 +4,18 @@
 #include "nob_types.h"
 
 static const Build_Config build_config = {
-    .main_sources = (const char*[]){"src/cjsh.cpp", "src/error_out.cpp", "src/exec.cpp",
-                                    "src/job_control.cpp", "src/main_loop.cpp", "src/shell.cpp",
-                                    "src/signal_handler.cpp", "src/utils/libintl_shim.cpp",
-                                    "src/shell_env.cpp", "src/flags.cpp", "src/typeahead.cpp"},
-    .main_sources_count = 11,
+    .main_sources =
+        (const char*[]){"src/cjsh.cpp", "src/error_out.cpp", "src/exec.cpp", "src/job_control.cpp",
+                        "src/main_loop.cpp", "src/shell.cpp", "src/signal_handler.cpp",
+                        "src/utils/libintl_shim.cpp", "src/shell_env.cpp", "src/flags.cpp",
+                        "src/typeahead.cpp", "src/cjsh_filesystem.cpp"},
+    .main_sources_count = 12,
 
     .module_directories =
         (const char*[]){"src/builtin", "src/prompt", "src/prompt/modules", "src/interpreter",
-                        "src/utils", "src/parser", "src/unicode"},
-    .module_directories_count = 7,
+                        "src/utils", "src/parser", "src/unicode", "src/syntax_highlighter",
+                        "src/completions"},
+    .module_directories_count = 9,
 
     .isocline_c_sources = (const char*[]){"src/isocline/attr.c",
                                           "src/isocline/bbcode.c",
@@ -41,8 +43,9 @@ static const Build_Config build_config = {
     .include_directories =
         (const char*[]){"include", "include/isocline", "include/builtin", "include/utils",
                         "include/prompt", "include/prompt/modules", "include/interpreter",
-                        "include/parser", "include/unicode"},
-    .include_directories_count = 9,
+                        "include/parser", "include/unicode", "include/syntax_highlighter",
+                        "include/completions"},
+    .include_directories_count = 11,
 
     .c_include_directories = (const char*[]){"include", "include/isocline"},
     .c_include_directories_count = 2,

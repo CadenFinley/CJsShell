@@ -6,7 +6,7 @@
 #include <cstdlib>
 
 #include "cjsh.h"
-#include "utils/cjsh_filesystem.h"
+#include "cjsh_filesystem.h"
 
 std::string get_terminal_type() {
     const char* term = getenv("TERM");

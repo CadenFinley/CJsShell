@@ -9,7 +9,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "utils/cjsh_filesystem.h"
+#include "cjsh_filesystem.h"
 
 static bool set_close_on_exec(int fd) {
     int flags = fcntl(fd, F_GETFD);

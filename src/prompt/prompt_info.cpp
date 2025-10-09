@@ -14,8 +14,8 @@
 #include <unordered_set>
 
 #include "cjsh.h"
+#include "cjsh_filesystem.h"
 #include "theme_parser.h"
-#include "utils/cjsh_filesystem.h"
 
 /* Available prompt placeholders:
  * -----------------------------
