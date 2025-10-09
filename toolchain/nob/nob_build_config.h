@@ -8,7 +8,7 @@ static const Build_Config build_config = {
                                     "src/job_control.cpp", "src/main_loop.cpp", "src/shell.cpp",
                                     "src/signal_handler.cpp", "src/utils/libintl_shim.cpp",
                                     "src/shell_env.cpp", "src/flags.cpp", "src/typeahead.cpp"},
-    .main_sources_count = 10,
+    .main_sources_count = 11,
 
     .module_directories =
         (const char*[]){"src/builtin", "src/prompt", "src/prompt/modules", "src/interpreter",

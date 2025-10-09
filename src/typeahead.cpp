@@ -1,4 +1,4 @@
-#include "utils/typeahead.h"
+#include "typeahead.h"
 
 #include <fcntl.h>
 #include <poll.h>
