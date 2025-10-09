@@ -116,11 +116,15 @@ std::vector<std::string> split_ampersand(const std::string& s) {
             else if (c == '&' && arith_depth == 0 && bracket_depth == 0) {
                 if (i + 1 < s.size() && s[i + 1] == '&') {
                     cur += c;
+                    cur += s[i + 1];
+                    ++i;
                 } else if (i > 0 && s[i - 1] == '>' && i + 1 < s.size() &&
-                           (std::isdigit(s[i + 1]) || s[i + 1] == '-')) {
+                           (std::isdigit(static_cast<unsigned char>(s[i + 1])) != 0 ||
+                            s[i + 1] == '-')) {
                     cur += c;
                 } else if (i > 0 && s[i - 1] == '<' && i + 1 < s.size() &&
-                           (std::isdigit(s[i + 1]) || s[i + 1] == '-')) {
+                           (std::isdigit(static_cast<unsigned char>(s[i + 1])) != 0 ||
+                            s[i + 1] == '-')) {
                     cur += c;
                 } else if (i + 1 < s.size() && s[i + 1] == '>') {
                     cur += c;

@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cctype>
+#include <iterator>
+#include <optional>
 
 #include "cjsh.h"
 #include "parser.h"
@@ -11,6 +13,216 @@ using shell_script_interpreter::detail::process_line_for_validation;
 using shell_script_interpreter::detail::strip_inline_comment;
 using shell_script_interpreter::detail::trim;
 
+namespace {
+
+bool starts_with_keyword(const std::string& text, const std::string& keyword) {
+    if (text.size() < keyword.size())
+        return false;
+    if (text.compare(0, keyword.size(), keyword) != 0)
+        return false;
+    if (text.size() == keyword.size())
+        return true;
+    char next = text[keyword.size()];
+    return std::isspace(static_cast<unsigned char>(next)) != 0;
+}
+
+bool is_if_token(const std::string& token) {
+    return token == "if" || token.rfind("if ", 0) == 0;
+}
+
+std::vector<std::string> split_top_level_semicolons(const std::string& text) {
+    std::vector<std::string> segments;
+    std::string current;
+    current.reserve(text.size());
+
+    bool in_single = false;
+    bool in_double = false;
+    bool in_backtick = false;
+    bool escape_next = false;
+    int paren_depth = 0;
+    int brace_depth = 0;
+    int bracket_depth = 0;
+
+    auto flush_segment = [&]() {
+        std::string trimmed = trim(current);
+        if (!trimmed.empty())
+            segments.push_back(trimmed);
+        current.clear();
+    };
+
+    for (size_t i = 0; i < text.size(); ++i) {
+        char c = text[i];
+
+        if (escape_next) {
+            current.push_back(c);
+            escape_next = false;
+            continue;
+        }
+
+        if (!in_single && c == '\\') {
+            escape_next = true;
+            current.push_back(c);
+            continue;
+        }
+
+        if (!in_double && !in_backtick && c == '\'') {
+            in_single = !in_single;
+            current.push_back(c);
+            continue;
+        }
+
+        if (!in_single && !in_backtick && c == '"') {
+            in_double = !in_double;
+            current.push_back(c);
+            continue;
+        }
+
+        if (!in_single && !in_double && c == '`') {
+            in_backtick = !in_backtick;
+            current.push_back(c);
+            continue;
+        }
+
+        if (!in_single && !in_double && !in_backtick) {
+            if (c == '(') {
+                paren_depth++;
+            } else if (c == ')') {
+                if (paren_depth > 0)
+                    paren_depth--;
+            } else if (c == '{') {
+                brace_depth++;
+            } else if (c == '}') {
+                if (brace_depth > 0)
+                    brace_depth--;
+            } else if (c == '[') {
+                bracket_depth++;
+            } else if (c == ']') {
+                if (bracket_depth > 0)
+                    bracket_depth--;
+            } else if (c == ';' && paren_depth == 0 && brace_depth == 0 && bracket_depth == 0) {
+                flush_segment();
+                continue;
+            }
+        }
+
+        current.push_back(c);
+    }
+
+    if (!current.empty())
+        flush_segment();
+
+    return segments;
+}
+
+void expand_segment(const std::string& segment, std::vector<std::string>& out) {
+    std::string cleaned = trim(strip_inline_comment(segment));
+    if (cleaned.empty())
+        return;
+
+    if (starts_with_keyword(cleaned, "then")) {
+        out.push_back("then");
+        std::string remainder = trim(cleaned.substr(4));
+        if (!remainder.empty())
+            expand_segment(remainder, out);
+        return;
+    }
+
+    if (starts_with_keyword(cleaned, "else")) {
+        out.push_back("else");
+        std::string remainder = trim(cleaned.substr(4));
+        if (!remainder.empty())
+            expand_segment(remainder, out);
+        return;
+    }
+
+    if (starts_with_keyword(cleaned, "elif")) {
+        out.push_back(cleaned);
+        return;
+    }
+
+    out.push_back(cleaned);
+}
+
+struct ExpandedSingleLineIf {
+    std::vector<std::string> lines;
+    std::string trailing_commands;
+};
+
+std::optional<ExpandedSingleLineIf> expand_single_line_if(const std::string& line) {
+    std::string cleaned = trim(strip_inline_comment(line));
+    if (cleaned.empty())
+        return std::nullopt;
+
+    if (!is_if_token(cleaned))
+        return std::nullopt;
+
+    if (cleaned.find("then") == std::string::npos)
+        return std::nullopt;
+
+    auto segments = split_top_level_semicolons(cleaned);
+    if (segments.empty())
+        return std::nullopt;
+
+    std::vector<std::string> tokens;
+    tokens.reserve(segments.size() * 2);
+    for (const auto& seg : segments) {
+        expand_segment(seg, tokens);
+    }
+
+    if (tokens.empty())
+        return std::nullopt;
+
+    std::vector<std::string> block_lines;
+    std::vector<std::string> trailing_tokens;
+    int depth = 0;
+    bool started = false;
+
+    for (size_t i = 0; i < tokens.size(); ++i) {
+        const std::string& tok = tokens[i];
+
+        if (!started) {
+            if (!is_if_token(tok))
+                return std::nullopt;
+            started = true;
+        }
+
+        block_lines.push_back(tok);
+
+        if (is_if_token(tok)) {
+            depth++;
+        } else if (tok == "fi") {
+            depth--;
+            if (depth < 0)
+                return std::nullopt;
+        }
+
+        if (depth == 0) {
+            if (i + 1 < tokens.size()) {
+                auto start = std::next(tokens.begin(), static_cast<std::ptrdiff_t>(i + 1));
+                trailing_tokens.insert(trailing_tokens.end(), start, tokens.end());
+            }
+            break;
+        }
+    }
+
+    if (!started || depth != 0)
+        return std::nullopt;
+
+    std::string trailing;
+    for (const auto& t : trailing_tokens) {
+        if (trailing.empty()) {
+            trailing = t;
+        } else {
+            trailing.append("; ");
+            trailing.append(t);
+        }
+    }
+
+    return ExpandedSingleLineIf{std::move(block_lines), trailing};
+}
+
+}  // namespace
+
 namespace conditional_evaluator {
 
 int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
@@ -18,6 +230,30 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                     const std::function<int(const std::string&)>& execute_simple_or_pipeline,
                     const std::function<int(const std::string&)>& evaluate_logical_condition,
                     Parser* shell_parser) {
+    if (src_lines.size() == 1 && shell_parser != nullptr) {
+        if (auto expanded = expand_single_line_if(src_lines[idx])) {
+            size_t local_idx = 0;
+            int rc = handle_if_block(expanded->lines, local_idx, execute_block,
+                                     execute_simple_or_pipeline, evaluate_logical_condition,
+                                     shell_parser);
+
+            if (!expanded->trailing_commands.empty() && rc != 253 && rc != 254 && rc != 255 &&
+                !g_exit_flag) {
+                auto trailing_cmds =
+                    shell_parser->parse_semicolon_commands(expanded->trailing_commands);
+                for (const auto& cmd : trailing_cmds) {
+                    int follow_rc = execute_simple_or_pipeline(cmd);
+                    rc = follow_rc;
+                    if (follow_rc != 0 || g_exit_flag)
+                        break;
+                }
+            }
+
+            idx = 0;
+            return rc;
+        }
+    }
+
     std::string first = process_line_for_validation(src_lines[idx]);
 
     std::string cond_accum;
@@ -101,9 +337,11 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
 
                     else if (search_pos + 2 <= rem.length() && rem.substr(search_pos, 2) == "fi") {
                         bool is_word_start =
-                            (search_pos == 0 || !std::isalnum(rem[search_pos - 1]));
+                            (search_pos == 0 ||
+                             std::isalnum(static_cast<unsigned char>(rem[search_pos - 1])) == 0);
                         bool is_word_end =
-                            (search_pos + 2 >= rem.length() || !std::isalnum(rem[search_pos + 2]));
+                            (search_pos + 2 >= rem.length() ||
+                             std::isalnum(static_cast<unsigned char>(rem[search_pos + 2])) == 0);
                         if (is_word_start && is_word_end) {
                             if_depth--;
                             if (if_depth == 0) {
@@ -141,19 +379,22 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                             check_pos += 2;
                         } else if (check_pos + 2 <= fi_pos && rem.substr(check_pos, 2) == "fi") {
                             bool is_word =
-                                (check_pos == 0 || !std::isalnum(rem[check_pos - 1])) &&
-                                (check_pos + 2 >= fi_pos || !std::isalnum(rem[check_pos + 2]));
+                                (check_pos == 0 || std::isalnum(static_cast<unsigned char>(
+                                                       rem[check_pos - 1])) == 0) &&
+                                (check_pos + 2 >= fi_pos ||
+                                 std::isalnum(static_cast<unsigned char>(rem[check_pos + 2])) == 0);
                             if (is_word && nested_depth > 0) {
                                 nested_depth--;
                             }
-                        } else if (nested_depth == 0 && check_pos + 5 <= fi_pos &&
-                                   rem.substr(check_pos, 5) == "elif ") {
-                            has_top_level_elif = true;
-                            break;
-                        } else if (nested_depth == 0 && check_pos + 6 <= fi_pos &&
-                                   rem.substr(check_pos, 6) == "; elif") {
-                            has_top_level_elif = true;
-                            break;
+                        } else if (nested_depth == 0) {
+                            bool matches_plain_elif =
+                                (check_pos + 5 <= fi_pos && rem.substr(check_pos, 5) == "elif ");
+                            bool matches_semicolon_elif =
+                                (check_pos + 6 <= fi_pos && rem.substr(check_pos, 6) == "; elif");
+                            if (matches_plain_elif || matches_semicolon_elif) {
+                                has_top_level_elif = true;
+                                break;
+                            }
                         }
                     }
                     check_pos++;
@@ -191,9 +432,12 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                         else if (search_else + 2 <= body.length() &&
                                  body.substr(search_else, 2) == "fi") {
                             bool is_word_start =
-                                (search_else == 0 || !std::isalnum(body[search_else - 1]));
-                            bool is_word_end = (search_else + 2 >= body.length() ||
-                                                !std::isalnum(body[search_else + 2]));
+                                (search_else == 0 || std::isalnum(static_cast<unsigned char>(
+                                                         body[search_else - 1])) == 0);
+                            bool is_word_end =
+                                (search_else + 2 >= body.length() ||
+                                 std::isalnum(static_cast<unsigned char>(body[search_else + 2])) ==
+                                     0);
                             if (is_word_start && is_word_end && nested_if_depth > 0) {
                                 nested_if_depth--;
                             }
@@ -243,13 +487,13 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                 if (body_rc != 253 && body_rc != 254 && body_rc != 255 && !g_exit_flag) {
                     size_t after_fi_pos = fi_pos + 2;  // Position after "fi"
                     while (after_fi_pos < rem.length() &&
-                           std::isspace(static_cast<unsigned char>(rem[after_fi_pos]))) {
+                           std::isspace(static_cast<unsigned char>(rem[after_fi_pos])) != 0) {
                         after_fi_pos++;
                     }
                     if (after_fi_pos < rem.length() && rem[after_fi_pos] == ';') {
                         after_fi_pos++;  // Skip the semicolon
                         while (after_fi_pos < rem.length() &&
-                               std::isspace(static_cast<unsigned char>(rem[after_fi_pos]))) {
+                               std::isspace(static_cast<unsigned char>(rem[after_fi_pos])) != 0) {
                             after_fi_pos++;
                         }
                     }
@@ -296,8 +540,10 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
             if_count++;
         pos = 0;
         while ((pos = line.find("fi", pos)) != std::string::npos) {
-            bool is_word = (pos == 0 || !std::isalnum(line[pos - 1])) &&
-                           (pos + 2 >= line.length() || !std::isalnum(line[pos + 2]));
+            bool is_word =
+                (pos == 0 || std::isalnum(static_cast<unsigned char>(line[pos - 1])) == 0) &&
+                (pos + 2 >= line.length() ||
+                 std::isalnum(static_cast<unsigned char>(line[pos + 2])) == 0);
             if (is_word)
                 fi_count++;
             pos += 2;
