@@ -12,9 +12,9 @@ class Parser;
 namespace loop_evaluator {
 
 enum class LoopFlow : std::uint8_t {
-    None,
-    Continue,
-    Break
+    NONE,
+    CONTINUE,
+    BREAK
 };
 
 struct LoopCommandOutcome {

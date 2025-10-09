@@ -2,7 +2,6 @@
 
 #include <cctype>
 #include <cstdlib>
-#include <iostream>
 #include <sstream>
 #include <string>
 
@@ -67,22 +66,22 @@ LoopCommandOutcome handle_loop_command_result(int rc, int break_consumed_rc, int
     if (rc == 255) {
         int adjusted =
             adjust_loop_signal("CJSH_BREAK_LEVEL", break_consumed_rc, break_propagate_rc);
-        return {LoopFlow::Break, adjusted};
+        return {LoopFlow::BREAK, adjusted};
     }
     if (rc == 254) {
         int adjusted =
             adjust_loop_signal("CJSH_CONTINUE_LEVEL", continue_consumed_rc, continue_propagate_rc);
         if (adjusted == continue_consumed_rc)
-            return {LoopFlow::Continue, adjusted};
-        return {LoopFlow::Break, adjusted};
+            return {LoopFlow::CONTINUE, adjusted};
+        return {LoopFlow::BREAK, adjusted};
     }
     if (rc != 0) {
         if (g_shell && g_shell->is_errexit_enabled())
-            return {LoopFlow::Break, rc};
+            return {LoopFlow::BREAK, rc};
         if (!allow_error_continue)
-            return {LoopFlow::Break, rc};
+            return {LoopFlow::BREAK, rc};
     }
-    return {LoopFlow::None, rc};
+    return {LoopFlow::NONE, rc};
 }
 
 int handle_for_block(const std::vector<std::string>& src_lines, size_t& idx,
@@ -128,7 +127,7 @@ int handle_for_block(const std::vector<std::string>& src_lines, size_t& idx,
             if (i < raw_toks.size() && raw_toks[i].find('{') != std::string::npos &&
                 raw_toks[i].find("..") != std::string::npos &&
                 raw_toks[i].find('}') != std::string::npos) {
-                std::string range_str = raw_toks[i];
+                const std::string& range_str = raw_toks[i];
                 size_t start_brace = range_str.find('{');
                 size_t end_brace = range_str.find('}');
                 std::string range_content =
@@ -202,11 +201,11 @@ int handle_for_block(const std::vector<std::string>& src_lines, size_t& idx,
                     rc_local = execute_range_iteration(value);
                     auto outcome = handle_loop_command_result(rc_local, 0, 255, 0, 254, true);
                     rc_local = outcome.code;
-                    if (outcome.flow == LoopFlow::None) {
+                    if (outcome.flow == LoopFlow::NONE) {
                         value += step;
                         continue;
                     }
-                    if (outcome.flow == LoopFlow::Continue) {
+                    if (outcome.flow == LoopFlow::CONTINUE) {
                         value += step;
                         continue;
                     }
@@ -220,7 +219,7 @@ int handle_for_block(const std::vector<std::string>& src_lines, size_t& idx,
             for (const auto& it : items) {
                 if (g_shell) {
                     g_shell->get_env_vars()[var] = it;
-                    if (shell_parser) {
+                    if (shell_parser != nullptr) {
                         shell_parser->expand_env_vars(var);
                     }
                 }
@@ -230,9 +229,9 @@ int handle_for_block(const std::vector<std::string>& src_lines, size_t& idx,
                 rc = execute_block(body_vec);
                 auto outcome = handle_loop_command_result(rc, 0, 255, 0, 254, true);
                 rc = outcome.code;
-                if (outcome.flow == LoopFlow::None)
+                if (outcome.flow == LoopFlow::NONE)
                     continue;
-                if (outcome.flow == LoopFlow::Continue)
+                if (outcome.flow == LoopFlow::CONTINUE)
                     continue;
                 break;
             }
@@ -365,11 +364,11 @@ int handle_for_block(const std::vector<std::string>& src_lines, size_t& idx,
                 }
                 auto outcome = run_body_and_handle_result();
                 rc_local = outcome.code;
-                if (outcome.flow == LoopFlow::None) {
+                if (outcome.flow == LoopFlow::NONE) {
                     value += step;
                     continue;
                 }
-                if (outcome.flow == LoopFlow::Continue) {
+                if (outcome.flow == LoopFlow::CONTINUE) {
                     value += step;
                     continue;
                 }
@@ -383,16 +382,16 @@ int handle_for_block(const std::vector<std::string>& src_lines, size_t& idx,
         for (const auto& it : items) {
             if (g_shell) {
                 g_shell->get_env_vars()[var] = it;
-                if (shell_parser) {
+                if (shell_parser != nullptr) {
                     shell_parser->expand_env_vars(var);
                 }
                 setenv(var.c_str(), it.c_str(), 1);
             }
             auto outcome = run_body_and_handle_result();
             rc = outcome.code;
-            if (outcome.flow == LoopFlow::None)
+            if (outcome.flow == LoopFlow::NONE)
                 continue;
-            if (outcome.flow == LoopFlow::Continue)
+            if (outcome.flow == LoopFlow::CONTINUE)
                 continue;
             break;
         }
@@ -509,8 +508,6 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
     }
 
     int rc = 0;
-    int guard = 0;
-    const int GUARD_MAX = 100000;
     while (true) {
         int c = 0;
         if (!cond.empty()) {
@@ -524,17 +521,10 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
         rc = execute_block(body_lines);
         auto outcome = handle_loop_command_result(rc, 0, 255, 0, 254, true);
         rc = outcome.code;
-        if (outcome.flow == LoopFlow::Break)
+        if (outcome.flow == LoopFlow::BREAK)
             break;
-        if (outcome.flow == LoopFlow::Continue)
+        if (outcome.flow == LoopFlow::CONTINUE)
             continue;
-        if (++guard > GUARD_MAX) {
-            std::cerr << "cjsh: " << keyword << " loop exceeded maximum iterations (" << GUARD_MAX
-                      << "). "
-                      << "Possible infinite loop detected. Breaking." << '\n';
-            rc = 1;
-            break;
-        }
     }
     return rc;
 }
