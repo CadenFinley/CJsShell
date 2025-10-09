@@ -66,7 +66,7 @@ test_script:
       chmod +x tests/run_shell_tests.sh
       # Run the test suite and show output in CI logs
       echo "Running test suite..."
-      ./tests/run_shell_tests.sh || true
+      ./tests/run_shell_tests.sh
 
 # Artifacts to save
 artifacts:
