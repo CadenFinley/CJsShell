@@ -93,8 +93,6 @@ void raw_mode_state_release(RawModeState* state) {
     }
 
     if (tcsetattr(state->fd, TCSANOW, &state->saved_modes) == -1) {
-        // Failed to restore terminal modes, but there's not much we can do here as shell is likely
-        // exiting.
     }
 
     state->entered = false;
@@ -527,7 +525,6 @@ void Shell::sync_env_vars_from_system() {
     }
 }
 
-// Hook system implementation
 void Shell::register_hook(const std::string& hook_type, const std::string& function_name) {
     if (function_name.empty()) {
         return;
@@ -535,7 +532,6 @@ void Shell::register_hook(const std::string& hook_type, const std::string& funct
 
     auto& hook_list = hooks[hook_type];
 
-    // Avoid duplicate registrations
     if (std::find(hook_list.begin(), hook_list.end(), function_name) == hook_list.end()) {
         hook_list.push_back(function_name);
     }
@@ -551,7 +547,6 @@ void Shell::unregister_hook(const std::string& hook_type, const std::string& fun
     hook_list.erase(std::remove(hook_list.begin(), hook_list.end(), function_name),
                     hook_list.end());
 
-    // Clean up empty hook types
     if (hook_list.empty()) {
         hooks.erase(it);
     }
@@ -580,10 +575,7 @@ void Shell::execute_hooks(const std::string& hook_type) {
         return;
     }
 
-    // Execute each registered hook function
     for (const auto& function_name : hook_list) {
-        // Execute the hook function/command
-        // Hooks are expected to be shell functions or commands
         execute(function_name);
     }
 }

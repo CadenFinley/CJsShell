@@ -210,8 +210,6 @@ std::optional<HereStringError> setup_here_string_stdin(const std::string& here_s
 }
 
 std::vector<char*> build_exec_argv(const std::vector<std::string>& args) {
-    // We need to keep the buffers alive, so allocate them in a static thread_local vector.
-    // This is safe for short-lived exec calls, but not thread-safe for concurrent execs.
     static thread_local std::vector<std::unique_ptr<char[]>> arg_buffers;
     arg_buffers.clear();
 
@@ -1886,7 +1884,6 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
             terminal_control_acquired = true;
         } else {
             if (errno != ENOTTY && errno != EINVAL && errno != EPERM) {
-                // MAY NOT BE NEEDED
                 set_error(ErrorType::RUNTIME_ERROR, "tcsetpgrp",
                           "warning: failed to set terminal control to job: " +
                               std::string(strerror(errno)));
