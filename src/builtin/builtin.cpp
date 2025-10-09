@@ -14,6 +14,7 @@
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "cjshopt_command.h"
+#include "command_command.h"
 #include "double_bracket_command.h"
 #include "echo_command.h"
 #include "error_out.h"
@@ -206,6 +207,8 @@ Built_ins::Built_ins() : shell(nullptr) {
          [](const std::vector<std::string>& args) { return ::hash_command(args, nullptr); }},
         {"hook",
          [this](const std::vector<std::string>& args) { return ::hook_command(args, shell); }},
+        {"command",
+         [this](const std::vector<std::string>& args) { return ::command_command(args, shell); }},
         {"builtin",
          [this](const std::vector<std::string>& args) {
              if (builtin_handle_help(
