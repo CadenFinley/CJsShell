@@ -1015,6 +1015,12 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
 
         cmd.args = final_args_local;
 
+        // Expand variables in redirection paths
+        if (!variableExpander) {
+            variableExpander = std::make_unique<VariableExpander>(shell, env_vars);
+        }
+        variableExpander->expand_command_redirection_paths(cmd);
+
         if (const char* home = std::getenv("HOME")) {
             if (!variableExpander) {
                 variableExpander = std::make_unique<VariableExpander>(shell, env_vars);

@@ -21,6 +21,7 @@ class VariableExpander {
 
     void expand_command_substitutions_in_string(std::string& text);
     void expand_command_paths_with_home(Command& cmd, const std::string& home);
+    void expand_command_redirection_paths(Command& cmd);
 
     void set_use_exported_vars_only(bool value);
     bool get_use_exported_vars_only() const;

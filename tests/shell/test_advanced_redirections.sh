@@ -256,24 +256,26 @@ else
 fi
 
 # Test redirection with variable expansion
-# Use timeout to prevent hanging, and redirect stdin from /dev/null
-timeout 5 "$CJSH_PATH" -c "FILE=/tmp/var_redir; echo test > \$FILE; cat \$FILE; rm -f \$FILE" < /dev/null > /tmp/var_expand_out 2>&1
+# The key feature being tested is that $FILE expands in the redirection target
+# Note: We test the redirection itself, then verify the file exists and has correct content
+timeout 5 "$CJSH_PATH" -c "FILE=/tmp/var_redir; echo test > \$FILE" < /dev/null > /tmp/var_expand_out 2>&1
 TIMEOUT_EXIT=$?
 if [ $TIMEOUT_EXIT -eq 124 ]; then
     # Timeout occurred
     rm -f /tmp/var_expand_out /tmp/var_redir
     fail_test "variable expansion in redirection (timeout - command hung)"
-elif [ -f /tmp/var_expand_out ]; then
-    OUT=$(cat /tmp/var_expand_out)
+elif [ -f /tmp/var_redir ]; then
+    # Check if the file was created and has the correct content
+    OUT=$(cat /tmp/var_redir)
     rm -f /tmp/var_expand_out /tmp/var_redir
     if [ "$OUT" = "test" ]; then
         pass_test "redirection with variable expansion"
     else
-        fail_test "variable expansion in redirection (got '$OUT')"
+        fail_test "variable expansion in redirection (got '$OUT', expected 'test')"
     fi
 else
     rm -f /tmp/var_expand_out /tmp/var_redir
-    fail_test "variable expansion in redirection (output file not created)"
+    fail_test "variable expansion in redirection (file not created)"
 fi
 
 echo ""
