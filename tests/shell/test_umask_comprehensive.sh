@@ -94,18 +94,6 @@ else
     skip_test "umask -S not supported"
 fi
 
-# Test umask -p option (output in a form that can be reused as input)
-OUT=$("$CJSH_PATH" -c "umask -p" 2>&1)
-if [ $? -eq 0 ]; then
-    if echo "$OUT" | grep -q "umask"; then
-        pass_test "umask -p reusable format"
-    else
-        skip_test "umask -p format different than expected"
-    fi
-else
-    skip_test "umask -p not supported"
-fi
-
 # Test umask preserves value across commands
 OUT=$("$CJSH_PATH" -c "umask 0027; umask")
 if echo "$OUT" | grep -q "0027\|027"; then

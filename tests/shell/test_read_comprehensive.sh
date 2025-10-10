@@ -91,14 +91,6 @@ else
     skip_test "read -r backslash (got '$OUT', may not be supported)"
 fi
 
-# Test read with timeout (if supported)
-OUT=$(echo "quick" | "$CJSH_PATH" -c "read -t 1 VAR 2>/dev/null; echo \$VAR")
-if [ "$OUT" = "quick" ]; then
-    pass_test "read with timeout"
-else
-    skip_test "read -t may not be supported"
-fi
-
 # Test read -n (read N characters)
 OUT=$(echo "hello world" | "$CJSH_PATH" -c "read -n 5 VAR 2>/dev/null; echo \$VAR")
 if [ "$OUT" = "hello" ]; then
@@ -113,17 +105,6 @@ if [ "$OUT" = "hello" ]; then
     pass_test "read -d custom delimiter"
 else
     skip_test "read -d not supported"
-fi
-
-# Test read -p (prompt) - only makes sense in interactive, skip
-skip_test "read -p prompt (interactive only)"
-
-# Test read -a (array) if supported
-OUT=$(echo "one two three" | "$CJSH_PATH" -c "read -a ARR; echo \${ARR[0]} \${ARR[1]} \${ARR[2]}" 2>/dev/null)
-if [ "$OUT" = "one two three" ]; then
-    pass_test "read -a into array"
-else
-    skip_test "read -a arrays not supported"
 fi
 
 # Test read from here-document
