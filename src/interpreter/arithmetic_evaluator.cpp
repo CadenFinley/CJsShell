@@ -1,6 +1,7 @@
 #include "arithmetic_evaluator.h"
 
 #include <cctype>
+#include <cstdlib>
 #include <stdexcept>
 #include <vector>
 
@@ -71,23 +72,30 @@ std::vector<ArithmeticEvaluator::Token> ArithmeticEvaluator::tokenize(const std:
 
         if (std::isdigit(static_cast<unsigned char>(expr[i])) != 0 ||
             (expr[i] == '-' && expect_number && i + 1 < expr.size() &&
-             std::isdigit(static_cast<unsigned char>(expr[i + 1])) != 0)) {
-            long long val = 0;
-            bool negative = false;
+             (std::isdigit(static_cast<unsigned char>(expr[i + 1])) != 0 || expr[i + 1] == '0'))) {
             size_t j = i;
-
-            if (expr[j] == '-') {
-                negative = true;
+            if (expr[j] == '-')
                 ++j;
+
+            if (j < expr.size() && expr[j] == '0' && j + 1 < expr.size() &&
+                (expr[j + 1] == 'x' || expr[j + 1] == 'X')) {
+                j += 2;
+                while (j < expr.size() && std::isxdigit(static_cast<unsigned char>(expr[j])) != 0) {
+                    ++j;
+                }
+            } else {
+                while (j < expr.size() && std::isdigit(static_cast<unsigned char>(expr[j])) != 0) {
+                    ++j;
+                }
             }
 
-            while (j < expr.size() && std::isdigit(static_cast<unsigned char>(expr[j])) != 0) {
-                val = val * 10 + (expr[j] - '0');
-                ++j;
+            std::string num_str = expr.substr(i, j - i);
+            char* endptr = nullptr;
+            long long val = std::strtoll(num_str.c_str(), &endptr, 0);
+            if (endptr == num_str.c_str()) {
+                val = 0;
             }
 
-            if (negative)
-                val = -val;
             tokens.push_back({TokenType::NUMBER, val, "", ""});
             i = j;
             expect_number = false;

@@ -103,7 +103,7 @@ SHELL_COMMANDS = {
 COMMAND_DESCRIPTIONS = [
     "ls", "version", "hello", "pwd", "date", "shell_var", "ls_long", "exit", "loop", "loop_even"
 ]
-BASELINE_SHELLS = ["cjsh", "fish", "bash", "zsh", "ksh", "nu", "elvish", "ion", "xonsh", "tcsh", "csh"]
+BASELINE_SHELLS = ["cjsh", "fish", "bash", "zsh", "nu", "elvish", "ion", "xonsh"]
 #CJSH_BINARY_TYPES = ["", "_speed03", "_speed02", "_debug"]  # Empty string means no suffix
 CJSH_BINARY_TYPES = [""]
 
