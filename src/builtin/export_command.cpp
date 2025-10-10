@@ -53,9 +53,44 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
                 shell->get_parser()->set_env_vars(env_vars);
             }
         } else {
-            const char* env_val = getenv(args[i].c_str());
-            if (env_val != nullptr) {
-                env_vars[args[i]] = env_val;
+            // No assignment, export existing variable
+            std::string var_value;
+            bool found = false;
+            bool is_local = false;
+
+            // First check if it's a local variable
+            auto* script_interpreter = shell->get_shell_script_interpreter();
+            if (script_interpreter != nullptr && script_interpreter->is_local_variable(args[i])) {
+                // Get the local variable value and export it
+                var_value = script_interpreter->get_variable_value(args[i]);
+                found = true;
+                is_local = true;
+
+                // Mark it as exported so it can be cleaned up when scope ends
+                script_interpreter->mark_local_as_exported(args[i]);
+            } else {
+                // Check environment variables
+                const char* env_val = getenv(args[i].c_str());
+                if (env_val != nullptr) {
+                    var_value = env_val;
+                    found = true;
+                } else {
+                    // Check shell variables
+                    auto it = env_vars.find(args[i]);
+                    if (it != env_vars.end()) {
+                        var_value = it->second;
+                        found = true;
+                    }
+                }
+            }
+
+            if (found) {
+                // Only add to env_vars if it's not a local variable
+                // (locals should only exist in the environment temporarily)
+                if (!is_local) {
+                    env_vars[args[i]] = var_value;
+                }
+                setenv(args[i].c_str(), var_value.c_str(), 1);
             } else {
                 print_error({ErrorType::INVALID_ARGUMENT, "export", args[i] + ": not found", {}});
                 all_successful = false;

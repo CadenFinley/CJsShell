@@ -12,9 +12,29 @@
 
 void VariableManager::push_scope() {
     local_variable_stack.emplace_back();
+    exported_locals_stack.emplace_back();
+    saved_env_stack.emplace_back();
 }
 
 void VariableManager::pop_scope() {
+    // Clean up any exported local variables
+    if (!saved_env_stack.empty()) {
+        for (const auto& [var_name, old_value] : saved_env_stack.back()) {
+            if (old_value.empty()) {
+                // Variable didn't exist before, unset it
+                unsetenv(var_name.c_str());
+            } else {
+                // Restore old value
+                setenv(var_name.c_str(), old_value.c_str(), 1);
+            }
+        }
+        saved_env_stack.pop_back();
+    }
+
+    if (!exported_locals_stack.empty()) {
+        exported_locals_stack.pop_back();
+    }
+
     if (!local_variable_stack.empty()) {
         local_variable_stack.pop_back();
     }
@@ -54,6 +74,17 @@ bool VariableManager::unset_local_variable(const std::string& name) {
         }
     }
     return false;
+}
+
+void VariableManager::mark_local_as_exported(const std::string& name) {
+    if (!exported_locals_stack.empty() && !saved_env_stack.empty()) {
+        // Save the old environment value (if any) before exporting
+        const char* old_val = getenv(name.c_str());
+        std::string old_value = (old_val != nullptr) ? old_val : "";
+
+        saved_env_stack.back().emplace_back(name, old_value);
+        exported_locals_stack.back().push_back(name);
+    }
 }
 
 std::string VariableManager::get_variable_value(const std::string& var_name) const {

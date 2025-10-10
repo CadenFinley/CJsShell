@@ -143,6 +143,7 @@ class ShellScriptInterpreter {
     void set_local_variable(const std::string& name, const std::string& value);
     bool is_local_variable(const std::string& name) const;
     bool unset_local_variable(const std::string& name);
+    void mark_local_as_exported(const std::string& name);
     bool in_function_scope() const;
 
    private:

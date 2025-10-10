@@ -8,6 +8,7 @@ class VariableManager {
    public:
     using VariableMap = std::unordered_map<std::string, std::string>;
     using VariableStack = std::vector<VariableMap>;
+    using ExportedLocalsStack = std::vector<std::vector<std::string>>;
 
     VariableManager() = default;
     ~VariableManager() = default;
@@ -23,6 +24,7 @@ class VariableManager {
     void set_local_variable(const std::string& name, const std::string& value);
     bool is_local_variable(const std::string& name) const;
     bool unset_local_variable(const std::string& name);
+    void mark_local_as_exported(const std::string& name);
     bool in_function_scope() const {
         return !local_variable_stack.empty();
     }
@@ -39,6 +41,9 @@ class VariableManager {
 
    private:
     VariableStack local_variable_stack;
+    ExportedLocalsStack exported_locals_stack;
+    // Store original environment values for cleanup: vector of (name, optional_old_value) pairs
+    std::vector<std::vector<std::pair<std::string, std::string>>> saved_env_stack;
 
     std::string get_special_variable(const std::string& var_name) const;
     std::string get_positional_parameter(const std::string& var_name) const;

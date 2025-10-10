@@ -188,13 +188,34 @@ EOF
 chmod +x /tmp/test_local7.sh
 
 OUT=$("$CJSH_PATH" /tmp/test_local7.sh 2>&1)
-# Behavior may vary; local + export might work or be restricted
-if [ -n "$OUT" ]; then
-    skip_test "local with export (behavior: '$OUT')"
+# Exported local should be available in subshell
+if [ "$OUT" = "local_val" ]; then
+    pass_test "local variable can be exported to subshells"
 else
-    skip_test "local with export (implementation specific)"
+    fail_test "local with export (got '$OUT', expected 'local_val')"
 fi
 rm -f /tmp/test_local7.sh
+
+# Test that exported local doesn't persist after function
+cat > /tmp/test_local7b.sh << 'EOF'
+#!/bin/sh
+test_func() {
+    local VAR=local_val
+    export VAR
+}
+VAR=global_val
+test_func
+echo "$VAR"
+EOF
+chmod +x /tmp/test_local7b.sh
+
+OUT=$("$CJSH_PATH" /tmp/test_local7b.sh 2>&1)
+if [ "$OUT" = "global_val" ]; then
+    pass_test "exported local doesn't persist after function"
+else
+    fail_test "exported local persistence (got '$OUT', expected 'global_val')"
+fi
+rm -f /tmp/test_local7b.sh
 
 # Test local variable with special characters in value
 cat > /tmp/test_local8.sh << 'EOF'
@@ -253,11 +274,13 @@ EOF
 chmod +x /tmp/test_local10.sh
 
 OUT=$("$CJSH_PATH" /tmp/test_local10.sh 2>&1)
-# This might fail or succeed depending on implementation
-if echo "$OUT" | grep -q "local_val"; then
-    skip_test "local can shadow readonly (output: '$OUT')"
+EXPECTED="local_val
+readonly_val"
+# Local variables should be able to shadow readonly globals within function scope
+if [ "$OUT" = "$EXPECTED" ]; then
+    pass_test "local can shadow readonly variable"
 else
-    skip_test "local readonly interaction varies by implementation"
+    fail_test "local readonly shadowing (got '$OUT', expected '$EXPECTED')"
 fi
 rm -f /tmp/test_local10.sh
 

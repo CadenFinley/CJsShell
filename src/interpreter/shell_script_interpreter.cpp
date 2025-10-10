@@ -1637,6 +1637,10 @@ bool ShellScriptInterpreter::unset_local_variable(const std::string& name) {
     return variable_manager.unset_local_variable(name);
 }
 
+void ShellScriptInterpreter::mark_local_as_exported(const std::string& name) {
+    variable_manager.mark_local_as_exported(name);
+}
+
 bool ShellScriptInterpreter::in_function_scope() const {
     return variable_manager.in_function_scope();
 }
