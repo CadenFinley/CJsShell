@@ -548,6 +548,23 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                         return 1;
                     }
 
+                } else if (!c.args.empty() && c.args[0] == "__INTERNAL_BRACE_GROUP__") {
+                    bool has_redir = c.stderr_to_stdout || c.stdout_to_stderr ||
+                                     !c.input_file.empty() || !c.output_file.empty() ||
+                                     !c.append_file.empty() || !c.stderr_file.empty() ||
+                                     !c.here_doc.empty();
+
+                    if (has_redir) {
+                        return run_pipeline(cmds);
+                    }
+
+                    if (c.args.size() >= 2) {
+                        int exit_code = g_shell ? g_shell->execute(c.args[1]) : 1;
+                        return set_last_status(exit_code);
+                    }
+
+                    return 0;
+
                 } else {
                     std::vector<std::string> expanded_args = shell_parser->parse_command(text);
                     if (expanded_args.empty())

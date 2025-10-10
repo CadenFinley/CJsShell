@@ -969,13 +969,20 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
         std::vector<std::string> final_args_local;
         bool is_subshell_command =
             !filtered_args.empty() && QuoteInfo(filtered_args[0]).value == "__INTERNAL_SUBSHELL__";
+        bool is_brace_group_command = !filtered_args.empty() &&
+                                      QuoteInfo(filtered_args[0]).value ==
+                                          "__INTERNAL_BRACE_GROUP__";
 
         for (size_t arg_idx = 0; arg_idx < tilde_expanded_args.size(); ++arg_idx) {
             const auto& raw = tilde_expanded_args[arg_idx];
             QuoteInfo qi(raw);
             std::string& val = qi.value;
 
-            if (!qi.is_single && (!is_subshell_command || arg_idx != 1)) {
+            bool skip_env_expansion =
+                (!qi.is_single) && ((is_subshell_command && arg_idx == 1) ||
+                                    (is_brace_group_command && arg_idx == 1));
+
+            if (!qi.is_single && !skip_env_expansion) {
                 if (!variableExpander) {
                     variableExpander = std::make_unique<VariableExpander>(shell, env_vars);
                 }
@@ -1053,37 +1060,96 @@ std::vector<Command> Parser::parse_pipeline_with_preprocessing(const std::string
         current_here_docs[pair.first] = pair.second;
     }
 
-    {
-        const std::string& pt = preprocessed.processed_text;
-        size_t lead = pt.find_first_not_of(" \t\r\n");
-        if (lead != std::string::npos && pt.find("SUBSHELL{", lead) == lead) {
-            size_t start = preprocessed.processed_text.find('{') + 1;
-            size_t end = preprocessed.processed_text.find('}', start);
-            if (end != std::string::npos) {
-                std::string subshell_content =
-                    preprocessed.processed_text.substr(start, end - start);
-                std::string remaining = preprocessed.processed_text.substr(end + 1);
-
-                auto escape_double_quotes = [](const std::string& s) {
-                    std::string out;
-                    out.reserve(s.size() + 16);
-                    for (char c : s) {
-                        if (c == '"' || c == '\\') {
-                            out += '\\';
-                        }
-                        out += c;
-                    }
-                    return out;
-                };
-
-                std::string rebuilt = "__INTERNAL_SUBSHELL__ \"" +
-                                      escape_double_quotes(subshell_content) + "\"" + remaining;
-
-                std::string prefix = preprocessed.processed_text.substr(0, lead);
-                preprocessed.processed_text = prefix + rebuilt;
-            }
+    auto transform_group_marker = [&preprocessed](const std::string& marker,
+                                                  const std::string& builtin_name) {
+        const std::string& text = preprocessed.processed_text;
+        size_t lead = text.find_first_not_of(" \t\r\n");
+        if (lead == std::string::npos) {
+            return;
         }
-    }
+
+        if (text.compare(lead, marker.size(), marker) != 0) {
+            return;
+        }
+
+        auto is_inside_quotes = [&text](size_t pos) {
+            bool in_single = false;
+            bool in_double = false;
+            bool escaped = false;
+
+            for (size_t i = 0; i < pos && i < text.length(); ++i) {
+                if (escaped) {
+                    escaped = false;
+                    continue;
+                }
+
+                if (text[i] == '\\') {
+                    escaped = true;
+                } else if (text[i] == '\'' && !in_double) {
+                    in_single = !in_single;
+                } else if (text[i] == '"' && !in_single) {
+                    in_double = !in_double;
+                }
+            }
+
+            return in_single || in_double;
+        };
+
+        auto find_matching_brace = [&text, &is_inside_quotes](size_t start_pos) {
+            if (start_pos >= text.length() || text[start_pos] != '{') {
+                return std::string::npos;
+            }
+
+            int depth = 0;
+            for (size_t i = start_pos; i < text.length(); ++i) {
+                if (is_inside_quotes(i)) {
+                    continue;
+                }
+
+                if (text[i] == '{') {
+                    depth++;
+                } else if (text[i] == '}') {
+                    depth--;
+                    if (depth == 0) {
+                        return i;
+                    }
+                }
+            }
+
+            return std::string::npos;
+        };
+
+        size_t brace_pos = lead + marker.size() - 1;
+        size_t close_pos = find_matching_brace(brace_pos);
+        if (close_pos == std::string::npos) {
+            return;
+        }
+
+        size_t content_start = brace_pos + 1;
+        std::string group_content = text.substr(content_start, close_pos - content_start);
+        std::string remaining = text.substr(close_pos + 1);
+
+        auto escape_double_quotes = [](const std::string& s) {
+            std::string out;
+            out.reserve(s.size() + 16);
+            for (char c : s) {
+                if (c == '"' || c == '\\') {
+                    out += '\\';
+                }
+                out += c;
+            }
+            return out;
+        };
+
+        std::string rebuilt = builtin_name + " \"" + escape_double_quotes(group_content) +
+                              "\"" + remaining;
+
+        std::string prefix = text.substr(0, lead);
+        preprocessed.processed_text = prefix + rebuilt;
+    };
+
+    transform_group_marker("SUBSHELL{", "__INTERNAL_SUBSHELL__");
+    transform_group_marker("BRACEGROUP{", "__INTERNAL_BRACE_GROUP__");
 
     std::vector<Command> commands = parse_pipeline(preprocessed.processed_text);
 

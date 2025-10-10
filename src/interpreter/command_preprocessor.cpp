@@ -98,7 +98,9 @@ std::string CommandPreprocessor::process_subshells(const std::string& command) {
 
     size_t close_pos = std::string::npos;
 
-    if (result[lead] == '(') {
+    const bool is_paren_group = result[lead] == '(';
+
+    if (is_paren_group) {
         close_pos = find_matching_paren(result, lead);
     } else if (result[lead] == '{') {
         close_pos = find_matching_brace(result, lead);
@@ -111,7 +113,7 @@ std::string CommandPreprocessor::process_subshells(const std::string& command) {
     std::string subshell_content = result.substr(lead + 1, close_pos - (lead + 1));
     std::string remaining = result.substr(close_pos + 1);
 
-    if (result[lead] == '{') {
+    if (!is_paren_group) {
         size_t start = subshell_content.find_first_not_of(" \t\n\r");
         size_t end = subshell_content.find_last_not_of(" \t\n\r");
         if (start != std::string::npos && end != std::string::npos) {
@@ -129,7 +131,8 @@ std::string CommandPreprocessor::process_subshells(const std::string& command) {
     }
 
     std::string prefix = result.substr(0, lead);
-    result = prefix + "SUBSHELL{" + subshell_content + "}" + remaining;
+    const std::string marker = is_paren_group ? "SUBSHELL{" : "BRACEGROUP{";
+    result = prefix + marker + subshell_content + "}" + remaining;
 
     return result;
 }

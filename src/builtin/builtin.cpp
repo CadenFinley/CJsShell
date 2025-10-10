@@ -31,6 +31,7 @@
 #include "hook_command.h"
 #include "if_command.h"
 #include "internal_subshell_command.h"
+#include "internal_brace_group_command.h"
 #include "job_control.h"
 #include "local_command.h"
 #include "loop_control_commands.h"
@@ -181,6 +182,10 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"__INTERNAL_SUBSHELL__",
          [this](const std::vector<std::string>& args) {
              return internal_subshell_command(args, shell);
+         }},
+        {"__INTERNAL_BRACE_GROUP__",
+         [this](const std::vector<std::string>& args) {
+             return internal_brace_group_command(args, shell);
          }},
         {"trap", [](const std::vector<std::string>& args) { return ::trap_command(args); }},
         {"jobs", [](const std::vector<std::string>& args) { return ::jobs_command(args); }},
