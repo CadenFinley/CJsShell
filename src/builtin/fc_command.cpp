@@ -110,7 +110,7 @@ std::string get_editor() {
         return std::string(editor);
     }
 
-    return "ed";
+    return "nano";
 }
 
 int edit_and_execute(const std::vector<std::string>& entries, int first, int last,
