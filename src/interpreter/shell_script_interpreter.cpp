@@ -807,6 +807,89 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
             continue;
         }
 
+        bool handled_pipeline_loop = false;
+        size_t pipe_search_pos = 0;
+        while (pipe_search_pos < line.size()) {
+            size_t pipe_pos = line.find('|', pipe_search_pos);
+            if (pipe_pos == std::string::npos) {
+                break;
+            }
+
+            std::string after_pipe = trim(line.substr(pipe_pos + 1));
+            bool is_loop_keyword = after_pipe.rfind("while", 0) == 0 ||
+                                   after_pipe.rfind("until", 0) == 0 ||
+                                   after_pipe.rfind("for", 0) == 0;
+
+            if (!is_loop_keyword) {
+                pipe_search_pos = pipe_pos + 1;
+                continue;
+            }
+
+            auto contains_token = [](const std::string& text, const std::string& token) {
+                if (text.empty()) {
+                    return false;
+                }
+                std::string normalized;
+                normalized.reserve(text.size());
+                for (char ch : text) {
+                    normalized.push_back((ch == ';') ? ' ' : ch);
+                }
+                std::istringstream iss(normalized);
+                std::string word;
+                while (iss >> word) {
+                    if (word == token) {
+                        return true;
+                    }
+                }
+                return false;
+            };
+
+            size_t gather_index = line_index;
+            int loop_depth = 0;
+            std::vector<std::string> block_lines;
+            block_lines.reserve(4);
+
+            while (gather_index < lines.size()) {
+                const std::string& gather_raw = lines[gather_index];
+                std::string gather_trimmed = trim(strip_inline_comment(gather_raw));
+
+                block_lines.push_back(gather_raw);
+
+                if (contains_token(gather_trimmed, "do")) {
+                    loop_depth++;
+                }
+                if (contains_token(gather_trimmed, "done")) {
+                    loop_depth--;
+                    if (loop_depth <= 0) {
+                        break;
+                    }
+                }
+
+                gather_index++;
+            }
+
+            if (loop_depth <= 0 && !block_lines.empty()) {
+                std::string combined;
+                combined.reserve(128);
+                for (size_t idx = 0; idx < block_lines.size(); ++idx) {
+                    if (idx > 0) {
+                        combined.push_back('\n');
+                    }
+                    combined += block_lines[idx];
+                }
+
+                last_code = execute_simple_or_pipeline(combined);
+                line_index = gather_index;
+                handled_pipeline_loop = true;
+            }
+
+            break;
+        }
+
+        if (handled_pipeline_loop) {
+            continue;
+        }
+
         if (line.rfind("theme_definition", 0) == 0) {
             size_t block_index = line_index;
             int brace_depth = 0;

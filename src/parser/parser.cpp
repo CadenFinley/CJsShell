@@ -803,6 +803,8 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
             cmd_part = trim_trailing_whitespace(trimmed.substr(0, trimmed.length() - 1));
         }
 
+        cmd.original_text = trim_trailing_whitespace(trim_leading_whitespace(cmd_part));
+
         if (!cmd_part.empty()) {
             size_t lead = cmd_part.find_first_not_of(" \t\r\n");
             if (lead != std::string::npos && cmd_part[lead] == '(') {

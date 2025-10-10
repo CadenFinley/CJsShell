@@ -100,6 +100,23 @@ std::string join_arguments(const std::vector<std::string>& args) {
     return result;
 }
 
+bool is_shell_control_structure(const Command& cmd) {
+    if (cmd.args.empty()) {
+        return false;
+    }
+
+    const std::string& keyword = cmd.args[0];
+    return keyword == "if" || keyword == "for" || keyword == "while" || keyword == "until" ||
+           keyword == "case" || keyword == "select" || keyword == "function";
+}
+
+std::string command_text_for_interpretation(const Command& cmd) {
+    if (!cmd.original_text.empty()) {
+        return cmd.original_text;
+    }
+    return join_arguments(cmd.args);
+}
+
 bool command_exists(const std::string& command_path) {
     if (command_path.empty()) {
         return false;
@@ -1744,8 +1761,16 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                     close(pipes[j][1]);
                 }
 
-                if (g_shell && (g_shell->get_built_ins() != nullptr) &&
-                    (g_shell->get_built_ins()->is_builtin_command(cmd.args[0]) != 0)) {
+                if (is_shell_control_structure(cmd)) {
+                    int exit_code = 1;
+                    if (g_shell) {
+                        exit_code = g_shell->execute(command_text_for_interpretation(cmd));
+                    }
+                    (void)fflush(stdout);
+                    (void)fflush(stderr);
+                    _exit(exit_code);
+                } else if (g_shell && (g_shell->get_built_ins() != nullptr) &&
+                           (g_shell->get_built_ins()->is_builtin_command(cmd.args[0]) != 0)) {
                     int exit_code = g_shell->get_built_ins()->builtin_command(cmd.args);
 
                     (void)fflush(stdout);
