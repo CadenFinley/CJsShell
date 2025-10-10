@@ -389,63 +389,6 @@ void cache_suggestions(const std::string& command, const std::vector<std::string
     }
 }
 
-void update_command_usage_stats(const std::string& command) {
-    try {
-        auto stats_file = cjsh_filesystem::g_cjsh_cache_path / "command_usage_stats.cache";
-
-        std::unordered_map<std::string, int> usage_stats;
-
-        if (std::filesystem::exists(stats_file)) {
-            std::ifstream stats_stream(stats_file);
-            std::string line;
-
-            while (std::getline(stats_stream, line)) {
-                size_t pos = line.find(':');
-                if (pos != std::string::npos) {
-                    std::string cmd = line.substr(0, pos);
-                    int count = std::stoi(line.substr(pos + 1));
-                    usage_stats[cmd] = count;
-                }
-            }
-        }
-
-        usage_stats[command]++;
-
-        std::ofstream stats_stream(stats_file);
-        for (const auto& entry : usage_stats) {
-            stats_stream << entry.first << ":" << entry.second << "\n";
-        }
-
-    } catch (const std::exception&) {
-    }
-}
-
-int get_command_usage_frequency(const std::string& command) {
-    try {
-        auto stats_file = cjsh_filesystem::g_cjsh_cache_path / "command_usage_stats.cache";
-
-        if (!std::filesystem::exists(stats_file)) {
-            return 0;
-        }
-
-        std::ifstream stats_stream(stats_file);
-        std::string line;
-
-        while (std::getline(stats_stream, line)) {
-            size_t pos = line.find(':');
-            if (pos != std::string::npos) {
-                std::string cmd = line.substr(0, pos);
-                if (cmd == command) {
-                    return std::stoi(line.substr(pos + 1));
-                }
-            }
-        }
-    } catch (const std::exception&) {
-    }
-
-    return 0;
-}
-
 std::vector<std::string> generate_fuzzy_suggestions(
     const std::string& command, const std::vector<std::string>& available_commands) {
     std::vector<std::string> suggestions;

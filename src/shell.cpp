@@ -22,7 +22,6 @@
 #include "exec.h"
 #include "job_control.h"
 #include "shell_script_interpreter.h"
-#include "suggestion_utils.h"
 #include "theme.h"
 #include "trap_command.h"
 
@@ -426,10 +425,6 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
     shell_exec->execute_command_sync(args);
     last_terminal_output_error = shell_exec->get_error_string();
     int exit_code = shell_exec->get_exit_code();
-
-    if (exit_code == 0 && !args.empty()) {
-        suggestion_utils::update_command_usage_stats(args[0]);
-    }
 
     if (exit_code != 0) {
         ErrorInfo error = shell_exec->get_error();

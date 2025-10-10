@@ -25,10 +25,6 @@ std::vector<std::string> load_cached_suggestions(const std::string& command);
 
 void cache_suggestions(const std::string& command, const std::vector<std::string>& suggestions);
 
-void update_command_usage_stats(const std::string& command);
-
-int get_command_usage_frequency(const std::string& command);
-
 std::vector<std::string> generate_fuzzy_suggestions(
     const std::string& command, const std::vector<std::string>& available_commands);
 
