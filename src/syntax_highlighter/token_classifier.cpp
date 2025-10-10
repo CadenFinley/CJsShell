@@ -2,6 +2,7 @@
 
 #include <cctype>
 #include <string>
+#include <mutex>
 
 #include "cjsh_filesystem.h"
 #include "token_constants.h"
