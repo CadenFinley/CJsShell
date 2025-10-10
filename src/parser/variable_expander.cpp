@@ -243,67 +243,12 @@ void VariableExpander::expand_env_vars(std::string& arg) {
                 var_name += arg[i];
             } else {
                 in_var = false;
-                std::string value;
-
-                auto read_default_value = [&](size_t steps_to_advance) {
-                    for (size_t step = 0; step < steps_to_advance && i < arg.length(); ++step) {
-                        i++;
-                    }
-
-                    std::string default_val;
-                    while (i < arg.length() && !isspace(arg[i])) {
-                        default_val += arg[i];
-                        i++;
-                    }
-                    if (i < arg.length() && isspace(arg[i])) {
-                        i--;
-                    }
-                    expand_env_vars(default_val);
-                    return default_val;
-                };
-
-                if (arg[i] == ':' && i + 1 < arg.length() && arg[i + 1] == '-') {
-                    std::string env_val = get_variable_value(var_name);
-                    if (!env_val.empty()) {
-                        value = env_val;
-
-                        i++;
-                        i++;
-
-                        while (i < arg.length() && (isspace(arg[i]) == 0)) {
-                            i++;
-                        }
-                        if (i < arg.length() && (isspace(arg[i]) != 0)) {
-                            i--;
-                        }
-                    } else {
-                        value = read_default_value(2);
-                    }
-                } else if (arg[i] == '-' && i >= 1) {
-                    std::string env_val = get_variable_value(var_name);
-                    if (!env_val.empty()) {
-                        value = env_val;
-
-                        i++;
-                        while (i < arg.length() && (isspace(arg[i]) == 0)) {
-                            i++;
-                        }
-                        if (i < arg.length() && (isspace(arg[i]) != 0)) {
-                            i--;
-                        }
-                    } else {
-                        value = read_default_value(1);
-                    }
-                } else {
-                    value = resolve_parameter_value(var_name);
-                }
+                std::string value = resolve_parameter_value(var_name);
                 result += value;
 
-                if (arg[i] != '$' &&
-                    (arg[i] != ':' || i + 1 >= arg.length() || arg[i + 1] != '-') &&
-                    arg[i] != '-') {
+                if (arg[i] != '$') {
                     result += arg[i];
-                } else if (arg[i] == '$') {
+                } else {
                     i--;
                 }
             }

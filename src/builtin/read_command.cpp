@@ -4,7 +4,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
-#include <sstream>
 #include "error_out.h"
 #include "readonly_command.h"
 #include "shell.h"
@@ -181,16 +180,78 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
         input = processed;
     }
 
-    std::vector<std::string> fields;
-    std::istringstream iss(input);
-    std::string field;
-
-    while (iss >> field) {
-        fields.push_back(field);
+    // Get IFS for splitting
+    std::string ifs = " \t\n";
+    const auto& env_vars = shell->get_env_vars();
+    auto ifs_it = env_vars.find("IFS");
+    if (ifs_it != env_vars.end()) {
+        ifs = ifs_it->second;
+    } else {
+        const char* ifs_env = getenv("IFS");
+        if (ifs_env != nullptr) {
+            ifs = ifs_env;
+        }
     }
 
-    if (fields.empty() && !input.empty()) {
+    // Split input into fields based on IFS
+    std::vector<std::string> fields;
+
+    if (ifs.empty()) {
+        // Empty IFS means no splitting
         fields.push_back(input);
+    } else {
+        // Determine if IFS contains only whitespace characters
+        bool ifs_all_whitespace = true;
+        for (char c : ifs) {
+            if (c != ' ' && c != '\t' && c != '\n') {
+                ifs_all_whitespace = false;
+                break;
+            }
+        }
+
+        if (ifs_all_whitespace) {
+            // Default IFS behavior: trim leading/trailing whitespace and collapse multiple spaces
+            size_t start = 0;
+            // Skip leading whitespace
+            while (start < input.length() && ifs.find(input[start]) != std::string::npos) {
+                start++;
+            }
+
+            std::string current_field;
+            for (size_t i = start; i < input.length(); ++i) {
+                if (ifs.find(input[i]) != std::string::npos) {
+                    if (!current_field.empty()) {
+                        fields.push_back(current_field);
+                        current_field.clear();
+                    }
+                } else {
+                    current_field += input[i];
+                }
+            }
+            if (!current_field.empty()) {
+                fields.push_back(current_field);
+            }
+        } else {
+            // Custom IFS: split on any IFS character, don't trim
+            std::string current_field;
+            for (size_t i = 0; i < input.length(); ++i) {
+                if (ifs.find(input[i]) != std::string::npos) {
+                    fields.push_back(current_field);
+                    current_field.clear();
+                } else {
+                    current_field += input[i];
+                }
+            }
+            fields.push_back(current_field);
+
+            // Remove leading and trailing empty fields for non-whitespace IFS
+            while (!fields.empty() && fields.front().empty()) {
+                fields.erase(fields.begin());
+            }
+            while (!fields.empty() && fields.back().empty()) {
+                fields.pop_back();
+            }
+        }
     }
 
     for (size_t i = 0; i < var_names.size(); ++i) {
