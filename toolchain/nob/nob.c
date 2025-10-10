@@ -12,7 +12,6 @@
 #include "nob_cli.h"
 #include "nob_compile.h"
 #include "nob_dependencies.h"
-#include "nob_platform.h"
 
 #define NOB_SELF_REBUILD_ENV "NOB_JUST_REBUILT"
 
@@ -117,7 +116,7 @@ int main(int argc, char** argv) {
     bool minimal = false;
     bool force_32bit = false;
     bool dependencies = false;
-    bool generate_compile_commands = false;
+    bool generate_compile_commands = true;
     int override_jobs = -1;
 
     nob_shift_args(&argc, &argv);
@@ -138,8 +137,8 @@ int main(int argc, char** argv) {
             force_32bit = true;
         } else if (strcmp(arg, "--dependencies") == 0) {
             dependencies = true;
-        } else if (strcmp(arg, "--compile-commands") == 0) {
-            generate_compile_commands = true;
+        } else if (strcmp(arg, "--no-compile-commands") == 0) {
+            generate_compile_commands = false;
         } else if (strcmp(arg, "--jobs") == 0 || strcmp(arg, "-j") == 0) {
             if (argc == 0) {
                 nob_log(NOB_ERROR, "Expected number after %s", arg);
