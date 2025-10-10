@@ -385,6 +385,12 @@ int ShellScriptInterpreter::handle_env_assignment(const std::vector<std::string>
     if (shell_parser->is_env_assignment(expanded_args[0], var_name, var_value)) {
         shell_parser->expand_env_vars(var_value);
 
+        // Check if this is a local variable that should be updated
+        if (variable_manager.is_local_variable(var_name)) {
+            variable_manager.set_local_variable(var_name, var_value);
+            return 0;
+        }
+
         if (g_shell) {
             auto& env_vars = g_shell->get_env_vars();
             env_vars[var_name] = var_value;
@@ -1499,23 +1505,12 @@ int ShellScriptInterpreter::evaluate_logical_condition_internal(
 
 long long ShellScriptInterpreter::evaluate_arithmetic_expression(const std::string& expr) {
     // Create callbacks for variable read/write operations
-    auto var_reader = [](const std::string& name) -> long long {
-        if (g_shell) {
-            const auto& env_vars = g_shell->get_env_vars();
-            auto it = env_vars.find(name);
-            if (it != env_vars.end()) {
-                try {
-                    return std::stoll(it->second);
-                } catch (...) {
-                    return 0;
-                }
-            }
-        }
-
-        const char* env_val = getenv(name.c_str());
-        if (env_val) {
+    auto var_reader = [this](const std::string& name) -> long long {
+        // First check local variables using variable_manager
+        std::string var_value = variable_manager.get_variable_value(name);
+        if (!var_value.empty() || variable_manager.variable_is_set(name)) {
             try {
-                return std::stoll(env_val);
+                return std::stoll(var_value);
             } catch (...) {
                 return 0;
             }
@@ -1525,6 +1520,12 @@ long long ShellScriptInterpreter::evaluate_arithmetic_expression(const std::stri
 
     auto var_writer = [this](const std::string& name, long long value) {
         std::string value_str = std::to_string(value);
+
+        // Check if this is a local variable that should be updated
+        if (variable_manager.is_local_variable(name)) {
+            variable_manager.set_local_variable(name, value_str);
+            return;
+        }
 
         if (g_shell) {
             g_shell->get_env_vars()[name] = value_str;
@@ -1630,6 +1631,14 @@ void ShellScriptInterpreter::set_local_variable(const std::string& name, const s
 
 bool ShellScriptInterpreter::is_local_variable(const std::string& name) const {
     return variable_manager.is_local_variable(name);
+}
+
+bool ShellScriptInterpreter::unset_local_variable(const std::string& name) {
+    return variable_manager.unset_local_variable(name);
+}
+
+bool ShellScriptInterpreter::in_function_scope() const {
+    return variable_manager.in_function_scope();
 }
 
 ShellScriptInterpreter::BlockHandlerResult ShellScriptInterpreter::try_dispatch_block_statement(

@@ -11,6 +11,7 @@
 #include "error_out.h"
 #include "readonly_command.h"
 #include "shell.h"
+#include "shell_script_interpreter.h"
 
 int export_command(const std::vector<std::string>& args, Shell* shell) {
     if (builtin_handle_help(args, {"Usage: export [NAME[=VALUE] ...]",
@@ -91,6 +92,14 @@ int unset_command(const std::vector<std::string>& args, Shell* shell) {
             continue;
         }
 
+        // First, try to unset local variable if we're in a function
+        auto* script_interpreter = shell->get_shell_script_interpreter();
+        if (script_interpreter != nullptr && script_interpreter->is_local_variable(name)) {
+            script_interpreter->unset_local_variable(name);
+            continue;
+        }
+
+        // Otherwise, unset environment variable
         env_vars.erase(name);
 
         if (unsetenv(name.c_str()) != 0) {

@@ -12,14 +12,15 @@ int local_command(const std::vector<std::string>& args, Shell* shell) {
                                    "Define local variables within a function scope."})) {
         return 0;
     }
-    if (args.size() == 1) {
-        return 0;
-    }
 
     auto* script_interpreter = shell->get_shell_script_interpreter();
-    if (script_interpreter == nullptr) {
+    if (script_interpreter == nullptr || !script_interpreter->in_function_scope()) {
         print_error({ErrorType::RUNTIME_ERROR, "local", "not available outside of functions", {}});
         return 1;
+    }
+
+    if (args.size() == 1) {
+        return 0;
     }
 
     bool all_successful = true;
@@ -48,10 +49,8 @@ int local_command(const std::vector<std::string>& args, Shell* shell) {
                 continue;
             }
 
-            const char* current_value = getenv(name.c_str());
-            std::string value = (current_value != nullptr) ? current_value : "";
-
-            script_interpreter->set_local_variable(name, value);
+            // Create an empty local variable (shadows outer scope)
+            script_interpreter->set_local_variable(name, "");
         }
     }
 

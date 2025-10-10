@@ -142,6 +142,8 @@ class ShellScriptInterpreter {
     void pop_function_scope();
     void set_local_variable(const std::string& name, const std::string& value);
     bool is_local_variable(const std::string& name) const;
+    bool unset_local_variable(const std::string& name);
+    bool in_function_scope() const;
 
    private:
     Parser* shell_parser = nullptr;

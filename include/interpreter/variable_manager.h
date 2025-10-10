@@ -22,6 +22,10 @@ class VariableManager {
 
     void set_local_variable(const std::string& name, const std::string& value);
     bool is_local_variable(const std::string& name) const;
+    bool unset_local_variable(const std::string& name);
+    bool in_function_scope() const {
+        return !local_variable_stack.empty();
+    }
 
     std::string get_variable_value(const std::string& var_name) const;
     bool variable_is_set(const std::string& var_name) const;

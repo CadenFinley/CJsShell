@@ -44,6 +44,18 @@ bool VariableManager::is_local_variable(const std::string& name) const {
     return false;
 }
 
+bool VariableManager::unset_local_variable(const std::string& name) {
+    if (!local_variable_stack.empty()) {
+        auto& current_scope = local_variable_stack.back();
+        auto it = current_scope.find(name);
+        if (it != current_scope.end()) {
+            current_scope.erase(it);
+            return true;
+        }
+    }
+    return false;
+}
+
 std::string VariableManager::get_variable_value(const std::string& var_name) const {
     if (!local_variable_stack.empty()) {
         const auto& current_scope = local_variable_stack.back();
