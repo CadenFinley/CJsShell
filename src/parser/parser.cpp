@@ -969,18 +969,16 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
         std::vector<std::string> final_args_local;
         bool is_subshell_command =
             !filtered_args.empty() && QuoteInfo(filtered_args[0]).value == "__INTERNAL_SUBSHELL__";
-        bool is_brace_group_command = !filtered_args.empty() &&
-                                      QuoteInfo(filtered_args[0]).value ==
-                                          "__INTERNAL_BRACE_GROUP__";
+        bool is_brace_group_command = !filtered_args.empty() && QuoteInfo(filtered_args[0]).value ==
+                                                                    "__INTERNAL_BRACE_GROUP__";
 
         for (size_t arg_idx = 0; arg_idx < tilde_expanded_args.size(); ++arg_idx) {
             const auto& raw = tilde_expanded_args[arg_idx];
             QuoteInfo qi(raw);
             std::string& val = qi.value;
 
-            bool skip_env_expansion =
-                (!qi.is_single) && ((is_subshell_command && arg_idx == 1) ||
-                                    (is_brace_group_command && arg_idx == 1));
+            bool skip_env_expansion = (!qi.is_single) && ((is_subshell_command && arg_idx == 1) ||
+                                                          (is_brace_group_command && arg_idx == 1));
 
             if (!qi.is_single && !skip_env_expansion) {
                 if (!variableExpander) {
@@ -1141,8 +1139,8 @@ std::vector<Command> Parser::parse_pipeline_with_preprocessing(const std::string
             return out;
         };
 
-        std::string rebuilt = builtin_name + " \"" + escape_double_quotes(group_content) +
-                              "\"" + remaining;
+        std::string rebuilt =
+            builtin_name + " \"" + escape_double_quotes(group_content) + "\"" + remaining;
 
         std::string prefix = text.substr(0, lead);
         preprocessed.processed_text = prefix + rebuilt;

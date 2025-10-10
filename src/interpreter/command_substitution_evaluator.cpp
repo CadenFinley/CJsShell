@@ -79,6 +79,11 @@ bool CommandSubstitutionEvaluator::try_handle_arithmetic_expansion(const std::st
         return false;
     }
 
+    std::string inner = input.substr(i + 3, arith_end - (i + 3));
+    if (inner.find(';') != std::string::npos) {
+        return false;
+    }
+
     for (size_t k = i; k <= arith_end + 1; ++k) {
         output_text += input[k];
     }
@@ -92,10 +97,6 @@ bool CommandSubstitutionEvaluator::try_handle_command_substitution(const std::st
                                                                    bool in_double_quotes) {
     char c = input[i];
     if (c != '$' || i + 1 >= input.size() || input[i + 1] != '(') {
-        return false;
-    }
-
-    if (i + 2 < input.size() && input[i + 2] == '(') {
         return false;
     }
 
