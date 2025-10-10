@@ -850,8 +850,6 @@ int Exec::execute_builtin_with_redirections(Command cmd) {
             }
         }
 
-        // Flush C++ streams before executing builtin with redirected FDs
-        // This ensures that any buffered output is written to the original FDs
         std::cout.flush();
         std::cerr.flush();
         std::clog.flush();
@@ -867,7 +865,6 @@ int Exec::execute_builtin_with_redirections(Command cmd) {
             exit_code = g_shell->get_built_ins()->builtin_command(cmd.args);
         }
 
-        // Flush again after builtin execution to ensure output goes to redirected FDs
         std::cout.flush();
         std::cerr.flush();
         std::clog.flush();
