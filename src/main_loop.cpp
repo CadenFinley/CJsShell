@@ -26,6 +26,7 @@
 #include "cjsh_completions.h"
 #include "cjsh_syntax_highlighter.h"
 #include "cjshopt_command.h"
+#include "history_expansion.h"
 #include "isocline.h"
 #include "job_control.h"
 #include "shell.h"
@@ -301,15 +302,37 @@ bool process_command_line(const std::string& command, bool skip_history = false)
         return g_exit_flag;
     }
 
+    // Apply history expansion if enabled and not in script mode
+    std::string expanded_command = command;
+    if (config::history_expansion_enabled && isatty(STDIN_FILENO)) {
+        auto history_entries = HistoryExpansion::read_history_entries();
+        auto expansion_result = HistoryExpansion::expand(command, history_entries);
+
+        if (expansion_result.has_error) {
+            std::cerr << "cjsh: " << expansion_result.error_message << std::endl;
+            setenv("?", "1", 1);
+            return g_exit_flag;
+        }
+
+        if (expansion_result.was_expanded) {
+            expanded_command = expansion_result.expanded_command;
+            if (expansion_result.should_echo) {
+                // Echo the expanded command like bash does
+                std::cout << expanded_command << std::endl;
+            }
+        }
+    }
+
     g_shell->execute_hooks("preexec");
 
     g_shell->start_command_timing();
-    int exit_code = g_shell->execute(command);
+    int exit_code = g_shell->execute(expanded_command);
     g_shell->end_command_timing(exit_code);
 
     std::string status_str = std::to_string(exit_code);
 
     if (!skip_history) {
+        // Add the original command to history, not the expanded version
         ic_history_add(command.c_str());
     }
     setenv("?", status_str.c_str(), 1);
@@ -372,7 +395,7 @@ static std::string generate_prompt(bool command_was_available) {
         ic_enable_prompt_cleanup_truncate_multiline(g_theme->cleanup_truncates_multiline());
     }
 
-    setenv("PS1", prompt.c_str(), 1);
+    // setenv("PS1", prompt.c_str(), 1);
     return prompt;
 }
 

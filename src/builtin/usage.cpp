@@ -26,6 +26,7 @@ void print_usage() {
               << "  -S, --no-syntax-highlighting Disable syntax highlighting\n"
               << "  -M, --no-smart-cd          Disable smart cd functionality\n"
               << "  -P, --no-prompt            Use simple '#' prompt instead of themed prompt\n"
+              << "  -H, --no-history-expansion Disable history expansion (!, !!, !$, etc.)\n"
               << "  -D, --disable-custom-ls    Use system ls command instead of "
                  "builtin\n"
               << "  -U, --show-startup-time    Display shell startup time\n"

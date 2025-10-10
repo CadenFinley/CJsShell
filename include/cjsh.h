@@ -55,6 +55,7 @@ extern bool show_startup_time;
 extern bool secure_mode;
 extern bool show_title_line;
 extern bool no_prompt;
+extern bool history_expansion_enabled;
 }  // namespace config
 
 void initialize_themes();

@@ -66,6 +66,7 @@ bool show_startup_time = false;
 bool secure_mode = false;
 bool show_title_line = true;
 bool no_prompt = false;
+bool history_expansion_enabled = true;
 }  // namespace config
 
 static void save_startup_arguments(int argc, char* argv[]) {

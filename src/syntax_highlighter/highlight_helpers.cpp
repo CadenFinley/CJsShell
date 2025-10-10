@@ -255,4 +255,206 @@ void highlight_quotes_and_variables(ic_highlight_env_t* henv, const char* input,
     }
 }
 
+void highlight_history_expansions(ic_highlight_env_t* henv, const char* input, size_t len) {
+    if (len == 0) {
+        return;
+    }
+
+    // Track quote state to avoid highlighting inside quotes
+    bool in_single_quote = false;
+    bool in_double_quote = false;
+    bool escaped = false;
+
+    for (size_t i = 0; i < len; ++i) {
+        char c = input[i];
+
+        // Handle escapes
+        if (escaped) {
+            escaped = false;
+            continue;
+        }
+
+        if (c == '\\') {
+            escaped = true;
+            continue;
+        }
+
+        // Track quotes
+        if (c == '\'' && !in_double_quote) {
+            in_single_quote = !in_single_quote;
+            continue;
+        }
+
+        if (c == '"' && !in_single_quote) {
+            in_double_quote = !in_double_quote;
+            continue;
+        }
+
+        // Skip if inside quotes (history expansion doesn't work in quotes)
+        if (in_single_quote || in_double_quote) {
+            continue;
+        }
+
+        // Check for quick substitution (^old^new)
+        if (c == '^' && i == 0) {
+            size_t end = i + 1;
+            int caret_count = 1;
+            while (end < len) {
+                if (input[end] == '^') {
+                    caret_count++;
+                    if (caret_count >= 2) {
+                        // Found at least ^old^, highlight it
+                        size_t highlight_len = end - i + 1;
+                        if (caret_count == 3 || end == len - 1) {
+                            // Complete ^old^new^ or ^old^new
+                            ic_highlight(henv, static_cast<long>(i),
+                                       static_cast<long>(highlight_len),
+                                       "cjsh-history-expansion");
+                            i = end;
+                            break;
+                        }
+                    }
+                }
+                end++;
+            }
+            continue;
+        }
+
+        // Check for ! patterns
+        if (c == '!') {
+            // Check if it's at word boundary (start of line or after whitespace/operator)
+            bool at_word_boundary = (i == 0) || 
+                                   std::isspace(input[i - 1]) ||
+                                   input[i - 1] == ';' ||
+                                   input[i - 1] == '|' ||
+                                   input[i - 1] == '&' ||
+                                   input[i - 1] == '(' ||
+                                   input[i - 1] == ')';
+
+            if (!at_word_boundary) {
+                continue;
+            }
+
+            size_t start = i;
+            size_t end = i + 1;
+
+            if (end >= len) {
+                continue;
+            }
+
+            // !! - repeat previous command
+            if (input[end] == '!') {
+                end++;
+                // Check for word designators !!:$, !!:^, etc.
+                if (end < len && input[end] == ':') {
+                    end++;
+                    // Word designators: ^, $, *, n, n-m
+                    while (end < len && (std::isdigit(input[end]) || 
+                                        input[end] == '-' || 
+                                        input[end] == '^' || 
+                                        input[end] == '$' || 
+                                        input[end] == '*')) {
+                        end++;
+                    }
+                }
+                ic_highlight(henv, static_cast<long>(start), static_cast<long>(end - start),
+                           "cjsh-history-expansion");
+                i = end - 1;
+                continue;
+            }
+
+            // !n or !-n - command number
+            if (std::isdigit(input[end]) || input[end] == '-') {
+                end++;
+                while (end < len && std::isdigit(input[end])) {
+                    end++;
+                }
+                // Check for word designators
+                if (end < len && input[end] == ':') {
+                    end++;
+                    while (end < len && (std::isdigit(input[end]) || 
+                                        input[end] == '-' || 
+                                        input[end] == '^' || 
+                                        input[end] == '$' || 
+                                        input[end] == '*')) {
+                        end++;
+                    }
+                }
+                ic_highlight(henv, static_cast<long>(start), static_cast<long>(end - start),
+                           "cjsh-history-expansion");
+                i = end - 1;
+                continue;
+            }
+
+            // !?string? - search for command containing string
+            if (input[end] == '?') {
+                end++;
+                while (end < len && input[end] != '?' && !std::isspace(input[end])) {
+                    end++;
+                }
+                if (end < len && input[end] == '?') {
+                    end++;
+                }
+                ic_highlight(henv, static_cast<long>(start), static_cast<long>(end - start),
+                           "cjsh-history-expansion");
+                i = end - 1;
+                continue;
+            }
+
+            // !string - search for command starting with string
+            if (std::isalpha(input[end]) || input[end] == '_') {
+                end++;
+                while (end < len && (std::isalnum(input[end]) || 
+                                    input[end] == '_' || 
+                                    input[end] == '-' || 
+                                    input[end] == '.')) {
+                    end++;
+                }
+                // Check for word designators
+                if (end < len && input[end] == ':') {
+                    end++;
+                    while (end < len && (std::isdigit(input[end]) || 
+                                        input[end] == '-' || 
+                                        input[end] == '^' || 
+                                        input[end] == '$' || 
+                                        input[end] == '*')) {
+                        end++;
+                    }
+                }
+                ic_highlight(henv, static_cast<long>(start), static_cast<long>(end - start),
+                           "cjsh-history-expansion");
+                i = end - 1;
+                continue;
+            }
+
+            // !$ - last argument
+            if (input[end] == '$') {
+                end++;
+                ic_highlight(henv, static_cast<long>(start), static_cast<long>(end - start),
+                           "cjsh-history-expansion");
+                i = end - 1;
+                continue;
+            }
+
+            // !^ - first argument
+            if (input[end] == '^') {
+                end++;
+                ic_highlight(henv, static_cast<long>(start), static_cast<long>(end - start),
+                           "cjsh-history-expansion");
+                i = end - 1;
+                continue;
+            }
+
+            // !* - all arguments
+            if (input[end] == '*') {
+                end++;
+                ic_highlight(henv, static_cast<long>(start), static_cast<long>(end - start),
+                           "cjsh-history-expansion");
+                i = end - 1;
+                continue;
+            }
+        }
+    }
+}
+
 }  // namespace highlight_helpers

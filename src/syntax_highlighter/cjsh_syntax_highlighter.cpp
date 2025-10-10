@@ -39,7 +39,12 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
 
     std::string sanitized_input(input, len);
 
-    // First pass: sanitize comments
+    // First pass: highlight history expansions (before sanitization)
+    if (config::history_expansion_enabled) {
+        highlight_history_expansions(henv, input, len);
+    }
+
+    // Second pass: sanitize comments
     bool in_quotes = false;
     char quote_char = '\0';
     bool escaped = false;

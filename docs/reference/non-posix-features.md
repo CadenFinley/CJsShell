@@ -101,6 +101,44 @@ cd doc        # Matches "documents" directory
 cd -          # Previous directory (POSIX compliant)
 ```
 
+### History Expansion
+
+CJsShell supports **bash-style history expansion** for interactive convenience:
+
+#### Event Designators
+- `!!` - Repeat the previous command
+- `!n` - Repeat command number `n` from history
+- `!-n` - Repeat the command `n` positions back
+- `!string` - Repeat most recent command starting with `string`
+- `!?string?` - Repeat most recent command containing `string`
+
+#### Word Designators
+- `!$` - Last argument of previous command
+- `!^` - First argument of previous command (word 1)
+- `!*` - All arguments of previous command (words 1-n)
+- `!:n` - Argument `n` of previous command
+- `!:n-m` - Arguments `n` through `m` of previous command
+- `!:n-` - Arguments from `n` to the end
+
+#### Quick Substitution
+- `^old^new` - Replace `old` with `new` in previous command and execute
+
+```bash
+# Examples (non-POSIX)
+echo hello world
+!!              # Repeats: echo hello world
+echo !$         # Expands to: echo world
+ls !^           # Uses first arg from previous command
+^hello^goodbye  # Changes hello to goodbye and re-executes
+!echo           # Runs most recent echo command
+```
+
+**Disabling**: Use `--no-history-expansion` flag or disable in minimal mode.  
+**Auto-Disabled**: History expansion is automatically disabled in:
+- Script mode (`cjsh script.sh`)
+- Command mode (`cjsh -c "command"`)
+- Piped input (ensures POSIX compliance)
+
 #### Enhanced LS Command
 When `--disable-custom-ls` is not specified:
 - **Color-coded Output**: File type and permission coloring

@@ -45,6 +45,7 @@ const std::unordered_map<std::string, std::string> default_styles = {
     {"option", "color=#BD93F9"},
     {"number", "color=#FFB86C"},
     {"function-definition", "bold color=#F1FA8C"},
+    {"history-expansion", "bold color=#FF79C6"},
     {"ic-linenumbers", "ansi-lightgray"},
     {"ic-linenumber-current", "ansi-yellow"}};
 

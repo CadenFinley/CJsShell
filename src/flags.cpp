@@ -29,6 +29,7 @@ void apply_minimal_mode() {
     config::disable_custom_ls = true;
     config::show_startup_time = false;
     config::show_title_line = false;
+    config::history_expansion_enabled = false;
     ic_enable_line_numbers(false);
     ic_enable_multiline_indent(false);
 }
@@ -58,9 +59,10 @@ ParseResult parse_arguments(int argc, char* argv[]) {
                                            {"minimal", no_argument, nullptr, 'm'},
                                            {"disable-custom-ls", no_argument, nullptr, 'D'},
                                            {"secure", no_argument, nullptr, 's'},
+                                           {"no-history-expansion", no_argument, nullptr, 'H'},
                                            {nullptr, 0, nullptr, 0}};
 
-    const char* short_options = "+lic:vhTCLUNOSMPXmDs";
+    const char* short_options = "+lic:vhTCLUNOSMPXmDsH";
 
     int option_index = 0;
     int c;
@@ -78,6 +80,7 @@ ParseResult parse_arguments(int argc, char* argv[]) {
                 config::execute_command = true;
                 config::cmd_to_execute = optarg;
                 config::interactive_mode = false;
+                config::history_expansion_enabled = false;  // Disable for -c mode (POSIX compliance)
                 break;
             case 'v':
                 config::show_version = true;
@@ -127,6 +130,9 @@ ParseResult parse_arguments(int argc, char* argv[]) {
             case 's':
                 config::secure_mode = true;
                 break;
+            case 'H':
+                config::history_expansion_enabled = false;
+                break;
             case '?':
                 print_usage();
                 result.exit_code = 127;
@@ -154,6 +160,7 @@ ParseResult parse_arguments(int argc, char* argv[]) {
 
     if (!config::force_interactive && (isatty(STDIN_FILENO) == 0)) {
         config::interactive_mode = false;
+        config::history_expansion_enabled = false;  // Disable for piped input (POSIX compliance)
     }
 
     return result;
@@ -193,6 +200,8 @@ void apply_profile_startup_flags() {
             config::disable_custom_ls = true;
         } else if (flag == "--secure") {
             config::secure_mode = true;
+        } else if (flag == "--no-history-expansion") {
+            config::history_expansion_enabled = false;
         }
     }
 }
