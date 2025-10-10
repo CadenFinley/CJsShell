@@ -8,7 +8,7 @@ import os
 from typing import List, Tuple, Dict
 
 # Configuration
-RUNS = 15
+RUNS = 10
 
 # Shell-specific command mappings
 # Each command is mapped to shell-specific syntax
@@ -24,6 +24,18 @@ SHELL_COMMANDS = {
         "exit": "-c exit",
         "loop": "-c 'for i in {1..5000}; do echo $i; done'",
         "loop_even": "-c 'for i in {1..5000}; do if [ $((i % 2)) -eq 0 ]; then echo $i; fi; done'"
+    },
+    "csh": {
+        "ls": "-c 'ls'",
+        "version": "-c 'echo $version'",
+        "hello": "-c 'echo hello world'",
+        "pwd": "-c 'pwd'",
+        "date": "-c 'date'",
+        "shell_var": "-c 'echo $SHELL'",
+        "ls_long": "-c 'ls -la'",
+        "exit": "-c 'exit'",
+        "loop": "-c 'set i = 1; while ( $i <= 5000 ) echo $i; @ i = $i + 1; end'",
+        "loop_even": "-c 'set i = 1; while ( $i <= 5000 ) if ( ( $i % 2 ) == 0 ) echo $i; endif; @ i = $i + 1; end'"
     },
     "fish": {
         "ls": "-c ls",
@@ -91,8 +103,7 @@ SHELL_COMMANDS = {
 COMMAND_DESCRIPTIONS = [
     "ls", "version", "hello", "pwd", "date", "shell_var", "ls_long", "exit", "loop", "loop_even"
 ]
-
-BASELINE_SHELLS = ["cjsh", "fish", "bash", "zsh", "nu", "elvish", "ion", "xonsh"]
+BASELINE_SHELLS = ["cjsh", "fish", "bash", "zsh", "ksh", "nu", "elvish", "ion", "xonsh", "tcsh", "csh"]
 #CJSH_BINARY_TYPES = ["", "_speed03", "_speed02", "_debug"]  # Empty string means no suffix
 CJSH_BINARY_TYPES = [""]
 
@@ -121,7 +132,7 @@ def run_command_with_timing(shell_cmd: str, command: str) -> float:
 
 def get_shell_command(shell: str, command_key: str) -> str:
     """Get the appropriate command syntax for a given shell."""
-    if shell in ["bash", "zsh"] or shell.startswith("./cjsh"):
+    if shell in ["bash", "zsh", "ksh"] or shell.startswith("./cjsh"):
         return SHELL_COMMANDS["posix"][command_key]
     elif shell == "fish":
         return SHELL_COMMANDS["fish"][command_key]
@@ -133,6 +144,8 @@ def get_shell_command(shell: str, command_key: str) -> str:
         return SHELL_COMMANDS["ion"][command_key]
     elif shell == "xonsh":
         return SHELL_COMMANDS["xonsh"][command_key]
+    elif shell in ["tcsh", "csh"]:
+        return SHELL_COMMANDS["csh"][command_key]
     else:
         # Default to POSIX for unknown shells
         return SHELL_COMMANDS["posix"][command_key]

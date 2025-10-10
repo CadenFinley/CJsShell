@@ -1321,8 +1321,7 @@ int ShellScriptInterpreter::evaluate_logical_condition_internal(
             }
 
             try {
-                long long result =
-                    shell_parser != nullptr ? shell_parser->evaluate_arithmetic(expr) : 0;
+                long long result = evaluate_arithmetic_expression(expr);
                 std::string result_str = std::to_string(result);
 
                 std::string new_cond;
