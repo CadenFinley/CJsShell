@@ -166,7 +166,12 @@ void VariableExpander::expand_env_vars(std::string& arg) {
             arg, i, [this](std::string& s) { expand_env_vars(s); },
             [this](const std::string& s) {
                 if (shell != nullptr) {
-                    return shell->get_parser()->evaluate_arithmetic(s);
+                    if (auto* interpreter = shell->get_shell_script_interpreter()) {
+                        return interpreter->evaluate_arithmetic_expression(s);
+                    }
+                    if (auto* parser = shell->get_parser()) {
+                        return parser->evaluate_arithmetic(s);
+                    }
                 }
                 return 0LL;
             });
@@ -372,7 +377,12 @@ void VariableExpander::expand_exported_env_vars_only(std::string& arg) {
             arg, i, [this](std::string& s) { expand_exported_env_vars_only(s); },
             [this](const std::string& s) {
                 if (shell != nullptr) {
-                    return shell->get_parser()->evaluate_arithmetic(s);
+                    if (auto* interpreter = shell->get_shell_script_interpreter()) {
+                        return interpreter->evaluate_arithmetic_expression(s);
+                    }
+                    if (auto* parser = shell->get_parser()) {
+                        return parser->evaluate_arithmetic(s);
+                    }
                 }
                 return 0LL;
             });

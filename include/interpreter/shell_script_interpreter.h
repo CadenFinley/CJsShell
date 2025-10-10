@@ -136,6 +136,8 @@ class ShellScriptInterpreter {
 
     std::string get_variable_value(const std::string& var_name);
 
+    long long evaluate_arithmetic_expression(const std::string& expr);
+
     void push_function_scope();
     void pop_function_scope();
     void set_local_variable(const std::string& name, const std::string& value);
@@ -178,7 +180,6 @@ class ShellScriptInterpreter {
         const std::function<int(const std::string&)>& evaluator) const;
     int evaluate_logical_condition_internal(const std::string& condition,
                                             const std::function<int(const std::string&)>& executor);
-    long long evaluate_arithmetic_expression(const std::string& expr);
 
     std::string expand_all_substitutions(const std::string& input,
                                          const std::function<int(const std::string&)>& executor);
