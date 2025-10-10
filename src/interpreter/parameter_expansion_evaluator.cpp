@@ -1,6 +1,7 @@
 #include "parameter_expansion_evaluator.h"
 
 #include <cctype>
+#include <cstdlib>
 #include <stdexcept>
 
 #include "shell_script_interpreter_error_reporter.h"
@@ -34,80 +35,106 @@ std::string ParameterExpansionEvaluator::expand(const std::string& param_expr) {
         return std::to_string(value.length());
     }
 
+    std::string substring_result;
+    if (try_evaluate_substring(param_expr, substring_result)) {
+        return substring_result;
+    }
+
     // Find the operator in the expression
     size_t op_pos = std::string::npos;
     std::string op;
 
-    // Check for colon operators first: :- := :? :+
-    for (size_t i = 1; i < param_expr.length(); ++i) {
-        if (param_expr[i] == ':' && i + 1 < param_expr.length()) {
-            char next = param_expr[i + 1];
-            if (next == '-' || next == '=' || next == '?' || next == '+') {
-                op_pos = i;
-                op = param_expr.substr(i, 2);
-                break;
-            }
+    auto is_operator_start = [](char c) {
+        switch (c) {
+            case ':':
+            case '#':
+            case '%':
+            case '/':
+            case '^':
+            case ',':
+            case '-':
+            case '=':
+            case '?':
+            case '+':
+                return true;
+            default:
+                return false;
         }
+    };
 
-        // Check for substitution operators: / and //
-        if (param_expr[i] == '/') {
-            if (i + 1 < param_expr.length() && param_expr[i + 1] == '/') {
-                op_pos = i;
-                op = "//";
-                break;
-            }
+    for (size_t i = 1; i < param_expr.length(); ++i) {
+        if (is_operator_start(param_expr[i])) {
             op_pos = i;
-            op = "/";
             break;
         }
     }
 
-    // Check for case conversion operators: ^ ^^ , ,,
-    if (op_pos == std::string::npos) {
-        for (size_t i = 1; i < param_expr.length(); ++i) {
-            if (param_expr[i] == '^') {
-                if (i + 1 < param_expr.length() && param_expr[i + 1] == '^') {
-                    op_pos = i;
+    if (op_pos != std::string::npos) {
+        char op_char = param_expr[op_pos];
+        switch (op_char) {
+            case ':': {
+                if (op_pos + 1 < param_expr.length()) {
+                    char next = param_expr[op_pos + 1];
+                    if (next == '-' || next == '=' || next == '?' || next == '+') {
+                        op = param_expr.substr(op_pos, 2);
+                    }
+                }
+                break;
+            }
+            case '#': {
+                if (op_pos + 1 < param_expr.length() && param_expr[op_pos + 1] == '#') {
+                    op = "##";
+                } else {
+                    op = "#";
+                }
+                break;
+            }
+            case '%': {
+                if (op_pos + 1 < param_expr.length() && param_expr[op_pos + 1] == '%') {
+                    op = "%%";
+                } else {
+                    op = "%";
+                }
+                break;
+            }
+            case '/': {
+                if (op_pos + 1 < param_expr.length() && param_expr[op_pos + 1] == '/') {
+                    op = "//";
+                } else {
+                    op = "/";
+                }
+                break;
+            }
+            case '^': {
+                if (op_pos + 1 < param_expr.length() && param_expr[op_pos + 1] == '^') {
                     op = "^^";
-                    break;
+                } else {
+                    op = "^";
                 }
-                op_pos = i;
-                op = "^";
                 break;
             }
-            if (param_expr[i] == ',') {
-                if (i + 1 < param_expr.length() && param_expr[i + 1] == ',') {
-                    op_pos = i;
+            case ',': {
+                if (op_pos + 1 < param_expr.length() && param_expr[op_pos + 1] == ',') {
                     op = ",,";
-                    break;
+                } else {
+                    op = ",";
                 }
-                op_pos = i;
-                op = ",";
                 break;
             }
+            case '-':
+            case '=':
+            case '?':
+            case '+': {
+                op = param_expr.substr(op_pos, 1);
+                break;
+            }
+            default:
+                break;
         }
     }
 
-    // Check for pattern matching and simple operators: # ## % %% - = ? +
-    if (op_pos == std::string::npos) {
-        for (size_t i = 1; i < param_expr.length(); ++i) {
-            if (param_expr[i] == '#' || param_expr[i] == '%') {
-                if (i + 1 < param_expr.length() && param_expr[i + 1] == param_expr[i]) {
-                    op_pos = i;
-                    op = param_expr.substr(i, 2);
-                    break;
-                }
-                op_pos = i;
-                op = param_expr.substr(i, 1);
-                break;
-            }
-            if (param_expr[i] == '-' || param_expr[i] == '=' || param_expr[i] == '?' ||
-                param_expr[i] == '+') {
-                op_pos = i;
-                op = param_expr.substr(i, 1);
-                break;
-            }
-        }
+    if (op.empty()) {
+        op_pos = std::string::npos;
     }
 
     std::string var_name = param_expr.substr(0, op_pos);
@@ -281,10 +308,42 @@ std::string ParameterExpansionEvaluator::pattern_substitute(const std::string& v
         return value;
     }
 
+    bool anchor_prefix = false;
+    bool anchor_suffix = false;
+    if (!pattern.empty() && (pattern[0] == '#' || pattern[0] == '%')) {
+        anchor_prefix = pattern[0] == '#';
+        anchor_suffix = pattern[0] == '%';
+        pattern.erase(0, 1);
+        if (pattern.empty()) {
+            return value;
+        }
+    }
+
     std::string result = value;
 
     // Handle literal string replacement (no wildcards)
-    if (pattern.find('*') == std::string::npos && pattern.find('?') == std::string::npos) {
+    auto has_wildcards = [](const std::string& text) {
+        return text.find('*') != std::string::npos || text.find('?') != std::string::npos ||
+               text.find('[') != std::string::npos;
+    };
+
+    if (anchor_prefix) {
+        std::string remainder = pattern_match_prefix(value, pattern, true);
+        if (remainder.length() != value.length()) {
+            return replacement + remainder;
+        }
+        return value;
+    }
+
+    if (anchor_suffix) {
+        std::string prefix = pattern_match_suffix(value, pattern, true);
+        if (prefix.length() != value.length()) {
+            return prefix + replacement;
+        }
+        return value;
+    }
+
+    if (!has_wildcards(pattern)) {
         if (global) {
             size_t pos = 0;
             while ((pos = result.find(pattern, pos)) != std::string::npos) {
@@ -305,6 +364,125 @@ std::string ParameterExpansionEvaluator::pattern_substitute(const std::string& v
     }
 
     return result;
+}
+
+bool ParameterExpansionEvaluator::try_evaluate_substring(const std::string& param_expr,
+                                                         std::string& result) {
+    size_t colon_pos = param_expr.find(':');
+    if (colon_pos == std::string::npos || colon_pos + 1 >= param_expr.length()) {
+        return false;
+    }
+
+    if (colon_pos + 2 <= param_expr.length()) {
+        std::string possible_op = param_expr.substr(colon_pos, 2);
+        if (possible_op == ":-" || possible_op == ":=" || possible_op == ":?" ||
+            possible_op == ":+") {
+            return false;
+        }
+    }
+
+    auto is_digit = [](char c) { return std::isdigit(static_cast<unsigned char>(c)) != 0; };
+
+    size_t pos = colon_pos + 1;
+    while (pos < param_expr.length() && std::isspace(static_cast<unsigned char>(param_expr[pos]))) {
+        pos++;
+    }
+
+    if (pos >= param_expr.length()) {
+        return false;
+    }
+
+    char marker = param_expr[pos];
+    if (!is_digit(marker) && !((marker == '+' || marker == '-') && pos + 1 < param_expr.length() &&
+                               is_digit(param_expr[pos + 1]))) {
+        return false;
+    }
+
+    std::string var_name = param_expr.substr(0, colon_pos);
+    std::string var_value = read_variable(var_name);
+
+    int offset_sign = 1;
+    if (pos < param_expr.length() && (param_expr[pos] == '+' || param_expr[pos] == '-')) {
+        offset_sign = (param_expr[pos] == '-') ? -1 : 1;
+        pos++;
+    }
+
+    const char* start_ptr = param_expr.c_str() + pos;
+    char* endptr_raw = nullptr;
+    long offset_value = std::strtol(start_ptr, &endptr_raw, 10);
+    const char* endptr = endptr_raw;
+    if (start_ptr == endptr) {
+        // No numeric offset, treat as 0 for compatibility
+        offset_value = 0;
+        endptr = start_ptr;
+    }
+    size_t consumed = static_cast<size_t>(endptr - param_expr.c_str());
+    pos = consumed;
+    offset_value *= offset_sign;
+
+    while (pos < param_expr.length() && std::isspace(static_cast<unsigned char>(param_expr[pos]))) {
+        pos++;
+    }
+
+    bool length_specified = false;
+    long length_value = 0;
+    if (pos < param_expr.length() && param_expr[pos] == ':') {
+        length_specified = true;
+        pos++;
+        while (pos < param_expr.length() &&
+               std::isspace(static_cast<unsigned char>(param_expr[pos]))) {
+            pos++;
+        }
+
+        int length_sign = 1;
+        if (pos < param_expr.length() && (param_expr[pos] == '+' || param_expr[pos] == '-')) {
+            length_sign = (param_expr[pos] == '-') ? -1 : 1;
+            pos++;
+        }
+
+        const char* length_ptr = param_expr.c_str() + pos;
+        char* length_endptr_raw = nullptr;
+        length_value = std::strtol(length_ptr, &length_endptr_raw, 10);
+        const char* length_endptr = length_endptr_raw;
+        if (length_ptr == length_endptr) {
+            length_value = 0;
+            length_endptr = length_ptr;
+        }
+        pos = static_cast<size_t>(length_endptr - param_expr.c_str());
+        length_value *= length_sign;
+    }
+
+    long value_len = static_cast<long>(var_value.length());
+    long start_index = offset_value;
+    if (start_index < 0) {
+        start_index = value_len + start_index;
+    }
+
+    if (start_index < 0) {
+        start_index = 0;
+    }
+    if (start_index > value_len) {
+        result = "";
+        return true;
+    }
+
+    long slice_length;
+    if (length_specified) {
+        if (length_value <= 0) {
+            result = "";
+            return true;
+        }
+        slice_length = length_value;
+    } else {
+        slice_length = value_len - start_index;
+    }
+
+    if (start_index + slice_length > value_len) {
+        slice_length = value_len - start_index;
+    }
+
+    result = var_value.substr(static_cast<size_t>(start_index), static_cast<size_t>(slice_length));
+    return true;
 }
 
 std::string ParameterExpansionEvaluator::case_convert(const std::string& value,

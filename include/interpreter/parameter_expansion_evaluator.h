@@ -28,4 +28,5 @@ class ParameterExpansionEvaluator {
                                    bool global);
     std::string case_convert(const std::string& value, const std::string& pattern, bool uppercase,
                              bool all_chars);
+    bool try_evaluate_substring(const std::string& param_expr, std::string& result);
 };

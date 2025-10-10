@@ -27,7 +27,7 @@ skip_test() {
 }
 
 # Test redirecting both stdout and stderr to same file with &>
-"$CJSH_PATH" -c "echo stdout; echo stderr >&2" &> /tmp/both_redirect
+"$CJSH_PATH" -c "echo stdout; echo stderr >&2" > /tmp/both_redirect 2>&1
 OUT=$(cat /tmp/both_redirect)
 rm -f /tmp/both_redirect
 if echo "$OUT" | grep -q "stdout" && echo "$OUT" | grep -q "stderr"; then
