@@ -369,6 +369,7 @@ static std::string generate_prompt(bool command_was_available) {
             g_theme->uses_cleanup(),
             (g_theme->cleanup_nl_after_exec() && command_was_available) ? 1 : 0);
         ic_enable_prompt_cleanup_empty_line(g_theme->cleanup_adds_empty_line());
+        ic_enable_prompt_cleanup_truncate_multiline(g_theme->cleanup_truncates_multiline());
     }
 
     setenv("PS1", prompt.c_str(), 1);

@@ -55,6 +55,7 @@ class Theme {
     std::string fill_bg_color_{"RESET"};
     bool cleanup_{false};
     bool cleanup_add_empty_line_{false};
+    bool cleanup_truncate_multiline_{false};
     bool newline_after_execution_{false};
     bool cleanup_nl_after_exec_{false};
 
@@ -104,6 +105,7 @@ class Theme {
 
     bool uses_cleanup() const;
     bool cleanup_adds_empty_line() const;
+    bool cleanup_truncates_multiline() const;
     bool newline_after_execution() const;
     bool cleanup_nl_after_exec() const;
 

@@ -91,6 +91,7 @@ void Theme::clear_theme_state() {
     fill_bg_color_ = "RESET";
     cleanup_ = false;
     cleanup_add_empty_line_ = false;
+    cleanup_truncate_multiline_ = false;
     newline_after_execution_ = false;
     cleanup_nl_after_exec_ = false;
     last_ps1_raw_length = 0;
@@ -375,6 +376,7 @@ bool Theme::apply_theme_definition(const ThemeDefinition& definition, const std:
     fill_bg_color_ = theme_data.fill.bg_color;
     cleanup_ = theme_data.behavior.cleanup;
     cleanup_add_empty_line_ = theme_data.behavior.cleanup_empty_line;
+    cleanup_truncate_multiline_ = theme_data.behavior.cleanup_truncate_multiline;
     newline_after_execution_ = theme_data.behavior.newline_after_execution;
     cleanup_nl_after_exec_ = theme_data.behavior.cleanup_nl_after_exec;
 
@@ -759,6 +761,10 @@ bool Theme::uses_cleanup() const {
 
 bool Theme::cleanup_adds_empty_line() const {
     return cleanup_add_empty_line_;
+}
+
+bool Theme::cleanup_truncates_multiline() const {
+    return cleanup_truncate_multiline_;
 }
 
 bool Theme::newline_after_execution() const {

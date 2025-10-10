@@ -719,6 +719,10 @@ ThemeBehavior ThemeParser::parse_behavior_block() {
             behavior.cleanup = (prop.value == "true");
         } else if (prop.key == "cleanup_empty_line") {
             behavior.cleanup_empty_line = (prop.value == "true");
+        } else if (prop.key == "cleanup_truncate_multiline" ||
+                   prop.key == "cleanup_trunicate_multilin" ||
+                   prop.key == "cleanup_trunicate_multiline") {
+            behavior.cleanup_truncate_multiline = (prop.value == "true");
         } else if (prop.key == "newline_after_execution") {
             behavior.newline_after_execution = (prop.value == "true");
         } else if (prop.key == "cleanup_nl_after_exec") {
@@ -1097,6 +1101,8 @@ std::string ThemeParser::write_theme(const ThemeDefinition& theme) {
     oss << "    cleanup " << (theme.behavior.cleanup ? "true" : "false") << "\n";
     oss << "    cleanup_empty_line " << (theme.behavior.cleanup_empty_line ? "true" : "false")
         << "\n";
+    oss << "    cleanup_truncate_multiline "
+        << (theme.behavior.cleanup_truncate_multiline ? "true" : "false") << "\n";
     oss << "    newline_after_execution "
         << (theme.behavior.newline_after_execution ? "true" : "false") << "\n";
     oss << "    cleanup_nl_after_exec " << (theme.behavior.cleanup_nl_after_exec ? "true" : "false")

@@ -258,6 +258,15 @@ ic_public bool ic_enable_prompt_cleanup_empty_line(bool enable) {
     return prev;
 }
 
+ic_public bool ic_enable_prompt_cleanup_truncate_multiline(bool enable) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return false;
+    bool prev = env->prompt_cleanup_truncate_multiline;
+    env->prompt_cleanup_truncate_multiline = enable;
+    return prev;
+}
+
 ic_public bool ic_enable_brace_matching(bool enable) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)

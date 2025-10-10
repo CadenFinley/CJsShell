@@ -92,6 +92,7 @@ struct ThemeRequirements {
 struct ThemeBehavior {
     bool cleanup = false;
     bool cleanup_empty_line = false;
+    bool cleanup_truncate_multiline = false;
     bool newline_after_execution = false;
     bool cleanup_nl_after_exec = false;
 };

@@ -503,6 +503,11 @@ bool ic_enable_prompt_cleanup(bool enable, size_t extra_lines
 /// Returns the previous setting.
 bool ic_enable_prompt_cleanup_empty_line(bool enable);
 
+/// Enable or disable multiline truncation during prompt cleanup.
+/// When enabled, multiline submissions are collapsed to the first line followed by an ellipsis.
+/// Returns the previous setting.
+bool ic_enable_prompt_cleanup_truncate_multiline(bool enable);
+
 /// Disable or enable hinting (enabled by default)
 /// Shows a hint inline when there is a single possible completion.
 /// @returns the previous setting.
