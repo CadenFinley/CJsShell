@@ -3,6 +3,7 @@
 #include "builtin_help.h"
 
 #include <cstdlib>
+#include <iomanip>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -15,7 +16,62 @@ std::string format_printf_arg(const std::string& format_spec, const std::string&
     if (format_spec.empty())
         return arg;
 
+    size_t pos = 0;
+    bool left_align = false;
+    bool zero_pad = false;
+    bool show_sign = false;
+    [[maybe_unused]] bool space_sign = false;
+    [[maybe_unused]] bool alt_form = false;
+    int width = 0;
+    int precision = -1;
+
+    while (pos < format_spec.length()) {
+        char c = format_spec[pos];
+        if (c == '-') {
+            left_align = true;
+            pos++;
+        } else if (c == '0') {
+            zero_pad = true;
+            pos++;
+        } else if (c == '+') {
+            show_sign = true;
+            pos++;
+        } else if (c == ' ') {
+            space_sign = true;
+            pos++;
+        } else if (c == '#') {
+            alt_form = true;
+            pos++;
+        } else {
+            break;
+        }
+    }
+
+    while (pos < format_spec.length() && format_spec[pos] >= '0' && format_spec[pos] <= '9') {
+        width = width * 10 + (format_spec[pos] - '0');
+        pos++;
+    }
+
+    if (pos < format_spec.length() && format_spec[pos] == '.') {
+        pos++;
+        precision = 0;
+        while (pos < format_spec.length() && format_spec[pos] >= '0' && format_spec[pos] <= '9') {
+            precision = precision * 10 + (format_spec[pos] - '0');
+            pos++;
+        }
+    }
+
     char spec = format_spec.back();
+
+    if (left_align) {
+        result << std::left;
+    } else {
+        result << std::right;
+    }
+
+    if (width > 0) {
+        result << std::setw(width);
+    }
 
     switch (spec) {
         case 'd':
@@ -25,6 +81,12 @@ std::string format_printf_arg(const std::string& format_spec, const std::string&
                 val = std::stoll(arg.empty() ? "0" : arg);
             } catch (...) {
                 val = 0;
+            }
+            if (zero_pad && !left_align) {
+                result << std::setfill('0');
+            }
+            if (show_sign && val >= 0) {
+                result << '+';
             }
             result << val;
             break;
@@ -36,6 +98,9 @@ std::string format_printf_arg(const std::string& format_spec, const std::string&
             } catch (...) {
                 val = 0;
             }
+            if (zero_pad && !left_align) {
+                result << std::setfill('0');
+            }
             result << std::oct << val;
             break;
         }
@@ -45,6 +110,9 @@ std::string format_printf_arg(const std::string& format_spec, const std::string&
                 val = std::stoull(arg.empty() ? "0" : arg);
             } catch (...) {
                 val = 0;
+            }
+            if (zero_pad && !left_align) {
+                result << std::setfill('0');
             }
             result << std::hex << std::nouppercase << val;
             break;
@@ -56,6 +124,9 @@ std::string format_printf_arg(const std::string& format_spec, const std::string&
             } catch (...) {
                 val = 0;
             }
+            if (zero_pad && !left_align) {
+                result << std::setfill('0');
+            }
             result << std::hex << std::uppercase << val;
             break;
         }
@@ -65,6 +136,9 @@ std::string format_printf_arg(const std::string& format_spec, const std::string&
                 val = std::stoull(arg.empty() ? "0" : arg);
             } catch (...) {
                 val = 0;
+            }
+            if (zero_pad && !left_align) {
+                result << std::setfill('0');
             }
             result << val;
             break;
@@ -77,7 +151,11 @@ std::string format_printf_arg(const std::string& format_spec, const std::string&
             } catch (...) {
                 val = 0.0;
             }
-            result << std::fixed << val;
+            if (precision >= 0) {
+                result << std::fixed << std::setprecision(precision) << val;
+            } else {
+                result << std::fixed << val;
+            }
             break;
         }
         case 'e': {
@@ -87,7 +165,12 @@ std::string format_printf_arg(const std::string& format_spec, const std::string&
             } catch (...) {
                 val = 0.0;
             }
-            result << std::scientific << std::nouppercase << val;
+            if (precision >= 0) {
+                result << std::scientific << std::nouppercase << std::setprecision(precision)
+                       << val;
+            } else {
+                result << std::scientific << std::nouppercase << val;
+            }
             break;
         }
         case 'E': {
@@ -97,7 +180,11 @@ std::string format_printf_arg(const std::string& format_spec, const std::string&
             } catch (...) {
                 val = 0.0;
             }
-            result << std::scientific << std::uppercase << val;
+            if (precision >= 0) {
+                result << std::scientific << std::uppercase << std::setprecision(precision) << val;
+            } else {
+                result << std::scientific << std::uppercase << val;
+            }
             break;
         }
         case 'g':
@@ -108,7 +195,11 @@ std::string format_printf_arg(const std::string& format_spec, const std::string&
             } catch (...) {
                 val = 0.0;
             }
-            result << val;
+            if (precision >= 0) {
+                result << std::setprecision(precision) << val;
+            } else {
+                result << val;
+            }
             break;
         }
         case 'c': {
@@ -225,7 +316,14 @@ int printf_command(const std::vector<std::string>& args) {
     }
 
     if (printf_args.empty()) {
-        std::cout << format;
+        for (size_t i = 0; i < format.length(); ++i) {
+            if (format[i] == '%' && i + 1 < format.length() && format[i + 1] == '%') {
+                std::cout << '%';
+                i++;
+            } else {
+                std::cout << format[i];
+            }
+        }
         return 0;
     }
 
@@ -261,7 +359,8 @@ int printf_command(const std::vector<std::string>& args) {
                     }
 
                     if (i < format.length()) {
-                        std::string format_spec = format.substr(spec_start + 1, i - spec_start);
+                        i++;
+                        std::string format_spec = format.substr(spec_start + 1, i - spec_start - 1);
                         std::string arg =
                             (arg_index < printf_args.size()) ? printf_args[arg_index] : "";
 
@@ -270,8 +369,47 @@ int printf_command(const std::vector<std::string>& args) {
                         consumed_arg_this_iteration = true;
 
                         if (arg_index >= printf_args.size()) {
+                            while (i < format.length()) {
+                                if (format[i] == '%' && i + 1 < format.length()) {
+                                    if (format[i + 1] == '%') {
+                                        std::cout << '%';
+                                        i += 2;
+                                    } else {
+                                        size_t spec_start2 = i;
+                                        i++;
+                                        while (i < format.length() &&
+                                               (format[i] == '-' || format[i] == '+' ||
+                                                format[i] == ' ' || format[i] == '#' ||
+                                                format[i] == '0')) {
+                                            i++;
+                                        }
+                                        while (i < format.length() && format[i] >= '0' &&
+                                               format[i] <= '9') {
+                                            i++;
+                                        }
+                                        if (i < format.length() && format[i] == '.') {
+                                            i++;
+                                            while (i < format.length() && format[i] >= '0' &&
+                                                   format[i] <= '9') {
+                                                i++;
+                                            }
+                                        }
+                                        if (i < format.length()) {
+                                            i++;
+                                            std::string format_spec2 =
+                                                format.substr(spec_start2 + 1, i - spec_start2 - 1);
+                                            std::cout << format_printf_arg(format_spec2, "");
+                                        }
+                                    }
+                                } else {
+                                    std::cout << format[i];
+                                    i++;
+                                }
+                            }
                             return 0;
                         }
+
+                        i--;
                     }
                 }
             } else {
