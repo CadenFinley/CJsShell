@@ -385,7 +385,6 @@ int ShellScriptInterpreter::handle_env_assignment(const std::vector<std::string>
     if (shell_parser->is_env_assignment(expanded_args[0], var_name, var_value)) {
         shell_parser->expand_env_vars(var_value);
 
-        // Check if this is a local variable that should be updated
         if (variable_manager.is_local_variable(var_name)) {
             variable_manager.set_local_variable(var_name, var_value);
             return 0;
@@ -1604,9 +1603,7 @@ int ShellScriptInterpreter::evaluate_logical_condition_internal(
 }
 
 long long ShellScriptInterpreter::evaluate_arithmetic_expression(const std::string& expr) {
-    // Create callbacks for variable read/write operations
     auto var_reader = [this](const std::string& name) -> long long {
-        // First check local variables using variable_manager
         std::string var_value = variable_manager.get_variable_value(name);
         if (!var_value.empty() || variable_manager.variable_is_set(name)) {
             try {
@@ -1621,7 +1618,6 @@ long long ShellScriptInterpreter::evaluate_arithmetic_expression(const std::stri
     auto var_writer = [this](const std::string& name, long long value) {
         std::string value_str = std::to_string(value);
 
-        // Check if this is a local variable that should be updated
         if (variable_manager.is_local_variable(name)) {
             variable_manager.set_local_variable(name, value_str);
             return;
@@ -1641,7 +1637,6 @@ long long ShellScriptInterpreter::evaluate_arithmetic_expression(const std::stri
         }
     };
 
-    // Use the dedicated arithmetic evaluator
     ArithmeticEvaluator evaluator(var_reader, var_writer);
     return evaluator.evaluate(expr);
 }
@@ -1796,18 +1791,14 @@ bool ShellScriptInterpreter::should_skip_line(const std::string& line) {
 
 std::string ShellScriptInterpreter::expand_all_substitutions(
     const std::string& input, const std::function<int(const std::string&)>& executor) {
-    // Create command substitution evaluator with executor callback
     CommandSubstitutionEvaluator cmd_subst_evaluator(
         [&](const std::string& command) -> std::string {
             return execute_command_for_substitution(command, executor);
         });
 
-    // First, expand command substitutions using the evaluator
     auto expansion_result = cmd_subst_evaluator.expand_substitutions(input);
     std::string result = expansion_result.text;
 
-    // Now handle arithmetic expansion and parameter expansion that the
-    // CommandSubstitutionEvaluator passes through
     std::string out;
     out.reserve(result.size());
 
@@ -1843,7 +1834,6 @@ std::string ShellScriptInterpreter::expand_all_substitutions(
             continue;
         }
 
-        // Handle arithmetic expansion $((expr))
         if (!in_quotes || q == '"') {
             if (c == '$' && i + 2 < result.size() && result[i + 1] == '(' && result[i + 2] == '(') {
                 size_t inner_start = i + 3;
@@ -1867,7 +1857,6 @@ std::string ShellScriptInterpreter::expand_all_substitutions(
                     size_t expr_len = (j > inner_start) ? (j - inner_start) : 0;
                     std::string expr = result.substr(inner_start, expr_len);
 
-                    // Expand variables in arithmetic expression
                     std::string expanded_expr;
                     for (size_t k = 0; k < expr.size(); ++k) {
                         if (expr[k] == '$' && k + 1 < expr.size()) {
@@ -1911,12 +1900,11 @@ std::string ShellScriptInterpreter::expand_all_substitutions(
                             current_line_number);
                         throw;
                     }
-                    i = j + 1;  // Skip past the closing ))
+                    i = j + 1;
                     continue;
                 }
             }
 
-            // Handle ${parameter} expansion
             if (c == '$' && i + 1 < result.size() && result[i + 1] == '{') {
                 size_t brace_depth = 1;
                 size_t j = i + 2;
@@ -1939,7 +1927,6 @@ std::string ShellScriptInterpreter::expand_all_substitutions(
                     std::string param_expr = result.substr(i + 2, j - (i + 2));
                     std::string expanded_result = expand_parameter_expression(param_expr);
 
-                    // Re-expand any remaining variable references
                     if (expanded_result.find('$') != std::string::npos) {
                         size_t dollar_pos = 0;
                         while ((dollar_pos = expanded_result.find('$', dollar_pos)) !=

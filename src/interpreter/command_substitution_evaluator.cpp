@@ -11,8 +11,6 @@ CommandSubstitutionEvaluator::CommandSubstitutionEvaluator(CommandExecutor execu
 }
 
 std::string CommandSubstitutionEvaluator::capture_command_output(const std::string& command) {
-    // The command_executor_ callback is responsible for executing the command
-    // and capturing its output. We just call it and return the result.
     return command_executor_(command);
 }
 
@@ -198,9 +196,8 @@ bool CommandSubstitutionEvaluator::handle_escape_sequence(char c, bool& escaped,
     return false;
 }
 
-bool CommandSubstitutionEvaluator::handle_quote_toggle(char c, bool /* in_single_quotes */,
-                                                       bool& in_quotes, char& quote_char,
-                                                       std::string& output) {
+bool CommandSubstitutionEvaluator::handle_quote_toggle(char c, bool, bool& in_quotes,
+                                                       char& quote_char, std::string& output) {
     if ((c == '"' || c == '\'') && !in_quotes) {
         in_quotes = true;
         quote_char = c;
