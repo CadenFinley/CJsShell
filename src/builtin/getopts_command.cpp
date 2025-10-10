@@ -6,6 +6,40 @@
 #include "cjsh.h"
 #include "error_out.h"
 #include "shell.h"
+#include "shell_script_interpreter.h"
+
+static void set_special_var(Shell* shell, const std::string& key, const std::string& value) {
+    setenv(key.c_str(), value.c_str(), 1);
+    if (shell) {
+        auto* interpreter = shell->get_shell_script_interpreter();
+        if (interpreter && interpreter->is_local_variable(key)) {
+            interpreter->set_local_variable(key, value);
+        } else {
+            shell->get_env_vars()[key] = value;
+        }
+    }
+}
+
+static void set_special_var(Shell* shell, const std::string& key, int value) {
+    set_special_var(shell, key, std::to_string(value));
+}
+
+static void unset_special_var(Shell* shell, const std::string& key) {
+    unsetenv(key.c_str());
+    if (shell) {
+        auto* interpreter = shell->get_shell_script_interpreter();
+        if (interpreter && interpreter->is_local_variable(key)) {
+            interpreter->unset_local_variable(key);
+        } else {
+            shell->get_env_vars().erase(key);
+        }
+    }
+}
+
+static void set_getopts_pos(int value) {
+    std::string buffer = std::to_string(value);
+    setenv("GETOPTS_POS", buffer.c_str(), 1);
+}
 
 int getopts_command(const std::vector<std::string>& args, Shell* shell) {
     if (builtin_handle_help(args,
@@ -40,34 +74,44 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
     }
 
     int optind = 1;
-    const char* optind_env = getenv("OPTIND");
-    if (optind_env) {
+    std::string optind_source;
+    if (auto* interpreter = shell->get_shell_script_interpreter()) {
+        optind_source = interpreter->get_variable_value("OPTIND");
+    }
+    if (optind_source.empty()) {
+        if (const char* optind_env = getenv("OPTIND")) {
+            optind_source = optind_env;
+        }
+    }
+    if (!optind_source.empty()) {
         try {
-            optind = std::stoi(optind_env);
+            optind = std::stoi(optind_source);
         } catch (...) {
             optind = 1;
         }
     }
 
-    if (optind > static_cast<int>(argv_list.size())) {
-        setenv("OPTIND", "1", 1);
-        return 1;
+    if (optind <= 0) {
+        optind = 1;
     }
 
-    if (optind <= 0 || optind > static_cast<int>(argv_list.size())) {
-        setenv("OPTIND", "1", 1);
+    if (argv_list.empty() || optind > static_cast<int>(argv_list.size())) {
+        set_special_var(shell, "OPTIND", optind);
+        setenv("GETOPTS_POS", "1", 1);
         return 1;
     }
 
     std::string current_arg = argv_list[optind - 1];
 
     if (current_arg.size() < 2 || current_arg[0] != '-') {
-        setenv("OPTIND", "1", 1);
+        set_special_var(shell, "OPTIND", optind);
+        setenv("GETOPTS_POS", "1", 1);
         return 1;
     }
 
     if (current_arg == "--") {
-        setenv("OPTIND", std::to_string(optind + 1).c_str(), 1);
+        set_special_var(shell, "OPTIND", optind + 1);
+        setenv("GETOPTS_POS", "1", 1);
         return 1;
     }
 
@@ -79,18 +123,15 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
         } catch (...) {
             char_index = 1;
         }
-    }
-
-    if (char_index == 1) {
+    } else {
         char_index = 1;
     }
 
     if (char_index >= static_cast<int>(current_arg.size())) {
         optind++;
         char_index = 1;
-        setenv("OPTIND", std::to_string(optind).c_str(), 1);
+        set_special_var(shell, "OPTIND", optind);
         setenv("GETOPTS_POS", "1", 1);
-
         return getopts_command(args, shell);
     }
 
@@ -99,20 +140,20 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
 
     size_t opt_pos = optstring.find(opt);
     if (opt_pos == std::string::npos) {
-        setenv(name.c_str(), "?", 1);
+        set_special_var(shell, name, "?");
 
         std::string optarg_val(1, opt);
-        setenv("OPTARG", optarg_val.c_str(), 1);
+        set_special_var(shell, "OPTARG", optarg_val);
 
         if (char_index >= static_cast<int>(current_arg.size())) {
             optind++;
             char_index = 1;
         }
-        setenv("OPTIND", std::to_string(optind).c_str(), 1);
-        setenv("GETOPTS_POS", std::to_string(char_index).c_str(), 1);
+        set_special_var(shell, "OPTIND", optind);
+        set_getopts_pos(char_index);
 
         if (!optstring.empty() && optstring[0] == ':') {
-            setenv(name.c_str(), "?", 1);
+            set_special_var(shell, name, "?");
             return 0;
         }
 
@@ -122,7 +163,7 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
     }
 
     std::string opt_val(1, opt);
-    setenv(name.c_str(), opt_val.c_str(), 1);
+    set_special_var(shell, name, opt_val);
 
     if (opt_pos + 1 < optstring.size() && optstring[opt_pos + 1] == ':') {
         std::string optarg;
@@ -138,26 +179,26 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
                 optind++;
             } else {
                 if (!optstring.empty() && optstring[0] == ':') {
-                    setenv(name.c_str(), ":", 1);
-                    setenv("OPTARG", opt_val.c_str(), 1);
+                    set_special_var(shell, name, ":");
+                    set_special_var(shell, "OPTARG", opt_val);
                 } else {
                     print_error({ErrorType::INVALID_ARGUMENT,
                                  "getopts",
                                  std::string("option requires an argument -- ") + opt,
                                  {}});
-                    setenv(name.c_str(), "?", 1);
-                    setenv("OPTARG", opt_val.c_str(), 1);
+                    set_special_var(shell, name, "?");
+                    set_special_var(shell, "OPTARG", opt_val);
                 }
-                setenv("OPTIND", std::to_string(optind).c_str(), 1);
+                set_special_var(shell, "OPTIND", optind);
                 setenv("GETOPTS_POS", "1", 1);
                 return 0;
             }
             char_index = 1;
         }
 
-        setenv("OPTARG", optarg.c_str(), 1);
+        set_special_var(shell, "OPTARG", optarg);
     } else {
-        unsetenv("OPTARG");
+        unset_special_var(shell, "OPTARG");
 
         if (char_index >= static_cast<int>(current_arg.size())) {
             optind++;
@@ -165,8 +206,8 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
         }
     }
 
-    setenv("OPTIND", std::to_string(optind).c_str(), 1);
-    setenv("GETOPTS_POS", std::to_string(char_index).c_str(), 1);
+    set_special_var(shell, "OPTIND", optind);
+    set_getopts_pos(char_index);
 
     return 0;
 }
