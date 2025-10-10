@@ -206,7 +206,8 @@ else
 fi
 
 # Test read with very long line
-LONG_LINE=$(printf 'a%.0s' {1..1000})
+# Use seq instead of bash brace expansion for POSIX compatibility
+LONG_LINE=$(seq 1 1000 | while read n; do printf 'a'; done)
 OUT=$(echo "$LONG_LINE" | "$CJSH_PATH" -c "read VAR; echo \${#VAR}")
 if [ "$OUT" = "1000" ]; then
     pass_test "read very long line"
