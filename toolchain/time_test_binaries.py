@@ -22,7 +22,8 @@ SHELL_COMMANDS = {
         "shell_var": "-c 'echo $SHELL'",
         "ls_long": "-c 'ls -la'",
         "exit": "-c exit",
-        "loop": "-c 'for i in {1..5000}; do echo $i; done'"
+        "loop": "-c 'for i in {1..5000}; do echo $i; done'",
+        "loop_even": "-c 'for i in {1..5000}; do if [ $((i % 2)) -eq 0 ]; then echo $i; fi; done'"
     },
     "fish": {
         "ls": "-c ls",
@@ -33,7 +34,8 @@ SHELL_COMMANDS = {
         "shell_var": "-c 'echo $SHELL'",
         "ls_long": "-c 'ls -la'",
         "exit": "-c exit",
-        "loop": "-c 'for i in (seq 5000); echo $i; end'"
+        "loop": "-c 'for i in (seq 5000); echo $i; end'",
+        "loop_even": "-c 'for i in (seq 5000); if test (math \"$i % 2\") -eq 0; echo $i; end; end'"
     },
     "nu": {
         "ls": "-c 'ls'",
@@ -44,7 +46,8 @@ SHELL_COMMANDS = {
         "shell_var": "-c 'echo $env.SHELL?'",
         "ls_long": "-c 'ls -l'",
         "exit": "-c 'exit'",
-        "loop": "-c '1..5000 | each { |i| echo $i }'"
+        "loop": "-c '1..5000 | each { |i| echo $i }'",
+        "loop_even": "-c '1..5000 | where { |i| $i mod 2 == 0 } | each { |i| echo $i }'"
     },
     "elvish": {
         "ls": "-c 'ls'",
@@ -55,7 +58,8 @@ SHELL_COMMANDS = {
         "shell_var": "-c 'echo $E:SHELL'",
         "ls_long": "-c 'ls -la'",
         "exit": "-c 'exit'",
-        "loop": "-c 'for i [(range 1 5001)] { echo $i }'"
+        "loop": "-c 'for i [(range 1 5001)] { echo $i }'",
+        "loop_even": "-c 'for i [(range 1 5001)] { if (== (% $i 2) 0) { echo $i } }'"
     },
     "ion": {
         "ls": "-c 'ls'",
@@ -66,7 +70,8 @@ SHELL_COMMANDS = {
         "shell_var": "-c 'echo $SHELL'",
         "ls_long": "-c 'ls -la'",
         "exit": "-c 'exit'",
-        "loop": "-c 'for i in 1..5000; echo $i; end'"
+        "loop": "-c 'for i in 1..5000; echo $i; end'",
+        "loop_even": "-c 'for i in 1..5000; if test $((i % 2)) -eq 0; echo $i; end; end'"
     },
     "xonsh": {
         "ls": "-c 'ls'",
@@ -77,13 +82,14 @@ SHELL_COMMANDS = {
         "shell_var": "-c 'echo $SHELL'",
         "ls_long": "-c 'ls -la'",
         "exit": "-c 'exit'",
-        "loop": "-c 'for i in range(1, 5001): print(i)'"
+        "loop": "-c 'for i in range(1, 5001): print(i)'",
+        "loop_even": "-c 'for i in range(1, 5001):\n    if i % 2 == 0:\n        print(i)'"
     }
 }
 
 # Command descriptions for output
 COMMAND_DESCRIPTIONS = [
-    "ls", "version", "hello", "pwd", "date", "shell_var", "ls_long", "exit", "loop"
+    "ls", "version", "hello", "pwd", "date", "shell_var", "ls_long", "exit", "loop", "loop_even"
 ]
 
 BASELINE_SHELLS = ["fish", "bash", "zsh", "nu", "elvish", "ion", "xonsh"]
