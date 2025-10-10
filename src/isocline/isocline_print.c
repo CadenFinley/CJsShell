@@ -11,6 +11,7 @@
 -----------------------------------------------------------------------------*/
 
 #include <stdarg.h>
+#include <stdio.h>
 
 #include "common.h"
 #include "env.h"
@@ -47,6 +48,7 @@ void ic_style_def(const char* name, const char* fmt) {
     ic_env_t* env = ic_get_env();
     if (env == NULL || env->bbcode == NULL)
         return;
+    // printf("Defining style: %s -> %s\n", name, fmt);  // DEBUG
     bbcode_style_def(env->bbcode, name, fmt);
 }
 

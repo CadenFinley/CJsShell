@@ -17,6 +17,7 @@
 #include "cjsh_filesystem.h"
 #include "error_out.h"
 #include "isocline/isocline.h"
+#include "token_constants.h"
 
 namespace {
 void print_cjshopt_usage() {
@@ -1472,30 +1473,6 @@ int startup_flag_command(const std::vector<std::string>& args) {
     return 0;
 }
 
-static std::unordered_map<std::string, std::string> g_custom_styles;  // NOLINT
-static const std::unordered_map<std::string, std::string> default_styles = {
-    {"unknown-command", "bold color=#FF5555"},
-    {"colon", "bold color=#8BE9FD"},
-    {"path-exists", "color=#50FA7B"},
-    {"path-not-exists", "color=#FF5555"},
-    {"glob-pattern", "color=#F1FA8C"},
-    {"operator", "bold color=#FF79C6"},
-    {"keyword", "bold color=#BD93F9"},
-    {"builtin", "color=#FFB86C"},
-    {"system", "color=#50FA7B"},
-    {"installed", "color=#8BE9FD"},
-    {"variable", "color=#8BE9FD"},
-    {"assignment-value", "color=#F8F8F2"},
-    {"string", "color=#F1FA8C"},
-    {"comment", "color=#6272A4"},
-    {"command-substitution", "color=#8BE9FD"},
-    {"arithmetic", "color=#FF79C6"},
-    {"option", "color=#BD93F9"},
-    {"number", "color=#FFB86C"},
-    {"function-definition", "bold color=#F1FA8C"},
-    {"ic-linenumbers", "ansi-lightgray"},
-    {"ic-linenumber-current", "ansi-yellow"}};
-
 static std::string resolve_style_registry_name(const std::string& token_type) {
     if (token_type.rfind("ic-", 0) == 0) {
         return token_type;
@@ -1509,7 +1486,7 @@ int style_def_command(const std::vector<std::string>& args) {
             std::cout << "Usage: style_def <token_type> <style>\n\n";
             std::cout << "Define or redefine a syntax highlighting style.\n\n";
             std::cout << "Token types:\n";
-            for (const auto& pair : default_styles) {
+            for (const auto& pair : token_constants::default_styles) {
                 std::cout << "  " << pair.first << " (default: " << pair.second << ")\n";
             }
             std::cout << "\nStyle format: [bold] [italic] [underline] "
@@ -1530,7 +1507,9 @@ int style_def_command(const std::vector<std::string>& args) {
     }
 
     if (args.size() == 2 && args[1] == "--reset") {
-        reset_to_default_styles();
+        for (const auto& pair : token_constants::default_styles) {
+            ic_style_def(pair.first.c_str(), pair.second.c_str());
+        }
         if (!g_startup_active) {
             std::cout << "All syntax highlighting styles reset to defaults.\n";
         }
@@ -1548,7 +1527,7 @@ int style_def_command(const std::vector<std::string>& args) {
     const std::string& token_type = args[1];
     const std::string& style = args[2];
 
-    if (default_styles.find(token_type) == default_styles.end()) {
+    if (token_constants::default_styles.find(token_type) == token_constants::default_styles.end()) {
         print_error({ErrorType::INVALID_ARGUMENT,
                      "style_def",
                      "unknown token type: " + token_type,
@@ -1563,105 +1542,7 @@ int style_def_command(const std::vector<std::string>& args) {
 
 void apply_custom_style(const std::string& token_type, const std::string& style) {
     std::string full_style_name = resolve_style_registry_name(token_type);
-
-    auto default_it = default_styles.find(token_type);
-    if (default_it != default_styles.end() && default_it->second == style) {
-        bool had_custom_override = g_custom_styles.erase(token_type) > 0;
-
-        if (had_custom_override) {
-            ic_style_def(full_style_name.c_str(), style.c_str());
-        }
-        return;
-    }
-
-    auto existing_style = g_custom_styles.find(token_type);
-    if (existing_style != g_custom_styles.end() && existing_style->second == style) {
-        return;
-    }
-
-    g_custom_styles[token_type] = style;
-
     ic_style_def(full_style_name.c_str(), style.c_str());
-}
-
-void reset_to_default_styles() {
-    g_custom_styles.clear();
-
-    for (const auto& pair : default_styles) {
-        std::string full_style_name = resolve_style_registry_name(pair.first);
-        ic_style_def(full_style_name.c_str(), pair.second.c_str());
-    }
-}
-
-const std::unordered_map<std::string, std::string>& get_custom_styles() {
-    return g_custom_styles;
-}
-
-void load_custom_styles_from_config() {
-    std::ifstream config_file(cjsh_filesystem::g_cjsh_source_path);
-    if (!config_file.is_open()) {
-        return;
-    }
-
-    std::string line;
-
-    while (std::getline(config_file, line)) {
-        std::string trimmed = line;
-        trimmed.erase(0, trimmed.find_first_not_of(" \t"));
-        if (trimmed.empty() || trimmed[0] == '#') {
-            continue;
-        }
-
-        std::string command_line = trimmed;
-
-        if (command_line.rfind("cjshopt", 0) == 0 &&
-            (command_line.size() == 7 || command_line[7] == ' ' || command_line[7] == '\t')) {
-            command_line.erase(0, 7);
-            auto after_prefix = command_line.find_first_not_of(" \t");
-            if (after_prefix == std::string::npos) {
-                continue;
-            }
-            command_line.erase(0, after_prefix);
-        }
-
-        auto first_non_space = command_line.find_first_not_of(" \t");
-        if (first_non_space == std::string::npos) {
-            continue;
-        }
-        command_line.erase(0, first_non_space);
-
-        if (command_line.rfind("style_def ", 0) == 0) {
-            std::istringstream iss(command_line);
-            std::string command;
-            std::string token_type;
-
-            iss >> command;
-
-            if (!(iss >> token_type)) {
-                continue;
-            }
-
-            std::string remaining;
-            std::getline(iss, remaining);
-
-            remaining.erase(0, remaining.find_first_not_of(" \t"));
-
-            if (remaining.empty()) {
-                continue;
-            }
-
-            if ((remaining.front() == '"' && remaining.back() == '"') ||
-                (remaining.front() == '\'' && remaining.back() == '\'')) {
-                remaining = remaining.substr(1, remaining.length() - 2);
-            }
-
-            if (default_styles.find(token_type) != default_styles.end()) {
-                apply_custom_style(token_type, remaining);
-            }
-        }
-    }
-
-    config_file.close();
 }
 
 int set_max_bookmarks_command(const std::vector<std::string>& args) {

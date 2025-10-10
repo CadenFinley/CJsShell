@@ -6,9 +6,7 @@
 
 class SyntaxHighlighter {
    public:
-    static void initialize();
     static void refresh_executables_cache();
-
     static void highlight(ic_highlight_env_t* henv, const char* input, void* arg);
     static void initialize_syntax_highlighting();
 };

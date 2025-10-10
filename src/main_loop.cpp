@@ -459,8 +459,6 @@ static std::pair<std::string, bool> get_next_command(bool command_was_available,
 }
 
 void initialize_isocline() {
-    reset_to_default_styles();
-    load_custom_styles_from_config();
     initialize_completion_system();
     SyntaxHighlighter::initialize_syntax_highlighting();
     ic_enable_history_duplicates(false);

@@ -33,6 +33,7 @@
 #include "trap_command.h"
 #include "usage.h"
 #include "version_command.h"
+#include "token_constants.h"
 
 bool g_exit_flag = false;
 std::string g_cached_version;
@@ -127,6 +128,14 @@ static void initialize_colors() {
         ic_style_def("ic-prompt", "");
         ic_style_def("ic-linenumbers", "");
         ic_style_def("ic-linenumber-current", "");
+    } else if(config::colors_enabled && config::syntax_highlighting_enabled) {
+        for (const auto& pair : token_constants::default_styles) {
+            std::string style_name = pair.first;
+            if (style_name.rfind("ic-", 0) != 0) {
+                style_name = "cjsh-" + style_name;
+            }
+            ic_style_def(style_name.c_str(), pair.second.c_str());
+        }
     }
 }
 
