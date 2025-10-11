@@ -420,7 +420,6 @@ static std::pair<std::string, bool> get_next_command(bool command_was_available,
     std::string prompt = generate_prompt(command_was_available);
     std::string inline_right_text = g_shell->get_inline_right_prompt();
 
-    // Export the last prompt text for use by scripts (e.g., IntelliShell integration)
     if (g_shell) {
         std::string last_prompt = g_shell->get_last_prompt_text();
         if (!last_prompt.empty()) {
