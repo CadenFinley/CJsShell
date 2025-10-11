@@ -27,7 +27,6 @@ static const Build_Config build_config = {
                                           "src/isocline/highlight.c",
                                           "src/isocline/history.c",
                                           "src/isocline/isocline.c",
-                                          "src/isocline/isocline_buffer.c",
                                           "src/isocline/isocline_env.c",
                                           "src/isocline/isocline_keybindings.c",
                                           "src/isocline/isocline_options.c",
@@ -39,7 +38,7 @@ static const Build_Config build_config = {
                                           "src/isocline/tty.c",
                                           "src/isocline/tty_esc.c",
                                           "src/isocline/undo.c"},
-    .isocline_c_sources_count = 22,
+    .isocline_c_sources_count = 21,
 
     .include_directories =
         (const char*[]){"include", "include/isocline", "include/builtin", "include/utils",

@@ -117,40 +117,6 @@ bool ic_push_raw_input(const uint8_t* data, size_t length);
 ///          If ctrl-C or ctrl-D is pressed, returns NULL.
 char* ic_read_heredoc(const char* delimiter, bool strip_tabs);
 
-//--------------------------------------------------------------
-/// \defgroup buffer Input Buffer Access
-/// Access and modify the current input buffer during readline.
-/// These functions allow reading and modifying the input line and cursor position.
-/// They are primarily intended for use in custom key bindings and shell integrations.
-/// \{
-
-/// Get the current input line content.
-/// Returns NULL if no readline is active.
-/// The returned string is only valid until the next readline operation.
-/// Do not free the returned pointer.
-/// @returns The current input buffer content, or NULL if no active readline.
-const char* ic_get_input_line(void);
-
-/// Get the current cursor position in the input buffer.
-/// Returns -1 if no readline is active.
-/// @returns The cursor position (0-based byte offset), or -1 if no active readline.
-ssize_t ic_get_cursor_pos(void);
-
-/// Set the input line content and cursor position.
-/// This replaces the current input buffer with the provided text.
-/// If cursor_pos is -1, the cursor is placed at the end of the new text.
-/// If cursor_pos is out of range, it will be clamped to valid bounds.
-/// Returns false if no readline is active.
-/// @param text The new input text. Must not be NULL.
-/// @param cursor_pos The new cursor position, or -1 to place at end.
-/// @returns true if successful, false if no active readline.
-bool ic_set_input_line(const char* text, ssize_t cursor_pos);
-
-/// Clear the input line (set to empty string with cursor at position 0).
-/// Returns false if no readline is active.
-/// @returns true if successful, false if no active readline.
-bool ic_clear_input_line(void);
-
 /// \}
 
 //--------------------------------------------------------------

@@ -84,8 +84,6 @@ static void edit_delete_to_end_of_line(ic_env_t* env, editor_t* eb);
 static void edit_swap_char(ic_env_t* env, editor_t* eb);
 static void edit_insert_char(ic_env_t* env, editor_t* eb, char c);
 static void editor_start_modify(editor_t* eb);
-void ic_set_active_editor_impl(editor_t* eb);
-void ic_clear_active_editor_impl(void);
 
 static bool key_action_execute(ic_env_t* env, editor_t* eb, ic_key_action_t action) {
     switch (action) {
@@ -1828,9 +1826,6 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
     // always a history entry for the current input
     history_push(env->history, "");
 
-    // Set this editor as the active one for buffer access API
-    ic_set_active_editor_impl(&eb);
-
     // process keys
     code_t c;  // current key code
     bool ctrl_c_pressed = false;
@@ -2118,8 +2113,6 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
         ic_history_remove_last();
     }
 
-    // Clear the active editor before cleanup
-    ic_clear_active_editor_impl();
     // free resources
     editstate_done(env->mem, &eb.undo);
     editstate_done(env->mem, &eb.redo);
@@ -2203,8 +2196,6 @@ static char* edit_line_inline(ic_env_t* env, const char* prompt_text,
     // always a history entry for the current input
     history_push(env->history, "");
 
-    // Set this editor as the active one for buffer access API
-    ic_set_active_editor_impl(&eb);
     // process keys
     code_t c;  // current key code
     bool ctrl_c_pressed = false;
@@ -2492,8 +2483,6 @@ static char* edit_line_inline(ic_env_t* env, const char* prompt_text,
         ic_history_remove_last();
     }
 
-    // Clear the active editor before cleanup
-    ic_clear_active_editor_impl();
     // free resources
     editstate_done(env->mem, &eb.undo);
     editstate_done(env->mem, &eb.redo);
@@ -2507,63 +2496,4 @@ static char* edit_line_inline(ic_env_t* env, const char* prompt_text,
              (void*)eb.prompt_text);  // Free the allocated last line prompt
 
     return res;
-}
-
-//-------------------------------------------------------------
-// Buffer access helper functions for isocline_buffer.c
-//-------------------------------------------------------------
-
-// Forward declare the tracking functions (these must be non-static to be visible to
-// isocline_buffer.c)
-void ic_set_active_editor_impl(editor_t* eb);
-void ic_clear_active_editor_impl(void);
-
-// Helper to safely get the input string from an editor
-ic_private const char* ic_editor_get_input(editor_t* eb) {
-    if (eb == NULL || eb->input == NULL)
-        return NULL;
-    return sbuf_string(eb->input);
-}
-
-// Helper to safely get the cursor position from an editor
-ic_private ssize_t ic_editor_get_pos(editor_t* eb) {
-    if (eb == NULL)
-        return -1;
-    return eb->pos;
-}
-
-// Helper to safely set the input and cursor position
-ic_private bool ic_editor_set_input(editor_t* eb, const char* text, ssize_t cursor_pos) {
-    if (eb == NULL || text == NULL)
-        return false;
-
-    editor_start_modify(eb);
-    sbuf_replace(eb->input, text);
-
-    // Set cursor position
-    ssize_t len = sbuf_len(eb->input);
-    if (cursor_pos < 0) {
-        eb->pos = len;  // Place at end
-    } else if (cursor_pos > len) {
-        eb->pos = len;  // Clamp to end
-    } else {
-        eb->pos = cursor_pos;
-    }
-
-    return true;
-}
-
-// Global variable to track the active editor for buffer access API
-static editor_t* g_active_editor_instance = NULL;
-
-void ic_set_active_editor_impl(editor_t* eb) {
-    g_active_editor_instance = eb;
-}
-
-void ic_clear_active_editor_impl(void) {
-    g_active_editor_instance = NULL;
-}
-
-editor_t* ic_get_active_editor_impl(void) {
-    return g_active_editor_instance;
 }

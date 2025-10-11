@@ -26,7 +26,6 @@
 #include "isocline/editline.c"
 #include "isocline/highlight.c"
 #include "isocline/history.c"
-#include "isocline/isocline_buffer.c"
 #include "isocline/isocline_env.c"
 #include "isocline/isocline_keybindings.c"
 #include "isocline/isocline_options.c"
