@@ -711,7 +711,6 @@ std::string Theme::get_ps1_prompt_format(
     const std::unordered_map<std::string, std::string>& vars) const {
     auto result = render_line_aligned(ps1_segments, vars);
     last_ps1_raw_length = calculate_raw_length(result);
-    last_ps1_prompt = result;
     return result;
 }
 
@@ -719,7 +718,6 @@ std::string Theme::get_git_prompt_format(
     const std::unordered_map<std::string, std::string>& vars) const {
     auto result = render_line_aligned(git_segments, vars);
     last_git_raw_length = calculate_raw_length(result);
-    last_git_prompt = result;
     return result;
 }
 
@@ -727,18 +725,15 @@ std::string Theme::get_newline_prompt(
     const std::unordered_map<std::string, std::string>& vars) const {
     auto result = render_line_aligned(newline_segments, vars);
     last_newline_raw_length = calculate_raw_length(result);
-    last_newline_prompt = result;
     return result;
 }
 
 std::string Theme::get_inline_right_prompt(
     const std::unordered_map<std::string, std::string>& vars) const {
     if (inline_right_segments.empty()) {
-        last_inline_right_prompt = "";
         return "";
     }
     auto result = render_line_aligned(inline_right_segments, vars);
-    last_inline_right_prompt = result;
     return result;
 }
 

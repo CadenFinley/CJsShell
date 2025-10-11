@@ -19,11 +19,6 @@ class Theme {
     mutable size_t last_git_raw_length = 0;
     mutable size_t last_newline_raw_length = 0;
 
-    mutable std::string last_ps1_prompt;
-    mutable std::string last_git_prompt;
-    mutable std::string last_newline_prompt;
-    mutable std::string last_inline_right_prompt;
-
     std::string process_conditionals(
         const std::string& line, const std::unordered_map<std::string, std::string>& vars) const;
 
@@ -94,19 +89,6 @@ class Theme {
     }
     size_t get_newline_raw_length() const {
         return last_newline_raw_length;
-    }
-
-    std::string get_last_ps1_prompt() const {
-        return last_ps1_prompt;
-    }
-    std::string get_last_git_prompt() const {
-        return last_git_prompt;
-    }
-    std::string get_last_newline_prompt() const {
-        return last_newline_prompt;
-    }
-    std::string get_last_inline_right_prompt() const {
-        return last_inline_right_prompt;
     }
 
     std::string get_newline_prompt(const std::unordered_map<std::string, std::string>& vars) const;
