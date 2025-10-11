@@ -154,7 +154,18 @@ static void hsearch_done(alloc_t* mem, hsearch_t* hs) {
 // fuzzy history search UI
 //-------------------------------------------------------------
 
-#define MAX_FUZZY_RESULTS 10
+#define MAX_FUZZY_RESULTS 50  // Show more results for better browsing
+
+// Helper to get first line of a string (for multiline history entries)
+static const char* get_first_line_end(const char* str) {
+    if (str == NULL)
+        return NULL;
+    const char* p = str;
+    while (*p && *p != '\n' && *p != '\r') {
+        p++;
+    }
+    return p;
+}
 
 static void edit_history_fuzzy_search(ic_env_t* env, editor_t* eb, char* initial) {
     if (history_count(env->history) <= 0) {
@@ -207,7 +218,7 @@ again: {
                          &match_count);
 }
 
-    // Clamp selected index
+    // Clamp selected index to match count
     if (selected_idx >= match_count) {
         selected_idx = match_count > 0 ? match_count - 1 : 0;
     }
@@ -222,7 +233,7 @@ again: {
         // Check if we're showing all history or filtered results
         const char* query = sbuf_string(eb->input);
         bool is_filtered = (query != NULL && query[0] != '\0');
-        
+
         if (is_filtered) {
             sbuf_appendf(eb->extra, "[ic-info]%zd match%s found[/]\n", match_count,
                          match_count == 1 ? "" : "es");
@@ -232,12 +243,23 @@ again: {
                          total_history == 1 ? "y" : "ies");
         }
 
-        // Show up to 5 results
-        ssize_t display_count = (match_count > 5) ? 5 : match_count;
+        // Show up to 10 results for better visibility
+        ssize_t display_count = (match_count > 10) ? 10 : match_count;
+
+        // Clamp selection to display count
+        if (selected_idx >= display_count) {
+            selected_idx = display_count - 1;
+        }
+
         for (ssize_t i = 0; i < display_count; i++) {
             const char* entry = history_get(env->history, matches[i].hidx);
             if (entry == NULL)
                 continue;
+
+            // Find first line end for multiline entries
+            const char* line_end = get_first_line_end(entry);
+            ssize_t entry_len = line_end ? (line_end - entry) : (ssize_t)strlen(entry);
+            bool is_multiline = (line_end && (*line_end == '\n' || *line_end == '\r'));
 
             // Highlight selected entry
             if (i == selected_idx) {
@@ -248,16 +270,34 @@ again: {
 
             // Show the entry with match highlighting (only if filtered)
             if (is_filtered && matches[i].match_len > 0 && matches[i].match_pos >= 0) {
-                // Before match
-                sbuf_append_n(eb->extra, entry, matches[i].match_pos);
-                // Matched part
-                sbuf_append(eb->extra, "[/pre][u ic-emphasis][!pre]");
-                sbuf_append_n(eb->extra, entry + matches[i].match_pos, matches[i].match_len);
-                sbuf_append(eb->extra, "[/pre][/u][!pre]");
-                // After match
-                sbuf_append(eb->extra, entry + matches[i].match_pos + matches[i].match_len);
+                // Only show highlighting if it's within the first line
+                if (matches[i].match_pos < entry_len) {
+                    // Before match
+                    sbuf_append_n(eb->extra, entry, matches[i].match_pos);
+                    // Matched part (truncate to first line if needed)
+                    ssize_t match_end = matches[i].match_pos + matches[i].match_len;
+                    ssize_t highlight_len = (match_end > entry_len)
+                                                ? (entry_len - matches[i].match_pos)
+                                                : matches[i].match_len;
+                    sbuf_append(eb->extra, "[/pre][u ic-emphasis][!pre]");
+                    sbuf_append_n(eb->extra, entry + matches[i].match_pos, highlight_len);
+                    sbuf_append(eb->extra, "[/pre][/u][!pre]");
+                    // After match (rest of first line)
+                    if (match_end < entry_len) {
+                        sbuf_append_n(eb->extra, entry + match_end, entry_len - match_end);
+                    }
+                } else {
+                    // Match is beyond first line, just show first line
+                    sbuf_append_n(eb->extra, entry, entry_len);
+                }
             } else {
-                sbuf_append(eb->extra, entry);
+                // No highlighting, just show first line
+                sbuf_append_n(eb->extra, entry, entry_len);
+            }
+
+            // Add ellipsis if multiline
+            if (is_multiline) {
+                sbuf_append(eb->extra, "...");
             }
 
             sbuf_append(eb->extra, "[/pre]");
@@ -293,7 +333,8 @@ again: {
 
     // Process commands
     if (c == KEY_ESC || c == KEY_BELL || c == KEY_CTRL_C) {
-        // Cancel search
+        // Cancel search - clear display and restore state
+        sbuf_clear(eb->extra);  // Clear the search results display
         eb->disable_undo = false;
         editor_undo_restore(eb, false);
         mem_free(env->mem, matches);
@@ -303,6 +344,7 @@ again: {
         return;
     } else if (c == KEY_ENTER) {
         // Accept selected match
+        sbuf_clear(eb->extra);  // Clear the search results display
         if (match_count > 0 && selected_idx >= 0 && selected_idx < match_count) {
             const char* selected = history_get(env->history, matches[selected_idx].hidx);
             if (selected != NULL) {
@@ -323,12 +365,18 @@ again: {
         // Move selection up
         if (selected_idx > 0) {
             selected_idx--;
+        } else {
+            term_beep(env->term);  // Alert when at the top
         }
         goto again;
     } else if (c == KEY_DOWN || c == KEY_CTRL_N) {
         // Move selection down
-        if (selected_idx < match_count - 1) {
+        // Calculate max visible index (display_count will be recalculated in next iteration)
+        ssize_t max_visible = (match_count > 10) ? 9 : (match_count > 0 ? match_count - 1 : 0);
+        if (selected_idx < max_visible) {
             selected_idx++;
+        } else {
+            term_beep(env->term);  // Alert when at the bottom
         }
         goto again;
     } else if (c == KEY_BACKSP) {
