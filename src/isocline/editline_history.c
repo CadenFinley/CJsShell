@@ -185,7 +185,7 @@ static void edit_history_fuzzy_search(ic_env_t* env, editor_t* eb, char* initial
     eb->disable_undo = true;
     bool old_hint = ic_enable_hint(false);
     const char* prompt_text = eb->prompt_text;
-    eb->prompt_text = "[ic-prompt] history search: ";
+    eb->prompt_text = "history search: ";
 
     // Allocate match results
     history_match_t* matches =
@@ -211,12 +211,13 @@ static void edit_history_fuzzy_search(ic_env_t* env, editor_t* eb, char* initial
     }
 
     // Main search loop
-again: {
+again:
     // Perform fuzzy search
-    const char* query = sbuf_string(eb->input);
-    history_fuzzy_search(env->history, query ? query : "", matches, MAX_FUZZY_RESULTS,
-                         &match_count);
-}
+    {
+        const char* query = sbuf_string(eb->input);
+        history_fuzzy_search(env->history, query ? query : "", matches, MAX_FUZZY_RESULTS,
+                             &match_count);
+    }
 
     // Clamp selected index to match count
     if (selected_idx >= match_count) {
@@ -243,16 +244,35 @@ again: {
                          total_history == 1 ? "y" : "ies");
         }
 
-        // Show up to 10 results for better visibility
-        ssize_t display_count = (match_count > 10) ? 10 : match_count;
+        // Calculate how many results can fit on screen
+        // Account for: prompt line, info line, help line, and leave some buffer
+        ssize_t term_height = term_get_height(env->term);
+        ssize_t available_lines = term_height - 4; // Reserve space for prompt, info, help, buffer
+        if (available_lines < 3) {
+            available_lines = 3; // Minimum display count
+        }
+        
+        // Show as many results as can fit on screen
+        ssize_t display_count = (match_count > available_lines) ? available_lines : match_count;
 
-        // Clamp selection to display count
+        // Calculate scroll offset to keep selected item visible
+        ssize_t scroll_offset = 0;
         if (selected_idx >= display_count) {
-            selected_idx = display_count - 1;
+            // Scroll down to show the selected item at the bottom
+            scroll_offset = selected_idx - display_count + 1;
+        }
+        
+        // Ensure we don't scroll past the end
+        if (scroll_offset + display_count > match_count) {
+            scroll_offset = match_count - display_count;
+            if (scroll_offset < 0) scroll_offset = 0;
         }
 
         for (ssize_t i = 0; i < display_count; i++) {
-            const char* entry = history_get(env->history, matches[i].hidx);
+            ssize_t match_idx = scroll_offset + i;
+            if (match_idx >= match_count) break;
+            
+            const char* entry = history_get(env->history, matches[match_idx].hidx);
             if (entry == NULL)
                 continue;
 
@@ -262,25 +282,25 @@ again: {
             bool is_multiline = (line_end && (*line_end == '\n' || *line_end == '\r'));
 
             // Highlight selected entry
-            if (i == selected_idx) {
+            if (match_idx == selected_idx) {
                 sbuf_append(eb->extra, "[ic-emphasis][reverse]> [/][!pre]");
             } else {
                 sbuf_append(eb->extra, "[ic-diminish]  [/][!pre]");
             }
 
             // Show the entry with match highlighting (only if filtered)
-            if (is_filtered && matches[i].match_len > 0 && matches[i].match_pos >= 0) {
+            if (is_filtered && matches[match_idx].match_len > 0 && matches[match_idx].match_pos >= 0) {
                 // Only show highlighting if it's within the first line
-                if (matches[i].match_pos < entry_len) {
+                if (matches[match_idx].match_pos < entry_len) {
                     // Before match
-                    sbuf_append_n(eb->extra, entry, matches[i].match_pos);
+                    sbuf_append_n(eb->extra, entry, matches[match_idx].match_pos);
                     // Matched part (truncate to first line if needed)
-                    ssize_t match_end = matches[i].match_pos + matches[i].match_len;
+                    ssize_t match_end = matches[match_idx].match_pos + matches[match_idx].match_len;
                     ssize_t highlight_len = (match_end > entry_len)
-                                                ? (entry_len - matches[i].match_pos)
-                                                : matches[i].match_len;
+                                                ? (entry_len - matches[match_idx].match_pos)
+                                                : matches[match_idx].match_len;
                     sbuf_append(eb->extra, "[/pre][u ic-emphasis][!pre]");
-                    sbuf_append_n(eb->extra, entry + matches[i].match_pos, highlight_len);
+                    sbuf_append_n(eb->extra, entry + matches[match_idx].match_pos, highlight_len);
                     sbuf_append(eb->extra, "[/pre][/u][!pre]");
                     // After match (rest of first line)
                     if (match_end < entry_len) {
@@ -302,7 +322,7 @@ again: {
 
             sbuf_append(eb->extra, "[/pre]");
 
-            if (i == selected_idx) {
+            if (match_idx == selected_idx) {
                 sbuf_append(eb->extra, "[/reverse][/ic-emphasis]");
             } else {
                 sbuf_append(eb->extra, "[/ic-diminish]");
@@ -312,15 +332,23 @@ again: {
         }
 
         if (match_count > display_count) {
-            sbuf_appendf(eb->extra, "[ic-info]  ... and %zd more[/]\n",
-                         match_count - display_count);
+            ssize_t hidden_above = scroll_offset;
+            ssize_t hidden_below = match_count - (scroll_offset + display_count);
+            if (hidden_above > 0 && hidden_below > 0) {
+                sbuf_appendf(eb->extra, "[ic-info]  (%zd above, %zd below)[/]\n",
+                             hidden_above, hidden_below);
+            } else if (hidden_above > 0) {
+                sbuf_appendf(eb->extra, "[ic-info]  (%zd more above)[/]\n", hidden_above);
+            } else if (hidden_below > 0) {
+                sbuf_appendf(eb->extra, "[ic-info]  (%zd more below)[/]\n", hidden_below);
+            }
         }
     } else {
         sbuf_append(eb->extra, "[ic-info]No matches found[/]\n");
     }
 
     if (!env->no_help) {
-        sbuf_append(eb->extra, "[ic-diminish](↑↓:navigate enter:select esc:cancel)[/]");
+        sbuf_append(eb->extra, "[ic-diminish](↑↓:navigate enter:run tab:edit esc:cancel)[/]");
     }
 
     edit_refresh(env, eb);
@@ -330,6 +358,7 @@ again: {
     if (tty_term_resize_event(env->tty)) {
         edit_resize(env, eb);
     }
+    sbuf_clear(eb->extra);
 
     // Process commands
     if (c == KEY_ESC || c == KEY_BELL || c == KEY_CTRL_C) {
@@ -343,7 +372,28 @@ again: {
         edit_refresh(env, eb);
         return;
     } else if (c == KEY_ENTER) {
-        // Accept selected match
+        // Accept selected match and auto-run
+        sbuf_clear(eb->extra);  // Clear the search results display
+        if (match_count > 0 && selected_idx >= 0 && selected_idx < match_count) {
+            const char* selected = history_get(env->history, matches[selected_idx].hidx);
+            if (selected != NULL) {
+                editor_undo_forget(eb);
+                sbuf_replace(eb->input, selected);
+                eb->pos = sbuf_len(eb->input);
+                eb->modified = false;
+                eb->history_idx = matches[selected_idx].hidx;
+            }
+        }
+        mem_free(env->mem, matches);
+        eb->disable_undo = false;
+        eb->prompt_text = prompt_text;
+        ic_enable_hint(old_hint);
+        edit_refresh(env, eb);
+        // Push ENTER back to auto-run the command
+        tty_code_pushback(env->tty, KEY_ENTER);
+        return;
+    } else if (c == KEY_TAB) {
+        // Accept selected match for editing (don't auto-run)
         sbuf_clear(eb->extra);  // Clear the search results display
         if (match_count > 0 && selected_idx >= 0 && selected_idx < match_count) {
             const char* selected = history_get(env->history, matches[selected_idx].hidx);
@@ -371,9 +421,8 @@ again: {
         goto again;
     } else if (c == KEY_DOWN || c == KEY_CTRL_N) {
         // Move selection down
-        // Calculate max visible index (display_count will be recalculated in next iteration)
-        ssize_t max_visible = (match_count > 10) ? 9 : (match_count > 0 ? match_count - 1 : 0);
-        if (selected_idx < max_visible) {
+        // Allow scrolling through all matches, not just visible ones
+        if (selected_idx < match_count - 1) {
             selected_idx++;
         } else {
             term_beep(env->term);  // Alert when at the bottom
