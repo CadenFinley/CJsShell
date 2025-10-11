@@ -790,6 +790,7 @@ const std::vector<std::string> kKeybindUsage = {
     "runtime)",
     "  set <action> <keys...>          Replace bindings for an action (config file only)",
     "  add <action> <keys...>          Add key bindings for an action (config file only)",
+    "  run <keys...> -- <command>      Bind keys to run a command or function (config file only)",
     "  clear <keys...>                 Remove bindings for the specified key(s) (config file only)",
     "  clear-action <action>           Remove all custom bindings for an action (config file only)",
     "  reset                           Clear all custom key bindings and restore defaults (config ",
@@ -895,6 +896,9 @@ std::unordered_map<ic_key_action_t, std::vector<std::string>> group_bindings_by_
     const std::vector<ic_key_binding_entry_t>& entries) {
     std::unordered_map<ic_key_action_t, std::vector<std::string>> grouped;
     for (const auto& entry : entries) {
+        if (entry.kind != IC_KEY_BINDING_KIND_ACTION) {
+            continue;
+        }
         char buffer[64];
         if (ic_format_key_spec(entry.key, buffer, sizeof(buffer))) {
             grouped[entry.action].emplace_back(buffer);
@@ -1069,6 +1073,36 @@ int keybind_list_command() {
                   << join_specs(pair.second) << '\n';
     }
 
+    std::vector<std::pair<std::string, std::string>> command_bindings;
+    size_t command_key_width = std::strlen("Keys");
+    for (const auto& entry : entries) {
+        if (entry.kind != IC_KEY_BINDING_KIND_COMMAND) {
+            continue;
+        }
+        if (entry.command == nullptr || entry.command[0] == '\0') {
+            continue;
+        }
+        char buffer[64];
+        if (!ic_format_key_spec(entry.key, buffer, sizeof(buffer))) {
+            continue;
+        }
+        std::string key_label(buffer);
+        command_key_width = std::max(command_key_width, key_label.size());
+        command_bindings.emplace_back(std::move(key_label), std::string(entry.command));
+    }
+
+    if (!command_bindings.empty()) {
+        const std::string header_label = "Command";
+        std::cout << "\nCommand bindings:\n";
+        std::cout << std::left << std::setw(static_cast<int>(command_key_width) + 2) << "Keys"
+                  << header_label << '\n';
+        std::cout << std::string(command_key_width + 2 + header_label.size(), '-') << '\n';
+        for (const auto& binding : command_bindings) {
+            std::cout << std::left << std::setw(static_cast<int>(command_key_width) + 2)
+                      << binding.first << binding.second << '\n';
+        }
+    }
+
     if (entries.empty()) {
         std::cout << "\nNo custom key bindings are currently defined.\n";
         std::cout << "To customize key bindings, add 'cjshopt keybind ...' commands to your "
@@ -1235,6 +1269,130 @@ int keybind_set_or_add_command(const std::vector<std::string>& args, bool replac
     return 0;
 }
 
+int keybind_run_command(const std::vector<std::string>& args) {
+    if (args.size() < 5) {
+        print_error({ErrorType::INVALID_ARGUMENT, "keybind",
+                     "run requires one or more key specifications, '--', and a command",
+                     kKeybindUsage});
+        return 1;
+    }
+
+    auto separator = std::find(args.begin() + 2, args.end(), "--");
+    if (separator == args.end()) {
+        print_error({ErrorType::INVALID_ARGUMENT, "keybind",
+                     "run requires a '--' separator between keys and the command", kKeybindUsage});
+        return 1;
+    }
+
+    if (separator == args.begin() + 2) {
+        print_error({ErrorType::INVALID_ARGUMENT, "keybind",
+                     "provide at least one key specification before '--'", kKeybindUsage});
+        return 1;
+    }
+
+    std::vector<std::string> key_tokens(args.begin() + 2, separator);
+    std::vector<std::string> spec_args = parse_key_spec_arguments(key_tokens, 0);
+    if (spec_args.empty()) {
+        print_error({ErrorType::INVALID_ARGUMENT, "keybind",
+                     "provide at least one key specification", kKeybindUsage});
+        return 1;
+    }
+
+    std::vector<std::string> command_tokens(separator + 1, args.end());
+    if (command_tokens.empty()) {
+        print_error({ErrorType::INVALID_ARGUMENT, "keybind", "command string cannot be empty",
+                     kKeybindUsage});
+        return 1;
+    }
+
+    std::vector<std::pair<ic_keycode_t, std::string>> parsed;
+    std::string invalid_spec;
+    if (!parse_key_specs_to_codes(spec_args, &parsed, &invalid_spec)) {
+        print_error({ErrorType::INVALID_ARGUMENT, "keybind",
+                     "Invalid key specification '" + invalid_spec + "'", kKeybindUsage});
+        return 1;
+    }
+
+    std::unordered_set<ic_keycode_t> keys_to_modify;
+    keys_to_modify.reserve(parsed.size());
+    for (const auto& entry : parsed) {
+        keys_to_modify.insert(entry.first);
+    }
+
+    struct SavedBinding {
+        ic_key_binding_kind_t kind = IC_KEY_BINDING_KIND_ACTION;
+        ic_key_action_t action = IC_KEY_ACTION_NONE;
+        std::string command;
+    };
+
+    std::unordered_map<ic_keycode_t, SavedBinding> previous;
+    auto existing = collect_bindings();
+    for (const auto& entry : existing) {
+        if (keys_to_modify.find(entry.key) == keys_to_modify.end()) {
+            continue;
+        }
+        SavedBinding saved;
+        saved.kind = entry.kind;
+        saved.action = entry.action;
+        if (entry.kind == IC_KEY_BINDING_KIND_COMMAND && entry.command != nullptr) {
+            saved.command = entry.command;
+        }
+        previous.emplace(entry.key, std::move(saved));
+    }
+
+    for (const auto& key : keys_to_modify) {
+        ic_clear_key_binding(key);
+    }
+
+    std::ostringstream command_builder;
+    for (size_t i = 0; i < command_tokens.size(); ++i) {
+        if (i != 0) {
+            command_builder << ' ';
+        }
+        command_builder << command_tokens[i];
+    }
+    std::string command_string = command_builder.str();
+    if (command_string.empty()) {
+        // Should be unreachable but keep defensive.
+        print_error({ErrorType::INVALID_ARGUMENT, "keybind", "command string cannot be empty",
+                     kKeybindUsage});
+        return 1;
+    }
+
+    std::vector<ic_keycode_t> bound;
+    bound.reserve(parsed.size());
+    for (const auto& entry : parsed) {
+        if (!ic_bind_key_to_command(entry.first, command_string.c_str())) {
+            for (const auto& key : bound) {
+                ic_clear_key_binding(key);
+            }
+            for (const auto& item : previous) {
+                const auto& saved = item.second;
+                if (saved.kind == IC_KEY_BINDING_KIND_COMMAND) {
+                    if (!saved.command.empty()) {
+                        ic_bind_key_to_command(item.first, saved.command.c_str());
+                    }
+                } else {
+                    ic_bind_key(item.first, saved.action);
+                }
+            }
+            print_error({ErrorType::INVALID_ARGUMENT, "keybind",
+                         "Failed to bind key specification '" + entry.second + "' to the command",
+                         kKeybindUsage});
+            return 1;
+        }
+        bound.push_back(entry.first);
+    }
+
+    if (!g_startup_active) {
+        std::cout << "Bound " << join_specs(spec_args) << " -> " << command_string << '\n';
+        std::cout << "Add `cjshopt keybind run " << pipe_join_specs(spec_args) << " -- "
+                  << command_string << "` to your ~/.cjshrc to persist this change.\n";
+    }
+
+    return 0;
+}
+
 int keybind_clear_keys_command(const std::vector<std::string>& args) {
     if (args.size() < 3) {
         print_error({ErrorType::INVALID_ARGUMENT, "keybind",
@@ -1388,6 +1546,10 @@ int keybind_command(const std::vector<std::string>& args) {
 
     if (subcommand == "add") {
         return keybind_set_or_add_command(args, false);
+    }
+
+    if (subcommand == "run") {
+        return keybind_run_command(args);
     }
 
     if (subcommand == "clear") {

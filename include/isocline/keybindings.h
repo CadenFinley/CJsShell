@@ -63,9 +63,20 @@ typedef uint8_t ic_key_action_t;
 #endif
 
 /// Entry describing a single key binding.
+typedef enum ic_key_binding_kind_e
+#ifdef __cplusplus
+    : std::uint8_t
+#endif
+{
+    IC_KEY_BINDING_KIND_ACTION = 0,
+    IC_KEY_BINDING_KIND_COMMAND = 1,
+} ic_key_binding_kind_t;
+
 typedef struct ic_key_binding_entry_s {
     ic_keycode_t key;
     ic_key_action_t action;
+    ic_key_binding_kind_t kind;
+    const char* command;
 } ic_key_binding_entry_t;
 
 /// Human-readable information about a key binding profile.

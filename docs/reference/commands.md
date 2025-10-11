@@ -681,13 +681,14 @@ Key subcommands include:
 - `list` — Show the active profile plus default vs. custom bindings (runtime safe)
 - `set <action> <keys...>` — Replace bindings for an action
 - `add <action> <keys...>` — Add additional bindings for an action
+- `run <keys...> -- <command>` — Bind key(s) to execute a shell command or function
 - `clear <keys...>` — Remove the provided key specifications
 - `clear-action <action>` — Remove all custom bindings for an action
 - `reset` — Drop every custom binding and restore defaults
 - `profile list` — List available key binding profiles (runtime safe)
 - `profile set <name>` — Persist the named profile
 
-Key specifications accept pipe (`|`) separated alternatives, so `Ctrl+K|Ctrl+X` is a single argument covering both sequences. Place commands like `cjshopt keybind set cursor-left "Ctrl+H"` in `~/.cjshrc` to keep them between sessions.
+Key specifications accept pipe (`|`) separated alternatives, so `Ctrl+K|Ctrl+X` is a single argument covering both sequences. The `run` subcommand executes the command string exactly as typed, so you can target shell functions (`cjshopt keybind run Ctrl+G -- quick_status`) or scripts (`cjshopt keybind run Alt+Shift+O -- ~/bin/open-notes`). Use `cjshopt keybind set cursor-left "Ctrl+H"` or `cjshopt keybind run Ctrl+G -- my_function` inside `~/.cjshrc` to keep bindings between sessions.
 
 #### set-max-bookmarks
 

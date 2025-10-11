@@ -83,6 +83,7 @@ static void edit_delete_to_start_of_line(ic_env_t* env, editor_t* eb);
 static void edit_delete_to_end_of_line(ic_env_t* env, editor_t* eb);
 static void edit_swap_char(ic_env_t* env, editor_t* eb);
 static void edit_insert_char(ic_env_t* env, editor_t* eb, char c);
+static void editor_start_modify(editor_t* eb);
 
 static bool key_action_execute(ic_env_t* env, editor_t* eb, ic_key_action_t action) {
     switch (action) {
@@ -188,12 +189,23 @@ static bool key_action_execute(ic_env_t* env, editor_t* eb, ic_key_action_t acti
     return false;
 }
 
-static bool key_binding_execute(ic_env_t* env, editor_t* eb, code_t key) {
+static bool key_binding_execute(ic_env_t* env, editor_t* eb, code_t key, bool* request_submit) {
     if (env == NULL || env->key_binding_count <= 0)
         return false;
     for (ssize_t i = 0; i < env->key_binding_count; ++i) {
         ic_key_binding_entry_t* entry = &env->key_bindings[i];
         if (entry->key == key) {
+            if (entry->kind == IC_KEY_BINDING_KIND_COMMAND) {
+                if (entry->command != NULL) {
+                    editor_start_modify(eb);
+                    sbuf_replace(eb->input, entry->command);
+                    eb->pos = sbuf_len(eb->input);
+                    if (request_submit != NULL) {
+                        *request_submit = true;
+                    }
+                }
+                return true;
+            }
             if (entry->action == IC_KEY_ACTION_NONE)
                 return true;
             return key_action_execute(env, eb, entry->action);
@@ -1854,6 +1866,7 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
         sbuf_clear(eb.hint_help);
 
         bool request_submit = false;
+        bool handled = false;
 
         // if the user tries to move into a hint with left-cursor or end, we
         // complete it first
@@ -1862,8 +1875,15 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
             c = KEY_NONE;
         }
 
-        if (c < IC_KEY_EVENT_BASE && key_binding_execute(env, &eb, c)) {
-            continue;
+        if (c < IC_KEY_EVENT_BASE) {
+            handled = key_binding_execute(env, &eb, c, &request_submit);
+            if (handled) {
+                if (request_submit) {
+                    c = KEY_ENTER;
+                    break;
+                }
+                continue;
+            }
         }
 
         // Operations that may return
@@ -2216,6 +2236,7 @@ static char* edit_line_inline(ic_env_t* env, const char* prompt_text,
         sbuf_clear(eb.hint_help);
 
         bool request_submit = false;
+        bool handled = false;
 
         // if the user tries to move into a hint with left-cursor or end, we
         // complete it first
@@ -2224,8 +2245,15 @@ static char* edit_line_inline(ic_env_t* env, const char* prompt_text,
             c = KEY_NONE;
         }
 
-        if (c < IC_KEY_EVENT_BASE && key_binding_execute(env, &eb, c)) {
-            continue;
+        if (c < IC_KEY_EVENT_BASE) {
+            handled = key_binding_execute(env, &eb, c, &request_submit);
+            if (handled) {
+                if (request_submit) {
+                    c = KEY_ENTER;
+                    break;
+                }
+                continue;
+            }
         }
 
         // Operations that may return

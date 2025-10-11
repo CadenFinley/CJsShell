@@ -605,6 +605,18 @@ bool ic_parse_key_spec(const char* spec, ic_keycode_t* out_key);
 /// @returns `true` if the binding was successful, `false` otherwise.
 bool ic_bind_key_named(const char* key_spec, const char* action_name);
 
+/// Bind a key to execute a shell command string.
+/// @param key The key code to bind.
+/// @param command The command string to execute when the key is pressed.
+/// @returns `true` if the binding was successful, `false` otherwise.
+bool ic_bind_key_to_command(ic_keycode_t key, const char* command);
+
+/// Bind a key (specified as text) to execute a shell command string.
+/// @param key_spec The key specification string (e.g., "ctrl-c").
+/// @param command The command string to execute when the key is pressed.
+/// @returns `true` if the binding was successful, `false` otherwise.
+bool ic_bind_key_to_command_named(const char* key_spec, const char* command);
+
 /// Format a keycode into a human-readable specification string.
 /// @param key The keycode to format.
 /// @param buffer Buffer to receive the formatted string.
