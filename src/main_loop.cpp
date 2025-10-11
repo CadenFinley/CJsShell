@@ -420,6 +420,29 @@ static std::pair<std::string, bool> get_next_command(bool command_was_available,
     std::string prompt = generate_prompt(command_was_available);
     std::string inline_right_text = g_shell->get_inline_right_prompt();
 
+    // Export the last prompt text for use by scripts (e.g., IntelliShell integration)
+    if (g_shell) {
+        std::string last_prompt = g_shell->get_last_prompt_text();
+        if (!last_prompt.empty()) {
+            setenv("CJSH_PROMPT", last_prompt.c_str(), 1);
+        }
+
+        std::string last_ps1 = g_shell->get_last_prompt_ps1();
+        if (!last_ps1.empty()) {
+            setenv("CJSH_PS1", last_ps1.c_str(), 1);
+        }
+
+        std::string last_newline = g_shell->get_last_prompt_newline();
+        if (!last_newline.empty()) {
+            setenv("CJSH_NEWLINE", last_newline.c_str(), 1);
+        }
+
+        std::string last_inline_right = g_shell->get_last_prompt_inline_right();
+        if (!last_inline_right.empty()) {
+            setenv("CJSH_INLINE_RIGHT", last_inline_right.c_str(), 1);
+        }
+    }
+
     typeahead::flush_pending_typeahead();
 
     const std::string& pending_buffer = typeahead::get_input_buffer();

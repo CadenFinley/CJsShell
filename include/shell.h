@@ -85,6 +85,41 @@ class Shell {
         return "0";
     }
 
+    std::string get_last_prompt_text() {
+        if (shell_prompt) {
+            return shell_prompt->get_last_prompt_text();
+        }
+        return "";
+    }
+
+    std::string get_last_prompt_ps1() {
+        if (shell_prompt) {
+            return shell_prompt->get_last_prompt_ps1();
+        }
+        return "";
+    }
+
+    std::string get_last_prompt_git() {
+        if (shell_prompt) {
+            return shell_prompt->get_last_prompt_git();
+        }
+        return "";
+    }
+
+    std::string get_last_prompt_newline() {
+        if (shell_prompt) {
+            return shell_prompt->get_last_prompt_newline();
+        }
+        return "";
+    }
+
+    std::string get_last_prompt_inline_right() {
+        if (shell_prompt) {
+            return shell_prompt->get_last_prompt_inline_right();
+        }
+        return "";
+    }
+
     void set_interactive_mode(bool flag) {
         interactive_mode = flag;
     }

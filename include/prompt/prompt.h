@@ -42,4 +42,10 @@ class Prompt {
     void end_command_timing(int exit_code);
     void reset_command_timing();
     void set_initial_duration(long long microseconds);
+
+    std::string get_last_prompt_text();
+    std::string get_last_prompt_ps1();
+    std::string get_last_prompt_git();
+    std::string get_last_prompt_newline();
+    std::string get_last_prompt_inline_right();
 };
