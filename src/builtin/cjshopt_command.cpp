@@ -782,8 +782,6 @@ const std::vector<KeyBindingDefault> kKeyBindingDefaults = {
 const std::vector<std::string> kKeybindUsage = {
     "Usage: keybind <subcommand> [...]",
     "",
-    "Note: Key binding modifications can ONLY be made in configuration files (e.g., ~/.cjshrc).",
-    "      They cannot be changed at runtime.",
     "",
     "Subcommands:",
     "  list                            Show current default and custom key bindings (works at ",
