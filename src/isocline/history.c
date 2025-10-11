@@ -20,12 +20,12 @@
 #define IC_ABSOLUTE_MAX_HISTORY (5000)
 
 struct history_s {
-    ssize_t count;       // current number of entries in use
-    ssize_t len;         // size of elems
-    const char** elems;  // history items (up to count)
-    const char* fname;   // history file
+    ssize_t count;
+    ssize_t len;
+    const char** elems;
+    const char* fname;
     alloc_t* mem;
-    bool allow_duplicates;  // allow duplicate entries?
+    bool allow_duplicates;
 };
 
 static bool history_char_is_blank(char c) {
@@ -53,7 +53,7 @@ static ssize_t history_find_first_content(const char* entry, ssize_t len) {
         return line_start;
     }
 
-    return len;  // all empty
+    return len;
 }
 
 static ssize_t history_find_last_content(const char* entry, ssize_t len) {
@@ -88,7 +88,6 @@ static char* history_entry_dup_trimmed(alloc_t* mem, const char* entry) {
     ssize_t start = history_find_first_content(entry, len);
 
     if (start >= len) {
-        // all empty lines, return empty string
         return mem_strdup(mem, "");
     }
 
@@ -118,7 +117,7 @@ ic_private void history_free(history_t* h) {
     }
     mem_free(h->mem, h->fname);
     h->fname = NULL;
-    mem_free(h->mem, h);  // free ourselves
+    mem_free(h->mem, h);
 }
 
 ic_private bool history_enable_duplicates(history_t* h, bool enable) {
@@ -131,17 +130,12 @@ ic_private ssize_t history_count(const history_t* h) {
     return h->count;
 }
 
-//-------------------------------------------------------------
-// push/clear
-//-------------------------------------------------------------
-
 ic_private bool history_update(history_t* h, const char* entry) {
     if (entry == NULL)
         return false;
     history_remove_last(h);
     history_push(h, entry);
-    // debug_msg("history: update: with %s; now at %s\n", entry,
-    // history_get(h,0));
+
     return true;
 }
 
@@ -161,7 +155,7 @@ ic_private bool history_push(history_t* h, const char* entry) {
     char* normalized = history_entry_dup_trimmed(h->mem, entry);
     if (normalized == NULL)
         return false;
-    // remove any older duplicate
+
     if (!h->allow_duplicates) {
         for (int i = 0; i < h->count; i++) {
             if (strcmp(h->elems[i], normalized) == 0) {
@@ -170,9 +164,8 @@ ic_private bool history_push(history_t* h, const char* entry) {
             }
         }
     }
-    // insert at front
+
     if (h->count == h->len) {
-        // delete oldest entry
         history_delete_at(h, 0);
     }
     assert(h->count < h->len);
@@ -207,8 +200,8 @@ ic_private const char* history_get(const history_t* h, ssize_t n) {
     return h->elems[h->count - n - 1];
 }
 
-ic_private bool history_search(const history_t* h, ssize_t from /*including*/, const char* search,
-                               bool backward, ssize_t* hidx, ssize_t* hpos) {
+ic_private bool history_search(const history_t* h, ssize_t from, const char* search, bool backward,
+                               ssize_t* hidx, ssize_t* hpos) {
     const char* p = NULL;
     ssize_t i;
     if (backward) {
@@ -233,14 +226,13 @@ ic_private bool history_search(const history_t* h, ssize_t from /*including*/, c
     return true;
 }
 
-ic_private bool history_search_prefix(const history_t* h, ssize_t from /*including*/,
-                                      const char* prefix, bool backward, ssize_t* hidx) {
+ic_private bool history_search_prefix(const history_t* h, ssize_t from, const char* prefix,
+                                      bool backward, ssize_t* hidx) {
     if (prefix == NULL || h == NULL)
         return false;
 
     const size_t prefix_len = strlen(prefix);
     if (prefix_len == 0) {
-        // Empty prefix matches any entry, just use regular navigation
         if (backward) {
             if (from < h->count) {
                 if (hidx != NULL)
@@ -280,12 +272,6 @@ ic_private bool history_search_prefix(const history_t* h, ssize_t from /*includi
     return false;
 }
 
-//-------------------------------------------------------------
-// Atuin-like fuzzy search with scoring
-//-------------------------------------------------------------
-
-// Calculate fuzzy match score
-// Higher score = better match
 static int fuzzy_match_score(const char* entry, const char* query, ssize_t* match_pos,
                              ssize_t* match_len) {
     if (entry == NULL || query == NULL || query[0] == '\0') {
@@ -301,7 +287,6 @@ static int fuzzy_match_score(const char* entry, const char* query, ssize_t* matc
     int score = 0;
     bool in_match = false;
 
-    // Try to match all query characters in order
     while (*e && *q) {
         char e_lower = (*e >= 'A' && *e <= 'Z') ? (*e + 32) : *e;
         char q_lower = (*q >= 'A' && *q <= 'Z') ? (*q + 32) : *q;
@@ -312,28 +297,25 @@ static int fuzzy_match_score(const char* entry, const char* query, ssize_t* matc
             }
             last_match = e - entry;
 
-            // Bonus for consecutive matches
             if (in_match) {
                 consecutive++;
-                score += 5;  // Consecutive character bonus
+                score += 5;
             } else {
                 consecutive = 1;
                 in_match = true;
             }
 
-            // Bonus for matching at word boundaries
             if (e == entry || *(e - 1) == ' ' || *(e - 1) == '/' || *(e - 1) == '-' ||
                 *(e - 1) == '_') {
                 score += 10;
             }
 
-            // Bonus for exact case match
             if (*e == *q) {
                 score += 2;
             }
 
             q++;
-            score += 1;  // Base score for matching character
+            score += 1;
         } else {
             if (consecutive > max_consecutive) {
                 max_consecutive = consecutive;
@@ -348,25 +330,18 @@ static int fuzzy_match_score(const char* entry, const char* query, ssize_t* matc
         max_consecutive = consecutive;
     }
 
-    // If we didn't match all query characters, no match
     if (*q != '\0') {
         return -1;
     }
 
-    // Bonus for longer consecutive matches
     score += max_consecutive * 3;
 
-    // Penalty for distance between first and last match
     if (first_match >= 0 && last_match >= 0) {
         ssize_t span = last_match - first_match + 1;
         score -= (int)(span / 2);
     }
 
-    // Penalty for longer total entry length (prefer shorter matches)
     score -= (int)(strlen(entry) / 10);
-
-    // Bonus for recency (entries are stored newest first at higher indices)
-    // This is handled by the caller
 
     if (match_pos)
         *match_pos = first_match;
@@ -376,17 +351,14 @@ static int fuzzy_match_score(const char* entry, const char* query, ssize_t* matc
     return score;
 }
 
-// Compare function for sorting matches by score (descending)
 static int compare_matches(const void* a, const void* b) {
     const history_match_t* ma = (const history_match_t*)a;
     const history_match_t* mb = (const history_match_t*)b;
 
-    // Higher score first
     if (mb->score != ma->score) {
         return mb->score - ma->score;
     }
 
-    // If scores are equal, prefer more recent (higher index)
     return (int)(mb->hidx - ma->hidx);
 }
 
@@ -399,12 +371,11 @@ ic_private bool history_fuzzy_search(const history_t* h, const char* query,
         return false;
     }
 
-    // Empty query returns most recent entries
     if (query[0] == '\0') {
         ssize_t count = 0;
         for (ssize_t i = 0; i < h->count && count < max_matches; i++) {
             matches[count].hidx = i;
-            matches[count].score = (int)(100 - i);  // Recency score
+            matches[count].score = (int)(100 - i);
             matches[count].match_pos = 0;
             matches[count].match_len = 0;
             count++;
@@ -414,7 +385,6 @@ ic_private bool history_fuzzy_search(const history_t* h, const char* query,
         return count > 0;
     }
 
-    // Search all history entries
     ssize_t count = 0;
     for (ssize_t i = 0; i < h->count; i++) {
         const char* entry = history_get(h, i);
@@ -425,7 +395,6 @@ ic_private bool history_fuzzy_search(const history_t* h, const char* query,
         int score = fuzzy_match_score(entry, query, &mpos, &mlen);
 
         if (score >= 0) {
-            // Add recency bonus (more recent = higher index in our structure)
             score += (int)(i / 10);
 
             if (count < max_matches) {
@@ -435,7 +404,6 @@ ic_private bool history_fuzzy_search(const history_t* h, const char* query,
                 matches[count].match_len = mlen;
                 count++;
             } else {
-                // Find the worst match and replace if this is better
                 ssize_t worst_idx = 0;
                 int worst_score = matches[0].score;
                 for (ssize_t j = 1; j < max_matches; j++) {
@@ -455,7 +423,6 @@ ic_private bool history_fuzzy_search(const history_t* h, const char* query,
         }
     }
 
-    // Sort matches by score (best first)
     if (count > 1) {
         qsort(matches, count, sizeof(history_match_t), compare_matches);
     }
@@ -464,10 +431,6 @@ ic_private bool history_fuzzy_search(const history_t* h, const char* query,
         *match_count = count;
     return count > 0;
 }
-
-//-------------------------------------------------------------
-//
-//-------------------------------------------------------------
 
 ic_private void history_load_from(history_t* h, const char* fname, long max_entries) {
     history_clear(h);
@@ -486,10 +449,6 @@ ic_private void history_load_from(history_t* h, const char* fname, long max_entr
     h->len = max_entries;
     history_load(h);
 }
-
-//-------------------------------------------------------------
-// save/load history to file
-//-------------------------------------------------------------
 
 static char from_xdigit(int c) {
     if (c >= '0' && c <= '9')
@@ -523,9 +482,8 @@ static bool history_read_entry(history_t* h, FILE* f, stringbuf_t* sbuf) {
             c = fgetc(f);
             if (c == 'n') {
                 sbuf_append(sbuf, "\n");
-            } else if (c == 'r') { /* ignore */
-            }  // sbuf_append(sbuf,"\r");
-            else if (c == 't') {
+            } else if (c == 'r') {
+            } else if (c == 't') {
                 sbuf_append(sbuf, "\t");
             } else if (c == '\\') {
                 sbuf_append(sbuf, "\\");
@@ -549,16 +507,15 @@ static bool history_read_entry(history_t* h, FILE* f, stringbuf_t* sbuf) {
 
 static bool history_write_entry(const char* entry, FILE* f, stringbuf_t* sbuf) {
     sbuf_clear(sbuf);
-    // debug_msg("history: write: %s\n", entry);
+
     while (entry != NULL && *entry != 0) {
         char c = *entry++;
         if (c == '\\') {
             sbuf_append(sbuf, "\\\\");
         } else if (c == '\n') {
             sbuf_append(sbuf, "\\n");
-        } else if (c == '\r') { /* ignore */
-        }  // sbuf_append(sbuf,"\\r"); }
-        else if (c == '\t') {
+        } else if (c == '\r') {
+        } else if (c == '\t') {
             sbuf_append(sbuf, "\\t");
         } else if (c < ' ' || c > '~' || c == '#') {
             char c1 = to_xdigit((uint8_t)c / 16);
@@ -569,7 +526,6 @@ static bool history_write_entry(const char* entry, FILE* f, stringbuf_t* sbuf) {
         } else
             sbuf_append_char(sbuf, c);
     }
-    // debug_msg("history: write buf: %s\n", sbuf_string(sbuf));
 
     if (sbuf_len(sbuf) > 0) {
         sbuf_append(sbuf, "\n");
@@ -588,33 +544,30 @@ ic_private void history_load(history_t* h) {
     if (sbuf != NULL) {
         while (!feof(f)) {
             if (!history_read_entry(h, f, sbuf))
-                break;  // error
+                break;
         }
         sbuf_free(sbuf);
     }
     fclose(f);
 }
 
-// Append-only history save with timestamp, similar to fish shell
-// Writes only the most recent entry with a timestamp to the history file
-// Timestamp lines (starting with '#') are ignored on load.
 #include <time.h>
 ic_private void history_save(const history_t* h) {
     if (h->fname == NULL)
         return;
     if (h->count <= 0)
         return;
-    // append mode
+
     FILE* f = fopen(h->fname, "a");
     if (f == NULL)
         return;
 #ifndef _WIN32
     chmod(h->fname, S_IRUSR | S_IWUSR);
 #endif
-    // write timestamp line
+
     time_t t = time(NULL);
     fprintf(f, "# %lld\n", (long long)t);
-    // write only the latest entry
+
     stringbuf_t* sbuf = sbuf_new(h->mem);
     if (sbuf != NULL) {
         history_write_entry(h->elems[h->count - 1], f, sbuf);
