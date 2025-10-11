@@ -49,6 +49,66 @@ bool has_theme_extension(const std::filesystem::path& path) {
     std::string expected = to_lower_copy(std::string(Theme::kThemeFileExtension));
     return ext_lower == expected;
 }
+
+bool resolves_to_executable(const std::string& name, const std::string& cwd) {
+    if (name.empty()) {
+        return false;
+    }
+
+    std::error_code ec;
+
+    auto check_path = [&](const std::filesystem::path& candidate) -> bool {
+        if (!std::filesystem::exists(candidate, ec) || ec) {
+            return false;
+        }
+        if (std::filesystem::is_directory(candidate, ec) || ec) {
+            return false;
+        }
+        return access(candidate.c_str(), X_OK) == 0;
+    };
+
+    std::filesystem::path candidate(name);
+    if (name.find('/') != std::string::npos) {
+        if (!candidate.is_absolute()) {
+            candidate = std::filesystem::path(cwd) / candidate;
+        }
+        return check_path(candidate);
+    }
+
+    const char* path_env = std::getenv("PATH");
+    if (path_env == nullptr) {
+        return false;
+    }
+
+    std::stringstream path_stream(path_env);
+    std::string segment;
+    while (std::getline(path_stream, segment, ':')) {
+        if (segment.empty()) {
+            segment = ".";
+        }
+        std::filesystem::path path_candidate = std::filesystem::path(segment) / name;
+        if (check_path(path_candidate)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool path_is_directory_candidate(const std::string& value, const std::string& cwd) {
+    if (value.empty()) {
+        return false;
+    }
+
+    std::error_code ec;
+    std::filesystem::path candidate(value);
+    if (!candidate.is_absolute()) {
+        candidate = std::filesystem::path(cwd) / candidate;
+    }
+
+    return std::filesystem::exists(candidate, ec) && !ec &&
+           std::filesystem::is_directory(candidate, ec) && !ec;
+}
 }  // namespace
 
 void raw_mode_state_init(RawModeState* state) {
@@ -405,6 +465,37 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
         last_terminal_output_error = built_ins->get_last_error();
 
         return code;
+    }
+
+    if (!run_in_background && args.size() == 1 && built_ins) {
+        const std::string& candidate = args[0];
+
+        std::string trimmed_candidate = candidate;
+        while (trimmed_candidate.size() > 1 && trimmed_candidate.back() == '/') {
+            trimmed_candidate.pop_back();
+        }
+
+        if (trimmed_candidate.empty()) {
+            trimmed_candidate = candidate;
+        }
+
+        bool has_path_separator = trimmed_candidate.find('/') != std::string::npos;
+
+        bool has_alias = aliases.find(candidate) != aliases.end();
+        bool is_builtin = built_ins->is_builtin_command(candidate) != 0;
+        bool is_function =
+            shell_script_interpreter && shell_script_interpreter->has_function(candidate);
+        bool is_executable = resolves_to_executable(candidate, built_ins->get_current_directory());
+        bool is_directory =
+            path_is_directory_candidate(candidate, built_ins->get_current_directory());
+
+        if (!has_path_separator && !has_alias && !is_builtin && !is_function && !is_executable &&
+            is_directory) {
+            std::vector<std::string> cd_args = {"cd", candidate};
+            int code = built_ins->builtin_command(cd_args);
+            last_terminal_output_error = built_ins->get_last_error();
+            return code;
+        }
     }
 
     if (run_in_background) {

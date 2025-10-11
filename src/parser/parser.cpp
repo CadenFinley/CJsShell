@@ -1533,6 +1533,37 @@ bool Parser::is_valid_command(const std::string& command_name) const {
         }
     }
 
+    std::string cwd;
+    if (shell != nullptr && shell->get_built_ins() != nullptr) {
+        cwd = shell->get_built_ins()->get_current_directory();
+    } else {
+        std::error_code cwd_ec;
+        auto current = std::filesystem::current_path(cwd_ec);
+        if (!cwd_ec) {
+            cwd = current.string();
+        }
+    }
+
+    if (!cwd.empty()) {
+        std::string trimmed_command = command_name;
+        while (trimmed_command.size() > 1 && trimmed_command.back() == '/') {
+            trimmed_command.pop_back();
+        }
+
+        if (!trimmed_command.empty() && trimmed_command.find('/') == std::string::npos) {
+            std::error_code ec;
+            std::filesystem::path candidate(command_name);
+            if (!candidate.is_absolute()) {
+                candidate = std::filesystem::path(cwd) / candidate;
+            }
+
+            if (std::filesystem::exists(candidate, ec) && !ec &&
+                std::filesystem::is_directory(candidate, ec) && !ec) {
+                return true;
+            }
+        }
+    }
+
     if (command_name.find('/') != std::string::npos) {
         return true;
     }
