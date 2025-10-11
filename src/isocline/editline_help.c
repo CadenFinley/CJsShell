@@ -239,8 +239,6 @@ static void format_binding_keys(ic_env_t* env, ic_key_action_t action, const cha
     if (env != NULL && env->key_binding_count > 0 && env->key_bindings != NULL) {
         for (ssize_t i = 0; i < env->key_binding_count; ++i) {
             ic_key_binding_entry_t entry = env->key_bindings[i];
-            if (entry.kind != IC_KEY_BINDING_KIND_ACTION)
-                continue;
             if (entry.action != action)
                 continue;
             char formatted[64];

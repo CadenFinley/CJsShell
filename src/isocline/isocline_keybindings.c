@@ -15,59 +15,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include "common.h"
 #include "env.h"
 #include "keybinding_internal.h"
 #include "keybinding_specs.h"
-
-static ic_keycode_t keycode_from_control_value(unsigned char value) {
-    if (value >= 1 && value <= 26) {
-        return (ic_keycode_t)(IC_KEY_CTRL_A + (value - 1));
-    }
-    switch (value) {
-        case 0:
-            return IC_KEY_NONE;
-        case 27:
-            return IC_KEY_ESC;
-        case 127:
-            return IC_KEY_RUBOUT;
-        default:
-            return (ic_keycode_t)value;
-    }
-}
-
-static bool resolve_ctrl_character(char ch, ic_keycode_t* out_code) {
-    unsigned char value = (unsigned char)ch;
-    if (value >= 'a' && value <= 'z') {
-        *out_code = (ic_keycode_t)(IC_KEY_CTRL_A + (value - 'a'));
-        return true;
-    }
-    if (value >= 'A' && value <= 'Z') {
-        *out_code = (ic_keycode_t)(IC_KEY_CTRL_A + (value - 'A'));
-        return true;
-    }
-    if (value == ' ' || value == '@' || value == '`') {
-        *out_code = keycode_from_control_value(0);
-        return true;
-    }
-    if (value == '?') {
-        *out_code = keycode_from_control_value(127);
-        return true;
-    }
-    if (value >= '[' && value <= '_') {
-        *out_code = keycode_from_control_value((unsigned char)(value - '@'));
-        return true;
-    }
-    return false;
-}
-
-static bool resolve_ctrl_named_key(ic_keycode_t key, ic_keycode_t* out_code) {
-    if (key == IC_KEY_SPACE) {
-        *out_code = keycode_from_control_value(0);
-        return true;
-    }
-    return false;
-}
 
 //-------------------------------------------------------------
 // Key binding helpers
@@ -262,15 +214,6 @@ static ic_key_binding_entry_t* key_binding_find_entry(ic_env_t* env, ic_keycode_
     return NULL;
 }
 
-static void key_binding_entry_free_payload(ic_env_t* env, ic_key_binding_entry_t* entry) {
-    if (env == NULL || entry == NULL)
-        return;
-    if (entry->kind == IC_KEY_BINDING_KIND_COMMAND && entry->command != NULL) {
-        mem_free(env->mem, (void*)entry->command);
-        entry->command = NULL;
-    }
-}
-
 static bool key_bindings_ensure_capacity(ic_env_t* env, ssize_t needed) {
     if (env->key_binding_capacity >= needed)
         return true;
@@ -408,11 +351,6 @@ ic_private bool ic_keybinding_apply_profile(ic_env_t* env, const keybinding_prof
 static void key_binding_clear_all(ic_env_t* env) {
     if (env == NULL)
         return;
-    for (ssize_t i = 0; i < env->key_binding_count; ++i) {
-        key_binding_entry_free_payload(env, &env->key_bindings[i]);
-        env->key_bindings[i].kind = IC_KEY_BINDING_KIND_ACTION;
-        env->key_bindings[i].action = IC_KEY_ACTION_NONE;
-    }
     env->key_binding_count = 0;
 }
 
@@ -529,20 +467,25 @@ ic_public bool ic_parse_key_spec(const char* spec, ic_keycode_t* out_key) {
     if (!base_set)
         return false;
 
-    ic_keycode_t code = (base_is_char ? ic_key_char(base_char) : base_key);
-
-    if (ctrl) {
-        ic_keycode_t resolved = 0;
-        bool handled = false;
-        if (base_is_char) {
-            handled = resolve_ctrl_character(base_char, &resolved);
+    ic_keycode_t code = 0;
+    if (base_is_char) {
+        unsigned char ch = (unsigned char)base_char;
+        if (ctrl) {
+            if (ch >= 'a' && ch <= 'z') {
+                code = (ic_keycode_t)(IC_KEY_CTRL_A + (ch - 'a'));
+                ctrl = false;
+            } else if (ch >= 'A' && ch <= 'Z') {
+                code = (ic_keycode_t)(IC_KEY_CTRL_A + (ch - 'A'));
+                ctrl = false;
+            } else {
+                code = IC_KEY_WITH_CTRL(ic_key_char((char)ch));
+                ctrl = false;
+            }
         } else {
-            handled = resolve_ctrl_named_key(base_key, &resolved);
+            code = ic_key_char((char)ch);
         }
-        if (handled) {
-            code = resolved;
-            ctrl = false;
-        }
+    } else {
+        code = base_key;
     }
 
     if (ctrl)
@@ -568,50 +511,6 @@ ic_public bool ic_bind_key_named(const char* key_spec, const char* action_name) 
     return ic_bind_key(key, action);
 }
 
-ic_public bool ic_bind_key_to_command(ic_keycode_t key, const char* command) {
-    ic_env_t* env = ic_get_env();
-    if (env == NULL || command == NULL)
-        return false;
-    if (command[0] == '\0')
-        return false;
-
-    char* command_copy = mem_strdup(env->mem, command);
-    if (command_copy == NULL)
-        return false;
-
-    ssize_t index = -1;
-    ic_key_binding_entry_t* entry = key_binding_find_entry(env, key, &index);
-    if (entry != NULL) {
-        key_binding_entry_free_payload(env, entry);
-        entry->action = IC_KEY_ACTION_NONE;
-        entry->kind = IC_KEY_BINDING_KIND_COMMAND;
-        entry->command = command_copy;
-        return true;
-    }
-
-    if (!key_bindings_ensure_capacity(env, env->key_binding_count + 1)) {
-        mem_free(env->mem, command_copy);
-        return false;
-    }
-
-    ic_key_binding_entry_t* new_entry = &env->key_bindings[env->key_binding_count];
-    new_entry->key = key;
-    new_entry->action = IC_KEY_ACTION_NONE;
-    new_entry->kind = IC_KEY_BINDING_KIND_COMMAND;
-    new_entry->command = command_copy;
-    env->key_binding_count++;
-    return true;
-}
-
-ic_public bool ic_bind_key_to_command_named(const char* key_spec, const char* command) {
-    if (key_spec == NULL || command == NULL)
-        return false;
-    ic_keycode_t key;
-    if (!ic_parse_key_spec(key_spec, &key))
-        return false;
-    return ic_bind_key_to_command(key, command);
-}
-
 ic_public bool ic_format_key_spec(ic_keycode_t key, char* buffer, size_t buflen) {
     if (buffer == NULL || buflen == 0)
         return false;
@@ -627,30 +526,6 @@ ic_public bool ic_format_key_spec(ic_keycode_t key, char* buffer, size_t buflen)
         base = key;
     } else {
         base = IC_KEY_NO_MODS(key);
-    }
-
-    if (!implicit_ctrl && mods == 0) {
-        switch (base) {
-            case IC_KEY_NONE:
-                if (!append_token(&first, buffer, buflen, &len, "ctrl"))
-                    return false;
-                if (!append_token(&first, buffer, buflen, &len, "space"))
-                    return false;
-                return true;
-            case 28:
-            case 29:
-            case 30:
-            case 31: {
-                if (!append_token(&first, buffer, buflen, &len, "ctrl"))
-                    return false;
-                char ctrl_buf[2];
-                ctrl_buf[0] = (char)('@' + (int)base);
-                ctrl_buf[1] = '\0';
-                return append_token(&first, buffer, buflen, &len, ctrl_buf);
-            }
-            default:
-                break;
-        }
     }
 
     if ((mods & IC_KEY_MOD_CTRL) != 0 || implicit_ctrl) {
@@ -786,18 +661,13 @@ ic_public bool ic_bind_key(ic_keycode_t key, ic_key_action_t action) {
     ssize_t index = -1;
     ic_key_binding_entry_t* entry = key_binding_find_entry(env, key, &index);
     if (entry != NULL) {
-        key_binding_entry_free_payload(env, entry);
         entry->action = action;
-        entry->kind = IC_KEY_BINDING_KIND_ACTION;
-        entry->command = NULL;
         return true;
     }
     if (!key_bindings_ensure_capacity(env, env->key_binding_count + 1))
         return false;
     env->key_bindings[env->key_binding_count].key = key;
     env->key_bindings[env->key_binding_count].action = action;
-    env->key_bindings[env->key_binding_count].kind = IC_KEY_BINDING_KIND_ACTION;
-    env->key_bindings[env->key_binding_count].command = NULL;
     env->key_binding_count++;
     return true;
 }
@@ -807,23 +677,13 @@ ic_public bool ic_clear_key_binding(ic_keycode_t key) {
     if (env == NULL)
         return false;
     ssize_t index = -1;
-    ic_key_binding_entry_t* entry = key_binding_find_entry(env, key, &index);
-    if (entry == NULL)
+    if (key_binding_find_entry(env, key, &index) == NULL)
         return false;
-    key_binding_entry_free_payload(env, entry);
     for (ssize_t i = index; i < env->key_binding_count - 1; ++i) {
         env->key_bindings[i] = env->key_bindings[i + 1];
     }
     if (env->key_binding_count > 0)
         env->key_binding_count--;
-    if (env->key_binding_count >= 0) {
-        ssize_t tail = env->key_binding_count;
-        if (tail >= 0 && tail < env->key_binding_capacity) {
-            env->key_bindings[tail].command = NULL;
-            env->key_bindings[tail].kind = IC_KEY_BINDING_KIND_ACTION;
-            env->key_bindings[tail].action = IC_KEY_ACTION_NONE;
-        }
-    }
     return true;
 }
 
@@ -843,8 +703,6 @@ ic_public bool ic_get_key_binding(ic_keycode_t key, ic_key_action_t* out_action)
         return false;
     ic_key_binding_entry_t* entry = key_binding_find_entry(env, key, NULL);
     if (entry == NULL)
-        return false;
-    if (entry->kind != IC_KEY_BINDING_KIND_ACTION)
         return false;
     if (out_action != NULL)
         *out_action = entry->action;

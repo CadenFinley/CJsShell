@@ -152,8 +152,7 @@ When `--disable-custom-ls` is not specified:
 
 ```bash
 cjshopt style_def <token> <style>     # Syntax highlighting styles
-cjshopt keybind set <action> <key>    # Custom editor action binding
-cjshopt keybind run <keys> -- <cmd>   # Bind keys directly to shell commands
+cjshopt keybind <action> <key>        # Custom key bindings
 cjshopt generate-profile              # Generate ~/.cjprofile
 cjshopt generate-rc                   # Generate ~/.cjshrc
 cjshopt set-history-max <number>      # History configuration

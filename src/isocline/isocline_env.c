@@ -133,16 +133,7 @@ static void ic_env_free(ic_env_t* env) {
     mem_free(env->mem, env->match_braces);
     mem_free(env->mem, env->auto_braces);
     mem_free(env->mem, (void*)env->initial_input);
-    if (env->key_bindings != NULL) {
-        for (ssize_t i = 0; i < env->key_binding_count; ++i) {
-            if (env->key_bindings[i].kind == IC_KEY_BINDING_KIND_COMMAND &&
-                env->key_bindings[i].command != NULL) {
-                mem_free(env->mem, (void*)env->key_bindings[i].command);
-                env->key_bindings[i].command = NULL;
-            }
-        }
-        mem_free(env->mem, env->key_bindings);
-    }
+    mem_free(env->mem, env->key_bindings);
     env->prompt_marker = NULL;
 
     alloc_t* mem = env->mem;
