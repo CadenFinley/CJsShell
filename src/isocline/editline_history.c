@@ -150,7 +150,244 @@ static void hsearch_done(alloc_t* mem, hsearch_t* hs) {
     }
 }
 
-static void edit_history_search(ic_env_t* env, editor_t* eb, char* initial) {
+//-------------------------------------------------------------
+// fuzzy history search UI
+//-------------------------------------------------------------
+
+#define MAX_FUZZY_RESULTS 10
+
+static void edit_history_fuzzy_search(ic_env_t* env, editor_t* eb, char* initial) {
+    if (history_count(env->history) <= 0) {
+        term_beep(env->term);
+        return;
+    }
+
+    // update history
+    if (eb->modified) {
+        history_update(env->history, sbuf_string(eb->input));
+        eb->history_idx = 0;
+        eb->modified = false;
+    }
+
+    // set a search prompt and remember the previous state
+    editor_undo_capture(eb);
+    eb->disable_undo = true;
+    bool old_hint = ic_enable_hint(false);
+    const char* prompt_text = eb->prompt_text;
+    eb->prompt_text = "[ic-prompt] history search: ";
+
+    // Allocate match results
+    history_match_t* matches =
+        (history_match_t*)mem_zalloc_tp_n(env->mem, history_match_t, MAX_FUZZY_RESULTS);
+    if (matches == NULL) {
+        term_beep(env->term);
+        eb->disable_undo = false;
+        eb->prompt_text = prompt_text;
+        ic_enable_hint(old_hint);
+        return;
+    }
+
+    ssize_t match_count = 0;
+    ssize_t selected_idx = 0;
+
+    // Initialize search with initial query
+    if (initial != NULL) {
+        sbuf_replace(eb->input, initial);
+        eb->pos = ic_strlen(initial);
+    } else {
+        sbuf_clear(eb->input);
+        eb->pos = 0;
+    }
+
+    // Main search loop
+again: {
+    // Perform fuzzy search
+    const char* query = sbuf_string(eb->input);
+    history_fuzzy_search(env->history, query ? query : "", matches, MAX_FUZZY_RESULTS,
+                         &match_count);
+}
+
+    // Clamp selected index
+    if (selected_idx >= match_count) {
+        selected_idx = match_count > 0 ? match_count - 1 : 0;
+    }
+    if (selected_idx < 0) {
+        selected_idx = 0;
+    }
+
+    // Build display
+    sbuf_clear(eb->extra);
+
+    if (match_count > 0) {
+        // Check if we're showing all history or filtered results
+        const char* query = sbuf_string(eb->input);
+        bool is_filtered = (query != NULL && query[0] != '\0');
+        
+        if (is_filtered) {
+            sbuf_appendf(eb->extra, "[ic-info]%zd match%s found[/]\n", match_count,
+                         match_count == 1 ? "" : "es");
+        } else {
+            ssize_t total_history = history_count(env->history);
+            sbuf_appendf(eb->extra, "[ic-info]History (%zd entr%s)[/]\n", total_history,
+                         total_history == 1 ? "y" : "ies");
+        }
+
+        // Show up to 5 results
+        ssize_t display_count = (match_count > 5) ? 5 : match_count;
+        for (ssize_t i = 0; i < display_count; i++) {
+            const char* entry = history_get(env->history, matches[i].hidx);
+            if (entry == NULL)
+                continue;
+
+            // Highlight selected entry
+            if (i == selected_idx) {
+                sbuf_append(eb->extra, "[ic-emphasis][reverse]> [/][!pre]");
+            } else {
+                sbuf_append(eb->extra, "[ic-diminish]  [/][!pre]");
+            }
+
+            // Show the entry with match highlighting (only if filtered)
+            if (is_filtered && matches[i].match_len > 0 && matches[i].match_pos >= 0) {
+                // Before match
+                sbuf_append_n(eb->extra, entry, matches[i].match_pos);
+                // Matched part
+                sbuf_append(eb->extra, "[/pre][u ic-emphasis][!pre]");
+                sbuf_append_n(eb->extra, entry + matches[i].match_pos, matches[i].match_len);
+                sbuf_append(eb->extra, "[/pre][/u][!pre]");
+                // After match
+                sbuf_append(eb->extra, entry + matches[i].match_pos + matches[i].match_len);
+            } else {
+                sbuf_append(eb->extra, entry);
+            }
+
+            sbuf_append(eb->extra, "[/pre]");
+
+            if (i == selected_idx) {
+                sbuf_append(eb->extra, "[/reverse][/ic-emphasis]");
+            } else {
+                sbuf_append(eb->extra, "[/ic-diminish]");
+            }
+
+            sbuf_append(eb->extra, "\n");
+        }
+
+        if (match_count > display_count) {
+            sbuf_appendf(eb->extra, "[ic-info]  ... and %zd more[/]\n",
+                         match_count - display_count);
+        }
+    } else {
+        sbuf_append(eb->extra, "[ic-info]No matches found[/]\n");
+    }
+
+    if (!env->no_help) {
+        sbuf_append(eb->extra, "[ic-diminish](↑↓:navigate enter:select esc:cancel)[/]");
+    }
+
+    edit_refresh(env, eb);
+
+    // Wait for input
+    code_t c = tty_read(env->tty);
+    if (tty_term_resize_event(env->tty)) {
+        edit_resize(env, eb);
+    }
+
+    // Process commands
+    if (c == KEY_ESC || c == KEY_BELL || c == KEY_CTRL_C) {
+        // Cancel search
+        eb->disable_undo = false;
+        editor_undo_restore(eb, false);
+        mem_free(env->mem, matches);
+        eb->prompt_text = prompt_text;
+        ic_enable_hint(old_hint);
+        edit_refresh(env, eb);
+        return;
+    } else if (c == KEY_ENTER) {
+        // Accept selected match
+        if (match_count > 0 && selected_idx >= 0 && selected_idx < match_count) {
+            const char* selected = history_get(env->history, matches[selected_idx].hidx);
+            if (selected != NULL) {
+                editor_undo_forget(eb);
+                sbuf_replace(eb->input, selected);
+                eb->pos = sbuf_len(eb->input);
+                eb->modified = false;
+                eb->history_idx = matches[selected_idx].hidx;
+            }
+        }
+        mem_free(env->mem, matches);
+        eb->disable_undo = false;
+        eb->prompt_text = prompt_text;
+        ic_enable_hint(old_hint);
+        edit_refresh(env, eb);
+        return;
+    } else if (c == KEY_UP || c == KEY_CTRL_P) {
+        // Move selection up
+        if (selected_idx > 0) {
+            selected_idx--;
+        }
+        goto again;
+    } else if (c == KEY_DOWN || c == KEY_CTRL_N) {
+        // Move selection down
+        if (selected_idx < match_count - 1) {
+            selected_idx++;
+        }
+        goto again;
+    } else if (c == KEY_BACKSP) {
+        // Delete character
+        if (eb->pos > 0) {
+            edit_backspace(env, eb);
+            selected_idx = 0;  // Reset selection
+        }
+        goto again;
+    } else if (c == KEY_DEL) {
+        // Delete forward
+        edit_delete_char(env, eb);
+        selected_idx = 0;
+        goto again;
+    } else if (c == KEY_F1) {
+        edit_show_help(env, eb);
+        goto again;
+    } else {
+        // Insert character and re-search
+        char chr;
+        unicode_t uchr;
+        if (code_is_ascii_char(c, &chr)) {
+            edit_insert_char(env, eb, chr);
+            selected_idx = 0;  // Reset selection
+            goto again;
+        } else if (code_is_unicode(c, &uchr)) {
+            edit_insert_unicode(env, eb, uchr);
+            selected_idx = 0;
+            goto again;
+        } else {
+            // Ignore unknown commands
+            term_beep(env->term);
+            goto again;
+        }
+    }
+}
+
+// Start fuzzy search with the current word
+static void edit_history_fuzzy_search_with_current_word(ic_env_t* env, editor_t* eb) {
+    char* initial = NULL;
+    ssize_t start = sbuf_find_word_start(eb->input, eb->pos);
+    if (start >= 0) {
+        const ssize_t next = sbuf_next(eb->input, start, NULL);
+        if (!ic_char_is_idletter(sbuf_string(eb->input) + start, (long)(next - start))) {
+            start = next;
+        }
+        if (start >= 0 && start < eb->pos) {
+            initial = mem_strndup(eb->mem, sbuf_string(eb->input) + start, eb->pos - start);
+        }
+    }
+    edit_history_fuzzy_search(env, eb, initial);
+    mem_free(env->mem, initial);
+}
+
+//-------------------------------------------------------------
+// Original incremental history search (kept for compatibility)
+//-------------------------------------------------------------
+
+static void edit_history_search_incremental(ic_env_t* env, editor_t* eb, char* initial) {
     if (history_count(env->history) <= 0) {
         term_beep(env->term);
         return;
@@ -305,7 +542,7 @@ again:
         tty_code_pushback(env->tty, c);
 }
 
-// Start an incremental search with the current word
+// Start an incremental search with the current word (wrapper for fuzzy search)
 static void edit_history_search_with_current_word(ic_env_t* env, editor_t* eb) {
     char* initial = NULL;
     ssize_t start = sbuf_find_word_start(eb->input, eb->pos);
@@ -318,6 +555,6 @@ static void edit_history_search_with_current_word(ic_env_t* env, editor_t* eb) {
             initial = mem_strndup(eb->mem, sbuf_string(eb->input) + start, eb->pos - start);
         }
     }
-    edit_history_search(env, eb, initial);
+    edit_history_fuzzy_search(env, eb, initial);
     mem_free(env->mem, initial);
 }

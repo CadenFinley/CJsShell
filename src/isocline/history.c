@@ -8,6 +8,7 @@
 #include "history.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 
@@ -277,6 +278,191 @@ ic_private bool history_search_prefix(const history_t* h, ssize_t from /*includi
         }
     }
     return false;
+}
+
+//-------------------------------------------------------------
+// Atuin-like fuzzy search with scoring
+//-------------------------------------------------------------
+
+// Calculate fuzzy match score
+// Higher score = better match
+static int fuzzy_match_score(const char* entry, const char* query, ssize_t* match_pos,
+                             ssize_t* match_len) {
+    if (entry == NULL || query == NULL || query[0] == '\0') {
+        return -1;
+    }
+
+    const char* e = entry;
+    const char* q = query;
+    ssize_t first_match = -1;
+    ssize_t last_match = -1;
+    ssize_t consecutive = 0;
+    ssize_t max_consecutive = 0;
+    int score = 0;
+    bool in_match = false;
+
+    // Try to match all query characters in order
+    while (*e && *q) {
+        char e_lower = (*e >= 'A' && *e <= 'Z') ? (*e + 32) : *e;
+        char q_lower = (*q >= 'A' && *q <= 'Z') ? (*q + 32) : *q;
+
+        if (e_lower == q_lower) {
+            if (first_match == -1) {
+                first_match = e - entry;
+            }
+            last_match = e - entry;
+
+            // Bonus for consecutive matches
+            if (in_match) {
+                consecutive++;
+                score += 5;  // Consecutive character bonus
+            } else {
+                consecutive = 1;
+                in_match = true;
+            }
+
+            // Bonus for matching at word boundaries
+            if (e == entry || *(e - 1) == ' ' || *(e - 1) == '/' || *(e - 1) == '-' ||
+                *(e - 1) == '_') {
+                score += 10;
+            }
+
+            // Bonus for exact case match
+            if (*e == *q) {
+                score += 2;
+            }
+
+            q++;
+            score += 1;  // Base score for matching character
+        } else {
+            if (consecutive > max_consecutive) {
+                max_consecutive = consecutive;
+            }
+            consecutive = 0;
+            in_match = false;
+        }
+        e++;
+    }
+
+    if (consecutive > max_consecutive) {
+        max_consecutive = consecutive;
+    }
+
+    // If we didn't match all query characters, no match
+    if (*q != '\0') {
+        return -1;
+    }
+
+    // Bonus for longer consecutive matches
+    score += max_consecutive * 3;
+
+    // Penalty for distance between first and last match
+    if (first_match >= 0 && last_match >= 0) {
+        ssize_t span = last_match - first_match + 1;
+        score -= (int)(span / 2);
+    }
+
+    // Penalty for longer total entry length (prefer shorter matches)
+    score -= (int)(strlen(entry) / 10);
+
+    // Bonus for recency (entries are stored newest first at higher indices)
+    // This is handled by the caller
+
+    if (match_pos)
+        *match_pos = first_match;
+    if (match_len)
+        *match_len = (first_match >= 0 && last_match >= 0) ? (last_match - first_match + 1) : 0;
+
+    return score;
+}
+
+// Compare function for sorting matches by score (descending)
+static int compare_matches(const void* a, const void* b) {
+    const history_match_t* ma = (const history_match_t*)a;
+    const history_match_t* mb = (const history_match_t*)b;
+
+    // Higher score first
+    if (mb->score != ma->score) {
+        return mb->score - ma->score;
+    }
+
+    // If scores are equal, prefer more recent (higher index)
+    return (int)(mb->hidx - ma->hidx);
+}
+
+ic_private bool history_fuzzy_search(const history_t* h, const char* query,
+                                     history_match_t* matches, ssize_t max_matches,
+                                     ssize_t* match_count) {
+    if (h == NULL || query == NULL || matches == NULL || max_matches <= 0) {
+        if (match_count)
+            *match_count = 0;
+        return false;
+    }
+
+    // Empty query returns most recent entries
+    if (query[0] == '\0') {
+        ssize_t count = 0;
+        for (ssize_t i = 0; i < h->count && count < max_matches; i++) {
+            matches[count].hidx = i;
+            matches[count].score = (int)(100 - i);  // Recency score
+            matches[count].match_pos = 0;
+            matches[count].match_len = 0;
+            count++;
+        }
+        if (match_count)
+            *match_count = count;
+        return count > 0;
+    }
+
+    // Search all history entries
+    ssize_t count = 0;
+    for (ssize_t i = 0; i < h->count; i++) {
+        const char* entry = history_get(h, i);
+        if (entry == NULL)
+            continue;
+
+        ssize_t mpos = 0, mlen = 0;
+        int score = fuzzy_match_score(entry, query, &mpos, &mlen);
+
+        if (score >= 0) {
+            // Add recency bonus (more recent = higher index in our structure)
+            score += (int)(i / 10);
+
+            if (count < max_matches) {
+                matches[count].hidx = i;
+                matches[count].score = score;
+                matches[count].match_pos = mpos;
+                matches[count].match_len = mlen;
+                count++;
+            } else {
+                // Find the worst match and replace if this is better
+                ssize_t worst_idx = 0;
+                int worst_score = matches[0].score;
+                for (ssize_t j = 1; j < max_matches; j++) {
+                    if (matches[j].score < worst_score) {
+                        worst_score = matches[j].score;
+                        worst_idx = j;
+                    }
+                }
+
+                if (score > worst_score) {
+                    matches[worst_idx].hidx = i;
+                    matches[worst_idx].score = score;
+                    matches[worst_idx].match_pos = mpos;
+                    matches[worst_idx].match_len = mlen;
+                }
+            }
+        }
+    }
+
+    // Sort matches by score (best first)
+    if (count > 1) {
+        qsort(matches, count, sizeof(history_match_t), compare_matches);
+    }
+
+    if (match_count)
+        *match_count = count;
+    return count > 0;
 }
 
 //-------------------------------------------------------------

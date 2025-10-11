@@ -39,4 +39,15 @@ ic_private bool history_search(const history_t* h, ssize_t from, const char* sea
 ic_private bool history_search_prefix(const history_t* h, ssize_t from, const char* prefix,
                                       bool backward, ssize_t* hidx);
 
+typedef struct history_match_s {
+    ssize_t hidx;       // history index
+    int score;          // match score (higher is better)
+    ssize_t match_pos;  // position of first match
+    ssize_t match_len;  // length of match
+} history_match_t;
+
+ic_private bool history_fuzzy_search(const history_t* h, const char* query,
+                                     history_match_t* matches, ssize_t max_matches,
+                                     ssize_t* match_count);
+
 #endif  // IC_HISTORY_H
