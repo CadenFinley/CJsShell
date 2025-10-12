@@ -32,7 +32,6 @@ static void edit_history_at(ic_env_t* env, editor_t* eb, int ofs) {
     if (eb->modified) {
         const char* current_input = sbuf_string(eb->input);
         if (eb->history_prefix != NULL) {
-            // Remember the typed prefix so that subsequent history steps can prioritize it
             sbuf_replace(eb->history_prefix, current_input != NULL ? current_input : "");
             eb->history_prefix_active = (sbuf_len(eb->history_prefix) > 0);
         } else {
@@ -79,7 +78,6 @@ static void edit_history_at(ic_env_t* env, editor_t* eb, int ofs) {
         ssize_t candidate_idx = current_idx + direction;
 
         if (prefix != NULL) {
-            // Prefer entries that start with the stored prefix before falling back to plain order
             ssize_t search_idx = current_idx + direction;
             while (search_idx >= 0 && search_idx < total_history) {
                 const char* candidate_entry = history_snapshot_get(&snap, search_idx);
@@ -120,21 +118,17 @@ static void edit_history_at(ic_env_t* env, editor_t* eb, int ofs) {
         eb->pos = sbuf_len(eb->input);
     }
 
-    // Clear previous extra content
     sbuf_clear(eb->extra);
 
-    // Display preview of next 3 history entries only when doing prefix-based history completion
     if (eb->history_prefix_active && total_history > 0 && eb->history_idx < total_history - 1) {
         sbuf_append(eb->extra, "[ic-diminish]");
 
-        // Show up to 3 next entries
         int preview_count = 0;
         for (int i = 1; i <= 3 && (eb->history_idx + i) < total_history; i++) {
             const char* preview_entry = history_snapshot_get(&snap, eb->history_idx + i);
             if (preview_entry != NULL) {
-                // Only show entries that match the prefix
                 if (prefix != NULL && (strncmp(preview_entry, prefix, (size_t)prefix_len) != 0 ||
-                    preview_entry[prefix_len] == '\0')) {
+                                       preview_entry[prefix_len] == '\0')) {
                     continue;
                 }
 
@@ -143,7 +137,6 @@ static void edit_history_at(ic_env_t* env, editor_t* eb, int ofs) {
                 }
                 sbuf_append(eb->extra, "[!pre]  ");
 
-                // Find first newline to only show first line of multi-line commands
                 const char* newline_pos = strchr(preview_entry, '\n');
                 ssize_t first_line_len;
                 bool is_multiline = false;
@@ -155,7 +148,6 @@ static void edit_history_at(ic_env_t* env, editor_t* eb, int ofs) {
                     first_line_len = strlen(preview_entry);
                 }
 
-                // Truncate long entries to fit terminal width
                 ssize_t max_len = eb->termw > 50 ? eb->termw - 10 : 40;
                 if (first_line_len > max_len) {
                     sbuf_append_n(eb->extra, preview_entry, max_len - 3);
