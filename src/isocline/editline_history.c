@@ -10,6 +10,13 @@
 // History search: this file is included in editline.c
 //-------------------------------------------------------------
 
+// Helper function to clear history preview
+static void edit_clear_history_preview(editor_t* eb) {
+    if (sbuf_len(eb->extra) > 0) {
+        sbuf_clear(eb->extra);
+    }
+}
+
 static void edit_history_at(ic_env_t* env, editor_t* eb, int ofs) {
     if (eb->modified) {
         history_update(env->history, sbuf_string(eb->input));
@@ -29,6 +36,58 @@ static void edit_history_at(ic_env_t* env, editor_t* eb, int ofs) {
         } else {
             eb->pos = sbuf_len(eb->input);
         }
+
+        // Clear previous extra content
+        sbuf_clear(eb->extra);
+
+        // Display preview of next 3 history entries
+        ssize_t total_history = history_count(env->history);
+        if (total_history > 0 && eb->history_idx < total_history - 1) {
+            sbuf_append(eb->extra, "[ic-diminish]");
+
+            // Show up to 3 next entries
+            int preview_count = 0;
+            for (int i = 1; i <= 3 && (eb->history_idx + i) < total_history; i++) {
+                const char* preview_entry = history_get(env->history, eb->history_idx + i);
+                if (preview_entry != NULL) {
+                    if (preview_count > 0) {
+                        sbuf_append(eb->extra, "\n");
+                    }
+                    sbuf_append(eb->extra, "[!pre]  ");
+
+                    // Find first newline to only show first line of multi-line commands
+                    const char* newline_pos = strchr(preview_entry, '\n');
+                    ssize_t first_line_len;
+                    bool is_multiline = false;
+
+                    if (newline_pos != NULL) {
+                        first_line_len = newline_pos - preview_entry;
+                        is_multiline = true;
+                    } else {
+                        first_line_len = strlen(preview_entry);
+                    }
+
+                    // Truncate long entries to fit terminal width
+                    ssize_t max_len = eb->termw > 50 ? eb->termw - 10 : 40;
+                    if (first_line_len > max_len) {
+                        sbuf_append_n(eb->extra, preview_entry, max_len - 3);
+                        sbuf_append(eb->extra, "...");
+                    } else {
+                        sbuf_append_n(eb->extra, preview_entry, first_line_len);
+                        if (is_multiline) {
+                            sbuf_append(eb->extra, "...");
+                        }
+                    }
+                    sbuf_append(eb->extra, "[/pre]");
+                    preview_count++;
+                }
+            }
+
+            if (preview_count > 0) {
+                sbuf_append(eb->extra, "[/ic-diminish]\n");
+            }
+        }
+
         edit_refresh(env, eb);
     }
 }

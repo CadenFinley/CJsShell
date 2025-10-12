@@ -59,6 +59,7 @@ static void edit_generate_completions(ic_env_t* env, editor_t* eb, bool autotab)
 static void edit_history_search_with_current_word(ic_env_t* env, editor_t* eb);
 static void edit_history_prev(ic_env_t* env, editor_t* eb);
 static void edit_history_next(ic_env_t* env, editor_t* eb);
+static void edit_clear_history_preview(editor_t* eb);
 static void edit_clear_screen(ic_env_t* env, editor_t* eb);
 static void edit_undo_restore(ic_env_t* env, editor_t* eb);
 static void edit_redo_restore(ic_env_t* env, editor_t* eb);
@@ -290,6 +291,8 @@ static void editor_start_modify(editor_t* eb) {
     editor_undo_capture(eb);
     editstate_done(eb->mem, &eb->redo);  // clear redo
     eb->modified = true;
+    // Clear history preview when user starts modifying input
+    edit_clear_history_preview(eb);
 }
 
 static bool editor_pos_is_at_end(editor_t* eb) {
@@ -1868,6 +1871,8 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
 
         // Operations that may return
         if (c == KEY_ENTER) {
+            // Clear history preview when submitting
+            edit_clear_history_preview(&eb);
             if (!env->singleline_only && eb.pos > 0 &&
                 sbuf_string(eb.input)[eb.pos - 1] == env->multiline_eol &&
                 edit_pos_is_at_row_end(env, &eb)) {
@@ -1892,9 +1897,13 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
             }
             edit_delete_char(env, &eb);  // otherwise it is like delete
         } else if (c == KEY_CTRL_C || c == KEY_EVENT_STOP) {
+            // Clear history preview when cancelling
+            edit_clear_history_preview(&eb);
             ctrl_c_pressed = true;
             break;  // ctrl+C or STOP event quits with CTRL+C token
         } else if (c == KEY_ESC) {
+            // Clear history preview on ESC
+            edit_clear_history_preview(&eb);
             if (eb.pos == 0 && editor_pos_is_at_end(&eb))
                 break;                  // ESC on empty input returns with empty input
             edit_delete_all(env, &eb);  // otherwise delete the current input
@@ -2230,6 +2239,8 @@ static char* edit_line_inline(ic_env_t* env, const char* prompt_text,
 
         // Operations that may return
         if (c == KEY_ENTER) {
+            // Clear history preview when submitting
+            edit_clear_history_preview(&eb);
             if (!env->singleline_only && eb.pos > 0 &&
                 sbuf_string(eb.input)[eb.pos - 1] == env->multiline_eol &&
                 edit_pos_is_at_row_end(env, &eb)) {
@@ -2254,9 +2265,13 @@ static char* edit_line_inline(ic_env_t* env, const char* prompt_text,
             }
             edit_delete_char(env, &eb);  // otherwise it is like delete
         } else if (c == KEY_CTRL_C || c == KEY_EVENT_STOP) {
+            // Clear history preview when cancelling
+            edit_clear_history_preview(&eb);
             ctrl_c_pressed = true;
             break;  // ctrl+C or STOP event quits with CTRL+C token
         } else if (c == KEY_ESC) {
+            // Clear history preview on ESC
+            edit_clear_history_preview(&eb);
             if (eb.pos == 0 && editor_pos_is_at_end(&eb))
                 break;                  // ESC on empty input returns with empty input
             edit_delete_all(env, &eb);  // otherwise delete the current input
