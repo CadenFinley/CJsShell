@@ -40,15 +40,36 @@ CJ's Shell aims for approximately 95% POSIX compliance, making it compatible wit
 
 ### Interactive Features
 
-#### Line Editing
-CJ's Shell embeds the isocline line editor for advanced text editing capabilities:
+CJ's Shell provides a rich interactive experience powered by the [isocline](https://github.com/daanx/isocline) line editor library.
 
-- Multiline input support
-- Syntax highlighting
-- Context-aware tab completion
-- Incremental history search (Ctrl+R)
-- Readline-style shortcuts
-- Interactive key binding cheat sheet (F1)
+**See [Interactive Editing Guide](editing.md) for complete documentation of all editing features.**
+
+#### Line Editing
+Advanced text editing capabilities including:
+
+- **Multiline input** with intelligent continuation detection
+- **Line numbering** (absolute and relative modes)
+- **Syntax highlighting** in real-time as you type
+- **Context-aware tab completion** with fuzzy matching
+- **Incremental history search** (Ctrl+R)
+- **Inline hints** and completion preview
+- **Spell correction** for commands and completions
+- **Brace matching** and auto-insertion
+- **Customizable key bindings** (emacs and vi modes)
+- **Interactive help** (F1 for full key binding cheat sheet)
+
+**Configuration:**
+All editing features can be configured via the `cjshopt` command:
+```bash
+cjshopt multiline on|off           # Multiline input
+cjshopt line-numbers relative      # Relative line numbering
+cjshopt completion-preview on      # Show completion preview
+cjshopt hint on                    # Enable inline hints
+cjshopt auto-tab on                # Auto-expand unique completions
+cjshopt keybind set-profile emacs  # Use emacs key bindings
+```
+
+See the [Editing Guide](editing.md) for all available options and detailed usage.
 
 #### Smart Directory Navigation
 Enhanced `cd` command with intelligent features:
@@ -69,21 +90,41 @@ Custom `ls` implementation with improved formatting:
 - Can be disabled with `--disable-custom-ls` flag
 
 #### Auto-completion
-Built-in completion system with:
+Built-in completion system with advanced features:
 
-- Command completion from PATH
-- File and directory completion
-- Fuzzy matching support
-- Context-aware suggestions
-- Configurable case sensitivity
+- **Command completion** from PATH, builtins, aliases, and functions
+- **File and directory completion** with intelligent quoting
+- **Variable completion** for shell variables
+- **User and hostname completion** for ssh, scp, etc.
+- **Fuzzy matching** for typo tolerance
+- **Frequency-based ranking** (commonly used items first)
+- **Source attribution** (shows where completions come from)
+- **Spell correction** when no exact match is found
+- **Configurable case sensitivity**
+
+See [Editing Guide](editing.md#completion-system) for detailed completion documentation.
 
 #### Syntax Highlighting
-Real-time syntax highlighting as you type:
+Real-time syntax highlighting as you type with full customization:
 
-- Command recognition
-- String highlighting
-- Operator highlighting
-- Customizable color schemes via `cjshopt style_def`
+- **Command recognition** (valid commands, builtins, errors)
+- **String highlighting** (single and double quoted)
+- **Operator highlighting** (pipes, redirections, logical operators)
+- **Keyword highlighting** (if, then, else, while, for, etc.)
+- **Variable highlighting** (parameter expansions)
+- **Comment highlighting**
+- **Brace matching** (matching pairs highlighted)
+- **Customizable color schemes** via `cjshopt style_def`
+
+**Example style customization:**
+```bash
+cjshopt style_def ic-keyword "bold blue"
+cjshopt style_def ic-command "green"
+cjshopt style_def ic-error "bold red"
+cjshopt style_def ic-string "#ffaa00"
+```
+
+See [Editing Guide](editing.md#syntax-highlighting) for all available styles and customization options.
 
 ### Theming System
 
@@ -162,9 +203,15 @@ Theme rendering is typically 2-4x faster than popular alternatives like Starship
 - Detailed error messages with suggestions
 
 #### History Management
-- Persistent command history
+- Persistent command history across sessions
 - Configurable history size with `cjshopt set-history-max`
+- Duplicate suppression (disabled by default)
 - History search and editing
+- Incremental search (Ctrl+R)
+- History expansion (`!`, `!!`, `!$`, `!-1`, etc.)
+- History file at `~/.cache/cjsh/cjsh_history`
+
+See [Editing Guide](editing.md#history-management) for detailed history features.
 
 #### Debugging Support
 - Detailed error reporting

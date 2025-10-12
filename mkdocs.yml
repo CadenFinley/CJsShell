@@ -92,7 +92,9 @@ nav:
     - Scripting Guide: scripting/guide.md
   - Reference:
     - Features Overview: reference/features.md
-    - Shell Comparison: reference/shell-comparison.md
+    - Interactive Editing: reference/editing.md
+    - Non-POSIX Features: reference/non-posix-features.md
+    - Hooks: reference/hooks.md
     - Built-in Commands: reference/commands.md
   - Integrations:
     - Zoxide: integration/zoxide.md

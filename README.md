@@ -5,7 +5,7 @@
 
 # CJ's Shell
 
-> **WARNING**: CJ's Shell is not a 100% POSIX compliant shell yet. (like 98%) It is also super cool and you will never want to use another shell again. (btw cjsh is POSIX compliant via -c flag or when typing piped ( | ) into) To see all non POSIX compliant parts of cjsh see: **[Non-POSIX Specs](docs/reference/non-posix-features.md)**
+CJ's Shell (cjsh) is a lightweight shell with out of the box power and speed. Baked in are strong first party theme scripting with a custom theme DSL language, a full custom shell script interpreter with minor bash support, custom keybindings for text editing, custom syntax highlighting, fuzzy text auto completions, smart directory navigation, advanced history seaching, multiline editing, typeahead, and rich prompts. All with no external shell support and only 1 dependency which is already baked in. cjsh aims to be fast and responsive at all times. It is fully usable on all *nix like systems and Windows with WSL. cjsh aims to be an almost 1 to 1 switch over from other POSIX like shells.
 
 ## Quick Install (Recommended)
 
@@ -13,8 +13,8 @@ The easiest way to get started with CJ's Shell is with brew
 - **[Getting Started](docs/getting-started/quick-start.md)**
 
 ```bash
-    brew tap CadenFinley/tap
-    brew install cjsh
+brew tap CadenFinley/tap
+brew install cjsh
 ```
    
 # Testing and POSIX Compliance
@@ -23,7 +23,7 @@ CJ's Shell includes a comprehensive test suite with over 1000 POSIX compliance t
 This test can be run from the root of the repository, and is recommended to run before setting cjsh as your default login shell.
 
 ```bash
-    ./tests/run_shell_tests.sh
+./tests/run_shell_tests.sh
 ```
 
 # Third‑Party Components

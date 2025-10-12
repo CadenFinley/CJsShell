@@ -431,7 +431,8 @@ Available subcommands:
 - `login-startup-arg` - Add startup flags (config file only)
 - `completion-case` - Configure completion case sensitivity
 - `completion-spell` - Toggle spell correction suggestions in completions
-- `line-numbers` - Configure line numbers in multiline input
+- `line-numbers` - Configure line numbers in multiline input (on/off/relative/absolute)
+- `current-line-number-highlight` - Toggle highlighting of the current line number
 - `hint-delay` - Set hint display delay in milliseconds
 - `completion-preview` - Configure completion preview
 - `hint` - Configure inline hints
@@ -439,7 +440,7 @@ Available subcommands:
 - `multiline` - Configure multiline input mode
 - `inline-help` - Configure inline help messages
 - `auto-tab` - Configure automatic tab completion
-- `keybind` - Inspect or modify key bindings
+- `keybind` - Inspect or modify key bindings (modifications config file only)
 - `generate-profile` - Create or overwrite ~/.cjprofile
 - `generate-rc` - Create or overwrite ~/.cjshrc
 - `generate-logout` - Create or overwrite ~/.cjsh_logout
@@ -538,6 +539,26 @@ cjshopt line-numbers status   # Show the current setting
 Add the command to `~/.cjshrc` to persist the setting across sessions. The subcommand also accepts synonyms such as `enable`, `disable`, `true`, `false`, `absolute`, and `rel`/`relative`.
 
 > **Tip:** Style the line numbers themselves with `cjshopt style_def ic-linenumbers "color=#FFB86C"` (or any other style). See `cjshopt style_def` for the full list of supported style directives.
+
+#### current-line-number-highlight
+
+Enable or disable highlighting of the current line number in multiline input mode. When enabled (default), the line number for the line containing the cursor is displayed in a different style than other line numbers.
+
+```bash
+cjshopt current-line-number-highlight <on|off|status>
+```
+
+Examples:
+
+```bash
+cjshopt current-line-number-highlight on      # Enable current line highlighting
+cjshopt current-line-number-highlight off     # Disable current line highlighting
+cjshopt current-line-number-highlight status  # Show the current setting
+```
+
+Add the command to `~/.cjshrc` to persist the setting across sessions. Accepts synonyms like `enable`, `disable`, `true`, and `false`.
+
+> **Tip:** Customize the current line number style with `cjshopt style_def ic-linenumber-current "bold color=#FFB86C"` to make it stand out from regular line numbers styled with `ic-linenumbers`.
 
 #### hint-delay
 
