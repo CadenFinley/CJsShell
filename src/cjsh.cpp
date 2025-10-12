@@ -30,10 +30,10 @@
 #include "shell.h"
 #include "shell_env.h"
 #include "theme.h"
+#include "token_constants.h"
 #include "trap_command.h"
 #include "usage.h"
 #include "version_command.h"
-#include "token_constants.h"
 
 bool g_exit_flag = false;
 std::string g_cached_version;
@@ -129,7 +129,7 @@ static void initialize_colors() {
         ic_style_def("ic-prompt", "");
         ic_style_def("ic-linenumbers", "");
         ic_style_def("ic-linenumber-current", "");
-    } else if(config::colors_enabled && config::syntax_highlighting_enabled) {
+    } else if (config::colors_enabled && config::syntax_highlighting_enabled) {
         for (const auto& pair : token_constants::default_styles) {
             std::string style_name = pair.first;
             if (style_name.rfind("ic-", 0) != 0) {

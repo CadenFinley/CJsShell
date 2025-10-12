@@ -122,7 +122,7 @@ Built_ins::Built_ins() : shell(nullptr) {
                  print_error(error);
                  return 2;
              }
-             if (config::smart_cd_enabled) {
+             if (config::smart_cd_enabled && !g_startup_active) {
                  return ::change_directory_smart(args.size() > 1 ? args[1] : "", current_directory,
                                                  previous_directory, last_terminal_output_error,
                                                  shell);

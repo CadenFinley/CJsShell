@@ -490,7 +490,7 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
             path_is_directory_candidate(candidate, built_ins->get_current_directory());
 
         if (!has_path_separator && !has_alias && !is_builtin && !is_function && !is_executable &&
-            is_directory) {
+            is_directory && !g_startup_active) {
             std::vector<std::string> cd_args = {"cd", candidate};
             int code = built_ins->builtin_command(cd_args);
             last_terminal_output_error = built_ins->get_last_error();
