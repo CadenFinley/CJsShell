@@ -46,17 +46,11 @@ cat << 'EOF' > test_utilities.cpp
 namespace cjsh_filesystem {
 namespace fs = std::filesystem;
 
-// Global paths that would be defined in the actual implementation
+// Core paths that mirror the actual implementation
 fs::path g_user_home_path;
-fs::path g_config_path;
 fs::path g_cache_path;
-fs::path g_cjsh_data_path;
 fs::path g_cjsh_cache_path;
-fs::path g_cjsh_plugin_path;
-fs::path g_cjsh_theme_path;
-fs::path g_cjsh_ai_conversations_path;
 fs::path g_cjsh_found_executables_path;
-fs::path g_cjsh_path;
 
 void initialize_paths() {
     const char* home = std::getenv("HOME");
@@ -66,13 +60,8 @@ void initialize_paths() {
         g_user_home_path = fs::path(home);
     }
     
-    g_config_path = g_user_home_path / ".config";
     g_cache_path = g_user_home_path / ".cache";
-    g_cjsh_data_path = g_config_path / "cjsh";
     g_cjsh_cache_path = g_cache_path / "cjsh";
-    g_cjsh_plugin_path = g_cjsh_data_path / "plugins";
-    g_cjsh_theme_path = g_cjsh_data_path / "themes";
-    g_cjsh_ai_conversations_path = g_cjsh_cache_path / "conversations";
     g_cjsh_found_executables_path = g_cjsh_cache_path / "cached_executables.cache";
 }
 
@@ -82,13 +71,8 @@ bool file_exists(const fs::path& path) {
 
 bool initialize_cjsh_directories() {
     try {
-        fs::create_directories(g_config_path);
         fs::create_directories(g_cache_path);
-        fs::create_directories(g_cjsh_data_path);
         fs::create_directories(g_cjsh_cache_path);
-    fs::create_directories(g_cjsh_plugin_path);
-    fs::create_directories(g_cjsh_theme_path);
-    fs::create_directories(g_cjsh_ai_conversations_path);
         return true;
     } catch (const fs::filesystem_error& e) {
     std::cerr << "Error creating cjsh directories: " << e.what() << '\n';
@@ -263,12 +247,8 @@ int main(int argc, char* argv[]) {
             bool result = initialize_cjsh_directories();
             if (result) {
                 // Check if directories were created
-                bool all_exist = fs::exists(g_config_path) &&
-                               fs::exists(g_cache_path) &&
-                               fs::exists(g_cjsh_data_path) &&
-                               fs::exists(g_cjsh_cache_path) &&
-                               fs::exists(g_cjsh_plugin_path) &&
-                               fs::exists(g_cjsh_theme_path);
+                bool all_exist = fs::exists(g_cache_path) &&
+                               fs::exists(g_cjsh_cache_path);
                 
                 if (all_exist) {
                     std::cout << "SUCCESS" << '\n';
@@ -397,9 +377,8 @@ int main(int argc, char* argv[]) {
             initialize_paths();
             
             if (!g_user_home_path.empty() && 
-                !g_config_path.empty() && 
                 !g_cache_path.empty() &&
-                !g_cjsh_data_path.empty()) {
+                !g_cjsh_cache_path.empty()) {
                 std::cout << "SUCCESS" << '\n';
             } else {
                 std::cout << "ERROR: Path initialization failed" << '\n';
