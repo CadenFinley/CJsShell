@@ -41,7 +41,7 @@ bool is_adjacent_transposition(const std::string& a, const std::string& b) {
 }
 
 int compute_edit_distance_with_limit(const std::string& source, const std::string& target,
-                                      int max_distance) {
+                                     int max_distance) {
     const size_t source_length = source.length();
     const size_t target_length = target.length();
 

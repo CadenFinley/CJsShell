@@ -13,17 +13,16 @@ const std::unordered_set<std::string> basic_unix_commands = {
 const std::unordered_set<std::string> command_operators = {"&&", "||", "|", ";"};
 
 const std::unordered_set<std::string> shell_keywords = {
-    "if",     "then",  "else", "elif", "fi",   "case",     "in",     "esac",
-    "while",  "until", "for",  "do",   "done", "function", "select", "time",
-    "coproc", "{",     "}",    "[[",   "]]",   "(",        ")",      ":", "[","]"};
+    "if",    "then", "else", "elif", "fi",       "case",   "in",   "esac",   "while",
+    "until", "for",  "do",   "done", "function", "select", "time", "coproc", "{",
+    "}",     "[[",   "]]",   "(",    ")",        ":",      "[",    "]"};
 
 const std::unordered_set<std::string> shell_built_ins = {
-    "echo",    "printf", "pwd",      "cd",          "ls",        "alias",    "export", "unalias",
-    "unset",   "set",    "shift",    "break",       "continue",  "return",   "source", ".",
-      "help",   "version",      "eval",     "syntax", "history",
-    "exit",    "quit",    "test",         "exec",   "trap",
-    "jobs",    "fg",     "bg",       "wait",        "kill",      "readonly", "read",   "umask",
-    "getopts", "times",  "type",     "hash"};
+    "echo",  "printf",  "pwd",     "cd",     "ls",       "alias",  "export", "unalias",
+    "unset", "set",     "shift",   "break",  "continue", "return", "source", ".",
+    "help",  "version", "eval",    "syntax", "history",  "exit",   "quit",   "test",
+    "exec",  "trap",    "jobs",    "fg",     "bg",       "wait",   "kill",   "readonly",
+    "read",  "umask",   "getopts", "times",  "type",     "hash"};
 
 const std::unordered_map<std::string, std::string> default_styles = {
     {"unknown-command", "bold color=#FF5555"},

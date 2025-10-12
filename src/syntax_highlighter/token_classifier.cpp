@@ -1,8 +1,8 @@
 #include "token_classifier.h"
 
 #include <cctype>
-#include <string>
 #include <mutex>
+#include <string>
 
 #include "cjsh_filesystem.h"
 #include "token_constants.h"

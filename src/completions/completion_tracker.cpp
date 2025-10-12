@@ -44,7 +44,7 @@ bool CompletionTracker::has_reached_completion_limit() const {
 }
 
 std::string CompletionTracker::calculate_final_result(const char* completion_text,
-                                                       long delete_before) const {
+                                                      long delete_before) const {
     std::string prefix_str = original_prefix;
 
     if (delete_before > 0 && delete_before <= static_cast<long>(prefix_str.length())) {
@@ -55,7 +55,7 @@ std::string CompletionTracker::calculate_final_result(const char* completion_tex
 }
 
 bool CompletionTracker::would_create_duplicate(const char* completion_text, const char* source,
-                                                long delete_before) {
+                                               long delete_before) {
     if (added_completions.size() >= MAX_COMPLETION_TRACKER_ENTRIES) {
         return true;
     }
@@ -107,8 +107,8 @@ bool CompletionTracker::add_completion_if_unique(const char* completion_text) {
 }
 
 bool CompletionTracker::add_completion_prim_if_unique(const char* completion_text,
-                                                       const char* display, const char* help,
-                                                       long delete_before, long delete_after) {
+                                                      const char* display, const char* help,
+                                                      long delete_before, long delete_after) {
     const char* source = nullptr;
     if (has_reached_completion_limit()) {
         return true;
@@ -124,12 +124,9 @@ bool CompletionTracker::add_completion_prim_if_unique(const char* completion_tex
                                               delete_before, delete_after);
 }
 
-bool CompletionTracker::add_completion_prim_with_source_if_unique(const char* completion_text,
-                                                                   const char* display,
-                                                                   const char* help,
-                                                                   const char* source,
-                                                                   long delete_before,
-                                                                   long delete_after) {
+bool CompletionTracker::add_completion_prim_with_source_if_unique(
+    const char* completion_text, const char* display, const char* help, const char* source,
+    long delete_before, long delete_after) {
     if (has_reached_completion_limit()) {
         return true;
     }
@@ -188,7 +185,7 @@ CompletionTracker* get_current_tracker() {
 }
 
 bool safe_add_completion_with_source(ic_completion_env_t* cenv, const char* completion_text,
-                                      const char* source) {
+                                     const char* source) {
     if ((g_current_completion_tracker != nullptr) &&
         g_current_completion_tracker->has_reached_completion_limit()) {
         return true;
@@ -197,8 +194,8 @@ bool safe_add_completion_with_source(ic_completion_env_t* cenv, const char* comp
 }
 
 bool safe_add_completion_prim_with_source(ic_completion_env_t* cenv, const char* completion_text,
-                                           const char* display, const char* help, const char* source,
-                                           long delete_before, long delete_after) {
+                                          const char* display, const char* help, const char* source,
+                                          long delete_before, long delete_after) {
     if (g_current_completion_tracker != nullptr) {
         return g_current_completion_tracker->add_completion_prim_with_source_if_unique(
             completion_text, display, help, source, delete_before, delete_after);

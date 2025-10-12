@@ -17,7 +17,7 @@ struct SpellCorrectionMatch {
 
 bool is_adjacent_transposition(const std::string& a, const std::string& b);
 int compute_edit_distance_with_limit(const std::string& source, const std::string& target,
-                                      int max_distance);
+                                     int max_distance);
 bool should_consider_spell_correction(const std::string& normalized_prefix);
 
 template <typename Container, typename Extractor>

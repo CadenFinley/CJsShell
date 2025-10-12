@@ -308,8 +308,8 @@ void highlight_history_expansions(ic_highlight_env_t* henv, const char* input, s
                         if (caret_count == 3 || end == len - 1) {
                             // Complete ^old^new^ or ^old^new
                             ic_highlight(henv, static_cast<long>(i),
-                                       static_cast<long>(highlight_len),
-                                       "cjsh-history-expansion");
+                                         static_cast<long>(highlight_len),
+                                         "cjsh-history-expansion");
                             i = end;
                             break;
                         }
@@ -323,13 +323,9 @@ void highlight_history_expansions(ic_highlight_env_t* henv, const char* input, s
         // Check for ! patterns
         if (c == '!') {
             // Check if it's at word boundary (start of line or after whitespace/operator)
-            bool at_word_boundary = (i == 0) || 
-                                   std::isspace(input[i - 1]) ||
-                                   input[i - 1] == ';' ||
-                                   input[i - 1] == '|' ||
-                                   input[i - 1] == '&' ||
-                                   input[i - 1] == '(' ||
-                                   input[i - 1] == ')';
+            bool at_word_boundary = (i == 0) || std::isspace(input[i - 1]) || input[i - 1] == ';' ||
+                                    input[i - 1] == '|' || input[i - 1] == '&' ||
+                                    input[i - 1] == '(' || input[i - 1] == ')';
 
             if (!at_word_boundary) {
                 continue;
@@ -349,16 +345,14 @@ void highlight_history_expansions(ic_highlight_env_t* henv, const char* input, s
                 if (end < len && input[end] == ':') {
                     end++;
                     // Word designators: ^, $, *, n, n-m
-                    while (end < len && (std::isdigit(input[end]) || 
-                                        input[end] == '-' || 
-                                        input[end] == '^' || 
-                                        input[end] == '$' || 
-                                        input[end] == '*')) {
+                    while (end < len &&
+                           (std::isdigit(input[end]) || input[end] == '-' || input[end] == '^' ||
+                            input[end] == '$' || input[end] == '*')) {
                         end++;
                     }
                 }
                 ic_highlight(henv, static_cast<long>(start), static_cast<long>(end - start),
-                           "cjsh-history-expansion");
+                             "cjsh-history-expansion");
                 i = end - 1;
                 continue;
             }
@@ -372,16 +366,14 @@ void highlight_history_expansions(ic_highlight_env_t* henv, const char* input, s
                 // Check for word designators
                 if (end < len && input[end] == ':') {
                     end++;
-                    while (end < len && (std::isdigit(input[end]) || 
-                                        input[end] == '-' || 
-                                        input[end] == '^' || 
-                                        input[end] == '$' || 
-                                        input[end] == '*')) {
+                    while (end < len &&
+                           (std::isdigit(input[end]) || input[end] == '-' || input[end] == '^' ||
+                            input[end] == '$' || input[end] == '*')) {
                         end++;
                     }
                 }
                 ic_highlight(henv, static_cast<long>(start), static_cast<long>(end - start),
-                           "cjsh-history-expansion");
+                             "cjsh-history-expansion");
                 i = end - 1;
                 continue;
             }
@@ -396,7 +388,7 @@ void highlight_history_expansions(ic_highlight_env_t* henv, const char* input, s
                     end++;
                 }
                 ic_highlight(henv, static_cast<long>(start), static_cast<long>(end - start),
-                           "cjsh-history-expansion");
+                             "cjsh-history-expansion");
                 i = end - 1;
                 continue;
             }
@@ -404,25 +396,21 @@ void highlight_history_expansions(ic_highlight_env_t* henv, const char* input, s
             // !string - search for command starting with string
             if (std::isalpha(input[end]) || input[end] == '_') {
                 end++;
-                while (end < len && (std::isalnum(input[end]) || 
-                                    input[end] == '_' || 
-                                    input[end] == '-' || 
-                                    input[end] == '.')) {
+                while (end < len && (std::isalnum(input[end]) || input[end] == '_' ||
+                                     input[end] == '-' || input[end] == '.')) {
                     end++;
                 }
                 // Check for word designators
                 if (end < len && input[end] == ':') {
                     end++;
-                    while (end < len && (std::isdigit(input[end]) || 
-                                        input[end] == '-' || 
-                                        input[end] == '^' || 
-                                        input[end] == '$' || 
-                                        input[end] == '*')) {
+                    while (end < len &&
+                           (std::isdigit(input[end]) || input[end] == '-' || input[end] == '^' ||
+                            input[end] == '$' || input[end] == '*')) {
                         end++;
                     }
                 }
                 ic_highlight(henv, static_cast<long>(start), static_cast<long>(end - start),
-                           "cjsh-history-expansion");
+                             "cjsh-history-expansion");
                 i = end - 1;
                 continue;
             }
@@ -431,7 +419,7 @@ void highlight_history_expansions(ic_highlight_env_t* henv, const char* input, s
             if (input[end] == '$') {
                 end++;
                 ic_highlight(henv, static_cast<long>(start), static_cast<long>(end - start),
-                           "cjsh-history-expansion");
+                             "cjsh-history-expansion");
                 i = end - 1;
                 continue;
             }
@@ -440,7 +428,7 @@ void highlight_history_expansions(ic_highlight_env_t* henv, const char* input, s
             if (input[end] == '^') {
                 end++;
                 ic_highlight(henv, static_cast<long>(start), static_cast<long>(end - start),
-                           "cjsh-history-expansion");
+                             "cjsh-history-expansion");
                 i = end - 1;
                 continue;
             }
@@ -449,7 +437,7 @@ void highlight_history_expansions(ic_highlight_env_t* henv, const char* input, s
             if (input[end] == '*') {
                 end++;
                 ic_highlight(henv, static_cast<long>(start), static_cast<long>(end - start),
-                           "cjsh-history-expansion");
+                             "cjsh-history-expansion");
                 i = end - 1;
                 continue;
             }

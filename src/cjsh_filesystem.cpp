@@ -606,7 +606,7 @@ bool create_source_file() {
         "  behavior {\n"
         "    cleanup false\n"
         "    cleanup_empty_line false\n"
-    "    cleanup_truncate_multiline false\n"
+        "    cleanup_truncate_multiline false\n"
         "    newline_after_execution false\n"
         "  }\n"
         "}\n"

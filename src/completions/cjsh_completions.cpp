@@ -76,7 +76,7 @@ static bool add_path_completion(ic_completion_env_t* cenv,
     const char* source = entry.is_directory() ? "directory" : "file";
     if (delete_before == 0)
         return completion_tracker::safe_add_completion_with_source(cenv, completion_suffix.c_str(),
-                                                                    source);
+                                                                   source);
     return completion_tracker::safe_add_completion_prim_with_source(
         cenv, completion_suffix.c_str(), nullptr, nullptr, source, delete_before, 0);
 }
@@ -513,7 +513,8 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
             } else {
                 if (g_shell && (g_shell->get_built_ins() != nullptr)) {
                     const auto& bookmarks = g_shell->get_built_ins()->get_directory_bookmarks();
-                    std::string bookmark_match_prefix = completion_utils::unquote_path(special_part);
+                    std::string bookmark_match_prefix =
+                        completion_utils::unquote_path(special_part);
 
                     for (const auto& bookmark : bookmarks) {
                         const std::string& bookmark_name = bookmark.first;

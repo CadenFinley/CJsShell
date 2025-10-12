@@ -80,7 +80,8 @@ ParseResult parse_arguments(int argc, char* argv[]) {
                 config::execute_command = true;
                 config::cmd_to_execute = optarg;
                 config::interactive_mode = false;
-                config::history_expansion_enabled = false;  // Disable for -c mode (POSIX compliance)
+                config::history_expansion_enabled =
+                    false;  // Disable for -c mode (POSIX compliance)
                 break;
             case 'v':
                 config::show_version = true;

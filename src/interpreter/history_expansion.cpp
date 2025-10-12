@@ -156,8 +156,8 @@ std::string HistoryExpansion::get_words_range(const std::string& command, int st
 }
 
 bool HistoryExpansion::expand_double_bang(const std::string& command, size_t& pos,
-                                         const std::vector<std::string>& history,
-                                         std::string& result, std::string& error) {
+                                          const std::vector<std::string>& history,
+                                          std::string& result, std::string& error) {
     if (pos + 1 >= command.length() || command[pos] != '!' || command[pos + 1] != '!') {
         return false;
     }
@@ -180,8 +180,8 @@ bool HistoryExpansion::expand_double_bang(const std::string& command, size_t& po
 }
 
 bool HistoryExpansion::expand_history_number(const std::string& command, size_t& pos,
-                                            const std::vector<std::string>& history,
-                                            std::string& result, std::string& error) {
+                                             const std::vector<std::string>& history,
+                                             std::string& result, std::string& error) {
     if (pos >= command.length() || command[pos] != '!') {
         return false;
     }
@@ -223,8 +223,8 @@ bool HistoryExpansion::expand_history_number(const std::string& command, size_t&
 }
 
 bool HistoryExpansion::expand_history_search(const std::string& command, size_t& pos,
-                                            const std::vector<std::string>& history,
-                                            std::string& result, std::string& error) {
+                                             const std::vector<std::string>& history,
+                                             std::string& result, std::string& error) {
     if (pos >= command.length() || command[pos] != '!') {
         return false;
     }
@@ -278,8 +278,8 @@ bool HistoryExpansion::expand_history_search(const std::string& command, size_t&
 }
 
 bool HistoryExpansion::expand_quick_substitution(const std::string& command,
-                                                const std::vector<std::string>& history,
-                                                std::string& result, std::string& error) {
+                                                 const std::vector<std::string>& history,
+                                                 std::string& result, std::string& error) {
     // Quick substitution: ^old^new or ^old^new^
     if (command.empty() || command[0] != '^') {
         return false;
@@ -291,7 +291,7 @@ bool HistoryExpansion::expand_quick_substitution(const std::string& command,
     }
 
     std::string old_text = command.substr(1, second_caret - 1);
-    
+
     size_t third_caret = command.find('^', second_caret + 1);
     std::string new_text;
     if (third_caret != std::string::npos) {
@@ -317,8 +317,8 @@ bool HistoryExpansion::expand_quick_substitution(const std::string& command,
 }
 
 bool HistoryExpansion::expand_word_designator(const std::string& command, size_t& pos,
-                                             const std::string& referenced_command,
-                                             std::string& result, std::string& error) {
+                                              const std::string& referenced_command,
+                                              std::string& result, std::string& error) {
     if (pos >= command.length() || command[pos] != ':') {
         result += referenced_command;
         return true;
@@ -385,7 +385,7 @@ bool HistoryExpansion::expand_word_designator(const std::string& command, size_t
                 // n- means from n to end
                 end_index = -1;
             }
-            
+
             std::string words = get_words_range(referenced_command, start_index, end_index);
             if (words.empty()) {
                 error = "bad word specifier";
