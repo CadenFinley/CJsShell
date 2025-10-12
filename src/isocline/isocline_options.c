@@ -88,7 +88,6 @@ ic_public void ic_history_add(const char* entry) {
     if (env == NULL)
         return;
     history_push(env->history, entry);
-    history_save(env->history);
 }
 
 ic_public void ic_history_clear(void) {

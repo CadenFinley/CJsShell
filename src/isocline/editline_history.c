@@ -23,10 +23,17 @@ static void edit_history_at(ic_env_t* env, editor_t* eb, int ofs) {
         eb->history_idx = 0;
         eb->modified = false;
     }
-    const char* entry = history_get(env->history, eb->history_idx + ofs);
+    history_snapshot_t snap = (history_snapshot_t){0};
+    if (!history_snapshot_load(env->history, &snap, true)) {
+        term_beep(env->term);
+        return;
+    }
+
+    const char* entry = history_snapshot_get(&snap, eb->history_idx + ofs);
 
     if (entry == NULL) {
         term_beep(env->term);
+        history_snapshot_free(env->history, &snap);
     } else {
         eb->history_idx += ofs;
         sbuf_replace(eb->input, entry);
@@ -41,14 +48,14 @@ static void edit_history_at(ic_env_t* env, editor_t* eb, int ofs) {
         sbuf_clear(eb->extra);
 
         // Display preview of next 3 history entries
-        ssize_t total_history = history_count(env->history);
+        ssize_t total_history = history_snapshot_count(&snap);
         if (total_history > 0 && eb->history_idx < total_history - 1) {
             sbuf_append(eb->extra, "[ic-diminish]");
 
             // Show up to 3 next entries
             int preview_count = 0;
             for (int i = 1; i <= 3 && (eb->history_idx + i) < total_history; i++) {
-                const char* preview_entry = history_get(env->history, eb->history_idx + i);
+                const char* preview_entry = history_snapshot_get(&snap, eb->history_idx + i);
                 if (preview_entry != NULL) {
                     if (preview_count > 0) {
                         sbuf_append(eb->extra, "\n");
@@ -89,6 +96,7 @@ static void edit_history_at(ic_env_t* env, editor_t* eb, int ofs) {
         }
 
         edit_refresh(env, eb);
+        history_snapshot_free(env->history, &snap);
     }
 }
 
@@ -211,8 +219,15 @@ static const char* get_first_line_end(const char* str) {
 }
 
 static void edit_history_fuzzy_search(ic_env_t* env, editor_t* eb, char* initial) {
-    if (history_count(env->history) <= 0) {
+    history_snapshot_t snap = {0};
+    if (!history_snapshot_load(env->history, &snap, true)) {
         term_beep(env->term);
+        return;
+    }
+
+    if (history_snapshot_count(&snap) <= 0) {
+        term_beep(env->term);
+        history_snapshot_free(env->history, &snap);
         return;
     }
 
@@ -220,7 +235,19 @@ static void edit_history_fuzzy_search(ic_env_t* env, editor_t* eb, char* initial
         history_update(env->history, sbuf_string(eb->input));
         eb->history_idx = 0;
         eb->modified = false;
+        history_snapshot_free(env->history, &snap);
+        if (!history_snapshot_load(env->history, &snap, true)) {
+            term_beep(env->term);
+            return;
+        }
+        if (history_snapshot_count(&snap) <= 0) {
+            term_beep(env->term);
+            history_snapshot_free(env->history, &snap);
+            return;
+        }
     }
+
+    history_snapshot_free(env->history, &snap);
 
     editor_undo_capture(eb);
     eb->disable_undo = true;
@@ -264,6 +291,12 @@ again:;
         }
     }
 
+    history_snapshot_free(env->history, &snap);
+    if (!history_snapshot_load(env->history, &snap, true)) {
+        term_beep(env->term);
+        match_count = 0;
+    }
+
     if (selected_idx >= match_count) {
         selected_idx = match_count > 0 ? match_count - 1 : 0;
     }
@@ -276,16 +309,15 @@ again:;
     if (match_count > 0) {
         const char* query = sbuf_string(eb->input);
         bool is_filtered = (query != NULL && query[0] != '\0');
+        ssize_t total_history = history_snapshot_count(&snap);
 
         if (showing_all_due_to_no_matches) {
-            ssize_t total_history = history_count(env->history);
             sbuf_appendf(eb->extra, "[ic-info]No matches - showing all history (%zd entr%s)[/]\n",
                          total_history, total_history == 1 ? "y" : "ies");
         } else if (is_filtered) {
             sbuf_appendf(eb->extra, "[ic-info]%zd match%s found[/]\n", match_count,
                          match_count == 1 ? "" : "es");
         } else {
-            ssize_t total_history = history_count(env->history);
             sbuf_appendf(eb->extra, "[ic-info]History (%zd entr%s)[/]\n", total_history,
                          total_history == 1 ? "y" : "ies");
         }
@@ -314,7 +346,7 @@ again:;
             if (match_idx >= match_count)
                 break;
 
-            const char* entry = history_get(env->history, matches[match_idx].hidx);
+            const char* entry = history_snapshot_get(&snap, matches[match_idx].hidx);
             if (entry == NULL)
                 continue;
 
@@ -398,6 +430,7 @@ again:;
         sbuf_clear(eb->extra);
         eb->disable_undo = false;
         editor_undo_restore(eb, false);
+        history_snapshot_free(env->history, &snap);
         mem_free(env->mem, matches);
         eb->prompt_text = prompt_text;
         ic_enable_hint(old_hint);
@@ -406,7 +439,7 @@ again:;
     } else if (c == KEY_ENTER) {
         sbuf_clear(eb->extra);
         if (match_count > 0 && selected_idx >= 0 && selected_idx < match_count) {
-            const char* selected = history_get(env->history, matches[selected_idx].hidx);
+            const char* selected = history_snapshot_get(&snap, matches[selected_idx].hidx);
             if (selected != NULL) {
                 editor_undo_forget(eb);
                 sbuf_replace(eb->input, selected);
@@ -415,6 +448,7 @@ again:;
                 eb->history_idx = matches[selected_idx].hidx;
             }
         }
+        history_snapshot_free(env->history, &snap);
         mem_free(env->mem, matches);
         eb->disable_undo = false;
         eb->prompt_text = prompt_text;
@@ -426,7 +460,7 @@ again:;
     } else if (c == KEY_TAB) {
         sbuf_clear(eb->extra);
         if (match_count > 0 && selected_idx >= 0 && selected_idx < match_count) {
-            const char* selected = history_get(env->history, matches[selected_idx].hidx);
+            const char* selected = history_snapshot_get(&snap, matches[selected_idx].hidx);
             if (selected != NULL) {
                 editor_undo_forget(eb);
                 sbuf_replace(eb->input, selected);
@@ -435,6 +469,7 @@ again:;
                 eb->history_idx = matches[selected_idx].hidx;
             }
         }
+        history_snapshot_free(env->history, &snap);
         mem_free(env->mem, matches);
         eb->disable_undo = false;
         eb->prompt_text = prompt_text;

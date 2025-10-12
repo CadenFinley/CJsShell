@@ -18,6 +18,12 @@
 struct history_s;
 typedef struct history_s history_t;
 
+typedef struct history_snapshot_s {
+  char** entries;
+  ssize_t count;
+  ssize_t capacity;
+} history_snapshot_t;
+
 ic_private history_t* history_new(alloc_t* mem);
 ic_private void history_free(history_t* h);
 ic_private void history_clear(history_t* h);
@@ -38,6 +44,11 @@ ic_private bool history_search(const history_t* h, ssize_t from, const char* sea
 
 ic_private bool history_search_prefix(const history_t* h, ssize_t from, const char* prefix,
                                       bool backward, ssize_t* hidx);
+
+ic_private bool history_snapshot_load(history_t* h, history_snapshot_t* snap, bool dedup);
+ic_private void history_snapshot_free(history_t* h, history_snapshot_t* snap);
+ic_private const char* history_snapshot_get(const history_snapshot_t* snap, ssize_t n);
+ic_private ssize_t history_snapshot_count(const history_snapshot_t* snap);
 
 typedef struct history_match_s {
     ssize_t hidx;       // history index
