@@ -33,6 +33,7 @@
 #include "job_control.h"
 #include "loop_evaluator.h"
 #include "parameter_expansion_evaluator.h"
+#include "parser_utils.h"
 #include "readonly_command.h"
 #include "shell.h"
 #include "shell_script_interpreter_utils.h"
@@ -505,9 +506,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
         auto pattern_match_fn = [this](const std::string& text, const std::string& pattern) {
             return pattern_matcher.matches_pattern(text, pattern);
         };
-        auto cmd_sub_expander = [this](const std::string& input) {
-            auto exp = expand_command_substitutions(input);
-            return std::make_pair(exp.text, exp.outputs);
+        auto cmd_sub_expander = [this, &execute_simple_or_pipeline](const std::string& input) {
+            std::string expanded = expand_all_substitutions(input, execute_simple_or_pipeline);
+            return std::make_pair(expanded, std::vector<std::string>{});
         };
 
         if (auto inline_case_result = case_evaluator::handle_inline_case(
@@ -648,9 +649,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
         auto pattern_match_fn = [this](const std::string& text, const std::string& pattern) {
             return pattern_matcher.matches_pattern(text, pattern);
         };
-        auto cmd_sub_expander = [this](const std::string& input) {
-            auto exp = expand_command_substitutions(input);
-            return std::make_pair(exp.text, exp.outputs);
+        auto cmd_sub_expander = [this, &execute_simple_or_pipeline](const std::string& input) {
+            std::string expanded = expand_all_substitutions(input, execute_simple_or_pipeline);
+            return std::make_pair(expanded, std::vector<std::string>{});
         };
 
         if (auto inline_case_result = case_evaluator::handle_inline_case(
@@ -687,8 +688,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
 
         std::string expanded_header = header_accum;
         if (header_accum.find("$(") != std::string::npos) {
-            auto expansion = expand_command_substitutions(header_accum);
-            expanded_header = expansion.text;
+            expanded_header = expand_all_substitutions(header_accum, execute_simple_or_pipeline);
         }
 
         std::vector<std::string> expanded_tokens = shell_parser->parse_command(expanded_header);
@@ -713,6 +713,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                 (case_value.front() == '\'' && case_value.back() == '\''))
                 case_value = case_value.substr(1, case_value.length() - 2);
         }
+
+        // Strip substitution literal markers from the case value
+        strip_subst_literal_markers(case_value);
 
         if (!case_value.empty())
             shell_parser->expand_env_vars(case_value);

@@ -3,6 +3,7 @@
 #include <sstream>
 
 #include "parser.h"
+#include "parser_utils.h"
 #include "shell_script_interpreter_utils.h"
 
 using shell_script_interpreter::detail::strip_inline_comment;
@@ -121,7 +122,7 @@ bool execute_case_sections(
 
         if (!data.command.empty()) {
             if (parser != nullptr) {
-                auto semicolon_commands = parser->parse_semicolon_commands(data.command);
+                auto semicolon_commands = parser->parse_semicolon_commands(data.command, true);
                 for (const auto& subcmd : semicolon_commands) {
                     matched_exit_code = executor(subcmd);
                     if (matched_exit_code != 0)
@@ -206,6 +207,9 @@ std::optional<int> handle_inline_case(
             case_value = case_value.substr(1, case_value.length() - 2);
         }
     }
+
+    // Strip substitution literal markers from the case value
+    strip_subst_literal_markers(case_value);
 
     if (!case_value.empty() && parser != nullptr)
         parser->expand_env_vars(case_value);

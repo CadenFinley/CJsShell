@@ -1360,7 +1360,8 @@ std::vector<LogicalCommand> Parser::parse_logical_commands(const std::string& co
     return logical_commands;
 }
 
-std::vector<std::string> Parser::parse_semicolon_commands(const std::string& command) {
+std::vector<std::string> Parser::parse_semicolon_commands(const std::string& command,
+                                                          bool split_on_newlines) {
     std::vector<std::string> commands;
     std::string current;
     DelimiterState scan_state;
@@ -1429,7 +1430,8 @@ std::vector<std::string> Parser::parse_semicolon_commands(const std::string& com
     for (size_t i = 0; i < command.length(); ++i) {
         if (parse_state.update_quote(command[i])) {
             current += command[i];
-        } else if (command[i] == ';' && is_semicolon_split_point[i]) {
+        } else if ((command[i] == ';' && is_semicolon_split_point[i]) ||
+                   (split_on_newlines && !parse_state.in_quotes && command[i] == '\n')) {
             if (!current.empty()) {
                 current = trim_trailing_whitespace(trim_leading_whitespace(current));
                 if (!current.empty()) {

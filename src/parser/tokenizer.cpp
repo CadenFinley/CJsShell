@@ -55,6 +55,12 @@ std::vector<std::string> Tokenizer::tokenize_command(const std::string& cmdline)
 
         char c = cmdline[i];
 
+        // When inside substitution literal markers, just accumulate characters without processing
+        if (in_subst_literal) {
+            current_token += c;
+            continue;
+        }
+
         if (escaped) {
             if (in_quotes && quote_char == '"') {
                 if (c == '$') {
