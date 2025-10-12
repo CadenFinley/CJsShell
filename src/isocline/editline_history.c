@@ -123,8 +123,8 @@ static void edit_history_at(ic_env_t* env, editor_t* eb, int ofs) {
     // Clear previous extra content
     sbuf_clear(eb->extra);
 
-    // Display preview of next 3 history entries
-    if (total_history > 0 && eb->history_idx < total_history - 1) {
+    // Display preview of next 3 history entries only when doing prefix-based history completion
+    if (eb->history_prefix_active && total_history > 0 && eb->history_idx < total_history - 1) {
         sbuf_append(eb->extra, "[ic-diminish]");
 
         // Show up to 3 next entries
@@ -132,6 +132,12 @@ static void edit_history_at(ic_env_t* env, editor_t* eb, int ofs) {
         for (int i = 1; i <= 3 && (eb->history_idx + i) < total_history; i++) {
             const char* preview_entry = history_snapshot_get(&snap, eb->history_idx + i);
             if (preview_entry != NULL) {
+                // Only show entries that match the prefix
+                if (prefix != NULL && (strncmp(preview_entry, prefix, (size_t)prefix_len) != 0 ||
+                    preview_entry[prefix_len] == '\0')) {
+                    continue;
+                }
+
                 if (preview_count > 0) {
                     sbuf_append(eb->extra, "\n");
                 }
