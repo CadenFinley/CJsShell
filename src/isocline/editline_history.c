@@ -108,57 +108,6 @@ static void edit_history_next(ic_env_t* env, editor_t* eb) {
     edit_history_at(env, eb, -1);
 }
 
-static void edit_history_prefix_search(ic_env_t* env, editor_t* eb, bool backward) {
-    if (eb->modified) {
-        history_update(env->history, sbuf_string(eb->input));
-        eb->history_idx = 0;
-        eb->modified = false;
-    }
-
-    const char* current_input = sbuf_string(eb->input);
-    if (current_input == NULL)
-        current_input = "";
-
-    if (eb->history_idx > 0 || strlen(current_input) == 0) {
-        if (backward) {
-            edit_history_prev(env, eb);
-        } else {
-            edit_history_next(env, eb);
-        }
-        return;
-    }
-
-    const char* prefix = current_input;
-    ssize_t start_idx = backward ? 1 : 0;
-
-    ssize_t found_idx;
-    if (history_search_prefix(env->history, start_idx, prefix, backward, &found_idx)) {
-        const char* entry = history_get(env->history, found_idx);
-        if (entry != NULL) {
-            eb->history_idx = found_idx;
-            sbuf_replace(eb->input, entry);
-            eb->pos = sbuf_len(eb->input);
-            edit_refresh(env, eb);
-        } else {
-            term_beep(env->term);
-        }
-    } else {
-        if (backward) {
-            edit_history_prev(env, eb);
-        } else {
-            edit_history_next(env, eb);
-        }
-    }
-}
-
-static void edit_history_prefix_prev(ic_env_t* env, editor_t* eb) {
-    edit_history_prefix_search(env, eb, true);
-}
-
-static void edit_history_prefix_next(ic_env_t* env, editor_t* eb) {
-    edit_history_prefix_search(env, eb, false);
-}
-
 typedef struct hsearch_s {
     struct hsearch_s* next;
     ssize_t hidx;

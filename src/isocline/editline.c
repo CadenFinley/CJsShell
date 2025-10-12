@@ -1384,8 +1384,6 @@ static void edit_refresh_hint(ic_env_t* env, editor_t* eb) {
 
 static void edit_history_prev(ic_env_t* env, editor_t* eb);
 static void edit_history_next(ic_env_t* env, editor_t* eb);
-static void edit_history_prefix_prev(ic_env_t* env, editor_t* eb);
-static void edit_history_prefix_next(ic_env_t* env, editor_t* eb);
 
 static void edit_undo_restore(ic_env_t* env, editor_t* eb) {
     editor_undo_restore(eb, true);
@@ -1481,7 +1479,7 @@ static void edit_cursor_row_up(ic_env_t* env, editor_t* eb) {
     rowcol_t rc;
     edit_get_rowcol(env, eb, &rc);
     if (rc.row == 0) {
-        edit_history_prefix_prev(env, eb);
+        edit_history_prev(env, eb);
     } else {
         edit_set_pos_at_rowcol(env, eb, rc.row - 1, rc.col);
     }
@@ -1491,7 +1489,7 @@ static void edit_cursor_row_down(ic_env_t* env, editor_t* eb) {
     rowcol_t rc;
     ssize_t rows = edit_get_rowcol(env, eb, &rc);
     if (rc.row + 1 >= rows) {
-        edit_history_prefix_next(env, eb);
+        edit_history_next(env, eb);
     } else {
         edit_set_pos_at_rowcol(env, eb, rc.row + 1, rc.col);
     }
