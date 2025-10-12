@@ -190,13 +190,20 @@ static void edit_history_fuzzy_search(ic_env_t* env, editor_t* eb, char* initial
         eb->pos = 0;
     }
 
-again:
+again:;
 
-{
-    const char* query = sbuf_string(eb->input);
-    history_fuzzy_search(env->history, query ? query : "", matches, MAX_FUZZY_RESULTS,
-                         &match_count);
-}
+    bool showing_all_due_to_no_matches = false;
+
+    {
+        const char* query = sbuf_string(eb->input);
+        history_fuzzy_search(env->history, query ? query : "", matches, MAX_FUZZY_RESULTS,
+                             &match_count);
+
+        if (match_count == 0 && query != NULL && query[0] != '\0') {
+            history_fuzzy_search(env->history, "", matches, MAX_FUZZY_RESULTS, &match_count);
+            showing_all_due_to_no_matches = true;
+        }
+    }
 
     if (selected_idx >= match_count) {
         selected_idx = match_count > 0 ? match_count - 1 : 0;
@@ -211,7 +218,11 @@ again:
         const char* query = sbuf_string(eb->input);
         bool is_filtered = (query != NULL && query[0] != '\0');
 
-        if (is_filtered) {
+        if (showing_all_due_to_no_matches) {
+            ssize_t total_history = history_count(env->history);
+            sbuf_appendf(eb->extra, "[ic-info]No matches - showing all history (%zd entr%s)[/]\n",
+                         total_history, total_history == 1 ? "y" : "ies");
+        } else if (is_filtered) {
             sbuf_appendf(eb->extra, "[ic-info]%zd match%s found[/]\n", match_count,
                          match_count == 1 ? "" : "es");
         } else {
@@ -258,7 +269,7 @@ again:
                 sbuf_append(eb->extra, "[ic-diminish]  [/][!pre]");
             }
 
-            if (is_filtered && matches[match_idx].match_len > 0 &&
+            if (is_filtered && !showing_all_due_to_no_matches && matches[match_idx].match_len > 0 &&
                 matches[match_idx].match_pos >= 0) {
                 if (matches[match_idx].match_pos < entry_len) {
                     sbuf_append_n(eb->extra, entry, matches[match_idx].match_pos);
