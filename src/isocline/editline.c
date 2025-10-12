@@ -28,19 +28,21 @@
 
 // editor state
 typedef struct editor_s {
-    stringbuf_t* input;      // current user input
-    stringbuf_t* extra;      // extra displayed info (for completion menu etc)
-    stringbuf_t* hint;       // hint displayed as part of the input
-    stringbuf_t* hint_help;  // help for a hint.
-    ssize_t pos;             // current cursor position in the input
-    ssize_t cur_rows;        // current used rows to display our content (including
-                             // extra content)
-    ssize_t cur_row;         // current row that has the cursor (0 based, relative to
-                             // the prompt)
+    stringbuf_t* input;           // current user input
+    stringbuf_t* extra;           // extra displayed info (for completion menu etc)
+    stringbuf_t* hint;            // hint displayed as part of the input
+    stringbuf_t* hint_help;       // help for a hint.
+    stringbuf_t* history_prefix;  // cached prefix before history navigation
+    ssize_t pos;                  // current cursor position in the input
+    ssize_t cur_rows;             // current used rows to display our content (including
+                                  // extra content)
+    ssize_t cur_row;              // current row that has the cursor (0 based, relative to
+                                  // the prompt)
     ssize_t termw;
     bool modified;                     // has a modification happened? (used for history navigation
                                        // for example)
     bool disable_undo;                 // temporarily disable auto undo (for history search)
+    bool history_prefix_active;        // whether prefix-prioritized history is active
     ssize_t history_idx;               // current index in the history
     editstate_t* undo;                 // undo buffer
     editstate_t* redo;                 // redo buffer
@@ -1767,6 +1769,7 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
     eb.extra = sbuf_new(env->mem);
     eb.hint = sbuf_new(env->mem);
     eb.hint_help = sbuf_new(env->mem);
+    eb.history_prefix = sbuf_new(env->mem);
     eb.termw = term_get_width(env->term);
     eb.pos = 0;
     eb.cur_rows = 1;
@@ -1789,11 +1792,13 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
         insert_initial_input(env->initial_input, &eb);
     }
 
-    if (eb.input == NULL || eb.extra == NULL || eb.hint == NULL || eb.hint_help == NULL) {
+    if (eb.input == NULL || eb.extra == NULL || eb.hint == NULL || eb.hint_help == NULL ||
+        eb.history_prefix == NULL) {
         sbuf_free(eb.input);
         sbuf_free(eb.extra);
         sbuf_free(eb.hint);
         sbuf_free(eb.hint_help);
+        sbuf_free(eb.history_prefix);
         mem_free(env->mem, (void*)eb.prompt_text);
         return NULL;
     }
@@ -2109,6 +2114,7 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
     sbuf_free(eb.extra);
     sbuf_free(eb.hint);
     sbuf_free(eb.hint_help);
+    sbuf_free(eb.history_prefix);
     mem_free(env->mem,
              (void*)eb.prompt_text);  // Free the allocated last line prompt
 
@@ -2125,6 +2131,7 @@ static char* edit_line_inline(ic_env_t* env, const char* prompt_text,
     eb.extra = sbuf_new(env->mem);
     eb.hint = sbuf_new(env->mem);
     eb.hint_help = sbuf_new(env->mem);
+    eb.history_prefix = sbuf_new(env->mem);
     eb.termw = term_get_width(env->term);
     eb.pos = 0;
     eb.cur_rows = 1;
@@ -2152,11 +2159,13 @@ static char* edit_line_inline(ic_env_t* env, const char* prompt_text,
         insert_initial_input(env->initial_input, &eb);
     }
 
-    if (eb.input == NULL || eb.extra == NULL || eb.hint == NULL || eb.hint_help == NULL) {
+    if (eb.input == NULL || eb.extra == NULL || eb.hint == NULL || eb.hint_help == NULL ||
+        eb.history_prefix == NULL) {
         sbuf_free(eb.input);
         sbuf_free(eb.extra);
         sbuf_free(eb.hint);
         sbuf_free(eb.hint_help);
+        sbuf_free(eb.history_prefix);
         mem_free(env->mem, (void*)eb.prompt_text);
         return NULL;
     }
@@ -2477,6 +2486,7 @@ static char* edit_line_inline(ic_env_t* env, const char* prompt_text,
     sbuf_free(eb.extra);
     sbuf_free(eb.hint);
     sbuf_free(eb.hint_help);
+    sbuf_free(eb.history_prefix);
     mem_free(env->mem,
              (void*)eb.prompt_text);  // Free the allocated last line prompt
 

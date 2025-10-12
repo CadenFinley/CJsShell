@@ -12,92 +12,166 @@
 
 // Helper function to clear history preview
 static void edit_clear_history_preview(editor_t* eb) {
+    if (eb == NULL) {
+        return;
+    }
     if (sbuf_len(eb->extra) > 0) {
         sbuf_clear(eb->extra);
     }
+    if (eb->history_prefix != NULL) {
+        sbuf_clear(eb->history_prefix);
+    }
+    eb->history_prefix_active = false;
 }
 
 static void edit_history_at(ic_env_t* env, editor_t* eb, int ofs) {
+    if (ofs == 0) {
+        return;
+    }
+
     if (eb->modified) {
-        history_update(env->history, sbuf_string(eb->input));
+        const char* current_input = sbuf_string(eb->input);
+        if (eb->history_prefix != NULL) {
+            // Remember the typed prefix so that subsequent history steps can prioritize it
+            sbuf_replace(eb->history_prefix, current_input != NULL ? current_input : "");
+            eb->history_prefix_active = (sbuf_len(eb->history_prefix) > 0);
+        } else {
+            eb->history_prefix_active = false;
+        }
+
+        history_update(env->history, current_input != NULL ? current_input : "");
         eb->history_idx = 0;
         eb->modified = false;
     }
+
     history_snapshot_t snap = (history_snapshot_t){0};
     if (!history_snapshot_load(env->history, &snap, true)) {
         term_beep(env->term);
         return;
     }
 
-    const char* entry = history_snapshot_get(&snap, eb->history_idx + ofs);
+    ssize_t total_history = history_snapshot_count(&snap);
+    if (total_history <= 0) {
+        term_beep(env->term);
+        history_snapshot_free(env->history, &snap);
+        return;
+    }
 
+    ssize_t steps = (ofs > 0) ? ofs : -ofs;
+    int direction = (ofs > 0) ? 1 : -1;
+
+    const char* prefix = NULL;
+    ssize_t prefix_len = 0;
+    if (eb->history_prefix_active && eb->history_prefix != NULL) {
+        prefix = sbuf_string(eb->history_prefix);
+        if (prefix != NULL) {
+            prefix_len = (ssize_t)strlen(prefix);
+            if (prefix_len == 0) {
+                prefix = NULL;
+            }
+        } else {
+            prefix_len = 0;
+        }
+    }
+
+    ssize_t current_idx = eb->history_idx;
+    for (ssize_t step_idx = 0; step_idx < steps; ++step_idx) {
+        ssize_t candidate_idx = current_idx + direction;
+
+        if (prefix != NULL) {
+            // Prefer entries that start with the stored prefix before falling back to plain order
+            ssize_t search_idx = current_idx + direction;
+            while (search_idx >= 0 && search_idx < total_history) {
+                const char* candidate_entry = history_snapshot_get(&snap, search_idx);
+                if (candidate_entry == NULL) {
+                    break;
+                }
+                if (strncmp(candidate_entry, prefix, (size_t)prefix_len) == 0 &&
+                    candidate_entry[prefix_len] != '\0') {
+                    candidate_idx = search_idx;
+                    break;
+                }
+                search_idx += direction;
+            }
+        }
+
+        if (candidate_idx < 0 || candidate_idx >= total_history) {
+            term_beep(env->term);
+            history_snapshot_free(env->history, &snap);
+            return;
+        }
+
+        current_idx = candidate_idx;
+    }
+
+    const char* entry = history_snapshot_get(&snap, current_idx);
     if (entry == NULL) {
         term_beep(env->term);
         history_snapshot_free(env->history, &snap);
-    } else {
-        eb->history_idx += ofs;
-        sbuf_replace(eb->input, entry);
-        if (ofs > 0) {
-            ssize_t end = sbuf_find_line_end(eb->input, 0);
-            eb->pos = (end < 0 ? 0 : end);
-        } else {
-            eb->pos = sbuf_len(eb->input);
-        }
-
-        // Clear previous extra content
-        sbuf_clear(eb->extra);
-
-        // Display preview of next 3 history entries
-        ssize_t total_history = history_snapshot_count(&snap);
-        if (total_history > 0 && eb->history_idx < total_history - 1) {
-            sbuf_append(eb->extra, "[ic-diminish]");
-
-            // Show up to 3 next entries
-            int preview_count = 0;
-            for (int i = 1; i <= 3 && (eb->history_idx + i) < total_history; i++) {
-                const char* preview_entry = history_snapshot_get(&snap, eb->history_idx + i);
-                if (preview_entry != NULL) {
-                    if (preview_count > 0) {
-                        sbuf_append(eb->extra, "\n");
-                    }
-                    sbuf_append(eb->extra, "[!pre]  ");
-
-                    // Find first newline to only show first line of multi-line commands
-                    const char* newline_pos = strchr(preview_entry, '\n');
-                    ssize_t first_line_len;
-                    bool is_multiline = false;
-
-                    if (newline_pos != NULL) {
-                        first_line_len = newline_pos - preview_entry;
-                        is_multiline = true;
-                    } else {
-                        first_line_len = strlen(preview_entry);
-                    }
-
-                    // Truncate long entries to fit terminal width
-                    ssize_t max_len = eb->termw > 50 ? eb->termw - 10 : 40;
-                    if (first_line_len > max_len) {
-                        sbuf_append_n(eb->extra, preview_entry, max_len - 3);
-                        sbuf_append(eb->extra, "...");
-                    } else {
-                        sbuf_append_n(eb->extra, preview_entry, first_line_len);
-                        if (is_multiline) {
-                            sbuf_append(eb->extra, "...");
-                        }
-                    }
-                    sbuf_append(eb->extra, "[/pre]");
-                    preview_count++;
-                }
-            }
-
-            if (preview_count > 0) {
-                sbuf_append(eb->extra, "[/ic-diminish]\n");
-            }
-        }
-
-        edit_refresh(env, eb);
-        history_snapshot_free(env->history, &snap);
+        return;
     }
+
+    eb->history_idx = current_idx;
+    sbuf_replace(eb->input, entry);
+    if (direction > 0) {
+        ssize_t end = sbuf_find_line_end(eb->input, 0);
+        eb->pos = (end < 0 ? 0 : end);
+    } else {
+        eb->pos = sbuf_len(eb->input);
+    }
+
+    // Clear previous extra content
+    sbuf_clear(eb->extra);
+
+    // Display preview of next 3 history entries
+    if (total_history > 0 && eb->history_idx < total_history - 1) {
+        sbuf_append(eb->extra, "[ic-diminish]");
+
+        // Show up to 3 next entries
+        int preview_count = 0;
+        for (int i = 1; i <= 3 && (eb->history_idx + i) < total_history; i++) {
+            const char* preview_entry = history_snapshot_get(&snap, eb->history_idx + i);
+            if (preview_entry != NULL) {
+                if (preview_count > 0) {
+                    sbuf_append(eb->extra, "\n");
+                }
+                sbuf_append(eb->extra, "[!pre]  ");
+
+                // Find first newline to only show first line of multi-line commands
+                const char* newline_pos = strchr(preview_entry, '\n');
+                ssize_t first_line_len;
+                bool is_multiline = false;
+
+                if (newline_pos != NULL) {
+                    first_line_len = newline_pos - preview_entry;
+                    is_multiline = true;
+                } else {
+                    first_line_len = strlen(preview_entry);
+                }
+
+                // Truncate long entries to fit terminal width
+                ssize_t max_len = eb->termw > 50 ? eb->termw - 10 : 40;
+                if (first_line_len > max_len) {
+                    sbuf_append_n(eb->extra, preview_entry, max_len - 3);
+                    sbuf_append(eb->extra, "...");
+                } else {
+                    sbuf_append_n(eb->extra, preview_entry, first_line_len);
+                    if (is_multiline) {
+                        sbuf_append(eb->extra, "...");
+                    }
+                }
+                sbuf_append(eb->extra, "[/pre]");
+                preview_count++;
+            }
+        }
+
+        if (preview_count > 0) {
+            sbuf_append(eb->extra, "[/ic-diminish]\n");
+        }
+    }
+
+    edit_refresh(env, eb);
+    history_snapshot_free(env->history, &snap);
 }
 
 static void edit_history_prev(ic_env_t* env, editor_t* eb) {
