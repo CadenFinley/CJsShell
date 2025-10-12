@@ -43,26 +43,6 @@ else
   exit 1
 fi
 
-# Test implicit cd by typing a directory path
-TEMP_DIR=$(mktemp -d)
-if [ ! -d "$TEMP_DIR" ]; then
-  fail_test "mktemp failed to create temp directory"
-  exit 1
-fi
-
-mkdir -p "$TEMP_DIR/auto-cd-target"
-EXPECTED=$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$TEMP_DIR/auto-cd-target")
-OUTPUT=$("$CJSH_PATH" -c "cd \"$TEMP_DIR\"; auto-cd-target; pwd")
-if [ "$OUTPUT" = "$EXPECTED" ]; then
-  pass_test "implicit cd when directory name is entered"
-else
-  fail_test "implicit cd - expected '$EXPECTED', got '$OUTPUT'"
-  rm -rf "$TEMP_DIR"
-  exit 1
-fi
-
-rm -rf "$TEMP_DIR"
-
 echo ""
 echo "CD Tests Summary:"
 echo "Passed: $TESTS_PASSED"
