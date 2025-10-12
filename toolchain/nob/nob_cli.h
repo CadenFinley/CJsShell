@@ -19,6 +19,8 @@ static inline void print_help(void) {
     printf("  --force-32bit     Force 32-bit build (if supported)\n");
     printf("  --dependencies    List project dependencies\n");
     printf("  --compile-commands Generate compile_commands.json for clangd\n");
+    printf("  --asm             Generate assembly files in build/asm\n");
+    printf("  --asm-readable    Generate readable assembly with comments/labels\n");
     printf(
         "  -j, --jobs N      Override parallel compilation jobs (default: "
         "auto)\n\n");

@@ -17,6 +17,8 @@
 
 bool g_debug_build = false;
 bool g_minimal_build = false;
+bool g_generate_asm = false;
+bool g_generate_readable_asm = false;
 
 static const char* nob_self_rebuild_sources[] = {
     __FILE__,         "nob.h",         "nob_build_config.h",
@@ -117,6 +119,8 @@ int main(int argc, char** argv) {
     bool force_32bit = false;
     bool dependencies = false;
     bool generate_compile_commands = true;
+    bool generate_asm = false;
+    bool generate_readable_asm = false;
     int override_jobs = -1;
 
     nob_shift_args(&argc, &argv);
@@ -139,6 +143,11 @@ int main(int argc, char** argv) {
             dependencies = true;
         } else if (strcmp(arg, "--no-compile-commands") == 0) {
             generate_compile_commands = false;
+        } else if (strcmp(arg, "--asm") == 0) {
+            generate_asm = true;
+        } else if (strcmp(arg, "--asm-readable") == 0) {
+            generate_asm = true;
+            generate_readable_asm = true;
         } else if (strcmp(arg, "--jobs") == 0 || strcmp(arg, "-j") == 0) {
             if (argc == 0) {
                 nob_log(NOB_ERROR, "Expected number after %s", arg);
@@ -160,6 +169,8 @@ int main(int argc, char** argv) {
 
     g_debug_build = debug;
     g_minimal_build = minimal;
+    g_generate_asm = generate_asm;
+    g_generate_readable_asm = generate_readable_asm;
 
     if (g_debug_build) {
         nob_log(NOB_INFO,

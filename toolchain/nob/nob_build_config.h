@@ -50,8 +50,8 @@ static const Build_Config build_config = {
     .c_include_directories = (const char*[]){"include", "include/isocline"},
     .c_include_directories_count = 2,
 
-    .required_directories = (const char*[]){"build", "build/obj"},
-    .required_directories_count = 2,
+    .required_directories = (const char*[]){"build", "build/obj", "build/asm"},
+    .required_directories_count = 3,
 
     .external_dependencies = NULL,
     .external_dependencies_count = 0,

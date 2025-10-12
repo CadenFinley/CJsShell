@@ -14,6 +14,8 @@ static const char* cached_linker = NULL;
 
 extern bool g_debug_build;
 extern bool g_minimal_build;
+extern bool g_generate_asm;
+extern bool g_generate_readable_asm;
 
 static char git_hash_define[128] = "-DCJSH_GIT_HASH=\"unknown\"";
 
