@@ -268,8 +268,7 @@ int main(int argc, char* argv[]) {
                                fs::exists(g_cjsh_data_path) &&
                                fs::exists(g_cjsh_cache_path) &&
                                fs::exists(g_cjsh_plugin_path) &&
-                               fs::exists(g_cjsh_theme_path) &&
-                               fs::exists(g_cjsh_ai_conversations_path);
+                               fs::exists(g_cjsh_theme_path);
                 
                 if (all_exist) {
                     std::cout << "SUCCESS" << '\n';
