@@ -57,6 +57,7 @@ typedef uint32_t ic_keycode_t;
 #define IC_KEY_CTRL_Z (26)
 #define IC_KEY_ESC (27)
 #define IC_KEY_SPACE (32)
+#define IC_KEY_CTRL_SPACE (IC_KEY_WITH_CTRL(IC_KEY_SPACE))
 #define IC_KEY_RUBOUT (127)
 #define IC_KEY_UNICODE_MAX (0x0010FFFFU)
 

@@ -477,6 +477,9 @@ ic_public bool ic_parse_key_spec(const char* spec, ic_keycode_t* out_key) {
             } else if (ch >= 'A' && ch <= 'Z') {
                 code = (ic_keycode_t)(IC_KEY_CTRL_A + (ch - 'A'));
                 ctrl = false;
+            } else if (ch == '@') {
+                code = IC_KEY_CTRL_SPACE;
+                ctrl = false;
             } else {
                 code = IC_KEY_WITH_CTRL(ic_key_char((char)ch));
                 ctrl = false;

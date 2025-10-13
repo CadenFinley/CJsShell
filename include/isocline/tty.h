@@ -153,6 +153,7 @@ static inline code_t key_unicode(unicode_t u) {
 #define KEY_CTRL_PAGEUP IC_KEY_CTRL_PAGEUP
 #define KEY_CTRL_PAGEDOWN IC_KEY_CTRL_PAGEDOWN
 #define KEY_CTRL_INS IC_KEY_CTRL_INS
+#define KEY_CTRL_SPACE IC_KEY_CTRL_SPACE
 
 #define KEY_SHIFT_TAB IC_KEY_SHIFT_TAB
 

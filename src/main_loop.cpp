@@ -482,11 +482,40 @@ static std::pair<std::string, bool> get_next_command(bool command_was_available,
     return {command_to_run, command_available};
 }
 
+static bool test(ic_keycode_t key, void* /*arg*/) {
+    const uint32_t base_key = IC_KEY_NO_MODS(key);
+    const uint32_t modifiers = IC_KEY_MODS(key);
+
+    std::cout << "Unhandled key: 0x" << std::hex << key << std::dec;
+
+    if (base_key >= 32 && base_key < 127) {
+        std::cout << " ('" << static_cast<char>(base_key) << "')";
+    }
+
+    if (modifiers != 0) {
+        std::cout << " [mods:";
+        if ((modifiers & IC_KEY_MOD_CTRL) != 0) {
+            std::cout << " ctrl";
+        }
+        if ((modifiers & IC_KEY_MOD_ALT) != 0) {
+            std::cout << " alt";
+        }
+        if ((modifiers & IC_KEY_MOD_SHIFT) != 0) {
+            std::cout << " shift";
+        }
+        std::cout << " ]";
+    }
+
+    std::cout << std::endl;
+    return false;
+}
+
 void initialize_isocline() {
     initialize_completion_system();
     SyntaxHighlighter::initialize_syntax_highlighting();
     ic_enable_history_duplicates(false);
     ic_set_prompt_marker("", nullptr);
+    ic_set_unhandled_key_handler(test, nullptr);
 }
 
 void main_process_loop() {
