@@ -1872,7 +1872,7 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
             c = KEY_NONE;
         }
 
-        if (c < IC_KEY_EVENT_BASE && key_binding_execute(env, &eb, c)) {
+        if ((c < IC_KEY_EVENT_BASE || c >= IC_KEY_UNICODE_MAX) && key_binding_execute(env, &eb, c)) {
             continue;
         }
 
@@ -2255,7 +2255,7 @@ static char* edit_line_inline(ic_env_t* env, const char* prompt_text,
             c = KEY_NONE;
         }
 
-        if (c < IC_KEY_EVENT_BASE && key_binding_execute(env, &eb, c)) {
+        if ((c < IC_KEY_EVENT_BASE || c >= IC_KEY_UNICODE_MAX) && key_binding_execute(env, &eb, c)) {
             continue;
         }
 
