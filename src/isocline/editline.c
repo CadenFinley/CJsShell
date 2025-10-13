@@ -62,6 +62,7 @@ static void edit_history_search_with_current_word(ic_env_t* env, editor_t* eb);
 static void edit_history_prev(ic_env_t* env, editor_t* eb);
 static void edit_history_next(ic_env_t* env, editor_t* eb);
 static void edit_clear_history_preview(editor_t* eb);
+static void edit_clear(ic_env_t* env, editor_t* eb);
 static void edit_clear_screen(ic_env_t* env, editor_t* eb);
 static void edit_undo_restore(ic_env_t* env, editor_t* eb);
 static void edit_redo_restore(ic_env_t* env, editor_t* eb);
@@ -1787,6 +1788,9 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
     editstate_init(&eb.undo);
     editstate_init(&eb.redo);
 
+    // Set this editor as the current active editor
+    env->current_editor = &eb;
+
     // Insert initial input if present
     if (env->initial_input != NULL) {
         insert_initial_input(env->initial_input, &eb);
@@ -1872,7 +1876,8 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
             c = KEY_NONE;
         }
 
-        if ((c < IC_KEY_EVENT_BASE || c >= IC_KEY_UNICODE_MAX) && key_binding_execute(env, &eb, c)) {
+        if ((c < IC_KEY_EVENT_BASE || c >= IC_KEY_UNICODE_MAX) &&
+            key_binding_execute(env, &eb, c)) {
             continue;
         }
 
@@ -2116,6 +2121,9 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
         ic_history_remove_last();
     }
 
+    // Clear the current editor pointer
+    env->current_editor = NULL;
+
     // free resources
     editstate_done(env->mem, &eb.undo);
     editstate_done(env->mem, &eb.redo);
@@ -2164,6 +2172,9 @@ static char* edit_line_inline(ic_env_t* env, const char* prompt_text,
     eb.history_idx = 0;
     editstate_init(&eb.undo);
     editstate_init(&eb.redo);
+
+    // Set this editor as the current active editor
+    env->current_editor = &eb;
 
     // Insert initial input if present
     if (env->initial_input != NULL) {
@@ -2255,7 +2266,8 @@ static char* edit_line_inline(ic_env_t* env, const char* prompt_text,
             c = KEY_NONE;
         }
 
-        if ((c < IC_KEY_EVENT_BASE || c >= IC_KEY_UNICODE_MAX) && key_binding_execute(env, &eb, c)) {
+        if ((c < IC_KEY_EVENT_BASE || c >= IC_KEY_UNICODE_MAX) &&
+            key_binding_execute(env, &eb, c)) {
             continue;
         }
 
@@ -2499,6 +2511,9 @@ static char* edit_line_inline(ic_env_t* env, const char* prompt_text,
         ic_history_remove_last();
     }
 
+    // Clear the current editor pointer
+    env->current_editor = NULL;
+
     // free resources
     editstate_done(env->mem, &eb.undo);
     editstate_done(env->mem, &eb.redo);
@@ -2513,4 +2528,81 @@ static char* edit_line_inline(ic_env_t* env, const char* prompt_text,
              (void*)eb.prompt_text);  // Free the allocated last line prompt
 
     return res;
+}
+
+//-------------------------------------------------------------
+// Public API for buffer control during readline
+//-------------------------------------------------------------
+
+ic_public bool ic_set_buffer(const char* buffer) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL || env->current_editor == NULL)
+        return false;
+
+    editor_t* eb = env->current_editor;
+
+    // Clear or set the buffer
+    if (buffer == NULL) {
+        sbuf_clear(eb->input);
+        eb->pos = 0;
+    } else {
+        sbuf_replace(eb->input, buffer);
+        eb->pos = sbuf_len(eb->input);  // Move cursor to end
+    }
+
+    // Mark as modified
+    eb->modified = true;
+
+    // Refresh the display
+    edit_refresh(env, eb);
+
+    return true;
+}
+
+ic_public bool ic_current_loop_reset(const char* new_buffer, const char* new_prompt,
+                                     const char* new_inline_right) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL || env->current_editor == NULL)
+        return false;
+
+    editor_t* eb = env->current_editor;
+
+    // Update buffer if provided
+    if (new_buffer != NULL) {
+        sbuf_replace(eb->input, new_buffer);
+        eb->pos = sbuf_len(eb->input);  // Move cursor to end
+        eb->modified = true;
+    }
+
+    // Update prompt if provided
+    if (new_prompt != NULL) {
+        // Free the old prompt text
+        mem_free(env->mem, (void*)eb->prompt_text);
+
+        // Extract and set the new prompt (handle multi-line prompts)
+        char* last_line_prompt = extract_last_prompt_line(env->mem, new_prompt);
+        eb->prompt_text = last_line_prompt;
+
+        // Print prefix lines if any
+        eb->prompt_prefix_lines = print_prompt_prefix_lines(env, new_prompt);
+    }
+
+    // Update inline right text if provided
+    if (new_inline_right != NULL) {
+        eb->inline_right_text = new_inline_right;
+        eb->inline_right_width = 0;  // Will be recalculated
+    }
+
+    // Clear current display and reset cursor tracking
+    edit_clear(env, eb);
+    eb->cur_row = 0;
+    eb->cur_rows = 1;
+
+    // Rewrite the prompt
+    edit_write_prompt(env, eb, 0, false, 0);
+
+    // Refresh the entire display
+    edit_refresh(env, eb);
+
+    return true;
 }

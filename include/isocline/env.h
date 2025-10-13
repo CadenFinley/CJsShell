@@ -20,6 +20,7 @@
 #include "tty.h"
 
 struct ic_keybinding_profile_s;
+struct editor_s;
 
 //-------------------------------------------------------------
 // Environment
@@ -30,6 +31,7 @@ struct ic_env_s {
     ic_env_t* next;                   // next environment (used for proper deallocation)
     term_t* term;                     // terminal
     tty_t* tty;                       // keyboard (NULL if stdin is a pipe, file, etc)
+    struct editor_s* current_editor;  // pointer to active editor (NULL when not reading)
     completions_t* completions;       // current completions
     history_t* history;               // edit history
     bbcode_t* bbcode;                 // print with bbcodes

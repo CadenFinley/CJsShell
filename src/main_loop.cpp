@@ -482,7 +482,7 @@ static std::pair<std::string, bool> get_next_command(bool command_was_available,
     return {command_to_run, command_available};
 }
 
-static bool test(ic_keycode_t key, void* /*arg*/) {
+static bool handle_runoff_bind(ic_keycode_t key, void* /*arg*/) {
     const uint32_t base_key = IC_KEY_NO_MODS(key);
     const uint32_t modifiers = IC_KEY_MODS(key);
 
@@ -515,7 +515,7 @@ void initialize_isocline() {
     SyntaxHighlighter::initialize_syntax_highlighting();
     ic_enable_history_duplicates(false);
     ic_set_prompt_marker("", nullptr);
-    ic_set_unhandled_key_handler(test, nullptr);
+    ic_set_unhandled_key_handler(handle_runoff_bind, nullptr);
 }
 
 void main_process_loop() {

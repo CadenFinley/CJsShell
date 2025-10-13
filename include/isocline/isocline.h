@@ -135,6 +135,23 @@ bool ic_push_raw_input(const uint8_t* data, size_t length);
 ///          If ctrl-C or ctrl-D is pressed, returns NULL.
 char* ic_read_heredoc(const char* delimiter, bool strip_tabs);
 
+/// Set the current input buffer to the specified string.
+/// This function can only be called while a readline operation is active.
+/// @param buffer The string to set as the current input buffer. If NULL, clears the buffer.
+/// @returns true if the buffer was successfully set, false if no readline operation is active.
+bool ic_set_buffer(const char* buffer);
+
+/// Reset and refresh the current readline loop with optional new content.
+/// This function reprints the prompt and input, optionally updating the buffer, prompt, or inline
+/// right text. Can only be called while a readline operation is active.
+/// @param new_buffer Optional new input buffer string. If NULL, retains current buffer.
+/// @param new_prompt Optional new prompt string. If NULL, retains current prompt.
+/// @param new_inline_right Optional new inline right-aligned text. If NULL, retains current inline
+/// right text.
+/// @returns true if the loop was successfully reset, false if no readline operation is active.
+bool ic_current_loop_reset(const char* new_buffer, const char* new_prompt,
+                           const char* new_inline_right);
+
 /// \}
 
 //--------------------------------------------------------------
