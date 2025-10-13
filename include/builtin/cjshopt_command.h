@@ -4,8 +4,11 @@
 #include <unordered_map>
 #include <vector>
 
-int cjshopt_command(const std::vector<std::string>& args);
+using ic_keycode_t = unsigned int;
+extern std::unordered_map<ic_keycode_t, std::string> g_custom_keybindings;
 
+int cjshopt_command(const std::vector<std::string>& args);
+int keybind_ext_command(const std::vector<std::string>& args);
 int startup_flag_command(const std::vector<std::string>& args);
 int completion_case_command(const std::vector<std::string>& args);
 int completion_spell_command(const std::vector<std::string>& args);
@@ -26,3 +29,8 @@ int keybind_command(const std::vector<std::string>& args);
 int set_max_bookmarks_command(const std::vector<std::string>& args);
 int set_history_max_command(const std::vector<std::string>& args);
 int bookmark_blacklist_command(const std::vector<std::string>& args);
+std::string get_custom_keybinding(ic_keycode_t key);
+bool has_custom_keybinding(ic_keycode_t key);
+void set_custom_keybinding(ic_keycode_t key, const std::string& command);
+void clear_custom_keybinding(ic_keycode_t key);
+void clear_all_custom_keybindings();

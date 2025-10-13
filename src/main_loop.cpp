@@ -302,7 +302,6 @@ bool process_command_line(const std::string& command, bool skip_history = false)
         return g_exit_flag;
     }
 
-    // Apply history expansion if enabled and not in script mode
     std::string expanded_command = command;
     if (config::history_expansion_enabled && isatty(STDIN_FILENO)) {
         auto history_entries = HistoryExpansion::read_history_entries();
@@ -317,7 +316,6 @@ bool process_command_line(const std::string& command, bool skip_history = false)
         if (expansion_result.was_expanded) {
             expanded_command = expansion_result.expanded_command;
             if (expansion_result.should_echo) {
-                // Echo the expanded command like bash does
                 std::cout << expanded_command << std::endl;
             }
         }
@@ -332,7 +330,6 @@ bool process_command_line(const std::string& command, bool skip_history = false)
     std::string status_str = std::to_string(exit_code);
 
     if (!skip_history) {
-        // Add the original command to history, not the expanded version
         ic_history_add(command.c_str());
     }
     setenv("?", status_str.c_str(), 1);
@@ -395,7 +392,6 @@ static std::string generate_prompt(bool command_was_available) {
         ic_enable_prompt_cleanup_truncate_multiline(g_theme->cleanup_truncates_multiline());
     }
 
-    // setenv("PS1", prompt.c_str(), 1);
     return prompt;
 }
 
@@ -482,31 +478,14 @@ static std::pair<std::string, bool> get_next_command(bool command_was_available,
     return {command_to_run, command_available};
 }
 
-static bool handle_runoff_bind(ic_keycode_t key, void* /*arg*/) {
-    const uint32_t base_key = IC_KEY_NO_MODS(key);
-    const uint32_t modifiers = IC_KEY_MODS(key);
-
-    std::cout << "Unhandled key: 0x" << std::hex << key << std::dec;
-
-    if (base_key >= 32 && base_key < 127) {
-        std::cout << " ('" << static_cast<char>(base_key) << "')";
+static bool handle_runoff_bind(ic_keycode_t key, void*) {
+    if (has_custom_keybinding(key)) {
+        std::string command = get_custom_keybinding(key);
+        if (!command.empty()) {
+            g_shell->execute(command);
+            return true;
+        }
     }
-
-    if (modifiers != 0) {
-        std::cout << " [mods:";
-        if ((modifiers & IC_KEY_MOD_CTRL) != 0) {
-            std::cout << " ctrl";
-        }
-        if ((modifiers & IC_KEY_MOD_ALT) != 0) {
-            std::cout << " alt";
-        }
-        if ((modifiers & IC_KEY_MOD_SHIFT) != 0) {
-            std::cout << " shift";
-        }
-        std::cout << " ]";
-    }
-
-    std::cout << std::endl;
     return false;
 }
 
