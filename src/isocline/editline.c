@@ -1861,6 +1861,10 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
 
         bool request_submit = false;
 
+        if (c == KEY_CTRL_O) {
+            c = KEY_ENTER;
+        }
+
         // if the user tries to move into a hint with left-cursor or end, we
         // complete it first
         if ((c == KEY_RIGHT || c == KEY_END) && had_hint) {
@@ -2239,6 +2243,10 @@ static char* edit_line_inline(ic_env_t* env, const char* prompt_text,
         sbuf_clear(eb.hint_help);
 
         bool request_submit = false;
+
+        if (c == KEY_CTRL_O) {
+            c = KEY_ENTER;
+        }
 
         // if the user tries to move into a hint with left-cursor or end, we
         // complete it first
