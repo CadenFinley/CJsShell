@@ -200,6 +200,13 @@ static bool key_binding_execute(ic_env_t* env, editor_t* eb, code_t key) {
         if (entry->key == key) {
             if (entry->action == IC_KEY_ACTION_NONE)
                 return true;
+            if (entry->action == IC_KEY_ACTION_RUNOFF) {
+                // Call the unhandled key handler directly
+                if (env->unhandled_key_handler != NULL) {
+                    return env->unhandled_key_handler(key, env->unhandled_key_arg);
+                }
+                return false;
+            }
             return key_action_execute(env, eb, entry->action);
         }
     }
@@ -2069,13 +2076,14 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
                         edit_insert_unicode(env, &eb, uchr);
                     } else {
                         // Try the unhandled key callback before ignoring
-                        bool handled = false;
-                        if (env->unhandled_key_handler != NULL) {
-                            handled = env->unhandled_key_handler(c, env->unhandled_key_arg);
-                        }
-                        if (!handled) {
-                            debug_msg("edit: ignore code: 0x%04x\n", c);
-                        }
+                        // bool handled = false;
+                        // if (env->unhandled_key_handler != NULL) {
+                        //     handled = env->unhandled_key_handler(c, env->unhandled_key_arg);
+                        // }
+                        // if (!handled) {
+                        //     debug_msg("edit: ignore code: 0x%04x\n", c);
+                        // }
+                        // debug_msg("edit: ignore code: 0x%04x\n", c);
                     }
                     break;
                 }
@@ -2459,13 +2467,14 @@ static char* edit_line_inline(ic_env_t* env, const char* prompt_text,
                         edit_insert_unicode(env, &eb, uchr);
                     } else {
                         // Try the unhandled key callback before ignoring
-                        bool handled = false;
-                        if (env->unhandled_key_handler != NULL) {
-                            handled = env->unhandled_key_handler(c, env->unhandled_key_arg);
-                        }
-                        if (!handled) {
-                            debug_msg("edit: ignore code: 0x%04x\n", c);
-                        }
+                        // bool handled = false;
+                        // if (env->unhandled_key_handler != NULL) {
+                        //     handled = env->unhandled_key_handler(c, env->unhandled_key_arg);
+                        // }
+                        // if (!handled) {
+                        //     debug_msg("edit: ignore code: 0x%04x\n", c);
+                        // }
+                        // debug_msg("edit: ignore code: 0x%04x\n", c);
                     }
                     break;
                 }

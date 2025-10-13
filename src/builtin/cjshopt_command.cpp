@@ -1186,6 +1186,30 @@ int keybind_set_or_add_command(const std::vector<std::string>& args, bool replac
         return 1;
     }
 
+    // Check for existing bindings on the keys we're about to bind BEFORE clearing anything
+    // This prevents double binding and warns the user about conflicts
+    // This applies to all actions including runoff/unhandled bindings
+    std::vector<std::pair<std::string, std::string>> conflicts;
+    for (const auto& entry : parsed) {
+        ic_key_action_t existing_action;
+        if (ic_get_key_binding(entry.first, &existing_action)) {
+            // Only report as a conflict if it's bound to a different action
+            if (existing_action != action) {
+                std::string existing_action_name = canonical_action_name(existing_action);
+                conflicts.push_back({entry.second, existing_action_name});
+            }
+        }
+    }
+
+    // Show warnings about conflicts to prevent double bindings
+    if (!conflicts.empty()) {
+        for (const auto& conflict : conflicts) {
+            std::cerr << "Warning: Key '" << conflict.first << "' was already bound to '"
+                      << conflict.second << "' and will be overridden.\n";
+        }
+    }
+
+    // In replace_existing mode, clear all keys currently bound to the same action
     std::vector<ic_key_binding_entry_t> previous;
     if (replace_existing && action != IC_KEY_ACTION_NONE) {
         auto entries = collect_bindings();
@@ -1197,6 +1221,7 @@ int keybind_set_or_add_command(const std::vector<std::string>& args, bool replac
         }
     }
 
+    // Clear the specific keys we're about to bind (removes any existing bindings)
     for (const auto& entry : parsed) {
         ic_clear_key_binding(entry.first);
     }

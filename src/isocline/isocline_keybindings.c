@@ -98,6 +98,10 @@ static const key_action_name_entry_t key_action_names[] = {
 
     {"insert-newline", IC_KEY_ACTION_INSERT_NEWLINE},
     {"newline", IC_KEY_ACTION_INSERT_NEWLINE},
+
+    {"runoff", IC_KEY_ACTION_RUNOFF},
+    {"runoff-handler", IC_KEY_ACTION_RUNOFF},
+    {"unhandled", IC_KEY_ACTION_RUNOFF},
 };
 
 static size_t key_action_name_count(void) {
