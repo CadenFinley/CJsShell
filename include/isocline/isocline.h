@@ -98,6 +98,24 @@ char* ic_readline_inline(const char* prompt_text, const char* inline_right_text,
 /// Returns `false` if the readline environment is not yet initialized.
 bool ic_push_key_event(ic_keycode_t key);
 
+/// Callback function type for unhandled key events.
+/// This callback is invoked when a key is pressed that is not bound to any
+/// isocline action. The callback receives the keycode and can return true
+/// to indicate the key was handled, or false to let isocline's default
+/// behavior continue.
+/// @param key The keycode that was not handled by isocline
+/// @param arg User-provided argument passed when setting the callback
+/// @returns true if the key was handled by the callback, false otherwise
+typedef bool(ic_unhandled_key_fun_t)(ic_keycode_t key, void* arg);
+
+/// Set a callback for unhandled key events.
+/// This allows applications to handle custom keybindings that are not
+/// directly tied to isocline's built-in actions. The callback will be
+/// invoked for any key press that doesn't match an isocline keybinding.
+/// @param callback The callback function to invoke for unhandled keys, or NULL to disable
+/// @param arg User-provided argument that will be passed to the callback
+void ic_set_unhandled_key_handler(ic_unhandled_key_fun_t* callback, void* arg);
+
 /// Queue multiple key events so they are processed before the next read.
 /// Returns `false` if the readline environment is not yet initialized.
 bool ic_push_key_sequence(const ic_keycode_t* keys, size_t count);

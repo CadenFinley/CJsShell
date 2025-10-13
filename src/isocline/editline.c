@@ -2059,7 +2059,14 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
                     } else if (code_is_unicode(c, &uchr)) {
                         edit_insert_unicode(env, &eb, uchr);
                     } else {
-                        debug_msg("edit: ignore code: 0x%04x\n", c);
+                        // Try the unhandled key callback before ignoring
+                        bool handled = false;
+                        if (env->unhandled_key_handler != NULL) {
+                            handled = env->unhandled_key_handler(c, env->unhandled_key_arg);
+                        }
+                        if (!handled) {
+                            debug_msg("edit: ignore code: 0x%04x\n", c);
+                        }
                     }
                     break;
                 }
@@ -2431,7 +2438,14 @@ static char* edit_line_inline(ic_env_t* env, const char* prompt_text,
                     } else if (code_is_unicode(c, &uchr)) {
                         edit_insert_unicode(env, &eb, uchr);
                     } else {
-                        debug_msg("edit: ignore code: 0x%04x\n", c);
+                        // Try the unhandled key callback before ignoring
+                        bool handled = false;
+                        if (env->unhandled_key_handler != NULL) {
+                            handled = env->unhandled_key_handler(c, env->unhandled_key_arg);
+                        }
+                        if (!handled) {
+                            debug_msg("edit: ignore code: 0x%04x\n", c);
+                        }
                     }
                     break;
                 }

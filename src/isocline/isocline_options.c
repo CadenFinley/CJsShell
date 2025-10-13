@@ -320,6 +320,14 @@ ic_public void ic_set_default_highlighter(ic_highlight_fun_t* highlighter, void*
     env->highlighter_arg = arg;
 }
 
+ic_public void ic_set_unhandled_key_handler(ic_unhandled_key_fun_t* callback, void* arg) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return;
+    env->unhandled_key_handler = callback;
+    env->unhandled_key_arg = arg;
+}
+
 ic_public void ic_free(void* p) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)
