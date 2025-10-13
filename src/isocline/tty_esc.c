@@ -147,6 +147,10 @@ static code_t esc_decode_vt(uint32_t vt_code) {
             return KEY_HOME;
         case 8:
             return KEY_END;
+        case 200:
+            return IC_KEY_PASTE_START;  // Bracketed paste start
+        case 201:
+            return IC_KEY_PASTE_END;  // Bracketed paste end
         default:
             if (vt_code >= 10 && vt_code <= 15)
                 return KEY_F(1 + (vt_code - 10));

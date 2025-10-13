@@ -1942,6 +1942,11 @@ static char* edit_line(ic_env_t* env, const char* prompt_text) {
                 case KEY_EVENT_AUTOTAB:
                     edit_generate_completions(env, &eb, true);
                     break;
+                case IC_KEY_PASTE_START:  // bracketed paste start marker
+                case IC_KEY_PASTE_END:    // bracketed paste end marker
+                    // Ignore these event markers - they're handled at the TTY level
+                    // to control NUL byte interpretation
+                    break;
 
                 // completion, history, help, undo
                 case KEY_TAB:
@@ -2332,6 +2337,11 @@ static char* edit_line_inline(ic_env_t* env, const char* prompt_text,
                     break;
                 case KEY_EVENT_AUTOTAB:
                     edit_generate_completions(env, &eb, true);
+                    break;
+                case IC_KEY_PASTE_START:  // bracketed paste start marker
+                case IC_KEY_PASTE_END:    // bracketed paste end marker
+                    // Ignore these event markers - they're handled at the TTY level
+                    // to control NUL byte interpretation
                     break;
 
                 // completion, history, help, undo
