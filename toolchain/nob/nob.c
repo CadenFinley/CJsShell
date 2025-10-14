@@ -119,7 +119,6 @@ int main(int argc, char** argv) {
     bool debug = false;
     bool minimal = false;
     bool force_32bit = false;
-    bool dependencies = false;
     bool generate_compile_commands = true;
     bool generate_asm = false;
     bool generate_readable_asm = false;
@@ -141,8 +140,6 @@ int main(int argc, char** argv) {
             minimal = true;
         } else if (strcmp(arg, "--force-32bit") == 0) {
             force_32bit = true;
-        } else if (strcmp(arg, "--dependencies") == 0) {
-            dependencies = true;
         } else if (strcmp(arg, "--no-compile-commands") == 0) {
             generate_compile_commands = false;
         } else if (strcmp(arg, "--asm") == 0) {
@@ -191,11 +188,6 @@ int main(int argc, char** argv) {
 
     if (version) {
         print_version();
-        return 0;
-    }
-
-    if (dependencies) {
-        print_dependencies();
         return 0;
     }
 
