@@ -88,9 +88,7 @@ ic_public char* ic_readline(const char* prompt_text, const char* inline_right_te
             ic_env_set_initial_input(env, initial_input);
         }
 
-        char* result = (inline_right_text != NULL)
-                           ? ic_editline_inline(env, prompt_text, inline_right_text)
-                           : ic_editline(env, prompt_text);
+        char* result = ic_editline(env, prompt_text, inline_right_text);
 
         ic_env_clear_initial_input(env);
         return result;
@@ -102,8 +100,6 @@ ic_public char* ic_readline(const char* prompt_text, const char* inline_right_te
             term_write(env->term, prompt_text);
         }
         term_write(env->term, env->prompt_marker);
-        // When inline prompts are requested but we cannot edit, we gracefully
-        // degrade by falling back to the basic prompt without inline adornment.
         term_end_raw(env->term, false);
     }
 
