@@ -13,7 +13,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Unicode helpers provided by CJ's Shell utilities
 #include "unicode/unicode_support.h"
 
 //-------------------------------------------------------------
