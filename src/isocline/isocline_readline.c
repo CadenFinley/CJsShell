@@ -76,45 +76,38 @@ static char* ic_getline(alloc_t* mem) {
 // Public API
 //-------------------------------------------------------------
 
-ic_public char* ic_readline(const char* prompt_text, const char* initial_input) {
+ic_public char* ic_readline(const char* prompt_text, const char* inline_right_text,
+                            const char* initial_input) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL)
+    if (env == NULL) {
         return NULL;
-    if (!env->noedit) {
-        if (initial_input != NULL) {
-            ic_env_set_initial_input(env, initial_input);
-        }
-        char* result = ic_editline(env, prompt_text);
-        ic_env_clear_initial_input(env);
-        return result;
-    } else {
-        if (env->tty != NULL && env->term != NULL) {
-            term_start_raw(env->term);
-            if (prompt_text != NULL) {
-                term_write(env->term, prompt_text);
-            }
-            term_write(env->term, env->prompt_marker);
-            term_end_raw(env->term, false);
-        }
-        return ic_getline(env->mem);
     }
-}
 
-ic_public char* ic_readline_inline(const char* prompt_text, const char* inline_right_text,
-                                   const char* initial_input) {
-    ic_env_t* env = ic_get_env();
-    if (env == NULL)
-        return NULL;
     if (!env->noedit) {
         if (initial_input != NULL) {
             ic_env_set_initial_input(env, initial_input);
         }
-        char* result = ic_editline_inline(env, prompt_text, inline_right_text);
+
+        char* result = (inline_right_text != NULL)
+                           ? ic_editline_inline(env, prompt_text, inline_right_text)
+                           : ic_editline(env, prompt_text);
+
         ic_env_clear_initial_input(env);
         return result;
-    } else {
-        return ic_readline(prompt_text, initial_input);
     }
+
+    if (env->tty != NULL && env->term != NULL) {
+        term_start_raw(env->term);
+        if (prompt_text != NULL) {
+            term_write(env->term, prompt_text);
+        }
+        term_write(env->term, env->prompt_marker);
+        // When inline prompts are requested but we cannot edit, we gracefully
+        // degrade by falling back to the basic prompt without inline adornment.
+        term_end_raw(env->term, false);
+    }
+
+    return ic_getline(env->mem);
 }
 
 ic_public bool ic_async_stop(void) {
@@ -177,7 +170,7 @@ ic_public char* ic_readline_ex(const char* prompt_text, ic_completer_fun_t* comp
     if (highlighter != NULL) {
         ic_set_default_highlighter(highlighter, highlighter_arg);
     }
-    char* res = ic_readline(prompt_text, "");
+    char* res = ic_readline(prompt_text, NULL, "");
     ic_set_default_completer(prev_completer, prev_completer_arg);
     ic_set_default_highlighter(prev_highlighter, prev_highlighter_arg);
     return res;
@@ -221,7 +214,7 @@ ic_public char* ic_read_heredoc(const char* delimiter, bool strip_tabs) {
         char prompt[32];
         snprintf(prompt, sizeof(prompt), "%3zu > ", line_number);
 
-        char* line = ic_readline(prompt, NULL);
+        char* line = ic_readline(prompt, NULL, NULL);
 
         // Check for cancellation (Ctrl-C or Ctrl-D)
         if (line == NULL || strcmp(line, IC_READLINE_TOKEN_CTRL_C) == 0 ||

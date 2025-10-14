@@ -60,39 +60,26 @@ Contents:
 /// @param prompt_text   The prompt text, can be NULL for the default ("").
 ///   The displayed prompt becomes `prompt_text` followed by the `prompt_marker`
 ///   ("> ").
-/// @returns the heap allocated input on succes, which should be `free`d by the
+/// @param inline_right_text Optional text to display right-aligned on the same
+///   line as the user input. Can be NULL for no right-aligned text. When user
+///   input reaches this text, it will be overridden.
+/// @param initial_input Optional initial buffer contents. Pass NULL to start
+///   with an empty buffer.
+/// @returns the heap allocated input on success, which should be `free`d by the
 /// caller.
 ///   Returns NULL on error. When the user presses ctrl+d or ctrl+c on an empty
-///   buffer the functions return the tokens `IC_READLINE_TOKEN_CTRL_D` and
+///   buffer the function returns the tokens `IC_READLINE_TOKEN_CTRL_D` and
 ///   `IC_READLINE_TOKEN_CTRL_C` respectively so callers can react accordingly.
 ///
 /// If the standard input (`stdin`) has no editing capability
-/// (like a dumb terminal (e.g. `TERM`=`dumb`), running in a debuggen, a pipe or
+/// (like a dumb terminal (e.g. `TERM`=`dumb`), running in a debugger, a pipe or
 /// redirected file, etc.) the input is read directly from the input stream up
 /// to the next line without editing capability. See also \a
 /// ic_set_prompt_marker(), \a ic_style_def()
 ///
 /// @see ic_set_prompt_marker(), ic_style_def()
-char* ic_readline(const char* prompt_text, const char* initial_input);
-
-/// Read input from the user using rich editing abilities with inline
-/// right-aligned prompt.
-/// @param prompt_text   The prompt text, can be NULL for the default ("").
-///   The displayed prompt becomes `prompt_text` followed by the `prompt_marker`
-///   ("> ").
-/// @param inline_right_text The text to display right-aligned on the same line
-/// as input.
-///   Can be NULL for no right-aligned text. When user input reaches this text,
-///   it will be overridden.
-/// @returns the heap allocated input on success, which should be `free`d by the
-/// caller.
-///   Returns NULL on error. When the user presses ctrl+d or ctrl+c on an empty
-///   buffer the functions return the tokens `IC_READLINE_TOKEN_CTRL_D` and
-///   `IC_READLINE_TOKEN_CTRL_C` respectively so callers can react accordingly.
-///
-/// @see ic_readline(), ic_set_prompt_marker(), ic_style_def()
-char* ic_readline_inline(const char* prompt_text, const char* inline_right_text,
-                         const char* initial_input);
+char* ic_readline(const char* prompt_text, const char* inline_right_text,
+                  const char* initial_input);
 
 /// Queue a single key event so it is processed before the next read.
 /// Returns `false` if the readline environment is not yet initialized.

@@ -474,7 +474,7 @@ EOF
 
 ### Readline Integration
 
-CJ's Shell uses isocline's `ic_readline_inline()` function for input, which provides:
+CJ's Shell uses isocline's unified `ic_readline()` API for input, which provides:
 
 **Inline Right Text:**
 Some prompts may display additional information on the right side of the input line (configured by themes).
