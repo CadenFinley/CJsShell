@@ -325,6 +325,14 @@ std::string capture_available_input() {
         struct termios original_termios;
         int fd_flags;
 
+        RestoreState(bool should_restore_termios, bool should_restore_flags,
+                     const struct termios& termios_snapshot, int original_flags)
+            : restore_termios(should_restore_termios),
+              restore_flags(should_restore_flags),
+              original_termios(termios_snapshot),
+              fd_flags(original_flags) {
+        }
+
         RestoreState(const RestoreState&) = delete;
         RestoreState& operator=(const RestoreState&) = delete;
         RestoreState(RestoreState&&) = delete;

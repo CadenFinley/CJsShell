@@ -2,11 +2,20 @@
 #define CJSH_NOB_TOOLCHAIN_H
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 
 #include "nob_build_config.h"
 #include "nob_platform.h"
+
+#ifndef NOB_H_
+typedef struct {
+    const char** items;
+    size_t count;
+    size_t capacity;
+} Nob_Cmd;
+#endif
 
 static const char* cached_cxx_compiler = NULL;
 static const char* cached_c_compiler = NULL;
@@ -16,6 +25,8 @@ extern bool g_debug_build;
 extern bool g_minimal_build;
 extern bool g_generate_asm;
 extern bool g_generate_readable_asm;
+extern const char* g_cxx_standard_flag;
+extern const char* g_c_standard_flag;
 
 static char git_hash_define[128] = "-DCJSH_GIT_HASH=\"unknown\"";
 
@@ -76,7 +87,7 @@ static inline bool setup_build_flags(Nob_Cmd* cmd) {
     const char* compiler = get_cxx_compiler();
 
     nob_cmd_append(cmd, compiler);
-    nob_cmd_append(cmd, "-std=c++17", "-Wall", "-Wextra", "-Wpedantic");
+    nob_cmd_append(cmd, g_cxx_standard_flag, "-Wall", "-Wextra", "-Wpedantic");
 
 #ifdef PLATFORM_MACOS
     if (strcmp(compiler, "clang++") == 0) {
@@ -172,7 +183,7 @@ static inline bool setup_c_build_flags(Nob_Cmd* cmd) {
     const char* c_compiler = get_c_compiler();
     nob_cmd_append(cmd, c_compiler);
 
-    nob_cmd_append(cmd, "-std=c11", "-Wall", "-Wno-error", "-Wno-unused-function",
+    nob_cmd_append(cmd, g_c_standard_flag, "-Wall", "-Wno-error", "-Wno-unused-function",
                    "-Wno-unused-variable");
 
 #ifdef PLATFORM_MACOS

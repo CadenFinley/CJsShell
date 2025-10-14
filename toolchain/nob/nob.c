@@ -19,6 +19,8 @@ bool g_debug_build = false;
 bool g_minimal_build = false;
 bool g_generate_asm = false;
 bool g_generate_readable_asm = false;
+const char* g_cxx_standard_flag = "-std=c++23";
+const char* g_c_standard_flag = "-std=c11";
 
 static const char* nob_self_rebuild_sources[] = {
     __FILE__,         "nob.h",         "nob_build_config.h",
