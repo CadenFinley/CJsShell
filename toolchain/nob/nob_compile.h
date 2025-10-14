@@ -414,6 +414,26 @@ static inline bool write_compile_commands_file(const char* directory,
     return ok;
 }
 
+static inline bool append_nob_compile_command(Compile_Command_List* list) {
+    if (list == NULL) {
+        return false;
+    }
+
+    const char* nob_source = "toolchain/nob/nob.c";
+#ifdef _WIN32
+    const char* nob_output = "toolchain/nob/nob.exe";
+#else
+    const char* nob_output = "toolchain/nob/nob";
+#endif
+
+    Nob_Cmd cmd = {0};
+    nob_cmd_append(&cmd, NOB_REBUILD_URSELF(nob_output, nob_source));
+
+    bool ok = add_compile_command_entry(list, &cmd, nob_source, nob_output);
+    nob_cmd_free(cmd);
+    return ok;
+}
+
 static inline bool generate_assembly_for_source(const char* source, bool is_cpp) {
     const char* basename = strrchr(source, '/');
     if (basename)
@@ -424,7 +444,7 @@ static inline bool generate_assembly_for_source(const char* source, bool is_cpp)
     Nob_String_Builder asm_name = {0};
     nob_sb_append_cstr(&asm_name, "build/asm/");
     size_t base_len = strlen(basename);
-    
+
     if (is_cpp && base_len > 4 && strcmp(basename + base_len - 4, ".cpp") == 0) {
         nob_sb_append_buf(&asm_name, basename, base_len - 4);
         nob_sb_append_cstr(&asm_name, ".s");
@@ -439,7 +459,7 @@ static inline bool generate_assembly_for_source(const char* source, bool is_cpp)
 
     Nob_Cmd cmd = {0};
     bool success = false;
-    
+
     if (is_cpp) {
         if (!setup_build_flags(&cmd)) {
             nob_sb_free(asm_name);
@@ -451,22 +471,22 @@ static inline bool generate_assembly_for_source(const char* source, bool is_cpp)
             return false;
         }
     }
-    
+
     // Add readable assembly flags if requested
     if (g_generate_readable_asm) {
         nob_cmd_append(&cmd, "-fverbose-asm");
         nob_cmd_append(&cmd, "-fno-asynchronous-unwind-tables");
         nob_cmd_append(&cmd, "-fno-dwarf2-cfi-asm");
     }
-    
+
     nob_cmd_append(&cmd, "-S", source, "-o", asm_name.items);
-    
+
     if (nob_cmd_run(&cmd)) {
         success = true;
     } else {
         nob_log(NOB_ERROR, "Failed to generate assembly for %s", source);
     }
-    
+
     nob_cmd_free(cmd);
     nob_sb_free(asm_name);
     return success;
@@ -879,6 +899,13 @@ static inline bool compile_cjsh(int override_parallel_jobs, bool generate_compil
         nob_log(NOB_INFO, "All %zu files are up to date!", total_files);
     }
 
+    if (capture_compile_commands) {
+        if (!append_nob_compile_command(&compile_command_list)) {
+            nob_log(NOB_ERROR, "Failed to add compile command entry for toolchain/nob/nob.c");
+            capture_compile_commands = false;
+        }
+    }
+
     if (capture_compile_commands && compile_commands_directory != NULL) {
         if (write_compile_commands_file(compile_commands_directory, &compile_command_list)) {
             nob_log(NOB_INFO, "Generated compile_commands.json with %zu entries",
@@ -1037,43 +1064,44 @@ static inline bool compile_cjsh(int override_parallel_jobs, bool generate_compil
 
     if (g_generate_asm) {
         nob_log(NOB_INFO, "Generating assembly files...");
-        
+
         String_Array all_cpp_sources = {0};
         String_Array all_c_sources = {0};
-        
+
         if (!collect_sources(&all_cpp_sources)) {
             nob_log(NOB_ERROR, "Failed to collect sources for assembly generation");
             return false;
         }
-        
+
         if (!collect_c_sources(&all_c_sources)) {
             nob_log(NOB_ERROR, "Failed to collect C sources for assembly generation");
             nob_da_free(all_cpp_sources);
             return false;
         }
-        
+
         size_t total_asm_files = all_cpp_sources.count + all_c_sources.count;
         size_t asm_generated = 0;
-        
+
         for (size_t i = 0; i < all_cpp_sources.count; i++) {
             if (generate_assembly_for_source(all_cpp_sources.items[i], true)) {
                 asm_generated++;
             }
         }
-        
+
         for (size_t i = 0; i < all_c_sources.count; i++) {
             if (generate_assembly_for_source(all_c_sources.items[i], false)) {
                 asm_generated++;
             }
         }
-        
+
         nob_da_free(all_cpp_sources);
         nob_da_free(all_c_sources);
-        
+
         if (asm_generated == total_asm_files) {
             nob_log(NOB_INFO, "Generated %zu assembly files in build/asm", asm_generated);
         } else {
-            nob_log(NOB_WARNING, "Generated %zu out of %zu assembly files", asm_generated, total_asm_files);
+            nob_log(NOB_WARNING, "Generated %zu out of %zu assembly files", asm_generated,
+                    total_asm_files);
         }
     }
 

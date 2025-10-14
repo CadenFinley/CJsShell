@@ -24,23 +24,17 @@ environment:
 install:
   # Linux dependencies
   - sh: |
-      echo Installing Linux dependencies...
       sudo apt-get update
       sudo apt-get install -y build-essential
-      # Make sure we have the dynamic loading library
-      sudo apt-get install -y libdl-dev || echo "libdl is part of glibc-dev, continuing..."
+      sudo apt-get install -y libdl-dev
 
 before_build:
   # Linux build preparation - using nob build system
   - sh: |
-      echo "Building with nob build system..."
       cd $APPVEYOR_BUILD_FOLDER/toolchain/nob
-      # Build nob if it doesn't exist
       if [ ! -f "./nob" ]; then
-        echo "Building nob..."
         cc -o nob nob.c
         if [ $? -ne 0 ]; then
-          echo "Failed to compile nob"
           exit 1
         fi
       fi
@@ -64,7 +58,6 @@ test_script:
   - sh: |
       cd $APPVEYOR_BUILD_FOLDER
       chmod +x tests/run_shell_tests.sh
-      # Run the test suite and show output in CI logs
       echo "Running test suite..."
       ./tests/run_shell_tests.sh
 
