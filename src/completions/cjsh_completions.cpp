@@ -26,7 +26,7 @@
 
 std::map<std::string, int> g_completion_frequency;
 bool g_completion_case_sensitive = false;
-bool g_completion_spell_correction_enabled = true;  // NOLINT
+bool g_completion_spell_correction_enabled = true;
 
 enum CompletionContext : std::uint8_t {
     CONTEXT_COMMAND,
@@ -556,9 +556,16 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
         fs::path dir_path(path_to_check);
         try {
             if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
+                bool had_completions_before = ic_has_completions(cenv);
                 if (!iterate_directory_entries(cenv, dir_path, "", directories_only, 30, false,
                                                "all files"))
                     return;
+
+                if (directories_only && !ic_has_completions(cenv) && !had_completions_before) {
+                    if (!iterate_directory_entries(cenv, dir_path, "", false, 30, false,
+                                                   "all files (fallback)"))
+                        return;
+                }
             }
         } catch (const std::exception& e) {
         }
@@ -576,9 +583,22 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
 
         try {
             if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
+                bool had_completions_before = ic_has_completions(cenv);
                 if (!iterate_directory_entries(cenv, dir_path, match_prefix, true, 30, true,
                                                "directory-only"))
                     return;
+
+                if (!ic_has_completions(cenv) && !had_completions_before && !match_prefix.empty()) {
+                    if (!iterate_directory_entries(cenv, dir_path, "", true, 30, true,
+                                                   "directory-only (all)"))
+                        return;
+                }
+
+                if (!ic_has_completions(cenv) && !had_completions_before) {
+                    if (!iterate_directory_entries(cenv, dir_path, "", false, 30, true,
+                                                   "all files (fallback)"))
+                        return;
+                }
             }
         } catch (const std::exception& e) {
         }
@@ -611,13 +631,12 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
 
     completion_tracker::completion_session_begin(cenv, effective_prefix);
 
+    CompletionContext context;
     if (current_line_prefix[0] == '\0') {
-        cjsh_history_completer(cenv, current_line_prefix);
-        completion_tracker::completion_session_end();
-        return;
+        context = CONTEXT_COMMAND;
+    } else {
+        context = detect_completion_context(current_line_prefix);
     }
-
-    CompletionContext context = detect_completion_context(current_line_prefix);
 
     switch (context) {
         case CONTEXT_COMMAND:
