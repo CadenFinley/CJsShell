@@ -907,6 +907,19 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                     bool is_function_call = false;
                     {
                         std::vector<std::string> first_toks = shell_parser->parse_command(cmd_text);
+
+                        if (!first_toks.empty() && (functions.count(first_toks[0]) != 0u)) {
+                            std::string expanded_cmd = cmd_text;
+                            try {
+                                expanded_cmd =
+                                    expand_all_substitutions(cmd_text, execute_simple_or_pipeline);
+                            } catch (const std::runtime_error&) {
+                                expanded_cmd = cmd_text;
+                            }
+
+                            first_toks = shell_parser->parse_command(expanded_cmd);
+                        }
+
                         if (!first_toks.empty() && (functions.count(first_toks[0]) != 0u)) {
                             is_function_call = true;
 
