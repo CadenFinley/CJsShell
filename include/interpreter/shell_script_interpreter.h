@@ -146,6 +146,10 @@ class ShellScriptInterpreter {
     void mark_local_as_exported(const std::string& name);
     bool in_function_scope() const;
 
+    VariableManager& get_variable_manager() {
+        return variable_manager;
+    }
+
    private:
     Parser* shell_parser = nullptr;
     function_evaluator::FunctionMap functions;

@@ -441,15 +441,10 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
         if (shell_parser->is_env_assignment(args[0], var_name, var_value)) {
             shell_parser->expand_env_vars(var_value);
 
-            env_vars[var_name] = var_value;
-
-            if (var_name == "PATH" || var_name == "PWD" || var_name == "HOME" ||
-                var_name == "USER" || var_name == "SHELL") {
-                setenv(var_name.c_str(), var_value.c_str(), 1);
-            }
-
-            if (shell_parser) {
-                shell_parser->set_env_vars(env_vars);
+            // Use the variable manager to handle environment variable assignment
+            if (shell_script_interpreter) {
+                shell_script_interpreter->get_variable_manager().set_environment_variable(
+                    var_name, var_value);
             }
 
             return 0;

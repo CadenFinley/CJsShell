@@ -42,17 +42,28 @@ void VariableManager::pop_scope() {
 
 void VariableManager::set_local_variable(const std::string& name, const std::string& value) {
     if (local_variable_stack.empty()) {
-        if (g_shell) {
-            auto& env_vars = g_shell->get_env_vars();
-            env_vars[name] = value;
-
-            if (name == "PATH" || name == "PWD" || name == "HOME" || name == "USER" ||
-                name == "SHELL") {
-                setenv(name.c_str(), value.c_str(), 1);
-            }
-        }
+        set_environment_variable(name, value);
     } else {
         local_variable_stack.back()[name] = value;
+    }
+}
+
+void VariableManager::set_environment_variable(const std::string& name, const std::string& value) {
+    if (g_shell) {
+        auto& env_vars = g_shell->get_env_vars();
+        env_vars[name] = value;
+
+        // Sync critical environment variables with the actual environment
+        if (name == "PATH" || name == "PWD" || name == "HOME" || name == "USER" ||
+            name == "SHELL") {
+            setenv(name.c_str(), value.c_str(), 1);
+        }
+
+        // Update shell parser with the new environment
+        auto* shell_parser = g_shell->get_parser();
+        if (shell_parser) {
+            shell_parser->set_env_vars(env_vars);
+        }
     }
 }
 

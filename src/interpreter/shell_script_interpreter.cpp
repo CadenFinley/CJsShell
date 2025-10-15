@@ -391,20 +391,8 @@ int ShellScriptInterpreter::handle_env_assignment(const std::vector<std::string>
             return 0;
         }
 
-        if (g_shell) {
-            auto& env_vars = g_shell->get_env_vars();
-            env_vars[var_name] = var_value;
-
-            if (var_name == "PATH" || var_name == "PWD" || var_name == "HOME" ||
-                var_name == "USER" || var_name == "SHELL") {
-                setenv(var_name.c_str(), var_value.c_str(), 1);
-            }
-
-            if (shell_parser) {
-                shell_parser->set_env_vars(env_vars);
-            }
-        }
-
+        // Use the variable manager to handle environment variable assignment
+        variable_manager.set_environment_variable(var_name, var_value);
         return 0;
     }
     return -1;
@@ -622,21 +610,18 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
 
     int last_code = 0;
 
-    auto handle_if_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
-        auto execute_block_wrapper = [&](const std::vector<std::string>& block_lines) -> int {
-            return execute_block(block_lines);
-        };
+    // Shared wrapper to execute block lines recursively
+    auto execute_block_wrapper = [&](const std::vector<std::string>& block_lines) -> int {
+        return execute_block(block_lines);
+    };
 
+    auto handle_if_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
         return conditional_evaluator::handle_if_block(src_lines, idx, execute_block_wrapper,
                                                       execute_simple_or_pipeline,
                                                       evaluate_logical_condition, shell_parser);
     };
 
     auto handle_for_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
-        auto execute_block_wrapper = [&](const std::vector<std::string>& block_lines) -> int {
-            return execute_block(block_lines);
-        };
-
         return loop_evaluator::handle_for_block(src_lines, idx, execute_block_wrapper,
                                                 shell_parser);
     };
@@ -766,19 +751,11 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
     };
 
     auto handle_while_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
-        auto execute_block_wrapper = [&](const std::vector<std::string>& block_lines) -> int {
-            return execute_block(block_lines);
-        };
-
         return loop_evaluator::handle_while_block(src_lines, idx, execute_block_wrapper,
                                                   execute_simple_or_pipeline, shell_parser);
     };
 
     auto handle_until_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
-        auto execute_block_wrapper = [&](const std::vector<std::string>& block_lines) -> int {
-            return execute_block(block_lines);
-        };
-
         return loop_evaluator::handle_until_block(src_lines, idx, execute_block_wrapper,
                                                   execute_simple_or_pipeline, shell_parser);
     };
@@ -1670,21 +1647,13 @@ std::string ShellScriptInterpreter::expand_parameter_expression(const std::strin
         return variable_manager.get_variable_value(name);
     };
 
-    auto var_writer = [](const std::string& name, const std::string& value) {
+    auto var_writer = [this](const std::string& name, const std::string& value) {
         if (readonly_manager_is(name)) {
             std::cerr << "cjsh: " << name << ": readonly variable" << '\n';
             return;
         }
 
-        if (g_shell) {
-            auto& env_vars = g_shell->get_env_vars();
-            env_vars[name] = value;
-
-            if (name == "PATH" || name == "PWD" || name == "HOME" || name == "USER" ||
-                name == "SHELL") {
-                setenv(name.c_str(), value.c_str(), 1);
-            }
-        }
+        variable_manager.set_environment_variable(name, value);
     };
 
     auto var_checker = [this](const std::string& name) -> bool {
