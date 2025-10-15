@@ -7,6 +7,7 @@
 
 #include "cjsh_filesystem.h"
 #include "error_out.h"
+#include "parser/quote_info.h"
 
 namespace {
 
@@ -42,29 +43,6 @@ bool parse_number(const std::string& str, size_t& pos, int& number) {
 
 bool HistoryExpansion::is_word_char(char c) {
     return std::isalnum(c) || c == '_' || c == '-' || c == '.' || c == '/';
-}
-
-bool HistoryExpansion::is_inside_quotes(const std::string& text, size_t pos) {
-    bool in_single = false;
-    bool in_double = false;
-    bool escaped = false;
-
-    for (size_t i = 0; i < pos && i < text.length(); ++i) {
-        if (escaped) {
-            escaped = false;
-            continue;
-        }
-
-        if (text[i] == '\\') {
-            escaped = true;
-        } else if (text[i] == '\'' && !in_double) {
-            in_single = !in_single;
-        } else if (text[i] == '"' && !in_single) {
-            in_double = !in_double;
-        }
-    }
-
-    return in_single || in_double;
 }
 
 std::vector<std::string> HistoryExpansion::split_into_words(const std::string& command) {

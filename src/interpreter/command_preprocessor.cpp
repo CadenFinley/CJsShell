@@ -2,6 +2,8 @@
 
 #include <limits>
 
+#include "parser/quote_info.h"
+
 CommandPreprocessor::PreprocessedCommand CommandPreprocessor::preprocess(
     const std::string& command) {
     PreprocessedCommand result;
@@ -195,27 +197,4 @@ size_t CommandPreprocessor::find_matching_brace(const std::string& text, size_t 
     }
 
     return std::string::npos;
-}
-
-bool CommandPreprocessor::is_inside_quotes(const std::string& text, size_t pos) {
-    bool in_single = false;
-    bool in_double = false;
-    bool escaped = false;
-
-    for (size_t i = 0; i < pos && i < text.length(); ++i) {
-        if (escaped) {
-            escaped = false;
-            continue;
-        }
-
-        if (text[i] == '\\') {
-            escaped = true;
-        } else if (text[i] == '\'' && !in_double) {
-            in_single = !in_single;
-        } else if (text[i] == '"' && !in_single) {
-            in_double = !in_double;
-        }
-    }
-
-    return in_single || in_double;
 }

@@ -42,7 +42,6 @@ class HistoryExpansion {
 
     static std::vector<std::string> split_into_words(const std::string& command);
     static bool is_word_char(char c);
-    static bool is_inside_quotes(const std::string& text, size_t pos);
     static std::string get_word_from_command(const std::string& command, int word_index);
     static std::string get_words_range(const std::string& command, int start, int end);
 };

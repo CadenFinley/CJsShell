@@ -27,7 +27,5 @@ class CommandPreprocessor {
 
     static size_t find_matching_brace(const std::string& text, size_t start_pos);
 
-    static bool is_inside_quotes(const std::string& text, size_t pos);
-
     static std::uint32_t next_placeholder_id();
 };

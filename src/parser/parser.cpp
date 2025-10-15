@@ -991,37 +991,14 @@ std::vector<Command> Parser::parse_pipeline_with_preprocessing(const std::string
             return;
         }
 
-        auto is_inside_quotes = [&text](size_t pos) {
-            bool in_single = false;
-            bool in_double = false;
-            bool escaped = false;
-
-            for (size_t i = 0; i < pos && i < text.length(); ++i) {
-                if (escaped) {
-                    escaped = false;
-                    continue;
-                }
-
-                if (text[i] == '\\') {
-                    escaped = true;
-                } else if (text[i] == '\'' && !in_double) {
-                    in_single = !in_single;
-                } else if (text[i] == '"' && !in_single) {
-                    in_double = !in_double;
-                }
-            }
-
-            return in_single || in_double;
-        };
-
-        auto find_matching_brace = [&text, &is_inside_quotes](size_t start_pos) {
+        auto find_matching_brace = [&text](size_t start_pos) {
             if (start_pos >= text.length() || text[start_pos] != '{') {
                 return std::string::npos;
             }
 
             int depth = 0;
             for (size_t i = start_pos; i < text.length(); ++i) {
-                if (is_inside_quotes(i)) {
+                if (is_inside_quotes(text, i)) {
                     continue;
                 }
 

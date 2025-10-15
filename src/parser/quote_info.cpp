@@ -10,6 +10,29 @@ std::string create_quote_tag(char quote_type, const std::string& content) {
     return std::string(1, QUOTE_PREFIX) + quote_type + content;
 }
 
+bool is_inside_quotes(const std::string& text, size_t pos) {
+    bool in_single = false;
+    bool in_double = false;
+    bool escaped = false;
+
+    for (size_t i = 0; i < pos && i < text.length(); ++i) {
+        if (escaped) {
+            escaped = false;
+            continue;
+        }
+
+        if (text[i] == '\\') {
+            escaped = true;
+        } else if (text[i] == '\'' && !in_double) {
+            in_single = !in_single;
+        } else if (text[i] == '"' && !in_single) {
+            in_double = !in_double;
+        }
+    }
+
+    return in_single || in_double;
+}
+
 QuoteInfo::QuoteInfo(const std::string& token)
     : is_single(is_single_quoted_token(token)),
       is_double(is_double_quoted_token(token)),
