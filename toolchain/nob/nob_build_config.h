@@ -14,8 +14,8 @@ static const Build_Config build_config = {
     .module_directories =
         (const char*[]){"src/builtin", "src/prompt", "src/prompt/modules", "src/interpreter",
                         "src/utils", "src/parser", "src/unicode", "src/syntax_highlighter",
-                        "src/completions"},
-    .module_directories_count = 9,
+                        "src/completions", "src/builtin/cjshopt"},
+    .module_directories_count = 10,
 
     .isocline_c_sources = (const char*[]){"src/isocline/attr.c",
                                           "src/isocline/bbcode.c",
@@ -44,8 +44,8 @@ static const Build_Config build_config = {
         (const char*[]){"include", "include/isocline", "include/builtin", "include/utils",
                         "include/prompt", "include/prompt/modules", "include/interpreter",
                         "include/parser", "include/unicode", "include/syntax_highlighter",
-                        "include/completions"},
-    .include_directories_count = 11,
+                        "include/completions", "include/builtin/cjshopt"},
+    .include_directories_count = 12,
 
     .c_include_directories = (const char*[]){"include", "include/isocline"},
     .c_include_directories_count = 2,
