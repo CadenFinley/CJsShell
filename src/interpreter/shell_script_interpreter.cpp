@@ -696,6 +696,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
             continue;
         }
 
+        std::string trimmed_line = trim(line);
+        bool is_function_def = false;
         if (line.find("()") != std::string::npos && line.find('{') != std::string::npos) {
             is_function_def = true;
         } else if (trimmed_line.rfind("function", 0) == 0 && trimmed_line.length() > 8 &&
