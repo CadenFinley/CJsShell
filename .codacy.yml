@@ -8,40 +8,69 @@ engines:
       - performance
       - portability
       - style
+      - warning
+      - error
+      - information
       - memleak
+      - unusedFunction
+    exclude_patterns: []
+  
+  clang-tidy:
+    enabled: true
+    language: cpp
+    patterns:
+      - bugprone
+      - cert
+      - cppcoreguidelines
+      - modernize
+      - performance
+      - readability
 
 metrics:
   complexity:
     cyclomatic:
-      warning: 10
-      error: 15
+      warning: 5
+      error: 10
     cognitive:
-      warning: 15
-      error: 20
+      warning: 8
+      error: 12
     max_function_length:
-      warning: 100
-      error: 200
+      warning: 50
+      error: 100
     max_file_length:
-      warning: 1000
-      error: 1500
+      warning: 500
+      error: 800
+    max_parameters:
+      warning: 4
+      error: 6
+    max_nesting_depth:
+      warning: 3
+      error: 4
 
 duplication:
-  min_tokens: 30
+  min_tokens: 20
+  min_lines: 3
 
 style:
-  line_length: 100
+  line_length: 80
   indent_size: 2
   naming_conventions:
     function: snake_case
     variable: snake_case
     class: PascalCase
     constant: UPPER_CASE
+  enforce_braces: true
+  trailing_whitespace: error
 
 coverage:
-  overall: 80
-  per_file: 70
+  overall: 85
+  per_file: 75
+  branch_coverage: 80
 
 exclude_paths:
   - plugins/**
   - themes/**
   - toolchain/*.py
+  - vendor/**
+  - build/**
+  - docs/**
