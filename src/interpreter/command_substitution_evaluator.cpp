@@ -264,3 +264,18 @@ CommandSubstitutionEvaluator::ExpansionResult CommandSubstitutionEvaluator::expa
 
     return result;
 }
+
+std::optional<size_t> CommandSubstitutionEvaluator::find_matching_paren(const std::string& text,
+                                                                        size_t start_index) {
+    int depth = 1;
+    for (size_t i = start_index; i < text.size(); ++i) {
+        if (text[i] == '(') {
+            depth++;
+        } else if (text[i] == ')') {
+            depth--;
+            if (depth == 0)
+                return i;
+        }
+    }
+    return std::nullopt;
+}

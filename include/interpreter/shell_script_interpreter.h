@@ -172,19 +172,10 @@ class ShellScriptInterpreter {
     int execute_function_call(const std::vector<std::string>& expanded_args);
     int handle_env_assignment(const std::vector<std::string>& expanded_args);
 
-    struct CommandSubstitutionExpansion {
-        std::string text;
-        std::vector<std::string> outputs;
-    };
-
     size_t current_line_number = 1;
 
     bool should_interpret_as_cjsh_script(const std::string& path) const;
-    static std::optional<size_t> find_matching_paren(const std::string& text, size_t start_index);
-    CommandSubstitutionExpansion expand_command_substitutions(const std::string& input) const;
-    std::string simplify_parentheses_in_condition(
-        const std::string& condition,
-        const std::function<int(const std::string&)>& evaluator) const;
+
     int evaluate_logical_condition_internal(const std::string& condition,
                                             const std::function<int(const std::string&)>& executor);
 

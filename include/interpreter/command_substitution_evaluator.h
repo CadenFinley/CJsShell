@@ -14,6 +14,8 @@ class CommandSubstitutionEvaluator {
     ExpansionResult expand_substitutions(const std::string& input);
     std::string capture_command_output(const std::string& command);
 
+    static std::optional<size_t> find_matching_paren(const std::string& text, size_t start_index);
+
    private:
     bool find_matching_delimiter(const std::string& text, size_t start, char open_char,
                                  char close_char, size_t& end_out);

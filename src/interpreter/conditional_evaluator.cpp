@@ -913,4 +913,241 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
     return body_rc;
 }
 
+std::string simplify_parentheses_in_condition(
+    const std::string& condition, const std::function<int(const std::string&)>& evaluator) {
+    std::string result = condition;
+
+    while (true) {
+        size_t start = std::string::npos;
+        size_t end = std::string::npos;
+        int depth = 0;
+        bool in_quotes = false;
+        char quote_char = '\0';
+        bool escaped = false;
+
+        for (size_t i = 0; i < result.length(); ++i) {
+            char c = result[i];
+
+            if (escaped) {
+                escaped = false;
+                continue;
+            }
+
+            if (c == '\\') {
+                escaped = true;
+                continue;
+            }
+
+            if (!in_quotes) {
+                if (c == '"' || c == '\'' || c == '`') {
+                    in_quotes = true;
+                    quote_char = c;
+                    continue;
+                }
+                if (c == '(') {
+                    if (depth == 0) {
+                        start = i;
+                    }
+                    depth++;
+                } else if (c == ')') {
+                    if (depth > 0) {
+                        depth--;
+                        if (depth == 0 && start != std::string::npos) {
+                            end = i;
+                            break;
+                        }
+                    }
+                }
+            } else {
+                if (c == quote_char) {
+                    in_quotes = false;
+                    quote_char = '\0';
+                }
+            }
+        }
+
+        if (start == std::string::npos || end == std::string::npos) {
+            break;
+        }
+
+        std::string inner = result.substr(start + 1, end - start - 1);
+        int inner_result = evaluator(inner);
+        std::string replacement = (inner_result == 0) ? "true" : "false";
+
+        std::string temp = result.substr(0, start);
+        temp.append(replacement);
+        temp.append(result.substr(end + 1));
+        result = std::move(temp);
+    }
+
+    return result;
+}
+
+int evaluate_logical_condition(const std::string& condition,
+                               const std::function<int(const std::string&)>& executor) {
+    std::string cond = trim(condition);
+    if (cond.empty())
+        return 1;
+
+    // Simplify parentheses first
+    std::function<int(const std::string&)> self_eval = [&](const std::string& inner) -> int {
+        return evaluate_logical_condition(inner, executor);
+    };
+
+    cond = simplify_parentheses_in_condition(cond, self_eval);
+
+    // Check for logical operators at top level
+    bool has_logical_ops = false;
+    bool in_quotes = false;
+    char quote_char = '\0';
+    bool escaped = false;
+    int bracket_depth = 0;
+    int paren_depth = 0;
+
+    for (size_t i = 0; i + 1 < cond.length(); ++i) {
+        char c = cond[i];
+
+        if (escaped) {
+            escaped = false;
+            continue;
+        }
+
+        if (c == '\\') {
+            escaped = true;
+            continue;
+        }
+
+        if (!in_quotes) {
+            if (c == '"' || c == '\'' || c == '`') {
+                in_quotes = true;
+                quote_char = c;
+                continue;
+            }
+            if (c == '[') {
+                bracket_depth++;
+            } else if (c == ']') {
+                bracket_depth--;
+            } else if (c == '(') {
+                paren_depth++;
+            } else if (c == ')') {
+                paren_depth--;
+            }
+        } else {
+            if (c == quote_char) {
+                in_quotes = false;
+                quote_char = '\0';
+            }
+            continue;
+        }
+
+        if (!in_quotes && bracket_depth == 0 && paren_depth == 0) {
+            if ((cond[i] == '&' && cond[i + 1] == '&') || (cond[i] == '|' && cond[i + 1] == '|')) {
+                has_logical_ops = true;
+                break;
+            }
+        }
+    }
+
+    // If no logical operators, execute directly
+    if (!has_logical_ops) {
+        return executor(cond);
+    }
+
+    // Parse into parts with && and ||
+    std::vector<std::pair<std::string, std::string>> parts;
+    std::string current_part;
+    in_quotes = false;
+    quote_char = '\0';
+    escaped = false;
+    bracket_depth = 0;
+    paren_depth = 0;
+
+    for (size_t i = 0; i < cond.length(); ++i) {
+        char c = cond[i];
+
+        if (escaped) {
+            current_part += c;
+            escaped = false;
+            continue;
+        }
+
+        if (c == '\\') {
+            escaped = true;
+            current_part += c;
+            continue;
+        }
+
+        if (!in_quotes) {
+            if (c == '"' || c == '\'' || c == '`') {
+                in_quotes = true;
+                quote_char = c;
+                current_part += c;
+                continue;
+            }
+            if (c == '[') {
+                bracket_depth++;
+            } else if (c == ']') {
+                bracket_depth--;
+            } else if (c == '(') {
+                paren_depth++;
+            } else if (c == ')') {
+                paren_depth--;
+            }
+        } else {
+            if (c == quote_char) {
+                in_quotes = false;
+                quote_char = '\0';
+            }
+            current_part += c;
+            continue;
+        }
+
+        if (!in_quotes && bracket_depth == 0 && paren_depth == 0 && i + 1 < cond.length()) {
+            if (cond[i] == '&' && cond[i + 1] == '&') {
+                parts.push_back({trim(current_part), "&&"});
+                current_part.clear();
+                ++i;
+                continue;
+            }
+            if (cond[i] == '|' && cond[i + 1] == '|') {
+                parts.push_back({trim(current_part), "||"});
+                current_part.clear();
+                ++i;
+                continue;
+            }
+        }
+
+        current_part += c;
+    }
+
+    if (!current_part.empty()) {
+        parts.push_back({trim(current_part), ""});
+    }
+
+    if (parts.empty())
+        return 1;
+
+    // Evaluate parts with short-circuit logic
+    int result = executor(parts[0].first);
+
+    for (size_t i = 1; i < parts.size(); ++i) {
+        const std::string& op = parts[i - 1].second;
+        const std::string& cond_part = parts[i].first;
+
+        if (op == "&&") {
+            if (result != 0) {
+                break;  // Short-circuit on &&
+            }
+        } else if (op == "||") {
+            if (result == 0) {
+                break;  // Short-circuit on ||
+            }
+        }
+
+        result = executor(cond_part);
+    }
+
+    return result;
+}
+
 }  // namespace conditional_evaluator
