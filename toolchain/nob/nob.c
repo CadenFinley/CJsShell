@@ -130,16 +130,12 @@ int main(int argc, char** argv) {
         char* arg = nob_shift_args(&argc, &argv);
         if (strcmp(arg, "--help") == 0 || strcmp(arg, "-h") == 0) {
             help = true;
-        } else if (strcmp(arg, "--version") == 0 || strcmp(arg, "-v") == 0) {
-            version = true;
         } else if (strcmp(arg, "--clean") == 0) {
             clean_requested = true;
         } else if (strcmp(arg, "--debug") == 0) {
             debug = true;
         } else if (strcmp(arg, "--minimal") == 0) {
             minimal = true;
-        } else if (strcmp(arg, "--force-32bit") == 0) {
-            force_32bit = true;
         } else if (strcmp(arg, "--no-compile-commands") == 0) {
             generate_compile_commands = false;
         } else if (strcmp(arg, "--asm") == 0) {
@@ -179,15 +175,9 @@ int main(int argc, char** argv) {
         nob_log(NOB_INFO,
                 "Minimal build requested: compiling with ultra-aggressive size optimizations");
     }
-    (void)force_32bit;
 
     if (help) {
         print_help();
-        return 0;
-    }
-
-    if (version) {
-        print_version();
         return 0;
     }
 
