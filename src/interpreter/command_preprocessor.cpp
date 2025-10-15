@@ -2,7 +2,7 @@
 
 #include <limits>
 
-#include "parser/quote_info.h"
+#include "parser/parser_utils.h"
 
 CommandPreprocessor::PreprocessedCommand CommandPreprocessor::preprocess(
     const std::string& command) {
@@ -149,52 +149,4 @@ std::uint32_t CommandPreprocessor::next_placeholder_id() {
         counter = 0;
     }
     return ++counter;
-}
-
-size_t CommandPreprocessor::find_matching_paren(const std::string& text, size_t start_pos) {
-    if (start_pos >= text.length() || text[start_pos] != '(') {
-        return std::string::npos;
-    }
-
-    int depth = 0;
-    for (size_t i = start_pos; i < text.length(); ++i) {
-        if (is_inside_quotes(text, i)) {
-            continue;
-        }
-
-        if (text[i] == '(') {
-            depth++;
-        } else if (text[i] == ')') {
-            depth--;
-            if (depth == 0) {
-                return i;
-            }
-        }
-    }
-
-    return std::string::npos;
-}
-
-size_t CommandPreprocessor::find_matching_brace(const std::string& text, size_t start_pos) {
-    if (start_pos >= text.length() || text[start_pos] != '{') {
-        return std::string::npos;
-    }
-
-    int depth = 0;
-    for (size_t i = start_pos; i < text.length(); ++i) {
-        if (is_inside_quotes(text, i)) {
-            continue;
-        }
-
-        if (text[i] == '{') {
-            depth++;
-        } else if (text[i] == '}') {
-            depth--;
-            if (depth == 0) {
-                return i;
-            }
-        }
-    }
-
-    return std::string::npos;
 }

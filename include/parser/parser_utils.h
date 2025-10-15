@@ -15,3 +15,5 @@ std::pair<std::string, bool> strip_noenv_sentinels(const std::string& s);
 bool strip_subst_literal_markers(std::string& value);
 bool is_char_escaped(const char* str, size_t pos);
 bool is_char_escaped(const std::string& str, size_t pos);
+size_t find_matching_paren(const std::string& text, size_t start_pos);
+size_t find_matching_brace(const std::string& text, size_t start_pos);

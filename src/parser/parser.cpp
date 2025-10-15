@@ -980,32 +980,8 @@ std::vector<Command> Parser::parse_pipeline_with_preprocessing(const std::string
             return;
         }
 
-        auto find_matching_brace = [&text](size_t start_pos) {
-            if (start_pos >= text.length() || text[start_pos] != '{') {
-                return std::string::npos;
-            }
-
-            int depth = 0;
-            for (size_t i = start_pos; i < text.length(); ++i) {
-                if (is_inside_quotes(text, i)) {
-                    continue;
-                }
-
-                if (text[i] == '{') {
-                    depth++;
-                } else if (text[i] == '}') {
-                    depth--;
-                    if (depth == 0) {
-                        return i;
-                    }
-                }
-            }
-
-            return std::string::npos;
-        };
-
         size_t brace_pos = lead + marker.size() - 1;
-        size_t close_pos = find_matching_brace(brace_pos);
+        size_t close_pos = find_matching_brace(text, brace_pos);
         if (close_pos == std::string::npos) {
             return;
         }

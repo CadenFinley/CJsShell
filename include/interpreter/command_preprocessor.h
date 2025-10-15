@@ -23,9 +23,5 @@ class CommandPreprocessor {
 
     static std::string generate_placeholder();
 
-    static size_t find_matching_paren(const std::string& text, size_t start_pos);
-
-    static size_t find_matching_brace(const std::string& text, size_t start_pos);
-
     static std::uint32_t next_placeholder_id();
 };

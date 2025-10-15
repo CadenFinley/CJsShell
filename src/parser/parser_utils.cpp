@@ -1,4 +1,5 @@
 #include "parser/parser_utils.h"
+#include "parser/quote_info.h"
 
 #include <cctype>
 
@@ -111,4 +112,52 @@ bool is_char_escaped(const char* str, size_t pos) {
 
 bool is_char_escaped(const std::string& str, size_t pos) {
     return is_char_escaped(str.c_str(), pos);
+}
+
+size_t find_matching_paren(const std::string& text, size_t start_pos) {
+    if (start_pos >= text.length() || text[start_pos] != '(') {
+        return std::string::npos;
+    }
+
+    int depth = 0;
+    for (size_t i = start_pos; i < text.length(); ++i) {
+        if (is_inside_quotes(text, i)) {
+            continue;
+        }
+
+        if (text[i] == '(') {
+            depth++;
+        } else if (text[i] == ')') {
+            depth--;
+            if (depth == 0) {
+                return i;
+            }
+        }
+    }
+
+    return std::string::npos;
+}
+
+size_t find_matching_brace(const std::string& text, size_t start_pos) {
+    if (start_pos >= text.length() || text[start_pos] != '{') {
+        return std::string::npos;
+    }
+
+    int depth = 0;
+    for (size_t i = start_pos; i < text.length(); ++i) {
+        if (is_inside_quotes(text, i)) {
+            continue;
+        }
+
+        if (text[i] == '{') {
+            depth++;
+        } else if (text[i] == '}') {
+            depth--;
+            if (depth == 0) {
+                return i;
+            }
+        }
+    }
+
+    return std::string::npos;
 }
