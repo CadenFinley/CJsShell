@@ -12,6 +12,7 @@
 #include <vector>
 
 using shell_script_interpreter::detail::process_line_for_validation;
+using shell_script_interpreter::detail::should_skip_line;
 using shell_script_interpreter::detail::strip_inline_comment;
 using shell_script_interpreter::detail::trim;
 

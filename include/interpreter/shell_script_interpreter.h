@@ -161,13 +161,6 @@ class ShellScriptInterpreter {
     int set_last_status(int code);
     int run_pipeline(const std::vector<Command>& cmds);
 
-    int handle_memory_allocation_error(const std::string& text);
-    int handle_system_error(const std::string& text, const std::system_error& e);
-    int handle_runtime_error(const std::string& text, const std::runtime_error& e,
-                             size_t line_number);
-    int handle_generic_exception(const std::string& text, const std::exception& e);
-    int handle_unknown_error(const std::string& text);
-
     int execute_subshell(const std::string& subshell_content);
     int execute_function_call(const std::vector<std::string>& expanded_args);
     int handle_env_assignment(const std::vector<std::string>& expanded_args);
@@ -190,9 +183,6 @@ class ShellScriptInterpreter {
     int process_function_definition_line(const std::string& line,
                                          const std::vector<std::string>& lines, size_t& line_index,
                                          std::string& remaining_line);
-
-    static bool is_control_flow_exit_code(int code);
-    static bool should_skip_line(const std::string& line);
 
     struct BlockHandlerResult {
         bool handled;

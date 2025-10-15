@@ -36,11 +36,13 @@
 #include "readonly_command.h"
 #include "shell.h"
 #include "shell_script_interpreter_utils.h"
-#include "suggestion_utils.h"
 #include "theme.h"
 
+using shell_script_interpreter::detail::contains_token;
+using shell_script_interpreter::detail::is_control_flow_exit_code;
 using shell_script_interpreter::detail::is_readable_file;
 using shell_script_interpreter::detail::process_line_for_validation;
+using shell_script_interpreter::detail::should_skip_line;
 using shell_script_interpreter::detail::strip_inline_comment;
 using shell_script_interpreter::detail::to_lower_copy;
 using shell_script_interpreter::detail::trim;
@@ -49,160 +51,6 @@ ShellScriptInterpreter::ShellScriptInterpreter() : shell_parser(nullptr) {
 }
 
 ShellScriptInterpreter::~ShellScriptInterpreter() = default;
-
-int ShellScriptInterpreter::handle_memory_allocation_error(const std::string& text) {
-    std::vector<SyntaxError> errors;
-    SyntaxError error(1, "Memory allocation failed", text);
-    error.severity = ErrorSeverity::ERROR;
-    error.category = ErrorCategory::COMMANDS;
-    error.error_code = "MEM001";
-    error.suggestion = "Command may be too complex or system is low on memory";
-    errors.push_back(error);
-
-    shell_script_interpreter::print_error_report(errors, true, true);
-    return set_last_status(3);
-}
-
-int ShellScriptInterpreter::handle_system_error(const std::string& text,
-                                                const std::system_error& e) {
-    std::vector<SyntaxError> errors;
-    SyntaxError error(1, "System error: " + std::string(e.what()), text);
-    error.severity = ErrorSeverity::ERROR;
-    error.category = ErrorCategory::COMMANDS;
-    error.error_code = "SYS001";
-    error.suggestion = "Check system resources and permissions";
-    errors.push_back(error);
-
-    shell_script_interpreter::print_error_report(errors, true, true);
-    return set_last_status(4);
-}
-
-int ShellScriptInterpreter::handle_runtime_error(const std::string& text,
-                                                 const std::runtime_error& e, size_t line_number) {
-    std::vector<SyntaxError> errors;
-    size_t normalized_line = line_number == 0 ? 1 : line_number;
-    SyntaxError error(normalized_line, e.what(), text);
-    std::string error_msg = e.what();
-
-    if (error_msg.find("command not found: ") != std::string::npos) {
-        size_t pos = error_msg.find("command not found: ");
-        if (pos != std::string::npos) {
-            std::string command_name = error_msg.substr(pos + 19);
-            auto suggestions = suggestion_utils::generate_command_suggestions(command_name);
-
-            error.message = "cjsh: command not found: " + command_name;
-            error.severity = ErrorSeverity::ERROR;
-            error.category = ErrorCategory::COMMANDS;
-            error.error_code = "RUN001";
-
-            if (!suggestions.empty()) {
-                std::string suggestion_text;
-                std::vector<std::string> commands;
-
-                for (const auto& suggestion : suggestions) {
-                    if (suggestion.find("Did you mean") != std::string::npos) {
-                        size_t start = suggestion.find("'");
-                        if (start != std::string::npos) {
-                            start++;
-                            size_t end = suggestion.find("'", start);
-                            if (end != std::string::npos) {
-                                commands.push_back(suggestion.substr(start, end - start));
-                            }
-                        }
-                    }
-                }
-
-                if (!commands.empty()) {
-                    suggestion_text = "Did you mean: ";
-                    for (size_t i = 0; i < commands.size(); ++i) {
-                        suggestion_text += commands[i];
-                        if (i < commands.size() - 1) {
-                            suggestion_text += ", ";
-                        }
-                    }
-                    suggestion_text += "?";
-                } else {
-                    suggestion_text = suggestions.empty()
-                                          ? "Check command syntax and system resources"
-                                          : suggestions[0];
-                }
-
-                error.suggestion = suggestion_text;
-            } else {
-                error.suggestion = "Check command syntax and system resources";
-            }
-        } else {
-            error.severity = ErrorSeverity::ERROR;
-            error.category = ErrorCategory::COMMANDS;
-            error.error_code = "RUN001";
-            error.suggestion = "Check command syntax and system resources";
-        }
-
-        error.position.line_number = normalized_line;
-        errors.push_back(error);
-        shell_script_interpreter::print_error_report(errors, true, true);
-        return set_last_status(127);
-    }
-
-    if (error_msg.find("Unclosed quote") != std::string::npos ||
-        error_msg.find("missing closing") != std::string::npos ||
-        error_msg.find("syntax error near unexpected token") != std::string::npos) {
-        error.severity = ErrorSeverity::ERROR;
-        error.category = ErrorCategory::SYNTAX;
-        error.error_code = "SYN001";
-        if (error_msg.find("syntax error near unexpected token") != std::string::npos) {
-            error.suggestion = "Check for incomplete redirections or missing command arguments";
-        } else {
-            error.suggestion = "Make sure all quotes are properly closed";
-        }
-    } else if (error_msg.find("Failed to open") != std::string::npos ||
-               error_msg.find("Failed to redirect") != std::string::npos ||
-               error_msg.find("Failed to write") != std::string::npos) {
-        error.severity = ErrorSeverity::ERROR;
-        error.category = ErrorCategory::REDIRECTION;
-        error.error_code = "IO001";
-        error.suggestion = "Check file permissions and paths";
-    } else {
-        error.severity = ErrorSeverity::ERROR;
-        error.category = ErrorCategory::COMMANDS;
-        error.error_code = "RUN001";
-        error.suggestion = "Check command syntax and system resources";
-    }
-
-    error.position.line_number = normalized_line;
-    errors.push_back(error);
-    shell_script_interpreter::print_error_report(errors, true, true);
-    return set_last_status(2);
-}
-
-int ShellScriptInterpreter::handle_generic_exception(const std::string& text,
-                                                     const std::exception& e) {
-    std::vector<SyntaxError> errors;
-    SyntaxError error(1, "Unexpected error: " + std::string(e.what()), text);
-    error.severity = ErrorSeverity::ERROR;
-    error.category = ErrorCategory::COMMANDS;
-    error.error_code = "UNK001";
-    error.suggestion =
-        "An unexpected error occurred, please report this as an issue, and how to replicate it.";
-    errors.push_back(error);
-
-    shell_script_interpreter::print_error_report(errors, true, true);
-    return set_last_status(5);
-}
-
-int ShellScriptInterpreter::handle_unknown_error(const std::string& text) {
-    std::vector<SyntaxError> errors;
-    SyntaxError error(1, "Unknown error occurred", text);
-    error.severity = ErrorSeverity::ERROR;
-    error.category = ErrorCategory::COMMANDS;
-    error.error_code = "UNK002";
-    error.suggestion =
-        "An unexpected error occurred, please report this as an issue, and how to replicate it.";
-    errors.push_back(error);
-
-    shell_script_interpreter::print_error_report(errors, true, true);
-    return set_last_status(6);
-}
 
 int ShellScriptInterpreter::execute_subshell(const std::string& subshell_content) {
     pid_t pid = fork();
@@ -500,15 +348,15 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                 return 0;
             return run_pipeline(cmds);
         } catch (const std::bad_alloc& e) {
-            return handle_memory_allocation_error(text);
+            return shell_script_interpreter::handle_memory_allocation_error(text);
         } catch (const std::system_error& e) {
-            return handle_system_error(text, e);
+            return shell_script_interpreter::handle_system_error(text, e);
         } catch (const std::runtime_error& e) {
-            return handle_runtime_error(text, e, current_line_number);
+            return shell_script_interpreter::handle_runtime_error(text, e, current_line_number);
         } catch (const std::exception& e) {
-            return handle_generic_exception(text, e);
+            return shell_script_interpreter::handle_generic_exception(text, e);
         } catch (...) {
-            return handle_unknown_error(text);
+            return shell_script_interpreter::handle_unknown_error(text);
         }
     };
 
@@ -707,25 +555,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                 pipe_search_pos = pipe_pos + 1;
                 continue;
             }
-
-            auto contains_token = [](const std::string& text, const std::string& token) {
-                if (text.empty()) {
-                    return false;
-                }
-                std::string normalized;
-                normalized.reserve(text.size());
-                for (char ch : text) {
-                    normalized.push_back((ch == ';') ? ' ' : ch);
-                }
-                std::istringstream iss(normalized);
-                std::string word;
-                while (iss >> word) {
-                    if (word == token) {
-                        return true;
-                    }
-                }
-                return false;
-            };
 
             size_t gather_index = line_index;
             int loop_depth = 0;
@@ -1377,15 +1206,6 @@ ShellScriptInterpreter::BlockHandlerResult ShellScriptInterpreter::try_dispatch_
     }
 
     return {false, 0, line_index};
-}
-
-bool ShellScriptInterpreter::is_control_flow_exit_code(int code) {
-    return code == exit_break || code == exit_continue || code == exit_return;
-}
-
-bool ShellScriptInterpreter::should_skip_line(const std::string& line) {
-    return line == "fi" || line == "then" || line == "else" || line == "done" || line == "esac" ||
-           line == "}" || line == ";;";
 }
 
 std::string ShellScriptInterpreter::expand_all_substitutions(

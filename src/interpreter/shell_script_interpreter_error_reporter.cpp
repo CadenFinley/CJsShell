@@ -8,7 +8,13 @@
 #include <sstream>
 #include <vector>
 
+#include "suggestion_utils.h"
+
 namespace shell_script_interpreter {
+
+using ErrorSeverity = ShellScriptInterpreter::ErrorSeverity;
+using ErrorCategory = ShellScriptInterpreter::ErrorCategory;
+using SyntaxError = ShellScriptInterpreter::SyntaxError;
 
 namespace {
 
@@ -452,6 +458,163 @@ void print_runtime_error(const std::string& error_message, const std::string& co
 }
 
 void reset_error_count() {
+}
+
+int handle_memory_allocation_error(const std::string& text) {
+    std::vector<SyntaxError> errors;
+    SyntaxError error(1, "Memory allocation failed", text);
+    error.severity = ErrorSeverity::ERROR;
+    error.category = ErrorCategory::COMMANDS;
+    error.error_code = "MEM001";
+    error.suggestion = "Command may be too complex or system is low on memory";
+    errors.push_back(error);
+
+    print_error_report(errors, true, true);
+    setenv("?", "3", 1);
+    return 3;
+}
+
+int handle_system_error(const std::string& text, const std::system_error& e) {
+    std::vector<SyntaxError> errors;
+    SyntaxError error(1, "System error: " + std::string(e.what()), text);
+    error.severity = ErrorSeverity::ERROR;
+    error.category = ErrorCategory::COMMANDS;
+    error.error_code = "SYS001";
+    error.suggestion = "Check system resources and permissions";
+    errors.push_back(error);
+
+    print_error_report(errors, true, true);
+    setenv("?", "4", 1);
+    return 4;
+}
+
+int handle_runtime_error(const std::string& text, const std::runtime_error& e, size_t line_number) {
+    std::vector<SyntaxError> errors;
+    size_t normalized_line = line_number == 0 ? 1 : line_number;
+    SyntaxError error(normalized_line, e.what(), text);
+    std::string error_msg = e.what();
+
+    if (error_msg.find("command not found: ") != std::string::npos) {
+        size_t pos = error_msg.find("command not found: ");
+        if (pos != std::string::npos) {
+            std::string command_name = error_msg.substr(pos + 19);
+            auto suggestions = suggestion_utils::generate_command_suggestions(command_name);
+
+            error.message = "cjsh: command not found: " + command_name;
+            error.severity = ErrorSeverity::ERROR;
+            error.category = ErrorCategory::COMMANDS;
+            error.error_code = "RUN001";
+
+            if (!suggestions.empty()) {
+                std::string suggestion_text;
+                std::vector<std::string> commands;
+
+                for (const auto& suggestion : suggestions) {
+                    if (suggestion.find("Did you mean") != std::string::npos) {
+                        size_t start = suggestion.find("'");
+                        if (start != std::string::npos) {
+                            start++;
+                            size_t end = suggestion.find("'", start);
+                            if (end != std::string::npos) {
+                                commands.push_back(suggestion.substr(start, end - start));
+                            }
+                        }
+                    }
+                }
+
+                if (!commands.empty()) {
+                    suggestion_text = "Did you mean: ";
+                    for (size_t i = 0; i < commands.size(); ++i) {
+                        suggestion_text += commands[i];
+                        if (i < commands.size() - 1) {
+                            suggestion_text += ", ";
+                        }
+                    }
+                    suggestion_text += "?";
+                } else {
+                    suggestion_text = suggestions.empty()
+                                          ? "Check command syntax and system resources"
+                                          : suggestions[0];
+                }
+
+                error.suggestion = suggestion_text;
+            } else {
+                error.suggestion = "Check command syntax and system resources";
+            }
+        } else {
+            error.severity = ErrorSeverity::ERROR;
+            error.category = ErrorCategory::COMMANDS;
+            error.error_code = "RUN001";
+            error.suggestion = "Check command syntax and system resources";
+        }
+
+        error.position.line_number = normalized_line;
+        errors.push_back(error);
+        print_error_report(errors, true, true);
+        setenv("?", "127", 1);
+        return 127;
+    }
+
+    if (error_msg.find("Unclosed quote") != std::string::npos ||
+        error_msg.find("missing closing") != std::string::npos ||
+        error_msg.find("syntax error near unexpected token") != std::string::npos) {
+        error.severity = ErrorSeverity::ERROR;
+        error.category = ErrorCategory::SYNTAX;
+        error.error_code = "SYN001";
+        if (error_msg.find("syntax error near unexpected token") != std::string::npos) {
+            error.suggestion = "Check for incomplete redirections or missing command arguments";
+        } else {
+            error.suggestion = "Make sure all quotes are properly closed";
+        }
+    } else if (error_msg.find("Failed to open") != std::string::npos ||
+               error_msg.find("Failed to redirect") != std::string::npos ||
+               error_msg.find("Failed to write") != std::string::npos) {
+        error.severity = ErrorSeverity::ERROR;
+        error.category = ErrorCategory::REDIRECTION;
+        error.error_code = "IO001";
+        error.suggestion = "Check file permissions and paths";
+    } else {
+        error.severity = ErrorSeverity::ERROR;
+        error.category = ErrorCategory::COMMANDS;
+        error.error_code = "RUN001";
+        error.suggestion = "Check command syntax and system resources";
+    }
+
+    error.position.line_number = normalized_line;
+    errors.push_back(error);
+    print_error_report(errors, true, true);
+    setenv("?", "2", 1);
+    return 2;
+}
+
+int handle_generic_exception(const std::string& text, const std::exception& e) {
+    std::vector<SyntaxError> errors;
+    SyntaxError error(1, "Unexpected error: " + std::string(e.what()), text);
+    error.severity = ErrorSeverity::ERROR;
+    error.category = ErrorCategory::COMMANDS;
+    error.error_code = "UNK001";
+    error.suggestion =
+        "An unexpected error occurred, please report this as an issue, and how to replicate it.";
+    errors.push_back(error);
+
+    print_error_report(errors, true, true);
+    setenv("?", "5", 1);
+    return 5;
+}
+
+int handle_unknown_error(const std::string& text) {
+    std::vector<SyntaxError> errors;
+    SyntaxError error(1, "Unknown error occurred", text);
+    error.severity = ErrorSeverity::ERROR;
+    error.category = ErrorCategory::COMMANDS;
+    error.error_code = "UNK002";
+    error.suggestion =
+        "An unexpected error occurred, please report this as an issue, and how to replicate it.";
+    errors.push_back(error);
+
+    print_error_report(errors, true, true);
+    setenv("?", "6", 1);
+    return 6;
 }
 
 }  // namespace shell_script_interpreter

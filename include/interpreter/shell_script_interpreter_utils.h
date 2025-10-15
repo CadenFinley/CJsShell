@@ -12,4 +12,8 @@ std::vector<std::string> split_ampersand(const std::string& s);
 std::string to_lower_copy(std::string value);
 bool is_readable_file(const std::string& path);
 
+bool is_control_flow_exit_code(int code);
+bool should_skip_line(const std::string& line);
+bool contains_token(const std::string& text, const std::string& token);
+
 }  // namespace shell_script_interpreter::detail

@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <sstream>
 #include <vector>
 
 namespace shell_script_interpreter::detail {
@@ -162,6 +163,34 @@ std::string to_lower_copy(std::string value) {
 bool is_readable_file(const std::string& path) {
     struct stat st{};
     return ::stat(path.c_str(), &st) == 0 && S_ISREG(st.st_mode) && access(path.c_str(), R_OK) == 0;
+}
+
+bool is_control_flow_exit_code(int code) {
+    return code == 253 || code == 254 || code == 255;
+}
+
+bool should_skip_line(const std::string& line) {
+    return line == "fi" || line == "then" || line == "else" || line == "done" || line == "esac" ||
+           line == "}" || line == ";;";
+}
+
+bool contains_token(const std::string& text, const std::string& token) {
+    if (text.empty()) {
+        return false;
+    }
+    std::string normalized;
+    normalized.reserve(text.size());
+    for (char ch : text) {
+        normalized.push_back((ch == ';') ? ' ' : ch);
+    }
+    std::istringstream iss(normalized);
+    std::string word;
+    while (iss >> word) {
+        if (word == token) {
+            return true;
+        }
+    }
+    return false;
 }
 
 }  // namespace shell_script_interpreter::detail
