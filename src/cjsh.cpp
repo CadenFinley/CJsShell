@@ -69,6 +69,9 @@ bool no_prompt = false;
 bool history_expansion_enabled = true;
 }  // namespace config
 
+// TODO
+//  add function keyword
+
 static void save_startup_arguments(int argc, char* argv[]) {
     g_startup_args.clear();
     for (int i = 0; i < argc; i++) {
