@@ -55,18 +55,7 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
             char c = data[i];
 
             if (c == '"' || c == '\'') {
-                size_t backslash_count = 0;
-                for (size_t j = i; j > 0; --j) {
-                    if (data[j - 1] == '\\') {
-                        backslash_count++;
-                    } else {
-                        break;
-                    }
-                }
-
-                bool is_escaped = (backslash_count % 2) == 1;
-
-                if (!is_escaped) {
+                if (!is_char_escaped(data, i)) {
                     if (!in_quotes) {
                         in_quotes = true;
                         quote = c;

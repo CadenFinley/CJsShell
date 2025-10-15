@@ -8,6 +8,8 @@
 #include <sstream>
 #include <vector>
 
+#include "parser_utils.h"
+
 namespace shell_script_interpreter::detail {
 
 std::string trim(const std::string& s) {
@@ -42,18 +44,7 @@ std::string strip_inline_comment(const std::string& s) {
         }
 
         if (c == '"' || c == '\'') {
-            size_t backslash_count = 0;
-            for (size_t j = i; j > 0; --j) {
-                if (s[j - 1] == '\\') {
-                    backslash_count++;
-                } else {
-                    break;
-                }
-            }
-
-            bool is_escaped = (backslash_count % 2) == 1;
-
-            if (!is_escaped) {
+            if (!is_char_escaped(s, i)) {
                 if (!in_quotes) {
                     in_quotes = true;
                     quote = c;
