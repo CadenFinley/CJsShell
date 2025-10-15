@@ -1,5 +1,9 @@
 #include "shell_script_interpreter_utils.h"
 
+#include <sys/stat.h>
+#include <unistd.h>
+
+#include <algorithm>
 #include <cctype>
 #include <vector>
 
@@ -147,6 +151,17 @@ std::vector<std::string> split_ampersand(const std::string& s) {
     if (!tail.empty())
         parts.push_back(tail);
     return parts;
+}
+
+std::string to_lower_copy(std::string value) {
+    std::transform(value.begin(), value.end(), value.begin(),
+                   [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+    return value;
+}
+
+bool is_readable_file(const std::string& path) {
+    struct stat st{};
+    return ::stat(path.c_str(), &st) == 0 && S_ISREG(st.st_mode) && access(path.c_str(), R_OK) == 0;
 }
 
 }  // namespace shell_script_interpreter::detail
