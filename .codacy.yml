@@ -1,5 +1,4 @@
 ---
-# .codacy.yml
 engines:
   cppcheck:
     language: cpp
