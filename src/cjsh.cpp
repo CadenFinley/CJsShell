@@ -210,7 +210,6 @@ static void start_interactive_process() {
     }
 
     if (cjsh_filesystem::is_first_boot()) {
-        // std::cout << " Thank you for installing CJ's Shell!" << '\n';
         std::cout << '\n';
         std::cout << " Type 'help' to see available commands and options." << '\n';
         if (!cjsh_filesystem::file_exists(cjsh_filesystem::g_cjsh_source_path)) {
@@ -291,10 +290,6 @@ void cleanup_resources() {
     if (g_shell) {
         g_shell.reset();
     }
-
-    if (config::interactive_mode) {
-        std::cerr << "Shutdown complete." << '\n';
-    }
 }
 
 int main(int argc, char* argv[]) {
@@ -328,6 +323,13 @@ int main(int argc, char* argv[]) {
     }
 
     g_shell = std::make_unique<Shell>();
+    if (!g_shell) {
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "",
+                     "Failed to initialize shell",
+                     {"Insufficient memory or system resources"}});
+        return 1;
+    }
 
     if (!script_args.empty()) {
         g_shell->set_positional_parameters(script_args);
@@ -336,9 +338,7 @@ int main(int argc, char* argv[]) {
     cjsh_env::setup_environment_variables(argv[0]);
     save_startup_arguments(argc, argv);
 
-    if (g_shell) {
-        g_shell->sync_env_vars_from_system();
-    }
+    g_shell->sync_env_vars_from_system();
 
     if (config::login_mode) {
         int login_result = initialize_login_mode();
@@ -379,10 +379,9 @@ int main(int argc, char* argv[]) {
 
     g_startup_active = false;
     if (!g_exit_flag && (config::interactive_mode || config::force_interactive)) {
+        // MAIN PROCESS LOOP
         start_interactive_process();
     }
-
-    std::cerr << "Cleaning up resources." << '\n';
 
     const char* exit_code_str = getenv("EXIT_CODE");
     int exit_code = 0;
