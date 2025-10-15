@@ -697,6 +697,14 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
         }
 
         if (line.find("()") != std::string::npos && line.find('{') != std::string::npos) {
+            is_function_def = true;
+        } else if (trimmed_line.rfind("function", 0) == 0 && trimmed_line.length() > 8 &&
+                   std::isspace(static_cast<unsigned char>(trimmed_line[8])) &&
+                   line.find('{') != std::string::npos) {
+            is_function_def = true;
+        }
+
+        if (is_function_def) {
             auto parse_result = function_evaluator::parse_and_register_functions(
                 line, lines, line_index, functions, trim, strip_inline_comment);
 
@@ -784,27 +792,53 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
 
                     std::string t = trim(strip_inline_comment(cmd_text));
 
-                    if (t.find("()") != std::string::npos && t.find('{') != std::string::npos) {
+                    bool is_inline_function = false;
+                    std::string func_name;
+                    size_t brace_pos = t.find('{');
+
+                    if (t.rfind("function", 0) == 0 && t.length() > 8 &&
+                        std::isspace(static_cast<unsigned char>(t[8])) &&
+                        brace_pos != std::string::npos) {
+                        size_t name_start = 8;
+                        while (name_start < t.length() &&
+                               std::isspace(static_cast<unsigned char>(t[name_start]))) {
+                            name_start++;
+                        }
+                        if (name_start < t.length()) {
+                            size_t name_end = name_start;
+                            while (name_end < t.length() &&
+                                   !std::isspace(static_cast<unsigned char>(t[name_end])) &&
+                                   t[name_end] != '(' && t[name_end] != '{') {
+                                name_end++;
+                            }
+                            func_name = t.substr(name_start, name_end - name_start);
+                            is_inline_function = true;
+                        }
+                    }
+
+                    if (!is_inline_function && t.find("()") != std::string::npos &&
+                        brace_pos != std::string::npos) {
                         size_t name_end = t.find("()");
-                        size_t brace_pos = t.find('{');
                         if (name_end != std::string::npos && brace_pos != std::string::npos &&
                             name_end < brace_pos) {
-                            std::string func_name = trim(t.substr(0, name_end));
-                            if (!func_name.empty() && func_name.find(' ') == std::string::npos) {
-                                std::vector<std::string> body_lines;
-                                std::string after_brace = trim(t.substr(brace_pos + 1));
-                                if (!after_brace.empty()) {
-                                    size_t end_brace = after_brace.find('}');
-                                    if (end_brace != std::string::npos) {
-                                        std::string body_part =
-                                            trim(after_brace.substr(0, end_brace));
-                                        if (!body_part.empty())
-                                            body_lines.push_back(body_part);
-                                        functions[func_name] = body_lines;
-                                        last_code = 0;
-                                        continue;
-                                    }
-                                }
+                            func_name = trim(t.substr(0, name_end));
+                            is_inline_function = true;
+                        }
+                    }
+
+                    if (is_inline_function && !func_name.empty() &&
+                        func_name.find(' ') == std::string::npos) {
+                        std::vector<std::string> body_lines;
+                        std::string after_brace = trim(t.substr(brace_pos + 1));
+                        if (!after_brace.empty()) {
+                            size_t end_brace = after_brace.find('}');
+                            if (end_brace != std::string::npos) {
+                                std::string body_part = trim(after_brace.substr(0, end_brace));
+                                if (!body_part.empty())
+                                    body_lines.push_back(body_part);
+                                functions[func_name] = body_lines;
+                                last_code = 0;
+                                continue;
                             }
                         }
                     }
