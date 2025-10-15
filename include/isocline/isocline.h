@@ -128,6 +128,20 @@ char* ic_read_heredoc(const char* delimiter, bool strip_tabs);
 /// @returns true if the buffer was successfully set, false if no readline operation is active.
 bool ic_set_buffer(const char* buffer);
 
+/// Get the current input buffer content.
+/// This function can only be called while a readline operation is active.
+/// The returned string is valid until the next edit operation or until readline returns.
+/// @returns A pointer to the current buffer content, or NULL if no readline operation is active.
+///          The returned string should NOT be freed by the caller.
+const char* ic_get_buffer(void);
+
+/// Get the current cursor position in the input buffer.
+/// This function can only be called while a readline operation is active.
+/// @param out_pos Pointer to receive the cursor position (byte offset from start of buffer).
+/// @returns true if the position was successfully retrieved, false if no readline operation is
+/// active.
+bool ic_get_cursor_pos(size_t* out_pos);
+
 /// Reset and refresh the current readline loop with optional new content.
 /// This function reprints the prompt and input, optionally updating the buffer, prompt, or inline
 /// right text. Can only be called while a readline operation is active.

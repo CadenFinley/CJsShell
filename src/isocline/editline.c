@@ -2175,6 +2175,25 @@ ic_public bool ic_set_buffer(const char* buffer) {
     return true;
 }
 
+ic_public const char* ic_get_buffer(void) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL || env->current_editor == NULL)
+        return NULL;
+
+    editor_t* eb = env->current_editor;
+    return sbuf_string(eb->input);
+}
+
+ic_public bool ic_get_cursor_pos(size_t* out_pos) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL || env->current_editor == NULL || out_pos == NULL)
+        return false;
+
+    editor_t* eb = env->current_editor;
+    *out_pos = (size_t)(eb->pos >= 0 ? eb->pos : 0);
+    return true;
+}
+
 ic_public bool ic_current_loop_reset(const char* new_buffer, const char* new_prompt,
                                      const char* new_inline_right) {
     ic_env_t* env = ic_get_env();
