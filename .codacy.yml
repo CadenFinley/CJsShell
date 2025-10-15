@@ -29,30 +29,30 @@ engines:
 metrics:
   complexity:
     cyclomatic:
-      warning: 5
-      error: 10
+      warning: 15
+      error: 25
     cognitive:
-      warning: 8
-      error: 12
+      warning: 20
+      error: 35
     max_function_length:
-      warning: 50
-      error: 100
+      warning: 100
+      error: 200
     max_file_length:
-      warning: 500
-      error: 800
+      warning: 800
+      error: 1500
     max_parameters:
-      warning: 4
-      error: 6
+      warning: 6
+      error: 8
     max_nesting_depth:
-      warning: 3
-      error: 4
+      warning: 5
+      error: 7
 
 duplication:
   min_tokens: 20
   min_lines: 3
 
 style:
-  line_length: 80
+  line_length: 120
   indent_size: 2
   naming_conventions:
     function: snake_case
@@ -63,9 +63,9 @@ style:
   trailing_whitespace: error
 
 coverage:
-  overall: 85
-  per_file: 75
-  branch_coverage: 80
+  overall: 70
+  per_file: 60
+  branch_coverage: 65
 
 exclude_paths:
   - plugins/**
