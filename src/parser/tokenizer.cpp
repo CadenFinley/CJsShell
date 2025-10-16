@@ -7,12 +7,30 @@
 #include "parser/parser_utils.h"
 #include "parser/quote_info.h"
 #include "shell.h"
+namespace {
+inline bool is_whitespace(char c) {
+    return c == ' ' || c == '\t' || c == '\n' || c == '\r';
+}
+
+// Future optimization: Lookup table for special characters
+// This can be used to quickly determine if a character needs special handling
+// #include <array>
+// constexpr std::array<bool, 256> create_special_char_table() {
+//     std::array<bool, 256> table{};
+//     table['$'] = table['\\'] = table['"'] = table['\''] = true;
+//     table['('] = table[')'] = table['<'] = table['>'] = true;
+//     table['&'] = table['|'] = table['{'] = table['}'] = true;
+//     table['['] = table[']'] = true;
+//     return table;
+// }
+// constexpr auto SPECIAL_CHARS = create_special_char_table();
+}
 
 std::vector<std::string> Tokenizer::tokenize_command(const std::string& cmdline) {
     std::vector<std::string> tokens;
-    tokens.reserve(8);
+    tokens.reserve(std::min(cmdline.length() / 4 + 4, size_t(64)));
     std::string current_token;
-    current_token.reserve(64);
+    current_token.reserve(128);
     bool in_quotes = false;
     char quote_char = '\0';
     bool escaped = false;
@@ -67,7 +85,6 @@ std::vector<std::string> Tokenizer::tokenize_command(const std::string& cmdline)
 
         char c = cmdline[i];
 
-        // When inside substitution literal markers, just accumulate characters without processing
         if (in_subst_literal) {
             current_token += c;
             continue;
@@ -114,7 +131,7 @@ std::vector<std::string> Tokenizer::tokenize_command(const std::string& cmdline)
                 current_token += c;
             }
 
-            else if (std::isspace(c) != 0) {
+            else if (is_whitespace(c)) {
                 if ((!current_token.empty() || token_saw_single || token_saw_double) &&
                     arith_depth == 0 && brace_depth == 0) {
                     flush_current_token();

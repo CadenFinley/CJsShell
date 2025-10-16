@@ -72,7 +72,8 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
     };
 
     std::vector<std::string> lines;
-    lines.reserve(4);
+    
+    lines.reserve(std::min(script.length() / 40 + 2, size_t(32)));
     size_t start = 0;
     bool in_quotes = false;
     char quote_char = '\0';
@@ -85,7 +86,8 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
     std::string here_doc_delimiter;
     here_doc_delimiter.reserve(32);
     std::string here_doc_content;
-    here_doc_content.reserve(256);
+    
+    here_doc_content.reserve(512);
     std::string current_here_doc_line;
     current_here_doc_line.reserve(128);
 

@@ -167,8 +167,7 @@ bool ArithmeticEvaluator::is_space(char c) {
 
 std::vector<ArithmeticEvaluator::Token> ArithmeticEvaluator::tokenize(const std::string& expr) {
     std::vector<Token> tokens;
-    
-    tokens.reserve(expr.size() / 2 + 1);
+    tokens.reserve(expr.size() / 3 + 8);
     
     bool expect_number = true;
 
