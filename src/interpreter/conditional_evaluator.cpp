@@ -222,7 +222,7 @@ std::optional<ExpandedSingleLineIf> expand_single_line_if(const std::string& lin
     return ExpandedSingleLineIf{std::move(block_lines), trailing};
 }
 
-}  
+}  // namespace
 
 namespace conditional_evaluator {
 
@@ -379,11 +379,8 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                 search_pos++;
             }
 
-            
-            
             bool has_top_level_elif = false;
             if (fi_pos != std::string::npos) {
-                
                 size_t check_pos = 0;
                 int nested_depth = 0;
                 bool check_in_quotes = false;
@@ -507,16 +504,14 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                     }
                 }
 
-                
-                
                 if (body_rc != 253 && body_rc != 254 && body_rc != 255 && !g_exit_flag) {
-                    size_t after_fi_pos = fi_pos + 2;  
+                    size_t after_fi_pos = fi_pos + 2;
                     while (after_fi_pos < rem.length() &&
                            std::isspace(static_cast<unsigned char>(rem[after_fi_pos])) != 0) {
                         after_fi_pos++;
                     }
                     if (after_fi_pos < rem.length() && rem[after_fi_pos] == ';') {
-                        after_fi_pos++;  
+                        after_fi_pos++;
                         while (after_fi_pos < rem.length() &&
                                std::isspace(static_cast<unsigned char>(rem[after_fi_pos])) != 0) {
                             after_fi_pos++;
@@ -525,7 +520,6 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                     if (after_fi_pos < rem.length()) {
                         std::string after_commands = trim(rem.substr(after_fi_pos));
                         if (!after_commands.empty()) {
-                            
                             auto after_cmds =
                                 shell_parser->parse_semicolon_commands(after_commands);
                             for (const auto& c : after_cmds) {
@@ -596,7 +590,6 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
             bool condition_met = false;
 
             while (pos < remaining.length()) {
-                
                 size_t elif_pos = remaining.find("; elif ", pos);
                 if (elif_pos == std::string::npos) {
                     size_t elif_semi = remaining.find("; elif;", pos);
@@ -645,25 +638,23 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                         }
                     }
 
-                    
-                    size_t skip_len = 7;  
+                    size_t skip_len = 7;
                     if (elif_pos != std::string::npos && elif_pos + 6 < remaining.length() &&
                         remaining[elif_pos + 6] == ';') {
-                        skip_len = 6;  
+                        skip_len = 6;
                     }
 
                     pos = next_pos + skip_len;
                     size_t elif_then = remaining.find("; then", pos);
                     if (elif_then == std::string::npos) {
-                        
                         elif_then = remaining.find(";then", pos);
                     }
                     if (elif_then != std::string::npos) {
                         std::string elif_cond = trim(remaining.substr(pos, elif_then - pos));
-                        
+
                         if (elif_cond.empty()) {
                             idx = 0;
-                            return 2;  
+                            return 2;
                         }
                         int elif_result = evaluate_logical_condition(elif_cond);
 
@@ -743,9 +734,7 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
         }
     }
 
-    
-    std::vector<std::pair<std::vector<std::string>, std::vector<std::string>>>
-        elif_branches;  
+    std::vector<std::pair<std::vector<std::string>, std::vector<std::string>>> elif_branches;
     std::vector<std::string> current_elif_cond;
     std::vector<std::string> current_elif_body;
     bool in_elif = false;
@@ -756,9 +745,7 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
         const std::string& cur_raw = src_lines[k];
         std::string cur = trim(strip_inline_comment(cur_raw));
 
-        
         if (depth == 1 && (cur == "elif" || cur.rfind("elif ", 0) == 0)) {
-            
             if (in_elif_body && !current_elif_cond.empty()) {
                 elif_branches.push_back({current_elif_cond, current_elif_body});
             }
@@ -769,20 +756,17 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
             current_elif_cond.clear();
             current_elif_body.clear();
 
-            
             std::string elif_cond;
             if (cur.rfind("elif ", 0) == 0) {
                 elif_cond = trim(cur.substr(5));
             }
 
-            
             auto then_pos = elif_cond.find("; then");
             if (then_pos == std::string::npos) {
                 then_pos = elif_cond.find(";then");
             }
 
             if (then_pos != std::string::npos) {
-                
                 current_elif_cond.push_back(trim(elif_cond.substr(0, then_pos)));
                 in_elif = false;
                 in_elif_body = true;
@@ -800,11 +784,9 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
             if (cur.rfind("if ", 0) == 0 || cur == "if") {
                 depth++;
             } else if (depth == 1 && in_elif) {
-                
                 in_elif = false;
                 in_elif_body = true;
 
-                
                 auto then_pos = cur.find("; then");
                 if (then_pos == std::string::npos) {
                     then_pos = cur.find(";then");
@@ -823,7 +805,6 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
             if (depth == 0)
                 break;
         } else if (depth == 1 && cur == "else") {
-            
             if (in_elif_body && !current_elif_cond.empty()) {
                 elif_branches.push_back({current_elif_cond, current_elif_body});
                 current_elif_cond.clear();
@@ -847,10 +828,8 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
 
         if (depth > 0) {
             if (in_elif) {
-                
                 current_elif_cond.push_back(cur_raw);
             } else if (in_elif_body) {
-                
                 current_elif_body.push_back(cur_raw);
             } else if (!in_else) {
                 then_lines.push_back(cur_raw);
@@ -861,7 +840,6 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
         k++;
     }
 
-    
     if (in_elif_body && !current_elif_cond.empty()) {
         elif_branches.push_back({current_elif_cond, current_elif_body});
     }
@@ -876,9 +854,7 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
         body_rc = execute_block(then_lines);
         condition_met = true;
     } else {
-        
         for (const auto& elif_branch : elif_branches) {
-            
             std::string elif_cond_str;
             for (const auto& line : elif_branch.first) {
                 if (!elif_cond_str.empty()) {
@@ -887,10 +863,9 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                 elif_cond_str += trim(strip_inline_comment(line));
             }
 
-            
             if (elif_cond_str.empty()) {
                 idx = k;
-                return 2;  
+                return 2;
             }
 
             int elif_rc = evaluate_logical_condition(elif_cond_str);
@@ -901,7 +876,6 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
             }
         }
 
-        
         if (!condition_met && !else_lines.empty()) {
             body_rc = execute_block(else_lines);
         }
@@ -1044,12 +1018,10 @@ int evaluate_logical_condition(const std::string& condition,
         }
     }
 
-    
     if (!has_logical_ops) {
         return executor(cond);
     }
 
-    
     std::vector<std::pair<std::string, std::string>> parts;
     std::string current_part;
     in_quotes = false;
@@ -1123,7 +1095,6 @@ int evaluate_logical_condition(const std::string& condition,
     if (parts.empty())
         return 1;
 
-    
     int result = executor(parts[0].first);
 
     for (size_t i = 1; i < parts.size(); ++i) {
@@ -1132,11 +1103,11 @@ int evaluate_logical_condition(const std::string& condition,
 
         if (op == "&&") {
             if (result != 0) {
-                break;  
+                break;
             }
         } else if (op == "||") {
             if (result == 0) {
-                break;  
+                break;
             }
         }
 
@@ -1146,4 +1117,4 @@ int evaluate_logical_condition(const std::string& condition,
     return result;
 }
 
-}  
+}  // namespace conditional_evaluator

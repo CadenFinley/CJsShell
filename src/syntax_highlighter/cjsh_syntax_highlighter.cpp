@@ -160,7 +160,7 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
                 handled_first_token = true;
             }
 
-            if (!handled_first_token && config::history_expansion_enabled && !token.empty() && 
+            if (!handled_first_token && config::history_expansion_enabled && !token.empty() &&
                 (token[0] == '!' || (token[0] == '^' && cmd_start == 0))) {
                 handled_first_token = true;
             }
@@ -191,12 +191,11 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
                 handled_first_token = true;
             }
 
-            if (!handled_first_token && g_shell != nullptr &&
-                g_shell->get_interactive_mode()) {
+            if (!handled_first_token && g_shell != nullptr && g_shell->get_interactive_mode()) {
                 const auto& abbreviations = g_shell->get_abbreviations();
                 if (abbreviations.find(token) != abbreviations.end()) {
-                    ic_highlight(henv, static_cast<long>(cmd_start),
-                                 static_cast<long>(token_end), "cjsh-builtin");
+                    ic_highlight(henv, static_cast<long>(cmd_start), static_cast<long>(token_end),
+                                 "cjsh-builtin");
                     handled_first_token = true;
                 }
             }

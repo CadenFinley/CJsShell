@@ -55,7 +55,6 @@ std::string VariableExpander::resolve_parameter_value(const std::string& var_nam
     }
 
     if (var_name == "$") {
-        
         static const std::string cached_pid = std::to_string(getpid());
         return cached_pid;
     }
@@ -158,7 +157,7 @@ std::string VariableExpander::resolve_parameter_value(const std::string& var_nam
 
 void VariableExpander::expand_env_vars(std::string& arg) {
     std::string result;
-    
+
     result.reserve(arg.length() * 2);
     bool in_var = false;
     std::string var_name;
@@ -538,8 +537,6 @@ void VariableExpander::expand_command_redirection_paths(Command& cmd) {
     expand_vars_in_path(cmd.both_output_file);
 
     for (auto& fd_redir : cmd.fd_redirections) {
-        
-        
         std::string& spec = fd_redir.second;
         if (spec.rfind("input:", 0) == 0) {
             std::string path = spec.substr(6);
@@ -550,7 +547,6 @@ void VariableExpander::expand_command_redirection_paths(Command& cmd) {
             expand_vars_in_path(path);
             spec = "output:" + path;
         } else {
-            
             expand_vars_in_path(spec);
         }
     }

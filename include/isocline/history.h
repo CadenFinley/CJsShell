@@ -19,9 +19,9 @@ struct history_s;
 typedef struct history_s history_t;
 
 typedef struct history_snapshot_s {
-  char** entries;
-  ssize_t count;
-  ssize_t capacity;
+    char** entries;
+    ssize_t count;
+    ssize_t capacity;
 } history_snapshot_t;
 
 ic_private history_t* history_new(alloc_t* mem);

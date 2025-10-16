@@ -24,7 +24,7 @@ inline bool is_whitespace(char c) {
 //     return table;
 // }
 // constexpr auto SPECIAL_CHARS = create_special_char_table();
-}
+}  // namespace
 
 std::vector<std::string> Tokenizer::tokenize_command(const std::string& cmdline) {
     std::vector<std::string> tokens;
@@ -146,8 +146,7 @@ std::vector<std::string> Tokenizer::tokenize_command(const std::string& cmdline)
                 current_token += c;
             }
 
-            else if (c == ')' && i + 1 < cmdline_len && cmdline[i + 1] == ')' &&
-                     arith_depth > 0) {
+            else if (c == ')' && i + 1 < cmdline_len && cmdline[i + 1] == ')' && arith_depth > 0) {
                 arith_depth--;
                 current_token += c;
                 current_token += cmdline[i + 1];

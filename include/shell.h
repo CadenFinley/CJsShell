@@ -110,8 +110,7 @@ class Shell {
         }
     }
 
-    void set_abbreviations(
-        const std::unordered_map<std::string, std::string>& new_abbreviations);
+    void set_abbreviations(const std::unordered_map<std::string, std::string>& new_abbreviations);
 
     void set_env_vars(const std::unordered_map<std::string, std::string>& new_env_vars) {
         env_vars = new_env_vars;

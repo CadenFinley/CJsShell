@@ -14,7 +14,7 @@ ExpansionEngine::ExpansionEngine(Shell* shell) : shell(shell) {
 
 std::vector<std::string> ExpansionEngine::expand_braces(const std::string& pattern) {
     std::vector<std::string> result;
-    
+
     result.reserve(8);
 
     size_t open_pos = pattern.find('{');
@@ -57,7 +57,6 @@ std::vector<std::string> ExpansionEngine::expand_braces(const std::string& patte
         std::string start_str = content.substr(0, range_pos);
         std::string end_str = content.substr(range_pos + 2);
 
-        
         auto is_numeric = [](const std::string& str) {
             if (str.empty())
                 return false;
@@ -85,13 +84,11 @@ std::vector<std::string> ExpansionEngine::expand_braces(const std::string& patte
             return result;
         }
 
-        
         if (start_str.length() == 1 && end_str.length() == 1 && (std::isalpha(start_str[0]) != 0) &&
             (std::isalpha(end_str[0]) != 0)) {
             char start_char = start_str[0];
             char end_char = end_str[0];
 
-            
             bool both_lower = std::islower(start_char) && std::islower(end_char);
             bool both_upper = std::isupper(start_char) && std::isupper(end_char);
 
@@ -107,8 +104,6 @@ std::vector<std::string> ExpansionEngine::expand_braces(const std::string& patte
             }
         }
 
-        
-        
         result.push_back(pattern);
         return result;
     }
@@ -145,7 +140,7 @@ std::vector<std::string> ExpansionEngine::expand_braces(const std::string& patte
 
 std::vector<std::string> ExpansionEngine::expand_wildcards(const std::string& pattern) {
     std::vector<std::string> result;
-    
+
     result.reserve(4);
 
     if (shell != nullptr && shell->get_shell_option("noglob")) {
@@ -257,7 +252,6 @@ void ExpansionEngine::expand_range(T start, T end, const std::string& prefix,
         }
     }
 }
-
 
 template void ExpansionEngine::expand_range<int>(int start, int end, const std::string& prefix,
                                                  const std::string& suffix,

@@ -9,11 +9,10 @@
 #include <iostream>
 
 int abbr_command(const std::vector<std::string>& args, Shell* shell) {
-    if (builtin_handle_help(args,
-                            {"Usage: abbr [NAME=EXPANSION ...]",
-                             "List or define abbreviations.",
-                             "With no operands, display all abbreviations.",
-                             "NAME=EXPANSION defines an abbreviation, NAME shows its expansion."})) {
+    if (builtin_handle_help(
+            args, {"Usage: abbr [NAME=EXPANSION ...]", "List or define abbreviations.",
+                   "With no operands, display all abbreviations.",
+                   "NAME=EXPANSION defines an abbreviation, NAME shows its expansion."})) {
         return 0;
     }
 
@@ -83,8 +82,7 @@ int abbr_command(const std::vector<std::string>& args, Shell* shell) {
 
 int unabbr_command(const std::vector<std::string>& args, Shell* shell) {
     if (builtin_handle_help(args,
-                            {"Usage: unabbr NAME [NAME ...]",
-                             "Remove one or more abbreviations.",
+                            {"Usage: unabbr NAME [NAME ...]", "Remove one or more abbreviations.",
                              "Use 'abbr --help' to learn how to create abbreviations."})) {
         return 0;
     }
@@ -108,10 +106,7 @@ int unabbr_command(const std::vector<std::string>& args, Shell* shell) {
         if (it != abbreviations.end()) {
             abbreviations.erase(it);
         } else {
-            print_error({ErrorType::COMMAND_NOT_FOUND,
-                         "unabbr",
-                         name + ": not found",
-                         {}});
+            print_error({ErrorType::COMMAND_NOT_FOUND, "unabbr", name + ": not found", {}});
             success = false;
         }
     }

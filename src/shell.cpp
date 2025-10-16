@@ -86,21 +86,21 @@ bool resolves_to_executable(const std::string& name, const std::string& cwd) {
     while (start < path_str.size()) {
         size_t pos = path_str.find(':', start);
         size_t end = (pos != std::string::npos) ? pos : path_str.size();
-        
+
         std::string segment;
         if (end > start) {
             segment.assign(path_str, start, end - start);
         }
-        
+
         if (segment.empty()) {
             segment = ".";
         }
-        
+
         std::filesystem::path path_candidate = std::filesystem::path(segment) / name;
         if (check_path(path_candidate)) {
             return true;
         }
-        
+
         start = (pos != std::string::npos) ? pos + 1 : path_str.size();
     }
 
@@ -173,7 +173,8 @@ bool raw_mode_state_entered(const RawModeState* state) {
     return (state != nullptr) && state->entered;
 }
 
-void Shell::set_abbreviations(const std::unordered_map<std::string, std::string>& new_abbreviations) {
+void Shell::set_abbreviations(
+    const std::unordered_map<std::string, std::string>& new_abbreviations) {
     abbreviations = new_abbreviations;
     apply_abbreviations_to_line_editor();
 }

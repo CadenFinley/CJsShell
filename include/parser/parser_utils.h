@@ -15,13 +15,15 @@ std::pair<std::string, bool> strip_noenv_sentinels(const std::string& s);
 bool strip_subst_literal_markers(std::string& value);
 
 inline bool is_char_escaped(const char* str, size_t pos) {
-    if (pos == 0) return false;
+    if (pos == 0)
+        return false;
     size_t backslash_count = 0;
     size_t i = pos - 1;
     while (true) {
         if (str[i] == '\\') {
             ++backslash_count;
-            if (i == 0) break;
+            if (i == 0)
+                break;
             --i;
         } else {
             break;

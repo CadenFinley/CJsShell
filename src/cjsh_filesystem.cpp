@@ -291,15 +291,15 @@ bool build_executable_cache() {
 
     std::string path_str(path_env);
     std::vector<fs::path> executables;
-    
+
     size_t start = 0;
     while (start < path_str.size()) {
         size_t pos = path_str.find(':', start);
         size_t end = (pos != std::string::npos) ? pos : path_str.size();
-        
+
         if (end > start) {
             std::string dir(path_str, start, end - start);
-            
+
             if (!dir.empty()) {
                 fs::path directory_path(dir);
                 std::error_code ec;
@@ -315,8 +315,8 @@ bool build_executable_cache() {
                     continue;
                 }
 
-                fs::directory_iterator it(directory_path, fs::directory_options::skip_permission_denied,
-                                        ec);
+                fs::directory_iterator it(directory_path,
+                                          fs::directory_options::skip_permission_denied, ec);
                 if (ec) {
                     start = (pos != std::string::npos) ? pos + 1 : path_str.size();
                     continue;
@@ -348,7 +348,7 @@ bool build_executable_cache() {
                 }
             }
         }
-        
+
         start = (pos != std::string::npos) ? pos + 1 : path_str.size();
     }
 
