@@ -245,59 +245,64 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
 
     std::unordered_set<std::string> needed_vars;
 
-    // Track EXEC%%% commands separately for execution
     std::vector<std::tuple<std::string, std::string, int>> exec_commands;
 
-    for (const auto& segment : segments) {
-        if (!segment.content.empty()) {
-            std::string content = segment.content;
-
-            // First, look for EXEC%%% patterns
-            std::regex exec_pattern("\\{EXEC%%%([^%]+)%%%(-?[0-9]*)\\}");
-            std::smatch exec_matches;
-            std::string::const_iterator exec_search_start(content.cbegin());
-
-            while (
-                std::regex_search(exec_search_start, content.cend(), exec_matches, exec_pattern)) {
-                std::string full_match = exec_matches[0];
-                std::string command = exec_matches[1];
-                std::string cache_duration_str = exec_matches[2];
-                int cache_duration =
-                    cache_duration_str.empty() ? 30 : std::stoi(cache_duration_str);
-
-                exec_commands.emplace_back(full_match, command, cache_duration);
-                exec_search_start = exec_matches.suffix().first;
-            }
-
-            // Then look for regular placeholders
-            std::regex placeholder_pattern("\\{([^}]+)\\}");
-            std::smatch matches;
-            std::string::const_iterator search_start(content.cbegin());
-
-            while (std::regex_search(search_start, content.cend(), matches, placeholder_pattern)) {
-                std::string var_name = matches[1];
-
-                // Skip EXEC%%% patterns as they're already handled
-                if (var_name.find("EXEC%%%") == std::string::npos) {
-                    needed_vars.insert(var_name);
-                }
-
-                if (var_name.substr(0, 3) == "if ") {
-                    std::regex nested_var_pattern("\\{([A-Z_]+)\\}");
-                    std::smatch nested_matches;
-                    std::string conditional = matches[0];
-                    std::string::const_iterator nested_search_start(conditional.cbegin());
-
-                    while (std::regex_search(nested_search_start, conditional.cend(),
-                                             nested_matches, nested_var_pattern)) {
-                        needed_vars.insert(nested_matches[1]);
-                        nested_search_start = nested_matches.suffix().first;
-                    }
-                }
-
-                search_start = matches.suffix().first;
-            }
+    auto scan_for_placeholders = [&](const std::string& text) {
+        if (text.empty()) {
+            return;
         }
+
+        std::regex exec_pattern("\\{EXEC%%%([^%]+)%%%(-?[0-9]*)\\}");
+        std::smatch exec_matches;
+        std::string::const_iterator exec_search_start(text.cbegin());
+
+        while (std::regex_search(exec_search_start, text.cend(), exec_matches, exec_pattern)) {
+            std::string full_match = exec_matches[0];
+            std::string command = exec_matches[1];
+            std::string cache_duration_str = exec_matches[2];
+            int cache_duration = cache_duration_str.empty() ? 30 : std::stoi(cache_duration_str);
+
+            exec_commands.emplace_back(full_match, command, cache_duration);
+            exec_search_start = exec_matches.suffix().first;
+        }
+
+        std::regex placeholder_pattern("\\{([^}]+)\\}");
+        std::smatch matches;
+        std::string::const_iterator search_start(text.cbegin());
+
+        while (std::regex_search(search_start, text.cend(), matches, placeholder_pattern)) {
+            std::string var_name = matches[1];
+
+            if (var_name.find("EXEC%%%") == std::string::npos) {
+                needed_vars.insert(var_name);
+            }
+
+            if (var_name.substr(0, 3) == "if ") {
+                std::regex nested_var_pattern("\\{([A-Z_]+)\\}");
+                std::smatch nested_matches;
+                std::string conditional = matches[0];
+                std::string::const_iterator nested_search_start(conditional.cbegin());
+
+                while (std::regex_search(nested_search_start, conditional.cend(), nested_matches,
+                                         nested_var_pattern)) {
+                    needed_vars.insert(nested_matches[1]);
+                    nested_search_start = nested_matches.suffix().first;
+                }
+            }
+
+            search_start = matches.suffix().first;
+        }
+    };
+
+    for (const auto& segment : segments) {
+        scan_for_placeholders(segment.content);
+
+        scan_for_placeholders(segment.fg_color);
+        scan_for_placeholders(segment.bg_color);
+        scan_for_placeholders(segment.separator_fg);
+        scan_for_placeholders(segment.separator_bg);
+        scan_for_placeholders(segment.forward_separator_fg);
+        scan_for_placeholders(segment.forward_separator_bg);
     }
 
     std::vector<std::pair<std::string, std::string>> lang_dependencies = {
@@ -766,7 +771,6 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
         }
     }
 
-    // Execute EXEC%%% commands with caching
     static std::unordered_map<std::string,
                               std::pair<std::string, std::chrono::steady_clock::time_point>>
         exec_cache;
@@ -775,12 +779,10 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     for (const auto& [full_match, command, cache_duration] : exec_commands) {
         std::string cache_key = command + ":" + std::to_string(cache_duration);
 
-        // Check if we have a cached result that's still valid
         auto it = exec_cache.find(cache_key);
         bool use_cache = false;
 
         if (it != exec_cache.end()) {
-            // -1 means cache forever (permanent cache)
             if (cache_duration == -1) {
                 use_cache = true;
             } else {
@@ -797,20 +799,18 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
         if (use_cache) {
             result = exec_cache[cache_key].first;
         } else {
-            // Execute the command
             auto cmd_result = cjsh_filesystem::read_command_output(command);
             if (!cmd_result.is_error()) {
                 result = cmd_result.value();
-                // Remove trailing newline if present
+
                 if (!result.empty() && result.back() == '\n') {
                     result.pop_back();
                 }
             }
-            // Cache the result
+
             exec_cache[cache_key] = {result, exec_now};
         }
 
-        // Store in vars using the full match as the key (without braces)
         vars[full_match.substr(1, full_match.length() - 2)] = result;
     }
 
