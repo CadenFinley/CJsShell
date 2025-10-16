@@ -245,15 +245,18 @@ std::vector<std::string> Tokenizer::tokenize_command(const std::string& cmdline)
                         j++;
                     }
                     if (j > i + 1) {
-                        std::string merged = tokens.back();
+                        size_t merged_size = tokens.back().size() + 1 + (j - i - 1);
+                        std::string merged;
+                        merged.reserve(merged_size);
+                        merged = tokens.back();
                         merged += '&';
-                        merged += cmdline.substr(i + 1, j - (i + 1));
+                        merged.append(cmdline, i + 1, j - i - 1);
                         tokens.back() = std::move(merged);
                         i = j - 1;
                         continue;
                     }
                 }
-                tokens.push_back(std::string(1, c));
+                tokens.emplace_back(1, c);
             } else {
                 current_token += c;
             }

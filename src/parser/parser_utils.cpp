@@ -98,21 +98,7 @@ bool strip_subst_literal_markers(std::string& value) {
     return changed;
 }
 
-bool is_char_escaped(const char* str, size_t pos) {
-    size_t backslash_count = 0;
-    for (size_t j = pos; j > 0; --j) {
-        if (str[j - 1] == '\\') {
-            backslash_count++;
-        } else {
-            break;
-        }
-    }
-    return (backslash_count % 2) == 1;
-}
-
-bool is_char_escaped(const std::string& str, size_t pos) {
-    return is_char_escaped(str.c_str(), pos);
-}
+// is_char_escaped functions moved to inline in header
 
 size_t find_matching_paren(const std::string& text, size_t start_pos) {
     if (start_pos >= text.length() || text[start_pos] != '(') {

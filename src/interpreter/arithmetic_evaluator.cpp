@@ -197,7 +197,8 @@ std::vector<ArithmeticEvaluator::Token> ArithmeticEvaluator::tokenize(const std:
                 }
             }
 
-            std::string num_str = expr.substr(i, j - i);
+            std::string num_str;
+            num_str.assign(expr, i, j - i);
             char* endptr = nullptr;
             long long val = std::strtoll(num_str.c_str(), &endptr, 0);
             if (endptr == num_str.c_str()) {
@@ -216,12 +217,13 @@ std::vector<ArithmeticEvaluator::Token> ArithmeticEvaluator::tokenize(const std:
                    (std::isalnum(static_cast<unsigned char>(expr[j])) != 0 || expr[j] == '_')) {
                 ++j;
             }
-            std::string name = expr.substr(i, j - i);
+            std::string name;
+            name.assign(expr, i, j - i);
 
-            if (j + 1 < expr.size() && ((expr.substr(j, 2) == "++" || expr.substr(j, 2) == "--"))) {
-                std::string op = expr.substr(j, 2);
+            if (j + 1 < expr.size() && ((expr[j] == '+' && expr[j + 1] == '+') || (expr[j] == '-' && expr[j + 1] == '-'))) {
+                char op_char = expr[j];
                 long long old_val = read_variable(name);
-                long long new_val = old_val + (op == "++" ? 1 : -1);
+                long long new_val = old_val + (op_char == '+' ? 1 : -1);
                 write_variable(name, new_val);
                 tokens.push_back({TokenType::NUMBER, old_val, "", "", OperatorType::UNKNOWN});
                 i = j + 2;

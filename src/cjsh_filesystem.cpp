@@ -289,57 +289,67 @@ bool build_executable_cache() {
         return false;
     }
 
-    std::stringstream ss(path_env);
-    std::string dir;
+    std::string path_str(path_env);
     std::vector<fs::path> executables;
+    
+    size_t start = 0;
+    while (start < path_str.size()) {
+        size_t pos = path_str.find(':', start);
+        size_t end = (pos != std::string::npos) ? pos : path_str.size();
+        
+        if (end > start) {
+            std::string dir(path_str, start, end - start);
+            
+            if (!dir.empty()) {
+                fs::path directory_path(dir);
+                std::error_code ec;
 
-    while (std::getline(ss, dir, ':')) {
-        if (dir.empty()) {
-            continue;
-        }
+                if (!fs::exists(directory_path, ec)) {
+                    start = (pos != std::string::npos) ? pos + 1 : path_str.size();
+                    continue;
+                }
 
-        fs::path directory_path(dir);
-        std::error_code ec;
-
-        if (!fs::exists(directory_path, ec)) {
-            continue;
-        }
-
-        ec.clear();
-        if (!fs::is_directory(directory_path, ec) || ec) {
-            continue;
-        }
-
-        fs::directory_iterator it(directory_path, fs::directory_options::skip_permission_denied,
-                                  ec);
-        if (ec) {
-            continue;
-        }
-
-        for (; it != fs::directory_iterator(); it.increment(ec)) {
-            if (ec) {
-                break;
-            }
-
-            const auto& entry = *it;
-            auto status = entry.status(ec);
-            if (ec) {
                 ec.clear();
-                continue;
-            }
+                if (!fs::is_directory(directory_path, ec) || ec) {
+                    start = (pos != std::string::npos) ? pos + 1 : path_str.size();
+                    continue;
+                }
 
-            if (!fs::is_regular_file(status)) {
-                continue;
-            }
+                fs::directory_iterator it(directory_path, fs::directory_options::skip_permission_denied,
+                                        ec);
+                if (ec) {
+                    start = (pos != std::string::npos) ? pos + 1 : path_str.size();
+                    continue;
+                }
 
-            auto perms = status.permissions();
-            constexpr auto exec_mask =
-                fs::perms::owner_exec | fs::perms::group_exec | fs::perms::others_exec;
+                for (; it != fs::directory_iterator(); it.increment(ec)) {
+                    if (ec) {
+                        break;
+                    }
 
-            if ((perms & exec_mask) != fs::perms::none) {
-                executables.push_back(entry.path());
+                    const auto& entry = *it;
+                    auto status = entry.status(ec);
+                    if (ec) {
+                        ec.clear();
+                        continue;
+                    }
+
+                    if (!fs::is_regular_file(status)) {
+                        continue;
+                    }
+
+                    auto perms = status.permissions();
+                    constexpr auto exec_mask =
+                        fs::perms::owner_exec | fs::perms::group_exec | fs::perms::others_exec;
+
+                    if ((perms & exec_mask) != fs::perms::none) {
+                        executables.push_back(entry.path());
+                    }
+                }
             }
         }
+        
+        start = (pos != std::string::npos) ? pos + 1 : path_str.size();
     }
 
     std::string content;

@@ -90,15 +90,23 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
     current_here_doc_line.reserve(128);
 
     auto add_here_doc_placeholder_line = [&](std::string before, const std::string& rest) {
-        std::string placeholder = "HEREDOC_PLACEHOLDER_" + std::to_string(lines.size());
+        std::string placeholder;
+        placeholder.reserve(32);
+        placeholder = "HEREDOC_PLACEHOLDER_";
+        placeholder += std::to_string(lines.size());
 
-        std::string stored_content = here_doc_content;
+        std::string stored_content;
         if (here_doc_expand) {
-            stored_content = "__EXPAND__" + stored_content;
+            stored_content.reserve(here_doc_content.size() + 10);
+            stored_content = "__EXPAND__";
+            stored_content += here_doc_content;
+        } else {
+            stored_content = std::move(here_doc_content);
         }
         current_here_docs[placeholder] = std::move(stored_content);
 
         std::string segment = std::move(before);
+        segment.reserve(segment.size() + placeholder.size() + rest.size() + 2);
         segment += "< ";
         segment += placeholder;
         segment += rest;

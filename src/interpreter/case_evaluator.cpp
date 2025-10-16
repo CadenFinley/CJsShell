@@ -44,20 +44,21 @@ std::pair<std::string, size_t> collect_case_body(const std::vector<std::string>&
 
 std::vector<std::string> split_case_sections(const std::string& input, bool trim_sections) {
     std::vector<std::string> sections;
+    sections.reserve(4);
     size_t start = 0;
     while (start < input.length()) {
         size_t sep_pos = input.find(";;", start);
         std::string section;
         if (sep_pos == std::string::npos) {
-            section = input.substr(start);
+            section.assign(input, start, std::string::npos);
             start = input.length();
         } else {
-            section = input.substr(start, sep_pos - start);
+            section.assign(input, start, sep_pos - start);
             start = sep_pos + 2;
         }
         if (trim_sections)
             section = trim(section);
-        sections.push_back(section);
+        sections.push_back(std::move(section));
     }
     return sections;
 }

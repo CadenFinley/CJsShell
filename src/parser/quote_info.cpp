@@ -7,7 +7,12 @@ const char QUOTE_SINGLE = 'S';
 const char QUOTE_DOUBLE = 'D';
 
 std::string create_quote_tag(char quote_type, const std::string& content) {
-    return std::string(1, QUOTE_PREFIX) + quote_type + content;
+    std::string result;
+    result.reserve(content.size() + 2);
+    result += QUOTE_PREFIX;
+    result += quote_type;
+    result += content;
+    return result;
 }
 
 bool is_inside_quotes(const std::string& text, size_t pos) {
@@ -82,7 +87,11 @@ std::vector<std::string> expand_tilde_tokens(const std::vector<std::string>& tok
 
     auto expand_tilde_value = [](const std::string& value, const std::string& home) {
         if (!value.empty() && value.front() == '~') {
-            return home + value.substr(1);
+            std::string result;
+            result.reserve(home.size() + value.size() - 1);
+            result = home;
+            result.append(value, 1, std::string::npos);
+            return result;
         }
         return value;
     };

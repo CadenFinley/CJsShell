@@ -189,12 +189,13 @@ std::vector<std::string> ExpansionEngine::expand_wildcards(const std::string& pa
 
     int return_value = glob(unescaped.c_str(), GLOB_TILDE | GLOB_MARK, nullptr, &glob_result);
     if (return_value == 0) {
+        result.reserve(glob_result.gl_pathc);
         for (size_t i = 0; i < glob_result.gl_pathc; ++i) {
-            result.push_back(std::string(glob_result.gl_pathv[i]));
+            result.emplace_back(glob_result.gl_pathv[i]);
         }
         globfree(&glob_result);
     } else if (return_value == GLOB_NOMATCH) {
-        result.push_back(unescaped);
+        result.push_back(std::move(unescaped));
     }
 
     return result;
@@ -213,26 +214,38 @@ void ExpansionEngine::expand_range(T start, T end, const std::string& prefix,
     if constexpr (std::is_same_v<T, int>) {
         if (start <= end) {
             for (T i = start; i <= end; ++i) {
-                std::string combined = prefix + std::to_string(i) + suffix;
+                std::string combined;
+                combined.reserve(prefix.size() + 12 + suffix.size());
+                combined = prefix;
+                combined += std::to_string(i);
+                combined += suffix;
                 expand_and_append_results(combined, result);
             }
         } else {
             for (T i = start; i >= end; --i) {
-                std::string combined = prefix + std::to_string(i) + suffix;
+                std::string combined;
+                combined.reserve(prefix.size() + 12 + suffix.size());
+                combined = prefix;
+                combined += std::to_string(i);
+                combined += suffix;
                 expand_and_append_results(combined, result);
             }
         }
     } else if constexpr (std::is_same_v<T, char>) {
         if (start <= end) {
             for (T c = start; c <= end; ++c) {
-                std::string combined = prefix;
+                std::string combined;
+                combined.reserve(prefix.size() + 1 + suffix.size());
+                combined = prefix;
                 combined.append(1, c);
                 combined.append(suffix);
                 expand_and_append_results(combined, result);
             }
         } else {
             for (T c = start; c >= end; --c) {
-                std::string combined = prefix;
+                std::string combined;
+                combined.reserve(prefix.size() + 1 + suffix.size());
+                combined = prefix;
                 combined.append(1, c);
                 combined.append(suffix);
                 expand_and_append_results(combined, result);

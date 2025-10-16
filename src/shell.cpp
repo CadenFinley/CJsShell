@@ -81,16 +81,27 @@ bool resolves_to_executable(const std::string& name, const std::string& cwd) {
         return false;
     }
 
-    std::stringstream path_stream(path_env);
-    std::string segment;
-    while (std::getline(path_stream, segment, ':')) {
+    std::string path_str(path_env);
+    size_t start = 0;
+    while (start < path_str.size()) {
+        size_t pos = path_str.find(':', start);
+        size_t end = (pos != std::string::npos) ? pos : path_str.size();
+        
+        std::string segment;
+        if (end > start) {
+            segment.assign(path_str, start, end - start);
+        }
+        
         if (segment.empty()) {
             segment = ".";
         }
+        
         std::filesystem::path path_candidate = std::filesystem::path(segment) / name;
         if (check_path(path_candidate)) {
             return true;
         }
+        
+        start = (pos != std::string::npos) ? pos + 1 : path_str.size();
     }
 
     return false;
