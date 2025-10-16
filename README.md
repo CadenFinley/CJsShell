@@ -6,8 +6,7 @@ CJ's Shell (cjsh) is a shell with out of the box power and speed without any of 
 
 ## Quick Install (Recommended)
 
-The easiest way to get started with CJ's Shell is with brew
-- **[Getting Started](docs/getting-started/quick-start.md)**
+The easiest way to get started with CJ's Shell is with brew. For detailed installation instructions and getting started guides, visit the **[Getting Started](https://cadenfinley.github.io/CJsShell/getting-started/quick-start/)** page.
 
 ```bash
 brew tap CadenFinley/tap
