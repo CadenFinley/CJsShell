@@ -483,7 +483,36 @@ static bool handle_runoff_bind(ic_keycode_t key, void*) {
     if (has_custom_keybinding(key)) {
         std::string command = get_custom_keybinding(key);
         if (!command.empty()) {
+            const char* buffer = ic_get_buffer();
+            size_t cursor_pos = 0;
+            ic_get_cursor_pos(&cursor_pos);
+
+            std::string original_buffer = buffer ? buffer : "";
+
+            setenv("CJSH_LINE", original_buffer.c_str(), 1);
+            setenv("CJSH_POINT", std::to_string(cursor_pos).c_str(), 1);
+
+            // Execute the command
             g_shell->execute(command);
+
+            const char* new_buffer_env = getenv("CJSH_LINE");
+            const char* new_point_env = getenv("CJSH_POINT");
+
+            if (new_buffer_env && original_buffer != new_buffer_env) {
+                ic_set_buffer(new_buffer_env);
+            }
+
+            if (new_point_env) {
+                char* endptr;
+                long new_pos = strtol(new_point_env, &endptr, 10);
+                if (endptr != new_point_env && new_pos >= 0) {
+                    ic_set_cursor_pos((size_t)new_pos);
+                }
+            }
+
+            unsetenv("CJSH_LINE");
+            unsetenv("CJSH_POINT");
+
             return true;
         }
     }

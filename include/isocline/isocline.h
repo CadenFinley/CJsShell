@@ -142,6 +142,12 @@ const char* ic_get_buffer(void);
 /// active.
 bool ic_get_cursor_pos(size_t* out_pos);
 
+/// Set the current cursor position in the input buffer.
+/// This function can only be called while a readline operation is active.
+/// @param pos The desired cursor position (byte offset from start of buffer).
+/// @returns true if the position was successfully set, false if no readline operation is active.
+bool ic_set_cursor_pos(size_t pos);
+
 /// Reset and refresh the current readline loop with optional new content.
 /// This function reprints the prompt and input, optionally updating the buffer, prompt, or inline
 /// right text. Can only be called while a readline operation is active.

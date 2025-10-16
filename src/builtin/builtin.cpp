@@ -53,6 +53,7 @@
 #include "validate_command.h"
 #include "version_command.h"
 #include "which_command.h"
+#include "widget_command.h"
 
 Built_ins::Built_ins() : shell(nullptr) {
     builtins.reserve(32);
@@ -214,6 +215,8 @@ Built_ins::Built_ins() : shell(nullptr) {
          [this](const std::vector<std::string>& args) { return ::hook_command(args, shell); }},
         {"command",
          [this](const std::vector<std::string>& args) { return ::command_command(args, shell); }},
+        {"cjsh-widget",
+         [](const std::vector<std::string>& args) { return ::widget_builtin(args); }},
         {"builtin",
          [this](const std::vector<std::string>& args) {
              if (builtin_handle_help(

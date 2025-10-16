@@ -2194,6 +2194,24 @@ ic_public bool ic_get_cursor_pos(size_t* out_pos) {
     return true;
 }
 
+ic_public bool ic_set_cursor_pos(size_t pos) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL || env->current_editor == NULL)
+        return false;
+
+    editor_t* eb = env->current_editor;
+    ssize_t len = sbuf_len(eb->input);
+
+    // Clamp position to valid range
+    if ((ssize_t)pos > len) {
+        pos = (size_t)len;
+    }
+
+    eb->pos = (ssize_t)pos;
+    edit_refresh(env, eb);
+    return true;
+}
+
 ic_public bool ic_current_loop_reset(const char* new_buffer, const char* new_prompt,
                                      const char* new_inline_right) {
     ic_env_t* env = ic_get_env();

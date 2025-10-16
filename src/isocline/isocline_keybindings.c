@@ -427,13 +427,12 @@ ic_public bool ic_parse_key_spec(const char* spec, ic_keycode_t* out_key) {
                 for (size_t i = 0; i < tok_len; ++i) {
                     token[i] = (char)tolower((unsigned char)token[i]);
                 }
-                if (strcmp(token, "ctrl") == 0 || strcmp(token, "control") == 0 ||
-                    strcmp(token, "c") == 0) {
+                if (strcmp(token, "ctrl") == 0 || strcmp(token, "control") == 0) {
                     ctrl = true;
                 } else if (strcmp(token, "alt") == 0 || strcmp(token, "meta") == 0 ||
                            strcmp(token, "option") == 0) {
                     alt = true;
-                } else if (strcmp(token, "shift") == 0 || strcmp(token, "s") == 0) {
+                } else if (strcmp(token, "shift") == 0) {
                     shift = true;
                 } else {
                     if (base_set)
