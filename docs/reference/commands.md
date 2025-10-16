@@ -162,6 +162,31 @@ Remove command aliases.
 unalias name [name...]
 ```
 
+## Abbreviations
+
+### abbr
+Create, update, or list fish-style abbreviations that expand during interactive editing.
+
+```bash
+abbr [name=expansion ...]
+```
+
+- Run without arguments to display all configured abbreviations
+- Use `name=expansion` pairs to set or update entries
+- Triggers that contain whitespace are rejected
+- Abbreviations expand when the trigger is followed by whitespace or when the line is submitted
+- Two defaults are shipped with cjsh: `abbr` → `abbreviate` and `unabbr` → `unabbreviate`
+
+### unabbr
+Remove one or more fish-style abbreviations.
+
+```bash
+unabbr name [name...]
+```
+
+- Removing a non-existent abbreviation prints a warning but does not stop processing the rest
+- Pair with `abbr` to keep a clean set of triggers in your session configuration
+
 ## Control Flow
 
 ### if

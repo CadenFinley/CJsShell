@@ -15,6 +15,7 @@ Isocline is a modern, pure C line editing library that provides advanced termina
 - History search and management
 - Brace matching and auto-insertion
 - Spell correction
+- Fish-style abbreviations (automatic expansion on word boundaries)
 
 All of these features can be configured through the `cjshopt` command or in your `~/.cjshrc` configuration file.
 
@@ -195,6 +196,26 @@ cjshopt inline-help on|off|status
 
 **Full Help:**
 Press `F1` at any time to display the complete key binding cheat sheet, regardless of the inline-help setting.
+
+### Fish-Style Abbreviations
+
+CJ's Shell supports fish-style abbreviations that expand typed shortcuts into longer phrases as soon as you type a whitespace character or submit the line. This is powered directly by the isocline editor, so expansions happen inline without disrupting your cursor position or undo history.
+
+**Usage:**
+- Define abbreviations with the `abbr` builtin: `abbr gs='git status --short --branch'`
+- Remove them with `unabbr`: `unabbr gs`
+- List all active abbreviations by running `abbr` with no arguments
+
+**Behavior:**
+- Triggers expand when followed by a space, tab, newline, or when you press `Enter`
+- Expansion text is inserted in place of the trigger, preserving subsequent input
+- Abbreviations live in the current shell session and persist across reads within that session
+
+**Defaults:**
+- `abbr` → `abbreviate`
+- `unabbr` → `unabbreviate`
+
+Add `abbr` definitions to your `~/.cjshrc` to load them automatically on startup.
 
 ### Brace Matching and Auto-Insertion
 

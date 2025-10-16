@@ -55,6 +55,7 @@ Advanced text editing capabilities including:
 - **Inline hints** and completion preview
 - **Spell correction** for commands and completions
 - **Brace matching** and auto-insertion
+- **Fish-style abbreviations** with `abbr`/`unabbr` management commands
 - **Customizable key bindings** (emacs and vi modes)
 - **Interactive help** (F1 for full key binding cheat sheet)
 
