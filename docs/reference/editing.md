@@ -246,7 +246,7 @@ cjshopt set-history-max status
 ```
 
 **History File:**
-History is stored at `~/.cache/cjsh/cjsh_history`
+History is stored at `~/.cache/cjsh/history.txt`
 
 **Duplicate Handling:**
 By default, duplicate entries are not stored in history to keep it clean and relevant.
@@ -278,7 +278,7 @@ CJ's Shell supports customizable key bindings with multiple profiles.
 
 **Set Profile:**
 ```bash
-cjshopt keybind set-profile emacs|vi
+cjshopt keybind profile set emacs|vi
 ```
 
 ### Common Key Bindings (Emacs Mode)
@@ -326,29 +326,32 @@ cjshopt keybind set-profile emacs|vi
 
 ### Custom Key Bindings
 
-You can view and modify key bindings through the `cjshopt keybind` subcommands:
+You can inspect and customize key bindings through the `cjshopt keybind` subcommands:
 
 ```bash
-# List all current key bindings
+# List all current key bindings (safe at runtime)
 cjshopt keybind list
 
-# List key bindings with source information
-cjshopt keybind list-with-source
+# Show available key binding profiles
+cjshopt keybind profile list
 
-# Show binding for a specific key
-cjshopt keybind show <key-spec>
+# Activate a key binding profile (add to ~/.cjshrc to persist)
+cjshopt keybind profile set vi
 
-# Bind a key to an action (config file only)
-cjshopt keybind bind <key-spec> <action>
+# Replace bindings for an action (config file only)
+cjshopt keybind set cursor-left ctrl-h|left
 
-# Clear a key binding (config file only)
-cjshopt keybind clear <key-spec>
+# Add bindings without removing existing ones (config file only)
+cjshopt keybind add delete-word-end alt-d
 
-# Reset all bindings to defaults (config file only)
+# Remove specific key bindings (config file only)
+cjshopt keybind clear ctrl-h ctrl-b
+
+# Remove all custom bindings for an action (config file only)
+cjshopt keybind clear-action delete-word-end
+
+# Restore default bindings (config file only)
 cjshopt keybind reset
-
-# Check current profile
-cjshopt keybind status
 ```
 
 **Key Specification Format:**
@@ -358,16 +361,27 @@ cjshopt keybind status
 - `f<N>`: Function keys (e.g., `f1`, `f12`)
 - `<key>`: Regular keys (e.g., `tab`, `enter`)
 
-**Examples:**
-```bash
-# Show what ctrl-r does
-cjshopt keybind show ctrl-r
+## Command-Driven Key Bindings
 
-# List all bindings (shows in pager if available)
-cjshopt keybind list
+Use the extended key binding namespace to trigger shell commands directly from key presses:
+
+```bash
+# List custom command key bindings (safe at runtime)
+cjshopt keybind ext list
+
+# Bind Ctrl+G to run a command (add to ~/.cjshrc)
+cjshopt keybind ext set ctrl-g 'cjsh-widget accept'
+
+# Remove a command binding
+cjshopt keybind ext clear ctrl-g
+
+# Clear every custom command binding
+cjshopt keybind ext reset
 ```
 
-**Note:** Key binding modifications can only be made in the `~/.cjshrc` configuration file, not interactively. The commands are available interactively for inspection only.
+Command key bindings typically leverage the `cjsh-widget` builtin to read or modify editor state. As
+with standard bindings, modifications must be placed in configuration files; inspection commands can
+run interactively, but setters only take effect during startup.
 
 ## Prompt Customization
 
@@ -581,7 +595,7 @@ cjshopt inline-help on
 cjshopt set-history-max 10000
 
 # Key bindings
-cjshopt keybind set-profile emacs
+cjshopt keybind profile set emacs
 
 # Syntax highlighting styles
 cjshopt style_def ic-keyword "bold blue"

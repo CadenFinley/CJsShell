@@ -169,17 +169,32 @@ See the themes documentation for complete variable list.
 - `~/.cache/cjsh/` - Cache directory (history, exec cache)
 
 #### Runtime Options
-Multiple command-line flags for customizing behavior:
+Multiple command-line flags are available to adjust startup behavior:
 
-- `--no-themes` - Disable theme system
-- `--no-colors` - Disable color output
-- `--no-source` - Skip sourcing ~/.cjshrc
-- `--no-completions` - Disable completion system
-- `--no-syntax-highlighting` - Disable syntax highlighting
-- `--no-smart-cd` - Use basic cd implementation
-- `--disable-custom-ls` - Use system ls command
-- `--minimal` - Minimal mode (disables most features)
-- `--secure` - Secure mode (restricted operations)
+**General execution:**
+- `--login` – Start in login mode (mirrors `-l`)
+- `--interactive` – Force interactive behavior even when stdin is not a TTY
+- `--debug` – Enable verbose startup diagnostics
+- `--command=<command>` – Run a single command and exit
+- `--version` – Print version information and exit
+- `--help` – Display the built-in help text
+
+**Feature toggles:**
+- `--minimal` – Disable cjsh-specific features (themes, colors, completions, syntax highlighting,
+  smart cd, sourcing, startup timers)
+- `--no-themes` – Disable the theme system
+- `--no-colors` – Disable color output
+- `--no-titleline` – Skip dynamic title line updates
+- `--no-source` – Skip sourcing `~/.cjshrc`
+- `--no-completions` – Disable the completion system
+- `--no-syntax-highlighting` – Disable syntax highlighting
+- `--no-smart-cd` – Use the basic `cd` implementation
+- `--no-prompt` – Use a minimal `#` prompt instead of the themed prompt
+- `--no-history-expansion` – Turn off history expansion (`!!`, `!$`, etc.)
+- `--disable-custom-ls` – Use the system `ls` command
+- `--show-startup-time` – Print how long startup took
+- `--startup-test` – Enable startup test mode for diagnostics
+- `--secure` – Run in secure mode with additional restrictions
 
 See `cjsh --help` for complete list.
 
@@ -209,7 +224,7 @@ Theme rendering is typically 2-4x faster than popular alternatives like Starship
 - History search and editing
 - Incremental search (Ctrl+R)
 - History expansion (`!`, `!!`, `!$`, `!-1`, etc.)
-- History file at `~/.cache/cjsh/cjsh_history`
+- History file at `~/.cache/cjsh/history.txt`
 
 See [Editing Guide](editing.md#history-management) for detailed history features.
 

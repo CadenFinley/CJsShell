@@ -296,12 +296,41 @@ Run a builtin directly, bypassing functions and PATH.
 builtin command [args...]
 ```
 
+### command
+Execute a command while bypassing shell functions or print information about it.
+
+```bash
+command [-pVv] COMMAND [ARG...]
+```
+
+**Options:**
+- `-p` – Temporarily use the default `PATH` of `/usr/bin:/bin` when resolving `COMMAND`
+- `-v` – Print a short description of how `COMMAND` would be resolved
+- `-V` – Print a verbose description (builtin, full path, or not found)
+
+When no inspection flags are supplied, `command` runs the target using the shell's execution
+engine, allowing you to bypass shell functions that shadow external commands. The command returns
+the exit status of the invoked program.
+
 ### validate
 Toggle command validation or verify command names.
 
 ```bash
 validate [on|off|command_name]
 ```
+
+## Hook System
+
+### hook
+Manage shell hooks that run at key lifecycle moments.
+
+```bash
+hook <add|remove|list|clear> [hook_type] [function_name]
+```
+
+Hook types include `precmd`, `preexec`, and `chpwd`. Use `hook add` inside configuration files to
+register functions and `hook list` to inspect active hooks. See
+[`hooks.md`](hooks.md) for complete examples and best practices.
 
 ## Input/Output
 
@@ -447,6 +476,23 @@ Available subcommands:
 - `set-max-bookmarks` - Limit stored directory bookmarks
 - `set-history-max` - Configure history persistence limits
 - `bookmark-blacklist` - Manage directories excluded from bookmarking
+
+### cjsh-widget
+Interact with the embedded line editor (isocline) to drive advanced key bindings.
+
+```bash
+cjsh-widget <subcommand> [...]
+```
+
+Available subcommands include:
+- `get-buffer` / `set-buffer` – Read or replace the active input buffer
+- `get-cursor` / `set-cursor` – Inspect or move the cursor (byte offsets)
+- `insert` / `append` / `clear` – Modify buffer contents near the cursor or reset the line
+- `accept` – Simulate pressing Enter to submit the current buffer
+
+These commands are primarily used from custom key bindings and widgets rather than typed
+interactively. Combine them with `cjshopt keybind ext` inside `~/.cjshrc` to create bespoke
+editing behaviors.
 
 #### login-startup-arg
 
