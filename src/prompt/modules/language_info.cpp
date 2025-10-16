@@ -25,7 +25,7 @@ const std::vector<std::string> nodejs_folders = {"node_modules"};
 
 const std::vector<std::string> rust_files = {"Cargo.toml", "Cargo.lock"};
 const std::vector<std::string> rust_extensions = {".rs"};
-const std::vector<std::string> rust_folders = {"target"};
+const std::vector<std::string> rust_folders = {};
 
 const std::vector<std::string> golang_files = {"go.mod", "go.sum"};
 const std::vector<std::string> golang_extensions = {".go"};
@@ -34,7 +34,7 @@ const std::vector<std::string> golang_folders = {};
 const std::vector<std::string> java_files = {"pom.xml", "build.gradle", "build.gradle.kts",
                                              "gradlew", "mvnw"};
 const std::vector<std::string> java_extensions = {".java"};
-const std::vector<std::string> java_folders = {"target", ".gradle"};
+const std::vector<std::string> java_folders = {".gradle"};
 
 const std::vector<std::string> cpp_files = {"CMakeLists.txt", "Makefile", "configure.ac",
                                             "meson.build"};
@@ -43,7 +43,7 @@ const std::vector<std::string> cpp_folders = {"cmake-build-debug", "cmake-build-
 
 const std::vector<std::string> csharp_files = {".csproj", ".sln", "nuget.config", "global.json"};
 const std::vector<std::string> csharp_extensions = {".cs"};
-const std::vector<std::string> csharp_folders = {"bin", "obj"};
+const std::vector<std::string> csharp_folders = {};
 
 const std::vector<std::string> php_files = {"composer.json", "composer.lock"};
 const std::vector<std::string> php_extensions = {".php"};
@@ -68,7 +68,7 @@ const std::vector<std::string> dart_folders = {".dart_tool"};
 
 const std::vector<std::string> scala_files = {"build.sbt", "build.sc"};
 const std::vector<std::string> scala_extensions = {".scala", ".sc"};
-const std::vector<std::string> scala_folders = {"target", "project/target"};
+const std::vector<std::string> scala_folders = {};
 
 bool scan_directory_recursive(const std::filesystem::path& dir,
                               const std::vector<std::string>& files,
