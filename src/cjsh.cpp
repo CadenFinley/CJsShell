@@ -69,11 +69,6 @@ bool no_prompt = false;
 bool history_expansion_enabled = true;
 }  // namespace config
 
-// TODO
-// implement a system that automattically sources and unsources scripts
-// when entering and leaving directories (like autoenv, direnv, etc)
-// the file would be named .cjshenv
-
 static void save_startup_arguments(int argc, char* argv[]) {
     g_startup_args.clear();
     for (int i = 0; i < argc; i++) {
