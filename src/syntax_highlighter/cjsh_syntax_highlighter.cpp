@@ -160,6 +160,11 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
                 handled_first_token = true;
             }
 
+            if (!handled_first_token && config::history_expansion_enabled && !token.empty() && 
+                (token[0] == '!' || (token[0] == '^' && cmd_start == 0))) {
+                handled_first_token = true;
+            }
+
             if (!handled_first_token && (token.rfind("./", 0) == 0 || token.rfind("../", 0) == 0 ||
                                          token.rfind("~/", 0) == 0 || token.rfind("-/", 0) == 0 ||
                                          token[0] == '/' || token.find('/') != std::string::npos)) {
