@@ -1,0 +1,142 @@
+name: CI Build and Test
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - 'docs/**'
+      - 'site/**'
+      - 'themes/**'
+      - '*.md'
+      - 'LICENSE'
+      - 'mkdocs.yml'
+  pull_request:
+    branches:
+      - master
+    paths-ignore:
+      - 'docs/**'
+      - 'site/**'
+      - 'themes/**'
+      - '*.md'
+      - 'LICENSE'
+      - 'mkdocs.yml'
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build and Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            artifact-name: CJsShell-Linux
+          - os: macos-latest
+            artifact-name: CJsShell-macOS
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 5
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential
+          sudo apt-get install -y libdl-dev || true
+          sudo apt-get install -y ccache
+
+      - name: Install macOS dependencies
+        if: runner.os == 'macOS'
+        run: |
+          brew install ccache || true
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ matrix.os }}-ccache
+          max-size: 500M
+
+      - name: Build nob
+        run: |
+          cd toolchain/nob
+          if [ ! -f "./nob" ]; then
+            cc -o nob nob.c
+            if [ $? -ne 0 ]; then
+              echo "Failed to build nob"
+              exit 1
+            fi
+          fi
+          echo "nob built successfully"
+
+      - name: Build CJsShell
+        run: |
+          cd toolchain
+          chmod +x build.sh
+          ./build.sh
+          if [ $? -ne 0 ]; then
+            echo "Build failed"
+            exit 1
+          fi
+          echo "Build completed successfully"
+
+      - name: Verify build output
+        run: |
+          if [ ! -f "build/cjsh" ]; then
+            echo "Error: build/cjsh not found"
+            exit 1
+          fi
+          echo "CJsShell binary exists"
+          ls -lh build/cjsh
+
+      - name: Run tests
+        run: |
+          chmod +x tests/run_shell_tests.sh
+          echo "Running test suite..."
+          ./tests/run_shell_tests.sh
+          if [ $? -ne 0 ]; then
+            echo "Tests failed"
+            exit 1
+          fi
+
+      - name: Create artifact archive
+        run: |
+          cd build
+          tar -czf ${{ matrix.artifact-name }}.tar.gz cjsh
+          echo "Created artifact: ${{ matrix.artifact-name }}.tar.gz"
+          ls -lh ${{ matrix.artifact-name }}.tar.gz
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: build/${{ matrix.artifact-name }}.tar.gz
+          retention-days: 30
+
+      - name: Upload binary for release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: build/${{ matrix.artifact-name }}.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Summary job that depends on all build jobs
+  ci-success:
+    name: CI Success
+    needs: [build-and-test]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check build results
+        run: |
+          if [ "${{ needs.build-and-test.result }}" != "success" ]; then
+            echo "CI failed"
+            exit 1
+          fi
+          echo "All CI checks passed!"
