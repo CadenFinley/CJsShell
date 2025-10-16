@@ -1,0 +1,2187 @@
+<!DOCTYPE html><html lang="en" class="no-js"><head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A modern, feature-rich shell with out of the box power, speed, and customization">
+      
+      
+        <meta name="author" content="Caden Finley">
+      
+      
+        <link rel="canonical" href="https://cadenfinley.github.io/CJsShell/reference/editing/">
+      
+      
+        <link rel="prev" href="../features/">
+      
+      
+        <link rel="next" href="../non-posix-features/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.21">
+    
+    
+      
+        <title>Interactive Editing - CJ's Shell Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.2a3383ac.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  <link href="../../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
+            html.glightbox-open { overflow: initial; height: 100%; }
+            .gslide-title { margin-top: 0px; user-select: text; }
+            .gslide-desc { color: #666; user-select: text; }
+            .gslide-image img { background: white; }
+            .gscrollbar-fixer { padding-right: 15px; }
+            .gdesc-inner { font-size: 0.75rem; }
+            body[data-md-color-scheme="slate"] .gdesc-inner { background: var(--md-default-bg-color); }
+            body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
+            body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
+        </style></head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#interactive-line-editing" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="CJ's Shell Documentation" class="md-header__button md-logo" aria-label="CJ's Shell Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            CJ's Shell Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Interactive Editing
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="blue" data-md-color-accent="cyan" aria-label="Switch to light mode" type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="blue" data-md-color-accent="cyan" aria-label="Switch to dark mode" type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"></path></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/CadenFinley/CJsShell" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.0.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    CadenFinley/CJsShell
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../getting-started/quick-start/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../scripting/guide/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Scripting
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../features/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../integration/zoxide/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Integrations
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../themes/thedetails/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Themes
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+  
+
+<nav class="md-nav md-nav--primary md-nav--lifted md-nav--integrated" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="CJ's Shell Documentation" class="md-nav__button md-logo" aria-label="CJ's Shell Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+
+    </a>
+    CJ's Shell Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/CadenFinley/CJsShell" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.0.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    CadenFinley/CJsShell
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2">
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Getting Started
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Getting Started
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/quick-start/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Quick Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/what-to-know/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    What You Need to Know
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/development/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Want to help?
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3">
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Scripting
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Scripting
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../scripting/guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Scripting Guide
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    Reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Features Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Interactive Editing
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    Interactive Editing
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      Overview
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#core-editing-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      Core Editing Features
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Core Editing Features">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#multiline-input" class="md-nav__link">
+    <span class="md-ellipsis">
+      Multiline Input
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#line-numbers" class="md-nav__link">
+    <span class="md-ellipsis">
+      Line Numbers
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#syntax-highlighting" class="md-nav__link">
+    <span class="md-ellipsis">
+      Syntax Highlighting
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#completion-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      Completion System
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hints-and-inline-help" class="md-nav__link">
+    <span class="md-ellipsis">
+      Hints and Inline Help
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fish-style-abbreviations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Fish-Style Abbreviations
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#brace-matching-and-auto-insertion" class="md-nav__link">
+    <span class="md-ellipsis">
+      Brace Matching and Auto-Insertion
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#history-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      History Management
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="History Management">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#history-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      History Features
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#history-search" class="md-nav__link">
+    <span class="md-ellipsis">
+      History Search
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-bindings" class="md-nav__link">
+    <span class="md-ellipsis">
+      Key Bindings
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Key Bindings">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#key-binding-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      Key Binding Profiles
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#common-key-bindings-emacs-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      Common Key Bindings (Emacs Mode)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Common Key Bindings (Emacs Mode)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cursor-movement" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cursor Movement
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#editing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Editing
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#history" class="md-nav__link">
+    <span class="md-ellipsis">
+      History
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#completion" class="md-nav__link">
+    <span class="md-ellipsis">
+      Completion
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#special" class="md-nav__link">
+    <span class="md-ellipsis">
+      Special
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom-key-bindings" class="md-nav__link">
+    <span class="md-ellipsis">
+      Custom Key Bindings
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#command-driven-key-bindings" class="md-nav__link">
+    <span class="md-ellipsis">
+      Command-Driven Key Bindings
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#prompt-customization" class="md-nav__link">
+    <span class="md-ellipsis">
+      Prompt Customization
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Prompt Customization">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#prompt-cleanup" class="md-nav__link">
+    <span class="md-ellipsis">
+      Prompt Cleanup
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prompt-markers" class="md-nav__link">
+    <span class="md-ellipsis">
+      Prompt Markers
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#terminal-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      Terminal Features
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Terminal Features">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#color-support" class="md-nav__link">
+    <span class="md-ellipsis">
+      Color Support
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bbcode-formatting" class="md-nav__link">
+    <span class="md-ellipsis">
+      BBCode Formatting
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#advanced-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      Advanced Features
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Advanced Features">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#spell-correction" class="md-nav__link">
+    <span class="md-ellipsis">
+      Spell Correction
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#heredoc-support" class="md-nav__link">
+    <span class="md-ellipsis">
+      Heredoc Support
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#readline-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Readline Integration
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#non-tty-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      Non-TTY Mode
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#style-definitions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Style Definitions
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Style Definitions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#available-styles" class="md-nav__link">
+    <span class="md-ellipsis">
+      Available Styles
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#style-syntax" class="md-nav__link">
+    <span class="md-ellipsis">
+      Style Syntax
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      Configuration Examples
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuration Examples">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#complete-editing-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Complete Editing Configuration
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#minimal-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Minimal Configuration
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Performance Considerations
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Performance Considerations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#optimization-tips" class="md-nav__link">
+    <span class="md-ellipsis">
+      Optimization Tips
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#benchmarks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Benchmarks
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      Troubleshooting
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#common-issues" class="md-nav__link">
+    <span class="md-ellipsis">
+      Common Issues
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#getting-help" class="md-nav__link">
+    <span class="md-ellipsis">
+      Getting Help
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../non-posix-features/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Non-POSIX Features
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hooks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Hooks
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../commands/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Built-in Commands
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5">
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Integrations
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Integrations
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/zoxide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Zoxide
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration/starship/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Starship Prompt
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6">
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Themes
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Themes
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../themes/thedetails/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    The Details
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="interactive-line-editing">Interactive Line Editing</h1>
+<p>CJ's Shell uses the <a href="https://github.com/daanx/isocline">isocline</a> line editor library to provide a powerful and feature-rich interactive editing experience. This document details all editing features currently available in cjsh.</p>
+<h2 id="overview">Overview</h2>
+<p>Isocline is a modern, pure C line editing library that provides advanced terminal interaction capabilities. CJ's Shell leverages and extends isocline to offer:</p>
+<ul>
+<li>Multiline editing with intelligent indentation</li>
+<li>Real-time syntax highlighting</li>
+<li>Context-aware tab completion</li>
+<li>Inline hints and preview suggestions</li>
+<li>Customizable key bindings</li>
+<li>Line numbering for multiline input</li>
+<li>History search and management</li>
+<li>Brace matching and auto-insertion</li>
+<li>Spell correction</li>
+<li>Fish-style abbreviations (automatic expansion on word boundaries)</li>
+</ul>
+<p>All of these features can be configured through the <code>cjshopt</code> command or in your <code>~/.cjshrc</code> configuration file.</p>
+<h2 id="core-editing-features">Core Editing Features</h2>
+<h3 id="multiline-input">Multiline Input</h3>
+<p>CJ's Shell supports seamless multiline input for complex commands, heredocs, and incomplete statements.</p>
+<p><strong>Features:</strong>
+- Automatic continuation when lines are incomplete
+- Smart indentation that aligns with the initial prompt
+- Line numbers for easy navigation
+- Both absolute and relative line numbering modes</p>
+<p><strong>Configuration:</strong>
+</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Enable/disable multiline input (enabled by default)</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>cjshopt<span class="w"> </span>multiline<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># Enable/disable automatic indentation (enabled by default)</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>cjshopt<span class="w"> </span>multiline-indent<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</span></code></pre></div><p></p>
+<p><strong>Multiline Detection:</strong>
+CJ's Shell automatically enters multiline mode when:
+- A line ends with a backslash (<code>\</code>)
+- Quotes are unclosed (<code>"</code>, <code>'</code>, or backticks)
+- Control structures are incomplete (<code>if</code>, <code>while</code>, <code>for</code>, <code>case</code>, etc.)
+- Heredocs are being entered (<code>&lt;&lt;</code>, <code>&lt;&lt;-</code>)
+- Brackets/braces/parentheses are unclosed</p>
+<h3 id="line-numbers">Line Numbers</h3>
+<p>When in multiline mode, line numbers help track your position in the input.</p>
+<p><strong>Modes:</strong>
+- <strong>Absolute numbering</strong>: Shows actual line numbers (1, 2, 3, ...)
+- <strong>Relative numbering</strong>: Shows distance from current line (0 for current, ±N for others)</p>
+<p><strong>Configuration:</strong>
+</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Enable absolute line numbers (default)</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>cjshopt<span class="w"> </span>line-numbers<span class="w"> </span>on
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>cjshopt<span class="w"> </span>line-numbers<span class="w"> </span>absolute
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="c1"># Enable relative line numbers</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>cjshopt<span class="w"> </span>line-numbers<span class="w"> </span>relative
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="c1"># Disable line numbers</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>cjshopt<span class="w"> </span>line-numbers<span class="w"> </span>off
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="c1"># Check current status</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>cjshopt<span class="w"> </span>line-numbers<span class="w"> </span>status
+</span></code></pre></div><p></p>
+<p><strong>Current Line Highlighting:</strong>
+The line containing the cursor can be highlighted differently:
+</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Enable/disable current line number highlighting (enabled by default)</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>cjshopt<span class="w"> </span>current-line-number-highlight<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</span></code></pre></div><p></p>
+<p>The line number styles can be customized:
+- <code>ic-linenumbers</code>: Style for regular line numbers
+- <code>ic-linenumber-current</code>: Style for the current line number</p>
+<h3 id="syntax-highlighting">Syntax Highlighting</h3>
+<p>Real-time syntax highlighting provides visual feedback as you type.</p>
+<p><strong>Highlighted Elements:</strong>
+- Commands (builtins, executables, aliases)
+- Keywords (<code>if</code>, <code>then</code>, <code>else</code>, <code>while</code>, <code>for</code>, etc.)
+- Strings (single and double quoted)
+- Variables and parameter expansions
+- Operators (pipes, redirections, logical operators)
+- Comments
+- Errors (unmatched quotes, invalid syntax)</p>
+<p><strong>Configuration:</strong>
+</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Enable/disable syntax highlighting (enabled by default)</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="c1"># Note: Can also be controlled with --no-syntax-highlighting flag</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># Customize highlighting styles</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>&lt;token_type&gt;<span class="w"> </span>&lt;style&gt;
+</span></code></pre></div><p></p>
+<p><strong>Available Style Names:</strong>
+- <code>ic-keyword</code>: Shell keywords
+- <code>ic-command</code>: Valid commands
+- <code>ic-error</code>: Invalid commands or syntax errors
+- <code>ic-string</code>: String literals
+- <code>ic-comment</code>: Comments
+- <code>ic-operator</code>: Operators
+- <code>ic-variable</code>: Variables
+- <code>ic-number</code>: Numeric literals
+- <code>ic-bracket</code>: Brackets and braces
+- <code>ic-bracket-match</code>: Matching bracket pairs</p>
+<p><strong>Syntax Highlighting Control:</strong>
+The syntax highlighter can be temporarily disabled with the <code>--no-syntax-highlighting</code> startup flag.</p>
+<h3 id="completion-system">Completion System</h3>
+<p>CJ's Shell features a sophisticated completion system that provides context-aware suggestions.</p>
+<p><strong>Completion Types:</strong>
+- <strong>Command completion</strong>: Completes commands from PATH, builtins, aliases, and functions
+- <strong>File/directory completion</strong>: Completes paths with proper quoting and escaping
+- <strong>Variable completion</strong>: Completes shell variable names
+- <strong>User completion</strong>: Completes usernames (after <code>~</code>)
+- <strong>Hostname completion</strong>: Completes hostnames (for ssh, scp, etc.)</p>
+<p><strong>Features:</strong>
+- Fuzzy matching for typo tolerance
+- Frequency-based ranking (commonly used completions appear first)
+- Source attribution (shows where completions come from)
+- Preview of selected completion
+- Automatic expansion with auto-tab</p>
+<p><strong>Configuration:</strong>
+</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Enable/disable completion preview (enabled by default)</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>cjshopt<span class="w"> </span>completion-preview<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c1"># Enable/disable auto-tab (disabled by default)</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="c1"># Auto-tab automatically completes unique prefixes</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>cjshopt<span class="w"> </span>auto-tab<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="c1"># Configure case sensitivity (enabled by default)</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>cjshopt<span class="w"> </span>completion-case<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="c1"># Enable/disable spell correction (enabled by default)</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>cjshopt<span class="w"> </span>completion-spell<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</span></code></pre></div><p></p>
+<p><strong>Using Completions:</strong>
+- Press <code>Tab</code> to show completions
+- Press <code>Tab</code> again to cycle through options
+- Use arrow keys to navigate the completion menu
+- Press <code>Enter</code> to accept a completion
+- Press <code>Esc</code> to cancel</p>
+<h3 id="hints-and-inline-help">Hints and Inline Help</h3>
+<p>CJ's Shell provides inline hints and help to assist with command input.</p>
+<p><strong>Hints:</strong>
+When there's a single possible completion, a hint is displayed inline with dimmed text.</p>
+<p><strong>Features:</strong>
+- Shows the rest of the word being typed
+- Appears after a configurable delay
+- Can be accepted by pressing → (right arrow)</p>
+<p><strong>Configuration:</strong>
+</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Enable/disable hints (enabled by default)</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>cjshopt<span class="w"> </span>hint<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Set hint delay in milliseconds (0ms by default)</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>cjshopt<span class="w"> </span>hint-delay<span class="w"> </span>&lt;milliseconds&gt;
+</span></code></pre></div><p></p>
+<p><strong>Inline Help:</strong>
+Short help messages are displayed for certain operations:
+- History search instructions
+- Completion menu navigation
+- Special key binding hints</p>
+<p><strong>Configuration:</strong>
+</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Enable/disable inline help (enabled by default)</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>cjshopt<span class="w"> </span>inline-help<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</span></code></pre></div><p></p>
+<p><strong>Full Help:</strong>
+Press <code>F1</code> at any time to display the complete key binding cheat sheet, regardless of the inline-help setting.</p>
+<h3 id="fish-style-abbreviations">Fish-Style Abbreviations</h3>
+<p>CJ's Shell supports fish-style abbreviations that expand typed shortcuts into longer phrases as soon as you type a whitespace character or submit the line. This is powered directly by the isocline editor, so expansions happen inline without disrupting your cursor position or undo history.</p>
+<p><strong>Usage:</strong>
+- Define abbreviations with the <code>abbr</code> builtin: <code>abbr gs='git status --short --branch'</code>
+- Remove them with <code>unabbr</code>: <code>unabbr gs</code>
+- List all active abbreviations by running <code>abbr</code> with no arguments</p>
+<p><strong>Behavior:</strong>
+- Triggers expand when followed by a space, tab, newline, or when you press <code>Enter</code>
+- Expansion text is inserted in place of the trigger, preserving subsequent input
+- Abbreviations live in the current shell session and persist across reads within that session</p>
+<p><strong>Defaults:</strong>
+- <code>abbr</code> → <code>abbreviate</code>
+- <code>unabbr</code> → <code>unabbreviate</code></p>
+<p>Add <code>abbr</code> definitions to your <code>~/.cjshrc</code> to load them automatically on startup.</p>
+<h3 id="brace-matching-and-auto-insertion">Brace Matching and Auto-Insertion</h3>
+<p>Visual feedback for matching brackets, braces, and parentheses.</p>
+<p><strong>Brace Matching:</strong>
+When the cursor is next to a brace, its matching pair is highlighted. Unmatched braces are highlighted as errors.</p>
+<p><strong>Default Brace Pairs:</strong>
+- Parentheses: <code>()</code>
+- Square brackets: <code>[]</code>
+- Curly braces: <code>{}</code></p>
+<p><strong>Auto-Insertion:</strong>
+When you type an opening brace, the closing brace is automatically inserted (enabled by default).</p>
+<p><strong>Default Auto-Insertion Pairs:</strong>
+- Parentheses: <code>()</code>
+- Square brackets: <code>[]</code>
+- Curly braces: <code>{}</code>
+- Double quotes: <code>""</code>
+- Single quotes: <code>''</code></p>
+<p><strong>Note:</strong> Brace matching and auto-insertion are currently controlled by isocline's default settings and cannot be configured via <code>cjshopt</code>, but the feature is active.</p>
+<h2 id="history-management">History Management</h2>
+<h3 id="history-features">History Features</h3>
+<p>CJ's Shell maintains a persistent command history with advanced search capabilities.</p>
+<p><strong>Features:</strong>
+- Persistent history across sessions
+- Configurable maximum entries
+- Duplicate suppression
+- History expansion (<code>!</code>, <code>!!</code>, <code>!$</code>, etc.)
+- Incremental search</p>
+<p><strong>Configuration:</strong>
+</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Set maximum history entries</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span>&lt;number&gt;
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1"># Use default history size</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span>default
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="c1"># Check current setting</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span>status
+</span></code></pre></div><p></p>
+<p><strong>History File:</strong>
+History is stored at <code>~/.cache/cjsh/history.txt</code></p>
+<p><strong>Duplicate Handling:</strong>
+By default, duplicate entries are not stored in history to keep it clean and relevant.</p>
+<h3 id="history-search">History Search</h3>
+<p><strong>Incremental Search (Ctrl+R):</strong>
+1. Press <code>Ctrl+R</code> to enter search mode
+2. Type to search through history
+3. Press <code>Ctrl+R</code> again to find the next match
+4. Press <code>Enter</code> to execute the found command
+5. Press <code>Esc</code> to cancel search</p>
+<p><strong>History Navigation:</strong>
+- <code>↑</code> (Up Arrow): Previous command
+- <code>↓</code> (Down Arrow): Next command
+- <code>Alt+&lt;</code>: Jump to oldest history entry
+- <code>Alt+&gt;</code>: Jump to newest history entry</p>
+<h2 id="key-bindings">Key Bindings</h2>
+<p>CJ's Shell supports customizable key bindings with multiple profiles.</p>
+<h3 id="key-binding-profiles">Key Binding Profiles</h3>
+<p><strong>Available Profiles:</strong>
+- <code>emacs</code>: Emacs-style key bindings (default)
+- <code>vi</code>: Vi/Vim-style key bindings</p>
+<p><strong>Set Profile:</strong>
+</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>profile<span class="w"> </span><span class="nb">set</span><span class="w"> </span>emacs<span class="p">|</span>vi
+</span></code></pre></div><p></p>
+<h3 id="common-key-bindings-emacs-mode">Common Key Bindings (Emacs Mode)</h3>
+<h4 id="cursor-movement">Cursor Movement</h4>
+<ul>
+<li><code>Ctrl+A</code>: Move to beginning of line</li>
+<li><code>Ctrl+E</code>: Move to end of line</li>
+<li><code>Ctrl+F</code> / <code>→</code>: Move forward one character</li>
+<li><code>Ctrl+B</code> / <code>←</code>: Move backward one character</li>
+<li><code>Alt+F</code>: Move forward one word</li>
+<li><code>Alt+B</code>: Move backward one word</li>
+<li><code>↑</code>: Previous line (or previous history)</li>
+<li><code>↓</code>: Next line (or next history)</li>
+</ul>
+<h4 id="editing">Editing</h4>
+<ul>
+<li><code>Ctrl+D</code>: Delete character under cursor (or exit if line is empty)</li>
+<li><code>Ctrl+H</code> / <code>Backspace</code>: Delete character before cursor</li>
+<li><code>Ctrl+W</code>: Delete word before cursor</li>
+<li><code>Alt+D</code>: Delete word after cursor</li>
+<li><code>Ctrl+U</code>: Delete from cursor to beginning of line</li>
+<li><code>Ctrl+K</code>: Delete from cursor to end of line</li>
+<li><code>Ctrl+Y</code>: Paste (yank) last deleted text</li>
+<li><code>Ctrl+T</code>: Transpose characters</li>
+<li><code>Alt+T</code>: Transpose words</li>
+</ul>
+<h4 id="history">History</h4>
+<ul>
+<li><code>Ctrl+R</code>: Incremental history search (reverse)</li>
+<li><code>Ctrl+S</code>: Incremental history search (forward)</li>
+<li><code>↑</code>: Previous history entry</li>
+<li><code>↓</code>: Next history entry</li>
+<li><code>Alt+&lt;</code>: First history entry</li>
+<li><code>Alt+&gt;</code>: Last history entry</li>
+</ul>
+<h4 id="completion">Completion</h4>
+<ul>
+<li><code>Tab</code>: Trigger completion / cycle through completions</li>
+<li><code>Shift+Tab</code>: Cycle backward through completions</li>
+</ul>
+<h4 id="special">Special</h4>
+<ul>
+<li><code>Ctrl+C</code>: Cancel current input</li>
+<li><code>Ctrl+D</code>: Exit shell (when buffer is empty)</li>
+<li><code>Ctrl+L</code>: Clear screen</li>
+<li><code>Enter</code>: Execute command</li>
+<li><code>F1</code>: Show help / key binding cheat sheet</li>
+<li><code>Esc</code>: Cancel operation</li>
+</ul>
+<h3 id="custom-key-bindings">Custom Key Bindings</h3>
+<p>You can inspect and customize key bindings through the <code>cjshopt keybind</code> subcommands:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># List all current key bindings (safe at runtime)</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>list
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="c1"># Show available key binding profiles</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>profile<span class="w"> </span>list
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="c1"># Activate a key binding profile (add to ~/.cjshrc to persist)</span>
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>profile<span class="w"> </span><span class="nb">set</span><span class="w"> </span>vi
+</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>
+</span><span id="__span-9-10"><a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="c1"># Replace bindings for an action (config file only)</span>
+</span><span id="__span-9-11"><a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span><span class="nb">set</span><span class="w"> </span>cursor-left<span class="w"> </span>ctrl-h<span class="p">|</span>left
+</span><span id="__span-9-12"><a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>
+</span><span id="__span-9-13"><a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a><span class="c1"># Add bindings without removing existing ones (config file only)</span>
+</span><span id="__span-9-14"><a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>add<span class="w"> </span>delete-word-end<span class="w"> </span>alt-d
+</span><span id="__span-9-15"><a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a>
+</span><span id="__span-9-16"><a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a><span class="c1"># Remove specific key bindings (config file only)</span>
+</span><span id="__span-9-17"><a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>clear<span class="w"> </span>ctrl-h<span class="w"> </span>ctrl-b
+</span><span id="__span-9-18"><a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a>
+</span><span id="__span-9-19"><a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a><span class="c1"># Remove all custom bindings for an action (config file only)</span>
+</span><span id="__span-9-20"><a id="__codelineno-9-20" name="__codelineno-9-20" href="#__codelineno-9-20"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>clear-action<span class="w"> </span>delete-word-end
+</span><span id="__span-9-21"><a id="__codelineno-9-21" name="__codelineno-9-21" href="#__codelineno-9-21"></a>
+</span><span id="__span-9-22"><a id="__codelineno-9-22" name="__codelineno-9-22" href="#__codelineno-9-22"></a><span class="c1"># Restore default bindings (config file only)</span>
+</span><span id="__span-9-23"><a id="__codelineno-9-23" name="__codelineno-9-23" href="#__codelineno-9-23"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>reset
+</span></code></pre></div>
+<p><strong>Key Specification Format:</strong>
+- <code>ctrl-&lt;key&gt;</code>: Control key combinations (e.g., <code>ctrl-a</code>)
+- <code>alt-&lt;key&gt;</code>: Alt/Meta key combinations (e.g., <code>alt-f</code>)
+- <code>shift-&lt;key&gt;</code>: Shift key combinations (e.g., <code>shift-tab</code>)
+- <code>f&lt;N&gt;</code>: Function keys (e.g., <code>f1</code>, <code>f12</code>)
+- <code>&lt;key&gt;</code>: Regular keys (e.g., <code>tab</code>, <code>enter</code>)</p>
+<h2 id="command-driven-key-bindings">Command-Driven Key Bindings</h2>
+<p>Use the extended key binding namespace to trigger shell commands directly from key presses:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># List custom command key bindings (safe at runtime)</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>ext<span class="w"> </span>list
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="c1"># Bind Ctrl+G to run a command (add to ~/.cjshrc)</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>ext<span class="w"> </span><span class="nb">set</span><span class="w"> </span>ctrl-g<span class="w"> </span><span class="s1">'cjsh-widget accept'</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="c1"># Remove a command binding</span>
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>ext<span class="w"> </span>clear<span class="w"> </span>ctrl-g
+</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>
+</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="c1"># Clear every custom command binding</span>
+</span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>ext<span class="w"> </span>reset
+</span></code></pre></div>
+<p>Command key bindings typically leverage the <code>cjsh-widget</code> builtin to read or modify editor state. As
+with standard bindings, modifications must be placed in configuration files; inspection commands can
+run interactively, but setters only take effect during startup.</p>
+<h2 id="prompt-customization">Prompt Customization</h2>
+<h3 id="prompt-cleanup">Prompt Cleanup</h3>
+<p>Control how the prompt is displayed after accepting input.</p>
+<p><strong>Features:</strong>
+- Removes full prompt and shows only trailing segment
+- Optional empty line insertion
+- Multiline truncation</p>
+<p><strong>Configuration:</strong>
+CJ's Shell automatically manages prompt cleanup based on your theme's settings. Theme authors can control:
+- <code>cleanup_removes_prompt()</code>: Whether to enable prompt cleanup
+- <code>cleanup_adds_empty_line()</code>: Whether to add an empty line after
+- <code>cleanup_truncates_multiline()</code>: Whether to truncate multiline input</p>
+<h3 id="prompt-markers">Prompt Markers</h3>
+<p>The prompt system uses markers to indicate different states:</p>
+<p><strong>Primary Prompt Marker:</strong>
+Displayed at the end of the main prompt (default: <code>"&gt; "</code>).</p>
+<p><strong>Continuation Prompt Marker:</strong>
+Displayed for continuation lines in multiline input.</p>
+<p><strong>Customization:</strong>
+These are typically set by your theme and control the visual appearance of prompts.</p>
+<h2 id="terminal-features">Terminal Features</h2>
+<h3 id="color-support">Color Support</h3>
+<p>CJ's Shell automatically detects terminal capabilities:</p>
+<p><strong>Color Depth Detection:</strong>
+- Monochrome (1-bit)
+- 8 colors (3-bit) with bold for bright
+- 16 colors (4-bit)
+- 256 colors (8-bit)
+- True color (24-bit RGB)</p>
+<p><strong>Environment Variables:</strong>
+- <code>COLORTERM</code>: Indicates color capability (<code>truecolor</code>, <code>24bit</code>, <code>256color</code>, etc.)</p>
+<p><strong>Disable Colors:</strong>
+Use the <code>--no-colors</code> flag or set <code>TERM=dumb</code> to disable all color output.</p>
+<h3 id="bbcode-formatting">BBCode Formatting</h3>
+<p>CJ's Shell supports BBCode-style formatting in prompts and output:</p>
+<p><strong>Tags:</strong>
+- <code>[b]...[/b]</code>: Bold text
+- <code>[i]...[/i]</code>: Italic text
+- <code>[u]...[/u]</code>: Underline text
+- <code>[r]...[/r]</code>: Reverse video
+- <code>[color]...[/color]</code>: Color names (e.g., <code>[red]</code>, <code>[blue]</code>)
+- <code>[#RRGGBB]...[/]</code>: Hex RGB colors
+- <code>[on color]...[/]</code>: Background colors</p>
+<p><strong>Style Combinations:</strong>
+</p><div class="language-text highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>[b red on blue]Bold red text on blue background[/]
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>[i #ff00ff]Italic magenta text[/]
+</span></code></pre></div><p></p>
+<h2 id="advanced-features">Advanced Features</h2>
+<h3 id="spell-correction">Spell Correction</h3>
+<p>Automatic spell correction for commands and completions.</p>
+<p><strong>How It Works:</strong>
+When no exact match is found, cjsh attempts to find the closest match using edit distance algorithms.</p>
+<p><strong>Configuration:</strong>
+</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># Enable/disable spell correction (enabled by default)</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>cjshopt<span class="w"> </span>completion-spell<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</span></code></pre></div><p></p>
+<h3 id="heredoc-support">Heredoc Support</h3>
+<p>Full editing capabilities when entering heredocs:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>cat<span class="w"> </span><span class="s">&lt;&lt;EOF</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="s"># You get full editing features here:</span>
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="s"># - Syntax highlighting</span>
+</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="s"># - Multiline editing</span>
+</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="s"># - History access</span>
+</span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="s"># - All normal key bindings</span>
+</span><span id="__span-13-7"><a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="s">EOF</span>
+</span></code></pre></div>
+<p><strong>Features:</strong>
+- Each line is edited with full isocline capabilities
+- Supports <code>&lt;&lt;-</code> (strip leading tabs)
+- Delimiter detection ends input
+- Ctrl+C/Ctrl+D cancels heredoc input</p>
+<h3 id="readline-integration">Readline Integration</h3>
+<p>CJ's Shell uses isocline's unified <code>ic_readline()</code> API for input, which provides:</p>
+<p><strong>Inline Right Text:</strong>
+Some prompts may display additional information on the right side of the input line (configured by themes).</p>
+<p><strong>Initial Input:</strong>
+Commands can pre-populate the input buffer (used by <code>fc</code> command for editing).</p>
+<p><strong>Special Return Values:</strong>
+- <code>IC_READLINE_TOKEN_CTRL_C</code>: Returned when Ctrl+C is pressed on empty buffer
+- <code>IC_READLINE_TOKEN_CTRL_D</code>: Returned when Ctrl+D is pressed on empty buffer (EOF)</p>
+<h3 id="non-tty-mode">Non-TTY Mode</h3>
+<p>When standard input is not a terminal (pipe, file redirect, debugger, etc.):
+- Line editing is disabled
+- Input is read directly from the stream
+- Prompts are still displayed but without styling
+- Scripts and pipes work seamlessly</p>
+<h2 id="style-definitions">Style Definitions</h2>
+<p>All visual aspects of the editor can be customized through style definitions.</p>
+<h3 id="available-styles">Available Styles</h3>
+<p><strong>Prompt Styles:</strong>
+- <code>ic-prompt</code>: Main prompt text
+- <code>ic-linenumbers</code>: Line numbers in multiline mode
+- <code>ic-linenumber-current</code>: Current line number highlight</p>
+<p><strong>Syntax Highlighting Styles:</strong>
+- <code>ic-keyword</code>: Shell keywords
+- <code>ic-command</code>: Valid commands
+- <code>ic-error</code>: Errors and invalid commands
+- <code>ic-string</code>: String literals
+- <code>ic-comment</code>: Comments
+- <code>ic-operator</code>: Operators
+- <code>ic-variable</code>: Variables
+- <code>ic-number</code>: Numbers
+- <code>ic-bracket</code>: Brackets
+- <code>ic-bracket-match</code>: Matching brackets</p>
+<p><strong>Editor Styles:</strong>
+- <code>ic-hint</code>: Inline hints
+- <code>ic-selection</code>: Selected text
+- <code>ic-completion</code>: Completion menu
+- <code>ic-completion-selected</code>: Selected completion</p>
+<h3 id="style-syntax">Style Syntax</h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>&lt;style-name&gt;<span class="w"> </span><span class="s2">"&lt;bbcode-style&gt;"</span>
+</span></code></pre></div>
+<p><strong>Examples:</strong>
+</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c1"># Make errors bright red and bold</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>ic-error<span class="w"> </span><span class="s2">"bold red"</span>
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="c1"># Use custom RGB color for commands</span>
+</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>ic-command<span class="w"> </span><span class="s2">"#00ff00"</span>
+</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>
+</span><span id="__span-15-7"><a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="c1"># Style keywords with italic blue</span>
+</span><span id="__span-15-8"><a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>ic-keyword<span class="w"> </span><span class="s2">"italic blue"</span>
+</span><span id="__span-15-9"><a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a>
+</span><span id="__span-15-10"><a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a><span class="c1"># Combine multiple attributes</span>
+</span><span id="__span-15-11"><a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>ic-string<span class="w"> </span><span class="s2">"italic #ffaa00"</span>
+</span></code></pre></div><p></p>
+<p><strong>Style Attributes:</strong>
+- Colors: <code>red</code>, <code>blue</code>, <code>green</code>, <code>yellow</code>, <code>cyan</code>, <code>magenta</code>, <code>white</code>, <code>black</code>
+- ANSI colors: <code>ansi-red</code>, <code>ansi-bright-blue</code>, etc.
+- RGB colors: <code>#RRGGBB</code> or <code>#RGB</code>
+- Attributes: <code>bold</code>, <code>italic</code>, <code>underline</code>, <code>reverse</code>
+- Background: <code>on &lt;color&gt;</code></p>
+<h2 id="configuration-examples">Configuration Examples</h2>
+<h3 id="complete-editing-configuration">Complete Editing Configuration</h3>
+<p>Here's a comprehensive example for <code>~/.cjshrc</code>:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="c1"># Multiline settings</span>
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>cjshopt<span class="w"> </span>multiline<span class="w"> </span>on
+</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>cjshopt<span class="w"> </span>multiline-indent<span class="w"> </span>on
+</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>cjshopt<span class="w"> </span>line-numbers<span class="w"> </span>relative
+</span><span id="__span-16-5"><a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>cjshopt<span class="w"> </span>current-line-number-highlight<span class="w"> </span>on
+</span><span id="__span-16-6"><a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>
+</span><span id="__span-16-7"><a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="c1"># Completion settings</span>
+</span><span id="__span-16-8"><a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a>cjshopt<span class="w"> </span>completion-preview<span class="w"> </span>on
+</span><span id="__span-16-9"><a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a>cjshopt<span class="w"> </span>auto-tab<span class="w"> </span>off
+</span><span id="__span-16-10"><a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a>cjshopt<span class="w"> </span>completion-case<span class="w"> </span>off<span class="w">  </span><span class="c1"># Case-insensitive completions</span>
+</span><span id="__span-16-11"><a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a>cjshopt<span class="w"> </span>completion-spell<span class="w"> </span>on
+</span><span id="__span-16-12"><a id="__codelineno-16-12" name="__codelineno-16-12" href="#__codelineno-16-12"></a>
+</span><span id="__span-16-13"><a id="__codelineno-16-13" name="__codelineno-16-13" href="#__codelineno-16-13"></a><span class="c1"># Hint settings</span>
+</span><span id="__span-16-14"><a id="__codelineno-16-14" name="__codelineno-16-14" href="#__codelineno-16-14"></a>cjshopt<span class="w"> </span>hint<span class="w"> </span>on
+</span><span id="__span-16-15"><a id="__codelineno-16-15" name="__codelineno-16-15" href="#__codelineno-16-15"></a>cjshopt<span class="w"> </span>hint-delay<span class="w"> </span><span class="m">100</span><span class="w">  </span><span class="c1"># 100ms delay before showing hints</span>
+</span><span id="__span-16-16"><a id="__codelineno-16-16" name="__codelineno-16-16" href="#__codelineno-16-16"></a>
+</span><span id="__span-16-17"><a id="__codelineno-16-17" name="__codelineno-16-17" href="#__codelineno-16-17"></a><span class="c1"># Help settings</span>
+</span><span id="__span-16-18"><a id="__codelineno-16-18" name="__codelineno-16-18" href="#__codelineno-16-18"></a>cjshopt<span class="w"> </span>inline-help<span class="w"> </span>on
+</span><span id="__span-16-19"><a id="__codelineno-16-19" name="__codelineno-16-19" href="#__codelineno-16-19"></a>
+</span><span id="__span-16-20"><a id="__codelineno-16-20" name="__codelineno-16-20" href="#__codelineno-16-20"></a><span class="c1"># History</span>
+</span><span id="__span-16-21"><a id="__codelineno-16-21" name="__codelineno-16-21" href="#__codelineno-16-21"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span><span class="m">10000</span>
+</span><span id="__span-16-22"><a id="__codelineno-16-22" name="__codelineno-16-22" href="#__codelineno-16-22"></a>
+</span><span id="__span-16-23"><a id="__codelineno-16-23" name="__codelineno-16-23" href="#__codelineno-16-23"></a><span class="c1"># Key bindings</span>
+</span><span id="__span-16-24"><a id="__codelineno-16-24" name="__codelineno-16-24" href="#__codelineno-16-24"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>profile<span class="w"> </span><span class="nb">set</span><span class="w"> </span>emacs
+</span><span id="__span-16-25"><a id="__codelineno-16-25" name="__codelineno-16-25" href="#__codelineno-16-25"></a>
+</span><span id="__span-16-26"><a id="__codelineno-16-26" name="__codelineno-16-26" href="#__codelineno-16-26"></a><span class="c1"># Syntax highlighting styles</span>
+</span><span id="__span-16-27"><a id="__codelineno-16-27" name="__codelineno-16-27" href="#__codelineno-16-27"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>ic-keyword<span class="w"> </span><span class="s2">"bold blue"</span>
+</span><span id="__span-16-28"><a id="__codelineno-16-28" name="__codelineno-16-28" href="#__codelineno-16-28"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>ic-command<span class="w"> </span><span class="s2">"green"</span>
+</span><span id="__span-16-29"><a id="__codelineno-16-29" name="__codelineno-16-29" href="#__codelineno-16-29"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>ic-error<span class="w"> </span><span class="s2">"bold red"</span>
+</span><span id="__span-16-30"><a id="__codelineno-16-30" name="__codelineno-16-30" href="#__codelineno-16-30"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>ic-string<span class="w"> </span><span class="s2">"#ffaa00"</span>
+</span><span id="__span-16-31"><a id="__codelineno-16-31" name="__codelineno-16-31" href="#__codelineno-16-31"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>ic-comment<span class="w"> </span><span class="s2">"italic #888888"</span>
+</span><span id="__span-16-32"><a id="__codelineno-16-32" name="__codelineno-16-32" href="#__codelineno-16-32"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>ic-operator<span class="w"> </span><span class="s2">"bold"</span>
+</span></code></pre></div>
+<h3 id="minimal-configuration">Minimal Configuration</h3>
+<p>For a minimal, fast setup:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="c1"># Use the --minimal flag at startup, or configure selectively:</span>
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>cjshopt<span class="w"> </span>multiline<span class="w"> </span>on
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>cjshopt<span class="w"> </span>line-numbers<span class="w"> </span>off
+</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>cjshopt<span class="w"> </span>completion-preview<span class="w"> </span>off
+</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>cjshopt<span class="w"> </span>hint<span class="w"> </span>off
+</span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>cjshopt<span class="w"> </span>inline-help<span class="w"> </span>off
+</span></code></pre></div>
+<h2 id="performance-considerations">Performance Considerations</h2>
+<h3 id="optimization-tips">Optimization Tips</h3>
+<ol>
+<li><strong>Disable unnecessary features</strong> in resource-constrained environments</li>
+<li><strong>Increase hint delay</strong> if experiencing lag while typing</li>
+<li><strong>Reduce history size</strong> for faster search</li>
+<li><strong>Use simpler themes</strong> to reduce prompt rendering time</li>
+</ol>
+<h3 id="benchmarks">Benchmarks</h3>
+<p>Isocline is designed to be fast and responsive:
+- Completion generation: &lt; 10ms for typical cases
+- Syntax highlighting: Real-time with no noticeable lag
+- History search: Fast even with large history files
+- Multiline editing: Smooth for inputs up to hundreds of lines</p>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<h3 id="common-issues">Common Issues</h3>
+<p><strong>Completions not working:</strong>
+- Check if completions are enabled (not started with <code>--no-completions</code>)
+- Verify PATH contains command directories
+- Check file permissions</p>
+<p><strong>Syntax highlighting not showing:</strong>
+- Ensure not started with <code>--no-syntax-highlighting</code>
+- Check terminal color support
+- Verify theme styles are defined</p>
+<p><strong>Key bindings not working:</strong>
+- Check terminal emulator key sending
+- Verify with <code>cjshopt keybind list</code>
+- Some terminals may not support all key combinations</p>
+<p><strong>Multiline issues:</strong>
+- Verify multiline is enabled: <code>cjshopt multiline status</code>
+- Check for terminal compatibility
+- Ensure terminal width is adequate</p>
+<h3 id="getting-help">Getting Help</h3>
+<ul>
+<li>Press <code>F1</code> during input for interactive help</li>
+<li>Run <code>cjshopt &lt;subcommand&gt; --help</code> for command-specific help</li>
+<li>Check logs in debug mode</li>
+<li>Report issues on the CJsShell GitHub repository</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      © 2025 Caden Finley. Licensed under MIT License.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/CadenFinley/CJsShell" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.0.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://cadenfinley.com" target="_blank" rel="noopener" title="cadenfinley.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.0.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M351.9 280H161c2.9 64.5 17.2 123.9 37.5 167.4 11.4 24.5 23.7 41.8 35.1 52.4 11.2 10.5 18.9 12.2 22.9 12.2s11.7-1.7 22.9-12.2c11.4-10.6 23.7-28 35.1-52.4 20.3-43.5 34.6-102.9 37.5-167.4zm-191-48h190.9c-2.8-64.5-17.1-123.9-37.4-167.4-11.4-24.4-23.7-41.8-35.1-52.4C268.1 1.7 260.4 0 256.4 0s-11.7 1.7-22.9 12.2c-11.4 10.6-23.7 28-35.1 52.4-20.3 43.5-34.6 102.9-37.5 167.4m-48 0c3.5-85.6 25.6-165.1 57.9-217.3C78.7 47.3 10.9 131.2 1.5 232zM1.5 280c9.4 100.8 77.2 184.7 169.3 217.3-32.3-52.2-54.4-131.7-57.9-217.3zm398.4 0c-3.5 85.6-25.6 165.1-57.9 217.3 92.1-32.7 159.9-116.5 169.3-217.3zm111.4-48C501.9 131.2 434.1 47.3 342 14.7c32.3 52.2 54.4 131.7 57.9 217.3z"></path></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="mailto:caden@cadenfinley.com" target="_blank" rel="noopener" title="" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.0.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M48 64C21.5 64 0 85.5 0 112c0 15.1 7.1 29.3 19.2 38.4l208 156a48 48 0 0 0 57.6 0l208-156c12.1-9.1 19.2-23.3 19.2-38.4 0-26.5-21.5-48-48-48zM0 196v188c0 35.3 28.7 64 64 64h384c35.3 0 64-28.7 64-64V196L313.6 344.8c-34.1 25.6-81.1 25.6-115.2 0z"></path></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.path", "navigation.indexes", "toc.integrate", "navigation.top", "search.highlight", "search.share", "content.tabs.link", "content.code.annotation", "content.code.copy"], "search": "../../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.f55a23d4.min.js"></script>
+      
+    
+  
+<script id="init-glightbox">const lightbox = GLightbox({"touchNavigation": true, "loop": false, "zoomable": true, "draggable": true, "openEffect": "zoom", "closeEffect": "zoom", "slideEffect": "slide"});
+document$.subscribe(()=>{ lightbox.reload(); });
+</script></body></html>
