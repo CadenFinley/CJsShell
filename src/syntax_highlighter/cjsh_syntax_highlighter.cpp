@@ -186,7 +186,8 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
                 handled_first_token = true;
             }
 
-            if (!handled_first_token && g_shell != nullptr) {
+            if (!handled_first_token && g_shell != nullptr &&
+                g_shell->get_interactive_mode()) {
                 const auto& abbreviations = g_shell->get_abbreviations();
                 if (abbreviations.find(token) != abbreviations.end()) {
                     ic_highlight(henv, static_cast<long>(cmd_start),
@@ -290,7 +291,7 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
                         }
                     } else {
                         bool is_abbreviation = false;
-                        if (g_shell != nullptr) {
+                        if (g_shell != nullptr && g_shell->get_interactive_mode()) {
                             const auto& abbreviations = g_shell->get_abbreviations();
                             is_abbreviation = abbreviations.find(arg) != abbreviations.end();
                         }

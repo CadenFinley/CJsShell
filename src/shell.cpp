@@ -164,6 +164,28 @@ bool raw_mode_state_entered(const RawModeState* state) {
 
 void Shell::set_abbreviations(const std::unordered_map<std::string, std::string>& new_abbreviations) {
     abbreviations = new_abbreviations;
+    apply_abbreviations_to_line_editor();
+}
+
+void Shell::set_interactive_mode(bool flag) {
+    if (interactive_mode == flag) {
+        return;
+    }
+
+    interactive_mode = flag;
+
+    if (interactive_mode) {
+        apply_abbreviations_to_line_editor();
+    } else {
+        ic_clear_abbreviations();
+    }
+}
+
+void Shell::apply_abbreviations_to_line_editor() {
+    if (!interactive_mode) {
+        return;
+    }
+
     ic_clear_abbreviations();
     for (const auto& [name, expansion] : abbreviations) {
         (void)ic_add_abbreviation(name.c_str(), expansion.c_str());

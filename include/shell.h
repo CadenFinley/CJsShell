@@ -85,9 +85,7 @@ class Shell {
         return "0";
     }
 
-    void set_interactive_mode(bool flag) {
-        interactive_mode = flag;
-    }
+    void set_interactive_mode(bool flag);
 
     bool get_interactive_mode() const {
         return interactive_mode;
@@ -219,4 +217,6 @@ class Shell {
     // Hook storage: hook_type -> list of function names
     std::unordered_map<std::string, std::vector<std::string>> hooks;
     std::string last_directory;  // For chpwd hook
+
+    void apply_abbreviations_to_line_editor();
 };
