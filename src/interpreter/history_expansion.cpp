@@ -140,12 +140,12 @@ bool HistoryExpansion::expand_double_bang(const std::string& command, size_t& po
         return false;
     }
 
-    if (history.empty()) {
+    if (history.size() < 2) {
         error = "!!: event not found";
         return false;
     }
 
-    std::string last_command = history.back();
+    std::string last_command = history[history.size() - 2];
     pos += 2;  // Skip !!
 
     // Check for word designators
