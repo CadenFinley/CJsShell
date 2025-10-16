@@ -24,12 +24,24 @@ std::vector<std::string> Tokenizer::tokenize_command(const std::string& cmdline)
     bool token_saw_single = false;
     bool token_saw_double = false;
 
+    const size_t cmdline_len = cmdline.length();
+
     auto flush_current_token = [&]() {
         if (!current_token.empty() || token_saw_single || token_saw_double) {
             if (token_saw_single && !token_saw_double) {
-                tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_SINGLE + current_token);
+                std::string token;
+                token.reserve(current_token.size() + 2);
+                token += QUOTE_PREFIX;
+                token += QUOTE_SINGLE;
+                token += current_token;
+                tokens.push_back(std::move(token));
             } else if (token_saw_double && !token_saw_single) {
-                tokens.push_back(std::string(1, QUOTE_PREFIX) + QUOTE_DOUBLE + current_token);
+                std::string token;
+                token.reserve(current_token.size() + 2);
+                token += QUOTE_PREFIX;
+                token += QUOTE_DOUBLE;
+                token += current_token;
+                tokens.push_back(std::move(token));
             } else if (!current_token.empty()) {
                 tokens.push_back(current_token);
             }
@@ -38,7 +50,7 @@ std::vector<std::string> Tokenizer::tokenize_command(const std::string& cmdline)
         }
     };
 
-    for (size_t i = 0; i < cmdline.length(); ++i) {
+    for (size_t i = 0; i < cmdline_len; ++i) {
         if (!in_subst_literal &&
             cmdline.compare(i, SUBST_LITERAL_START.size(), SUBST_LITERAL_START) == 0) {
             in_subst_literal = true;
@@ -117,7 +129,7 @@ std::vector<std::string> Tokenizer::tokenize_command(const std::string& cmdline)
                 current_token += c;
             }
 
-            else if (c == ')' && i + 1 < cmdline.length() && cmdline[i + 1] == ')' &&
+            else if (c == ')' && i + 1 < cmdline_len && cmdline[i + 1] == ')' &&
                      arith_depth > 0) {
                 arith_depth--;
                 current_token += c;
@@ -125,14 +137,14 @@ std::vector<std::string> Tokenizer::tokenize_command(const std::string& cmdline)
                 i++;
             }
 
-            else if (c == '[' && i + 1 < cmdline.length() && cmdline[i + 1] == '[') {
+            else if (c == '[' && i + 1 < cmdline_len && cmdline[i + 1] == '[') {
                 bracket_depth++;
                 flush_current_token();
                 tokens.push_back("[[");
                 i++;
             }
 
-            else if (c == ']' && i + 1 < cmdline.length() && cmdline[i + 1] == ']' &&
+            else if (c == ']' && i + 1 < cmdline_len && cmdline[i + 1] == ']' &&
                      bracket_depth > 0) {
                 bracket_depth--;
                 flush_current_token();
@@ -140,11 +152,12 @@ std::vector<std::string> Tokenizer::tokenize_command(const std::string& cmdline)
                 i++;
             }
 
-            else if (bracket_depth > 0 && i + 1 < cmdline.length() &&
+            else if (bracket_depth > 0 && i + 1 < cmdline_len &&
                      ((c == '&' && cmdline[i + 1] == '&') || (c == '|' && cmdline[i + 1] == '|'))) {
                 flush_current_token();
 
-                tokens.push_back(std::string(1, c) + cmdline[i + 1]);
+                tokens.emplace_back(2, c);
+                tokens.back()[1] = cmdline[i + 1];
                 i++;
             }
 
@@ -154,13 +167,13 @@ std::vector<std::string> Tokenizer::tokenize_command(const std::string& cmdline)
                 flush_current_token();
 
                 bool handled_special = false;
-                if ((c == '<' || c == '>') && i + 1 < cmdline.length() && cmdline[i + 1] == '(') {
+                if ((c == '<' || c == '>') && i + 1 < cmdline_len && cmdline[i + 1] == '(') {
                     size_t j = i + 2;
                     int paren_depth = 1;
                     bool in_single = false;
                     bool in_double = false;
 
-                    while (j < cmdline.length()) {
+                    while (j < cmdline_len) {
                         char ch = cmdline[j];
                         if (!in_double && ch == '\'' && (j == i + 2 || cmdline[j - 1] != '\\')) {
                             in_single = !in_single;
@@ -185,7 +198,7 @@ std::vector<std::string> Tokenizer::tokenize_command(const std::string& cmdline)
                         j++;
                     }
 
-                    if (paren_depth == 0 && j < cmdline.length()) {
+                    if (paren_depth == 0 && j < cmdline_len) {
                         tokens.push_back(cmdline.substr(i, j - i + 1));
                         i = j;
                         handled_special = true;
@@ -196,9 +209,9 @@ std::vector<std::string> Tokenizer::tokenize_command(const std::string& cmdline)
                     continue;
                 }
 
-                if (c == '<' && i + 1 < cmdline.length() && cmdline[i + 1] == '&') {
+                if (c == '<' && i + 1 < cmdline_len && cmdline[i + 1] == '&') {
                     size_t j = i + 2;
-                    while (j < cmdline.length() &&
+                    while (j < cmdline_len &&
                            ((std::isdigit(static_cast<unsigned char>(cmdline[j])) != 0) ||
                             cmdline[j] == '-')) {
                         j++;
@@ -209,9 +222,9 @@ std::vector<std::string> Tokenizer::tokenize_command(const std::string& cmdline)
                         continue;
                     }
                 }
-                if (c == '>' && i + 1 < cmdline.length() && cmdline[i + 1] == '&') {
+                if (c == '>' && i + 1 < cmdline_len && cmdline[i + 1] == '&') {
                     size_t j = i + 2;
-                    while (j < cmdline.length() &&
+                    while (j < cmdline_len &&
                            ((std::isdigit(static_cast<unsigned char>(cmdline[j])) != 0) ||
                             cmdline[j] == '-')) {
                         j++;
@@ -224,9 +237,9 @@ std::vector<std::string> Tokenizer::tokenize_command(const std::string& cmdline)
                 }
                 if (c == '&' && !tokens.empty() &&
                     (tokens.back() == "<" || tokens.back() == ">" || tokens.back() == ">>") &&
-                    i + 1 < cmdline.length()) {
+                    i + 1 < cmdline_len) {
                     size_t j = i + 1;
-                    while (j < cmdline.length() &&
+                    while (j < cmdline_len &&
                            ((std::isdigit(static_cast<unsigned char>(cmdline[j])) != 0) ||
                             cmdline[j] == '-')) {
                         j++;
