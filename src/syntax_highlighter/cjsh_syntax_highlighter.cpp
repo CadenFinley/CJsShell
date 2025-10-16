@@ -186,6 +186,15 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
                 handled_first_token = true;
             }
 
+            if (!handled_first_token && g_shell != nullptr) {
+                const auto& abbreviations = g_shell->get_abbreviations();
+                if (abbreviations.find(token) != abbreviations.end()) {
+                    ic_highlight(henv, static_cast<long>(cmd_start),
+                                 static_cast<long>(token_end), "cjsh-builtin");
+                    handled_first_token = true;
+                }
+            }
+
             if (!handled_first_token && is_shell_keyword(token)) {
                 ic_highlight(henv, static_cast<long>(cmd_start), static_cast<long>(token_end),
                              "cjsh-keyword");
@@ -280,8 +289,15 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
                                          static_cast<long>(arg_end - arg_start), "cjsh-installed");
                         }
                     } else {
+                        bool is_abbreviation = false;
+                        if (g_shell != nullptr) {
+                            const auto& abbreviations = g_shell->get_abbreviations();
+                            is_abbreviation = abbreviations.find(arg) != abbreviations.end();
+                        }
+
                         auto cmds = g_shell->get_available_commands();
-                        if (cmds.find(arg) != cmds.end() || is_shell_builtin(arg)) {
+                        if (is_abbreviation || cmds.find(arg) != cmds.end() ||
+                            is_shell_builtin(arg)) {
                             ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
                                          static_cast<long>(arg_end - arg_start), "cjsh-builtin");
                         } else if (basic_unix_commands.count(arg) > 0) {
