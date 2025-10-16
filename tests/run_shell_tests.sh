@@ -5,6 +5,12 @@ SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 export CJSH="$SCRIPT_DIR/../build/cjsh"
 SHELL_TESTS_DIR="$SCRIPT_DIR/shell"
 
+# Detect CI environment
+if [ -n "$CI" ] || [ -n "$GITHUB_ACTIONS" ] || [ -n "$CONTINUOUS_INTEGRATION" ]; then
+    export CJSH_CI_MODE="true"
+    echo "Running in CI mode - signal and TTY tests may be skipped"
+fi
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
