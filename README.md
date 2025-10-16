@@ -1,8 +1,4 @@
-[![Build status](https://ci.appveyor.com/api/projects/status/5m6bgk8lxf3ge256/branch/master?svg=true)](https://ci.appveyor.com/project/CadenFinley/cjsshell/branch/master)
-[![Codacy Badge](https://app.codacy.com/project/badge/Grade/4e33a26accb6450da43c91c7b8e872e7)](https://app.codacy.com/gh/CadenFinley/CJsShell/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
-![License](https://img.shields.io/badge/License-MIT-green)
-
-# CJ's Shell
+# CJ's Shell <a href="https://ci.appveyor.com/project/CadenFinley/cjsshell/branch/master"><img src="https://ci.appveyor.com/api/projects/status/5m6bgk8lxf3ge256/branch/master?svg=true" alt="Build status"></a> <a href="https://app.codacy.com/gh/CadenFinley/CJsShell/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade"><img src="https://app.codacy.com/project/badge/Grade/4e33a26accb6450da43c91c7b8e872e7" alt="Codacy Badge"></a> <img src="https://img.shields.io/badge/License-MIT-green" alt="License">
 
 CJ's Shell (cjsh) is a lightweight shell with out of the box power and speed. Baked in are strong first party theme scripting with a custom theme DSL language, a full custom shell script interpreter with minor bash support, custom keybindings for text editing, custom syntax highlighting, fuzzy text auto completions, smart directory navigation, advanced history seaching, multiline editing, typeahead, and rich prompts. All with no external shell support and only 1 dependency which is already baked in. cjsh aims to be fast and responsive at all times. It is fully usable on all *nix like systems and Windows with WSL. cjsh aims to be an almost 1 to 1 switch over from other POSIX like shells.
 
