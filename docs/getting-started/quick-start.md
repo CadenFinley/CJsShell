@@ -50,8 +50,8 @@ The debug installer installs automatically to the most sensible path for the use
 
 Build configuration is automatically handled by nob and requires no extra steps. There are multiple build types and can be seen with the --help flag. Build status and origin is tracked within nob and is embedded within the cjsh executable and is displayed in its version. cjsh takes full advantage of many optimizer compilation flags so compilation and linking can take some time.
 
+---
 
+## Next Steps
 
-
-
-    
+Now that you have cjsh installed, check out [What You Need to Know](what-to-know.md) to learn about all the powerful features available out of the box and how to configure them to suit your workflow.

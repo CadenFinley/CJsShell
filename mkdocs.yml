@@ -87,6 +87,7 @@ nav:
   - Home: index.md
   - Getting Started:
     - Quick Start: getting-started/quick-start.md
+    - What You Need to Know: getting-started/what-to-know.md
     - Want to help?: getting-started/development.md
   - Scripting:
     - Scripting Guide: scripting/guide.md
