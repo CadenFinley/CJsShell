@@ -213,7 +213,7 @@ static void start_interactive_process() {
         std::cout << '\n';
         std::cout << " Type 'help' to see available commands and options." << '\n';
         if (!cjsh_filesystem::file_exists(cjsh_filesystem::g_cjsh_source_path)) {
-            std::cout << " To create .cjshrc run 'cjshopt generate-source" << '\n';
+            std::cout << " To create .cjshrc run 'cjshopt generate-rc" << '\n';
         }
         if (!cjsh_filesystem::file_exists(cjsh_filesystem::g_cjsh_profile_path)) {
             std::cout << " To create .cjprofile run 'cjshopt generate-profile" << '\n';
