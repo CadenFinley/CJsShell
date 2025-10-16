@@ -2,6 +2,8 @@
 
 CJ's Shell (cjsh) is a shell with out of the box power and speed without any of the modern shell bloat. Baked in are strong first party theme scripting with a custom theme DSL language, a full custom shell script interpreter with minor bash support, custom keybindings for text editing, custom syntax highlighting, fuzzy text auto completions, smart directory navigation, advanced history seaching, multiline editing, typeahead, and rich prompts. All with no external shell support and only 1 dependency which is already baked in. cjsh aims to be fast and responsive at all times. It is fully usable on all *nix like systems and Windows with WSL. cjsh aims to be an almost 1 to 1 switch over from other POSIX like shells.
 
+📖 **[Full Documentation](https://cadenfinley.github.io/CJsShell/)**
+
 ## Quick Install (Recommended)
 
 The easiest way to get started with CJ's Shell is with brew
