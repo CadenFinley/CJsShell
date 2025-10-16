@@ -492,7 +492,6 @@ static bool handle_runoff_bind(ic_keycode_t key, void*) {
             setenv("CJSH_LINE", original_buffer.c_str(), 1);
             setenv("CJSH_POINT", std::to_string(cursor_pos).c_str(), 1);
 
-            // Execute the command
             g_shell->execute(command);
 
             const char* new_buffer_env = getenv("CJSH_LINE");
