@@ -73,7 +73,6 @@ bool history_expansion_enabled = true;
 // implement a system that automattically sources and unsources scripts
 // when entering and leaving directories (like autoenv, direnv, etc)
 // the file would be named .cjshenv
-// arithmetic operations could do with some optimization
 
 static void save_startup_arguments(int argc, char* argv[]) {
     g_startup_args.clear();
