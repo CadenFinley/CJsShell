@@ -176,18 +176,11 @@ int widget_builtin(const std::vector<std::string>& args) {
     }
 
     if (subcommand == "accept") {
-        const char* buffer = ic_get_buffer();
-        if (!buffer) {
+        if (!ic_request_submit()) {
             std::cerr << "cjsh-widget: no active readline session\n";
             return 1;
         }
-
-        std::string new_buffer = std::string(buffer) + "\n";
-
-        if (!ic_set_buffer(new_buffer.c_str())) {
-            std::cerr << "cjsh-widget: failed to update buffer\n";
-            return 1;
-        }
+        ic_push_key_event(0);
         return 0;
     }
 

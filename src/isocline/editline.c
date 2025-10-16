@@ -43,6 +43,7 @@ typedef struct editor_s {
                                        // for example)
     bool disable_undo;                 // temporarily disable auto undo (for history search)
     bool history_prefix_active;        // whether prefix-prioritized history is active
+    bool request_submit;               // request submission of current line
     ssize_t history_idx;               // current index in the history
     editstate_t* undo;                 // undo buffer
     editstate_t* redo;                 // redo buffer
@@ -2087,7 +2088,7 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
                 }
             }
 
-        if (request_submit) {
+        if (request_submit || eb.request_submit) {
             c = KEY_ENTER;
             break;
         }
@@ -2209,6 +2210,16 @@ ic_public bool ic_set_cursor_pos(size_t pos) {
 
     eb->pos = (ssize_t)pos;
     edit_refresh(env, eb);
+    return true;
+}
+
+ic_public bool ic_request_submit(void) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL || env->current_editor == NULL)
+        return false;
+
+    editor_t* eb = env->current_editor;
+    eb->request_submit = true;
     return true;
 }
 

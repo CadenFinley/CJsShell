@@ -148,14 +148,8 @@ bool ic_get_cursor_pos(size_t* out_pos);
 /// @returns true if the position was successfully set, false if no readline operation is active.
 bool ic_set_cursor_pos(size_t pos);
 
-/// Reset and refresh the current readline loop with optional new content.
-/// This function reprints the prompt and input, optionally updating the buffer, prompt, or inline
-/// right text. Can only be called while a readline operation is active.
-/// @param new_buffer Optional new input buffer string. If NULL, retains current buffer.
-/// @param new_prompt Optional new prompt string. If NULL, retains current prompt.
-/// @param new_inline_right Optional new inline right-aligned text. If NULL, retains current inline
-/// right text.
-/// @returns true if the loop was successfully reset, false if no readline operation is active.
+bool ic_request_submit(void);
+
 bool ic_current_loop_reset(const char* new_buffer, const char* new_prompt,
                            const char* new_inline_right);
 
