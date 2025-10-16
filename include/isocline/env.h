@@ -26,6 +26,12 @@ struct editor_s;
 // Environment
 //-------------------------------------------------------------
 
+typedef struct ic_abbreviation_entry_s {
+  char* trigger;
+  char* expansion;
+  ssize_t trigger_len;
+} ic_abbreviation_entry_t;
+
 struct ic_env_s {
     alloc_t* mem;                     // potential custom allocator
     ic_env_t* next;                   // next environment (used for proper deallocation)
@@ -77,6 +83,10 @@ struct ic_env_s {
     ssize_t key_binding_count;
     ssize_t key_binding_capacity;
     const struct ic_keybinding_profile_s* key_binding_profile;
+
+  ic_abbreviation_entry_t* abbreviations;
+  ssize_t abbreviation_count;
+  ssize_t abbreviation_capacity;
 };
 
 ic_private char* ic_editline(ic_env_t* env, const char* prompt_text, const char* inline_right_text);

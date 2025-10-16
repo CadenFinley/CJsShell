@@ -584,6 +584,19 @@ bool ic_enable_brace_insertion(bool enable);
 /// Pass \a NULL for the default `()[]{}\"\"''`
 void ic_set_insertion_braces(const char* brace_pairs);
 
+/// Register or update a fish-style abbreviation.
+/// Abbreviations expand when the trigger is followed by a space, newline, or when
+/// submitting the line. The trigger must not contain whitespace.
+/// Returns `true` on success.
+bool ic_add_abbreviation(const char* trigger, const char* expansion);
+
+/// Remove a previously registered abbreviation.
+/// Returns `true` if the abbreviation existed and was removed.
+bool ic_remove_abbreviation(const char* trigger);
+
+/// Remove all registered abbreviations.
+void ic_clear_abbreviations(void);
+
 /// \}
 
 //--------------------------------------------------------------

@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <filesystem>
 
+#include "abbr_command.h"
 #include "alias_command.h"
 #include "bookmark_database.h"
 #include "cd_command.h"
@@ -136,10 +137,18 @@ Built_ins::Built_ins() : shell(nullptr) {
          [this](const std::vector<std::string>& args) { return ::local_command(args, shell); }},
         {"alias",
          [this](const std::vector<std::string>& args) { return ::alias_command(args, shell); }},
+    {"abbr",
+     [this](const std::vector<std::string>& args) { return ::abbr_command(args, shell); }},
+    {"abbreviate",
+     [this](const std::vector<std::string>& args) { return ::abbr_command(args, shell); }},
         {"export",
          [this](const std::vector<std::string>& args) { return ::export_command(args, shell); }},
         {"unalias",
          [this](const std::vector<std::string>& args) { return ::unalias_command(args, shell); }},
+    {"unabbr",
+     [this](const std::vector<std::string>& args) { return ::unabbr_command(args, shell); }},
+         {"unabbreviate",
+     [this](const std::vector<std::string>& args) { return ::unabbr_command(args, shell); }},
         {"unset",
          [this](const std::vector<std::string>& args) { return ::unset_command(args, shell); }},
         {"set",

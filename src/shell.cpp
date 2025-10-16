@@ -20,6 +20,7 @@
 #include "cjsh.h"
 #include "error_out.h"
 #include "exec.h"
+#include "isocline.h"
 #include "job_control.h"
 #include "shell_script_interpreter.h"
 #include "theme.h"
@@ -161,6 +162,14 @@ bool raw_mode_state_entered(const RawModeState* state) {
     return (state != nullptr) && state->entered;
 }
 
+void Shell::set_abbreviations(const std::unordered_map<std::string, std::string>& new_abbreviations) {
+    abbreviations = new_abbreviations;
+    ic_clear_abbreviations();
+    for (const auto& [name, expansion] : abbreviations) {
+        (void)ic_add_abbreviation(name.c_str(), expansion.c_str());
+    }
+}
+
 void Shell::process_pending_signals() {
     if (signal_handler && shell_exec) {
         signal_handler->process_pending_signals(shell_exec.get());
@@ -184,6 +193,10 @@ Shell::Shell() : shell_pgid(0), shell_tmodes() {
     }
     built_ins->set_shell(this);
     built_ins->set_current_directory();
+
+    abbreviations.emplace("abbr", "abbreviate");
+    abbreviations.emplace("unabbr", "unabbreviate");
+    set_abbreviations(abbreviations);
 
     shell_terminal = STDIN_FILENO;
 

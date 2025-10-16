@@ -88,6 +88,8 @@ static void edit_delete_to_start_of_line(ic_env_t* env, editor_t* eb);
 static void edit_delete_to_end_of_line(ic_env_t* env, editor_t* eb);
 static void edit_swap_char(ic_env_t* env, editor_t* eb);
 static void edit_insert_char(ic_env_t* env, editor_t* eb, char c);
+static bool edit_try_expand_abbreviation(ic_env_t* env, editor_t* eb, bool boundary_char_present,
+                                         bool modification_started);
 
 static bool key_action_execute(ic_env_t* env, editor_t* eb, ic_key_action_t action) {
     switch (action) {
@@ -1715,11 +1717,74 @@ static void editor_auto_indent(editor_t* eb, const char* pre, const char* post) 
     }
 }
 
+static bool edit_try_expand_abbreviation(ic_env_t* env, editor_t* eb, bool boundary_char_present,
+                                         bool modification_started) {
+    if (env == NULL || eb == NULL)
+        return false;
+    if (env->abbreviation_count <= 0 || env->abbreviations == NULL)
+        return false;
+
+    ssize_t boundary_offset = (boundary_char_present ? 1 : 0);
+    if (eb->pos <= boundary_offset)
+        return false;
+
+    const char* buffer = sbuf_string(eb->input);
+    if (buffer == NULL)
+        return false;
+
+    if (boundary_char_present) {
+        ssize_t boundary_index = eb->pos - 1;
+        if (boundary_index < 0)
+            return false;
+        if (!ic_char_is_white(buffer + boundary_index, 1))
+            return false;
+    }
+
+    ssize_t word_end = eb->pos - boundary_offset;
+    if (word_end <= 0)
+        return false;
+
+    if (word_end > 0 && ic_char_is_white(buffer + word_end - 1, 1))
+        return false;
+
+    ssize_t word_start = sbuf_find_ws_word_start(eb->input, word_end);
+    if (word_start < 0)
+        word_start = 0;
+
+    if (word_start > 0 && !ic_char_is_white(buffer + word_start - 1, 1))
+        return false;
+
+    ssize_t word_len = word_end - word_start;
+    if (word_len <= 0)
+        return false;
+
+    for (ssize_t i = 0; i < env->abbreviation_count; ++i) {
+        ic_abbreviation_entry_t* entry = &env->abbreviations[i];
+        if (entry->trigger_len == word_len &&
+            strncmp(entry->trigger, buffer + word_start, (size_t)word_len) == 0) {
+            if (!modification_started) {
+                editor_start_modify(eb);
+            }
+            sbuf_delete_at(eb->input, word_start, word_len);
+            eb->pos -= word_len;
+            ssize_t new_pos = sbuf_insert_at(eb->input, entry->expansion, word_start);
+            ssize_t expansion_len = new_pos - word_start;
+            eb->pos += expansion_len;
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static void edit_insert_char(ic_env_t* env, editor_t* eb, char c) {
     editor_start_modify(eb);
     ssize_t nextpos = sbuf_insert_char_at(eb->input, c, eb->pos);
     if (nextpos >= 0)
         eb->pos = nextpos;
+    if (c == ' ' || c == '\n' || c == '\r') {
+        edit_try_expand_abbreviation(env, eb, true, true);
+    }
     edit_auto_brace(env, eb, c);
     if (c == '\n') {
         editor_auto_indent(eb, "{", "}");  // todo: custom auto indent tokens?
@@ -1901,6 +1966,9 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
                 }
             } else {
                 // otherwise done
+                if (edit_try_expand_abbreviation(env, &eb, false, false)) {
+                    edit_refresh(env, &eb);
+                }
                 request_submit = true;
             }
         } else if (c == KEY_CTRL_D) {

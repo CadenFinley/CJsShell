@@ -128,6 +128,16 @@ static void ic_env_free(ic_env_t* env) {
     bbcode_free(env->bbcode);
     term_free(env->term);
     tty_free(env->tty);
+    if (env->abbreviations != NULL) {
+        for (ssize_t i = 0; i < env->abbreviation_count; ++i) {
+            mem_free(env->mem, env->abbreviations[i].trigger);
+            mem_free(env->mem, env->abbreviations[i].expansion);
+        }
+        mem_free(env->mem, env->abbreviations);
+        env->abbreviations = NULL;
+        env->abbreviation_count = 0;
+        env->abbreviation_capacity = 0;
+    }
     mem_free(env->mem, env->cprompt_marker);
     mem_free(env->mem, env->prompt_marker);
     mem_free(env->mem, env->match_braces);
@@ -146,6 +156,7 @@ static void ic_env_free(ic_env_t* env) {
 //-------------------------------------------------------------
 
 static ic_env_t* rpenv = NULL;
+static bool ic_default_abbreviations_initialized = false;
 
 static void ic_atexit(void) {
     if (rpenv != NULL) {
@@ -160,6 +171,11 @@ ic_private ic_env_t* ic_get_env(void) {
         if (rpenv != NULL) {
             atexit(&ic_atexit);
         }
+    }
+    if (!ic_default_abbreviations_initialized && rpenv != NULL) {
+        ic_default_abbreviations_initialized = true;
+        (void)ic_add_abbreviation("abbr", "abbreviate");
+        (void)ic_add_abbreviation("unabbr", "unabbreviate");
     }
     return rpenv;
 }

@@ -112,6 +112,9 @@ class Shell {
         }
     }
 
+    void set_abbreviations(
+        const std::unordered_map<std::string, std::string>& new_abbreviations);
+
     void set_env_vars(const std::unordered_map<std::string, std::string>& new_env_vars) {
         env_vars = new_env_vars;
         if (shell_parser) {
@@ -121,6 +124,10 @@ class Shell {
 
     std::unordered_map<std::string, std::string>& get_aliases() {
         return aliases;
+    }
+
+    std::unordered_map<std::string, std::string>& get_abbreviations() {
+        return abbreviations;
     }
 
     std::unordered_map<std::string, std::string>& get_env_vars() {
@@ -203,6 +210,7 @@ class Shell {
     std::unique_ptr<Parser> shell_parser;
     std::unique_ptr<ShellScriptInterpreter> shell_script_interpreter;
 
+    std::unordered_map<std::string, std::string> abbreviations;
     std::unordered_map<std::string, std::string> aliases;
     std::unordered_map<std::string, std::string> env_vars;
     std::vector<std::string> positional_parameters;

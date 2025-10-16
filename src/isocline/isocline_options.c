@@ -14,6 +14,41 @@
 #include "env.h"
 #include "env_internal.h"
 
+#include <string.h>
+
+static ic_abbreviation_entry_t* ic_env_find_abbreviation(ic_env_t* env, const char* trigger,
+                                                         ssize_t trigger_len, ssize_t* out_index) {
+    if (env == NULL || trigger == NULL || trigger_len <= 0)
+        return NULL;
+    for (ssize_t i = 0; i < env->abbreviation_count; ++i) {
+        ic_abbreviation_entry_t* entry = &env->abbreviations[i];
+        if (entry->trigger_len == trigger_len &&
+            strncmp(entry->trigger, trigger, (size_t)trigger_len) == 0) {
+            if (out_index != NULL) {
+                *out_index = i;
+            }
+            return entry;
+        }
+    }
+    return NULL;
+}
+
+static bool ic_env_ensure_abbreviation_capacity(ic_env_t* env, ssize_t needed) {
+    if (env->abbreviation_capacity >= needed)
+        return true;
+    ssize_t new_capacity = (env->abbreviation_capacity == 0 ? 4 : env->abbreviation_capacity * 2);
+    while (new_capacity < needed) {
+        new_capacity *= 2;
+    }
+    ic_abbreviation_entry_t* resized =
+        mem_realloc_tp(env->mem, ic_abbreviation_entry_t, env->abbreviations, new_capacity);
+    if (resized == NULL)
+        return false;
+    env->abbreviations = resized;
+    env->abbreviation_capacity = new_capacity;
+    return true;
+}
+
 ic_public const char* ic_get_prompt_marker(void) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)
@@ -310,6 +345,98 @@ ic_public void ic_set_insertion_braces(const char* brace_pairs) {
             env->auto_braces = mem_strdup(env->mem, brace_pairs);
         }
     }
+}
+
+ic_public bool ic_add_abbreviation(const char* trigger, const char* expansion) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL || trigger == NULL || expansion == NULL)
+        return false;
+
+    ssize_t trigger_len = ic_strlen(trigger);
+    if (trigger_len <= 0)
+        return false;
+
+    for (ssize_t i = 0; i < trigger_len; ++i) {
+        if (ic_char_is_white(trigger + i, 1)) {
+            return false;
+        }
+    }
+
+    ic_abbreviation_entry_t* existing = ic_env_find_abbreviation(env, trigger, trigger_len, NULL);
+    if (existing != NULL) {
+        char* expansion_copy = mem_strdup(env->mem, expansion);
+        if (expansion_copy == NULL) {
+            return false;
+        }
+        mem_free(env->mem, existing->expansion);
+        existing->expansion = expansion_copy;
+        return true;
+    }
+
+    if (!ic_env_ensure_abbreviation_capacity(env, env->abbreviation_count + 1)) {
+        return false;
+    }
+
+    char* trigger_copy = mem_strdup(env->mem, trigger);
+    if (trigger_copy == NULL) {
+        return false;
+    }
+
+    char* expansion_copy = mem_strdup(env->mem, expansion);
+    if (expansion_copy == NULL) {
+        mem_free(env->mem, trigger_copy);
+        return false;
+    }
+
+    ic_abbreviation_entry_t* entry = &env->abbreviations[env->abbreviation_count];
+    entry->trigger = trigger_copy;
+    entry->expansion = expansion_copy;
+    entry->trigger_len = trigger_len;
+    env->abbreviation_count += 1;
+    return true;
+}
+
+ic_public bool ic_remove_abbreviation(const char* trigger) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL || trigger == NULL || env->abbreviation_count <= 0)
+        return false;
+
+    ssize_t trigger_len = ic_strlen(trigger);
+    if (trigger_len <= 0)
+        return false;
+
+    ssize_t index = -1;
+    ic_abbreviation_entry_t* entry = ic_env_find_abbreviation(env, trigger, trigger_len, &index);
+    if (entry == NULL)
+        return false;
+
+    mem_free(env->mem, entry->trigger);
+    mem_free(env->mem, entry->expansion);
+
+    ssize_t remaining = env->abbreviation_count - index - 1;
+    if (remaining > 0) {
+        ic_memmove(&env->abbreviations[index], &env->abbreviations[index + 1],
+                   remaining * ssizeof(ic_abbreviation_entry_t));
+    }
+
+    env->abbreviation_count -= 1;
+    return true;
+}
+
+ic_public void ic_clear_abbreviations(void) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL || env->abbreviation_count <= 0 || env->abbreviations == NULL)
+        return;
+
+    for (ssize_t i = 0; i < env->abbreviation_count; ++i) {
+        mem_free(env->mem, env->abbreviations[i].trigger);
+        mem_free(env->mem, env->abbreviations[i].expansion);
+    }
+
+    mem_free(env->mem, env->abbreviations);
+    env->abbreviations = NULL;
+    env->abbreviation_count = 0;
+    env->abbreviation_capacity = 0;
 }
 
 ic_public void ic_set_default_highlighter(ic_highlight_fun_t* highlighter, void* arg) {
