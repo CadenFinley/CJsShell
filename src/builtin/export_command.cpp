@@ -13,6 +13,29 @@
 #include "shell.h"
 #include "shell_script_interpreter.h"
 
+namespace {
+
+bool parse_env_assignment(const std::string& arg, std::string& name, std::string& value) {
+    size_t equals_pos = arg.find('=');
+    if (equals_pos == std::string::npos || equals_pos == 0) {
+        return false;
+    }
+
+    name = arg.substr(0, equals_pos);
+    value = arg.substr(equals_pos + 1);
+
+    if (value.size() >= 2) {
+        if ((value.front() == '"' && value.back() == '"') ||
+            (value.front() == '\'' && value.back() == '\'')) {
+            value = value.substr(1, value.size() - 2);
+        }
+    }
+
+    return true;
+}
+
+}  // namespace
+
 int export_command(const std::vector<std::string>& args, Shell* shell) {
     if (builtin_handle_help(args, {"Usage: export [NAME[=VALUE] ...]",
                                    "Set environment variables for the shell and subprocesses.",
@@ -151,23 +174,4 @@ int unset_command(const std::vector<std::string>& args, Shell* shell) {
     }
 
     return success ? 0 : 1;
-}
-
-bool parse_env_assignment(const std::string& arg, std::string& name, std::string& value) {
-    size_t equals_pos = arg.find('=');
-    if (equals_pos == std::string::npos || equals_pos == 0) {
-        return false;
-    }
-
-    name = arg.substr(0, equals_pos);
-    value = arg.substr(equals_pos + 1);
-
-    if (value.size() >= 2) {
-        if ((value.front() == '"' && value.back() == '"') ||
-            (value.front() == '\'' && value.back() == '\'')) {
-            value = value.substr(1, value.size() - 2);
-        }
-    }
-
-    return true;
 }
