@@ -21,7 +21,6 @@
 
 #include "builtin.h"
 #include "cjsh_filesystem.h"
-#include "colors.h"
 #include "error_out.h"
 #include "flags.h"
 #include "isocline.h"
@@ -29,7 +28,6 @@
 #include "main_loop.h"
 #include "shell.h"
 #include "shell_env.h"
-#include "theme.h"
 #include "token_constants.h"
 #include "trap_command.h"
 #include "usage.h"
@@ -40,7 +38,6 @@ std::string g_cached_version;
 std::string g_current_theme;
 bool g_startup_active = true;
 std::unique_ptr<Shell> g_shell = nullptr;
-std::unique_ptr<Theme> g_theme = nullptr;
 std::vector<std::string> g_startup_args;
 std::vector<std::string> g_profile_startup_args;
 
@@ -50,8 +47,6 @@ bool interactive_mode = true;
 bool force_interactive = false;
 bool execute_command = false;
 std::string cmd_to_execute;
-bool themes_enabled = true;
-bool colors_enabled = true;
 bool source_enabled = true;
 bool completions_enabled = true;
 bool syntax_highlighting_enabled = true;
@@ -124,32 +119,11 @@ int handle_non_interactive_mode(const std::string& script_file) {
     return 0;
 }
 
-void initialize_colors() {
-    colors::initialize_color_support(config::colors_enabled);
-
-    if (!config::colors_enabled) {
-        ic_enable_color(false);
-        ic_style_def("ic-prompt", "");
-        ic_style_def("ic-linenumbers", "");
-        ic_style_def("ic-linenumber-current", "");
-    } else if (config::colors_enabled && config::syntax_highlighting_enabled) {
-        for (const auto& pair : token_constants::default_styles) {
-            std::string style_name = pair.first;
-            if (style_name.rfind("ic-", 0) != 0) {
-                style_name = "cjsh-" + style_name;
-            }
-            ic_style_def(style_name.c_str(), pair.second.c_str());
-        }
-    }
-}
-
 int initialize_interactive_components() {
     g_shell->set_interactive_mode(true);
 
     if (cjsh_filesystem::init_interactive_filesystem()) {
         g_shell->setup_interactive_handlers();
-
-        initialize_colors();
 
         std::string saved_current_dir = std::filesystem::current_path().string();
 
@@ -194,10 +168,6 @@ void start_interactive_process() {
     auto startup_duration = std::chrono::duration_cast<std::chrono::microseconds>(
         startup_end_time - g_startup_begin_time);
 
-    if (g_shell && g_theme) {
-        g_shell->set_initial_duration(startup_duration.count());
-    }
-
     if (config::show_title_line) {
         std::cout << " CJ's Shell v" << get_version() << " - Caden J Finley (c) 2025" << '\n';
         std::cout << " Created 2025 @ \033[1;35mAbilene Christian "
@@ -234,23 +204,19 @@ void start_interactive_process() {
 
     if (config::show_startup_time) {
         std::string startup_time_str;
-        if (g_shell && g_theme) {
-            startup_time_str = g_shell->get_initial_duration();
+        long microseconds = startup_duration.count();
+        if (microseconds < 1000) {
+            startup_time_str = std::to_string(microseconds) + "μs";
+        } else if (microseconds < 1000000) {
+            double milliseconds = static_cast<double>(microseconds) / 1000.0;
+            char buffer[32];
+            (void)snprintf(buffer, sizeof(buffer), "%.2fms", milliseconds);
+            startup_time_str = buffer;
         } else {
-            long microseconds = startup_duration.count();
-            if (microseconds < 1000) {
-                startup_time_str = std::to_string(microseconds) + "μs";
-            } else if (microseconds < 1000000) {
-                double milliseconds = static_cast<double>(microseconds) / 1000.0;
-                char buffer[32];
-                (void)snprintf(buffer, sizeof(buffer), "%.2fms", milliseconds);
-                startup_time_str = buffer;
-            } else {
-                double seconds = static_cast<double>(microseconds) / 1000000.0;
-                char buffer[32];
-                (void)snprintf(buffer, sizeof(buffer), "%.2fs", seconds);
-                startup_time_str = buffer;
-            }
+            double seconds = static_cast<double>(microseconds) / 1000000.0;
+            char buffer[32];
+            (void)snprintf(buffer, sizeof(buffer), "%.2fs", seconds);
+            startup_time_str = buffer;
         }
         std::cout << " Started in " << startup_time_str << '\n';
     }
@@ -274,22 +240,11 @@ void process_logout_file() {
 
 }  // namespace
 
-void initialize_themes() {
-    if (!config::themes_enabled) {
-        return;
-    }
-    g_theme = std::make_unique<Theme>("", config::themes_enabled);
-}
-
 void cleanup_resources() {
     if (g_shell) {
         trap_manager_set_shell(g_shell.get());
         trap_manager_execute_exit_trap();
         process_logout_file();
-    }
-
-    if (g_theme) {
-        g_theme.reset();
     }
 
     if (g_shell) {

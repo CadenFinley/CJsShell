@@ -30,7 +30,6 @@
 #include "isocline.h"
 #include "job_control.h"
 #include "shell.h"
-#include "theme.h"
 #include "typeahead.h"
 
 namespace {
@@ -298,7 +297,6 @@ TerminalStatus check_terminal_health(TerminalCheckLevel level = TerminalCheckLev
 
 bool process_command_line(const std::string& command, bool skip_history = false) {
     if (command.empty()) {
-        g_shell->reset_command_timing();
         return g_exit_flag;
     }
 
@@ -323,10 +321,7 @@ bool process_command_line(const std::string& command, bool skip_history = false)
 
     g_shell->execute_hooks("preexec");
 
-    g_shell->start_command_timing();
     int exit_code = g_shell->execute(expanded_command);
-    g_shell->end_command_timing(exit_code);
-
     std::string status_str = std::to_string(exit_code);
 
     if (!skip_history) {
@@ -350,11 +345,6 @@ bool process_command_line(const std::string& command, bool skip_history = false)
     return g_exit_flag;
 }
 
-void update_terminal_title() {
-    std::cout << "\033]0;" << g_shell->get_title_prompt() << "\007";
-    std::cout.flush();
-}
-
 bool perform_terminal_check() {
     TerminalStatus status = check_terminal_health(TerminalCheckLevel::QUICK);
     if (!status.terminal_alive) {
@@ -370,28 +360,15 @@ void update_job_management() {
 }
 
 std::string generate_prompt(bool command_was_available) {
+    (void)command_was_available;
     std::printf(" \r");
     (void)std::fflush(stdout);
 
     if (config::no_prompt) {
         return "# ";
+    } else {
+        return "# ";
     }
-
-    std::string prompt = g_shell->get_prompt();
-
-    if (g_theme && g_theme->uses_newline()) {
-        prompt += "\n";
-        prompt += g_shell->get_newline_prompt();
-    }
-    if (g_theme) {
-        ic_enable_prompt_cleanup(
-            g_theme->uses_cleanup(),
-            (g_theme->cleanup_nl_after_exec() && command_was_available) ? 1 : 0);
-        ic_enable_prompt_cleanup_empty_line(g_theme->cleanup_adds_empty_line());
-        ic_enable_prompt_cleanup_truncate_multiline(g_theme->cleanup_truncates_multiline());
-    }
-
-    return prompt;
 }
 
 bool handle_null_input() {
@@ -413,7 +390,6 @@ std::pair<std::string, bool> get_next_command(bool command_was_available,
     g_shell->execute_hooks("precmd");
 
     std::string prompt = generate_prompt(command_was_available);
-    std::string inline_right_text = g_shell->get_inline_right_prompt();
 
     typeahead::flush_pending_typeahead();
 
@@ -426,8 +402,7 @@ std::pair<std::string, bool> get_next_command(bool command_was_available,
     }
 
     const char* initial_input = sanitized_buffer.empty() ? nullptr : sanitized_buffer.c_str();
-    const char* inline_right_ptr = inline_right_text.empty() ? nullptr : inline_right_text.c_str();
-    char* input = ic_readline(prompt.c_str(), inline_right_ptr, initial_input);
+    char* input = ic_readline(prompt.c_str(), nullptr, initial_input);
     typeahead::clear_input_buffer();
     sanitized_buffer.clear();
 
@@ -435,7 +410,6 @@ std::pair<std::string, bool> get_next_command(bool command_was_available,
         if (handle_null_input()) {
             return {command_to_run, false};
         }
-        g_shell->reset_command_timing();
         return {command_to_run, false};
     }
 
@@ -451,7 +425,6 @@ std::pair<std::string, bool> get_next_command(bool command_was_available,
     }
 
     if (command_to_run == IC_READLINE_TOKEN_CTRL_C) {
-        g_shell->reset_command_timing();
         return {std::string(), false};
     }
 
@@ -461,7 +434,6 @@ std::pair<std::string, bool> get_next_command(bool command_was_available,
     if (heredoc_info.has_heredoc && !heredoc_info.delimiter.empty()) {
         auto [processed_command, history_entries] = process_heredoc_command(command_to_run);
         if (processed_command.empty()) {
-            g_shell->reset_command_timing();
             return {std::string(), false};
         }
 
@@ -549,8 +521,6 @@ void main_process_loop() {
 
         update_job_management();
 
-        update_terminal_title();
-
         typeahead::flush_pending_typeahead();
 
         std::tie(command_to_run, command_available) =
@@ -570,11 +540,6 @@ void main_process_loop() {
                 std::cerr << "Exiting main process loop..." << '\n';
             }
             break;
-        }
-        if (g_theme && g_theme->newline_after_execution() && command_available &&
-            (command_to_run != "clear")) {
-            (void)std::fputc('\n', stdout);
-            (void)std::fflush(stdout);
         }
 
         history_already_added = false;

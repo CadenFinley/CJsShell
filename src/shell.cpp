@@ -23,7 +23,6 @@
 #include "isocline.h"
 #include "job_control.h"
 #include "shell_script_interpreter.h"
-#include "theme.h"
 #include "trap_command.h"
 
 namespace {

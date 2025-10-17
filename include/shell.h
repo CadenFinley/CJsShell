@@ -10,7 +10,6 @@
 #include <termios.h>
 
 #include "parser.h"
-#include "prompt.h"
 #include "signal_handler.h"
 
 class Exec;
@@ -37,53 +36,6 @@ class Shell {
 
     int execute_command(std::vector<std::string> args, bool run_in_background = false);
     void process_pending_signals();
-
-    std::string get_prompt() {
-        return shell_prompt->get_prompt();
-    }
-
-    std::string get_newline_prompt() {
-        return shell_prompt->get_newline_prompt();
-    }
-
-    std::string get_inline_right_prompt() {
-        return shell_prompt->get_inline_right_prompt();
-    }
-
-    std::string get_title_prompt() {
-        return shell_prompt->get_title_prompt();
-    }
-
-    void start_command_timing() {
-        if (shell_prompt) {
-            shell_prompt->start_command_timing();
-        }
-    }
-
-    void end_command_timing(int exit_code) {
-        if (shell_prompt) {
-            shell_prompt->end_command_timing(exit_code);
-        }
-    }
-
-    void reset_command_timing() {
-        if (shell_prompt) {
-            shell_prompt->reset_command_timing();
-        }
-    }
-
-    void set_initial_duration(long long microseconds) {
-        if (shell_prompt) {
-            shell_prompt->set_initial_duration(microseconds);
-        }
-    }
-
-    std::string get_initial_duration() {
-        if (shell_prompt) {
-            return shell_prompt->get_initial_duration();
-        }
-        return "0";
-    }
 
     void set_interactive_mode(bool flag);
 
@@ -201,7 +153,6 @@ class Shell {
     bool terminal_state_saved = false;
     bool job_control_enabled = false;
 
-    std::unique_ptr<Prompt> shell_prompt;
     std::unique_ptr<SignalHandler> signal_handler;
     std::unique_ptr<Built_ins> built_ins;
     std::unique_ptr<Parser> shell_parser;
