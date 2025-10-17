@@ -16,6 +16,7 @@
 
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
+#include "exec.h"
 #include "theme_parser.h"
 
 /* Available prompt placeholders:
@@ -799,9 +800,9 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
         if (use_cache) {
             result = exec_cache[cache_key].first;
         } else {
-            auto cmd_result = cjsh_filesystem::read_command_output(command);
-            if (!cmd_result.is_error()) {
-                result = cmd_result.value();
+            auto cmd_result = exec_utils::execute_command_for_output(command);
+            if (cmd_result.success) {
+                result = cmd_result.output;
 
                 if (!result.empty() && result.back() == '\n') {
                     result.pop_back();

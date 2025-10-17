@@ -2,14 +2,15 @@
 
 #include <cstdio>
 #include "cjsh_filesystem.h"
+#include "exec.h"
 
 std::string get_disk_usage(const std::filesystem::path& path) {
     std::string cmd = "df -h '" + path.string() + "' | awk 'NR==2{print $5}'";
-    auto result = cjsh_filesystem::read_command_output(cmd);
-    if (result.is_error()) {
+    auto result = exec_utils::execute_command_for_output(cmd);
+    if (!result.success) {
         return "";
     }
-    std::string output = result.value();
+    std::string output = result.output;
     if (!output.empty() && output.back() == '\n') {
         output.pop_back();
     }
@@ -24,11 +25,11 @@ std::string get_swap_usage() {
 #else
     std::string cmd = "echo \"N/A\"";
 #endif
-    auto result = cjsh_filesystem::read_command_output(cmd);
-    if (result.is_error()) {
+    auto result = exec_utils::execute_command_for_output(cmd);
+    if (!result.success) {
         return "";
     }
-    std::string output = result.value();
+    std::string output = result.output;
     if (!output.empty() && output.back() == '\n') {
         output.pop_back();
     }
@@ -37,11 +38,11 @@ std::string get_swap_usage() {
 
 std::string get_load_avg() {
     std::string cmd = "uptime | awk -F'load averages?: ' '{print $2}'";
-    auto result = cjsh_filesystem::read_command_output(cmd);
-    if (result.is_error()) {
+    auto result = exec_utils::execute_command_for_output(cmd);
+    if (!result.success) {
         return "";
     }
-    std::string output = result.value();
+    std::string output = result.output;
     if (!output.empty() && output.back() == '\n') {
         output.pop_back();
     }
@@ -71,12 +72,12 @@ std::string get_os_info() {
     std::string cmd = "uname -s";
 #endif
 
-    auto result_data = cjsh_filesystem::read_command_output(cmd);
-    if (result_data.is_error()) {
+    auto result_data = exec_utils::execute_command_for_output(cmd);
+    if (!result_data.success) {
         return "Unknown";
     }
 
-    std::string result = result_data.value();
+    std::string result = result_data.output;
     // Clean up the result
     if (!result.empty() && result.back() == '\n') {
         result.pop_back();
@@ -102,12 +103,12 @@ std::string get_kernel_version() {
     std::string cmd = "uname -r";
 #endif
 
-    auto result_data = cjsh_filesystem::read_command_output(cmd);
-    if (result_data.is_error()) {
+    auto result_data = exec_utils::execute_command_for_output(cmd);
+    if (!result_data.success) {
         return "Unknown";
     }
 
-    std::string result = result_data.value();
+    std::string result = result_data.output;
     if (!result.empty() && result.back() == '\n') {
         result.pop_back();
     }
@@ -126,14 +127,14 @@ float get_cpu_usage() {
     return 0.0f;
 #endif
 
-    auto result_data = cjsh_filesystem::read_command_output(cmd);
-    if (result_data.is_error()) {
+    auto result_data = exec_utils::execute_command_for_output(cmd);
+    if (!result_data.success) {
         return 0.0f;
     }
 
     float usage = 0.0f;
     try {
-        usage = std::stof(result_data.value());
+        usage = std::stof(result_data.output);
     } catch (const std::exception& e) {
         usage = 0.0f;
     }
@@ -162,14 +163,14 @@ float get_memory_usage() {
     return 0.0f;
 #endif
 
-    auto result_data = cjsh_filesystem::read_command_output(cmd);
-    if (result_data.is_error()) {
+    auto result_data = exec_utils::execute_command_for_output(cmd);
+    if (!result_data.success) {
         return 0.0f;
     }
 
     float usage = 0.0f;
     try {
-        usage = std::stof(result_data.value());
+        usage = std::stof(result_data.output);
     } catch (const std::exception& e) {
         usage = 0.0f;
     }
@@ -204,12 +205,12 @@ std::string get_battery_status() {
     return "N/A";
 #endif
 
-    auto result_data = cjsh_filesystem::read_command_output(cmd);
-    if (result_data.is_error()) {
+    auto result_data = exec_utils::execute_command_for_output(cmd);
+    if (!result_data.success) {
         return "N/A";
     }
 
-    std::string result = result_data.value();
+    std::string result = result_data.output;
     if (!result.empty() && result.back() == '\n') {
         result.pop_back();
     }
@@ -226,12 +227,12 @@ std::string get_uptime() {
     std::string cmd = "uptime";
 #endif
 
-    auto result_data = cjsh_filesystem::read_command_output(cmd);
-    if (result_data.is_error()) {
+    auto result_data = exec_utils::execute_command_for_output(cmd);
+    if (!result_data.success) {
         return "Unknown";
     }
 
-    std::string result = result_data.value();
+    std::string result = result_data.output;
     if (!result.empty() && result.back() == '\n') {
         result.pop_back();
     }

@@ -2145,3 +2145,232 @@ std::map<int, Job> Exec::get_jobs() {
     std::lock_guard<std::mutex> lock(jobs_mutex);
     return jobs;
 }
+
+namespace exec_utils {
+
+static std::vector<std::string> parse_shell_command(const std::string& command) {
+    std::vector<std::string> args;
+    std::string current;
+    bool in_single_quote = false;
+    bool in_double_quote = false;
+    bool escaped = false;
+
+    for (size_t i = 0; i < command.size(); ++i) {
+        char c = command[i];
+
+        if (escaped) {
+            current += c;
+            escaped = false;
+            continue;
+        }
+
+        if (c == '\\' && !in_single_quote) {
+            escaped = true;
+            continue;
+        }
+
+        if (c == '\'' && !in_double_quote) {
+            in_single_quote = !in_single_quote;
+            continue;
+        }
+
+        if (c == '"' && !in_single_quote) {
+            in_double_quote = !in_double_quote;
+            continue;
+        }
+
+        if ((c == ' ' || c == '\t') && !in_single_quote && !in_double_quote) {
+            if (!current.empty()) {
+                args.push_back(current);
+                current.clear();
+            }
+            continue;
+        }
+
+        current += c;
+    }
+
+    if (!current.empty()) {
+        args.push_back(current);
+    }
+
+    return args;
+}
+
+CommandOutput execute_command_for_output(const std::string& command) {
+    CommandOutput result{"", -1, false};
+
+    std::vector<std::string> args = parse_shell_command(command);
+
+    if (args.empty()) {
+        return result;
+    }
+
+    int pipefd[2];
+    if (pipe(pipefd) == -1) {
+        return result;
+    }
+
+    std::string error_msg;
+    if (!set_close_on_exec(pipefd[0], error_msg) || !set_close_on_exec(pipefd[1], error_msg)) {
+        cjsh_filesystem::safe_close(pipefd[0]);
+        cjsh_filesystem::safe_close(pipefd[1]);
+        return result;
+    }
+
+    pid_t pid = fork();
+    if (pid == -1) {
+        cjsh_filesystem::safe_close(pipefd[0]);
+        cjsh_filesystem::safe_close(pipefd[1]);
+        return result;
+    }
+
+    if (pid == 0) {
+        cjsh_filesystem::safe_close(pipefd[0]);
+
+        auto dup_result = cjsh_filesystem::safe_dup2(pipefd[1], STDOUT_FILENO);
+        if (dup_result.is_error()) {
+            _exit(127);
+        }
+
+        auto devnull_result = cjsh_filesystem::safe_open("/dev/null", O_WRONLY);
+        if (devnull_result.is_ok()) {
+            cjsh_filesystem::safe_dup2(devnull_result.value(), STDERR_FILENO);
+            cjsh_filesystem::safe_close(devnull_result.value());
+        }
+
+        cjsh_filesystem::safe_close(pipefd[1]);
+
+        std::vector<char*> argv;
+        std::vector<std::unique_ptr<char[]>> arg_storage;
+        argv.reserve(args.size() + 1);
+        arg_storage.reserve(args.size());
+
+        for (const auto& arg : args) {
+            auto str_copy = std::make_unique<char[]>(arg.size() + 1);
+            std::strcpy(str_copy.get(), arg.c_str());
+            argv.push_back(str_copy.get());
+            arg_storage.push_back(std::move(str_copy));
+        }
+        argv.push_back(nullptr);
+
+        execvp(argv[0], argv.data());
+        _exit(127);
+    }
+
+    cjsh_filesystem::safe_close(pipefd[1]);
+
+    char buffer[4096];
+    ssize_t bytes_read;
+    while ((bytes_read = read(pipefd[0], buffer, sizeof(buffer) - 1)) > 0) {
+        buffer[bytes_read] = '\0';
+        result.output += buffer;
+    }
+
+    cjsh_filesystem::safe_close(pipefd[0]);
+
+    int status;
+    if (waitpid(pid, &status, 0) == -1) {
+        return result;
+    }
+
+    if (WIFEXITED(status)) {
+        result.exit_code = WEXITSTATUS(status);
+    } else if (WIFSIGNALED(status)) {
+        result.exit_code = 128 + WTERMSIG(status);
+    } else {
+        result.exit_code = 1;
+    }
+
+    result.success = (result.exit_code == 0);
+    return result;
+}
+
+CommandOutput execute_command_vector_for_output(const std::vector<std::string>& args) {
+    CommandOutput result{"", -1, false};
+
+    if (args.empty()) {
+        return result;
+    }
+
+    int pipefd[2];
+    if (pipe(pipefd) == -1) {
+        return result;
+    }
+
+    std::string error_msg;
+    if (!set_close_on_exec(pipefd[0], error_msg) || !set_close_on_exec(pipefd[1], error_msg)) {
+        cjsh_filesystem::safe_close(pipefd[0]);
+        cjsh_filesystem::safe_close(pipefd[1]);
+        return result;
+    }
+
+    pid_t pid = fork();
+    if (pid == -1) {
+        cjsh_filesystem::safe_close(pipefd[0]);
+        cjsh_filesystem::safe_close(pipefd[1]);
+        return result;
+    }
+
+    if (pid == 0) {
+        cjsh_filesystem::safe_close(pipefd[0]);
+
+        auto dup_result = cjsh_filesystem::safe_dup2(pipefd[1], STDOUT_FILENO);
+        if (dup_result.is_error()) {
+            _exit(127);
+        }
+
+        auto devnull_result = cjsh_filesystem::safe_open("/dev/null", O_WRONLY);
+        if (devnull_result.is_ok()) {
+            cjsh_filesystem::safe_dup2(devnull_result.value(), STDERR_FILENO);
+            cjsh_filesystem::safe_close(devnull_result.value());
+        }
+
+        cjsh_filesystem::safe_close(pipefd[1]);
+
+        std::vector<char*> argv;
+        std::vector<std::unique_ptr<char[]>> arg_storage;
+        argv.reserve(args.size() + 1);
+        arg_storage.reserve(args.size());
+
+        for (const auto& arg : args) {
+            auto str_copy = std::make_unique<char[]>(arg.size() + 1);
+            std::strcpy(str_copy.get(), arg.c_str());
+            argv.push_back(str_copy.get());
+            arg_storage.push_back(std::move(str_copy));
+        }
+        argv.push_back(nullptr);
+
+        execvp(argv[0], argv.data());
+        _exit(127);
+    }
+
+    cjsh_filesystem::safe_close(pipefd[1]);
+
+    char buffer[4096];
+    ssize_t bytes_read;
+    while ((bytes_read = read(pipefd[0], buffer, sizeof(buffer) - 1)) > 0) {
+        buffer[bytes_read] = '\0';
+        result.output += buffer;
+    }
+
+    cjsh_filesystem::safe_close(pipefd[0]);
+
+    int status;
+    if (waitpid(pid, &status, 0) == -1) {
+        return result;
+    }
+
+    if (WIFEXITED(status)) {
+        result.exit_code = WEXITSTATUS(status);
+    } else if (WIFSIGNALED(status)) {
+        result.exit_code = 128 + WTERMSIG(status);
+    } else {
+        result.exit_code = 1;
+    }
+
+    result.success = (result.exit_code == 0);
+    return result;
+}
+
+}  // namespace exec_utils

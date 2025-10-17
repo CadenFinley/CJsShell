@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <regex>
 #include "cjsh_filesystem.h"
+#include "exec.h"
 
 bool file_exists(const std::string& path) {
     return std::filesystem::exists(path);
@@ -15,12 +16,12 @@ std::string read_file_content(const std::string& path) {
 }
 
 static std::string execute_command(const std::string& command) {
-    auto result = cjsh_filesystem::read_command_output(command);
-    if (result.is_error()) {
+    auto result = exec_utils::execute_command_for_output(command);
+    if (!result.success) {
         return "";
     }
 
-    std::string output = result.value();
+    std::string output = result.output;
 
     if (!output.empty() && output.back() == '\n') {
         output.pop_back();

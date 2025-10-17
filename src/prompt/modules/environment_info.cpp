@@ -7,6 +7,7 @@
 
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
+#include "exec.h"
 
 std::string get_terminal_type() {
     const char* term = getenv("TERM");
@@ -67,12 +68,12 @@ std::string get_active_language_version(const std::string& language) {
         return "";
     }
 
-    auto cmd_result = cjsh_filesystem::read_command_output(cmd);
-    if (cmd_result.is_error()) {
+    auto cmd_result = exec_utils::execute_command_for_output(cmd);
+    if (!cmd_result.success) {
         return "";
     }
 
-    std::string result = cmd_result.value();
+    std::string result = cmd_result.output;
     if (!result.empty() && result.back() == '\n') {
         result.pop_back();
     }
@@ -113,14 +114,14 @@ bool is_in_virtual_environment(std::string& env_name) {
 
 int get_background_jobs_count() {
     std::string cmd = "jobs | wc -l";
-    auto cmd_result = cjsh_filesystem::read_command_output(cmd);
-    if (cmd_result.is_error()) {
+    auto cmd_result = exec_utils::execute_command_for_output(cmd);
+    if (!cmd_result.success) {
         return 0;
     }
 
     int count = 0;
     try {
-        count = std::stoi(cmd_result.value());
+        count = std::stoi(cmd_result.output);
     } catch (const std::exception& e) {
         count = 0;
     }

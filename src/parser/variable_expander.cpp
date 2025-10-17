@@ -4,6 +4,7 @@
 #include <cctype>
 
 #include "cjsh_filesystem.h"
+#include "exec.h"
 #include "job_control.h"
 #include "parser.h"
 #include "shell.h"
@@ -450,9 +451,9 @@ void VariableExpander::expand_command_substitutions_in_string(std::string& text)
 
             if (depth == 0 && pos < text.size()) {
                 std::string command = text.substr(i + 2, pos - (i + 2));
-                auto output = cjsh_filesystem::read_command_output(command);
-                if (output.is_ok()) {
-                    std::string value = output.value();
+                auto output = exec_utils::execute_command_for_output(command);
+                if (output.success) {
+                    std::string value = output.output;
                     while (!value.empty() && (value.back() == '\n' || value.back() == '\r')) {
                         value.pop_back();
                     }
@@ -485,9 +486,9 @@ void VariableExpander::expand_command_substitutions_in_string(std::string& text)
                         cleaned.push_back(command[k]);
                     }
                 }
-                auto output = cjsh_filesystem::read_command_output(cleaned);
-                if (output.is_ok()) {
-                    std::string value = output.value();
+                auto output = exec_utils::execute_command_for_output(cleaned);
+                if (output.success) {
+                    std::string value = output.output;
                     while (!value.empty() && (value.back() == '\n' || value.back() == '\r')) {
                         value.pop_back();
                     }

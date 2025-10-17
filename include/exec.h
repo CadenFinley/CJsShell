@@ -73,3 +73,17 @@ class Exec {
 
     std::string last_terminal_output_error;
 };
+
+namespace exec_utils {
+
+struct CommandOutput {
+    std::string output;
+    int exit_code;
+    bool success;
+};
+
+CommandOutput execute_command_for_output(const std::string& command);
+
+CommandOutput execute_command_vector_for_output(const std::vector<std::string>& args);
+
+}  // namespace exec_utils

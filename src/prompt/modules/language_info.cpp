@@ -8,6 +8,7 @@
 #include <regex>
 
 #include "cjsh_filesystem.h"
+#include "exec.h"
 
 // Static data definitions
 static std::unordered_map<std::string, CachedVersion> version_cache;
@@ -131,12 +132,12 @@ bool is_project_detected(const std::vector<std::string>& files,
 }
 
 static std::string execute_command(const std::string& command) {
-    auto result = cjsh_filesystem::read_command_output(command);
-    if (result.is_error()) {
+    auto result = exec_utils::execute_command_for_output(command);
+    if (!result.success) {
         return "";
     }
 
-    std::string output = result.value();
+    std::string output = result.output;
 
     if (!output.empty() && output.back() == '\n') {
         output.pop_back();
