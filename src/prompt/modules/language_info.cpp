@@ -7,7 +7,6 @@
 #include <mutex>
 #include <regex>
 
-#include "cjsh_filesystem.h"
 #include "exec.h"
 
 // Static data definitions

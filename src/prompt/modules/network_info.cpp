@@ -1,6 +1,5 @@
 #include "network_info.h"
 
-#include "cjsh_filesystem.h"
 #include "exec.h"
 
 std::string get_ip_address(bool external) {

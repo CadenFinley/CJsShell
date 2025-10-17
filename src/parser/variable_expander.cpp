@@ -3,7 +3,6 @@
 #include <unistd.h>
 #include <cctype>
 
-#include "cjsh_filesystem.h"
 #include "exec.h"
 #include "job_control.h"
 #include "parser.h"

@@ -6,7 +6,6 @@
 #include <cstdlib>
 
 #include "cjsh.h"
-#include "cjsh_filesystem.h"
 #include "exec.h"
 
 std::string get_terminal_type() {

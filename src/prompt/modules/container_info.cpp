@@ -1,7 +1,6 @@
 #include "container_info.h"
 
 #include <cstdio>
-#include <filesystem>
 #include <regex>
 #include "cjsh_filesystem.h"
 #include "exec.h"

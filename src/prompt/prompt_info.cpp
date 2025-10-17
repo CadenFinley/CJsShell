@@ -10,12 +10,10 @@
 #include <cstdio>
 #include <cstring>
 #include <ctime>
-#include <memory>
 #include <regex>
 #include <unordered_set>
 
 #include "cjsh.h"
-#include "cjsh_filesystem.h"
 #include "exec.h"
 #include "theme_parser.h"
 
