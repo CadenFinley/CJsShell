@@ -36,7 +36,6 @@
 #include "readonly_command.h"
 #include "shell.h"
 #include "shell_script_interpreter_utils.h"
-#include "theme.h"
 
 using shell_script_interpreter::detail::contains_token;
 using shell_script_interpreter::detail::is_control_flow_exit_code;

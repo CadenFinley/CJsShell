@@ -20,7 +20,6 @@ void detect_login_mode(char* argv[]) {
 
 void apply_minimal_mode() {
     config::minimal_mode = true;
-    config::colors_enabled = false;
     config::source_enabled = false;
     config::completions_enabled = false;
     config::syntax_highlighting_enabled = false;
@@ -45,7 +44,6 @@ ParseResult parse_arguments(int argc, char* argv[]) {
                                            {"command", required_argument, nullptr, 'c'},
                                            {"version", no_argument, nullptr, 'v'},
                                            {"help", no_argument, nullptr, 'h'},
-                                           {"no-colors", no_argument, nullptr, 'C'},
                                            {"no-titleline", no_argument, nullptr, 'L'},
                                            {"show-startup-time", no_argument, nullptr, 'U'},
                                            {"no-source", no_argument, nullptr, 'N'},
@@ -60,7 +58,7 @@ ParseResult parse_arguments(int argc, char* argv[]) {
                                            {"no-history-expansion", no_argument, nullptr, 'H'},
                                            {nullptr, 0, nullptr, 0}};
 
-    const char* short_options = "+lic:vhCLUNOSMPXmDsH";
+    const char* short_options = "+lic:vhLUNOSMPXmDsH";
 
     int option_index = 0;
     int c;
@@ -88,9 +86,6 @@ ParseResult parse_arguments(int argc, char* argv[]) {
             case 'h':
                 config::show_help = true;
                 config::interactive_mode = false;
-                break;
-            case 'C':
-                config::colors_enabled = false;
                 break;
             case 'L':
                 config::show_title_line = false;
@@ -165,9 +160,7 @@ void apply_profile_startup_flags() {
     extern std::vector<std::string> g_profile_startup_args;
 
     for (const std::string& flag : ::g_profile_startup_args) {
-        if (flag == "--no-colors") {
-            config::colors_enabled = false;
-        } else if (flag == "--no-titleline") {
+        if (flag == "--no-titleline") {
             config::show_title_line = false;
         } else if (flag == "--show-startup-time") {
             config::show_startup_time = true;

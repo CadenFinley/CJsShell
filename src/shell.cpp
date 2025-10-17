@@ -34,13 +34,6 @@ struct CachedScript {
 std::mutex g_script_cache_mutex;
 std::unordered_map<std::string, CachedScript> g_script_cache;
 
-std::string to_lower_copy(std::string_view value) {
-    std::string result(value);
-    std::transform(result.begin(), result.end(), result.begin(),
-                   [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
-    return result;
-}
-
 bool resolves_to_executable(const std::string& name, const std::string& cwd) {
     if (name.empty()) {
         return false;
@@ -203,7 +196,6 @@ void Shell::process_pending_signals() {
 Shell::Shell() : shell_pgid(0), shell_tmodes() {
     save_terminal_state();
 
-    shell_prompt = std::make_unique<Prompt>();
     shell_exec = std::make_unique<Exec>();
     signal_handler = std::make_unique<SignalHandler>();
 

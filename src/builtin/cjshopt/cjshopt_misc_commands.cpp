@@ -41,8 +41,8 @@ int startup_flag_command(const std::vector<std::string>& args) {
              {"Usage: login-startup-arg [--flag-name]",
               "Available flags:", "  --login              Set login mode",
               "  --interactive        Force interactive mode",
-              "  --debug              Enable debug mode",
-              "  --no-colors          Disable colors", "  --no-titleline       Disable title line",
+              "  --debug              Enable debug mode", "  --no-colors          Disable colors",
+              "  --no-titleline       Disable title line",
               "  --show-startup-time  Display shell startup time",
               "  --no-source          Don't source the .cjshrc file",
               "  --no-completions     Disable tab completions",
@@ -58,11 +58,10 @@ int startup_flag_command(const std::vector<std::string>& args) {
     const std::string& flag = args[1];
 
     if (flag == "--login" || flag == "--interactive" || flag == "--debug" ||
-        flag == "--no-prompt" || flag == "--no-colors" ||
-        flag == "--no-titleline" || flag == "--show-startup-time" || flag == "--no-source" ||
-        flag == "--no-completions" || flag == "--no-syntax-highlighting" ||
-        flag == "--no-smart-cd" || flag == "--minimal" || flag == "--startup-test" ||
-        flag == "--disable-custom-ls") {
+        flag == "--no-prompt" || flag == "--no-colors" || flag == "--no-titleline" ||
+        flag == "--show-startup-time" || flag == "--no-source" || flag == "--no-completions" ||
+        flag == "--no-syntax-highlighting" || flag == "--no-smart-cd" || flag == "--minimal" ||
+        flag == "--startup-test" || flag == "--disable-custom-ls") {
         bool flag_exists = false;
         for (const auto& existing_flag : g_profile_startup_args) {
             if (existing_flag == flag) {
