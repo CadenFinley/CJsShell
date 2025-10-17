@@ -113,6 +113,56 @@ std::string get_editor() {
     return "nano";
 }
 
+int edit_and_execute_string(const std::string& initial_content, const std::string& editor,
+                            Shell* shell) {
+    cjsh_filesystem::initialize_cjsh_directories();
+    auto temp_dir = cjsh_filesystem::g_cjsh_cache_path;
+    auto temp_file = temp_dir / ("fc_edit_" + std::to_string(getpid()) + ".sh");
+
+    std::ofstream out(temp_file);
+    if (!out) {
+        print_error({ErrorType::RUNTIME_ERROR, "fc", "Failed to create temporary file", {}});
+        return 1;
+    }
+
+    out << initial_content << '\n';
+    out.close();
+
+    std::vector<std::string> editor_args = {editor, temp_file.string()};
+    int editor_exit_code = shell->execute_command(editor_args, false);
+
+    if (editor_exit_code != 0) {
+        cjsh_filesystem::fs::remove(temp_file);
+        return editor_exit_code;
+    }
+
+    auto read_result = cjsh_filesystem::read_file_content(temp_file.string());
+    cjsh_filesystem::fs::remove(temp_file);
+
+    if (read_result.is_error()) {
+        print_error({ErrorType::RUNTIME_ERROR, "fc", "Failed to read edited commands", {}});
+        return 1;
+    }
+
+    std::string edited_content = read_result.value();
+
+    if (edited_content.empty()) {
+        return 0;
+    }
+
+    std::istringstream iss(edited_content);
+    std::string line;
+    while (std::getline(iss, line)) {
+        if (!line.empty() && line[0] != '#') {
+            std::cout << line << '\n';
+        }
+    }
+
+    int exit_code = shell->execute(edited_content);
+
+    return exit_code;
+}
+
 int edit_and_execute(const std::vector<std::string>& entries, int first, int last,
                      const std::string& editor, Shell* shell) {
     if (first < 0 || first >= static_cast<int>(entries.size())) {
@@ -223,12 +273,14 @@ int substitute_and_execute(const std::vector<std::string>& entries, const std::s
 int fc_command(const std::vector<std::string>& args, Shell* shell) {
     bool list_mode = false;
     bool substitute_mode = false;
+    bool command_mode = false;
     bool show_numbers = true;
     bool reverse_order = false;
     std::string editor = get_editor();
     std::string old_pattern;
     std::string new_pattern;
     std::string command_pattern;
+    std::string initial_command;
     int first_idx = -1;
     int last_idx = -1;
 
@@ -239,15 +291,18 @@ int fc_command(const std::vector<std::string>& args, Shell* shell) {
         if (arg == "-h" || arg == "--help") {
             std::cout << "Usage: fc [-e editor] [-lnr] [first [last]]\n";
             std::cout << "       fc -s [old=new] [command]\n";
+            std::cout << "       fc -c command_string\n";
             std::cout << "\n";
             std::cout << "Fix Command - Edit and re-execute commands from history.\n";
             std::cout << "\n";
             std::cout << "Options:\n";
-            std::cout << "  -e editor   Use specified editor (default: $FCEDIT, $EDITOR, or ed)\n";
+            std::cout
+                << "  -e editor   Use specified editor (default: $FCEDIT, $EDITOR, or nano)\n";
             std::cout << "  -l          List commands instead of editing\n";
             std::cout << "  -n          Suppress line numbers when listing\n";
             std::cout << "  -r          Reverse order of commands when listing\n";
             std::cout << "  -s          Re-execute command with optional substitution\n";
+            std::cout << "  -c string   Open editor with the provided string\n";
             std::cout << "\n";
             std::cout << "Arguments:\n";
             std::cout << "  first       First command to edit/list (default: previous command)\n";
@@ -265,6 +320,7 @@ int fc_command(const std::vector<std::string>& args, Shell* shell) {
             std::cout << "  fc -s echo      Re-execute most recent 'echo' command\n";
             std::cout
                 << "  fc -s old=new   Re-execute previous command, replacing 'old' with 'new'\n";
+            std::cout << "  fc -c 'echo hello'  Open editor with 'echo hello' as initial content\n";
             return 0;
         } else if (arg == "-l") {
             list_mode = true;
@@ -282,6 +338,17 @@ int fc_command(const std::vector<std::string>& args, Shell* shell) {
                 return 1;
             }
             editor = args[i + 1];
+            i += 2;
+        } else if (arg == "-c" || arg == "--command") {
+            if (i + 1 >= args.size()) {
+                print_error({ErrorType::INVALID_ARGUMENT,
+                             "fc",
+                             "-c requires a command string argument",
+                             {}});
+                return 1;
+            }
+            command_mode = true;
+            initial_command = args[i + 1];
             i += 2;
         } else if (arg == "-s") {
             substitute_mode = true;
@@ -320,6 +387,10 @@ int fc_command(const std::vector<std::string>& args, Shell* shell) {
     }
 
     std::vector<std::string> entries = read_history_entries();
+
+    if (command_mode) {
+        return edit_and_execute_string(initial_command, editor, shell);
+    }
 
     if (entries.empty()) {
         print_error({ErrorType::RUNTIME_ERROR, "fc", "No commands in history", {}});
