@@ -37,7 +37,7 @@ const std::vector<std::string> java_extensions = {".java"};
 const std::vector<std::string> java_folders = {".gradle"};
 
 const std::vector<std::string> cpp_files = {"CMakeLists.txt", "Makefile", "configure.ac",
-                                            "meson.build"};
+                                            "meson.build", "compile_commands.json"};
 const std::vector<std::string> cpp_extensions = {".cpp", ".cc", ".cxx", ".c", ".h", ".hpp", ".hxx"};
 const std::vector<std::string> cpp_folders = {"cmake-build-debug", "cmake-build-release"};
 
@@ -226,8 +226,10 @@ bool is_scala_project() {
 
 std::string get_python_version() {
     return get_cached_version("python", []() -> std::string {
-        std::string output =
-            execute_command("python3 --version 2>/dev/null || python --version 2>/dev/null");
+        std::string output = execute_command("python3 --version");
+        if (output.empty()) {
+            output = execute_command("python --version");
+        }
         if (output.empty()) {
             return "";
         }
@@ -284,9 +286,14 @@ std::string get_golang_version() {
 
 std::string get_java_version() {
     return get_cached_version("java", []() -> std::string {
-        std::string output = execute_command("java -version 2>&1 | head -n 1");
+        std::string output = execute_command("java -version");
         if (output.empty()) {
             return "";
+        }
+
+        size_t first_newline = output.find('\n');
+        if (first_newline != std::string::npos) {
+            output = output.substr(0, first_newline);
         }
 
         std::regex java_version_regex("\"([^\"]+)\"");
@@ -303,15 +310,21 @@ std::string get_java_version() {
 
 std::string get_cpp_version() {
     return get_cached_version("cpp", []() -> std::string {
-        std::string output = execute_command("g++ --version 2>/dev/null | head -n 1");
+        std::string output = execute_command("g++ --version");
         if (output.empty()) {
-            output = execute_command("clang++ --version 2>/dev/null | head -n 1");
+            output = execute_command("clang++ --version");
         }
         if (output.empty()) {
-            output = execute_command("gcc --version 2>/dev/null | head -n 1");
+            output = execute_command("gcc --version");
         }
         if (output.empty()) {
             return "";
+        }
+
+        // Extract first line only
+        size_t first_newline = output.find('\n');
+        if (first_newline != std::string::npos) {
+            output = output.substr(0, first_newline);
         }
 
         std::string version = extract_version(output);
@@ -331,9 +344,14 @@ std::string get_csharp_version() {
 
 std::string get_php_version() {
     return get_cached_version("php", []() -> std::string {
-        std::string output = execute_command("php --version 2>/dev/null | head -n 1");
+        std::string output = execute_command("php --version");
         if (output.empty()) {
             return "";
+        }
+
+        size_t first_newline = output.find('\n');
+        if (first_newline != std::string::npos) {
+            output = output.substr(0, first_newline);
         }
 
         std::string version = extract_version(output);

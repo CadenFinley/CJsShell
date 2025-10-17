@@ -68,6 +68,14 @@
  * {RUST_VERSION} - Rust version if in Rust project
  * {GOLANG_VERSION} - Go version if in Go project
  * {JAVA_VERSION} - Java version if in Java project
+ * {CPP_VERSION} - C++ version if in C++ project
+ * {CSHARP_VERSION} - C# version if in C# project
+ * {PHP_VERSION} - PHP version if in PHP project
+ * {RUBY_VERSION} - Ruby version if in Ruby project
+ * {KOTLIN_VERSION} - Kotlin version if in Kotlin project
+ * {SWIFT_VERSION} - Swift version if in Swift project
+ * {DART_VERSION} - Dart version if in Dart project
+ * {SCALA_VERSION} - Scala version if in Scala project
  * {LANGUAGE_VERSIONS} - Combined language versions (only shows detected projects)
  * {PYTHON_VENV} - Python virtual environment name
  * {NODEJS_PM} - Node.js package manager (npm, yarn, pnpm)
@@ -76,6 +84,14 @@
  * {IS_RUST_PROJECT} - Whether current directory is a Rust project
  * {IS_GOLANG_PROJECT} - Whether current directory is a Go project
  * {IS_JAVA_PROJECT} - Whether current directory is a Java project
+ * {IS_CPP_PROJECT} - Whether current directory is a C++ project
+ * {IS_CSHARP_PROJECT} - Whether current directory is a C# project
+ * {IS_PHP_PROJECT} - Whether current directory is a PHP project
+ * {IS_RUBY_PROJECT} - Whether current directory is a Ruby project
+ * {IS_KOTLIN_PROJECT} - Whether current directory is a Kotlin project
+ * {IS_SWIFT_PROJECT} - Whether current directory is a Swift project
+ * {IS_DART_PROJECT} - Whether current directory is a Dart project
+ * {IS_SCALA_PROJECT} - Whether current directory is a Scala project
  *
  * Container placeholders:
  * {CONTAINER_NAME} - Name of container (Docker, Podman, etc.)
