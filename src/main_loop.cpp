@@ -29,6 +29,7 @@
 #include "history_expansion.h"
 #include "isocline.h"
 #include "job_control.h"
+#include "prompt_formatter.h"
 #include "shell.h"
 #include "typeahead.h"
 
@@ -359,13 +360,6 @@ void update_job_management() {
     JobManager::instance().cleanup_finished_jobs();
 }
 
-std::string generate_prompt(bool command_was_available) {
-    (void)command_was_available;
-    std::printf(" \r");
-    (void)std::fflush(stdout);
-    return "# ";
-}
-
 bool handle_null_input() {
     TerminalStatus status = check_terminal_health(TerminalCheckLevel::COMPREHENSIVE);
 
@@ -376,15 +370,45 @@ bool handle_null_input() {
     return false;
 }
 
-std::pair<std::string, bool> get_next_command(bool command_was_available,
-                                              bool& history_already_added) {
+std::pair<std::string, bool> get_next_command(bool, bool& history_already_added) {
     std::string command_to_run;
     bool command_available = false;
     history_already_added = false;
 
     g_shell->execute_hooks("precmd");
 
-    std::string prompt = generate_prompt(command_was_available);
+    std::printf(" \r");
+    (void)std::fflush(stdout);
+
+    const char* prompt_env = getenv("CJSH_PROMPT");
+    std::string prompt_format =
+        (prompt_env && prompt_env[0] != '\0')
+            ? std::string(prompt_env)
+            : "[red]\\\\[[/][yellow]\\u[/][green]@[/][blue]\\h[/] [magenta]\\w[/][red]][/]\\$ ";
+
+    const char* rprompt_env = getenv("CJSH_RPROMPT");
+    std::string rprompt_format =
+        (rprompt_env && rprompt_env[0] != '\0') ? std::string(rprompt_env) : "";
+
+    std::string main_prompt;
+    const char* inline_right = nullptr;
+    std::string right_prompt_str;
+
+    // Check if CJSH_RPROMPT is explicitly set
+    if (!rprompt_format.empty()) {
+        // Use CJSH_RPROMPT for right prompt
+        main_prompt = PromptFormatter::format_prompt(prompt_format);
+        right_prompt_str = PromptFormatter::format_prompt(rprompt_format);
+        inline_right = right_prompt_str.empty() ? nullptr : right_prompt_str.c_str();
+    } else if (PromptFormatter::has_right_aligned(prompt_format)) {
+        // Fall back to inline right-aligned syntax in CJSH_PROMPT
+        auto [left, right] = PromptFormatter::split_prompt(prompt_format);
+        main_prompt = left;
+        right_prompt_str = right;
+        inline_right = right_prompt_str.empty() ? nullptr : right_prompt_str.c_str();
+    } else {
+        main_prompt = PromptFormatter::format_prompt(prompt_format);
+    }
 
     typeahead::flush_pending_typeahead();
 
@@ -397,7 +421,7 @@ std::pair<std::string, bool> get_next_command(bool command_was_available,
     }
 
     const char* initial_input = sanitized_buffer.empty() ? nullptr : sanitized_buffer.c_str();
-    char* input = ic_readline(prompt.c_str(), nullptr, initial_input);
+    char* input = ic_readline(main_prompt.c_str(), inline_right, initial_input);
     typeahead::clear_input_buffer();
     sanitized_buffer.clear();
 
@@ -491,6 +515,7 @@ void initialize_isocline() {
     SyntaxHighlighter::initialize_syntax_highlighting();
     ic_enable_history_duplicates(false);
     ic_set_prompt_marker("", nullptr);
+    ic_style_def("ic-prompt", "");
     ic_set_unhandled_key_handler(handle_runoff_bind, nullptr);
 }
 

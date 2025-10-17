@@ -8,8 +8,8 @@ static const Build_Config build_config = {
         (const char*[]){"src/cjsh.cpp", "src/error_out.cpp", "src/exec.cpp", "src/job_control.cpp",
                         "src/main_loop.cpp", "src/shell.cpp", "src/signal_handler.cpp",
                         "src/utils/libintl_shim.cpp", "src/shell_env.cpp", "src/flags.cpp",
-                        "src/typeahead.cpp", "src/cjsh_filesystem.cpp"},
-    .main_sources_count = 12,
+                        "src/typeahead.cpp", "src/cjsh_filesystem.cpp", "src/prompt_formatter.cpp"},
+    .main_sources_count = 13,
 
     .module_directories =
         (const char*[]){"src/builtin", "src/interpreter", "src/utils", "src/parser", "src/unicode",
