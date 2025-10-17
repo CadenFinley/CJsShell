@@ -5,7 +5,6 @@
 #include <vector>
 
 class Shell;
-class Theme;
 
 const bool PRE_RELEASE = false;
 // using semver.org principles MAJOR.MINOR.PATCH
@@ -25,12 +24,10 @@ inline std::string get_version() {
 #endif
 
 extern bool g_exit_flag;
-extern std::string g_current_theme;
 extern bool g_startup_active;
 
 class Shell;
 extern std::unique_ptr<Shell> g_shell;
-extern std::unique_ptr<Theme> g_theme;
 extern std::vector<std::string> g_startup_args;
 extern std::vector<std::string> g_profile_startup_args;
 
@@ -40,8 +37,6 @@ extern bool interactive_mode;
 extern bool force_interactive;
 extern bool execute_command;
 extern std::string cmd_to_execute;
-extern bool themes_enabled;
-extern bool colors_enabled;
 extern bool source_enabled;
 extern bool completions_enabled;
 extern bool syntax_highlighting_enabled;
@@ -58,5 +53,4 @@ extern bool no_prompt;
 extern bool history_expansion_enabled;
 }  // namespace config
 
-void initialize_themes();
 void cleanup_resources();

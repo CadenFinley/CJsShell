@@ -363,12 +363,7 @@ std::string generate_prompt(bool command_was_available) {
     (void)command_was_available;
     std::printf(" \r");
     (void)std::fflush(stdout);
-
-    if (config::no_prompt) {
-        return "# ";
-    } else {
-        return "# ";
-    }
+    return "# ";
 }
 
 bool handle_null_input() {

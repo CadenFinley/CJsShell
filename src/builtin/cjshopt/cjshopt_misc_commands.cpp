@@ -41,15 +41,15 @@ int startup_flag_command(const std::vector<std::string>& args) {
              {"Usage: login-startup-arg [--flag-name]",
               "Available flags:", "  --login              Set login mode",
               "  --interactive        Force interactive mode",
-              "  --debug              Enable debug mode", "  --no-themes          Disable themes",
+              "  --debug              Enable debug mode",
               "  --no-colors          Disable colors", "  --no-titleline       Disable title line",
               "  --show-startup-time  Display shell startup time",
               "  --no-source          Don't source the .cjshrc file",
               "  --no-completions     Disable tab completions",
               "  --no-syntax-highlighting Disable syntax highlighting",
               "  --no-smart-cd        Disable smart cd functionality",
-              "  --no-prompt          Use simple '#' prompt instead of themed prompt",
-              R"(  --minimal            Disable all unique cjsh features (themes, colors, completions, syntax highlighting, smart cd, sourcing, custom ls, startup time display))",
+              "  --no-prompt          Use simple '#' prompt",
+              R"(  --minimal            Disable all unique cjsh features (colors, completions, syntax highlighting, smart cd, sourcing, custom ls, startup time display))",
               R"(  --disable-custom-ls  Use system ls command instead of builtin ls)",
               "  --startup-test       Enable startup test mode"}});
         return 1;
@@ -58,7 +58,7 @@ int startup_flag_command(const std::vector<std::string>& args) {
     const std::string& flag = args[1];
 
     if (flag == "--login" || flag == "--interactive" || flag == "--debug" ||
-        flag == "--no-prompt" || flag == "--no-themes" || flag == "--no-colors" ||
+        flag == "--no-prompt" || flag == "--no-colors" ||
         flag == "--no-titleline" || flag == "--show-startup-time" || flag == "--no-source" ||
         flag == "--no-completions" || flag == "--no-syntax-highlighting" ||
         flag == "--no-smart-cd" || flag == "--minimal" || flag == "--startup-test" ||

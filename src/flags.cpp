@@ -20,7 +20,6 @@ void detect_login_mode(char* argv[]) {
 
 void apply_minimal_mode() {
     config::minimal_mode = true;
-    config::themes_enabled = false;
     config::colors_enabled = false;
     config::source_enabled = false;
     config::completions_enabled = false;
@@ -46,7 +45,6 @@ ParseResult parse_arguments(int argc, char* argv[]) {
                                            {"command", required_argument, nullptr, 'c'},
                                            {"version", no_argument, nullptr, 'v'},
                                            {"help", no_argument, nullptr, 'h'},
-                                           {"no-themes", no_argument, nullptr, 'T'},
                                            {"no-colors", no_argument, nullptr, 'C'},
                                            {"no-titleline", no_argument, nullptr, 'L'},
                                            {"show-startup-time", no_argument, nullptr, 'U'},
@@ -62,7 +60,7 @@ ParseResult parse_arguments(int argc, char* argv[]) {
                                            {"no-history-expansion", no_argument, nullptr, 'H'},
                                            {nullptr, 0, nullptr, 0}};
 
-    const char* short_options = "+lic:vhTCLUNOSMPXmDsH";
+    const char* short_options = "+lic:vhCLUNOSMPXmDsH";
 
     int option_index = 0;
     int c;
@@ -91,9 +89,6 @@ ParseResult parse_arguments(int argc, char* argv[]) {
                 config::show_help = true;
                 config::interactive_mode = false;
                 break;
-            case 'T':
-                config::themes_enabled = false;
-                break;
             case 'C':
                 config::colors_enabled = false;
                 break;
@@ -117,7 +112,6 @@ ParseResult parse_arguments(int argc, char* argv[]) {
                 break;
             case 'P':
                 config::no_prompt = true;
-                config::themes_enabled = false;
                 break;
             case 'X':
                 config::startup_test = true;
@@ -171,9 +165,7 @@ void apply_profile_startup_flags() {
     extern std::vector<std::string> g_profile_startup_args;
 
     for (const std::string& flag : ::g_profile_startup_args) {
-        if (flag == "--no-themes") {
-            config::themes_enabled = false;
-        } else if (flag == "--no-colors") {
+        if (flag == "--no-colors") {
             config::colors_enabled = false;
         } else if (flag == "--no-titleline") {
             config::show_title_line = false;
@@ -189,7 +181,6 @@ void apply_profile_startup_flags() {
             config::smart_cd_enabled = false;
         } else if (flag == "--no-prompt") {
             config::no_prompt = true;
-            config::themes_enabled = false;
         } else if (flag == "--startup-test") {
             config::startup_test = true;
         } else if (flag == "--interactive") {

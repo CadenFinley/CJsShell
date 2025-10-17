@@ -602,100 +602,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
             continue;
         }
 
-        if (line.rfind("theme_definition", 0) == 0) {
-            size_t block_index = line_index;
-            int brace_depth = 0;
-            bool seen_open_brace = false;
-            bool in_string = false;
-            char string_delim = '\0';
-            bool escape_next = false;
-            std::string theme_block;
-
-            for (; block_index < lines.size(); ++block_index) {
-                const std::string& block_line = lines[block_index];
-                theme_block.append(block_line);
-                theme_block.push_back('\n');
-
-                for (char ch : block_line) {
-                    if (escape_next) {
-                        escape_next = false;
-                        continue;
-                    }
-
-                    if (in_string) {
-                        if (ch == '\\') {
-                            escape_next = true;
-                            continue;
-                        }
-                        if (ch == string_delim) {
-                            in_string = false;
-                        }
-                        continue;
-                    }
-
-                    if (ch == '"' || ch == '\'') {
-                        in_string = true;
-                        string_delim = ch;
-                        continue;
-                    }
-
-                    if (ch == '{') {
-                        brace_depth++;
-                        seen_open_brace = true;
-                    } else if (ch == '}') {
-                        if (brace_depth > 0) {
-                            brace_depth--;
-                        }
-                    }
-                }
-
-                if (seen_open_brace && brace_depth == 0) {
-                    break;
-                }
-            }
-
-            if (!seen_open_brace || brace_depth != 0) {
-                print_error(
-                    {ErrorType::SYNTAX_ERROR,
-                     "theme",
-                     "Inline theme block missing closing '}'",
-                     {"Ensure theme_definition blocks in configuration files are complete."}});
-                last_code = 1;
-                line_index = block_index;
-                continue;
-            }
-
-            if (!config::themes_enabled) {
-                print_error({ErrorType::RUNTIME_ERROR,
-                             "theme",
-                             "Themes are disabled",
-                             {"Enable themes in configuration or remove inline theme blocks."}});
-                last_code = 1;
-                line_index = block_index;
-                continue;
-            }
-
-            if (!g_theme) {
-                initialize_themes();
-            }
-
-            if (!g_theme) {
-                print_error({ErrorType::RUNTIME_ERROR,
-                             "theme",
-                             "Theme manager not initialized",
-                             {"Try running 'theme' again after initialization completes."}});
-                last_code = 1;
-                line_index = block_index;
-                continue;
-            }
-
-            std::string label = "inline_theme_line_" + std::to_string(line_index + 1);
-            bool loaded = g_theme->load_theme_from_string(theme_block, label, true);
-            last_code = loaded ? 0 : 2;
-            line_index = block_index;
-            continue;
-        }
-
         std::string trimmed_line = trim(line);
         bool is_function_def = false;
         if (line.find("()") != std::string::npos && line.find('{') != std::string::npos) {
@@ -1009,14 +915,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
 bool ShellScriptInterpreter::should_interpret_as_cjsh_script(const std::string& path) const {
     if (!is_readable_file(path))
         return false;
-
-    std::filesystem::path candidate(path);
-    if (candidate.has_extension()) {
-        std::string ext_lower = to_lower_copy(candidate.extension().string());
-        std::string theme_ext = to_lower_copy(std::string(Theme::kThemeFileExtension));
-        if (ext_lower == theme_ext)
-            return true;
-    }
 
     std::ifstream f(path);
     if (!f)
