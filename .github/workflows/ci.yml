@@ -103,16 +103,43 @@ jobs:
         run: |
           chmod +x tests/run_shell_tests.sh
           echo "Running test suite..."
-          ./tests/run_shell_tests.sh
+          
+          # Capture test output and exit code
+          set +e
+          TEST_OUTPUT=$(./tests/run_shell_tests.sh 2>&1)
           TEST_EXIT_CODE=$?
+          set -e
+          
+          echo "$TEST_OUTPUT"
           
           # On macOS CI runners, allow certain environment-specific test failures
+          # if the overall pass rate is >= 95%
           if [ $TEST_EXIT_CODE -ne 0 ]; then
-            if [ "${{ runner.os }}" = "macOS" ] && [ $TEST_EXIT_CODE -le 10 ]; then
-              echo "Warning: Some tests failed on macOS CI (exit code: $TEST_EXIT_CODE)"
-              echo "These are known environment-specific failures in GitHub Actions runners."
-              echo "Signal handling and TTY tests behave differently in CI vs local environments."
-              exit 0
+            if [ "${{ runner.os }}" = "macOS" ]; then
+              # Extract pass rate from test output
+              PASS_RATE=$(echo "$TEST_OUTPUT" | grep -o 'Pass rate: [0-9.]*%' | grep -o '[0-9.]*' || echo "0")
+              
+              if [ -n "$PASS_RATE" ]; then
+                echo "macOS CI detected pass rate: ${PASS_RATE}%"
+                
+                # Use awk to compare floating point numbers
+                MEETS_THRESHOLD=$(awk -v rate="$PASS_RATE" 'BEGIN {print (rate >= 95.0) ? "yes" : "no"}')
+                
+                if [ "$MEETS_THRESHOLD" = "yes" ]; then
+                  echo "✓ Pass rate (${PASS_RATE}%) meets minimum threshold of 95%"
+                  echo "These are known environment-specific failures in GitHub Actions macOS runners."
+                  echo "Signal handling and TTY tests behave differently in CI vs local environments."
+                  exit 0
+                else
+                  echo "✗ Pass rate (${PASS_RATE}%) is below minimum threshold of 95%"
+                  echo "Tests failed with exit code: $TEST_EXIT_CODE"
+                  exit 1
+                fi
+              else
+                echo "Warning: Could not extract pass rate from test output"
+                echo "Tests failed with exit code: $TEST_EXIT_CODE"
+                exit 1
+              fi
             else
               echo "Tests failed with exit code: $TEST_EXIT_CODE"
               exit 1

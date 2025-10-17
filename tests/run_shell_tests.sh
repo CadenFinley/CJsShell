@@ -157,6 +157,21 @@ if [ $WARNINGS -gt 0 ]; then
     echo "${YELLOW}Warnings: $WARNINGS${NC}"
 fi
 
+# Calculate pass percentage (excluding skipped tests)
+if [ $TOTAL_TESTS -gt 0 ]; then
+    TESTS_EXECUTED=$((TOTAL_TESTS - TESTS_SKIP))
+    if [ $TESTS_EXECUTED -gt 0 ]; then
+        # Using awk for floating point arithmetic
+        PASS_PERCENTAGE=$(awk "BEGIN {printf \"%.2f\", ($TESTS_PASS / $TESTS_EXECUTED) * 100}")
+        echo ""
+        echo "Pass rate: ${PASS_PERCENTAGE}% ($TESTS_PASS/$TESTS_EXECUTED executed tests)"
+    else
+        PASS_PERCENTAGE="0"
+    fi
+else
+    PASS_PERCENTAGE="0"
+fi
+
 if [ $FILES_FAIL -eq 0 ]; then
     echo ""
     echo "${GREEN}All tests passed!${NC}"
