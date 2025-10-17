@@ -7,10 +7,14 @@
 
 namespace completion_tracker {
 
-static const size_t MAX_COMPLETION_TRACKER_ENTRIES = 250;
-static const size_t MAX_TOTAL_COMPLETIONS = 50;
+namespace {
 
-thread_local static CompletionTracker* g_current_completion_tracker = nullptr;
+const size_t MAX_COMPLETION_TRACKER_ENTRIES = 250;
+const size_t MAX_TOTAL_COMPLETIONS = 50;
+
+thread_local CompletionTracker* g_current_completion_tracker = nullptr;
+
+}  // namespace
 
 SourcePriority get_source_priority(const char* source) {
     if (source == nullptr)

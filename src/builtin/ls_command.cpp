@@ -46,6 +46,8 @@
 #define COLOR_BRIGHT_YELLOW "\033[93m"
 #define COLOR_BRIGHT_BLUE "\033[94m"
 
+namespace {
+
 enum FileType : uint8_t {
     TYPE_UNKNOWN = 0,
     TYPE_DIRECTORY = 1,
@@ -55,16 +57,15 @@ enum FileType : uint8_t {
     TYPE_REGULAR = 5
 };
 
-static constexpr const char* file_type_colors[] = {COLOR_RESET, COLOR_BLUE,  COLOR_CYAN,
-                                                   COLOR_RED,   COLOR_GREEN, COLOR_RESET};
+constexpr const char* file_type_colors[] = {COLOR_RESET, COLOR_BLUE,  COLOR_CYAN,
+                                            COLOR_RED,   COLOR_GREEN, COLOR_RESET};
 
-static const std::unordered_set<std::string_view> source_extensions = {
+const std::unordered_set<std::string_view> source_extensions = {
     ".cpp", ".h",     ".hpp", ".py", ".js",   ".java", ".cs", ".rb", ".php",
     ".go",  ".swift", ".ts",  ".rs", ".html", ".css",  ".c",  ".cc", ".cxx"};
 
-static const std::unordered_set<std::string_view> executable_extensions = {".so", ".dylib", ".exe"};
+const std::unordered_set<std::string_view> executable_extensions = {".so", ".dylib", ".exe"};
 
-namespace {
 void print_ls_usage() {
     std::cout << "Usage: ls [OPTION]... [FILE]...\n";
     std::cout << "List information about files.\n\n";
@@ -96,9 +97,8 @@ void print_ls_usage() {
     std::cout << "  -s             print file system block counts\n";
     std::cout << "  -x             list entries by lines instead of columns\n";
 }
-}  // namespace
 
-static bool should_use_custom(Shell* shell) {
+bool should_use_custom(Shell* shell) {
     if (isatty(STDOUT_FILENO) == 0) {
         return false;
     }
@@ -142,6 +142,8 @@ struct FileInfo {
         return cached_name_storage;
     }
 };
+
+}  // namespace
 
 int ls_command(const std::vector<std::string>& args, Shell* shell) {
     bool help_requested = false;
@@ -353,7 +355,7 @@ int ls_command(const std::vector<std::string>& args, Shell* shell) {
     return exit_code;
 }
 
-static std::string format_size_human_readable(uintmax_t size) {
+std::string format_size_human_readable(uintmax_t size) {
     static const std::array<const char*, 7> units = {"B", "K", "M", "G", "T", "P", "E"};
     int unit_index = 0;
     double size_d = static_cast<double>(size);
@@ -381,14 +383,14 @@ uintmax_t calculate_directory_size_for_sorting(const std::filesystem::path& dir_
     return ec ? 0 : size;
 }
 
-static std::string format_blocks(uintmax_t blocks, bool human_readable) {
+std::string format_blocks(uintmax_t blocks, bool human_readable) {
     if (human_readable) {
         return format_size_human_readable(blocks);
     }
     return std::to_string(blocks);
 }
 
-static std::string format_size(uintmax_t size, bool human_readable) {
+std::string format_size(uintmax_t size, bool human_readable) {
     if (human_readable) {
         return format_size_human_readable(size);
     }
@@ -404,7 +406,7 @@ static std::string format_size(uintmax_t size, bool human_readable) {
     return std::to_string(size >> 30) + " GB";
 }
 
-static bool get_file_stat(FileInfo& file_info) {
+bool get_file_stat(FileInfo& file_info) {
     if (!file_info.stat_valid) {
         if (stat(file_info.entry.path().c_str(), &file_info.stat_info) == 0) {
             file_info.stat_valid = true;
@@ -413,7 +415,7 @@ static bool get_file_stat(FileInfo& file_info) {
     return file_info.stat_valid;
 }
 
-static void determine_file_type_and_color(FileInfo& file_info) {
+void determine_file_type_and_color(FileInfo& file_info) {
     if (file_info.file_type != TYPE_UNKNOWN)
         return;
 
@@ -464,7 +466,7 @@ static void determine_file_type_and_color(FileInfo& file_info) {
     file_info.cached_color = file_type_colors[file_info.file_type];
 }
 
-static std::string format_posix_time(time_t mtime) {
+std::string format_posix_time(time_t mtime) {
     time_t now = time(nullptr);
     struct tm* tm_info = localtime(&mtime);
     char buffer[32];
@@ -478,7 +480,7 @@ static std::string format_posix_time(time_t mtime) {
     return std::string(buffer);
 }
 
-static std::string quote_filename(const std::string& filename, bool quote_non_printable) {
+std::string quote_filename(const std::string& filename, bool quote_non_printable) {
     if (!quote_non_printable)
         return filename;
 
@@ -493,7 +495,7 @@ static std::string quote_filename(const std::string& filename, bool quote_non_pr
     return result;
 }
 
-static std::string format_permissions_with_colors(const char* perms) {
+std::string format_permissions_with_colors(const char* perms) {
     std::string result;
 
     result += COLOR_BRIGHT_BLUE;
@@ -553,7 +555,7 @@ static std::string format_permissions_with_colors(const char* perms) {
     return result;
 }
 
-static void print_long_format_header(bool show_blocks) {
+void print_long_format_header(bool show_blocks) {
     std::cout << "Permissions  Size";
     if (show_blocks) {
         std::cout << " Blocks";
@@ -561,8 +563,8 @@ static void print_long_format_header(bool show_blocks) {
     std::cout << " User        Date Modified Name" << '\n';
 }
 
-static void build_permissions_fast(char* perms, mode_t mode,
-                                   const std::string& filepath [[maybe_unused]]) {
+void build_permissions_fast(char* perms, mode_t mode,
+                            const std::string& filepath [[maybe_unused]]) {
     if (S_ISDIR(mode)) {
         perms[0] = 'd';
     } else if (S_ISLNK(mode)) {
@@ -641,13 +643,12 @@ std::string get_file_indicator(const std::filesystem::directory_entry& entry, bo
     return "";
 }
 
-static uintmax_t get_block_count(const struct stat& st, bool kilobyte_blocks) {
+uintmax_t get_block_count(const struct stat& st, bool kilobyte_blocks) {
     uintmax_t block_size = kilobyte_blocks ? 1024 : 512;
     return (st.st_size + block_size - 1) / block_size;
 }
 
-static time_t get_sort_time(const struct stat& st, bool sort_by_access_time,
-                            bool sort_by_status_time) {
+time_t get_sort_time(const struct stat& st, bool sort_by_access_time, bool sort_by_status_time) {
     if (sort_by_access_time)
         return st.st_atime;
     if (sort_by_status_time)

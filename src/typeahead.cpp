@@ -27,11 +27,11 @@ constexpr std::size_t kDefaultInputReserve = 256;
 constexpr std::size_t kMaxInputReserve = 16 * 1024;
 constexpr std::size_t kReserveSlack = 64;
 
-}  // namespace
+bool initialized = false;
+std::string g_input_buffer;
+std::string g_pending_raw_bytes;
 
-static bool initialized = false;
-static std::string g_input_buffer;
-static std::string g_pending_raw_bytes;
+}  // namespace
 
 std::string to_debug_visible(const std::string& data) {
     if (data.empty()) {

@@ -9,7 +9,9 @@
 #include "error_out.h"
 #include "shell.h"
 
-static const std::unordered_map<std::string, int> signal_map = {
+namespace {
+
+const std::unordered_map<std::string, int> signal_map = {
     {"HUP", SIGHUP},       {"INT", SIGINT},   {"QUIT", SIGQUIT},   {"ILL", SIGILL},
     {"TRAP", SIGTRAP},     {"ABRT", SIGABRT}, {"BUS", SIGBUS},     {"FPE", SIGFPE},
     {"KILL", SIGKILL},     {"USR1", SIGUSR1}, {"SEGV", SIGSEGV},   {"USR2", SIGUSR2},
@@ -21,9 +23,8 @@ static const std::unordered_map<std::string, int> signal_map = {
 
     {"EXIT", 0},           {"ERR", -2},       {"DEBUG", -3},       {"RETURN", -4}};
 
-static std::unordered_map<int, std::string> reverse_signal_map;
+std::unordered_map<int, std::string> reverse_signal_map;
 
-namespace {
 struct TrapManagerState {
     std::unordered_map<int, std::string> traps;
     Shell* shell_ref = nullptr;
@@ -38,15 +39,16 @@ TrapManagerState& trap_manager_state() {
 void dispatch_signal(int sig) {
     trap_manager_execute_trap(sig);
 }
-}  // namespace
 
-static void init_reverse_signal_map() {
+void init_reverse_signal_map() {
     if (reverse_signal_map.empty()) {
         for (const auto& pair : signal_map) {
             reverse_signal_map[pair.second] = pair.first;
         }
     }
 }
+
+}  // namespace
 
 void trap_manager_set_trap(int signal, const std::string& command) {
     if (signal == SIGKILL || signal == SIGSTOP) {

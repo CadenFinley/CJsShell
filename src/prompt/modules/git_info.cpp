@@ -123,10 +123,6 @@ std::string cached_status_symbols;
 bool cached_is_clean_repo = true;
 std::mutex git_status_mutex;
 bool is_git_status_check_running = false;
-static std::unordered_map<std::string,
-                          std::pair<std::string, std::chrono::steady_clock::time_point>>
-    git_info_cache;
-static std::mutex git_info_cache_mutex;
 
 std::string get_git_remote(const std::filesystem::path& repo_root) {
     std::vector<std::string> cmd = {"git", "-C", repo_root.string(), "remote", "get-url", "origin"};

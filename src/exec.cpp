@@ -450,10 +450,7 @@ void cleanup_process_substitutions(ProcessSubstitutionResources& resources,
     resources.fifo_paths.clear();
 }
 
-}  // namespace
-
-static bool should_noclobber_prevent_overwrite(const std::string& filename,
-                                               bool force_overwrite = false) {
+bool should_noclobber_prevent_overwrite(const std::string& filename, bool force_overwrite = false) {
     if (force_overwrite) {
         return false;
     }
@@ -465,6 +462,8 @@ static bool should_noclobber_prevent_overwrite(const std::string& filename,
     struct stat file_stat{};
     return stat(filename.c_str(), &file_stat) == 0;
 }
+
+}  // namespace
 
 Exec::Exec()
     : shell_pgid(getpid()),
@@ -2146,9 +2145,9 @@ std::map<int, Job> Exec::get_jobs() {
     return jobs;
 }
 
-namespace exec_utils {
+namespace {
 
-static std::vector<std::string> parse_shell_command(const std::string& command) {
+std::vector<std::string> parse_shell_command(const std::string& command) {
     std::vector<std::string> args;
     std::string current;
     bool in_single_quote = false;
@@ -2196,6 +2195,10 @@ static std::vector<std::string> parse_shell_command(const std::string& command) 
 
     return args;
 }
+
+}  // namespace
+
+namespace exec_utils {
 
 CommandOutput execute_command_for_output(const std::string& command) {
     CommandOutput result{"", -1, false};
