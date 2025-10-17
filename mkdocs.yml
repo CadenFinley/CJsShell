@@ -98,10 +98,7 @@ nav:
     - Hooks: reference/hooks.md
     - Built-in Commands: reference/commands.md
   - Integrations:
-    - Zoxide: integration/zoxide.md
-    - Starship Prompt: integration/starship.md
-  - Themes:
-    - The Details: themes/thedetails.md
+    - Zoxide: integration/zoxide.mdd
 
 extra:
   social:
