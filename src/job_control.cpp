@@ -14,6 +14,53 @@
 
 #include "error_out.h"
 
+namespace {
+
+int parse_signal(const std::string& signal_str) {
+    if (signal_str.empty())
+        return SIGTERM;
+
+    if (std::isdigit(signal_str[0]) != 0) {
+        try {
+            return std::stoi(signal_str);
+        } catch (...) {
+            return -1;
+        }
+    }
+
+    std::string name = signal_str;
+    if (name.substr(0, 3) == "SIG") {
+        name = name.substr(3);
+    }
+
+    std::transform(name.begin(), name.end(), name.begin(), ::toupper);
+
+    if (name == "HUP")
+        return SIGHUP;
+    if (name == "INT")
+        return SIGINT;
+    if (name == "QUIT")
+        return SIGQUIT;
+    if (name == "KILL")
+        return SIGKILL;
+    if (name == "TERM")
+        return SIGTERM;
+    if (name == "USR1")
+        return SIGUSR1;
+    if (name == "USR2")
+        return SIGUSR2;
+    if (name == "STOP")
+        return SIGSTOP;
+    if (name == "CONT")
+        return SIGCONT;
+    if (name == "TSTP")
+        return SIGTSTP;
+
+    return -1;
+}
+
+}  // namespace
+
 JobManager& JobManager::instance() {
     static JobManager instance;
     return instance;
@@ -215,49 +262,6 @@ void JobManager::clear_stdin_signal(pid_t pid) {
             return;
         }
     }
-}
-
-static int parse_signal(const std::string& signal_str) {
-    if (signal_str.empty())
-        return SIGTERM;
-
-    if (std::isdigit(signal_str[0]) != 0) {
-        try {
-            return std::stoi(signal_str);
-        } catch (...) {
-            return -1;
-        }
-    }
-
-    std::string name = signal_str;
-    if (name.substr(0, 3) == "SIG") {
-        name = name.substr(3);
-    }
-
-    std::transform(name.begin(), name.end(), name.begin(), ::toupper);
-
-    if (name == "HUP")
-        return SIGHUP;
-    if (name == "INT")
-        return SIGINT;
-    if (name == "QUIT")
-        return SIGQUIT;
-    if (name == "KILL")
-        return SIGKILL;
-    if (name == "TERM")
-        return SIGTERM;
-    if (name == "USR1")
-        return SIGUSR1;
-    if (name == "USR2")
-        return SIGUSR2;
-    if (name == "STOP")
-        return SIGSTOP;
-    if (name == "CONT")
-        return SIGCONT;
-    if (name == "TSTP")
-        return SIGTSTP;
-
-    return -1;
 }
 
 int jobs_command(const std::vector<std::string>& args) {

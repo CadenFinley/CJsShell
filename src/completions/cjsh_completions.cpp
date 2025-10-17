@@ -34,7 +34,9 @@ enum CompletionContext : std::uint8_t {
     CONTEXT_PATH
 };
 
-static const char* extract_current_line_prefix(const char* prefix) {
+namespace {
+
+const char* extract_current_line_prefix(const char* prefix) {
     if (prefix == nullptr) {
         return "";
     }
@@ -54,15 +56,15 @@ static const char* extract_current_line_prefix(const char* prefix) {
     return prefix;
 }
 
-static bool add_command_completion(ic_completion_env_t* cenv, const std::string& candidate,
-                                   size_t prefix_len, const char* source, const char* debug_label) {
+bool add_command_completion(ic_completion_env_t* cenv, const std::string& candidate,
+                            size_t prefix_len, const char* source, const char* debug_label) {
     (void)debug_label;
     long delete_before = static_cast<long>(prefix_len);
     return completion_tracker::safe_add_completion_prim_with_source(
         cenv, candidate.c_str(), nullptr, nullptr, source, delete_before, 0);
 }
 
-static std::string build_completion_suffix(const std::filesystem::directory_entry& entry) {
+std::string build_completion_suffix(const std::filesystem::directory_entry& entry) {
     std::string completion_suffix =
         completion_utils::quote_path_if_needed(entry.path().filename().string());
     if (entry.is_directory())
@@ -70,9 +72,8 @@ static std::string build_completion_suffix(const std::filesystem::directory_entr
     return completion_suffix;
 }
 
-static bool add_path_completion(ic_completion_env_t* cenv,
-                                const std::filesystem::directory_entry& entry, long delete_before,
-                                const std::string& completion_suffix) {
+bool add_path_completion(ic_completion_env_t* cenv, const std::filesystem::directory_entry& entry,
+                         long delete_before, const std::string& completion_suffix) {
     const char* source = entry.is_directory() ? "directory" : "file";
     if (delete_before == 0)
         return completion_tracker::safe_add_completion_with_source(cenv, completion_suffix.c_str(),
@@ -81,8 +82,8 @@ static bool add_path_completion(ic_completion_env_t* cenv,
         cenv, completion_suffix.c_str(), nullptr, nullptr, source, delete_before, 0);
 }
 
-static void determine_directory_target(const std::string& path, bool treat_as_directory,
-                                       std::filesystem::path& dir_path, std::string& match_prefix) {
+void determine_directory_target(const std::string& path, bool treat_as_directory,
+                                std::filesystem::path& dir_path, std::string& match_prefix) {
     namespace fs = std::filesystem;
     if (treat_as_directory || path.empty() || path.back() == '/') {
         dir_path = path.empty() ? fs::path(".") : fs::path(path);
@@ -103,11 +104,10 @@ static void determine_directory_target(const std::string& path, bool treat_as_di
 }
 
 template <typename Container, typename Extractor>
-static void process_command_candidates(ic_completion_env_t* cenv, const Container& container,
-                                       const std::string& prefix, size_t prefix_len,
-                                       const char* source, const char* debug_label,
-                                       Extractor extractor,
-                                       const std::function<bool(const std::string&)>& filter = {}) {
+void process_command_candidates(ic_completion_env_t* cenv, const Container& container,
+                                const std::string& prefix, size_t prefix_len, const char* source,
+                                const char* debug_label, Extractor extractor,
+                                const std::function<bool(const std::string&)>& filter = {}) {
     for (const auto& item : container) {
         if (completion_tracker::completion_limit_hit_with_log(debug_label))
             return;
@@ -125,11 +125,10 @@ static void process_command_candidates(ic_completion_env_t* cenv, const Containe
     }
 }
 
-static bool iterate_directory_entries(ic_completion_env_t* cenv,
-                                      const std::filesystem::path& dir_path,
-                                      const std::string& match_prefix, bool directories_only,
-                                      size_t max_completions, bool skip_hidden_without_prefix,
-                                      const char* debug_label) {
+bool iterate_directory_entries(ic_completion_env_t* cenv, const std::filesystem::path& dir_path,
+                               const std::string& match_prefix, bool directories_only,
+                               size_t max_completions, bool skip_hidden_without_prefix,
+                               const char* debug_label) {
     namespace fs = std::filesystem;
     size_t completion_count = 0;
     std::string limit_label = std::string(debug_label) + " completion";
@@ -162,7 +161,7 @@ static bool iterate_directory_entries(ic_completion_env_t* cenv,
     return true;
 }
 
-static bool is_interactive_builtin(const std::string& cmd) {
+bool is_interactive_builtin(const std::string& cmd) {
     static const std::unordered_set<std::string> script_only_builtins = {
         "break", "continue", "return", "__INTERNAL_SUBSHELL__", "local",      "shift", "if",
         "[[",    "[",        ":",      "login-startup-arg",     "prompt_test"};
@@ -170,7 +169,7 @@ static bool is_interactive_builtin(const std::string& cmd) {
     return script_only_builtins.find(cmd) == script_only_builtins.end();
 }
 
-static CompletionContext detect_completion_context(const char* prefix) {
+CompletionContext detect_completion_context(const char* prefix) {
     std::string prefix_str(prefix);
 
     if (prefix_str.find('/') == 0 || prefix_str.find("./") == 0 || prefix_str.find("../") == 0) {
@@ -189,6 +188,8 @@ static CompletionContext detect_completion_context(const char* prefix) {
     }
     return CONTEXT_COMMAND;
 }
+
+}  // namespace
 
 void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
     if (ic_stop_completing(cenv))
@@ -274,7 +275,7 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
     }
 }
 
-static bool looks_like_file_path(const std::string& str) {
+bool looks_like_file_path(const std::string& str) {
     if (str.empty())
         return false;
 
@@ -376,7 +377,7 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
     }
 }
 
-static bool should_complete_directories_only(const std::string& prefix) {
+bool should_complete_directories_only(const std::string& prefix) {
     std::string command;
     size_t first_space = prefix.find(' ');
 

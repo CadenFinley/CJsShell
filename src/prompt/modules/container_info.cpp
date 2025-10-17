@@ -5,16 +5,9 @@
 #include "cjsh_filesystem.h"
 #include "exec.h"
 
-bool file_exists(const std::string& path) {
-    return std::filesystem::exists(path);
-}
+namespace {
 
-std::string read_file_content(const std::string& path) {
-    auto result = cjsh_filesystem::read_file_content(path);
-    return result.is_ok() ? result.value() : "";
-}
-
-static std::string execute_command(const std::string& command) {
+std::string execute_command(const std::string& command) {
     auto result = exec_utils::execute_command_for_output(command);
     if (!result.success) {
         return "";
@@ -27,6 +20,17 @@ static std::string execute_command(const std::string& command) {
     }
 
     return output;
+}
+
+}  // namespace
+
+bool file_exists(const std::string& path) {
+    return std::filesystem::exists(path);
+}
+
+std::string read_file_content(const std::string& path) {
+    auto result = cjsh_filesystem::read_file_content(path);
+    return result.is_ok() ? result.value() : "";
 }
 
 std::string get_container_name() {

@@ -9,9 +9,28 @@
 
 #include "exec.h"
 
+namespace {
+
 // Static data definitions
-static std::unordered_map<std::string, CachedVersion> version_cache;
-static std::mutex cache_mutex;
+std::unordered_map<std::string, CachedVersion> version_cache;
+std::mutex cache_mutex;
+
+std::string execute_command(const std::string& command) {
+    auto result = exec_utils::execute_command_for_output(command);
+    if (!result.success) {
+        return "";
+    }
+
+    std::string output = result.output;
+
+    if (!output.empty() && output.back() == '\n') {
+        output.pop_back();
+    }
+
+    return output;
+}
+
+}  // namespace
 
 const std::vector<std::string> python_files = {"requirements.txt", "setup.py",  "pyproject.toml",
                                                "Pipfile",          "setup.cfg", "tox.ini"};
@@ -128,21 +147,6 @@ bool is_project_detected(const std::vector<std::string>& files,
     std::filesystem::path current_path = std::filesystem::current_path();
 
     return scan_directory_recursive(current_path, files, extensions, folders, 3);
-}
-
-static std::string execute_command(const std::string& command) {
-    auto result = exec_utils::execute_command_for_output(command);
-    if (!result.success) {
-        return "";
-    }
-
-    std::string output = result.output;
-
-    if (!output.empty() && output.back() == '\n') {
-        output.pop_back();
-    }
-
-    return output;
 }
 
 std::string extract_version(const std::string& output) {

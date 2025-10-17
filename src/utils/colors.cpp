@@ -71,7 +71,9 @@ std::string get_color_capability_string(ColorCapability capability) {
     }
 }
 
-static uint8_t get_closest_ansi_color(const RGB& color) {
+namespace {
+
+uint8_t get_closest_ansi_color(const RGB& color) {
     const std::array<RGB, 16> basic_colors = {{{0, 0, 0},
                                                {170, 0, 0},
                                                {0, 170, 0},
@@ -105,6 +107,8 @@ static uint8_t get_closest_ansi_color(const RGB& color) {
 
     return closest_index;
 }
+
+}  // namespace
 
 std::string fg_color(const RGB& color) {
     std::stringstream ss;

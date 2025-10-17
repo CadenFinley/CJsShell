@@ -8,7 +8,9 @@
 #include "shell.h"
 #include "shell_script_interpreter.h"
 
-static void set_special_var(Shell* shell, const std::string& key, const std::string& value) {
+namespace {
+
+void set_special_var(Shell* shell, const std::string& key, const std::string& value) {
     setenv(key.c_str(), value.c_str(), 1);
     if (shell) {
         auto* interpreter = shell->get_shell_script_interpreter();
@@ -20,11 +22,11 @@ static void set_special_var(Shell* shell, const std::string& key, const std::str
     }
 }
 
-static void set_special_var(Shell* shell, const std::string& key, int value) {
+void set_special_var(Shell* shell, const std::string& key, int value) {
     set_special_var(shell, key, std::to_string(value));
 }
 
-static void unset_special_var(Shell* shell, const std::string& key) {
+void unset_special_var(Shell* shell, const std::string& key) {
     unsetenv(key.c_str());
     if (shell) {
         auto* interpreter = shell->get_shell_script_interpreter();
@@ -36,10 +38,12 @@ static void unset_special_var(Shell* shell, const std::string& key) {
     }
 }
 
-static void set_getopts_pos(int value) {
+void set_getopts_pos(int value) {
     std::string buffer = std::to_string(value);
     setenv("GETOPTS_POS", buffer.c_str(), 1);
 }
+
+}  // namespace
 
 int getopts_command(const std::vector<std::string>& args, Shell* shell) {
     if (builtin_handle_help(args,

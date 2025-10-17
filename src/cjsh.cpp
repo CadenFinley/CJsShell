@@ -43,7 +43,12 @@ std::unique_ptr<Shell> g_shell = nullptr;
 std::unique_ptr<Theme> g_theme = nullptr;
 std::vector<std::string> g_startup_args;
 std::vector<std::string> g_profile_startup_args;
-static std::chrono::steady_clock::time_point g_startup_begin_time;
+
+namespace {
+
+std::chrono::steady_clock::time_point g_startup_begin_time;
+
+}  // namespace
 
 namespace config {
 bool login_mode = false;
@@ -69,14 +74,16 @@ bool no_prompt = false;
 bool history_expansion_enabled = true;
 }  // namespace config
 
-static void save_startup_arguments(int argc, char* argv[]) {
+namespace {
+
+void save_startup_arguments(int argc, char* argv[]) {
     g_startup_args.clear();
     for (int i = 0; i < argc; i++) {
         g_startup_args.push_back(std::string(argv[i]));
     }
 }
 
-static int handle_non_interactive_mode(const std::string& script_file) {
+int handle_non_interactive_mode(const std::string& script_file) {
     std::string script_content;
 
     if (!script_file.empty()) {
@@ -121,7 +128,7 @@ static int handle_non_interactive_mode(const std::string& script_file) {
     return 0;
 }
 
-static void initialize_colors() {
+void initialize_colors() {
     colors::initialize_color_support(config::colors_enabled);
 
     if (!config::colors_enabled) {
@@ -140,6 +147,8 @@ static void initialize_colors() {
     }
 }
 
+}  // namespace
+
 void initialize_themes() {
     if (!config::themes_enabled) {
         return;
@@ -147,7 +156,7 @@ void initialize_themes() {
     g_theme = std::make_unique<Theme>("", config::themes_enabled);
 }
 
-static int initialize_interactive_components() {
+int initialize_interactive_components() {
     g_shell->set_interactive_mode(true);
 
     if (cjsh_filesystem::init_interactive_filesystem()) {
@@ -174,7 +183,7 @@ static int initialize_interactive_components() {
     return 1;
 }
 
-static void process_profile_files() {
+void process_profile_files() {
     if (config::secure_mode) {
         return;
     }
@@ -187,13 +196,13 @@ static void process_profile_files() {
     }
 }
 
-static int initialize_login_mode() {
+int initialize_login_mode() {
     process_profile_files();
     flags::apply_profile_startup_flags();
     return 0;
 }
 
-static void start_interactive_process() {
+void start_interactive_process() {
     auto startup_end_time = std::chrono::steady_clock::now();
     auto startup_duration = std::chrono::duration_cast<std::chrono::microseconds>(
         startup_end_time - g_startup_begin_time);
@@ -264,7 +273,7 @@ static void start_interactive_process() {
     }
 }
 
-static void process_logout_file() {
+void process_logout_file() {
     if (!config::secure_mode && (config::interactive_mode || config::force_interactive)) {
         const auto& logout_path = cjsh_filesystem::g_cjsh_logout_path;
         std::error_code logout_status_ec;

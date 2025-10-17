@@ -7,12 +7,16 @@
 #include "error_out.h"
 #include "shell.h"
 
-static const std::vector<std::string> g_valid_hook_types = {"precmd", "preexec", "chpwd"};
+namespace {
 
-static bool is_valid_hook_type(const std::string& hook_type) {
+const std::vector<std::string> g_valid_hook_types = {"precmd", "preexec", "chpwd"};
+
+bool is_valid_hook_type(const std::string& hook_type) {
     return std::any_of(g_valid_hook_types.begin(), g_valid_hook_types.end(),
                        [&hook_type](const std::string& valid) { return hook_type == valid; });
 }
+
+}  // namespace
 
 int hook_command(const std::vector<std::string>& args, Shell* shell) {
     if (builtin_handle_help(

@@ -7,8 +7,12 @@
 #include "cjsh_filesystem.h"
 #include "error_out.h"
 
-static std::unordered_map<std::string, std::string> command_hash;
-static std::unordered_map<std::string, int> command_hits;
+namespace {
+
+std::unordered_map<std::string, std::string> command_hash;
+std::unordered_map<std::string, int> command_hits;
+
+}  // namespace
 
 int hash_command(const std::vector<std::string>& args, Shell* shell) {
     (void)shell;

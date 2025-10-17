@@ -83,15 +83,15 @@ std::string strip_internal_placeholders(const std::string& input, size_t* column
     return output;
 }
 
-}  // namespace
-
-static size_t get_terminal_width() {
+size_t get_terminal_width() {
     struct winsize w{};
     if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) == 0 && w.ws_col > 0) {
         return w.ws_col;
     }
     return 80;
 }
+
+}  // namespace
 
 void print_error_report(const std::vector<ShellScriptInterpreter::SyntaxError>& errors,
                         bool show_suggestions, bool show_context, int start_error_number) {

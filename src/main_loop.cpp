@@ -349,14 +349,13 @@ bool process_command_line(const std::string& command, bool skip_history = false)
 
     return g_exit_flag;
 }
-}  // namespace
 
-static void update_terminal_title() {
+void update_terminal_title() {
     std::cout << "\033]0;" << g_shell->get_title_prompt() << "\007";
     std::cout.flush();
 }
 
-static bool perform_terminal_check() {
+bool perform_terminal_check() {
     TerminalStatus status = check_terminal_health(TerminalCheckLevel::QUICK);
     if (!status.terminal_alive) {
         g_exit_flag = true;
@@ -365,12 +364,12 @@ static bool perform_terminal_check() {
     return true;
 }
 
-static void update_job_management() {
+void update_job_management() {
     JobManager::instance().update_job_status();
     JobManager::instance().cleanup_finished_jobs();
 }
 
-static std::string generate_prompt(bool command_was_available) {
+std::string generate_prompt(bool command_was_available) {
     std::printf(" \r");
     (void)std::fflush(stdout);
 
@@ -395,7 +394,7 @@ static std::string generate_prompt(bool command_was_available) {
     return prompt;
 }
 
-static bool handle_null_input() {
+bool handle_null_input() {
     TerminalStatus status = check_terminal_health(TerminalCheckLevel::COMPREHENSIVE);
 
     if (!status.terminal_alive || !status.parent_alive) {
@@ -405,8 +404,8 @@ static bool handle_null_input() {
     return false;
 }
 
-static std::pair<std::string, bool> get_next_command(bool command_was_available,
-                                                     bool& history_already_added) {
+std::pair<std::string, bool> get_next_command(bool command_was_available,
+                                              bool& history_already_added) {
     std::string command_to_run;
     bool command_available = false;
     history_already_added = false;
@@ -479,7 +478,7 @@ static std::pair<std::string, bool> get_next_command(bool command_was_available,
     return {command_to_run, command_available};
 }
 
-static bool handle_runoff_bind(ic_keycode_t key, void*) {
+bool handle_runoff_bind(ic_keycode_t key, void*) {
     if (has_custom_keybinding(key)) {
         std::string command = get_custom_keybinding(key);
         if (!command.empty()) {
@@ -517,6 +516,8 @@ static bool handle_runoff_bind(ic_keycode_t key, void*) {
     }
     return false;
 }
+
+}  // namespace
 
 void initialize_isocline() {
     initialize_completion_system();

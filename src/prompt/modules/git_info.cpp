@@ -11,7 +11,9 @@
 
 #include "cjsh_filesystem.h"
 
-static bool set_close_on_exec(int fd) {
+namespace {
+
+bool set_close_on_exec(int fd) {
     int flags = fcntl(fd, F_GETFD);
     if (flags == -1) {
         return false;
@@ -22,7 +24,7 @@ static bool set_close_on_exec(int fd) {
     return true;
 }
 
-static std::vector<char*> build_exec_argv(const std::vector<std::string>& args) {
+std::vector<char*> build_exec_argv(const std::vector<std::string>& args) {
     std::vector<char*> argv;
     std::vector<std::unique_ptr<char[]>> arg_storage;
     argv.reserve(args.size() + 1);
@@ -37,8 +39,8 @@ static std::vector<char*> build_exec_argv(const std::vector<std::string>& args) 
     return argv;
 }
 
-static int safe_execute_git_command(const std::vector<std::string>& args, std::string& result,
-                                    int& exit_code) {
+int safe_execute_git_command(const std::vector<std::string>& args, std::string& result,
+                             int& exit_code) {
     result.clear();
     exit_code = -1;
 
@@ -107,6 +109,12 @@ static int safe_execute_git_command(const std::vector<std::string>& args, std::s
 
     return 0;
 }
+
+std::unordered_map<std::string, std::pair<std::string, std::chrono::steady_clock::time_point>>
+    git_info_cache;
+std::mutex git_info_cache_mutex;
+
+}  // namespace
 
 std::chrono::steady_clock::time_point last_git_status_check =
     std::chrono::steady_clock::now() - std::chrono::seconds(30);
