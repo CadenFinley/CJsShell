@@ -321,7 +321,6 @@ std::string get_cpp_version() {
             return "";
         }
 
-        // Extract first line only
         size_t first_newline = output.find('\n');
         if (first_newline != std::string::npos) {
             output = output.substr(0, first_newline);
