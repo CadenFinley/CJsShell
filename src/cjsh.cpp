@@ -44,12 +44,6 @@ std::unique_ptr<Theme> g_theme = nullptr;
 std::vector<std::string> g_startup_args;
 std::vector<std::string> g_profile_startup_args;
 
-namespace {
-
-std::chrono::steady_clock::time_point g_startup_begin_time;
-
-}  // namespace
-
 namespace config {
 bool login_mode = false;
 bool interactive_mode = true;
@@ -75,6 +69,8 @@ bool history_expansion_enabled = true;
 }  // namespace config
 
 namespace {
+
+std::chrono::steady_clock::time_point g_startup_begin_time;
 
 void save_startup_arguments(int argc, char* argv[]) {
     g_startup_args.clear();
@@ -145,15 +141,6 @@ void initialize_colors() {
             ic_style_def(style_name.c_str(), pair.second.c_str());
         }
     }
-}
-
-}  // namespace
-
-void initialize_themes() {
-    if (!config::themes_enabled) {
-        return;
-    }
-    g_theme = std::make_unique<Theme>("", config::themes_enabled);
 }
 
 int initialize_interactive_components() {
@@ -283,6 +270,15 @@ void process_logout_file() {
             g_shell->execute_script_file(logout_path, true);
         }
     }
+}
+
+}  // namespace
+
+void initialize_themes() {
+    if (!config::themes_enabled) {
+        return;
+    }
+    g_theme = std::make_unique<Theme>("", config::themes_enabled);
 }
 
 void cleanup_resources() {
