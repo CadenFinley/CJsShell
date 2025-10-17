@@ -58,6 +58,133 @@ bool matches_keyword_only(const std::string& text, std::string_view keyword) {
     return pos == text.size();
 }
 
+int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
+                      const std::string& keyword, bool is_until,
+                      const std::function<int(const std::vector<std::string>&)>& execute_block,
+                      const std::function<int(const std::string&)>& execute_simple_or_pipeline,
+                      Parser* shell_parser) {
+    std::string first = trim(strip_inline_comment(src_lines[idx]));
+    if (first != keyword && first.rfind(keyword + " ", 0) != 0)
+        return 1;
+
+    auto parse_cond_from = [&](const std::string& s, std::string& cond, bool& inline_do,
+                               std::string& body_inline) {
+        inline_do = false;
+        body_inline.clear();
+        cond.clear();
+        std::string tmp = s;
+        if (tmp == keyword) {
+            return true;
+        }
+        if (tmp.rfind(keyword + " ", 0) == 0)
+            tmp = tmp.substr(keyword.length() + 1);
+        size_t do_pos = tmp.find("; do");
+        if (do_pos != std::string::npos) {
+            cond = trim(tmp.substr(0, do_pos));
+            inline_do = true;
+            body_inline = trim(tmp.substr(do_pos + 4));
+            return true;
+        }
+        if (tmp == "do") {
+            inline_do = true;
+            return true;
+        }
+        if (tmp.rfind("do ", 0) == 0) {
+            inline_do = true;
+            body_inline = trim(tmp.substr(3));
+            return true;
+        }
+        cond = trim(tmp);
+        return true;
+    };
+
+    std::string cond;
+    bool inline_do = false;
+    std::string body_inline;
+    parse_cond_from(first, cond, inline_do, body_inline);
+    size_t j = idx;
+    if (!inline_do) {
+        while (++j < src_lines.size()) {
+            const std::string& cur_raw = src_lines[j];
+            std::string cur = trim(strip_inline_comment(cur_raw));
+            if (cur == "do") {
+                inline_do = true;
+                break;
+            }
+            if (cur.rfind("do ", 0) == 0) {
+                inline_do = true;
+                body_inline = trim(cur.substr(3));
+                break;
+            }
+            if (cur.find("; do") != std::string::npos) {
+                inline_do = true;
+                break;
+            }
+            if (!cur.empty()) {
+                if (!cond.empty())
+                    cond += " ";
+                cond += cur;
+            }
+        }
+    }
+    if (!inline_do) {
+        idx = j;
+        return 1;
+    }
+
+    std::vector<std::string> body_lines;
+    if (!body_inline.empty()) {
+        std::string bi = body_inline;
+        size_t done_pos = bi.rfind("; done");
+        if (done_pos != std::string::npos)
+            bi = trim(bi.substr(0, done_pos));
+        body_lines = shell_parser->parse_into_lines(bi);
+    } else {
+        size_t k = j + 1;
+        int depth = 1;
+        while (k < src_lines.size() && depth > 0) {
+            const std::string& cur_raw = src_lines[k];
+            std::string cur = trim(strip_inline_comment(cur_raw));
+            if (cur == keyword || cur.rfind(keyword + " ", 0) == 0) {
+                depth++;
+            } else if (matches_keyword_only(cur, "done")) {
+                depth--;
+                if (depth == 0)
+                    break;
+            }
+            if (depth > 0)
+                body_lines.push_back(cur_raw);
+            k++;
+        }
+        if (depth != 0) {
+            idx = k;
+            return 1;
+        }
+        idx = k;
+    }
+
+    int rc = 0;
+    while (true) {
+        int c = 0;
+        if (!cond.empty()) {
+            c = execute_simple_or_pipeline(cond);
+        }
+
+        bool continue_loop = is_until ? (c != 0) : (c == 0);
+        if (!continue_loop)
+            break;
+
+        rc = execute_block(body_lines);
+        auto outcome = handle_loop_command_result(rc, 0, 255, 0, 254, true);
+        rc = outcome.code;
+        if (outcome.flow == LoopFlow::BREAK)
+            break;
+        if (outcome.flow == LoopFlow::CONTINUE)
+            continue;
+    }
+    return rc;
+}
+
 }  // namespace
 
 LoopCommandOutcome handle_loop_command_result(int rc, int break_consumed_rc, int break_propagate_rc,
@@ -399,137 +526,6 @@ int handle_for_block(const std::vector<std::string>& src_lines, size_t& idx,
     idx = k;
     return rc;
 }
-
-namespace {
-
-int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
-                      const std::string& keyword, bool is_until,
-                      const std::function<int(const std::vector<std::string>&)>& execute_block,
-                      const std::function<int(const std::string&)>& execute_simple_or_pipeline,
-                      Parser* shell_parser) {
-    std::string first = trim(strip_inline_comment(src_lines[idx]));
-    if (first != keyword && first.rfind(keyword + " ", 0) != 0)
-        return 1;
-
-    auto parse_cond_from = [&](const std::string& s, std::string& cond, bool& inline_do,
-                               std::string& body_inline) {
-        inline_do = false;
-        body_inline.clear();
-        cond.clear();
-        std::string tmp = s;
-        if (tmp == keyword) {
-            return true;
-        }
-        if (tmp.rfind(keyword + " ", 0) == 0)
-            tmp = tmp.substr(keyword.length() + 1);
-        size_t do_pos = tmp.find("; do");
-        if (do_pos != std::string::npos) {
-            cond = trim(tmp.substr(0, do_pos));
-            inline_do = true;
-            body_inline = trim(tmp.substr(do_pos + 4));
-            return true;
-        }
-        if (tmp == "do") {
-            inline_do = true;
-            return true;
-        }
-        if (tmp.rfind("do ", 0) == 0) {
-            inline_do = true;
-            body_inline = trim(tmp.substr(3));
-            return true;
-        }
-        cond = trim(tmp);
-        return true;
-    };
-
-    std::string cond;
-    bool inline_do = false;
-    std::string body_inline;
-    parse_cond_from(first, cond, inline_do, body_inline);
-    size_t j = idx;
-    if (!inline_do) {
-        while (++j < src_lines.size()) {
-            const std::string& cur_raw = src_lines[j];
-            std::string cur = trim(strip_inline_comment(cur_raw));
-            if (cur == "do") {
-                inline_do = true;
-                break;
-            }
-            if (cur.rfind("do ", 0) == 0) {
-                inline_do = true;
-                body_inline = trim(cur.substr(3));
-                break;
-            }
-            if (cur.find("; do") != std::string::npos) {
-                inline_do = true;
-                break;
-            }
-            if (!cur.empty()) {
-                if (!cond.empty())
-                    cond += " ";
-                cond += cur;
-            }
-        }
-    }
-    if (!inline_do) {
-        idx = j;
-        return 1;
-    }
-
-    std::vector<std::string> body_lines;
-    if (!body_inline.empty()) {
-        std::string bi = body_inline;
-        size_t done_pos = bi.rfind("; done");
-        if (done_pos != std::string::npos)
-            bi = trim(bi.substr(0, done_pos));
-        body_lines = shell_parser->parse_into_lines(bi);
-    } else {
-        size_t k = j + 1;
-        int depth = 1;
-        while (k < src_lines.size() && depth > 0) {
-            const std::string& cur_raw = src_lines[k];
-            std::string cur = trim(strip_inline_comment(cur_raw));
-            if (cur == keyword || cur.rfind(keyword + " ", 0) == 0) {
-                depth++;
-            } else if (matches_keyword_only(cur, "done")) {
-                depth--;
-                if (depth == 0)
-                    break;
-            }
-            if (depth > 0)
-                body_lines.push_back(cur_raw);
-            k++;
-        }
-        if (depth != 0) {
-            idx = k;
-            return 1;
-        }
-        idx = k;
-    }
-
-    int rc = 0;
-    while (true) {
-        int c = 0;
-        if (!cond.empty()) {
-            c = execute_simple_or_pipeline(cond);
-        }
-
-        bool continue_loop = is_until ? (c != 0) : (c == 0);
-        if (!continue_loop)
-            break;
-
-        rc = execute_block(body_lines);
-        auto outcome = handle_loop_command_result(rc, 0, 255, 0, 254, true);
-        rc = outcome.code;
-        if (outcome.flow == LoopFlow::BREAK)
-            break;
-        if (outcome.flow == LoopFlow::CONTINUE)
-            continue;
-    }
-    return rc;
-}
-
-}  // namespace
 
 int handle_while_block(const std::vector<std::string>& src_lines, size_t& idx,
                        const std::function<int(const std::vector<std::string>&)>& execute_block,

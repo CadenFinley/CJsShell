@@ -463,6 +463,55 @@ bool should_noclobber_prevent_overwrite(const std::string& filename, bool force_
     return stat(filename.c_str(), &file_stat) == 0;
 }
 
+std::vector<std::string> parse_shell_command(const std::string& command) {
+    std::vector<std::string> args;
+    std::string current;
+    bool in_single_quote = false;
+    bool in_double_quote = false;
+    bool escaped = false;
+
+    for (size_t i = 0; i < command.size(); ++i) {
+        char c = command[i];
+
+        if (escaped) {
+            current += c;
+            escaped = false;
+            continue;
+        }
+
+        if (c == '\\' && !in_single_quote) {
+            escaped = true;
+            continue;
+        }
+
+        if (c == '\'' && !in_double_quote) {
+            in_single_quote = !in_single_quote;
+            continue;
+        }
+
+        if (c == '"' && !in_single_quote) {
+            in_double_quote = !in_double_quote;
+            continue;
+        }
+
+        if ((c == ' ' || c == '\t') && !in_single_quote && !in_double_quote) {
+            if (!current.empty()) {
+                args.push_back(current);
+                current.clear();
+            }
+            continue;
+        }
+
+        current += c;
+    }
+
+    if (!current.empty()) {
+        args.push_back(current);
+    }
+
+    return args;
+}
+
 }  // namespace
 
 Exec::Exec()
@@ -2144,59 +2193,6 @@ std::map<int, Job> Exec::get_jobs() {
     std::lock_guard<std::mutex> lock(jobs_mutex);
     return jobs;
 }
-
-namespace {
-
-std::vector<std::string> parse_shell_command(const std::string& command) {
-    std::vector<std::string> args;
-    std::string current;
-    bool in_single_quote = false;
-    bool in_double_quote = false;
-    bool escaped = false;
-
-    for (size_t i = 0; i < command.size(); ++i) {
-        char c = command[i];
-
-        if (escaped) {
-            current += c;
-            escaped = false;
-            continue;
-        }
-
-        if (c == '\\' && !in_single_quote) {
-            escaped = true;
-            continue;
-        }
-
-        if (c == '\'' && !in_double_quote) {
-            in_single_quote = !in_single_quote;
-            continue;
-        }
-
-        if (c == '"' && !in_single_quote) {
-            in_double_quote = !in_double_quote;
-            continue;
-        }
-
-        if ((c == ' ' || c == '\t') && !in_single_quote && !in_double_quote) {
-            if (!current.empty()) {
-                args.push_back(current);
-                current.clear();
-            }
-            continue;
-        }
-
-        current += c;
-    }
-
-    if (!current.empty()) {
-        args.push_back(current);
-    }
-
-    return args;
-}
-
-}  // namespace
 
 namespace exec_utils {
 
