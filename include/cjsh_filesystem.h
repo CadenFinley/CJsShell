@@ -106,14 +106,11 @@ Result<void> redirect_fd(const std::string& file, int target_fd, int flags);
 
 Result<FILE*> safe_fopen(const std::string& path, const std::string& mode);
 void safe_fclose(FILE* file);
-Result<FILE*> safe_popen(const std::string& command, const std::string& mode);
-int safe_pclose(FILE* file);
 
 Result<std::string> create_temp_file(const std::string& prefix = "cjsh_temp");
 Result<void> write_temp_file(const std::string& path, const std::string& content);
 void cleanup_temp_file(const std::string& path);
 
-Result<std::string> read_command_output(const std::string& command);
 Result<void> write_file_content(const std::string& path, const std::string& content);
 Result<std::string> read_file_content(const std::string& path);
 Result<void> write_all(int fd, std::string_view data);

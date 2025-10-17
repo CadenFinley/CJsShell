@@ -114,22 +114,6 @@ void safe_fclose(FILE* file) {
     }
 }
 
-Result<FILE*> safe_popen(const std::string& command, const std::string& mode) {
-    FILE* pipe = ::popen(command.c_str(), mode.c_str());
-    if (pipe == nullptr) {
-        return Result<FILE*>::error("Failed to execute command '" + command +
-                                    "': " + describe_errno(errno));
-    }
-    return Result<FILE*>::ok(pipe);
-}
-
-int safe_pclose(FILE* file) {
-    if (file == nullptr) {
-        return -1;
-    }
-    return ::pclose(file);
-}
-
 Result<std::string> create_temp_file(const std::string& prefix) {
     std::string temp_path =
         "/tmp/" + prefix + "_" + std::to_string(getpid()) + "_" + std::to_string(time(nullptr));
@@ -160,29 +144,6 @@ Result<void> write_temp_file(const std::string& path, const std::string& content
 
 void cleanup_temp_file(const std::string& path) {
     (void)std::remove(path.c_str());
-}
-
-Result<std::string> read_command_output(const std::string& command) {
-    auto pipe_result = safe_popen(command, "r");
-    if (pipe_result.is_error()) {
-        return Result<std::string>::error(pipe_result.error());
-    }
-
-    FILE* pipe = pipe_result.value();
-    std::string output;
-    char buffer[256];
-
-    while (std::fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-        output += buffer;
-    }
-
-    int exit_code = safe_pclose(pipe);
-    if (exit_code != 0) {
-        return Result<std::string>::error("Command '" + command + "' failed with exit code " +
-                                          std::to_string(exit_code));
-    }
-
-    return Result<std::string>::ok(output);
 }
 
 Result<void> write_file_content(const std::string& path, const std::string& content) {
