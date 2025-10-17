@@ -7,6 +7,8 @@
 #include <iostream>
 #include <string>
 
+namespace {
+
 std::string process_escape_sequences(const std::string& input) {
     std::string result;
     for (size_t i = 0; i < input.length(); ++i) {
@@ -68,6 +70,8 @@ std::string process_escape_sequences(const std::string& input) {
     }
     return result;
 }
+
+}  // namespace
 
 int echo_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(

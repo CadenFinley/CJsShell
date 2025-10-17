@@ -10,6 +10,8 @@
 
 #include "error_out.h"
 
+namespace {
+
 std::string format_printf_arg(const std::string& format_spec, const std::string& arg) {
     std::ostringstream result;
 
@@ -297,6 +299,8 @@ std::string process_printf_escapes(const std::string& input) {
     }
     return result;
 }
+
+}  // namespace
 
 int printf_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(args, {"Usage: printf FORMAT [ARG ...]",

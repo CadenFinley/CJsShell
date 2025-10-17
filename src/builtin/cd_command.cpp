@@ -12,6 +12,8 @@
 #include "shell.h"
 #include "suggestion_utils.h"
 
+namespace {
+
 void update_directory_bookmarks(const std::string& dir_path,
                                 std::unordered_map<std::string, std::string>& directory_bookmarks) {
     std::filesystem::path path(dir_path);
@@ -20,6 +22,8 @@ void update_directory_bookmarks(const std::string& dir_path,
         directory_bookmarks[basename] = dir_path;
     }
 }
+
+}  // namespace
 
 int change_directory(const std::string& dir, std::string& current_directory,
                      std::string& previous_directory, std::string& last_terminal_output_error,

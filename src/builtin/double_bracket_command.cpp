@@ -9,6 +9,8 @@
 #include <cstring>
 #include <regex>
 
+namespace {
+
 bool pattern_match(const std::string& text, const std::string& pattern) {
     std::string regex_pattern;
     for (size_t i = 0; i < pattern.size(); ++i) {
@@ -197,6 +199,8 @@ int evaluate_expression(const std::vector<std::string>& tokens) {
 
     return 1;
 }
+
+}  // namespace
 
 int double_bracket_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(

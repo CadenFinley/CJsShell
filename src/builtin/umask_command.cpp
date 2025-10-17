@@ -9,6 +9,8 @@
 
 #include "error_out.h"
 
+namespace {
+
 mode_t parse_octal_mode(const std::string& mode_str) {
     if (mode_str.empty()) {
         return static_cast<mode_t>(-1);
@@ -50,6 +52,8 @@ mode_t parse_symbolic_mode(const std::string& mode_str, mode_t current_mask) {
 
     return current_mask;
 }
+
+}  // namespace
 
 int umask_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(args,
