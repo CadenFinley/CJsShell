@@ -14,7 +14,7 @@
 
 namespace {
 
-std::string execute_command_for_substitution(
+std::pair<std::string, int> execute_command_for_substitution(
     const std::string& command, const std::function<int(const std::string&)>& executor) {
     char tmpl[] = "/tmp/cjsh_subst_XXXXXX";
     int fd = mkstemp(tmpl);
@@ -28,7 +28,7 @@ std::string execute_command_for_substitution(
     if (temp_file_result.is_error()) {
         int pipefd[2];
         if (pipe(pipefd) != 0) {
-            return "";
+            return {"", 1};
         }
 
         pid_t pid = fork();
@@ -52,14 +52,23 @@ std::string execute_command_for_substitution(
             int status = 0;
             waitpid(pid, &status, 0);
 
+            int exit_code = 0;
+            if (WIFEXITED(status)) {
+                exit_code = WEXITSTATUS(status);
+            } else if (WIFSIGNALED(status)) {
+                exit_code = 128 + WTERMSIG(status);
+            } else {
+                exit_code = status;
+            }
+
             while (!result.empty() && (result.back() == '\n' || result.back() == '\r'))
                 result.pop_back();
 
-            return result;
+            return {result, exit_code};
         } else {
             close(pipefd[0]);
             close(pipefd[1]);
-            return "";
+            return {"", 1};
         }
     }
 
@@ -69,10 +78,10 @@ std::string execute_command_for_substitution(
     if (dup_result.is_error()) {
         cjsh_filesystem::safe_fclose(temp_file);
         cjsh_filesystem::safe_close(saved_stdout);
-        return "";
+        return {"", 1};
     }
 
-    executor(command);
+    int exit_code = executor(command);
 
     (void)fflush(stdout);
     cjsh_filesystem::safe_fclose(temp_file);
@@ -83,7 +92,7 @@ std::string execute_command_for_substitution(
     cjsh_filesystem::cleanup_temp_file(path);
 
     if (content_result.is_error()) {
-        return "";
+        return {"", exit_code};
     }
 
     std::string out = content_result.value();
@@ -91,7 +100,7 @@ std::string execute_command_for_substitution(
     while (!out.empty() && (out.back() == '\n' || out.back() == '\r'))
         out.pop_back();
 
-    return out;
+    return {out, exit_code};
 }
 
 }  // namespace
@@ -100,13 +109,14 @@ CommandSubstitutionEvaluator::CommandSubstitutionEvaluator(CommandExecutor execu
     : command_executor_(std::move(executor)) {
 }
 
-std::string CommandSubstitutionEvaluator::capture_command_output(const std::string& command) {
+std::pair<std::string, int> CommandSubstitutionEvaluator::capture_command_output(
+    const std::string& command) {
     return command_executor_(command);
 }
 
 CommandSubstitutionEvaluator::CommandExecutor CommandSubstitutionEvaluator::create_command_executor(
     const std::function<int(const std::string&)>& executor) {
-    return [executor](const std::string& command) -> std::string {
+    return [executor](const std::string& command) -> std::pair<std::string, int> {
         return execute_command_for_substitution(command, executor);
     };
 }
@@ -201,8 +211,9 @@ bool CommandSubstitutionEvaluator::try_handle_command_substitution(const std::st
     }
 
     std::string cmd_content = input.substr(i + 2, cmd_end - i - 2);
-    std::string cmd_output = capture_command_output(cmd_content);
+    auto [cmd_output, exit_code] = capture_command_output(cmd_content);
     result.outputs.push_back(cmd_output);
+    result.exit_codes.push_back(exit_code);
     append_substitution_result(cmd_output, in_double_quotes, result.text);
     i = cmd_end;
     return true;
@@ -222,8 +233,9 @@ bool CommandSubstitutionEvaluator::try_handle_backtick_substitution(const std::s
     }
 
     std::string cmd_content = input.substr(i + 1, backtick_end - i - 1);
-    std::string cmd_output = capture_command_output(cmd_content);
+    auto [cmd_output, exit_code] = capture_command_output(cmd_content);
     result.outputs.push_back(cmd_output);
+    result.exit_codes.push_back(exit_code);
     append_substitution_result(cmd_output, in_double_quotes, result.text);
     i = backtick_end;
     return true;

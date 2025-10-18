@@ -166,6 +166,7 @@ class ShellScriptInterpreter {
     int handle_env_assignment(const std::vector<std::string>& expanded_args);
 
     size_t current_line_number = 1;
+    std::optional<int> last_substitution_exit_status;
 
     bool should_interpret_as_cjsh_script(const std::string& path) const;
 

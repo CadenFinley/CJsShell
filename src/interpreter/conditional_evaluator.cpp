@@ -911,6 +911,59 @@ std::string simplify_parentheses_in_condition(
             }
 
             if (!in_quotes) {
+                if (c == '$' && i + 1 < result.length() && result[i + 1] == '(') {
+                    size_t j = i + 1;
+                    int nested = 0;
+                    bool sub_in_quotes = false;
+                    char sub_quote = '\0';
+                    bool sub_escaped = false;
+
+                    for (; j < result.length(); ++j) {
+                        char sc = result[j];
+
+                        if (sub_escaped) {
+                            sub_escaped = false;
+                            continue;
+                        }
+
+                        if (sc == '\\') {
+                            sub_escaped = true;
+                            continue;
+                        }
+
+                        if (!sub_in_quotes) {
+                            if (sc == '"' || sc == '\'' || sc == '`') {
+                                sub_in_quotes = true;
+                                sub_quote = sc;
+                                continue;
+                            }
+                            if (sc == '(') {
+                                nested++;
+                                continue;
+                            }
+                            if (sc == ')') {
+                                if (nested == 0) {
+                                    i = j;
+                                    break;
+                                }
+                                nested--;
+                                continue;
+                            }
+                        } else {
+                            if (sc == sub_quote) {
+                                sub_in_quotes = false;
+                                sub_quote = '\0';
+                            }
+                            continue;
+                        }
+                    }
+
+                    if (j == result.length())
+                        break;
+
+                    continue;
+                }
+
                 if (c == '"' || c == '\'' || c == '`') {
                     in_quotes = true;
                     quote_char = c;

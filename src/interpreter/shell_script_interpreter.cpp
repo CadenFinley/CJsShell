@@ -140,12 +140,13 @@ int ShellScriptInterpreter::handle_env_assignment(const std::vector<std::string>
 
         if (variable_manager.is_local_variable(var_name)) {
             variable_manager.set_local_variable(var_name, var_value);
-            return 0;
+        } else {
+            variable_manager.set_environment_variable(var_name, var_value);
         }
 
-        // Use the variable manager to handle environment variable assignment
-        variable_manager.set_environment_variable(var_name, var_value);
-        return 0;
+    int status = last_substitution_exit_status.value_or(0);
+        last_substitution_exit_status.reset();
+        return status;
     }
     return -1;
 }
@@ -227,9 +228,17 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                 }
 
                 if (prog == "if" || prog.rfind("if ", 0) == 0 || prog == "for" ||
-                    prog.rfind("for ", 0) == 0 || prog == "while" || prog.rfind("while ", 0) == 0) {
-                    std::vector<std::string> lines = {text};
-                    return execute_block(lines);
+                    prog.rfind("for ", 0) == 0 || prog == "while" ||
+                    prog.rfind("while ", 0) == 0 || prog == "until" ||
+                    prog.rfind("until ", 0) == 0) {
+                    std::vector<std::string> block_lines;
+                    if (shell_parser) {
+                        block_lines = shell_parser->parse_into_lines(text);
+                    }
+                    if (block_lines.empty()) {
+                        block_lines.push_back(text);
+                    }
+                    return execute_block(block_lines);
                 }
             }
         } catch (const std::runtime_error& e) {
@@ -237,9 +246,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
         }
 
         if ((text == "case" || text.rfind("case ", 0) == 0) &&
-            (text.find(" in ") != std::string::npos) && (text.find("esac") == std::string::npos)) {
+            text.find("esac") == std::string::npos) {
             std::string completed_case = text + ";; esac";
-
             return execute_simple_or_pipeline(completed_case);
         }
 
@@ -1083,7 +1091,6 @@ int ShellScriptInterpreter::evaluate_logical_condition_internal(
             pos++;
         }
     }
-
     return conditional_evaluator::evaluate_logical_condition(processed_cond, executor);
 }
 
@@ -1263,6 +1270,11 @@ std::string ShellScriptInterpreter::expand_all_substitutions(
         CommandSubstitutionEvaluator::create_command_executor(executor));
 
     auto expansion_result = cmd_subst_evaluator.expand_substitutions(input);
+    if (!expansion_result.exit_codes.empty()) {
+        last_substitution_exit_status = expansion_result.exit_codes.back();
+    } else {
+        last_substitution_exit_status.reset();
+    }
     std::string result = expansion_result.text;
 
     std::string out;

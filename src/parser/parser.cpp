@@ -1240,6 +1240,10 @@ std::vector<std::string> Parser::parse_semicolon_commands(const std::string& com
     int control_depth = 0;
 
     std::vector<bool> is_semicolon_split_point(command.length(), false);
+    std::vector<bool> is_newline_split_point;
+    if (split_on_newlines) {
+        is_newline_split_point.assign(command.length(), false);
+    }
 
     for (size_t i = 0; i < command.length(); ++i) {
         if (scan_state.update_quote(command[i])) {
@@ -1276,6 +1280,12 @@ std::vector<std::string> Parser::parse_semicolon_commands(const std::string& com
                 }
             }
 
+            if (split_on_newlines && command[i] == '\n' && control_depth == 0) {
+                if (!is_newline_split_point.empty()) {
+                    is_newline_split_point[i] = true;
+                }
+            }
+
             if (command[i] == ';' && control_depth == 0) {
                 bool is_escaped = false;
                 if (i > 0 && command[i - 1] == '\\') {
@@ -1303,7 +1313,8 @@ std::vector<std::string> Parser::parse_semicolon_commands(const std::string& com
         if (parse_state.update_quote(command[i])) {
             current += command[i];
         } else if ((command[i] == ';' && is_semicolon_split_point[i]) ||
-                   (split_on_newlines && !parse_state.in_quotes && command[i] == '\n')) {
+                   (split_on_newlines && !parse_state.in_quotes && command[i] == '\n' &&
+                    (is_newline_split_point.empty() || is_newline_split_point[i]))) {
             if (!current.empty()) {
                 current = trim_trailing_whitespace(trim_leading_whitespace(current));
                 if (!current.empty()) {

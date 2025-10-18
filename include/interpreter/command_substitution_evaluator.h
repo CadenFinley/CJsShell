@@ -9,11 +9,12 @@ class CommandSubstitutionEvaluator {
     struct ExpansionResult {
         std::string text;
         std::vector<std::string> outputs;
+        std::vector<int> exit_codes;
     };
-    using CommandExecutor = std::function<std::string(const std::string&)>;
+    using CommandExecutor = std::function<std::pair<std::string, int>(const std::string&)>;
     explicit CommandSubstitutionEvaluator(CommandExecutor executor);
     ExpansionResult expand_substitutions(const std::string& input);
-    std::string capture_command_output(const std::string& command);
+    std::pair<std::string, int> capture_command_output(const std::string& command);
 
     static std::optional<size_t> find_matching_paren(const std::string& text, size_t start_index);
 
