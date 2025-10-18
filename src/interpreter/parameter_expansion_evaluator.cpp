@@ -158,7 +158,7 @@ std::string ParameterExpansionEvaluator::expand(const std::string& param_expr) {
 
     // Assignment operators
     if (op == ":=") {
-        if (!is_set || var_value.empty()) {
+        if (!is_set) {
             write_variable(var_name, operand);
             return operand;
         }

@@ -167,6 +167,7 @@ class ShellScriptInterpreter {
 
     size_t current_line_number = 1;
     std::optional<int> last_substitution_exit_status;
+    std::optional<int> pending_assignment_exit_status;
 
     bool should_interpret_as_cjsh_script(const std::string& path) const;
 

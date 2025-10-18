@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdlib>
 #include <initializer_list>
 #include <map>
 #include <sstream>
@@ -21,6 +22,26 @@ namespace {
 using SyntaxError = ShellScriptInterpreter::SyntaxError;
 using ErrorSeverity = ShellScriptInterpreter::ErrorSeverity;
 using ErrorCategory = ShellScriptInterpreter::ErrorCategory;
+
+constexpr const char* kSubstLiteralStart = "\x1E__SUBST_LITERAL_START__\x1E";
+constexpr const char* kSubstLiteralEnd = "\x1E__SUBST_LITERAL_END__\x1E";
+constexpr const char* kNoEnvStart = "\x1E__NOENV_START__\x1E";
+constexpr const char* kNoEnvEnd = "\x1E__NOENV_END__\x1E";
+constexpr const char* kSubstLiteralStartPlain = "__SUBST_LITERAL_START__";
+constexpr const char* kSubstLiteralEndPlain = "__SUBST_LITERAL_END__";
+constexpr const char* kNoEnvStartPlain = "__NOENV_START__";
+constexpr const char* kNoEnvEndPlain = "__NOENV_END__";
+constexpr const char* kSubstitutionPlaceholder = "__CJSH_SUBST__";
+
+constexpr size_t kSubstLiteralStartLen = sizeof("\x1E__SUBST_LITERAL_START__\x1E") - 1;
+constexpr size_t kSubstLiteralEndLen = sizeof("\x1E__SUBST_LITERAL_END__\x1E") - 1;
+constexpr size_t kNoEnvStartLen = sizeof("\x1E__NOENV_START__\x1E") - 1;
+constexpr size_t kNoEnvEndLen = sizeof("\x1E__NOENV_END__\x1E") - 1;
+constexpr size_t kSubstLiteralStartPlainLen = sizeof("__SUBST_LITERAL_START__") - 1;
+constexpr size_t kSubstLiteralEndPlainLen = sizeof("__SUBST_LITERAL_END__") - 1;
+constexpr size_t kNoEnvStartPlainLen = sizeof("__NOENV_START__") - 1;
+constexpr size_t kNoEnvEndPlainLen = sizeof("__NOENV_END__") - 1;
+constexpr size_t kSubstitutionPlaceholderLen = sizeof("__CJSH_SUBST__") - 1;
 
 bool has_inline_terminator(const std::string& text, const std::string& terminator) {
     size_t pos = 0;
@@ -87,6 +108,297 @@ bool should_process_char(QuoteState& state, char c, bool ignore_single_quotes,
     return true;
 }
 
+bool find_matching_command_substitution_end_for_validation(const std::string& text,
+                                                           size_t start_index,
+                                                           size_t& end_out) {
+    int depth = 1;
+    bool in_single = false;
+    bool in_double = false;
+    bool escaped = false;
+
+    for (size_t i = start_index; i < text.size(); ++i) {
+        char ch = text[i];
+
+        if (escaped) {
+            escaped = false;
+            continue;
+        }
+
+        if (ch == '\\') {
+            escaped = true;
+            continue;
+        }
+
+        if (!in_double && ch == '\'') {
+            in_single = !in_single;
+            continue;
+        }
+
+        if (!in_single && ch == '"') {
+            in_double = !in_double;
+            continue;
+        }
+
+        if (!in_single) {
+            if (ch == '(') {
+                depth++;
+            } else if (ch == ')') {
+                depth--;
+                if (depth == 0) {
+                    end_out = i;
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
+size_t find_matching_backtick_for_validation(const std::string& text, size_t start_index) {
+    bool escaped = false;
+
+    for (size_t i = start_index; i < text.size(); ++i) {
+        char ch = text[i];
+
+        if (escaped) {
+            escaped = false;
+            continue;
+        }
+
+        if (ch == '\\') {
+            escaped = true;
+            continue;
+        }
+
+        if (ch == '`') {
+            return i;
+        }
+    }
+
+    return std::string::npos;
+}
+
+std::string sanitize_command_substitutions_for_validation(const std::string& input) {
+    if (input.empty())
+        return input;
+
+    const std::string placeholder(kSubstitutionPlaceholder);
+    const std::string literal_start(kSubstLiteralStart);
+    const std::string literal_end(kSubstLiteralEnd);
+    const std::string noenv_start(kNoEnvStart);
+    const std::string noenv_end(kNoEnvEnd);
+
+    std::string output;
+    output.reserve(input.size());
+
+    bool in_single = false;
+    bool in_double = false;
+    bool escaped = false;
+
+    size_t i = 0;
+    while (i < input.size()) {
+        if (!literal_start.empty() &&
+            input.compare(i, literal_start.size(), literal_start) == 0) {
+            i += literal_start.size();
+            while (i < input.size() &&
+                   input.compare(i, literal_end.size(), literal_end) != 0) {
+                ++i;
+            }
+            if (i < input.size()) {
+                i += literal_end.size();
+            }
+            output.append(placeholder);
+            continue;
+        }
+
+        if (!noenv_start.empty() && input.compare(i, noenv_start.size(), noenv_start) == 0) {
+            i += noenv_start.size();
+            while (i < input.size() &&
+                   input.compare(i, noenv_end.size(), noenv_end) != 0) {
+                ++i;
+            }
+            if (i < input.size()) {
+                i += noenv_end.size();
+            }
+            output.append(placeholder);
+            continue;
+        }
+
+        char c = input[i];
+
+        if (escaped) {
+            output.push_back(c);
+            escaped = false;
+            ++i;
+            continue;
+        }
+
+        if (c == '\\') {
+            escaped = true;
+            output.push_back(c);
+            ++i;
+            continue;
+        }
+
+        if (!in_double && c == '\'') {
+            in_single = !in_single;
+            output.push_back(c);
+            ++i;
+            continue;
+        }
+
+        if (!in_single && c == '"') {
+            in_double = !in_double;
+            output.push_back(c);
+            ++i;
+            continue;
+        }
+
+        if (!in_single && c == '$' && i + 1 < input.size() && input[i + 1] == '(') {
+            size_t end_index = 0;
+            if (find_matching_command_substitution_end_for_validation(input, i + 2, end_index)) {
+                output.append("$(");
+                output.append(placeholder);
+                output.push_back(')');
+                i = end_index + 1;
+                continue;
+            }
+        }
+
+        if (!in_single && c == '`') {
+            size_t end_index = find_matching_backtick_for_validation(input, i + 1);
+            if (end_index != std::string::npos) {
+                output.push_back('`');
+                output.append(placeholder);
+                output.push_back('`');
+                i = end_index + 1;
+                continue;
+            }
+        }
+
+        output.push_back(c);
+        ++i;
+    }
+
+    return output;
+}
+
+size_t find_marker(const std::string& text, size_t start_pos, const char* marker_with_control,
+                   size_t marker_with_control_len, const char* marker_plain,
+                   size_t marker_plain_len, size_t& matched_length) {
+    size_t pos_with = (marker_with_control_len > 0)
+                          ? text.find(marker_with_control, start_pos)
+                          : std::string::npos;
+    size_t pos_plain = (marker_plain_len > 0) ? text.find(marker_plain, start_pos)
+                                             : std::string::npos;
+
+    if (pos_with == std::string::npos && pos_plain == std::string::npos) {
+        matched_length = 0;
+        return std::string::npos;
+    }
+
+    if (pos_plain != std::string::npos &&
+        (pos_with == std::string::npos || pos_plain < pos_with)) {
+        matched_length = marker_plain_len;
+        return pos_plain;
+    }
+
+    matched_length = marker_with_control_len;
+    return pos_with;
+}
+
+std::vector<std::string> sanitize_lines_for_validation(const std::vector<std::string>& lines) {
+    std::vector<std::string> sanitized = lines;
+
+    bool inside_subst_literal = false;
+    bool inside_noenv_literal = false;
+
+    for (std::string& line : sanitized) {
+        size_t pos = 0;
+
+        while (pos <= line.size()) {
+            if (inside_subst_literal) {
+                size_t matched_len = 0;
+                size_t end_pos = find_marker(line, pos, kSubstLiteralEnd, kSubstLiteralEndLen,
+                                             kSubstLiteralEndPlain, kSubstLiteralEndPlainLen,
+                                             matched_len);
+                if (end_pos == std::string::npos) {
+                    line.erase(pos);
+                    break;
+                }
+
+                line.erase(pos, (end_pos + matched_len) - pos);
+                inside_subst_literal = false;
+                continue;
+            }
+
+            if (inside_noenv_literal) {
+                size_t matched_len = 0;
+                size_t end_pos = find_marker(line, pos, kNoEnvEnd, kNoEnvEndLen, kNoEnvEndPlain,
+                                             kNoEnvEndPlainLen, matched_len);
+                if (end_pos == std::string::npos) {
+                    line.erase(pos);
+                    break;
+                }
+
+                line.erase(pos, (end_pos + matched_len) - pos);
+                inside_noenv_literal = false;
+                continue;
+            }
+
+            size_t subst_len = 0;
+            size_t subst_pos = find_marker(line, pos, kSubstLiteralStart, kSubstLiteralStartLen,
+                                           kSubstLiteralStartPlain, kSubstLiteralStartPlainLen,
+                                           subst_len);
+
+            size_t noenv_len = 0;
+            size_t noenv_pos = find_marker(line, pos, kNoEnvStart, kNoEnvStartLen,
+                                           kNoEnvStartPlain, kNoEnvStartPlainLen, noenv_len);
+
+            if (subst_pos == std::string::npos && noenv_pos == std::string::npos) {
+                break;
+            }
+
+            bool handle_subst = (noenv_pos == std::string::npos) ||
+                                (subst_pos != std::string::npos && subst_pos <= noenv_pos);
+
+            if (handle_subst) {
+                line.replace(subst_pos, subst_len, kSubstitutionPlaceholder);
+                pos = subst_pos + kSubstitutionPlaceholderLen;
+
+                size_t matched_len = 0;
+                size_t end_pos = find_marker(line, pos, kSubstLiteralEnd, kSubstLiteralEndLen,
+                                             kSubstLiteralEndPlain, kSubstLiteralEndPlainLen,
+                                             matched_len);
+                if (end_pos == std::string::npos) {
+                    line.erase(pos);
+                    inside_subst_literal = true;
+                    break;
+                }
+
+                line.erase(pos, (end_pos + matched_len) - pos);
+            } else {
+                line.replace(noenv_pos, noenv_len, kSubstitutionPlaceholder);
+                pos = noenv_pos + kSubstitutionPlaceholderLen;
+
+                size_t matched_len = 0;
+                size_t end_pos = find_marker(line, pos, kNoEnvEnd, kNoEnvEndLen, kNoEnvEndPlain,
+                                             kNoEnvEndPlainLen, matched_len);
+                if (end_pos == std::string::npos) {
+                    line.erase(pos);
+                    inside_noenv_literal = true;
+                    break;
+                }
+
+                line.erase(pos, (end_pos + matched_len) - pos);
+            }
+        }
+    }
+
+    return sanitized;
+}
+
 enum class IterationAction : std::uint8_t {
     Continue,
     Break
@@ -120,7 +432,7 @@ bool extract_trimmed_line(const std::string& line, std::string& trimmed_line,
     if (line[first_non_space] == '#')
         return false;
 
-    trimmed_line = line.substr(first_non_space);
+    trimmed_line = sanitize_command_substitutions_for_validation(line.substr(first_non_space));
     return true;
 }
 
@@ -413,11 +725,12 @@ bool validate_array_index_expression(const std::string& index_text, std::string&
 std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validate_script_syntax(
     const std::vector<std::string>& lines) {
     std::vector<SyntaxError> errors;
+    std::vector<std::string> sanitized_lines = sanitize_lines_for_validation(lines);
 
     std::vector<std::tuple<std::string, std::string, size_t>> control_stack;
 
     for (size_t line_num = 0; line_num < lines.size(); ++line_num) {
-        const std::string& line = lines[line_num];
+        const std::string& line = sanitized_lines[line_num];
         size_t display_line = line_num + 1;
 
         std::string trimmed;
@@ -427,9 +740,11 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
         }
 
         std::string line_without_comments = strip_inline_comment(line);
+        std::string sanitized_line_without_comments =
+            sanitize_command_substitutions_for_validation(line_without_comments);
         QuoteState quote_state;
 
-        for (char c : line_without_comments) {
+        for (char c : sanitized_line_without_comments) {
             should_process_char(quote_state, c, false, false);
         }
 
@@ -472,8 +787,8 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
         }
 
         if (!looks_like_case_pattern) {
-            for (size_t i = 0; i < line_without_comments.length(); ++i) {
-                char c = line_without_comments[i];
+            for (size_t i = 0; i < sanitized_line_without_comments.length(); ++i) {
+                char c = sanitized_line_without_comments[i];
 
                 if (!should_process_char(quote_state, c, false, false)) {
                     continue;
@@ -502,6 +817,17 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
         if (!trimmed_for_parsing.empty() && trimmed_for_parsing.back() == ';') {
             trimmed_for_parsing.pop_back();
             trimmed_for_parsing = trim(trimmed_for_parsing);
+        }
+
+        if (!trimmed_for_parsing.empty() && trimmed_for_parsing.front() == ';') {
+            std::string after_semicolon = trim(trimmed_for_parsing.substr(1));
+            if (!after_semicolon.empty() &&
+                (after_semicolon.rfind("then", 0) == 0 ||
+                 after_semicolon.rfind("elif", 0) == 0 ||
+                 after_semicolon.rfind("else", 0) == 0 ||
+                 after_semicolon.rfind("fi", 0) == 0)) {
+                trimmed_for_parsing = std::move(after_semicolon);
+            }
         }
 
         if (trimmed_for_parsing.rfind("if ", 0) == 0 &&

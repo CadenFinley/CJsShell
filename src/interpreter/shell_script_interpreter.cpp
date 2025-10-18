@@ -144,8 +144,9 @@ int ShellScriptInterpreter::handle_env_assignment(const std::vector<std::string>
             variable_manager.set_environment_variable(var_name, var_value);
         }
 
-    int status = last_substitution_exit_status.value_or(0);
+        int status = pending_assignment_exit_status.value_or(last_substitution_exit_status.value_or(0));
         last_substitution_exit_status.reset();
+        pending_assignment_exit_status.reset();
         return status;
     }
     return -1;
@@ -1272,6 +1273,7 @@ std::string ShellScriptInterpreter::expand_all_substitutions(
     auto expansion_result = cmd_subst_evaluator.expand_substitutions(input);
     if (!expansion_result.exit_codes.empty()) {
         last_substitution_exit_status = expansion_result.exit_codes.back();
+        pending_assignment_exit_status = last_substitution_exit_status;
     } else {
         last_substitution_exit_status.reset();
     }

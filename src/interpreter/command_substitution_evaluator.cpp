@@ -6,6 +6,7 @@
 
 #include <cstdio>
 #include <functional>
+#include <iostream>
 #include <optional>
 #include <string>
 #include <utility>
@@ -24,12 +25,18 @@ std::pair<std::string, int> execute_command_for_substitution(
 
     int saved_stdout = dup(STDOUT_FILENO);
 
+    std::cout.flush();
+    fflush(nullptr);
+
     auto temp_file_result = cjsh_filesystem::safe_fopen(path, "w");
     if (temp_file_result.is_error()) {
         int pipefd[2];
         if (pipe(pipefd) != 0) {
             return {"", 1};
         }
+
+        std::cout.flush();
+        fflush(nullptr);
 
         pid_t pid = fork();
         if (pid == 0) {
