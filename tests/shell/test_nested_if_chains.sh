@@ -1,22 +1,17 @@
 #!/usr/bin/env sh
 if [ -n "$CJSH" ]; then CJSH_PATH="$CJSH"; else CJSH_PATH="$(cd "$(dirname "$0")/../../build" && pwd)/cjsh"; fi
 echo "Test: nested and chained if statements..."
-
 TESTS_PASSED=0
 TESTS_FAILED=0
 TESTS_SKIPPED=0
-
 pass_test() {
     echo "PASS: $1"
     TESTS_PASSED=$((TESTS_PASSED + 1))
 }
-
 fail_test() {
     echo "FAIL: $1"
     TESTS_FAILED=$((TESTS_FAILED + 1))
 }
-
-# Deeply nested true branches
 OUTPUT=$("$CJSH_PATH" -c "
 if [ 1 -eq 1 ]; then
     if [ 2 -eq 2 ]; then
@@ -36,8 +31,6 @@ if [ "$OUTPUT" = "deep-success" ]; then
 else
     fail_test "deeply nested true branches (got: '$OUTPUT')"
 fi
-
-# Middle branch fallback after nested failure
 OUTPUT=$("$CJSH_PATH" -c "
 if [ 1 -eq 1 ]; then
     if [ 2 -ne 2 ]; then
@@ -57,8 +50,6 @@ if [ "$OUTPUT" = "nested-fallback" ]; then
 else
     fail_test "nested fallback after inner failure (got: '$OUTPUT')"
 fi
-
-# Elif with nested decisions
 OUTPUT=$("$CJSH_PATH" -c "
 if false; then
     echo 'outer-then'
@@ -78,8 +69,6 @@ if [ "$OUTPUT" = "chain-match" ]; then
 else
     fail_test "elif chain with nested inner decisions (got: '$OUTPUT')"
 fi
-
-# Multiple elif chain hitting late branch with nested body
 OUTPUT=$("$CJSH_PATH" -c "
 if false; then
     echo 'branch-a'
@@ -99,8 +88,6 @@ if [ "$OUTPUT" = "late-branch" ]; then
 else
     fail_test "multiple elif chain hitting late nested branch (got: '$OUTPUT')"
 fi
-
-# Nested else block producing multiple outputs
 OUTPUT=$("$CJSH_PATH" -c "
 if [ 1 -eq 2 ]; then
     echo 'unexpected'
@@ -125,13 +112,11 @@ if [ "$OUTPUT" = "$EXPECTED" ]; then
 else
     fail_test "nested else block emits sequential outputs (got: '$OUTPUT')"
 fi
-
 echo
 echo "Nested and Chained If Test Summary:"
 echo "PASSED: $TESTS_PASSED"
 echo "FAILED: $TESTS_FAILED"
 echo "SKIPPED: $TESTS_SKIPPED"
-
 if [ $TESTS_FAILED -eq 0 ]; then
     echo "All nested if tests passed!"
     exit 0
