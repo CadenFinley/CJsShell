@@ -1,4 +1,5 @@
 #!/usr/bin/env sh
+# Test quoting and expansions
 if [ -n "$CJSH" ]; then CJSH_PATH="$CJSH"; else CJSH_PATH="$(cd "$(dirname "$0")/../../build" && pwd)/cjsh"; fi
 echo "Test: quoting and expansions..."
 VAR_OUTPUT=$("$CJSH_PATH" -c "var=world; printf \"hello \$var\"")

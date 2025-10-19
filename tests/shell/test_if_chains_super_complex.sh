@@ -1,22 +1,29 @@
 #!/usr/bin/env sh
 if [ -n "$CJSH" ]; then CJSH_PATH="$CJSH"; else CJSH_PATH="$(cd "$(dirname "$0")/../../build" && pwd)/cjsh"; fi
 echo "Test: super complex nested if script..."
+
 TESTS_PASSED=0
 TESTS_FAILED=0
+
 pass_test() {
     echo "PASS: $1"
     TESTS_PASSED=$((TESTS_PASSED + 1))
 }
+
 fail_test() {
     echo "FAIL: $1"
     TESTS_FAILED=$((TESTS_FAILED + 1))
 }
+
 create_complex_script() {
     SCRIPT_PATH=$1
     cat <<'EOF' > "$SCRIPT_PATH"
+#!/usr/bin/env sh
+
 report_stage() {
     stage=$1
     detail=$2
+
     if [ "$stage" = "alpha" ]; then
         if [ "$detail" = "ok" ]; then
             printf '%s:%s\n' "$stage" "$detail"
@@ -33,9 +40,11 @@ report_stage() {
         fi
     fi
 }
+
 evaluate_level() {
     label=$1
     value=$2
+
     if [ "$label" = "beta" ]; then
         if [ "$value" -gt 2 ]; then
             echo "beta-gt"
@@ -71,12 +80,15 @@ evaluate_level() {
         return 0
     fi
 }
+
 : "${STAGE_ALPHA_READY:=1}"
 : "${FALLBACK_STAGE:=rescue}"
 : "${BETA_VALUE:=5}"
 : "${GAMMA_VALUE:=9}"
+
 summary_flag=0
 warnings=0
+
 for stage in alpha beta gamma; do
     case "$stage" in
         alpha)
@@ -140,8 +152,10 @@ for stage in alpha beta gamma; do
             summary_flag=1
             ;;
     esac
+
     report_stage "$stage" "$detail"
 done
+
 score=0
 for value in 1 2 3; do
     parity=$(((value + BETA_VALUE) % 2))
@@ -155,13 +169,16 @@ for value in 1 2 3; do
         fi
     fi
 done
+
 if [ "$score" -ge 5 ]; then
     echo "score:balanced"
 else
     echo "score:low"
     summary_flag=1
 fi
+
 echo "warnings:$warnings"
+
 if [ "$summary_flag" -eq 0 ]; then
     echo "summary:pass"
 else
@@ -170,8 +187,10 @@ fi
 EOF
     chmod +x "$SCRIPT_PATH"
 }
+
 TEMP_SCRIPT="/tmp/cjsh_complex_if_script_$$.sh"
 create_complex_script "$TEMP_SCRIPT"
+
 OUTPUT=$("$CJSH_PATH" "$TEMP_SCRIPT")
 EXPECTED="alpha:ok
 beta:beta-gt
@@ -179,11 +198,13 @@ gamma:gamma-odd-high
 score:balanced
 warnings:0
 summary:pass"
+
 if [ "$OUTPUT" = "$EXPECTED" ]; then
     pass_test "complex script default path"
 else
     fail_test "complex script default path (got: '$OUTPUT')"
 fi
+
 OUTPUT=$(STAGE_ALPHA_READY=0 BETA_VALUE=1 GAMMA_VALUE=2 FALLBACK_STAGE= "$CJSH_PATH" "$TEMP_SCRIPT")
 EXPECTED="alpha:fail
 beta:beta-error:beta-lt
@@ -191,15 +212,19 @@ gamma:gamma-small
 score:balanced
 warnings:0
 summary:fail"
+
 if [ "$OUTPUT" = "$EXPECTED" ]; then
     pass_test "complex script failure path"
 else
     fail_test "complex script failure path (got: '$OUTPUT')"
 fi
+
 rm -f "$TEMP_SCRIPT"
+
 echo
 echo "PASSED: $TESTS_PASSED"
 echo "FAILED: $TESTS_FAILED"
+
 if [ $TESTS_FAILED -eq 0 ]; then
     exit 0
 else

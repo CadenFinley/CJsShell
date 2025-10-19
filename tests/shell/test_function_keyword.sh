@@ -1,30 +1,47 @@
 #!/usr/bin/env sh
+
+# Test the 'function' keyword syntax support
+# Tests three syntaxes: name() {...}, function name {...}, function name() {...}
+
+# Color codes for output
 GREEN='\033[0;32m'
 RED='\033[0;31m'
-NC='\033[0m'
+NC='\033[0m' # No Color
+
+# Test counters
 TOTAL=0
 PASSED=0
 FAILED=0
+
+# Shell to test
 SHELL_TO_TEST="${1:-./build/cjsh}"
+
 log_test() {
     TOTAL=$((TOTAL + 1))
     printf "Test %03d: %s... " "$TOTAL" "$1"
 }
+
 pass() {
     PASSED=$((PASSED + 1))
     printf "${GREEN}PASS${NC}\n"
 }
+
 fail() {
     FAILED=$((FAILED + 1))
     printf "${RED}FAIL${NC} - %s\n" "$1"
 }
+
+# Check if shell exists
 if [ ! -x "$SHELL_TO_TEST" ]; then
     echo "Error: Shell '$SHELL_TO_TEST' not found or not executable"
     echo "Usage: $0 [path_to_shell]"
     exit 1
 fi
+
 echo "Testing 'function' Keyword Support for: $SHELL_TO_TEST"
 echo "========================================================"
+
+# Test 1: Traditional name() syntax
 log_test "Traditional name() { ... } syntax"
 result=$("$SHELL_TO_TEST" -c 'hello() { echo "world"; }; hello' 2>/dev/null)
 if [ "$result" = "world" ]; then
@@ -32,6 +49,8 @@ if [ "$result" = "world" ]; then
 else
     fail "Expected 'world', got '$result'"
 fi
+
+# Test 2: function keyword without parentheses
 log_test "function name { ... } syntax"
 result=$("$SHELL_TO_TEST" -c 'function hello { echo "world"; }; hello' 2>/dev/null)
 if [ "$result" = "world" ]; then
@@ -39,6 +58,8 @@ if [ "$result" = "world" ]; then
 else
     fail "Expected 'world', got '$result'"
 fi
+
+# Test 3: function keyword with parentheses
 log_test "function name() { ... } syntax"
 result=$("$SHELL_TO_TEST" -c 'function hello() { echo "world"; }; hello' 2>/dev/null)
 if [ "$result" = "world" ]; then
@@ -46,6 +67,8 @@ if [ "$result" = "world" ]; then
 else
     fail "Expected 'world', got '$result'"
 fi
+
+# Test 4: function keyword with parameters
 log_test "function keyword with parameters"
 result=$("$SHELL_TO_TEST" -c 'function greet { echo "Hello $1"; }; greet Alice' 2>/dev/null)
 if [ "$result" = "Hello Alice" ]; then
@@ -53,6 +76,8 @@ if [ "$result" = "Hello Alice" ]; then
 else
     fail "Expected 'Hello Alice', got '$result'"
 fi
+
+# Test 5: function keyword with multiple parameters
 log_test "function keyword with multiple parameters"
 result=$("$SHELL_TO_TEST" -c 'function add { echo $(($1 + $2)); }; add 10 20' 2>/dev/null)
 if [ "$result" = "30" ]; then
@@ -60,6 +85,8 @@ if [ "$result" = "30" ]; then
 else
     fail "Expected '30', got '$result'"
 fi
+
+# Test 6: function keyword with return value
 log_test "function keyword with return value"
 result=$("$SHELL_TO_TEST" -c 'function test_ret { return 7; }; test_ret; echo $?' 2>/dev/null)
 if [ "$result" = "7" ]; then
@@ -67,6 +94,8 @@ if [ "$result" = "7" ]; then
 else
     fail "Expected '7', got '$result'"
 fi
+
+# Test 7: function keyword - multiline definition
 log_test "function keyword with multiline body"
 result=$("$SHELL_TO_TEST" -c 'function multi {
     echo "line1"
@@ -79,6 +108,8 @@ if [ "$result" = "$expected" ]; then
 else
     fail "Expected '$expected', got '$result'"
 fi
+
+# Test 8: function keyword - recursive function
 log_test "function keyword with recursion"
 result=$("$SHELL_TO_TEST" -c 'function countdown {
     if [ $1 -gt 0 ]; then
@@ -92,6 +123,8 @@ if [ "$result" = "$expected" ]; then
 else
     fail "Expected '$expected', got '$result'"
 fi
+
+# Test 9: function keyword calling another function
 log_test "function keyword - nested function calls"
 result=$("$SHELL_TO_TEST" -c 'function inner { echo "inner"; }; function outer { inner; echo "outer"; }; outer' 2>/dev/null | tr '\n' ' ')
 expected="inner outer "
@@ -100,6 +133,8 @@ if [ "$result" = "$expected" ]; then
 else
     fail "Expected '$expected', got '$result'"
 fi
+
+# Test 10: Mix of syntaxes
 log_test "Mixed function syntaxes in same script"
 result=$("$SHELL_TO_TEST" -c 'func1() { echo "trad"; }; function func2 { echo "keyword"; }; function func3() { echo "both"; }; func1; func2; func3' 2>/dev/null | tr '\n' ' ')
 expected="trad keyword both "
@@ -108,6 +143,8 @@ if [ "$result" = "$expected" ]; then
 else
     fail "Expected '$expected', got '$result'"
 fi
+
+# Test 11: function keyword with single-line body
 log_test "function keyword with single-line syntax"
 result=$("$SHELL_TO_TEST" -c 'function oneline { echo "single"; }; oneline' 2>/dev/null)
 if [ "$result" = "single" ]; then
@@ -115,6 +152,8 @@ if [ "$result" = "single" ]; then
 else
     fail "Expected 'single', got '$result'"
 fi
+
+# Test 12: function keyword with command substitution
 log_test "function keyword with command substitution"
 result=$("$SHELL_TO_TEST" -c 'function get_date { echo $(date +%Y); }; get_date' 2>/dev/null)
 if [ -n "$result" ] && [ "$result" = "2025" ] || [ "$result" -ge 2024 ]; then
@@ -122,6 +161,8 @@ if [ -n "$result" ] && [ "$result" = "2025" ] || [ "$result" -ge 2024 ]; then
 else
     fail "Expected year output, got '$result'"
 fi
+
+# Test 13: function keyword with pipeline
 log_test "function keyword with pipeline"
 result=$("$SHELL_TO_TEST" -c 'function count_lines { echo -e "a\nb\nc" | wc -l; }; count_lines' 2>/dev/null | tr -d ' ')
 if [ "$result" = "3" ]; then
@@ -129,6 +170,8 @@ if [ "$result" = "3" ]; then
 else
     fail "Expected '3', got '$result'"
 fi
+
+# Test 14: function keyword with conditional
 log_test "function keyword with if statement"
 result=$("$SHELL_TO_TEST" -c 'function check {
     if [ "$1" = "yes" ]; then
@@ -142,6 +185,8 @@ if [ "$result" = "affirmative" ]; then
 else
     fail "Expected 'affirmative', got '$result'"
 fi
+
+# Test 15: function keyword with loop
 log_test "function keyword with for loop"
 result=$("$SHELL_TO_TEST" -c 'function loop_test {
     for i in 1 2 3; do
@@ -154,6 +199,8 @@ if [ "$result" = "$expected" ]; then
 else
     fail "Expected '$expected', got '$result'"
 fi
+
+# Test 16: function keyword with case statement
 log_test "function keyword with case statement"
 result=$("$SHELL_TO_TEST" -c 'function check_val {
     case $1 in
@@ -167,6 +214,8 @@ if [ "$result" = "alpha" ]; then
 else
     fail "Expected 'alpha', got '$result'"
 fi
+
+# Test 17: function keyword with special parameters
 log_test "function keyword with $# and $@"
 result=$("$SHELL_TO_TEST" -c 'function count_args {
     echo "Count: $#"
@@ -178,6 +227,8 @@ if [ "$result" = "$expected" ]; then
 else
     fail "Expected '$expected', got '$result'"
 fi
+
+# Test 18: function keyword with variable assignment
 log_test "function keyword with variable assignment"
 result=$("$SHELL_TO_TEST" -c 'function set_var {
     myvar="test123"
@@ -188,6 +239,8 @@ if [ "$result" = "test123" ]; then
 else
     fail "Expected 'test123', got '$result'"
 fi
+
+# Test 19: function keyword - check overwrite
 log_test "function keyword - redefining function"
 result=$("$SHELL_TO_TEST" -c 'function test_func { echo "first"; }; function test_func { echo "second"; }; test_func' 2>/dev/null)
 if [ "$result" = "second" ]; then
@@ -195,6 +248,8 @@ if [ "$result" = "second" ]; then
 else
     fail "Expected 'second', got '$result'"
 fi
+
+# Test 20: function keyword with arithmetic
 log_test "function keyword with arithmetic expansion"
 result=$("$SHELL_TO_TEST" -c 'function calc { echo $((($1 * $2) + $3)); }; calc 5 4 3' 2>/dev/null)
 if [ "$result" = "23" ]; then
@@ -202,6 +257,8 @@ if [ "$result" = "23" ]; then
 else
     fail "Expected '23', got '$result'"
 fi
+
+# Test 21: function keyword with subshell
 log_test "function keyword with subshell"
 result=$("$SHELL_TO_TEST" -c 'x=outer; function subtest { (x=inner; echo $x); echo $x; }; subtest' 2>/dev/null | tr '\n' ' ')
 expected="inner outer "
@@ -210,6 +267,8 @@ if [ "$result" = "$expected" ]; then
 else
     fail "Expected '$expected', got '$result'"
 fi
+
+# Test 22: function keyword with exit code propagation
 log_test "function keyword - exit code from command"
 result=$("$SHELL_TO_TEST" -c 'function fail_test { false; }; fail_test; echo $?' 2>/dev/null)
 if [ "$result" = "1" ]; then
@@ -217,6 +276,8 @@ if [ "$result" = "1" ]; then
 else
     fail "Expected '1', got '$result'"
 fi
+
+# Test 23: function keyword with quoted strings
 log_test "function keyword with quoted parameters"
 result=$("$SHELL_TO_TEST" -c 'function show_quote { echo "$1"; }; show_quote "hello world"' 2>/dev/null)
 if [ "$result" = "hello world" ]; then
@@ -224,6 +285,8 @@ if [ "$result" = "hello world" ]; then
 else
     fail "Expected 'hello world', got '$result'"
 fi
+
+# Test 24: function keyword with semicolon separator
 log_test "function keyword with semicolon on same line"
 result=$("$SHELL_TO_TEST" -c 'function semi { echo "test"; }; semi' 2>/dev/null)
 if [ "$result" = "test" ]; then
@@ -231,6 +294,8 @@ if [ "$result" = "test" ]; then
 else
     fail "Expected 'test', got '$result'"
 fi
+
+# Test 25: function keyword followed by another command
 log_test "function definition followed by command"
 result=$("$SHELL_TO_TEST" -c 'function first { echo "1"; }; echo "2"; first' 2>/dev/null | tr '\n' ' ')
 expected="2 1 "
@@ -239,6 +304,8 @@ if [ "$result" = "$expected" ]; then
 else
     fail "Expected '$expected', got '$result'"
 fi
+
+# Test 26: function keyword - empty function
 log_test "function keyword with empty body"
 result=$("$SHELL_TO_TEST" -c 'function empty { :; }; empty; echo $?' 2>/dev/null)
 if [ "$result" = "0" ]; then
@@ -246,6 +313,8 @@ if [ "$result" = "0" ]; then
 else
     fail "Expected '0', got '$result'"
 fi
+
+# Test 27: function keyword with complex name
 log_test "function keyword with underscore in name"
 result=$("$SHELL_TO_TEST" -c 'function my_func_name { echo "underscore"; }; my_func_name' 2>/dev/null)
 if [ "$result" = "underscore" ]; then
@@ -253,6 +322,8 @@ if [ "$result" = "underscore" ]; then
 else
     fail "Expected 'underscore', got '$result'"
 fi
+
+# Test 28: function keyword with numbers in name
 log_test "function keyword with numbers in name"
 result=$("$SHELL_TO_TEST" -c 'function func123 { echo "numbers"; }; func123' 2>/dev/null)
 if [ "$result" = "numbers" ]; then
@@ -260,6 +331,8 @@ if [ "$result" = "numbers" ]; then
 else
     fail "Expected 'numbers', got '$result'"
 fi
+
+# Test 29: Multiple functions defined with function keyword
 log_test "Multiple sequential function definitions"
 result=$("$SHELL_TO_TEST" -c 'function a { echo "A"; }; function b { echo "B"; }; function c { echo "C"; }; a; b; c' 2>/dev/null | tr '\n' ' ')
 expected="A B C "
@@ -268,19 +341,25 @@ if [ "$result" = "$expected" ]; then
 else
     fail "Expected '$expected', got '$result'"
 fi
+
+# Test 30: function keyword with background job
 log_test "function keyword with background execution"
 result=$("$SHELL_TO_TEST" -c 'function bg_test { sleep 0.1; echo "done"; }; bg_test &' 2>/dev/null)
+# Background jobs might not produce output in non-interactive mode, so just check it doesn't error
 if [ $? -eq 0 ]; then
     pass
 else
     fail "Background execution failed"
 fi
+
+# Summary
 echo
 echo "Function Keyword Test Summary:"
 echo "=============================="
 echo "Total tests: $TOTAL"
 echo "Passed: $PASSED"
 echo "Failed: $FAILED"
+
 if [ $FAILED -eq 0 ]; then
     echo "${GREEN}All function keyword tests passed!${NC}"
     exit 0

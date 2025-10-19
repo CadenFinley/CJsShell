@@ -1,12 +1,18 @@
 #!/usr/bin/env sh
-if [ -n "$CJSH" ]; then
+# Test syntax command builtin comprehensively
+if [ -n "$CJSH" ]; then 
     CJSH_PATH="$CJSH"
-else
+else 
     CJSH_PATH="$(cd "$(dirname "$0")/../../build" && pwd)/cjsh"
 fi
+
 echo "Test: syntax command builtin..."
+
+# Create temporary test files
 TEST_DIR="/tmp/cjsh_syntax_tests_$$"
 mkdir -p "$TEST_DIR"
+
+# Test 1: syntax command without arguments (should show usage)
 OUT=$("$CJSH_PATH" -c "syntax" 2>&1)
 if ! echo "$OUT" | grep -q "Usage:"; then
     echo "FAIL: syntax command without args should show usage (got '$OUT')"
@@ -15,14 +21,19 @@ if ! echo "$OUT" | grep -q "Usage:"; then
 else
     echo "PASS: syntax command without args shows usage"
 fi
+
+# Test 2: Create a file with correct syntax
 cat > "$TEST_DIR/good_syntax.sh" << 'EOF'
+#!/bin/bash
 if [ "$USER" = "test" ]; then
     echo "Hello $USER"
 fi
+
 while [ $count -lt 10 ]; do
     echo "Count: $count"
     count=$((count + 1))
 done
+
 case $1 in
     "start")
         echo "Starting"
@@ -34,11 +45,15 @@ case $1 in
         echo "Unknown command"
         ;;
 esac
+
 function test_func() {
     echo "inside function"
 }
+
 echo "All done"
 EOF
+
+# Test syntax check on good file
 OUT=$("$CJSH_PATH" -c "syntax $TEST_DIR/good_syntax.sh" 2>&1)
 EXIT_CODE=$?
 if [ $EXIT_CODE -ne 0 ] || ! echo "$OUT" | grep -q "No syntax errors found"; then
@@ -48,15 +63,30 @@ if [ $EXIT_CODE -ne 0 ] || ! echo "$OUT" | grep -q "No syntax errors found"; the
 else
     echo "PASS: syntax check on good file"
 fi
+
+# Test 3: Create a file with syntax errors
 cat > "$TEST_DIR/bad_syntax.sh" << 'EOF'
+#!/bin/bash
+# Missing closing quote
 echo "hello world
+
+# Unmatched if
 if [ "$USER" = "test" ]; then
     echo "Hello"
+# Missing fi
+
+# Unmatched while
 while true; do
     echo "running"
+# Missing done
+
+# Function with missing brace
 function test_func() {
     echo "inside function"
+# Missing }
 EOF
+
+# Test syntax check on bad file
 OUT=$("$CJSH_PATH" -c "syntax $TEST_DIR/bad_syntax.sh" 2>&1)
 EXIT_CODE=$?
 if [ $EXIT_CODE -eq 0 ] || ! echo "$OUT" | grep -q "ERROR"; then
@@ -66,6 +96,8 @@ if [ $EXIT_CODE -eq 0 ] || ! echo "$OUT" | grep -q "ERROR"; then
 else
     echo "PASS: syntax check on bad file"
 fi
+
+# Test 4: Test -c option with good command
 OUT=$("$CJSH_PATH" -c "syntax -c 'echo hello'" 2>&1)
 EXIT_CODE=$?
 if [ $EXIT_CODE -ne 0 ] || ! echo "$OUT" | grep -q "No syntax errors found"; then
@@ -75,6 +107,8 @@ if [ $EXIT_CODE -ne 0 ] || ! echo "$OUT" | grep -q "No syntax errors found"; the
 else
     echo "PASS: syntax -c with good command"
 fi
+
+# Test 5: Test -c option with bad command
 OUT=$("$CJSH_PATH" -c "syntax -c 'if [ true; then'" 2>&1)
 EXIT_CODE=$?
 if [ $EXIT_CODE -eq 0 ] || ! echo "$OUT" | grep -q "CRITICAL\|ERROR"; then
@@ -82,6 +116,8 @@ if [ $EXIT_CODE -eq 0 ] || ! echo "$OUT" | grep -q "CRITICAL\|ERROR"; then
     rm -rf "$TEST_DIR"
     exit 1
 fi
+
+# Test 6: Test -c option with multiple words
 OUT=$("$CJSH_PATH" -c "syntax -c 'echo hello world && ls'" 2>&1)
 EXIT_CODE=$?
 if [ $EXIT_CODE -ne 0 ] || ! echo "$OUT" | grep -q "No syntax errors found"; then
@@ -89,6 +125,8 @@ if [ $EXIT_CODE -ne 0 ] || ! echo "$OUT" | grep -q "No syntax errors found"; the
     rm -rf "$TEST_DIR"
     exit 1
 fi
+
+# Test 7: Test non-existent file
 OUT=$("$CJSH_PATH" -c "syntax /nonexistent/file.sh" 2>&1)
 EXIT_CODE=$?
 if [ $EXIT_CODE -eq 0 ] || ! echo "$OUT" | grep -q "cannot open file"; then
@@ -96,6 +134,8 @@ if [ $EXIT_CODE -eq 0 ] || ! echo "$OUT" | grep -q "cannot open file"; then
     rm -rf "$TEST_DIR"
     exit 1
 fi
+
+# Test 8: Test empty file
 touch "$TEST_DIR/empty.sh"
 OUT=$("$CJSH_PATH" -c "syntax $TEST_DIR/empty.sh" 2>&1)
 EXIT_CODE=$?
@@ -104,6 +144,8 @@ if [ $EXIT_CODE -ne 0 ] || ! echo "$OUT" | grep -q "No syntax errors found"; the
     rm -rf "$TEST_DIR"
     exit 1
 fi
+
+# Test 9: Test with shebang line only
 echo "#!/bin/bash" > "$TEST_DIR/shebang_only.sh"
 OUT=$("$CJSH_PATH" -c "syntax $TEST_DIR/shebang_only.sh" 2>&1)
 EXIT_CODE=$?
@@ -112,19 +154,35 @@ if [ $EXIT_CODE -ne 0 ] || ! echo "$OUT" | grep -q "No syntax errors found"; the
     rm -rf "$TEST_DIR"
     exit 1
 fi
+
+# Test 10: Test complex syntax errors
 cat > "$TEST_DIR/complex_errors.sh" << 'EOF'
+#!/bin/bash
+# Multiple syntax errors
+
+# Unmatched case
 case $1 in
     "start")
         echo "Starting"
         ;;
+# Missing esac
+
+# Unmatched parentheses in command substitution
 echo $(date
+
+# Incomplete for loop
 for i in 1 2 3; do
     echo $i
+# Missing done
+
+# Function with syntax error
 function bad_func() {
     if [ true; then
         echo "test"
+    # Missing fi
 }
 EOF
+
 OUT=$("$CJSH_PATH" -c "syntax $TEST_DIR/complex_errors.sh" 2>&1)
 EXIT_CODE=$?
 if [ $EXIT_CODE -eq 0 ] || ! echo "$OUT" | grep -q "ERROR"; then
@@ -132,11 +190,15 @@ if [ $EXIT_CODE -eq 0 ] || ! echo "$OUT" | grep -q "ERROR"; then
     rm -rf "$TEST_DIR"
     exit 1
 fi
+
+# Verify that multiple errors are reported
 if ! echo "$OUT" | grep -q "at line"; then
     echo "FAIL: syntax errors should include line numbers (output: '$OUT')"
     rm -rf "$TEST_DIR"
     exit 1
 fi
+
+# Test 11: Test handling of unclosed quotes (should not crash shell)
 OUT=$("$CJSH_PATH" -c 'echo "unclosed quote' 2>&1)
 EXIT_CODE=$?
 if [ $EXIT_CODE -eq 0 ]; then
@@ -149,6 +211,8 @@ if ! echo "$OUT" | grep -q "Unclosed quote"; then
     rm -rf "$TEST_DIR"
     exit 1
 fi
+
+# Test 12: Test handling of unclosed single quotes
 OUT=$("$CJSH_PATH" -c "echo 'unclosed single quote" 2>&1)
 EXIT_CODE=$?
 if [ $EXIT_CODE -eq 0 ]; then
@@ -161,7 +225,10 @@ if ! echo "$OUT" | grep -q "Unclosed quote"; then
     rm -rf "$TEST_DIR"
     exit 1
 fi
+
+# Clean up
 rm -rf "$TEST_DIR"
+
 echo "PASS: syntax command without args shows usage"
 echo "PASS: syntax check on good file"
 echo "PASS: syntax check on bad file"
