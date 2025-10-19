@@ -7,13 +7,10 @@ import sys
 import os
 from typing import List, Tuple, Dict
 
-# Configuration
 RUNS = 10
 
-# Shell-specific command mappings
-# Each command is mapped to shell-specific syntax
 SHELL_COMMANDS = {
-    "posix": {  # For bash, zsh, cjsh, and other POSIX-compatible shells
+    "posix": {
         "ls": "-c ls",
         "version": "--version",
         "hello": "-c 'echo hello world'",
@@ -99,39 +96,32 @@ SHELL_COMMANDS = {
     }
 }
 
-# Command descriptions for output
 COMMAND_DESCRIPTIONS = [
     "ls", "version", "hello", "pwd", "date", "shell_var", "ls_long", "exit", "loop", "loop_even"
 ]
 BASELINE_SHELLS = ["cjsh", "fish", "bash", "zsh", "nu", "elvish", "ion", "xonsh"]
-#CJSH_BINARY_TYPES = ["", "_speed03", "_speed02", "_debug"]  # Empty string means no suffix
 CJSH_BINARY_TYPES = [""]
 
 ENABLE_BASELINE_TESTS = True
 
-# Global storage for results
 all_results: List[List[Tuple[str, float, float, float]]] = []
 all_commands: List[str] = []
 
 
 def run_command_with_timing(shell_cmd: str, command: str) -> float:
-    """Run a command and return the elapsed time in milliseconds."""
     full_command = f"{shell_cmd} {command}"
     
     start_time = time.perf_counter()
     try:
-        # Use shell=True to properly handle command parsing
         subprocess.run(full_command, shell=True, capture_output=True, check=False)
     except Exception:
-        # If command fails, still return the time it took
         pass
     end_time = time.perf_counter()
     
-    return (end_time - start_time) * 1000  # Convert to milliseconds
+    return (end_time - start_time) * 1000
 
 
 def get_shell_command(shell: str, command_key: str) -> str:
-    """Get the appropriate command syntax for a given shell."""
     if shell in ["bash", "zsh", "ksh"] or shell.startswith("./cjsh"):
         return SHELL_COMMANDS["posix"][command_key]
     elif shell == "fish":
@@ -147,19 +137,16 @@ def get_shell_command(shell: str, command_key: str) -> str:
     elif shell in ["tcsh", "csh"]:
         return SHELL_COMMANDS["csh"][command_key]
     else:
-        # Default to POSIX for unknown shells
         return SHELL_COMMANDS["posix"][command_key]
 
 
 def test_command(command_key: str) -> None:
-    """Test a single command across all shells."""
     results: List[Tuple[str, float, float, float]] = []
     
     print("----------------------------------------------------------------------")
     print(f"Testing command: {command_key}")
     print("----------------------------------------------------------------------")
     
-    # Test cjsh binary types
     for binary_type in CJSH_BINARY_TYPES:
         shell_name = f"./cjsh{binary_type}"
         shell_path = f"./build/cjsh{binary_type}"
@@ -181,7 +168,6 @@ def test_command(command_key: str) -> None:
         
         results.append((shell_name, average_time, min_time, max_time))
     
-    # Test baseline shells if enabled
     if ENABLE_BASELINE_TESTS:
         for shell in BASELINE_SHELLS:
             command = get_shell_command(shell, command_key)
@@ -204,10 +190,8 @@ def test_command(command_key: str) -> None:
     
     print("----------------------------------------------------------------------")
     
-    # Sort results by average time
     results.sort(key=lambda x: x[1])
     
-    # Store results for summary
     all_commands.append(command_key)
     all_results.append(results)
     
@@ -216,7 +200,6 @@ def test_command(command_key: str) -> None:
 
 
 def get_cjsh_version() -> str:
-    """Get the version of cjsh."""
     try:
         result = subprocess.run("./build/cjsh --version", shell=True, 
                               capture_output=True, text=True, check=False)
@@ -226,7 +209,6 @@ def get_cjsh_version() -> str:
 
 
 def print_summary() -> None:
-    """Print the final results summary."""
     print("======================================================================")
     print("                           FINAL RESULTS SUMMARY")
     print("======================================================================")
@@ -251,10 +233,8 @@ def print_summary() -> None:
 
 
 def check_binaries_exist() -> bool:
-    """Check if all required binaries exist and are executable."""
     missing_binaries = []
     
-    # Check cjsh binaries
     for binary_type in CJSH_BINARY_TYPES:
         binary_path = f"./build/cjsh{binary_type}"
         if not os.path.isfile(binary_path):
@@ -262,10 +242,8 @@ def check_binaries_exist() -> bool:
         elif not os.access(binary_path, os.X_OK):
             print(f"Warning: {binary_path} exists but is not executable")
     
-    # Check baseline shells if enabled
     if ENABLE_BASELINE_TESTS:
         for shell in BASELINE_SHELLS:
-            # Use 'which' command to check if shell exists in PATH
             try:
                 result = subprocess.run(f"which {shell}", shell=True, 
                                       capture_output=True, check=False)
@@ -289,24 +267,19 @@ def check_binaries_exist() -> bool:
 
 
 def main() -> None:
-    """Main execution function."""
-    # Change to the script's directory to ensure relative paths work
     script_dir = os.path.dirname(os.path.abspath(__file__))
     parent_dir = os.path.dirname(script_dir)
     os.chdir(parent_dir)
     
-    # Check if all required binaries exist before starting tests
     if not check_binaries_exist():
         sys.exit(1)
     
     print("All required binaries found. Starting performance tests...")
     print()
     
-    # Test all commands
     for command_key in COMMAND_DESCRIPTIONS:
         test_command(command_key)
     
-    # Print final summary
     print_summary()
 
 

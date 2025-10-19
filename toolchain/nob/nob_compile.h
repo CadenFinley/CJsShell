@@ -472,7 +472,7 @@ static inline bool generate_assembly_for_source(const char* source, bool is_cpp)
         }
     }
 
-    // Add readable assembly flags if requested
+
     if (g_generate_readable_asm) {
         nob_cmd_append(&cmd, "-fverbose-asm");
         nob_cmd_append(&cmd, "-fno-asynchronous-unwind-tables");
