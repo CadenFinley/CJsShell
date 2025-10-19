@@ -25,9 +25,7 @@ TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT INT TERM
 touch "$TMPDIR/a.txt" "$TMPDIR/ab.txt" "$TMPDIR/b.txt"
 
-# First check if globbing is supported; if not, fail
 PROBE=$("$CJSH_PATH" -c "cd '$TMPDIR'; echo *.txt")
-# If probe still contains a literal '*', globbing isn't supported
 case "$(printf %s "$PROBE" | tr -d "'\"")" in
   *\**)
     fail_test "globbing not supported by cjsh"
@@ -37,7 +35,6 @@ esac
 pass_test "globbing support detected"
 
 OUT=$("$CJSH_PATH" -c "cd '$TMPDIR'; printf '%s ' *.txt | sed 's/ *$//' | tr -d '\n'")
-# Accept either absolute or relative paths depending on shell print; normalize to basenames
 OUT_BASE=$(echo "$OUT" | xargs -n1 basename | tr '\n' ' ' | sed 's/ *$//')
 
 EXPECTED="a.txt ab.txt b.txt"

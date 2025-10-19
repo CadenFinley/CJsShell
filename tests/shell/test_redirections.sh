@@ -1,5 +1,4 @@
 #!/usr/bin/env sh
-# Test IO redirections: >, >>, 2>, and 2>&1 into pipeline
 if [ -n "$CJSH" ]; then CJSH_PATH="$CJSH"; else CJSH_PATH="$(cd "$(dirname "$0")/../../build" && pwd)/cjsh"; fi
 echo "Test: redirections..."
 
@@ -8,7 +7,6 @@ trap 'rm -rf "$TMPDIR"' EXIT INT TERM
 FILE="$TMPDIR/out.txt"
 ERRFILE="$TMPDIR/err.txt"
 
-# Test > and >>; must be supported
 "$CJSH_PATH" -c "echo one > '$FILE'; echo two >> '$FILE'" 2>/dev/null
 if [ ! -s "$FILE" ]; then
   echo "FAIL: output file not created"
@@ -25,7 +23,6 @@ else
   echo "PASS: > and >> redirection"
 fi
 
-# Test stderr redirection
 "$CJSH_PATH" -c "sh -c 'echo OOPS 1>&2' 2> '$ERRFILE'"
 ERR=$(tr -d '\r\n' < "$ERRFILE")
 if [ "$ERR" != "OOPS" ]; then
@@ -35,7 +32,6 @@ else
   echo "PASS: 2> redirection"
 fi
 
-# Test 2>&1 merged into pipeline
 MERGED=$("$CJSH_PATH" -c "sh -c 'echo OUT; echo ERR 1>&2' 2>&1 | sort" 2>/dev/null)
 MERGED_TRIM=$(printf %s "$MERGED" | tr -d '\r')
 EXPECTED_1="ERR

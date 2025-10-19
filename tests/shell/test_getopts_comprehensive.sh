@@ -26,7 +26,6 @@ skip_test() {
     TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
 }
 
-# Test basic option parsing
 cat > /tmp/test_getopts1.sh << 'EOF'
 #!/bin/sh
 while getopts "a:b:c" opt; do
@@ -51,7 +50,6 @@ else
 fi
 rm -f /tmp/test_getopts1.sh
 
-# Test getopts with no arguments
 cat > /tmp/test_getopts2.sh << 'EOF'
 #!/bin/sh
 count=0
@@ -70,7 +68,6 @@ else
 fi
 rm -f /tmp/test_getopts2.sh
 
-# Test getopts with combined short options
 cat > /tmp/test_getopts3.sh << 'EOF'
 #!/bin/sh
 while getopts "abc" opt; do
@@ -90,7 +87,6 @@ else
 fi
 rm -f /tmp/test_getopts3.sh
 
-# Test getopts OPTIND variable
 cat > /tmp/test_getopts4.sh << 'EOF'
 #!/bin/sh
 while getopts "a" opt; do
@@ -108,7 +104,6 @@ else
 fi
 rm -f /tmp/test_getopts4.sh
 
-# Test getopts with missing required argument
 cat > /tmp/test_getopts5.sh << 'EOF'
 #!/bin/sh
 while getopts "a:" opt; do
@@ -128,7 +123,6 @@ else
 fi
 rm -f /tmp/test_getopts5.sh
 
-# Test getopts with non-option arguments
 cat > /tmp/test_getopts6.sh << 'EOF'
 #!/bin/sh
 while getopts "a" opt; do
@@ -149,7 +143,6 @@ else
 fi
 rm -f /tmp/test_getopts6.sh
 
-# Test getopts silent error reporting mode
 cat > /tmp/test_getopts7.sh << 'EOF'
 #!/bin/sh
 while getopts ":a:b" opt; do
@@ -171,7 +164,6 @@ else
 fi
 rm -f /tmp/test_getopts7.sh
 
-# Test getopts in function
 cat > /tmp/test_getopts8.sh << 'EOF'
 #!/bin/sh
 parse_opts() {
@@ -196,7 +188,6 @@ else
 fi
 rm -f /tmp/test_getopts8.sh
 
-# Test getopts with option argument containing spaces
 cat > /tmp/test_getopts9.sh << 'EOF'
 #!/bin/sh
 while getopts "a:" opt; do
@@ -215,7 +206,6 @@ else
 fi
 rm -f /tmp/test_getopts9.sh
 
-# Test getopts reset between calls
 cat > /tmp/test_getopts10.sh << 'EOF'
 #!/bin/sh
 parse1() {
@@ -245,7 +235,6 @@ else
 fi
 rm -f /tmp/test_getopts10.sh
 
-# Test getopts with equals sign in argument
 cat > /tmp/test_getopts11.sh << 'EOF'
 #!/bin/sh
 while getopts "o:" opt; do
@@ -264,7 +253,6 @@ else
 fi
 rm -f /tmp/test_getopts11.sh
 
-# Test getopts with numeric option
 cat > /tmp/test_getopts12.sh << 'EOF'
 #!/bin/sh
 while getopts "1:2" opt; do

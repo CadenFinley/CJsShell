@@ -21,7 +21,6 @@ skip_test() {
     TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
 }
 
-# Test logical AND with true
 OUT1=$("$CJSH_PATH" -c "true && echo ok")
 if [ "$OUT1" != "ok" ]; then
   fail_test "true && echo ok -> '$OUT1'"
@@ -30,7 +29,6 @@ else
   pass_test "logical AND with true"
 fi
 
-# Test logical OR with false
 OUT2=$("$CJSH_PATH" -c "false || echo ok")
 if [ "$OUT2" != "ok" ]; then
   fail_test "false || echo ok -> '$OUT2'"
@@ -39,7 +37,6 @@ else
   pass_test "logical OR with false"
 fi
 
-# Test logical AND with false
 "$CJSH_PATH" -c "false && echo nope"
 if [ $? -eq 0 ]; then
   fail_test "false && echo nope should not succeed"

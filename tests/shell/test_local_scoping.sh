@@ -26,7 +26,6 @@ skip_test() {
     TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
 }
 
-# Test local variable in function
 cat > /tmp/test_local1.sh << 'EOF'
 #!/bin/sh
 test_func() {
@@ -49,7 +48,6 @@ else
 fi
 rm -f /tmp/test_local1.sh
 
-# Test local variable shadows global
 cat > /tmp/test_local2.sh << 'EOF'
 #!/bin/sh
 GLOBAL=global_value
@@ -72,7 +70,6 @@ else
 fi
 rm -f /tmp/test_local2.sh
 
-# Test multiple local variables
 cat > /tmp/test_local3.sh << 'EOF'
 #!/bin/sh
 test_func() {
@@ -91,7 +88,6 @@ else
 fi
 rm -f /tmp/test_local3.sh
 
-# Test local variable without assignment
 cat > /tmp/test_local4.sh << 'EOF'
 #!/bin/sh
 OUTER=outer_value
@@ -115,7 +111,6 @@ else
 fi
 rm -f /tmp/test_local4.sh
 
-# Test local variable in nested functions
 cat > /tmp/test_local5.sh << 'EOF'
 #!/bin/sh
 outer_func() {
@@ -144,7 +139,6 @@ else
 fi
 rm -f /tmp/test_local5.sh
 
-# Test local variable persists within function scope
 cat > /tmp/test_local6.sh << 'EOF'
 #!/bin/sh
 test_func() {
@@ -167,7 +161,6 @@ else
 fi
 rm -f /tmp/test_local6.sh
 
-# Test local outside of function fails
 OUT=$("$CJSH_PATH" -c "local VAR=value" 2>&1)
 if [ $? -ne 0 ]; then
     pass_test "local outside function fails appropriately"
@@ -175,7 +168,6 @@ else
     fail_test "local should fail outside function"
 fi
 
-# Test local with export
 cat > /tmp/test_local7.sh << 'EOF'
 #!/bin/sh
 test_func() {
@@ -188,7 +180,6 @@ EOF
 chmod +x /tmp/test_local7.sh
 
 OUT=$("$CJSH_PATH" /tmp/test_local7.sh 2>&1)
-# Exported local should be available in subshell
 if [ "$OUT" = "local_val" ]; then
     pass_test "local variable can be exported to subshells"
 else
@@ -196,7 +187,6 @@ else
 fi
 rm -f /tmp/test_local7.sh
 
-# Test that exported local doesn't persist after function
 cat > /tmp/test_local7b.sh << 'EOF'
 #!/bin/sh
 test_func() {
@@ -217,7 +207,6 @@ else
 fi
 rm -f /tmp/test_local7b.sh
 
-# Test local variable with special characters in value
 cat > /tmp/test_local8.sh << 'EOF'
 #!/bin/sh
 test_func() {
@@ -236,7 +225,6 @@ else
 fi
 rm -f /tmp/test_local8.sh
 
-# Test local variable in recursive function
 cat > /tmp/test_local9.sh << 'EOF'
 #!/bin/sh
 factorial() {
@@ -260,7 +248,6 @@ else
 fi
 rm -f /tmp/test_local9.sh
 
-# Test local readonly interaction
 cat > /tmp/test_local10.sh << 'EOF'
 #!/bin/sh
 readonly GLOBAL=readonly_val
@@ -276,7 +263,6 @@ chmod +x /tmp/test_local10.sh
 OUT=$("$CJSH_PATH" /tmp/test_local10.sh 2>&1)
 EXPECTED="local_val
 readonly_val"
-# Local variables should be able to shadow readonly globals within function scope
 if [ "$OUT" = "$EXPECTED" ]; then
     pass_test "local can shadow readonly variable"
 else
@@ -284,7 +270,6 @@ else
 fi
 rm -f /tmp/test_local10.sh
 
-# Test local variable unset
 cat > /tmp/test_local11.sh << 'EOF'
 #!/bin/sh
 test_func() {
@@ -307,7 +292,6 @@ else
 fi
 rm -f /tmp/test_local11.sh
 
-# Test local with empty value
 cat > /tmp/test_local12.sh << 'EOF'
 #!/bin/sh
 test_func() {

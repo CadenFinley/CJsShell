@@ -26,7 +26,6 @@ skip_test() {
     TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
 }
 
-# Test 1: Command injection prevention
 echo "Testing command injection prevention..."
 "$CJSH_PATH" -c "echo 'hello'; echo 'world'" >/tmp/command_inject_test.out 2>&1
 if [ $? -eq 0 ] && grep -q "hello" /tmp/command_inject_test.out && grep -q "world" /tmp/command_inject_test.out; then
@@ -35,7 +34,6 @@ else
     fail_test "basic command chaining"
 fi
 
-# Test malicious command injection attempts
 "$CJSH_PATH" -c "echo 'test\$(rm -rf /tmp/nonexistent)'" >/tmp/malicious_inject_test.out 2>&1
 if [ $? -eq 0 ]; then
     pass_test "command substitution in quotes handled"
@@ -43,9 +41,7 @@ else
     fail_test "command substitution handling"
 fi
 
-# Test 2: Buffer overflow protection
 echo "Testing buffer overflow protection..."
-# Create very long command line
 LONG_STRING=$(printf 'a%.0s' {1..10000})
 "$CJSH_PATH" -c "echo '$LONG_STRING'" >/tmp/buffer_test.out 2>&1
 if [ $? -eq 0 ] || [ $? -eq 1 ]; then  # Should either work or fail gracefully
@@ -54,9 +50,7 @@ else
     fail_test "long input caused crash"
 fi
 
-# Test 4: Environment variable security
 echo "Testing environment variable security..."
-# Test if dangerous environment variables are handled safely
 LD_PRELOAD="/tmp/malicious.so" "$CJSH_PATH" -c "echo test" >/tmp/env_security_test.out 2>&1
 if [ $? -eq 0 ]; then
     pass_test "environment variable injection handled"
@@ -64,13 +58,10 @@ else
     pass_test "environment variable injection prevented"
 fi
 
-# Test 5: File permission handling
 echo "Testing file permission handling..."
-# Create a test file with restricted permissions
 echo "secret" > /tmp/restricted_file
 chmod 600 /tmp/restricted_file
 
-# Test if shell respects file permissions
 "$CJSH_PATH" -c "cat /tmp/restricted_file" >/tmp/permission_test.out 2>&1
 if [ $? -eq 0 ] && grep -q "secret" /tmp/permission_test.out; then
     pass_test "file permission access (owner)"
@@ -78,7 +69,6 @@ else
     pass_test "file permission restrictions respected"
 fi
 
-# Test 6: NULL byte handling
 echo "Testing NULL byte handling..."
 printf "echo 'test\0malicious'" | "$CJSH_PATH" >/tmp/null_byte_test.out 2>&1
 if [ $? -eq 0 ] || [ $? -eq 1 ]; then
@@ -87,7 +77,6 @@ else
     fail_test "NULL byte caused crash"
 fi
 
-# Test 7: Special character handling
 echo "Testing special character handling..."
 "$CJSH_PATH" -c "echo 'special chars: \$\`\"'\''(){}[]'" >/tmp/special_chars_test.out 2>&1
 if [ $? -eq 0 ]; then
@@ -96,9 +85,7 @@ else
     fail_test "special character handling"
 fi
 
-# Test 8: Script execution permissions
 echo "Testing script execution permissions..."
-# Create a script without execute permissions
 cat > /tmp/test_script.sh << 'EOF'
 #!/bin/sh
 echo "script executed"
@@ -112,9 +99,7 @@ else
     skip_test "script permission (may depend on system)"
 fi
 
-# Test 9: Resource limit handling
 echo "Testing resource limit handling..."
-# Test if shell handles resource limits gracefully
 "$CJSH_PATH" -c "ulimit -n 1024; echo 'ulimit set'" >/tmp/ulimit_test.out 2>&1
 if [ $? -eq 0 ]; then
     pass_test "resource limit setting"
@@ -122,9 +107,7 @@ else
     skip_test "resource limit handling"
 fi
 
-# Test 10: Input validation for built-in commands
 echo "Testing built-in command input validation..."
-# Test invalid options
 "$CJSH_PATH" -c "cd --invalid-option" >/tmp/invalid_option_test.out 2>&1
 if [ $? -ne 0 ]; then
     pass_test "invalid option handling"
@@ -132,9 +115,7 @@ else
     skip_test "invalid option handling"
 fi
 
-# Test 11: Memory safety
 echo "Testing memory safety..."
-# Test repeated commands to check for memory leaks
 for i in 1 2 3 4 5; do
     "$CJSH_PATH" -c "echo iteration $i" >/dev/null 2>&1
     if [ $? -ne 0 ]; then
@@ -146,9 +127,7 @@ if [ $? -eq 0 ]; then
     pass_test "memory safety (repeated commands)"
 fi
 
-# Test 12: Signal injection protection
 echo "Testing signal injection protection..."
-# Test if shell handles signals safely
 "$CJSH_PATH" -c "trap 'echo signal caught' TERM; echo normal execution" >/tmp/signal_test.out 2>&1
 if [ $? -eq 0 ]; then
     pass_test "signal handling safety"
@@ -156,9 +135,7 @@ else
     fail_test "signal handling"
 fi
 
-# Test 13: Alias security
 echo "Testing alias security..."
-# Test if aliases can be used for injection
 "$CJSH_PATH" -c "alias ls='rm -rf'; command ls /tmp" >/tmp/alias_security_test.out 2>&1
 if [ $? -eq 0 ]; then
     pass_test "alias command bypass"
@@ -166,7 +143,6 @@ else
     skip_test "alias security test"
 fi
 
-# Test 15: Exit code manipulation
 echo "Testing exit code manipulation..."
 "$CJSH_PATH" -c "exit 42" >/tmp/exit_code_test.out 2>&1
 exit_code=$?
@@ -176,9 +152,7 @@ else
     fail_test "exit code manipulation"
 fi
 
-# Test 16: Wildcard security
 echo "Testing wildcard security..."
-# Create some test files
 mkdir -p /tmp/wildcard_test
 touch "/tmp/wildcard_test/file1.txt"
 touch "/tmp/wildcard_test/file2.txt"
@@ -190,9 +164,7 @@ else
     fail_test "wildcard expansion"
 fi
 
-# Test 17: Redirection security
 echo "Testing redirection security..."
-# Test if redirection can overwrite critical files (simulate)
 "$CJSH_PATH" -c "echo test > /tmp/redirection_test.out" >/dev/null 2>&1
 if [ $? -eq 0 ] && [ -f /tmp/redirection_test.out ]; then
     pass_test "safe redirection"
@@ -200,7 +172,6 @@ else
     fail_test "redirection handling"
 fi
 
-# Test dangerous redirection
 "$CJSH_PATH" -c "echo test > /dev/null" >/dev/null 2>&1
 if [ $? -eq 0 ]; then
     pass_test "redirection to /dev/null"
@@ -208,7 +179,6 @@ else
     fail_test "redirection to special files"
 fi
 
-# Cleanup
 rm -f /tmp/command_inject_test.out /tmp/malicious_inject_test.out /tmp/buffer_test.out
 rm -f /tmp/path_traversal_test.out /tmp/env_security_test.out /tmp/permission_test.out
 rm -f /tmp/null_byte_test.out /tmp/special_chars_test.out /tmp/script_perm_test.out

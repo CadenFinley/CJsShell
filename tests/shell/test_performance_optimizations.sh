@@ -7,17 +7,14 @@ fi
 
 echo "Test: performance optimizations..."
 
-# Create temporary test directory
 TEST_DIR="/tmp/cjsh_performance_tests_$$"
 mkdir -p "$TEST_DIR"
 
-# Test 1: Script execution time (baseline)
 START_TIME=$(date +%s%N)
 OUT=$("$CJSH_PATH" -c 'for i in 1 2 3 4 5; do echo "iteration $i"; done' 2>&1)
 END_TIME=$(date +%s%N)
 EXECUTION_TIME=$((END_TIME - START_TIME))
 
-# Check if we got all 5 iterations
 if echo "$OUT" | grep -q "iteration 1" && echo "$OUT" | grep -q "iteration 5"; then
     echo "PASS: baseline script execution (time: ${EXECUTION_TIME}ns)"
 else
@@ -26,13 +23,11 @@ else
     exit 1
 fi
 
-# Test 2: Repeated function calls (test caching potential)
 cat > "$TEST_DIR/repeated_functions.sh" << 'EOF'
 test_function() {
     echo "function called with: $1"
 }
 
-# Test individual function calls instead of a loop due to loop implementation issues
 test_function 1
 test_function 2
 test_function 3
@@ -53,10 +48,8 @@ else
     exit 1
 fi
 
-# Test 3: Complex variable expansion performance
 cat > "$TEST_DIR/variable_expansion.sh" << 'EOF'
 var="hello world test string"
-# Test basic variable expansion multiple times (advanced parameter expansion may not be supported)
 result="$var"
 echo "$result"
 result="$var" 
@@ -80,9 +73,7 @@ else
     echo "FAIL: advanced parameter expansion not supported (got: '$OUT')"
 fi
 
-# Test 4: Command substitution performance
 cat > "$TEST_DIR/command_substitution.sh" << 'EOF'
-# Test simpler operations instead of command substitution which may have parsing issues
 echo "Result: test 1"
 echo "Result: test 2" 
 echo "Result: test 3"
@@ -99,9 +90,7 @@ else
     echo "FAIL: command substitution has parsing issues (got: '$OUT')"
 fi
 
-# Test 5: Large loop performance
 cat > "$TEST_DIR/large_loop.sh" << 'EOF'
-# Simulate a large loop with arithmetic operations
 count=0
 count=$((count + 1))
 count=$((count + 1))
@@ -139,19 +128,14 @@ else
     exit 1
 fi
 
-# Test 6: Nested control structure performance
 cat > "$TEST_DIR/nested_structures.sh" << 'EOF'
-# Simulate nested structures without loops
 result=0
-# i=1, j=1: 1==1, increment
 if [ 1 -eq 1 ]; then
     result=$((result + 1))
 fi
-# i=2, j=2: 2==2, increment  
 if [ 2 -eq 2 ]; then
     result=$((result + 1))
 fi
-# i=3, j=3: 3==3, increment
 if [ 3 -eq 3 ]; then
     result=$((result + 1))
 fi
@@ -171,9 +155,7 @@ else
     exit 1
 fi
 
-# Test 7: Memory usage test (approximate)
 cat > "$TEST_DIR/memory_test.sh" << 'EOF'
-# Create many variables to test memory usage (without loops)
 var_1='This is variable number 1 with some text'
 var_2='This is variable number 2 with some text'
 var_3='This is variable number 3 with some text'
@@ -196,13 +178,11 @@ else
     exit 1
 fi
 
-# Test 8: File I/O performance
 echo "line1" > "$TEST_DIR/input.txt"
 echo "line2" >> "$TEST_DIR/input.txt"
 echo "line3" >> "$TEST_DIR/input.txt"
 
 cat > "$TEST_DIR/file_io_test.sh" << 'EOF'
-# Simple file reading without while loop
 cat input.txt
 EOF
 
@@ -217,10 +197,8 @@ else
     echo "FAIL: file I/O test modified due to loop limitations (got: '$OUT')"
 fi
 
-# Test 9: Arithmetic performance
 cat > "$TEST_DIR/arithmetic_test.sh" << 'EOF'
 result=0
-# Simulate arithmetic operations without loops
 result=$((result + 1 * 2))
 result=$((result + 2 * 2))
 result=$((result + 3 * 2))
@@ -247,7 +225,6 @@ else
     exit 1
 fi
 
-# Test 10: Script parsing performance (syntax checking)
 cat > "$TEST_DIR/complex_syntax.sh" << 'EOF'
 #!/bin/bash
 function test_func() {
@@ -277,7 +254,6 @@ else
     exit 1
 fi
 
-# Performance summary
 echo "Performance Summary:"
 echo "  Baseline execution: ${EXECUTION_TIME}ns"
 echo "  Function calls: ${FUNCTION_TIME}ns"
@@ -289,7 +265,6 @@ echo "  File I/O: ${IO_TIME}ns"
 echo "  Arithmetic: ${ARITHMETIC_TIME}ns"
 echo "  Syntax parsing: ${PARSE_TIME}ns"
 
-# Cleanup
 rm -rf "$TEST_DIR"
 echo "PASS: performance optimization tests completed"
 exit 0

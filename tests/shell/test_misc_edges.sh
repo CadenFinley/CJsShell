@@ -21,7 +21,6 @@ skip_test() {
     TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
 }
 
-# Comments and extra whitespace should be ignored
 OUT=$("$CJSH_PATH" -c "   echo   hi   # this is a comment")
 if [ "$OUT" != "hi" ]; then
   fail_test "comment/whitespace parsing"
@@ -30,7 +29,6 @@ else
   pass_test "comment/whitespace parsing"
 fi
 
-# PATH resolution: ensure a temp script runs when on PATH
 TMPDIR=$(mktemp -d)
 trap 'rm -rf "$TMPDIR"' EXIT INT TERM
 cat > "$TMPDIR/hello.sh" <<'EOF'
@@ -46,7 +44,6 @@ else
   pass_test "PATH resolution"
 fi
 
-# Pipeline exit status: probe behavior; fail if pipeline exit codes not supported
 "$CJSH_PATH" -c "false | true"
 EC1=$?
 "$CJSH_PATH" -c "true | false"

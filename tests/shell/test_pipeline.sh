@@ -21,7 +21,6 @@ skip_test() {
     TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
 }
 
-# Test basic pipeline
 OUTPUT=$("$CJSH_PATH" -c "printf 'hello' | sed s/hello/world/ | wc -c")
 OUTPUT=$(echo "$OUTPUT" | tr -d '[:space:]')
 if [ "$OUTPUT" = "5" ]; then

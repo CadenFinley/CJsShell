@@ -21,7 +21,6 @@ skip_test() {
     TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
 }
 
-# Test alias expansion simple
 OUT=$("$CJSH_PATH" -c "alias hi='echo hello'; hi")
 if [ "$OUT" != "hello" ]; then
   fail_test "alias expansion simple (got '$OUT')"
@@ -30,7 +29,6 @@ else
   pass_test "alias expansion simple"
 fi
 
-# Test alias with args
 OUT2=$("$CJSH_PATH" -c "alias say='echo'; say world")
 if [ "$OUT2" != "world" ]; then
   fail_test "alias with args (got '$OUT2')"
@@ -39,7 +37,6 @@ else
   pass_test "alias with args"
 fi
 
-# Test unalias
 OUT3=$("$CJSH_PATH" -c "alias hi='echo hello'; unalias hi; command -v hi >/dev/null 2>&1; echo \$?" 2>/dev/null)
 if [ "$OUT3" = "0" ]; then
   fail_test "unalias did not remove alias"

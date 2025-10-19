@@ -7,14 +7,11 @@ fi
 
 echo "Test: enhanced error handling and recovery..."
 
-# Create temporary test directory
 TEST_DIR="/tmp/cjsh_error_handling_tests_$$"
 mkdir -p "$TEST_DIR"
 
-# Test 1: Error recovery with continue-on-error mode
 cat > "$TEST_DIR/error_recovery.sh" << 'EOF'
 #!/bin/bash
-# Test that script continues after non-fatal errors
 echo "before error"
 false  # This should fail but not stop execution
 echo "after error"
@@ -31,7 +28,6 @@ if [ "$OUT" != "$EXPECTED" ] || [ $EXIT_CODE -ne 0 ]; then
     exit 1
 fi
 
-# Test 2: Set -e equivalent (exit on error)
 cat > "$TEST_DIR/exit_on_error.sh" << 'EOF'
 #!/bin/bash
 set -e
@@ -48,7 +44,6 @@ else
     echo "PASS: set -e exits on error"
 fi
 
-# Test 3: Detailed error context with line numbers
 cat > "$TEST_DIR/syntax_error_context.sh" << 'EOF'
 #!/bin/bash
 echo "line 1"
@@ -68,7 +63,6 @@ else
     exit 1
 fi
 
-# Test 4: Function call stack trace
 cat > "$TEST_DIR/function_stack_trace.sh" << 'EOF'
 #!/bin/bash
 func1() {
@@ -96,7 +90,6 @@ else
     exit 1
 fi
 
-# Test 5: Error handling in loops
 cat > "$TEST_DIR/loop_error_handling.sh" << 'EOF'
 #!/bin/bash
 for i in 1 2 3; do
@@ -113,8 +106,6 @@ EXPECTED="iteration 1
 iteration 2
 iteration 3
 after loop"
-# Note: Currently the shell has some issues with error handling in loops
-# This is a known limitation that may cause some iterations to be skipped
 if [ "$OUT" = "$EXPECTED" ]; then
     echo "PASS: loop continues after error"
 elif echo "$OUT" | grep -q "after loop"; then
@@ -125,7 +116,6 @@ else
     exit 1
 fi
 
-# Test 6: Error handling in conditional statements
 cat > "$TEST_DIR/conditional_error_handling.sh" << 'EOF'
 #!/bin/bash
 if false; then
@@ -147,17 +137,14 @@ else
     exit 1
 fi
 
-# Test 7: Nested error handling
 cat > "$TEST_DIR/nested_error_handling.sh" << 'EOF'
 if true; then
-    # Simulate loop iteration 1
     echo "outer loop 1"
     if [ "1" = "1" ]; then
         false  # Error in nested structure
     fi
     echo "after inner error 1"
     
-    # Simulate loop iteration 2
     echo "outer loop 2"
     if [ "2" = "1" ]; then
         false  # Error in nested structure (will not execute)
@@ -182,7 +169,6 @@ else
     echo "FAIL: nested error handling test modified due to loop limitations (got: '$OUT')"
 fi
 
-# Cleanup
 rm -rf "$TEST_DIR"
 echo "PASS: enhanced error handling tests completed"
 exit 0

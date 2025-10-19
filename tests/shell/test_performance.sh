@@ -26,10 +26,7 @@ skip_test() {
     TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
 }
 
-# Test startup time (should be reasonable)
-# Try nanosecond precision first, fall back to seconds
 if date +%s%N >/dev/null 2>&1; then
-    # Nanosecond precision available
     start_time=$(date +%s%N)
     "$CJSH_PATH" -c "true" >/dev/null 2>&1
     end_time=$(date +%s%N)
@@ -41,7 +38,6 @@ if date +%s%N >/dev/null 2>&1; then
         pass_test "Shell startup time"
     fi
 else
-    # Second precision only
     start_time=$(date +%s)
     "$CJSH_PATH" -c "true" >/dev/null 2>&1
     end_time=$(date +%s)
@@ -53,7 +49,6 @@ else
     fi
 fi
 
-# Test many sequential commands
 COMMANDS=""
 for i in $(seq 1 100); do
     COMMANDS="$COMMANDS echo test$i;"
@@ -76,7 +71,6 @@ else
     pass_test "sequential commands performance"
 fi
 
-# Test deep pipeline
 PIPELINE="echo start"
 for i in $(seq 1 20); do
     PIPELINE="$PIPELINE | cat"
@@ -88,7 +82,6 @@ else
     pass_test "deep pipeline execution"
 fi
 
-# Test large output handling
 OUT=$("$CJSH_PATH" -c "seq 1 1000" 2>/dev/null)
 LINES=$(echo "$OUT" | wc -l)
 if [ "$LINES" -ne 1000 ]; then
@@ -97,7 +90,6 @@ else
     pass_test "large output handling"
 fi
 
-# Test many environment variables
 ENV_SETUP=""
 for i in $(seq 1 50); do
     ENV_SETUP="$ENV_SETUP TEST_VAR_$i=value$i;"
@@ -109,8 +101,6 @@ else
     pass_test "many environment variables handling"
 fi
 
-# Test command line length limits
-# Generate a very long command line
 LONG_ECHO="echo"
 for i in $(seq 1 500); do
     LONG_ECHO="$LONG_ECHO word$i"
@@ -122,7 +112,6 @@ else
     pass_test "long command line handling"
 fi
 
-# Test many aliases
 ALIAS_SETUP=""
 for i in $(seq 1 50); do
     ALIAS_SETUP="$ALIAS_SETUP alias test$i='echo alias$i';"
@@ -134,7 +123,6 @@ else
     pass_test "many aliases handling"
 fi
 
-# Test rapid command execution
 start_time=$(date +%s)
 for i in $(seq 1 5); do
     "$CJSH_PATH" -c "true" >/dev/null 2>&1
@@ -148,7 +136,6 @@ else
     pass_test "rapid command execution"
 fi
 
-# Test memory usage (basic - just ensure it doesn't crash)
 MEMORY_TEST=""
 for i in $(seq 1 100); do
     MEMORY_TEST="$MEMORY_TEST VAR$i='$(seq 1 100 | tr '\n' ' ')';"
@@ -160,7 +147,6 @@ else
     pass_test "memory stress handling"
 fi
 
-# Test concurrent execution (if supported)
 {
     "$CJSH_PATH" -c "sleep 0.1; echo concurrent1" &
     "$CJSH_PATH" -c "sleep 0.1; echo concurrent2" &
@@ -174,7 +160,6 @@ else
     pass_test "concurrent execution handling"
 fi
 
-# Test file descriptor limits
 FD_TEST=""
 for i in $(seq 1 10); do
     FD_TEST="$FD_TEST echo test$i > /tmp/cjsh_test_$i.txt;"

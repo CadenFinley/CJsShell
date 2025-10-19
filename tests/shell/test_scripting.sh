@@ -7,7 +7,6 @@ fi
 
 echo "Test: scripting and control flow..."
 
-# Test if-then-else structure
 OUT=$("$CJSH_PATH" -c "if true; then echo 'true branch'; else echo 'false branch'; fi")
 if [ "$OUT" != "true branch" ]; then
     echo "FAIL: if-then-else true case (got '$OUT')"
@@ -24,7 +23,6 @@ else
     echo "PASS: if-then-else false case"
 fi
 
-# Test if without else
 OUT=$("$CJSH_PATH" -c "if true; then echo 'success'; fi")
 if [ "$OUT" != "success" ]; then
     echo "FAIL: if without else (got '$OUT')"
@@ -33,9 +31,7 @@ else
     echo "PASS: if without else"
 fi
 
-# Test elif
 OUT=$("$CJSH_PATH" -c "if false; then echo 'first'; elif true; then echo 'second'; else echo 'third'; fi")
-# Some shells might not support elif the same way, so accept either result
 if [ "$OUT" != "second" ] && [ "$OUT" != "third" ]; then
     echo "FAIL: elif statement (got '$OUT')"
     exit 1
@@ -43,7 +39,6 @@ else
     echo "PASS: elif statement"
 fi
 
-# Test for loop
 OUT=$("$CJSH_PATH" -c "for i in 1 2 3; do echo \$i; done")
 EXPECTED="1
 2
@@ -55,7 +50,6 @@ else
     echo "PASS: for loop"
 fi
 
-# Test while loop
 OUT=$("$CJSH_PATH" -c "i=1; while [ \$i -le 3 ]; do echo \$i; i=\$((i + 1)); done")
 EXPECTED="1
 2
@@ -67,7 +61,6 @@ else
     echo "PASS: while loop"
 fi
 
-# Test arithmetic expansion
 OUT=$("$CJSH_PATH" -c "echo \$((2 + 3))")
 if [ "$OUT" != "5" ]; then
     echo "FAIL: arithmetic expansion addition (got '$OUT')"
@@ -92,7 +85,6 @@ else
     echo "PASS: arithmetic expansion multiplication"
 fi
 
-# Test logical operators
 OUT=$("$CJSH_PATH" -c "true && echo 'and success'")
 if [ "$OUT" != "and success" ]; then
     echo "FAIL: logical AND true case (got '$OUT')"
@@ -117,7 +109,6 @@ else
     echo "PASS: logical OR false case"
 fi
 
-# Test command grouping with ()
 OUT=$("$CJSH_PATH" -c "(echo first; echo second)")
 EXPECTED="first
 second"
@@ -128,7 +119,6 @@ else
     echo "PASS: command grouping with parentheses"
 fi
 
-# Test command grouping with {}
 OUT=$("$CJSH_PATH" -c "{ echo first; echo second; }")
 EXPECTED="first
 second"
@@ -139,7 +129,6 @@ else
     echo "PASS: command grouping with braces"
 fi
 
-# Test case statement
 OUT=$("$CJSH_PATH" -c "case hello in hello) echo matched;; *) echo no match;; esac")
 if [ "$OUT" != "matched" ]; then
     echo "FAIL: case statement match (got '$OUT')"
@@ -156,7 +145,6 @@ else
     echo "PASS: case statement no match"
 fi
 
-# Test function definition and calling
 OUT=$("$CJSH_PATH" -c "myfunc() { echo 'function called'; }; myfunc")
 if [ "$OUT" != "function called" ]; then
     echo "FAIL: function definition and calling (got '$OUT')"
@@ -165,7 +153,6 @@ else
     echo "PASS: function definition and calling"
 fi
 
-# Test function with parameters
 OUT=$("$CJSH_PATH" -c "greet() { echo \"Hello \$1\"; }; greet World")
 if [ "$OUT" != "Hello World" ]; then
     echo "FAIL: function with parameters (got '$OUT')"

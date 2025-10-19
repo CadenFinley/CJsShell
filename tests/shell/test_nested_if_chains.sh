@@ -16,7 +16,6 @@ fail_test() {
     TESTS_FAILED=$((TESTS_FAILED + 1))
 }
 
-# Deeply nested true branches
 OUTPUT=$("$CJSH_PATH" -c "
 if [ 1 -eq 1 ]; then
     if [ 2 -eq 2 ]; then
@@ -37,7 +36,6 @@ else
     fail_test "deeply nested true branches (got: '$OUTPUT')"
 fi
 
-# Middle branch fallback after nested failure
 OUTPUT=$("$CJSH_PATH" -c "
 if [ 1 -eq 1 ]; then
     if [ 2 -ne 2 ]; then
@@ -58,7 +56,6 @@ else
     fail_test "nested fallback after inner failure (got: '$OUTPUT')"
 fi
 
-# Elif with nested decisions
 OUTPUT=$("$CJSH_PATH" -c "
 if false; then
     echo 'outer-then'
@@ -79,7 +76,6 @@ else
     fail_test "elif chain with nested inner decisions (got: '$OUTPUT')"
 fi
 
-# Multiple elif chain hitting late branch with nested body
 OUTPUT=$("$CJSH_PATH" -c "
 if false; then
     echo 'branch-a'
@@ -100,7 +96,6 @@ else
     fail_test "multiple elif chain hitting late nested branch (got: '$OUTPUT')"
 fi
 
-# Nested else block producing multiple outputs
 OUTPUT=$("$CJSH_PATH" -c "
 if [ 1 -eq 2 ]; then
     echo 'unexpected'

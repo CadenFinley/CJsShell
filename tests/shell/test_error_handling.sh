@@ -21,7 +21,6 @@ skip_test() {
     TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
 }
 
-# Test exit with specific code
 "$CJSH_PATH" -c "exit 42"
 if [ $? -ne 42 ]; then
   fail_test "exit 42 returned $?"
@@ -30,7 +29,6 @@ else
   pass_test "exit 42"
 fi
 
-# Test false command
 "$CJSH_PATH" -c "false"
 if [ $? -ne 1 ]; then
   fail_test "false returned $?"

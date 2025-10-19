@@ -24,7 +24,6 @@ skip_test() {
     TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
 }
 
-# Test basic command execution and exit status
 "$CJSH_PATH" -c "true"
 if [ $? -ne 0 ]; then
     fail_test "true command should exit with 0"
@@ -41,7 +40,6 @@ else
     pass_test "false command"
 fi
 
-# Test exit status propagation
 OUT=$("$CJSH_PATH" -c "false; echo \$?")
 if [ "$OUT" != "1" ]; then
     fail_test "exit status propagation (got '$OUT')"
@@ -50,7 +48,6 @@ else
     pass_test "exit status propagation"
 fi
 
-# Test process substitution
 OUT=$("$CJSH_PATH" -c "echo hello | wc -w" | tr -d ' ')
 if [ "$OUT" != "1" ]; then
     fail_test "process substitution (got '$OUT')"
@@ -59,7 +56,6 @@ else
     pass_test "process substitution"
 fi
 
-# Test multiple commands with ;
 OUT=$("$CJSH_PATH" -c "echo first; echo second")
 EXPECTED="first
 second"
@@ -70,7 +66,6 @@ else
     pass_test "multiple commands with semicolon"
 fi
 
-# Test background process (basic test)
 "$CJSH_PATH" -c "sleep 0.1 &"
 if [ $? -ne 0 ]; then
     fail_test "background process execution"
@@ -79,7 +74,6 @@ else
     pass_test "background process execution"
 fi
 
-# Test command not found
 "$CJSH_PATH" -c "nonexistent_command_12345" 2>/dev/null
 if [ $? -eq 0 ]; then
     fail_test "nonexistent command should return non-zero"
@@ -88,7 +82,6 @@ else
     pass_test "nonexistent command handling"
 fi
 
-# Test timeout handling (if supported)
 timeout 1 "$CJSH_PATH" -c "sleep 2" 2>/dev/null
 EXIT_CODE=$?
 if [ $EXIT_CODE -eq 0 ]; then
@@ -98,7 +91,6 @@ else
     pass_test "timeout handling"
 fi
 
-# Test exec replacement
 OUT=$("$CJSH_PATH" -c "exec echo 'exec test'")
 if [ "$OUT" != "exec test" ]; then
     fail_test "exec command (got '$OUT')"
@@ -107,7 +99,6 @@ else
     pass_test "exec command"
 fi
 
-# Test exit builtin
 "$CJSH_PATH" -c "exit 42"
 if [ $? -ne 42 ]; then
     fail_test "exit builtin with custom code"
@@ -116,7 +107,6 @@ else
     pass_test "exit builtin with custom code"
 fi
 
-# Test process environment inheritance
 export TEST_PROC_VAR="inherited"
 OUT=$("$CJSH_PATH" -c "echo \$TEST_PROC_VAR")
 if [ "$OUT" != "inherited" ]; then
@@ -126,7 +116,6 @@ else
     pass_test "process environment inheritance"
 fi
 
-# Test command substitution in process context
 OUT=$("$CJSH_PATH" -c "echo \$(echo substituted)")
 if [ "$OUT" != "substituted" ]; then
     fail_test "command substitution in process (got '$OUT')"
@@ -135,7 +124,6 @@ else
     pass_test "command substitution in process"
 fi
 
-# Test nested command execution
 OUT=$("$CJSH_PATH" -c "echo \$(echo \$(echo nested))")
 if [ "$OUT" != "nested" ]; then
     fail_test "nested command execution (got '$OUT')"
@@ -144,7 +132,6 @@ else
     pass_test "nested command execution"
 fi
 
-# Test PATH resolution
 OUT=$("$CJSH_PATH" -c "which echo")
 if [ -z "$OUT" ]; then
     fail_test "PATH resolution for which command"

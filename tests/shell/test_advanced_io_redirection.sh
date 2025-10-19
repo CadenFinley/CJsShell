@@ -7,11 +7,9 @@ fi
 
 echo "Test: advanced I/O redirection and here documents..."
 
-# Create temporary test directory
 TEST_DIR="/tmp/cjsh_io_tests_$$"
 mkdir -p "$TEST_DIR"
 
-# Test 1: Basic here document (should work)
 OUT=$("$CJSH_PATH" -c "cat << EOF
 line 1
 line 2
@@ -26,7 +24,6 @@ else
     exit 1
 fi
 
-# Test 2: Here document with variable expansion
 OUT=$("$CJSH_PATH" -c "var=world; cat << EOF
 Hello \$var
 EOF" 2>&1)
@@ -38,7 +35,6 @@ else
     exit 1
 fi
 
-# Test 3: Here document with quoted delimiter (no expansion)
 OUT=$("$CJSH_PATH" -c "var=world; cat << 'EOF'
 Hello \$var
 EOF" 2>&1)
@@ -50,7 +46,6 @@ else
     exit 1
 fi
 
-# Test 4: Here strings <<<
 OUT=$("$CJSH_PATH" -c "cat <<< 'hello world'" 2>&1)
 if [ "$OUT" = "hello world" ]; then
     echo "PASS: here strings work"
@@ -58,7 +53,6 @@ else
     echo "FAIL: here strings not implemented (got: '$OUT')"
 fi
 
-# Test 5: Here strings with variable expansion
 OUT=$("$CJSH_PATH" -c "var=world; cat <<< \"hello \$var\"" 2>&1)
 if [ "$OUT" = "hello world" ]; then
     echo "PASS: here strings with variable expansion"
@@ -66,7 +60,6 @@ else
     echo "SKIP: here strings with expansion not implemented (got: '$OUT')"
 fi
 
-# Test 6: Advanced redirection &>
 "$CJSH_PATH" -c "echo test &> $TEST_DIR/both_output.txt" 2>&1
 if [ -f "$TEST_DIR/both_output.txt" ] && [ "$(cat "$TEST_DIR/both_output.txt")" = "test" ]; then
     echo "PASS: &> redirection works"
@@ -74,7 +67,6 @@ else
     echo "FAIL: &> redirection not implemented"
 fi
 
-# Test 7: Append redirection >>
 "$CJSH_PATH" -c "echo first > $TEST_DIR/append_test.txt; echo second >> $TEST_DIR/append_test.txt" 2>&1
 if [ -f "$TEST_DIR/append_test.txt" ]; then
     CONTENT=$(cat "$TEST_DIR/append_test.txt")
@@ -93,7 +85,6 @@ else
     exit 1
 fi
 
-# Test 8: Error redirection 2>
 "$CJSH_PATH" -c "ls /nonexistent_directory_test 2> $TEST_DIR/error_output.txt" 2>&1
 if [ -f "$TEST_DIR/error_output.txt" ] && [ -s "$TEST_DIR/error_output.txt" ]; then
     echo "PASS: error redirection works"
@@ -101,7 +92,6 @@ else
     echo "SKIP: error redirection not fully implemented"
 fi
 
-# Test 9: Combined redirection 2>&1
 OUT=$("$CJSH_PATH" -c "echo stdout; echo stderr >&2" 2>&1)
 if echo "$OUT" | grep -q "stdout" && echo "$OUT" | grep -q "stderr"; then
     echo "PASS: combined stdout/stderr redirection"
@@ -111,7 +101,6 @@ else
     exit 1
 fi
 
-# Test 10: File descriptor manipulation exec 3< file
 echo "test content" > "$TEST_DIR/fd_test.txt"
 OUT=$("$CJSH_PATH" -c "exec 3< $TEST_DIR/fd_test.txt; read line <&3; echo \$line" 2>&1)
 if [ "$OUT" = "test content" ]; then
@@ -120,7 +109,6 @@ else
     echo "SKIP: file descriptor manipulation not implemented (got: '$OUT')"
 fi
 
-# Test 11: Process substitution <(command)
 OUT=$("$CJSH_PATH" -c "diff <(echo test) <(echo test)" 2>&1)
 if [ -z "$OUT" ]; then  # diff returns empty when files are identical
     echo "PASS: process substitution works"
@@ -128,7 +116,6 @@ else
     echo "SKIP: process substitution not implemented (got: '$OUT')"
 fi
 
-# Test 12: Multiple redirections in one command
 "$CJSH_PATH" -c "echo stdout; echo stderr >&2" > "$TEST_DIR/multi_stdout.txt" 2> "$TEST_DIR/multi_stderr.txt"
 if [ -f "$TEST_DIR/multi_stdout.txt" ] && [ -f "$TEST_DIR/multi_stderr.txt" ]; then
     STDOUT_CONTENT=$(cat "$TEST_DIR/multi_stdout.txt")
@@ -146,7 +133,6 @@ else
     exit 1
 fi
 
-# Test 13: Here document in function
 cat > "$TEST_DIR/heredoc_function.sh" << 'EOF'
 #!/bin/bash
 print_message() {
@@ -169,7 +155,6 @@ else
     exit 1
 fi
 
-# Test 14: Nested here documents
 cat > "$TEST_DIR/nested_heredoc.sh" << 'EOF'
 #!/bin/bash
 if true; then
@@ -188,7 +173,6 @@ else
     exit 1
 fi
 
-# Test 15: Here document with indentation
 cat > "$TEST_DIR/heredoc_indent.sh" << 'EOF'
 cat <<- DELIMITER
 	indented line
@@ -207,7 +191,6 @@ else
     exit 1
 fi
 
-# Cleanup
 rm -rf "$TEST_DIR"
 echo "PASS: advanced I/O redirection tests completed"
 exit 0

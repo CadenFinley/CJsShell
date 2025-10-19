@@ -25,7 +25,6 @@ skip_test() {
     TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
 }
 
-# Test cd to /tmp
 OUTPUT=$("$CJSH_PATH" -c "cd /tmp; pwd")
 if [ "$OUTPUT" = "/tmp" ] || [ "$OUTPUT" = "/private/tmp" ]; then
   pass_test "cd to /tmp"
@@ -34,7 +33,6 @@ else
   exit 1
 fi
 
-# Test cd inside a function preserves updated PWD
 OUTPUT=$("$CJSH_PATH" -c 'my_cd(){ cd /tmp; }; my_cd; pwd')
 if [ "$OUTPUT" = "/tmp" ] || [ "$OUTPUT" = "/private/tmp" ]; then
   pass_test "cd inside function updates PWD"

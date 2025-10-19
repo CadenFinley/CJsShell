@@ -21,7 +21,6 @@ skip_test() {
     TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
 }
 
-# Test cd to non-existent directory
 "$CJSH_PATH" -c "cd /definitely/not/a/real/path"
 if [ $? -eq 0 ]; then
   fail_test "cd to non-existent path should fail"
@@ -30,7 +29,6 @@ else
   pass_test "cd to non-existent path should fail"
 fi
 
-# Test cd to HOME directory
 HOME_OUT=$("$CJSH_PATH" -c "cd; pwd")
 HOME_OS=${HOME#/private}
 HOME_OUT_OS=${HOME_OUT#/private}

@@ -26,13 +26,11 @@ skip_test() {
     TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
 }
 
-# Create temporary directory for tests
 TEST_DIR=$(mktemp -d)
 cd "$TEST_DIR"
 
 echo "=== Testing Filesystem Utility Functions ==="
 
-# Create a test program that uses the actual CJSH filesystem utilities
 cat << 'EOF' > test_utilities.cpp
 #include <iostream>
 #include <string>
@@ -415,7 +413,6 @@ int main(int argc, char* argv[]) {
 }
 EOF
 
-# Compile the utility test program
 if ! g++ -std=c++17 -o test_utilities test_utilities.cpp 2>/dev/null; then
     skip_test "C++ compiler not available or compilation failed"
     echo ""
@@ -428,7 +425,6 @@ fi
 
 echo "--- Testing Directory Initialization ---"
 
-# Test initialize_cjsh_directories
 OUTPUT=$(./test_utilities test_initialize_directories 2>&1)
 if [ "$OUTPUT" = "SUCCESS" ]; then
     pass_test "initialize_cjsh_directories() functionality"
@@ -438,7 +434,6 @@ fi
 
 echo "--- Testing File Existence Check ---"
 
-# Test file_exists function
 OUTPUT=$(./test_utilities test_file_exists 2>&1)
 if [ "$OUTPUT" = "SUCCESS" ]; then
     pass_test "file_exists() functionality"
@@ -448,7 +443,6 @@ fi
 
 echo "--- Testing Executable Cache Management ---"
 
-# Test should_refresh_executable_cache when no file exists
 OUTPUT=$(./test_utilities test_should_refresh_cache_no_file 2>&1)
 if [ "$OUTPUT" = "SUCCESS" ]; then
     pass_test "should_refresh_executable_cache() with no cache file"
@@ -456,7 +450,6 @@ else
     fail_test "should_refresh_executable_cache() with no cache file - $OUTPUT"
 fi
 
-# Test should_refresh_executable_cache with old file
 OUTPUT=$(./test_utilities test_should_refresh_cache_old_file 2>&1)
 if [ "$OUTPUT" = "SUCCESS" ]; then
     pass_test "should_refresh_executable_cache() with old cache file"
@@ -464,7 +457,6 @@ else
     fail_test "should_refresh_executable_cache() with old cache file - $OUTPUT"
 fi
 
-# Test build_executable_cache
 OUTPUT=$(./test_utilities test_build_executable_cache 2>&1)
 if [ "$OUTPUT" = "SUCCESS" ]; then
     pass_test "build_executable_cache() functionality"
@@ -472,7 +464,6 @@ else
     fail_test "build_executable_cache() functionality - $OUTPUT"
 fi
 
-# Test read_cached_executables
 OUTPUT=$(./test_utilities test_read_cached_executables 2>&1)
 if [ "$OUTPUT" = "SUCCESS" ]; then
     pass_test "read_cached_executables() functionality"
@@ -482,7 +473,6 @@ fi
 
 echo "--- Testing Executable Search ---"
 
-# Test find_executable_in_path with existing executable
 OUTPUT=$(./test_utilities test_find_executable_in_path 2>&1)
 if [ "$OUTPUT" = "SUCCESS" ]; then
     pass_test "find_executable_in_path() with existing executable"
@@ -490,7 +480,6 @@ else
     fail_test "find_executable_in_path() with existing executable - $OUTPUT"
 fi
 
-# Test find_executable_in_path with nonexistent executable
 OUTPUT=$(./test_utilities test_find_nonexistent_executable 2>&1)
 if [ "$OUTPUT" = "SUCCESS" ]; then
     pass_test "find_executable_in_path() with nonexistent executable"
@@ -500,7 +489,6 @@ fi
 
 echo "--- Testing Error Conditions ---"
 
-# Test behavior when PATH environment variable is not set
 OUTPUT=$(./test_utilities test_path_environment_error 2>&1)
 if [ "$OUTPUT" = "SUCCESS" ]; then
     pass_test "Graceful handling of missing PATH environment"
@@ -508,7 +496,6 @@ else
     fail_test "Graceful handling of missing PATH environment - $OUTPUT"
 fi
 
-# Test path initialization
 OUTPUT=$(./test_utilities test_path_initialization 2>&1)
 if [ "$OUTPUT" = "SUCCESS" ]; then
     pass_test "Path initialization functionality"
@@ -516,7 +503,6 @@ else
     fail_test "Path initialization functionality - $OUTPUT"
 fi
 
-# Test HOME environment fallback
 OUTPUT=$(./test_utilities test_home_environment_fallback 2>&1)
 if [ "$OUTPUT" = "SUCCESS" ]; then
     pass_test "HOME environment fallback to /tmp"
@@ -526,7 +512,6 @@ fi
 
 echo "--- Testing Real World Integration ---"
 
-# Test that actual executables can be found
 if command -v bash >/dev/null 2>&1; then
     echo "Testing real executable search for bash..."
     cat << 'EOF' > test_real_exec.cpp
@@ -610,7 +595,6 @@ else
     skip_test "bash not available for real world test"
 fi
 
-# Test performance with large PATH
 echo "Testing performance with realistic PATH size..."
 cat << 'EOF' > test_performance.cpp
 #include <iostream>
@@ -701,7 +685,6 @@ else
     skip_test "Could not compile performance test"
 fi
 
-# Cleanup
 cd /
 rm -rf "$TEST_DIR"
 

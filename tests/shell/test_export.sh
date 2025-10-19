@@ -25,7 +25,6 @@ skip_test() {
     TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
 }
 
-# Test export builtin
 OUTPUT=$("$CJSH_PATH" -c "export FOO=bar; printf \"\$FOO\"")
 if [ "$OUTPUT" = "bar" ]; then
   pass_test "export builtin"

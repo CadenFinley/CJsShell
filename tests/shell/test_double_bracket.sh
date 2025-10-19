@@ -21,7 +21,6 @@ skip_test() {
     TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
 }
 
-# Test string length checks
 if "$CJSH_PATH" -c '[[ -z "" ]]'; then
     pass_test "double bracket -z empty string"
 else
@@ -40,7 +39,6 @@ else
     fail_test "double bracket negation -n empty string"
 fi
 
-# Test string equality
 if "$CJSH_PATH" -c '[[ "hello" == "hello" ]]'; then
     pass_test "double bracket string equality =="
 else
@@ -59,7 +57,6 @@ else
     fail_test "double bracket string inequality"
 fi
 
-# Test pattern matching
 if "$CJSH_PATH" -c '[[ "hello" == h* ]]'; then
     pass_test "double bracket pattern matching with *"
 else
@@ -78,7 +75,6 @@ else
     fail_test "double bracket pattern matching with character class"
 fi
 
-# Test regex matching
 if "$CJSH_PATH" -c '[[ "hello123" =~ [0-9]+ ]]'; then
     pass_test "double bracket regex matching"
 else
@@ -91,7 +87,6 @@ else
     fail_test "double bracket regex anchors"
 fi
 
-# Test numeric comparisons
 if "$CJSH_PATH" -c '[[ 5 -eq 5 ]]'; then
     pass_test "double bracket numeric equality"
 else
@@ -128,7 +123,6 @@ else
     fail_test "double bracket less than or equal"
 fi
 
-# Test file operations (create temporary files for testing)
 TEMP_FILE="/tmp/cjsh_test_file_$$"
 TEMP_DIR="/tmp/cjsh_test_dir_$$"
 touch "$TEMP_FILE"
@@ -165,7 +159,6 @@ else
     fail_test "double bracket non-empty file -s"
 fi
 
-# Test logical operators
 if "$CJSH_PATH" -c '[[ "hello" == "hello" && "world" == "world" ]]' 2>/dev/null; then
     pass_test "double bracket logical AND (&&) - both true"
 else
@@ -173,7 +166,6 @@ else
 fi
 
 if "$CJSH_PATH" -c '[[ "hello" == "hello" && "world" == "foo" ]]'; then
-    # Should fail because second condition is false
     fail_test "double bracket logical AND (&&) - second false"
 else
     pass_test "double bracket logical AND (&&) - second false"
@@ -186,20 +178,17 @@ else
 fi
 
 if "$CJSH_PATH" -c '[[ "hello" == "foo" || "world" == "bar" ]]'; then
-    # Should fail because both conditions are false
     fail_test "double bracket logical OR (||) - both false"
 else
     pass_test "double bracket logical OR (||) - both false"
 fi
 
-# Test complex expressions
 if "$CJSH_PATH" -c '[[ "hello" == "hello" && 5 -gt 3 ]]' 2>/dev/null; then
     pass_test "double bracket complex expression"
 else
     fail_test "double bracket complex expression"
 fi
 
-# Test negation
 if "$CJSH_PATH" -c '[[ ! "hello" == "world" ]]'; then
     pass_test "double bracket negation with !"
 else
@@ -212,9 +201,7 @@ else
     fail_test "double bracket negation of file test"
 fi
 
-# Test edge cases
 if "$CJSH_PATH" -c '[[ "" ]]'; then
-    # Empty string should be false
     fail_test "double bracket empty string truthiness"
 else
     pass_test "double bracket empty string truthiness"
@@ -226,7 +213,6 @@ else
     fail_test "double bracket non-empty string truthiness"
 fi
 
-# Test with variables
 VAR1="hello"
 VAR2="world"
 export VAR1 VAR2
@@ -243,14 +229,12 @@ else
     fail_test "double bracket with concatenated variables"
 fi
 
-# Test arithmetic expressions in double brackets
 if "$CJSH_PATH" -c '[[ $((5 + 3)) -eq 8 ]]'; then
     pass_test "double bracket with arithmetic expansion"
 else
     fail_test "double bracket with arithmetic expansion"
 fi
 
-# Test with special characters and escaping
 if "$CJSH_PATH" -c '[[ "hello world" == "hello world" ]]'; then
     pass_test "double bracket with spaces in strings"
 else
@@ -263,14 +247,12 @@ else
     fail_test "double bracket with escaped characters"
 fi
 
-# Test invalid expressions (should fail gracefully)
 if "$CJSH_PATH" -c '[[ abc -invalidop def ]]' 2>/dev/null; then
     fail_test "double bracket invalid operator handling"
 else
     pass_test "double bracket invalid operator handling"
 fi
 
-# Test numeric comparison edge cases
 if "$CJSH_PATH" -c '[[ 0 -eq 0 ]]'; then
     pass_test "double bracket zero equality"
 else
@@ -283,14 +265,12 @@ else
     fail_test "double bracket negative number comparison"
 fi
 
-# Test with mixed string/numeric (should handle gracefully)
 if "$CJSH_PATH" -c '[[ "abc" -eq 123 ]]' 2>/dev/null; then
     fail_test "double bracket string/number type mismatch"
 else
     pass_test "double bracket string/number type mismatch"
 fi
 
-# Clean up temporary files
 rm -f "$TEMP_FILE"
 rm -rf "$TEMP_DIR"
 

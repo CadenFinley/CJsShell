@@ -1,5 +1,4 @@
 #!/usr/bin/env sh
-# Test set command options that are currently missing in cjsh
 
 if [ -n "$CJSH" ]; then 
     CJSH_PATH="$CJSH"
@@ -28,7 +27,6 @@ skip_test() {
     TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
 }
 
-# Test 1: set -e (errexit) - Already implemented but test it
 echo "Test set -e (errexit) option"
 output=$("$CJSH_PATH" -c "set -e; false; echo should_not_print" 2>/dev/null)
 if [ -z "$output" ]; then
@@ -37,7 +35,6 @@ else
     fail_test "set -e (errexit) - did not exit on error, got: '$output'"
 fi
 
-# Test 2: set +e (disable errexit) - Already implemented
 echo "Test set +e (disable errexit) option"
 output=$("$CJSH_PATH" -c "set -e; set +e; false; echo should_print" 2>/dev/null)
 if [ "$output" = "should_print" ]; then
@@ -46,7 +43,6 @@ else
     fail_test "set +e (disable errexit) - got: '$output'"
 fi
 
-# Test 3: set -u (nounset) - treat unset variables as error
 echo "Test set -u (nounset) option"
 output=$("$CJSH_PATH" -c "set -u; echo \$UNDEFINED_VAR" 2>&1)
 exit_code=$?
@@ -56,7 +52,6 @@ else
     fail_test "set -u (nounset) - should error on undefined variable, got: '$output'"
 fi
 
-# Test 4: set +u (allow unset variables)
 echo "Test set +u (allow unset) option"
 output=$("$CJSH_PATH" -c "set -u; set +u; echo \$UNDEFINED_VAR" 2>/dev/null)
 exit_code=$?
@@ -66,7 +61,6 @@ else
     fail_test "set +u (allow unset) - should allow undefined variables"
 fi
 
-# Test 5: set -x (xtrace) - print commands before execution
 echo "Test set -x (xtrace) option"
 output=$("$CJSH_PATH" -c "set -x; echo hello" 2>&1)
 if echo "$output" | grep -q "echo hello"; then
@@ -75,13 +69,11 @@ else
     fail_test "set -x (xtrace) - should print commands, got: '$output'"
 fi
 
-# Test 6: set +x (disable xtrace)
 echo "Test set +x (disable xtrace) option"
 output=$("$CJSH_PATH" -c "set -x; set +x; echo hello" 2>&1)
 if [ "$output" = "hello" ]; then
     pass_test "set +x (disable xtrace)"
 else
-    # It's ok if there's some trace output from the set commands themselves
     if echo "$output" | tail -1 | grep -q "^hello$"; then
         pass_test "set +x (disable xtrace)"
     else
@@ -89,7 +81,6 @@ else
     fi
 fi
 
-# Test 7: set -v (verbose) - print input lines
 echo "Test set -v (verbose) option"
 output=$("$CJSH_PATH" -c "set -v; echo test" 2>&1)
 if echo "$output" | grep -q "echo test"; then
@@ -98,7 +89,6 @@ else
     fail_test "set -v (verbose) - should print input lines, got: '$output'"
 fi
 
-# Test 8: set -n (noexec) - read but don't execute
 echo "Test set -n (noexec) option"
 output=$("$CJSH_PATH" -c "set -n; echo should_not_execute" 2>/dev/null)
 if [ -z "$output" ]; then
@@ -107,9 +97,7 @@ else
     fail_test "set -n (noexec) - should not execute, got: '$output'"
 fi
 
-# Test 9: set -f (noglob) - disable pathname expansion
 echo "Test set -f (noglob) option"
-# Create test files
 TEST_DIR="/tmp/cjsh_glob_test_$$"
 mkdir -p "$TEST_DIR"
 touch "$TEST_DIR/file1.txt" "$TEST_DIR/file2.txt"
@@ -123,7 +111,6 @@ fi
 
 rm -rf "$TEST_DIR"
 
-# Test 10: set +f (enable glob)
 echo "Test set +f (enable glob) option"
 TEST_DIR="/tmp/cjsh_glob_test2_$$"
 mkdir -p "$TEST_DIR"
@@ -138,7 +125,6 @@ fi
 
 rm -rf "$TEST_DIR"
 
-# Test 12: set -C (noclobber) - Already implemented but test it
 echo "Test set -C (noclobber) option"
 TEST_FILE="/tmp/cjsh_noclobber_$$"
 echo "original" > "$TEST_FILE"
@@ -151,7 +137,6 @@ else
 fi
 rm -f "$TEST_FILE"
 
-# Test 13: set +C (allow clobber)
 echo "Test set +C (allow clobber) option"
 TEST_FILE="/tmp/cjsh_clobber_$$"
 echo "original" > "$TEST_FILE"
@@ -164,7 +149,6 @@ else
 fi
 rm -f "$TEST_FILE"
 
-# Test 14: set -o option-name syntax
 echo "Test set -o errexit (long form)"
 output=$("$CJSH_PATH" -c "set -o errexit; false; echo should_not_print" 2>/dev/null)
 if [ -z "$output" ]; then
@@ -173,7 +157,6 @@ else
     fail_test "set -o errexit (long form) - got: '$output'"
 fi
 
-# Test 15: set -o without arguments (show all options)
 echo "Test set -o (show all options)"
 output=$("$CJSH_PATH" -c "set -o" 2>/dev/null)
 if [ -n "$output" ]; then
@@ -182,7 +165,6 @@ else
     fail_test "set -o (show options) - should display options"
 fi
 
-# Print summary
 echo ""
 echo "================================"
 echo "Set Options Summary:"

@@ -26,12 +26,10 @@ skip_test() {
     TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
 }
 
-# Helper function to check if command is available
 command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
-# Test 1: Startup time
 echo "Testing startup time..."
 start_time=$(date +%s%N)
 "$CJSH_PATH" -c "echo startup test" >/dev/null 2>&1
@@ -44,16 +42,13 @@ else
     skip_test "startup time (${startup_time}ms, may be system dependent)"
 fi
 
-# Test 2: Memory usage
 echo "Testing memory usage..."
 if command_exists ps; then
-    # Start shell in background and measure memory
     "$CJSH_PATH" -c "sleep 1" &
     shell_pid=$!
     sleep 0.1  # Give it time to start
     
     if ps -p $shell_pid >/dev/null 2>&1; then
-        # Get memory usage (RSS in KB)
         memory_kb=$(ps -o rss= -p $shell_pid 2>/dev/null | tr -d ' ')
         wait $shell_pid
         
@@ -69,7 +64,6 @@ else
     skip_test "memory usage test (ps not available)"
 fi
 
-# Test 3: Command execution speed
 echo "Testing command execution speed..."
 start_time=$(date +%s%N)
 for i in 1 2 3 4 5 6 7 8 9 10; do
@@ -85,7 +79,6 @@ else
     skip_test "command execution speed (${avg_time}ms avg, may be system dependent)"
 fi
 
-# Test 4: Large output handling
 echo "Testing large output handling..."
 start_time=$(date +%s%N)
 "$CJSH_PATH" -c "seq 1 10000" >/tmp/large_output_test.out 2>&1
@@ -103,17 +96,13 @@ else
     fail_test "large output handling"
 fi
 
-# Test 5: Multiple concurrent shells
 echo "Testing concurrent shell instances..."
-# Start multiple shells in background
 for i in 1 2 3 4 5; do
     "$CJSH_PATH" -c "sleep 0.5; echo concurrent $i" >/tmp/concurrent_$i.out 2>&1 &
 done
 
-# Wait for all to complete
 wait
 
-# Check results
 concurrent_pass=0
 for i in 1 2 3 4 5; do
     if [ -f /tmp/concurrent_$i.out ] && grep -q "concurrent $i" /tmp/concurrent_$i.out; then
@@ -127,9 +116,7 @@ else
     fail_test "concurrent shell instances ($concurrent_pass/5 succeeded)"
 fi
 
-# Test 6: File handling performance
 echo "Testing file handling performance..."
-# Create test files
 mkdir -p /tmp/file_test
 for i in $(seq 1 100); do
     echo "file content $i" > /tmp/file_test/file$i.txt
@@ -151,7 +138,6 @@ else
     fail_test "file handling performance"
 fi
 
-# Test 7: Process creation overhead
 echo "Testing process creation overhead..."
 start_time=$(date +%s%N)
 "$CJSH_PATH" -c "true; true; true; true; true" >/dev/null 2>&1
@@ -168,7 +154,6 @@ else
     fail_test "process creation test"
 fi
 
-# Test 8: Variable expansion performance
 echo "Testing variable expansion performance..."
 start_time=$(date +%s%N)
 "$CJSH_PATH" -c "TEST=hello; for i in 1 2 3 4 5; do echo \$TEST\$i; done" >/tmp/var_expand.out 2>&1
@@ -181,7 +166,6 @@ else
     fail_test "variable expansion test"
 fi
 
-# Test 9: Pipeline performance
 echo "Testing pipeline performance..."
 start_time=$(date +%s%N)
 "$CJSH_PATH" -c "seq 1 1000 | grep 5 | wc -l" >/tmp/pipeline_test.out 2>&1
@@ -194,9 +178,7 @@ else
     fail_test "pipeline performance"
 fi
 
-# Test 10: Resource cleanup
 echo "Testing resource cleanup..."
-# Create a shell that allocates resources and exits
 "$CJSH_PATH" -c "
     for i in \$(seq 1 100); do
         VAR\$i=value\$i
@@ -210,7 +192,6 @@ else
     fail_test "resource cleanup"
 fi
 
-# Test 11: Stress test with loops
 echo "Testing stress with loops..."
 start_time=$(date +%s%N)
 "$CJSH_PATH" -c "
@@ -233,7 +214,6 @@ else
     fail_test "stress test with loops"
 fi
 
-# Test 12: Long-running command handling
 echo "Testing long-running command handling..."
 start_time=$(date +%s%N)
 "$CJSH_PATH" -c "sleep 2; echo long running done" >/tmp/long_running.out 2>&1
@@ -241,7 +221,6 @@ end_time=$(date +%s%N)
 long_time=$((($end_time - $start_time) / 1000000))
 
 if [ $? -eq 0 ] && grep -q "long running done" /tmp/long_running.out; then
-    # Should be approximately 2000ms
     if [ $long_time -gt 1800 ] && [ $long_time -lt 2500 ]; then
         pass_test "long-running command handling (${long_time}ms)"
     else
@@ -251,7 +230,6 @@ else
     fail_test "long-running command handling"
 fi
 
-# Cleanup
 rm -f /tmp/large_output_test.out /tmp/concurrent_*.out /tmp/file_count.out
 rm -f /tmp/var_expand.out /tmp/pipeline_test.out /tmp/cleanup_test.out
 rm -f /tmp/stress_test.out /tmp/long_running.out

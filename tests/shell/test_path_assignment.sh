@@ -21,28 +21,24 @@ skip_test() {
     TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
 }
 
-# Test basic PATH assignment without export
 if "$CJSH_PATH" -c 'PATH="/custom/bin:$PATH"; echo $PATH' | grep -q "/custom/bin"; then
     pass_test "PATH assignment updates shell variable"
 else
     fail_test "PATH assignment updates shell variable"
 fi
 
-# Test that PATH assignment is inherited by child processes (the key test)
 if "$CJSH_PATH" -c 'PATH="/custom/bin:$PATH"; '"$CJSH_PATH"' -c "echo \$PATH"' | grep -q "/custom/bin"; then
     pass_test "PATH assignment inherited by child processes"
 else
     fail_test "PATH assignment inherited by child processes"
 fi
 
-# Test that PATH assignment works with command substitution
 if "$CJSH_PATH" -c 'PATH="/test1:$PATH"; export PATH="/test2:$PATH"; echo $PATH' | grep -q "/test2:/test1"; then
     pass_test "PATH assignment works with subsequent export using \$PATH"
 else
     fail_test "PATH assignment works with subsequent export using \$PATH"
 fi
 
-# Test comparison with bash behavior
 BASH_RESULT=$(bash -c 'PATH="/custom/bin:$PATH"; bash -c "echo \$PATH"' | grep -c "/custom/bin")
 CJSH_RESULT=$("$CJSH_PATH" -c 'PATH="/custom/bin:$PATH"; '"$CJSH_PATH"' -c "echo \$PATH"' | grep -c "/custom/bin")
 
@@ -52,14 +48,12 @@ else
     fail_test "CJsh PATH behavior matches bash (bash: $BASH_RESULT, cjsh: $CJSH_RESULT)"
 fi
 
-# Test that regular variables don't get exported automatically
 if "$CJSH_PATH" -c 'MYVAR="test"; '"$CJSH_PATH"' -c "echo \$MYVAR"' | grep -q "test"; then
     fail_test "Regular variables should not be automatically exported"
 else
     pass_test "Regular variables not automatically exported"
 fi
 
-# Test specific case from the bug report: cargo bin in PATH
 TEMP_CARGO_DIR="/tmp/test_cargo_bin_$$"
 mkdir -p "$TEMP_CARGO_DIR"
 echo "#!/bin/sh" > "$TEMP_CARGO_DIR/testbin"
@@ -72,7 +66,6 @@ else
     fail_test "PATH assignment allows finding new commands"
 fi
 
-# Test the exact sequence from the bug report
 LLVM_PATH="/usr/local/fake-llvm/bin"
 if "$CJSH_PATH" -c "PATH=\"\$PATH:$TEMP_CARGO_DIR\"; export PATH=\"$LLVM_PATH:\$PATH\"; echo \$PATH" | grep -q "$TEMP_CARGO_DIR"; then
     pass_test "PATH assignment survives subsequent export with command substitution"
@@ -80,7 +73,6 @@ else
     fail_test "PATH assignment survives subsequent export with command substitution"
 fi
 
-# Clean up
 rm -rf "$TEMP_CARGO_DIR"
 
 echo
