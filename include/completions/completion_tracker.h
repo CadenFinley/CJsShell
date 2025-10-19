@@ -52,4 +52,4 @@ bool safe_add_completion_prim_with_source(ic_completion_env_t* cenv, const char*
 bool completion_limit_hit();
 bool completion_limit_hit_with_log(const char* label);
 
-}  // namespace completion_tracker
+}  

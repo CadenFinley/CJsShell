@@ -43,7 +43,7 @@ class VariableManager {
    private:
     VariableStack local_variable_stack;
     ExportedLocalsStack exported_locals_stack;
-    // Store original environment values for cleanup: vector of (name, optional_old_value) pairs
+    
     std::vector<std::vector<std::pair<std::string, std::string>>> saved_env_stack;
 
     std::string get_special_variable(const std::string& var_name) const;

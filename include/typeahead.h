@@ -21,4 +21,4 @@ void flush_pending_typeahead();
 void clear_input_buffer();
 const std::string& get_input_buffer();
 
-}  // namespace typeahead
+}  

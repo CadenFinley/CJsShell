@@ -67,7 +67,7 @@ inline constexpr RGB BRIGHT_BLUE(85, 85, 255);
 inline constexpr RGB BRIGHT_MAGENTA(255, 85, 255);
 inline constexpr RGB BRIGHT_CYAN(85, 255, 255);
 inline constexpr RGB BRIGHT_WHITE(255, 255, 255);
-}  // namespace basic
+}  
 
 std::string fg_color(const RGB& color);
 std::string bg_color(const RGB& color);
@@ -186,6 +186,6 @@ inline constexpr const char* BG_BRIGHT_BLUE = "\033[104m";
 inline constexpr const char* BG_BRIGHT_MAGENTA = "\033[105m";
 inline constexpr const char* BG_BRIGHT_CYAN = "\033[106m";
 inline constexpr const char* BG_BRIGHT_WHITE = "\033[107m";
-}  // namespace ansi
+}  
 RGB parse_color_value(const std::string& value);
-}  // namespace colors
+}  

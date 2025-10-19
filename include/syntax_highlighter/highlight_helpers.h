@@ -6,7 +6,6 @@
 
 namespace highlight_helpers {
 
-// Highlighting helper functions
 void highlight_quotes_and_variables(ic_highlight_env_t* henv, const char* input, size_t start,
                                     size_t length);
 void highlight_variable_assignment(ic_highlight_env_t* henv, const char* input,
@@ -15,4 +14,4 @@ void highlight_assignment_value(ic_highlight_env_t* henv, const char* input, siz
                                 const std::string& value);
 void highlight_history_expansions(ic_highlight_env_t* henv, const char* input, size_t len);
 
-}  // namespace highlight_helpers
+}  

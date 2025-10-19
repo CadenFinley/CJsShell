@@ -25,4 +25,4 @@ std::string normalize_nfc(const std::string& str);
 
 bool is_grapheme_boundary(unicode_codepoint_t cp1, unicode_codepoint_t cp2);
 
-}  // namespace utf8_utils
+}  

@@ -3,11 +3,6 @@
 #include <string>
 #include <vector>
 
-// ERROR FORMAT
-
-// cjsh: <error type>: <command used>: <message>
-// Suggestions (if any)
-
 #include <cstdint>
 
 enum class ErrorType : std::uint8_t {

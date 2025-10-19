@@ -149,7 +149,7 @@ class Shell {
     void restore_terminal_state();
     void setup_job_control();
 
-    // Hook system
+    
     void register_hook(const std::string& hook_type, const std::string& function_name);
     void unregister_hook(const std::string& hook_type, const std::string& function_name);
     std::vector<std::string> get_hooks(const std::string& hook_type) const;
@@ -213,9 +213,9 @@ class Shell {
     std::vector<std::string> positional_parameters;
     std::unordered_map<std::string, bool> shell_options;
 
-    // Hook storage: hook_type -> list of function names
+    
     std::unordered_map<std::string, std::vector<std::string>> hooks;
-    std::string last_directory;  // For chpwd hook
+    std::string last_directory;  
 
     void apply_abbreviations_to_line_editor();
 };

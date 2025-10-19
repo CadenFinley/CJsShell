@@ -16,4 +16,4 @@ bool is_control_flow_exit_code(int code);
 bool should_skip_line(const std::string& line);
 bool contains_token(const std::string& text, const std::string& token);
 
-}  // namespace shell_script_interpreter::detail
+}  

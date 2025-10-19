@@ -19,5 +19,5 @@ bool unicode_is_combining_codepoint(unicode_codepoint_t codepoint);
 bool unicode_is_control_codepoint(unicode_codepoint_t codepoint);
 
 #ifdef __cplusplus
-}  // extern "C"
+}  
 #endif

@@ -57,4 +57,4 @@ void add_spell_correction_matches(
     ic_completion_env_t* cenv, const std::unordered_map<std::string, SpellCorrectionMatch>& matches,
     size_t prefix_length);
 
-}  // namespace completion_spell
+}  

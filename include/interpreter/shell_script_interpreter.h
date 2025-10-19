@@ -15,7 +15,7 @@
 
 class ShellScriptInterpreter {
    public:
-    // Special exit codes for control flow
+    
     static constexpr int exit_break = 253;
     static constexpr int exit_continue = 254;
     static constexpr int exit_return = 255;

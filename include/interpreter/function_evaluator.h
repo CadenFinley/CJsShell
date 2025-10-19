@@ -34,4 +34,4 @@ void set_local_variable(
 
 bool is_local_variable(const LocalVariableStack& stack, const std::string& name);
 
-}  // namespace function_evaluator
+}  

@@ -8,7 +8,7 @@ class Shell;
 class Theme;
 
 const bool PRE_RELEASE = false;
-// using semver.org principles MAJOR.MINOR.PATCH
+
 constexpr const char* c_version_base = "3.10.2";
 
 extern std::string g_cached_version;
@@ -56,7 +56,7 @@ extern bool secure_mode;
 extern bool show_title_line;
 extern bool no_prompt;
 extern bool history_expansion_enabled;
-}  // namespace config
+}  
 
 void initialize_themes();
 void cleanup_resources();

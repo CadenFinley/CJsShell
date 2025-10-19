@@ -20,4 +20,4 @@ std::string simplify_parentheses_in_condition(
 int evaluate_logical_condition(const std::string& condition,
                                const std::function<int(const std::string&)>& executor);
 
-}  // namespace conditional_evaluator
+}  

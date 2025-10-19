@@ -23,4 +23,4 @@ int handle_runtime_error(const std::string& text, const std::runtime_error& e, s
 int handle_generic_exception(const std::string& text, const std::exception& e);
 int handle_unknown_error(const std::string& text);
 
-}  // namespace shell_script_interpreter
+}  
