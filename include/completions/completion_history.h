@@ -11,4 +11,4 @@ long get_history_min_history_limit();
 long get_history_max_history_limit();
 bool enforce_history_limit(std::string* error_message = nullptr);
 
-}  
+}  // namespace completion_history

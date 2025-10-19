@@ -222,7 +222,7 @@ std::optional<ExpandedSingleLineIf> expand_single_line_if(const std::string& lin
     return ExpandedSingleLineIf{std::move(block_lines), trailing};
 }
 
-}  
+}  // namespace
 
 namespace conditional_evaluator {
 
@@ -1170,4 +1170,4 @@ int evaluate_logical_condition(const std::string& condition,
     return result;
 }
 
-}  
+}  // namespace conditional_evaluator

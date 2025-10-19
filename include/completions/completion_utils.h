@@ -19,4 +19,4 @@ bool matches_completion_prefix(const std::string& str, const std::string& prefix
 bool equals_completion_token(const std::string& value, const std::string& target);
 bool starts_with_token(const std::string& value, const std::string& target_prefix);
 
-}  
+}  // namespace completion_utils

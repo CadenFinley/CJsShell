@@ -143,7 +143,7 @@ struct FileInfo {
     }
 };
 
-}  
+}  // namespace
 
 int ls_command(const std::vector<std::string>& args, Shell* shell) {
     bool help_requested = false;

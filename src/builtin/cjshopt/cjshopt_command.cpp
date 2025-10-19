@@ -45,7 +45,7 @@ void print_cjshopt_usage() {
         << "  bookmark-blacklist <subcommand>  Manage directories excluded from bookmarking\n";
     std::cout << "Use 'cjshopt <subcommand> --help' to see usage for a specific subcommand.\n";
 }
-}  
+}  // namespace
 
 int cjshopt_command(const std::vector<std::string>& args) {
     if (args.size() > 1 && (args[1] == "--help" || args[1] == "-h")) {

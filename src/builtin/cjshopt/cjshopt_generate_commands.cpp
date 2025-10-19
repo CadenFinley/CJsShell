@@ -64,7 +64,7 @@ int handle_generate_command_common(const std::vector<std::string>& args,
 
     return 0;
 }
-}  
+}  // namespace
 
 int generate_profile_command(const std::vector<std::string>& args) {
     return handle_generate_command_common(args, "generate-profile",

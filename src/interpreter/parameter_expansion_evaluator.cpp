@@ -21,14 +21,12 @@ std::string ParameterExpansionEvaluator::expand(const std::string& param_expr) {
         return "";
     }
 
-    
     if (param_expr[0] == '!') {
         std::string var_name = param_expr.substr(1);
         std::string indirect_name = read_variable(var_name);
         return read_variable(indirect_name);
     }
 
-    
     if (param_expr[0] == '#') {
         std::string var_name = param_expr.substr(1);
         std::string value = read_variable(var_name);
@@ -40,7 +38,6 @@ std::string ParameterExpansionEvaluator::expand(const std::string& param_expr) {
         return substring_result;
     }
 
-    
     size_t op_pos = std::string::npos;
     std::string op;
 
@@ -141,14 +138,12 @@ std::string ParameterExpansionEvaluator::expand(const std::string& param_expr) {
     std::string var_value = read_variable(var_name);
     bool is_set = is_variable_set(var_name);
 
-    
     if (op_pos == std::string::npos) {
         return var_value;
     }
 
     std::string operand = param_expr.substr(op_pos + op.length());
 
-    
     if (op == ":-") {
         return (is_set && !var_value.empty()) ? var_value : operand;
     }
@@ -156,7 +151,6 @@ std::string ParameterExpansionEvaluator::expand(const std::string& param_expr) {
         return is_set ? var_value : operand;
     }
 
-    
     if (op == ":=") {
         if (!is_set) {
             write_variable(var_name, operand);
@@ -172,7 +166,6 @@ std::string ParameterExpansionEvaluator::expand(const std::string& param_expr) {
         return var_value;
     }
 
-    
     if (op == ":?") {
         if (!is_set || var_value.empty()) {
             std::string error_msg = "cjsh: " + var_name + ": " +
@@ -194,7 +187,6 @@ std::string ParameterExpansionEvaluator::expand(const std::string& param_expr) {
         return var_value;
     }
 
-    
     if (op == ":+") {
         return (is_set && !var_value.empty()) ? operand : "";
     }
@@ -202,7 +194,6 @@ std::string ParameterExpansionEvaluator::expand(const std::string& param_expr) {
         return is_set ? operand : "";
     }
 
-    
     if (op == "#") {
         return pattern_match_prefix(var_value, operand, false);
     }
@@ -210,7 +201,6 @@ std::string ParameterExpansionEvaluator::expand(const std::string& param_expr) {
         return pattern_match_prefix(var_value, operand, true);
     }
 
-    
     if (op == "%") {
         return pattern_match_suffix(var_value, operand, false);
     }
@@ -218,7 +208,6 @@ std::string ParameterExpansionEvaluator::expand(const std::string& param_expr) {
         return pattern_match_suffix(var_value, operand, true);
     }
 
-    
     if (op == "/") {
         return pattern_substitute(var_value, operand, false);
     }
@@ -226,7 +215,6 @@ std::string ParameterExpansionEvaluator::expand(const std::string& param_expr) {
         return pattern_substitute(var_value, operand, true);
     }
 
-    
     if (op == "^") {
         return case_convert(var_value, operand, true, false);
     }
@@ -321,7 +309,6 @@ std::string ParameterExpansionEvaluator::pattern_substitute(const std::string& v
 
     std::string result = value;
 
-    
     auto has_wildcards = [](const std::string& text) {
         return text.find('*') != std::string::npos || text.find('?') != std::string::npos ||
                text.find('[') != std::string::npos;
@@ -357,7 +344,6 @@ std::string ParameterExpansionEvaluator::pattern_substitute(const std::string& v
             }
         }
     } else {
-        
         if (!global && matches_pattern(result, pattern)) {
             result = replacement;
         }
@@ -412,7 +398,6 @@ bool ParameterExpansionEvaluator::try_evaluate_substring(const std::string& para
     long offset_value = std::strtol(start_ptr, &endptr_raw, 10);
     const char* endptr = endptr_raw;
     if (start_ptr == endptr) {
-        
         offset_value = 0;
         endptr = start_ptr;
     }
@@ -515,7 +500,6 @@ std::string ParameterExpansionEvaluator::case_convert(const std::string& value,
             }
         }
     } else {
-        
         if (all_chars) {
             for (char& c : result) {
                 if (uppercase) {

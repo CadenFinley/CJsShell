@@ -108,7 +108,7 @@ uint8_t get_closest_ansi_color(const RGB& color) {
     return closest_index;
 }
 
-}  
+}  // namespace
 
 std::string fg_color(const RGB& color) {
     std::stringstream ss;
@@ -521,4 +521,4 @@ RGB get_color_by_name(const std::string& name) {
 
     return RGB(0, 0, 0);
 }
-}  
+}  // namespace colors

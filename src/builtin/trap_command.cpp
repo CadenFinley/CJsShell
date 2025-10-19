@@ -48,7 +48,7 @@ void init_reverse_signal_map() {
     }
 }
 
-}  
+}  // namespace
 
 void trap_manager_set_trap(int signal, const std::string& command) {
     if (signal == SIGKILL || signal == SIGSTOP) {

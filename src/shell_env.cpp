@@ -158,4 +158,4 @@ std::vector<std::pair<const char*, const char*>> setup_user_system_vars(const st
     return env_vars;
 }
 
-}  
+}  // namespace cjsh_env

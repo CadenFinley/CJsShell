@@ -145,7 +145,7 @@ int handle_toggle_command(const ToggleCommandConfig& config, const std::vector<s
 
     return 0;
 }
-}  
+}  // namespace
 
 int current_line_number_highlight_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {

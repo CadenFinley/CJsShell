@@ -30,4 +30,4 @@ std::vector<std::string> generate_fuzzy_suggestions(
 
 int calculate_fuzzy_score(const std::string& input, const std::string& candidate);
 
-}  
+}  // namespace suggestion_utils

@@ -52,7 +52,7 @@ std::string get_os_info() {
 #ifdef __APPLE__
     std::string cmd = "sw_vers -productName && sw_vers -productVersion";
 #elif defined(__linux__)
-    
+
     std::string cmd =
         "if [ -f /etc/os-release ]; then "
         ". /etc/os-release && echo \"$NAME $VERSION\"; "
@@ -77,12 +77,11 @@ std::string get_os_info() {
     }
 
     std::string result = result_data.output;
-    
+
     if (!result.empty() && result.back() == '\n') {
         result.pop_back();
     }
 
-    
 #ifdef __APPLE__
     size_t newline_pos = result.find('\n');
     if (newline_pos != std::string::npos) {

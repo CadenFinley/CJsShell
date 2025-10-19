@@ -31,7 +31,7 @@ bool initialized = false;
 std::string g_input_buffer;
 std::string g_pending_raw_bytes;
 
-}  
+}  // namespace
 
 std::string to_debug_visible(const std::string& data) {
     if (data.empty()) {
@@ -141,7 +141,6 @@ void filter_escape_sequences_into(std::string_view input, std::string& output) {
                 i += 1;
             }
         } else if (ch == '\x07' || (ch < 0x20 && ch != '\t' && ch != '\n' && ch != '\r')) {
-            
         } else {
             output.push_back(static_cast<char>(ch));
         }
@@ -422,4 +421,4 @@ void cleanup() {
     g_pending_raw_bytes.shrink_to_fit();
 }
 
-}  
+}  // namespace typeahead

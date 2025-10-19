@@ -172,4 +172,4 @@ bool create_logout_file();
 bool init_interactive_filesystem();
 
 bool is_first_boot();
-}  
+}  // namespace cjsh_filesystem

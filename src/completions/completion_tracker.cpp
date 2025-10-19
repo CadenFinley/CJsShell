@@ -14,7 +14,7 @@ const size_t MAX_TOTAL_COMPLETIONS = 50;
 
 thread_local CompletionTracker* g_current_completion_tracker = nullptr;
 
-}  
+}  // namespace
 
 SourcePriority get_source_priority(const char* source) {
     if (source == nullptr)
@@ -218,4 +218,4 @@ bool completion_limit_hit_with_log(const char* label) {
     return completion_limit_hit();
 }
 
-}  
+}  // namespace completion_tracker

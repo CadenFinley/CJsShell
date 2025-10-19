@@ -17,14 +17,11 @@ void VariableManager::push_scope() {
 }
 
 void VariableManager::pop_scope() {
-    
     if (!saved_env_stack.empty()) {
         for (const auto& [var_name, old_value] : saved_env_stack.back()) {
             if (old_value.empty()) {
-                
                 unsetenv(var_name.c_str());
             } else {
-                
                 setenv(var_name.c_str(), old_value.c_str(), 1);
             }
         }
@@ -53,13 +50,11 @@ void VariableManager::set_environment_variable(const std::string& name, const st
         auto& env_vars = g_shell->get_env_vars();
         env_vars[name] = value;
 
-        
         if (name == "PATH" || name == "PWD" || name == "HOME" || name == "USER" ||
             name == "SHELL") {
             setenv(name.c_str(), value.c_str(), 1);
         }
 
-        
         auto* shell_parser = g_shell->get_parser();
         if (shell_parser) {
             shell_parser->set_env_vars(env_vars);
@@ -89,7 +84,6 @@ bool VariableManager::unset_local_variable(const std::string& name) {
 
 void VariableManager::mark_local_as_exported(const std::string& name) {
     if (!exported_locals_stack.empty() && !saved_env_stack.empty()) {
-        
         const char* old_val = getenv(name.c_str());
         std::string old_value = (old_val != nullptr) ? old_val : "";
 

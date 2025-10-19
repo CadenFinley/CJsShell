@@ -71,7 +71,7 @@ std::string process_escape_sequences(const std::string& input) {
     return result;
 }
 
-}  
+}  // namespace
 
 int echo_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(

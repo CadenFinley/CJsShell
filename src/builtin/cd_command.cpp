@@ -97,7 +97,6 @@ int change_directory(const std::string& dir, std::string& current_directory,
 
         previous_directory = old_directory;
 
-        
         if (shell != nullptr && old_directory != current_directory) {
             shell->execute_hooks("chpwd");
         }
@@ -220,31 +219,17 @@ int change_directory_smart(const std::string& dir, std::string& current_director
 
         previous_directory = old_directory;
 
-        
-        
-        
-        
         if (!used_bookmark && !std::filesystem::path(target_dir).is_absolute()) {
             std::filesystem::path path(current_directory);
             std::string basename = path.filename().string();
             if (!basename.empty() && basename != "." && basename != "..") {
-                
-                
                 if (!bookmark_database::g_bookmark_db.has_bookmark(basename)) {
                     auto add_result =
                         bookmark_database::g_bookmark_db.add_bookmark(basename, current_directory);
-                    
-                    
-                    
-                    
-                    
-                    
-                    
                 }
             }
         }
 
-        
         if (shell != nullptr && old_directory != current_directory) {
             shell->execute_hooks("chpwd");
         }

@@ -66,7 +66,7 @@ bool secure_mode = false;
 bool show_title_line = true;
 bool no_prompt = false;
 bool history_expansion_enabled = true;
-}  
+}  // namespace config
 
 namespace {
 
@@ -272,7 +272,7 @@ void process_logout_file() {
     }
 }
 
-}  
+}  // namespace
 
 void initialize_themes() {
     if (!config::themes_enabled) {
@@ -384,7 +384,6 @@ int main(int argc, char* argv[]) {
 
     g_startup_active = false;
     if (!g_exit_flag && (config::interactive_mode || config::force_interactive)) {
-        
         start_interactive_process();
     }
 

@@ -19,7 +19,7 @@ ReadonlyState& readonly_state() {
     static ReadonlyState state;
     return state;
 }
-}  
+}  // namespace
 
 void readonly_manager_set(const std::string& name) {
     readonly_state().readonly_vars.insert(name);

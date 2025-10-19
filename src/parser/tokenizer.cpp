@@ -12,7 +12,7 @@ inline bool is_whitespace(char c) {
     return c == ' ' || c == '\t' || c == '\n' || c == '\r';
 }
 
-}  
+}  // namespace
 
 std::vector<std::string> Tokenizer::tokenize_command(const std::string& cmdline) {
     std::vector<std::string> tokens;

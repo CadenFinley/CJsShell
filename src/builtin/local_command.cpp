@@ -49,7 +49,6 @@ int local_command(const std::vector<std::string>& args, Shell* shell) {
                 continue;
             }
 
-            
             script_interpreter->set_local_variable(name, "");
         }
     }

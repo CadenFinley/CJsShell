@@ -39,12 +39,10 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
 
     std::string sanitized_input(input, len);
 
-    
     if (config::history_expansion_enabled) {
         highlight_history_expansions(henv, input, len);
     }
 
-    
     bool in_quotes = false;
     char quote_char = '\0';
     bool escaped = false;
@@ -98,7 +96,6 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
 
     const char* analysis = sanitized_input.c_str();
 
-    
     size_t func_name_start = 0;
     size_t func_name_end = 0;
     std::string input_str = sanitized_input;
@@ -119,7 +116,6 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
         return;
     }
 
-    
     size_t pos = 0;
     while (pos < len) {
         size_t cmd_end = pos;
@@ -140,7 +136,6 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
 
         std::string cmd_str(analysis + cmd_start, cmd_end - cmd_start);
 
-        
         size_t token_end = 0;
         while (token_end < cmd_str.length() &&
                (std::isspace((unsigned char)cmd_str[token_end]) == 0)) {
@@ -151,7 +146,6 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
 
         bool is_sudo_command = (token == "sudo");
 
-        
         if (!token.empty()) {
             bool handled_first_token = false;
 
@@ -231,7 +225,6 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
         bool is_cd_command = (token == "cd");
         size_t arg_start = token_end;
 
-        
         while (arg_start < cmd_str.length()) {
             while (arg_start < cmd_str.length() &&
                    (std::isspace((unsigned char)cmd_str[arg_start]) != 0)) {
@@ -374,7 +367,6 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
             arg_start = arg_end;
         }
 
-        
         pos = cmd_end;
         if (pos < len) {
             if (pos + 1 < len && ((analysis[pos] == '&' && analysis[pos + 1] == '&') ||

@@ -12,7 +12,7 @@ namespace {
 std::unordered_map<std::string, std::string> command_hash;
 std::unordered_map<std::string, int> command_hits;
 
-}  
+}  // namespace
 
 int hash_command(const std::vector<std::string>& args, Shell* shell) {
     (void)shell;
@@ -95,4 +95,3 @@ int hash_command(const std::vector<std::string>& args, Shell* shell) {
 
     return 0;
 }
-

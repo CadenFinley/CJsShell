@@ -136,7 +136,7 @@ bool IsInIntervals(unicode_codepoint_t cp, const Interval* table, size_t length)
     return false;
 }
 
-}  
+}  // namespace
 
 bool unicode_decode_utf8(const uint8_t* data, ssize_t length, unicode_codepoint_t* codepoint,
                          ssize_t* bytes_read) {

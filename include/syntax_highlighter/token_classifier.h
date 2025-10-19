@@ -24,4 +24,4 @@ bool is_numeric_literal(const std::string& token);
 bool is_function_definition(const std::string& input, size_t& func_name_start,
                             size_t& func_name_end);
 
-}  
+}  // namespace token_classifier

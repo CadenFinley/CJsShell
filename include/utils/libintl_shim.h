@@ -15,4 +15,4 @@ int libintl_printf(const char* format, ...);
 }
 #endif
 
-#endif  
+#endif

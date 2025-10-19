@@ -123,7 +123,7 @@ bool trim_history_file(long max_entries, std::string* error_message) {
 
     return true;
 }
-}  
+}  // namespace
 
 bool enforce_history_limit(std::string* error_message) {
     if (g_history_max_entries_value <= 0) {
@@ -184,4 +184,4 @@ long get_history_max_history_limit() {
     return kHistoryAbsoluteMaxEntries;
 }
 
-}  
+}  // namespace completion_history

@@ -53,7 +53,7 @@ mode_t parse_symbolic_mode(const std::string& mode_str, mode_t current_mask) {
     return current_mask;
 }
 
-}  
+}  // namespace
 
 int umask_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(args,

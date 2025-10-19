@@ -81,7 +81,6 @@ std::string get_active_language_version(const std::string& language) {
 }
 
 bool is_in_virtual_environment(std::string& env_name) {
-    
     const char* venv = getenv("VIRTUAL_ENV");
     if (venv) {
         std::string venv_path(venv);
@@ -94,14 +93,12 @@ bool is_in_virtual_environment(std::string& env_name) {
         return true;
     }
 
-    
     const char* conda_env = getenv("CONDA_DEFAULT_ENV");
     if (conda_env) {
         env_name = std::string(conda_env);
         return true;
     }
 
-    
     const char* pipenv = getenv("PIPENV_ACTIVE");
     if (pipenv && std::string(pipenv) == "1") {
         env_name = "pipenv";

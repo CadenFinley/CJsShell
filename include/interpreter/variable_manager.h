@@ -43,7 +43,7 @@ class VariableManager {
    private:
     VariableStack local_variable_stack;
     ExportedLocalsStack exported_locals_stack;
-    
+
     std::vector<std::vector<std::pair<std::string, std::string>>> saved_env_stack;
 
     std::string get_special_variable(const std::string& var_name) const;

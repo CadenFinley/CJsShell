@@ -21,7 +21,7 @@ std::string resolve_style_registry_name(const std::string& token_type) {
     }
     return "cjsh-" + token_type;
 }
-}  
+}  // namespace
 
 int startup_flag_command(const std::vector<std::string>& args) {
     if (!g_startup_active) {

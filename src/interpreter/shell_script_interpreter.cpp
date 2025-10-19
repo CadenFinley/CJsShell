@@ -144,7 +144,8 @@ int ShellScriptInterpreter::handle_env_assignment(const std::vector<std::string>
             variable_manager.set_environment_variable(var_name, var_value);
         }
 
-        int status = pending_assignment_exit_status.value_or(last_substitution_exit_status.value_or(0));
+        int status =
+            pending_assignment_exit_status.value_or(last_substitution_exit_status.value_or(0));
         last_substitution_exit_status.reset();
         pending_assignment_exit_status.reset();
         return status;
@@ -229,9 +230,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                 }
 
                 if (prog == "if" || prog.rfind("if ", 0) == 0 || prog == "for" ||
-                    prog.rfind("for ", 0) == 0 || prog == "while" ||
-                    prog.rfind("while ", 0) == 0 || prog == "until" ||
-                    prog.rfind("until ", 0) == 0) {
+                    prog.rfind("for ", 0) == 0 || prog == "while" || prog.rfind("while ", 0) == 0 ||
+                    prog == "until" || prog.rfind("until ", 0) == 0) {
                     std::vector<std::string> block_lines;
                     if (shell_parser) {
                         block_lines = shell_parser->parse_into_lines(text);
@@ -371,7 +371,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
 
     int last_code = 0;
 
-    
     auto execute_block_wrapper = [&](const std::vector<std::string>& block_lines) -> int {
         return execute_block(block_lines);
     };
@@ -460,7 +459,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                 case_value = case_value.substr(1, case_value.length() - 2);
         }
 
-        
         strip_subst_literal_markers(case_value);
 
         if (!case_value.empty())

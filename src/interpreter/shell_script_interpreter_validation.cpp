@@ -109,8 +109,7 @@ bool should_process_char(QuoteState& state, char c, bool ignore_single_quotes,
 }
 
 bool find_matching_command_substitution_end_for_validation(const std::string& text,
-                                                           size_t start_index,
-                                                           size_t& end_out) {
+                                                           size_t start_index, size_t& end_out) {
     int depth = 1;
     bool in_single = false;
     bool in_double = false;
@@ -198,11 +197,9 @@ std::string sanitize_command_substitutions_for_validation(const std::string& inp
 
     size_t i = 0;
     while (i < input.size()) {
-        if (!literal_start.empty() &&
-            input.compare(i, literal_start.size(), literal_start) == 0) {
+        if (!literal_start.empty() && input.compare(i, literal_start.size(), literal_start) == 0) {
             i += literal_start.size();
-            while (i < input.size() &&
-                   input.compare(i, literal_end.size(), literal_end) != 0) {
+            while (i < input.size() && input.compare(i, literal_end.size(), literal_end) != 0) {
                 ++i;
             }
             if (i < input.size()) {
@@ -214,8 +211,7 @@ std::string sanitize_command_substitutions_for_validation(const std::string& inp
 
         if (!noenv_start.empty() && input.compare(i, noenv_start.size(), noenv_start) == 0) {
             i += noenv_start.size();
-            while (i < input.size() &&
-                   input.compare(i, noenv_end.size(), noenv_end) != 0) {
+            while (i < input.size() && input.compare(i, noenv_end.size(), noenv_end) != 0) {
                 ++i;
             }
             if (i < input.size()) {
@@ -287,19 +283,17 @@ std::string sanitize_command_substitutions_for_validation(const std::string& inp
 size_t find_marker(const std::string& text, size_t start_pos, const char* marker_with_control,
                    size_t marker_with_control_len, const char* marker_plain,
                    size_t marker_plain_len, size_t& matched_length) {
-    size_t pos_with = (marker_with_control_len > 0)
-                          ? text.find(marker_with_control, start_pos)
-                          : std::string::npos;
-    size_t pos_plain = (marker_plain_len > 0) ? text.find(marker_plain, start_pos)
-                                             : std::string::npos;
+    size_t pos_with = (marker_with_control_len > 0) ? text.find(marker_with_control, start_pos)
+                                                    : std::string::npos;
+    size_t pos_plain =
+        (marker_plain_len > 0) ? text.find(marker_plain, start_pos) : std::string::npos;
 
     if (pos_with == std::string::npos && pos_plain == std::string::npos) {
         matched_length = 0;
         return std::string::npos;
     }
 
-    if (pos_plain != std::string::npos &&
-        (pos_with == std::string::npos || pos_plain < pos_with)) {
+    if (pos_plain != std::string::npos && (pos_with == std::string::npos || pos_plain < pos_with)) {
         matched_length = marker_plain_len;
         return pos_plain;
     }
@@ -320,9 +314,9 @@ std::vector<std::string> sanitize_lines_for_validation(const std::vector<std::st
         while (pos <= line.size()) {
             if (inside_subst_literal) {
                 size_t matched_len = 0;
-                size_t end_pos = find_marker(line, pos, kSubstLiteralEnd, kSubstLiteralEndLen,
-                                             kSubstLiteralEndPlain, kSubstLiteralEndPlainLen,
-                                             matched_len);
+                size_t end_pos =
+                    find_marker(line, pos, kSubstLiteralEnd, kSubstLiteralEndLen,
+                                kSubstLiteralEndPlain, kSubstLiteralEndPlainLen, matched_len);
                 if (end_pos == std::string::npos) {
                     line.erase(pos);
                     break;
@@ -348,13 +342,13 @@ std::vector<std::string> sanitize_lines_for_validation(const std::vector<std::st
             }
 
             size_t subst_len = 0;
-            size_t subst_pos = find_marker(line, pos, kSubstLiteralStart, kSubstLiteralStartLen,
-                                           kSubstLiteralStartPlain, kSubstLiteralStartPlainLen,
-                                           subst_len);
+            size_t subst_pos =
+                find_marker(line, pos, kSubstLiteralStart, kSubstLiteralStartLen,
+                            kSubstLiteralStartPlain, kSubstLiteralStartPlainLen, subst_len);
 
             size_t noenv_len = 0;
-            size_t noenv_pos = find_marker(line, pos, kNoEnvStart, kNoEnvStartLen,
-                                           kNoEnvStartPlain, kNoEnvStartPlainLen, noenv_len);
+            size_t noenv_pos = find_marker(line, pos, kNoEnvStart, kNoEnvStartLen, kNoEnvStartPlain,
+                                           kNoEnvStartPlainLen, noenv_len);
 
             if (subst_pos == std::string::npos && noenv_pos == std::string::npos) {
                 break;
@@ -368,9 +362,9 @@ std::vector<std::string> sanitize_lines_for_validation(const std::vector<std::st
                 pos = subst_pos + kSubstitutionPlaceholderLen;
 
                 size_t matched_len = 0;
-                size_t end_pos = find_marker(line, pos, kSubstLiteralEnd, kSubstLiteralEndLen,
-                                             kSubstLiteralEndPlain, kSubstLiteralEndPlainLen,
-                                             matched_len);
+                size_t end_pos =
+                    find_marker(line, pos, kSubstLiteralEnd, kSubstLiteralEndLen,
+                                kSubstLiteralEndPlain, kSubstLiteralEndPlainLen, matched_len);
                 if (end_pos == std::string::npos) {
                     line.erase(pos);
                     inside_subst_literal = true;
@@ -720,7 +714,7 @@ bool validate_array_index_expression(const std::string& index_text, std::string&
     return true;
 }
 
-}  
+}  // namespace
 
 std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validate_script_syntax(
     const std::vector<std::string>& lines) {
@@ -822,10 +816,8 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
         if (!trimmed_for_parsing.empty() && trimmed_for_parsing.front() == ';') {
             std::string after_semicolon = trim(trimmed_for_parsing.substr(1));
             if (!after_semicolon.empty() &&
-                (after_semicolon.rfind("then", 0) == 0 ||
-                 after_semicolon.rfind("elif", 0) == 0 ||
-                 after_semicolon.rfind("else", 0) == 0 ||
-                 after_semicolon.rfind("fi", 0) == 0)) {
+                (after_semicolon.rfind("then", 0) == 0 || after_semicolon.rfind("elif", 0) == 0 ||
+                 after_semicolon.rfind("else", 0) == 0 || after_semicolon.rfind("fi", 0) == 0)) {
                 trimmed_for_parsing = std::move(after_semicolon);
             }
         }
@@ -839,18 +831,15 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                 std::get<0>(control_stack.back()) = "then";
             }
 
-            
             size_t elif_pos = 0;
             while ((elif_pos = trimmed_for_parsing.find("; elif", elif_pos)) != std::string::npos) {
-                size_t after_elif = elif_pos + 6;  
+                size_t after_elif = elif_pos + 6;
 
-                
                 while (after_elif < trimmed_for_parsing.length() &&
                        std::isspace(static_cast<unsigned char>(trimmed_for_parsing[after_elif]))) {
                     after_elif++;
                 }
 
-                
                 if (after_elif >= trimmed_for_parsing.length() ||
                     trimmed_for_parsing[after_elif] == ';' ||
                     (after_elif + 4 <= trimmed_for_parsing.length() &&
@@ -903,7 +892,7 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                 } else if (first_token == "elif") {
                     if (require_top({"then", "elif"}, "'elif' without matching 'if...then'")) {
                         std::get<0>(control_stack.back()) = "elif";
-                        
+
                         if (tokens.size() == 1) {
                             errors.push_back({{display_line, 0, 0, 0},
                                               ErrorSeverity::CRITICAL,

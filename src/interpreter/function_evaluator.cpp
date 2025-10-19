@@ -24,18 +24,15 @@ FunctionParseResult parse_and_register_functions(
 
         if (trimmed_line.rfind("function", 0) == 0 && trimmed_line.length() > 8 &&
             std::isspace(static_cast<unsigned char>(trimmed_line[8]))) {
-            
             has_function_keyword = true;
             size_t name_start = 8;
 
-            
             while (name_start < trimmed_line.length() &&
                    std::isspace(static_cast<unsigned char>(trimmed_line[name_start]))) {
                 name_start++;
             }
 
             if (name_start < trimmed_line.length()) {
-                
                 size_t name_end = name_start;
                 while (name_end < trimmed_line.length() &&
                        !std::isspace(static_cast<unsigned char>(trimmed_line[name_end])) &&
@@ -45,7 +42,6 @@ FunctionParseResult parse_and_register_functions(
 
                 func_name = trimmed_line.substr(name_start, name_end - name_start);
 
-                
                 size_t pos = name_end;
                 while (pos < trimmed_line.length() &&
                        std::isspace(static_cast<unsigned char>(trimmed_line[pos]))) {
@@ -56,12 +52,10 @@ FunctionParseResult parse_and_register_functions(
                     pos += 2;
                 }
 
-                
                 brace_pos = current_line.find('{');
             }
         }
 
-        
         size_t name_end = current_line.find("()");
 
         if (!has_function_keyword && name_end != std::string::npos &&
@@ -69,7 +63,6 @@ FunctionParseResult parse_and_register_functions(
             func_name = trim_func(current_line.substr(0, name_end));
         }
 
-        
         if (!func_name.empty() && func_name.find(' ') == std::string::npos &&
             brace_pos != std::string::npos) {
             std::vector<std::string> body_lines;
@@ -209,4 +202,4 @@ bool is_local_variable(const LocalVariableStack& stack, const std::string& name)
     return current_scope.find(name) != current_scope.end();
 }
 
-}  
+}  // namespace function_evaluator

@@ -45,4 +45,4 @@ std::optional<int> try_execute_inline_do_block(
     size_t& segment_index,
     const std::function<int(const std::vector<std::string>&, size_t&)>& handler);
 
-}  
+}  // namespace loop_evaluator

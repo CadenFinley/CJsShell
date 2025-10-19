@@ -29,7 +29,7 @@ std::string execute_command(const std::string& command) {
     return output;
 }
 
-}  
+}  // namespace
 
 const std::vector<std::string> python_files = {"requirements.txt", "setup.py",  "pyproject.toml",
                                                "Pipfile",          "setup.cfg", "tox.ini"};

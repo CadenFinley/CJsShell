@@ -34,7 +34,7 @@ bool parse_env_assignment(const std::string& arg, std::string& name, std::string
     return true;
 }
 
-}  
+}  // namespace
 
 int export_command(const std::vector<std::string>& args, Shell* shell) {
     if (builtin_handle_help(args, {"Usage: export [NAME[=VALUE] ...]",
@@ -76,29 +76,23 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
                 shell->get_parser()->set_env_vars(env_vars);
             }
         } else {
-            
             std::string var_value;
             bool found = false;
             bool is_local = false;
 
-            
             auto* script_interpreter = shell->get_shell_script_interpreter();
             if (script_interpreter != nullptr && script_interpreter->is_local_variable(args[i])) {
-                
                 var_value = script_interpreter->get_variable_value(args[i]);
                 found = true;
                 is_local = true;
 
-                
                 script_interpreter->mark_local_as_exported(args[i]);
             } else {
-                
                 const char* env_val = getenv(args[i].c_str());
                 if (env_val != nullptr) {
                     var_value = env_val;
                     found = true;
                 } else {
-                    
                     auto it = env_vars.find(args[i]);
                     if (it != env_vars.end()) {
                         var_value = it->second;
@@ -108,8 +102,6 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
             }
 
             if (found) {
-                
-                
                 if (!is_local) {
                     env_vars[args[i]] = var_value;
                 }
@@ -150,14 +142,12 @@ int unset_command(const std::vector<std::string>& args, Shell* shell) {
             continue;
         }
 
-        
         auto* script_interpreter = shell->get_shell_script_interpreter();
         if (script_interpreter != nullptr && script_interpreter->is_local_variable(name)) {
             script_interpreter->unset_local_variable(name);
             continue;
         }
 
-        
         env_vars.erase(name);
 
         if (unsetenv(name.c_str()) != 0) {

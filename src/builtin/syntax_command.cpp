@@ -28,7 +28,7 @@ void print_syntax_usage() {
     std::cout << "  --severity LEVEL    Filter by severity (info,warning,error,critical)\n";
     std::cout << "  --category CAT      Filter by category (syntax,variables,redirection,etc.)\n";
 }
-}  
+}  // namespace
 
 int syntax_command(const std::vector<std::string>& args, Shell* shell) {
     if (args.size() < 2) {

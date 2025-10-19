@@ -114,7 +114,7 @@ std::unordered_map<std::string, std::pair<std::string, std::chrono::steady_clock
     git_info_cache;
 std::mutex git_info_cache_mutex;
 
-}  
+}  // namespace
 
 std::chrono::steady_clock::time_point last_git_status_check =
     std::chrono::steady_clock::now() - std::chrono::seconds(30);

@@ -184,4 +184,4 @@ bool contains_token(const std::string& text, const std::string& token) {
     return false;
 }
 
-}  
+}  // namespace shell_script_interpreter::detail

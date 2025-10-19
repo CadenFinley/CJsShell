@@ -60,7 +60,6 @@ class BookmarkDatabase {
     cjsh_filesystem::Result<void> import_from_map(
         const std::unordered_map<std::string, std::string>& old_bookmarks);
 
-    
     cjsh_filesystem::Result<void> add_to_blacklist(const std::string& path);
     cjsh_filesystem::Result<void> remove_from_blacklist(const std::string& path);
     bool is_blacklisted(const std::string& path) const;
@@ -125,4 +124,4 @@ inline cjsh_filesystem::Result<void> clear_bookmark_blacklist() {
     return g_bookmark_db.clear_blacklist();
 }
 
-}  
+}  // namespace bookmark_database

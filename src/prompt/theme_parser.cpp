@@ -253,7 +253,7 @@ void apply_variables_to_theme(ThemeDefinition& theme,
     apply_variables_to_segments(theme.inline_right_segments, variables);
 }
 
-}  
+}  // namespace
 
 std::unordered_map<std::string, std::string> ThemeSegment::to_map() const {
     std::unordered_map<std::string, std::string> result;

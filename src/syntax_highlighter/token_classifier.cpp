@@ -232,4 +232,4 @@ bool is_function_definition(const std::string& input, size_t& func_name_start,
     return false;
 }
 
-}  
+}  // namespace token_classifier

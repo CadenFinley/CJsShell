@@ -180,7 +180,6 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
         input = processed;
     }
 
-    
     std::string ifs = " \t\n";
     const auto& env_vars = shell->get_env_vars();
     auto ifs_it = env_vars.find("IFS");
@@ -193,14 +192,11 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
         }
     }
 
-    
     std::vector<std::string> fields;
 
     if (ifs.empty()) {
-        
         fields.push_back(input);
     } else {
-        
         bool ifs_all_whitespace = true;
         for (char c : ifs) {
             if (c != ' ' && c != '\t' && c != '\n') {
@@ -210,9 +206,8 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
         }
 
         if (ifs_all_whitespace) {
-            
             size_t start = 0;
-            
+
             while (start < input.length() && ifs.find(input[start]) != std::string::npos) {
                 start++;
             }
@@ -232,7 +227,6 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
                 fields.push_back(current_field);
             }
         } else {
-            
             std::string current_field;
             for (size_t i = 0; i < input.length(); ++i) {
                 if (ifs.find(input[i]) != std::string::npos) {
@@ -244,7 +238,6 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
             }
             fields.push_back(current_field);
 
-            
             while (!fields.empty() && fields.front().empty()) {
                 fields.erase(fields.begin());
             }

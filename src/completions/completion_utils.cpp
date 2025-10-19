@@ -223,4 +223,4 @@ bool starts_with_token(const std::string& value, const std::string& target_prefi
     return starts_with_case_insensitive(value, target_prefix);
 }
 
-}  
+}  // namespace completion_utils

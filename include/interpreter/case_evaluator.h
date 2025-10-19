@@ -44,4 +44,4 @@ std::optional<int> handle_inline_case(
     const std::function<std::pair<std::string, std::vector<std::string>>(const std::string&)>&
         command_substitution_expander);
 
-}  
+}  // namespace case_evaluator
