@@ -371,7 +371,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
 
     int last_code = 0;
 
-    // Shared wrapper to execute block lines recursively
+    
     auto execute_block_wrapper = [&](const std::vector<std::string>& block_lines) -> int {
         return execute_block(block_lines);
     };
@@ -460,7 +460,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                 case_value = case_value.substr(1, case_value.length() - 2);
         }
 
-        // Strip substitution literal markers from the case value
+        
         strip_subst_literal_markers(case_value);
 
         if (!case_value.empty())

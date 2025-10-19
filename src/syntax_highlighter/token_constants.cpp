@@ -48,4 +48,4 @@ const std::unordered_map<std::string, std::string> default_styles = {
     {"ic-linenumbers", "ansi-lightgray"},
     {"ic-linenumber-current", "ansi-yellow"}};
 
-}  // namespace token_constants
+}  

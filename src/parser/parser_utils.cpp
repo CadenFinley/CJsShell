@@ -98,8 +98,6 @@ bool strip_subst_literal_markers(std::string& value) {
     return changed;
 }
 
-// is_char_escaped functions moved to inline in header
-
 size_t find_matching_paren(const std::string& text, size_t start_pos) {
     if (start_pos >= text.length() || text[start_pos] != '(') {
         return std::string::npos;

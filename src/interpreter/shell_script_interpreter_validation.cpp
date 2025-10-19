@@ -720,7 +720,7 @@ bool validate_array_index_expression(const std::string& index_text, std::string&
     return true;
 }
 
-}  // namespace
+}  
 
 std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validate_script_syntax(
     const std::vector<std::string>& lines) {
@@ -839,18 +839,18 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                 std::get<0>(control_stack.back()) = "then";
             }
 
-            // Validate elif in single-line if statements
+            
             size_t elif_pos = 0;
             while ((elif_pos = trimmed_for_parsing.find("; elif", elif_pos)) != std::string::npos) {
-                size_t after_elif = elif_pos + 6;  // position after "; elif"
+                size_t after_elif = elif_pos + 6;  
 
-                // Skip any whitespace after elif
+                
                 while (after_elif < trimmed_for_parsing.length() &&
                        std::isspace(static_cast<unsigned char>(trimmed_for_parsing[after_elif]))) {
                     after_elif++;
                 }
 
-                // Check if next character is ';' or if we hit 'then' immediately
+                
                 if (after_elif >= trimmed_for_parsing.length() ||
                     trimmed_for_parsing[after_elif] == ';' ||
                     (after_elif + 4 <= trimmed_for_parsing.length() &&
@@ -903,7 +903,7 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                 } else if (first_token == "elif") {
                     if (require_top({"then", "elif"}, "'elif' without matching 'if...then'")) {
                         std::get<0>(control_stack.back()) = "elif";
-                        // Validate that elif has a condition
+                        
                         if (tokens.size() == 1) {
                             errors.push_back({{display_line, 0, 0, 0},
                                               ErrorSeverity::CRITICAL,

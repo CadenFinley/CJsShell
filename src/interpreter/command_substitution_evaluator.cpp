@@ -110,7 +110,7 @@ std::pair<std::string, int> execute_command_for_substitution(
     return {out, exit_code};
 }
 
-}  // namespace
+}  
 
 CommandSubstitutionEvaluator::CommandSubstitutionEvaluator(CommandExecutor executor)
     : command_executor_(std::move(executor)) {

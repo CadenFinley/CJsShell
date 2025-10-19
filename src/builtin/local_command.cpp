@@ -49,7 +49,7 @@ int local_command(const std::vector<std::string>& args, Shell* shell) {
                 continue;
             }
 
-            // Create an empty local variable (shadows outer scope)
+            
             script_interpreter->set_local_variable(name, "");
         }
     }

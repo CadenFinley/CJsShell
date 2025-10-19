@@ -532,4 +532,4 @@ int calculate_fuzzy_score(const std::string& input, const std::string& candidate
     return std::max(0, score);
 }
 
-}  // namespace suggestion_utils
+}  

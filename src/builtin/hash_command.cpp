@@ -12,7 +12,7 @@ namespace {
 std::unordered_map<std::string, std::string> command_hash;
 std::unordered_map<std::string, int> command_hits;
 
-}  // namespace
+}  
 
 int hash_command(const std::vector<std::string>& args, Shell* shell) {
     (void)shell;
@@ -96,18 +96,3 @@ int hash_command(const std::vector<std::string>& args, Shell* shell) {
     return 0;
 }
 
-// static std::string get_hashed_command(const std::string& name) {
-//     auto it = command_hash.find(name);
-//     if (it != command_hash.end()) {
-//         command_hits[name]++;
-//         return it->second;
-//     }
-//     return "";
-// }
-
-// static void add_to_hash(const std::string& name, const std::string& path) {
-//     command_hash[name] = path;
-//     if (command_hits.count(name) == 0) {
-//         command_hits[name] = 0;
-//     }
-// }

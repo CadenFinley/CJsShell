@@ -43,7 +43,7 @@ void set_getopts_pos(int value) {
     setenv("GETOPTS_POS", buffer.c_str(), 1);
 }
 
-}  // namespace
+}  
 
 int getopts_command(const std::vector<std::string>& args, Shell* shell) {
     if (builtin_handle_help(args,

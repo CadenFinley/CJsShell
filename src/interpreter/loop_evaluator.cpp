@@ -185,7 +185,7 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
     return rc;
 }
 
-}  // namespace
+}  
 
 LoopCommandOutcome handle_loop_command_result(int rc, int break_consumed_rc, int break_propagate_rc,
                                               int continue_consumed_rc, int continue_propagate_rc,
@@ -590,4 +590,4 @@ std::optional<int> try_execute_inline_do_block(
     return std::optional<int>{rc};
 }
 
-}  // namespace loop_evaluator
+}  

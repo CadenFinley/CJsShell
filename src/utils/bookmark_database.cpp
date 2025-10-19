@@ -48,7 +48,7 @@ cjsh_filesystem::Result<void> BookmarkDatabase::load() {
         return dir_result;
     }
 
-    // Load bookmarks
+    
     if (!std::filesystem::exists(database_path_)) {
         bookmarks_.clear();
         dirty_ = false;
@@ -78,7 +78,7 @@ cjsh_filesystem::Result<void> BookmarkDatabase::save() {
         return dir_result;
     }
 
-    // Save bookmarks
+    
     std::string text_content = to_text_format();
     auto write_result = cjsh_filesystem::write_file_content(database_path_, text_content);
     if (write_result.is_error()) {
@@ -208,7 +208,7 @@ cjsh_filesystem::Result<void> BookmarkDatabase::add_bookmark(const std::string& 
 
         std::string canonical_path = std::filesystem::canonical(fs_path).string();
 
-        // Check if path is blacklisted
+        
         if (is_blacklisted(canonical_path)) {
             return cjsh_filesystem::Result<void>::error("Path is blacklisted: " + canonical_path);
         }
@@ -436,7 +436,7 @@ cjsh_filesystem::Result<void> BookmarkDatabase::add_to_blacklist(const std::stri
 
         blacklisted_paths_.insert(canonical_path);
 
-        // Remove any existing bookmarks for this path
+        
         std::vector<std::string> to_remove;
         for (const auto& [name, entry] : bookmarks_) {
             if (entry.path == canonical_path) {
@@ -492,13 +492,13 @@ bool BookmarkDatabase::is_blacklisted(const std::string& path) const {
             canonical_path = std::filesystem::absolute(fs_path).string();
         }
 
-        // Check if path itself is blacklisted
+        
         if (blacklisted_paths_.find(canonical_path) != blacklisted_paths_.end()) {
             return true;
         }
 
-        // Check if path is a parent of any blacklisted directory
-        // This prevents bookmarking parent directories of blacklisted paths
+        
+        
         for (const auto& blacklisted : blacklisted_paths_) {
             if (blacklisted.find(canonical_path + "/") == 0) {
                 return true;
@@ -522,4 +522,4 @@ cjsh_filesystem::Result<void> BookmarkDatabase::clear_blacklist() {
     return cjsh_filesystem::Result<void>::ok();
 }
 
-}  // namespace bookmark_database
+}  

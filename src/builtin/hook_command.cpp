@@ -16,7 +16,7 @@ bool is_valid_hook_type(const std::string& hook_type) {
                        [&hook_type](const std::string& valid) { return hook_type == valid; });
 }
 
-}  // namespace
+}  
 
 int hook_command(const std::vector<std::string>& args, Shell* shell) {
     if (builtin_handle_help(
@@ -51,10 +51,10 @@ int hook_command(const std::vector<std::string>& args, Shell* shell) {
 
     const std::string& command = args[1];
 
-    // hook list [type]
+    
     if (command == "list") {
         if (args.size() == 2) {
-            // List all hooks
+            
             bool found_any = false;
             for (const auto& hook_type : g_valid_hook_types) {
                 auto hooks = shell->get_hooks(hook_type);
@@ -72,7 +72,7 @@ int hook_command(const std::vector<std::string>& args, Shell* shell) {
             return 0;
         }
 
-        // List specific hook type
+        
         const std::string& hook_type = args[2];
         if (!is_valid_hook_type(hook_type)) {
             ErrorInfo error = {ErrorType::INVALID_ARGUMENT,
@@ -95,7 +95,7 @@ int hook_command(const std::vector<std::string>& args, Shell* shell) {
         return 0;
     }
 
-    // hook clear <type>
+    
     if (command == "clear") {
         if (args.size() < 3) {
             ErrorInfo error = {ErrorType::INVALID_ARGUMENT,
@@ -120,7 +120,7 @@ int hook_command(const std::vector<std::string>& args, Shell* shell) {
         return 0;
     }
 
-    // hook add <type> <function>
+    
     if (command == "add") {
         if (args.size() < 4) {
             ErrorInfo error = {ErrorType::INVALID_ARGUMENT,
@@ -147,7 +147,7 @@ int hook_command(const std::vector<std::string>& args, Shell* shell) {
         return 0;
     }
 
-    // hook remove <type> <function>
+    
     if (command == "remove") {
         if (args.size() < 4) {
             ErrorInfo error = {ErrorType::INVALID_ARGUMENT,

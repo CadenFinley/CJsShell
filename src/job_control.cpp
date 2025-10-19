@@ -59,7 +59,7 @@ int parse_signal(const std::string& signal_str) {
     return -1;
 }
 
-}  // namespace
+}  
 
 JobManager& JobManager::instance() {
     static JobManager instance;
@@ -139,7 +139,7 @@ void JobManager::update_job_status() {
                     job->state = JobState::RUNNING;
                 }
             } else if (result == -1) {
-                // Process no longer exists
+                
             }
         }
     }

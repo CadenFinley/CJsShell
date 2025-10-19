@@ -91,7 +91,7 @@ size_t get_terminal_width() {
     return 80;
 }
 
-}  // namespace
+}  
 
 void print_error_report(const std::vector<ShellScriptInterpreter::SyntaxError>& errors,
                         bool show_suggestions, bool show_context, int start_error_number) {
@@ -617,4 +617,4 @@ int handle_unknown_error(const std::string& text) {
     return 6;
 }
 
-}  // namespace shell_script_interpreter
+}  

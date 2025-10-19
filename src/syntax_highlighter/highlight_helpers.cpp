@@ -605,4 +605,4 @@ void highlight_history_expansions(ic_highlight_env_t* henv, const char* input, s
     }
 }
 
-}  // namespace highlight_helpers
+}  

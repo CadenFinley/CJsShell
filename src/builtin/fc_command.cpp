@@ -268,7 +268,7 @@ int substitute_and_execute(const std::vector<std::string>& entries, const std::s
     return exit_code;
 }
 
-}  // namespace
+}  
 
 int fc_command(const std::vector<std::string>& args, Shell* shell) {
     bool list_mode = false;

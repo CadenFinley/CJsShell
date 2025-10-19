@@ -180,7 +180,7 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
         input = processed;
     }
 
-    // Get IFS for splitting
+    
     std::string ifs = " \t\n";
     const auto& env_vars = shell->get_env_vars();
     auto ifs_it = env_vars.find("IFS");
@@ -193,14 +193,14 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
         }
     }
 
-    // Split input into fields based on IFS
+    
     std::vector<std::string> fields;
 
     if (ifs.empty()) {
-        // Empty IFS means no splitting
+        
         fields.push_back(input);
     } else {
-        // Determine if IFS contains only whitespace characters
+        
         bool ifs_all_whitespace = true;
         for (char c : ifs) {
             if (c != ' ' && c != '\t' && c != '\n') {
@@ -210,9 +210,9 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
         }
 
         if (ifs_all_whitespace) {
-            // Default IFS behavior: trim leading/trailing whitespace and collapse multiple spaces
+            
             size_t start = 0;
-            // Skip leading whitespace
+            
             while (start < input.length() && ifs.find(input[start]) != std::string::npos) {
                 start++;
             }
@@ -232,7 +232,7 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
                 fields.push_back(current_field);
             }
         } else {
-            // Custom IFS: split on any IFS character, don't trim
+            
             std::string current_field;
             for (size_t i = 0; i < input.length(); ++i) {
                 if (ifs.find(input[i]) != std::string::npos) {
@@ -244,7 +244,7 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
             }
             fields.push_back(current_field);
 
-            // Remove leading and trailing empty fields for non-whitespace IFS
+            
             while (!fields.empty() && fields.front().empty()) {
                 fields.erase(fields.begin());
             }

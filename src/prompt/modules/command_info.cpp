@@ -4,7 +4,6 @@
 #include <iomanip>
 #include <sstream>
 
-// Define the external state variables with initial values
 int min_time_threshold = 0;
 bool show_microseconds = false;
 std::chrono::time_point<std::chrono::high_resolution_clock> last_command_start{};

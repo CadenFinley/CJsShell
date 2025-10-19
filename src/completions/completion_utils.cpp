@@ -5,7 +5,6 @@
 #include <string>
 #include <vector>
 
-// Use the external variable from cjsh_completions.cpp
 extern bool g_completion_case_sensitive;
 
 namespace completion_utils {
@@ -224,4 +223,4 @@ bool starts_with_token(const std::string& value, const std::string& target_prefi
     return starts_with_case_insensitive(value, target_prefix);
 }
 
-}  // namespace completion_utils
+}  

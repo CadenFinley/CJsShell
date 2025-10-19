@@ -22,7 +22,7 @@ std::string execute_command(const std::string& command) {
     return output;
 }
 
-}  // namespace
+}  
 
 bool file_exists(const std::string& path) {
     return std::filesystem::exists(path);

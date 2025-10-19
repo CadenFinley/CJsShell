@@ -73,7 +73,7 @@ bool report_theme_parse_error_with_script_reporter(const ThemeParseException& ex
     return true;
 }
 
-}  // namespace
+}  
 
 Theme::Theme(std::string theme_dir, bool enabled)
     : theme_directory(std::move(theme_dir)), is_enabled(enabled) {

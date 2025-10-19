@@ -12,19 +12,7 @@ inline bool is_whitespace(char c) {
     return c == ' ' || c == '\t' || c == '\n' || c == '\r';
 }
 
-// Future optimization: Lookup table for special characters
-// This can be used to quickly determine if a character needs special handling
-// #include <array>
-// constexpr std::array<bool, 256> create_special_char_table() {
-//     std::array<bool, 256> table{};
-//     table['$'] = table['\\'] = table['"'] = table['\''] = true;
-//     table['('] = table[')'] = table['<'] = table['>'] = true;
-//     table['&'] = table['|'] = table['{'] = table['}'] = true;
-//     table['['] = table[']'] = true;
-//     return table;
-// }
-// constexpr auto SPECIAL_CHARS = create_special_char_table();
-}  // namespace
+}  
 
 std::vector<std::string> Tokenizer::tokenize_command(const std::string& cmdline) {
     std::vector<std::string> tokens;

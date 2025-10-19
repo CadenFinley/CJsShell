@@ -17,14 +17,14 @@ void VariableManager::push_scope() {
 }
 
 void VariableManager::pop_scope() {
-    // Clean up any exported local variables
+    
     if (!saved_env_stack.empty()) {
         for (const auto& [var_name, old_value] : saved_env_stack.back()) {
             if (old_value.empty()) {
-                // Variable didn't exist before, unset it
+                
                 unsetenv(var_name.c_str());
             } else {
-                // Restore old value
+                
                 setenv(var_name.c_str(), old_value.c_str(), 1);
             }
         }
@@ -53,13 +53,13 @@ void VariableManager::set_environment_variable(const std::string& name, const st
         auto& env_vars = g_shell->get_env_vars();
         env_vars[name] = value;
 
-        // Sync critical environment variables with the actual environment
+        
         if (name == "PATH" || name == "PWD" || name == "HOME" || name == "USER" ||
             name == "SHELL") {
             setenv(name.c_str(), value.c_str(), 1);
         }
 
-        // Update shell parser with the new environment
+        
         auto* shell_parser = g_shell->get_parser();
         if (shell_parser) {
             shell_parser->set_env_vars(env_vars);
@@ -89,7 +89,7 @@ bool VariableManager::unset_local_variable(const std::string& name) {
 
 void VariableManager::mark_local_as_exported(const std::string& name) {
     if (!exported_locals_stack.empty() && !saved_env_stack.empty()) {
-        // Save the old environment value (if any) before exporting
+        
         const char* old_val = getenv(name.c_str());
         std::string old_value = (old_val != nullptr) ? old_val : "";
 

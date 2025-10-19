@@ -243,7 +243,7 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
         }
 
         default: {
-            // Handle any other signals
+            
             break;
         }
     }

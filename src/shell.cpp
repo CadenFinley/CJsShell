@@ -121,7 +121,7 @@ bool path_is_directory_candidate(const std::string& value, const std::string& cw
     return std::filesystem::exists(candidate, ec) && !ec &&
            std::filesystem::is_directory(candidate, ec) && !ec;
 }
-}  // namespace
+}  
 
 void raw_mode_state_init(RawModeState* state) {
     if (state == nullptr) {
@@ -488,7 +488,7 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
         if (shell_parser->is_env_assignment(args[0], var_name, var_value)) {
             shell_parser->expand_env_vars(var_value);
 
-            // Use the variable manager to handle environment variable assignment
+            
             if (shell_script_interpreter) {
                 shell_script_interpreter->get_variable_manager().set_environment_variable(
                     var_name, var_value);

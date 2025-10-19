@@ -512,7 +512,7 @@ std::vector<std::string> parse_shell_command(const std::string& command) {
     return args;
 }
 
-}  // namespace
+}  
 
 Exec::Exec()
     : shell_pgid(getpid()),
@@ -2372,4 +2372,4 @@ CommandOutput execute_command_vector_for_output(const std::vector<std::string>& 
     return result;
 }
 
-}  // namespace exec_utils
+}  

@@ -124,4 +124,4 @@ void add_spell_correction_matches(
     }
 }
 
-}  // namespace completion_spell
+}  

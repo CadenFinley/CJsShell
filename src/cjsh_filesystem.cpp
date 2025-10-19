@@ -54,7 +54,7 @@ void launch_async_once(std::atomic<bool>& guard, Functor&& fn) {
         guard.store(false);
     }).detach();
 }
-}  // namespace
+}  
 
 fs::path g_cjsh_path;
 
@@ -873,11 +873,11 @@ void cleanup_stale_cache_entries() {
 void notify_cache_systems_of_update() {
     SyntaxHighlighter::refresh_executables_cache();
 
-    // refresh_cached_executables();
+    
 }
 
 bool is_first_boot() {
     return !fs::exists(g_cjsh_first_boot_path);
 }
 
-}  // namespace cjsh_filesystem
+}  

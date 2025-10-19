@@ -13,7 +13,7 @@ namespace case_evaluator {
 
 std::pair<std::string, size_t> collect_case_body(const std::vector<std::string>& src_lines,
                                                  size_t start_index, Parser* parser) {
-    (void)parser;  // Currently unused, but kept for future use
+    (void)parser;  
     std::ostringstream body_stream;
     bool appended = false;
     size_t end_index = start_index;
@@ -209,7 +209,7 @@ std::optional<int> handle_inline_case(
         }
     }
 
-    // Strip substitution literal markers from the case value
+    
     strip_subst_literal_markers(case_value);
 
     if (!case_value.empty() && parser != nullptr)
@@ -220,4 +220,4 @@ std::optional<int> handle_inline_case(
     return case_result.first ? std::optional<int>{case_result.second} : std::optional<int>{0};
 }
 
-}  // namespace case_evaluator
+}  

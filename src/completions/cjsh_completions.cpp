@@ -189,7 +189,7 @@ CompletionContext detect_completion_context(const char* prefix) {
     return CONTEXT_COMMAND;
 }
 
-}  // namespace
+}  
 
 void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
     if (ic_stop_completing(cenv))

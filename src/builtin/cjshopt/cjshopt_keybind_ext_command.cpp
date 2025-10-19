@@ -204,7 +204,7 @@ int keybind_ext_reset_command() {
 
     return 0;
 }
-}  // namespace
+}  
 
 int keybind_ext_command(const std::vector<std::string>& args) {
     if (args.size() < 3) {

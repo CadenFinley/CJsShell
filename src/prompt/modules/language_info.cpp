@@ -11,7 +11,6 @@
 
 namespace {
 
-// Static data definitions
 std::unordered_map<std::string, CachedVersion> version_cache;
 std::mutex cache_mutex;
 
@@ -30,7 +29,7 @@ std::string execute_command(const std::string& command) {
     return output;
 }
 
-}  // namespace
+}  
 
 const std::vector<std::string> python_files = {"requirements.txt", "setup.py",  "pyproject.toml",
                                                "Pipfile",          "setup.cfg", "tox.ini"};

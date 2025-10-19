@@ -34,7 +34,7 @@ void apply_minimal_mode() {
     ic_enable_multiline_indent(false);
 }
 
-}  // namespace
+}  
 
 ParseResult parse_arguments(int argc, char* argv[]) {
     ParseResult result;
@@ -81,7 +81,7 @@ ParseResult parse_arguments(int argc, char* argv[]) {
                 config::cmd_to_execute = optarg;
                 config::interactive_mode = false;
                 config::history_expansion_enabled =
-                    false;  // Disable for -c mode (POSIX compliance)
+                    false;  
                 break;
             case 'v':
                 config::show_version = true;
@@ -161,7 +161,7 @@ ParseResult parse_arguments(int argc, char* argv[]) {
 
     if (!config::force_interactive && (isatty(STDIN_FILENO) == 0)) {
         config::interactive_mode = false;
-        config::history_expansion_enabled = false;  // Disable for piped input (POSIX compliance)
+        config::history_expansion_enabled = false;  
     }
 
     return result;
@@ -207,4 +207,4 @@ void apply_profile_startup_flags() {
     }
 }
 
-}  // namespace flags
+}  

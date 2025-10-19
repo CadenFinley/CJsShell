@@ -11,7 +11,6 @@
 
 namespace {
 
-// Parse a number from string starting at position
 bool parse_number(const std::string& str, size_t& pos, int& number) {
     size_t start = pos;
     bool negative = false;
@@ -39,7 +38,7 @@ bool parse_number(const std::string& str, size_t& pos, int& number) {
     return true;
 }
 
-}  // namespace
+}  
 
 bool HistoryExpansion::is_word_char(char c) {
     return std::isalnum(c) || c == '_' || c == '-' || c == '.' || c == '/';
@@ -96,7 +95,7 @@ std::string HistoryExpansion::get_word_from_command(const std::string& command, 
     std::vector<std::string> words = split_into_words(command);
 
     if (word_index < 0) {
-        // Negative indices count from the end
+        
         word_index = static_cast<int>(words.size()) + word_index;
     }
 
@@ -146,9 +145,9 @@ bool HistoryExpansion::expand_double_bang(const std::string& command, size_t& po
     }
 
     std::string last_command = history[history.size() - 2];
-    pos += 2;  // Skip !!
+    pos += 2;  
 
-    // Check for word designators
+    
     if (pos < command.length() && command[pos] == ':') {
         return expand_word_designator(command, pos, last_command, result, error);
     }
@@ -165,7 +164,7 @@ bool HistoryExpansion::expand_history_number(const std::string& command, size_t&
     }
 
     size_t start = pos;
-    pos++;  // Skip !
+    pos++;  
 
     int number;
     if (!parse_number(command, pos, number)) {
@@ -175,7 +174,7 @@ bool HistoryExpansion::expand_history_number(const std::string& command, size_t&
 
     std::string referenced_command;
     if (number < 0) {
-        // Negative number: relative to current position
+        
         int index = static_cast<int>(history.size()) + number;
         if (index < 0 || index >= static_cast<int>(history.size())) {
             error = "!" + std::to_string(number) + ": event not found";
@@ -183,7 +182,7 @@ bool HistoryExpansion::expand_history_number(const std::string& command, size_t&
         }
         referenced_command = history[index];
     } else {
-        // Positive number: absolute history index
+        
         if (number >= static_cast<int>(history.size())) {
             error = "!" + std::to_string(number) + ": event not found";
             return false;
@@ -191,7 +190,7 @@ bool HistoryExpansion::expand_history_number(const std::string& command, size_t&
         referenced_command = history[number];
     }
 
-    // Check for word designators
+    
     if (pos < command.length() && command[pos] == ':') {
         return expand_word_designator(command, pos, referenced_command, result, error);
     }
@@ -208,7 +207,7 @@ bool HistoryExpansion::expand_history_search(const std::string& command, size_t&
     }
 
     size_t start = pos;
-    pos++;  // Skip !
+    pos++;  
 
     bool search_substring = false;
     if (pos < command.length() && command[pos] == '?') {
@@ -216,7 +215,7 @@ bool HistoryExpansion::expand_history_search(const std::string& command, size_t&
         pos++;
     }
 
-    // Extract search pattern
+    
     std::string pattern;
     while (pos < command.length() && is_word_char(command[pos])) {
         pattern += command[pos];
@@ -224,7 +223,7 @@ bool HistoryExpansion::expand_history_search(const std::string& command, size_t&
     }
 
     if (search_substring && pos < command.length() && command[pos] == '?') {
-        pos++;  // Skip closing ?
+        pos++;  
     }
 
     if (pattern.empty()) {
@@ -232,17 +231,17 @@ bool HistoryExpansion::expand_history_search(const std::string& command, size_t&
         return false;
     }
 
-    // Search history backwards for matching command
+    
     for (auto it = history.rbegin(); it != history.rend(); ++it) {
         bool matches = false;
         if (search_substring) {
             matches = it->find(pattern) != std::string::npos;
         } else {
-            matches = it->find(pattern) == 0;  // Starts with pattern
+            matches = it->find(pattern) == 0;  
         }
 
         if (matches) {
-            // Check for word designators
+            
             if (pos < command.length() && command[pos] == ':') {
                 return expand_word_designator(command, pos, *it, result, error);
             }
@@ -258,7 +257,7 @@ bool HistoryExpansion::expand_history_search(const std::string& command, size_t&
 bool HistoryExpansion::expand_quick_substitution(const std::string& command,
                                                  const std::vector<std::string>& history,
                                                  std::string& result, std::string& error) {
-    // Quick substitution: ^old^new or ^old^new^
+    
     if (command.empty() || command[0] != '^') {
         return false;
     }
@@ -302,7 +301,7 @@ bool HistoryExpansion::expand_word_designator(const std::string& command, size_t
         return true;
     }
 
-    pos++;  // Skip :
+    pos++;  
 
     if (pos >= command.length()) {
         result += referenced_command;
@@ -313,7 +312,7 @@ bool HistoryExpansion::expand_word_designator(const std::string& command, size_t
     pos++;
 
     if (designator == '^') {
-        // First argument (word 1)
+        
         std::string word = get_word_from_command(referenced_command, 1);
         if (word.empty()) {
             error = "!:^: bad word specifier";
@@ -321,7 +320,7 @@ bool HistoryExpansion::expand_word_designator(const std::string& command, size_t
         }
         result += word;
     } else if (designator == '$') {
-        // Last argument
+        
         std::string word = get_word_from_command(referenced_command, -1);
         if (word.empty()) {
             error = "!:$: bad word specifier";
@@ -329,7 +328,7 @@ bool HistoryExpansion::expand_word_designator(const std::string& command, size_t
         }
         result += word;
     } else if (designator == '*') {
-        // All arguments (words 1 to end)
+        
         std::vector<std::string> words = split_into_words(referenced_command);
         if (words.size() <= 1) {
             error = "!:*: bad word specifier";
@@ -342,15 +341,15 @@ bool HistoryExpansion::expand_word_designator(const std::string& command, size_t
             result += words[i];
         }
     } else if (std::isdigit(designator)) {
-        // Specific word or range
-        pos--;  // Back up to reparse the number
+        
+        pos--;  
         int start_index;
         if (!parse_number(command, pos, start_index)) {
             error = "bad word specifier";
             return false;
         }
 
-        // Check for range (n-m)
+        
         if (pos < command.length() && command[pos] == '-') {
             pos++;
             int end_index;
@@ -360,7 +359,7 @@ bool HistoryExpansion::expand_word_designator(const std::string& command, size_t
                     return false;
                 }
             } else {
-                // n- means from n to end
+                
                 end_index = -1;
             }
 
@@ -371,7 +370,7 @@ bool HistoryExpansion::expand_word_designator(const std::string& command, size_t
             }
             result += words;
         } else {
-            // Single word
+            
             std::string word = get_word_from_command(referenced_command, start_index);
             if (word.empty()) {
                 error = "bad word specifier";
@@ -391,7 +390,7 @@ bool HistoryExpansion::contains_history_expansion(const std::string& command) {
         return false;
     }
 
-    // Quick substitution
+    
     if (command[0] == '^') {
         size_t second_caret = command.find('^', 1);
         if (second_caret != std::string::npos) {
@@ -399,18 +398,18 @@ bool HistoryExpansion::contains_history_expansion(const std::string& command) {
         }
     }
 
-    // Look for ! patterns
+    
     for (size_t i = 0; i < command.length(); ++i) {
         if (command[i] == '!' && !is_inside_quotes(command, i)) {
-            // Check if it's escaped
+            
             if (i > 0 && command[i - 1] == '\\') {
                 continue;
             }
 
-            // Check for valid history expansion
+            
             if (i + 1 < command.length()) {
                 char next = command[i + 1];
-                // !!, !n, !-n, !string, !?string?
+                
                 if (next == '!' || std::isdigit(next) || next == '-' || std::isalpha(next) ||
                     next == '?') {
                     return true;
@@ -434,7 +433,7 @@ HistoryExpansion::ExpansionResult HistoryExpansion::expand(
         return expansion_result;
     }
 
-    // Handle quick substitution first (^old^new)
+    
     if (command[0] == '^') {
         std::string result;
         std::string error;
@@ -449,18 +448,18 @@ HistoryExpansion::ExpansionResult HistoryExpansion::expand(
         }
     }
 
-    // Process command character by character, expanding ! patterns
+    
     std::string result;
-    result.reserve(command.length() * 2);  // Pre-allocate for efficiency
+    result.reserve(command.length() * 2);  
 
     for (size_t i = 0; i < command.length(); ++i) {
-        // Skip quoted sections
+        
         if (is_inside_quotes(command, i)) {
             result += command[i];
             continue;
         }
 
-        // Check for escaped !
+        
         if (i > 0 && command[i - 1] == '\\' && command[i] == '!') {
             result += command[i];
             continue;
@@ -470,22 +469,22 @@ HistoryExpansion::ExpansionResult HistoryExpansion::expand(
             std::string error;
             bool expanded = false;
 
-            // Try different expansion types
+            
             size_t saved_pos = i;
 
-            // Try !!
+            
             if (!expanded && i + 1 < command.length() && command[i + 1] == '!') {
                 expanded = expand_double_bang(command, i, history_entries, result, error);
             }
 
-            // Try !n or !-n
+            
             if (!expanded && i + 1 < command.length() &&
                 (std::isdigit(command[i + 1]) || command[i + 1] == '-')) {
                 i = saved_pos;
                 expanded = expand_history_number(command, i, history_entries, result, error);
             }
 
-            // Try !string or !?string?
+            
             if (!expanded && i + 1 < command.length() &&
                 (std::isalpha(command[i + 1]) || command[i + 1] == '?')) {
                 i = saved_pos;
@@ -494,13 +493,13 @@ HistoryExpansion::ExpansionResult HistoryExpansion::expand(
 
             if (expanded) {
                 expansion_result.was_expanded = true;
-                i--;  // Compensate for loop increment
+                i--;  
             } else if (!error.empty()) {
                 expansion_result.has_error = true;
                 expansion_result.error_message = error;
                 return expansion_result;
             } else {
-                // No expansion, keep the !
+                
                 result += command[i];
             }
         } else {

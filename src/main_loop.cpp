@@ -517,7 +517,7 @@ bool handle_runoff_bind(ic_keycode_t key, void*) {
     return false;
 }
 
-}  // namespace
+}  
 
 void initialize_isocline() {
     initialize_completion_system();
