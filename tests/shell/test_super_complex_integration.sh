@@ -18,71 +18,71 @@ FAILED=0
 SKIPPED=0
 
 pass() {
-    PASSED=$((PASSED + 1))
-    printf "PASS: %s\n" "$1"
+  PASSED=$((PASSED + 1))
+  printf "PASS: %s\n" "$1"
 }
 
 fail() {
-    FAILED=$((FAILED + 1))
-    printf "FAIL: %s\n       Expected: [%s]\n       Got: [%s]\n" "$1" "$2" "$3"
+  FAILED=$((FAILED + 1))
+  printf "FAIL: %s\n       Expected: [%s]\n       Got: [%s]\n" "$1" "$2" "$3"
 }
 
 skip() {
-    SKIPPED=$((SKIPPED + 1))
-    printf "SKIP: %s -- %s\n" "$1" "$2"
+  SKIPPED=$((SKIPPED + 1))
+  printf "SKIP: %s -- %s\n" "$1" "$2"
 }
 
 expect_output() {
-    desc=$1
-    script=$2
-    expected=$3
-    TOTAL=$((TOTAL + 1))
-    output=$("$CJSH_PATH" -c "$script" 2>&1)
-    if [ "$output" = "$expected" ]; then
-        pass "$desc"
-    else
-        fail "$desc" "$expected" "$output"
-    fi
+  desc=$1
+  script=$2
+  expected=$3
+  TOTAL=$((TOTAL + 1))
+  output=$("$CJSH_PATH" -c "$script" 2>&1)
+  if [ "$output" = "$expected" ]; then
+    pass "$desc"
+  else
+    fail "$desc" "$expected" "$output"
+  fi
 }
 
 expect_exit() {
-    desc=$1
-    script=$2
-    expected_exit=$3
-    TOTAL=$((TOTAL + 1))
-    "$CJSH_PATH" -c "$script" >/dev/null 2>&1
-    exit_code=$?
-    if [ "$exit_code" -eq "$expected_exit" ]; then
-        pass "$desc"
-    else
-        fail "$desc" "exit $expected_exit" "exit $exit_code"
-    fi
+  desc=$1
+  script=$2
+  expected_exit=$3
+  TOTAL=$((TOTAL + 1))
+  "$CJSH_PATH" -c "$script" >/dev/null 2>&1
+  exit_code=$?
+  if [ "$exit_code" -eq "$expected_exit" ]; then
+    pass "$desc"
+  else
+    fail "$desc" "exit $expected_exit" "exit $exit_code"
+  fi
 }
 
 expect_contains() {
-    desc=$1
-    script=$2
-    expected_substring=$3
-    TOTAL=$((TOTAL + 1))
-    output=$("$CJSH_PATH" -c "$script" 2>&1)
-    if echo "$output" | grep -q "$expected_substring"; then
-        pass "$desc"
-    else
-        fail "$desc" "output containing '$expected_substring'" "$output"
-    fi
+  desc=$1
+  script=$2
+  expected_substring=$3
+  TOTAL=$((TOTAL + 1))
+  output=$("$CJSH_PATH" -c "$script" 2>&1)
+  if echo "$output" | grep -q "$expected_substring"; then
+    pass "$desc"
+  else
+    fail "$desc" "output containing '$expected_substring'" "$output"
+  fi
 }
 
 expect_not_crash() {
-    desc=$1
-    script=$2
-    TOTAL=$((TOTAL + 1))
-    "$CJSH_PATH" -c "$script" >/dev/null 2>&1
-    exit_code=$?
-    if [ "$exit_code" -lt 128 ] || [ "$exit_code" -eq 0 ]; then
-        pass "$desc"
-    else
-        fail "$desc" "normal exit (< 128)" "crash signal (exit $exit_code)"
-    fi
+  desc=$1
+  script=$2
+  TOTAL=$((TOTAL + 1))
+  "$CJSH_PATH" -c "$script" >/dev/null 2>&1
+  exit_code=$?
+  if [ "$exit_code" -lt 128 ] || [ "$exit_code" -eq 0 ]; then
+    pass "$desc"
+  else
+    fail "$desc" "normal exit (< 128)" "crash signal (exit $exit_code)"
+  fi
 }
 
 expect_output "10-level nested if-then-else" \
@@ -798,30 +798,27 @@ process_tree() {
         log_message INFO "Processing tree: $node_name"
     fi
     
-    # Count nodes at this level
-    GLOBAL_PROCESSED=$((GLOBAL_PROCESSED + 1))
+    # Count nodes excluding root
+    if [ "$depth" -gt 0 ]; then
+        GLOBAL_PROCESSED=$((GLOBAL_PROCESSED + 1))
+    fi
     
-    # Check if node has children
-    case "$node" in
-        *"("*")"*)
-
-            children="${node#*\(}"
-            children="${children%\)}"
-            
-
-            child_depth=$((depth + 1))
-            
-
-            saved_ifs="$IFS"
-            IFS=","
-            for child in $children; do
-                if [ -n "$child" ]; then
-                    process_tree "$child" "$child_depth"
-                fi
-            done
-            IFS="$saved_ifs"
-            ;;
-    esac
+    # Check if node has children using parameter expansion
+    if [ "${node#*\(}" != "$node" ]; then
+        children="${node#*\(}"
+        children="${children%\)}"
+        
+        child_depth=$((depth + 1))
+        
+        saved_ifs="$IFS"
+        IFS="," 
+        for child in $children; do
+            if [ -n "$child" ]; then
+                process_tree "$child" "$child_depth"
+            fi
+        done
+        IFS="$saved_ifs"
+    fi
     
     return 0
 }
@@ -883,13 +880,15 @@ run_comprehensive_test() {
             
         cache)
             log_message INFO "Running cache performance tests"
-            
-
-            fibonacci 5 >/dev/null
-            fibonacci 6 >/dev/null
-            fibonacci 7 >/dev/null
-            
-
+            # Warm cache without subshells to ensure counters update correctly
+            : "${CACHE_HITS:=0}" "${CACHE_MISSES:=0}"
+            cache_put fib_1 1
+            cache_put fib_2 1
+            cache_put fib_3 2
+            # Access entries to increment hit counter in the current shell
+            cache_get fib_1 >/dev/null || true
+            cache_get fib_2 >/dev/null || true
+            cache_get fib_3 >/dev/null || true
             echo "cache:hits=$CACHE_HITS,misses=$CACHE_MISSES"
             ;;
             

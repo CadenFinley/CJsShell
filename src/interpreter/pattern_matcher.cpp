@@ -3,16 +3,43 @@
 #include <string>
 
 bool PatternMatcher::matches_pattern(const std::string& text, const std::string& pattern) const {
+    auto sanitize_quotes = [](const std::string& raw_pattern) {
+        std::string cleaned;
+        cleaned.reserve(raw_pattern.size());
+
+        for (size_t i = 0; i < raw_pattern.size(); ++i) {
+            char ch = raw_pattern[i];
+
+            if (ch == '\\' && i + 1 < raw_pattern.size() &&
+                (raw_pattern[i + 1] == '\'' || raw_pattern[i + 1] == '"')) {
+                cleaned += ch;
+                cleaned += raw_pattern[i + 1];
+                ++i;
+                continue;
+            }
+
+            if (ch == '\'' || ch == '"') {
+                continue;
+            }
+
+            cleaned += ch;
+        }
+
+        return cleaned;
+    };
+
+    std::string sanitized_pattern = sanitize_quotes(pattern);
+
     if (pattern.find('|') != std::string::npos) {
         size_t start = 0;
-        while (start < pattern.length()) {
-            size_t pipe_pos = pattern.find('|', start);
+        while (start < sanitized_pattern.length()) {
+            size_t pipe_pos = sanitized_pattern.find('|', start);
             std::string sub_pattern;
             if (pipe_pos == std::string::npos) {
-                sub_pattern = pattern.substr(start);
-                start = pattern.length();
+                sub_pattern = sanitized_pattern.substr(start);
+                start = sanitized_pattern.length();
             } else {
-                sub_pattern = pattern.substr(start, pipe_pos - start);
+                sub_pattern = sanitized_pattern.substr(start, pipe_pos - start);
                 start = pipe_pos + 1;
             }
 
@@ -23,7 +50,7 @@ bool PatternMatcher::matches_pattern(const std::string& text, const std::string&
         return false;
     }
 
-    return matches_single_pattern(text, pattern);
+    return matches_single_pattern(text, sanitized_pattern);
 }
 
 bool PatternMatcher::matches_single_pattern(const std::string& text,

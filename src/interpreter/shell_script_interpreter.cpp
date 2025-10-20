@@ -272,11 +272,12 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
             bool has_redir_or_pipe = cmds.size() > 1;
             if (!has_redir_or_pipe && !cmds.empty()) {
                 const auto& c = cmds[0];
-                has_redir_or_pipe =
-                    c.background || !c.input_file.empty() || !c.output_file.empty() ||
-                    !c.append_file.empty() || c.stderr_to_stdout || !c.stderr_file.empty() ||
-                    !c.here_doc.empty() || c.both_output || !c.here_string.empty() ||
-                    !c.fd_redirections.empty() || !c.fd_duplications.empty();
+                has_redir_or_pipe = c.background || !c.input_file.empty() ||
+                                    !c.output_file.empty() || !c.append_file.empty() ||
+                                    c.stderr_to_stdout || c.stdout_to_stderr ||
+                                    !c.stderr_file.empty() || !c.here_doc.empty() ||
+                                    c.both_output || !c.here_string.empty() ||
+                                    !c.fd_redirections.empty() || !c.fd_duplications.empty();
             }
 
             if (!has_redir_or_pipe && !cmds.empty()) {
@@ -1093,7 +1094,11 @@ int ShellScriptInterpreter::evaluate_logical_condition_internal(
             pos++;
         }
     }
-    return conditional_evaluator::evaluate_logical_condition(processed_cond, executor);
+    int condition_status =
+        conditional_evaluator::evaluate_logical_condition(processed_cond, executor);
+
+    set_last_status(condition_status);
+    return condition_status;
 }
 
 long long ShellScriptInterpreter::evaluate_arithmetic_expression(const std::string& expr) {

@@ -11,106 +11,64 @@
 #include <string>
 #include <utility>
 
-#include "cjsh_filesystem.h"
-
 namespace {
 
 std::pair<std::string, int> execute_command_for_substitution(
     const std::string& command, const std::function<int(const std::string&)>& executor) {
-    char tmpl[] = "/tmp/cjsh_subst_XXXXXX";
-    int fd = mkstemp(tmpl);
-    if (fd >= 0)
-        close(fd);
-    std::string path = tmpl;
-
-    int saved_stdout = dup(STDOUT_FILENO);
+    int pipefd[2];
+    if (pipe(pipefd) != 0) {
+        return {"", 1};
+    }
 
     std::cout.flush();
     fflush(nullptr);
 
-    auto temp_file_result = cjsh_filesystem::safe_fopen(path, "w");
-    if (temp_file_result.is_error()) {
-        int pipefd[2];
-        if (pipe(pipefd) != 0) {
-            return {"", 1};
+    pid_t pid = fork();
+    if (pid == 0) {
+        close(pipefd[0]);
+        if (dup2(pipefd[1], STDOUT_FILENO) == -1) {
+            close(pipefd[1]);
+            _exit(1);
         }
+        close(pipefd[1]);
 
-        std::cout.flush();
-        fflush(nullptr);
+        int exit_code = executor(command);
+        _exit(exit_code);
+    } else if (pid > 0) {
+        close(pipefd[1]);
+        std::string result;
+        char buf[4096];
+        ssize_t n = 0;
+        while ((n = read(pipefd[0], buf, sizeof(buf))) > 0) {
+            result.append(buf, n);
+        }
+        close(pipefd[0]);
 
-        pid_t pid = fork();
-        if (pid == 0) {
-            close(pipefd[0]);
-            dup2(pipefd[1], STDOUT_FILENO);
-            close(pipefd[1]);
+        int status = 0;
+        waitpid(pid, &status, 0);
 
-            int exit_code = executor(command);
-            exit(exit_code);
-        } else if (pid > 0) {
-            close(pipefd[1]);
-            std::string result;
-            char buf[4096];
-            ssize_t n = 0;
-            while ((n = read(pipefd[0], buf, sizeof(buf))) > 0) {
-                result.append(buf, n);
-            }
-            close(pipefd[0]);
-
-            int status = 0;
-            waitpid(pid, &status, 0);
-
-            int exit_code = 0;
-            if (WIFEXITED(status)) {
-                exit_code = WEXITSTATUS(status);
-            } else if (WIFSIGNALED(status)) {
-                exit_code = 128 + WTERMSIG(status);
-            } else {
-                exit_code = status;
-            }
-
-            while (!result.empty() && (result.back() == '\n' || result.back() == '\r'))
-                result.pop_back();
-
-            return {result, exit_code};
+        int exit_code = 0;
+        if (WIFEXITED(status)) {
+            exit_code = WEXITSTATUS(status);
+        } else if (WIFSIGNALED(status)) {
+            exit_code = 128 + WTERMSIG(status);
         } else {
-            close(pipefd[0]);
-            close(pipefd[1]);
-            return {"", 1};
+            exit_code = status;
         }
+
+        while (!result.empty() && (result.back() == '\n' || result.back() == '\r')) {
+            result.pop_back();
+        }
+
+        return {result, exit_code};
     }
 
-    FILE* temp_file = temp_file_result.value();
-    int temp_fd = fileno(temp_file);
-    auto dup_result = cjsh_filesystem::safe_dup2(temp_fd, STDOUT_FILENO);
-    if (dup_result.is_error()) {
-        cjsh_filesystem::safe_fclose(temp_file);
-        cjsh_filesystem::safe_close(saved_stdout);
-        return {"", 1};
-    }
-
-    int exit_code = executor(command);
-
-    (void)fflush(stdout);
-    cjsh_filesystem::safe_fclose(temp_file);
-    auto restore_result = cjsh_filesystem::safe_dup2(saved_stdout, STDOUT_FILENO);
-    cjsh_filesystem::safe_close(saved_stdout);
-
-    auto content_result = cjsh_filesystem::read_file_content(path);
-    cjsh_filesystem::cleanup_temp_file(path);
-
-    if (content_result.is_error()) {
-        return {"", exit_code};
-    }
-
-    std::string out = content_result.value();
-
-    while (!out.empty() && (out.back() == '\n' || out.back() == '\r'))
-        out.pop_back();
-
-    return {out, exit_code};
+    close(pipefd[0]);
+    close(pipefd[1]);
+    return {"", 1};
 }
 
-}  
+}  // namespace
 
 CommandSubstitutionEvaluator::CommandSubstitutionEvaluator(CommandExecutor executor)
     : command_executor_(std::move(executor)) {
@@ -196,30 +154,26 @@ bool CommandSubstitutionEvaluator::try_handle_arithmetic_expansion(const std::st
         return false;
     }
 
-    
     ExpansionResult inner_result;
     inner_result.text = "";
     for (size_t k = 0; k < inner.size(); ++k) {
         char inner_c = inner[k];
         bool handled = false;
-        
-        
+
         if (inner_c == '$' && k + 1 < inner.size() && inner[k + 1] == '(') {
             if (k + 2 < inner.size() && inner[k + 2] == '(') {
-                
-                
                 inner_result.text += inner_c;
             } else {
-                
                 size_t cmd_end_pos = 0;
                 if (find_matching_delimiter(inner, k + 2, '(', ')', cmd_end_pos)) {
                     std::string cmd_content = inner.substr(k + 2, cmd_end_pos - (k + 2));
                     auto [cmd_output, exit_code] = capture_command_output(cmd_content);
                     inner_result.outputs.push_back(cmd_output);
                     inner_result.exit_codes.push_back(exit_code);
-                    
+
                     std::string trimmed_output = cmd_output;
-                    while (!trimmed_output.empty() && (trimmed_output.back() == '\n' || trimmed_output.back() == '\r')) {
+                    while (!trimmed_output.empty() &&
+                           (trimmed_output.back() == '\n' || trimmed_output.back() == '\r')) {
                         trimmed_output.pop_back();
                     }
                     inner_result.text += trimmed_output;
@@ -228,13 +182,12 @@ bool CommandSubstitutionEvaluator::try_handle_arithmetic_expansion(const std::st
                 }
             }
         }
-        
+
         if (!handled) {
             inner_result.text += inner_c;
         }
     }
 
-    
     output_text += "$((";
     output_text += inner_result.text;
     output_text += "))";

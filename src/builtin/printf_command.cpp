@@ -319,6 +319,12 @@ int printf_command(const std::vector<std::string>& args) {
         printf_args.push_back(args[i]);
     }
 
+    if (printf_args.empty() && format.find('%') == std::string::npos) {
+        std::cout << format;
+        std::cout.flush();
+        return 0;
+    }
+
     if (printf_args.empty()) {
         for (size_t i = 0; i < format.length(); ++i) {
             if (format[i] == '%' && i + 1 < format.length() && format[i + 1] == '%') {
@@ -328,6 +334,7 @@ int printf_command(const std::vector<std::string>& args) {
                 std::cout << format[i];
             }
         }
+        std::cout.flush();
         return 0;
     }
 
@@ -426,5 +433,6 @@ int printf_command(const std::vector<std::string>& args) {
         }
     }
 
+    std::cout.flush();
     return 0;
 }

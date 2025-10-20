@@ -63,5 +63,6 @@ int pwd_command(const std::vector<std::string>& args) {
     }
 
     std::cout << path << '\n';
+    std::cout.flush();
     return 0;
 }
