@@ -9,7 +9,7 @@ class Theme;
 
 const bool PRE_RELEASE = false;
 
-constexpr const char* c_version_base = "3.10.2";
+constexpr const char* c_version_base = "3.10.3";
 
 extern std::string g_cached_version;
 
