@@ -532,14 +532,16 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
                 }
                 strip_subst_literal_markers(noenv_stripped);
             } else {
+                std::string value_to_expand = qi.value;
                 try {
-                    variableExpander->expand_env_vars_selective(noenv_stripped);
+                    variableExpander->expand_env_vars_selective(value_to_expand);
                 } catch (const std::runtime_error& e) {
                     std::cerr << "Warning: Error in selective environment "
                                  "variable expansion: "
                               << e.what() << '\n';
                 }
-                strip_subst_literal_markers(noenv_stripped);
+                strip_subst_literal_markers(value_to_expand);
+                noenv_stripped = value_to_expand;
             }
 
             raw_arg =

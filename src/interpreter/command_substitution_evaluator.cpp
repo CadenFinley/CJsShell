@@ -282,9 +282,17 @@ void CommandSubstitutionEvaluator::append_substitution_result(const std::string&
                                                               bool in_double_quotes,
                                                               std::string& output) {
     if (in_double_quotes) {
-        std::string esc = escape_for_double_quotes(content);
+        std::string escaped_content;
+        escaped_content.reserve(content.size());
+        for (char c : content) {
+            if (c == '"' || c == '\\') {
+                escaped_content += '\\';
+            }
+            escaped_content += c;
+        }
+
         output += NOENV_START;
-        output += esc;
+        output += escaped_content;
         output += NOENV_END;
     } else {
         output += SUBST_LITERAL_START;
