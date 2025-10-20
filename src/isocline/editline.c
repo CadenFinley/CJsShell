@@ -1816,6 +1816,38 @@ static void edit_insert_char(ic_env_t* env, editor_t* eb, char c) {
 
 static void insert_initial_input(const char* initial_input, editor_t* eb) {
     if (initial_input != NULL) {
+        // Check if initial_input ends with \n followed by no actual content
+        const char* newline_pos = strchr(initial_input, '\n');
+        if (newline_pos != NULL) {
+            // Check if there's only whitespace or nothing after the newline
+            const char* after_newline = newline_pos + 1;
+            bool only_whitespace = true;
+            while (*after_newline != '\0') {
+                if (*after_newline != ' ' && *after_newline != '\t' && *after_newline != '\r' &&
+                    *after_newline != '\n') {
+                    only_whitespace = false;
+                    break;
+                }
+                after_newline++;
+            }
+
+            if (only_whitespace) {
+                // Trim everything from the newline onwards and request submit
+                size_t len_before_newline = (size_t)(newline_pos - initial_input);
+                char* trimmed = (char*)mem_malloc(eb->mem, len_before_newline + 1);
+                if (trimmed != NULL) {
+                    memcpy(trimmed, initial_input, len_before_newline);
+                    trimmed[len_before_newline] = '\0';
+                    sbuf_replace(eb->input, trimmed);
+                    mem_free(eb->mem, trimmed);
+                    eb->pos = sbuf_len(eb->input);
+                    eb->request_submit = true;
+                    return;
+                }
+            }
+        }
+
+        // Normal case: just insert the initial input as-is
         sbuf_replace(eb->input, initial_input);
         eb->pos = sbuf_len(eb->input);
     }
@@ -1875,6 +1907,34 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
     if (!(env->no_highlight && env->no_bracematch)) {
         eb.attrs = attrbuf_new(env->mem);
         eb.attrs_extra = attrbuf_new(env->mem);
+    }
+
+    // Check if we should immediately submit (e.g., initial input ended with newline)
+    if (eb.request_submit) {
+        // Skip the main loop and go directly to submission
+        char* res;
+        if (!tty_is_utf8(env->tty)) {
+            res = sbuf_strdup_from_utf8(eb.input);
+        } else {
+            res = sbuf_strdup(eb.input);
+        }
+
+        // Clear the current editor pointer
+        env->current_editor = NULL;
+
+        // free resources
+        editstate_done(env->mem, &eb.undo);
+        editstate_done(env->mem, &eb.redo);
+        attrbuf_free(eb.attrs);
+        attrbuf_free(eb.attrs_extra);
+        sbuf_free(eb.input);
+        sbuf_free(eb.extra);
+        sbuf_free(eb.hint);
+        sbuf_free(eb.hint_help);
+        sbuf_free(eb.history_prefix);
+        mem_free(env->mem, (void*)eb.prompt_text);
+
+        return res;
     }
 
     // show prompt
@@ -1949,11 +2009,39 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
 
         // Operations that may return
         if (c == KEY_ENTER) {
+            debug_msg("edit: KEY_ENTER pressed, pos=%zd, len=%zd\n", eb.pos, sbuf_len(eb.input));
             // Clear history preview when submitting
             edit_clear_history_preview(&eb);
-            if (!env->singleline_only && eb.pos > 0 &&
-                sbuf_string(eb.input)[eb.pos - 1] == env->multiline_eol &&
-                edit_pos_is_at_row_end(env, &eb)) {
+
+            // Check if there's any non-whitespace content after the cursor
+            const char* input_str = sbuf_string(eb.input);
+            ssize_t input_len = sbuf_len(eb.input);
+            bool has_content_after_cursor = false;
+
+            for (ssize_t i = eb.pos; i < input_len; i++) {
+                char ch = input_str[i];
+                if (ch != ' ' && ch != '\t' && ch != '\r' && ch != '\n') {
+                    has_content_after_cursor = true;
+                    break;
+                }
+            }
+
+            debug_msg("edit: has_content_after_cursor=%d, singleline_only=%d\n",
+                      has_content_after_cursor, env->singleline_only);
+
+            // If no content after cursor, submit regardless of multiline mode
+            if (!has_content_after_cursor) {
+                debug_msg("edit: submitting (no content after cursor)\n");
+                if (edit_try_expand_abbreviation(env, &eb, false, false)) {
+                    edit_refresh(env, &eb);
+                }
+                request_submit = true;
+            }
+            // Original multiline_eol logic for line continuation
+            else if (!env->singleline_only && eb.pos > 0 &&
+                     sbuf_string(eb.input)[eb.pos - 1] == env->multiline_eol &&
+                     edit_pos_is_at_row_end(env, &eb)) {
+                debug_msg("edit: multiline_eol path\n");
                 if (editor_input_has_unclosed_heredoc(&eb)) {
                     editor_start_modify(&eb);
                     sbuf_delete_at(eb.input, eb.pos - 1, 1);
@@ -1965,6 +2053,7 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
                     edit_multiline_eol(env, &eb);
                 }
             } else {
+                debug_msg("edit: submitting (else path)\n");
                 // otherwise done
                 if (edit_try_expand_abbreviation(env, &eb, false, false)) {
                     edit_refresh(env, &eb);
@@ -2126,10 +2215,33 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
                 // Editing
                 case KEY_SHIFT_TAB:
                 case KEY_LINEFEED:  // '\n' (ctrl+J, shift+enter)
+                    debug_msg("edit: KEY_LINEFEED received, pos=%zd, len=%zd\n", eb.pos,
+                              sbuf_len(eb.input));
                     if (!env->singleline_only) {
-                        if (editor_input_has_unclosed_heredoc(&eb)) {
+                        // Check if there's any non-whitespace content after the cursor
+                        const char* input_str = sbuf_string(eb.input);
+                        ssize_t input_len = sbuf_len(eb.input);
+                        bool has_content_after_cursor = false;
+
+                        for (ssize_t i = eb.pos; i < input_len; i++) {
+                            char ch = input_str[i];
+                            if (ch != ' ' && ch != '\t' && ch != '\r' && ch != '\n') {
+                                has_content_after_cursor = true;
+                                break;
+                            }
+                        }
+
+                        debug_msg("edit: KEY_LINEFEED has_content_after_cursor=%d\n",
+                                  has_content_after_cursor);
+
+                        // If no content after cursor, submit instead of inserting newline
+                        if (!has_content_after_cursor) {
+                            debug_msg("edit: KEY_LINEFEED submitting instead of newline\n");
+                            request_submit = true;
+                        } else if (editor_input_has_unclosed_heredoc(&eb)) {
                             request_submit = true;
                         } else {
+                            debug_msg("edit: KEY_LINEFEED inserting newline\n");
                             edit_insert_char(env, &eb, '\n');
                         }
                     }
