@@ -142,6 +142,7 @@ class Shell {
     void set_errexit_severity(const std::string& severity);
     std::string get_errexit_severity() const;
     bool should_abort_on_nonzero_exit() const;
+    bool should_abort_on_nonzero_exit(int exit_code) const;
 
     void expand_env_vars(std::string& value);
     void sync_env_vars_from_system();

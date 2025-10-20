@@ -659,6 +659,37 @@ bool Shell::should_abort_on_nonzero_exit() const {
     return true;
 }
 
+bool Shell::should_abort_on_nonzero_exit(int exit_code) const {
+    if (!is_errexit_enabled()) {
+        return false;
+    }
+
+    std::string threshold = get_errexit_severity();
+
+    ErrorSeverity error_severity = ErrorSeverity::ERROR;  // default
+
+    if (exit_code == 127) {
+        error_severity = ErrorInfo::get_default_severity(ErrorType::COMMAND_NOT_FOUND);
+    } else if (exit_code == 126) {
+        error_severity = ErrorInfo::get_default_severity(ErrorType::PERMISSION_DENIED);
+    } else if (exit_code == 2) {
+        error_severity = ErrorInfo::get_default_severity(ErrorType::SYNTAX_ERROR);
+    }
+
+    ErrorSeverity threshold_severity = ErrorSeverity::ERROR;
+    if (threshold == "info") {
+        threshold_severity = ErrorSeverity::INFO;
+    } else if (threshold == "warning") {
+        threshold_severity = ErrorSeverity::WARNING;
+    } else if (threshold == "error") {
+        threshold_severity = ErrorSeverity::ERROR;
+    } else if (threshold == "critical") {
+        threshold_severity = ErrorSeverity::CRITICAL;
+    }
+
+    return error_severity >= threshold_severity;
+}
+
 void Shell::expand_env_vars(std::string& value) {
     if (shell_parser) {
         shell_parser->expand_env_vars(value);

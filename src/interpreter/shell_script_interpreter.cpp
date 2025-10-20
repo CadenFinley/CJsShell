@@ -202,8 +202,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                 for (const auto& part : semicolon_commands) {
                     last_code = execute_simple_or_pipeline_impl(part, false);
 
-                    if (g_shell && g_shell->should_abort_on_nonzero_exit() && last_code != 0 &&
-                        !is_control_flow_exit_code(last_code)) {
+                    if (g_shell && g_shell->should_abort_on_nonzero_exit(last_code) &&
+                        last_code != 0 && !is_control_flow_exit_code(last_code)) {
                         return last_code;
                     }
                 }
@@ -993,7 +993,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
 
                     set_last_status(last_code);
 
-                    if (g_shell && g_shell->should_abort_on_nonzero_exit() && code != 0) {
+                    if (g_shell && g_shell->should_abort_on_nonzero_exit(code) && code != 0) {
                         if (code != 253 && code != 254 && code != 255) {
                             return code;
                         }
@@ -1009,7 +1009,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
     control_flow_exit:
 
         if (last_code == exit_command_not_found) {
-            return last_code;
+            if (g_shell && g_shell->should_abort_on_nonzero_exit(last_code)) {
+                return last_code;
+            }
         } else if (is_control_flow_exit_code(last_code)) {
             return last_code;
         } else if (last_code != 0) {
