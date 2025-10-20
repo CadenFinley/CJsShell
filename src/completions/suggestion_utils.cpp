@@ -8,7 +8,10 @@
 #include <unordered_set>
 #include <vector>
 #include "cjsh_filesystem.h"
+#include "shell.h"
+#include "shell_script_interpreter.h"
 
+extern std::unique_ptr<Shell> g_shell;
 namespace suggestion_utils {
 
 std::vector<std::string> generate_command_suggestions(const std::string& command) {
@@ -51,6 +54,27 @@ std::vector<std::string> generate_command_suggestions(const std::string& command
 
     for (const auto& builtin : shell_builtins) {
         all_commands_set.insert(builtin);
+    }
+
+    if (g_shell) {
+        auto& aliases = g_shell->get_aliases();
+        for (const auto& alias_pair : aliases) {
+            all_commands_set.insert(alias_pair.first);
+        }
+    }
+
+    if (g_shell) {
+        auto& abbreviations = g_shell->get_abbreviations();
+        for (const auto& abbr_pair : abbreviations) {
+            all_commands_set.insert(abbr_pair.first);
+        }
+    }
+
+    if (g_shell && g_shell->get_shell_script_interpreter()) {
+        auto function_names = g_shell->get_shell_script_interpreter()->get_function_names();
+        for (const auto& func_name : function_names) {
+            all_commands_set.insert(func_name);
+        }
     }
 
     auto cached_executables = cjsh_filesystem::read_cached_executables();
