@@ -39,13 +39,9 @@ cjsh is still in active, rapid development so even the latest release can still 
 
     # Run the build script
     chmod +x toolchain/build.sh && ./toolchain/build.sh
-
-    # Use the debug installer to install to your path
-    chmod +x toolchain/debug_install.sh && ./toolchain/debug_install.sh
 ```
 
-The debug installer installs automatically to the most sensible path for the user
-
+After building, the `cjsh` executable will be in the `build/` directory. You can run it directly with `./build/cjsh`
 ## Build info
 
 Build configuration is automatically handled by nob and requires no extra steps. There are multiple build types and can be seen with the --help flag. Build status and origin is tracked within nob and is embedded within the cjsh executable and is displayed in its version. cjsh takes full advantage of many optimizer compilation flags so compilation and linking can take some time.
