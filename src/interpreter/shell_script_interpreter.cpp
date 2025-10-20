@@ -159,16 +159,19 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
     }
 
     if (shell_parser == nullptr) {
-        print_error(
-            {ErrorType::RUNTIME_ERROR, "", "Script interpreter not properly initialized", {}});
+        std::vector<std::string> empty_suggestions;
+        ErrorInfo error(ErrorType::RUNTIME_ERROR, ErrorSeverity::CRITICAL, "",
+                        "Script interpreter not properly initialized", empty_suggestions);
+        print_error(error);
         return 1;
     }
 
     if (has_syntax_errors(lines)) {
-        print_error({ErrorType::SYNTAX_ERROR,
-                     "",
-                     "Critical syntax errors detected in script block, process aborted",
-                     {}});
+        std::vector<std::string> empty_suggestions;
+        ErrorInfo error(ErrorType::SYNTAX_ERROR, ErrorSeverity::CRITICAL, "",
+                        "Critical syntax errors detected in script block, process aborted",
+                        empty_suggestions);
+        print_error(error);
         return 2;
     }
 
@@ -199,7 +202,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                 for (const auto& part : semicolon_commands) {
                     last_code = execute_simple_or_pipeline_impl(part, false);
 
-                    if (g_shell && g_shell->is_errexit_enabled() && last_code != 0 &&
+                    if (g_shell && g_shell->should_abort_on_nonzero_exit() && last_code != 0 &&
                         !is_control_flow_exit_code(last_code)) {
                         return last_code;
                     }
@@ -990,7 +993,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
 
                     set_last_status(last_code);
 
-                    if (g_shell && g_shell->is_errexit_enabled() && code != 0) {
+                    if (g_shell && g_shell->should_abort_on_nonzero_exit() && code != 0) {
                         if (code != 253 && code != 254 && code != 255) {
                             return code;
                         }

@@ -2,10 +2,40 @@
 #include <string>
 #include <vector>
 
+#include "cjsh.h"
 #include "error_out.h"
+#include "shell.h"
+
+ErrorSeverity ErrorInfo::get_default_severity(ErrorType type) {
+    switch (type) {
+        case ErrorType::SYNTAX_ERROR:
+            return ErrorSeverity::CRITICAL;
+        case ErrorType::COMMAND_NOT_FOUND:
+            return ErrorSeverity::ERROR;
+        case ErrorType::PERMISSION_DENIED:
+            return ErrorSeverity::ERROR;
+        case ErrorType::FILE_NOT_FOUND:
+            return ErrorSeverity::ERROR;
+        case ErrorType::INVALID_ARGUMENT:
+            return ErrorSeverity::WARNING;
+        case ErrorType::RUNTIME_ERROR:
+            return ErrorSeverity::ERROR;
+        case ErrorType::UNKNOWN_ERROR:
+        default:
+            return ErrorSeverity::ERROR;
+    }
+}
 
 void print_error(const ErrorInfo& error) {
-    std::cerr << "cjsh: ";
+    if (error.severity == ErrorSeverity::CRITICAL) {
+        std::cerr << "cjsh: \033[1;31mCRITICAL\033[0m: ";
+    } else if (error.severity == ErrorSeverity::WARNING) {
+        std::cerr << "cjsh: \033[1;33mwarning\033[0m: ";
+    } else if (error.severity == ErrorSeverity::INFO) {
+        std::cerr << "cjsh: \033[1;36minfo\033[0m: ";
+    } else {
+        std::cerr << "cjsh: ";
+    }
 
     if (!error.command_used.empty()) {
         std::cerr << error.command_used << ": ";
@@ -78,4 +108,31 @@ void print_error(const ErrorInfo& error) {
             }
         }
     }
+}
+
+bool should_abort_on_error(const ErrorInfo& error) {
+    if (error.severity == ErrorSeverity::CRITICAL) {
+        return true;
+    }
+
+    if (!g_shell || !g_shell->is_errexit_enabled()) {
+        return false;
+    }
+
+    if (g_shell) {
+        std::string severity_threshold = g_shell->get_errexit_severity();
+
+        ErrorSeverity threshold = ErrorSeverity::ERROR;
+        if (severity_threshold == "info") {
+            threshold = ErrorSeverity::INFO;
+        } else if (severity_threshold == "warning") {
+            threshold = ErrorSeverity::WARNING;
+        } else if (severity_threshold == "critical") {
+            threshold = ErrorSeverity::CRITICAL;
+        }
+
+        return error.severity >= threshold;
+    }
+
+    return error.severity >= ErrorSeverity::ERROR;
 }

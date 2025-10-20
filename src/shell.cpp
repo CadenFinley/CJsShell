@@ -629,6 +629,36 @@ bool Shell::is_errexit_enabled() const {
     return get_shell_option("errexit");
 }
 
+void Shell::set_errexit_severity(const std::string& severity) {
+    std::string lower_severity = severity;
+    std::transform(lower_severity.begin(), lower_severity.end(), lower_severity.begin(), ::tolower);
+
+    if (lower_severity == "info" || lower_severity == "warning" || lower_severity == "error" ||
+        lower_severity == "critical") {
+        errexit_severity_level = lower_severity;
+    } else {
+        errexit_severity_level = "error";
+    }
+}
+
+std::string Shell::get_errexit_severity() const {
+    return errexit_severity_level;
+}
+
+bool Shell::should_abort_on_nonzero_exit() const {
+    if (!is_errexit_enabled()) {
+        return false;
+    }
+
+    std::string threshold = get_errexit_severity();
+
+    if (threshold == "critical") {
+        return false;
+    }
+
+    return true;
+}
+
 void Shell::expand_env_vars(std::string& value) {
     if (shell_parser) {
         shell_parser->expand_env_vars(value);

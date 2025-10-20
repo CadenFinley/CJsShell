@@ -12,6 +12,8 @@
 #include <utility>
 #include <vector>
 
+#include "error_out.h"
+
 using shell_script_interpreter::detail::process_line_for_validation;
 using shell_script_interpreter::detail::should_skip_line;
 using shell_script_interpreter::detail::strip_inline_comment;
@@ -20,7 +22,7 @@ using shell_script_interpreter::detail::trim;
 namespace {
 
 using SyntaxError = ShellScriptInterpreter::SyntaxError;
-using ErrorSeverity = ShellScriptInterpreter::ErrorSeverity;
+
 using ErrorCategory = ShellScriptInterpreter::ErrorCategory;
 
 constexpr const char* kSubstLiteralStart = "\x1E__SUBST_LITERAL_START__\x1E";
@@ -1028,7 +1030,7 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
 bool ShellScriptInterpreter::has_syntax_errors(const std::vector<std::string>& lines,
                                                bool print_errors) {
     std::vector<SyntaxError> errors = validate_script_syntax(lines);
-    
+
     auto var_errors = validate_variable_usage(lines);
     errors.insert(errors.end(), var_errors.begin(), var_errors.end());
 

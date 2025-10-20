@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "error_out.h"
 #include "function_evaluator.h"
 #include "parser.h"
 #include "pattern_matcher.h"
@@ -36,13 +37,6 @@ class ShellScriptInterpreter {
     std::vector<std::string> parse_into_lines(const std::string& script) {
         return shell_parser->parse_into_lines(script);
     }
-
-    enum class ErrorSeverity : std::uint8_t {
-        INFO = 0,
-        WARNING = 1,
-        ERROR = 2,
-        CRITICAL = 3
-    };
 
     enum class ErrorCategory : std::uint8_t {
         SYNTAX,

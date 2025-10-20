@@ -139,8 +139,11 @@ class Shell {
     bool get_shell_option(const std::string& option) const;
     bool is_errexit_enabled() const;
 
-    void expand_env_vars(std::string& value);
+    void set_errexit_severity(const std::string& severity);
+    std::string get_errexit_severity() const;
+    bool should_abort_on_nonzero_exit() const;
 
+    void expand_env_vars(std::string& value);
     void sync_env_vars_from_system();
 
     void setup_signal_handlers();
@@ -211,6 +214,7 @@ class Shell {
     std::unordered_map<std::string, std::string> env_vars;
     std::vector<std::string> positional_parameters;
     std::unordered_map<std::string, bool> shell_options;
+    std::string errexit_severity_level = "error";
 
     std::unordered_map<std::string, std::vector<std::string>> hooks;
     std::string last_directory;

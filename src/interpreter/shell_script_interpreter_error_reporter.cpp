@@ -8,11 +8,11 @@
 #include <sstream>
 #include <vector>
 
+#include "error_out.h"
 #include "suggestion_utils.h"
 
 namespace shell_script_interpreter {
 
-using ErrorSeverity = ShellScriptInterpreter::ErrorSeverity;
 using ErrorCategory = ShellScriptInterpreter::ErrorCategory;
 using SyntaxError = ShellScriptInterpreter::SyntaxError;
 
@@ -95,7 +95,6 @@ size_t get_terminal_width() {
 
 void print_error_report(const std::vector<ShellScriptInterpreter::SyntaxError>& errors,
                         bool show_suggestions, bool show_context, int start_error_number) {
-    using ErrorSeverity = ShellScriptInterpreter::ErrorSeverity;
     using SyntaxError = ShellScriptInterpreter::SyntaxError;
 
     static thread_local int global_error_count = 0;
@@ -439,7 +438,6 @@ void print_error_report(const std::vector<ShellScriptInterpreter::SyntaxError>& 
 
 void print_runtime_error(const std::string& error_message, const std::string& context,
                          size_t line_number) {
-    using ErrorSeverity = ShellScriptInterpreter::ErrorSeverity;
     using ErrorCategory = ShellScriptInterpreter::ErrorCategory;
     using SyntaxError = ShellScriptInterpreter::SyntaxError;
 

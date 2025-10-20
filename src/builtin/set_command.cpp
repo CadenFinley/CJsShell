@@ -122,6 +122,14 @@ int set_command(const std::vector<std::string>& args, Shell* shell) {
             if (arg == "+o") {
                 ++i;
             }
+        } else if (arg == "-o" && i + 1 < args.size() &&
+                   args[i + 1].find("errexit_severity=") == 0) {
+            std::string severity = args[i + 1].substr(17);
+            shell->set_errexit_severity(severity);
+            ++i;
+        } else if (arg.find("--errexit-severity=") == 0) {
+            std::string severity = arg.substr(19);
+            shell->set_errexit_severity(severity);
         } else if (arg == "-o" && i + 1 >= args.size()) {
             std::cout << "errexit        \t" << (shell->get_shell_option("errexit") ? "on" : "off")
                       << '\n';
@@ -139,6 +147,7 @@ int set_command(const std::vector<std::string>& args, Shell* shell) {
                       << '\n';
             std::cout << "allexport      \t"
                       << (shell->get_shell_option("allexport") ? "on" : "off") << '\n';
+            std::cout << "errexit_severity\t" << shell->get_errexit_severity() << '\n';
             return 0;
         } else if (arg.substr(0, 2) == "--") {
             std::vector<std::string> positional_params;

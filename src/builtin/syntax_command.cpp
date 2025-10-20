@@ -170,15 +170,15 @@ int syntax_command(const std::vector<std::string>& args, Shell* shell) {
     }
 
     if (!severity_filter.empty()) {
-        ShellScriptInterpreter::ErrorSeverity filter_severity;
+        ErrorSeverity filter_severity;
         if (severity_filter == "info") {
-            filter_severity = ShellScriptInterpreter::ErrorSeverity::INFO;
+            filter_severity = ErrorSeverity::INFO;
         } else if (severity_filter == "warning") {
-            filter_severity = ShellScriptInterpreter::ErrorSeverity::WARNING;
+            filter_severity = ErrorSeverity::WARNING;
         } else if (severity_filter == "error") {
-            filter_severity = ShellScriptInterpreter::ErrorSeverity::ERROR;
+            filter_severity = ErrorSeverity::ERROR;
         } else if (severity_filter == "critical") {
-            filter_severity = ShellScriptInterpreter::ErrorSeverity::CRITICAL;
+            filter_severity = ErrorSeverity::CRITICAL;
         } else {
             print_error({ErrorType::INVALID_ARGUMENT,
                          "syntax",

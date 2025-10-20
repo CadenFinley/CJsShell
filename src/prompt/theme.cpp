@@ -54,8 +54,7 @@ bool report_theme_parse_error_with_script_reporter(const ThemeParseException& ex
         suggestion = exception.error_info()->suggestions.front();
     }
 
-    ShellScriptInterpreter::SyntaxError error(position,
-                                              ShellScriptInterpreter::ErrorSeverity::ERROR,
+    ShellScriptInterpreter::SyntaxError error(position, ErrorSeverity::ERROR,
                                               ShellScriptInterpreter::ErrorCategory::SYNTAX,
                                               "THEME001", message, ctx.line_content, suggestion);
 

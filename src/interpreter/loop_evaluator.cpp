@@ -203,7 +203,7 @@ LoopCommandOutcome handle_loop_command_result(int rc, int break_consumed_rc, int
         return {LoopFlow::BREAK, adjusted};
     }
     if (rc != 0) {
-        if (g_shell && g_shell->is_errexit_enabled())
+        if (g_shell && g_shell->should_abort_on_nonzero_exit())
             return {LoopFlow::BREAK, rc};
         if (!allow_error_continue)
             return {LoopFlow::BREAK, rc};
