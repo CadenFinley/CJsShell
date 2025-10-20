@@ -110,7 +110,7 @@ std::pair<std::string, int> execute_command_for_substitution(
     return {out, exit_code};
 }
 
-}  // namespace
+}  
 
 CommandSubstitutionEvaluator::CommandSubstitutionEvaluator(CommandExecutor executor)
     : command_executor_(std::move(executor)) {
@@ -196,9 +196,48 @@ bool CommandSubstitutionEvaluator::try_handle_arithmetic_expansion(const std::st
         return false;
     }
 
-    for (size_t k = i; k <= arith_end + 1; ++k) {
-        output_text += input[k];
+    
+    ExpansionResult inner_result;
+    inner_result.text = "";
+    for (size_t k = 0; k < inner.size(); ++k) {
+        char inner_c = inner[k];
+        bool handled = false;
+        
+        
+        if (inner_c == '$' && k + 1 < inner.size() && inner[k + 1] == '(') {
+            if (k + 2 < inner.size() && inner[k + 2] == '(') {
+                
+                
+                inner_result.text += inner_c;
+            } else {
+                
+                size_t cmd_end_pos = 0;
+                if (find_matching_delimiter(inner, k + 2, '(', ')', cmd_end_pos)) {
+                    std::string cmd_content = inner.substr(k + 2, cmd_end_pos - (k + 2));
+                    auto [cmd_output, exit_code] = capture_command_output(cmd_content);
+                    inner_result.outputs.push_back(cmd_output);
+                    inner_result.exit_codes.push_back(exit_code);
+                    
+                    std::string trimmed_output = cmd_output;
+                    while (!trimmed_output.empty() && (trimmed_output.back() == '\n' || trimmed_output.back() == '\r')) {
+                        trimmed_output.pop_back();
+                    }
+                    inner_result.text += trimmed_output;
+                    k = cmd_end_pos;
+                    handled = true;
+                }
+            }
+        }
+        
+        if (!handled) {
+            inner_result.text += inner_c;
+        }
     }
+
+    
+    output_text += "$((";
+    output_text += inner_result.text;
+    output_text += "))";
     i = arith_end + 1;
     return true;
 }

@@ -1028,6 +1028,9 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
 bool ShellScriptInterpreter::has_syntax_errors(const std::vector<std::string>& lines,
                                                bool print_errors) {
     std::vector<SyntaxError> errors = validate_script_syntax(lines);
+    
+    auto var_errors = validate_variable_usage(lines);
+    errors.insert(errors.end(), var_errors.begin(), var_errors.end());
 
     bool has_blocking_errors = false;
     for (const auto& error : errors) {
@@ -1145,8 +1148,8 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                         }
                     } else {
                         errors.push_back(SyntaxError({display_line, i, i + 2, 0},
-                                                     ErrorSeverity::ERROR, ErrorCategory::VARIABLES,
-                                                     "VAR001", "Unclosed variable expansion ${",
+                                                     ErrorSeverity::CRITICAL, ErrorCategory::SYNTAX,
+                                                     "SYN008", "Unclosed variable expansion ${",
                                                      line, "Add closing brace '}'"));
                         continue;
                     }

@@ -113,7 +113,7 @@ expect_output "Complex arithmetic precedence" \
   "27"
 
 expect_output "Nested arithmetic expansions (5 levels)" \
-  'echo $((1 + $((2 + $((3 + $((4 + $((5))))))))))))' \
+  'echo $((1 + $((2 + $((3 + $((4 + $((5))))))))))' \
   "15"
 
 expect_output "All arithmetic operators" \
@@ -164,8 +164,8 @@ expect_output "Whitespace preservation" \
   "  spaces   and   tabs		here  "
 
 expect_output "Nested variable expansion" \
-  'a=b; b=c; c=hello; eval echo \$$a' \
-  "hello"
+  'a=b; b=c; c=hello; eval "echo \${!a}"' \
+  "c"
 
 expect_output "Default value expansion" \
   'unset VAR; echo ${VAR:-default}' \
