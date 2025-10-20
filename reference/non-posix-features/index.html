@@ -1003,15 +1003,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#enhanced-ls-command" class="md-nav__link">
-    <span class="md-ellipsis">
-      Enhanced LS Command
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -1717,12 +1708,6 @@
 - Script mode (<code>cjsh script.sh</code>)
 - Command mode (<code>cjsh -c "command"</code>)
 - Piped input (ensures POSIX compliance)</p>
-<h4 id="enhanced-ls-command">Enhanced LS Command</h4>
-<p>When <code>--disable-custom-ls</code> is not specified:
-- <strong>Color-coded Output</strong>: File type and permission coloring
-- <strong>Enhanced Formatting</strong>: Improved visual presentation
-- <strong>Permission Highlighting</strong>: Color-coded permission display
-- <strong>Extended Attributes</strong>: Support for extended file attributes</p>
 <h3 id="configuration-command-cjshopt">Configuration Command (<code>cjshopt</code>)</h3>
 <p><strong>Entirely Non-POSIX</strong>: The <code>cjshopt</code> command provides shell configuration:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>&lt;token&gt;<span class="w"> </span>&lt;style&gt;<span class="w">     </span><span class="c1"># Syntax highlighting styles</span>
@@ -1790,9 +1775,8 @@
 </span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>cjsh<span class="w"> </span>--no-syntax-highlighting<span class="w"> </span><span class="c1"># Disable syntax highlighting</span>
 </span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>cjsh<span class="w"> </span>--no-completions<span class="w">         </span><span class="c1"># Disable completion system</span>
 </span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>cjsh<span class="w"> </span>--no-smart-cd<span class="w">            </span><span class="c1"># Use basic cd implementation</span>
-</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>cjsh<span class="w"> </span>--disable-custom-ls<span class="w">      </span><span class="c1"># Use system ls command</span>
-</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>cjsh<span class="w"> </span>--minimal<span class="w">                </span><span class="c1"># Minimal mode</span>
-</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>cjsh<span class="w"> </span>--secure<span class="w">                 </span><span class="c1"># Secure mode</span>
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>cjsh<span class="w"> </span>--minimal<span class="w">                </span><span class="c1"># Minimal mode</span>
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>cjsh<span class="w"> </span>--secure<span class="w">                 </span><span class="c1"># Secure mode</span>
 </span></code></pre></div>
 <h2 id="performance-features-non-posix">Performance Features (Non-POSIX)</h2>
 <h3 id="caching-systems">Caching Systems</h3>
@@ -1842,13 +1826,13 @@
 <p>Most non-POSIX features can be disabled for strict compatibility:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># Achieve near-POSIX compliance</span>
 </span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>cjsh<span class="w"> </span>--minimal<span class="w"> </span>--no-themes<span class="w"> </span>--no-colors<span class="w"> </span>--no-syntax-highlighting<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">     </span>--no-completions<span class="w"> </span>--no-smart-cd<span class="w"> </span>--disable-custom-ls
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">     </span>--no-completions<span class="w"> </span>--no-smart-cd
 </span></code></pre></div>
 <h2 id="summary">Summary</h2>
 <p>CJsShell's non-POSIX features focus on enhancing the interactive shell experience while maintaining strong POSIX compatibility for scripting. The design philosophy allows users to benefit from modern shell conveniences in interactive use while ensuring scripts remain portable and standards-compliant.</p>
 <p><strong>Key Non-POSIX Areas</strong>:
 1. <strong>Interactive Features</strong>: Theming, syntax highlighting, advanced completion
-2. <strong>Enhanced Built-ins</strong>: Smart cd, custom ls, cjshopt configuration
+2. <strong>Enhanced Built-ins</strong>: Smart cd, cjshopt configuration
 3. <strong>Visual Enhancements</strong>: Colors, gradients, terminal title management
 4. <strong>Development Tools</strong>: Syntax validation, command validation
 5. <strong>Configuration System</strong>: Custom config files and runtime options</p>
