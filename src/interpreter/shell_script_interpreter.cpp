@@ -542,6 +542,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
         if (block_result.handled) {
             last_code = block_result.exit_code;
             line_index = block_result.next_line_index;
+            if (is_control_flow_exit_code(last_code) || g_exit_flag) {
+                return last_code;
+            }
             continue;
         }
 
@@ -1362,20 +1365,25 @@ std::string ShellScriptInterpreter::expand_all_substitutions(
                                 } else {
                                     expanded_expr += expr[k];
                                 }
-                            } else if (expr[k + 1] == '(' && k + 2 < expr.size() && expr[k + 2] == '(') {
-                                
+                            } else if (expr[k + 1] == '(' && k + 2 < expr.size() &&
+                                       expr[k + 2] == '(') {
                                 int nested_depth = 1;
                                 size_t nested_start = k + 3;
                                 size_t nested_end = nested_start;
                                 for (; nested_end < expr.size(); ++nested_end) {
-                                    if (expr[nested_end] == '(' && (nested_end == 0 || expr[nested_end - 1] != '\\')) {
+                                    if (expr[nested_end] == '(' &&
+                                        (nested_end == 0 || expr[nested_end - 1] != '\\')) {
                                         nested_depth++;
-                                    } else if (expr[nested_end] == ')' && (nested_end == 0 || expr[nested_end - 1] != '\\')) {
+                                    } else if (expr[nested_end] == ')' &&
+                                               (nested_end == 0 || expr[nested_end - 1] != '\\')) {
                                         nested_depth--;
-                                        if (nested_depth == 0 && nested_end + 1 < expr.size() && expr[nested_end + 1] == ')') {
-                                            std::string nested_expr = expr.substr(nested_start, nested_end - nested_start);
+                                        if (nested_depth == 0 && nested_end + 1 < expr.size() &&
+                                            expr[nested_end + 1] == ')') {
+                                            std::string nested_expr = expr.substr(
+                                                nested_start, nested_end - nested_start);
                                             try {
-                                                expanded_expr += std::to_string(evaluate_arithmetic_expression(nested_expr));
+                                                expanded_expr += std::to_string(
+                                                    evaluate_arithmetic_expression(nested_expr));
                                             } catch (...) {
                                                 expanded_expr += "0";
                                             }
@@ -1400,7 +1408,7 @@ std::string ShellScriptInterpreter::expand_all_substitutions(
                             current_line_number);
                         throw;
                     }
-                    i = j + 1;  
+                    i = j + 1;
                     continue;
                 }
             }
@@ -1455,7 +1463,6 @@ std::string ShellScriptInterpreter::expand_all_substitutions(
                     i = j;
                     continue;
                 } else {
-                    
                     throw std::runtime_error("syntax error near unexpected token '{'");
                 }
             }

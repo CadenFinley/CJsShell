@@ -35,6 +35,8 @@
 #include "usage.h"
 #include "version_command.h"
 
+// dir preview wile doing path navigation.
+
 bool g_exit_flag = false;
 std::string g_cached_version;
 std::string g_current_theme;

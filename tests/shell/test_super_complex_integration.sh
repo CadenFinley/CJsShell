@@ -450,6 +450,10 @@ expect_output "Type command for builtin" \
   'type cd | grep -q builtin && echo yes || echo no' \
   "yes"
 
+COMPLEX_SCRIPT="/tmp/cjsh_complex_test_$$.sh"
+cat > "$COMPLEX_SCRIPT" << 'SCRIPT_EOF'
+#!/usr/bin/env sh
+
 GLOBAL_ERROR_COUNT=0
 GLOBAL_ERROR_COUNT=0
 GLOBAL_PROCESSED=0
@@ -473,11 +477,11 @@ log_message() {
             printf "[WARN] %s\n" "$message" >&2
             ;;
         INFO)
-            printf "[INFO] %s\n" "$message"
+            printf "[INFO] %s\n" "$message" >&2
             ;;
         DEBUG)
             if [ "${DEBUG_MODE:-0}" -eq 1 ]; then
-                printf "[DEBUG] %s\n" "$message"
+                printf "[DEBUG] %s\n" "$message" >&2
             fi
             ;;
     esac
@@ -1002,6 +1006,8 @@ if echo "$output" | grep -q "full:math:" && \
 else
     fail "Full integration test" "missing expected components in: [$output]"
 fi
+
+rm -f "$COMPLEX_SCRIPT"
 
 printf "Total Tests:    %3d\n" "$TOTAL"
 printf "Passed:         %3d (%.1f%%)\n" "$PASSED" "$((PASSED * 100 / (TOTAL > 0 ? TOTAL : 1)))"
