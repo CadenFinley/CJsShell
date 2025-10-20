@@ -60,7 +60,6 @@ bool show_version = false;
 bool show_help = false;
 bool startup_test = false;
 bool minimal_mode = false;
-bool disable_custom_ls = false;
 bool show_startup_time = false;
 bool secure_mode = false;
 bool show_title_line = true;

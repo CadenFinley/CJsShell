@@ -42,20 +42,12 @@ else
     fail_test "which shows CJsShell custom implementations (output: '$OUT')"
 fi
 
-echo "Test 3: Which shows ls as system command by default..."
+echo "Test 3: Which shows ls as system command..."
 OUT=$("$CJSH_PATH" -c "which ls" 2>&1)
 if [ $? -eq 0 ] && echo "$OUT" | grep -E "^/" > /dev/null; then
-    pass_test "which shows ls as system command by default"
+    pass_test "which shows ls as system command"
 else
     fail_test "which shows ls as system command (output: '$OUT')"
-fi
-
-echo "Test 4: Which shows external ls when custom ls is disabled..."
-OUT=$("$CJSH_PATH" --disable-custom-ls -c "which ls" 2>&1)
-if echo "$OUT" | grep -E "^/" > /dev/null; then
-    pass_test "which shows external ls when custom ls is disabled"
-else
-    fail_test "which shows external ls when disabled (output: '$OUT')"
 fi
 
 echo "Test 5: Which identifies aliases..."

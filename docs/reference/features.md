@@ -82,14 +82,6 @@ Enhanced `cd` command with intelligent features:
 - Previous directory switching with `cd -`
 - Can be disabled with `--no-smart-cd` flag
 
-#### Enhanced ls Command
-Custom `ls` implementation with improved formatting:
-
-- Color-coded file types
-- Better visual presentation
-- Respects terminal capabilities
-- Can be disabled with `--disable-custom-ls` flag
-
 #### Auto-completion
 Built-in completion system with advanced features:
 
@@ -192,7 +184,6 @@ Multiple command-line flags are available to adjust startup behavior:
 - `--no-smart-cd` – Use the basic `cd` implementation
 - `--no-prompt` – Use a minimal `#` prompt instead of the themed prompt
 - `--no-history-expansion` – Turn off history expansion (`!!`, `!$`, etc.)
-- `--disable-custom-ls` – Use the system `ls` command
 - `--show-startup-time` – Print how long startup took
 - `--startup-test` – Enable startup test mode for diagnostics
 - `--secure` – Run in secure mode with additional restrictions

@@ -49,8 +49,7 @@ int startup_flag_command(const std::vector<std::string>& args) {
               "  --no-syntax-highlighting Disable syntax highlighting",
               "  --no-smart-cd        Disable smart cd functionality",
               "  --no-prompt          Use simple '#' prompt instead of themed prompt",
-              R"(  --minimal            Disable all unique cjsh features (themes, colors, completions, syntax highlighting, smart cd, sourcing, custom ls, startup time display))",
-              R"(  --disable-custom-ls  Use system ls command instead of builtin ls)",
+              R"(  --minimal            Disable all unique cjsh features (themes, colors, completions, syntax highlighting, smart cd, sourcing, startup time display))",
               "  --startup-test       Enable startup test mode"}});
         return 1;
     }
@@ -61,8 +60,7 @@ int startup_flag_command(const std::vector<std::string>& args) {
         flag == "--no-prompt" || flag == "--no-themes" || flag == "--no-colors" ||
         flag == "--no-titleline" || flag == "--show-startup-time" || flag == "--no-source" ||
         flag == "--no-completions" || flag == "--no-syntax-highlighting" ||
-        flag == "--no-smart-cd" || flag == "--minimal" || flag == "--startup-test" ||
-        flag == "--disable-custom-ls") {
+        flag == "--no-smart-cd" || flag == "--minimal" || flag == "--startup-test") {
         bool flag_exists = false;
         for (const auto& existing_flag : g_profile_startup_args) {
             if (existing_flag == flag) {

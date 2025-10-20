@@ -34,7 +34,6 @@ int help_command() {
         {"return", "Exit the current function with an optional status"},
         {"cd", "Change the current directory (smart cd by default)"},
         {"pwd", "Print the current working directory"},
-        {"ls", "List directory contents using cjsh's enhanced view"},
         {"echo", "Print arguments separated by spaces"},
         {"printf", "Format and print data using printf-style specifiers"},
         {"help", "Display this overview"},

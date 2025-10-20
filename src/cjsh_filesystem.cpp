@@ -462,7 +462,7 @@ bool create_profile_file() {
         "# cjshopt login-startup-arg --minimal             # Disable all "
         "unique cjsh "
         "features (themes, colors, completions, syntax "
-        "highlighting, smart cd, sourcing, custom ls, startup time display)\n"
+        "highlighting, smart cd, sourcing, startup time display)\n"
         "# cjshopt login-startup-arg --no-themes           # Disable themes\n"
         "# cjshopt login-startup-arg --no-colors           # Disable colors\n"
         "# cjshopt login-startup-arg --no-titleline        # Disable title "
@@ -478,9 +478,6 @@ bool create_profile_file() {
         "highlighting\n"
         "# cjshopt login-startup-arg --no-smart-cd         # Disable smart cd "
         "functionality\n"
-        "# cjshopt login-startup-arg --disable-custom-ls   # Use system ls "
-        "command "
-        "instead of builtin ls\n"
         "# cjshopt login-startup-arg --startup-test        # Enable startup "
         "test "
         "mode\n";

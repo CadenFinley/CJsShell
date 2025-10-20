@@ -26,7 +26,6 @@ void apply_minimal_mode() {
     config::completions_enabled = false;
     config::syntax_highlighting_enabled = false;
     config::smart_cd_enabled = false;
-    config::disable_custom_ls = true;
     config::show_startup_time = false;
     config::show_title_line = false;
     config::history_expansion_enabled = false;
@@ -57,12 +56,11 @@ ParseResult parse_arguments(int argc, char* argv[]) {
                                            {"no-prompt", no_argument, nullptr, 'P'},
                                            {"startup-test", no_argument, nullptr, 'X'},
                                            {"minimal", no_argument, nullptr, 'm'},
-                                           {"disable-custom-ls", no_argument, nullptr, 'D'},
                                            {"secure", no_argument, nullptr, 's'},
                                            {"no-history-expansion", no_argument, nullptr, 'H'},
                                            {nullptr, 0, nullptr, 0}};
 
-    const char* short_options = "+lic:vhTCLUNOSMPXmDsH";
+    const char* short_options = "+lic:vhTCLUNOSMPXmsH";
 
     int option_index = 0;
     int c;
@@ -123,9 +121,6 @@ ParseResult parse_arguments(int argc, char* argv[]) {
                 break;
             case 'm':
                 apply_minimal_mode();
-                break;
-            case 'D':
-                config::disable_custom_ls = true;
                 break;
             case 's':
                 config::secure_mode = true;
@@ -196,8 +191,6 @@ void apply_profile_startup_flags() {
         } else if (flag == "--login") {
         } else if (flag == "--minimal") {
             apply_minimal_mode();
-        } else if (flag == "--disable-custom-ls") {
-            config::disable_custom_ls = true;
         } else if (flag == "--secure") {
             config::secure_mode = true;
         } else if (flag == "--no-history-expansion") {

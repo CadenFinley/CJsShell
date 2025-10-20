@@ -139,13 +139,6 @@ ls !^           # Uses first arg from previous command
 - Command mode (`cjsh -c "command"`)
 - Piped input (ensures POSIX compliance)
 
-#### Enhanced LS Command
-When `--disable-custom-ls` is not specified:
-- **Color-coded Output**: File type and permission coloring
-- **Enhanced Formatting**: Improved visual presentation
-- **Permission Highlighting**: Color-coded permission display
-- **Extended Attributes**: Support for extended file attributes
-
 ### Configuration Command (`cjshopt`)
 
 **Entirely Non-POSIX**: The `cjshopt` command provides shell configuration:
@@ -226,7 +219,6 @@ cjsh --no-colors              # Disable color output
 cjsh --no-syntax-highlighting # Disable syntax highlighting
 cjsh --no-completions         # Disable completion system
 cjsh --no-smart-cd            # Use basic cd implementation
-cjsh --disable-custom-ls      # Use system ls command
 cjsh --minimal                # Minimal mode
 cjsh --secure                 # Secure mode
 ```
@@ -286,7 +278,7 @@ Most non-POSIX features can be disabled for strict compatibility:
 ```bash
 # Achieve near-POSIX compliance
 cjsh --minimal --no-themes --no-colors --no-syntax-highlighting \
-     --no-completions --no-smart-cd --disable-custom-ls
+     --no-completions --no-smart-cd
 ```
 
 ## Summary
@@ -295,7 +287,7 @@ CJsShell's non-POSIX features focus on enhancing the interactive shell experienc
 
 **Key Non-POSIX Areas**:
 1. **Interactive Features**: Theming, syntax highlighting, advanced completion
-2. **Enhanced Built-ins**: Smart cd, custom ls, cjshopt configuration
+2. **Enhanced Built-ins**: Smart cd, cjshopt configuration
 3. **Visual Enhancements**: Colors, gradients, terminal title management
 4. **Development Tools**: Syntax validation, command validation
 5. **Configuration System**: Custom config files and runtime options

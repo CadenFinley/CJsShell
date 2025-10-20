@@ -22,15 +22,6 @@ Print the current working directory.
 pwd
 ```
 
-### ls
-List directory contents using cjsh's enhanced view.
-
-```bash
-ls [options] [path]
-```
-
-Note: This is a custom implementation with improved formatting and color support. Can be disabled with `--disable-custom-ls` flag.
-
 ## Text Output
 
 ### echo
@@ -544,7 +535,6 @@ Supported flags:
 | `--no-smart-cd` | Use the basic `cd` implementation |
 | `--no-prompt` | Use a minimal `#` prompt instead of the themed prompt |
 | `--minimal` | Disable all cjsh extras (themes, colors, completions, smart cd, etc.) |
-| `--disable-custom-ls` | Use the system `ls` instead of cjsh's enhanced version |
 | `--startup-test` | Enable startup test mode |
 
 Add one line per flag in `~/.cjprofile` to persist the desired behavior:

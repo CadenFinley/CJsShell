@@ -36,7 +36,6 @@
 #include "job_control.h"
 #include "local_command.h"
 #include "loop_control_commands.h"
-#include "ls_command.h"
 #include "printf_command.h"
 #include "pwd_command.h"
 #include "read_command.h"
@@ -109,7 +108,6 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"echo", [](const std::vector<std::string>& args) { return ::echo_command(args); }},
         {"printf", [](const std::vector<std::string>& args) { return ::printf_command(args); }},
         {"pwd", [](const std::vector<std::string>& args) { return ::pwd_command(args); }},
-        {"ls", [this](const std::vector<std::string>& args) { return ::ls_command(args, shell); }},
         {"cd",
          [this](const std::vector<std::string>& args) {
              if (builtin_handle_help(args, {"Usage: cd [DIR]", "Change the current directory.",
@@ -316,20 +314,6 @@ int Built_ins::builtin_command(const std::vector<std::string>& args) {
 int Built_ins::is_builtin_command(const std::string& cmd) const {
     if (cmd.empty()) {
         return 0;
-    }
-
-    if (cmd == "ls") {
-        if (config::disable_custom_ls) {
-            return 0;
-        }
-
-        if (!isatty(STDOUT_FILENO)) {
-            return 0;
-        }
-
-        if (shell && !shell->get_interactive_mode()) {
-            return 0;
-        }
     }
 
     return builtins.find(cmd) != builtins.end();

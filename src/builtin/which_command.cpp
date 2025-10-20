@@ -63,14 +63,10 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
         bool found = false;
         bool found_executable = false;
 
-        const std::vector<std::string> cjsh_custom_commands = {"echo", "printf", "pwd", "cd", "ls"};
+        const std::vector<std::string> cjsh_custom_commands = {"echo", "printf", "pwd", "cd"};
 
         bool is_cjsh_custom = std::find(cjsh_custom_commands.begin(), cjsh_custom_commands.end(),
                                         name) != cjsh_custom_commands.end();
-
-        if (name == "ls" && config::disable_custom_ls) {
-            is_cjsh_custom = false;
-        }
 
         if (is_cjsh_custom && (shell != nullptr) &&
             (shell->get_built_ins()->is_builtin_command(name) != 0)) {
