@@ -69,6 +69,8 @@ std::string build_completion_suffix(const std::filesystem::directory_entry& entr
         completion_utils::quote_path_if_needed(entry.path().filename().string());
     if (entry.is_directory())
         completion_suffix += "/";
+    else
+        completion_suffix += " ";
     return completion_suffix;
 }
 
