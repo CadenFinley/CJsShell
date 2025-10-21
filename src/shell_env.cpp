@@ -14,6 +14,8 @@
 
 #ifdef __APPLE__
 #include <crt_externs.h>
+#else
+extern "C" char** environ;
 #endif
 
 #include "cjsh.h"
@@ -26,7 +28,6 @@ char** current_environ() {
 #if defined(__APPLE__)
     return *_NSGetEnviron();
 #else
-    extern char** environ;
     return environ;
 #endif
 }
