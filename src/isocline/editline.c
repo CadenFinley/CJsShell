@@ -788,9 +788,18 @@ static void edit_write_row_text(ic_env_t* env, const char* text, ssize_t len, co
         marker_len = 1;
     }
 
+    const attr_t whitespace_attr = bbcode_style(env->bbcode, "ic-whitespace-char");
+    const bool has_whitespace_style = !attr_is_none(whitespace_attr);
+
     // When attributes are present we need to replicate the formatted output logic
     // while substituting markers for spaces.
     if (attrs == NULL) {
+        attr_t default_attr = attr_none();
+        bool whitespace_active = false;
+        if (has_whitespace_style) {
+            term_start_raw(env->term);
+            default_attr = term_get_attr(env->term);
+        }
         ssize_t offset = 0;
         while (offset < len) {
             ssize_t char_len = 0;
@@ -802,11 +811,22 @@ static void edit_write_row_text(ic_env_t* env, const char* text, ssize_t len, co
             }
 
             if (code == ' ') {
+                if (has_whitespace_style && !whitespace_active) {
+                    term_set_attr(env->term, attr_update_with(default_attr, whitespace_attr));
+                    whitespace_active = true;
+                }
                 term_write_n(env->term, marker, marker_len);
             } else {
+                if (has_whitespace_style && whitespace_active) {
+                    term_set_attr(env->term, default_attr);
+                    whitespace_active = false;
+                }
                 term_write_n(env->term, text + offset, char_len);
             }
             offset += char_len;
+        }
+        if (has_whitespace_style) {
+            term_set_attr(env->term, default_attr);
         }
         return;
     }
@@ -814,6 +834,8 @@ static void edit_write_row_text(ic_env_t* env, const char* text, ssize_t len, co
     term_start_raw(env->term);
     attr_t default_attr = term_get_attr(env->term);
     attr_t current_attr = attr_none();
+    bool whitespace_active = false;
+    attr_t whitespace_base_attr = attr_none();
     ssize_t offset = 0;
     while (offset < len) {
         ssize_t char_len = 0;
@@ -824,14 +846,27 @@ static void edit_write_row_text(ic_env_t* env, const char* text, ssize_t len, co
         }
 
         attr_t attr = attrs[offset];
+        attr_t base_attr = attr_update_with(default_attr, attr);
         if (!attr_is_eq(current_attr, attr)) {
-            term_set_attr(env->term, attr_update_with(default_attr, attr));
+            term_set_attr(env->term, base_attr);
             current_attr = attr;
+            whitespace_active = false;
         }
 
         if (code == ' ') {
+            if (has_whitespace_style) {
+                if (!whitespace_active || !attr_is_eq(whitespace_base_attr, base_attr)) {
+                    term_set_attr(env->term, attr_update_with(base_attr, whitespace_attr));
+                    whitespace_active = true;
+                    whitespace_base_attr = base_attr;
+                }
+            }
             term_write_n(env->term, marker, marker_len);
         } else {
+            if (has_whitespace_style && whitespace_active) {
+                term_set_attr(env->term, base_attr);
+                whitespace_active = false;
+            }
             term_write_n(env->term, text + offset, char_len);
         }
         offset += char_len;

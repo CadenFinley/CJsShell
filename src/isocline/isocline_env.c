@@ -102,6 +102,7 @@ static ic_env_t* ic_env_create(ic_malloc_fun_t* _malloc, ic_realloc_fun_t* _real
     bbcode_style_def(env->bbcode, "ic-hint", "ansi-darkgray");
     bbcode_style_def(env->bbcode, "ic-error", "#d70000");
     bbcode_style_def(env->bbcode, "ic-bracematch", "ansi-white");
+    bbcode_style_def(env->bbcode, "ic-whitespace-char", "ansi-lightgray");
 
     bbcode_style_def(env->bbcode, "keyword", "#569cd6");
     bbcode_style_def(env->bbcode, "control", "#c586c0");
