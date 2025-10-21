@@ -1029,6 +1029,8 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
         if (cjsh_filesystem::is_executable_in_cache(command_name)) {
             cjsh_filesystem::remove_executable_from_cache(command_name);
         }
+
+        cjsh_filesystem::remove_from_executable_lookup_cache(command_name);
     }
 
     return exit_code;
