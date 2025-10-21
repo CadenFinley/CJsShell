@@ -20,13 +20,16 @@
 #include "cjsh_filesystem.h"
 #include "shell.h"
 
+#if !defined(__APPLE__)
+extern char** environ;
+#endif
+
 namespace {
 
 char** current_environ() {
 #if defined(__APPLE__)
     return *_NSGetEnviron();
 #else
-    extern char** environ;
     return environ;
 #endif
 }
