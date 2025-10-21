@@ -156,9 +156,6 @@ ic_public bool ic_enable_multiline_indent(bool enable) {
         return false;
     bool prev = env->no_multiline_indent;
     env->no_multiline_indent = !enable;
-    if (env->no_multiline_indent != prev) {
-        env->prompt_layout_generation++;
-    }
     return !prev;
 }
 

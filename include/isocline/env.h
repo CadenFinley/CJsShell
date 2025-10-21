@@ -68,7 +68,6 @@ struct ic_env_s {
     bool no_autobrace;                       // enable automatic brace insertion?
     bool no_lscolors;                        // use LSCOLORS/LS_COLORS to colorize file name
                                              // completions?
-    unsigned long prompt_layout_generation;  // bumps when markers/indent layout changes
     bool spell_correct;                      // enable spell correction on completions?
     bool show_line_numbers;                  // show line numbers in multiline mode?
     bool relative_line_numbers;              // use relative line numbers when enabled?
