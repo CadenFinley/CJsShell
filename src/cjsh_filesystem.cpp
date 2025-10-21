@@ -99,6 +99,48 @@ Result<void> redirect_fd(const std::string& file, int target_fd, int flags) {
     return Result<void>::ok();
 }
 
+Result<void> set_close_on_exec(int fd) {
+    int flags = ::fcntl(fd, F_GETFD);
+    if (flags == -1) {
+        return Result<void>::error("failed to get file descriptor flags for fd " +
+                                   std::to_string(fd) + ": " + describe_errno(errno));
+    }
+
+    if (::fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == -1) {
+        return Result<void>::error("failed to set close-on-exec on fd " + std::to_string(fd) +
+                                   ": " + describe_errno(errno));
+    }
+
+    return Result<void>::ok();
+}
+
+Result<void> create_pipe_cloexec(int pipe_fds[2]) {
+    if (::pipe(pipe_fds) == -1) {
+        return Result<void>::error("failed to create pipe: " + describe_errno(errno));
+    }
+
+    auto read_result = set_close_on_exec(pipe_fds[0]);
+    if (read_result.is_error()) {
+        safe_close(pipe_fds[0]);
+        safe_close(pipe_fds[1]);
+        return Result<void>::error("failed to secure pipe read end: " + read_result.error());
+    }
+
+    auto write_result = set_close_on_exec(pipe_fds[1]);
+    if (write_result.is_error()) {
+        safe_close(pipe_fds[0]);
+        safe_close(pipe_fds[1]);
+        return Result<void>::error("failed to secure pipe write end: " + write_result.error());
+    }
+
+    return Result<void>::ok();
+}
+
+void close_pipe(int pipe_fds[2]) {
+    safe_close(pipe_fds[0]);
+    safe_close(pipe_fds[1]);
+}
+
 Result<FILE*> safe_fopen(const std::string& path, const std::string& mode) {
     FILE* file = std::fopen(path.c_str(), mode.c_str());
     if (file == nullptr) {

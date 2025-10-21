@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <cstdio>
 #include <cstring>
+#include <memory>
 #include <sstream>
 #include <unordered_map>
 #include <vector>
@@ -12,17 +13,6 @@
 #include "cjsh_filesystem.h"
 
 namespace {
-
-bool set_close_on_exec(int fd) {
-    int flags = fcntl(fd, F_GETFD);
-    if (flags == -1) {
-        return false;
-    }
-    if (fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == -1) {
-        return false;
-    }
-    return true;
-}
 
 std::vector<char*> build_exec_argv(const std::vector<std::string>& args) {
     std::vector<char*> argv;
@@ -45,20 +35,14 @@ int safe_execute_git_command(const std::vector<std::string>& args, std::string& 
     exit_code = -1;
 
     int pipefd[2];
-    if (pipe(pipefd) == -1) {
-        return -1;
-    }
-
-    if (!set_close_on_exec(pipefd[0]) || !set_close_on_exec(pipefd[1])) {
-        cjsh_filesystem::safe_close(pipefd[0]);
-        cjsh_filesystem::safe_close(pipefd[1]);
+    auto pipe_result = cjsh_filesystem::create_pipe_cloexec(pipefd);
+    if (pipe_result.is_error()) {
         return -1;
     }
 
     pid_t pid = fork();
     if (pid == -1) {
-        cjsh_filesystem::safe_close(pipefd[0]);
-        cjsh_filesystem::safe_close(pipefd[1]);
+        cjsh_filesystem::close_pipe(pipefd);
         return -1;
     }
 
