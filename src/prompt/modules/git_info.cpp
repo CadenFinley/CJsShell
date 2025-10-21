@@ -1,97 +1,19 @@
 #include "git_info.h"
 
-#include <fcntl.h>
-#include <sys/wait.h>
-#include <unistd.h>
-#include <cstdio>
-#include <cstring>
-#include <memory>
 #include <sstream>
 #include <unordered_map>
 #include <vector>
 
 #include "cjsh_filesystem.h"
+#include "exec.h"
 
 namespace {
 
-std::vector<char*> build_exec_argv(const std::vector<std::string>& args) {
-    std::vector<char*> argv;
-    std::vector<std::unique_ptr<char[]>> arg_storage;
-    argv.reserve(args.size() + 1);
-    arg_storage.reserve(args.size());
-    for (const auto& arg : args) {
-        auto str_copy = std::make_unique<char[]>(arg.size() + 1);
-        std::strcpy(str_copy.get(), arg.c_str());
-        argv.push_back(str_copy.get());
-        arg_storage.push_back(std::move(str_copy));
+std::string trim_trailing_newline(std::string value) {
+    if (!value.empty() && value.back() == '\n') {
+        value.pop_back();
     }
-    argv.push_back(nullptr);
-    return argv;
-}
-
-int safe_execute_git_command(const std::vector<std::string>& args, std::string& result,
-                             int& exit_code) {
-    result.clear();
-    exit_code = -1;
-
-    int pipefd[2];
-    auto pipe_result = cjsh_filesystem::create_pipe_cloexec(pipefd);
-    if (pipe_result.is_error()) {
-        return -1;
-    }
-
-    pid_t pid = fork();
-    if (pid == -1) {
-        cjsh_filesystem::close_pipe(pipefd);
-        return -1;
-    }
-
-    if (pid == 0) {
-        cjsh_filesystem::safe_close(pipefd[0]);
-
-        auto dup_result = cjsh_filesystem::safe_dup2(pipefd[1], STDOUT_FILENO);
-        if (dup_result.is_error()) {
-            _exit(127);
-        }
-
-        auto devnull_result = cjsh_filesystem::safe_open("/dev/null", O_WRONLY);
-        if (devnull_result.is_ok()) {
-            cjsh_filesystem::safe_dup2(devnull_result.value(), STDERR_FILENO);
-            cjsh_filesystem::safe_close(devnull_result.value());
-        }
-
-        cjsh_filesystem::safe_close(pipefd[1]);
-
-        auto argv = build_exec_argv(args);
-        execvp(argv[0], argv.data());
-        _exit(127);
-    }
-
-    cjsh_filesystem::safe_close(pipefd[1]);
-
-    char buffer[4096];
-    ssize_t bytes_read;
-    while ((bytes_read = read(pipefd[0], buffer, sizeof(buffer) - 1)) > 0) {
-        buffer[bytes_read] = '\0';
-        result += buffer;
-    }
-
-    cjsh_filesystem::safe_close(pipefd[0]);
-
-    int status;
-    if (waitpid(pid, &status, 0) == -1) {
-        return -1;
-    }
-
-    if (WIFEXITED(status)) {
-        exit_code = WEXITSTATUS(status);
-    } else if (WIFSIGNALED(status)) {
-        exit_code = 128 + WTERMSIG(status);
-    } else {
-        exit_code = 1;
-    }
-
-    return 0;
+    return value;
 }
 
 std::unordered_map<std::string, std::pair<std::string, std::chrono::steady_clock::time_point>>
@@ -110,62 +32,45 @@ bool is_git_status_check_running = false;
 
 std::string get_git_remote(const std::filesystem::path& repo_root) {
     std::vector<std::string> cmd = {"git", "-C", repo_root.string(), "remote", "get-url", "origin"};
-    std::string result;
-    int exit_code;
-
-    if (safe_execute_git_command(cmd, result, exit_code) != 0 || exit_code != 0) {
+    exec_utils::CommandOutput command = exec_utils::execute_command_vector_for_output(cmd);
+    if (!command.success) {
         return "";
     }
 
-    if (!result.empty() && result.back() == '\n') {
-        result.pop_back();
-    }
-    return result;
+    return trim_trailing_newline(command.output);
 }
 
 std::string get_git_tag(const std::filesystem::path& repo_root) {
     std::vector<std::string> cmd = {"git",      "-C",     repo_root.string(),
                                     "describe", "--tags", "--abbrev=0"};
-    std::string result;
-    int exit_code;
-
-    if (safe_execute_git_command(cmd, result, exit_code) != 0 || exit_code != 0) {
+    exec_utils::CommandOutput command = exec_utils::execute_command_vector_for_output(cmd);
+    if (!command.success) {
         return "";
     }
 
-    if (!result.empty() && result.back() == '\n') {
-        result.pop_back();
-    }
-    return result;
+    return trim_trailing_newline(command.output);
 }
 
 std::string get_git_last_commit(const std::filesystem::path& repo_root) {
     std::vector<std::string> cmd = {"git", "-C", repo_root.string(),
                                     "log", "-1", "--pretty=format:%h:%s"};
-    std::string result;
-    int exit_code;
-
-    if (safe_execute_git_command(cmd, result, exit_code) != 0 || exit_code != 0) {
+    exec_utils::CommandOutput command = exec_utils::execute_command_vector_for_output(cmd);
+    if (!command.success) {
         return "";
     }
 
-    return result;
+    return command.output;
 }
 
 std::string get_git_author(const std::filesystem::path& repo_root) {
     std::vector<std::string> cmd = {"git", "-C", repo_root.string(),
                                     "log", "-1", "--pretty=format:%an"};
-    std::string result;
-    int exit_code;
-
-    if (safe_execute_git_command(cmd, result, exit_code) != 0 || exit_code != 0) {
+    exec_utils::CommandOutput command = exec_utils::execute_command_vector_for_output(cmd);
+    if (!command.success) {
         return "";
     }
 
-    if (!result.empty() && result.back() == '\n') {
-        result.pop_back();
-    }
-    return result;
+    return trim_trailing_newline(command.output);
 }
 
 std::string get_git_branch(const std::filesystem::path& git_head_path) {
@@ -208,11 +113,10 @@ std::string get_git_status(const std::filesystem::path& repo_root) {
             is_git_status_check_running = true;
 
             std::vector<std::string> cmd = {"git", "-C", git_dir, "status", "--porcelain"};
-            std::string result;
-            int exit_code;
+            exec_utils::CommandOutput command = exec_utils::execute_command_vector_for_output(cmd);
 
-            if (safe_execute_git_command(cmd, result, exit_code) == 0 && exit_code == 0) {
-                if (!result.empty()) {
+            if (command.exit_code == 0) {
+                if (!command.output.empty()) {
                     is_clean_repo = false;
                     status_symbols = "✘";
                 } else {
@@ -274,35 +178,37 @@ int get_git_ahead_behind(const std::filesystem::path& repo_root, int& ahead, int
 
     std::vector<std::string> upstream_cmd = {"git",       "-C",           repo_root.string(),
                                              "rev-parse", "--abbrev-ref", branch + "@{upstream}"};
-    std::string upstream;
-    int exit_code;
-
-    if (safe_execute_git_command(upstream_cmd, upstream, exit_code) != 0 || exit_code != 0) {
+    exec_utils::CommandOutput upstream =
+        exec_utils::execute_command_vector_for_output(upstream_cmd);
+    if (upstream.exit_code != 0) {
         return -1;
     }
 
-    if (!upstream.empty() && upstream.back() == '\n') {
-        upstream.pop_back();
-    }
+    std::string upstream_branch = trim_trailing_newline(upstream.output);
 
-    if (upstream.empty()) {
+    if (upstream_branch.empty()) {
         return -1;
     }
 
-    std::vector<std::string> count_cmd = {
-        "git",          "-C",      repo_root.string(),       "rev-list",
-        "--left-right", "--count", branch + "..." + upstream};
-    std::string count_result;
+    std::vector<std::string> count_cmd = {"git",
+                                          "-C",
+                                          repo_root.string(),
+                                          "rev-list",
+                                          "--left-right",
+                                          "--count",
+                                          branch + "..." + upstream_branch};
+    exec_utils::CommandOutput count_result =
+        exec_utils::execute_command_vector_for_output(count_cmd);
 
-    if (safe_execute_git_command(count_cmd, count_result, exit_code) != 0 || exit_code != 0) {
+    if (count_result.exit_code != 0) {
         return -1;
     }
 
-    size_t tab_pos = count_result.find('\t');
+    size_t tab_pos = count_result.output.find('\t');
     if (tab_pos != std::string::npos) {
         try {
-            ahead = std::stoi(count_result.substr(0, tab_pos));
-            behind = std::stoi(count_result.substr(tab_pos + 1));
+            ahead = std::stoi(count_result.output.substr(0, tab_pos));
+            behind = std::stoi(count_result.output.substr(tab_pos + 1));
         } catch (const std::exception& e) {
             return -1;
         }
@@ -314,15 +220,13 @@ int get_git_ahead_behind(const std::filesystem::path& repo_root, int& ahead, int
 int get_git_stash_count(const std::filesystem::path& repo_root) {
     std::vector<std::string> cmd = {"git",   "-C",   repo_root.string(),
                                     "stash", "list", "--pretty=oneline"};
-    std::string result;
-    int exit_code;
-
-    if (safe_execute_git_command(cmd, result, exit_code) != 0 || exit_code != 0) {
+    exec_utils::CommandOutput command = exec_utils::execute_command_vector_for_output(cmd);
+    if (command.exit_code != 0) {
         return 0;
     }
 
     int count = 0;
-    std::istringstream stream(result);
+    std::istringstream stream(command.output);
     std::string line;
     while (std::getline(stream, line)) {
         if (!line.empty()) {
@@ -334,16 +238,11 @@ int get_git_stash_count(const std::filesystem::path& repo_root) {
 
 bool get_git_has_staged_changes(const std::filesystem::path& repo_root) {
     std::vector<std::string> cmd = {"git", "-C", repo_root.string(), "diff", "--cached", "--quiet"};
-    std::string result;
-    int exit_code;
+    exec_utils::CommandOutput command = exec_utils::execute_command_vector_for_output(cmd);
 
-    if (safe_execute_git_command(cmd, result, exit_code) != 0) {
+    if (command.exit_code == 0) {
         return false;
-    }
-
-    if (exit_code == 0) {
-        return false;
-    } else if (exit_code == 1) {
+    } else if (command.exit_code == 1) {
         return true;
     } else {
         return false;
@@ -352,15 +251,13 @@ bool get_git_has_staged_changes(const std::filesystem::path& repo_root) {
 
 int get_git_uncommitted_changes(const std::filesystem::path& repo_root) {
     std::vector<std::string> cmd = {"git", "-C", repo_root.string(), "status", "--porcelain"};
-    std::string result;
-    int exit_code;
-
-    if (safe_execute_git_command(cmd, result, exit_code) != 0 || exit_code != 0) {
+    exec_utils::CommandOutput command = exec_utils::execute_command_vector_for_output(cmd);
+    if (command.exit_code != 0) {
         return 0;
     }
 
     int count = 0;
-    std::istringstream stream(result);
+    std::istringstream stream(command.output);
     std::string line;
     while (std::getline(stream, line)) {
         if (!line.empty()) {
