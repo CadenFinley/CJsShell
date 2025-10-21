@@ -24,6 +24,7 @@
 #include "exec_command.h"
 #include "exit_command.h"
 #include "export_command.h"
+#include "false_command.h"
 #include "fc_command.h"
 #include "getopts_command.h"
 #include "hash_command.h"
@@ -48,6 +49,7 @@
 #include "test_command.h"
 #include "times_command.h"
 #include "trap_command.h"
+#include "true_command.h"
 #include "type_command.h"
 #include "umask_command.h"
 #include "validate_command.h"
@@ -268,8 +270,8 @@ Built_ins::Built_ins() : shell(nullptr) {
              return builtin_it->second(forwarded_args);
          }},
         {"cjshopt", [](const std::vector<std::string>& args) { return ::cjshopt_command(args); }},
-        {"true", [](const std::vector<std::string>&) { return 0; }},
-        {"false", [](const std::vector<std::string>&) { return 1; }},
+        {"true", [](const std::vector<std::string>& args) { return true_command(args); }},
+        {"false", [](const std::vector<std::string>& args) { return false_command(args); }},
     };
 }
 
