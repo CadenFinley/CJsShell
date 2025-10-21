@@ -213,6 +213,33 @@ ic_public bool ic_current_line_number_highlight_is_enabled(void) {
     return env->highlight_current_line_number;
 }
 
+ic_public bool ic_enable_visible_whitespace(bool enable) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return false;
+    bool prev = env->show_whitespace_characters;
+    env->show_whitespace_characters = enable;
+    return prev;
+}
+
+ic_public void ic_set_whitespace_marker(const char* marker) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return;
+    mem_free(env->mem, env->whitespace_marker);
+    env->whitespace_marker = NULL;
+    if (marker != NULL && marker[0] != '\0') {
+        env->whitespace_marker = mem_strdup(env->mem, marker);
+    }
+}
+
+ic_public const char* ic_get_whitespace_marker(void) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return NULL;
+    return ic_env_get_whitespace_marker(env);
+}
+
 ic_public bool ic_enable_hint(bool enable) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)

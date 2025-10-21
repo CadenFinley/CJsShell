@@ -766,6 +766,79 @@ static void edit_write_prompt(ic_env_t* env, editor_t* eb, ssize_t row, bool in_
     bbcode_style_close(env->bbcode, NULL);
 }
 
+static void edit_write_row_text(ic_env_t* env, const char* text, ssize_t len, const attr_t* attrs) {
+    if (env == NULL || text == NULL || len <= 0) {
+        return;
+    }
+
+    // Fast path: highlighting disabled or whitespace visualization turned off.
+    if (!env->show_whitespace_characters) {
+        if (attrs == NULL) {
+            term_write_n(env->term, text, len);
+        } else {
+            term_write_formatted_n(env->term, text, attrs, len);
+        }
+        return;
+    }
+
+    const char* marker = ic_env_get_whitespace_marker(env);
+    ssize_t marker_len = ic_strlen(marker);
+    if (marker_len <= 0) {
+        marker = " ";
+        marker_len = 1;
+    }
+
+    // When attributes are present we need to replicate the formatted output logic
+    // while substituting markers for spaces.
+    if (attrs == NULL) {
+        ssize_t offset = 0;
+        while (offset < len) {
+            ssize_t char_len = 0;
+            unicode_t code =
+                unicode_from_qutf8((const uint8_t*)text + offset, len - offset, &char_len);
+            if (char_len <= 0 || offset + char_len > len) {
+                char_len = 1;
+                code = (uint8_t)text[offset];
+            }
+
+            if (code == ' ') {
+                term_write_n(env->term, marker, marker_len);
+            } else {
+                term_write_n(env->term, text + offset, char_len);
+            }
+            offset += char_len;
+        }
+        return;
+    }
+
+    term_start_raw(env->term);
+    attr_t default_attr = term_get_attr(env->term);
+    attr_t current_attr = attr_none();
+    ssize_t offset = 0;
+    while (offset < len) {
+        ssize_t char_len = 0;
+        unicode_t code = unicode_from_qutf8((const uint8_t*)text + offset, len - offset, &char_len);
+        if (char_len <= 0 || offset + char_len > len) {
+            char_len = 1;
+            code = (uint8_t)text[offset];
+        }
+
+        attr_t attr = attrs[offset];
+        if (!attr_is_eq(current_attr, attr)) {
+            term_set_attr(env->term, attr_update_with(default_attr, attr));
+            current_attr = attr;
+        }
+
+        if (code == ' ') {
+            term_write_n(env->term, marker, marker_len);
+        } else {
+            term_write_n(env->term, text + offset, char_len);
+        }
+        offset += char_len;
+    }
+    term_set_attr(env->term, default_attr);
+}
+
 //-------------------------------------------------------------
 // Refresh
 //-------------------------------------------------------------
@@ -797,13 +870,16 @@ static bool edit_refresh_rows_iter(const char* s, ssize_t row, ssize_t row_start
     edit_write_prompt(info->env, info->eb, row, info->in_extra, info->cursor_row);
 
     //' write output
-    if (info->attrs == NULL || (info->env->no_highlight && info->env->no_bracematch)) {
-        term_write_n(term, s + row_start, row_len);
-    } else {
-        term_write_formatted_n(term, s + row_start,
-                               attrbuf_attrs(info->attrs, row_start + row_len) + row_start,
-                               row_len);
+    const bool use_attrs =
+        !(info->env->no_highlight && info->env->no_bracematch) && info->attrs != NULL;
+    const attr_t* row_attrs = NULL;
+    if (use_attrs) {
+        const attr_t* attrs = attrbuf_attrs(info->attrs, row_start + row_len);
+        if (attrs != NULL) {
+            row_attrs = attrs + row_start;
+        }
     }
+    edit_write_row_text(info->env, s + row_start, row_len, row_attrs);
 
     // write line ending
     if (row < info->last_row) {

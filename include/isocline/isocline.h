@@ -518,6 +518,18 @@ bool ic_enable_current_line_number_highlight(bool enable);
 /// Returns whether current line number highlighting is enabled.
 bool ic_current_line_number_highlight_is_enabled(void);
 
+/// Enable or disable visualization of plain space characters inside the buffer (disabled by
+/// default). When enabled, every space is rendered using the whitespace marker returned by
+/// `ic_get_whitespace_marker()`. Returns the previous state.
+bool ic_enable_visible_whitespace(bool enable);
+
+/// Set the marker string used when visualizing spaces. The string is copied so the caller retains
+/// ownership. Passing NULL or an empty string restores the default middle-dot marker.
+void ic_set_whitespace_marker(const char* marker);
+
+/// Get the marker string currently used for visible whitespace (defaults to a middle dot).
+const char* ic_get_whitespace_marker(void);
+
 /// Disable or enable display of short help messages for history search etc. (enabled by default)
 /// (full help is always dispayed when pressing F1 regardless of this setting)
 /// @returns the previous setting.

@@ -144,6 +144,7 @@ static void ic_env_free(ic_env_t* env) {
     mem_free(env->mem, env->auto_braces);
     mem_free(env->mem, (void*)env->initial_input);
     mem_free(env->mem, env->key_bindings);
+    mem_free(env->mem, env->whitespace_marker);
     env->prompt_marker = NULL;
 
     alloc_t* mem = env->mem;
@@ -200,6 +201,14 @@ ic_private const char* ic_env_get_match_braces(ic_env_t* env) {
 
 ic_private const char* ic_env_get_auto_braces(ic_env_t* env) {
     return (env->auto_braces == NULL ? "()[]{}\"\"''" : env->auto_braces);
+}
+
+ic_private const char* ic_env_get_whitespace_marker(ic_env_t* env) {
+    static const char* default_marker = "\xC2\xB7";  // middle dot indicator
+    if (env == NULL || env->whitespace_marker == NULL || env->whitespace_marker[0] == '\0') {
+        return default_marker;
+    }
+    return env->whitespace_marker;
 }
 
 ic_private void ic_env_set_initial_input(ic_env_t* env, const char* initial_input) {

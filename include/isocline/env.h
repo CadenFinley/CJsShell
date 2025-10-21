@@ -72,6 +72,7 @@ struct ic_env_s {
     bool show_line_numbers;                  // show line numbers in multiline mode?
     bool relative_line_numbers;              // use relative line numbers when enabled?
     bool highlight_current_line_number;      // highlight the current line number differently?
+    bool show_whitespace_characters;         // visualize spaces while editing?
     bool prompt_cleanup;                     // after enter, rewrite prompt inline?
     bool prompt_cleanup_add_empty_line;      // optionally add empty line after
                                              // cleanup
@@ -87,6 +88,8 @@ struct ic_env_s {
     ic_abbreviation_entry_t* abbreviations;
     ssize_t abbreviation_count;
     ssize_t abbreviation_capacity;
+
+    char* whitespace_marker;  // custom marker used when visualizing spaces
 };
 
 ic_private char* ic_editline(ic_env_t* env, const char* prompt_text, const char* inline_right_text);
@@ -96,5 +99,6 @@ ic_private const char* ic_env_get_auto_braces(ic_env_t* env);
 ic_private const char* ic_env_get_match_braces(ic_env_t* env);
 ic_private void ic_env_set_initial_input(ic_env_t* env, const char* initial_input);
 ic_private void ic_env_clear_initial_input(ic_env_t* env);
+ic_private const char* ic_env_get_whitespace_marker(ic_env_t* env);
 
 #endif  // IC_ENV_H
