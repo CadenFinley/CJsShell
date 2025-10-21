@@ -33,6 +33,7 @@ ic_private void ic_env_apply_prompt_markers(ic_env_t* env, const char* prompt_ma
     mem_free(env->mem, env->cprompt_marker);
     env->prompt_marker = mem_strdup(env->mem, prompt_marker);
     env->cprompt_marker = mem_strdup(env->mem, continuation_prompt_marker);
+    env->prompt_layout_generation++;
 }
 
 //-------------------------------------------------------------

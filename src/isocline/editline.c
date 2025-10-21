@@ -39,20 +39,30 @@ typedef struct editor_s {
     ssize_t cur_row;              // current row that has the cursor (0 based, relative to
                                   // the prompt)
     ssize_t termw;
-    bool modified;                     // has a modification happened? (used for history navigation
-                                       // for example)
-    bool disable_undo;                 // temporarily disable auto undo (for history search)
-    bool history_prefix_active;        // whether prefix-prioritized history is active
-    bool request_submit;               // request submission of current line
-    ssize_t history_idx;               // current index in the history
-    editstate_t* undo;                 // undo buffer
-    editstate_t* redo;                 // redo buffer
-    const char* prompt_text;           // text of the prompt before the prompt marker
-    ssize_t prompt_prefix_lines;       // number of prefix lines emitted for prompt
-    const char* inline_right_text;     // inline right-aligned text on input line
-    ssize_t inline_right_width;        // cached width of inline right text
+    bool modified;                  // has a modification happened? (used for history navigation
+                                    // for example)
+    bool disable_undo;              // temporarily disable auto undo (for history search)
+    bool history_prefix_active;     // whether prefix-prioritized history is active
+    bool request_submit;            // request submission of current line
+    ssize_t history_idx;            // current index in the history
+    editstate_t* undo;              // undo buffer
+    editstate_t* redo;              // redo buffer
+    const char* prompt_text;        // text of the prompt before the prompt marker
+    ssize_t prompt_prefix_lines;    // number of prefix lines emitted for prompt
+    const char* inline_right_text;  // inline right-aligned text on input line
+    const char* cached_inline_right_text;
+    ssize_t inline_right_width;  // cached width of inline right text
+    bool inline_right_width_valid;
     ssize_t line_number_column_width;  // cached total prefix width when line numbers are shown
     alloc_t* mem;                      // allocator
+    bool prompt_width_cache_valid;
+    ssize_t prompt_marker_width_cache;
+    ssize_t prompt_text_width_cache;
+    ssize_t prompt_total_width_cache;
+    ssize_t cprompt_marker_width_cache;
+    ssize_t indent_width_cache;
+    unsigned long prompt_layout_generation_snapshot;
+    stringbuf_t* inline_right_plain_cache;
     // caches
     attrbuf_t* attrs;  // reuse attribute buffers
     attrbuf_t* attrs_extra;
@@ -388,12 +398,80 @@ static bool editor_input_has_unclosed_heredoc(editor_t* eb) {
 // Row/Column width and positioning
 //-------------------------------------------------------------
 
-static ssize_t compute_continuation_indent_target(ic_env_t* env, editor_t* eb, ssize_t promptw) {
-    ssize_t cmarkerw = bbcode_column_width(env->bbcode, env->cprompt_marker);
-    if (env->no_multiline_indent) {
-        return cmarkerw;
+// Recompute prompt layout widths only when markers or indent settings change.
+static void ensure_prompt_width_cache(ic_env_t* env, editor_t* eb) {
+    if (env == NULL || eb == NULL) {
+        return;
     }
-    return (promptw > cmarkerw ? promptw : cmarkerw);
+    if (!eb->prompt_width_cache_valid ||
+        eb->prompt_layout_generation_snapshot != env->prompt_layout_generation) {
+        const char* prompt_text = (eb->prompt_text != NULL ? eb->prompt_text : "");
+        eb->prompt_text_width_cache = bbcode_column_width(env->bbcode, prompt_text);
+        eb->prompt_marker_width_cache = bbcode_column_width(env->bbcode, env->prompt_marker);
+        eb->cprompt_marker_width_cache = bbcode_column_width(env->bbcode, env->cprompt_marker);
+        eb->prompt_total_width_cache = eb->prompt_marker_width_cache + eb->prompt_text_width_cache;
+        if (env->no_multiline_indent) {
+            eb->indent_width_cache = eb->cprompt_marker_width_cache;
+        } else {
+            eb->indent_width_cache = (eb->prompt_total_width_cache > eb->cprompt_marker_width_cache
+                                          ? eb->prompt_total_width_cache
+                                          : eb->cprompt_marker_width_cache);
+        }
+        eb->prompt_layout_generation_snapshot = env->prompt_layout_generation;
+        eb->prompt_width_cache_valid = true;
+    }
+}
+
+// Derive the visible width of inline right-aligned text, falling back to a stripped copy if
+// bbcode parsing yields no visible glyphs.
+static ssize_t compute_inline_right_width(ic_env_t* env, editor_t* eb, const char* text) {
+    if (env == NULL || eb == NULL || text == NULL || text[0] == 0) {
+        if (eb != NULL && eb->inline_right_plain_cache != NULL) {
+            sbuf_clear(eb->inline_right_plain_cache);
+        }
+        return 0;
+    }
+
+    ssize_t width = bbcode_column_width(env->bbcode, text);
+    if (width > 0) {
+        return width;
+    }
+
+    if (eb->inline_right_plain_cache == NULL) {
+        eb->inline_right_plain_cache = sbuf_new(env->mem);
+        if (eb->inline_right_plain_cache == NULL) {
+            return 0;
+        }
+    } else {
+        sbuf_clear(eb->inline_right_plain_cache);
+    }
+
+    bbcode_append(env->bbcode, text, eb->inline_right_plain_cache, NULL);
+    if (sbuf_len(eb->inline_right_plain_cache) > 0) {
+        const char* plain = sbuf_string(eb->inline_right_plain_cache);
+        ssize_t plain_width = str_column_width(plain);
+        sbuf_clear(eb->inline_right_plain_cache);
+        if (plain_width > 0) {
+            return plain_width;
+        }
+    } else {
+        sbuf_clear(eb->inline_right_plain_cache);
+    }
+
+    const char* src = text;
+    while (*src != 0) {
+        if (*src == '\\' && src[1] != 0) {
+            sbuf_append_char(eb->inline_right_plain_cache, src[1]);
+            src += 2;
+            continue;
+        }
+        sbuf_append_char(eb->inline_right_plain_cache, *src);
+        src++;
+    }
+    const char* stripped = sbuf_string(eb->inline_right_plain_cache);
+    ssize_t stripped_width = str_column_width(stripped);
+    sbuf_clear(eb->inline_right_plain_cache);
+    return stripped_width;
 }
 
 static ssize_t estimate_line_number_column_width(const editor_t* eb) {
@@ -416,12 +494,10 @@ static void edit_get_prompt_width(ic_env_t* env, editor_t* eb, bool in_extra, ss
         *promptw = 0;
         *cpromptw = 0;
     } else {
-        // todo: cache prompt widths
-        ssize_t textw = bbcode_column_width(env->bbcode, eb->prompt_text);
-        ssize_t markerw = bbcode_column_width(env->bbcode, env->prompt_marker);
-        *promptw = markerw + textw;
+        ensure_prompt_width_cache(env, eb);
+        *promptw = eb->prompt_total_width_cache;
 
-        ssize_t indent_target = compute_continuation_indent_target(env, eb, *promptw);
+        ssize_t indent_target = eb->indent_width_cache;
         if (env->show_line_numbers) {
             ssize_t cached_width =
                 (eb->line_number_column_width > 0 ? eb->line_number_column_width
@@ -432,20 +508,20 @@ static void edit_get_prompt_width(ic_env_t* env, editor_t* eb, bool in_extra, ss
         }
 
         // Update cached inline right text width
-        if (eb->inline_right_text != NULL) {
-            eb->inline_right_width = bbcode_column_width(env->bbcode, eb->inline_right_text);
-            // Try direct string length as backup
-            ssize_t str_len = strlen(eb->inline_right_text);
-
-            // TEMPORARY FIX: If bbcode_column_width returns 0, use estimated
-            // visible width
-            if (eb->inline_right_width == 0 && str_len > 0) {
-                // For now, estimate that our time format [HH:MM:SS] is 10
-                // characters
-                eb->inline_right_width = 10;
+        if (eb->inline_right_text != NULL && eb->inline_right_text[0] != 0) {
+            if (!eb->inline_right_width_valid ||
+                eb->cached_inline_right_text != eb->inline_right_text) {
+                eb->inline_right_width = compute_inline_right_width(env, eb, eb->inline_right_text);
+                eb->inline_right_width_valid = true;
+                eb->cached_inline_right_text = eb->inline_right_text;
             }
         } else {
             eb->inline_right_width = 0;
+            eb->inline_right_width_valid = false;
+            eb->cached_inline_right_text = eb->inline_right_text;
+            if (eb->inline_right_plain_cache != NULL) {
+                sbuf_clear(eb->inline_right_plain_cache);
+            }
         }
     }
 }
@@ -723,10 +799,9 @@ static void edit_write_prompt(ic_env_t* env, editor_t* eb, ssize_t row, bool in_
         char line_number_str[16];
         format_line_number_prompt(line_number_str, sizeof(line_number_str), row, cursor_row,
                                   env->relative_line_numbers);
-        ssize_t textw = bbcode_column_width(env->bbcode, eb->prompt_text);
-        ssize_t markerw = bbcode_column_width(env->bbcode, env->prompt_marker);
-        ssize_t promptw = markerw + textw;
-        ssize_t indent_target = compute_continuation_indent_target(env, eb, promptw);
+        ensure_prompt_width_cache(env, eb);
+        ssize_t promptw = eb->prompt_total_width_cache;
+        ssize_t indent_target = eb->indent_width_cache;
         ssize_t line_number_width = (ssize_t)strlen(line_number_str);
         ssize_t desired_width = indent_target;
         if (eb->line_number_column_width > desired_width) {
@@ -751,12 +826,10 @@ static void edit_write_prompt(ic_env_t* env, editor_t* eb, ssize_t row, bool in_
         bbcode_style_open(env->bbcode, "ic-prompt");
     } else if (!env->no_multiline_indent) {
         // multiline continuation indentation
-        // todo: cache prompt widths
-        ssize_t textw = bbcode_column_width(env->bbcode, eb->prompt_text);
-        ssize_t markerw = bbcode_column_width(env->bbcode, env->prompt_marker);
-        ssize_t cmarkerw = bbcode_column_width(env->bbcode, env->cprompt_marker);
-        if (cmarkerw < markerw + textw) {
-            term_write_repeat(env->term, " ", markerw + textw - cmarkerw);
+        ensure_prompt_width_cache(env, eb);
+        if (eb->cprompt_marker_width_cache < eb->prompt_total_width_cache) {
+            term_write_repeat(env->term, " ",
+                              eb->prompt_total_width_cache - eb->cprompt_marker_width_cache);
         }
     }
     // the marker (skip for line numbers since we include our own separator)
@@ -1046,7 +1119,8 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
     ssize_t rows_input = 0;
     ssize_t rows_extra = 0;
     ssize_t rows = 0;
-    ssize_t indent_target = compute_continuation_indent_target(env, eb, promptw);
+    ensure_prompt_width_cache(env, eb);
+    ssize_t indent_target = eb->indent_width_cache;
     int layout_adjustments = 0;
 
     while (true) {
@@ -1331,8 +1405,8 @@ static void edit_cleanup_print(ic_env_t* env, editor_t* eb, const char* final_in
                                                       line_number, -1, env->relative_line_numbers);
 
                             ssize_t line_number_width = (ssize_t)strlen(line_number_str);
-                            ssize_t indent_target =
-                                compute_continuation_indent_target(env, eb, promptw);
+                            ensure_prompt_width_cache(env, eb);
+                            ssize_t indent_target = eb->indent_width_cache;
                             ssize_t desired_width = indent_target;
                             if (eb->line_number_column_width > desired_width) {
                                 desired_width = eb->line_number_column_width;
@@ -1957,8 +2031,18 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
     eb.prompt_text = last_line_prompt;
 
     eb.inline_right_text = inline_right_text;
+    eb.cached_inline_right_text = NULL;
     eb.inline_right_width = 0;
+    eb.inline_right_width_valid = false;
     eb.line_number_column_width = 0;
+    eb.prompt_width_cache_valid = false;
+    eb.prompt_marker_width_cache = 0;
+    eb.prompt_text_width_cache = 0;
+    eb.prompt_total_width_cache = 0;
+    eb.cprompt_marker_width_cache = 0;
+    eb.indent_width_cache = 0;
+    eb.prompt_layout_generation_snapshot = 0;
+    eb.inline_right_plain_cache = NULL;
 
     eb.history_idx = 0;
     editstate_init(&eb.undo);
@@ -2321,6 +2405,7 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
     sbuf_free(eb.hint);
     sbuf_free(eb.hint_help);
     sbuf_free(eb.history_prefix);
+    sbuf_free(eb.inline_right_plain_cache);
     mem_free(env->mem,
              (void*)eb.prompt_text);  // Free the allocated last line prompt
 
@@ -2429,12 +2514,18 @@ ic_public bool ic_current_loop_reset(const char* new_buffer, const char* new_pro
 
         // Print prefix lines if any
         eb->prompt_prefix_lines = print_prompt_prefix_lines(env, new_prompt);
+        eb->prompt_width_cache_valid = false;
     }
 
     // Update inline right text if provided
     if (new_inline_right != NULL) {
         eb->inline_right_text = new_inline_right;
-        eb->inline_right_width = 0;  // Will be recalculated
+        eb->cached_inline_right_text = NULL;
+        eb->inline_right_width = 0;
+        eb->inline_right_width_valid = false;
+        if (eb->inline_right_plain_cache != NULL) {
+            sbuf_clear(eb->inline_right_plain_cache);
+        }
     }
 
     // Clear current display and reset cursor tracking
