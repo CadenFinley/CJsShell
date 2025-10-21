@@ -65,7 +65,6 @@ int hash_command(const std::vector<std::string>& args, Shell* shell) {
     if (remove_mode && start_index >= args.size()) {
         command_hash.clear();
         command_hits.clear();
-        cjsh_filesystem::clear_executable_lookup_cache();
         return 0;
     }
 
@@ -75,11 +74,9 @@ int hash_command(const std::vector<std::string>& args, Shell* shell) {
         if (remove_mode) {
             command_hash.erase(name);
             command_hits.erase(name);
-            cjsh_filesystem::remove_from_executable_lookup_cache(name);
         } else if (disable_lookup) {
             command_hash.erase(name);
             command_hits.erase(name);
-            cjsh_filesystem::remove_from_executable_lookup_cache(name);
         } else {
             std::string path = cjsh_filesystem::find_executable_in_path(name);
             if (!path.empty()) {
