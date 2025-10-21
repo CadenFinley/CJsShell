@@ -9,6 +9,9 @@
 #include <unordered_map>
 #include <vector>
 
+#include "error_out.h"
+#include "parser/parser.h"
+
 class Shell;
 
 enum class JobState : std::uint8_t {
@@ -111,3 +114,20 @@ int fg_command(const std::vector<std::string>& args);
 int bg_command(const std::vector<std::string>& args);
 int wait_command(const std::vector<std::string>& args);
 int kill_command(const std::vector<std::string>& args);
+
+namespace job_utils {
+
+struct ExitErrorResult {
+    ErrorType type;
+    std::string message;
+    std::vector<std::string> suggestions;
+};
+
+ExitErrorResult make_exit_error_result(const std::string& command, int exit_code,
+                                       const std::string& success_message,
+                                       const std::string& failure_prefix);
+
+bool command_consumes_terminal_stdin(const Command& cmd);
+bool pipeline_consumes_terminal_stdin(const std::vector<Command>& commands);
+
+}  // namespace job_utils

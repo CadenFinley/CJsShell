@@ -94,3 +94,5 @@ class SignalHandler {
     void restore_original_handlers();
 };
 extern SignalHandler* g_signal_handler;
+
+void reset_child_signals();

@@ -9,6 +9,7 @@
 #include <cstring>
 #include <ctime>
 #include <functional>
+#include <optional>
 #include <sstream>
 #include <string_view>
 #include <system_error>
@@ -16,8 +17,11 @@
 #include <utility>
 #include <vector>
 
+#include "cjsh.h"
 #include "cjsh_syntax_highlighter.h"
 #include "error_out.h"
+#include "parser/parser.h"
+#include "shell.h"
 
 #ifdef __linux__
 #include <linux/limits.h>
@@ -240,6 +244,76 @@ Result<void> write_all(int fd, std::string_view data) {
         total_written += static_cast<size_t>(written);
     }
     return Result<void>::ok();
+}
+
+std::optional<HereStringError> setup_here_string_stdin(const std::string& here_string) {
+    int here_pipe[2];
+    auto pipe_result = create_pipe_cloexec(here_pipe);
+    if (pipe_result.is_error()) {
+        return HereStringError{HereStringErrorType::Pipe, pipe_result.error()};
+    }
+
+    std::string content = here_string;
+    if (g_shell && (g_shell->get_parser() != nullptr)) {
+        g_shell->get_parser()->expand_env_vars(content);
+    }
+    content.push_back('\n');
+
+    auto write_result = write_all(here_pipe[1], std::string_view{content});
+    std::fill(content.begin(), content.end(), '\0');
+    if (write_result.is_error()) {
+        close_pipe(here_pipe);
+        return HereStringError{HereStringErrorType::Write, write_result.error()};
+    }
+
+    safe_close(here_pipe[1]);
+    auto dup_result = safe_dup2(here_pipe[0], STDIN_FILENO);
+    safe_close(here_pipe[0]);
+    if (dup_result.is_error()) {
+        return HereStringError{HereStringErrorType::Dup, dup_result.error()};
+    }
+
+    return std::nullopt;
+}
+
+bool should_noclobber_prevent_overwrite(const std::string& filename, bool force_overwrite) {
+    if (force_overwrite) {
+        return false;
+    }
+
+    if (!g_shell || !g_shell->get_shell_option("noclobber")) {
+        return false;
+    }
+
+    struct stat file_stat{};
+    return stat(filename.c_str(), &file_stat) == 0;
+}
+
+bool command_exists(const std::string& command_path) {
+    if (command_path.empty()) {
+        return false;
+    }
+    if (command_path.find('/') != std::string::npos) {
+        return access(command_path.c_str(), F_OK) == 0;
+    }
+    const char* path_env = getenv("PATH");
+    if (path_env == nullptr) {
+        return false;
+    }
+    std::string path_str(path_env);
+    std::istringstream path_stream(path_str);
+    std::string path_dir;
+    while (std::getline(path_stream, path_dir, ':')) {
+        if (path_dir.empty()) {
+            continue;
+        }
+        std::string full_path = path_dir;
+        full_path.append("/").append(command_path);
+        if (access(full_path.c_str(), F_OK) == 0) {
+            return true;
+        }
+    }
+    return false;
 }
 
 Result<std::string> read_file_content(const std::string& path) {

@@ -5,10 +5,13 @@
 
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <cstdint>
 #include <filesystem>
 #include <iostream>
+#include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace cjsh_filesystem {
@@ -117,6 +120,21 @@ void cleanup_temp_file(const std::string& path);
 Result<void> write_file_content(const std::string& path, const std::string& content);
 Result<std::string> read_file_content(const std::string& path);
 Result<void> write_all(int fd, std::string_view data);
+
+enum class HereStringErrorType : std::uint8_t {
+    Pipe,
+    Write,
+    Dup
+};
+
+struct HereStringError {
+    HereStringErrorType type;
+    std::string detail;
+};
+
+std::optional<HereStringError> setup_here_string_stdin(const std::string& here_string);
+bool should_noclobber_prevent_overwrite(const std::string& filename, bool force_overwrite = false);
+bool command_exists(const std::string& command_path);
 
 const fs::path g_user_home_path = []() {
     const char* home = std::getenv("HOME");

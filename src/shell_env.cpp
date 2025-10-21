@@ -4,7 +4,11 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <algorithm>
+#include <cctype>
+#include <cstring>
 #include <filesystem>
+#include <memory>
 
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
@@ -156,6 +160,114 @@ std::vector<std::pair<const char*, const char*>> setup_user_system_vars(const st
     env_vars.emplace_back("CJSH_VERSION", version_str.c_str());
 
     return env_vars;
+}
+
+bool is_valid_env_name(const std::string& name) {
+    if (name.empty()) {
+        return false;
+    }
+    unsigned char first = static_cast<unsigned char>(name[0]);
+    if ((std::isalpha(first) == 0) && first != '_') {
+        return false;
+    }
+    if (!std::all_of(name.begin(), name.end(), [](char c) {
+            unsigned char ch = static_cast<unsigned char>(c);
+            return (std::isalnum(ch) != 0) || ch == '_';
+        })) {
+        return false;
+    }
+    return true;
+}
+
+size_t collect_env_assignments(const std::vector<std::string>& args,
+                               std::vector<std::pair<std::string, std::string>>& env_assignments) {
+    size_t cmd_start_idx = 0;
+    for (size_t i = 0; i < args.size(); ++i) {
+        const std::string& token = args[i];
+        size_t pos = token.find('=');
+        if (pos != std::string::npos && pos > 0) {
+            std::string name = token.substr(0, pos);
+            if (is_valid_env_name(name)) {
+                env_assignments.push_back({name, token.substr(pos + 1)});
+                cmd_start_idx = i + 1;
+                continue;
+            }
+        }
+        break;
+    }
+    return cmd_start_idx;
+}
+
+void apply_env_assignments(
+    const std::vector<std::pair<std::string, std::string>>& env_assignments) {
+    for (const auto& env : env_assignments) {
+        setenv(env.first.c_str(), env.second.c_str(), 1);
+    }
+}
+
+std::vector<std::string> parse_shell_command(const std::string& command) {
+    std::vector<std::string> args;
+    std::string current;
+    bool in_single_quote = false;
+    bool in_double_quote = false;
+    bool escaped = false;
+
+    for (size_t i = 0; i < command.size(); ++i) {
+        char c = command[i];
+
+        if (escaped) {
+            current += c;
+            escaped = false;
+            continue;
+        }
+
+        if (c == '\\' && !in_single_quote) {
+            escaped = true;
+            continue;
+        }
+
+        if (c == '\'' && !in_double_quote) {
+            in_single_quote = !in_single_quote;
+            continue;
+        }
+
+        if (c == '"' && !in_single_quote) {
+            in_double_quote = !in_double_quote;
+            continue;
+        }
+
+        if ((c == ' ' || c == '\t') && !in_single_quote && !in_double_quote) {
+            if (!current.empty()) {
+                args.push_back(current);
+                current.clear();
+            }
+            continue;
+        }
+
+        current += c;
+    }
+
+    if (!current.empty()) {
+        args.push_back(current);
+    }
+
+    return args;
+}
+
+std::vector<char*> build_exec_argv(const std::vector<std::string>& args) {
+    static thread_local std::vector<std::unique_ptr<char[]>> arg_buffers;
+    arg_buffers.clear();
+
+    std::vector<char*> c_args;
+    c_args.reserve(args.size() + 1);
+    for (const auto& arg : args) {
+        auto buf = std::make_unique<char[]>(arg.size() + 1);
+        std::memcpy(buf.get(), arg.c_str(), arg.size() + 1);
+        c_args.push_back(buf.get());
+        arg_buffers.push_back(std::move(buf));
+    }
+    c_args.push_back(nullptr);
+    return c_args;
 }
 
 }  // namespace cjsh_env

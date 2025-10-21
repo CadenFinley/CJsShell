@@ -1,6 +1,8 @@
 #include "job_control.h"
 
 #include "builtin_help.h"
+#include "cjsh_filesystem.h"
+#include "suggestion_utils.h"
 
 #include <sys/wait.h>
 #include <unistd.h>
@@ -60,6 +62,55 @@ int parse_signal(const std::string& signal_str) {
 }
 
 }  // namespace
+
+namespace job_utils {
+
+ExitErrorResult make_exit_error_result(const std::string& command, int exit_code,
+                                       const std::string& success_message,
+                                       const std::string& failure_prefix) {
+    ExitErrorResult result{ErrorType::RUNTIME_ERROR, success_message, {}};
+    if (exit_code == 0) {
+        return result;
+    }
+    result.message = failure_prefix + std::to_string(exit_code);
+    if (exit_code == 127) {
+        if (!cjsh_filesystem::command_exists(command)) {
+            result.type = ErrorType::COMMAND_NOT_FOUND;
+            result.message.clear();
+            result.suggestions = suggestion_utils::generate_command_suggestions(command);
+            return result;
+        }
+    } else if (exit_code == 126) {
+        result.type = ErrorType::PERMISSION_DENIED;
+    }
+    return result;
+}
+
+bool command_consumes_terminal_stdin(const Command& cmd) {
+    if (!cmd.input_file.empty() || !cmd.here_doc.empty() || !cmd.here_string.empty()) {
+        return false;
+    }
+
+    if (cmd.fd_redirections.count(0) > 0 || cmd.fd_duplications.count(0) > 0) {
+        return false;
+    }
+
+    return true;
+}
+
+bool pipeline_consumes_terminal_stdin(const std::vector<Command>& commands) {
+    if (commands.empty()) {
+        return false;
+    }
+
+    if (commands.back().background) {
+        return false;
+    }
+
+    return command_consumes_terminal_stdin(commands.front());
+}
+
+}  // namespace job_utils
 
 JobManager& JobManager::instance() {
     static JobManager instance;

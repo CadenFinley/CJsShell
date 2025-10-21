@@ -28,29 +28,11 @@
 #include "job_control.h"
 #include "parser.h"
 #include "shell.h"
+#include "shell_env.h"
 #include "signal_handler.h"
 #include "suggestion_utils.h"
 
 namespace {
-
-void reset_child_signals() {
-    (void)signal(SIGINT, SIG_DFL);
-    (void)signal(SIGQUIT, SIG_DFL);
-    (void)signal(SIGTSTP, SIG_DFL);
-    (void)signal(SIGTTIN, SIG_DFL);
-    (void)signal(SIGTTOU, SIG_DFL);
-    (void)signal(SIGCHLD, SIG_DFL);
-    (void)signal(SIGTERM, SIG_DFL);
-
-    sigset_t set{};
-    sigemptyset(&set);
-    sigaddset(&set, SIGINT);
-    sigaddset(&set, SIGQUIT);
-    sigaddset(&set, SIGTSTP);
-    sigaddset(&set, SIGCHLD);
-    sigaddset(&set, SIGTERM);
-    sigprocmask(SIG_UNBLOCK, &set, nullptr);
-}
 
 int extract_exit_code(int status) {
     if (WIFEXITED(status)) {
@@ -60,48 +42,6 @@ int extract_exit_code(int status) {
         return 128 + WTERMSIG(status);
     }
     return 1;
-}
-bool is_valid_env_name(const std::string& name) {
-    if (name.empty()) {
-        return false;
-    }
-    unsigned char first = static_cast<unsigned char>(name[0]);
-    if ((std::isalpha(first) == 0) && first != '_') {
-        return false;
-    }
-    if (!std::all_of(name.begin(), name.end(), [](char c) {
-            unsigned char ch = static_cast<unsigned char>(c);
-            return (std::isalnum(ch) != 0) || ch == '_';
-        })) {
-        return false;
-    }
-    return true;
-}
-
-size_t collect_env_assignments(const std::vector<std::string>& args,
-                               std::vector<std::pair<std::string, std::string>>& env_assignments) {
-    size_t cmd_start_idx = 0;
-    for (size_t i = 0; i < args.size(); ++i) {
-        const std::string& token = args[i];
-        size_t pos = token.find('=');
-        if (pos != std::string::npos && pos > 0) {
-            std::string name = token.substr(0, pos);
-            if (is_valid_env_name(name)) {
-                env_assignments.push_back({name, token.substr(pos + 1)});
-                cmd_start_idx = i + 1;
-                continue;
-            }
-        }
-        break;
-    }
-    return cmd_start_idx;
-}
-
-void apply_env_assignments(
-    const std::vector<std::pair<std::string, std::string>>& env_assignments) {
-    for (const auto& env : env_assignments) {
-        setenv(env.first.c_str(), env.second.c_str(), 1);
-    }
 }
 
 std::string join_arguments(const std::vector<std::string>& args) {
@@ -130,141 +70,6 @@ std::string command_text_for_interpretation(const Command& cmd) {
         return cmd.original_text;
     }
     return join_arguments(cmd.args);
-}
-
-bool command_exists(const std::string& command_path) {
-    if (command_path.empty()) {
-        return false;
-    }
-    if (command_path.find('/') != std::string::npos) {
-        return access(command_path.c_str(), F_OK) == 0;
-    }
-    const char* path_env = getenv("PATH");
-    if (path_env == nullptr) {
-        return false;
-    }
-    std::string path_str(path_env);
-    std::istringstream path_stream(path_str);
-    std::string path_dir;
-    while (std::getline(path_stream, path_dir, ':')) {
-        if (path_dir.empty()) {
-            continue;
-        }
-        std::string full_path = path_dir;
-        full_path.append("/").append(command_path);
-        if (access(full_path.c_str(), F_OK) == 0) {
-            return true;
-        }
-    }
-    return false;
-}
-
-struct ExitErrorResult {
-    ErrorType type;
-    std::string message;
-    std::vector<std::string> suggestions;
-};
-
-ExitErrorResult make_exit_error_result(const std::string& command, int exit_code,
-                                       const std::string& success_message,
-                                       const std::string& failure_prefix) {
-    ExitErrorResult result{ErrorType::RUNTIME_ERROR, success_message, {}};
-    if (exit_code == 0) {
-        return result;
-    }
-    result.message = failure_prefix + std::to_string(exit_code);
-    if (exit_code == 127) {
-        if (!command_exists(command)) {
-            result.type = ErrorType::COMMAND_NOT_FOUND;
-            result.message.clear();
-            result.suggestions = suggestion_utils::generate_command_suggestions(command);
-            return result;
-        }
-    } else if (exit_code == 126) {
-        result.type = ErrorType::PERMISSION_DENIED;
-    }
-    return result;
-}
-
-enum class HereStringErrorType : std::uint8_t {
-    Pipe,
-    Write,
-    Dup
-};
-
-struct HereStringError {
-    HereStringErrorType type;
-    std::string detail;
-};
-
-std::optional<HereStringError> setup_here_string_stdin(const std::string& here_string) {
-    int here_pipe[2];
-    auto pipe_result = cjsh_filesystem::create_pipe_cloexec(here_pipe);
-    if (pipe_result.is_error()) {
-        return HereStringError{HereStringErrorType::Pipe, pipe_result.error()};
-    }
-
-    std::string content = here_string;
-    if (g_shell && (g_shell->get_parser() != nullptr)) {
-        g_shell->get_parser()->expand_env_vars(content);
-    }
-    content.push_back('\n');
-
-    auto write_result = cjsh_filesystem::write_all(here_pipe[1], std::string_view{content});
-    std::fill(content.begin(), content.end(), '\0');
-    if (write_result.is_error()) {
-        cjsh_filesystem::close_pipe(here_pipe);
-        return HereStringError{HereStringErrorType::Write, write_result.error()};
-    }
-
-    cjsh_filesystem::safe_close(here_pipe[1]);
-    auto dup_result = cjsh_filesystem::safe_dup2(here_pipe[0], STDIN_FILENO);
-    cjsh_filesystem::safe_close(here_pipe[0]);
-    if (dup_result.is_error()) {
-        return HereStringError{HereStringErrorType::Dup, dup_result.error()};
-    }
-
-    return std::nullopt;
-}
-
-std::vector<char*> build_exec_argv(const std::vector<std::string>& args) {
-    static thread_local std::vector<std::unique_ptr<char[]>> arg_buffers;
-    arg_buffers.clear();
-
-    std::vector<char*> c_args;
-    c_args.reserve(args.size() + 1);
-    for (const auto& arg : args) {
-        auto buf = std::make_unique<char[]>(arg.size() + 1);
-        std::memcpy(buf.get(), arg.c_str(), arg.size() + 1);
-        c_args.push_back(buf.get());
-        arg_buffers.push_back(std::move(buf));
-    }
-    c_args.push_back(nullptr);
-    return c_args;
-}
-
-bool command_consumes_terminal_stdin(const Command& cmd) {
-    if (!cmd.input_file.empty() || !cmd.here_doc.empty() || !cmd.here_string.empty()) {
-        return false;
-    }
-
-    if (cmd.fd_redirections.count(0) > 0 || cmd.fd_duplications.count(0) > 0) {
-        return false;
-    }
-
-    return true;
-}
-
-bool pipeline_consumes_terminal_stdin(const std::vector<Command>& commands) {
-    if (commands.empty()) {
-        return false;
-    }
-
-    if (commands.back().background) {
-        return false;
-    }
-
-    return command_consumes_terminal_stdin(commands.front());
 }
 
 struct ProcessSubstitutionResources {
@@ -449,68 +254,6 @@ void cleanup_process_substitutions(ProcessSubstitutionResources& resources,
 
     resources.child_pids.clear();
     resources.fifo_paths.clear();
-}
-
-bool should_noclobber_prevent_overwrite(const std::string& filename, bool force_overwrite = false) {
-    if (force_overwrite) {
-        return false;
-    }
-
-    if (!g_shell || !g_shell->get_shell_option("noclobber")) {
-        return false;
-    }
-
-    struct stat file_stat{};
-    return stat(filename.c_str(), &file_stat) == 0;
-}
-
-std::vector<std::string> parse_shell_command(const std::string& command) {
-    std::vector<std::string> args;
-    std::string current;
-    bool in_single_quote = false;
-    bool in_double_quote = false;
-    bool escaped = false;
-
-    for (size_t i = 0; i < command.size(); ++i) {
-        char c = command[i];
-
-        if (escaped) {
-            current += c;
-            escaped = false;
-            continue;
-        }
-
-        if (c == '\\' && !in_single_quote) {
-            escaped = true;
-            continue;
-        }
-
-        if (c == '\'' && !in_double_quote) {
-            in_single_quote = !in_single_quote;
-            continue;
-        }
-
-        if (c == '"' && !in_single_quote) {
-            in_double_quote = !in_double_quote;
-            continue;
-        }
-
-        if ((c == ' ' || c == '\t') && !in_single_quote && !in_double_quote) {
-            if (!current.empty()) {
-                args.push_back(current);
-                current.clear();
-            }
-            continue;
-        }
-
-        current += c;
-    }
-
-    if (!current.empty()) {
-        args.push_back(current);
-    }
-
-    return args;
 }
 
 }  // namespace
@@ -768,14 +511,14 @@ int Exec::execute_builtin_with_redirections(Command cmd) {
         }
 
         if (!cmd.here_string.empty()) {
-            auto here_error = setup_here_string_stdin(cmd.here_string);
+            auto here_error = cjsh_filesystem::setup_here_string_stdin(cmd.here_string);
             if (here_error.has_value()) {
                 switch (here_error->type) {
-                    case HereStringErrorType::Pipe:
+                    case cjsh_filesystem::HereStringErrorType::Pipe:
                         throw std::runtime_error("cjsh: failed to create pipe for here string");
-                    case HereStringErrorType::Write:
+                    case cjsh_filesystem::HereStringErrorType::Write:
                         throw std::runtime_error("cjsh: failed to write here string content");
-                    case HereStringErrorType::Dup:
+                    case cjsh_filesystem::HereStringErrorType::Dup:
                         throw std::runtime_error(
                             "cjsh: failed to redirect stdin for here string: " +
                             here_error->detail);
@@ -784,7 +527,8 @@ int Exec::execute_builtin_with_redirections(Command cmd) {
         }
 
         if (!cmd.output_file.empty()) {
-            if (should_noclobber_prevent_overwrite(cmd.output_file, cmd.force_overwrite)) {
+            if (cjsh_filesystem::should_noclobber_prevent_overwrite(cmd.output_file,
+                                                                    cmd.force_overwrite)) {
                 throw std::runtime_error("cjsh: cannot overwrite existing file '" +
                                          cmd.output_file + "' (noclobber is set)");
             }
@@ -798,7 +542,7 @@ int Exec::execute_builtin_with_redirections(Command cmd) {
         }
 
         if (cmd.both_output && !cmd.both_output_file.empty()) {
-            if (should_noclobber_prevent_overwrite(cmd.both_output_file)) {
+            if (cjsh_filesystem::should_noclobber_prevent_overwrite(cmd.both_output_file)) {
                 throw std::runtime_error("cjsh: cannot overwrite existing file '" +
                                          cmd.both_output_file + "' (noclobber is set)");
             }
@@ -827,7 +571,8 @@ int Exec::execute_builtin_with_redirections(Command cmd) {
         }
 
         if (!cmd.stderr_file.empty()) {
-            if (!cmd.stderr_append && should_noclobber_prevent_overwrite(cmd.stderr_file)) {
+            if (!cmd.stderr_append &&
+                cjsh_filesystem::should_noclobber_prevent_overwrite(cmd.stderr_file)) {
                 throw std::runtime_error("cjsh: cannot overwrite existing file '" +
                                          cmd.stderr_file + "' (noclobber is set)");
             }
@@ -932,9 +677,9 @@ int Exec::execute_builtin_with_redirections(Command cmd) {
     restore_descriptors(false);
 
     std::string command_name = cmd.args.empty() ? "" : cmd.args[0];
-    auto exit_result =
-        make_exit_error_result(command_name, exit_code, "builtin command completed successfully",
-                               "builtin command failed with exit code ");
+    auto exit_result = job_utils::make_exit_error_result(command_name, exit_code,
+                                                         "builtin command completed successfully",
+                                                         "builtin command failed with exit code ");
     set_error(exit_result.type, command_name, exit_result.message, exit_result.suggestions);
     last_exit_code = exit_code;
     return exit_code;
@@ -948,7 +693,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
         return EX_DATAERR;
     }
     std::vector<std::pair<std::string, std::string>> env_assignments;
-    size_t cmd_start_idx = collect_env_assignments(args, env_assignments);
+    size_t cmd_start_idx = cjsh_env::collect_env_assignments(args, env_assignments);
 
     if (cmd_start_idx >= args.size()) {
         if (g_shell) {
@@ -1007,7 +752,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
     }
 
     if (pid == 0) {
-        apply_env_assignments(env_assignments);
+        cjsh_env::apply_env_assignments(env_assignments);
 
         pid_t child_pid = getpid();
         if (setpgid(child_pid, child_pid) < 0) {
@@ -1019,7 +764,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
 
         reset_child_signals();
 
-        auto c_args = build_exec_argv(cmd_args);
+        auto c_args = cjsh_env::build_exec_argv(cmd_args);
         execvp(cmd_args[0].c_str(), c_args.data());
 
         int saved_errno = errno;
@@ -1064,7 +809,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
         try {
             auto command_pipeline = g_shell->get_parser()->parse_pipeline(full_command);
             if (!command_pipeline.empty()) {
-                reads_stdin = pipeline_consumes_terminal_stdin(command_pipeline);
+                reads_stdin = job_utils::pipeline_consumes_terminal_stdin(command_pipeline);
             }
         } catch (const std::exception& e) {
         }
@@ -1084,8 +829,8 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
         JobManager::instance().remove_job(new_job_id);
     }
 
-    auto exit_result = make_exit_error_result(args[0], exit_code, "command completed successfully",
-                                              "command failed with exit code ");
+    auto exit_result = job_utils::make_exit_error_result(
+        args[0], exit_code, "command completed successfully", "command failed with exit code ");
     set_error(exit_result.type, args[0], exit_result.message, exit_result.suggestions);
     last_exit_code = exit_code;
 
@@ -1131,10 +876,10 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
     }
 
     std::vector<std::pair<std::string, std::string>> env_assignments;
-    size_t cmd_start_idx = collect_env_assignments(args, env_assignments);
+    size_t cmd_start_idx = cjsh_env::collect_env_assignments(args, env_assignments);
 
     if (cmd_start_idx >= args.size()) {
-        apply_env_assignments(env_assignments);
+        cjsh_env::apply_env_assignments(env_assignments);
         set_error(ErrorType::RUNTIME_ERROR, "", "Environment variables set", {});
         last_exit_code = 0;
         return 0;
@@ -1154,7 +899,7 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
     }
 
     if (pid == 0) {
-        apply_env_assignments(env_assignments);
+        cjsh_env::apply_env_assignments(env_assignments);
 
         if (setpgid(0, 0) < 0) {
             std::cerr << "cjsh: runtime error: setpgid: failed to set process group "
@@ -1169,7 +914,7 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
         (void)signal(SIGTTIN, SIG_IGN);
         (void)signal(SIGTTOU, SIG_IGN);
 
-        auto c_args = build_exec_argv(cmd_args);
+        auto c_args = cjsh_env::build_exec_argv(cmd_args);
         execvp(cmd_args[0].c_str(), c_args.data());
         int saved_errno = errno;
         _exit((saved_errno == EACCES || saved_errno == EISDIR || saved_errno == ENOEXEC) ? 126
@@ -1308,22 +1053,22 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             }
 
             else if (!cmd.here_string.empty()) {
-                auto here_error = setup_here_string_stdin(cmd.here_string);
+                auto here_error = cjsh_filesystem::setup_here_string_stdin(cmd.here_string);
                 if (here_error.has_value()) {
                     switch (here_error->type) {
-                        case HereStringErrorType::Pipe:
+                        case cjsh_filesystem::HereStringErrorType::Pipe:
                             std::cerr << "cjsh: runtime error: pipe: "
                                          "failed to create pipe for "
                                          "here string: "
                                       << here_error->detail << '\n';
                             break;
-                        case HereStringErrorType::Write:
+                        case cjsh_filesystem::HereStringErrorType::Write:
                             std::cerr << "cjsh: runtime error: write: "
                                          "failed to write here "
                                          "string content: "
                                       << here_error->detail << '\n';
                             break;
-                        case HereStringErrorType::Dup:
+                        case cjsh_filesystem::HereStringErrorType::Dup:
                             std::cerr << "cjsh: runtime error: dup2: "
                                          "failed to duplicate here "
                                          "string descriptor: "
@@ -1343,7 +1088,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             }
 
             if (!cmd.output_file.empty()) {
-                if (should_noclobber_prevent_overwrite(cmd.output_file, cmd.force_overwrite)) {
+                if (cjsh_filesystem::should_noclobber_prevent_overwrite(cmd.output_file,
+                                                                        cmd.force_overwrite)) {
                     std::cerr << "cjsh: permission denied: " << cmd.output_file
                               << ": cannot overwrite existing file (noclobber is "
                                  "set)"
@@ -1361,7 +1107,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             }
 
             if (cmd.both_output && !cmd.both_output_file.empty()) {
-                if (should_noclobber_prevent_overwrite(cmd.both_output_file)) {
+                if (cjsh_filesystem::should_noclobber_prevent_overwrite(cmd.both_output_file)) {
                     std::cerr << "cjsh: permission denied: " << cmd.both_output_file
                               << ": cannot overwrite existing file "
                                  "(noclobber is set)"
@@ -1405,7 +1151,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             }
 
             if (!cmd.stderr_file.empty()) {
-                if (!cmd.stderr_append && should_noclobber_prevent_overwrite(cmd.stderr_file)) {
+                if (!cmd.stderr_append &&
+                    cjsh_filesystem::should_noclobber_prevent_overwrite(cmd.stderr_file)) {
                     std::cerr << "cjsh: permission denied: " << cmd.stderr_file
                               << ": cannot overwrite existing file (noclobber is "
                                  "set)"
@@ -1486,7 +1233,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 }
             }
 
-            auto c_args = build_exec_argv(cmd.args);
+            auto c_args = cjsh_env::build_exec_argv(cmd.args);
             execvp(cmd.args[0].c_str(), c_args.data());
             int saved_errno = errno;
             _exit((saved_errno == EACCES || saved_errno == EISDIR || saved_errno == ENOEXEC) ? 126
@@ -1502,9 +1249,9 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
             int exit_code = (wpid == -1) ? EX_OSERR : extract_exit_code(status);
 
-            auto exit_result =
-                make_exit_error_result(cmd.args[0], exit_code, "command completed successfully",
-                                       "command failed with exit code ");
+            auto exit_result = job_utils::make_exit_error_result(cmd.args[0], exit_code,
+                                                                 "command completed successfully",
+                                                                 "command failed with exit code ");
             set_error(exit_result.type, cmd.args[0], exit_result.message, exit_result.suggestions);
             last_exit_code = exit_code;
             cleanup_process_substitutions(proc_resources, false);
@@ -1521,7 +1268,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
         int job_id = add_job(job);
         std::string full_command = join_arguments(cmd.args);
-        bool reads_stdin = command_consumes_terminal_stdin(cmd);
+        bool reads_stdin = job_utils::command_consumes_terminal_stdin(cmd);
         int managed_job_id =
             JobManager::instance().add_job(pid, {pid}, full_command, job.background, reads_stdin);
         put_job_in_foreground(job_id, false);
@@ -1741,7 +1488,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
                     _exit(exit_code);
                 } else {
-                    auto c_args = build_exec_argv(cmd.args);
+                    auto c_args = cjsh_env::build_exec_argv(cmd.args);
                     execvp(cmd.args[0].c_str(), c_args.data());
                     int saved_errno = errno;
                     _exit((saved_errno == EACCES || saved_errno == EISDIR || saved_errno == ENOEXEC)
@@ -1801,8 +1548,9 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             pipeline_command += commands[i].args[j];
         }
     }
-    int new_job_id = JobManager::instance().add_job(pgid, pids, pipeline_command, job.background,
-                                                    pipeline_consumes_terminal_stdin(commands));
+    int new_job_id =
+        JobManager::instance().add_job(pgid, pids, pipeline_command, job.background,
+                                       job_utils::pipeline_consumes_terminal_stdin(commands));
 
     if (job.background) {
         JobManager::instance().set_last_background_pid(pids.empty() ? -1 : pids.back());
@@ -2017,9 +1765,9 @@ void Exec::wait_for_job(int job_id) {
                 int exit_status = WEXITSTATUS(final_status);
                 last_exit_code = exit_status;
                 job.completed = true;
-                auto exit_result = make_exit_error_result(job.command, exit_status,
-                                                          "command completed successfully",
-                                                          "command failed with exit code ");
+                auto exit_result = job_utils::make_exit_error_result(
+                    job.command, exit_status, "command completed successfully",
+                    "command failed with exit code ");
                 set_error(exit_result.type, job.command, exit_result.message,
                           exit_result.suggestions);
             } else if (WIFSIGNALED(final_status)) {
@@ -2179,7 +1927,7 @@ static CommandOutput execute_args_for_output_impl(const std::vector<std::string>
 }
 
 CommandOutput execute_command_for_output(const std::string& command) {
-    std::vector<std::string> args = parse_shell_command(command);
+    std::vector<std::string> args = cjsh_env::parse_shell_command(command);
     return execute_args_for_output_impl(args);
 }
 

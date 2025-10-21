@@ -129,6 +129,25 @@ SignalHandler::SignalHandler()
     s_instance.store(this);
 }
 
+void reset_child_signals() {
+    (void)signal(SIGINT, SIG_DFL);
+    (void)signal(SIGQUIT, SIG_DFL);
+    (void)signal(SIGTSTP, SIG_DFL);
+    (void)signal(SIGTTIN, SIG_DFL);
+    (void)signal(SIGTTOU, SIG_DFL);
+    (void)signal(SIGCHLD, SIG_DFL);
+    (void)signal(SIGTERM, SIG_DFL);
+
+    sigset_t set{};
+    sigemptyset(&set);
+    sigaddset(&set, SIGINT);
+    sigaddset(&set, SIGQUIT);
+    sigaddset(&set, SIGTSTP);
+    sigaddset(&set, SIGCHLD);
+    sigaddset(&set, SIGTERM);
+    sigprocmask(SIG_UNBLOCK, &set, nullptr);
+}
+
 SignalHandler::~SignalHandler() {
     restore_original_handlers();
     s_instance.store(nullptr);
