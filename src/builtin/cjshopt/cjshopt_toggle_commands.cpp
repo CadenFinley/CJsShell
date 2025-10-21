@@ -386,6 +386,31 @@ int completion_preview_command(const std::vector<std::string>& args) {
     return handle_toggle_command(config, args);
 }
 
+int visible_whitespace_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: visible-whitespace <on|off|status>",
+        "Examples:", "  visible-whitespace on      Show whitespace characters while editing",
+        "  visible-whitespace off     Hide whitespace characters while editing",
+        "  visible-whitespace status  Show the current setting"};
+
+    static const ToggleCommandConfig config{
+        "visible-whitespace",
+        usage_lines,
+        []() {
+            bool current_status = ic_enable_visible_whitespace(true);
+            ic_enable_visible_whitespace(current_status);
+            return current_status;
+        },
+        [](bool enable) { ic_enable_visible_whitespace(enable); },
+        "Visible whitespace characters",
+        true,
+        "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
+        {},
+        {}};
+
+    return handle_toggle_command(config, args);
+}
+
 int hint_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {
         "Usage: hint <on|off|status>", "Examples:", "  hint on      Enable inline hints",

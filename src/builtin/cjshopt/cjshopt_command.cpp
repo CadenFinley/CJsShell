@@ -25,6 +25,8 @@ void print_cjshopt_usage() {
     std::cout << "  hint-delay <milliseconds>        Set hint display delay in milliseconds\n";
     std::cout
         << "  completion-preview <on|off|status> Configure completion preview (default: enabled)\n";
+    std::cout << "  visible-whitespace <on|off|status> Configure visible whitespace characters "
+                 "(default: disabled)\n";
     std::cout << "  hint <on|off|status>            Configure inline hints (default: enabled)\n";
     std::cout << "  multiline-indent <on|off|status> Configure auto-indent in multiline (default: "
                  "enabled)\n";
@@ -78,6 +80,8 @@ int cjshopt_command(const std::vector<std::string>& args) {
                  "  hint-delay <milliseconds>        Set hint display delay in milliseconds",
                  "  completion-preview <on|off|status> Configure completion preview (default: "
                  "enabled)",
+                 "  visible-whitespace <on|off|status> Configure visible whitespace characters "
+                 "(default: disabled)",
                  "  hint <on|off|status>            Configure inline hints (default: enabled)",
                  "  multiline-indent <on|off|status> Configure auto-indent in multiline (default: "
                  "enabled)",
@@ -125,6 +129,9 @@ int cjshopt_command(const std::vector<std::string>& args) {
     if (subcommand == "completion-preview") {
         return completion_preview_command(std::vector<std::string>(args.begin() + 1, args.end()));
     }
+    if (subcommand == "visible-whitespace") {
+        return visible_whitespace_command(std::vector<std::string>(args.begin() + 1, args.end()));
+    }
     if (subcommand == "hint") {
         return hint_command(std::vector<std::string>(args.begin() + 1, args.end()));
     }
@@ -167,8 +174,9 @@ int cjshopt_command(const std::vector<std::string>& args) {
          "cjshopt",
          "unknown subcommand '" + subcommand + "'",
          {"Available subcommands: style_def, login-startup-arg, completion-case, completion-spell, "
-          "line-numbers, current-line-number-highlight, hint-delay, completion-preview, hint, "
-          "multiline-indent, multiline, inline-help, auto-tab, keybind, generate-profile, "
+          "line-numbers, current-line-number-highlight, hint-delay, completion-preview, "
+          "visible-whitespace, hint, multiline-indent, multiline, inline-help, auto-tab, keybind, "
+          "generate-profile, "
           "generate-rc, generate-logout, set-max-bookmarks, set-history-max, bookmark-blacklist"}});
     return 1;
 }

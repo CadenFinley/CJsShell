@@ -76,12 +76,14 @@ cjshopt completion-preview on|off     # Preview system
 - **Bracket Matching**: Automatic bracket, quote, and parentheses matching
 - **Smart Indentation**: Context-aware indentation in multi-line constructs
 - **Line Numbers**: Optional line numbering in multi-line mode
+- **Visible Whitespace**: Optional markers for spaces while editing
 
 **Configuration (Non-POSIX)**:
 ```bash
 cjshopt multiline on|off              # Multi-line editing
 cjshopt multiline-indent on|off       # Auto-indentation
 cjshopt line-numbers on|off           # Line numbering
+cjshopt visible-whitespace on|off     # Show whitespace markers
 ```
 
 ## Custom Built-in Commands (Non-POSIX)

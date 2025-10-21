@@ -16,6 +16,7 @@ int line_numbers_command(const std::vector<std::string>& args);
 int current_line_number_highlight_command(const std::vector<std::string>& args);
 int hint_delay_command(const std::vector<std::string>& args);
 int completion_preview_command(const std::vector<std::string>& args);
+int visible_whitespace_command(const std::vector<std::string>& args);
 int hint_command(const std::vector<std::string>& args);
 int multiline_indent_command(const std::vector<std::string>& args);
 int multiline_command(const std::vector<std::string>& args);

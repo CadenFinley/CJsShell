@@ -480,6 +480,7 @@ Available subcommands:
 - `current-line-number-highlight` - Toggle highlighting of the current line number
 - `hint-delay` - Set hint display delay in milliseconds
 - `completion-preview` - Configure completion preview
+- `visible-whitespace` - Toggle visible whitespace characters in the editor
 - `hint` - Configure inline hints
 - `multiline-indent` - Configure auto-indent in multiline input
 - `multiline` - Configure multiline input mode
@@ -659,6 +660,24 @@ cjshopt completion-preview status  # Show the current setting
 ```
 
 The subcommand accepts synonyms such as `enable`, `disable`, `true`, and `false`. Add to `~/.cjshrc` to persist the preference.
+
+#### visible-whitespace
+
+Show or hide visible markers for whitespace characters (such as spaces) while editing commands. When enabled, spaces are rendered with a subtle middle-dot marker so you can spot trailing or double spacing issues.
+
+```bash
+cjshopt visible-whitespace <on|off|status>
+```
+
+Examples:
+
+```bash
+cjshopt visible-whitespace on      # Show whitespace markers while editing
+cjshopt visible-whitespace off     # Hide whitespace markers (default)
+cjshopt visible-whitespace status  # Show the current setting
+```
+
+Add the command to `~/.cjshrc` to keep the preference across sessions. Synonyms like `enable`, `disable`, `true`, and `false` are accepted.
 
 #### hint
 

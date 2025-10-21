@@ -12,6 +12,7 @@ Isocline is a modern, pure C line editing library that provides advanced termina
 - Inline hints and preview suggestions
 - Customizable key bindings
 - Line numbering for multiline input
+- Optional visible markers for whitespace characters
 - History search and management
 - Brace matching and auto-insertion
 - Spell correction
@@ -82,6 +83,18 @@ cjshopt current-line-number-highlight on|off|status
 The line number styles can be customized:
 - `ic-linenumbers`: Style for regular line numbers
 - `ic-linenumber-current`: Style for the current line number
+
+### Visible Whitespace Markers
+
+You can visualize whitespace characters while editing to spot stray spaces or indentation issues. When enabled, spaces are rendered using a subtle middle-dot marker.
+
+**Configuration:**
+```bash
+# Show or hide visible whitespace markers (disabled by default)
+cjshopt visible-whitespace on|off|status
+```
+
+Pair this option with custom styling via `cjshopt style_def ic-whitespace-char "<style>"` to adjust the marker color.
 
 ### Syntax Highlighting
 

@@ -53,6 +53,7 @@ Advanced text editing capabilities including:
 - **Context-aware tab completion** with fuzzy matching
 - **Incremental history search** (Ctrl+R)
 - **Inline hints** and completion preview
+- **Visible whitespace markers** for spotting stray spaces
 - **Spell correction** for commands and completions
 - **Brace matching** and auto-insertion
 - **Fish-style abbreviations** with `abbr`/`unabbr` management commands
@@ -65,6 +66,7 @@ All editing features can be configured via the `cjshopt` command:
 cjshopt multiline on|off           # Multiline input
 cjshopt line-numbers relative      # Relative line numbering
 cjshopt completion-preview on      # Show completion preview
+cjshopt visible-whitespace on      # Show visible whitespace markers
 cjshopt hint on                    # Enable inline hints
 cjshopt auto-tab on                # Auto-expand unique completions
 cjshopt keybind set-profile emacs  # Use emacs key bindings
