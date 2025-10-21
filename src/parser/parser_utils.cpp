@@ -59,14 +59,31 @@ bool looks_like_assignment(const std::string& value) {
 std::pair<std::string, bool> strip_noenv_sentinels(const std::string& s) {
     const std::string start = "\x1E__NOENV_START__\x1E";
     const std::string end = "\x1E__NOENV_END__\x1E";
-    size_t a = s.find(start);
-    size_t b = s.rfind(end);
-    if (a != std::string::npos && b != std::string::npos && b >= a + start.size()) {
-        std::string mid = s.substr(a + start.size(), b - (a + start.size()));
-        std::string out = s.substr(0, a) + mid + s.substr(b + end.size());
-        return {out, true};
+
+    bool changed = false;
+    std::string result;
+    result.reserve(s.size());
+
+    for (size_t i = 0; i < s.size();) {
+        if (s.compare(i, start.size(), start) == 0) {
+            i += start.size();
+            changed = true;
+            continue;
+        }
+        if (s.compare(i, end.size(), end) == 0) {
+            i += end.size();
+            changed = true;
+            continue;
+        }
+        result += s[i];
+        ++i;
     }
-    return {s, false};
+
+    if (!changed) {
+        return {s, false};
+    }
+
+    return {result, true};
 }
 
 bool strip_subst_literal_markers(std::string& value) {

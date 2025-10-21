@@ -541,7 +541,8 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
                               << e.what() << '\n';
                 }
                 strip_subst_literal_markers(value_to_expand);
-                noenv_stripped = value_to_expand;
+                auto stripped_pair = strip_noenv_sentinels(value_to_expand);
+                noenv_stripped = std::move(stripped_pair.first);
             }
 
             raw_arg =
@@ -911,6 +912,9 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                     variableExpander->expand_env_vars(val);
                 } catch (const std::runtime_error&) {
                 }
+                strip_subst_literal_markers(val);
+                auto stripped_pair = strip_noenv_sentinels(val);
+                val = std::move(stripped_pair.first);
             }
 
             if (qi.is_unquoted() && val.find('{') != std::string::npos &&
