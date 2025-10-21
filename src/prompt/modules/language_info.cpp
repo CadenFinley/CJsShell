@@ -244,7 +244,7 @@ std::string get_python_version() {
 
 std::string get_nodejs_version() {
     return get_cached_version("nodejs", []() -> std::string {
-        std::string output = execute_command("node --version 2>/dev/null");
+        std::string output = execute_command("node --version");
         if (output.empty()) {
             return "";
         }
@@ -259,7 +259,7 @@ std::string get_nodejs_version() {
 
 std::string get_rust_version() {
     return get_cached_version("rust", []() -> std::string {
-        std::string output = execute_command("rustc --version 2>/dev/null");
+        std::string output = execute_command("rustc --version");
         if (output.empty()) {
             return "";
         }
@@ -271,7 +271,7 @@ std::string get_rust_version() {
 
 std::string get_golang_version() {
     return get_cached_version("golang", []() -> std::string {
-        std::string output = execute_command("go version 2>/dev/null");
+        std::string output = execute_command("go version");
         if (output.empty()) {
             return "";
         }
@@ -336,7 +336,7 @@ std::string get_cpp_version() {
 
 std::string get_csharp_version() {
     return get_cached_version("csharp", []() -> std::string {
-        std::string output = execute_command("dotnet --version 2>/dev/null");
+        std::string output = execute_command("dotnet --version");
         if (output.empty()) {
             return "";
         }
@@ -363,7 +363,7 @@ std::string get_php_version() {
 
 std::string get_ruby_version() {
     return get_cached_version("ruby", []() -> std::string {
-        std::string output = execute_command("ruby --version 2>/dev/null");
+        std::string output = execute_command("ruby --version");
         if (output.empty()) {
             return "";
         }
@@ -394,7 +394,7 @@ std::string get_kotlin_version() {
 
 std::string get_swift_version() {
     return get_cached_version("swift", []() -> std::string {
-        std::string output = execute_command("swift --version 2>/dev/null");
+        std::string output = execute_command("swift --version");
         if (output.empty()) {
             return "";
         }
