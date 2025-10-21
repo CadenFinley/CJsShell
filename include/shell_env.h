@@ -18,5 +18,7 @@ size_t collect_env_assignments(const std::vector<std::string>& args,
 void apply_env_assignments(const std::vector<std::pair<std::string, std::string>>& env_assignments);
 std::vector<std::string> parse_shell_command(const std::string& command);
 std::vector<char*> build_exec_argv(const std::vector<std::string>& args);
+std::vector<char*> build_exec_envp(
+    const std::vector<std::pair<std::string, std::string>>& env_assignments);
 
 }  // namespace cjsh_env

@@ -1,6 +1,7 @@
 #include "exec.h"
 
 #include <fcntl.h>
+#include <spawn.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sysexits.h>
@@ -12,6 +13,7 @@
 #include <cctype>
 #include <csignal>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <ctime>
 #include <iostream>
@@ -33,44 +35,6 @@
 #include "suggestion_utils.h"
 
 namespace {
-
-int extract_exit_code(int status) {
-    if (WIFEXITED(status)) {
-        return WEXITSTATUS(status);
-    }
-    if (WIFSIGNALED(status)) {
-        return 128 + WTERMSIG(status);
-    }
-    return 1;
-}
-
-std::string join_arguments(const std::vector<std::string>& args) {
-    std::string result;
-    for (size_t i = 0; i < args.size(); ++i) {
-        if (i > 0) {
-            result += " ";
-        }
-        result += args[i];
-    }
-    return result;
-}
-
-bool is_shell_control_structure(const Command& cmd) {
-    if (cmd.args.empty()) {
-        return false;
-    }
-
-    const std::string& keyword = cmd.args[0];
-    return keyword == "if" || keyword == "for" || keyword == "while" || keyword == "until" ||
-           keyword == "case" || keyword == "select" || keyword == "function";
-}
-
-std::string command_text_for_interpretation(const Command& cmd) {
-    if (!cmd.original_text.empty()) {
-        return cmd.original_text;
-    }
-    return join_arguments(cmd.args);
-}
 
 struct ProcessSubstitutionResources {
     std::vector<std::string> fifo_paths;
@@ -229,6 +193,150 @@ ProcessSubstitutionResources setup_process_substitutions(Command& cmd) {
     return resources;
 }
 
+int extract_exit_code(int status) {
+    if (WIFEXITED(status)) {
+        return WEXITSTATUS(status);
+    }
+    if (WIFSIGNALED(status)) {
+        return 128 + WTERMSIG(status);
+    }
+    return 1;
+}
+
+std::string join_arguments(const std::vector<std::string>& args) {
+    std::string result;
+    for (size_t i = 0; i < args.size(); ++i) {
+        if (i > 0) {
+            result += " ";
+        }
+        result += args[i];
+    }
+    return result;
+}
+
+bool is_shell_control_structure(const Command& cmd) {
+    if (cmd.args.empty()) {
+        return false;
+    }
+
+    const std::string& keyword = cmd.args[0];
+    return keyword == "if" || keyword == "for" || keyword == "while" || keyword == "until" ||
+           keyword == "case" || keyword == "select" || keyword == "function";
+}
+
+std::string command_text_for_interpretation(const Command& cmd) {
+    if (!cmd.original_text.empty()) {
+        return cmd.original_text;
+    }
+    return join_arguments(cmd.args);
+}
+
+class SpawnFileActions {
+   public:
+    SpawnFileActions() : initialized_(posix_spawn_file_actions_init(&actions_) == 0) {
+    }
+
+    ~SpawnFileActions() {
+        if (initialized_) {
+            posix_spawn_file_actions_destroy(&actions_);
+        }
+    }
+
+    SpawnFileActions(const SpawnFileActions&) = delete;
+    SpawnFileActions& operator=(const SpawnFileActions&) = delete;
+
+    SpawnFileActions(SpawnFileActions&& other) noexcept : initialized_(other.initialized_) {
+        if (initialized_) {
+            actions_ = other.actions_;
+            other.initialized_ = false;
+        }
+    }
+
+    SpawnFileActions& operator=(SpawnFileActions&& other) noexcept {
+        if (this != &other) {
+            if (initialized_) {
+                posix_spawn_file_actions_destroy(&actions_);
+            }
+            initialized_ = other.initialized_;
+            if (initialized_) {
+                actions_ = other.actions_;
+                other.initialized_ = false;
+            }
+        }
+        return *this;
+    }
+
+    bool is_initialized() const {
+        return initialized_;
+    }
+    posix_spawn_file_actions_t* get() {
+        return initialized_ ? &actions_ : nullptr;
+    }
+
+   private:
+    bool initialized_;
+    posix_spawn_file_actions_t actions_;
+};
+
+class SpawnAttributes {
+   public:
+    SpawnAttributes() : initialized_(posix_spawnattr_init(&attributes_) == 0) {
+    }
+
+    ~SpawnAttributes() {
+        if (initialized_) {
+            posix_spawnattr_destroy(&attributes_);
+        }
+    }
+
+    SpawnAttributes(const SpawnAttributes&) = delete;
+    SpawnAttributes& operator=(const SpawnAttributes&) = delete;
+
+    SpawnAttributes(SpawnAttributes&& other) noexcept : initialized_(other.initialized_) {
+        if (initialized_) {
+            attributes_ = other.attributes_;
+            other.initialized_ = false;
+        }
+    }
+
+    SpawnAttributes& operator=(SpawnAttributes&& other) noexcept {
+        if (this != &other) {
+            if (initialized_) {
+                posix_spawnattr_destroy(&attributes_);
+            }
+            initialized_ = other.initialized_;
+            if (initialized_) {
+                attributes_ = other.attributes_;
+                other.initialized_ = false;
+            }
+        }
+        return *this;
+    }
+
+    bool is_initialized() const {
+        return initialized_;
+    }
+    posix_spawnattr_t* get() {
+        return initialized_ ? &attributes_ : nullptr;
+    }
+
+   private:
+    bool initialized_;
+    posix_spawnattr_t attributes_;
+};
+
+enum class SpawnAttemptStatus {
+    Success,
+    RetryWithFork,
+    Failure
+};
+
+struct SpawnAttemptResult {
+    SpawnAttemptStatus status = SpawnAttemptStatus::Failure;
+    pid_t pid = -1;
+    int failure_exit_code = EXIT_FAILURE;
+};
+
 void cleanup_process_substitutions(ProcessSubstitutionResources& resources,
                                    bool terminate_children) {
     if (terminate_children) {
@@ -254,6 +362,54 @@ void cleanup_process_substitutions(ProcessSubstitutionResources& resources,
 
     resources.child_pids.clear();
     resources.fifo_paths.clear();
+}
+
+cjsh_filesystem::Result<int> create_here_doc_pipe(const std::string& here_doc) {
+    int here_pipe[2] = {-1, -1};
+    auto pipe_result = cjsh_filesystem::create_pipe_cloexec(here_pipe);
+    if (pipe_result.is_error()) {
+        return cjsh_filesystem::Result<int>::error("pipe: " + pipe_result.error());
+    }
+
+    auto write_result = cjsh_filesystem::write_all(here_pipe[1], std::string_view{here_doc});
+    if (write_result.is_error()) {
+        cjsh_filesystem::close_pipe(here_pipe);
+        return cjsh_filesystem::Result<int>::error("write: " + write_result.error());
+    }
+
+    const char newline = '\n';
+    auto newline_result = cjsh_filesystem::write_all(here_pipe[1], std::string_view{&newline, 1});
+    if (newline_result.is_error()) {
+        cjsh_filesystem::close_pipe(here_pipe);
+        return cjsh_filesystem::Result<int>::error("write: " + newline_result.error());
+    }
+
+    cjsh_filesystem::safe_close(here_pipe[1]);
+    return cjsh_filesystem::Result<int>::ok(here_pipe[0]);
+}
+
+cjsh_filesystem::Result<int> create_here_string_pipe(const std::string& here_string) {
+    int here_pipe[2] = {-1, -1};
+    auto pipe_result = cjsh_filesystem::create_pipe_cloexec(here_pipe);
+    if (pipe_result.is_error()) {
+        return cjsh_filesystem::Result<int>::error("pipe: " + pipe_result.error());
+    }
+
+    std::string content = here_string;
+    if (g_shell && (g_shell->get_parser() != nullptr)) {
+        g_shell->get_parser()->expand_env_vars(content);
+    }
+    content.push_back('\n');
+
+    auto write_result = cjsh_filesystem::write_all(here_pipe[1], std::string_view{content});
+    std::fill(content.begin(), content.end(), '\0');
+    if (write_result.is_error()) {
+        cjsh_filesystem::close_pipe(here_pipe);
+        return cjsh_filesystem::Result<int>::error("write: " + write_result.error());
+    }
+
+    cjsh_filesystem::safe_close(here_pipe[1]);
+    return cjsh_filesystem::Result<int>::ok(here_pipe[0]);
 }
 
 enum class FdOperationErrorType {
@@ -324,6 +480,375 @@ bool apply_fd_operations(const Command& cmd, FailureHandler&& on_failure) {
     }
 
     return true;
+}
+
+int spawn_actions_add_dup2(posix_spawn_file_actions_t* actions, int src_fd, int dst_fd,
+                           std::string& error_message) {
+    int rc = posix_spawn_file_actions_adddup2(actions, src_fd, dst_fd);
+    if (rc != 0) {
+        error_message = "dup2: " + std::string(strerror(rc));
+    }
+    return rc;
+}
+
+int spawn_actions_add_open(posix_spawn_file_actions_t* actions, int fd, const std::string& path,
+                           int flags, mode_t mode, std::string& error_message) {
+    int rc = posix_spawn_file_actions_addopen(actions, fd, path.c_str(), flags, mode);
+    if (rc != 0) {
+        error_message = "open '" + path + "': " + std::string(strerror(rc));
+    }
+    return rc;
+}
+
+int spawn_actions_add_close(posix_spawn_file_actions_t* actions, int fd,
+                            std::string& error_message) {
+    int rc = posix_spawn_file_actions_addclose(actions, fd);
+    if (rc != 0) {
+        error_message = "close fd " + std::to_string(fd) + ": " + std::string(strerror(rc));
+    }
+    return rc;
+}
+
+bool configure_spawn_actions_for_command(const Command& cmd, SpawnFileActions& actions,
+                                         std::vector<int>& child_close_fds,
+                                         std::vector<int>& parent_cleanup_fds,
+                                         bool& needs_fork_fallback, std::string& error_message,
+                                         ErrorType& error_type) {
+    needs_fork_fallback = false;
+    error_message.clear();
+    error_type = ErrorType::RUNTIME_ERROR;
+
+    if (!actions.is_initialized()) {
+        needs_fork_fallback = true;
+        return true;
+    }
+
+    auto* raw_actions = actions.get();
+
+    if (!cmd.here_doc.empty()) {
+        auto here_fd = create_here_doc_pipe(cmd.here_doc);
+        if (here_fd.is_error()) {
+            error_type = ErrorType::RUNTIME_ERROR;
+            error_message = "failed to prepare here document: " + here_fd.error();
+            return false;
+        }
+
+        int fd = here_fd.value();
+        if (spawn_actions_add_dup2(raw_actions, fd, STDIN_FILENO, error_message) != 0) {
+            cjsh_filesystem::safe_close(fd);
+            parent_cleanup_fds.push_back(fd);
+            return false;
+        }
+
+        child_close_fds.push_back(fd);
+        parent_cleanup_fds.push_back(fd);
+    } else if (!cmd.here_string.empty()) {
+        auto here_fd = create_here_string_pipe(cmd.here_string);
+        if (here_fd.is_error()) {
+            error_type = ErrorType::RUNTIME_ERROR;
+            error_message = "failed to prepare here string: " + here_fd.error();
+            return false;
+        }
+
+        int fd = here_fd.value();
+        if (spawn_actions_add_dup2(raw_actions, fd, STDIN_FILENO, error_message) != 0) {
+            cjsh_filesystem::safe_close(fd);
+            parent_cleanup_fds.push_back(fd);
+            return false;
+        }
+
+        child_close_fds.push_back(fd);
+        parent_cleanup_fds.push_back(fd);
+    } else if (!cmd.input_file.empty()) {
+        if (spawn_actions_add_open(raw_actions, STDIN_FILENO, cmd.input_file, O_RDONLY, 0,
+                                   error_message) != 0) {
+            error_type = ErrorType::FILE_NOT_FOUND;
+            return false;
+        }
+    }
+
+    if (!cmd.output_file.empty()) {
+        if (cjsh_filesystem::should_noclobber_prevent_overwrite(cmd.output_file,
+                                                                cmd.force_overwrite)) {
+            error_type = ErrorType::PERMISSION_DENIED;
+            error_message = "cannot overwrite existing file (noclobber is set)";
+            return false;
+        }
+
+        if (spawn_actions_add_open(raw_actions, STDOUT_FILENO, cmd.output_file,
+                                   O_WRONLY | O_CREAT | O_TRUNC, 0644, error_message) != 0) {
+            error_type = ErrorType::RUNTIME_ERROR;
+            return false;
+        }
+    }
+
+    if (cmd.both_output && !cmd.both_output_file.empty()) {
+        if (cjsh_filesystem::should_noclobber_prevent_overwrite(cmd.both_output_file)) {
+            error_type = ErrorType::PERMISSION_DENIED;
+            error_message = "cannot overwrite existing file (noclobber is set)";
+            return false;
+        }
+
+        if (spawn_actions_add_open(raw_actions, STDOUT_FILENO, cmd.both_output_file,
+                                   O_WRONLY | O_CREAT | O_TRUNC, 0644, error_message) != 0) {
+            error_type = ErrorType::RUNTIME_ERROR;
+            return false;
+        }
+
+        if (spawn_actions_add_dup2(raw_actions, STDOUT_FILENO, STDERR_FILENO, error_message) != 0) {
+            error_type = ErrorType::RUNTIME_ERROR;
+            return false;
+        }
+    }
+
+    if (!cmd.append_file.empty()) {
+        if (spawn_actions_add_open(raw_actions, STDOUT_FILENO, cmd.append_file,
+                                   O_WRONLY | O_CREAT | O_APPEND, 0644, error_message) != 0) {
+            error_type = ErrorType::RUNTIME_ERROR;
+            return false;
+        }
+    }
+
+    if (!cmd.stderr_file.empty()) {
+        if (!cmd.stderr_append &&
+            cjsh_filesystem::should_noclobber_prevent_overwrite(cmd.stderr_file)) {
+            error_type = ErrorType::PERMISSION_DENIED;
+            error_message = "cannot overwrite existing file (noclobber is set)";
+            return false;
+        }
+
+        int flags = O_WRONLY | O_CREAT | (cmd.stderr_append ? O_APPEND : O_TRUNC);
+        if (spawn_actions_add_open(raw_actions, STDERR_FILENO, cmd.stderr_file, flags, 0644,
+                                   error_message) != 0) {
+            error_type = ErrorType::RUNTIME_ERROR;
+            return false;
+        }
+    } else if (cmd.stderr_to_stdout) {
+        if (spawn_actions_add_dup2(raw_actions, STDOUT_FILENO, STDERR_FILENO, error_message) != 0) {
+            error_type = ErrorType::RUNTIME_ERROR;
+            return false;
+        }
+    }
+
+    if (cmd.stdout_to_stderr) {
+        if (spawn_actions_add_dup2(raw_actions, STDERR_FILENO, STDOUT_FILENO, error_message) != 0) {
+            error_type = ErrorType::RUNTIME_ERROR;
+            return false;
+        }
+    }
+
+    for (const auto& fd_redir : cmd.fd_redirections) {
+        int fd_num = fd_redir.first;
+        const std::string& spec = fd_redir.second;
+        RedirectSpecInfo info = parse_fd_redirect_spec(fd_num, spec);
+        if (spawn_actions_add_open(raw_actions, fd_num, info.file, info.flags, 0644,
+                                   error_message) != 0) {
+            error_type = ErrorType::RUNTIME_ERROR;
+            return false;
+        }
+    }
+
+    for (const auto& fd_dup : cmd.fd_duplications) {
+        int dst_fd = fd_dup.first;
+        int src_fd = fd_dup.second;
+        if (src_fd == -1) {
+            if (spawn_actions_add_close(raw_actions, dst_fd, error_message) != 0) {
+                error_type = ErrorType::RUNTIME_ERROR;
+                return false;
+            }
+        } else {
+            if (spawn_actions_add_dup2(raw_actions, src_fd, dst_fd, error_message) != 0) {
+                error_type = ErrorType::RUNTIME_ERROR;
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+bool configure_spawn_attributes(SpawnAttributes& attributes, std::optional<pid_t> pgid,
+                                std::string& error_message) {
+    error_message.clear();
+
+    if (!attributes.is_initialized()) {
+        error_message = "failed to initialize posix_spawn attributes";
+        return false;
+    }
+
+    sigset_t empty_mask;
+    sigemptyset(&empty_mask);
+    int rc = posix_spawnattr_setsigmask(attributes.get(), &empty_mask);
+    if (rc != 0) {
+        error_message = "setsigmask: " + std::string(strerror(rc));
+        return false;
+    }
+
+    sigset_t default_set;
+    sigemptyset(&default_set);
+    sigaddset(&default_set, SIGINT);
+    sigaddset(&default_set, SIGQUIT);
+    sigaddset(&default_set, SIGTSTP);
+    sigaddset(&default_set, SIGTTIN);
+    sigaddset(&default_set, SIGTTOU);
+    sigaddset(&default_set, SIGCHLD);
+    sigaddset(&default_set, SIGTERM);
+
+    rc = posix_spawnattr_setsigdefault(attributes.get(), &default_set);
+    if (rc != 0) {
+        error_message = "setsigdefault: " + std::string(strerror(rc));
+        return false;
+    }
+
+    short flags = POSIX_SPAWN_SETSIGMASK | POSIX_SPAWN_SETSIGDEF;
+
+    if (pgid.has_value()) {
+        rc = posix_spawnattr_setpgroup(attributes.get(), pgid.value());
+        if (rc != 0) {
+            error_message = "setpgroup: " + std::string(strerror(rc));
+            return false;
+        }
+        flags |= POSIX_SPAWN_SETPGROUP;
+    }
+
+    rc = posix_spawnattr_setflags(attributes.get(), flags);
+    if (rc != 0) {
+        error_message = "setflags: " + std::string(strerror(rc));
+        return false;
+    }
+
+    return true;
+}
+
+SpawnAttemptResult try_spawn_external_command(
+    const Command& cmd, const std::vector<std::pair<std::string, std::string>>& env_assignments,
+    std::optional<pid_t> pgid, Exec& exec) {
+    SpawnAttemptResult result;
+
+    if (cmd.args.empty()) {
+        result.status = SpawnAttemptStatus::Failure;
+        result.failure_exit_code = EXIT_FAILURE;
+        return result;
+    }
+
+    SpawnFileActions file_actions;
+    SpawnAttributes attributes;
+
+    if (!file_actions.is_initialized() || !attributes.is_initialized()) {
+        result.status = SpawnAttemptStatus::RetryWithFork;
+        return result;
+    }
+
+    std::vector<int> child_close_fds;
+    std::vector<int> parent_cleanup_fds;
+    std::string error_message;
+    ErrorType error_type = ErrorType::RUNTIME_ERROR;
+    bool needs_fork_fallback = false;
+
+    if (!configure_spawn_actions_for_command(cmd, file_actions, child_close_fds, parent_cleanup_fds,
+                                             needs_fork_fallback, error_message, error_type)) {
+        for (int fd : parent_cleanup_fds) {
+            cjsh_filesystem::safe_close(fd);
+        }
+
+        exec.set_error(error_type, cmd.args[0], error_message, {});
+        result.status = SpawnAttemptStatus::Failure;
+        if (error_type == ErrorType::PERMISSION_DENIED) {
+            result.failure_exit_code = 126;
+        } else if (error_type == ErrorType::FILE_NOT_FOUND) {
+            result.failure_exit_code = EXIT_FAILURE;
+        } else {
+            result.failure_exit_code = EX_OSERR;
+        }
+        return result;
+    }
+
+    if (needs_fork_fallback) {
+        for (int fd : parent_cleanup_fds) {
+            cjsh_filesystem::safe_close(fd);
+        }
+        result.status = SpawnAttemptStatus::RetryWithFork;
+        return result;
+    }
+
+    std::sort(child_close_fds.begin(), child_close_fds.end());
+    child_close_fds.erase(std::unique(child_close_fds.begin(), child_close_fds.end()),
+                          child_close_fds.end());
+
+    for (int fd : child_close_fds) {
+        std::string close_error;
+        if (spawn_actions_add_close(file_actions.get(), fd, close_error) != 0) {
+            for (int cleanup_fd : parent_cleanup_fds) {
+                cjsh_filesystem::safe_close(cleanup_fd);
+            }
+            exec.set_error(ErrorType::RUNTIME_ERROR, cmd.args[0], close_error, {});
+            result.status = SpawnAttemptStatus::Failure;
+            result.failure_exit_code = EX_OSERR;
+            return result;
+        }
+    }
+
+    std::string attr_error;
+    if (!configure_spawn_attributes(attributes, pgid, attr_error)) {
+        for (int fd : parent_cleanup_fds) {
+            cjsh_filesystem::safe_close(fd);
+        }
+
+        if (!attr_error.empty()) {
+            exec.set_error(ErrorType::RUNTIME_ERROR, cmd.args[0], attr_error, {});
+            result.status = SpawnAttemptStatus::Failure;
+            result.failure_exit_code = EX_OSERR;
+        } else {
+            result.status = SpawnAttemptStatus::RetryWithFork;
+        }
+        return result;
+    }
+
+    auto argv = cjsh_env::build_exec_argv(cmd.args);
+    auto envp = cjsh_env::build_exec_envp(env_assignments);
+
+    pid_t pid = -1;
+    int spawn_rc = posix_spawnp(&pid, cmd.args[0].c_str(), file_actions.get(), attributes.get(),
+                                argv.data(), envp.data());
+
+    for (int fd : parent_cleanup_fds) {
+        cjsh_filesystem::safe_close(fd);
+    }
+
+    if (spawn_rc != 0) {
+        result.status = SpawnAttemptStatus::Failure;
+
+        if (spawn_rc == ENOENT) {
+            bool command_exists = cjsh_filesystem::command_exists(cmd.args[0]);
+            if (!command_exists) {
+                auto suggestions = suggestion_utils::generate_command_suggestions(cmd.args[0]);
+                exec.set_error(ErrorType::COMMAND_NOT_FOUND, cmd.args[0], "", suggestions);
+                result.failure_exit_code = 127;
+            } else {
+                exec.set_error(ErrorType::FILE_NOT_FOUND, cmd.args[0],
+                               "redirection failed: " + std::string(strerror(spawn_rc)), {});
+                result.failure_exit_code = EXIT_FAILURE;
+            }
+        } else if (spawn_rc == EACCES || spawn_rc == EISDIR) {
+            exec.set_error(ErrorType::PERMISSION_DENIED, cmd.args[0],
+                           std::string(strerror(spawn_rc)), {});
+            result.failure_exit_code = 126;
+        } else if (spawn_rc == ENOEXEC) {
+            exec.set_error(ErrorType::INVALID_ARGUMENT, cmd.args[0], "invalid executable format",
+                           {});
+            result.failure_exit_code = 126;
+        } else {
+            exec.set_error(ErrorType::RUNTIME_ERROR, cmd.args[0],
+                           "failed to spawn process: " + std::string(strerror(spawn_rc)), {});
+            result.failure_exit_code = EX_OSERR;
+        }
+        return result;
+    }
+
+    result.status = SpawnAttemptStatus::Success;
+    result.pid = pid;
+    result.failure_exit_code = 0;
+    return result;
 }
 
 enum class HereDocErrorKind {
@@ -908,48 +1433,66 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
         }
     }
 
-    pid_t pid = fork();
+    Command spawn_cmd;
+    spawn_cmd.args = cmd_args;
 
-    if (pid == -1) {
-        set_error(ErrorType::RUNTIME_ERROR, cmd_args.empty() ? "unknown" : cmd_args[0],
-                  "failed to fork process: " + std::string(strerror(errno)), {});
-        last_exit_code = EX_OSERR;
-        cleanup_process_substitutions(proc_resources, true);
-        return EX_OSERR;
+    pid_t pid = -1;
+    auto spawn_result = try_spawn_external_command(spawn_cmd, env_assignments, std::nullopt, *this);
+
+    if (spawn_result.status == SpawnAttemptStatus::Failure) {
+        cleanup_process_substitutions(proc_resources, false);
+        last_exit_code = spawn_result.failure_exit_code;
+        return last_exit_code;
     }
 
-    if (pid == 0) {
-        cjsh_env::apply_env_assignments(env_assignments);
+    if (spawn_result.status == SpawnAttemptStatus::Success) {
+        pid = spawn_result.pid;
+    } else {
+        pid = fork();
 
-        pid_t child_pid = getpid();
-        if (setpgid(child_pid, child_pid) < 0) {
-            std::cerr << "cjsh: runtime error: setpgid: failed to set process group "
-                         "ID in child: "
-                      << strerror(errno) << '\n';
-            _exit(EXIT_FAILURE);
+        if (pid == -1) {
+            set_error(ErrorType::RUNTIME_ERROR, cmd_args.empty() ? "unknown" : cmd_args[0],
+                      "failed to fork process: " + std::string(strerror(errno)), {});
+            last_exit_code = EX_OSERR;
+            cleanup_process_substitutions(proc_resources, true);
+            return EX_OSERR;
         }
 
-        reset_child_signals();
+        if (pid == 0) {
+            cjsh_env::apply_env_assignments(env_assignments);
 
-        auto c_args = cjsh_env::build_exec_argv(cmd_args);
-        execvp(cmd_args[0].c_str(), c_args.data());
+            pid_t child_pid = getpid();
+            if (setpgid(child_pid, child_pid) < 0) {
+                std::cerr << "cjsh: runtime error: setpgid: failed to set process group "
+                             "ID in child: "
+                          << strerror(errno) << '\n';
+                _exit(EXIT_FAILURE);
+            }
 
-        int saved_errno = errno;
-        int exit_code =
-            (saved_errno == EACCES || saved_errno == EISDIR || saved_errno == ENOEXEC) ? 126 : 127;
+            reset_child_signals();
 
-        if (saved_errno == ENOENT) {
-            auto suggestions = suggestion_utils::generate_command_suggestions(cmd_args[0]);
-            set_error(ErrorType::COMMAND_NOT_FOUND, cmd_args[0], "", suggestions);
-        } else if (saved_errno == EACCES || saved_errno == EISDIR) {
-            set_error(ErrorType::PERMISSION_DENIED, cmd_args[0], "", {});
-        } else if (saved_errno == ENOEXEC) {
-            set_error(ErrorType::INVALID_ARGUMENT, cmd_args[0], "invalid executable format", {});
-        } else {
-            set_error(ErrorType::RUNTIME_ERROR, cmd_args[0],
-                      "execution failed: " + std::string(strerror(saved_errno)), {});
+            auto c_args = cjsh_env::build_exec_argv(cmd_args);
+            execvp(cmd_args[0].c_str(), c_args.data());
+
+            int saved_errno = errno;
+            int exit_code =
+                (saved_errno == EACCES || saved_errno == EISDIR || saved_errno == ENOEXEC) ? 126
+                                                                                           : 127;
+
+            if (saved_errno == ENOENT) {
+                auto suggestions = suggestion_utils::generate_command_suggestions(cmd_args[0]);
+                set_error(ErrorType::COMMAND_NOT_FOUND, cmd_args[0], "", suggestions);
+            } else if (saved_errno == EACCES || saved_errno == EISDIR) {
+                set_error(ErrorType::PERMISSION_DENIED, cmd_args[0], "", {});
+            } else if (saved_errno == ENOEXEC) {
+                set_error(ErrorType::INVALID_ARGUMENT, cmd_args[0], "invalid executable format",
+                          {});
+            } else {
+                set_error(ErrorType::RUNTIME_ERROR, cmd_args[0],
+                          "execution failed: " + std::string(strerror(saved_errno)), {});
+            }
+            _exit(exit_code);
         }
-        _exit(exit_code);
     }
 
     if (setpgid(pid, pid) < 0) {
@@ -966,6 +1509,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
     job.completed = false;
     job.stopped = false;
     job.pids.push_back(pid);
+    job.last_pid = pid;
 
     int job_id = add_job(job);
 
@@ -1054,62 +1598,80 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
     std::vector<std::string> cmd_args(
         std::next(args.begin(), static_cast<std::ptrdiff_t>(cmd_start_idx)), args.end());
 
-    pid_t pid = fork();
+    Command spawn_cmd;
+    spawn_cmd.args = cmd_args;
+    spawn_cmd.background = true;
 
-    if (pid == -1) {
-        std::string cmd_name = cmd_args.empty() ? "unknown" : cmd_args[0];
-        set_error(ErrorType::RUNTIME_ERROR, cmd_name,
-                  "failed to create background process: " + std::string(strerror(errno)), {});
-        last_exit_code = EX_OSERR;
-        return EX_OSERR;
+    auto spawn_result = try_spawn_external_command(spawn_cmd, env_assignments, std::nullopt, *this);
+
+    pid_t pid = -1;
+
+    if (spawn_result.status == SpawnAttemptStatus::Failure) {
+        last_exit_code = spawn_result.failure_exit_code;
+        return last_exit_code;
     }
 
-    if (pid == 0) {
-        cjsh_env::apply_env_assignments(env_assignments);
-
-        if (setpgid(0, 0) < 0) {
-            std::cerr << "cjsh: runtime error: setpgid: failed to set process group "
-                         "ID in background child: "
-                      << strerror(errno) << '\n';
-            _exit(EXIT_FAILURE);
-        }
-
-        (void)signal(SIGINT, SIG_IGN);
-        (void)signal(SIGQUIT, SIG_IGN);
-        (void)signal(SIGTSTP, SIG_IGN);
-        (void)signal(SIGTTIN, SIG_IGN);
-        (void)signal(SIGTTOU, SIG_IGN);
-
-        auto c_args = cjsh_env::build_exec_argv(cmd_args);
-        execvp(cmd_args[0].c_str(), c_args.data());
-        int saved_errno = errno;
-        _exit((saved_errno == EACCES || saved_errno == EISDIR || saved_errno == ENOEXEC) ? 126
-                                                                                         : 127);
+    if (spawn_result.status == SpawnAttemptStatus::Success) {
+        pid = spawn_result.pid;
     } else {
-        if (setpgid(pid, pid) < 0 && errno != EACCES && errno != EPERM) {
-            set_error(ErrorType::RUNTIME_ERROR, "setpgid",
-                      "failed to set process group ID for background process: " +
-                          std::string(strerror(errno)));
+        pid = fork();
+
+        if (pid == -1) {
+            std::string cmd_name = cmd_args.empty() ? "unknown" : cmd_args[0];
+            set_error(ErrorType::RUNTIME_ERROR, cmd_name,
+                      "failed to create background process: " + std::string(strerror(errno)), {});
+            last_exit_code = EX_OSERR;
+            return EX_OSERR;
         }
 
-        Job job;
-        job.pgid = pid;
-        job.command = args[0];
-        job.background = true;
-        job.completed = false;
-        job.stopped = false;
-        job.pids.push_back(pid);
+        if (pid == 0) {
+            cjsh_env::apply_env_assignments(env_assignments);
 
-        int job_id = add_job(job);
+            if (setpgid(0, 0) < 0) {
+                std::cerr << "cjsh: runtime error: setpgid: failed to set process group "
+                             "ID in background child: "
+                          << strerror(errno) << '\n';
+                _exit(EXIT_FAILURE);
+            }
 
-        std::string full_command = join_arguments(args);
-        JobManager::instance().add_job(pid, {pid}, full_command, true, false);
-        JobManager::instance().set_last_background_pid(pid);
+            (void)signal(SIGINT, SIG_IGN);
+            (void)signal(SIGQUIT, SIG_IGN);
+            (void)signal(SIGTSTP, SIG_IGN);
+            (void)signal(SIGTTIN, SIG_IGN);
+            (void)signal(SIGTTOU, SIG_IGN);
 
-        std::cerr << "[" << job_id << "] " << pid << '\n';
-        last_exit_code = 0;
-        return 0;
+            auto c_args = cjsh_env::build_exec_argv(cmd_args);
+            execvp(cmd_args[0].c_str(), c_args.data());
+            int saved_errno = errno;
+            _exit((saved_errno == EACCES || saved_errno == EISDIR || saved_errno == ENOEXEC) ? 126
+                                                                                             : 127);
+        }
     }
+
+    if (setpgid(pid, pid) < 0 && errno != EACCES && errno != EPERM) {
+        set_error(ErrorType::RUNTIME_ERROR, "setpgid",
+                  "failed to set process group ID for background process: " +
+                      std::string(strerror(errno)));
+    }
+
+    Job job;
+    job.pgid = pid;
+    job.command = args[0];
+    job.background = true;
+    job.completed = false;
+    job.stopped = false;
+    job.pids.push_back(pid);
+    job.last_pid = pid;
+
+    int job_id = add_job(job);
+
+    std::string full_command = join_arguments(args);
+    JobManager::instance().add_job(pid, {pid}, full_command, true, false);
+    JobManager::instance().set_last_background_pid(pid);
+
+    std::cerr << "[" << job_id << "] " << pid << '\n';
+    last_exit_code = 0;
+    return 0;
 }
 
 int Exec::execute_pipeline(const std::vector<Command>& commands) {
@@ -1804,6 +2366,7 @@ void Exec::wait_for_job(int job_id) {
     pid_t job_pgid = it->second.pgid;
     std::vector<pid_t> remaining_pids = it->second.pids;
     pid_t last_pid = it->second.last_pid;
+    int cached_last_status = it->second.last_status;
 
     lock.unlock();
 
@@ -1813,15 +2376,28 @@ void Exec::wait_for_job(int job_id) {
     bool job_stopped = false;
     bool saw_last = false;
     int last_status = 0;
+    bool use_group_wait = job_pgid > 0;
 
     while (!remaining_pids.empty()) {
-        pid = waitpid(-job_pgid, &status, WUNTRACED);
+        pid_t wait_target = use_group_wait ? -job_pgid : remaining_pids.front();
+        pid = waitpid(wait_target, &status, WUNTRACED);
 
         if (pid == -1) {
             if (errno == EINTR) {
                 continue;
             }
             if (errno == ECHILD) {
+                if (use_group_wait) {
+                    use_group_wait = false;
+                    continue;
+                }
+
+                if (cached_last_status != 0) {
+                    status = cached_last_status;
+                    saw_last = true;
+                    last_status = cached_last_status;
+                }
+
                 remaining_pids.clear();
                 break;
             }
@@ -1833,9 +2409,6 @@ void Exec::wait_for_job(int job_id) {
         auto pid_it = std::find(remaining_pids.begin(), remaining_pids.end(), pid);
         if (pid_it != remaining_pids.end()) {
             remaining_pids.erase(pid_it);
-        }
-
-        if (pid == last_pid) {
         }
 
         if (pid == last_pid) {
@@ -1866,7 +2439,13 @@ void Exec::wait_for_job(int job_id) {
 
             int final_status = saw_last ? last_status : status;
             if (!(WIFEXITED(final_status) || WIFSIGNALED(final_status))) {
-                final_status = (job.last_status != 0) ? job.last_status : job.status;
+                if (job.last_status != 0) {
+                    final_status = job.last_status;
+                } else if (cached_last_status != 0) {
+                    final_status = cached_last_status;
+                } else {
+                    final_status = job.status;
+                }
             }
             job.last_status = final_status;
 

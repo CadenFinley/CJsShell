@@ -9,10 +9,29 @@
 #include <cstring>
 #include <filesystem>
 #include <memory>
+#include <string_view>
+#include <unordered_map>
+
+#ifdef __APPLE__
+#include <crt_externs.h>
+#endif
 
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "shell.h"
+
+namespace {
+
+char** current_environ() {
+#if defined(__APPLE__)
+    return *_NSGetEnviron();
+#else
+    extern char** environ;
+    return environ;
+#endif
+}
+
+}  // namespace
 
 namespace cjsh_env {
 
@@ -271,6 +290,56 @@ std::vector<char*> build_exec_argv(const std::vector<std::string>& args) {
     }
     c_args.push_back(nullptr);
     return c_args;
+}
+
+std::vector<char*> build_exec_envp(
+    const std::vector<std::pair<std::string, std::string>>& env_assignments) {
+    static thread_local std::vector<std::unique_ptr<char[]>> env_buffers;
+    env_buffers.clear();
+
+    std::unordered_map<std::string, std::string> overrides;
+    overrides.reserve(env_assignments.size());
+    for (const auto& assignment : env_assignments) {
+        overrides[assignment.first] = assignment.second;
+    }
+
+    std::vector<char*> envp;
+    envp.reserve(overrides.size() + 64);
+
+    char** env = current_environ();
+    for (char** current = env; current != nullptr && *current != nullptr; ++current) {
+        std::string_view entry(*current);
+        size_t equals_pos = entry.find('=');
+        if (equals_pos == std::string_view::npos) {
+            envp.push_back(*current);
+            continue;
+        }
+
+        std::string name(entry.substr(0, equals_pos));
+        auto it = overrides.find(name);
+        if (it == overrides.end()) {
+            envp.push_back(*current);
+            continue;
+        }
+
+        std::string combined = name + "=" + it->second;
+        auto buffer = std::make_unique<char[]>(combined.size() + 1);
+        std::memcpy(buffer.get(), combined.c_str(), combined.size() + 1);
+        envp.push_back(buffer.get());
+        env_buffers.push_back(std::move(buffer));
+        overrides.erase(it);
+    }
+
+    for (const auto& pair : overrides) {
+        std::string combined = pair.first + "=" + pair.second;
+        auto buffer = std::make_unique<char[]>(combined.size() + 1);
+        std::memcpy(buffer.get(), combined.c_str(), combined.size() + 1);
+        envp.push_back(buffer.get());
+        env_buffers.push_back(std::move(buffer));
+    }
+
+    envp.push_back(nullptr);
+    return envp;
 }
 
 }  // namespace cjsh_env
