@@ -766,7 +766,8 @@ static void edit_write_prompt(ic_env_t* env, editor_t* eb, ssize_t row, bool in_
     bbcode_style_close(env->bbcode, NULL);
 }
 
-static void edit_write_row_text(ic_env_t* env, const char* text, ssize_t len, const attr_t* attrs, bool in_extra) {
+static void edit_write_row_text(ic_env_t* env, const char* text, ssize_t len, const attr_t* attrs,
+                                bool in_extra) {
     if (env == NULL || text == NULL || len <= 0) {
         return;
     }
@@ -791,8 +792,6 @@ static void edit_write_row_text(ic_env_t* env, const char* text, ssize_t len, co
     const bool has_whitespace_style = !attr_is_none(whitespace_attr);
     const attr_t hint_attr = bbcode_style(env->bbcode, "ic-hint");
 
-    // When attributes are present we need to replicate the formatted output logic
-    // while substituting markers for spaces.
     if (attrs == NULL) {
         attr_t default_attr = attr_none();
         bool whitespace_active = false;
