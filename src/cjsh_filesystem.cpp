@@ -16,7 +16,6 @@
 #include <system_error>
 #include <thread>
 #include <unordered_map>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -50,144 +49,10 @@ struct ExecutableCacheEntry {
     std::chrono::steady_clock::time_point cached_at;
 };
 
-struct CachedExecutableEntry {
-    std::string name;
-    fs::path full_path;
-};
-
 std::mutex g_exec_lookup_mutex;
 std::unordered_map<std::string, ExecutableCacheEntry> g_exec_lookup_cache;
 std::string g_exec_cached_path_env;
 constexpr std::chrono::seconds k_negative_cache_ttl{3};
-
-fs::path normalize_executable_path(const fs::path& original_path) {
-    if (original_path.empty()) {
-        return original_path;
-    }
-
-    std::error_code ec;
-    fs::path canonical_path = fs::weakly_canonical(original_path, ec);
-    if (!ec) {
-        return canonical_path;
-    }
-
-    ec.clear();
-    fs::path absolute_path = fs::absolute(original_path, ec);
-    if (!ec) {
-        return absolute_path.lexically_normal();
-    }
-
-    return original_path;
-}
-
-std::vector<CachedExecutableEntry> deduplicate_cache_entries_by_name(
-    std::vector<CachedExecutableEntry> entries) {
-    std::vector<CachedExecutableEntry> unique_entries;
-    unique_entries.reserve(entries.size());
-
-    std::unordered_set<std::string> seen;
-    for (auto& entry : entries) {
-        if (entry.name.empty()) {
-            continue;
-        }
-        if (seen.insert(entry.name).second) {
-            unique_entries.push_back(std::move(entry));
-        }
-    }
-
-    return unique_entries;
-}
-
-std::vector<CachedExecutableEntry> read_executable_cache_entries() {
-    std::vector<CachedExecutableEntry> entries;
-
-    auto read_result = read_file_content(g_cjsh_found_executables_path.string());
-    if (read_result.is_error()) {
-        return entries;
-    }
-
-    std::stringstream ss(read_result.value());
-    std::string line;
-    while (std::getline(ss, line)) {
-        if (line.empty()) {
-            continue;
-        }
-
-        std::string name;
-        std::string path_string;
-        auto tab_pos = line.find('\t');
-        if (tab_pos == std::string::npos) {
-            path_string = line;
-            name = fs::path(path_string).filename().string();
-        } else {
-            name = line.substr(0, tab_pos);
-            path_string = line.substr(tab_pos + 1);
-            if (name.empty()) {
-                name = fs::path(path_string).filename().string();
-            }
-        }
-
-        CachedExecutableEntry entry{name, fs::path(path_string)};
-        entries.push_back(std::move(entry));
-    }
-
-    return deduplicate_cache_entries_by_name(std::move(entries));
-}
-
-bool write_executable_cache_entries(const std::vector<CachedExecutableEntry>& entries) {
-    std::string content;
-    content.reserve(entries.size() * 48);
-
-    for (const auto& entry : entries) {
-        if (entry.name.empty()) {
-            continue;
-        }
-
-        std::string path_string =
-            entry.full_path.empty() ? std::string() : entry.full_path.string();
-        content += entry.name;
-        content.push_back('\t');
-        content += path_string;
-        content.push_back('\n');
-    }
-
-    auto write_result = write_file_content(g_cjsh_found_executables_path.string(), content);
-    return write_result.is_ok();
-}
-
-void ensure_lookup_cache_for_path_env(const std::string& path_env) {
-    bool need_disk_load = false;
-
-    {
-        std::lock_guard<std::mutex> lock(g_exec_lookup_mutex);
-        if (g_exec_cached_path_env != path_env) {
-            g_exec_lookup_cache.clear();
-            g_exec_cached_path_env = path_env;
-        }
-
-        need_disk_load = g_exec_lookup_cache.empty();
-    }
-
-    if (!need_disk_load) {
-        return;
-    }
-
-    auto entries = read_executable_cache_entries();
-    if (entries.empty()) {
-        return;
-    }
-
-    auto now = std::chrono::steady_clock::now();
-    std::lock_guard<std::mutex> lock(g_exec_lookup_mutex);
-    if (g_exec_lookup_cache.empty() && g_exec_cached_path_env == path_env) {
-        for (const auto& entry : entries) {
-            if (entry.name.empty() || entry.full_path.empty()) {
-                continue;
-            }
-            g_exec_lookup_cache[entry.name] = ExecutableCacheEntry{entry.full_path.string(), now};
-        }
-    }
-}
 
 bool is_executable_file(const std::string& path) {
     if (path.empty()) {
@@ -535,8 +400,7 @@ bool build_executable_cache() {
     }
 
     std::string path_str(path_env);
-    std::vector<CachedExecutableEntry> discovered_entries;
-    std::unordered_set<std::string> seen_names;
+    std::vector<fs::path> executables;
 
     size_t start = 0;
     while (start < path_str.size()) {
@@ -589,16 +453,7 @@ bool build_executable_cache() {
                         fs::perms::owner_exec | fs::perms::group_exec | fs::perms::others_exec;
 
                     if ((perms & exec_mask) != fs::perms::none) {
-                        fs::path normalized = normalize_executable_path(entry.path());
-                        std::string name = normalized.filename().string();
-                        if (name.empty()) {
-                            continue;
-                        }
-
-                        if (seen_names.insert(name).second) {
-                            discovered_entries.push_back(
-                                CachedExecutableEntry{name, std::move(normalized)});
-                        }
+                        executables.push_back(entry.path());
                     }
                 }
             }
@@ -607,44 +462,37 @@ bool build_executable_cache() {
         start = (pos != std::string::npos) ? pos + 1 : path_str.size();
     }
 
-    auto unique_entries = deduplicate_cache_entries_by_name(std::move(discovered_entries));
+    std::string content;
+    content.reserve(executables.size() * 16);
+    for (const auto& executable : executables) {
+        content += executable.filename().string();
+        content.push_back('\n');
+    }
 
-    bool write_success = write_executable_cache_entries(unique_entries);
+    auto write_result = write_file_content(g_cjsh_found_executables_path.string(), content);
 
-    if (write_success) {
-        auto now = std::chrono::steady_clock::now();
-        {
-            std::lock_guard<std::mutex> lock(g_exec_lookup_mutex);
-            g_exec_lookup_cache.clear();
-            g_exec_cached_path_env = path_str;
-            for (const auto& entry : unique_entries) {
-                if (entry.full_path.empty()) {
-                    continue;
-                }
-                g_exec_lookup_cache[entry.name] =
-                    ExecutableCacheEntry{entry.full_path.string(), now};
-            }
-        }
-
+    if (write_result.is_ok()) {
         notify_cache_systems_of_update();
     }
 
-    return write_success;
+    return write_result.is_ok();
 }
 
 std::vector<fs::path> read_cached_executables() {
     std::vector<fs::path> executables;
-    auto entries = read_executable_cache_entries();
-    executables.reserve(entries.size());
 
-    for (const auto& entry : entries) {
-        if (!entry.full_path.empty()) {
-            executables.push_back(entry.full_path);
-        } else if (!entry.name.empty()) {
-            executables.emplace_back(entry.name);
-        }
+    auto read_result = read_file_content(g_cjsh_found_executables_path.string());
+    if (read_result.is_error()) {
+        return executables;
     }
 
+    std::stringstream ss(read_result.value());
+    std::string line;
+    while (std::getline(ss, line)) {
+        if (!line.empty()) {
+            executables.emplace_back(line);
+        }
+    }
     return executables;
 }
 
@@ -713,8 +561,6 @@ std::string find_executable_in_path(const std::string& name) {
     std::string path_env = (path_env_cstr != nullptr) ? path_env_cstr : std::string();
     auto now = std::chrono::steady_clock::now();
 
-    ensure_lookup_cache_for_path_env(path_env);
-
     {
         std::lock_guard<std::mutex> lock(g_exec_lookup_mutex);
         if (g_exec_cached_path_env != path_env) {
@@ -781,7 +627,6 @@ std::string find_executable_in_path(const std::string& name) {
     auto store_time = std::chrono::steady_clock::now();
     {
         std::lock_guard<std::mutex> lock(g_exec_lookup_mutex);
-        g_exec_cached_path_env = path_env;
         g_exec_lookup_cache[name] = ExecutableCacheEntry{resolved, store_time};
     }
 
@@ -1064,48 +909,27 @@ void add_executable_to_cache(const std::string& executable_name, const std::stri
         return;
     }
 
-    fs::path normalized_path = normalize_executable_path(full_path);
-    auto entries = read_executable_cache_entries();
-
-    bool updated_existing = false;
-    bool path_changed = false;
-
-    for (auto& entry : entries) {
-        if (entry.name == executable_name) {
-            updated_existing = true;
-            if (entry.full_path != normalized_path) {
-                entry.full_path = normalized_path;
-                path_changed = true;
-            }
-            break;
-        }
-    }
-
-    if (!updated_existing) {
-        entries.push_back(CachedExecutableEntry{executable_name, normalized_path});
-        path_changed = true;
-    }
-
-    if (!path_changed) {
+    if (is_executable_in_cache(executable_name)) {
         return;
     }
 
-    auto unique_entries = deduplicate_cache_entries_by_name(std::move(entries));
-    bool write_success = write_executable_cache_entries(unique_entries);
+    auto cached_executables = read_cached_executables();
 
-    if (write_success) {
+    cached_executables.emplace_back(executable_name);
+
+    std::sort(cached_executables.begin(), cached_executables.end());
+    cached_executables.erase(std::unique(cached_executables.begin(), cached_executables.end()),
+                             cached_executables.end());
+
+    std::string content;
+    for (const auto& exec : cached_executables) {
+        content += exec.filename().string() + "\n";
+    }
+
+    auto write_result = write_file_content(g_cjsh_found_executables_path.string(), content);
+
+    if (write_result.is_ok()) {
         notify_cache_systems_of_update();
-
-        auto now = std::chrono::steady_clock::now();
-        const char* path_env_cstr = std::getenv("PATH");
-        std::string path_env = (path_env_cstr != nullptr) ? path_env_cstr : std::string();
-
-        {
-            std::lock_guard<std::mutex> lock(g_exec_lookup_mutex);
-            g_exec_cached_path_env = path_env;
-            g_exec_lookup_cache[executable_name] =
-                ExecutableCacheEntry{normalized_path.string(), now};
-        }
     }
 }
 
@@ -1143,11 +967,13 @@ bool is_executable_in_cache(const std::string& executable_name) {
         return false;
     }
 
-    auto entries = read_executable_cache_entries();
-    return std::any_of(entries.begin(), entries.end(),
-                       [&executable_name](const CachedExecutableEntry& entry) {
-                           return entry.name == executable_name;
-                       });
+    auto cached_executables = read_cached_executables();
+    bool found = std::any_of(cached_executables.begin(), cached_executables.end(),
+                             [&executable_name](const fs::path& exec_path) {
+                                 return exec_path.filename().string() == executable_name;
+                             });
+
+    return found;
 }
 
 std::string get_current_path_hash() {
@@ -1203,83 +1029,55 @@ void remove_executable_from_cache(const std::string& executable_name) {
         return;
     }
 
-    auto entries = read_executable_cache_entries();
-    auto original_size = entries.size();
+    auto cached_executables = read_cached_executables();
 
-    entries.erase(std::remove_if(entries.begin(), entries.end(),
-                                 [&executable_name](const CachedExecutableEntry& entry) {
-                                     return entry.name == executable_name;
-                                 }),
-                  entries.end());
+    auto original_size = cached_executables.size();
+    cached_executables.erase(std::remove_if(cached_executables.begin(), cached_executables.end(),
+                                            [&executable_name](const fs::path& exec_path) {
+                                                return exec_path.filename().string() ==
+                                                       executable_name;
+                                            }),
+                             cached_executables.end());
 
-    if (entries.size() < original_size) {
-        bool write_success = write_executable_cache_entries(entries);
-        if (write_success) {
+    if (cached_executables.size() < original_size) {
+        std::string content;
+        for (const auto& exec : cached_executables) {
+            content += exec.filename().string() + "\n";
+        }
+
+        auto write_result = write_file_content(g_cjsh_found_executables_path.string(), content);
+        if (write_result.is_ok()) {
             notify_cache_systems_of_update();
-
-            const char* path_env_cstr = std::getenv("PATH");
-            std::string path_env = (path_env_cstr != nullptr) ? path_env_cstr : std::string();
-
-            std::lock_guard<std::mutex> lock(g_exec_lookup_mutex);
-            g_exec_cached_path_env = path_env;
-            g_exec_lookup_cache.erase(executable_name);
         }
     }
 }
 
 void cleanup_stale_cache_entries() {
-    auto entries = read_executable_cache_entries();
-    if (entries.empty()) {
-        return;
-    }
+    auto cached_executables = read_cached_executables();
+    std::vector<fs::path> valid_executables;
+    int removed_count = 0;
 
-    std::vector<CachedExecutableEntry> refreshed_entries;
-    refreshed_entries.reserve(entries.size());
+    for (const auto& exec_path : cached_executables) {
+        std::string exec_name = exec_path.filename().string();
+        std::string full_path = find_executable_in_path(exec_name);
 
-    bool cache_changed = false;
-
-    for (auto& entry : entries) {
-        bool path_valid = !entry.full_path.empty() && is_executable_file(entry.full_path.string());
-
-        if (path_valid) {
-            refreshed_entries.push_back(std::move(entry));
-            continue;
-        }
-
-        std::string refreshed_path = find_executable_in_path(entry.name);
-        if (!refreshed_path.empty()) {
-            fs::path normalized = normalize_executable_path(refreshed_path);
-            if (normalized != entry.full_path) {
-                cache_changed = true;
-            }
-            refreshed_entries.push_back(CachedExecutableEntry{entry.name, normalized});
+        if (!full_path.empty()) {
+            valid_executables.push_back(exec_path);
         } else {
-            cache_changed = true;
+            removed_count++;
         }
     }
 
-    if (!cache_changed) {
-        return;
-    }
+    if (removed_count > 0) {
+        std::string content;
+        for (const auto& exec : valid_executables) {
+            content += exec.filename().string() + "\n";
+        }
 
-    auto unique_entries = deduplicate_cache_entries_by_name(std::move(refreshed_entries));
-    bool write_success = write_executable_cache_entries(unique_entries);
+        auto write_result = write_file_content(g_cjsh_found_executables_path.string(), content);
 
-    if (write_success) {
-        notify_cache_systems_of_update();
-
-        const char* path_env_cstr = std::getenv("PATH");
-        std::string path_env = (path_env_cstr != nullptr) ? path_env_cstr : std::string();
-        auto now = std::chrono::steady_clock::now();
-
-        std::lock_guard<std::mutex> lock(g_exec_lookup_mutex);
-        g_exec_cached_path_env = path_env;
-        g_exec_lookup_cache.clear();
-        for (const auto& entry : unique_entries) {
-            if (entry.full_path.empty()) {
-                continue;
-            }
-            g_exec_lookup_cache[entry.name] = ExecutableCacheEntry{entry.full_path.string(), now};
+        if (write_result.is_ok()) {
+            notify_cache_systems_of_update();
         }
     }
 }
