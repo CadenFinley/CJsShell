@@ -39,6 +39,7 @@
 // todo: typeahead recieved newlines shouldnt do multiline editing if there is no other content past
 // the newline
 // todo: isocline todos
+// todo: start optimizing for speed not just memory usage
 
 bool g_exit_flag = false;
 std::string g_cached_version;
