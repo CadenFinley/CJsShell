@@ -46,6 +46,63 @@ bool set_close_on_exec(int fd, std::string& error_message) {
     return true;
 }
 
+void close_pipe_fds(int pipe_fds[2]) {
+    cjsh_filesystem::safe_close(pipe_fds[1]);
+    cjsh_filesystem::safe_close(pipe_fds[0]);
+}
+
+struct PipeCreationResult {
+    bool success;
+    std::string error_message;
+};
+
+void reset_child_signals() {
+    (void)signal(SIGINT, SIG_DFL);
+    (void)signal(SIGQUIT, SIG_DFL);
+    (void)signal(SIGTSTP, SIG_DFL);
+    (void)signal(SIGTTIN, SIG_DFL);
+    (void)signal(SIGTTOU, SIG_DFL);
+    (void)signal(SIGCHLD, SIG_DFL);
+    (void)signal(SIGTERM, SIG_DFL);
+
+    sigset_t set{};
+    sigemptyset(&set);
+    sigaddset(&set, SIGINT);
+    sigaddset(&set, SIGQUIT);
+    sigaddset(&set, SIGTSTP);
+    sigaddset(&set, SIGCHLD);
+    sigaddset(&set, SIGTERM);
+    sigprocmask(SIG_UNBLOCK, &set, nullptr);
+}
+
+int extract_exit_code(int status) {
+    if (WIFEXITED(status)) {
+        return WEXITSTATUS(status);
+    }
+    if (WIFSIGNALED(status)) {
+        return 128 + WTERMSIG(status);
+    }
+    return 1;
+}
+
+PipeCreationResult create_secure_pipe(int pipe_fds[2]) {
+    if (pipe(pipe_fds) == -1) {
+        return {false, std::string(strerror(errno))};
+    }
+
+    std::string cloexec_error;
+    if (!set_close_on_exec(pipe_fds[0], cloexec_error)) {
+        close_pipe_fds(pipe_fds);
+        return {false, "failed to secure pipe (read end): " + cloexec_error};
+    }
+    if (!set_close_on_exec(pipe_fds[1], cloexec_error)) {
+        close_pipe_fds(pipe_fds);
+        return {false, "failed to secure pipe (write end): " + cloexec_error};
+    }
+
+    return {true, ""};
+}
+
 bool is_valid_env_name(const std::string& name) {
     if (name.empty()) {
         return false;
@@ -184,22 +241,9 @@ struct HereStringError {
 
 std::optional<HereStringError> setup_here_string_stdin(const std::string& here_string) {
     int here_pipe[2];
-    if (pipe(here_pipe) == -1) {
-        return HereStringError{HereStringErrorType::Pipe, std::string(strerror(errno))};
-    }
-
-    std::string cloexec_error;
-    if (!set_close_on_exec(here_pipe[0], cloexec_error)) {
-        cjsh_filesystem::safe_close(here_pipe[1]);
-        cjsh_filesystem::safe_close(here_pipe[0]);
-        return HereStringError{HereStringErrorType::Pipe,
-                               "failed to secure here string pipe: " + cloexec_error};
-    }
-    if (!set_close_on_exec(here_pipe[1], cloexec_error)) {
-        cjsh_filesystem::safe_close(here_pipe[1]);
-        cjsh_filesystem::safe_close(here_pipe[0]);
-        return HereStringError{HereStringErrorType::Pipe,
-                               "failed to secure here string pipe: " + cloexec_error};
+    auto pipe_result = create_secure_pipe(here_pipe);
+    if (!pipe_result.success) {
+        return HereStringError{HereStringErrorType::Pipe, pipe_result.error_message};
     }
 
     std::string content = here_string;
@@ -211,8 +255,7 @@ std::optional<HereStringError> setup_here_string_stdin(const std::string& here_s
     auto write_result = cjsh_filesystem::write_all(here_pipe[1], std::string_view{content});
     std::fill(content.begin(), content.end(), '\0');
     if (write_result.is_error()) {
-        cjsh_filesystem::safe_close(here_pipe[1]);
-        cjsh_filesystem::safe_close(here_pipe[0]);
+        close_pipe_fds(here_pipe);
         return HereStringError{HereStringErrorType::Write, write_result.error()};
     }
 
@@ -723,23 +766,10 @@ int Exec::execute_builtin_with_redirections(Command cmd) {
 
         if (!cmd.here_doc.empty()) {
             int here_pipe[2] = {-1, -1};
-            if (pipe(here_pipe) == -1) {
+            auto pipe_result = create_secure_pipe(here_pipe);
+            if (!pipe_result.success) {
                 throw std::runtime_error("cjsh: failed to create pipe for here document: " +
-                                         std::string(strerror(errno)));
-            }
-
-            std::string cloexec_error;
-            if (!set_close_on_exec(here_pipe[0], cloexec_error)) {
-                cjsh_filesystem::safe_close(here_pipe[1]);
-                cjsh_filesystem::safe_close(here_pipe[0]);
-                throw std::runtime_error("cjsh: failed to secure here document pipe: " +
-                                         cloexec_error);
-            }
-            if (!set_close_on_exec(here_pipe[1], cloexec_error)) {
-                cjsh_filesystem::safe_close(here_pipe[1]);
-                cjsh_filesystem::safe_close(here_pipe[0]);
-                throw std::runtime_error("cjsh: failed to secure here document pipe: " +
-                                         cloexec_error);
+                                         pipe_result.error_message);
             }
 
             std::string error;
@@ -1029,22 +1059,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
             _exit(EXIT_FAILURE);
         }
 
-        (void)signal(SIGINT, SIG_DFL);
-        (void)signal(SIGQUIT, SIG_DFL);
-        (void)signal(SIGTSTP, SIG_DFL);
-        (void)signal(SIGTTIN, SIG_DFL);
-        (void)signal(SIGTTOU, SIG_DFL);
-        (void)signal(SIGCHLD, SIG_DFL);
-        (void)signal(SIGTERM, SIG_DFL);
-
-        sigset_t set{};
-        sigemptyset(&set);
-        sigaddset(&set, SIGINT);
-        sigaddset(&set, SIGQUIT);
-        sigaddset(&set, SIGTSTP);
-        sigaddset(&set, SIGCHLD);
-        sigaddset(&set, SIGTERM);
-        sigprocmask(SIG_UNBLOCK, &set, nullptr);
+        reset_child_signals();
 
         auto c_args = build_exec_argv(cmd_args);
         execvp(cmd_args[0].c_str(), c_args.data());
@@ -1107,13 +1122,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
     int exit_code = 0;
 
     if (it != jobs.end() && it->second.completed) {
-        int status = it->second.status;
-        if (WIFEXITED(status)) {
-            exit_code = WEXITSTATUS(status);
-        } else if (WIFSIGNALED(status)) {
-            exit_code = 128 + WTERMSIG(status);
-        }
-
+        exit_code = extract_exit_code(it->second.status);
         JobManager::instance().remove_job(new_job_id);
     }
 
@@ -1296,22 +1305,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 }
             }
 
-            (void)signal(SIGINT, SIG_DFL);
-            (void)signal(SIGQUIT, SIG_DFL);
-            (void)signal(SIGTSTP, SIG_DFL);
-            (void)signal(SIGTTIN, SIG_DFL);
-            (void)signal(SIGTTOU, SIG_DFL);
-            (void)signal(SIGCHLD, SIG_DFL);
-            (void)signal(SIGTERM, SIG_DFL);
-
-            sigset_t set{};
-            sigemptyset(&set);
-            sigaddset(&set, SIGINT);
-            sigaddset(&set, SIGQUIT);
-            sigaddset(&set, SIGTSTP);
-            sigaddset(&set, SIGCHLD);
-            sigaddset(&set, SIGTERM);
-            sigprocmask(SIG_UNBLOCK, &set, nullptr);
+            reset_child_signals();
 
             if (!cmd.here_doc.empty()) {
                 int here_pipe[2];
@@ -1561,14 +1555,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 wpid = waitpid(pid, &status, 0);
             }
 
-            int exit_code = 0;
-            if (wpid == -1) {
-                exit_code = EX_OSERR;
-            } else if (WIFEXITED(status)) {
-                exit_code = WEXITSTATUS(status);
-            } else if (WIFSIGNALED(status)) {
-                exit_code = 128 + WTERMSIG(status);
-            }
+            int exit_code = (wpid == -1) ? EX_OSERR : extract_exit_code(status);
 
             auto exit_result =
                 make_exit_error_result(cmd.args[0], exit_code, "command completed successfully",
@@ -1669,29 +1656,14 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                     }
                 }
 
-                (void)signal(SIGINT, SIG_DFL);
-                (void)signal(SIGQUIT, SIG_DFL);
-                (void)signal(SIGTSTP, SIG_DFL);
-                (void)signal(SIGTTIN, SIG_DFL);
-                (void)signal(SIGTTOU, SIG_DFL);
-                (void)signal(SIGCHLD, SIG_DFL);
-                (void)signal(SIGTERM, SIG_DFL);
+                reset_child_signals();
                 if (i == 0) {
                     if (!cmd.here_doc.empty()) {
                         int here_pipe[2];
-                        if (pipe(here_pipe) == -1) {
-                            perror("cjsh: pipe for here document");
-                            _exit(EXIT_FAILURE);
-                        }
-
-                        std::string cloexec_error;
-                        if (!set_close_on_exec(here_pipe[0], cloexec_error) ||
-                            !set_close_on_exec(here_pipe[1], cloexec_error)) {
-                            std::cerr
-                                << "cjsh: failed to secure here document pipe: " << cloexec_error
-                                << '\n';
-                            close(here_pipe[1]);
-                            close(here_pipe[0]);
+                        auto pipe_result = create_secure_pipe(here_pipe);
+                        if (!pipe_result.success) {
+                            std::cerr << "cjsh: failed to create pipe for here document: "
+                                      << pipe_result.error_message << '\n';
                             _exit(EXIT_FAILURE);
                         }
 
@@ -1700,8 +1672,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                         if (write_result.is_error()) {
                             std::cerr << "cjsh: failed to write here document content: "
                                       << write_result.error() << '\n';
-                            close(here_pipe[1]);
-                            close(here_pipe[0]);
+                            close_pipe_fds(here_pipe);
                             _exit(EXIT_FAILURE);
                         }
                         auto newline_result =
@@ -1904,13 +1875,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         auto it = jobs.find(job_id);
         if (it != jobs.end()) {
             JobManager::instance().remove_job(new_job_id);
-
-            int st = it->second.last_status;
-            if (WIFEXITED(st)) {
-                last_exit_code = WEXITSTATUS(st);
-            } else if (WIFSIGNALED(st)) {
-                last_exit_code = 128 + WTERMSIG(st);
-            }
+            last_exit_code = extract_exit_code(it->second.last_status);
         }
     }
 
@@ -2196,31 +2161,22 @@ std::map<int, Job> Exec::get_jobs() {
 
 namespace exec_utils {
 
-CommandOutput execute_command_for_output(const std::string& command) {
+static CommandOutput execute_args_for_output_impl(const std::vector<std::string>& args) {
     CommandOutput result{"", -1, false};
-
-    std::vector<std::string> args = parse_shell_command(command);
 
     if (args.empty()) {
         return result;
     }
 
     int pipefd[2];
-    if (pipe(pipefd) == -1) {
-        return result;
-    }
-
-    std::string error_msg;
-    if (!set_close_on_exec(pipefd[0], error_msg) || !set_close_on_exec(pipefd[1], error_msg)) {
-        cjsh_filesystem::safe_close(pipefd[0]);
-        cjsh_filesystem::safe_close(pipefd[1]);
+    auto pipe_result = create_secure_pipe(pipefd);
+    if (!pipe_result.success) {
         return result;
     }
 
     pid_t pid = fork();
     if (pid == -1) {
-        cjsh_filesystem::safe_close(pipefd[0]);
-        cjsh_filesystem::safe_close(pipefd[1]);
+        close_pipe_fds(pipefd);
         return result;
     }
 
@@ -2273,103 +2229,18 @@ CommandOutput execute_command_for_output(const std::string& command) {
         return result;
     }
 
-    if (WIFEXITED(status)) {
-        result.exit_code = WEXITSTATUS(status);
-    } else if (WIFSIGNALED(status)) {
-        result.exit_code = 128 + WTERMSIG(status);
-    } else {
-        result.exit_code = 1;
-    }
-
+    result.exit_code = extract_exit_code(status);
     result.success = (result.exit_code == 0);
     return result;
 }
 
+CommandOutput execute_command_for_output(const std::string& command) {
+    std::vector<std::string> args = parse_shell_command(command);
+    return execute_args_for_output_impl(args);
+}
+
 CommandOutput execute_command_vector_for_output(const std::vector<std::string>& args) {
-    CommandOutput result{"", -1, false};
-
-    if (args.empty()) {
-        return result;
-    }
-
-    int pipefd[2];
-    if (pipe(pipefd) == -1) {
-        return result;
-    }
-
-    std::string error_msg;
-    if (!set_close_on_exec(pipefd[0], error_msg) || !set_close_on_exec(pipefd[1], error_msg)) {
-        cjsh_filesystem::safe_close(pipefd[0]);
-        cjsh_filesystem::safe_close(pipefd[1]);
-        return result;
-    }
-
-    pid_t pid = fork();
-    if (pid == -1) {
-        cjsh_filesystem::safe_close(pipefd[0]);
-        cjsh_filesystem::safe_close(pipefd[1]);
-        return result;
-    }
-
-    if (pid == 0) {
-        cjsh_filesystem::safe_close(pipefd[0]);
-
-        auto dup_result = cjsh_filesystem::safe_dup2(pipefd[1], STDOUT_FILENO);
-        if (dup_result.is_error()) {
-            _exit(127);
-        }
-
-        auto devnull_result = cjsh_filesystem::safe_open("/dev/null", O_WRONLY);
-        if (devnull_result.is_ok()) {
-            cjsh_filesystem::safe_dup2(devnull_result.value(), STDERR_FILENO);
-            cjsh_filesystem::safe_close(devnull_result.value());
-        }
-
-        cjsh_filesystem::safe_close(pipefd[1]);
-
-        std::vector<char*> argv;
-        std::vector<std::unique_ptr<char[]>> arg_storage;
-        argv.reserve(args.size() + 1);
-        arg_storage.reserve(args.size());
-
-        for (const auto& arg : args) {
-            auto str_copy = std::make_unique<char[]>(arg.size() + 1);
-            std::strcpy(str_copy.get(), arg.c_str());
-            argv.push_back(str_copy.get());
-            arg_storage.push_back(std::move(str_copy));
-        }
-        argv.push_back(nullptr);
-
-        execvp(argv[0], argv.data());
-        _exit(127);
-    }
-
-    cjsh_filesystem::safe_close(pipefd[1]);
-
-    char buffer[4096];
-    ssize_t bytes_read;
-    while ((bytes_read = read(pipefd[0], buffer, sizeof(buffer) - 1)) > 0) {
-        buffer[bytes_read] = '\0';
-        result.output += buffer;
-    }
-
-    cjsh_filesystem::safe_close(pipefd[0]);
-
-    int status;
-    if (waitpid(pid, &status, 0) == -1) {
-        return result;
-    }
-
-    if (WIFEXITED(status)) {
-        result.exit_code = WEXITSTATUS(status);
-    } else if (WIFSIGNALED(status)) {
-        result.exit_code = 128 + WTERMSIG(status);
-    } else {
-        result.exit_code = 1;
-    }
-
-    result.success = (result.exit_code == 0);
-    return result;
+    return execute_args_for_output_impl(args);
 }
 
 }  // namespace exec_utils
