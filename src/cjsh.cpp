@@ -35,7 +35,10 @@
 #include "usage.h"
 #include "version_command.h"
 
-// dir preview wile doing path navigation.
+// todo: dir preview with doing path navigation or input
+// todo: typeahead recieved newlines shouldnt do multiline editing if there is no other content past
+// the newline
+// todo: isocline todos
 
 bool g_exit_flag = false;
 std::string g_cached_version;
