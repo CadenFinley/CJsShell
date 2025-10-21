@@ -9,11 +9,13 @@
 #include <cstring>
 #include <ctime>
 #include <functional>
+#include <mutex>
 #include <optional>
 #include <sstream>
 #include <string_view>
 #include <system_error>
 #include <thread>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -41,6 +43,37 @@ std::string describe_errno(int err) {
 
 std::atomic<bool> g_cache_refresh_in_progress{false};
 std::atomic<bool> g_cache_cleanup_in_progress{false};
+
+struct ExecutableCacheEntry {
+    std::string path;
+    std::chrono::steady_clock::time_point cached_at;
+};
+
+std::mutex g_exec_lookup_mutex;
+std::unordered_map<std::string, ExecutableCacheEntry> g_exec_lookup_cache;
+std::string g_exec_cached_path_env;
+constexpr std::chrono::seconds k_negative_cache_ttl{3};
+
+bool is_executable_file(const std::string& path) {
+    if (path.empty()) {
+        return false;
+    }
+
+    struct stat st{};
+    if (stat(path.c_str(), &st) != 0) {
+        return false;
+    }
+
+    if (!S_ISREG(st.st_mode)) {
+        return false;
+    }
+
+    if ((st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) == 0) {
+        return false;
+    }
+
+    return access(path.c_str(), X_OK) == 0;
+}
 
 template <typename Functor>
 void launch_async_once(std::atomic<bool>& guard, Functor&& fn) {
@@ -520,35 +553,84 @@ std::filesystem::path get_cjsh_path() {
 }
 
 std::string find_executable_in_path(const std::string& name) {
-    const char* path_env = std::getenv("PATH");
-    if (path_env == nullptr) {
+    if (name.empty()) {
         return "";
     }
 
-    std::stringstream ss(path_env);
-    std::string dir;
+    const char* path_env_cstr = std::getenv("PATH");
+    std::string path_env = (path_env_cstr != nullptr) ? path_env_cstr : std::string();
+    auto now = std::chrono::steady_clock::now();
 
-    while (std::getline(ss, dir, ':')) {
-        if (dir.empty())
-            continue;
+    {
+        std::lock_guard<std::mutex> lock(g_exec_lookup_mutex);
+        if (g_exec_cached_path_env != path_env) {
+            g_exec_lookup_cache.clear();
+            g_exec_cached_path_env = path_env;
+        }
 
-        fs::path executable_path = fs::path(dir) / name;
-
-        try {
-            if (fs::exists(executable_path) && fs::is_regular_file(executable_path)) {
-                auto perms = fs::status(executable_path).permissions();
-                if ((perms & fs::perms::owner_exec) != fs::perms::none ||
-                    (perms & fs::perms::group_exec) != fs::perms::none ||
-                    (perms & fs::perms::others_exec) != fs::perms::none) {
-                    return executable_path.string();
+        auto it = g_exec_lookup_cache.find(name);
+        if (it != g_exec_lookup_cache.end()) {
+            if (!it->second.path.empty()) {
+                if (is_executable_file(it->second.path)) {
+                    return it->second.path;
                 }
+            } else if ((now - it->second.cached_at) < k_negative_cache_ttl) {
+                return "";
             }
-        } catch (const fs::filesystem_error&) {
-            continue;
+
+            g_exec_lookup_cache.erase(it);
         }
     }
 
-    return "";
+    std::string resolved;
+
+    if (name.find('/') != std::string::npos) {
+        if (is_executable_file(name)) {
+            resolved = name;
+        }
+    } else if (!path_env.empty()) {
+        size_t start = 0;
+        while (start <= path_env.size()) {
+            size_t end = path_env.find(':', start);
+            if (end == std::string::npos) {
+                end = path_env.size();
+            }
+
+            if (end == start) {
+                start = end + 1;
+                continue;
+            }
+
+            std::string segment(path_env, start, end - start);
+            if (segment.empty()) {
+                start = end + 1;
+                continue;
+            }
+
+            std::string candidate;
+            candidate.reserve(segment.size() + 1 + name.size());
+            candidate += segment;
+            if (!candidate.empty() && candidate.back() != '/') {
+                candidate.push_back('/');
+            }
+            candidate += name;
+
+            if (is_executable_file(candidate)) {
+                resolved = std::move(candidate);
+                break;
+            }
+
+            start = end + 1;
+        }
+    }
+
+    auto store_time = std::chrono::steady_clock::now();
+    {
+        std::lock_guard<std::mutex> lock(g_exec_lookup_mutex);
+        g_exec_lookup_cache[name] = ExecutableCacheEntry{resolved, store_time};
+    }
+
+    return resolved;
 }
 
 bool create_profile_file() {
@@ -861,6 +943,23 @@ void invalidate_executable_cache() {
         }
     } catch (const fs::filesystem_error& e) {
     }
+
+    clear_executable_lookup_cache();
+}
+
+void clear_executable_lookup_cache() {
+    std::lock_guard<std::mutex> lock(g_exec_lookup_mutex);
+    g_exec_lookup_cache.clear();
+    g_exec_cached_path_env.clear();
+}
+
+void remove_from_executable_lookup_cache(const std::string& executable_name) {
+    if (executable_name.empty()) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(g_exec_lookup_mutex);
+    g_exec_lookup_cache.erase(executable_name);
 }
 
 bool is_executable_in_cache(const std::string& executable_name) {
