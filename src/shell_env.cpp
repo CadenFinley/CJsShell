@@ -221,9 +221,6 @@ void apply_env_assignments(
     const std::vector<std::pair<std::string, std::string>>& env_assignments) {
     for (const auto& env : env_assignments) {
         setenv(env.first.c_str(), env.second.c_str(), 1);
-        if (env.first == "PATH") {
-            cjsh_filesystem::clear_executable_lookup_cache();
-        }
     }
 }
 

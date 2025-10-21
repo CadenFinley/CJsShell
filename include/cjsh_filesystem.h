@@ -176,8 +176,6 @@ bool initialize_cjsh_path();
 void add_executable_to_cache(const std::string& executable_name, const std::string& full_path);
 void remove_executable_from_cache(const std::string& executable_name);
 void invalidate_executable_cache();
-void clear_executable_lookup_cache();
-void remove_from_executable_lookup_cache(const std::string& executable_name);
 bool is_executable_in_cache(const std::string& executable_name);
 void set_last_path_hash(const std::string& path_hash);
 std::string get_current_path_hash();
