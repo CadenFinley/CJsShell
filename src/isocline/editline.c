@@ -766,13 +766,12 @@ static void edit_write_prompt(ic_env_t* env, editor_t* eb, ssize_t row, bool in_
     bbcode_style_close(env->bbcode, NULL);
 }
 
-static void edit_write_row_text(ic_env_t* env, const char* text, ssize_t len, const attr_t* attrs) {
+static void edit_write_row_text(ic_env_t* env, const char* text, ssize_t len, const attr_t* attrs, bool in_extra) {
     if (env == NULL || text == NULL || len <= 0) {
         return;
     }
 
-    // Fast path: highlighting disabled or whitespace visualization turned off.
-    if (!env->show_whitespace_characters) {
+    if (!env->show_whitespace_characters || in_extra) {
         if (attrs == NULL) {
             term_write_n(env->term, text, len);
         } else {
@@ -790,6 +789,7 @@ static void edit_write_row_text(ic_env_t* env, const char* text, ssize_t len, co
 
     const attr_t whitespace_attr = bbcode_style(env->bbcode, "ic-whitespace-char");
     const bool has_whitespace_style = !attr_is_none(whitespace_attr);
+    const attr_t hint_attr = bbcode_style(env->bbcode, "ic-hint");
 
     // When attributes are present we need to replicate the formatted output logic
     // while substituting markers for spaces.
@@ -853,7 +853,9 @@ static void edit_write_row_text(ic_env_t* env, const char* text, ssize_t len, co
             whitespace_active = false;
         }
 
-        if (code == ' ') {
+        bool is_hint = attr_is_eq(attr, hint_attr);
+
+        if (code == ' ' && !is_hint) {
             if (has_whitespace_style) {
                 if (!whitespace_active || !attr_is_eq(whitespace_base_attr, base_attr)) {
                     term_set_attr(env->term, attr_update_with(base_attr, whitespace_attr));
@@ -914,7 +916,7 @@ static bool edit_refresh_rows_iter(const char* s, ssize_t row, ssize_t row_start
             row_attrs = attrs + row_start;
         }
     }
-    edit_write_row_text(info->env, s + row_start, row_len, row_attrs);
+    edit_write_row_text(info->env, s + row_start, row_len, row_attrs, info->in_extra);
 
     // write line ending
     if (row < info->last_row) {
