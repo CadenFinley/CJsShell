@@ -256,6 +256,195 @@ void cleanup_process_substitutions(ProcessSubstitutionResources& resources,
     resources.fifo_paths.clear();
 }
 
+enum class FdOperationErrorType {
+    Redirect,
+    Duplication
+};
+
+struct FdOperationError {
+    FdOperationErrorType type;
+    int fd_num;
+    int src_fd;
+    std::string spec;
+    std::string error;
+};
+
+struct RedirectSpecInfo {
+    std::string file;
+    int flags{0};
+};
+
+RedirectSpecInfo parse_fd_redirect_spec(int fd_num, const std::string& spec) {
+    RedirectSpecInfo info;
+
+    if (spec.rfind("input:", 0) == 0) {
+        info.file = spec.substr(6);
+        info.flags = O_RDONLY;
+    } else if (spec.rfind("output:", 0) == 0) {
+        info.file = spec.substr(7);
+        info.flags = O_WRONLY | O_CREAT | O_TRUNC;
+    } else {
+        info.file = spec;
+        info.flags = (fd_num == 0) ? O_RDONLY : (O_WRONLY | O_CREAT | O_TRUNC);
+    }
+
+    return info;
+}
+
+template <typename FailureHandler>
+bool apply_fd_operations(const Command& cmd, FailureHandler&& on_failure) {
+    for (const auto& fd_redir : cmd.fd_redirections) {
+        int fd_num = fd_redir.first;
+        const std::string& spec = fd_redir.second;
+        RedirectSpecInfo info = parse_fd_redirect_spec(fd_num, spec);
+
+        auto redirect_result = cjsh_filesystem::redirect_fd(info.file, fd_num, info.flags);
+        if (redirect_result.is_error()) {
+            on_failure(FdOperationError{FdOperationErrorType::Redirect, fd_num, -1, spec,
+                                        redirect_result.error()});
+            return false;
+        }
+    }
+
+    for (const auto& fd_dup : cmd.fd_duplications) {
+        int dst_fd = fd_dup.first;
+        int src_fd = fd_dup.second;
+
+        if (src_fd == -1) {
+            cjsh_filesystem::safe_close(dst_fd);
+            continue;
+        }
+
+        auto dup_result = cjsh_filesystem::safe_dup2(src_fd, dst_fd);
+        if (dup_result.is_error()) {
+            on_failure(FdOperationError{FdOperationErrorType::Duplication, dst_fd, src_fd, "",
+                                        dup_result.error()});
+            return false;
+        }
+    }
+
+    return true;
+}
+
+enum class HereDocErrorKind {
+    Pipe,
+    ContentWrite,
+    NewlineWrite,
+    Duplication
+};
+
+template <typename ErrorHandler>
+bool setup_here_document_stdin(const std::string& here_doc, ErrorHandler&& on_error) {
+    if (here_doc.empty()) {
+        return true;
+    }
+
+    int here_pipe[2] = {-1, -1};
+    auto pipe_result = cjsh_filesystem::create_pipe_cloexec(here_pipe);
+    if (pipe_result.is_error()) {
+        on_error(HereDocErrorKind::Pipe, pipe_result.error());
+        return false;
+    }
+
+    auto write_result = cjsh_filesystem::write_all(here_pipe[1], std::string_view{here_doc});
+    if (write_result.is_error()) {
+        on_error(HereDocErrorKind::ContentWrite, write_result.error());
+        cjsh_filesystem::close_pipe(here_pipe);
+        return false;
+    }
+
+    auto newline_result = cjsh_filesystem::write_all(here_pipe[1], std::string_view("\n", 1));
+    if (newline_result.is_error()) {
+        on_error(HereDocErrorKind::NewlineWrite, newline_result.error());
+        cjsh_filesystem::close_pipe(here_pipe);
+        return false;
+    }
+
+    cjsh_filesystem::safe_close(here_pipe[1]);
+
+    auto dup_result = cjsh_filesystem::safe_dup2(here_pipe[0], STDIN_FILENO);
+    cjsh_filesystem::safe_close(here_pipe[0]);
+    if (dup_result.is_error()) {
+        on_error(HereDocErrorKind::Duplication, dup_result.error());
+        return false;
+    }
+
+    return true;
+}
+
+enum class StreamRedirectErrorKind {
+    Noclobber,
+    Redirect,
+    Duplication
+};
+
+struct StreamRedirectError {
+    StreamRedirectErrorKind kind;
+    std::string target;
+    std::string detail;
+    int src_fd;
+    int dst_fd;
+};
+
+template <typename ErrorHandler>
+bool configure_stderr_redirects(const Command& cmd, ErrorHandler&& on_error) {
+    if (!cmd.stderr_file.empty()) {
+        if (!cmd.stderr_append &&
+            cjsh_filesystem::should_noclobber_prevent_overwrite(cmd.stderr_file)) {
+            on_error(StreamRedirectError{StreamRedirectErrorKind::Noclobber, cmd.stderr_file,
+                                         "cannot overwrite existing file (noclobber is set)", -1,
+                                         -1});
+            return false;
+        }
+
+        int flags = O_WRONLY | O_CREAT | (cmd.stderr_append ? O_APPEND : O_TRUNC);
+        auto redirect_result = cjsh_filesystem::redirect_fd(cmd.stderr_file, STDERR_FILENO, flags);
+        if (redirect_result.is_error()) {
+            on_error(StreamRedirectError{StreamRedirectErrorKind::Redirect, cmd.stderr_file,
+                                         redirect_result.error(), -1, STDERR_FILENO});
+            return false;
+        }
+    } else if (cmd.stderr_to_stdout) {
+        auto dup_result = cjsh_filesystem::safe_dup2(STDOUT_FILENO, STDERR_FILENO);
+        if (dup_result.is_error()) {
+            on_error(StreamRedirectError{StreamRedirectErrorKind::Duplication, "",
+                                         dup_result.error(), STDOUT_FILENO, STDERR_FILENO});
+            return false;
+        }
+    }
+
+    if (cmd.stdout_to_stderr) {
+        auto dup_result = cjsh_filesystem::safe_dup2(STDERR_FILENO, STDOUT_FILENO);
+        if (dup_result.is_error()) {
+            on_error(StreamRedirectError{StreamRedirectErrorKind::Duplication, "",
+                                         dup_result.error(), STDERR_FILENO, STDOUT_FILENO});
+            return false;
+        }
+    }
+
+    return true;
+}
+
+template <typename ErrorHandler>
+void maybe_set_foreground_terminal(bool enabled, int terminal_fd, pid_t pgid,
+                                   ErrorHandler&& on_error) {
+    if (!enabled) {
+        return;
+    }
+
+    if (tcsetpgrp(terminal_fd, pgid) < 0) {
+        int saved_errno = errno;
+        on_error(saved_errno);
+    }
+}
+
+[[noreturn]] void exec_external_child(const std::vector<std::string>& args) {
+    auto c_args = cjsh_env::build_exec_argv(args);
+    execvp(args[0].c_str(), c_args.data());
+    int saved_errno = errno;
+    _exit((saved_errno == EACCES || saved_errno == EISDIR || saved_errno == ENOEXEC) ? 126 : 127);
+}
+
 }  // namespace
 
 Exec::Exec()
@@ -605,47 +794,17 @@ int Exec::execute_builtin_with_redirections(Command cmd) {
         bool is_exec_builtin = !cmd.args.empty() && cmd.args[0] == "exec";
 
         if (!cmd.fd_redirections.empty() || !cmd.fd_duplications.empty()) {
-            for (const auto& fd_redir : cmd.fd_redirections) {
-                int fd_num = fd_redir.first;
-                const std::string& spec = fd_redir.second;
-
-                std::string file;
-                int flags = 0;
-
-                if (spec.rfind("input:", 0) == 0) {
-                    file = spec.substr(6);
-                    flags = O_RDONLY;
-                } else if (spec.rfind("output:", 0) == 0) {
-                    file = spec.substr(7);
-                    flags = O_WRONLY | O_CREAT | O_TRUNC;
-                } else {
-                    file = spec;
-                    flags = (fd_num == 0) ? O_RDONLY : (O_WRONLY | O_CREAT | O_TRUNC);
+            auto fd_error_handler = [&](const FdOperationError& error) -> void {
+                switch (error.type) {
+                    case FdOperationErrorType::Redirect:
+                        throw std::runtime_error("cjsh: exec: " + error.spec + ": " + error.error);
+                    case FdOperationErrorType::Duplication:
+                        throw std::runtime_error("cjsh: exec: dup2 failed for " +
+                                                 std::to_string(error.fd_num) + ">&" +
+                                                 std::to_string(error.src_fd) + ": " + error.error);
                 }
-
-                auto redirect_result = cjsh_filesystem::redirect_fd(file, fd_num, flags);
-                if (redirect_result.is_error()) {
-                    throw std::runtime_error("cjsh: exec: " + spec + ": " +
-                                             redirect_result.error());
-                }
-            }
-
-            for (const auto& fd_dup : cmd.fd_duplications) {
-                int dst_fd = fd_dup.first;
-                int src_fd = fd_dup.second;
-
-                if (src_fd == -1) {
-                    cjsh_filesystem::safe_close(dst_fd);
-                    continue;
-                }
-
-                auto dup_result = cjsh_filesystem::safe_dup2(src_fd, dst_fd);
-                if (dup_result.is_error()) {
-                    throw std::runtime_error("cjsh: exec: dup2 failed for " +
-                                             std::to_string(dst_fd) + ">&" +
-                                             std::to_string(src_fd) + ": " + dup_result.error());
-                }
-            }
+            };
+            (void)apply_fd_operations(cmd, fd_error_handler);
         }
 
         std::cout.flush();
@@ -685,12 +844,20 @@ int Exec::execute_builtin_with_redirections(Command cmd) {
     return exit_code;
 }
 
+bool Exec::handle_empty_args(const std::vector<std::string>& args) {
+    if (!args.empty()) {
+        return false;
+    }
+
+    set_error(ErrorType::INVALID_ARGUMENT, "",
+              "cannot execute empty command - no arguments provided");
+    last_exit_code = EX_DATAERR;
+    return true;
+}
+
 int Exec::execute_command_sync(const std::vector<std::string>& args) {
-    if (args.empty()) {
-        set_error(ErrorType::INVALID_ARGUMENT, "",
-                  "cannot execute empty command - no arguments provided");
-        last_exit_code = EX_DATAERR;
-        return EX_DATAERR;
+    if (handle_empty_args(args)) {
+        return last_exit_code;
     }
     std::vector<std::pair<std::string, std::string>> env_assignments;
     size_t cmd_start_idx = cjsh_env::collect_env_assignments(args, env_assignments);
@@ -868,11 +1035,8 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
 }
 
 int Exec::execute_command_async(const std::vector<std::string>& args) {
-    if (args.empty()) {
-        set_error(ErrorType::INVALID_ARGUMENT, "",
-                  "cannot execute empty command - no arguments provided", {});
-        last_exit_code = EX_DATAERR;
-        return EX_DATAERR;
+    if (handle_empty_args(args)) {
+        return last_exit_code;
     }
 
     std::vector<std::pair<std::string, std::string>> env_assignments;
@@ -1000,59 +1164,46 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 _exit(EXIT_FAILURE);
             }
 
-            if (shell_is_interactive) {
-                if (tcsetpgrp(shell_terminal, child_pid) < 0) {
+            maybe_set_foreground_terminal(
+                shell_is_interactive, shell_terminal, child_pid, [&](int err) {
                     std::cerr << "cjsh: runtime error: tcsetpgrp: failed to set "
                                  "terminal foreground process group in child: "
-                              << strerror(errno) << '\n';
-                }
-            }
+                              << strerror(err) << '\n';
+                });
 
             reset_child_signals();
 
             if (!cmd.here_doc.empty()) {
-                int here_pipe[2];
-                auto pipe_result = cjsh_filesystem::create_pipe_cloexec(here_pipe);
-                if (pipe_result.is_error()) {
-                    std::cerr << "cjsh: runtime error: pipe: failed to secure here "
-                                 "document pipe: "
-                              << pipe_result.error() << '\n';
+                auto here_doc_error = [&](HereDocErrorKind kind, const std::string& detail) {
+                    switch (kind) {
+                        case HereDocErrorKind::Pipe:
+                            std::cerr << "cjsh: runtime error: pipe: failed to secure here "
+                                         "document pipe: "
+                                      << detail << '\n';
+                            break;
+                        case HereDocErrorKind::ContentWrite:
+                            std::cerr << "cjsh: runtime error: write: failed to write here "
+                                         "document content: "
+                                      << detail << '\n';
+                            break;
+                        case HereDocErrorKind::NewlineWrite:
+                            std::cerr << "cjsh: runtime error: write: failed to write here "
+                                         "document newline: "
+                                      << detail << '\n';
+                            break;
+                        case HereDocErrorKind::Duplication:
+                            std::cerr << "cjsh: runtime error: dup2: failed to duplicate here "
+                                         "document descriptor: "
+                                      << detail << '\n';
+                            break;
+                    }
                     _exit(EXIT_FAILURE);
-                }
+                };
 
-                auto write_result =
-                    cjsh_filesystem::write_all(here_pipe[1], std::string_view{cmd.here_doc});
-                if (write_result.is_error()) {
-                    std::cerr << "cjsh: runtime error: write: failed to "
-                                 "write here document content: "
-                              << write_result.error() << '\n';
-                    cjsh_filesystem::close_pipe(here_pipe);
+                if (!setup_here_document_stdin(cmd.here_doc, here_doc_error)) {
                     _exit(EXIT_FAILURE);
                 }
-                auto newline_result =
-                    cjsh_filesystem::write_all(here_pipe[1], std::string_view("\n", 1));
-                if (newline_result.is_error()) {
-                    std::cerr << "cjsh: runtime error: write: failed to "
-                                 "write here document newline: "
-                              << newline_result.error() << '\n';
-                    cjsh_filesystem::close_pipe(here_pipe);
-                    _exit(EXIT_FAILURE);
-                }
-                close(here_pipe[1]);
-
-                auto dup_result = cjsh_filesystem::safe_dup2(here_pipe[0], STDIN_FILENO);
-                if (dup_result.is_error()) {
-                    std::cerr << "cjsh: runtime error: dup2: failed to "
-                                 "duplicate here "
-                                 "document descriptor: "
-                              << dup_result.error() << '\n';
-                    cjsh_filesystem::safe_close(here_pipe[0]);
-                    _exit(EXIT_FAILURE);
-                }
-                cjsh_filesystem::safe_close(here_pipe[0]);
-            }
-
-            else if (!cmd.here_string.empty()) {
+            } else if (!cmd.here_string.empty()) {
                 auto here_error = cjsh_filesystem::setup_here_string_stdin(cmd.here_string);
                 if (here_error.has_value()) {
                     switch (here_error->type) {
@@ -1150,94 +1301,46 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 close(fd);
             }
 
-            if (!cmd.stderr_file.empty()) {
-                if (!cmd.stderr_append &&
-                    cjsh_filesystem::should_noclobber_prevent_overwrite(cmd.stderr_file)) {
-                    std::cerr << "cjsh: permission denied: " << cmd.stderr_file
-                              << ": cannot overwrite existing file (noclobber is "
-                                 "set)"
+            auto stream_error = [&](const StreamRedirectError& error) {
+                switch (error.kind) {
+                    case StreamRedirectErrorKind::Noclobber:
+                        std::cerr << "cjsh: permission denied: " << error.target << ": "
+                                  << error.detail << '\n';
+                        break;
+                    case StreamRedirectErrorKind::Redirect:
+                        std::cerr << "cjsh: " << error.target << ": " << error.detail << '\n';
+                        break;
+                    case StreamRedirectErrorKind::Duplication:
+                        if (error.src_fd == STDOUT_FILENO && error.dst_fd == STDERR_FILENO) {
+                            std::cerr << "cjsh: dup2 2>&1: " << error.detail << '\n';
+                        } else {
+                            std::cerr << "cjsh: dup2 >&2: " << error.detail << '\n';
+                        }
+                        break;
+                }
+                _exit(EXIT_FAILURE);
+            };
+
+            if (!configure_stderr_redirects(cmd, stream_error)) {
+                _exit(EXIT_FAILURE);
+            }
+
+            auto fd_failure = [&](const FdOperationError& error) {
+                if (error.type == FdOperationErrorType::Redirect) {
+                    std::cerr << "cjsh: file not found: " << error.spec << ": " << error.error
                               << '\n';
-                    _exit(EXIT_FAILURE);
-                }
-
-                int flags = O_WRONLY | O_CREAT | (cmd.stderr_append ? O_APPEND : O_TRUNC);
-                int fd = open(cmd.stderr_file.c_str(), flags, 0644);
-                if (fd == -1) {
-                    std::cerr << "cjsh: " << cmd.stderr_file << ": " << strerror(errno) << '\n';
-                    _exit(EXIT_FAILURE);
-                }
-                if (dup2(fd, STDERR_FILENO) == -1) {
-                    perror("cjsh: dup2 stderr");
-                    close(fd);
-                    _exit(EXIT_FAILURE);
-                }
-                close(fd);
-            } else if (cmd.stderr_to_stdout) {
-                if (dup2(STDOUT_FILENO, STDERR_FILENO) == -1) {
-                    perror("cjsh: dup2 2>&1");
-                    _exit(EXIT_FAILURE);
-                }
-            }
-
-            if (cmd.stdout_to_stderr) {
-                if (dup2(STDERR_FILENO, STDOUT_FILENO) == -1) {
-                    perror("cjsh: dup2 >&2");
-                    _exit(EXIT_FAILURE);
-                }
-            }
-
-            for (const auto& fd_redir : cmd.fd_redirections) {
-                int fd_num = fd_redir.first;
-                const std::string& spec = fd_redir.second;
-
-                std::string file;
-                int flags = 0;
-
-                if (spec.find("input:") == 0) {
-                    file = spec.substr(6);
-                    flags = O_RDONLY;
-                } else if (spec.find("output:") == 0) {
-                    file = spec.substr(7);
-                    flags = O_WRONLY | O_CREAT | O_TRUNC;
                 } else {
-                    file = spec;
-                    if (fd_num == 0) {
-                        flags = O_RDONLY;
-                    } else {
-                        flags = O_WRONLY | O_CREAT | O_TRUNC;
-                    }
+                    std::cerr << "cjsh: runtime error: dup2: failed for " << error.fd_num << ">&"
+                              << error.src_fd << ": " << error.error << '\n';
                 }
+                _exit(EXIT_FAILURE);
+            };
 
-                auto redirect_result = cjsh_filesystem::redirect_fd(file, fd_num, flags);
-                if (redirect_result.is_error()) {
-                    std::cerr << "cjsh: file not found: " << spec << ": " << redirect_result.error()
-                              << '\n';
-                    _exit(EXIT_FAILURE);
-                }
+            if (!apply_fd_operations(cmd, fd_failure)) {
+                _exit(EXIT_FAILURE);
             }
 
-            for (const auto& fd_dup : cmd.fd_duplications) {
-                int dst_fd = fd_dup.first;
-                int src_fd = fd_dup.second;
-
-                if (src_fd == -1) {
-                    cjsh_filesystem::safe_close(dst_fd);
-                    continue;
-                }
-
-                auto dup_result = cjsh_filesystem::safe_dup2(src_fd, dst_fd);
-                if (dup_result.is_error()) {
-                    std::cerr << "cjsh: runtime error: dup2: failed for " << dst_fd << ">&"
-                              << src_fd << ": " << dup_result.error() << '\n';
-                    _exit(EXIT_FAILURE);
-                }
-            }
-
-            auto c_args = cjsh_env::build_exec_argv(cmd.args);
-            execvp(cmd.args[0].c_str(), c_args.data());
-            int saved_errno = errno;
-            _exit((saved_errno == EACCES || saved_errno == EISDIR || saved_errno == ENOEXEC) ? 126
-                                                                                             : 127);
+            exec_external_child(cmd.args);
         }
 
         if (g_shell && !g_shell->get_interactive_mode()) {
@@ -1342,47 +1445,43 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                     _exit(EXIT_FAILURE);
                 }
 
-                if (shell_is_interactive && i == 0) {
-                    if (tcsetpgrp(shell_terminal, pgid) < 0) {
-                        perror("cjsh: tcsetpgrp failed in child");
-                    }
-                }
+                maybe_set_foreground_terminal(
+                    shell_is_interactive && i == 0, shell_terminal, pgid, [&](int err) {
+                        std::cerr << "cjsh: tcsetpgrp failed in child: " << strerror(err) << '\n';
+                    });
 
                 reset_child_signals();
                 if (i == 0) {
                     if (!cmd.here_doc.empty()) {
-                        int here_pipe[2];
-                        auto pipe_result = cjsh_filesystem::create_pipe_cloexec(here_pipe);
-                        if (pipe_result.is_error()) {
-                            std::cerr << "cjsh: failed to create pipe for here document: "
-                                      << pipe_result.error() << '\n';
+                        auto here_doc_error = [&](HereDocErrorKind kind,
+                                                  const std::string& detail) {
+                            switch (kind) {
+                                case HereDocErrorKind::Pipe:
+                                    std::cerr << "cjsh: failed to create pipe for here document: "
+                                              << detail << '\n';
+                                    break;
+                                case HereDocErrorKind::ContentWrite:
+                                    std::cerr
+                                        << "cjsh: failed to write here document content: " << detail
+                                        << '\n';
+                                    break;
+                                case HereDocErrorKind::NewlineWrite:
+                                    std::cerr
+                                        << "cjsh: failed to write here document newline: " << detail
+                                        << '\n';
+                                    break;
+                                case HereDocErrorKind::Duplication:
+                                    std::cerr
+                                        << "cjsh: failed to duplicate here document descriptor: "
+                                        << detail << '\n';
+                                    break;
+                            }
                             _exit(EXIT_FAILURE);
-                        }
+                        };
 
-                        auto write_result = cjsh_filesystem::write_all(
-                            here_pipe[1], std::string_view{cmd.here_doc});
-                        if (write_result.is_error()) {
-                            std::cerr << "cjsh: failed to write here document content: "
-                                      << write_result.error() << '\n';
-                            cjsh_filesystem::close_pipe(here_pipe);
+                        if (!setup_here_document_stdin(cmd.here_doc, here_doc_error)) {
                             _exit(EXIT_FAILURE);
                         }
-                        auto newline_result =
-                            cjsh_filesystem::write_all(here_pipe[1], std::string_view("\n", 1));
-                        if (newline_result.is_error()) {
-                            std::cerr << "cjsh: failed to write here document newline: "
-                                      << newline_result.error() << '\n';
-                            cjsh_filesystem::close_pipe(here_pipe);
-                            _exit(EXIT_FAILURE);
-                        }
-                        close(here_pipe[1]);
-
-                        if (dup2(here_pipe[0], STDIN_FILENO) == -1) {
-                            perror("cjsh: dup2 here document");
-                            close(here_pipe[0]);
-                            _exit(EXIT_FAILURE);
-                        }
-                        close(here_pipe[0]);
                     } else if (!cmd.input_file.empty()) {
                         int fd = open(cmd.input_file.c_str(), O_RDONLY);
                         if (fd == -1) {
@@ -1439,31 +1538,43 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                     }
                 }
 
-                if (!cmd.stderr_file.empty()) {
-                    int flags = O_WRONLY | O_CREAT | (cmd.stderr_append ? O_APPEND : O_TRUNC);
-                    int fd = open(cmd.stderr_file.c_str(), flags, 0644);
-                    if (fd == -1) {
-                        std::cerr << "cjsh: " << cmd.stderr_file << ": " << strerror(errno) << '\n';
-                        _exit(EXIT_FAILURE);
+                auto stream_error = [&](const StreamRedirectError& error) {
+                    switch (error.kind) {
+                        case StreamRedirectErrorKind::Noclobber:
+                            std::cerr << "cjsh: permission denied: " << error.target << ": "
+                                      << error.detail << '\n';
+                            break;
+                        case StreamRedirectErrorKind::Redirect:
+                            std::cerr << "cjsh: " << error.target << ": " << error.detail << '\n';
+                            break;
+                        case StreamRedirectErrorKind::Duplication:
+                            if (error.src_fd == STDOUT_FILENO && error.dst_fd == STDERR_FILENO) {
+                                std::cerr << "cjsh: dup2 2>&1: " << error.detail << '\n';
+                            } else {
+                                std::cerr << "cjsh: dup2 >&2: " << error.detail << '\n';
+                            }
+                            break;
                     }
-                    if (dup2(fd, STDERR_FILENO) == -1) {
-                        perror("cjsh: dup2 stderr");
-                        close(fd);
-                        _exit(EXIT_FAILURE);
-                    }
-                    close(fd);
-                } else if (cmd.stderr_to_stdout) {
-                    if (dup2(STDOUT_FILENO, STDERR_FILENO) == -1) {
-                        perror("cjsh: dup2 2>&1");
-                        _exit(EXIT_FAILURE);
-                    }
+                    _exit(EXIT_FAILURE);
+                };
+
+                if (!configure_stderr_redirects(cmd, stream_error)) {
+                    _exit(EXIT_FAILURE);
                 }
 
-                if (cmd.stdout_to_stderr) {
-                    if (dup2(STDERR_FILENO, STDOUT_FILENO) == -1) {
-                        perror("cjsh: dup2 >&2");
-                        _exit(EXIT_FAILURE);
+                auto fd_failure = [&](const FdOperationError& error) {
+                    if (error.type == FdOperationErrorType::Redirect) {
+                        std::cerr << "cjsh: file not found: " << error.spec << ": " << error.error
+                                  << '\n';
+                    } else {
+                        std::cerr << "cjsh: runtime error: dup2: failed for " << error.fd_num
+                                  << ">&" << error.src_fd << ": " << error.error << '\n';
                     }
+                    _exit(EXIT_FAILURE);
+                };
+
+                if (!apply_fd_operations(cmd, fd_failure)) {
+                    _exit(EXIT_FAILURE);
                 }
 
                 for (size_t j = 0; j < commands.size() - 1; j++) {
@@ -1488,12 +1599,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
                     _exit(exit_code);
                 } else {
-                    auto c_args = cjsh_env::build_exec_argv(cmd.args);
-                    execvp(cmd.args[0].c_str(), c_args.data());
-                    int saved_errno = errno;
-                    _exit((saved_errno == EACCES || saved_errno == EISDIR || saved_errno == ENOEXEC)
-                              ? 126
-                              : 127);
+                    exec_external_child(cmd.args);
                 }
             }
 
@@ -1574,6 +1680,11 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
     return last_exit_code;
 }
 
+void Exec::report_missing_job(int job_id) {
+    set_error(ErrorType::RUNTIME_ERROR, "job", "job [" + std::to_string(job_id) + "] not found");
+    print_last_error();
+}
+
 int Exec::add_job(const Job& job) {
     std::lock_guard<std::mutex> lock(jobs_mutex);
 
@@ -1608,9 +1719,7 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
 
     auto it = jobs.find(job_id);
     if (it == jobs.end()) {
-        set_error(ErrorType::RUNTIME_ERROR, "job",
-                  "job [" + std::to_string(job_id) + "] not found");
-        print_last_error();
+        report_missing_job(job_id);
         return;
     }
 
@@ -1666,9 +1775,7 @@ void Exec::put_job_in_background(int job_id, bool cont) {
 
     auto it = jobs.find(job_id);
     if (it == jobs.end()) {
-        set_error(ErrorType::RUNTIME_ERROR, "job",
-                  "job [" + std::to_string(job_id) + "] not found");
-        print_last_error();
+        report_missing_job(job_id);
         return;
     }
 

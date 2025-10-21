@@ -69,7 +69,7 @@ coverage:
 exclude_paths:
   - plugins/**
   - themes/**
-  - toolchain/*.py
+  - tests/*.py
   - vendor/**
   - build/**
   - docs/**

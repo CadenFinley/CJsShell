@@ -40,6 +40,8 @@ class Exec {
     bool requires_fork(const Command& cmd) const;
     bool can_execute_in_process(const Command& cmd) const;
     int execute_builtin_with_redirections(Command cmd);
+    bool handle_empty_args(const std::vector<std::string>& args);
+    void report_missing_job(int job_id);
 
    public:
     Exec();
