@@ -110,6 +110,8 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"echo", [](const std::vector<std::string>& args) { return ::echo_command(args); }},
         {"printf", [](const std::vector<std::string>& args) { return ::printf_command(args); }},
         {"pwd", [](const std::vector<std::string>& args) { return ::pwd_command(args); }},
+        {"true", [](const std::vector<std::string>& args) { return ::true_command(args); }},
+        {"false", [](const std::vector<std::string>& args) { return ::false_command(args); }},
         {"cd",
          [this](const std::vector<std::string>& args) {
              if (builtin_handle_help(args, {"Usage: cd [DIR]", "Change the current directory.",
