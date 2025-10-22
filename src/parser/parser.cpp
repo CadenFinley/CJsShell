@@ -803,7 +803,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
             }
 
             if (right == "-") {
-                cmd.fd_duplications[dst_fd] = -1;
+                cmd.set_fd_duplication(dst_fd, -1);
                 return true;
             }
 
@@ -812,7 +812,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
             }
 
             int src_fd = std::stoi(right);
-            cmd.fd_duplications[dst_fd] = src_fd;
+            cmd.set_fd_duplication(dst_fd, src_fd);
             return true;
         };
 
@@ -861,7 +861,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                 try {
                     int fd = std::stoi(qi.value.substr(0, qi.value.length() - 1));
                     std::string file = get_next_token_value(i);
-                    cmd.fd_redirections[fd] = "input:" + file;
+                    cmd.set_fd_redirection(fd, "input:" + file);
                 } catch (const std::exception&) {
                     filtered_args.push_back(tokens[i]);
                 }
@@ -870,7 +870,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                 try {
                     int fd = std::stoi(qi.value.substr(0, qi.value.length() - 1));
                     std::string file = get_next_token_value(i);
-                    cmd.fd_redirections[fd] = "output:" + file;
+                    cmd.set_fd_redirection(fd, "output:" + file);
                 } catch (const std::exception&) {
                     filtered_args.push_back(tokens[i]);
                 }

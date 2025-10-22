@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <map>
 #include <memory>
 #include <string>
@@ -28,13 +29,45 @@ struct Command {
     std::string both_output_file;
     bool force_overwrite = false;
 
-    std::map<int, std::string> fd_redirections;
-    std::map<int, int> fd_duplications;
+    std::vector<std::pair<int, std::string>> fd_redirections;
+    std::vector<std::pair<int, int>> fd_duplications;
     std::vector<std::string> process_substitutions;
 
     Command() {
         args.reserve(8);
         process_substitutions.reserve(2);
+        fd_redirections.reserve(2);
+        fd_duplications.reserve(2);
+    }
+
+    void set_fd_redirection(int fd, std::string value) {
+        auto it = std::find_if(fd_redirections.begin(), fd_redirections.end(),
+                               [fd](const auto& entry) { return entry.first == fd; });
+        if (it != fd_redirections.end()) {
+            it->second = std::move(value);
+        } else {
+            fd_redirections.emplace_back(fd, std::move(value));
+        }
+    }
+
+    void set_fd_duplication(int fd, int target) {
+        auto it = std::find_if(fd_duplications.begin(), fd_duplications.end(),
+                               [fd](const auto& entry) { return entry.first == fd; });
+        if (it != fd_duplications.end()) {
+            it->second = target;
+        } else {
+            fd_duplications.emplace_back(fd, target);
+        }
+    }
+
+    bool has_fd_redirection(int fd) const {
+        return std::any_of(fd_redirections.begin(), fd_redirections.end(),
+                           [fd](const auto& entry) { return entry.first == fd; });
+    }
+
+    bool has_fd_duplication(int fd) const {
+        return std::any_of(fd_duplications.begin(), fd_duplications.end(),
+                           [fd](const auto& entry) { return entry.first == fd; });
     }
 };
 

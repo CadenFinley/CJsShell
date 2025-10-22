@@ -91,7 +91,7 @@ bool command_consumes_terminal_stdin(const Command& cmd) {
         return false;
     }
 
-    if (cmd.fd_redirections.count(0) > 0 || cmd.fd_duplications.count(0) > 0) {
+    if (cmd.has_fd_redirection(0) || cmd.has_fd_duplication(0)) {
         return false;
     }
 
