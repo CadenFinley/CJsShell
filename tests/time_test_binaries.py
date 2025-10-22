@@ -21,8 +21,8 @@ SHELL_COMMANDS = {
         "exit": "-c exit",
         "loop": "-c 'for i in {1..5000}; do echo $i; done'",
         "loop_even": "-c 'for i in {1..5000}; do if [ $((i % 2)) -eq 0 ]; then echo $i; fi; done'",
-        "branching": "-c 'count=0; for i in $(seq 1 2000); do if [ $((i % 15)) -eq 0 ]; then count=$((count+1)); elif [ $((i % 3)) -eq 0 ]; then :; elif [ $((i % 5)) -eq 0 ]; then :; fi; done; echo $count'",
-        "function_calls": "-c 'sum(){ out=0; for n in \"$@\"; do out=$((out+n)); done; echo \"$out\"; }; for i in $(seq 1 400); do sum 1 2 3 4 5 >/dev/null; done'",
+        "branching": "-c 'count=0; for i in {1..2000}; do if [ $((i % 15)) -eq 0 ]; then count=$((count+1)); elif [ $((i % 3)) -eq 0 ]; then :; elif [ $((i % 5)) -eq 0 ]; then :; fi; done; echo $count'",
+        "function_calls": "-c 'sum(){ out=0; for n in \"$@\"; do out=$((out+n)); done; echo \"$out\"; }; for i in {1..400}; do sum 1 2 3 4 5 >/dev/null; done'",
         "subshell_traversal": "-c 'for dir in /bin /usr/bin /usr/sbin; do if [ -d \"$dir\" ]; then (cd \"$dir\" && ls >/dev/null); fi; done'"
     },
     "fish": {
@@ -80,12 +80,12 @@ ENABLE_BASELINE_TESTS = True
 all_results: List[List[Tuple[str, float, float, float]]] = []
 all_commands: List[Dict[str, str]] = []
 
-# Expected outputs for validation
+
 EXPECTED_OUTPUTS = {
     "hello": {"contains": "hello world", "exact": False},
     "loop": {"line_count": 5000, "tolerance": 0},
     "loop_even": {"line_count": 2500, "tolerance": 0},
-    "branching": {"contains": "133", "exact": True},  # Count of numbers divisible by 15 in 1..2000
+    "branching": {"contains": "133", "exact": True},  
     "exit": {"returncode": 0},
 }
 
@@ -96,7 +96,7 @@ def validate_command_output(shell_cmd: str, command: str, command_key: str) -> T
     Returns (is_valid, error_message)
     """
     if command_key not in EXPECTED_OUTPUTS:
-        return (True, "")  # No validation defined for this command
+        return (True, "")  
     
     full_command = f"{shell_cmd} {command}"
     expected = EXPECTED_OUTPUTS[command_key]
@@ -109,23 +109,23 @@ def validate_command_output(shell_cmd: str, command: str, command_key: str) -> T
     except Exception as e:
         return (False, f"Command execution failed: {str(e)}")
     
-    # Check return code if specified
+    
     if "returncode" in expected:
         if result.returncode != expected["returncode"]:
             return (False, f"Expected return code {expected['returncode']}, got {result.returncode}")
     
-    # Check for required content
+    
     if "contains" in expected:
         if expected.get("exact", False):
-            # Check for exact match (ignoring whitespace)
+            
             if expected["contains"].strip() not in result.stdout.strip():
                 return (False, f"Expected output to contain exactly '{expected['contains']}', got: {result.stdout.strip()[:100]}")
         else:
-            # Check for substring
+            
             if expected["contains"] not in result.stdout:
                 return (False, f"Expected output to contain '{expected['contains']}', got: {result.stdout[:100]}")
     
-    # Check line count
+    
     if "line_count" in expected:
         actual_lines = len([line for line in result.stdout.splitlines() if line.strip()])
         expected_lines = expected["line_count"]
@@ -188,7 +188,7 @@ def test_command(command_spec: Dict[str, str]) -> None:
             print(f"Skipping {shell_name}: command '{command_key}' not defined")
             continue
         
-        # Validate command output first
+        
         print()
         print(f"Validating {shell_name} {command}")
         is_valid, error_msg = validate_command_output(shell_path, command, command_key)
@@ -223,7 +223,7 @@ def test_command(command_spec: Dict[str, str]) -> None:
                 print(f"Skipping {shell}: command '{command_key}' not defined")
                 continue
             
-            # Validate command output first
+            
             print()
             print(f"Validating {shell} {command}")
             is_valid, error_msg = validate_command_output(shell, command, command_key)
