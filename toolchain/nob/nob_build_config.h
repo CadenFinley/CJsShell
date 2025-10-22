@@ -37,8 +37,9 @@ static const Build_Config build_config = {
                                           "src/isocline/term.c",
                                           "src/isocline/tty.c",
                                           "src/isocline/tty_esc.c",
-                                          "src/isocline/undo.c"},
-    .isocline_c_sources_count = 21,
+                                          "src/isocline/undo.c",
+                                          "src/isocline/unicode.c"},
+    .isocline_c_sources_count = 22,
 
     .include_directories =
         (const char*[]){"include", "include/isocline", "include/builtin", "include/utils",

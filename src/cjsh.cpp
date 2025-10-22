@@ -37,7 +37,6 @@
 
 // todo: isocline todos
 // todo: latge todo of converting to AST based execution model with parser tree: see mrsh
-// todo: make isocline not rely on any specific cjsh files - make it fully generic and reusable
 
 bool g_exit_flag = false;
 std::string g_cached_version;

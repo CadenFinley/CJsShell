@@ -5,9 +5,8 @@
 #include <iostream>
 #include <string>
 
-#include "builtin_help.h"
 #include "error_out.h"
-#include "isocline/isocline.h"
+#include "isocline.h"
 
 int widget_builtin(const std::vector<std::string>& args) {
     if (args.size() < 2) {

@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "unicode/unicode_support.h"
+#include "unicode.h"
 
 //-------------------------------------------------------------
 // String wrappers for ssize_t

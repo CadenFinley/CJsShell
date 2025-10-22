@@ -8,7 +8,10 @@
 #include <sstream>
 #include <stdexcept>
 #include <utility>
-#include "unicode_support.h"
+
+extern "C" {
+#include "isocline/unicode.h"
+}
 
 ThemeParseException::ThemeParseException(size_t line, std::string detail, std::string source,
                                          std::optional<ErrorInfo> error_info,

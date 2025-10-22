@@ -1,17 +1,25 @@
-#include "unicode_support.h"
+/* ----------------------------------------------------------------------------
+  Copyright (c) 2021, Daan Leijen
+  Largely Modified by Caden Finley 2025 for CJ's Shell
+  This is free software; you can redistribute it and/or modify it
+  under the terms of the MIT License. A copy of the license can be
+  found in the "LICENSE" file at the root of this distribution.
+-----------------------------------------------------------------------------*/
 
-#include <cstddef>
+#include "unicode.h"
 
-namespace {
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
 
-struct Interval {
+// Combining characters table adapted from Markus Kuhn's mk_wcwidth implementation
+typedef struct {
     unicode_codepoint_t first;
     unicode_codepoint_t last;
-};
+} unicode_interval_t;
 
-// Combining characters table adapted from Markus Kuhn's mk_wcwidth
-// implementation.
-constexpr Interval kCombiningTable[] = {
+static const unicode_interval_t kCombiningTable[] = {
     {0x0300, 0x036F},   {0x0483, 0x0489},   {0x0591, 0x05BD},   {0x05BF, 0x05BF},
     {0x05C1, 0x05C2},   {0x05C4, 0x05C5},   {0x05C7, 0x05C7},   {0x0610, 0x061A},
     {0x064B, 0x065F},   {0x0670, 0x0670},   {0x06D6, 0x06DD},   {0x06DF, 0x06E4},
@@ -90,7 +98,7 @@ constexpr Interval kCombiningTable[] = {
     {0x1E8D0, 0x1E8D6}, {0x1E944, 0x1E94A}, {0x1F3FB, 0x1F3FF}, {0xE0001, 0xE0001},
     {0xE0020, 0xE007F}, {0xE0100, 0xE01EF}};
 
-constexpr Interval kWideTable[] = {
+static const unicode_interval_t kWideTable[] = {
     {0x1100, 0x115F},   {0x231A, 0x231B},   {0x2329, 0x232A},   {0x23E9, 0x23EC},
     {0x23F0, 0x23F0},   {0x23F3, 0x23F3},   {0x25FD, 0x25FE},   {0x2614, 0x2615},
     {0x2648, 0x2653},   {0x267F, 0x267F},   {0x2693, 0x2693},   {0x26A1, 0x26A1},
@@ -120,7 +128,8 @@ constexpr Interval kWideTable[] = {
     {0x1FAE0, 0x1FAE8}, {0x1FAF0, 0x1FAF8}, {0x1FB00, 0x1FB92}, {0x1FB94, 0x1FBCA},
     {0x1FBF0, 0x1FBF9}, {0x20000, 0x2FFFD}, {0x30000, 0x3FFFD}};
 
-bool IsInIntervals(unicode_codepoint_t cp, const Interval* table, size_t length) {
+static bool is_in_intervals(unicode_codepoint_t cp, const unicode_interval_t* table,
+                            size_t length) {
     size_t low = 0;
     size_t high = length;
     while (low < high) {
@@ -136,14 +145,12 @@ bool IsInIntervals(unicode_codepoint_t cp, const Interval* table, size_t length)
     return false;
 }
 
-}  // namespace
-
 bool unicode_decode_utf8(const uint8_t* data, ssize_t length, unicode_codepoint_t* codepoint,
                          ssize_t* bytes_read) {
-    if (codepoint == nullptr || bytes_read == nullptr) {
+    if (codepoint == NULL || bytes_read == NULL) {
         return false;
     }
-    if (data == nullptr || length <= 0) {
+    if (data == NULL || length <= 0) {
         *codepoint = 0;
         *bytes_read = 0;
         return false;
@@ -217,30 +224,30 @@ invalid_sequence:
 }
 
 int unicode_encode_utf8(unicode_codepoint_t codepoint, uint8_t out[4]) {
-    if (!unicode_is_valid_codepoint(codepoint) || out == nullptr) {
+    if (!unicode_is_valid_codepoint(codepoint) || out == NULL) {
         return 0;
     }
 
     if (codepoint < 0x80) {
-        out[0] = static_cast<uint8_t>(codepoint);
+        out[0] = (uint8_t)codepoint;
         return 1;
     }
     if (codepoint < 0x800) {
-        out[0] = static_cast<uint8_t>(0xC0 | (codepoint >> 6));
-        out[1] = static_cast<uint8_t>(0x80 | (codepoint & 0x3F));
+        out[0] = (uint8_t)(0xC0 | (codepoint >> 6));
+        out[1] = (uint8_t)(0x80 | (codepoint & 0x3F));
         return 2;
     }
     if (codepoint < 0x10000) {
-        out[0] = static_cast<uint8_t>(0xE0 | (codepoint >> 12));
-        out[1] = static_cast<uint8_t>(0x80 | ((codepoint >> 6) & 0x3F));
-        out[2] = static_cast<uint8_t>(0x80 | (codepoint & 0x3F));
+        out[0] = (uint8_t)(0xE0 | (codepoint >> 12));
+        out[1] = (uint8_t)(0x80 | ((codepoint >> 6) & 0x3F));
+        out[2] = (uint8_t)(0x80 | (codepoint & 0x3F));
         return 3;
     }
 
-    out[0] = static_cast<uint8_t>(0xF0 | (codepoint >> 18));
-    out[1] = static_cast<uint8_t>(0x80 | ((codepoint >> 12) & 0x3F));
-    out[2] = static_cast<uint8_t>(0x80 | ((codepoint >> 6) & 0x3F));
-    out[3] = static_cast<uint8_t>(0x80 | (codepoint & 0x3F));
+    out[0] = (uint8_t)(0xF0 | (codepoint >> 18));
+    out[1] = (uint8_t)(0x80 | ((codepoint >> 12) & 0x3F));
+    out[2] = (uint8_t)(0x80 | ((codepoint >> 6) & 0x3F));
+    out[3] = (uint8_t)(0x80 | (codepoint & 0x3F));
     return 4;
 }
 
@@ -259,7 +266,8 @@ bool unicode_is_control_codepoint(unicode_codepoint_t codepoint) {
 }
 
 bool unicode_is_combining_codepoint(unicode_codepoint_t codepoint) {
-    return IsInIntervals(codepoint, kCombiningTable, sizeof(kCombiningTable) / sizeof(Interval));
+    return is_in_intervals(codepoint, kCombiningTable,
+                           sizeof(kCombiningTable) / sizeof(unicode_interval_t));
 }
 
 int unicode_codepoint_width(unicode_codepoint_t codepoint) {
@@ -273,9 +281,119 @@ int unicode_codepoint_width(unicode_codepoint_t codepoint) {
         return 0;
     }
 
-    if (IsInIntervals(codepoint, kWideTable, sizeof(kWideTable) / sizeof(Interval))) {
+    if (is_in_intervals(codepoint, kWideTable, sizeof(kWideTable) / sizeof(unicode_interval_t))) {
         return 2;
     }
 
     return 1;
+}
+
+size_t unicode_calculate_display_width(const char* str, size_t str_len, size_t* count_ansi_chars,
+                                       size_t* count_visible_chars) {
+    size_t display_width = 0;
+    size_t ansi_chars = 0;
+    size_t visible_chars = 0;
+
+    const uint8_t* data = (const uint8_t*)str;
+    ssize_t len = (ssize_t)str_len;
+    ssize_t pos = 0;
+
+    while (pos < len) {
+        if (data[pos] == '\033' && pos + 1 < len) {
+            pos++;
+            ansi_chars++;
+
+            if (data[pos] == '[') {
+                pos++;
+                ansi_chars++;
+
+                while (pos < len && ((data[pos] >= '0' && data[pos] <= '9') || data[pos] == ';' ||
+                                     data[pos] == ':' || data[pos] == '<' || data[pos] == '=' ||
+                                     data[pos] == '>' || data[pos] == '?')) {
+                    pos++;
+                    ansi_chars++;
+                }
+
+                if (pos < len) {
+                    pos++;
+                    ansi_chars++;
+                }
+            } else if (data[pos] == ']') {
+                pos++;
+                ansi_chars++;
+
+                while (pos < len) {
+                    if (data[pos] == '\007') {
+                        pos++;
+                        ansi_chars++;
+                        break;
+                    }
+                    if (data[pos] == '\033' && pos + 1 < len && data[pos + 1] == '\\') {
+                        pos += 2;
+                        ansi_chars += 2;
+                        break;
+                    }
+                    pos++;
+                    ansi_chars++;
+                }
+            } else {
+                pos++;
+                ansi_chars++;
+            }
+            continue;
+        }
+
+        unicode_codepoint_t codepoint = 0;
+        ssize_t bytes_read = 0;
+        bool ok = unicode_decode_utf8(data + pos, len - pos, &codepoint, &bytes_read);
+        if (!ok || bytes_read <= 0) {
+            ++display_width;
+            ++visible_chars;
+            pos += (bytes_read > 0) ? bytes_read : 1;
+            continue;
+        }
+
+        int char_width = unicode_codepoint_width(codepoint);
+        if (char_width > 0) {
+            display_width += (size_t)char_width;
+            ++visible_chars;
+        }
+
+        pos += bytes_read;
+    }
+
+    if (count_ansi_chars != NULL) {
+        *count_ansi_chars = ansi_chars;
+    }
+    if (count_visible_chars != NULL) {
+        *count_visible_chars = visible_chars;
+    }
+
+    return display_width;
+}
+
+size_t unicode_calculate_utf8_width(const char* str, size_t str_len) {
+    size_t width = 0;
+
+    const uint8_t* data = (const uint8_t*)str;
+    ssize_t len = (ssize_t)str_len;
+    ssize_t pos = 0;
+
+    while (pos < len) {
+        unicode_codepoint_t codepoint = 0;
+        ssize_t bytes_read = 0;
+        bool ok = unicode_decode_utf8(data + pos, len - pos, &codepoint, &bytes_read);
+        if (!ok || bytes_read <= 0) {
+            ++width;
+            pos += (bytes_read > 0) ? bytes_read : 1;
+            continue;
+        }
+
+        int char_width = unicode_codepoint_width(codepoint);
+        width += (char_width > 0) ? (size_t)char_width : 0;
+
+        pos += bytes_read;
+    }
+
+    return width;
 }
