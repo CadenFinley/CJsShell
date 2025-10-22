@@ -35,7 +35,6 @@
 #include "usage.h"
 #include "version_command.h"
 
-// todo: should any classes be singletons?
 // todo: isocline todos
 // todo: latge todo of converting to AST based execution model with parser tree: see mrsh
 
