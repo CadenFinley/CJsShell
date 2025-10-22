@@ -36,6 +36,7 @@
 #include "version_command.h"
 
 // todo: dir preview with doing path navigation or input
+// todo: should any classes be singletons?
 // todo: isocline todos
 // todo: start optimizing for speed not just memory usage
 // todo: latge todo of converting to AST based execution model with parser tree: see mrsh
