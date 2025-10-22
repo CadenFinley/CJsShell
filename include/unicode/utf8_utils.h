@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 // UTF-8 utilities now provided by isocline's unicode module
