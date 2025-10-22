@@ -31,7 +31,7 @@ class ShellScriptInterpreter {
         this->shell_parser = parser;
     }
 
-    int execute_block(const std::vector<std::string>& lines);
+    int execute_block(const std::vector<std::string>& lines, bool skip_validation = false);
     std::vector<std::string> parse_into_lines(const std::string& script) {
         return shell_parser->parse_into_lines(script);
     }
@@ -159,6 +159,8 @@ class ShellScriptInterpreter {
     size_t current_line_number = 1;
     std::optional<int> last_substitution_exit_status;
     std::optional<int> pending_assignment_exit_status;
+
+    bool skip_validation_mode = false;
 
     bool should_interpret_as_cjsh_script(const std::string& path) const;
 

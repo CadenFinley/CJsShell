@@ -373,7 +373,7 @@ int Shell::load_theme_from_file(const std::filesystem::path& path, bool optional
     return 0;
 }
 
-int Shell::execute(const std::string& script) {
+int Shell::execute(const std::string& script, bool skip_validation) {
     if (script.empty()) {
         return 0;
     }
@@ -382,7 +382,7 @@ int Shell::execute(const std::string& script) {
     lines = shell_parser->parse_into_lines(script);
 
     if (shell_script_interpreter) {
-        int exit_code = shell_script_interpreter->execute_block(lines);
+        int exit_code = shell_script_interpreter->execute_block(lines, skip_validation);
         last_command = script;
         return exit_code;
     }

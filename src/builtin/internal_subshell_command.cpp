@@ -26,7 +26,7 @@ int internal_subshell_command(const std::vector<std::string>& args, Shell* shell
     }
 
     if (pid == 0) {
-        int exit_code = shell->execute(subshell_content);
+        int exit_code = shell->execute(subshell_content, true);
         _exit(exit_code);
     } else {
         int status;

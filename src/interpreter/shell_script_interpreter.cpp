@@ -61,7 +61,7 @@ int ShellScriptInterpreter::execute_subshell(const std::string& subshell_content
             perror("cjsh: setpgid failed in subshell child");
         }
 
-        int exit_code = g_shell->execute(subshell_content);
+        int exit_code = g_shell->execute(subshell_content, true);
 
         const char* exit_code_str = getenv("EXIT_CODE");
         if (exit_code_str) {
@@ -155,7 +155,25 @@ int ShellScriptInterpreter::handle_env_assignment(const std::vector<std::string>
     return -1;
 }
 
-int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines) {
+int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
+                                          bool skip_validation) {
+    struct ValidationScope {
+        ShellScriptInterpreter* self;
+        bool previous;
+        ValidationScope(ShellScriptInterpreter* s, bool skip)
+            : self(s), previous(s->skip_validation_mode) {
+            if (skip) {
+                self->skip_validation_mode = true;
+            }
+        }
+
+        ~ValidationScope() {
+            self->skip_validation_mode = previous;
+        }
+    } validation_scope(this, skip_validation);
+
+    const bool effective_skip = skip_validation_mode;
+
     if (g_shell == nullptr) {
         print_error({ErrorType::RUNTIME_ERROR, "", "No shell instance available", {}});
     }
@@ -168,7 +186,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
         return 1;
     }
 
-    if (has_syntax_errors(lines)) {
+    if (!effective_skip && has_syntax_errors(lines)) {
         std::vector<std::string> empty_suggestions;
         ErrorInfo error(ErrorType::SYNTAX_ERROR, ErrorSeverity::CRITICAL, "",
                         "Critical syntax errors detected in script block, process aborted",

@@ -33,7 +33,7 @@ class Shell {
    public:
     Shell();
     ~Shell();
-    int execute(const std::string& script);
+    int execute(const std::string& script, bool skip_validation = false);
 
     int execute_command(std::vector<std::string> args, bool run_in_background = false);
     SignalProcessingResult process_pending_signals();
