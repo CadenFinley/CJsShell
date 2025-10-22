@@ -425,7 +425,27 @@ static void print_direc(const char* start, char conversion, bool have_field_widt
         }
         case 'c': {
             fmt << "c";
-            int val = argument ? vstrtoimax(argument) : 0;
+            int val;
+            if (argument) {
+                // If it starts with a quote, it's a character constant
+                if ((*argument == '"' || *argument == '\'') && *(argument + 1)) {
+                    val = vstrtoimax(argument);
+                } else {
+                    // Try to parse as number first
+                    char* end;
+                    errno = 0;
+                    long num = strtol(argument, &end, 0);
+                    // If fully converted to number, use it
+                    if (errno == 0 && *end == '\0') {
+                        val = num;
+                    } else {
+                        // Otherwise, use first character of string
+                        val = (unsigned char)argument[0];
+                    }
+                }
+            } else {
+                val = 0;
+            }
             printf(fmt.str().c_str(), val);
             break;
         }
