@@ -195,14 +195,25 @@ again:
     if (!env->complete_nopreview && selected >= 0 && selected <= count_displayed) {
         // Save the completion menu before edit_complete clears it via edit_clear_history_preview
         const char* saved_menu = sbuf_strdup(eb->extra);
-        edit_complete(env, eb, selected);
-        editor_undo_restore(eb, false);
-        // Restore the completion menu after undo
+        
+        // Apply the completion to the buffer (this clears eb->extra internally)
+        editor_start_modify(eb);
+        ssize_t newpos = completions_apply(env->completions, selected, eb->input, eb->pos);
+        if (newpos >= 0) {
+            eb->pos = newpos;
+        }
+        
+        // Restore the completion menu before refreshing
         if (saved_menu != NULL) {
             sbuf_replace(eb->extra, saved_menu);
             mem_free(eb->mem, saved_menu);
         }
+        
+        // Refresh to show the completed text with the menu
         edit_refresh(env, eb);
+        
+        // Undo the buffer change to keep it in preview mode
+        editor_undo_restore(eb, false);
     } else {
         edit_refresh(env, eb);
     }
