@@ -19,17 +19,14 @@ namespace {
 
 static int exit_status = 0;
 
-// Check if character is octal digit
 static inline bool is_octal_digit(char c) {
     return c >= '0' && c <= '7';
 }
 
-// Check if character is hex digit
 static inline bool is_hex_digit(char c) {
     return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
 }
 
-// Convert hex character to value
 static inline int from_hex(char c) {
     if (c >= '0' && c <= '9')
         return c - '0';
@@ -40,12 +37,10 @@ static inline int from_hex(char c) {
     return 0;
 }
 
-// Convert octal character to value
 static inline int from_octal(char c) {
     return c - '0';
 }
 
-// Verify numeric conversion
 static void verify_numeric(const char* s, char* end, const std::string& original) {
     if (s == end) {
         print_error(
@@ -63,7 +58,6 @@ static void verify_numeric(const char* s, char* end, const std::string& original
     }
 }
 
-// Convert string to intmax_t (handles character constants like 'x')
 static intmax_t vstrtoimax(const char* s) {
     if (!s || !*s)
         return 0;
@@ -71,13 +65,11 @@ static intmax_t vstrtoimax(const char* s) {
     char* end;
     intmax_t val;
 
-    // Handle character constants 'x' or "x"
     if ((*s == '"' || *s == '\'') && *(s + 1)) {
-        char quote = *s;  // Remember opening quote
+        char quote = *s;
         unsigned char ch = *++s;
         val = ch;
 
-        // Handle multibyte characters
         if (MB_CUR_MAX > 1 && *(s + 1) && *(s + 1) != quote) {
             mbstate_t mbstate;
             memset(&mbstate, 0, sizeof(mbstate));
@@ -90,8 +82,7 @@ static intmax_t vstrtoimax(const char* s) {
             }
         }
 
-        // Warn about ignored characters after the constant
-        ++s;  // Move past the character(s)
+        ++s;
         if (*s != '\0' && *s != quote) {
             std::cerr
                 << "printf: warning: character(s) following character constant have been ignored\n";
@@ -104,7 +95,6 @@ static intmax_t vstrtoimax(const char* s) {
     return val;
 }
 
-// Convert string to uintmax_t
 static uintmax_t vstrtoumax(const char* s) {
     if (!s || !*s)
         return 0;
@@ -142,7 +132,6 @@ static uintmax_t vstrtoumax(const char* s) {
     return val;
 }
 
-// Convert string to long double
 static long double vstrtold(const char* s) {
     if (!s || !*s)
         return 0.0;
@@ -180,7 +169,6 @@ static long double vstrtold(const char* s) {
     return val;
 }
 
-// Output a single-character escape
 static void print_esc_char(char c) {
     switch (c) {
         case 'a':
@@ -190,7 +178,7 @@ static void print_esc_char(char c) {
             putchar('\b');
             break;
         case 'c':
-            exit(0);  // Cancel rest of output
+            exit(0);
             break;
         case 'e':
             putchar('\x1B');
@@ -216,7 +204,6 @@ static void print_esc_char(char c) {
     }
 }
 
-// Print Unicode character
 static void print_unicode_char(uint32_t code) {
     if (code <= 0x7F) {
         putchar(code);
@@ -235,14 +222,12 @@ static void print_unicode_char(uint32_t code) {
     }
 }
 
-// Print escape sequence, returns number of characters consumed (excluding backslash)
 static int print_esc(const char* escstart, bool octal_0) {
     const char* p = escstart + 1;
     int esc_value = 0;
     int esc_length;
 
     if (*p == 'x') {
-        // Hexadecimal \xhh escape
         for (esc_length = 0, ++p; esc_length < 2 && is_hex_digit(*p); ++esc_length, ++p)
             esc_value = esc_value * 16 + from_hex(*p);
         if (esc_length == 0) {
@@ -254,7 +239,6 @@ static int print_esc(const char* escstart, bool octal_0) {
         }
         putchar(esc_value);
     } else if (is_octal_digit(*p)) {
-        // Octal \0ooo or \ooo escape
         for (esc_length = 0, p += octal_0 && *p == '0'; esc_length < 3 && is_octal_digit(*p);
              ++esc_length, ++p)
             esc_value = esc_value * 8 + from_octal(*p);
@@ -262,7 +246,6 @@ static int print_esc(const char* escstart, bool octal_0) {
     } else if (*p && strchr("\"\\abcefnrtv", *p)) {
         print_esc_char(*p++);
     } else if (*p == 'u' || *p == 'U') {
-        // Unicode escape \uHHHH or \UHHHHHHHH
         char esc_char = *p;
         uint32_t uni_value = 0;
 
@@ -277,7 +260,6 @@ static int print_esc(const char* escstart, bool octal_0) {
             uni_value = uni_value * 16 + from_hex(*p);
         }
 
-        // Check for invalid surrogate pairs
         if (uni_value >= 0xD800 && uni_value <= 0xDFFF) {
             print_error(
                 {ErrorType::INVALID_ARGUMENT, "printf", "invalid universal character name", {}});
@@ -295,7 +277,6 @@ static int print_esc(const char* escstart, bool octal_0) {
     return p - escstart - 1;
 }
 
-// Print string with escape sequences
 static void print_esc_string(const char* str) {
     for (; *str; str++)
         if (*str == '\\')
@@ -304,12 +285,10 @@ static void print_esc_string(const char* str) {
             putchar(*str);
 }
 
-// Shell-escape a string for %q format
 static std::string shell_escape(const std::string& str) {
     std::ostringstream result;
     bool needs_quotes = false;
 
-    // Check if we need quotes
     for (char c : str) {
         if (!isalnum(c) && c != '_' && c != '-' && c != '/' && c != '.' && c != ',') {
             needs_quotes = true;
@@ -333,25 +312,21 @@ static std::string shell_escape(const std::string& str) {
     return result.str();
 }
 
-// Print a formatted directive
 static void print_direc(const char* start, char conversion, bool have_field_width, int field_width,
                         bool have_precision, int precision, const char* argument) {
     std::ostringstream fmt;
     const char* p = start;
 
-    // Build format string
     fmt << "%";
-    ++p;  // Skip initial %
+    ++p;
 
-    // Copy flags
     while (*p && strchr("-+ #0'I", *p)) {
         fmt << *p++;
     }
 
-    // Field width
     if (have_field_width) {
         fmt << field_width;
-        // Skip width in original
+
         if (*p == '*') {
             ++p;
         } else {
@@ -360,18 +335,16 @@ static void print_direc(const char* start, char conversion, bool have_field_widt
             }
         }
     } else {
-        // Copy width if present
         while (*p && *p >= '0' && *p <= '9') {
             fmt << *p++;
         }
     }
 
-    // Precision
     if (*p == '.') {
         if (have_precision) {
             fmt << "." << precision;
-            ++p;  // Skip '.'
-            // Skip precision in original
+            ++p;
+
             if (*p == '*') {
                 ++p;
             } else {
@@ -387,12 +360,10 @@ static void print_direc(const char* start, char conversion, bool have_field_widt
         }
     }
 
-    // Skip length modifiers in original format
     while (*p && strchr("hlLjzt", *p)) {
         ++p;
     }
 
-    // Add appropriate length modifier and conversion
     switch (conversion) {
         case 'd':
         case 'i':
@@ -427,19 +398,16 @@ static void print_direc(const char* start, char conversion, bool have_field_widt
             fmt << "c";
             int val;
             if (argument) {
-                // If it starts with a quote, it's a character constant
                 if ((*argument == '"' || *argument == '\'') && *(argument + 1)) {
                     val = vstrtoimax(argument);
                 } else {
-                    // Try to parse as number first
                     char* end;
                     errno = 0;
                     long num = strtol(argument, &end, 0);
-                    // If fully converted to number, use it
+
                     if (errno == 0 && *end == '\0') {
                         val = num;
                     } else {
-                        // Otherwise, use first character of string
                         val = (unsigned char)argument[0];
                     }
                 }
@@ -458,21 +426,18 @@ static void print_direc(const char* start, char conversion, bool have_field_widt
     }
 }
 
-// Argument cursor for handling positional parameters
 struct arg_cursor {
-    const char* f;   // Pointer into format string
-    int curr_arg;    // Current argument index
-    int curr_s_arg;  // Current sequential argument
-    int end_arg;     // Highest argument used
-    int direc_arg;   // Argument for main directive
+    const char* f;
+    int curr_arg;
+    int curr_s_arg;
+    int end_arg;
+    int direc_arg;
 };
 
-// Get current argument (handling positional parameters like %2$d)
 static arg_cursor get_curr_arg(int pos, arg_cursor ac) {
     int arg = 0;
     const char* f = ac.f;
 
-    // Check for positional parameter %n$
     if (pos < 3 && isdigit(*f)) {
         int a = *f++ - '0';
         while (isdigit(*f)) {
@@ -484,13 +449,11 @@ static arg_cursor get_curr_arg(int pos, arg_cursor ac) {
     }
 
     if (arg > 0) {
-        // Positional argument
         arg--;
         ac.f = f + 1;
         if (pos == 0)
             ac.direc_arg = arg;
     } else {
-        // Sequential argument
         arg = (pos == 0                      ? (ac.direc_arg = -1)
                : pos < 3 || ac.direc_arg < 0 ? ++ac.curr_s_arg
                                              : ac.direc_arg);
@@ -504,7 +467,6 @@ static arg_cursor get_curr_arg(int pos, arg_cursor ac) {
     return ac;
 }
 
-// Print formatted string with arguments
 static int print_formatted(const char* format, int argc, char** argv) {
     arg_cursor ac;
     ac.curr_arg = ac.curr_s_arg = ac.end_arg = ac.direc_arg = -1;
@@ -528,7 +490,6 @@ static int print_formatted(const char* format, int argc, char** argv) {
 
             ac = get_curr_arg(0, ac);
 
-            // Handle %b format (string with escapes)
             if (*ac.f == 'b') {
                 ac = get_curr_arg(3, ac);
                 if (ac.curr_arg < argc)
@@ -536,7 +497,6 @@ static int print_formatted(const char* format, int argc, char** argv) {
                 continue;
             }
 
-            // Handle %q format (shell-quoted string)
             if (*ac.f == 'q') {
                 ac = get_curr_arg(3, ac);
                 if (ac.curr_arg < argc) {
@@ -545,13 +505,11 @@ static int print_formatted(const char* format, int argc, char** argv) {
                 continue;
             }
 
-            // Initialize allowed conversions
             memset(ok, 0, sizeof(ok));
             ok['a'] = ok['A'] = ok['c'] = ok['d'] = ok['e'] = ok['E'] = ok['f'] = ok['F'] =
                 ok['g'] = ok['G'] = ok['i'] = ok['o'] = ok['s'] = ok['u'] = ok['x'] = ok['X'] =
                     true;
 
-            // Parse flags
             while (*ac.f && strchr("-+ #0'I", *ac.f)) {
                 switch (*ac.f) {
                     case '\'':
@@ -568,7 +526,6 @@ static int print_formatted(const char* format, int argc, char** argv) {
                 ac.f++;
             }
 
-            // Parse field width
             if (*ac.f == '*') {
                 ac.f++;
                 ac = get_curr_arg(1, ac);
@@ -583,7 +540,6 @@ static int print_formatted(const char* format, int argc, char** argv) {
                     ac.f++;
             }
 
-            // Parse precision
             if (*ac.f == '.') {
                 ok['c'] = false;
                 ac.f++;
@@ -604,11 +560,9 @@ static int print_formatted(const char* format, int argc, char** argv) {
                 }
             }
 
-            // Skip length modifiers
             while (*ac.f && strchr("hlLjzt", *ac.f))
                 ac.f++;
 
-            // Validate conversion specifier
             unsigned char conversion = *ac.f;
             if (!ok[conversion]) {
                 print_error({ErrorType::INVALID_ARGUMENT,
@@ -674,17 +628,14 @@ int printf_command(const std::vector<std::string>& args) {
 
     exit_status = 0;
 
-    // Convert arguments to C-style
     std::string format = args[1];
     std::vector<std::string> argv_storage;
     std::vector<char*> argv_ptrs;
 
-    // First, copy all arguments to storage
     for (size_t i = 2; i < args.size(); i++) {
         argv_storage.push_back(args[i]);
     }
 
-    // Then, create pointers (after vector is stable)
     for (size_t i = 0; i < argv_storage.size(); i++) {
         argv_ptrs.push_back(const_cast<char*>(argv_storage[i].c_str()));
     }
@@ -692,7 +643,6 @@ int printf_command(const std::vector<std::string>& args) {
     int argc = argv_ptrs.size();
     char** argv = argv_ptrs.empty() ? nullptr : argv_ptrs.data();
 
-    // Reuse format string until all arguments are consumed
     int args_used;
     do {
         args_used = print_formatted(format.c_str(), argc, argv);
