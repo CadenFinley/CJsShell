@@ -194,7 +194,6 @@ class Shell {
     }
 
     int execute_script_file(const std::filesystem::path& path, bool optional = false);
-    int load_theme_from_file(const std::filesystem::path& path, bool optional = false);
 
    private:
     bool interactive_mode = false;

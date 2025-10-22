@@ -12,7 +12,6 @@
 #include <iostream>
 #include <mutex>
 #include <sstream>
-#include <string_view>
 #include <system_error>
 #include <unordered_map>
 
@@ -23,7 +22,6 @@
 #include "isocline.h"
 #include "job_control.h"
 #include "shell_script_interpreter.h"
-#include "theme.h"
 #include "trap_command.h"
 
 namespace {
@@ -34,22 +32,6 @@ struct CachedScript {
 
 std::mutex g_script_cache_mutex;
 std::unordered_map<std::string, CachedScript> g_script_cache;
-
-std::string to_lower_copy(std::string_view value) {
-    std::string result(value);
-    std::transform(result.begin(), result.end(), result.begin(),
-                   [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
-    return result;
-}
-
-bool has_theme_extension(const std::filesystem::path& path) {
-    if (!path.has_extension()) {
-        return false;
-    }
-    std::string ext_lower = to_lower_copy(path.extension().string());
-    std::string expected = to_lower_copy(std::string(Theme::kThemeFileExtension));
-    return ext_lower == expected;
-}
 
 bool resolves_to_executable(const std::string& name, const std::string& cwd) {
     if (name.empty()) {
@@ -314,63 +296,6 @@ int Shell::execute_script_file(const std::filesystem::path& path, bool optional)
     }
 
     return shell_script_interpreter->execute_block(*cached_lines);
-}
-
-int Shell::load_theme_from_file(const std::filesystem::path& path, bool optional) {
-    std::filesystem::path normalized = path.lexically_normal();
-    std::string display_path = normalized.string();
-
-    std::error_code abs_ec;
-    auto absolute_path = std::filesystem::absolute(normalized, abs_ec);
-    if (!abs_ec) {
-        normalized = absolute_path.lexically_normal();
-        display_path = normalized.string();
-    }
-
-    if (!has_theme_extension(normalized)) {
-        return 1;
-    }
-
-    std::error_code status_ec;
-    auto status = std::filesystem::status(normalized, status_ec);
-    if (status_ec || !std::filesystem::is_regular_file(status)) {
-        if (optional) {
-            return 0;
-        }
-        print_error({ErrorType::FILE_NOT_FOUND,
-                     "load_theme",
-                     "Theme file '" + display_path + "' does not exist.",
-                     {"Check the file path and try again."}});
-        return 1;
-    }
-
-    if (!config::themes_enabled) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     "theme",
-                     "Themes are disabled",
-                     {"Enable themes via configuration or run 'cjshopt "
-                      "--themes on'."}});
-        return 1;
-    }
-
-    if (!g_theme) {
-        initialize_themes();
-    }
-
-    if (!g_theme) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     "theme",
-                     "Theme manager not initialized",
-                     {"Try running 'theme' again after initialization completes."}});
-        return 1;
-    }
-
-    bool loaded = g_theme->load_theme_from_path(normalized, true);
-    if (!loaded) {
-        return 2;
-    }
-
-    return 0;
 }
 
 int Shell::execute(const std::string& script, bool skip_validation) {
