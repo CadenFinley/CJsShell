@@ -45,21 +45,30 @@ std::string format_symbolic_mode(mode_t mask) {
 
     // User permissions
     oss << "u=";
-    if (perms & S_IRUSR) oss << "r";
-    if (perms & S_IWUSR) oss << "w";
-    if (perms & S_IXUSR) oss << "x";
+    if (perms & S_IRUSR)
+        oss << "r";
+    if (perms & S_IWUSR)
+        oss << "w";
+    if (perms & S_IXUSR)
+        oss << "x";
 
     // Group permissions
     oss << ",g=";
-    if (perms & S_IRGRP) oss << "r";
-    if (perms & S_IWGRP) oss << "w";
-    if (perms & S_IXGRP) oss << "x";
+    if (perms & S_IRGRP)
+        oss << "r";
+    if (perms & S_IWGRP)
+        oss << "w";
+    if (perms & S_IXGRP)
+        oss << "x";
 
     // Other permissions
     oss << ",o=";
-    if (perms & S_IROTH) oss << "r";
-    if (perms & S_IWOTH) oss << "w";
-    if (perms & S_IXOTH) oss << "x";
+    if (perms & S_IROTH)
+        oss << "r";
+    if (perms & S_IWOTH)
+        oss << "w";
+    if (perms & S_IXOTH)
+        oss << "x";
 
     return oss.str();
 }
@@ -97,14 +106,14 @@ bool parse_symbolic_mode(const std::string& str, mode_t current_mask, mode_t& re
     mode_t new_perms = perms;
 
     size_t pos = 0;
-    
+
     while (pos < str.length()) {
         // Parse who: u, g, o, a
         mode_t who_mask = 0;
         bool has_who = false;
-        
-        while (pos < str.length() && (str[pos] == 'u' || str[pos] == 'g' || 
-                                       str[pos] == 'o' || str[pos] == 'a')) {
+
+        while (pos < str.length() &&
+               (str[pos] == 'u' || str[pos] == 'g' || str[pos] == 'o' || str[pos] == 'a')) {
             has_who = true;
             if (str[pos] == 'u') {
                 who_mask |= S_IRWXU;
@@ -136,8 +145,7 @@ bool parse_symbolic_mode(const std::string& str, mode_t current_mask, mode_t& re
 
         // Parse permissions: r, w, x
         mode_t perm_bits = 0;
-        while (pos < str.length() && (str[pos] == 'r' || str[pos] == 'w' || 
-                                       str[pos] == 'x')) {
+        while (pos < str.length() && (str[pos] == 'r' || str[pos] == 'w' || str[pos] == 'x')) {
             if (str[pos] == 'r') {
                 perm_bits |= (who_mask & S_IRWXU) ? S_IRUSR : 0;
                 perm_bits |= (who_mask & S_IRWXG) ? S_IRGRP : 0;
@@ -178,19 +186,15 @@ bool parse_symbolic_mode(const std::string& str, mode_t current_mask, mode_t& re
 }  // namespace
 
 int umask_command(const std::vector<std::string>& args) {
-    if (builtin_handle_help(args,
-                            {"Usage: umask [-p] [-S] [MODE]",
-                             "Display or set the file mode creation mask.",
-                             "",
-                             "  -p        output in a form that can be reused as input",
-                             "  -S        display in symbolic form (default is octal)",
-                             "",
-                             "MODE can be:",
-                             "  Octal:    like 0022 (blocks write for group and others)",
-                             "  Symbolic: like u=rwx,g=rx,o=rx",
-                             "",
-                             "If MODE is omitted, prints the current mask value.",
-                             "The mask specifies which permission bits are NOT set on newly created files."})) {
+    if (builtin_handle_help(
+            args,
+            {"Usage: umask [-p] [-S] [MODE]", "Display or set the file mode creation mask.", "",
+             "  -p        output in a form that can be reused as input",
+             "  -S        display in symbolic form (default is octal)", "",
+             "MODE can be:", "  Octal:    like 0022 (blocks write for group and others)",
+             "  Symbolic: like u=rwx,g=rx,o=rx", "",
+             "If MODE is omitted, prints the current mask value.",
+             "The mask specifies which permission bits are NOT set on newly created files."})) {
         return 0;
     }
 
@@ -205,7 +209,7 @@ int umask_command(const std::vector<std::string>& args) {
     // Parse options
     for (size_t i = 1; i < args.size(); ++i) {
         const std::string& arg = args[i];
-        
+
         if (arg == "-S") {
             symbolic_output = true;
             mode_index = i + 1;
@@ -223,7 +227,8 @@ int umask_command(const std::vector<std::string>& args) {
                 } else if (arg[j] == 'p') {
                     posix_output = true;
                 } else {
-                    print_error({ErrorType::INVALID_ARGUMENT, "umask",
+                    print_error({ErrorType::INVALID_ARGUMENT,
+                                 "umask",
                                  "invalid option -- '" + std::string(1, arg[j]) + "'",
                                  {"Try 'umask --help' for more information."}});
                     return 1;
@@ -262,17 +267,14 @@ int umask_command(const std::vector<std::string>& args) {
     // Try symbolic mode first (contains = + or -)
     if (mode_str.find_first_of("=+-") != std::string::npos) {
         if (!parse_symbolic_mode(mode_str, current_mask, new_mask)) {
-            print_error({ErrorType::INVALID_ARGUMENT, "umask",
-                         "invalid symbolic mode: " + mode_str,
-                         {}});
+            print_error(
+                {ErrorType::INVALID_ARGUMENT, "umask", "invalid symbolic mode: " + mode_str, {}});
             return 1;
         }
     } else {
         // Try octal mode
         if (!parse_octal_mode(mode_str, new_mask)) {
-            print_error({ErrorType::INVALID_ARGUMENT, "umask",
-                         "invalid mode: " + mode_str,
-                         {}});
+            print_error({ErrorType::INVALID_ARGUMENT, "umask", "invalid mode: " + mode_str, {}});
             return 1;
         }
     }

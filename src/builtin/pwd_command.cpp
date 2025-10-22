@@ -40,29 +40,29 @@ inline bool same_inode(const struct stat& st1, const struct stat& st2) {
 // Return PWD from environment if it's valid for logical mode
 char* logical_getcwd() {
     const char* wd = std::getenv("PWD");
-    
+
     // Textual validation: must start with /
     if (!wd || wd[0] != '/') {
         return nullptr;
     }
-    
+
     // Check for /. or /.. components which indicate non-canonical path
     const char* p = wd;
     while ((p = std::strstr(p, "/."))) {
         // Found /. - check what follows
-        if (!p[2] || p[2] == '/' ||                    // ends with /. or has /./
-            (p[2] == '.' && (!p[3] || p[3] == '/'))) { // has /../
+        if (!p[2] || p[2] == '/' ||                     // ends with /. or has /./
+            (p[2] == '.' && (!p[3] || p[3] == '/'))) {  // has /../
             return nullptr;
         }
         p++;
     }
-    
+
     // System call validation: verify PWD actually refers to current directory
     struct stat st1, st2;
     if (stat(wd, &st1) == 0 && stat(".", &st2) == 0 && same_inode(st1, st2)) {
         return const_cast<char*>(wd);
     }
-    
+
     return nullptr;
 }
 
@@ -70,7 +70,7 @@ char* logical_getcwd() {
 
 int pwd_command(const std::vector<std::string>& args) {
     bool logical = false;  // Default to physical (-P) for standalone pwd
-    
+
     // Check if POSIXLY_CORRECT is set (would default to -L)
     if (std::getenv("POSIXLY_CORRECT") != nullptr) {
         logical = true;
@@ -78,7 +78,7 @@ int pwd_command(const std::vector<std::string>& args) {
 
     for (size_t i = 1; i < args.size(); ++i) {
         const std::string& arg = args[i];
-        
+
         if (arg == "-L" || arg == "--logical") {
             logical = true;
         } else if (arg == "-P" || arg == "--physical") {
@@ -86,12 +86,15 @@ int pwd_command(const std::vector<std::string>& args) {
         } else if (arg == "--help") {
             std::cout << "Usage: pwd [OPTION]...\n";
             std::cout << "Print the full filename of the current working directory.\n\n";
-            std::cout << "  -L, --logical   use PWD from environment, even if it contains symlinks\n";
+            std::cout
+                << "  -L, --logical   use PWD from environment, even if it contains symlinks\n";
             std::cout << "  -P, --physical  avoid all symlinks (default)\n";
             std::cout << "      --help      display this help and exit\n\n";
             std::cout << "If no option is specified, -P is assumed.\n\n";
-            std::cout << "NOTE: your shell may have its own version of pwd, which usually supersedes\n";
-            std::cout << "the version described here.  Please refer to your shell's documentation\n";
+            std::cout
+                << "NOTE: your shell may have its own version of pwd, which usually supersedes\n";
+            std::cout
+                << "the version described here.  Please refer to your shell's documentation\n";
             std::cout << "for details about the options it supports.\n";
             return 0;
         } else if (arg == "--version") {
@@ -101,7 +104,8 @@ int pwd_command(const std::vector<std::string>& args) {
             // End of options
             break;
         } else if (arg[0] == '-' && arg.length() > 1) {
-            print_error({ErrorType::INVALID_ARGUMENT, "pwd",
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         "pwd",
                          "invalid option -- '" + arg + "'",
                          {"Try 'pwd --help' for more information."}});
             return 1;
@@ -134,7 +138,7 @@ int pwd_command(const std::vector<std::string>& args) {
 
     // getcwd failed
     const auto error_text = std::system_category().message(errno);
-    print_error({ErrorType::RUNTIME_ERROR, "pwd", "cannot determine current directory: " + error_text,
-                 {}});
+    print_error(
+        {ErrorType::RUNTIME_ERROR, "pwd", "cannot determine current directory: " + error_text, {}});
     return 1;
 }

@@ -28,9 +28,12 @@ namespace {
 
 // Convert hexadecimal character to integer
 inline int hextobin(unsigned char c) {
-    if (c >= '0' && c <= '9') return c - '0';
-    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
-    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+    if (c >= '0' && c <= '9')
+        return c - '0';
+    if (c >= 'a' && c <= 'f')
+        return c - 'a' + 10;
+    if (c >= 'A' && c <= 'F')
+        return c - 'A' + 10;
     return 0;
 }
 
@@ -42,29 +45,27 @@ inline bool is_hex_digit(unsigned char c) {
 }  // namespace
 
 int echo_command(const std::vector<std::string>& args) {
-    if (builtin_handle_help(
-            args,
-            {"Usage: echo [-neE] [STRING ...]",
-             "Display the STRING(s) to standard output.",
-             "",
-             "  -n     do not output the trailing newline",
-             "  -e     enable interpretation of backslash escapes",
-             "  -E     disable interpretation of backslash escapes (default)",
-             "",
-             "If -e is in effect, the following sequences are recognized:",
-             "",
-             "  \\\\      backslash",
-             "  \\a      alert (BEL)",
-             "  \\b      backspace",
-             "  \\c      produce no further output",
-             "  \\e      escape",
-             "  \\f      form feed",
-             "  \\n      new line",
-             "  \\r      carriage return",
-             "  \\t      horizontal tab",
-             "  \\v      vertical tab",
-             "  \\0NNN   byte with octal value NNN (1 to 3 digits)",
-             "  \\xHH    byte with hexadecimal value HH (1 to 2 digits)"})) {
+    if (builtin_handle_help(args, {"Usage: echo [-neE] [STRING ...]",
+                                   "Display the STRING(s) to standard output.",
+                                   "",
+                                   "  -n     do not output the trailing newline",
+                                   "  -e     enable interpretation of backslash escapes",
+                                   "  -E     disable interpretation of backslash escapes (default)",
+                                   "",
+                                   "If -e is in effect, the following sequences are recognized:",
+                                   "",
+                                   "  \\\\      backslash",
+                                   "  \\a      alert (BEL)",
+                                   "  \\b      backspace",
+                                   "  \\c      produce no further output",
+                                   "  \\e      escape",
+                                   "  \\f      form feed",
+                                   "  \\n      new line",
+                                   "  \\r      carriage return",
+                                   "  \\t      horizontal tab",
+                                   "  \\v      vertical tab",
+                                   "  \\0NNN   byte with octal value NNN (1 to 3 digits)",
+                                   "  \\xHH    byte with hexadecimal value HH (1 to 2 digits)"})) {
         return 0;
     }
 
@@ -74,7 +75,7 @@ int echo_command(const std::vector<std::string>& args) {
     bool allow_options = !posixly_correct || (args.size() > 1 && args[1] == "-n");
 
     std::vector<std::string> echo_args = args;
-    
+
     // Check for redirection to stderr
     bool redirect_to_stderr = false;
     if (!echo_args.empty() && echo_args.back() == ">&2") {
@@ -86,10 +87,10 @@ int echo_command(const std::vector<std::string>& args) {
 
     // Parse options
     if (allow_options) {
-        while (arg_idx < echo_args.size() && !echo_args[arg_idx].empty() && 
+        while (arg_idx < echo_args.size() && !echo_args[arg_idx].empty() &&
                echo_args[arg_idx][0] == '-') {
             const std::string& opt = echo_args[arg_idx];
-            
+
             // Check if this is just "-" or if it contains invalid options
             if (opt.length() == 1) {
                 break;  // Just a dash, treat as argument
@@ -132,7 +133,7 @@ int echo_command(const std::vector<std::string>& args) {
 
     // Print arguments
     bool first = true;
-    
+
     if (do_v9 || posixly_correct) {
         // Interpret backslash escapes
         while (arg_idx < echo_args.size()) {
@@ -186,7 +187,7 @@ int echo_command(const std::vector<std::string>& args) {
                                 i++;
                                 unsigned char ch = s[i];
                                 c = hextobin(ch);
-                                
+
                                 if (i + 1 < s.length() && is_hex_digit(s[i + 1])) {
                                     i++;
                                     ch = s[i];
@@ -216,8 +217,13 @@ int echo_command(const std::vector<std::string>& args) {
                             }
                             out << static_cast<char>(c);
                             break;
-                        case '1': case '2': case '3':
-                        case '4': case '5': case '6': case '7': {
+                        case '1':
+                        case '2':
+                        case '3':
+                        case '4':
+                        case '5':
+                        case '6':
+                        case '7': {
                             // Octal escape \NNN (starting with non-zero)
                             c = c - '0';
                             if (i + 1 < s.length() && s[i + 1] >= '0' && s[i + 1] <= '7') {
@@ -262,7 +268,7 @@ int echo_command(const std::vector<std::string>& args) {
     if (display_return) {
         out << '\n';
     }
-    
+
     out.flush();
     return 0;
 }
