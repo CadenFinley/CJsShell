@@ -5,7 +5,7 @@ import time
 import statistics
 import sys
 import os
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Optional
 
 RUNS = 10
 
@@ -20,19 +20,10 @@ SHELL_COMMANDS = {
         "ls_long": "-c 'ls -la'",
         "exit": "-c exit",
         "loop": "-c 'for i in {1..5000}; do echo $i; done'",
-        "loop_even": "-c 'for i in {1..5000}; do if [ $((i % 2)) -eq 0 ]; then echo $i; fi; done'"
-    },
-    "csh": {
-        "ls": "-c 'ls'",
-        "version": "-c 'echo $version'",
-        "hello": "-c 'echo hello world'",
-        "pwd": "-c 'pwd'",
-        "date": "-c 'date'",
-        "shell_var": "-c 'echo $SHELL'",
-        "ls_long": "-c 'ls -la'",
-        "exit": "-c 'exit'",
-        "loop": "-c 'set i = 1; while ( $i <= 5000 ) echo $i; @ i = $i + 1; end'",
-        "loop_even": "-c 'set i = 1; while ( $i <= 5000 ) if ( ( $i % 2 ) == 0 ) echo $i; endif; @ i = $i + 1; end'"
+        "loop_even": "-c 'for i in {1..5000}; do if [ $((i % 2)) -eq 0 ]; then echo $i; fi; done'",
+        "branching": "-c 'count=0; for i in $(seq 1 2000); do if [ $((i % 15)) -eq 0 ]; then count=$((count+1)); elif [ $((i % 3)) -eq 0 ]; then :; elif [ $((i % 5)) -eq 0 ]; then :; fi; done; echo $count'",
+        "function_calls": "-c 'sum(){ out=0; for n in \"$@\"; do out=$((out+n)); done; echo \"$out\"; }; for i in $(seq 1 400); do sum 1 2 3 4 5 >/dev/null; done'",
+        "subshell_traversal": "-c 'for dir in /bin /usr/bin /usr/sbin; do if [ -d \"$dir\" ]; then (cd \"$dir\" && ls >/dev/null); fi; done'"
     },
     "fish": {
         "ls": "-c ls",
@@ -44,7 +35,10 @@ SHELL_COMMANDS = {
         "ls_long": "-c 'ls -la'",
         "exit": "-c exit",
         "loop": "-c 'for i in (seq 5000); echo $i; end'",
-        "loop_even": "-c 'for i in (seq 5000); if test (math \"$i % 2\") -eq 0; echo $i; end; end'"
+        "loop_even": "-c 'for i in (seq 5000); if test (math \"$i % 2\") -eq 0; echo $i; end; end'",
+        "branching": "-c 'set count 0; for i in (seq 1 2000); if test (math \"$i % 15\") -eq 0; set count (math \"$count + 1\"); else if test (math \"$i % 3\") -eq 0; math \"$i + 0\" >/dev/null; else if test (math \"$i % 5\") -eq 0; math \"$i + 0\" >/dev/null; end; end; echo $count'",
+        "function_calls": "-c 'function sum; set out 0; for n in $argv; set out (math \"$out + $n\"); end; echo $out; end; for i in (seq 1 400); sum 1 2 3 4 5 >/dev/null; end'",
+        "subshell_traversal": "-c 'for dir in /bin /usr/bin /usr/sbin; if test -d $dir; pushd $dir >/dev/null; ls >/dev/null; popd >/dev/null; end; end'"
     },
     "nu": {
         "ls": "-c 'ls'",
@@ -56,56 +50,91 @@ SHELL_COMMANDS = {
         "ls_long": "-c 'ls -l'",
         "exit": "-c 'exit'",
         "loop": "-c '1..5000 | each { |i| echo $i }'",
-        "loop_even": "-c '1..5000 | where { |i| $i mod 2 == 0 } | each { |i| echo $i }'"
-    },
-    "elvish": {
-        "ls": "-c 'ls'",
-        "version": "--version",
-        "hello": "-c 'echo hello world'",
-        "pwd": "-c 'pwd'",
-        "date": "-c 'echo (date)'",
-        "shell_var": "-c 'echo $E:SHELL'",
-        "ls_long": "-c 'ls -la'",
-        "exit": "-c 'exit'",
-        "loop": "-c 'for i [(range 1 5001)] { echo $i }'",
-        "loop_even": "-c 'for i [(range 1 5001)] { if (== (% $i 2) 0) { echo $i } }'"
-    },
-    "ion": {
-        "ls": "-c 'ls'",
-        "version": "--version",
-        "hello": "-c 'echo hello world'",
-        "pwd": "-c 'pwd'",
-        "date": "-c 'echo $(date)'",
-        "shell_var": "-c 'echo $SHELL'",
-        "ls_long": "-c 'ls -la'",
-        "exit": "-c 'exit'",
-        "loop": "-c 'for i in 1..5000; echo $i; end'",
-        "loop_even": "-c 'for i in 1..5000; if test $((i % 2)) -eq 0; echo $i; end; end'"
-    },
-    "xonsh": {
-        "ls": "-c 'ls'",
-        "version": "--version",
-        "hello": "-c 'echo \"hello world\"'",
-        "pwd": "-c 'pwd'",
-        "date": "-c 'echo hello'",
-        "shell_var": "-c 'echo $SHELL'",
-        "ls_long": "-c 'ls -la'",
-        "exit": "-c 'exit'",
-        "loop": "-c 'for i in range(1, 5001): print(i)'",
-        "loop_even": "-c 'for i in range(1, 5001):\n    if i % 2 == 0:\n        print(i)'"
+        "loop_even": "-c '1..5000 | where { |i| $i mod 2 == 0 } | each { |i| echo $i }'",
+        "branching": "-c 'mut count = 0; for i in 1..2000 { if (($i mod 15) == 0) { $count += 1 } else if (($i mod 3) == 0) { } else if (($i mod 5) == 0) { } }; echo $count'",
+        "function_calls": "-c 'def sum [values: list<int>] { mut out = 0; for v in $values { $out += $v }; $out }; for _ in 1..400 { sum [1 2 3 4 5] | ignore }'",
+        "subshell_traversal": "-c 'for dir in [/bin /usr/bin /usr/sbin] { if ($dir | path exists) { cd $dir; ls | ignore } }'"
     }
 }
 
-COMMAND_DESCRIPTIONS = [
-    "ls", "version", "hello", "pwd", "date", "shell_var", "ls_long", "exit", "loop", "loop_even"
+COMMAND_PLAN = [
+    {"key": "ls", "description": "Directory listing of current working directory"},
+    {"key": "version", "description": "Report interpreter version banner"},
+    {"key": "hello", "description": "Print a short string"},
+    {"key": "pwd", "description": "Query current working directory"},
+    {"key": "date", "description": "Invoke date expansion"},
+    {"key": "shell_var", "description": "Expand a shell-level environment variable"},
+    {"key": "ls_long", "description": "Run ls with long-format flags"},
+    {"key": "exit", "description": "Launch and immediately exit the shell"},
+    {"key": "loop", "description": "High-iteration loop with stdout output"},
+    {"key": "loop_even", "description": "Loop with conditional filtering"},
+    {"key": "branching", "description": "Nested conditionals with arithmetic checks"},
+    {"key": "function_calls", "description": "Define and repeatedly invoke a function"},
+    {"key": "subshell_traversal", "description": "Traverse directories using subshells or directory stack"}
 ]
-BASELINE_SHELLS = ["cjsh", "fish", "bash", "zsh", "nu", "elvish", "ion", "xonsh"]
+BASELINE_SHELLS = ["cjsh", "fish", "bash", "zsh"]
 CJSH_BINARY_TYPES = [""]
 
 ENABLE_BASELINE_TESTS = True
 
 all_results: List[List[Tuple[str, float, float, float]]] = []
-all_commands: List[str] = []
+all_commands: List[Dict[str, str]] = []
+
+# Expected outputs for validation
+EXPECTED_OUTPUTS = {
+    "hello": {"contains": "hello world", "exact": False},
+    "loop": {"line_count": 5000, "tolerance": 0},
+    "loop_even": {"line_count": 2500, "tolerance": 0},
+    "branching": {"contains": "133", "exact": True},  # Count of numbers divisible by 15 in 1..2000
+    "exit": {"returncode": 0},
+}
+
+
+def validate_command_output(shell_cmd: str, command: str, command_key: str) -> Tuple[bool, str]:
+    """
+    Validate that a command produces expected output.
+    Returns (is_valid, error_message)
+    """
+    if command_key not in EXPECTED_OUTPUTS:
+        return (True, "")  # No validation defined for this command
+    
+    full_command = f"{shell_cmd} {command}"
+    expected = EXPECTED_OUTPUTS[command_key]
+    
+    try:
+        result = subprocess.run(full_command, shell=True, capture_output=True, 
+                              text=True, timeout=30, check=False)
+    except subprocess.TimeoutExpired:
+        return (False, "Command timed out (>30s)")
+    except Exception as e:
+        return (False, f"Command execution failed: {str(e)}")
+    
+    # Check return code if specified
+    if "returncode" in expected:
+        if result.returncode != expected["returncode"]:
+            return (False, f"Expected return code {expected['returncode']}, got {result.returncode}")
+    
+    # Check for required content
+    if "contains" in expected:
+        if expected.get("exact", False):
+            # Check for exact match (ignoring whitespace)
+            if expected["contains"].strip() not in result.stdout.strip():
+                return (False, f"Expected output to contain exactly '{expected['contains']}', got: {result.stdout.strip()[:100]}")
+        else:
+            # Check for substring
+            if expected["contains"] not in result.stdout:
+                return (False, f"Expected output to contain '{expected['contains']}', got: {result.stdout[:100]}")
+    
+    # Check line count
+    if "line_count" in expected:
+        actual_lines = len([line for line in result.stdout.splitlines() if line.strip()])
+        expected_lines = expected["line_count"]
+        tolerance = expected.get("tolerance", 0)
+        
+        if abs(actual_lines - expected_lines) > tolerance:
+            return (False, f"Expected {expected_lines} lines of output (±{tolerance}), got {actual_lines}")
+    
+    return (True, "")
 
 
 def run_command_with_timing(shell_cmd: str, command: str) -> float:
@@ -121,38 +150,55 @@ def run_command_with_timing(shell_cmd: str, command: str) -> float:
     return (end_time - start_time) * 1000
 
 
-def get_shell_command(shell: str, command_key: str) -> str:
+def get_shell_command(shell: str, command_key: str) -> Optional[str]:
     if shell in ["bash", "zsh", "ksh"] or shell.startswith("./cjsh"):
-        return SHELL_COMMANDS["posix"][command_key]
-    elif shell == "fish":
-        return SHELL_COMMANDS["fish"][command_key]
-    elif shell == "nu":
-        return SHELL_COMMANDS["nu"][command_key]
-    elif shell == "elvish":
-        return SHELL_COMMANDS["elvish"][command_key]
-    elif shell == "ion":
-        return SHELL_COMMANDS["ion"][command_key]
-    elif shell == "xonsh":
-        return SHELL_COMMANDS["xonsh"][command_key]
-    elif shell in ["tcsh", "csh"]:
-        return SHELL_COMMANDS["csh"][command_key]
-    else:
-        return SHELL_COMMANDS["posix"][command_key]
+        return SHELL_COMMANDS["posix"].get(command_key)
+    if shell == "fish":
+        return SHELL_COMMANDS["fish"].get(command_key)
+    if shell == "nu":
+        return SHELL_COMMANDS["nu"].get(command_key)
+    if shell == "elvish":
+        return SHELL_COMMANDS["elvish"].get(command_key)
+    if shell == "ion":
+        return SHELL_COMMANDS["ion"].get(command_key)
+    if shell == "xonsh":
+        return SHELL_COMMANDS["xonsh"].get(command_key)
+    if shell in ["tcsh", "csh"]:
+        return SHELL_COMMANDS["csh"].get(command_key)
+    return SHELL_COMMANDS["posix"].get(command_key)
 
 
-def test_command(command_key: str) -> None:
+def test_command(command_spec: Dict[str, str]) -> None:
+    command_key = command_spec["key"]
     results: List[Tuple[str, float, float, float]] = []
     
     print("----------------------------------------------------------------------")
     print(f"Testing command: {command_key}")
+    description = command_spec.get("description", "")
+    if description:
+        print(description)
     print("----------------------------------------------------------------------")
     
     for binary_type in CJSH_BINARY_TYPES:
         shell_name = f"./cjsh{binary_type}"
         shell_path = f"./build/cjsh{binary_type}"
         command = get_shell_command(shell_name, command_key)
+
+        if command is None:
+            print(f"Skipping {shell_name}: command '{command_key}' not defined")
+            continue
         
+        # Validate command output first
         print()
+        print(f"Validating {shell_name} {command}")
+        is_valid, error_msg = validate_command_output(shell_path, command, command_key)
+        if not is_valid:
+            print(f"  VALIDATION FAILED: {error_msg}")
+            print(f"  Skipping performance test for {shell_name}")
+            continue
+        else:
+            print(f"  Validation passed")
+        
         print(f"Timing {shell_name} {command}")
         print()
         
@@ -171,8 +217,23 @@ def test_command(command_key: str) -> None:
     if ENABLE_BASELINE_TESTS:
         for shell in BASELINE_SHELLS:
             command = get_shell_command(shell, command_key)
+
+            if command is None:
+                print()
+                print(f"Skipping {shell}: command '{command_key}' not defined")
+                continue
             
+            # Validate command output first
             print()
+            print(f"Validating {shell} {command}")
+            is_valid, error_msg = validate_command_output(shell, command, command_key)
+            if not is_valid:
+                print(f"  VALIDATION FAILED: {error_msg}")
+                print(f"  Skipping performance test for {shell}")
+                continue
+            else:
+                print(f"  Validation passed")
+            
             print(f"Timing {shell} {command}")
             print()
             
@@ -192,7 +253,7 @@ def test_command(command_key: str) -> None:
     
     results.sort(key=lambda x: x[1])
     
-    all_commands.append(command_key)
+    all_commands.append(command_spec)
     all_results.append(results)
     
     print(f"Completed testing: {command_key}")
@@ -216,16 +277,24 @@ def print_summary() -> None:
     print(get_cjsh_version())
     print("======================================================================")
     
-    for i, command_key in enumerate(all_commands):
+    for i, command_spec in enumerate(all_commands):
+        command_key = command_spec["key"]
         print()
-        print(f"Command: {command_key}")
+        description = command_spec.get("description", "")
+        if description:
+            print(f"Command: {command_key} - {description}")
+        else:
+            print(f"Command: {command_key}")
         print("----------------------------------------------------------------------")
         
-        for shell, average, min_time, max_time in all_results[i]:
-            actual_command = get_shell_command(shell, command_key)
-            print(f"Average time for {shell} ({actual_command}): {average:.3f} ms")
-            print(f"  Min time: {min_time:.3f} ms")
-            print(f"  Max time: {max_time:.3f} ms")
+        if not all_results[i]:
+            print("No shells executed this command (unsupported).")
+        else:
+            for shell, average, min_time, max_time in all_results[i]:
+                actual_command = get_shell_command(shell, command_key) or "N/A"
+                print(f"Average time for {shell} ({actual_command}): {average:.3f} ms")
+                print(f"  Min time: {min_time:.3f} ms")
+                print(f"  Max time: {max_time:.3f} ms")
         
         print("----------------------------------------------------------------------")
     
@@ -277,11 +346,12 @@ def main() -> None:
     print("All required binaries found. Starting performance tests...")
     print()
     
-    for command_key in COMMAND_DESCRIPTIONS:
-        test_command(command_key)
+    for command_spec in COMMAND_PLAN:
+        test_command(command_spec)
     
     print_summary()
 
 
 if __name__ == "__main__":
     main()
+
