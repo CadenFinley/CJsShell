@@ -5,14 +5,52 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if !defined(NOB_IMPLEMENTATION)
+#include "nob.h"
+#endif
 #include "nob_build_config.h"
+
+static inline bool nob_path_has_extension(const char* path, const char* extension) {
+    if (path == NULL || extension == NULL) {
+        return false;
+    }
+
+    size_t path_len = strlen(path);
+    size_t ext_len = strlen(extension);
+    if (path_len < ext_len) {
+        return false;
+    }
+
+    return strcmp(path + path_len - ext_len, extension) == 0;
+}
+
+static inline bool nob_is_header_file(const char* path) {
+    static const char* header_exts[] = {".h", ".hh", ".hpp", ".hxx", ".inl", ".ipp", ".tpp"};
+
+    for (size_t i = 0; i < sizeof(header_exts) / sizeof(header_exts[0]); i++) {
+        if (nob_path_has_extension(path, header_exts[i])) {
+            return true;
+        }
+    }
+
+    return false;
+}
 
 static inline bool collect_sources(String_Array* sources) {
     nob_log(NOB_INFO, "Collecting source files...");
 
     for (size_t i = 0; i < build_config.main_sources_count; i++) {
-        if (nob_get_file_type(build_config.main_sources[i]) == NOB_FILE_REGULAR) {
-            nob_da_append(sources, build_config.main_sources[i]);
+        const char* path = build_config.main_sources[i];
+        if (nob_get_file_type(path) == NOB_FILE_REGULAR) {
+            if (nob_is_header_file(path)) {
+                nob_log(NOB_WARNING,
+                        "Skipping header-only file listed in main_sources: %s (no compilation will "
+                        "be performed)",
+                        path);
+                continue;
+            }
+
+            nob_da_append(sources, path);
         }
     }
 
@@ -51,8 +89,17 @@ static inline bool collect_c_sources(String_Array* c_sources) {
     nob_log(NOB_INFO, "Collecting C source files...");
 
     for (size_t i = 0; i < build_config.isocline_c_sources_count; i++) {
-        if (nob_get_file_type(build_config.isocline_c_sources[i]) == NOB_FILE_REGULAR) {
-            nob_da_append(c_sources, build_config.isocline_c_sources[i]);
+        const char* path = build_config.isocline_c_sources[i];
+        if (nob_get_file_type(path) == NOB_FILE_REGULAR) {
+            if (nob_is_header_file(path)) {
+                nob_log(NOB_WARNING,
+                        "Skipping header-only file listed in isocline_c_sources: %s (no "
+                        "compilation will be performed)",
+                        path);
+                continue;
+            }
+
+            nob_da_append(c_sources, path);
         }
     }
 

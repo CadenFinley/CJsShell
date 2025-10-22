@@ -213,12 +213,13 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
             }
         }
 
+        std::vector<std::string> parsed_args;
         try {
             text = expand_all_substitutions(text, execute_simple_or_pipeline);
 
-            std::vector<std::string> head = shell_parser->parse_command(text);
-            if (!head.empty()) {
-                const std::string& prog = head[0];
+            parsed_args = shell_parser->parse_command(text);
+            if (!parsed_args.empty()) {
+                const std::string& prog = parsed_args[0];
                 if (should_interpret_as_cjsh_script(prog)) {
                     std::ifstream f(prog);
                     if (!f) {
@@ -321,7 +322,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                     return 0;
 
                 } else {
-                    std::vector<std::string> expanded_args = shell_parser->parse_command(text);
+                    std::vector<std::string> expanded_args = std::move(parsed_args);
                     if (expanded_args.empty())
                         return 0;
 
@@ -1084,7 +1085,7 @@ bool ShellScriptInterpreter::should_interpret_as_cjsh_script(const std::string& 
 }
 
 int ShellScriptInterpreter::evaluate_logical_condition_internal(
-    const std::string& condition, const std::function<int(const std::string&)>& executor) {
+    const std::string& condition, cjsh::FunctionRef<int(const std::string&)> executor) {
     std::string cond = trim(condition);
     if (cond.empty())
         return 1;
@@ -1275,11 +1276,11 @@ bool ShellScriptInterpreter::in_function_scope() const {
 
 ShellScriptInterpreter::BlockHandlerResult ShellScriptInterpreter::try_dispatch_block_statement(
     const std::vector<std::string>& lines, size_t line_index, const std::string& line,
-    const std::function<int(const std::vector<std::string>&, size_t&)>& handle_if_block,
-    const std::function<int(const std::vector<std::string>&, size_t&)>& handle_for_block,
-    const std::function<int(const std::vector<std::string>&, size_t&)>& handle_while_block,
-    const std::function<int(const std::vector<std::string>&, size_t&)>& handle_until_block,
-    const std::function<int(const std::vector<std::string>&, size_t&)>& handle_case_block) {
+    cjsh::FunctionRef<int(const std::vector<std::string>&, size_t&)> handle_if_block,
+    cjsh::FunctionRef<int(const std::vector<std::string>&, size_t&)> handle_for_block,
+    cjsh::FunctionRef<int(const std::vector<std::string>&, size_t&)> handle_while_block,
+    cjsh::FunctionRef<int(const std::vector<std::string>&, size_t&)> handle_until_block,
+    cjsh::FunctionRef<int(const std::vector<std::string>&, size_t&)> handle_case_block) {
     if (line == "if" || line.rfind("if ", 0) == 0) {
         size_t idx = line_index;
         int rc = handle_if_block(lines, idx);
@@ -1314,7 +1315,7 @@ ShellScriptInterpreter::BlockHandlerResult ShellScriptInterpreter::try_dispatch_
 }
 
 std::string ShellScriptInterpreter::expand_all_substitutions(
-    const std::string& input, const std::function<int(const std::string&)>& executor) {
+    const std::string& input, cjsh::FunctionRef<int(const std::string&)> executor) {
     CommandSubstitutionEvaluator cmd_subst_evaluator(
         CommandSubstitutionEvaluator::create_command_executor(executor));
 

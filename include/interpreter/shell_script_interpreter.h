@@ -1,17 +1,15 @@
 #pragma once
 
 #include <cstdint>
-#include <functional>
 #include <optional>
 #include <string>
-#include <system_error>
-#include <unordered_map>
 #include <vector>
 
 #include "error_out.h"
 #include "function_evaluator.h"
 #include "parser.h"
 #include "pattern_matcher.h"
+#include "utils/function_ref.h"
 #include "variable_manager.h"
 
 class ShellScriptInterpreter {
@@ -165,13 +163,13 @@ class ShellScriptInterpreter {
     bool should_interpret_as_cjsh_script(const std::string& path) const;
 
     int evaluate_logical_condition_internal(const std::string& condition,
-                                            const std::function<int(const std::string&)>& executor);
+                                            cjsh::FunctionRef<int(const std::string&)> executor);
 
     std::string expand_all_substitutions(const std::string& input,
-                                         const std::function<int(const std::string&)>& executor);
+                                         cjsh::FunctionRef<int(const std::string&)> executor);
 
     int execute_command_internal(const std::string& cmd_text, bool allow_semicolon_split,
-                                 const std::function<int(const std::string&)>& executor);
+                                 cjsh::FunctionRef<int(const std::string&)> executor);
 
     int process_theme_definition_block(const std::vector<std::string>& lines, size_t& line_index);
 
@@ -187,9 +185,9 @@ class ShellScriptInterpreter {
 
     BlockHandlerResult try_dispatch_block_statement(
         const std::vector<std::string>& lines, size_t line_index, const std::string& line,
-        const std::function<int(const std::vector<std::string>&, size_t&)>& handle_if_block,
-        const std::function<int(const std::vector<std::string>&, size_t&)>& handle_for_block,
-        const std::function<int(const std::vector<std::string>&, size_t&)>& handle_while_block,
-        const std::function<int(const std::vector<std::string>&, size_t&)>& handle_until_block,
-        const std::function<int(const std::vector<std::string>&, size_t&)>& handle_case_block);
+        cjsh::FunctionRef<int(const std::vector<std::string>&, size_t&)> handle_if_block,
+        cjsh::FunctionRef<int(const std::vector<std::string>&, size_t&)> handle_for_block,
+        cjsh::FunctionRef<int(const std::vector<std::string>&, size_t&)> handle_while_block,
+        cjsh::FunctionRef<int(const std::vector<std::string>&, size_t&)> handle_until_block,
+        cjsh::FunctionRef<int(const std::vector<std::string>&, size_t&)> handle_case_block);
 };

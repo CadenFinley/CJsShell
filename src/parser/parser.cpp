@@ -15,6 +15,7 @@
 #include <map>
 #include <stdexcept>
 #include <string_view>
+#include <utility>
 
 #include "builtin.h"
 #include "cjsh.h"
@@ -518,30 +519,24 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
 
     std::vector<std::string> expanded_args;
     expanded_args.reserve(args.empty() ? 8 : args.size() * 3);
-    for (const auto& raw_arg : args) {
+    for (std::string& raw_arg : args) {
         QuoteInfo qi(raw_arg);
 
-        if (qi.is_unquoted() && qi.value.find('{') != std::string::npos &&
-            qi.value.find('}') != std::string::npos) {
-            std::vector<std::string> brace_expansions = expansionEngine->expand_braces(qi.value);
-            brace_expansions.reserve(8);
+        if (qi.is_unquoted() && raw_arg.find('{') != std::string::npos &&
+            raw_arg.find('}') != std::string::npos) {
+            auto brace_expansions = expansionEngine->expand_braces(raw_arg);
             expanded_args.insert(expanded_args.end(),
                                  std::make_move_iterator(brace_expansions.begin()),
                                  std::make_move_iterator(brace_expansions.end()));
         } else {
-            if (qi.is_single) {
-                expanded_args.push_back(create_quote_tag(QUOTE_SINGLE, qi.value));
-            } else if (qi.is_double) {
-                expanded_args.push_back(create_quote_tag(QUOTE_DOUBLE, qi.value));
-            } else {
-                expanded_args.push_back(qi.value);
-            }
+            expanded_args.emplace_back(std::move(raw_arg));
         }
     }
     args = std::move(expanded_args);
 
     std::vector<std::string> pre_expanded_args;
-    for (const auto& raw_arg : args) {
+    pre_expanded_args.reserve(args.size() + 4);
+    for (std::string& raw_arg : args) {
         QuoteInfo qi(raw_arg);
 
         if (qi.is_double && qi.value == "$@" && (shell != nullptr)) {
@@ -551,9 +546,9 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
             }
             continue;
         }
-        pre_expanded_args.push_back(raw_arg);
+        pre_expanded_args.emplace_back(std::move(raw_arg));
     }
-    args = pre_expanded_args;
+    args = std::move(pre_expanded_args);
 
     for (auto& raw_arg : args) {
         QuoteInfo qi(raw_arg);
@@ -599,7 +594,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
 
     std::vector<std::string> ifs_expanded_args;
     ifs_expanded_args.reserve(args.size() * 2);
-    for (const auto& raw_arg : args) {
+    for (std::string& raw_arg : args) {
         QuoteInfo qi(raw_arg);
 
         if (qi.is_unquoted()) {
@@ -608,7 +603,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
                                      std::make_move_iterator(split_words.begin()),
                                      std::make_move_iterator(split_words.end()));
         } else {
-            ifs_expanded_args.push_back(raw_arg);
+            ifs_expanded_args.emplace_back(std::move(raw_arg));
         }
     }
     args = std::move(ifs_expanded_args);

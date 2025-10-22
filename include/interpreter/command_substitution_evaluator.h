@@ -4,6 +4,8 @@
 #include <optional>
 #include <string>
 #include <vector>
+
+#include "utils/function_ref.h"
 class CommandSubstitutionEvaluator {
    public:
     struct ExpansionResult {
@@ -19,7 +21,7 @@ class CommandSubstitutionEvaluator {
     static std::optional<size_t> find_matching_paren(const std::string& text, size_t start_index);
 
     static CommandExecutor create_command_executor(
-        const std::function<int(const std::string&)>& executor);
+        cjsh::FunctionRef<int(const std::string&)> executor);
 
    private:
     bool find_matching_delimiter(const std::string& text, size_t start, char open_char,

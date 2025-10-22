@@ -80,7 +80,7 @@ std::pair<std::string, int> CommandSubstitutionEvaluator::capture_command_output
 }
 
 CommandSubstitutionEvaluator::CommandExecutor CommandSubstitutionEvaluator::create_command_executor(
-    const std::function<int(const std::string&)>& executor) {
+    cjsh::FunctionRef<int(const std::string&)> executor) {
     return [executor](const std::string& command) -> std::pair<std::string, int> {
         return execute_command_for_substitution(command, executor);
     };
