@@ -1,9 +1,12 @@
 #include "loop_evaluator.h"
 
 #include <cctype>
+#include <csignal>
 #include <cstdlib>
+#include <memory>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 
 #include "cjsh.h"
 #include "parser.h"
@@ -16,6 +19,77 @@ using shell_script_interpreter::detail::trim;
 namespace loop_evaluator {
 
 namespace {
+
+constexpr size_t kInlineLoopCacheLimit = 64;
+
+thread_local std::unordered_map<std::string, std::shared_ptr<std::vector<std::string>>>
+    g_inline_loop_cache;
+
+const std::shared_ptr<std::vector<std::string>>& get_cached_inline_loop_body(
+    const std::string& body, Parser* shell_parser) {
+    static const std::shared_ptr<std::vector<std::string>> kEmptyBody =
+        std::make_shared<std::vector<std::string>>();
+
+    if (body.empty() || shell_parser == nullptr) {
+        return kEmptyBody;
+    }
+
+    auto cache_it = g_inline_loop_cache.find(body);
+    if (cache_it != g_inline_loop_cache.end()) {
+        return cache_it->second;
+    }
+
+    auto parsed_lines = shell_parser->parse_into_lines(body);
+    auto parsed_ptr = std::make_shared<std::vector<std::string>>(std::move(parsed_lines));
+
+    if (g_inline_loop_cache.size() >= kInlineLoopCacheLimit) {
+        for (auto it = g_inline_loop_cache.begin(); it != g_inline_loop_cache.end(); ++it) {
+            if (it->second.use_count() == 1) {
+                g_inline_loop_cache.erase(it);
+                break;
+            }
+        }
+        if (g_inline_loop_cache.size() >= kInlineLoopCacheLimit) {
+            g_inline_loop_cache.clear();
+        }
+    }
+
+    auto [insert_it, _] = g_inline_loop_cache.emplace(body, std::move(parsed_ptr));
+    return insert_it->second;
+}
+
+int signal_exit_code(const SignalProcessingResult& result) {
+#ifdef SIGTERM
+    if (result.sigterm) {
+        return 128 + SIGTERM;
+    }
+#endif
+#ifdef SIGHUP
+    if (result.sighup) {
+        return 128 + SIGHUP;
+    }
+#endif
+#ifdef SIGINT
+    if (result.sigint) {
+        return 128 + SIGINT;
+    }
+#endif
+    return -1;
+}
+
+bool check_loop_interrupt(int& rc) {
+    if (!g_shell) {
+        return false;
+    }
+
+    SignalProcessingResult pending = g_shell->process_pending_signals();
+    int exit_code = signal_exit_code(pending);
+    if (exit_code >= 0) {
+        rc = exit_code;
+        return true;
+    }
+    return false;
+}
 
 int adjust_loop_signal(const char* env_name, int consumed_rc, int propagate_rc) {
     int level = 1;
@@ -165,9 +239,19 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
 
     int rc = 0;
     while (true) {
+        if (check_loop_interrupt(rc)) {
+            break;
+        }
+
         int c = 0;
         if (!cond.empty()) {
             c = execute_simple_or_pipeline(cond);
+
+            int signal_rc = 0;
+            if (check_loop_interrupt(signal_rc)) {
+                rc = signal_rc;
+                break;
+            }
         }
 
         bool continue_loop = is_until ? (c != 0) : (c == 0);
@@ -202,6 +286,21 @@ LoopCommandOutcome handle_loop_command_result(int rc, int break_consumed_rc, int
             return {LoopFlow::CONTINUE, adjusted};
         return {LoopFlow::BREAK, adjusted};
     }
+#ifdef SIGINT
+    if (rc == 128 + SIGINT) {
+        return {LoopFlow::BREAK, rc};
+    }
+#endif
+#ifdef SIGTERM
+    if (rc == 128 + SIGTERM) {
+        return {LoopFlow::BREAK, rc};
+    }
+#endif
+#ifdef SIGHUP
+    if (rc == 128 + SIGHUP) {
+        return {LoopFlow::BREAK, rc};
+    }
+#endif
     if (rc != 0) {
         if (g_shell && g_shell->should_abort_on_nonzero_exit())
             return {LoopFlow::BREAK, rc};
@@ -304,8 +403,19 @@ int handle_for_block(const std::vector<std::string>& src_lines, size_t& idx,
         std::string body = done_pos == std::string::npos ? tail : trim(tail.substr(0, done_pos));
         int rc = 0;
 
+        if (shell_parser == nullptr) {
+            return 1;
+        }
+
+        auto body_lines_handle = get_cached_inline_loop_body(body, shell_parser);
+        const auto* body_lines_ptr = body_lines_handle.get();
+
+        if (body_lines_ptr == nullptr) {
+            return 1;
+        }
+
         if (range_info.is_range) {
-            auto execute_range_iteration = [&](int value) -> int {
+            auto execute_range_iteration = [&, body_lines_ptr](int value) -> int {
                 std::string val_str = std::to_string(value);
                 if (g_shell) {
                     g_shell->get_env_vars()[var] = val_str;
@@ -315,8 +425,7 @@ int handle_for_block(const std::vector<std::string>& src_lines, size_t& idx,
                 }
                 setenv(var.c_str(), val_str.c_str(), 1);
 
-                std::vector<std::string> body_vec = shell_parser->parse_into_lines(body);
-                int cmd_rc = execute_block(body_vec);
+                int cmd_rc = execute_block(*body_lines_ptr);
                 auto outcome = handle_loop_command_result(cmd_rc, 0, 255, 0, 254, true);
                 return outcome.code;
             };
@@ -325,6 +434,11 @@ int handle_for_block(const std::vector<std::string>& src_lines, size_t& idx,
                 int value = start;
                 int rc_local = 0;
                 while (step > 0 ? value <= end : value >= end) {
+                    int signal_rc = 0;
+                    if (check_loop_interrupt(signal_rc)) {
+                        rc_local = signal_rc;
+                        break;
+                    }
                     rc_local = execute_range_iteration(value);
                     auto outcome = handle_loop_command_result(rc_local, 0, 255, 0, 254, true);
                     rc_local = outcome.code;
@@ -344,6 +458,11 @@ int handle_for_block(const std::vector<std::string>& src_lines, size_t& idx,
             rc = iterate_range(range_info.start, range_info.end, range_info.is_ascending ? 1 : -1);
         } else {
             for (const auto& it : items) {
+                int signal_rc = 0;
+                if (check_loop_interrupt(signal_rc)) {
+                    rc = signal_rc;
+                    break;
+                }
                 if (g_shell) {
                     g_shell->get_env_vars()[var] = it;
                     if (shell_parser != nullptr) {
@@ -352,8 +471,7 @@ int handle_for_block(const std::vector<std::string>& src_lines, size_t& idx,
                 }
                 setenv(var.c_str(), it.c_str(), 1);
 
-                std::vector<std::string> body_vec = shell_parser->parse_into_lines(body);
-                rc = execute_block(body_vec);
+                rc = execute_block(*body_lines_ptr);
                 auto outcome = handle_loop_command_result(rc, 0, 255, 0, 254, true);
                 rc = outcome.code;
                 if (outcome.flow == LoopFlow::NONE)
@@ -481,6 +599,11 @@ int handle_for_block(const std::vector<std::string>& src_lines, size_t& idx,
             int value = start;
             int rc_local = 0;
             while (step > 0 ? value <= end : value >= end) {
+                int signal_rc = 0;
+                if (check_loop_interrupt(signal_rc)) {
+                    rc_local = signal_rc;
+                    break;
+                }
                 if (g_shell) {
                     std::string val_str = std::to_string(value);
                     g_shell->get_env_vars()[var] = val_str;
@@ -507,6 +630,11 @@ int handle_for_block(const std::vector<std::string>& src_lines, size_t& idx,
         rc = iterate_range_body(range_info.start, range_info.end, range_info.is_ascending ? 1 : -1);
     } else {
         for (const auto& it : items) {
+            int signal_rc = 0;
+            if (check_loop_interrupt(signal_rc)) {
+                rc = signal_rc;
+                break;
+            }
             if (g_shell) {
                 g_shell->get_env_vars()[var] = it;
                 if (shell_parser != nullptr) {

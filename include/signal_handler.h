@@ -8,6 +8,12 @@
 
 class Exec;
 
+struct SignalProcessingResult {
+    bool sigint = false;
+    bool sighup = false;
+    bool sigterm = false;
+};
+
 class SignalMask {
    private:
     sigset_t old_mask{};
@@ -60,7 +66,7 @@ class SignalHandler {
     void signal_unblock_all();
     void setup_signal_handlers();
     void setup_interactive_handlers();
-    void process_pending_signals(Exec* shell_exec);
+    SignalProcessingResult process_pending_signals(Exec* shell_exec);
     static const char* get_signal_name(int signum);
     static const char* get_signal_description(int signum);
     static int name_to_signal(const std::string& name);

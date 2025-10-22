@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <csignal>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
@@ -373,6 +374,30 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
         }
     };
 
+    auto check_pending_signals = [&]() -> std::optional<int> {
+        if (!g_shell) {
+            return std::nullopt;
+        }
+
+        SignalProcessingResult pending = g_shell->process_pending_signals();
+#ifdef SIGTERM
+        if (pending.sigterm) {
+            return 128 + SIGTERM;
+        }
+#endif
+#ifdef SIGHUP
+        if (pending.sighup) {
+            return 128 + SIGHUP;
+        }
+#endif
+#ifdef SIGINT
+        if (pending.sigint) {
+            return 128 + SIGINT;
+        }
+#endif
+        return std::nullopt;
+    };
+
     int last_code = 0;
 
     auto execute_block_wrapper = [&](const std::vector<std::string>& block_lines) -> int {
@@ -525,6 +550,12 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
 
     for (size_t line_index = 0; line_index < lines.size(); ++line_index) {
         current_line_number = line_index + 1;
+
+        if (auto pending_code = check_pending_signals()) {
+            last_code = *pending_code;
+            return set_last_status(last_code);
+        }
+
         const auto& raw_line = lines[line_index];
         std::string line = trim(strip_inline_comment(raw_line));
 
@@ -992,6 +1023,11 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
                     last_code = code;
 
                     set_last_status(last_code);
+
+                    if (auto pending_code = check_pending_signals()) {
+                        last_code = *pending_code;
+                        return set_last_status(last_code);
+                    }
 
                     if (g_shell && g_shell->should_abort_on_nonzero_exit(code) && code != 0) {
                         if (code != 253 && code != 254 && code != 255) {

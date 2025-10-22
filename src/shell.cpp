@@ -204,10 +204,13 @@ void Shell::apply_abbreviations_to_line_editor() {
     }
 }
 
-void Shell::process_pending_signals() {
-    if (signal_handler && shell_exec) {
-        signal_handler->process_pending_signals(shell_exec.get());
+SignalProcessingResult Shell::process_pending_signals() {
+    if (!signal_handler) {
+        return {};
     }
+
+    Exec* exec_ptr = shell_exec ? shell_exec.get() : nullptr;
+    return signal_handler->process_pending_signals(exec_ptr);
 }
 
 Shell::Shell() : shell_pgid(0), shell_tmodes() {

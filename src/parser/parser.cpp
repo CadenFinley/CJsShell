@@ -31,6 +31,49 @@
 #include "tokenizer.h"
 #include "variable_expander.h"
 
+namespace {
+
+bool is_simple_command_candidate(std::string_view cmdline) {
+    bool seen_non_space = false;
+    constexpr std::string_view kSpecialChars = "\\\"'|&;<>(){}[]$`#*?=!";
+
+    for (char c : cmdline) {
+        unsigned char uc = static_cast<unsigned char>(c);
+        if ((std::isspace(uc)) == 0) {
+            seen_non_space = true;
+        }
+        if (kSpecialChars.find(c) != std::string_view::npos) {
+            return false;
+        }
+    }
+
+    return seen_non_space;
+}
+
+std::vector<std::string> fast_split_on_whitespace(std::string_view cmdline) {
+    std::vector<std::string> result;
+    result.reserve(8);
+
+    size_t i = 0;
+    while (i < cmdline.size()) {
+        while (i < cmdline.size() && (std::isspace(static_cast<unsigned char>(cmdline[i])) != 0)) {
+            ++i;
+        }
+        if (i >= cmdline.size()) {
+            break;
+        }
+        size_t start = i;
+        while (i < cmdline.size() && (std::isspace(static_cast<unsigned char>(cmdline[i])) == 0)) {
+            ++i;
+        }
+        result.emplace_back(cmdline.substr(start, i - start));
+    }
+
+    return result;
+}
+
+}  // namespace
+
 void Parser::set_shell(Shell* shell) {
     this->shell = shell;
     if (!tokenizer) {
@@ -73,7 +116,7 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
 
     std::vector<std::string> lines;
 
-    lines.reserve(std::min(script.length() / 40 + 2, size_t(32)));
+    lines.reserve(std::min(script.length() / 30 + 2, size_t(64)));
     size_t start = 0;
     bool in_quotes = false;
     char quote_char = '\0';
@@ -422,13 +465,17 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
     }
 
     std::vector<std::string> args;
-    args.reserve(8);
 
-    try {
-        std::vector<std::string> raw_args = Tokenizer::tokenize_command(cmdline);
-        args = Tokenizer::merge_redirection_tokens(raw_args);
-    } catch (const std::exception&) {
-        return args;
+    if (is_simple_command_candidate(cmdline)) {
+        args = fast_split_on_whitespace(cmdline);
+    } else {
+        args.reserve(16);
+        try {
+            std::vector<std::string> raw_args = Tokenizer::tokenize_command(cmdline);
+            args = Tokenizer::merge_redirection_tokens(raw_args);
+        } catch (const std::exception&) {
+            return args;
+        }
     }
 
     if (!args.empty()) {
@@ -470,7 +517,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
     }
 
     std::vector<std::string> expanded_args;
-    expanded_args.reserve(args.size() * 2);
+    expanded_args.reserve(args.empty() ? 8 : args.size() * 3);
     for (const auto& raw_arg : args) {
         QuoteInfo qi(raw_arg);
 

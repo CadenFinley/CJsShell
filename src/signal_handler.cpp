@@ -327,9 +327,12 @@ void SignalHandler::restore_original_handlers() {
     sigaction(SIGTTOU, &m_old_sigttou_handler, nullptr);
 }
 
-void SignalHandler::process_pending_signals(Exec* shell_exec) {
+SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) {
+    SignalProcessingResult result{};
+
     if (s_sigint_received != 0) {
         s_sigint_received = 0;
+        result.sigint = true;
 
         bool is_observed = is_signal_observed(SIGINT);
 
@@ -418,6 +421,7 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
 
     if (s_sighup_received != 0) {
         s_sighup_received = 0;
+        result.sighup = true;
         g_exit_flag = true;
 
         if (shell_exec != nullptr) {
@@ -444,6 +448,7 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
 
     if (s_sigterm_received != 0) {
         s_sigterm_received = 0;
+        result.sigterm = true;
 
         g_exit_flag = true;
 
@@ -461,6 +466,8 @@ void SignalHandler::process_pending_signals(Exec* shell_exec) {
             }
         }
     }
+
+    return result;
 }
 
 void SignalHandler::observe_signal(int signum) {

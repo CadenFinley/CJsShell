@@ -36,7 +36,7 @@ class Shell {
     int execute(const std::string& script);
 
     int execute_command(std::vector<std::string> args, bool run_in_background = false);
-    void process_pending_signals();
+    SignalProcessingResult process_pending_signals();
 
     std::string get_prompt() {
         return shell_prompt->get_prompt();
