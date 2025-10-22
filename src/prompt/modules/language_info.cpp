@@ -78,7 +78,7 @@ const std::vector<std::string> kotlin_folders = {};
 
 const std::vector<std::string> swift_files = {"Package.swift", ".swift-version"};
 const std::vector<std::string> swift_extensions = {".swift"};
-const std::vector<std::string> swift_folders = {".build", "Packages"};
+const std::vector<std::string> swift_folders = {"Packages"};
 
 const std::vector<std::string> dart_files = {"pubspec.yaml", "pubspec.lock"};
 const std::vector<std::string> dart_extensions = {".dart"};
