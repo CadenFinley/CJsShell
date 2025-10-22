@@ -67,6 +67,7 @@ class SignalHandler {
     void setup_signal_handlers();
     void setup_interactive_handlers();
     SignalProcessingResult process_pending_signals(Exec* shell_exec);
+    static bool has_pending_signals();
     static const char* get_signal_name(int signum);
     static const char* get_signal_description(int signum);
     static int name_to_signal(const std::string& name);
@@ -84,6 +85,7 @@ class SignalHandler {
     static volatile sig_atomic_t s_sigchld_received;
     static volatile sig_atomic_t s_sighup_received;
     static volatile sig_atomic_t s_sigterm_received;
+    static std::atomic<bool> s_signal_pending;
     static const std::vector<SignalInfo> s_signal_table;
     static pid_t s_main_pid;
     static std::vector<int> s_observed_signals;

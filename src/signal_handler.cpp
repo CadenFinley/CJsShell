@@ -3,6 +3,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <algorithm>
+#include <atomic>
 #include <csignal>
 #include <iostream>
 
@@ -15,6 +16,7 @@ volatile sig_atomic_t SignalHandler::s_sigint_received = 0;
 volatile sig_atomic_t SignalHandler::s_sigchld_received = 0;
 volatile sig_atomic_t SignalHandler::s_sighup_received = 0;
 volatile sig_atomic_t SignalHandler::s_sigterm_received = 0;
+std::atomic<bool> SignalHandler::s_signal_pending(false);
 pid_t SignalHandler::s_main_pid = getpid();
 std::vector<int> SignalHandler::s_observed_signals;
 
@@ -148,6 +150,14 @@ void reset_child_signals() {
     sigprocmask(SIG_UNBLOCK, &set, nullptr);
 }
 
+bool SignalHandler::has_pending_signals() {
+    if (s_signal_pending.load(std::memory_order_acquire)) {
+        return true;
+    }
+    return s_sigint_received != 0 || s_sigchld_received != 0 || s_sighup_received != 0 ||
+           s_sigterm_received != 0;
+}
+
 SignalHandler::~SignalHandler() {
     restore_original_handlers();
     s_instance.store(nullptr);
@@ -230,6 +240,7 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
     switch (signum) {
         case SIGINT: {
             s_sigint_received = 1;
+            s_signal_pending.store(true, std::memory_order_release);
 
             if (!is_observed) {
                 if (!config::interactive_mode) {
@@ -242,12 +253,14 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
 
         case SIGCHLD: {
             s_sigchld_received = 1;
+            s_signal_pending.store(true, std::memory_order_release);
             break;
         }
 
         case SIGHUP: {
             s_sighup_received = 1;
             g_exit_flag = true;
+            s_signal_pending.store(true, std::memory_order_release);
 
             if (!is_observed) {
                 _exit(129);
@@ -258,6 +271,7 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
         case SIGTERM: {
             s_sigterm_received = 1;
             g_exit_flag = true;
+            s_signal_pending.store(true, std::memory_order_release);
             _exit(128 + SIGTERM);
         }
 
@@ -328,6 +342,12 @@ void SignalHandler::restore_original_handlers() {
 }
 
 SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) {
+    bool should_process = s_signal_pending.exchange(false, std::memory_order_acq_rel);
+    if (!should_process && s_sigint_received == 0 && s_sigchld_received == 0 &&
+        s_sighup_received == 0 && s_sigterm_received == 0) {
+        return {};
+    }
+
     SignalProcessingResult result{};
 
     if (s_sigint_received != 0) {

@@ -12,6 +12,7 @@
 #include "parser.h"
 #include "shell.h"
 #include "shell_script_interpreter_utils.h"
+#include "signal_handler.h"
 
 using shell_script_interpreter::detail::strip_inline_comment;
 using shell_script_interpreter::detail::trim;
@@ -79,6 +80,10 @@ int signal_exit_code(const SignalProcessingResult& result) {
 
 bool check_loop_interrupt(int& rc) {
     if (!g_shell) {
+        return false;
+    }
+
+    if (!SignalHandler::has_pending_signals()) {
         return false;
     }
 

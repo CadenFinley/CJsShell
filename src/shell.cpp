@@ -209,6 +209,10 @@ SignalProcessingResult Shell::process_pending_signals() {
         return {};
     }
 
+    if (!SignalHandler::has_pending_signals()) {
+        return {};
+    }
+
     Exec* exec_ptr = shell_exec ? shell_exec.get() : nullptr;
     return signal_handler->process_pending_signals(exec_ptr);
 }

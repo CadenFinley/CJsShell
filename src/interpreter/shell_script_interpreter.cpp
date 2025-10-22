@@ -37,6 +37,7 @@
 #include "readonly_command.h"
 #include "shell.h"
 #include "shell_script_interpreter_utils.h"
+#include "signal_handler.h"
 #include "theme.h"
 
 using shell_script_interpreter::detail::contains_token;
@@ -375,7 +376,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines)
     };
 
     auto check_pending_signals = [&]() -> std::optional<int> {
-        if (!g_shell) {
+        if (!g_shell || !SignalHandler::has_pending_signals()) {
             return std::nullopt;
         }
 
