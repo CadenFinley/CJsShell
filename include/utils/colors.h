@@ -1,7 +1,5 @@
 #pragma once
-#include <algorithm>
 #include <array>
-#include <cmath>
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -30,22 +28,6 @@ struct RGB {
     constexpr RGB() noexcept : r(0), g(0), b(0) {
     }
     constexpr RGB(uint8_t r, uint8_t g, uint8_t b) noexcept : r(r), g(g), b(b) {
-    }
-
-    constexpr RGB operator+(const RGB& other) const noexcept {
-        return RGB(std::min(255, int(r) + int(other.r)), std::min(255, int(g) + int(other.g)),
-                   std::min(255, int(b) + int(other.b)));
-    }
-
-    constexpr RGB operator-(const RGB& other) const noexcept {
-        return RGB(std::max(0, int(r) - int(other.r)), std::max(0, int(g) - int(other.g)),
-                   std::max(0, int(b) - int(other.b)));
-    }
-
-    constexpr RGB operator*(float factor) const noexcept {
-        return RGB(std::clamp(int(std::round(r * factor)), 0, 255),
-                   std::clamp(int(std::round(g * factor)), 0, 255),
-                   std::clamp(int(std::round(b * factor)), 0, 255));
     }
 };
 

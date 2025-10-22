@@ -11,7 +11,6 @@ class VariableManager {
     using ExportedLocalsStack = std::vector<std::vector<std::string>>;
 
     VariableManager() = default;
-    ~VariableManager() = default;
 
     VariableManager(const VariableManager&) = delete;
     VariableManager& operator=(const VariableManager&) = delete;
