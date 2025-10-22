@@ -38,6 +38,7 @@
 // todo: dir preview with doing path navigation or input
 // todo: isocline todos
 // todo: start optimizing for speed not just memory usage
+// todo: latge todo of converting to AST based execution model with parser tree
 
 bool g_exit_flag = false;
 std::string g_cached_version;
