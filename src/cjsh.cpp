@@ -35,10 +35,8 @@
 #include "usage.h"
 #include "version_command.h"
 
-// todo: dir preview with doing path navigation or input
 // todo: should any classes be singletons?
 // todo: isocline todos
-// todo: start optimizing for speed not just memory usage
 // todo: latge todo of converting to AST based execution model with parser tree: see mrsh
 
 bool g_exit_flag = false;
@@ -212,7 +210,11 @@ void start_interactive_process() {
 
     if (cjsh_filesystem::is_first_boot()) {
         std::cout << '\n';
+        std::cout << " Be sure to give us a star on GitHub!" << '\n';
         std::cout << " Type 'help' to see available commands and options." << '\n';
+        std::cout << " For additional help and documentation, please visit: "
+                  << " https://cadenfinley.github.io/CJsShell/" << '\n';
+        std::cout << '\n';
         if (!cjsh_filesystem::file_exists(cjsh_filesystem::g_cjsh_source_path)) {
             std::cout << " To create .cjshrc run 'cjshopt generate-rc" << '\n';
         }
