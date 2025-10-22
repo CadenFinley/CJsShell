@@ -193,8 +193,16 @@ again:
         }
     }
     if (!env->complete_nopreview && selected >= 0 && selected <= count_displayed) {
+        // Save the completion menu before edit_complete clears it via edit_clear_history_preview
+        const char* saved_menu = sbuf_strdup(eb->extra);
         edit_complete(env, eb, selected);
         editor_undo_restore(eb, false);
+        // Restore the completion menu after undo
+        if (saved_menu != NULL) {
+            sbuf_replace(eb->extra, saved_menu);
+            mem_free(eb->mem, saved_menu);
+        }
+        edit_refresh(env, eb);
     } else {
         edit_refresh(env, eb);
     }
