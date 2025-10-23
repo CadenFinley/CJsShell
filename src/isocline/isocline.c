@@ -37,4 +37,5 @@
 #include "tty.c"
 #include "tty_esc.c"
 #include "undo.c"
+#include "unicode.c"
 #endif
