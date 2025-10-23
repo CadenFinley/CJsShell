@@ -7,6 +7,47 @@
 
 namespace highlight_helpers {
 
+static size_t parse_history_modifiers(const char* input, size_t start, size_t len) {
+    size_t pos = start;
+
+    if (pos < len && input[pos] == ':') {
+        pos++;
+        while (pos < len && (std::isdigit(input[pos]) || input[pos] == '-' || input[pos] == '^' ||
+                             input[pos] == '$' || input[pos] == '*')) {
+            pos++;
+        }
+    }
+
+    if (pos < len && input[pos] == ':') {
+        pos++;
+        if (pos < len) {
+            if (input[pos] == 'h' || input[pos] == 't' || input[pos] == 'r' || input[pos] == 'e' ||
+                input[pos] == 'p' || input[pos] == 'q' || input[pos] == 'x' || input[pos] == 'u' ||
+                input[pos] == 'l') {
+                pos++;
+            } else if (input[pos] == 's' ||
+                       (input[pos] == 'g' && pos + 1 < len && input[pos + 1] == 's')) {
+                if (input[pos] == 'g')
+                    pos++;
+                if (input[pos] == 's')
+                    pos++;
+                if (pos < len && (input[pos] == '/' || input[pos] == ':' || input[pos] == ';')) {
+                    char delim = input[pos];
+                    pos++;
+                    int delim_count = 1;
+                    while (pos < len && delim_count < 3) {
+                        if (input[pos] == delim)
+                            delim_count++;
+                        pos++;
+                    }
+                }
+            }
+        }
+    }
+
+    return pos;
+}
+
 void highlight_variable_assignment(ic_highlight_env_t* henv, const char* input,
                                    size_t absolute_start, const std::string& token) {
     size_t eq_pos = token.find('=');
@@ -331,44 +372,7 @@ void highlight_history_expansions(ic_highlight_env_t* henv, const char* input, s
 
             if (input[end] == '!') {
                 end++;
-
-                if (end < len && input[end] == ':') {
-                    end++;
-
-                    while (end < len &&
-                           (std::isdigit(input[end]) || input[end] == '-' || input[end] == '^' ||
-                            input[end] == '$' || input[end] == '*')) {
-                        end++;
-                    }
-
-                    if (end < len && input[end] == ':') {
-                        end++;
-                        if (end < len) {
-                            if (input[end] == 'h' || input[end] == 't' || input[end] == 'r' ||
-                                input[end] == 'e' || input[end] == 'p' || input[end] == 'q' ||
-                                input[end] == 'x' || input[end] == 'u' || input[end] == 'l') {
-                                end++;
-                            } else if (input[end] == 's' || (input[end] == 'g' && end + 1 < len &&
-                                                             input[end + 1] == 's')) {
-                                if (input[end] == 'g')
-                                    end++;
-                                if (input[end] == 's')
-                                    end++;
-                                if (end < len &&
-                                    (input[end] == '/' || input[end] == ':' || input[end] == ';')) {
-                                    char delim = input[end];
-                                    end++;
-                                    int delim_count = 1;
-                                    while (end < len && delim_count < 3) {
-                                        if (input[end] == delim)
-                                            delim_count++;
-                                        end++;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                end = parse_history_modifiers(input, end, len);
                 ic_highlight(henv, static_cast<long>(start), static_cast<long>(end - start),
                              "cjsh-history-expansion");
                 i = end - 1;
@@ -388,43 +392,7 @@ void highlight_history_expansions(ic_highlight_env_t* henv, const char* input, s
                 while (end < len && std::isdigit(input[end])) {
                     end++;
                 }
-
-                if (end < len && input[end] == ':') {
-                    end++;
-                    while (end < len &&
-                           (std::isdigit(input[end]) || input[end] == '-' || input[end] == '^' ||
-                            input[end] == '$' || input[end] == '*')) {
-                        end++;
-                    }
-
-                    if (end < len && input[end] == ':') {
-                        end++;
-                        if (end < len) {
-                            if (input[end] == 'h' || input[end] == 't' || input[end] == 'r' ||
-                                input[end] == 'e' || input[end] == 'p' || input[end] == 'q' ||
-                                input[end] == 'x' || input[end] == 'u' || input[end] == 'l') {
-                                end++;
-                            } else if (input[end] == 's' || (input[end] == 'g' && end + 1 < len &&
-                                                             input[end + 1] == 's')) {
-                                if (input[end] == 'g')
-                                    end++;
-                                if (input[end] == 's')
-                                    end++;
-                                if (end < len &&
-                                    (input[end] == '/' || input[end] == ':' || input[end] == ';')) {
-                                    char delim = input[end];
-                                    end++;
-                                    int delim_count = 1;
-                                    while (end < len && delim_count < 3) {
-                                        if (input[end] == delim)
-                                            delim_count++;
-                                        end++;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                end = parse_history_modifiers(input, end, len);
                 ic_highlight(henv, static_cast<long>(start), static_cast<long>(end - start),
                              "cjsh-history-expansion");
                 i = end - 1;
@@ -451,43 +419,7 @@ void highlight_history_expansions(ic_highlight_env_t* henv, const char* input, s
                                      input[end] == '-' || input[end] == '.')) {
                     end++;
                 }
-
-                if (end < len && input[end] == ':') {
-                    end++;
-                    while (end < len &&
-                           (std::isdigit(input[end]) || input[end] == '-' || input[end] == '^' ||
-                            input[end] == '$' || input[end] == '*')) {
-                        end++;
-                    }
-
-                    if (end < len && input[end] == ':') {
-                        end++;
-                        if (end < len) {
-                            if (input[end] == 'h' || input[end] == 't' || input[end] == 'r' ||
-                                input[end] == 'e' || input[end] == 'p' || input[end] == 'q' ||
-                                input[end] == 'x' || input[end] == 'u' || input[end] == 'l') {
-                                end++;
-                            } else if (input[end] == 's' || (input[end] == 'g' && end + 1 < len &&
-                                                             input[end + 1] == 's')) {
-                                if (input[end] == 'g')
-                                    end++;
-                                if (input[end] == 's')
-                                    end++;
-                                if (end < len &&
-                                    (input[end] == '/' || input[end] == ':' || input[end] == ';')) {
-                                    char delim = input[end];
-                                    end++;
-                                    int delim_count = 1;
-                                    while (end < len && delim_count < 3) {
-                                        if (input[end] == delim)
-                                            delim_count++;
-                                        end++;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                end = parse_history_modifiers(input, end, len);
                 ic_highlight(henv, static_cast<long>(start), static_cast<long>(end - start),
                              "cjsh-history-expansion");
                 i = end - 1;
@@ -496,34 +428,7 @@ void highlight_history_expansions(ic_highlight_env_t* henv, const char* input, s
 
             if (input[end] == '$') {
                 end++;
-
-                if (end < len && input[end] == ':') {
-                    end++;
-                    if (end < len) {
-                        if (input[end] == 'h' || input[end] == 't' || input[end] == 'r' ||
-                            input[end] == 'e' || input[end] == 'p' || input[end] == 'q' ||
-                            input[end] == 'x' || input[end] == 'u' || input[end] == 'l') {
-                            end++;
-                        } else if (input[end] == 's' ||
-                                   (input[end] == 'g' && end + 1 < len && input[end + 1] == 's')) {
-                            if (input[end] == 'g')
-                                end++;
-                            if (input[end] == 's')
-                                end++;
-                            if (end < len &&
-                                (input[end] == '/' || input[end] == ':' || input[end] == ';')) {
-                                char delim = input[end];
-                                end++;
-                                int delim_count = 1;
-                                while (end < len && delim_count < 3) {
-                                    if (input[end] == delim)
-                                        delim_count++;
-                                    end++;
-                                }
-                            }
-                        }
-                    }
-                }
+                end = parse_history_modifiers(input, end, len);
                 ic_highlight(henv, static_cast<long>(start), static_cast<long>(end - start),
                              "cjsh-history-expansion");
                 i = end - 1;
@@ -532,34 +437,7 @@ void highlight_history_expansions(ic_highlight_env_t* henv, const char* input, s
 
             if (input[end] == '^') {
                 end++;
-
-                if (end < len && input[end] == ':') {
-                    end++;
-                    if (end < len) {
-                        if (input[end] == 'h' || input[end] == 't' || input[end] == 'r' ||
-                            input[end] == 'e' || input[end] == 'p' || input[end] == 'q' ||
-                            input[end] == 'x' || input[end] == 'u' || input[end] == 'l') {
-                            end++;
-                        } else if (input[end] == 's' ||
-                                   (input[end] == 'g' && end + 1 < len && input[end + 1] == 's')) {
-                            if (input[end] == 'g')
-                                end++;
-                            if (input[end] == 's')
-                                end++;
-                            if (end < len &&
-                                (input[end] == '/' || input[end] == ':' || input[end] == ';')) {
-                                char delim = input[end];
-                                end++;
-                                int delim_count = 1;
-                                while (end < len && delim_count < 3) {
-                                    if (input[end] == delim)
-                                        delim_count++;
-                                    end++;
-                                }
-                            }
-                        }
-                    }
-                }
+                end = parse_history_modifiers(input, end, len);
                 ic_highlight(henv, static_cast<long>(start), static_cast<long>(end - start),
                              "cjsh-history-expansion");
                 i = end - 1;
@@ -568,34 +446,7 @@ void highlight_history_expansions(ic_highlight_env_t* henv, const char* input, s
 
             if (input[end] == '*') {
                 end++;
-
-                if (end < len && input[end] == ':') {
-                    end++;
-                    if (end < len) {
-                        if (input[end] == 'h' || input[end] == 't' || input[end] == 'r' ||
-                            input[end] == 'e' || input[end] == 'p' || input[end] == 'q' ||
-                            input[end] == 'x' || input[end] == 'u' || input[end] == 'l') {
-                            end++;
-                        } else if (input[end] == 's' ||
-                                   (input[end] == 'g' && end + 1 < len && input[end + 1] == 's')) {
-                            if (input[end] == 'g')
-                                end++;
-                            if (input[end] == 's')
-                                end++;
-                            if (end < len &&
-                                (input[end] == '/' || input[end] == ':' || input[end] == ';')) {
-                                char delim = input[end];
-                                end++;
-                                int delim_count = 1;
-                                while (end < len && delim_count < 3) {
-                                    if (input[end] == delim)
-                                        delim_count++;
-                                    end++;
-                                }
-                            }
-                        }
-                    }
-                }
+                end = parse_history_modifiers(input, end, len);
                 ic_highlight(henv, static_cast<long>(start), static_cast<long>(end - start),
                              "cjsh-history-expansion");
                 i = end - 1;
