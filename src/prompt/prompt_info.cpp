@@ -817,6 +817,7 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
             result = exec_cache[cache_key].first;
         } else {
             std::string expanded_command = command;
+            if (g_shell && g_shell->get_parser()) {
                 g_shell->get_parser()->expand_env_vars(expanded_command);
             }
 
