@@ -25,7 +25,7 @@ This test can be run from the root of the repository, and is recommended to run 
 - **isocline**
   https://github.com/daanx/isocline (MIT License)
 
-> **ALERT** This library has been HEAVILY modified and is far different from its original state.
+> **ALERT** This library has been HEAVILY modified and is far different from its original state. To see the actual isocline implementation that cjsh uses see: https://github.com/CadenFinley/isocline
 
 # License
 
