@@ -28,6 +28,7 @@
 #include <memory>
 #include <system_error>
 
+#include "builtin_help.h"
 #include "error_out.h"
 
 namespace {
@@ -69,6 +70,18 @@ char* logical_getcwd() {
 }  // namespace
 
 int pwd_command(const std::vector<std::string>& args) {
+    if (builtin_handle_help(
+            args,
+            {"Usage: pwd [OPTION]...", "Print the full filename of the current working directory.",
+             "", "  -L, --logical   use PWD from environment, even if it contains symlinks",
+             "  -P, --physical  avoid all symlinks (default)", "",
+             "If no option is specified, -P is assumed.", "",
+             "NOTE: your shell may have its own version of pwd, which usually supersedes",
+             "the version described here. Please refer to your shell's documentation",
+             "for details about the options it supports."})) {
+        return 0;
+    }
+
     bool logical = false;  // Default to physical (-P) for standalone pwd
 
     // Check if POSIXLY_CORRECT is set (would default to -L)
@@ -83,20 +96,6 @@ int pwd_command(const std::vector<std::string>& args) {
             logical = true;
         } else if (arg == "-P" || arg == "--physical") {
             logical = false;
-        } else if (arg == "--help") {
-            std::cout << "Usage: pwd [OPTION]...\n";
-            std::cout << "Print the full filename of the current working directory.\n\n";
-            std::cout
-                << "  -L, --logical   use PWD from environment, even if it contains symlinks\n";
-            std::cout << "  -P, --physical  avoid all symlinks (default)\n";
-            std::cout << "      --help      display this help and exit\n\n";
-            std::cout << "If no option is specified, -P is assumed.\n\n";
-            std::cout
-                << "NOTE: your shell may have its own version of pwd, which usually supersedes\n";
-            std::cout
-                << "the version described here.  Please refer to your shell's documentation\n";
-            std::cout << "for details about the options it supports.\n";
-            return 0;
         } else if (arg == "--version") {
             std::cout << "pwd (CJsShell coreutils)\n";
             return 0;

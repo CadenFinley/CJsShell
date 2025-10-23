@@ -11,10 +11,27 @@
 #include "shell.h"
 
 int set_command(const std::vector<std::string>& args, Shell* shell) {
-    if (builtin_handle_help(args, {"Usage: set [--] [ARG ...]",
-                                   "Configure shell options or reset positional parameters.",
-                                   "Use -e/+e or -o/+o mode to toggle supported options.",
-                                   "Use -- to replace positional parameters."})) {
+    if (builtin_handle_help(args, {"Usage: set [-+eCunxvfna] [-o option] [--] [ARG ...]",
+                                   "Set or unset shell options and positional parameters.",
+                                   "",
+                                   "Options:",
+                                   "  -e              Exit on error (errexit)",
+                                   "  -C              Prevent file overwriting (noclobber)",
+                                   "  -u              Treat unset variables as error (nounset)",
+                                   "  -x              Print commands before execution (xtrace)",
+                                   "  -v              Print input lines as they are read (verbose)",
+                                   "  -n              Read but don't execute commands (noexec)",
+                                   "  -f              Disable pathname expansion (noglob)",
+                                   "  -a              Auto-export modified variables (allexport)",
+                                   "  -o option       Set option by name",
+                                   "  +<option>       Unset the specified option",
+                                   "  --              End options; remaining args set $1, $2, etc.",
+                                   "",
+                                   "With no arguments, print all environment variables.",
+                                   "Use 'set -o' to list current option settings.",
+                                   "",
+                                   "Special options:",
+                                   "  --errexit-severity=LEVEL  Set errexit sensitivity level"})) {
         return 0;
     }
     if (shell == nullptr) {

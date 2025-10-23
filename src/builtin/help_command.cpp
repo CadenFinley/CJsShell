@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "usage.h"
+#include "version_command.h"
 
 int help_command() {
     const std::string separator(80, '-');
@@ -15,9 +16,11 @@ int help_command() {
     };
 
     std::cout << "\nCJSH QUICK REFERENCE\n" << separator << "\n";
+    (void)version_command({});
 
     heading("Project source");
-    std::cout << "  Git repository: https://github.com/CadenFinley/CJsShell\n";
+    std::cout << "  Git repository:  https://github.com/CadenFinley/CJsShell\n";
+    std::cout << "  Documentation:   https://cadenfinley.github.io/CJsShell/\n";
 
     heading("Built-in commands");
     struct BuiltinInfo {
@@ -26,57 +29,94 @@ int help_command() {
     };
 
     const std::vector<BuiltinInfo> builtins = {
-        {"alias", "Create or list command aliases"},
-        {"unalias", "Remove command aliases"},
-        {"builtin", "Run a builtin directly, bypassing functions and PATH"},
-        {"break", "Exit the current loop"},
-        {"continue", "Skip to the next loop iteration"},
-        {"return", "Exit the current function with an optional status"},
+        // Navigation and file system
         {"cd", "Change the current directory (smart cd by default)"},
         {"pwd", "Print the current working directory"},
+
+        // Output and formatting
         {"echo", "Print arguments separated by spaces"},
         {"printf", "Format and print data using printf-style specifiers"},
+
+        // Shell control
         {"help", "Display this overview"},
-        {"exit/quit", "Leave the shell with an optional exit status"},
+        {"version", "Show cjsh version and build information"},
+        {"exit / quit", "Leave the shell with an optional exit status"},
+
+        // Script execution
         {"eval", "Evaluate a string as shell code"},
         {"exec", "Replace the shell process with another program"},
         {"source / .", "Execute commands from a file in the current shell"},
+        {"command", "Execute command bypassing functions and aliases"},
+        {"builtin", "Run a builtin directly, bypassing functions and PATH"},
+
+        // Variables and environment
         {"set", "Adjust shell options or positional parameters"},
         {"shift", "Rotate positional parameters to the left"},
         {"export", "Set or display environment variables"},
         {"unset", "Remove environment variables"},
         {"local", "Declare local variables inside functions"},
         {"readonly", "Mark variables as read-only"},
-        {"getopts", "Parse positional parameters as short options"},
+
+        // Input/output
         {"read", "Read user input into variables"},
-        {"hash", "Cache command lookups or display the cache"},
-        {"history", "Display command history"},
-        {"fc", "Fix command - edit and re-execute commands from history"},
+        {"getopts", "Parse positional parameters as short options"},
+
+        // Aliases and abbreviations
+        {"alias", "Create or list command aliases"},
+        {"unalias", "Remove command aliases"},
+        {"abbr", "Create or list command abbreviations"},
+        {"unabbr", "Remove command abbreviations"},
+
+        // Command lookup and caching
         {"type", "Explain how a command name will be resolved"},
         {"which", "Locate executables in PATH"},
-        {"umask", "Show or set the file creation mask"},
-        {"trap", "Set signal handlers or list existing traps"},
-        {"times", "Show CPU usage for the shell and its children"},
+        {"hash", "Cache command lookups or display the cache"},
+
+        // History
+        {"history", "Display command history"},
+        {"fc", "Fix command - edit and re-execute commands from history"},
+
+        // Job control
         {"jobs", "List background jobs"},
         {"fg", "Bring a job to the foreground"},
         {"bg", "Resume a job in the background"},
         {"wait", "Wait for jobs or processes to finish"},
         {"kill", "Send signals to jobs or processes"},
-        {"syntax", "Check scripts or command strings for issues"},
-        {"test, [", "Evaluate POSIX test expressions"},
+
+        // System
+        {"umask", "Show or set the file creation mask"},
+        {"ulimit", "Set or show resource limits"},
+        {"trap", "Set signal handlers or list existing traps"},
+        {"times", "Show CPU usage for the shell and its children"},
+
+        // Flow control
+        {"break", "Exit the current loop"},
+        {"continue", "Skip to the next loop iteration"},
+        {"return", "Exit the current function with an optional status"},
+
+        // Testing and conditionals
+        {"test / [", "Evaluate POSIX test expressions"},
         {"[[", "Evaluate extended test expressions"},
-        {":", "No-op command that always succeeds"},
         {"if", "Run conditional blocks in scripts"},
+        {":", "No-op command that always succeeds"},
+        {"true", "Return success (exit code 0)"},
+        {"false", "Return failure (exit code 1)"},
+
+        // Shell customization
         {"theme", "Manage themes and previews"},
         {"cjshopt", "Generate config files and adjust cjsh options"},
+        {"hook", "Manage shell hooks (precmd, preexec, chpwd)"},
+
+        // Validation and syntax
         {"validate", "Toggle command validation or verify names"},
-        {"version", "Show cjsh version information"}};
+        {"syntax", "Check scripts or command strings for issues"}};
 
     std::cout << std::left;
-    constexpr int column_width = 18;
+    constexpr int column_width = 20;
     for (const auto& item : builtins) {
         std::cout << "  " << std::setw(column_width) << item.name << item.description << "\n";
     }
+    std::cout << "\n  Note: Use '<command> --help' to see detailed usage for most commands.\n";
 
     heading("Shell scripting features");
     std::cout << "  - POSIX-style functions with local variables and return codes.\n";
@@ -104,7 +144,7 @@ int help_command() {
     std::cout << "  ~/.cache/cjsh/.first_boot  Marker used to suppress the first-run banner.\n";
 
     heading("cjsh invocation and startup flags");
-    print_usage();
+    print_usage(false, false, false);
 
     heading("Isocline line editing");
     std::cout << "  - cjsh embeds the isocline line editor for multiline input, highlighting,\n"
