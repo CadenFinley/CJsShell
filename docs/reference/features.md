@@ -64,6 +64,7 @@ Advanced text editing capabilities including:
 All editing features can be configured via the `cjshopt` command:
 ```bash
 cjshopt multiline on|off           # Multiline input
+cjshopt multiline-start-lines 2    # Prefill multiline prompts with two lines
 cjshopt line-numbers relative      # Relative line numbering
 cjshopt completion-preview on      # Show completion preview
 cjshopt visible-whitespace on      # Show visible whitespace markers

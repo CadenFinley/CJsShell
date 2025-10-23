@@ -22,6 +22,8 @@ void print_cjshopt_usage() {
                  "multiline input (default: enabled)\n";
     std::cout << "  current-line-number-highlight <on|off|status>    Configure current line number "
                  "highlighting (default: enabled)\n";
+    std::cout << "  multiline-start-lines <count|status> Configure default multiline prompt "
+                 "height (default: 1)\n";
     std::cout << "  hint-delay <milliseconds>        Set hint display delay in milliseconds\n";
     std::cout
         << "  completion-preview <on|off|status> Configure completion preview (default: enabled)\n";
@@ -77,6 +79,8 @@ int cjshopt_command(const std::vector<std::string>& args) {
                  "multiline input (default: enabled)",
                  "  current-line-number-highlight <on|off|status>    Configure current line "
                  "number highlighting (default: enabled)",
+                 "  multiline-start-lines <count|status> Configure default multiline prompt "
+                 "height (default: 1)",
                  "  hint-delay <milliseconds>        Set hint display delay in milliseconds",
                  "  completion-preview <on|off|status> Configure completion preview (default: "
                  "enabled)",
@@ -121,6 +125,10 @@ int cjshopt_command(const std::vector<std::string>& args) {
     }
     if (subcommand == "current-line-number-highlight") {
         return current_line_number_highlight_command(
+            std::vector<std::string>(args.begin() + 1, args.end()));
+    }
+    if (subcommand == "multiline-start-lines") {
+        return multiline_start_lines_command(
             std::vector<std::string>(args.begin() + 1, args.end()));
     }
     if (subcommand == "hint-delay") {
@@ -174,7 +182,8 @@ int cjshopt_command(const std::vector<std::string>& args) {
          "cjshopt",
          "unknown subcommand '" + subcommand + "'",
          {"Available subcommands: style_def, login-startup-arg, completion-case, completion-spell, "
-          "line-numbers, current-line-number-highlight, hint-delay, completion-preview, "
+          "line-numbers, current-line-number-highlight, multiline-start-lines, hint-delay, "
+          "completion-preview, "
           "visible-whitespace, hint, multiline-indent, multiline, inline-help, auto-tab, keybind, "
           "generate-profile, "
           "generate-rc, generate-logout, set-max-bookmarks, set-history-max, bookmark-blacklist"}});

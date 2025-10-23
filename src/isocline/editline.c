@@ -1926,6 +1926,32 @@ static void edit_insert_char(ic_env_t* env, editor_t* eb, char c) {
 // Edit line: main edit loop
 //-------------------------------------------------------------
 
+static bool apply_default_multiline_start_lines(ic_env_t* env, editor_t* eb) {
+    if (env == NULL || eb == NULL || eb->input == NULL || env->singleline_only)
+        return false;
+
+    size_t desired = env->multiline_start_line_count;
+    if (desired <= 1)
+        return false;
+
+    if (sbuf_len(eb->input) > 0)
+        return false;
+
+    const size_t max_lines = 256;
+    if (desired > max_lines) {
+        desired = max_lines;
+    }
+
+    bool appended = false;
+    for (size_t i = 1; i < desired; ++i) {
+        if (sbuf_append_char(eb->input, '\n') < 0)
+            break;
+        appended = true;
+    }
+
+    return appended;
+}
+
 static void insert_initial_input(const char* initial_input, editor_t* eb) {
     if (initial_input != NULL) {
         sbuf_replace(eb->input, initial_input);
@@ -1968,8 +1994,12 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
     env->current_editor = &eb;
 
     // Insert initial input if present
+    bool seeded_multiline_lines = false;
+
     if (env->initial_input != NULL) {
         insert_initial_input(env->initial_input, &eb);
+    } else {
+        seeded_multiline_lines = apply_default_multiline_start_lines(env, &eb);
     }
 
     if (eb.input == NULL || eb.extra == NULL || eb.hint == NULL || eb.hint_help == NULL ||
@@ -1995,7 +2025,7 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
     // Force refresh if initial input was provided to display it immediately
     if (env->initial_input != NULL) {
         edit_refresh(env, &eb);
-    } else if (inline_right_text != NULL) {
+    } else if (inline_right_text != NULL || seeded_multiline_lines) {
         edit_refresh(env, &eb);
     }
 

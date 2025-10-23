@@ -489,6 +489,17 @@ bool ic_enable_completion_preview(bool enable);
 /// Returns the previous setting.
 bool ic_enable_multiline_indent(bool enable);
 
+/// Configure how many lines the editor should preallocate when multiline editing is enabled.
+/// The default is 1, which means the cursor starts on the first prompt line. Larger values
+/// insert blank newline-separated rows before the cursor so that editing begins on the last
+/// preallocated line (for example, 2 renders the "2|" line immediately). Values below 1 are
+/// clamped to 1.
+/// Returns the previous configured line count.
+size_t ic_set_multiline_start_line_count(size_t line_count);
+
+/// Get the current number of preallocated lines for multiline editing.
+size_t ic_get_multiline_start_line_count(void);
+
 /// Enable or disable line numbers in multiline input mode. (enabled by default)
 /// When enabled, each line will be prefixed with a line number (e.g., "2| ", "3| ", etc.).
 /// The first line continues to use the regular prompt.

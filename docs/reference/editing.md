@@ -39,6 +39,9 @@ cjshopt multiline on|off|status
 
 # Enable/disable automatic indentation (enabled by default)
 cjshopt multiline-indent on|off|status
+
+# Configure how many prompt lines are shown before typing (default: 1)
+cjshopt multiline-start-lines <count|status>
 ```
 
 **Multiline Detection:**

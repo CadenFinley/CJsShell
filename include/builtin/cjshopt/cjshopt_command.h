@@ -20,6 +20,7 @@ int visible_whitespace_command(const std::vector<std::string>& args);
 int hint_command(const std::vector<std::string>& args);
 int multiline_indent_command(const std::vector<std::string>& args);
 int multiline_command(const std::vector<std::string>& args);
+int multiline_start_lines_command(const std::vector<std::string>& args);
 int inline_help_command(const std::vector<std::string>& args);
 int auto_tab_command(const std::vector<std::string>& args);
 int style_def_command(const std::vector<std::string>& args);

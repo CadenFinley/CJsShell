@@ -361,6 +361,82 @@ int hint_delay_command(const std::vector<std::string>& args) {
     }
 }
 
+int multiline_start_lines_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: multiline-start-lines <count>",
+        "Examples:", "  multiline-start-lines 1    Start editing on the first prompt line",
+        "  multiline-start-lines 2    Start with two prompt lines (cursor on line 2)",
+        "  multiline-start-lines status   Show the current setting"};
+
+    if (args.size() == 1) {
+        print_error({ErrorType::INVALID_ARGUMENT, "multiline-start-lines", "Missing line count",
+                     usage_lines});
+        return 1;
+    }
+
+    if (args.size() == 2 && (args[1] == "--help" || args[1] == "-h")) {
+        if (!g_startup_active) {
+            for (const auto& line : usage_lines) {
+                std::cout << line << '\n';
+            }
+        }
+        return 0;
+    }
+
+    if (args.size() != 2) {
+        print_error({ErrorType::INVALID_ARGUMENT, "multiline-start-lines",
+                     "Too many arguments provided", usage_lines});
+        return 1;
+    }
+
+    std::string option = args[1];
+    std::string normalized = option;
+    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+    if (normalized == "status" || normalized == "--status") {
+        if (!g_startup_active) {
+            const size_t current = ic_get_multiline_start_line_count();
+            std::cout << "Multiline prompts currently start with " << current << " line"
+                      << (current == 1 ? "" : "s") << ".\n";
+        }
+        return 0;
+    }
+
+    size_t requested = 0;
+    try {
+        unsigned long parsed = std::stoul(option);
+        requested = static_cast<size_t>(parsed);
+    } catch (...) {
+        print_error({ErrorType::INVALID_ARGUMENT, "multiline-start-lines",
+                     "Invalid line count '" + option + "' (expected a positive integer)",
+                     usage_lines});
+        return 1;
+    }
+
+    if (requested == 0) {
+        print_error({ErrorType::INVALID_ARGUMENT, "multiline-start-lines",
+                     "Line count must be at least 1", usage_lines});
+        return 1;
+    }
+
+    ic_set_multiline_start_line_count(requested);
+    const size_t applied = ic_get_multiline_start_line_count();
+
+    if (!g_startup_active) {
+        if (applied != requested) {
+            std::cout << "Line count exceeds the supported maximum; using " << applied
+                      << " instead.\n";
+        }
+        std::cout << "Multiline prompts will now start with " << applied << " line"
+                  << (applied == 1 ? "" : "s") << ".\n";
+        std::cout << "Add `cjshopt multiline-start-lines " << applied
+                  << "` to your ~/.cjshrc to persist this change.\n";
+    }
+
+    return 0;
+}
+
 int completion_preview_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {
         "Usage: completion-preview <on|off|status>",
