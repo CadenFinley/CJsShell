@@ -13,7 +13,7 @@ brew install cjsh
    
 # Testing and POSIX Compliance
 
-CJ's Shell includes a comprehensive test suite with over 1000 POSIX compliance tests to ensure reliability and standards compliance.
+CJ's Shell includes a comprehensive test suite with over 1500 POSIX compliance tests to ensure reliability and standards compliance.
 This test can be run from the root of the repository, and is recommended to run before setting cjsh as your default login shell.
 
 ```bash
