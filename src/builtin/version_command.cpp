@@ -8,8 +8,14 @@
 #include "cjsh.h"
 
 int version_command(const std::vector<std::string>& args) {
-    if (builtin_handle_help(args,
-                            {"Usage: version", "Display cjsh version and build information."})) {
+    if (builtin_handle_help(
+            args, {"Usage: version", "Display cjsh version and build information.", "",
+                   "Output format: cjsh v<VERSION> [<TAGS>] (git <HASH>) (<ARCH>-<PLATFORM>)", "",
+                   "  VERSION  - The semantic version number (e.g., 1.0.0)",
+                   "  TAGS     - Build configuration flags (e.g., (debug) (pre-release))",
+                   "  HASH     - Git commit hash used for the build",
+                   "  ARCH     - Target architecture (e.g., x86_64, arm64)",
+                   "  PLATFORM - Target platform (e.g., darwin, linux, windows)"})) {
         return 0;
     }
 
