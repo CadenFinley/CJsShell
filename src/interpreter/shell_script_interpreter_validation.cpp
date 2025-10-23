@@ -156,7 +156,8 @@ bool find_matching_command_substitution_end_for_validation(const std::string& te
     return false;
 }
 
-size_t find_matching_backtick_for_validation(const std::string& text, size_t start_index) {
+template <typename Predicate>
+size_t find_char_skipping_escapes(const std::string& text, size_t start_index, Predicate pred) {
     bool escaped = false;
 
     for (size_t i = start_index; i < text.size(); ++i) {
@@ -172,12 +173,16 @@ size_t find_matching_backtick_for_validation(const std::string& text, size_t sta
             continue;
         }
 
-        if (ch == '`') {
+        if (pred(ch)) {
             return i;
         }
     }
 
     return std::string::npos;
+}
+
+size_t find_matching_backtick_for_validation(const std::string& text, size_t start_index) {
+    return find_char_skipping_escapes(text, start_index, [](char ch) { return ch == '`'; });
 }
 
 std::string sanitize_command_substitutions_for_validation(const std::string& input) {
@@ -464,6 +469,35 @@ std::vector<std::string> tokenize_whitespace(const std::string& input) {
     return tokens;
 }
 
+bool check_pipe_missing_command(const std::string& line, size_t pipe_pos) {
+    size_t after_pipe = pipe_pos + 1;
+    while (after_pipe < line.length() && std::isspace(line[after_pipe])) {
+        after_pipe++;
+    }
+    return after_pipe >= line.length() || line[after_pipe] == '|' || line[after_pipe] == '&';
+}
+
+SyntaxError create_pipe_error(size_t display_line, size_t start_pos, size_t end_pos,
+                              const std::string& line, const std::string& message,
+                              const std::string& suggestion) {
+    return SyntaxError({display_line, start_pos, end_pos, 0}, ErrorSeverity::ERROR,
+                       ErrorCategory::REDIRECTION, "PIPE001", message, line, suggestion);
+}
+
+std::pair<bool, bool> check_for_loop_keywords(const std::vector<std::string>& tokens,
+                                              const std::string& trimmed_line) {
+    bool has_do = std::find(tokens.begin(), tokens.end(), "do") != tokens.end();
+    bool has_semicolon = trimmed_line.find(';') != std::string::npos;
+    return {has_do, has_semicolon};
+}
+
+std::pair<std::vector<std::string>, std::string> tokenize_and_get_first(
+    const std::string& trimmed_line) {
+    auto tokens = tokenize_whitespace(trimmed_line);
+    std::string first_token = tokens.empty() ? "" : tokens[0];
+    return {tokens, first_token};
+}
+
 void push_function_context(
     const std::string& trimmed_line, size_t display_line,
     std::vector<std::tuple<std::string, std::string, size_t>>& control_stack) {
@@ -553,8 +587,7 @@ ForLoopCheckResult analyze_for_loop_syntax(const std::vector<std::string>& token
         return result;
     }
 
-    bool has_do = std::find(tokens.begin(), tokens.end(), "do") != tokens.end();
-    bool has_semicolon = trimmed_line.find(';') != std::string::npos;
+    auto [has_do, has_semicolon] = check_for_loop_keywords(tokens, trimmed_line);
     if (!has_do && !has_semicolon) {
         result.missing_do_keyword = true;
     }
@@ -573,8 +606,7 @@ WhileUntilCheckResult analyze_while_until_syntax(const std::string& first_token,
                                                  const std::vector<std::string>& tokens) {
     WhileUntilCheckResult result;
 
-    bool has_do = std::find(tokens.begin(), tokens.end(), "do") != tokens.end();
-    bool has_semicolon = trimmed_line.find(';') != std::string::npos;
+    auto [has_do, has_semicolon] = check_for_loop_keywords(tokens, trimmed_line);
     if (!has_do && !has_semicolon) {
         result.missing_do_keyword = true;
     }
@@ -1338,18 +1370,10 @@ ShellScriptInterpreter::validate_redirection_syntax(const std::vector<std::strin
                             next_index = i + 1;
                         } else {
                             size_t pipe_pos = i;
-                            size_t after_pipe = i + 1;
-                            while (after_pipe < line.length() && std::isspace(line[after_pipe])) {
-                                after_pipe++;
-                            }
-
-                            if (after_pipe >= line.length() || line[after_pipe] == '|' ||
-                                line[after_pipe] == '&') {
-                                line_errors.push_back(
-                                    SyntaxError({display_line, pipe_pos, pipe_pos + 1, 0},
-                                                ErrorSeverity::ERROR, ErrorCategory::REDIRECTION,
-                                                "RED004", "Pipe missing command after '|'", line,
-                                                "Add command after pipe"));
+                            if (check_pipe_missing_command(line, pipe_pos)) {
+                                line_errors.push_back(create_pipe_error(
+                                    display_line, pipe_pos, pipe_pos + 1, line,
+                                    "Pipe missing command after '|'", "Add command after pipe"));
                             }
                         }
                     }
@@ -1864,18 +1888,10 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                             }
                             next_index = i + 1;
                         } else if (line[i + 1] != '|') {
-                            size_t after_pipe = i + 1;
-                            while (after_pipe < line.length() && std::isspace(line[after_pipe])) {
-                                after_pipe++;
-                            }
-
-                            if (after_pipe >= line.length() || line[after_pipe] == '|' ||
-                                line[after_pipe] == '&') {
-                                line_errors.push_back(
-                                    SyntaxError({display_line, i, i + 1, 0}, ErrorSeverity::ERROR,
-                                                ErrorCategory::REDIRECTION, "PIPE001",
-                                                "Pipe missing command after '|'", line,
-                                                "Add command after pipe"));
+                            if (check_pipe_missing_command(line, i)) {
+                                line_errors.push_back(create_pipe_error(
+                                    display_line, i, i + 1, line, "Pipe missing command after '|'",
+                                    "Add command after pipe"));
                             }
                         }
                     }
@@ -1929,11 +1945,9 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
            size_t) -> std::vector<SyntaxError> {
             std::vector<SyntaxError> line_errors;
 
-            auto tokens = tokenize_whitespace(trimmed_line);
+            auto [tokens, first_token] = tokenize_and_get_first(trimmed_line);
 
-            if (!tokens.empty()) {
-                const std::string& first_token = tokens[0];
-
+            if (!first_token.empty()) {
                 if (first_token == "for") {
                     auto loop_check = analyze_for_loop_syntax(tokens, trimmed_line);
                     if (loop_check.incomplete) {
@@ -1989,11 +2003,9 @@ ShellScriptInterpreter::validate_conditional_syntax(const std::vector<std::strin
            size_t) -> std::vector<SyntaxError> {
             std::vector<SyntaxError> line_errors;
 
-            auto tokens = tokenize_whitespace(trimmed_line);
+            auto [tokens, first_token] = tokenize_and_get_first(trimmed_line);
 
-            if (!tokens.empty()) {
-                const std::string& first_token = tokens[0];
-
+            if (!first_token.empty()) {
                 if (first_token == "if") {
                     auto if_check = analyze_if_syntax(tokens, trimmed_line);
                     if (if_check.missing_then_keyword) {
