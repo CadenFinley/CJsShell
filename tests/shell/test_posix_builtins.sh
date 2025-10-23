@@ -320,10 +320,7 @@ else
 fi
 
 log_test "ulimit builtin"
-if [ "$OS_NAME" = "Linux" ]; then
-    skip "Skipping ulimit on Linux due to environment variability"
-else
-    result=$("$SHELL_TO_TEST" -c "ulimit -n" 2>/dev/null)
+result=$("$SHELL_TO_TEST" -c "ulimit -n" 2>/dev/null)
     if [ -n "$result" ] && ([ "$result" -gt 0 ] 2>/dev/null || [ "$result" = "unlimited" ]); then
         pass
     else
@@ -334,7 +331,6 @@ else
             fail "ulimit builtin not implemented"
         fi
     fi
-fi
 
 log_test "umask builtin"
 result=$("$SHELL_TO_TEST" -c "umask" 2>/dev/null)
