@@ -51,6 +51,7 @@
 #include "trap_command.h"
 #include "true_command.h"
 #include "type_command.h"
+#include "ulimit_command.h"
 #include "umask_command.h"
 #include "validate_command.h"
 #include "version_command.h"
@@ -210,6 +211,7 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"read",
          [this](const std::vector<std::string>& args) { return ::read_command(args, shell); }},
         {"umask", [](const std::vector<std::string>& args) { return ::umask_command(args); }},
+        {"ulimit", [](const std::vector<std::string>& args) { return ::ulimit_command(args); }},
         {"getopts",
          [this](const std::vector<std::string>& args) { return ::getopts_command(args, shell); }},
         {"times",
