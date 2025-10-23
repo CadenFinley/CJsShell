@@ -4,6 +4,7 @@
 #include <string>
 
 #include "token_classifier.h"
+#include "utils/quote_state.h"
 
 namespace highlight_helpers {
 
@@ -46,6 +47,37 @@ static size_t parse_history_modifiers(const char* input, size_t start, size_t le
     }
 
     return pos;
+}
+
+static size_t find_matching_parenthesis(const char* input, size_t search_start, size_t end,
+                                        int depth) {
+    bool inner_single = false;
+    bool inner_double = false;
+    bool inner_escaped = false;
+
+    for (size_t pos = search_start; pos < end; ++pos) {
+        char inner = input[pos];
+        if (inner_escaped) {
+            inner_escaped = false;
+        } else if (inner == '\\' && !inner_single) {
+            inner_escaped = true;
+        } else if (inner == '\'' && !inner_double) {
+            inner_single = !inner_single;
+        } else if (inner == '"' && !inner_single) {
+            inner_double = !inner_double;
+        } else if (!inner_single) {
+            if (inner == '(') {
+                depth++;
+            } else if (inner == ')') {
+                depth--;
+                if (depth == 0) {
+                    return pos;
+                }
+            }
+        }
+    }
+
+    return std::string::npos;
 }
 
 void highlight_variable_assignment(ic_highlight_env_t* henv, const char* input,
@@ -138,39 +170,12 @@ void highlight_quotes_and_variables(ic_highlight_env_t* henv, const char* input,
 
         if (!in_single_quote && c == '$' && i + 1 < end && input[i + 1] == '(') {
             bool is_arithmetic = (i + 2 < end && input[i + 2] == '(');
-            size_t j = i + 2;
-            int depth = 1;
-            bool inner_single = false;
-            bool inner_double = false;
-            bool inner_escaped = false;
-            while (j < end) {
-                char inner = input[j];
-                if (inner_escaped) {
-                    inner_escaped = false;
-                } else if (inner == '\\' && !inner_single) {
-                    inner_escaped = true;
-                } else if (inner == '\'' && !inner_double) {
-                    inner_single = !inner_single;
-                } else if (inner == '"' && !inner_single) {
-                    inner_double = !inner_double;
-                } else if (!inner_single) {
-                    if (inner == '(') {
-                        depth++;
-                    } else if (inner == ')') {
-                        depth--;
-                        if (depth == 0) {
-                            break;
-                        }
-                    }
-                }
-                ++j;
-            }
-
-            if (depth == 0 && j < end) {
-                size_t highlight_len = (j + 1) - i;
+            size_t match = find_matching_parenthesis(input, i + 2, end, 1);
+            if (match != std::string::npos) {
+                size_t highlight_len = (match + 1) - i;
                 ic_highlight(henv, static_cast<long>(i), static_cast<long>(highlight_len),
                              is_arithmetic ? "cjsh-arithmetic" : "cjsh-command-substitution");
-                i = j;
+                i = match;
                 continue;
             }
         }
@@ -201,39 +206,12 @@ void highlight_quotes_and_variables(ic_highlight_env_t* henv, const char* input,
 
         if (!in_single_quote && !in_double_quote && c == '(' && i + 1 < end &&
             input[i + 1] == '(') {
-            size_t j = i + 2;
-            int depth = 2;
-            bool inner_single = false;
-            bool inner_double = false;
-            bool inner_escaped = false;
-            while (j < end) {
-                char inner = input[j];
-                if (inner_escaped) {
-                    inner_escaped = false;
-                } else if (inner == '\\' && !inner_single) {
-                    inner_escaped = true;
-                } else if (inner == '\'' && !inner_double) {
-                    inner_single = !inner_single;
-                } else if (inner == '"' && !inner_single) {
-                    inner_double = !inner_double;
-                } else if (!inner_single) {
-                    if (inner == '(') {
-                        depth++;
-                    } else if (inner == ')') {
-                        depth--;
-                        if (depth == 0) {
-                            break;
-                        }
-                    }
-                }
-                ++j;
-            }
-
-            if (depth == 0 && j < end) {
-                size_t highlight_len = (j + 1) - i;
+            size_t match = find_matching_parenthesis(input, i + 2, end, 2);
+            if (match != std::string::npos) {
+                size_t highlight_len = (match + 1) - i;
                 ic_highlight(henv, static_cast<long>(i), static_cast<long>(highlight_len),
                              "cjsh-arithmetic");
-                i = j;
+                i = match;
                 continue;
             }
         }
@@ -301,34 +279,16 @@ void highlight_history_expansions(ic_highlight_env_t* henv, const char* input, s
         return;
     }
 
-    bool in_single_quote = false;
-    bool in_double_quote = false;
-    bool escaped = false;
+    utils::QuoteState quote_state;
 
     for (size_t i = 0; i < len; ++i) {
         char c = input[i];
 
-        if (escaped) {
-            escaped = false;
+        if (quote_state.consume_forward(c) == utils::QuoteAdvanceResult::Continue) {
             continue;
         }
 
-        if (c == '\\') {
-            escaped = true;
-            continue;
-        }
-
-        if (c == '\'' && !in_double_quote) {
-            in_single_quote = !in_single_quote;
-            continue;
-        }
-
-        if (c == '"' && !in_single_quote) {
-            in_double_quote = !in_double_quote;
-            continue;
-        }
-
-        if (in_single_quote || in_double_quote) {
+        if (quote_state.inside_quotes()) {
             continue;
         }
 
@@ -355,9 +315,10 @@ void highlight_history_expansions(ic_highlight_env_t* henv, const char* input, s
         }
 
         if (c == '!') {
-            bool at_word_boundary = (i == 0) || std::isspace(input[i - 1]) || input[i - 1] == ';' ||
-                                    input[i - 1] == '|' || input[i - 1] == '&' ||
-                                    input[i - 1] == '(' || input[i - 1] == ')';
+            bool at_word_boundary =
+                (i == 0) || std::isspace(static_cast<unsigned char>(input[i - 1])) ||
+                input[i - 1] == ';' || input[i - 1] == '|' || input[i - 1] == '&' ||
+                input[i - 1] == '(' || input[i - 1] == ')';
 
             if (!at_word_boundary) {
                 continue;
@@ -370,86 +331,62 @@ void highlight_history_expansions(ic_highlight_env_t* henv, const char* input, s
                 continue;
             }
 
-            if (input[end] == '!') {
-                end++;
-                end = parse_history_modifiers(input, end, len);
-                ic_highlight(henv, static_cast<long>(start), static_cast<long>(end - start),
-                             "cjsh-history-expansion");
-                i = end - 1;
+            auto highlight_range = [&](size_t highlight_end) {
+                ic_highlight(henv, static_cast<long>(start),
+                             static_cast<long>(highlight_end - start), "cjsh-history-expansion");
+                i = highlight_end - 1;
+            };
+
+            auto highlight_with_modifiers = [&](size_t highlight_end) {
+                highlight_range(parse_history_modifiers(input, highlight_end, len));
+            };
+
+            char next = input[end];
+
+            if (next == '!') {
+                highlight_with_modifiers(end + 1);
                 continue;
             }
 
-            if (input[end] == '#') {
-                end++;
-                ic_highlight(henv, static_cast<long>(start), static_cast<long>(end - start),
-                             "cjsh-history-expansion");
-                i = end - 1;
+            if (next == '#') {
+                highlight_range(end + 1);
                 continue;
             }
 
-            if (std::isdigit(input[end]) || input[end] == '-') {
-                end++;
-                while (end < len && std::isdigit(input[end])) {
-                    end++;
-                }
-                end = parse_history_modifiers(input, end, len);
-                ic_highlight(henv, static_cast<long>(start), static_cast<long>(end - start),
-                             "cjsh-history-expansion");
-                i = end - 1;
-                continue;
-            }
-
-            if (input[end] == '?') {
-                end++;
-                while (end < len && input[end] != '?' && !std::isspace(input[end])) {
-                    end++;
+            if (next == '?') {
+                ++end;
+                while (end < len && input[end] != '?' &&
+                       std::isspace(static_cast<unsigned char>(input[end])) == 0) {
+                    ++end;
                 }
                 if (end < len && input[end] == '?') {
-                    end++;
+                    ++end;
                 }
-                ic_highlight(henv, static_cast<long>(start), static_cast<long>(end - start),
-                             "cjsh-history-expansion");
-                i = end - 1;
+                highlight_range(end);
                 continue;
             }
 
-            if (std::isalpha(input[end]) || input[end] == '_') {
-                end++;
-                while (end < len && (std::isalnum(input[end]) || input[end] == '_' ||
-                                     input[end] == '-' || input[end] == '.')) {
-                    end++;
+            if (next == '$' || next == '^' || next == '*') {
+                highlight_with_modifiers(end + 1);
+                continue;
+            }
+
+            if (std::isdigit(static_cast<unsigned char>(next)) || next == '-') {
+                ++end;
+                while (end < len && std::isdigit(static_cast<unsigned char>(input[end]))) {
+                    ++end;
                 }
-                end = parse_history_modifiers(input, end, len);
-                ic_highlight(henv, static_cast<long>(start), static_cast<long>(end - start),
-                             "cjsh-history-expansion");
-                i = end - 1;
+                highlight_with_modifiers(end);
                 continue;
             }
 
-            if (input[end] == '$') {
-                end++;
-                end = parse_history_modifiers(input, end, len);
-                ic_highlight(henv, static_cast<long>(start), static_cast<long>(end - start),
-                             "cjsh-history-expansion");
-                i = end - 1;
-                continue;
-            }
-
-            if (input[end] == '^') {
-                end++;
-                end = parse_history_modifiers(input, end, len);
-                ic_highlight(henv, static_cast<long>(start), static_cast<long>(end - start),
-                             "cjsh-history-expansion");
-                i = end - 1;
-                continue;
-            }
-
-            if (input[end] == '*') {
-                end++;
-                end = parse_history_modifiers(input, end, len);
-                ic_highlight(henv, static_cast<long>(start), static_cast<long>(end - start),
-                             "cjsh-history-expansion");
-                i = end - 1;
+            if (std::isalpha(static_cast<unsigned char>(next)) || next == '_') {
+                ++end;
+                while (end < len && (std::isalnum(static_cast<unsigned char>(input[end])) ||
+                                     input[end] == '_' || input[end] == '-' || input[end] == '.')) {
+                    ++end;
+                }
+                highlight_with_modifiers(end);
                 continue;
             }
         }

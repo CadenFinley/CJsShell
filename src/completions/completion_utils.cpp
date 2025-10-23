@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#include "utils/quote_state.h"
+
 extern bool g_completion_case_sensitive;
 
 namespace completion_utils {
@@ -131,39 +133,22 @@ std::vector<std::string> tokenize_command_line(const std::string& line) {
 }
 
 size_t find_last_unquoted_space(const std::string& str) {
-    bool in_single_quote = false;
-    bool in_double_quote = false;
-    bool escaped = false;
+    utils::QuoteState quote_state;
+    size_t last_space = std::string::npos;
 
-    for (int i = static_cast<int>(str.length()) - 1; i >= 0; --i) {
+    for (size_t i = 0; i < str.length(); ++i) {
         char c = str[i];
 
-        if (escaped) {
-            escaped = false;
+        if (quote_state.consume_forward(c) == utils::QuoteAdvanceResult::Continue) {
             continue;
         }
 
-        if (c == '\\') {
-            escaped = true;
-            continue;
-        }
-
-        if (c == '\'' && !in_double_quote) {
-            in_single_quote = !in_single_quote;
-            continue;
-        }
-
-        if (c == '"' && !in_single_quote) {
-            in_double_quote = !in_double_quote;
-            continue;
-        }
-
-        if ((c == ' ' || c == '\t') && !in_single_quote && !in_double_quote) {
-            return static_cast<size_t>(i);
+        if ((c == ' ' || c == '\t') && !quote_state.inside_quotes()) {
+            last_space = i;
         }
     }
 
-    return std::string::npos;
+    return last_space;
 }
 
 std::string normalize_for_comparison(const std::string& value) {
