@@ -1,237 +1,193 @@
 # What You Need to Know
 
-Welcome to cjsh! This guide provides a comprehensive overview of the features available in your shell environment. cjsh comes with a rich set of features enabled by default, most of which can be configured or disabled to suit your workflow preferences.
-
-## Default Feature Set
-
-All features listed below are **enabled by default** unless otherwise specified. Configuration options are provided where applicable.
-
----
+Welcome to CJ's Shell (cjsh)! This guide highlights the interactive features that ship enabled by default and explains how to tailor them to your workflow.
 
 ## Visual & Interface Features
 
 ### Themes
 **Status:** Enabled  
-**Configuration:** `cjshopt set theme <theme-name>`  
-**Disable:** `cjshopt set theme default`
+**Configure:** Load a theme with `source path/to/theme.cjsh` or embed a `theme_definition` directly inside `~/.cjshrc`.  
+**Disable:** Start cjsh with `--no-themes` or add `cjshopt login-startup-arg --no-themes` to `~/.cjprofile`.
 
-Apply custom color schemes and prompt styles to personalize your shell experience. Themes are located in the `themes/` directory and can be customized or created from scratch.
+Themes live in the `themes/` directory and can be customized or authored from scratch using the theme DSL. Sourcing a theme in `~/.cjshrc` applies it automatically on startup.
 
 ### True Color Support
-**Status:** Enabled (if terminal supports it)  
-**Configuration:** Auto-detected based on terminal capabilities  
-**Disable:** `cjshopt set truecolor off`
-
-Enables 24-bit RGB color support for enhanced visual rendering of prompts, syntax highlighting, and themes.
+**Status:** Enabled when the terminal advertises 24-bit color.  
+**Configure:** Automatically detected; adjust styling through theme definitions.  
+**Disable:** Launch with `cjsh --no-colors` or persist by adding `cjshopt login-startup-arg --no-colors` to `~/.cjprofile`.
 
 ### Syntax Highlighting
 **Status:** Enabled  
-**Configuration:** `cjshopt set syntax-highlighting <on|off>`  
-**Disable:** `cjshopt set syntax-highlighting off`
-
-Real-time syntax highlighting for commands, arguments, paths, and strings as you type. Helps identify errors before execution.
+**Configure:** Change token styles with `cjshopt style_def <token_type> <style>`.  
+**Disable:** Start cjsh with `--no-syntax-highlighting` or add `cjshopt login-startup-arg --no-syntax-highlighting` inside `~/.cjprofile`.
 
 ---
 
-## Completion & Input Features
+## Completion & Line Editing
 
 ### Fuzzy Completions
+**Status:** Enabled (always on)  
+Fuzzy matching powers command, path, and argument completions without additional configuration.
+
+### Completion Preview
 **Status:** Enabled  
-**Configuration:** `cjshopt set fuzzy-completions <on|off>`  
-**Disable:** `cjshopt set fuzzy-completions off`
+**Configure:** `cjshopt completion-preview on|off|status`
 
-Intelligent command and path completion that matches partial strings even when characters are non-contiguous (e.g., "gco" matches "git checkout").
-
-### Completion Preview Inline
+### Spell Correction
 **Status:** Enabled  
-**Configuration:** Built-in with fuzzy completions  
-**Disable:** Disabled automatically when fuzzy completions are off
+**Configure:** `cjshopt completion-spell on|off|status`
 
-Displays completion suggestions inline as you type, allowing you to preview and accept suggestions with minimal keystrokes.
+### Completion Case Sensitivity
+**Status:** Disabled (completions are case-insensitive)  
+**Configure:** `cjshopt completion-case on|off|status`
 
-### Tab-Enabled Spell Corrections
+### Auto-Tab Expansion
+**Status:** Disabled  
+**Configure:** `cjshopt auto-tab on|off|status` (auto-inserts a completion when the match is unique)
+
+### Inline Hints & Delay
 **Status:** Enabled  
-**Configuration:** `cjshopt set spell-correct <on|off>`  
-**Disable:** `cjshopt set spell-correct off`
+**Configure:**
 
-Automatically suggests corrections for misspelled commands and paths. Press Tab to accept the correction.
+```bash
+cjshopt hint on|off|status
+cjshopt hint-delay <milliseconds|status>
+```
 
-### Case-Insensitive Completion
+### Inline Help Prompts
 **Status:** Enabled  
-**Configuration:** `cjshopt set case-sensitive <on|off>`  
-**Disable:** `cjshopt set case-sensitive on`
+**Configure:** `cjshopt inline-help on|off|status`
 
-Allows completions and matching to ignore case distinctions, making command input more forgiving.
+### Visible Whitespace Markers
+**Status:** Disabled  
+**Configure:** `cjshopt visible-whitespace on|off|status`
 
-### Multi-Line Editing
+### Multiline Editing
 **Status:** Enabled  
-**Configuration:** Built-in editor feature  
-**Disable:** Cannot be disabled
+**Configure:**
 
-Edit complex, multi-line commands with full cursor navigation and editing capabilities across lines.
+```bash
+cjshopt multiline on|off|status
+cjshopt multiline-indent on|off|status
+cjshopt multiline-start-lines <count|status>
+cjshopt line-numbers <absolute|relative|off|status>
+cjshopt current-line-number-highlight on|off|status
+```
 
 ---
 
 ## Navigation Features
 
-### Smart CD
+### Smart `cd`
 **Status:** Enabled  
-**Configuration:** `cjshopt set smart-cd <on|off>`  
-**Disable:** `cjshopt set smart-cd off`
+**Disable:** Run cjsh with `--no-smart-cd` or add `cjshopt login-startup-arg --no-smart-cd` to `~/.cjprofile`.
 
-Intelligent directory navigation that performs fuzzy matching and learns your frequently accessed directories.
+Smart `cd` adds fuzzy directory matching and automatically records bookmarks. Manage bookmarks with:
 
-### Auto CD
-**Status:** Enabled  
-**Configuration:** `cjshopt set auto-cd <on|off>`  
-**Disable:** `cjshopt set auto-cd off`
+```bash
+cjshopt set-max-bookmarks <number>    # limit stored locations (10–1000, default 100)
+cjshopt bookmark-blacklist list       # inspect ignored paths
+cjshopt bookmark-blacklist add <path>
+cjshopt bookmark-blacklist remove <path>
+```
 
-Change directories by typing just the path name, without needing the `cd` command (e.g., typing `/usr/local` changes to that directory).
-
-### Custom Dynamic LS
-**Status:** Enabled  
-**Configuration:** Customizable through cjshrc  
-**Disable:** `cjshopt set auto-ls off`
-
-Automatically displays directory contents after changing directories, with customizable formatting and color coding.
+### Directory Listings
+cjsh leaves directory listing behavior up to your configuration. Add an `ls` wrapper, hook, or alias in `~/.cjshrc` if you prefer automatic listings after `cd`.
 
 ---
 
 ## History Features
 
-### History Expansions
-**Status:** Enabled  
-**Configuration:** `cjshopt set history-expansion <on|off>`  
-**Disable:** `cjshopt set history-expansion off`
-
-Use bash-style history expansions like `!!` (last command), `!$` (last argument), `!n` (command number n), and more.
-
-### Atuin-Style History Search
-**Status:** Enabled  
-**Configuration:** Press Ctrl+R to activate  
-**Disable:** `cjshopt set history-search <on|off>`
-
-Interactive, searchable command history with fuzzy matching, timestamps, and execution context.
-
-### Multi-Session Live-Synced History
-**Status:** Enabled  
-**Configuration:** `cjshopt set shared-history <on|off>`  
-**Disable:** `cjshopt set shared-history off`
-
-Command history is synchronized in real-time across all active shell sessions, ensuring consistent history access.
+- **History expansions:** Enabled in interactive sessions (`!!`, `!$`, etc.). Disable with `cjsh --no-history-expansion` or persist by adding `cjshopt login-startup-arg --no-history-expansion` to `~/.cjprofile`.
+- **Reverse search:** Press `Ctrl+R` for fuzzy, incremental history search.
+- **Persistence:** History entries are appended to `~/.cache/cjsh/history.txt`; duplicate commands are suppressed by default.
+- **Retention:** Adjust limits with `cjshopt set-history-max <number|default|status>`.
 
 ---
 
-## Scripting & Compatibility Features
+## Configuration & Compatibility
 
-### .cjshrc Sourcing
-**Status:** Enabled  
-**Configuration:** Automatic on shell startup  
-**File Location:** `~/.cjshrc`
+### Startup Files
+- `~/.cjprofile` – Executed for login shells before interactive setup.
+- `~/.cjshrc` – Interactive configuration (aliases, themes, hooks, etc.).
+- `~/.cjsh_logout` – Optional cleanup script sourced on exit.
 
-Configuration file sourced at startup, allowing you to set aliases, functions, environment variables, and shell options.
+### Persisting Startup Flags
+`cjshopt login-startup-arg` is only valid while configuration files are being sourced. Call it once per flag inside `~/.cjprofile`:
 
-### .cjprofile and Login Startup Arguments
-**Status:** Enabled for login shells  
-**Configuration:** `cjshopt login-startup-arg <argument>`  
-**File Location:** `~/.cjprofile`
-
-The `.cjprofile` file is sourced for login shells and can be used to set environment variables and perform one-time initialization. Use `cjshopt login-startup-arg` to add additional startup flags that will be automatically included in your `.cjprofile` file.
-
-**Example:**
 ```bash
-# Add a custom startup flag to .cjprofile
-cjshopt login-startup-arg "--verbose"
-
-# Add multiple flags
-cjshopt login-startup-arg "--no-colors --fast-start"
+# ~/.cjprofile
+cjshopt login-startup-arg --no-themes
+cjshopt login-startup-arg --no-smart-cd
+cjshopt login-startup-arg --show-startup-time
 ```
 
-This feature is particularly useful for configuring shell behavior that should only apply to login sessions, such as setting up environment variables, initializing terminal settings, or loading specific modules.
+Supported flags: `--login`, `--interactive`, `--debug`, `--no-themes`, `--no-colors`, `--no-titleline`, `--show-startup-time`, `--no-source`, `--no-completions`, `--no-syntax-highlighting`, `--no-smart-cd`, `--no-prompt`, `--minimal`, and `--startup-test`.
 
-### POSIX Compliance
-**Status:** Enabled  
-**Configuration:** High compatibility mode by default  
-**Note:** Largely POSIX-compliant with shell scripting
-
-Scripts written for POSIX-compliant shells should work with minimal or no modifications.
-
-### Bash-Style Features
-**Status:** Enabled  
-**Configuration:** Various individual options  
-**Features Include:**
-- `[[]]` conditional expressions
-- Globbing patterns (`*`, `?`, `[]`)
-- Brace expansion
-- Process substitution
-- Redirection operators (including clobbering)
-
-### Advanced Syntax Validation
-**Status:** Enabled  
-**Configuration:** Always active  
-**Disable:** Cannot be disabled
-
-Real-time syntax checking with detailed error reporting, helping catch issues before command execution.
+### POSIX & Bash Compatibility
+cjsh targets high POSIX compliance while providing useful extensions such as `[[ ... ]]`, brace expansion, here-strings, process substitution, and rich redirection semantics. Non-POSIX behavior is opt-in through flags or configuration.
 
 ---
 
-## Extended Features
+## Extended Interactive Tools
 
 ### Abbreviations
-**Status:** Enabled  
-**Configuration:** `abbr add <shortcut> <expansion>`  
-**Disable:** N/A (feature is opt-in per abbreviation)  
-**Example:** `abbr add gs "git status"`
+Define inline expansions with the `abbr` builtin:
 
-Define short aliases that expand to longer commands when you press Space, providing visual feedback during typing.
+```bash
+abbr gs='git status --short --branch'
+abbr                 # list abbreviations
+unabbr gs            # remove an abbreviation
+```
 
 ### Typeahead
-**Status:** Enabled  
-**Configuration:** Automatic buffering system  
-**Disable:** Cannot be disabled
+Keystrokes are buffered while commands run so no input is lost—this is always enabled.
 
-Buffers keystrokes while the shell is processing, ensuring no input is lost during command execution or slow operations.
+### Key Bindings
+Inspect or tweak key bindings with:
 
-### Emacs-Style Keybindings
-**Status:** Enabled  
-**Configuration:** `cjshopt set keymap <emacs|vi>`  
-**Disable:** Switch to vi mode: `cjshopt set keymap vi`
+```bash
+cjshopt keybind list                   # safe at runtime
+cjshopt keybind profile list           # show available profiles
+cjshopt keybind profile set vi         # choose vi bindings (persist in ~/.cjshrc)
+cjshopt keybind set <action> <keys>    # redefine bindings (run from config files)
+cjshopt keybind add <action> <keys>    # append bindings (run from config files)
+```
 
-Standard Emacs keybindings for command-line editing (Ctrl+A, Ctrl+E, Ctrl+K, etc.).
-
-### ZLE-Style Widgets
-**Status:** Enabled  
-**Configuration:** Customizable through cjshrc  
-**Disable:** Individual widgets can be unbound
-
-Zsh-like line editor widgets that allow custom keybindings and command-line manipulation functions.
+Use `cjshopt keybind --help` for the full action catalog. For custom widgets, see the `widget` builtin in the reference documentation.
 
 ---
 
 ## Getting Help
 
-For more information on any feature:
-- Use `cjshopt help` to see all available options
-- Use `help <builtin>` for built-in command documentation
-- See the full documentation at `docs/reference/`
-- Visit configuration examples in `.cjshrc` templates
+- `help` – Overview of built-in commands.
+- `help <builtin>` – Detailed usage for a specific builtin.
+- `cjshopt --help` and `cjshopt <subcommand> --help` – Configuration guidance.
+- Documentation lives under `docs/reference/` for deeper dives into editing, scripting, hooks, and themes.
+
+---
 
 ## Quick Configuration Examples
 
 ```bash
-# Disable syntax highlighting
-cjshopt set syntax-highlighting off
+# Toggle completion preview for the current session
+cjshopt completion-preview off
 
-# Switch to vi keybindings
-cjshopt set keymap vi
+# Enable inline whitespace markers
+cjshopt visible-whitespace on
 
-# Disable auto-cd
-cjshopt set auto-cd off
+# Switch to vi key bindings (add to ~/.cjshrc to persist)
+cjshopt keybind profile set vi
 
-# Turn off fuzzy completions
-cjshopt set fuzzy-completions off
+# Increase history retention
+cjshopt set-history-max 5000
 ```
 
-For a complete list of configuration options, run `cjshopt list`.
+Persist startup flags by placing commands like the following in `~/.cjprofile`:
 
+```bash
+cjshopt login-startup-arg --no-colors
+cjshopt login-startup-arg --no-smart-cd
+```
 
+Run `cjshopt --help` for a complete list of interactive toggles and their detailed help screens.

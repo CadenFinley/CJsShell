@@ -63,14 +63,17 @@ Advanced text editing capabilities including:
 **Configuration:**
 All editing features can be configured via the `cjshopt` command:
 ```bash
-cjshopt multiline on|off           # Multiline input
-cjshopt multiline-start-lines 2    # Prefill multiline prompts with two lines
-cjshopt line-numbers relative      # Relative line numbering
-cjshopt completion-preview on      # Show completion preview
-cjshopt visible-whitespace on      # Show visible whitespace markers
-cjshopt hint on                    # Enable inline hints
-cjshopt auto-tab on                # Auto-expand unique completions
-cjshopt keybind set-profile emacs  # Use emacs key bindings
+cjshopt multiline on|off|status                 # Toggle multiline input
+cjshopt multiline-start-lines <count|status>    # Prefill multiline prompts with extra lines
+cjshopt line-numbers <relative|absolute|off|status>
+cjshopt completion-preview on|off|status        # Show completion preview popups
+cjshopt completion-spell on|off|status          # Completion spell correction
+cjshopt completion-case on|off|status           # Case-sensitive matching (default off)
+cjshopt visible-whitespace on|off|status        # Render whitespace markers
+cjshopt hint on|off|status                      # Inline hints
+cjshopt hint-delay <milliseconds|status>        # Delay before showing hints
+cjshopt auto-tab on|off|status                  # Auto-expand unique completions (default off)
+cjshopt keybind profile set emacs               # Select a key binding profile (also supports 'vi')
 ```
 
 See the [Editing Guide](editing.md) for all available options and detailed usage.
@@ -215,7 +218,7 @@ Theme rendering is typically 2-4x faster than popular alternatives like Starship
 #### History Management
 - Persistent command history across sessions
 - Configurable history size with `cjshopt set-history-max`
-- Duplicate suppression (disabled by default)
+- Duplicate suppression (enabled by default)
 - History search and editing
 - Incremental search (Ctrl+R)
 - History expansion (`!`, `!!`, `!$`, `!-1`, etc.)
