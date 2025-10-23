@@ -284,25 +284,32 @@ rm -f /tmp/cjsh_test_subshell_$$.sh
 
 # Test 18: errexit_severity in sourced scripts
 echo "Test errexit_severity in sourced scripts"
-cat > /tmp/cjsh_test_source1_$$.sh << 'EOF'
+source_suffix=$$
+source_script1="/tmp/cjsh_test_source1_${source_suffix}.sh"
+source_script2="/tmp/cjsh_test_source2_${source_suffix}.sh"
+
+cat > "$source_script1" <<'EOF'
 set -e
 set -o errexit_severity=critical
 false
 echo "sourced_continues"
 EOF
-cat > /tmp/cjsh_test_source2_$$.sh << 'EOF'
+
+cat > "$source_script2" <<EOF
 set -e
 set -o errexit_severity=error
-source /tmp/cjsh_test_source1_$$.sh
+source $source_script1
 echo "after_source"
 EOF
-output=$("$CJSH_PATH" /tmp/cjsh_test_source2_$$.sh 2>/dev/null)
-if [ -n "$output" ]; then
+
+output=$("$CJSH_PATH" "$source_script2" 2>/dev/null)
+if echo "$output" | grep -q "sourced_continues" && echo "$output" | grep -q "after_source"; then
     pass_test "errexit_severity works with source command"
 else
-    skip_test "errexit_severity with source (complex interaction)"
+    fail_test "errexit_severity with source should continue execution (got: '$output')"
 fi
-rm -f /tmp/cjsh_test_source1_$$.sh /tmp/cjsh_test_source2_$$.sh
+
+rm -f "$source_script1" "$source_script2"
 
 # Test 19: Error message color coding (visual test)
 echo "Test error severity displays with color codes"
