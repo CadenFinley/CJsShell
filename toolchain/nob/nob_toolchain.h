@@ -106,10 +106,13 @@ static inline bool setup_build_flags(Nob_Cmd* cmd) {
     }
 #endif
 
+    nob_cmd_append(cmd, "-UCJSH_ENABLE_DEBUG");
+
     if (g_debug_build) {
         nob_cmd_append(cmd, "-O0", "-g", "-fno-omit-frame-pointer");
         nob_cmd_append(cmd, "-fsanitize=address");
         nob_cmd_append(cmd, "-DDEBUG");
+        nob_cmd_append(cmd, "-DCJSH_ENABLE_DEBUG");
     } else if (g_minimal_build) {
         nob_cmd_append(cmd, "-Oz", "-DNDEBUG");
         nob_cmd_append(cmd, "-ffunction-sections", "-fdata-sections", "-flto");
@@ -194,10 +197,14 @@ static inline bool setup_c_build_flags(Nob_Cmd* cmd) {
 #endif
 #endif
 
+    nob_cmd_append(cmd, "-UCJSH_ENABLE_DEBUG");
+
     if (g_debug_build) {
         nob_cmd_append(cmd, "-O0", "-g", "-fno-omit-frame-pointer");
         nob_cmd_append(cmd, "-fsanitize=address");
         nob_cmd_append(cmd, "-DDEBUG");
+        nob_cmd_append(cmd, "-DCJSH_ENABLE_DEBUG");
+        nob_cmd_append(cmd, "-UIC_NO_DEBUG_MSG");
     } else if (g_minimal_build) {
         nob_cmd_append(cmd, "-Oz", "-DNDEBUG");
         nob_cmd_append(cmd, "-ffunction-sections", "-fdata-sections", "-flto");
@@ -226,6 +233,9 @@ static inline bool setup_c_build_flags(Nob_Cmd* cmd) {
 #elif defined(ARCH_X86_64)
         nob_cmd_append(cmd, "-march=x86-64", "-mtune=generic");
 #endif
+    }
+    if (!g_debug_build) {
+        nob_cmd_append(cmd, "-DIC_NO_DEBUG_MSG=1");
     }
     nob_cmd_append(cmd, "-DIC_SEPARATE_OBJS=1");
 
