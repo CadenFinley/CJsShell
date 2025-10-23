@@ -1,8 +1,7 @@
 #include "fc_command.h"
 
-#include "builtin_help.h"
-
 #include <algorithm>
+#include <cctype>
 #include <cstdlib>
 #include <fstream>
 #include <iomanip>
@@ -46,6 +45,47 @@ std::vector<std::string> read_history_entries() {
     }
 
     return entries;
+}
+
+bool is_fc_history_entry(const std::string& entry) {
+    if (entry.length() < 2) {
+        return entry == "fc";
+    }
+
+    if (entry.compare(0, 2, "fc") != 0) {
+        return false;
+    }
+
+    if (entry.length() == 2) {
+        return true;
+    }
+
+    unsigned char next = static_cast<unsigned char>(entry[2]);
+    if (std::isspace(next) != 0) {
+        return true;
+    }
+
+    switch (entry[2]) {
+        case ';':
+        case '&':
+        case '|':
+        case '>':
+        case '<':
+        case ')':
+        case '(':
+            return true;
+        default:
+            return false;
+    }
+}
+
+int find_last_non_fc_index(const std::vector<std::string>& entries) {
+    for (int i = static_cast<int>(entries.size()) - 1; i >= 0; --i) {
+        if (!is_fc_history_entry(entries[i])) {
+            return i;
+        }
+    }
+    return -1;
 }
 
 bool parse_history_index(const std::string& arg, int history_size, int& result) {
@@ -227,10 +267,12 @@ int edit_and_execute(const std::vector<std::string>& entries, int first, int las
 }
 
 int substitute_and_execute(const std::vector<std::string>& entries, const std::string& old_str,
-                           const std::string& new_str, const std::string& pattern, Shell* shell) {
-    int target_idx = static_cast<int>(entries.size()) - 1;
+                           const std::string& new_str, const std::string& pattern, Shell* shell,
+                           int default_index) {
+    int target_idx = default_index;
 
     if (!pattern.empty()) {
+        target_idx = -1;
         for (int i = static_cast<int>(entries.size()) - 1; i >= 0; --i) {
             if (entries[i].find(pattern) == 0) {
                 target_idx = i;
@@ -238,7 +280,7 @@ int substitute_and_execute(const std::vector<std::string>& entries, const std::s
             }
         }
 
-        if (target_idx >= 0 && entries[target_idx].find(pattern) != 0) {
+        if (target_idx < 0) {
             print_error({ErrorType::RUNTIME_ERROR,
                          "fc",
                          "No command in history starting with: " + pattern,
@@ -387,6 +429,7 @@ int fc_command(const std::vector<std::string>& args, Shell* shell) {
     }
 
     std::vector<std::string> entries = read_history_entries();
+    int last_non_fc_index = find_last_non_fc_index(entries);
 
     if (command_mode) {
         return edit_and_execute_string(initial_command, editor, shell);
@@ -398,7 +441,12 @@ int fc_command(const std::vector<std::string>& args, Shell* shell) {
     }
 
     if (substitute_mode) {
-        return substitute_and_execute(entries, old_pattern, new_pattern, command_pattern, shell);
+        if (last_non_fc_index < 0 && command_pattern.empty()) {
+            print_error({ErrorType::RUNTIME_ERROR, "fc", "No commands in history", {}});
+            return 1;
+        }
+        return substitute_and_execute(entries, old_pattern, new_pattern, command_pattern, shell,
+                                      last_non_fc_index);
     }
 
     int first = -1;
@@ -414,10 +462,20 @@ int fc_command(const std::vector<std::string>& args, Shell* shell) {
         }
     } else {
         if (list_mode) {
-            first = std::max(0, static_cast<int>(entries.size()) - 16);
-            last = static_cast<int>(entries.size()) - 1;
+            int default_last =
+                (last_non_fc_index >= 0) ? last_non_fc_index : static_cast<int>(entries.size()) - 1;
+            if (default_last < 0) {
+                print_error({ErrorType::RUNTIME_ERROR, "fc", "No commands in history", {}});
+                return 1;
+            }
+            first = std::max(0, default_last - 15);
+            last = default_last;
         } else {
-            first = static_cast<int>(entries.size()) - 1;
+            if (last_non_fc_index < 0) {
+                print_error({ErrorType::RUNTIME_ERROR, "fc", "No commands in history", {}});
+                return 1;
+            }
+            first = last_non_fc_index;
             last = first;
         }
     }
