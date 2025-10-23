@@ -227,7 +227,7 @@ static void hsearch_done(alloc_t* mem, hsearch_t* hs) {
     }
 }
 
-#define MAX_FUZZY_RESULTS 50
+#define MAX_FUZZY_RESULTS 5000
 
 static const char* get_first_line_end(const char* str) {
     if (str == NULL)
