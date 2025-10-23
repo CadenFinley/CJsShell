@@ -15,6 +15,8 @@
 
 #include "cjsh.h"
 #include "exec.h"
+#include "parser.h"
+#include "shell.h"
 #include "theme_parser.h"
 
 /* Available prompt placeholders:
@@ -814,7 +816,11 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
         if (use_cache) {
             result = exec_cache[cache_key].first;
         } else {
-            auto cmd_result = exec_utils::execute_command_for_output(command);
+            std::string expanded_command = command;
+                g_shell->get_parser()->expand_env_vars(expanded_command);
+            }
+
+            auto cmd_result = exec_utils::execute_command_for_output(expanded_command);
             if (cmd_result.success) {
                 result = cmd_result.output;
 
