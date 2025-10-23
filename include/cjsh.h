@@ -7,9 +7,9 @@
 class Shell;
 class Theme;
 
-const bool PRE_RELEASE = false;
+const bool PRE_RELEASE = true;
 
-constexpr const char* c_version_base = "3.10.5";
+constexpr const char* c_version_base = "3.10.6";
 
 extern std::string g_cached_version;
 
