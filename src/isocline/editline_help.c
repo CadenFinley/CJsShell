@@ -108,7 +108,7 @@ static const char* help_initial =
     "Largely Modified by Caden Finley 2025 for CJ's Shell.\n"
     "This is free software; you can redistribute it and/or\n"
     "modify it under the terms of the MIT License.\n"
-    "See <[url]https://github.com/daanx/isocline[/url]> for further "
+    "See <[url]https://github.com/cadenfinley/isocline[/url]> for further "
     "information.\n"
     "We use ^<key> as a shorthand for ctrl-<key>.\n"
     "\n"
