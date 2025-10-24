@@ -37,7 +37,6 @@
 
 bool g_exit_flag = false;
 std::string g_cached_version;
-std::string g_current_theme;
 bool g_startup_active = true;
 std::unique_ptr<Shell> g_shell = nullptr;
 std::unique_ptr<Theme> g_theme = nullptr;

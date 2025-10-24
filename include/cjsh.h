@@ -25,7 +25,6 @@ inline std::string get_version() {
 #endif
 
 extern bool g_exit_flag;
-extern std::string g_current_theme;
 extern bool g_startup_active;
 
 class Shell;

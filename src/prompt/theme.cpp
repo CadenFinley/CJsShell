@@ -102,7 +102,6 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
     std::string theme_name_to_use = strip_theme_extension(theme_name);
     if (!is_enabled || theme_name_to_use.empty()) {
         clear_theme_state();
-        g_current_theme.clear();
         return false;
     }
 
@@ -327,23 +326,12 @@ bool Theme::apply_theme_definition(const ThemeDefinition& definition, const std:
             return false;
         }
 
-        const std::string previous_theme = g_current_theme;
-        if (!previous_theme.empty() && theme_name != previous_theme) {
-            print_error({ErrorType::RUNTIME_ERROR,
-                         "load_theme",
-                         "Theme '" + theme_name + "' requirements not met (" + source_hint +
-                             "), falling back to previous theme '" + previous_theme + "'.",
-                         {}});
-            return load_theme(previous_theme, allow_fallback);
-        }
-
-        print_error({ErrorType::RUNTIME_ERROR,
+               print_error({ErrorType::RUNTIME_ERROR,
                      "load_theme",
                      "Theme '" + theme_name + "' requirements not met (" + source_hint +
                          "), falling back to basic prompt.",
                      {}});
         clear_theme_state();
-        g_current_theme.clear();
         return false;
     }
 
@@ -379,7 +367,6 @@ bool Theme::apply_theme_definition(const ThemeDefinition& definition, const std:
     newline_after_execution_ = theme_data.behavior.newline_after_execution;
     cleanup_nl_after_exec_ = theme_data.behavior.cleanup_nl_after_exec;
 
-    g_current_theme = theme_name;
     return true;
 }
 
