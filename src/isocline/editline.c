@@ -2068,6 +2068,7 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
         // clear hint only after a potential resize (so resize row calculations
         // are correct)
         const bool had_hint = (sbuf_len(eb.hint) > 0);
+        char* pending_hint = (had_hint ? sbuf_strdup(eb.hint) : NULL);
         sbuf_clear(eb.hint);
         sbuf_clear(eb.hint_help);
 
@@ -2077,11 +2078,28 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
             c = KEY_ENTER;
         }
 
-        // if the user tries to move into a hint with left-cursor or end, we
-        // complete it first
+    // if the user tries to move into a hint with right-cursor or end, either
+    // materialize it or fall back to completion logic
         if ((c == KEY_RIGHT || c == KEY_END) && had_hint) {
+            if (pending_hint != NULL && editor_pos_is_at_end(&eb)) {
+                // Apply the inline hint directly when already at the end of the input
+                editor_start_modify(&eb);
+                ssize_t new_pos = sbuf_insert_at(eb.input, pending_hint, eb.pos);
+                if (new_pos >= 0) {
+                    eb.pos = new_pos;
+                }
+                edit_refresh_hint(env, &eb);
+                mem_free(eb.mem, pending_hint);
+                pending_hint = NULL;
+                continue;
+            }
             edit_generate_completions(env, &eb, true);
             c = KEY_NONE;
+        }
+
+        if (pending_hint != NULL) {
+            mem_free(eb.mem, pending_hint);
+            pending_hint = NULL;
         }
 
         if ((c < IC_KEY_EVENT_BASE || c >= IC_KEY_UNICODE_MAX) &&
