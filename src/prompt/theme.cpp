@@ -74,8 +74,8 @@ bool report_theme_parse_error_with_script_reporter(const ThemeParseException& ex
 
 }  // namespace
 
-Theme::Theme(std::string theme_dir, bool enabled)
-    : theme_directory(std::move(theme_dir)), is_enabled(enabled) {
+Theme::Theme(bool enabled)
+    : is_enabled(enabled) {
     is_enabled = enabled;
 }
 
@@ -736,20 +736,6 @@ std::string Theme::get_inline_right_prompt(
     return result;
 }
 
-std::vector<std::string> Theme::list_themes() {
-    std::vector<std::string> themes;
-
-    for (const auto& entry : std::filesystem::directory_iterator(theme_directory)) {
-        if (entry.is_regular_file() && entry.path().extension() == Theme::kThemeFileExtension) {
-            std::string name = entry.path().stem().string();
-            if (!name.empty() && name[0] != '.') {
-                themes.push_back(name);
-            }
-        }
-    }
-    return themes;
-}
-
 bool Theme::uses_newline() const {
     return !newline_segments.empty();
 }
@@ -1128,8 +1114,7 @@ void Theme::view_theme_requirements(const std::string& theme) const {
 }
 
 std::filesystem::path Theme::resolve_theme_file(const std::string& theme_name) const {
-    std::filesystem::path theme_dir(theme_directory);
-    return theme_dir / Theme::ensure_theme_extension(theme_name);
+    return Theme::ensure_theme_extension(theme_name);
 }
 
 std::string Theme::strip_theme_extension(const std::string& theme_name) {

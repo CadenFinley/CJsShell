@@ -10,7 +10,6 @@
 
 class Theme {
    private:
-    std::string theme_directory;
     bool is_enabled;
     std::string terminal_title_format;
     bool check_theme_requirements(const ThemeRequirements& requirements) const;
@@ -60,7 +59,7 @@ class Theme {
     bool cleanup_nl_after_exec_{false};
 
    public:
-    Theme(std::string theme_dir, bool enabled);
+    Theme(bool enabled);
     ~Theme();
 
     ThemeDefinition theme_data;

@@ -281,7 +281,7 @@ void initialize_themes() {
     if (!config::themes_enabled) {
         return;
     }
-    g_theme = std::make_unique<Theme>("", config::themes_enabled);
+    g_theme = std::make_unique<Theme>(config::themes_enabled);
 }
 
 void cleanup_resources() {
