@@ -2078,8 +2078,8 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
             c = KEY_ENTER;
         }
 
-    // if the user tries to move into a hint with right-cursor or end, either
-    // materialize it or fall back to completion logic
+        // if the user tries to move into a hint with right-cursor or end, either
+        // materialize it or fall back to completion logic
         if ((c == KEY_RIGHT || c == KEY_END) && had_hint) {
             if (pending_hint != NULL && editor_pos_is_at_end(&eb)) {
                 // Apply the inline hint directly when already at the end of the input
