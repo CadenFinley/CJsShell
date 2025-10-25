@@ -18,7 +18,6 @@
 #include "env.h"
 #include "isocline.h"
 #include "stringbuf.h"
-#include "unicode.h"
 
 //-------------------------------------------------------------
 // Completions
@@ -45,107 +44,17 @@ struct completions_s {
 
 static void default_filename_completer(ic_completion_env_t* cenv, const char* prefix);
 
-static bool completion_codepoint_is_disallowed(unicode_codepoint_t cp) {
-    if (unicode_is_control_codepoint(cp))
-        return true;
-
-    switch (cp) {
-        case 0x0000:
-        case 0x00AD:  // soft hyphen
-        case 0x034F:  // combining grapheme joiner
-        case 0x061C:  // Arabic letter mark
-        case 0x180E:  // mongolian vowel separator
-        case 0x200B:  // zero-width space
-        case 0x200C:  // zero-width non-joiner
-        case 0x200D:  // zero-width joiner
-        case 0x200E:  // left-to-right mark
-        case 0x200F:  // right-to-left mark
-        case 0x202A:  // left-to-right embedding
-        case 0x202B:  // right-to-left embedding
-        case 0x202C:  // pop directional formatting
-        case 0x202D:  // left-to-right override
-        case 0x202E:  // right-to-left override
-        case 0x202F:  // narrow no-break space
-        case 0x2060:  // word joiner
-        case 0x2061:  // function application
-        case 0x2062:  // invisible times
-        case 0x2063:  // invisible separator
-        case 0x2064:  // invisible plus
-        case 0x2066:  // left-to-right isolate
-        case 0x2067:  // right-to-left isolate
-        case 0x2068:  // first strong isolate
-        case 0x2069:  // pop directional isolate
-        case 0xFEFF:  // zero-width no-break space / BOM
-            return true;
-        default:
-            break;
-    }
-
-    return false;
-}
-
-static bool completion_codepoint_is_whitespace(unicode_codepoint_t cp) {
-    switch (cp) {
-        case ' ':
-        case '\t':
-        case '\n':
-        case '\r':
-        case '\f':
-        case '\v':
-        case 0x0085:  // next line
-        case 0x00A0:  // no-break space
-        case 0x1680:  // ogham space mark
-        case 0x2000:  // en quad
-        case 0x2001:  // em quad
-        case 0x2002:  // en space
-        case 0x2003:  // em space
-        case 0x2004:  // three-per-em space
-        case 0x2005:  // four-per-em space
-        case 0x2006:  // six-per-em space
-        case 0x2007:  // figure space
-        case 0x2008:  // punctuation space
-        case 0x2009:  // thin space
-        case 0x200A:  // hair space
-        case 0x2028:  // line separator
-        case 0x2029:  // paragraph separator
-        case 0x205F:  // medium mathematical space
-        case 0x3000:  // ideographic space
-            return true;
-        default:
-            return false;
-    }
-}
-
 static bool completion_has_visible_chars(const char* text) {
-    if (text == NULL)
+    if (text == NULL || *text == '\0')
         return false;
 
-    ssize_t len = ic_strlen(text);
-    if (len <= 0)
-        return false;
-
-    const uint8_t* data = (const uint8_t*)text;
-    ssize_t pos = 0;
     bool has_visible = false;
-
-    while (pos < len) {
-        unicode_codepoint_t cp = 0;
-        ssize_t bytes_read = 0;
-        if (!unicode_decode_utf8(data + pos, len - pos, &cp, &bytes_read) || bytes_read <= 0) {
+    for (const unsigned char* p = (const unsigned char*)text; *p != '\0'; ++p) {
+        if (iscntrl(*p) && !isspace(*p))
             return false;
-        }
-
-        if (completion_codepoint_is_disallowed(cp)) {
-            return false;
-        }
-
-        if (!completion_codepoint_is_whitespace(cp) && unicode_codepoint_width(cp) > 0) {
+        if (!isspace(*p))
             has_visible = true;
-        }
-
-        pos += bytes_read;
     }
-
     return has_visible;
 }
 
