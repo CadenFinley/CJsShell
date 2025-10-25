@@ -81,9 +81,6 @@ static bool completion_codepoint_is_disallowed(unicode_codepoint_t cp) {
             break;
     }
 
-    if ((cp >= 0xFE00 && cp <= 0xFE0F) || (cp >= 0xE0100 && cp <= 0xE01EF))
-            return true;
-
     return false;
 }
 
@@ -142,13 +139,8 @@ static bool completion_has_visible_chars(const char* text) {
             return false;
         }
 
-        int char_width = unicode_codepoint_width(cp);
-        if (!completion_codepoint_is_whitespace(cp) && char_width > 0) {
+        if (!completion_codepoint_is_whitespace(cp) && unicode_codepoint_width(cp) > 0) {
             has_visible = true;
-        } else if (char_width <= 0 && !completion_codepoint_is_whitespace(cp) &&
-                   !has_visible) {
-            // Reject strings that consist only of zero-width non-whitespace characters.
-            return false;
         }
 
         pos += bytes_read;
