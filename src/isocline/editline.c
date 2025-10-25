@@ -1447,20 +1447,6 @@ static void edit_refresh_hint(ic_env_t* env, editor_t* eb) {
             return;
     }
 
-    // do not surface inline hints when the cursor starts the line
-    ssize_t line_start = sbuf_find_line_start(eb->input, eb->pos);
-    if (line_start < 0) {
-        line_start = 0;
-    }
-    if (line_start == eb->pos) {
-        sbuf_clear(eb->hint);
-        sbuf_clear(eb->hint_help);
-        if (env->hint_delay <= 0) {
-            edit_refresh(env, eb);
-        }
-        return;
-    }
-
     // and see if we can construct a hint (displayed after a delay)
     ssize_t count = completions_generate(env, env->completions, sbuf_string(eb->input), eb->pos, 2);
     if (count >= 1) {
