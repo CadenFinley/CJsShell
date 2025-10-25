@@ -7,8 +7,6 @@
 -----------------------------------------------------------------------------*/
 #include "completions.h"
 
-#include <ctype.h>
-#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,20 +41,6 @@ struct completions_s {
 };
 
 static void default_filename_completer(ic_completion_env_t* cenv, const char* prefix);
-
-static bool completion_has_visible_chars(const char* text) {
-    if (text == NULL || *text == '\0')
-        return false;
-
-    bool has_visible = false;
-    for (const unsigned char* p = (const unsigned char*)text; *p != '\0'; ++p) {
-        if (iscntrl(*p) && !isspace(*p))
-            return false;
-        if (!isspace(*p))
-            has_visible = true;
-    }
-    return has_visible;
-}
 
 ic_private completions_t* completions_new(alloc_t* mem) {
     completions_t* cms = mem_zalloc_tp(mem, completions_t);
@@ -223,9 +207,6 @@ ic_private bool completions_add(completions_t* cms, const char* replacement, con
                                 ssize_t delete_after) {
     if (cms->completer_max <= 0)
         return false;
-
-    if (!completion_has_visible_chars(replacement))
-        return true;
 
     // Check if this completion already exists
     ssize_t existing_index = completions_find(cms, replacement);
