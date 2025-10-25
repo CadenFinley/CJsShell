@@ -1440,25 +1440,24 @@ static void editor_append_hint_help(editor_t* eb, const char* help) {
 
 // refresh with possible hint
 static void edit_refresh_hint(ic_env_t* env, editor_t* eb) {
-    if (env->no_hint || env->hint_delay > 0) {
-        // refresh without hint first
-        edit_refresh(env, eb);
-        if (env->no_hint)
-            return;
-    }
-
-    // do not surface inline hints when the cursor starts the line
+    // Determine if the cursor is positioned at the start of the current line.
     ssize_t line_start = sbuf_find_line_start(eb->input, eb->pos);
     if (line_start < 0) {
         line_start = 0;
     }
-    if (line_start == eb->pos) {
+    bool skip_inline_hint = (line_start == eb->pos);
+
+    if (skip_inline_hint) {
         sbuf_clear(eb->hint);
         sbuf_clear(eb->hint_help);
-        if (env->hint_delay <= 0) {
-            edit_refresh(env, eb);
+    }
+
+    if (env->no_hint || env->hint_delay > 0 || skip_inline_hint) {
+        // refresh without hint first (or immediately when skipping hints)
+        edit_refresh(env, eb);
+        if (env->no_hint || skip_inline_hint) {
+            return;
         }
-        return;
     }
 
     // and see if we can construct a hint (displayed after a delay)
