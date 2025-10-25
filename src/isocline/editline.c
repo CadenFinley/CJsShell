@@ -2081,20 +2081,23 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
         // if the user tries to move into a hint with right-cursor or end, either
         // materialize it or fall back to completion logic
         if ((c == KEY_RIGHT || c == KEY_END) && had_hint) {
-            if (pending_hint != NULL && editor_pos_is_at_end(&eb)) {
-                // Apply the inline hint directly when already at the end of the input
-                editor_start_modify(&eb);
-                ssize_t new_pos = sbuf_insert_at(eb.input, pending_hint, eb.pos);
-                if (new_pos >= 0) {
-                    eb.pos = new_pos;
+            bool allow_force_completion = (c == KEY_END) || edit_pos_is_at_row_end(env, &eb);
+            if (allow_force_completion) {
+                if (pending_hint != NULL && editor_pos_is_at_end(&eb)) {
+                    // Apply the inline hint directly when already at the end of the input
+                    editor_start_modify(&eb);
+                    ssize_t new_pos = sbuf_insert_at(eb.input, pending_hint, eb.pos);
+                    if (new_pos >= 0) {
+                        eb.pos = new_pos;
+                    }
+                    edit_refresh_hint(env, &eb);
+                    mem_free(eb.mem, pending_hint);
+                    pending_hint = NULL;
+                    continue;
                 }
-                edit_refresh_hint(env, &eb);
-                mem_free(eb.mem, pending_hint);
-                pending_hint = NULL;
-                continue;
+                edit_generate_completions(env, &eb, true);
+                c = KEY_NONE;
             }
-            edit_generate_completions(env, &eb, true);
-            c = KEY_NONE;
         }
 
         if (pending_hint != NULL) {
@@ -2206,7 +2209,7 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
                     break;
                 case KEY_RIGHT:
                 case KEY_CTRL_F:
-                    if (eb.pos == sbuf_len(eb.input)) {
+                    if (eb.pos == sbuf_len(eb.input) && edit_pos_is_at_row_end(env, &eb)) {
                         edit_generate_completions(env, &eb, false);
                     } else {
                         edit_cursor_right(env, &eb);
@@ -2234,7 +2237,7 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
                 case KEY_CTRL_RIGHT:
                 case WITH_SHIFT(KEY_RIGHT):
                 case WITH_ALT('f'):
-                    if (eb.pos == sbuf_len(eb.input)) {
+                    if (eb.pos == sbuf_len(eb.input) && edit_pos_is_at_row_end(env, &eb)) {
                         edit_generate_completions(env, &eb, false);
                     } else {
                         edit_cursor_next_word(env, &eb);
