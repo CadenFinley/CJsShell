@@ -144,49 +144,35 @@ static code_t tty_read_utf8(tty_t* tty, uint8_t c0) {
 static bool tty_code_pop(tty_t* tty, code_t* code);
 
 ic_private bool tty_read_timeout(tty_t* tty, long timeout_ms, code_t* code) {
-    if (tty == NULL || code == NULL)
+    if (tty_code_pop(tty, code)) {
+        return code;
+    }
+
+    uint8_t c;
+    if (!tty_readc_noblock(tty, &c, timeout_ms))
         return false;
 
-    while (true) {
-        if (tty_code_pop(tty, code)) {
-            return true;
-        }
-
-        uint8_t c;
-        if (!tty_readc_noblock(tty, &c, timeout_ms))
-            return false;
-
-        if (c == 0 && !tty->paste_mode) {
-            // Skip stray NUL bytes (often produced by Super/Windows modifiers)
-            continue;
-        }
-
-        if (c == KEY_ESC) {
-            *code = tty_read_esc(tty, tty->esc_initial_timeout, tty->esc_timeout);
-        } else if (c <= 0x7F) {
-            *code = key_unicode(c);
-        } else if (tty->is_utf8) {
-            *code = tty_read_utf8(tty, c);
-        } else {
-            *code = key_unicode(unicode_from_raw(c));
-        }
-
-        *code = modify_code(*code, tty->paste_mode);
-
-        if (*code == IC_KEY_PASTE_START) {
-            tty->paste_mode = true;
-            debug_msg("tty: entering paste mode\n");
-        } else if (*code == IC_KEY_PASTE_END) {
-            tty->paste_mode = false;
-            debug_msg("tty: exiting paste mode\n");
-        }
-
-        if (*code == KEY_NONE && !tty->paste_mode) {
-            continue;
-        }
-
-        return true;
+    if (c == KEY_ESC) {
+        *code = tty_read_esc(tty, tty->esc_initial_timeout, tty->esc_timeout);
+    } else if (c <= 0x7F) {
+        *code = key_unicode(c);
+    } else if (tty->is_utf8) {
+        *code = tty_read_utf8(tty, c);
+    } else {
+        *code = key_unicode(unicode_from_raw(c));
     }
+
+    *code = modify_code(*code, tty->paste_mode);
+
+    if (*code == IC_KEY_PASTE_START) {
+        tty->paste_mode = true;
+        debug_msg("tty: entering paste mode\n");
+    } else if (*code == IC_KEY_PASTE_END) {
+        tty->paste_mode = false;
+        debug_msg("tty: exiting paste mode\n");
+    }
+
+    return true;
 }
 
 static code_t modify_code(code_t code, bool in_paste_mode) {
@@ -197,7 +183,9 @@ static code_t modify_code(code_t code, bool in_paste_mode) {
               (key >= ' ' && key <= '~' ? key : ' '));
 
     if (key == KEY_NONE && mods == 0 && !in_paste_mode) {
-        return KEY_NONE;
+        code = WITH_CTRL(KEY_SPACE);
+        key = KEY_SPACE;
+        mods = KEY_MOD_CTRL;
     }
 
     if (key == KEY_RUBOUT) {

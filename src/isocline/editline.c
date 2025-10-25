@@ -2102,10 +2102,6 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
             pending_hint = NULL;
         }
 
-        if (c == KEY_NONE) {
-            continue;
-        }
-
         if ((c < IC_KEY_EVENT_BASE || c >= IC_KEY_UNICODE_MAX) &&
             key_binding_execute(env, &eb, c)) {
             continue;
