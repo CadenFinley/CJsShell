@@ -421,18 +421,26 @@ static bool editor_can_display_inline_hint(const editor_t* eb) {
         return false;
     }
 
-    bool has_non_whitespace = false;
+    bool has_printable_content = false;
     for (ssize_t i = line_start; i < line_end; ++i) {
         if (input[i] == '\0') {
             break;
         }
-        if (!isspace((unsigned char)input[i])) {
-            has_non_whitespace = true;
+        unsigned char uc = (unsigned char)input[i];
+        if (uc < 0x20) {
+            continue;
+        }
+        if (isprint(uc) && isspace(uc) == 0) {
+            has_printable_content = true;
+            break;
+        }
+        if (uc >= 0x80) {
+            has_printable_content = true;
             break;
         }
     }
 
-    if (!has_non_whitespace) {
+    if (!has_printable_content) {
         return false;
     }
 
