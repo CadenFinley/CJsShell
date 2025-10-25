@@ -401,8 +401,6 @@ ic_private const char* completions_get_hint(completions_t* cms, ssize_t index, c
     const char* hint = (cm->replacement + cm->delete_before);
     if (*hint == 0 || utf8_is_cont((uint8_t)(*hint)))
         return NULL;  // utf8 boundary?
-    if (!completion_has_visible_chars(hint))
-        return NULL;
     if (help != NULL) {
         *help = cm->help;
     }
