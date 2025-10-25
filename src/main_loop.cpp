@@ -531,7 +531,6 @@ void main_process_loop() {
     initialize_isocline();
     typeahead::initialize();
 
-    // typeahead::flush_pending_typeahead();
     std::string command_to_run;
     bool command_available = false;
     bool history_already_added = false;
