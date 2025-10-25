@@ -348,16 +348,34 @@ bool setup_here_document_stdin(const std::string& here_doc, ErrorHandler&& on_er
 
     auto write_result = cjsh_filesystem::write_all(here_pipe[1], std::string_view{here_doc});
     if (write_result.is_error()) {
-        on_error(HereDocErrorKind::ContentWrite, write_result.error());
-        cjsh_filesystem::close_pipe(here_pipe);
-        return false;
+        bool is_broken_pipe = (write_result.error().find("Broken pipe") != std::string::npos ||
+                               write_result.error().find("EPIPE") != std::string::npos);
+        if (!is_broken_pipe) {
+            on_error(HereDocErrorKind::ContentWrite, write_result.error());
+            cjsh_filesystem::close_pipe(here_pipe);
+            return false;
+        }
+
+        cjsh_filesystem::safe_close(here_pipe[1]);
+
+        auto dup_result = cjsh_filesystem::safe_dup2(here_pipe[0], STDIN_FILENO);
+        cjsh_filesystem::safe_close(here_pipe[0]);
+        if (dup_result.is_error()) {
+            on_error(HereDocErrorKind::Duplication, dup_result.error());
+            return false;
+        }
+        return true;
     }
 
     auto newline_result = cjsh_filesystem::write_all(here_pipe[1], std::string_view("\n", 1));
     if (newline_result.is_error()) {
-        on_error(HereDocErrorKind::NewlineWrite, newline_result.error());
-        cjsh_filesystem::close_pipe(here_pipe);
-        return false;
+        bool is_broken_pipe = (newline_result.error().find("Broken pipe") != std::string::npos ||
+                               newline_result.error().find("EPIPE") != std::string::npos);
+        if (!is_broken_pipe) {
+            on_error(HereDocErrorKind::NewlineWrite, newline_result.error());
+            cjsh_filesystem::close_pipe(here_pipe);
+            return false;
+        }
     }
 
     cjsh_filesystem::safe_close(here_pipe[1]);
@@ -666,12 +684,19 @@ int Exec::execute_builtin_with_redirections(Command cmd) {
             auto write_result =
                 cjsh_filesystem::write_all(here_pipe[1], std::string_view{cmd.here_doc});
             if (write_result.is_error()) {
-                error = write_result.error();
+                if (write_result.error().find("Broken pipe") == std::string::npos &&
+                    write_result.error().find("EPIPE") == std::string::npos) {
+                    error = write_result.error();
+                }
+
             } else {
                 auto newline_result =
                     cjsh_filesystem::write_all(here_pipe[1], std::string_view("\n", 1));
                 if (newline_result.is_error()) {
-                    error = newline_result.error();
+                    if (newline_result.error().find("Broken pipe") == std::string::npos &&
+                        newline_result.error().find("EPIPE") == std::string::npos) {
+                        error = newline_result.error();
+                    }
                 }
             }
 

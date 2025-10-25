@@ -8,6 +8,7 @@
 #include "cjsh.h"
 #include "error_out.h"
 #include "shell.h"
+#include "signal_handler.h"
 
 namespace {
 
@@ -36,10 +37,6 @@ TrapManagerState& trap_manager_state() {
     return state;
 }
 
-void dispatch_signal(int sig) {
-    trap_manager_execute_trap(sig);
-}
-
 void init_reverse_signal_map() {
     if (reverse_signal_map.empty()) {
         for (const auto& pair : signal_map) {
@@ -56,17 +53,18 @@ void trap_manager_set_trap(int signal, const std::string& command) {
     }
 
     auto& state = trap_manager_state();
+
     state.traps[signal] = command;
 
     if (signal == 0 || signal == -2 || signal == -3 || signal == -4) {
         return;
     }
 
-    struct sigaction sa{};
-    sa.sa_handler = dispatch_signal;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_RESTART;
-    sigaction(signal, &sa, nullptr);
+    if (command.empty() || command == "-") {
+        SignalHandler::ignore_signal(signal);
+    } else {
+        SignalHandler::set_signal_disposition(signal, SignalDisposition::TRAPPED);
+    }
 }
 
 void trap_manager_remove_trap(int signal) {
@@ -77,11 +75,7 @@ void trap_manager_remove_trap(int signal) {
         return;
     }
 
-    struct sigaction sa{};
-    sa.sa_handler = SIG_DFL;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    sigaction(signal, &sa, nullptr);
+    SignalHandler::reset_signal_to_default(signal);
 }
 
 std::string trap_manager_get_trap(int signal) {

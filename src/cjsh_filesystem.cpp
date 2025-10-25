@@ -234,6 +234,10 @@ Result<void> write_all(int fd, std::string_view data) {
             ) {
                 continue;
             }
+
+            if (errno == EPIPE) {
+                return Result<void>::error("Broken pipe (EPIPE)");
+            }
             return Result<void>::error("Failed to write to file descriptor " + std::to_string(fd) +
                                        ": " + describe_errno(errno));
         }
@@ -262,8 +266,12 @@ std::optional<HereStringError> setup_here_string_stdin(const std::string& here_s
     auto write_result = write_all(here_pipe[1], std::string_view{content});
     std::fill(content.begin(), content.end(), '\0');
     if (write_result.is_error()) {
-        close_pipe(here_pipe);
-        return HereStringError{HereStringErrorType::Write, write_result.error()};
+        bool is_broken_pipe = (write_result.error().find("Broken pipe") != std::string::npos ||
+                               write_result.error().find("EPIPE") != std::string::npos);
+        if (!is_broken_pipe) {
+            close_pipe(here_pipe);
+            return HereStringError{HereStringErrorType::Write, write_result.error()};
+        }
     }
 
     safe_close(here_pipe[1]);
