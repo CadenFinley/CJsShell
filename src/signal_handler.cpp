@@ -369,7 +369,6 @@ SignalDisposition SignalHandler::get_signal_disposition(int signum) {
 
 void SignalHandler::reset_signal_to_default(int signum) {
     set_signal_disposition(signum, SignalDisposition::DEFAULT);
-    trap_manager_remove_trap(signum);
 }
 
 void SignalHandler::ignore_signal(int signum) {
@@ -492,8 +491,7 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
     }
 
     bool is_observed = is_signal_observed(signum);
-
-    s_signal_pending.store(true, std::memory_order_release);
+    bool should_mark_pending = is_observed;
 
     switch (signum) {
         case SIGINT: {
@@ -505,11 +503,13 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
                     exit(128 + SIGINT);
                 }
             }
+            should_mark_pending = true;
             break;
         }
 
         case SIGCHLD: {
             s_sigchld_received = 1;
+            should_mark_pending = true;
             break;
         }
 
@@ -520,6 +520,7 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
             if (!is_observed) {
                 _exit(129);
             }
+            should_mark_pending = true;
             break;
         }
 
@@ -530,6 +531,7 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
             if (!is_observed) {
                 _exit(128 + SIGTERM);
             }
+            should_mark_pending = true;
             break;
         }
 
@@ -593,6 +595,10 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
         default: {
             break;
         }
+    }
+
+    if (should_mark_pending) {
+        s_signal_pending.store(true, std::memory_order_release);
     }
 }
 
