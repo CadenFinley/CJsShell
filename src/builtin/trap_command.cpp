@@ -70,12 +70,6 @@ void trap_manager_set_trap(int signal, const std::string& command) {
 void trap_manager_remove_trap(int signal) {
     auto& state = trap_manager_state();
     state.traps.erase(signal);
-
-    if (signal == 0 || signal == -2 || signal == -3 || signal == -4) {
-        return;
-    }
-
-    SignalHandler::reset_signal_to_default(signal);
 }
 
 std::string trap_manager_get_trap(int signal) {
