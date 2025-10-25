@@ -384,46 +384,6 @@ static bool editor_input_has_unclosed_heredoc(editor_t* eb) {
     return false;
 }
 
-static bool editor_can_display_inline_hint(const editor_t* eb) {
-    if (eb == NULL || eb->input == NULL) {
-        return false;
-    }
-
-    const ssize_t input_len = sbuf_len(eb->input);
-    if (input_len <= 0) {
-        return false;
-    }
-
-    if (eb->pos < 0 || eb->pos > input_len) {
-        return false;
-    }
-
-    const char* input = sbuf_string(eb->input);
-    if (input == NULL) {
-        return false;
-    }
-
-    ssize_t line_start = eb->pos;
-    while (line_start > 0 && input[line_start - 1] != '\n') {
-        line_start--;
-    }
-
-    ssize_t line_end = eb->pos;
-    while (line_end < input_len && input[line_end] != '\n') {
-        line_end++;
-    }
-
-    if (line_start == line_end) {
-        return false;
-    }
-
-    if (eb->pos == line_start) {
-        return false;
-    }
-
-    return true;
-}
-
 //-------------------------------------------------------------
 // Row/Column width and positioning
 //-------------------------------------------------------------
@@ -1059,16 +1019,13 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
             bbcode_style(env->bbcode, "ic-bracematch"), bbcode_style(env->bbcode, "ic-error"));
     }
 
-    bool hint_inserted = false;
-
     // insert hint
-    if (sbuf_len(eb->hint) > 0 && editor_can_display_inline_hint(eb)) {
+    if (sbuf_len(eb->hint) > 0) {
         if (eb->attrs != NULL) {
             attrbuf_insert_at(eb->attrs, eb->pos, sbuf_len(eb->hint),
                               bbcode_style(env->bbcode, "ic-hint"));
         }
         sbuf_insert_at(eb->input, sbuf_string(eb->hint), eb->pos);
-        hint_inserted = true;
     }
 
     // render extra (like a completion menu)
@@ -1076,7 +1033,7 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
     if (sbuf_len(eb->extra) > 0) {
         extra = sbuf_new(eb->mem);
         if (extra != NULL) {
-            if (hint_inserted && sbuf_len(eb->hint_help) > 0) {
+            if (sbuf_len(eb->hint_help) > 0) {
                 bbcode_append(env->bbcode, sbuf_string(eb->hint_help), extra, eb->attrs_extra);
             }
             bbcode_append(env->bbcode, sbuf_string(eb->extra), extra, eb->attrs_extra);
@@ -1225,12 +1182,8 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
     term_set_buffer_mode(env->term, bmode);
 
     // restore input by removing the hint
-    if (hint_inserted) {
-        sbuf_delete_at(eb->input, eb->pos, sbuf_len(eb->hint));
-        if (sbuf_len(eb->hint_help) > 0) {
-            sbuf_delete_at(eb->extra, 0, sbuf_len(eb->hint_help));
-        }
-    }
+    sbuf_delete_at(eb->input, eb->pos, sbuf_len(eb->hint));
+    sbuf_delete_at(eb->extra, 0, sbuf_len(eb->hint_help));
     attrbuf_clear(eb->attrs);
     attrbuf_clear(eb->attrs_extra);
     sbuf_free(extra);
@@ -1433,20 +1386,15 @@ static bool edit_resize(ic_env_t* env, editor_t* eb) {
     // width
     ssize_t promptw, cpromptw;
     edit_get_prompt_width(env, eb, false, &promptw, &cpromptw);
-    const bool hint_applicable = (sbuf_len(eb->hint) > 0) && editor_can_display_inline_hint(eb);
-    bool hint_inserted_for_layout = false;
-    if (hint_applicable) {
-        sbuf_insert_at(eb->input, sbuf_string(eb->hint),
-                       eb->pos);  // insert used hint
-        hint_inserted_for_layout = true;
-    }
+    sbuf_insert_at(eb->input, sbuf_string(eb->hint),
+                   eb->pos);  // insert used hint
 
     // render extra (like a completion menu)
     stringbuf_t* extra = NULL;
     if (sbuf_len(eb->extra) > 0) {
         extra = sbuf_new(eb->mem);
         if (extra != NULL) {
-            if (hint_applicable && sbuf_len(eb->hint_help) > 0) {
+            if (sbuf_len(eb->hint_help) > 0) {
                 bbcode_append(env->bbcode, sbuf_string(eb->hint_help), extra, NULL);
             }
             bbcode_append(env->bbcode, sbuf_string(eb->extra), extra, NULL);
@@ -1472,12 +1420,11 @@ static bool edit_resize(ic_env_t* env, editor_t* eb) {
     if (rows > eb->cur_rows) {
         eb->cur_rows = rows;
     }
-    if (hint_inserted_for_layout) {
-        sbuf_delete_at(eb->input, eb->pos, sbuf_len(eb->hint));
-    }
     eb->termw = newtermw;
     edit_refresh(env, eb);
 
+    // remove hint again
+    sbuf_delete_at(eb->input, eb->pos, sbuf_len(eb->hint));
     sbuf_free(extra);
     return true;
 }
