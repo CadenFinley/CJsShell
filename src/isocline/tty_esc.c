@@ -5,49 +5,9 @@
   under the terms of the MIT License. A copy of the license can be
   found in the "LICENSE" file at the root of this distribution.
 -----------------------------------------------------------------------------*/
-#include <stdbool.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "tty.h"
-
-static bool tty_is_iterm_environment(void) {
-    static int cached = -1;
-    if (cached >= 0)
-        return (cached == 1);
-
-    const char* term_program = getenv("TERM_PROGRAM");
-    if (term_program != NULL && strstr(term_program, "iTerm") != NULL) {
-        cached = 1;
-        return true;
-    }
-
-    if (getenv("ITERM_PROFILE") != NULL || getenv("ITERM_SESSION_ID") != NULL) {
-        cached = 1;
-        return true;
-    }
-
-    cached = 0;
-    return false;
-}
-
-static uint32_t tty_normalized_modifier_bits(uint32_t param) {
-    if (param <= 1)
-        return 0;
-
-    uint32_t raw = param - 1;
-    raw &= 0x0FU;  // ignore modifier bits we do not understand
-
-    uint32_t recognized = raw & 0x7U;  // shift, alt, ctrl
-    if ((raw & 0x8U) != 0) {
-        if (recognized == 0 && tty_is_iterm_environment()) {
-            recognized |= 0x2U;  // treat iTerm's alt encoding as Alt
-        }
-        // otherwise drop the super bit entirely (ignore super modifier)
-    }
-
-    return recognized;
-}
 
 /*-------------------------------------------------------------
 Decoding escape sequences to key codes.
@@ -439,13 +399,15 @@ static code_t tty_read_csi(tty_t* tty, uint8_t c1, uint8_t peek, code_t mods0, l
     }
 
     // parameter 2 determines the modifiers
-    if (num2 > 1) {
-        uint32_t mod_bits = tty_normalized_modifier_bits(num2);
-        if ((mod_bits & 0x1U) != 0)
+    if (num2 > 1 && num2 <= 9) {
+        if (num2 == 9)
+            num2 = 3;  // iTerm2 in xterm mode
+        num2--;
+        if (num2 & 0x1)
             modifiers |= KEY_MOD_SHIFT;
-        if ((mod_bits & 0x2U) != 0)
+        if (num2 & 0x2)
             modifiers |= KEY_MOD_ALT;
-        if ((mod_bits & 0x4U) != 0)
+        if (num2 & 0x4)
             modifiers |= KEY_MOD_CTRL;
     }
 
