@@ -4,7 +4,6 @@
 #include <unistd.h>
 
 #include <algorithm>
-#include <cctype>
 #include <iostream>
 #include <sstream>
 #include <vector>
@@ -18,133 +17,6 @@ using ErrorCategory = ShellScriptInterpreter::ErrorCategory;
 using SyntaxError = ShellScriptInterpreter::SyntaxError;
 
 namespace {
-
-std::string to_lower_copy(const std::string& input) {
-    std::string lowered = input;
-    std::transform(lowered.begin(), lowered.end(), lowered.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    return lowered;
-}
-
-std::string strip_shell_prefix(const std::string& message) {
-    if (message.rfind("cjsh:", 0) != 0) {
-        return message;
-    }
-
-    size_t delimiter = message.find(':');
-    if (delimiter == std::string::npos) {
-        return message;
-    }
-
-    std::string stripped = message.substr(delimiter + 1);
-    while (!stripped.empty() && std::isspace(static_cast<unsigned char>(stripped.front()))) {
-        stripped.erase(stripped.begin());
-    }
-    return stripped;
-}
-
-ErrorType deduce_error_type(const SyntaxError& error, const std::string& normalized_message) {
-    using Category = ShellScriptInterpreter::ErrorCategory;
-
-    std::string lowered = to_lower_copy(normalized_message);
-
-    if (lowered.find("command not found") != std::string::npos) {
-        return ErrorType::COMMAND_NOT_FOUND;
-    }
-    if (lowered.find("permission denied") != std::string::npos) {
-        return ErrorType::PERMISSION_DENIED;
-    }
-    if (lowered.find("no such file") != std::string::npos ||
-        lowered.find("file not found") != std::string::npos ||
-        lowered.find("failed to open") != std::string::npos) {
-        return ErrorType::FILE_NOT_FOUND;
-    }
-    if (lowered.find("invalid argument") != std::string::npos) {
-        return ErrorType::INVALID_ARGUMENT;
-    }
-    if (lowered.find("syntax error") != std::string::npos) {
-        return ErrorType::SYNTAX_ERROR;
-    }
-
-    switch (error.category) {
-        case Category::SYNTAX:
-        case Category::CONTROL_FLOW:
-        case Category::SEMANTICS:
-            return ErrorType::SYNTAX_ERROR;
-        case Category::REDIRECTION:
-            return ErrorType::RUNTIME_ERROR;
-        case Category::VARIABLES:
-            return ErrorType::RUNTIME_ERROR;
-        case Category::COMMANDS:
-            return ErrorType::RUNTIME_ERROR;
-        case Category::STYLE:
-            return ErrorType::INVALID_ARGUMENT;
-        case Category::PERFORMANCE:
-            return ErrorType::UNKNOWN_ERROR;
-    }
-
-    return ErrorType::UNKNOWN_ERROR;
-}
-
-ErrorInfo build_error_info(const SyntaxError& error, const std::string& sanitized_message,
-                          const std::string& sanitized_line_content,
-                          const std::string& sanitized_suggestion, bool show_suggestions,
-                          bool show_context) {
-    ErrorInfo info;
-
-    std::string normalized_message = strip_shell_prefix(sanitized_message);
-    info.type = deduce_error_type(error, normalized_message);
-    info.severity = error.severity;
-
-    std::ostringstream message_builder;
-    if (!normalized_message.empty()) {
-        message_builder << normalized_message;
-    }
-
-    std::ostringstream location_builder;
-    if (error.position.line_number > 0) {
-        location_builder << "line " << error.position.line_number;
-        if (error.position.column_start > 0) {
-            location_builder << ", column " << error.position.column_start;
-        }
-    }
-
-    std::string location_text = location_builder.str();
-    if (!location_text.empty()) {
-        if (!normalized_message.empty()) {
-            message_builder << ' ';
-        }
-        message_builder << '(' << location_text << ')';
-    }
-
-    info.message = message_builder.str();
-
-    if (show_context && !sanitized_line_content.empty()) {
-        std::string context_line = sanitized_line_content;
-        if (context_line.size() > 160) {
-            context_line = context_line.substr(0, 157) + "...";
-        }
-        std::ostringstream context_builder;
-        context_builder << "Line " << error.position.line_number << ": " << context_line;
-        info.suggestions.push_back(context_builder.str());
-    }
-
-    if (show_suggestions && !sanitized_suggestion.empty()) {
-        info.suggestions.push_back(sanitized_suggestion);
-    }
-
-    for (const auto& related : error.related_info) {
-        if (!related.empty()) {
-            info.suggestions.push_back(related);
-        }
-    }
-
-    if (!error.documentation_url.empty()) {
-        info.suggestions.push_back("See " + error.documentation_url);
-    }
-
-    return info;
-}
 
 std::string strip_internal_placeholders(const std::string& input, size_t* column_start = nullptr,
                                         size_t* column_end = nullptr) {
@@ -219,6 +91,24 @@ size_t get_terminal_width() {
     return 80;
 }
 
+ErrorType map_category_to_error_type(ErrorCategory category) {
+    switch (category) {
+        case ErrorCategory::SYNTAX:
+            return ErrorType::SYNTAX_ERROR;
+        case ErrorCategory::COMMANDS:
+        case ErrorCategory::CONTROL_FLOW:
+        case ErrorCategory::REDIRECTION:
+        case ErrorCategory::VARIABLES:
+        case ErrorCategory::SEMANTICS:
+        case ErrorCategory::PERFORMANCE:
+            return ErrorType::RUNTIME_ERROR;
+        case ErrorCategory::STYLE:
+            return ErrorType::INVALID_ARGUMENT;
+        default:
+            return ErrorType::UNKNOWN_ERROR;
+    }
+}
+
 }  // namespace
 
 void print_error_report(const std::vector<ShellScriptInterpreter::SyntaxError>& errors,
@@ -275,6 +165,8 @@ void print_error_report(const std::vector<ShellScriptInterpreter::SyntaxError>& 
                       return a.position.column_start < b.position.column_start;
                   });
 
+        const bool use_compact_error_output = !isatty(STDERR_FILENO);
+
         int error_count = actual_start_number - 1;
         for (const auto& error : sorted_errors) {
             error_count++;
@@ -289,6 +181,51 @@ void print_error_report(const std::vector<ShellScriptInterpreter::SyntaxError>& 
             std::string sanitized_line_content =
                 strip_internal_placeholders(error.line_content, &column_start, &column_end);
             std::string sanitized_suggestion = strip_internal_placeholders(error.suggestion);
+
+            if (use_compact_error_output) {
+                std::ostringstream message_stream;
+                message_stream << "[" << error.error_code << "] " << sanitized_message;
+                if (error.position.line_number > 0) {
+                    message_stream << " (line " << error.position.line_number;
+                    if (column_start > 0) {
+                        message_stream << ", column " << column_start;
+                    }
+                    message_stream << ")";
+                }
+
+                std::vector<std::string> suggestions;
+                if (show_context && !sanitized_line_content.empty()) {
+                    std::string context_line = sanitized_line_content;
+                    std::replace(context_line.begin(), context_line.end(), '\n', ' ');
+                    std::replace(context_line.begin(), context_line.end(), '\r', ' ');
+                    if (context_line.size() > 120) {
+                        context_line = context_line.substr(0, 117) + "...";
+                    }
+                    suggestions.push_back("Line " + std::to_string(error.position.line_number) +
+                                          ": " + context_line);
+                }
+                if (show_suggestions && !sanitized_suggestion.empty()) {
+                    suggestions.push_back(sanitized_suggestion);
+                }
+                if (!error.documentation_url.empty()) {
+                    suggestions.push_back("More info: " + error.documentation_url);
+                }
+                for (const auto& info : error.related_info) {
+                    if (!info.empty()) {
+                        suggestions.push_back(info);
+                    }
+                }
+
+                ErrorInfo compact_error;
+                compact_error.type = map_category_to_error_type(error.category);
+                compact_error.severity = error.severity;
+                compact_error.command_used.clear();
+                compact_error.message = message_stream.str();
+                compact_error.suggestions = suggestions;
+
+                print_error(compact_error);
+                continue;
+            }
 
             switch (error.severity) {
                 case ErrorSeverity::CRITICAL:
