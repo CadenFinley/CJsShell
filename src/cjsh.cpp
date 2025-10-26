@@ -40,6 +40,7 @@ std::unique_ptr<Shell> g_shell = nullptr;
 std::unique_ptr<Theme> g_theme = nullptr;
 std::vector<std::string> g_startup_args;
 std::vector<std::string> g_profile_startup_args;
+std::string g_cached_version;
 
 namespace {
 

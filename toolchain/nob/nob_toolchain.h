@@ -83,6 +83,18 @@ static inline const char* get_linker(void) {
     return cached_linker;
 }
 
+static inline const char* get_lto_flag_for_compiler(const char* compiler) {
+    if (compiler == NULL) {
+        return "-flto";
+    }
+
+    if (strstr(compiler, "clang") != NULL) {
+        return "-flto=thin";
+    }
+
+    return "-flto=auto";
+}
+
 static inline bool setup_build_flags(Nob_Cmd* cmd) {
     const char* compiler = get_cxx_compiler();
 
@@ -115,7 +127,8 @@ static inline bool setup_build_flags(Nob_Cmd* cmd) {
         nob_cmd_append(cmd, "-DCJSH_ENABLE_DEBUG");
     } else if (g_minimal_build) {
         nob_cmd_append(cmd, "-Oz", "-DNDEBUG");
-        nob_cmd_append(cmd, "-ffunction-sections", "-fdata-sections", "-flto");
+        nob_cmd_append(cmd, "-ffunction-sections", "-fdata-sections",
+                       get_lto_flag_for_compiler(compiler));
         nob_cmd_append(cmd, "-fomit-frame-pointer", "-fmerge-all-constants");
         nob_cmd_append(cmd, "-fno-rtti");
         nob_cmd_append(cmd, "-fvisibility=hidden", "-fvisibility-inlines-hidden");
@@ -135,7 +148,8 @@ static inline bool setup_build_flags(Nob_Cmd* cmd) {
 #endif
     } else {
         nob_cmd_append(cmd, "-O2", "-DNDEBUG");
-        nob_cmd_append(cmd, "-ffunction-sections", "-fdata-sections", "-flto");
+        nob_cmd_append(cmd, "-ffunction-sections", "-fdata-sections",
+                       get_lto_flag_for_compiler(compiler));
         nob_cmd_append(cmd, "-fomit-frame-pointer", "-fmerge-all-constants");
         nob_cmd_append(cmd, "-fno-rtti");
         nob_cmd_append(cmd, "-fvisibility=hidden", "-fvisibility-inlines-hidden");
@@ -207,7 +221,8 @@ static inline bool setup_c_build_flags(Nob_Cmd* cmd) {
         nob_cmd_append(cmd, "-UIC_NO_DEBUG_MSG");
     } else if (g_minimal_build) {
         nob_cmd_append(cmd, "-Oz", "-DNDEBUG");
-        nob_cmd_append(cmd, "-ffunction-sections", "-fdata-sections", "-flto");
+        nob_cmd_append(cmd, "-ffunction-sections", "-fdata-sections",
+                       get_lto_flag_for_compiler(c_compiler));
         nob_cmd_append(cmd, "-fomit-frame-pointer", "-fmerge-all-constants");
         nob_cmd_append(cmd, "-fvisibility=hidden");
         nob_cmd_append(cmd, "-fno-unwind-tables", "-fno-asynchronous-unwind-tables");
@@ -222,7 +237,8 @@ static inline bool setup_c_build_flags(Nob_Cmd* cmd) {
 #endif
     } else {
         nob_cmd_append(cmd, "-O2", "-DNDEBUG");
-        nob_cmd_append(cmd, "-ffunction-sections", "-fdata-sections", "-flto");
+        nob_cmd_append(cmd, "-ffunction-sections", "-fdata-sections",
+                       get_lto_flag_for_compiler(c_compiler));
         nob_cmd_append(cmd, "-fomit-frame-pointer", "-fmerge-all-constants");
         nob_cmd_append(cmd, "-fvisibility=hidden");
 

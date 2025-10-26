@@ -957,7 +957,7 @@ static inline bool compile_cjsh(int override_parallel_jobs, bool generate_compil
     if (g_debug_build) {
         nob_cmd_append(&link_cmd, "-g");
     } else {
-        nob_cmd_append(&link_cmd, "-flto");
+        nob_cmd_append(&link_cmd, get_lto_flag_for_compiler(linker));
     }
 
 #ifdef PLATFORM_MACOS
