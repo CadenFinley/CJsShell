@@ -55,7 +55,7 @@ echo "line 6"
 EOF
 
 OUT=$("$CJSH_PATH" -c "syntax $TEST_DIR/syntax_error_context.sh" 2>&1)
-if echo "$OUT" | grep -q "at line"; then
+if echo "$OUT" | grep -q "(line "; then
     echo "PASS: syntax errors include line numbers"
 else
     echo "FAIL: syntax errors should include line numbers"

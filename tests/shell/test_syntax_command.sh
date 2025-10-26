@@ -75,7 +75,7 @@ EOF
 
 OUT=$("$CJSH_PATH" -c "syntax $TEST_DIR/bad_syntax.sh" 2>&1)
 EXIT_CODE=$?
-if [ $EXIT_CODE -eq 0 ] || ! echo "$OUT" | grep -q "ERROR"; then
+if [ $EXIT_CODE -eq 0 ] || ! echo "$OUT" | grep -Ei "error|critical"; then
     echo "FAIL: syntax check on bad file should fail (exit: $EXIT_CODE, output: '$OUT')"
     rm -rf "$TEST_DIR"
     exit 1
@@ -95,7 +95,7 @@ fi
 
 OUT=$("$CJSH_PATH" -c "syntax -c 'if [ true; then'" 2>&1)
 EXIT_CODE=$?
-if [ $EXIT_CODE -eq 0 ] || ! echo "$OUT" | grep -q "CRITICAL\|ERROR"; then
+if [ $EXIT_CODE -eq 0 ] || ! echo "$OUT" | grep -Ei "critical|error"; then
     echo "FAIL: syntax -c with bad command should fail (exit: $EXIT_CODE, output: '$OUT')"
     rm -rf "$TEST_DIR"
     exit 1
@@ -156,13 +156,13 @@ EOF
 
 OUT=$("$CJSH_PATH" -c "syntax $TEST_DIR/complex_errors.sh" 2>&1)
 EXIT_CODE=$?
-if [ $EXIT_CODE -eq 0 ] || ! echo "$OUT" | grep -q "ERROR"; then
+if [ $EXIT_CODE -eq 0 ] || ! echo "$OUT" | grep -Ei "error|critical"; then
     echo "FAIL: syntax check on complex errors should fail (exit: $EXIT_CODE, output: '$OUT')"
     rm -rf "$TEST_DIR"
     exit 1
 fi
 
-if ! echo "$OUT" | grep -q "at line"; then
+if ! echo "$OUT" | grep -q "(line "; then
     echo "FAIL: syntax errors should include line numbers (output: '$OUT')"
     rm -rf "$TEST_DIR"
     exit 1

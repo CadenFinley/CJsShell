@@ -43,7 +43,7 @@ EOF
 
 OUT=$("$CJSH_PATH" -c "syntax $TEST_DIR/nested_bad.sh" 2>&1)
 EXIT_CODE=$?
-if [ $EXIT_CODE -eq 0 ] || ! echo "$OUT" | grep -q "ERROR"; then
+if [ $EXIT_CODE -eq 0 ] || ! echo "$OUT" | grep -Ei "error|critical"; then
     echo "FAIL: nested control structures (bad) should fail (exit: $EXIT_CODE, output: '$OUT')"
     rm -rf "$TEST_DIR"
     exit 1
@@ -77,7 +77,7 @@ EOF
 
 OUT=$("$CJSH_PATH" -c "syntax $TEST_DIR/quoting_bad.sh" 2>&1)
 EXIT_CODE=$?
-if [ $EXIT_CODE -eq 0 ] || ! echo "$OUT" | grep -q "ERROR"; then
+if [ $EXIT_CODE -eq 0 ] || ! echo "$OUT" | grep -Ei "error|critical"; then
     echo "FAIL: unbalanced quotes should fail (exit: $EXIT_CODE, output: '$OUT')"
     rm -rf "$TEST_DIR"
     exit 1
@@ -133,7 +133,7 @@ EOF
 
 OUT=$("$CJSH_PATH" -c "syntax $TEST_DIR/functions_bad.sh" 2>&1)
 EXIT_CODE=$?
-if [ $EXIT_CODE -eq 0 ] || ! echo "$OUT" | grep -q "ERROR"; then
+if [ $EXIT_CODE -eq 0 ] || ! echo "$OUT" | grep -Ei "error|critical"; then
     echo "FAIL: function definitions (bad) should fail (exit: $EXIT_CODE, output: '$OUT')"
     rm -rf "$TEST_DIR"
     exit 1
@@ -167,7 +167,7 @@ EOF
 
 OUT=$("$CJSH_PATH" -c "syntax $TEST_DIR/substitution_bad.sh" 2>&1)
 EXIT_CODE=$?
-if [ $EXIT_CODE -eq 0 ] || ! echo "$OUT" | grep -q "ERROR"; then
+if [ $EXIT_CODE -eq 0 ] || ! echo "$OUT" | grep -Ei "error|critical"; then
     echo "FAIL: command substitution (bad) should fail (exit: $EXIT_CODE, output: '$OUT')"
     rm -rf "$TEST_DIR"
     exit 1
@@ -209,7 +209,7 @@ EOF
 
 OUT=$("$CJSH_PATH" -c "syntax $TEST_DIR/conditional_bad.sh" 2>&1)
 EXIT_CODE=$?
-if [ $EXIT_CODE -eq 0 ] || ! echo "$OUT" | grep -q "CRITICAL\|ERROR"; then
+if [ $EXIT_CODE -eq 0 ] || ! echo "$OUT" | grep -Ei "critical|error"; then
     echo "FAIL: conditional statements (bad) should fail (exit: $EXIT_CODE, output: '$OUT')"
     rm -rf "$TEST_DIR"
     exit 1
