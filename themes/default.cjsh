@@ -4,7 +4,7 @@ theme_definition {
   terminal_title "{PATH}"
 
   fill {
-    char "",
+    char ""
     fg RESET
     bg RESET
   }
