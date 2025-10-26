@@ -155,7 +155,7 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
         if (!found) {
             if (show_type_only) {
             } else {
-                std::cout << name << ": not found\n";
+                std::cerr << name << ": not found\n";
             }
             return_code = 1;
         }

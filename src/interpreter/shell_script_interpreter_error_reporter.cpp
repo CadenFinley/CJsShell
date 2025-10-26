@@ -4,6 +4,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <cctype>
 #include <iostream>
 #include <sstream>
 #include <vector>
@@ -17,6 +18,133 @@ using ErrorCategory = ShellScriptInterpreter::ErrorCategory;
 using SyntaxError = ShellScriptInterpreter::SyntaxError;
 
 namespace {
+
+std::string to_lower_copy(const std::string& input) {
+    std::string lowered = input;
+    std::transform(lowered.begin(), lowered.end(), lowered.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return lowered;
+}
+
+std::string strip_shell_prefix(const std::string& message) {
+    if (message.rfind("cjsh:", 0) != 0) {
+        return message;
+    }
+
+    size_t delimiter = message.find(':');
+    if (delimiter == std::string::npos) {
+        return message;
+    }
+
+    std::string stripped = message.substr(delimiter + 1);
+    while (!stripped.empty() && std::isspace(static_cast<unsigned char>(stripped.front()))) {
+        stripped.erase(stripped.begin());
+    }
+    return stripped;
+}
+
+ErrorType deduce_error_type(const SyntaxError& error, const std::string& normalized_message) {
+    using Category = ShellScriptInterpreter::ErrorCategory;
+
+    std::string lowered = to_lower_copy(normalized_message);
+
+    if (lowered.find("command not found") != std::string::npos) {
+        return ErrorType::COMMAND_NOT_FOUND;
+    }
+    if (lowered.find("permission denied") != std::string::npos) {
+        return ErrorType::PERMISSION_DENIED;
+    }
+    if (lowered.find("no such file") != std::string::npos ||
+        lowered.find("file not found") != std::string::npos ||
+        lowered.find("failed to open") != std::string::npos) {
+        return ErrorType::FILE_NOT_FOUND;
+    }
+    if (lowered.find("invalid argument") != std::string::npos) {
+        return ErrorType::INVALID_ARGUMENT;
+    }
+    if (lowered.find("syntax error") != std::string::npos) {
+        return ErrorType::SYNTAX_ERROR;
+    }
+
+    switch (error.category) {
+        case Category::SYNTAX:
+        case Category::CONTROL_FLOW:
+        case Category::SEMANTICS:
+            return ErrorType::SYNTAX_ERROR;
+        case Category::REDIRECTION:
+            return ErrorType::RUNTIME_ERROR;
+        case Category::VARIABLES:
+            return ErrorType::RUNTIME_ERROR;
+        case Category::COMMANDS:
+            return ErrorType::RUNTIME_ERROR;
+        case Category::STYLE:
+            return ErrorType::INVALID_ARGUMENT;
+        case Category::PERFORMANCE:
+            return ErrorType::UNKNOWN_ERROR;
+    }
+
+    return ErrorType::UNKNOWN_ERROR;
+}
+
+ErrorInfo build_error_info(const SyntaxError& error, const std::string& sanitized_message,
+                          const std::string& sanitized_line_content,
+                          const std::string& sanitized_suggestion, bool show_suggestions,
+                          bool show_context) {
+    ErrorInfo info;
+
+    std::string normalized_message = strip_shell_prefix(sanitized_message);
+    info.type = deduce_error_type(error, normalized_message);
+    info.severity = error.severity;
+
+    std::ostringstream message_builder;
+    if (!normalized_message.empty()) {
+        message_builder << normalized_message;
+    }
+
+    std::ostringstream location_builder;
+    if (error.position.line_number > 0) {
+        location_builder << "line " << error.position.line_number;
+        if (error.position.column_start > 0) {
+            location_builder << ", column " << error.position.column_start;
+        }
+    }
+
+    std::string location_text = location_builder.str();
+    if (!location_text.empty()) {
+        if (!normalized_message.empty()) {
+            message_builder << ' ';
+        }
+        message_builder << '(' << location_text << ')';
+    }
+
+    info.message = message_builder.str();
+
+    if (show_context && !sanitized_line_content.empty()) {
+        std::string context_line = sanitized_line_content;
+        if (context_line.size() > 160) {
+            context_line = context_line.substr(0, 157) + "...";
+        }
+        std::ostringstream context_builder;
+        context_builder << "Line " << error.position.line_number << ": " << context_line;
+        info.suggestions.push_back(context_builder.str());
+    }
+
+    if (show_suggestions && !sanitized_suggestion.empty()) {
+        info.suggestions.push_back(sanitized_suggestion);
+    }
+
+    for (const auto& related : error.related_info) {
+        if (!related.empty()) {
+            info.suggestions.push_back(related);
+        }
+    }
+
+    if (!error.documentation_url.empty()) {
+        info.suggestions.push_back("See " + error.documentation_url);
+    }
+
+    return info;
+}
 
 std::string strip_internal_placeholders(const std::string& input, size_t* column_start = nullptr,
                                         size_t* column_end = nullptr) {
@@ -185,25 +313,25 @@ void print_error_report(const std::vector<ShellScriptInterpreter::SyntaxError>& 
                     break;
             }
 
-            std::cout << bold_style << "┌─ " << error_count << ". " << severity_icon << " "
+            std::cerr << bold_style << "┌─ " << error_count << ". " << severity_icon << " "
                       << severity_color << severity_prefix << reset_color << bold_style << " ["
                       << blue_color << error.error_code << reset_color << bold_style << "]"
                       << reset_color << '\n';
 
-            std::cout << "│  " << dim_style << "at line " << bold_style
+            std::cerr << "│  " << dim_style << "at line " << bold_style
                       << error.position.line_number << reset_color;
             if (column_start > 0) {
-                std::cout << dim_style << ", column " << bold_style << column_start << reset_color;
+                std::cerr << dim_style << ", column " << bold_style << column_start << reset_color;
             }
-            std::cout << '\n';
+            std::cerr << '\n';
 
-            std::cout << "│  " << severity_color << sanitized_message << reset_color << '\n';
+            std::cerr << "│  " << severity_color << sanitized_message << reset_color << '\n';
 
             if (show_context && !sanitized_line_content.empty()) {
-                std::cout << "│" << '\n';
+                std::cerr << "│" << '\n';
 
                 std::string line_num_str = std::to_string(error.position.line_number);
-                std::cout << "│  " << dim_style << line_num_str << " │ " << reset_color;
+                std::cerr << "│  " << dim_style << line_num_str << " │ " << reset_color;
 
                 size_t terminal_width = get_terminal_width();
                 size_t line_prefix_width = 6 + line_num_str.length();
@@ -355,43 +483,43 @@ void print_error_report(const std::vector<ShellScriptInterpreter::SyntaxError>& 
                     size_t end = std::min(adjusted_end, display_line.length());
 
                     if (start < display_line.length()) {
-                        std::cout << display_line.substr(0, start);
-                        std::cout << bg_red_color << white_color;
+                        std::cerr << display_line.substr(0, start);
+                        std::cerr << bg_red_color << white_color;
                         if (end <= display_line.length()) {
-                            std::cout << display_line.substr(start, end - start);
-                            std::cout << reset_color;
+                            std::cerr << display_line.substr(start, end - start);
+                            std::cerr << reset_color;
                             if (end < display_line.length()) {
-                                std::cout << display_line.substr(end);
+                                std::cerr << display_line.substr(end);
                             }
                         } else {
-                            std::cout << display_line.substr(start) << reset_color;
+                            std::cerr << display_line.substr(start) << reset_color;
                         }
                     } else {
-                        std::cout << display_line;
+                        std::cerr << display_line;
                     }
                 } else {
-                    std::cout << display_line;
+                    std::cerr << display_line;
                 }
-                std::cout << '\n';
+                std::cerr << '\n';
 
                 if (column_start > 0 && adjusted_start < display_line.length()) {
-                    std::cout << "│  " << dim_style << std::string(line_num_str.length(), ' ')
+                    std::cerr << "│  " << dim_style << std::string(line_num_str.length(), ' ')
                               << " │ " << reset_color;
-                    std::cout << std::string(adjusted_start, ' ');
-                    std::cout << severity_color << "^";
+                    std::cerr << std::string(adjusted_start, ' ');
+                    std::cerr << severity_color << "^";
                     if (adjusted_end > adjusted_start + 1 &&
                         adjusted_end <= display_line.length()) {
                         size_t tilde_count = std::min(adjusted_end - adjusted_start - 1,
                                                       display_line.length() - adjusted_start - 1);
-                        std::cout << std::string(tilde_count, '~');
+                        std::cerr << std::string(tilde_count, '~');
                     }
-                    std::cout << reset_color << '\n';
+                    std::cerr << reset_color << '\n';
                 }
             }
 
             if (show_suggestions && !sanitized_suggestion.empty()) {
-                std::cout << "│" << '\n';
-                std::cout << "│  " << green_color << "Suggestion: " << reset_color
+                std::cerr << "│" << '\n';
+                std::cerr << "│  " << green_color << "Suggestion: " << reset_color
                           << sanitized_suggestion << '\n';
             }
 
@@ -422,11 +550,11 @@ void print_error_report(const std::vector<ShellScriptInterpreter::SyntaxError>& 
             footer_width = std::min(footer_width, terminal_width - 2);
             footer_width = std::min(footer_width, static_cast<size_t>(120));
 
-            std::cout << "└";
+            std::cerr << "└";
             for (size_t i = 0; i < footer_width; i++) {
-                std::cout << "—";
+                std::cerr << "—";
             }
-            std::cout << '\n';
+            std::cerr << '\n';
         }
 
     } catch (...) {

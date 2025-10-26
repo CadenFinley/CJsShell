@@ -147,7 +147,7 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
 
         if (!found) {
             if (!silent) {
-                std::cout << "which: " << name << " not found\n";
+                std::cerr << "which: " << name << " not found\n";
             }
             return_code = 1;
         }

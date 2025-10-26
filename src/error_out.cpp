@@ -27,15 +27,7 @@ ErrorSeverity ErrorInfo::get_default_severity(ErrorType type) {
 }
 
 void print_error(const ErrorInfo& error) {
-    if (error.severity == ErrorSeverity::CRITICAL) {
-        std::cerr << "cjsh: \033[1;31mCRITICAL\033[0m: ";
-    } else if (error.severity == ErrorSeverity::WARNING) {
-        std::cerr << "cjsh: \033[1;33mwarning\033[0m: ";
-    } else if (error.severity == ErrorSeverity::INFO) {
-        std::cerr << "cjsh: \033[1;36minfo\033[0m: ";
-    } else {
-        std::cerr << "cjsh: ";
-    }
+    std::cerr << "cjsh: ";
 
     if (!error.command_used.empty()) {
         std::cerr << error.command_used << ": ";
