@@ -32,7 +32,7 @@ Isocline C API reference.
 Isocline is a pure C library that can be used as an alternative to the GNU
 readline library.
 
-See the [Github repository](https://github.com/daanx/isocline#readme)
+See the [Github repository](https://github.com/cadenfinley/isocline#readme)
 for general information and building the library.
 
 Contents:
