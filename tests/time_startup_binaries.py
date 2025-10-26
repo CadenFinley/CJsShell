@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import errno
 import os
 import re
 import statistics
@@ -71,7 +72,12 @@ def run_startup_test(binary: Path) -> float:
 
     try:
         while True:
-            chunk = os.read(master_fd, 1024)
+            try:
+                chunk = os.read(master_fd, 1024)
+            except OSError as exc:
+                if exc.errno == errno.EIO:
+                    break
+                raise
             if not chunk:
                 break
 
