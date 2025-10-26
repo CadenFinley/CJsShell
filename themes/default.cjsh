@@ -10,17 +10,37 @@ theme_definition {
   }
 
   ps1 {
+    segment "left_bracket" {
+      content "["
+      fg "#FF5555"
+      bg "RESET"
+    }
     segment "username" {
-      content "{USERNAME}@{HOSTNAME}:"
+      content "{USERNAME}"
+      fg "#FFFF55"
+      bg "RESET"
+    }
+    segment "at_sign" {
+      content "@"
+      fg "#55FF55"
+      bg "RESET"
+    }
+    segment "hostname" {
+      content "{HOSTNAME}"
       fg "#5555FF"
       bg "RESET"
     }
     segment "directory" {
-      content " {DIRECTORY}"
-      fg "#55FF55"
+      content " {DIRECTORY} "
+      fg "#FF55FF"
       bg "RESET"
     }
-    segment "status" {
+    segment "right_bracket" {
+      content "]"
+      fg "#FF5555"
+      bg "RESET"
+    }
+    segment "exit_status" {
       content "{if = {STATUS} == 0 ?  : {STATUS}}"
       fg "{if = {STATUS} == 0 ? RESET : #FF5555}"
       bg "RESET"
@@ -33,18 +53,38 @@ theme_definition {
   }
 
   git_segments {
-    segment "path" {
-      content " {LOCAL_PATH} "
-      fg "#55FF55"
+    segment "left_bracket" {
+      content "["
+      fg "#FF5555"
       bg "RESET"
     }
-    segment "branch" {
-      content "{GIT_BRANCH} "
+    segment "username" {
+      content "{USERNAME}"
       fg "#FFFF55"
       bg "RESET"
     }
+    segment "at_sign" {
+      content "@"
+      fg "#55FF55"
+      bg "RESET"
+    }
+    segment "directory" {
+      content " {LOCAL_PATH} "
+      fg "#FF55FF"
+      bg "RESET"
+    }
+    segment "branch" {
+      content "in {GIT_BRANCH}"
+      fg "#5555FF"
+      bg "RESET"
+    }
     segment "status" {
-      content "{GIT_STATUS}"
+      content "{GIT_STATUS} "
+      fg "#FF5555"
+      bg "RESET"
+    }
+    segment "right_bracket" {
+      content "]"
       fg "#FF5555"
       bg "RESET"
     }

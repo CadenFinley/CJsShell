@@ -767,16 +767,26 @@ std::string Theme::escape_brackets_for_isocline(const std::string& input) const 
         char ch = input[i];
         if (ch == '[') {
             bool already_escaped = (i > 0 && input[i - 1] == '\\');
-            size_t closing = i + 1;
-            while (closing < len && input[closing] != ']') {
-                ++closing;
-            }
+            
+            if (!already_escaped) {
+                size_t closing = i + 1;
+                while (closing < len && input[closing] != ']') {
+                    ++closing;
+                }
 
-            if (!already_escaped && closing < len) {
-                result.push_back('\\');
-                result.append(input, i, closing - i + 1);
-                i = closing + 1;
-                continue;
+                if (closing < len) {
+                    // Found matching ], escape the whole bracket pair
+                    result.push_back('\\');
+                    result.append(input, i, closing - i + 1);
+                    i = closing + 1;
+                    continue;
+                } else {
+                    // No matching ], escape just the opening bracket
+                    result.push_back('\\');
+                    result.push_back('[');
+                    ++i;
+                    continue;
+                }
             }
         }
 
