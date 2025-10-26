@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "error_out.h"
+#include "parser/parser_utils.h"
 
 namespace {
 
@@ -21,10 +22,6 @@ static int exit_status = 0;
 
 static inline bool is_octal_digit(char c) {
     return c >= '0' && c <= '7';
-}
-
-static inline bool is_hex_digit(char c) {
-    return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
 }
 
 static inline int from_hex(char c) {

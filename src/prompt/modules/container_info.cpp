@@ -5,25 +5,6 @@
 #include "cjsh_filesystem.h"
 #include "exec.h"
 
-namespace {
-
-std::string execute_command(const std::string& command) {
-    auto result = exec_utils::execute_command_for_output(command);
-    if (!result.success) {
-        return "";
-    }
-
-    std::string output = result.output;
-
-    if (!output.empty() && output.back() == '\n') {
-        output.pop_back();
-    }
-
-    return output;
-}
-
-}  // namespace
-
 bool file_exists(const std::string& path) {
     return std::filesystem::exists(path);
 }
@@ -122,7 +103,8 @@ bool is_in_docker() {
 }
 
 std::string get_docker_context() {
-    std::string context = execute_command("docker context show 2>/dev/null");
+    std::string context =
+        exec_utils::execute_command_for_output_trimmed("docker context show 2>/dev/null");
     return context.empty() ? "default" : context;
 }
 
@@ -131,11 +113,11 @@ std::string get_docker_image() {
         return "";
     }
 
-    std::string hostname = execute_command("hostname");
+    std::string hostname = exec_utils::execute_command_for_output_trimmed("hostname");
     if (!hostname.empty()) {
         std::string image_cmd =
             "docker inspect " + hostname + " --format='{{.Config.Image}}' 2>/dev/null";
-        std::string image = execute_command(image_cmd);
+        std::string image = exec_utils::execute_command_for_output_trimmed(image_cmd);
         if (!image.empty()) {
             return image;
         }

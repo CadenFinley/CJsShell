@@ -14,6 +14,7 @@
 #include "cjsh.h"
 #include "error_out.h"
 #include "isocline/isocline.h"
+#include "utils/string_utils.h"
 
 namespace {
 struct KeyBindingDefault {
@@ -79,15 +80,6 @@ const std::vector<std::string> kKeybindUsage = {
     "Use 'keybind --help' for detailed guidance.",
 };
 
-std::string trim_copy(const std::string& input) {
-    const size_t begin = input.find_first_not_of(" \t");
-    if (begin == std::string::npos) {
-        return "";
-    }
-    const size_t end = input.find_last_not_of(" \t");
-    return input.substr(begin, end - begin + 1);
-}
-
 std::vector<std::string> split_key_spec_string(const std::string& spec) {
     std::vector<std::string> result;
     size_t start = 0;
@@ -95,7 +87,7 @@ std::vector<std::string> split_key_spec_string(const std::string& spec) {
         size_t end = spec.find('|', start);
         const size_t length = (end == std::string::npos ? spec.size() : end) - start;
         std::string token = spec.substr(start, length);
-        token = trim_copy(token);
+        token = string_utils::trim_ascii_whitespace_copy(token);
         if (!token.empty()) {
             result.push_back(token);
         }
@@ -143,13 +135,6 @@ std::string pipe_join_specs(const std::vector<std::string>& specs) {
         oss << specs[i];
     }
     return oss.str();
-}
-
-std::string to_lower_copy(const std::string& input) {
-    std::string result = input;
-    std::transform(result.begin(), result.end(), result.begin(),
-                   [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
-    return result;
 }
 
 std::vector<ic_key_binding_entry_t> collect_bindings() {
@@ -276,9 +261,9 @@ void remove_profile_defaults_from_group(
         if (!ic_format_key_spec(key, formatted, sizeof(formatted))) {
             continue;
         }
-        const std::string canonical = to_lower_copy(formatted);
+        const std::string canonical = string_utils::to_lower_copy(formatted);
         for (size_t idx = 0; idx < specs.size();) {
-            if (to_lower_copy(specs[idx]) == canonical) {
+            if (string_utils::to_lower_copy(specs[idx]) == canonical) {
                 specs.erase(specs.begin() + static_cast<std::ptrdiff_t>(idx));
             } else {
                 ++idx;
@@ -378,10 +363,11 @@ int keybind_profile_list_command() {
     }
 
     const char* active = ic_get_key_binding_profile();
-    std::string active_lower = (active != nullptr ? to_lower_copy(active) : "");
+    std::string active_lower = (active != nullptr ? string_utils::to_lower_copy(active) : "");
     std::cout << "Available key binding profiles:\n";
     for (const auto& profile : profiles) {
-        bool is_active = (profile.name != nullptr && to_lower_copy(profile.name) == active_lower);
+        bool is_active =
+            (profile.name != nullptr && string_utils::to_lower_copy(profile.name) == active_lower);
         std::cout << "  " << (is_active ? "* " : "  ")
                   << (profile.name != nullptr ? profile.name : "(unknown)");
         if (profile.description != nullptr && profile.description[0] != '\0') {

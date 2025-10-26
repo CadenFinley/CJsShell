@@ -14,21 +14,6 @@ namespace {
 std::unordered_map<std::string, CachedVersion> version_cache;
 std::mutex cache_mutex;
 
-std::string execute_command(const std::string& command) {
-    auto result = exec_utils::execute_command_for_output(command);
-    if (!result.success) {
-        return "";
-    }
-
-    std::string output = result.output;
-
-    if (!output.empty() && output.back() == '\n') {
-        output.pop_back();
-    }
-
-    return output;
-}
-
 }  // namespace
 
 const std::vector<std::string> python_files = {"requirements.txt", "setup.py",  "pyproject.toml",
@@ -229,9 +214,9 @@ bool is_scala_project() {
 
 std::string get_python_version() {
     return get_cached_version("python", []() -> std::string {
-        std::string output = execute_command("python3 --version");
+        std::string output = exec_utils::execute_command_for_output_trimmed("python3 --version");
         if (output.empty()) {
-            output = execute_command("python --version");
+            output = exec_utils::execute_command_for_output_trimmed("python --version");
         }
         if (output.empty()) {
             return "";
@@ -244,7 +229,7 @@ std::string get_python_version() {
 
 std::string get_nodejs_version() {
     return get_cached_version("nodejs", []() -> std::string {
-        std::string output = execute_command("node --version");
+        std::string output = exec_utils::execute_command_for_output_trimmed("node --version");
         if (output.empty()) {
             return "";
         }
@@ -259,7 +244,7 @@ std::string get_nodejs_version() {
 
 std::string get_rust_version() {
     return get_cached_version("rust", []() -> std::string {
-        std::string output = execute_command("rustc --version");
+        std::string output = exec_utils::execute_command_for_output_trimmed("rustc --version");
         if (output.empty()) {
             return "";
         }
@@ -271,7 +256,7 @@ std::string get_rust_version() {
 
 std::string get_golang_version() {
     return get_cached_version("golang", []() -> std::string {
-        std::string output = execute_command("go version");
+        std::string output = exec_utils::execute_command_for_output_trimmed("go version");
         if (output.empty()) {
             return "";
         }
@@ -289,7 +274,7 @@ std::string get_golang_version() {
 
 std::string get_java_version() {
     return get_cached_version("java", []() -> std::string {
-        std::string output = execute_command("java -version");
+        std::string output = exec_utils::execute_command_for_output_trimmed("java -version");
         if (output.empty()) {
             return "";
         }
@@ -313,12 +298,12 @@ std::string get_java_version() {
 
 std::string get_cpp_version() {
     return get_cached_version("cpp", []() -> std::string {
-        std::string output = execute_command("g++ --version");
+        std::string output = exec_utils::execute_command_for_output_trimmed("g++ --version");
         if (output.empty()) {
-            output = execute_command("clang++ --version");
+            output = exec_utils::execute_command_for_output_trimmed("clang++ --version");
         }
         if (output.empty()) {
-            output = execute_command("gcc --version");
+            output = exec_utils::execute_command_for_output_trimmed("gcc --version");
         }
         if (output.empty()) {
             return "";
@@ -336,7 +321,7 @@ std::string get_cpp_version() {
 
 std::string get_csharp_version() {
     return get_cached_version("csharp", []() -> std::string {
-        std::string output = execute_command("dotnet --version");
+        std::string output = exec_utils::execute_command_for_output_trimmed("dotnet --version");
         if (output.empty()) {
             return "";
         }
@@ -346,7 +331,7 @@ std::string get_csharp_version() {
 
 std::string get_php_version() {
     return get_cached_version("php", []() -> std::string {
-        std::string output = execute_command("php --version");
+        std::string output = exec_utils::execute_command_for_output_trimmed("php --version");
         if (output.empty()) {
             return "";
         }
@@ -363,7 +348,7 @@ std::string get_php_version() {
 
 std::string get_ruby_version() {
     return get_cached_version("ruby", []() -> std::string {
-        std::string output = execute_command("ruby --version");
+        std::string output = exec_utils::execute_command_for_output_trimmed("ruby --version");
         if (output.empty()) {
             return "";
         }
@@ -382,7 +367,7 @@ std::string get_ruby_version() {
 
 std::string get_kotlin_version() {
     return get_cached_version("kotlin", []() -> std::string {
-        std::string output = execute_command("kotlin -version 2>&1");
+        std::string output = exec_utils::execute_command_for_output_trimmed("kotlin -version 2>&1");
         if (output.empty()) {
             return "";
         }
@@ -394,7 +379,7 @@ std::string get_kotlin_version() {
 
 std::string get_swift_version() {
     return get_cached_version("swift", []() -> std::string {
-        std::string output = execute_command("swift --version");
+        std::string output = exec_utils::execute_command_for_output_trimmed("swift --version");
         if (output.empty()) {
             return "";
         }
@@ -415,7 +400,7 @@ std::string get_swift_version() {
 
 std::string get_dart_version() {
     return get_cached_version("dart", []() -> std::string {
-        std::string output = execute_command("dart --version 2>&1");
+        std::string output = exec_utils::execute_command_for_output_trimmed("dart --version 2>&1");
         if (output.empty()) {
             return "";
         }
@@ -434,7 +419,7 @@ std::string get_dart_version() {
 
 std::string get_scala_version() {
     return get_cached_version("scala", []() -> std::string {
-        std::string output = execute_command("scala -version 2>&1");
+        std::string output = exec_utils::execute_command_for_output_trimmed("scala -version 2>&1");
         if (output.empty()) {
             return "";
         }

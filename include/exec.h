@@ -88,4 +88,6 @@ CommandOutput execute_command_for_output(const std::string& command);
 
 CommandOutput execute_command_vector_for_output(const std::vector<std::string>& args);
 
+std::string execute_command_for_output_trimmed(const std::string& command);
+
 }  // namespace exec_utils

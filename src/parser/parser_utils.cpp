@@ -25,13 +25,22 @@ std::string trim_whitespace(const std::string& s) {
     return s.substr(start, end - start + 1);
 }
 
+bool is_valid_identifier_start(char c) {
+    unsigned char uc = static_cast<unsigned char>(c);
+    return (std::isalpha(uc) != 0) || c == '_';
+}
+
+bool is_valid_identifier_char(char c) {
+    unsigned char uc = static_cast<unsigned char>(c);
+    return (std::isalnum(uc) != 0) || c == '_';
+}
+
 bool is_valid_identifier(const std::string& name) {
-    if (name.empty() || (!std::isalpha(static_cast<unsigned char>(name[0])) && name[0] != '_')) {
+    if (name.empty() || !is_valid_identifier_start(name[0])) {
         return false;
     }
     for (size_t i = 1; i < name.length(); ++i) {
-        unsigned char ch = static_cast<unsigned char>(name[i]);
-        if (!std::isalnum(ch) && ch != '_') {
+        if (!is_valid_identifier_char(name[i])) {
             return false;
         }
     }

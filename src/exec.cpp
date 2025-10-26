@@ -2134,4 +2134,17 @@ CommandOutput execute_command_vector_for_output(const std::vector<std::string>& 
     return execute_args_for_output_impl(args);
 }
 
+std::string execute_command_for_output_trimmed(const std::string& command) {
+    auto result = execute_command_for_output(command);
+    if (!result.success) {
+        return "";
+    }
+
+    std::string output = std::move(result.output);
+    while (!output.empty() && (output.back() == '\n' || output.back() == '\r')) {
+        output.pop_back();
+    }
+    return output;
+}
+
 }  // namespace exec_utils

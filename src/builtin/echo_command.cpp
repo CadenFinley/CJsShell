@@ -24,6 +24,8 @@
 #include <iostream>
 #include <string>
 
+#include "parser/parser_utils.h"
+
 namespace {
 
 // Convert hexadecimal character to integer
@@ -35,11 +37,6 @@ inline int hextobin(unsigned char c) {
     if (c >= 'A' && c <= 'F')
         return c - 'A' + 10;
     return 0;
-}
-
-// Check if character is a hex digit
-inline bool is_hex_digit(unsigned char c) {
-    return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
 }
 
 }  // namespace

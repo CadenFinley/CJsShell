@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cctype>
 #include <string>
 #include <utility>
 
@@ -9,10 +10,16 @@ extern const std::string SUBST_LITERAL_END;
 std::string trim_trailing_whitespace(std::string s);
 std::string trim_leading_whitespace(std::string s);
 std::string trim_whitespace(const std::string& s);
+bool is_valid_identifier_start(char c);
+bool is_valid_identifier_char(char c);
 bool is_valid_identifier(const std::string& name);
 bool looks_like_assignment(const std::string& value);
 std::pair<std::string, bool> strip_noenv_sentinels(const std::string& s);
 bool strip_subst_literal_markers(std::string& value);
+
+inline bool is_hex_digit(char c) {
+    return std::isxdigit(static_cast<unsigned char>(c)) != 0;
+}
 
 inline bool is_char_escaped(const char* str, size_t pos) {
     if (pos == 0)

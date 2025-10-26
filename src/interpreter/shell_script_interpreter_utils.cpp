@@ -3,12 +3,13 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include <algorithm>
 #include <cctype>
 #include <sstream>
+#include <utility>
 #include <vector>
 
 #include "parser_utils.h"
+#include "utils/string_utils.h"
 
 namespace shell_script_interpreter::detail {
 
@@ -146,9 +147,7 @@ std::vector<std::string> split_ampersand(const std::string& s) {
 }
 
 std::string to_lower_copy(std::string value) {
-    std::transform(value.begin(), value.end(), value.begin(),
-                   [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
-    return value;
+    return string_utils::to_lower_copy(std::move(value));
 }
 
 bool is_readable_file(const std::string& path) {

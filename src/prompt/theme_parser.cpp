@@ -8,6 +8,8 @@
 #include <sstream>
 #include <stdexcept>
 #include <utility>
+#include "parser/parser_utils.h"
+#include "utils/string_utils.h"
 
 extern "C" {
 #include "isocline/unicode.h"
@@ -42,15 +44,6 @@ std::string ThemeParseException::build_message(size_t line, const std::string& d
 
 namespace {
 
-std::string trim_copy(const std::string& str) {
-    size_t start = str.find_first_not_of(" \t\n\r");
-    if (start == std::string::npos) {
-        return "";
-    }
-    size_t end = str.find_last_not_of(" \t\n\r");
-    return str.substr(start, end - start + 1);
-}
-
 std::string derive_theme_name_from_source(const std::string& source_name) {
     if (source_name.empty()) {
         return "";
@@ -77,10 +70,6 @@ std::string encode_utf8(char32_t codepoint) {
     }
 
     return std::string(reinterpret_cast<const char*>(buffer), static_cast<size_t>(length));
-}
-
-bool is_hex_digit(char c) {
-    return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
 }
 
 int hex_value(char c) {
@@ -125,7 +114,7 @@ std::string expand_variables_in_string(
         }
 
         std::string raw_name = input.substr(marker + 2, close_brace - (marker + 2));
-        std::string name = trim_copy(raw_name);
+        std::string name = string_utils::trim_ascii_whitespace_copy(raw_name);
 
         if (name.empty()) {
             throw std::runtime_error("Empty theme variable reference detected");

@@ -2,6 +2,8 @@
 #include "shell_script_interpreter_error_reporter.h"
 #include "shell_script_interpreter_utils.h"
 
+#include "parser/parser_utils.h"
+
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
@@ -526,9 +528,6 @@ void push_function_context(
     }
 }
 
-bool is_valid_identifier_start(char c);
-bool is_valid_identifier_char(char c);
-
 void append_function_name_errors(std::vector<SyntaxError>& errors, size_t display_line,
                                  const std::string& line, const std::string& func_name,
                                  const std::string& missing_name_suggestion) {
@@ -693,24 +692,6 @@ CaseCheckResult analyze_case_syntax(const std::vector<std::string>& tokens) {
     }
 
     return result;
-}
-
-bool is_valid_identifier_start(char c) {
-    return (std::isalpha(static_cast<unsigned char>(c)) != 0) || c == '_';
-}
-
-bool is_valid_identifier_char(char c) {
-    return (std::isalnum(static_cast<unsigned char>(c)) != 0) || c == '_';
-}
-
-bool is_valid_identifier(const std::string& text) {
-    if (text.empty() || !is_valid_identifier_start(text.front()))
-        return false;
-    for (size_t i = 1; i < text.size(); ++i) {
-        if (!is_valid_identifier_char(text[i]))
-            return false;
-    }
-    return true;
 }
 
 bool is_allowed_array_index_char(char c) {
