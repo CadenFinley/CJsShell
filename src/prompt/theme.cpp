@@ -74,8 +74,7 @@ bool report_theme_parse_error_with_script_reporter(const ThemeParseException& ex
 
 }  // namespace
 
-Theme::Theme(bool enabled)
-    : is_enabled(enabled) {
+Theme::Theme(bool enabled) : is_enabled(enabled) {
     is_enabled = enabled;
 }
 
@@ -326,7 +325,7 @@ bool Theme::apply_theme_definition(const ThemeDefinition& definition, const std:
             return false;
         }
 
-               print_error({ErrorType::RUNTIME_ERROR,
+        print_error({ErrorType::RUNTIME_ERROR,
                      "load_theme",
                      "Theme '" + theme_name + "' requirements not met (" + source_hint +
                          "), falling back to basic prompt.",
@@ -767,7 +766,7 @@ std::string Theme::escape_brackets_for_isocline(const std::string& input) const 
         char ch = input[i];
         if (ch == '[') {
             bool already_escaped = (i > 0 && input[i - 1] == '\\');
-            
+
             if (!already_escaped) {
                 size_t closing = i + 1;
                 while (closing < len && input[closing] != ']') {

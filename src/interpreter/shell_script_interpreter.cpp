@@ -302,6 +302,10 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                                     !c.stderr_file.empty() || !c.here_doc.empty() ||
                                     c.both_output || !c.here_string.empty() ||
                                     !c.fd_redirections.empty() || !c.fd_duplications.empty();
+
+                if (c.negate_pipeline) {
+                    has_redir_or_pipe = true;
+                }
             }
 
             if (!has_redir_or_pipe && !cmds.empty()) {
