@@ -55,6 +55,26 @@ std::string join_arguments(const std::vector<std::string>& args) {
     return result;
 }
 
+void apply_assignments_to_shell_env(const std::vector<std::pair<std::string, std::string>>& assignments) {
+    if (!g_shell || assignments.empty()) {
+        return;
+    }
+
+    auto& env_vars = g_shell->get_env_vars();
+    for (const auto& env : assignments) {
+        env_vars[env.first] = env.second;
+
+        if (env.first == "PATH" || env.first == "PWD" || env.first == "HOME" ||
+            env.first == "USER" || env.first == "SHELL") {
+            setenv(env.first.c_str(), env.second.c_str(), 1);
+        }
+    }
+
+    if (g_shell->get_parser() != nullptr) {
+        g_shell->get_parser()->set_env_vars(env_vars);
+    }
+}
+
 bool is_shell_control_structure(const Command& cmd) {
     if (cmd.args.empty()) {
         return false;
@@ -1145,16 +1165,33 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
     if (commands.size() == 1) {
         Command cmd = commands[0];
+        std::vector<std::pair<std::string, std::string>> env_assignments;
+        size_t cmd_start_idx = cjsh_env::collect_env_assignments(cmd.args, env_assignments);
+        const size_t original_arg_count = cmd.args.size();
 
-        if (can_execute_in_process(cmd)) {
+        if (cmd_start_idx >= original_arg_count) {
+            apply_assignments_to_shell_env(env_assignments);
+            last_exit_code = 0;
+            return 0;
+        }
+
+        const bool has_temporary_env = !env_assignments.empty() && cmd_start_idx < original_arg_count;
+        if (has_temporary_env && cmd_start_idx > 0) {
+            auto erase_end = cmd.args.begin() +
+                             static_cast<std::vector<std::string>::difference_type>(cmd_start_idx);
+            cmd.args.erase(cmd.args.begin(), erase_end);
+        }
+
+        if (!has_temporary_env && can_execute_in_process(cmd)) {
             last_exit_code = g_shell->get_built_ins()->builtin_command(cmd.args);
             return last_exit_code;
         }
 
         if (cmd.background) {
-            return execute_command_async(cmd.args);
+            return execute_command_async(commands[0].args);
         }
-        if (!cmd.args.empty() && g_shell && (g_shell->get_built_ins() != nullptr) &&
+        if (!has_temporary_env && !cmd.args.empty() && g_shell &&
+            (g_shell->get_built_ins() != nullptr) &&
             (g_shell->get_built_ins()->is_builtin_command(cmd.args[0]) != 0)) {
             return execute_builtin_with_redirections(cmd);
         }
@@ -1180,6 +1217,9 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         }
 
         if (pid == 0) {
+            if (has_temporary_env) {
+                cjsh_env::apply_env_assignments(env_assignments);
+            }
             pid_t child_pid = getpid();
             if (setpgid(child_pid, child_pid) < 0) {
                 std::cerr << "cjsh: runtime error: setpgid: failed to set "
@@ -1436,7 +1476,18 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         }
 
         for (size_t i = 0; i < commands.size(); i++) {
-            const Command& cmd = commands[i];
+            Command cmd = commands[i];
+            std::vector<std::pair<std::string, std::string>> env_assignments;
+            size_t cmd_start_idx = cjsh_env::collect_env_assignments(cmd.args, env_assignments);
+            const size_t original_arg_count = cmd.args.size();
+            const bool has_temporary_env = !env_assignments.empty() &&
+                                           cmd_start_idx < original_arg_count;
+
+            if (has_temporary_env && cmd_start_idx > 0) {
+                auto erase_end = cmd.args.begin() +
+                                 static_cast<std::vector<std::string>::difference_type>(cmd_start_idx);
+                cmd.args.erase(cmd.args.begin(), erase_end);
+            }
 
             if (cmd.args.empty()) {
                 set_error(ErrorType::INVALID_ARGUMENT, "",
@@ -1478,6 +1529,9 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                     });
 
                 reset_child_signals();
+                if (has_temporary_env) {
+                    cjsh_env::apply_env_assignments(env_assignments);
+                }
                 if (i == 0) {
                     if (!cmd.here_doc.empty()) {
                         auto here_doc_error = [&](HereDocErrorKind kind,
