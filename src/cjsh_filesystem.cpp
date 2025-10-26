@@ -713,7 +713,7 @@ bool create_source_file() {
         "    }\n"
         "    segment \"status\" {\n"
         "      content \"{GIT_STATUS} \"\n"
-        "      fg \"#FF5555\"\n"
+        "      fg \"{if = {GIT_STATUS} == ✓ ? #55FF55 : #FF5555}\"\n"
         "      bg \"RESET\"\n"
         "    }\n"
         "    segment \"right_bracket\" {\n"

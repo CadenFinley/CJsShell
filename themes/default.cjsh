@@ -80,7 +80,7 @@ theme_definition {
     }
     segment "status" {
       content "{GIT_STATUS} "
-      fg "#FF5555"
+      fg "{if = {GIT_STATUS} == ✓ ? #55FF55 : #FF5555}"
       bg "RESET"
     }
     segment "right_bracket" {
