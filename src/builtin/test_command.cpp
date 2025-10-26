@@ -1,22 +1,3 @@
-// test - check file types and compare values
-// Based on GNU Coreutils test command
-// Copyright (C) 1987-2025 Free Software Foundation, Inc.
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
-//
-// Authors: Kevin Braunsdorf, Matthew Bradburn
-
 #include "test_command.h"
 #include "builtin_help.h"
 
@@ -28,7 +9,6 @@
 #include <string>
 #include <vector>
 
-// Platform compatibility for nanosecond timestamps
 #ifdef __APPLE__
 #define ST_MTIM_NSEC st_mtimespec.tv_nsec
 #define ST_ATIM_NSEC st_atimespec.tv_nsec
@@ -39,13 +19,11 @@
 
 namespace {
 
-// Helper to check if path is a symbolic link
 bool is_symlink(const char* path) {
     struct stat st;
     return lstat(path, &st) == 0 && S_ISLNK(st.st_mode);
 }
 
-// Test context
 struct TestContext {
     std::vector<std::string> args;
     size_t pos;
@@ -68,7 +46,6 @@ struct TestContext {
     }
 };
 
-// Forward declarations
 bool evaluate_expression(TestContext& ctx);
 bool evaluate_or(TestContext& ctx);
 bool evaluate_and(TestContext& ctx);
@@ -76,7 +53,6 @@ bool evaluate_term(TestContext& ctx);
 bool evaluate_unary(TestContext& ctx);
 bool evaluate_binary(TestContext& ctx);
 
-// Unary operators
 bool evaluate_unary(TestContext& ctx) {
     if (!ctx.has_more()) {
         return false;
@@ -86,7 +62,7 @@ bool evaluate_unary(TestContext& ctx) {
     ctx.advance();
 
     if (!ctx.has_more()) {
-        return false;  // Need an argument
+        return false;
     }
 
     const std::string& arg = ctx.current();
@@ -133,7 +109,6 @@ bool evaluate_unary(TestContext& ctx) {
     } else if (op == "-G") {
         return stat(arg.c_str(), &st) == 0 && st.st_gid == getegid();
     } else if (op == "-N") {
-        // File was modified since last read
         if (stat(arg.c_str(), &st) != 0)
             return false;
 #ifdef __APPLE__
@@ -144,7 +119,6 @@ bool evaluate_unary(TestContext& ctx) {
                (st.st_mtime == st.st_atime && st.st_mtim.tv_nsec > st.st_atim.tv_nsec);
 #endif
     } else if (op == "-t") {
-        // File descriptor is a terminal
         try {
             int fd = std::stoi(arg);
             return isatty(fd);
@@ -156,7 +130,6 @@ bool evaluate_unary(TestContext& ctx) {
     return false;
 }
 
-// Binary operators
 bool evaluate_binary(TestContext& ctx) {
     if (ctx.remaining() < 3) {
         return false;
@@ -169,7 +142,6 @@ bool evaluate_binary(TestContext& ctx) {
     const std::string& right = ctx.current();
     ctx.advance();
 
-    // String comparisons
     if (op == "=" || op == "==") {
         return left == right;
     } else if (op == "!=") {
@@ -180,7 +152,6 @@ bool evaluate_binary(TestContext& ctx) {
         return left > right;
     }
 
-    // Integer comparisons
     try {
         long long left_val = std::stoll(left);
         long long right_val = std::stoll(right);
@@ -199,14 +170,12 @@ bool evaluate_binary(TestContext& ctx) {
             return left_val >= right_val;
         }
     } catch (...) {
-        // If conversion fails, these operators return false
         if (op == "-eq" || op == "-ne" || op == "-lt" || op == "-le" || op == "-gt" ||
             op == "-ge") {
             return false;
         }
     }
 
-    // File comparisons
     struct stat st1, st2;
     if (op == "-ef") {
         return stat(left.c_str(), &st1) == 0 && stat(right.c_str(), &st2) == 0 &&
@@ -238,14 +207,12 @@ bool evaluate_binary(TestContext& ctx) {
     return false;
 }
 
-// Check if string is a known binary operator
 bool is_binary_op(const std::string& s) {
     return s == "=" || s == "==" || s == "!=" || s == "<" || s == ">" || s == "-eq" || s == "-ne" ||
            s == "-lt" || s == "-le" || s == "-gt" || s == "-ge" || s == "-ef" || s == "-nt" ||
            s == "-ot";
 }
 
-// Check if string is a known unary operator
 bool is_unary_op(const std::string& s) {
     return s.length() == 2 && s[0] == '-' &&
            (s == "-z" || s == "-n" || s == "-e" || s == "-f" || s == "-d" || s == "-r" ||
@@ -254,13 +221,11 @@ bool is_unary_op(const std::string& s) {
             s == "-O" || s == "-G" || s == "-N" || s == "-t");
 }
 
-// Evaluate a term
 bool evaluate_term(TestContext& ctx) {
     if (!ctx.has_more()) {
         return false;
     }
 
-    // Handle negation
     bool negated = false;
     while (ctx.has_more() && ctx.current() == "!") {
         negated = !negated;
@@ -273,7 +238,6 @@ bool evaluate_term(TestContext& ctx) {
 
     bool result;
 
-    // Handle parentheses
     if (ctx.current() == "(") {
         ctx.advance();
         result = evaluate_expression(ctx);
@@ -281,15 +245,15 @@ bool evaluate_term(TestContext& ctx) {
             ctx.advance();
         }
     }
-    // Check for binary operators
+
     else if (ctx.remaining() >= 3 && is_binary_op(ctx.args[ctx.pos + 1])) {
         result = evaluate_binary(ctx);
     }
-    // Check for unary operators
+
     else if (is_unary_op(ctx.current())) {
         result = evaluate_unary(ctx);
     }
-    // Just a string test (non-empty)
+
     else {
         result = !ctx.current().empty();
         ctx.advance();
@@ -298,7 +262,6 @@ bool evaluate_term(TestContext& ctx) {
     return negated ? !result : result;
 }
 
-// Evaluate AND expression
 bool evaluate_and(TestContext& ctx) {
     bool result = evaluate_term(ctx);
 
@@ -310,7 +273,6 @@ bool evaluate_and(TestContext& ctx) {
     return result;
 }
 
-// Evaluate OR expression
 bool evaluate_or(TestContext& ctx) {
     bool result = evaluate_and(ctx);
 
@@ -322,7 +284,6 @@ bool evaluate_or(TestContext& ctx) {
     return result;
 }
 
-// Top-level expression evaluation
 bool evaluate_expression(TestContext& ctx) {
     return evaluate_or(ctx);
 }
@@ -372,7 +333,6 @@ int test_command(const std::vector<std::string>& args) {
 
     std::vector<std::string> test_args;
 
-    // Handle [ command - remove closing ]
     if (args[0] == "[") {
         if (args.size() > 1 && args.back() == "]") {
             test_args = std::vector<std::string>(args.begin() + 1, args.end() - 1);
@@ -385,7 +345,6 @@ int test_command(const std::vector<std::string>& args) {
         test_args = std::vector<std::string>(args.begin(), args.end());
     }
 
-    // Empty test returns false
     if (test_args.empty()) {
         return 1;
     }
