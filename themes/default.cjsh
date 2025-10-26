@@ -16,15 +16,17 @@ theme_definition {
       bg "RESET"
     }
     segment "directory" {
-      content " {DIRECTORY} "
+      content " {DIRECTORY}"
       fg "#55FF55"
       bg "RESET"
-      separator " "
-      separator_fg "#FFFFFF"
-      separator_bg "RESET"
+    }
+    segment "status" {
+      content "{if = {STATUS} == 0 ?  : {STATUS}}"
+      fg "{if = {STATUS} == 0 ? RESET : #FF5555}"
+      bg "RESET"
     }
     segment "prompt" {
-      content "$ "
+      content " $ "
       fg "#FFFFFF"
       bg "RESET"
     }
@@ -35,12 +37,9 @@ theme_definition {
       content " {LOCAL_PATH} "
       fg "#55FF55"
       bg "RESET"
-      separator " "
-      separator_fg "#FFFFFF"
-      separator_bg "RESET"
     }
     segment "branch" {
-      content "{GIT_BRANCH}"
+      content "{GIT_BRANCH} "
       fg "#FFFF55"
       bg "RESET"
     }
@@ -48,9 +47,16 @@ theme_definition {
       content "{GIT_STATUS}"
       fg "#FF5555"
       bg "RESET"
-      separator " $ "
-      separator_fg "#FFFFFF"
-      separator_bg "RESET"
+    }
+    segment "exit_status" {
+      content "{if = {STATUS} == 0 ?  : {STATUS}}"
+      fg "{if = {STATUS} == 0 ? RESET : #FF5555}"
+      bg "RESET"
+    }
+    segment "prompt" {
+      content " $ "
+      fg "#FFFFFF"
+      bg "RESET"
     }
   }
 
