@@ -763,25 +763,6 @@ std::string Theme::escape_brackets_for_isocline(const std::string& input) const 
     const size_t len = input.size();
     size_t i = 0;
 
-    auto is_numeric_placeholder = [&](const std::string& text) -> bool {
-        std::string trimmed = trim(text);
-        if (trimmed.empty()) {
-            return false;
-        }
-
-        size_t idx = 0;
-        if (trimmed[idx] == '+' || trimmed[idx] == '-') {
-            ++idx;
-        }
-
-        if (idx >= trimmed.size()) {
-            return false;
-        }
-
-        return std::all_of(trimmed.begin() + static_cast<std::string::difference_type>(idx),
-                           trimmed.end(), [](unsigned char c) { return std::isdigit(c); });
-    };
-
     while (i < len) {
         char ch = input[i];
         if (ch == '[') {
@@ -792,13 +773,10 @@ std::string Theme::escape_brackets_for_isocline(const std::string& input) const 
             }
 
             if (!already_escaped && closing < len) {
-                std::string inside = input.substr(i + 1, closing - i - 1);
-                if (is_numeric_placeholder(inside)) {
-                    result.push_back('\\');
-                    result.append(input, i, closing - i + 1);
-                    i = closing + 1;
-                    continue;
-                }
+                result.push_back('\\');
+                result.append(input, i, closing - i + 1);
+                i = closing + 1;
+                continue;
             }
         }
 
