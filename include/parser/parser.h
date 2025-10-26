@@ -19,6 +19,7 @@ struct Command {
     std::string append_file;
     std::string original_text;
     bool background = false;
+    bool negate_pipeline = false;
     bool stderr_to_stdout = false;
     bool stdout_to_stderr = false;
     std::string stderr_file;

@@ -689,12 +689,37 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
         command_parts.push_back(std::move(current));
     }
 
-    for (const auto& cmd_str : command_parts) {
+    bool pipeline_negated = false;
+
+    for (size_t cmd_idx = 0; cmd_idx < command_parts.size(); ++cmd_idx) {
+        const auto& cmd_str = command_parts[cmd_idx];
         Command cmd;
         std::string cmd_part = cmd_str;
 
         bool is_background = false;
         std::string trimmed = trim_trailing_whitespace(cmd_part);
+
+        if (cmd_idx == 0) {
+            std::string leading_trimmed = trim_leading_whitespace(trimmed);
+            if (!leading_trimmed.empty() && leading_trimmed.front() == '!') {
+                size_t after_bang = 1;
+                bool has_whitespace_after_bang =
+                    (leading_trimmed.size() == 1) ||
+                    ((std::isspace(static_cast<unsigned char>(leading_trimmed[after_bang])) != 0));
+
+                if (has_whitespace_after_bang) {
+                    pipeline_negated = true;
+                    leading_trimmed.erase(0, 1);
+                    cmd_part = trim_leading_whitespace(leading_trimmed);
+                    trimmed = trim_trailing_whitespace(cmd_part);
+
+                    if (cmd_part.empty()) {
+                        throw std::runtime_error(
+                            "cjsh: syntax error near unexpected token `newline'");
+                    }
+                }
+            }
+        }
 
         if (!trimmed.empty() && trimmed.back() == '&') {
             bool inside_arithmetic = false;
@@ -1020,6 +1045,10 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
         }
 
         commands.push_back(cmd);
+    }
+
+    if (pipeline_negated && !commands.empty()) {
+        commands[0].negate_pipeline = true;
     }
 
     return commands;

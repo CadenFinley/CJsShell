@@ -30,6 +30,38 @@ else
   exit 1
 fi
 
+"$CJSH_PATH" -c "! true" >/dev/null 2>&1
+EXIT_CODE=$?
+if [ "$EXIT_CODE" -eq 1 ]; then
+    pass_test "! true yields exit 1"
+else
+    fail_test "! true should exit 1 but exited $EXIT_CODE"
+fi
+
+"$CJSH_PATH" -c "! false" >/dev/null 2>&1
+EXIT_CODE=$?
+if [ "$EXIT_CODE" -eq 0 ]; then
+    pass_test "! false yields exit 0"
+else
+    fail_test "! false should exit 0 but exited $EXIT_CODE"
+fi
+
+"$CJSH_PATH" -c "! true | false" >/dev/null 2>&1
+EXIT_CODE=$?
+if [ "$EXIT_CODE" -eq 0 ]; then
+    pass_test "! true | false yields exit 0"
+else
+    fail_test "! true | false should exit 0 but exited $EXIT_CODE"
+fi
+
+"$CJSH_PATH" -c "! false | true" >/dev/null 2>&1
+EXIT_CODE=$?
+if [ "$EXIT_CODE" -eq 1 ]; then
+    pass_test "! false | true yields exit 1"
+else
+    fail_test "! false | true should exit 1 but exited $EXIT_CODE"
+fi
+
 echo ""
 echo "Pipeline Tests Summary:"
 echo "Passed: $TESTS_PASSED"

@@ -55,7 +55,8 @@ std::string join_arguments(const std::vector<std::string>& args) {
     return result;
 }
 
-void apply_assignments_to_shell_env(const std::vector<std::pair<std::string, std::string>>& assignments) {
+void apply_assignments_to_shell_env(
+    const std::vector<std::pair<std::string, std::string>>& assignments) {
     if (!g_shell || assignments.empty()) {
         return;
     }
@@ -1156,11 +1157,21 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
 }
 
 int Exec::execute_pipeline(const std::vector<Command>& commands) {
+    const bool pipeline_negated = (!commands.empty() && commands[0].negate_pipeline);
+
+    auto finalize_exit = [&](int exit_code) -> int {
+        int effective = exit_code;
+        if (pipeline_negated) {
+            effective = (exit_code == 0) ? 1 : 0;
+        }
+        last_exit_code = effective;
+        return effective;
+    };
+
     if (commands.empty()) {
         set_error(ErrorType::INVALID_ARGUMENT, "",
                   "cannot execute empty pipeline - no commands provided", {});
-        last_exit_code = EX_USAGE;
-        return EX_USAGE;
+        return finalize_exit(EX_USAGE);
     }
 
     if (commands.size() == 1) {
@@ -1171,11 +1182,11 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
         if (cmd_start_idx >= original_arg_count) {
             apply_assignments_to_shell_env(env_assignments);
-            last_exit_code = 0;
-            return 0;
+            return finalize_exit(0);
         }
 
-        const bool has_temporary_env = !env_assignments.empty() && cmd_start_idx < original_arg_count;
+        const bool has_temporary_env =
+            !env_assignments.empty() && cmd_start_idx < original_arg_count;
         if (has_temporary_env && cmd_start_idx > 0) {
             auto erase_end = cmd.args.begin() +
                              static_cast<std::vector<std::string>::difference_type>(cmd_start_idx);
@@ -1183,17 +1194,19 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         }
 
         if (!has_temporary_env && can_execute_in_process(cmd)) {
-            last_exit_code = g_shell->get_built_ins()->builtin_command(cmd.args);
-            return last_exit_code;
+            int exit_code = g_shell->get_built_ins()->builtin_command(cmd.args);
+            return finalize_exit(exit_code);
         }
 
         if (cmd.background) {
-            return execute_command_async(commands[0].args);
+            int async_result = execute_command_async(commands[0].args);
+            return finalize_exit(async_result);
         }
         if (!has_temporary_env && !cmd.args.empty() && g_shell &&
             (g_shell->get_built_ins() != nullptr) &&
             (g_shell->get_built_ins()->is_builtin_command(cmd.args[0]) != 0)) {
-            return execute_builtin_with_redirections(cmd);
+            int builtin_exit = execute_builtin_with_redirections(cmd);
+            return finalize_exit(builtin_exit);
         }
 
         ProcessSubstitutionResources proc_resources;
@@ -1202,8 +1215,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         } catch (const std::exception& e) {
             set_error(ErrorType::RUNTIME_ERROR, cmd.args.empty() ? "command" : cmd.args[0],
                       std::string(e.what()));
-            last_exit_code = EX_OSERR;
-            return EX_OSERR;
+            return finalize_exit(EX_OSERR);
         }
 
         pid_t pid = fork();
@@ -1212,8 +1224,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             cleanup_process_substitutions(proc_resources, true);
             set_error(ErrorType::RUNTIME_ERROR, cmd.args.empty() ? "unknown" : cmd.args[0],
                       "failed to fork process: " + std::string(strerror(errno)));
-            last_exit_code = EX_OSERR;
-            return EX_OSERR;
+            return finalize_exit(EX_OSERR);
         }
 
         if (pid == 0) {
@@ -1421,9 +1432,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                                                                  "command completed successfully",
                                                                  "command failed with exit code ");
             set_error(exit_result.type, cmd.args[0], exit_result.message, exit_result.suggestions);
-            last_exit_code = exit_code;
             cleanup_process_substitutions(proc_resources, false);
-            return last_exit_code;
+            return finalize_exit(exit_code);
         }
         Job job;
         job.pgid = pid;
@@ -1454,10 +1464,10 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 JobManager::instance().remove_job(managed_job_id);
             }
         }
-        cleanup_process_substitutions(proc_resources, false);
-        return last_exit_code;
 
-        return 0;
+        int raw_exit = last_exit_code;
+        cleanup_process_substitutions(proc_resources, false);
+        return finalize_exit(raw_exit);
     }
     std::vector<pid_t> pids;
     pid_t pgid = 0;
@@ -1470,8 +1480,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 set_error(ErrorType::RUNTIME_ERROR, "",
                           "failed to create pipe " + std::to_string(i + 1) +
                               " for pipeline: " + std::string(strerror(errno)));
-                last_exit_code = EX_OSERR;
-                return EX_OSERR;
+                return finalize_exit(EX_OSERR);
             }
         }
 
@@ -1480,12 +1489,13 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             std::vector<std::pair<std::string, std::string>> env_assignments;
             size_t cmd_start_idx = cjsh_env::collect_env_assignments(cmd.args, env_assignments);
             const size_t original_arg_count = cmd.args.size();
-            const bool has_temporary_env = !env_assignments.empty() &&
-                                           cmd_start_idx < original_arg_count;
+            const bool has_temporary_env =
+                !env_assignments.empty() && cmd_start_idx < original_arg_count;
 
             if (has_temporary_env && cmd_start_idx > 0) {
-                auto erase_end = cmd.args.begin() +
-                                 static_cast<std::vector<std::string>::difference_type>(cmd_start_idx);
+                auto erase_end =
+                    cmd.args.begin() +
+                    static_cast<std::vector<std::string>::difference_type>(cmd_start_idx);
                 cmd.args.erase(cmd.args.begin(), erase_end);
             }
 
@@ -1499,7 +1509,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                     close(pipes[j][1]);
                 }
 
-                return 1;
+                return finalize_exit(1);
             }
 
             pid_t pid = fork();
@@ -1509,8 +1519,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 set_error(ErrorType::RUNTIME_ERROR, cmd_name,
                           "failed to create process (command " + std::to_string(i + 1) +
                               " in pipeline): " + std::string(strerror(errno)));
-                last_exit_code = EX_OSERR;
-                return EX_OSERR;
+                return finalize_exit(EX_OSERR);
             }
 
             if (pid == 0) {
@@ -1711,7 +1720,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         for (pid_t pid : pids) {
             kill(pid, SIGTERM);
         }
-        return 1;
+        return finalize_exit(1);
     }
 
     Job job;
@@ -1743,10 +1752,12 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         JobManager::instance().set_last_background_pid(pids.empty() ? -1 : pids.back());
     }
 
+    int raw_exit = last_exit_code;
+
     if (job.background) {
         put_job_in_background(job_id, false);
         std::cerr << "[" << job_id << "] " << pgid << '\n';
-        last_exit_code = 0;
+        raw_exit = 0;
     } else {
         put_job_in_foreground(job_id, false);
 
@@ -1754,11 +1765,11 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         auto it = jobs.find(job_id);
         if (it != jobs.end()) {
             JobManager::instance().remove_job(new_job_id);
-            last_exit_code = extract_exit_code(it->second.last_status);
+            raw_exit = extract_exit_code(it->second.last_status);
         }
     }
 
-    return last_exit_code;
+    return finalize_exit(raw_exit);
 }
 
 void Exec::report_missing_job(int job_id) {
