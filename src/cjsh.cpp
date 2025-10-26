@@ -35,40 +35,13 @@
 #include "version_command.h"
 
 bool g_exit_flag = false;
-std::string g_cached_version;
 bool g_startup_active = true;
 std::unique_ptr<Shell> g_shell = nullptr;
 std::unique_ptr<Theme> g_theme = nullptr;
 std::vector<std::string> g_startup_args;
 std::vector<std::string> g_profile_startup_args;
 
-namespace config {
-bool login_mode = false;
-bool interactive_mode = true;
-bool force_interactive = false;
-bool execute_command = false;
-std::string cmd_to_execute;
-bool themes_enabled = true;
-bool colors_enabled = true;
-bool source_enabled = true;
-bool completions_enabled = true;
-bool syntax_highlighting_enabled = true;
-bool smart_cd_enabled = true;
-bool show_version = false;
-bool show_help = false;
-bool startup_test = false;
-bool minimal_mode = false;
-bool show_startup_time = false;
-bool secure_mode = false;
-bool show_title_line = true;
-bool no_prompt = false;
-bool history_expansion_enabled = true;
-bool posix_mode = false;
-}  // namespace config
-
 namespace {
-
-std::chrono::steady_clock::time_point g_startup_begin_time;
 
 struct PosixFeatureSnapshot {
     bool valid = false;
@@ -83,6 +56,8 @@ struct PosixFeatureSnapshot {
 };
 
 PosixFeatureSnapshot g_posix_snapshot;
+
+std::chrono::steady_clock::time_point g_startup_begin_time;
 
 void save_startup_arguments(int argc, char* argv[]) {
     g_startup_args.clear();
@@ -314,30 +289,28 @@ void process_logout_file() {
 
 }  // namespace
 
-void initialize_themes() {
-    if (!config::themes_enabled) {
-        return;
-    }
-    g_theme = std::make_unique<Theme>(config::themes_enabled);
-}
-
-void cleanup_resources() {
-    if (g_shell) {
-        trap_manager_set_shell(g_shell.get());
-        trap_manager_execute_exit_trap();
-        process_logout_file();
-    }
-
-    if (g_theme) {
-        g_theme.reset();
-    }
-
-    if (g_shell) {
-        g_shell.reset();
-    }
-}
-
 namespace config {
+bool login_mode = false;
+bool interactive_mode = true;
+bool force_interactive = false;
+bool execute_command = false;
+std::string cmd_to_execute;
+bool themes_enabled = true;
+bool colors_enabled = true;
+bool source_enabled = true;
+bool completions_enabled = true;
+bool syntax_highlighting_enabled = true;
+bool smart_cd_enabled = true;
+bool show_version = false;
+bool show_help = false;
+bool startup_test = false;
+bool minimal_mode = false;
+bool show_startup_time = false;
+bool secure_mode = false;
+bool show_title_line = true;
+bool no_prompt = false;
+bool history_expansion_enabled = true;
+bool posix_mode = false;
 
 void set_posix_mode(bool enable) {
     if (posix_mode == enable) {
@@ -394,6 +367,31 @@ bool is_posix_mode() {
 }
 
 }  // namespace config
+
+void initialize_themes() {
+    if (!config::themes_enabled) {
+        return;
+    }
+    g_theme = std::make_unique<Theme>(config::themes_enabled);
+}
+
+void cleanup_resources() {
+    if (g_shell) {
+        trap_manager_set_shell(g_shell.get());
+        trap_manager_execute_exit_trap();
+        if (config::login_mode) {
+            process_logout_file();
+        }
+    }
+
+    if (g_theme) {
+        g_theme.reset();
+    }
+
+    if (g_shell) {
+        g_shell.reset();
+    }
+}
 
 int main(int argc, char* argv[]) {
     g_startup_begin_time = std::chrono::steady_clock::now();
