@@ -1000,11 +1000,7 @@ static inline bool compile_cjsh(int override_parallel_jobs, bool generate_compil
     nob_cmd_append(&link_cmd, "-o", "build/" PROJECT_NAME);
 
 #ifdef PLATFORM_MACOS
-    if (strcmp(linker, "clang++") == 0) {
-        nob_cmd_append(&link_cmd, "-lpthread");
-    } else {
-        nob_cmd_append(&link_cmd, "-lstdc++", "-lpthread");
-    }
+    nob_cmd_append(&link_cmd, "-lpthread");
 #else
     nob_cmd_append(&link_cmd, "-lstdc++", "-lpthread");
 #endif
