@@ -372,8 +372,8 @@ void update_job_management() {
 }
 
 std::string generate_prompt(bool command_was_available) {
-    std::printf(" \r");
-    (void)std::fflush(stdout);
+    // std::printf(" \r");
+    // (void)std::fflush(stdout);
 
     if (config::no_prompt) {
         return "# ";
