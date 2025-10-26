@@ -771,6 +771,15 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
             is_function_def = true;
         }
 
+        if (is_function_def && config::is_posix_mode() && trimmed_line.rfind("function", 0) == 0) {
+            print_error({ErrorType::SYNTAX_ERROR,
+                         "function",
+                         "syntax error near unexpected token 'function'",
+                         {"Use POSIX-compatible function syntax: name() { ... }"}});
+            last_code = 2;
+            continue;
+        }
+
         if (is_function_def) {
             auto parse_result = function_evaluator::parse_and_register_functions(
                 line, lines, line_index, functions, trim, strip_inline_comment);

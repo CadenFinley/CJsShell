@@ -7,6 +7,7 @@
 #include <cstring>
 #include <type_traits>
 
+#include "cjsh.h"
 #include "shell.h"
 
 ExpansionEngine::ExpansionEngine(Shell* shell) : shell(shell) {
@@ -16,6 +17,11 @@ std::vector<std::string> ExpansionEngine::expand_braces(const std::string& patte
     std::vector<std::string> result;
 
     result.reserve(8);
+
+    if (config::is_posix_mode()) {
+        result.push_back(pattern);
+        return result;
+    }
 
     size_t open_pos = pattern.find('{');
     if (open_pos == std::string::npos) {

@@ -63,17 +63,56 @@ bool secure_mode = false;
 bool show_title_line = true;
 bool no_prompt = false;
 bool history_expansion_enabled = true;
+bool posix_mode = false;
 }  // namespace config
 
 namespace {
 
 std::chrono::steady_clock::time_point g_startup_begin_time;
 
+struct PosixFeatureSnapshot {
+    bool valid = false;
+    bool themes_enabled = true;
+    bool colors_enabled = true;
+    bool completions_enabled = true;
+    bool syntax_highlighting_enabled = true;
+    bool smart_cd_enabled = true;
+    bool show_title_line = true;
+    bool show_startup_time = false;
+    bool history_expansion_enabled = true;
+};
+
+PosixFeatureSnapshot g_posix_snapshot;
+
 void save_startup_arguments(int argc, char* argv[]) {
     g_startup_args.clear();
     for (int i = 0; i < argc; i++) {
         g_startup_args.push_back(std::string(argv[i]));
     }
+}
+
+bool invoked_as_sh(const char* argv0) {
+    if (argv0 == nullptr) {
+        return false;
+    }
+
+    std::filesystem::path executable_path(argv0);
+    std::string base_name = executable_path.filename().string();
+
+    if (base_name.empty()) {
+        return false;
+    }
+
+    size_t non_dash_pos = base_name.find_first_not_of('-');
+    if (non_dash_pos == std::string::npos) {
+        return false;
+    }
+
+    if (non_dash_pos > 0) {
+        base_name = base_name.substr(non_dash_pos);
+    }
+
+    return base_name == "sh";
 }
 
 int handle_non_interactive_mode(const std::string& script_file) {
@@ -298,12 +337,74 @@ void cleanup_resources() {
     }
 }
 
+namespace config {
+
+void set_posix_mode(bool enable) {
+    if (posix_mode == enable) {
+        return;
+    }
+
+    if (enable) {
+        g_posix_snapshot.valid = true;
+        g_posix_snapshot.themes_enabled = themes_enabled;
+        g_posix_snapshot.colors_enabled = colors_enabled;
+        g_posix_snapshot.completions_enabled = completions_enabled;
+        g_posix_snapshot.syntax_highlighting_enabled = syntax_highlighting_enabled;
+        g_posix_snapshot.smart_cd_enabled = smart_cd_enabled;
+        g_posix_snapshot.show_title_line = show_title_line;
+        g_posix_snapshot.show_startup_time = show_startup_time;
+        g_posix_snapshot.history_expansion_enabled = history_expansion_enabled;
+
+        posix_mode = true;
+        themes_enabled = false;
+        colors_enabled = false;
+        completions_enabled = false;
+        syntax_highlighting_enabled = false;
+        smart_cd_enabled = false;
+        show_title_line = false;
+        show_startup_time = false;
+        history_expansion_enabled = false;
+
+        if (g_theme) {
+            g_theme.reset();
+        }
+    } else {
+        posix_mode = false;
+
+        if (g_posix_snapshot.valid) {
+            themes_enabled = g_posix_snapshot.themes_enabled;
+            colors_enabled = g_posix_snapshot.colors_enabled;
+            completions_enabled = g_posix_snapshot.completions_enabled;
+            syntax_highlighting_enabled = g_posix_snapshot.syntax_highlighting_enabled;
+            smart_cd_enabled = g_posix_snapshot.smart_cd_enabled;
+            show_title_line = g_posix_snapshot.show_title_line;
+            show_startup_time = g_posix_snapshot.show_startup_time;
+            history_expansion_enabled = g_posix_snapshot.history_expansion_enabled;
+            g_posix_snapshot.valid = false;
+        }
+    }
+
+    if (g_shell) {
+        g_shell->set_shell_option("posix", posix_mode);
+    }
+}
+
+bool is_posix_mode() {
+    return posix_mode;
+}
+
+}  // namespace config
+
 int main(int argc, char* argv[]) {
     g_startup_begin_time = std::chrono::steady_clock::now();
 
     auto parse_result = flags::parse_arguments(argc, argv);
     if (parse_result.should_exit) {
         return parse_result.exit_code;
+    }
+
+    if (invoked_as_sh(argv[0])) {
+        config::set_posix_mode(true);
     }
 
     if (config::show_version) {
@@ -336,6 +437,8 @@ int main(int argc, char* argv[]) {
                      {"Insufficient memory or system resources"}});
         return 1;
     }
+
+    g_shell->set_shell_option("posix", config::posix_mode);
 
     if (!script_args.empty()) {
         g_shell->set_positional_parameters(script_args);

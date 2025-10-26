@@ -58,6 +58,7 @@ ParseResult parse_arguments(int argc, char* argv[]) {
                                            {"minimal", no_argument, nullptr, 'm'},
                                            {"secure", no_argument, nullptr, 's'},
                                            {"no-history-expansion", no_argument, nullptr, 'H'},
+                                           {"posix", no_argument, nullptr, 1000},
                                            {nullptr, 0, nullptr, 0}};
 
     const char* short_options = "+lic:vhTCLUNOSMPXmsH";
@@ -128,6 +129,9 @@ ParseResult parse_arguments(int argc, char* argv[]) {
             case 'H':
                 config::history_expansion_enabled = false;
                 break;
+            case 1000:
+                config::set_posix_mode(true);
+                break;
             case '?':
                 print_usage();
                 result.exit_code = 127;
@@ -195,6 +199,8 @@ void apply_profile_startup_flags() {
             config::secure_mode = true;
         } else if (flag == "--no-history-expansion") {
             config::history_expansion_enabled = false;
+        } else if (flag == "--posix") {
+            config::set_posix_mode(true);
         }
     }
 }

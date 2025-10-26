@@ -85,6 +85,14 @@ int set_command(const std::vector<std::string>& args, Shell* shell) {
             if (arg == "+o") {
                 ++i;
             }
+        } else if (arg == "-o" && i + 1 < args.size() && args[i + 1] == "posix") {
+            config::set_posix_mode(true);
+            shell->set_shell_option("posix", config::is_posix_mode());
+            ++i;
+        } else if (arg == "+o" && i + 1 < args.size() && args[i + 1] == "posix") {
+            config::set_posix_mode(false);
+            shell->set_shell_option("posix", config::is_posix_mode());
+            ++i;
         } else if (arg == "-x" || (arg == "-o" && i + 1 < args.size() && args[i + 1] == "xtrace")) {
             shell->set_shell_option("xtrace", true);
             if (arg == "-o") {
@@ -164,6 +172,7 @@ int set_command(const std::vector<std::string>& args, Shell* shell) {
                       << '\n';
             std::cout << "allexport      \t"
                       << (shell->get_shell_option("allexport") ? "on" : "off") << '\n';
+            std::cout << "posix          \t" << (config::is_posix_mode() ? "on" : "off") << '\n';
             std::cout << "errexit_severity\t" << shell->get_errexit_severity() << '\n';
             return 0;
         } else if (arg.substr(0, 2) == "--") {

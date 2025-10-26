@@ -8,6 +8,7 @@
 
 #include <cstdlib>
 #include <filesystem>
+#include <unordered_set>
 
 #include "abbr_command.h"
 #include "alias_command.h"
@@ -292,6 +293,21 @@ Built_ins::~Built_ins() {
 int Built_ins::builtin_command(const std::vector<std::string>& args) {
     if (args.empty())
         return 1;
+
+    if (config::is_posix_mode()) {
+        static const std::unordered_set<std::string> kPosixDisabledBuiltins = {
+            "[[",         "cjshopt", "cjsh-widget",  "widget", "abbr",
+            "abbreviate", "unabbr",  "unabbreviate", "hook"};
+
+        if (kPosixDisabledBuiltins.find(args[0]) != kPosixDisabledBuiltins.end()) {
+            auto suggestions = suggestion_utils::generate_command_suggestions(args[0]);
+            ErrorInfo error = {ErrorType::COMMAND_NOT_FOUND, args[0], "command not found",
+                               suggestions};
+            print_error(error);
+            last_terminal_output_error = "cjsh: '" + args[0] + "': command not found";
+            return 127;
+        }
+    }
 
     auto it = builtins.find(args[0]);
     if (it != builtins.end()) {

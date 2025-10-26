@@ -54,6 +54,10 @@ extern bool secure_mode;
 extern bool show_title_line;
 extern bool no_prompt;
 extern bool history_expansion_enabled;
+extern bool posix_mode;
+
+void set_posix_mode(bool enable);
+bool is_posix_mode();
 }  // namespace config
 
 void initialize_themes();
