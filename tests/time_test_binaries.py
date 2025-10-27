@@ -72,7 +72,7 @@ COMMAND_PLAN = [
     {"key": "function_calls", "description": "Define and repeatedly invoke a function"},
     {"key": "subshell_traversal", "description": "Traverse directories using subshells or directory stack"}
 ]
-BASELINE_SHELLS = ["cjsh", "../fish-shell/build/fish", "bash", "zsh", "fish", "nu"]
+BASELINE_SHELLS = ["cjsh", "../fish-shell/build/fish", "bash", "zsh", "fish", "nu", "osh"]
 CJSH_BINARY_TYPES = [""]
 
 ENABLE_BASELINE_TESTS = True
@@ -151,7 +151,7 @@ def run_command_with_timing(shell_cmd: str, command: str) -> float:
 
 
 def get_shell_command(shell: str, command_key: str) -> Optional[str]:
-    if shell in ["bash", "zsh", "ksh"] or shell.startswith("./cjsh"):
+    if shell in ["bash", "zsh", "ksh", "osh"] or shell.startswith("./cjsh"):
         return SHELL_COMMANDS["posix"].get(command_key)
     if shell in ["fish", "../fish-shell/build/fish"]:
         return SHELL_COMMANDS["fish"].get(command_key)
