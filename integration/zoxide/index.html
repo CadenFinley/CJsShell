@@ -3,7 +3,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A modern, feature-rich shell with out of the box power, speed, and customization">
+        <meta name="description" content="A POSIX-based interactive shell with integrated modern features and out-of-the-box customization">
       
       
         <meta name="author" content="Caden Finley">
@@ -1090,7 +1090,7 @@
 <p>Before enabling the integration, make sure you have zoxide installed and on your <code>$PATH</code>:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>brew<span class="w"> </span>install<span class="w"> </span>zoxide
 </span></code></pre></div>
-<p>Any other installation method supported by zoxide works too—cjsh only needs the executable.</p>
+<p>Any other installation method supported by zoxide works too, cjsh only needs the executable.</p>
 <h2 id="enabling-the-integration-in-cjshrc">Enabling the integration in <code>~/.cjshrc</code></h2>
 <p>Add the following block to your <code>~/.cjshrc</code>.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span>-z<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">__CJSH_ZOXIDE_INITIALIZED</span><span class="k">:-</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>

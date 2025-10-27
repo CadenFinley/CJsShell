@@ -3,7 +3,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A modern, feature-rich shell with out of the box power, speed, and customization">
+        <meta name="description" content="A POSIX-based interactive shell with integrated modern features and out-of-the-box customization">
       
       
         <meta name="author" content="Caden Finley">
@@ -2461,14 +2461,14 @@ editing behaviors.</p>
 </span></code></pre></div>
 <p>Key subcommands include:</p>
 <ul>
-<li><code>list</code> — Show the active profile plus default vs. custom bindings (runtime safe)</li>
-<li><code>set &lt;action&gt; &lt;keys...&gt;</code> — Replace bindings for an action</li>
-<li><code>add &lt;action&gt; &lt;keys...&gt;</code> — Add additional bindings for an action</li>
-<li><code>clear &lt;keys...&gt;</code> — Remove the provided key specifications</li>
-<li><code>clear-action &lt;action&gt;</code> — Remove all custom bindings for an action</li>
-<li><code>reset</code> — Drop every custom binding and restore defaults</li>
-<li><code>profile list</code> — List available key binding profiles (runtime safe)</li>
-<li><code>profile set &lt;name&gt;</code> — Persist the named profile</li>
+<li><code>list</code> - Show the active profile plus default vs. custom bindings (runtime safe)</li>
+<li><code>set &lt;action&gt; &lt;keys...&gt;</code> - Replace bindings for an action</li>
+<li><code>add &lt;action&gt; &lt;keys...&gt;</code> - Add additional bindings for an action</li>
+<li><code>clear &lt;keys...&gt;</code> - Remove the provided key specifications</li>
+<li><code>clear-action &lt;action&gt;</code> - Remove all custom bindings for an action</li>
+<li><code>reset</code> - Drop every custom binding and restore defaults</li>
+<li><code>profile list</code> - List available key binding profiles (runtime safe)</li>
+<li><code>profile set &lt;name&gt;</code> - Persist the named profile</li>
 </ul>
 <p>Key specifications accept pipe (<code>|</code>) separated alternatives, so <code>Ctrl+K|Ctrl+X</code> is a single argument covering both sequences. Place commands like <code>cjshopt keybind set cursor-left "Ctrl+H"</code> in <code>~/.cjshrc</code> to keep them between sessions.</p>
 <h4 id="set-max-bookmarks">set-max-bookmarks</h4>
@@ -2504,10 +2504,10 @@ editing behaviors.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-83-1"><a id="__codelineno-83-1" name="__codelineno-83-1" href="#__codelineno-83-1"></a>cjshopt<span class="w"> </span>bookmark-blacklist<span class="w"> </span>&lt;subcommand&gt;<span class="w"> </span><span class="o">[</span>path<span class="o">]</span>
 </span></code></pre></div>
 <p>Available subcommands:
-- <code>add &lt;path&gt;</code> — Add a directory to the blacklist
-- <code>remove &lt;path&gt;</code> — Remove a directory from the blacklist
-- <code>list</code> — Display all blacklisted directories
-- <code>clear</code> — Remove every entry from the blacklist</p>
+- <code>add &lt;path&gt;</code> - Add a directory to the blacklist
+- <code>remove &lt;path&gt;</code> - Remove a directory from the blacklist
+- <code>list</code> - Display all blacklisted directories
+- <code>clear</code> - Remove every entry from the blacklist</p>
 <p>Examples:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-84-1"><a id="__codelineno-84-1" name="__codelineno-84-1" href="#__codelineno-84-1"></a>cjshopt<span class="w"> </span>bookmark-blacklist<span class="w"> </span>add<span class="w"> </span>/tmp
 </span><span id="__span-84-2"><a id="__codelineno-84-2" name="__codelineno-84-2" href="#__codelineno-84-2"></a>cjshopt<span class="w"> </span>bookmark-blacklist<span class="w"> </span>add<span class="w"> </span>~/.cache
