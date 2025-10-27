@@ -163,6 +163,96 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
         lines.push_back(std::move(segment));
     };
 
+    auto is_in_arithmetic_context = [](std::string_view text, size_t pos) -> bool {
+        bool in_single = false;
+        bool in_double = false;
+        bool escaped = false;
+        int arith_depth = 0;
+
+        size_t idx = 0;
+        while (idx < pos && idx < text.size()) {
+            char ch = text[idx];
+
+            if (escaped) {
+                escaped = false;
+                idx++;
+                continue;
+            }
+
+            if (ch == '\\' && !in_single) {
+                escaped = true;
+                idx++;
+                continue;
+            }
+
+            if (in_single) {
+                if (ch == '\'') {
+                    in_single = false;
+                }
+                idx++;
+                continue;
+            }
+
+            if (ch == '\'') {
+                in_single = true;
+                idx++;
+                continue;
+            }
+
+            if (in_double) {
+                if (ch == '"') {
+                    in_double = false;
+                    idx++;
+                    continue;
+                }
+                if (ch == '$' && idx + 2 < pos && idx + 2 < text.size() && text[idx + 1] == '(' &&
+                    text[idx + 2] == '(') {
+                    arith_depth++;
+                    idx += 3;
+                    continue;
+                }
+                if (arith_depth > 0 && ch == ')' && idx + 1 < pos && idx + 1 < text.size() &&
+                    text[idx + 1] == ')') {
+                    arith_depth--;
+                    idx += 2;
+                    continue;
+                }
+                idx++;
+                continue;
+            }
+
+            if (ch == '"') {
+                in_double = true;
+                idx++;
+                continue;
+            }
+
+            if (ch == '$' && idx + 2 < pos && idx + 2 < text.size() && text[idx + 1] == '(' &&
+                text[idx + 2] == '(') {
+                arith_depth++;
+                idx += 3;
+                continue;
+            }
+
+            if (ch == '(' && idx + 1 < pos && idx + 1 < text.size() && text[idx + 1] == '(') {
+                arith_depth++;
+                idx += 2;
+                continue;
+            }
+
+            if (arith_depth > 0 && ch == ')' && idx + 1 < pos && idx + 1 < text.size() &&
+                text[idx + 1] == ')') {
+                arith_depth--;
+                idx += 2;
+                continue;
+            }
+
+            idx++;
+        }
+
+        return arith_depth > 0;
+    };
+
     auto locate_here_operator = [&](std::string_view sv, size_t& pos_out,
                                     size_t& delim_end_out) -> bool {
         size_t pos = sv.find("<<");
@@ -170,6 +260,11 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
             size_t op_len = 2;
             if (pos + 2 < sv.size() && sv[pos + 2] == '-') {
                 op_len = 3;
+            }
+
+            if (is_in_arithmetic_context(sv, pos)) {
+                pos = sv.find("<<", pos + op_len);
+                continue;
             }
 
             size_t delim_start = pos + op_len;
@@ -185,7 +280,7 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
             }
 
             if (delim_start == delim_end) {
-                pos = sv.find("<<", pos + 2);
+                pos = sv.find("<<", pos + op_len);
                 continue;
             }
 
@@ -203,7 +298,7 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
                 return true;
             }
 
-            pos = sv.find("<<", pos + 2);
+            pos = sv.find("<<", pos + op_len);
         }
         return false;
     };
@@ -323,19 +418,39 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
             if (!in_quotes && segment_view.find("<<") != std::string_view::npos) {
                 std::string segment_no_comment = strip_inline_comment(segment_view);
 
-                size_t here_pos = segment_no_comment.find("<<-");
+                size_t search_from = 0;
+                size_t here_pos = std::string::npos;
                 bool is_strip_tabs = false;
-                size_t operator_len = 2;
 
-                if (here_pos != std::string::npos) {
-                    is_strip_tabs = true;
-                    operator_len = 3;
-                } else {
-                    here_pos = segment_no_comment.find("<<");
-                    if (here_pos == std::string::npos) {
-                        goto normal_line_processing;
+                while (search_from < segment_no_comment.size()) {
+                    size_t candidate = segment_no_comment.find("<<", search_from);
+                    if (candidate == std::string::npos) {
+                        break;
                     }
+
+                    size_t op_len = 2;
+                    bool candidate_strip = false;
+                    if (candidate + 2 < segment_no_comment.size() &&
+                        segment_no_comment[candidate + 2] == '-') {
+                        op_len = 3;
+                        candidate_strip = true;
+                    }
+
+                    if (is_in_arithmetic_context(segment_no_comment, candidate)) {
+                        search_from = candidate + op_len;
+                        continue;
+                    }
+
+                    here_pos = candidate;
+                    is_strip_tabs = candidate_strip;
+                    break;
                 }
+
+                if (here_pos == std::string::npos) {
+                    goto normal_line_processing;
+                }
+
+                size_t operator_len = is_strip_tabs ? 3 : 2;
 
                 here_doc_operator_pos = here_pos;
                 here_doc_operator_len = operator_len;

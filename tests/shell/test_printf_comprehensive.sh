@@ -119,6 +119,22 @@ else
     pass_test "printf multiple specifiers"
 fi
 
+OUT=$("$CJSH_PATH" -c "printf '%0100000000000d' 0" 2>&1)
+status=$?
+if [ $status -ne 0 ]; then
+    pass_test "printf rejects extremely large field widths"
+else
+    fail_test "printf accepted huge field width (status=$status, output: '$OUT')"
+fi
+
+OUT=$("$CJSH_PATH" -c "printf '%1000000000000\\$d\n' 1" 2>&1)
+status=$?
+if [ $status -ne 0 ]; then
+    pass_test "printf rejects oversized positional argument indexes"
+else
+    fail_test "printf accepted oversized positional argument (status=$status, output: '$OUT')"
+fi
+
 OUT=$("$CJSH_PATH" -c "printf 'hello\nworld\n'")
 EXPECTED="hello
 world"

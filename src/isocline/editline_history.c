@@ -345,6 +345,9 @@ again:;
 
         ssize_t term_height = term_get_height(env->term);
         ssize_t available_lines = term_height - 4;
+        if (eb->prompt_prefix_lines > 0) {
+            available_lines -= eb->prompt_prefix_lines;
+        }
         if (available_lines < 3) {
             available_lines = 3;
         }

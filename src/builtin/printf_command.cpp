@@ -20,6 +20,15 @@ namespace {
 
 static int exit_status = 0;
 
+constexpr long long kMaxPrintfFieldWidth = 1'000'000;
+constexpr long long kMaxPrintfPrecision = 1'000'000;
+constexpr long long kMaxPrintfPositionalIndex = 1024;
+
+static void report_format_error(const std::string& message) {
+    print_error({ErrorType::INVALID_ARGUMENT, "printf", message, {}});
+    exit_status = 1;
+}
+
 static inline bool is_octal_digit(char c) {
     return c >= '0' && c <= '7';
 }
@@ -429,19 +438,41 @@ struct arg_cursor {
     int curr_s_arg;
     int end_arg;
     int direc_arg;
+    bool error;
+    std::string error_msg;
 };
 
 static arg_cursor get_curr_arg(int pos, arg_cursor ac) {
+    ac.error = false;
+    ac.error_msg.clear();
     int arg = 0;
     const char* f = ac.f;
 
-    if (pos < 3 && isdigit(*f)) {
-        int a = *f++ - '0';
-        while (isdigit(*f)) {
-            a = a * 10 + (*f++ - '0');
-        }
-        if (*f == '$') {
-            arg = a;
+    if (pos < 3 && std::isdigit(static_cast<unsigned char>(*f)) != 0) {
+        long long value = 0;
+        bool overflow = false;
+        const char* digit_ptr = f;
+
+        do {
+            int digit = *digit_ptr - '0';
+            if (!overflow) {
+                if (value > (kMaxPrintfPositionalIndex - digit) / 10) {
+                    overflow = true;
+                } else {
+                    value = value * 10 + digit;
+                }
+            }
+            ++digit_ptr;
+        } while (std::isdigit(static_cast<unsigned char>(*digit_ptr)) != 0);
+
+        if (*digit_ptr == '$') {
+            if (overflow || value <= 0 || value > kMaxPrintfPositionalIndex) {
+                ac.error = true;
+                ac.error_msg = "positional argument index too large";
+                return ac;
+            }
+            arg = static_cast<int>(value);
+            f = digit_ptr;
         }
     }
 
@@ -467,6 +498,8 @@ static arg_cursor get_curr_arg(int pos, arg_cursor ac) {
 static int print_formatted(const char* format, int argc, char** argv) {
     arg_cursor ac;
     ac.curr_arg = ac.curr_s_arg = ac.end_arg = ac.direc_arg = -1;
+    ac.error = false;
+    ac.error_msg.clear();
     const char* direc_start;
     bool have_field_width;
     int field_width = 0;
@@ -486,9 +519,17 @@ static int print_formatted(const char* format, int argc, char** argv) {
             }
 
             ac = get_curr_arg(0, ac);
+            if (ac.error) {
+                report_format_error(ac.error_msg);
+                return -1;
+            }
 
             if (*ac.f == 'b') {
                 ac = get_curr_arg(3, ac);
+                if (ac.error) {
+                    report_format_error(ac.error_msg);
+                    return -1;
+                }
                 if (ac.curr_arg < argc)
                     print_esc_string(argv[ac.curr_arg]);
                 continue;
@@ -496,6 +537,10 @@ static int print_formatted(const char* format, int argc, char** argv) {
 
             if (*ac.f == 'q') {
                 ac = get_curr_arg(3, ac);
+                if (ac.error) {
+                    report_format_error(ac.error_msg);
+                    return -1;
+                }
                 if (ac.curr_arg < argc) {
                     std::cout << shell_escape(argv[ac.curr_arg]);
                 }
@@ -526,15 +571,41 @@ static int print_formatted(const char* format, int argc, char** argv) {
             if (*ac.f == '*') {
                 ac.f++;
                 ac = get_curr_arg(1, ac);
-                if (ac.curr_arg < argc) {
-                    field_width = vstrtoimax(argv[ac.curr_arg]);
-                } else {
-                    field_width = 0;
+                if (ac.error) {
+                    report_format_error(ac.error_msg);
+                    return -1;
                 }
+                long long width_value = 0;
+                if (ac.curr_arg < argc) {
+                    width_value = vstrtoimax(argv[ac.curr_arg]);
+                }
+                if (std::llabs(width_value) > kMaxPrintfFieldWidth) {
+                    report_format_error("field width too large");
+                    return -1;
+                }
+                field_width = static_cast<int>(width_value);
                 have_field_width = true;
             } else {
-                while (isdigit(*ac.f))
-                    ac.f++;
+                const char* width_start = ac.f;
+                long long literal_width = 0;
+                bool width_overflow = false;
+                while (std::isdigit(static_cast<unsigned char>(*ac.f)) != 0) {
+                    int digit = *ac.f - '0';
+                    if (!width_overflow) {
+                        if (literal_width > (kMaxPrintfFieldWidth - digit) / 10) {
+                            width_overflow = true;
+                        } else {
+                            literal_width = literal_width * 10 + digit;
+                        }
+                    }
+                    ++ac.f;
+                }
+                if (ac.f > width_start) {
+                    if (width_overflow || literal_width > kMaxPrintfFieldWidth) {
+                        report_format_error("field width too large");
+                        return -1;
+                    }
+                }
             }
 
             if (*ac.f == '.') {
@@ -543,17 +614,43 @@ static int print_formatted(const char* format, int argc, char** argv) {
                 if (*ac.f == '*') {
                     ac.f++;
                     ac = get_curr_arg(2, ac);
-                    if (ac.curr_arg < argc) {
-                        precision = vstrtoimax(argv[ac.curr_arg]);
-                        if (precision < 0)
-                            precision = -1;
-                    } else {
-                        precision = 0;
+                    if (ac.error) {
+                        report_format_error(ac.error_msg);
+                        return -1;
                     }
+                    long long precision_value = 0;
+                    if (ac.curr_arg < argc) {
+                        precision_value = vstrtoimax(argv[ac.curr_arg]);
+                        if (precision_value < 0)
+                            precision_value = -1;
+                    }
+                    if (precision_value >= 0 && precision_value > kMaxPrintfPrecision) {
+                        report_format_error("precision too large");
+                        return -1;
+                    }
+                    precision = static_cast<int>(precision_value);
                     have_precision = true;
                 } else {
-                    while (isdigit(*ac.f))
-                        ac.f++;
+                    const char* precision_start = ac.f;
+                    long long literal_precision = 0;
+                    bool precision_overflow = false;
+                    while (std::isdigit(static_cast<unsigned char>(*ac.f)) != 0) {
+                        int digit = *ac.f - '0';
+                        if (!precision_overflow) {
+                            if (literal_precision > (kMaxPrintfPrecision - digit) / 10) {
+                                precision_overflow = true;
+                            } else {
+                                literal_precision = literal_precision * 10 + digit;
+                            }
+                        }
+                        ++ac.f;
+                    }
+                    if (ac.f > precision_start) {
+                        if (precision_overflow || literal_precision > kMaxPrintfPrecision) {
+                            report_format_error("precision too large");
+                            return -1;
+                        }
+                    }
                 }
             }
 
@@ -570,6 +667,10 @@ static int print_formatted(const char* format, int argc, char** argv) {
             }
 
             ac = get_curr_arg(3, ac);
+            if (ac.error) {
+                report_format_error(ac.error_msg);
+                return -1;
+            }
 
             print_direc(direc_start, conversion, have_field_width, field_width, have_precision,
                         precision, ac.curr_arg < argc ? argv[ac.curr_arg] : nullptr);
