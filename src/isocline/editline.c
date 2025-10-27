@@ -2083,7 +2083,12 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
         if ((c == KEY_RIGHT || c == KEY_END) && had_hint) {
             bool allow_force_completion = (c == KEY_END) || edit_pos_is_at_row_end(env, &eb);
             if (allow_force_completion) {
-                if (pending_hint != NULL && editor_pos_is_at_end(&eb)) {
+                bool spell_hint = false;
+                if (pending_hint != NULL && completions_count(env->completions) > 0) {
+                    const char* source = completions_get_source(env->completions, 0);
+                    spell_hint = (source != NULL && strcmp(source, "spell") == 0);
+                }
+                if (pending_hint != NULL && editor_pos_is_at_end(&eb) && !spell_hint) {
                     // Apply the inline hint directly when already at the end of the input
                     editor_start_modify(&eb);
                     ssize_t new_pos = sbuf_insert_at(eb.input, pending_hint, eb.pos);
