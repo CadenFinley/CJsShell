@@ -365,6 +365,19 @@ if(CMAKE_DL_LIBS)
     target_link_libraries(cjsh PRIVATE ${CMAKE_DL_LIBS})
 endif()
 
+include(CheckCXXSourceCompiles)
+check_cxx_source_compiles("
+    #include <atomic>
+    int main() {
+        std::atomic<uint64_t> w;
+        return ++w;
+    }
+" CJSH_BUILDS_WITHOUT_LIBATOMIC)
+
+if(NOT CJSH_BUILDS_WITHOUT_LIBATOMIC)
+    target_link_libraries(cjsh PRIVATE atomic)
+endif()
+
 if(CJSH_STRIP_BINARY)
     find_program(CJSH_STRIP_TOOL strip)
     if(CJSH_STRIP_TOOL)
