@@ -1134,6 +1134,7 @@
 <li>GCC</li>
 <li>clang</li>
 </ul>
+<p>And CMake 3.25 or newer.</p>
 <p>And that is it! cjsh has no external dependencies and was designed like this for pure simplicity. To just work where ever.</p>
 <h2 id="installation">Installation</h2>
 <p>cjsh can be downloaded or built in multiple different ways.</p>
@@ -1151,12 +1152,24 @@ This also works on linux through linuxbrew.<p></p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="w">    </span><span class="c1"># First clone the repo</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/CadenFinley/CJsShell<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>CJsShell
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="c1"># Run the build script</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span>chmod<span class="w"> </span>+x<span class="w"> </span>toolchain/build.sh<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>./toolchain/build.sh
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="c1"># Configure a Release build (outputs to ./build)</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span>cmake<span class="w"> </span>-S<span class="w"> </span>.<span class="w"> </span>-B<span class="w"> </span>build<span class="w"> </span>-DCMAKE_BUILD_TYPE<span class="o">=</span>Release
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">    </span><span class="c1"># Compile using all available cores</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">    </span>cmake<span class="w"> </span>--build<span class="w"> </span>build<span class="w"> </span>--config<span class="w"> </span>Release<span class="w"> </span>--parallel
 </span></code></pre></div>
 <p>After building, the <code>cjsh</code> executable will be in the <code>build/</code> directory. You can run it directly with <code>./build/cjsh</code></p>
 <h2 id="build-info">Build info</h2>
-<p>Build configuration is automatically handled by nob and requires no extra steps. There are multiple build types and can be seen with the --help flag. Build status and origin is tracked within nob and is embedded within the cjsh executable and is displayed in its version. cjsh takes full advantage of many optimizer compilation flags so compilation and linking can take some time.</p>
+<p>By default the commands above produce an optimized Release build.</p>
+<ul>
+<li>Pass <code>-DCMAKE_BUILD_TYPE=Debug</code> to build with sanitizers and full debug info.</li>
+<li>Pass <code>-DCJSH_MINIMAL_BUILD=ON</code> for the ultra-small binary profile.</li>
+<li><code>cmake --build build --target clean</code> removes the build artifacts.</li>
+<li>Disable compile database emission with <code>-DCJSH_GENERATE_COMPILE_COMMANDS=OFF</code> if your tooling does not need it.</li>
+<li>Install the binary anywhere with <code>cmake --install build --config Release --prefix ~/.local</code> (adjust the prefix as desired).</li>
+<li>Export <code>CJSH_STRIP_BINARY=0</code> before configuring to keep symbols in non-Debug builds.</li>
+</ul>
+<p>As before, git revision information is embedded automatically; use <code>CJSH_GIT_HASH_OVERRIDE</code> if you need to pin a custom value.</p>
 <hr>
 <h2 id="next-steps">Next Steps</h2>
 <p>Now that you have cjsh installed, check out <a href="../what-to-know/">What You Need to Know</a> to learn about all the powerful features available out of the box and how to configure them to suit your workflow.</p>

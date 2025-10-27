@@ -1104,8 +1104,9 @@
 </p><div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="w">    </span>./tests/run_shell_tests.sh
 </span></code></pre></div><p></p>
 <p>Please be sure to have a freshly compiled cjsh in the build directory before running. Also the test suite cannot be run inside or with another cjsh instance running on the same machine.</p>
-<p>To build a clean build of cjsh run;
-</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="w">    </span>./toolchain/build.sh<span class="w"> </span>--clean
+<p>To produce a clean build of cjsh run:
+</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="w">    </span>cmake<span class="w"> </span>-S<span class="w"> </span>.<span class="w"> </span>-B<span class="w"> </span>build<span class="w"> </span>-DCMAKE_BUILD_TYPE<span class="o">=</span>Release
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span>cmake<span class="w"> </span>--build<span class="w"> </span>build<span class="w"> </span>--config<span class="w"> </span>Release<span class="w"> </span>--parallel<span class="w"> </span>--clean-first
 </span></code></pre></div><p></p>
 <h2 id="themes">Themes</h2>
 <p>I love themes, the more the merrier! If you have one you would like to contribute please do so! Themes can be hosted on the main repository if you would like. See the themes page for details on how to develop these and what tools you have at your disposal.</p>
