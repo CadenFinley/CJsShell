@@ -34,21 +34,10 @@ std::vector<std::string> Tokenizer::tokenize_command(const std::string& cmdline)
 
     auto flush_current_token = [&]() {
         if (!current_token.empty() || token_saw_single || token_saw_double) {
-            if (token_saw_single && !token_saw_double) {
-                std::string token;
-                token.reserve(current_token.size() + 2);
-                token += QUOTE_PREFIX;
-                token += QUOTE_SINGLE;
-                token += current_token;
-                tokens.push_back(std::move(token));
-            } else if (token_saw_double && !token_saw_single) {
-                std::string token;
-                token.reserve(current_token.size() + 2);
-                token += QUOTE_PREFIX;
-                token += QUOTE_DOUBLE;
-                token += current_token;
-                tokens.push_back(std::move(token));
-            } else if (!current_token.empty()) {
+            if (token_saw_single || token_saw_double) {
+                char quote_type = token_saw_double ? QUOTE_DOUBLE : QUOTE_SINGLE;
+                tokens.push_back(create_quote_tag(quote_type, current_token));
+            } else {
                 tokens.push_back(current_token);
             }
             current_token.clear();

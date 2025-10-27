@@ -1,9 +1,118 @@
 #include "arithmetic_evaluator.h"
 
 #include <cctype>
+#include <cerrno>
+#include <cstdint>
 #include <cstdlib>
+#include <cstring>
+#include <limits>
 #include <stdexcept>
 #include <vector>
+
+namespace {
+
+inline std::uint64_t to_uint64(long long value) {
+    std::uint64_t result;
+    std::memcpy(&result, &value, sizeof(result));
+    return result;
+}
+
+inline long long from_uint64(std::uint64_t value) {
+    long long result;
+    std::memcpy(&result, &value, sizeof(result));
+    return result;
+}
+
+inline long long wrap_add(long long a, long long b) {
+    return from_uint64(to_uint64(a) + to_uint64(b));
+}
+
+inline long long wrap_sub(long long a, long long b) {
+    return from_uint64(to_uint64(a) - to_uint64(b));
+}
+
+inline long long wrap_mul(long long a, long long b) {
+    return from_uint64(to_uint64(a) * to_uint64(b));
+}
+
+inline long long wrap_bitand(long long a, long long b) {
+    return from_uint64(to_uint64(a) & to_uint64(b));
+}
+
+inline long long wrap_bitor(long long a, long long b) {
+    return from_uint64(to_uint64(a) | to_uint64(b));
+}
+
+inline long long wrap_bitxor(long long a, long long b) {
+    return from_uint64(to_uint64(a) ^ to_uint64(b));
+}
+
+inline long long wrap_bitnot(long long a) {
+    return from_uint64(~to_uint64(a));
+}
+
+long long parse_wrapping_literal(const std::string& num_str) {
+    if (num_str.empty()) {
+        return 0;
+    }
+
+    const char* ptr = num_str.c_str();
+    bool negative = false;
+    if (*ptr == '+') {
+        ++ptr;
+    } else if (*ptr == '-') {
+        negative = true;
+        ++ptr;
+    }
+
+    int base = 10;
+    if (*ptr == '0') {
+        if (ptr[1] == 'x' || ptr[1] == 'X') {
+            base = 16;
+            ptr += 2;
+        } else {
+            base = 8;
+            ++ptr;
+        }
+    }
+
+    bool any_digit = false;
+    std::uint64_t accum = 0;
+    while (*ptr != '\0') {
+        int digit = -1;
+        unsigned char ch = static_cast<unsigned char>(*ptr);
+        if (std::isdigit(ch) != 0) {
+            digit = ch - '0';
+        } else if (std::isalpha(ch) != 0) {
+            digit = std::tolower(ch) - 'a' + 10;
+        }
+
+        if (digit < 0 || digit >= base) {
+            break;
+        }
+
+        any_digit = true;
+        unsigned __int128 next = static_cast<unsigned __int128>(accum) * base + digit;
+        accum = static_cast<std::uint64_t>(next);
+        ++ptr;
+    }
+
+    if (!any_digit) {
+        return 0;
+    }
+
+    long long wrapped = from_uint64(accum);
+    if (negative) {
+        return wrap_sub(0, wrapped);
+    }
+    return wrapped;
+}
+
+inline bool valid_shift_amount(long long amount) {
+    return amount >= 0 && amount < 64;
+}
+
+}  // namespace
 
 ArithmeticEvaluator::ArithmeticEvaluator(VariableReader var_reader, VariableWriter var_writer)
     : read_variable(std::move(var_reader)), write_variable(std::move(var_writer)) {
@@ -28,9 +137,9 @@ long long ArithmeticEvaluator::fast_pow(long long base, long long exp) {
 
     while (exp > 0) {
         if (exp & 1) {
-            result *= current_base;
+            result = wrap_mul(result, current_base);
         }
-        current_base *= current_base;
+        current_base = wrap_mul(current_base, current_base);
         exp >>= 1;
     }
 
@@ -199,11 +308,7 @@ std::vector<ArithmeticEvaluator::Token> ArithmeticEvaluator::tokenize(const std:
 
             std::string num_str;
             num_str.assign(expr, i, j - i);
-            char* endptr = nullptr;
-            long long val = std::strtoll(num_str.c_str(), &endptr, 0);
-            if (endptr == num_str.c_str()) {
-                val = 0;
-            }
+            long long val = parse_wrapping_literal(num_str);
 
             tokens.push_back({TokenType::NUMBER, val, "", "", OperatorType::UNKNOWN});
             i = j;
@@ -224,7 +329,7 @@ std::vector<ArithmeticEvaluator::Token> ArithmeticEvaluator::tokenize(const std:
                                         (expr[j] == '-' && expr[j + 1] == '-'))) {
                 char op_char = expr[j];
                 long long old_val = read_variable(name);
-                long long new_val = old_val + (op_char == '+' ? 1 : -1);
+                long long new_val = (op_char == '+') ? wrap_add(old_val, 1) : wrap_sub(old_val, 1);
                 write_variable(name, new_val);
                 tokens.push_back({TokenType::NUMBER, old_val, "", "", OperatorType::UNKNOWN});
                 i = j + 2;
@@ -341,11 +446,11 @@ void ArithmeticEvaluator::handle_assignment_operators(std::vector<Token>& tokens
 
                     long long result = assign_val;
                     if (tokens[i].op == "+=") {
-                        result = current_val + assign_val;
+                        result = wrap_add(current_val, assign_val);
                     } else if (tokens[i].op == "-=") {
-                        result = current_val - assign_val;
+                        result = wrap_sub(current_val, assign_val);
                     } else if (tokens[i].op == "*=") {
-                        result = current_val * assign_val;
+                        result = wrap_mul(current_val, assign_val);
                     } else if (tokens[i].op == "/=") {
                         if (assign_val == 0)
                             throw std::runtime_error("Division by zero");
@@ -374,7 +479,8 @@ void ArithmeticEvaluator::handle_increment_operators(std::vector<Token>& tokens)
             if (i + 1 < tokens.size() && tokens[i + 1].type == TokenType::VARIABLE) {
                 std::string var_name = tokens[i + 1].str_value;
                 long long current_val = read_variable(var_name);
-                long long new_val = current_val + (tokens[i].op == "pre++" ? 1 : -1);
+                long long new_val =
+                    (tokens[i].op == "pre++") ? wrap_add(current_val, 1) : wrap_sub(current_val, 1);
                 write_variable(var_name, new_val);
 
                 tokens[i] = {TokenType::NUMBER, new_val, "", ""};
@@ -509,18 +615,22 @@ long long ArithmeticEvaluator::apply_binary_operator(long long a, long long b,
                                                      OperatorType op_type) {
     switch (op_type) {
         case OperatorType::ADD:
-            return a + b;
+            return wrap_add(a, b);
         case OperatorType::SUB:
-            return a - b;
+            return wrap_sub(a, b);
         case OperatorType::MUL:
-            return a * b;
+            return wrap_mul(a, b);
         case OperatorType::DIV:
             if (b == 0)
                 throw std::runtime_error("Division by zero");
+            if (b == -1 && a == std::numeric_limits<long long>::min())
+                return a;
             return a / b;
         case OperatorType::MOD:
             if (b == 0)
                 throw std::runtime_error("Division by zero");
+            if (b == -1 && a == std::numeric_limits<long long>::min())
+                return 0;
             return a % b;
         case OperatorType::EQ:
             return (a == b) ? 1 : 0;
@@ -539,15 +649,22 @@ long long ArithmeticEvaluator::apply_binary_operator(long long a, long long b,
         case OperatorType::OR:
             return (a || b) ? 1 : 0;
         case OperatorType::BITAND:
-            return a & b;
+            return wrap_bitand(a, b);
         case OperatorType::BITOR:
-            return a | b;
+            return wrap_bitor(a, b);
         case OperatorType::BITXOR:
-            return a ^ b;
-        case OperatorType::LSHIFT:
-            return a << b;
-        case OperatorType::RSHIFT:
-            return a >> b;
+            return wrap_bitxor(a, b);
+        case OperatorType::LSHIFT: {
+            if (!valid_shift_amount(b))
+                return 0;
+            std::uint64_t shifted = to_uint64(a) << static_cast<unsigned>(b);
+            return from_uint64(shifted);
+        }
+        case OperatorType::RSHIFT: {
+            if (!valid_shift_amount(b))
+                return a < 0 ? -1 : 0;
+            return a >> static_cast<unsigned>(b);
+        }
         case OperatorType::POW:
 
             return fast_pow(a, b);
@@ -561,11 +678,11 @@ long long ArithmeticEvaluator::apply_unary_operator(long long a, OperatorType op
         case OperatorType::UNARY_PLUS:
             return a;
         case OperatorType::UNARY_MINUS:
-            return -a;
+            return wrap_sub(0, a);
         case OperatorType::NOT:
             return !a ? 1 : 0;
         case OperatorType::BITNOT:
-            return ~a;
+            return wrap_bitnot(a);
         default:
             return a;
     }
