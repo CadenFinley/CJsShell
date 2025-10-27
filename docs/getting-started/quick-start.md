@@ -19,13 +19,29 @@ cjsh can be downloaded or built in multiple different ways.
 
 ### As a package
 
-cjsh is packaged through brew and it is as simple as this:
+cjsh is available through multiple package managers:
+
+#### Homebrew (macOS/Linux)
 
 ```bash
     brew tap CadenFinley/tap
     brew install cjsh
 ```
-This also works on linux through linuxbrew.
+
+#### Arch Linux (AUR)
+
+```bash
+    # Using yay
+    yay -S cjsh
+
+    # Using paru
+    paru -S cjsh
+
+    # Or manually
+    git clone https://aur.archlinux.org/cjsh.git
+    cd cjsh
+    makepkg -si
+```
 
 Hopefully more package managers to come as cjsh gets bigger.
 

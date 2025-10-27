@@ -268,12 +268,26 @@ Support for marking variables as read-only to prevent modification.
 ## Installation Methods
 
 ### Package Manager (Recommended)
+
+#### Homebrew (macOS/Linux)
 ```bash
 brew tap CadenFinley/tap
 brew install cjsh
 ```
 
-Works on macOS and Linux (via Linuxbrew).
+#### Arch Linux (AUR)
+```bash
+# Using yay
+yay -S cjsh
+
+# Using paru
+paru -S cjsh
+
+# Or manually
+git clone https://aur.archlinux.org/cjsh.git
+cd cjsh
+makepkg -si
+```
 
 ### Manual Build
 ```bash

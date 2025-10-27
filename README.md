@@ -8,11 +8,26 @@ The scripting core targets roughly 95% POSIX coverage so existing shell scripts 
 
 ## Quick Install (Recommended)
 
-The easiest way to get started with CJ's Shell is with brew. For detailed installation instructions and getting started guides, visit the **[Getting Started](https://cadenfinley.github.io/CJsShell/getting-started/quick-start/)** page.
+The easiest way to get started with CJ's Shell is through a package manager. For detailed installation instructions and getting started guides, visit the **[Getting Started](https://cadenfinley.github.io/CJsShell/getting-started/quick-start/)** page.
 
+### Homebrew (macOS/Linux)
 ```bash
 brew tap CadenFinley/tap
 brew install cjsh
+```
+
+### Arch Linux (AUR)
+```bash
+# Using yay
+yay -S cjsh
+
+# Using paru
+paru -S cjsh
+
+# Or manually
+git clone https://aur.archlinux.org/cjsh.git
+cd cjsh
+makepkg -si
 ```
 
 ## Building from source
