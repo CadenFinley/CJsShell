@@ -225,6 +225,30 @@ else
     fail "Expected '18', got '$result'"
 fi
 
+log_test "Arithmetic addition overflows with two's complement wrap"
+result=$("$SHELL_TO_TEST" -c "echo \$((9223372036854775807 + 1))" 2>/dev/null)
+if [ "$result" = "-9223372036854775808" ]; then
+    pass
+else
+    fail "Expected '-9223372036854775808', got '$result'"
+fi
+
+log_test "Arithmetic literal above signed range wraps"
+result=$("$SHELL_TO_TEST" -c "echo \$((9223372036854775808))" 2>/dev/null)
+if [ "$result" = "-9223372036854775808" ]; then
+    pass
+else
+    fail "Expected '-9223372036854775808', got '$result'"
+fi
+
+log_test "Arithmetic addition overflow maintains wrap semantics"
+result=$("$SHELL_TO_TEST" -c "echo \$((9223372036854775808 + 1))" 2>/dev/null)
+if [ "$result" = "-9223372036854775807" ]; then
+    pass
+else
+    fail "Expected '-9223372036854775807', got '$result'"
+fi
+
 log_test "Zero division error handling"
 "$SHELL_TO_TEST" -c "echo \$((5/0))" >/dev/null 2>&1
 exit_code=$?

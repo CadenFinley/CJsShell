@@ -263,6 +263,15 @@ else
     fail "Expected concatenated strings, got '$result'"
 fi
 
+log_test "Adjacent single and double quoted segments remain one field"
+result=$("$SHELL_TO_TEST" tests/shell/resources/adjacent_mixed_quotes.cjsh 2>/dev/null)
+expected="ok \"'"
+if [ "$result" = "$expected" ]; then
+    pass
+else
+    fail "Expected '$expected', got '$result'"
+fi
+
 log_test "Complex quoting scenario"
 result=$("$SHELL_TO_TEST" -c 'VAR=test; echo "prefix_${VAR}_suffix"' 2>/dev/null)
 if [ "$result" = "prefix_test_suffix" ]; then
