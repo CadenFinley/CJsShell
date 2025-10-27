@@ -17,9 +17,10 @@ The main test harness can be run like this:
 
 Please be sure to have a freshly compiled cjsh in the build directory before running. Also the test suite cannot be run inside or with another cjsh instance running on the same machine.
 
-To build a clean build of cjsh run;
+To produce a clean build of cjsh run:
 ```bash
-    ./toolchain/build.sh --clean
+    cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+    cmake --build build --config Release --parallel --clean-first
 ```
 
 ## Themes

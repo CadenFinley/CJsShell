@@ -279,7 +279,8 @@ Works on macOS and Linux (via Linuxbrew).
 ```bash
 git clone https://github.com/CadenFinley/CJsShell.git
 cd CJsShell
-./toolchain/build.sh
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release --parallel
 ```
 
 See the Quick Start guide for detailed installation instructions.

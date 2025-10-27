@@ -8,9 +8,6 @@ build/
 *.dylib
 *.so
 .idea/
-nob
-!nob/
-nob.old
 site/
 venv/
 .venv/

@@ -67,28 +67,13 @@ jobs:
           key: ${{ matrix.os }}-ccache
           max-size: 500M
 
-      - name: Build nob
+      - name: Configure CMake
         run: |
-          cd toolchain/nob
-          if [ ! -f "./nob" ]; then
-            cc -o nob nob.c
-            if [ $? -ne 0 ]; then
-              echo "Failed to build nob"
-              exit 1
-            fi
-          fi
-          echo "nob built successfully"
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCJSH_GENERATE_COMPILE_COMMANDS=ON
 
       - name: Build CJsShell
         run: |
-          cd toolchain
-          chmod +x build.sh
-          ./build.sh
-          if [ $? -ne 0 ]; then
-            echo "Build failed"
-            exit 1
-          fi
-          echo "Build completed successfully"
+          cmake --build build --config Release --parallel
 
       - name: Verify build output
         run: |

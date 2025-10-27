@@ -39,17 +39,20 @@
 ### Building
 
 ```bash
-# Clean build (recommended before testing)
-./toolchain/build.sh --clean
+# Configure (Release by default)
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 
-# Normal build
-./toolchain/build.sh
+# Build using all available cores
+cmake --build build --config Release --parallel
+
+# Clean the build tree when needed
+cmake --build build --target clean
 ```
 
-The build system uses the `nob` build tool located in `toolchain/nob/`.
 
 ### Build Requirements
 
+- CMake 3.25+
 - C++17-compatible compiler (GCC 7+, Clang 5+, MSVC 2017+)
 - Standard POSIX environment
 
@@ -68,7 +71,8 @@ find . \( -name "*.cpp" -o -name "*.c" -o -name "*.h" -o -name "*.hpp" \) -exec 
 
 ```bash
 # Clean build must succeed
-./toolchain/build.sh --clean
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release --parallel --clean-first
 ```
 
 Build must complete without errors or warnings.
@@ -125,7 +129,7 @@ fi
 1. **Fork and branch**: Create a feature branch from `master`
 2. **Code**: Implement your changes following all standards above
 3. **Format**: Run `clang-format` on all modified files
-4. **Build**: Verify clean build with `./toolchain/build.sh --clean`
+4. **Build**: Verify a clean build with `cmake -S . -B build -DCMAKE_BUILD_TYPE=Release` and `cmake --build build --config Release --parallel --clean-first`
 5. **Test**: Run full test suite and ensure all tests pass
 6. **Commit**: Write clear, descriptive commit messages
 7. **PR**: Submit pull request with:

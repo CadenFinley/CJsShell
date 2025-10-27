@@ -7,6 +7,8 @@ A standard C/C++ Compiler:
  - GCC
  - clang
 
+And CMake 3.25 or newer.
+
 And that is it! cjsh has no external dependencies and was designed like this for pure simplicity. To just work where ever.
 
 ## Installation
@@ -37,14 +39,26 @@ cjsh is still in active, rapid development so even the latest release can still 
     # First clone the repo
     git clone https://github.com/CadenFinley/CJsShell && cd CJsShell
 
-    # Run the build script
-    chmod +x toolchain/build.sh && ./toolchain/build.sh
+    # Configure a Release build (outputs to ./build)
+    cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+    # Compile using all available cores
+    cmake --build build --config Release --parallel
 ```
 
 After building, the `cjsh` executable will be in the `build/` directory. You can run it directly with `./build/cjsh`
 ## Build info
 
-Build configuration is automatically handled by nob and requires no extra steps. There are multiple build types and can be seen with the --help flag. Build status and origin is tracked within nob and is embedded within the cjsh executable and is displayed in its version. cjsh takes full advantage of many optimizer compilation flags so compilation and linking can take some time.
+By default the commands above produce an optimized Release build.
+
+- Pass `-DCMAKE_BUILD_TYPE=Debug` to build with sanitizers and full debug info.
+- Pass `-DCJSH_MINIMAL_BUILD=ON` for the ultra-small binary profile.
+- `cmake --build build --target clean` removes the build artifacts.
+- Disable compile database emission with `-DCJSH_GENERATE_COMPILE_COMMANDS=OFF` if your tooling does not need it.
+- Install the binary anywhere with `cmake --install build --config Release --prefix ~/.local` (adjust the prefix as desired).
+- Export `CJSH_STRIP_BINARY=0` before configuring to keep symbols in non-Debug builds.
+
+As before, git revision information is embedded automatically; use `CJSH_GIT_HASH_OVERRIDE` if you need to pin a custom value.
 
 ---
 
