@@ -11,6 +11,7 @@
 #include <map>
 #include <sstream>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -64,15 +65,79 @@ bool has_inline_terminator(const std::string& text, const std::string& terminato
     return false;
 }
 
+bool starts_with_keyword_token(const std::string& line, const std::string& keyword) {
+    if (line.rfind(keyword, 0) != 0)
+        return false;
+
+    if (line.size() == keyword.size())
+        return true;
+
+    char next = line[keyword.size()];
+    return std::isspace(static_cast<unsigned char>(next)) != 0 || next == '(';
+}
+
+bool is_comment_token(const std::string& token) {
+    return !token.empty() && token[0] == '#';
+}
+
+bool is_do_token(const std::string& token) {
+    if (token.size() < 2)
+        return false;
+
+    if (token[0] != 'd' || token[1] != 'o')
+        return false;
+
+    for (size_t i = 2; i < token.size(); ++i) {
+        if (token[i] != ';')
+            return false;
+    }
+
+    return true;
+}
+
+std::string get_last_non_comment_token(const std::vector<std::string>& tokens) {
+    std::string last;
+    for (const auto& token : tokens) {
+        if (is_comment_token(token))
+            break;
+
+        if (!token.empty())
+            last = token;
+    }
+
+    return last;
+}
+
 bool handle_inline_loop_header(
     const std::string& line, const std::string& keyword, size_t display_line,
     std::vector<std::tuple<std::string, std::string, size_t>>& control_stack) {
-    if (line.rfind(keyword + " ", 0) == 0 && line.find("; do") != std::string::npos) {
-        if (!has_inline_terminator(line, "done")) {
-            control_stack.push_back({"do", keyword, display_line});
+    if (!starts_with_keyword_token(line, keyword))
+        return false;
+
+    size_t search_pos = 0;
+    while ((search_pos = line.find(';', search_pos)) != std::string::npos) {
+        size_t do_pos = search_pos + 1;
+        while (do_pos < line.size() &&
+               std::isspace(static_cast<unsigned char>(line[do_pos])) != 0) {
+            ++do_pos;
         }
-        return true;
+
+        if (do_pos < line.size() && line.compare(do_pos, 2, "do") == 0) {
+            size_t after_do = do_pos + 2;
+            if (after_do == line.size() || line[after_do] == ';' || line[after_do] == '&' ||
+                line[after_do] == '|' || line[after_do] == '{' || line[after_do] == '(' ||
+                line[after_do] == '#' ||
+                std::isspace(static_cast<unsigned char>(line[after_do])) != 0) {
+                if (!has_inline_terminator(line, "done")) {
+                    control_stack.push_back({"do", keyword, display_line});
+                }
+                return true;
+            }
+        }
+
+        ++search_pos;
     }
+
     return false;
 }
 
@@ -569,6 +634,7 @@ struct ForLoopCheckResult {
     bool incomplete = false;
     bool missing_in_keyword = false;
     bool missing_do_keyword = false;
+    bool has_inline_do = false;
 };
 
 ForLoopCheckResult analyze_for_loop_syntax(const std::vector<std::string>& tokens,
@@ -587,6 +653,8 @@ ForLoopCheckResult analyze_for_loop_syntax(const std::vector<std::string>& token
     }
 
     auto [has_do, has_semicolon] = check_for_loop_keywords(tokens, trimmed_line);
+    std::string last_token = get_last_non_comment_token(tokens);
+    result.has_inline_do = is_do_token(last_token);
     if (!has_do && !has_semicolon) {
         result.missing_do_keyword = true;
     }
@@ -598,6 +666,7 @@ struct WhileUntilCheckResult {
     bool missing_do_keyword = false;
     bool missing_condition = false;
     bool unclosed_test = false;
+    bool has_inline_do = false;
 };
 
 WhileUntilCheckResult analyze_while_until_syntax(const std::string& first_token,
@@ -606,6 +675,8 @@ WhileUntilCheckResult analyze_while_until_syntax(const std::string& first_token,
     WhileUntilCheckResult result;
 
     auto [has_do, has_semicolon] = check_for_loop_keywords(tokens, trimmed_line);
+    std::string last_token = get_last_non_comment_token(tokens);
+    result.has_inline_do = is_do_token(last_token);
     if (!has_do && !has_semicolon) {
         result.missing_do_keyword = true;
     }
@@ -929,7 +1000,12 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                 }
 
                 else if (first_token == "while" || first_token == "until") {
+                    auto loop_check =
+                        analyze_while_until_syntax(first_token, trimmed_for_parsing, tokens);
                     control_stack.push_back({first_token, first_token, display_line});
+                    if (loop_check.has_inline_do) {
+                        std::get<0>(control_stack.back()) = "do";
+                    }
                 } else if (first_token == "do") {
                     if (require_top({"while", "until", "for"},
                                     "'do' without matching 'while', 'until', "
@@ -949,6 +1025,9 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                             {display_line, "'for' statement missing 'in' clause", line});
                     }
                     control_stack.push_back({"for", "for", display_line});
+                    if (for_check.has_inline_do) {
+                        std::get<0>(control_stack.back()) = "do";
+                    }
                 }
 
                 else if (first_token == "case") {

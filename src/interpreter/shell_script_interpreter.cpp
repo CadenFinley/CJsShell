@@ -428,6 +428,10 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         return execute_block(block_lines);
     };
 
+    auto execute_block_skip_validation = [&](const std::vector<std::string>& block_lines) -> int {
+        return execute_block(block_lines, true);
+    };
+
     auto handle_if_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
         return conditional_evaluator::handle_if_block(src_lines, idx, execute_block_wrapper,
                                                       execute_simple_or_pipeline,
@@ -435,7 +439,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
     };
 
     auto handle_for_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
-        return loop_evaluator::handle_for_block(src_lines, idx, execute_block_wrapper,
+        return loop_evaluator::handle_for_block(src_lines, idx, execute_block_skip_validation,
                                                 shell_parser);
     };
 
@@ -563,12 +567,12 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
     };
 
     auto handle_while_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
-        return loop_evaluator::handle_while_block(src_lines, idx, execute_block_wrapper,
+        return loop_evaluator::handle_while_block(src_lines, idx, execute_block_skip_validation,
                                                   execute_simple_or_pipeline, shell_parser);
     };
 
     auto handle_until_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
-        return loop_evaluator::handle_until_block(src_lines, idx, execute_block_wrapper,
+        return loop_evaluator::handle_until_block(src_lines, idx, execute_block_skip_validation,
                                                   execute_simple_or_pipeline, shell_parser);
     };
 

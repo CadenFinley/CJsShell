@@ -16,3 +16,9 @@ venv/
 .venv/
 __pycache__/
 *.pyc
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile

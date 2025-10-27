@@ -1,5 +1,6 @@
 #include "loop_evaluator.h"
 
+#include <array>
 #include <cctype>
 #include <csignal>
 #include <cstdlib>
@@ -137,6 +138,29 @@ bool matches_keyword_only(const std::string& text, std::string_view keyword) {
     return pos == text.size();
 }
 
+bool starts_with_loop_keyword(const std::string& text) {
+    static constexpr std::array<std::string_view, 4> kLoopKeywords = {"for", "while", "until",
+                                                                      "select"};
+
+    for (std::string_view keyword : kLoopKeywords) {
+        if (text.size() < keyword.size()) {
+            continue;
+        }
+        if (text.compare(0, keyword.size(), keyword) != 0) {
+            continue;
+        }
+        if (text.size() == keyword.size()) {
+            return true;
+        }
+        char next = text[keyword.size()];
+        if ((std::isspace(static_cast<unsigned char>(next)) != 0) || next == ';' || next == '(') {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
                       const std::string& keyword, bool is_until,
                       const std::function<int(const std::vector<std::string>&)>& execute_block,
@@ -224,7 +248,7 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
         while (k < src_lines.size() && depth > 0) {
             const std::string& cur_raw = src_lines[k];
             std::string cur = trim(strip_inline_comment(cur_raw));
-            if (cur == keyword || cur.rfind(keyword + " ", 0) == 0) {
+            if (starts_with_loop_keyword(cur)) {
                 depth++;
             } else if (matches_keyword_only(cur, "done")) {
                 depth--;
@@ -577,7 +601,7 @@ int handle_for_block(const std::vector<std::string>& src_lines, size_t& idx,
     while (k < src_lines.size() && depth > 0) {
         const std::string& cur_raw = src_lines[k];
         std::string cur = trim(strip_inline_comment(cur_raw));
-        if (cur == "for" || cur.rfind("for ", 0) == 0) {
+        if (starts_with_loop_keyword(cur)) {
             depth++;
         } else if (matches_keyword_only(cur, "done")) {
             depth--;
