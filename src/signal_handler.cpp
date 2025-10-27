@@ -810,7 +810,11 @@ SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) 
         }
 
         if (!is_signal_observed(SIGHUP)) {
+#ifdef __APPLE__
+            std::_Exit(129);
+#else
             std::quick_exit(129);
+#endif
         } else {
             alarm(1);
         }
