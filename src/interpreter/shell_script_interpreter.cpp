@@ -748,11 +748,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                 continue;
             }
 
-            if (!g_theme) {
-                initialize_themes();
-            }
+            Theme* theme = g_shell ? g_shell->ensure_theme() : nullptr;
 
-            if (!g_theme) {
+            if (!theme) {
                 print_error({ErrorType::RUNTIME_ERROR,
                              "theme",
                              "Theme manager not initialized",
@@ -763,7 +761,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
             }
 
             std::string label = "inline_theme_line_" + std::to_string(line_index + 1);
-            bool loaded = g_theme->load_theme_from_string(theme_block, label, true);
+            bool loaded = theme->load_theme_from_string(theme_block, label, true);
             last_code = loaded ? 0 : 2;
             line_index = block_index;
             continue;

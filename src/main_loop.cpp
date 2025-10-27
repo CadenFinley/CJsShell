@@ -380,18 +380,18 @@ std::string generate_prompt(bool command_was_available) {
         return "# ";
     }
 
+    Theme* theme = g_shell ? g_shell->get_theme() : nullptr;
     std::string prompt = g_shell->get_prompt();
 
-    if (g_theme && g_theme->uses_newline()) {
+    if (theme && theme->uses_newline()) {
         prompt += "\n";
         prompt += g_shell->get_newline_prompt();
     }
-    if (g_theme) {
-        ic_enable_prompt_cleanup(
-            g_theme->uses_cleanup(),
-            (g_theme->cleanup_nl_after_exec() && command_was_available) ? 1 : 0);
-        ic_enable_prompt_cleanup_empty_line(g_theme->cleanup_adds_empty_line());
-        ic_enable_prompt_cleanup_truncate_multiline(g_theme->cleanup_truncates_multiline());
+    if (theme) {
+        ic_enable_prompt_cleanup(theme->uses_cleanup(),
+                                 (theme->cleanup_nl_after_exec() && command_was_available) ? 1 : 0);
+        ic_enable_prompt_cleanup_empty_line(theme->cleanup_adds_empty_line());
+        ic_enable_prompt_cleanup_truncate_multiline(theme->cleanup_truncates_multiline());
     }
 
     return prompt;
@@ -575,7 +575,8 @@ void main_process_loop() {
             }
             break;
         }
-        if (g_theme && g_theme->newline_after_execution() && command_available &&
+        Theme* theme = g_shell ? g_shell->get_theme() : nullptr;
+        if (theme && theme->newline_after_execution() && command_available &&
             (command_to_run != "clear")) {
             (void)std::fputc('\n', stdout);
             (void)std::fflush(stdout);

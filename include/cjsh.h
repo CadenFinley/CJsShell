@@ -5,8 +5,6 @@
 #include <vector>
 
 class Shell;
-class Theme;
-
 const bool PRE_RELEASE = true;
 
 constexpr const char* c_version_base = "3.10.8";
@@ -29,7 +27,6 @@ extern bool g_startup_active;
 
 class Shell;
 extern std::unique_ptr<Shell> g_shell;
-extern std::unique_ptr<Theme> g_theme;
 extern std::vector<std::string> g_startup_args;
 extern std::vector<std::string> g_profile_startup_args;
 
@@ -60,5 +57,4 @@ void set_posix_mode(bool enable);
 bool is_posix_mode();
 }  // namespace config
 
-void initialize_themes();
 void cleanup_resources();

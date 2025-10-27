@@ -1,6 +1,5 @@
 #include "prompt.h"
 
-#include "cjsh.h"
 #include "command_info.h"
 #include "theme.h"
 #include "theme_parser.h"
@@ -12,7 +11,7 @@ Prompt::~Prompt() {
 }
 
 std::string Prompt::get_prompt() {
-    if (!g_theme || !g_theme->get_enabled()) {
+    if (!theme_ || !theme_->get_enabled()) {
         return info.get_basic_prompt();
     }
 
@@ -20,38 +19,38 @@ std::string Prompt::get_prompt() {
 
     if (is_git_repo) {
         std::unordered_map<std::string, std::string> vars = get_variables(PromptType::GIT, true);
-        return g_theme->get_git_prompt_format(vars);
+        return theme_->get_git_prompt_format(vars);
     }
     std::unordered_map<std::string, std::string> vars = get_variables(PromptType::PS1, false);
-    return g_theme->get_ps1_prompt_format(vars);
+    return theme_->get_ps1_prompt_format(vars);
 }
 
 std::string Prompt::get_newline_prompt() {
-    if (!g_theme || !g_theme->get_enabled()) {
+    if (!theme_ || !theme_->get_enabled()) {
         return " ";
     }
 
     std::unordered_map<std::string, std::string> vars = get_variables(PromptType::NEWLINE);
 
-    return g_theme->get_newline_prompt(vars);
+    return theme_->get_newline_prompt(vars);
 }
 
 std::string Prompt::get_inline_right_prompt() {
-    if (!g_theme || !g_theme->get_enabled()) {
+    if (!theme_ || !theme_->get_enabled()) {
         return "";
     }
 
     std::unordered_map<std::string, std::string> vars = get_variables(PromptType::INLINE_RIGHT);
 
-    return g_theme->get_inline_right_prompt(vars);
+    return theme_->get_inline_right_prompt(vars);
 }
 
 std::string Prompt::get_title_prompt() {
-    if (!g_theme || !g_theme->get_enabled()) {
+    if (!theme_ || !theme_->get_enabled()) {
         return info.get_basic_title();
     }
 
-    std::string prompt_format = g_theme->get_terminal_title_format();
+    std::string prompt_format = theme_->get_terminal_title_format();
 
     std::unordered_map<std::string, std::string> vars = get_variables(PromptType::TITLE);
 
@@ -80,41 +79,45 @@ std::unordered_map<std::string, std::string> Prompt::get_variables(PromptType ty
                                                                    bool is_git_repo) {
     std::vector<ThemeSegment> segments;
 
+    if (!theme_) {
+        return info.get_variables(segments, is_git_repo, repo_root);
+    }
+
     switch (type) {
         case PromptType::PS1:
-            segments.insert(segments.end(), g_theme->ps1_segments.begin(),
-                            g_theme->ps1_segments.end());
+            segments.insert(segments.end(), theme_->ps1_segments.begin(),
+                            theme_->ps1_segments.end());
             break;
         case PromptType::GIT:
-            segments.insert(segments.end(), g_theme->git_segments.begin(),
-                            g_theme->git_segments.end());
+            segments.insert(segments.end(), theme_->git_segments.begin(),
+                            theme_->git_segments.end());
             break;
         case PromptType::NEWLINE:
-            segments.insert(segments.end(), g_theme->newline_segments.begin(),
-                            g_theme->newline_segments.end());
+            segments.insert(segments.end(), theme_->newline_segments.begin(),
+                            theme_->newline_segments.end());
             break;
         case PromptType::INLINE_RIGHT:
-            segments.insert(segments.end(), g_theme->inline_right_segments.begin(),
-                            g_theme->inline_right_segments.end());
+            segments.insert(segments.end(), theme_->inline_right_segments.begin(),
+                            theme_->inline_right_segments.end());
             break;
         case PromptType::TITLE: {
             ThemeSegment title_segment("title");
-            title_segment.content = g_theme->get_terminal_title_format();
+            title_segment.content = theme_->get_terminal_title_format();
             segments.push_back(title_segment);
             break;
         }
         case PromptType::ALL:
-            segments.insert(segments.end(), g_theme->ps1_segments.begin(),
-                            g_theme->ps1_segments.end());
-            segments.insert(segments.end(), g_theme->git_segments.begin(),
-                            g_theme->git_segments.end());
-            segments.insert(segments.end(), g_theme->newline_segments.begin(),
-                            g_theme->newline_segments.end());
-            segments.insert(segments.end(), g_theme->inline_right_segments.begin(),
-                            g_theme->inline_right_segments.end());
+            segments.insert(segments.end(), theme_->ps1_segments.begin(),
+                            theme_->ps1_segments.end());
+            segments.insert(segments.end(), theme_->git_segments.begin(),
+                            theme_->git_segments.end());
+            segments.insert(segments.end(), theme_->newline_segments.begin(),
+                            theme_->newline_segments.end());
+            segments.insert(segments.end(), theme_->inline_right_segments.begin(),
+                            theme_->inline_right_segments.end());
 
             ThemeSegment title_segment("title");
-            title_segment.content = g_theme->get_terminal_title_format();
+            title_segment.content = theme_->get_terminal_title_format();
             segments.push_back(title_segment);
             break;
     }
@@ -152,4 +155,8 @@ void Prompt::reset_command_timing() {
 
 void Prompt::set_initial_duration(long long microseconds) {
     ::set_initial_duration(microseconds);
+}
+
+void Prompt::set_theme(Theme* theme) {
+    theme_ = theme;
 }

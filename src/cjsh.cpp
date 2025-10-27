@@ -37,7 +37,6 @@
 bool g_exit_flag = false;
 bool g_startup_active = true;
 std::unique_ptr<Shell> g_shell = nullptr;
-std::unique_ptr<Theme> g_theme = nullptr;
 std::vector<std::string> g_startup_args;
 std::vector<std::string> g_profile_startup_args;
 std::string g_cached_version;
@@ -206,7 +205,9 @@ void start_interactive_process() {
     auto startup_duration = std::chrono::duration_cast<std::chrono::microseconds>(
         startup_end_time - g_startup_begin_time);
 
-    if (g_shell && g_theme) {
+    Theme* theme = g_shell ? g_shell->get_theme() : nullptr;
+
+    if (g_shell && theme) {
         g_shell->set_initial_duration(startup_duration.count());
     }
 
@@ -250,7 +251,7 @@ void start_interactive_process() {
 
     if (config::show_startup_time) {
         std::string startup_time_str;
-        if (g_shell && g_theme) {
+        if (g_shell && theme) {
             startup_time_str = g_shell->get_initial_duration();
         } else {
             long microseconds = startup_duration.count();
@@ -339,8 +340,8 @@ void set_posix_mode(bool enable) {
         show_startup_time = false;
         history_expansion_enabled = false;
 
-        if (g_theme) {
-            g_theme.reset();
+        if (g_shell) {
+            g_shell->reset_theme();
         }
     } else {
         posix_mode = false;
@@ -369,13 +370,6 @@ bool is_posix_mode() {
 
 }  // namespace config
 
-void initialize_themes() {
-    if (!config::themes_enabled) {
-        return;
-    }
-    g_theme = std::make_unique<Theme>(config::themes_enabled);
-}
-
 void cleanup_resources() {
     if (g_shell) {
         trap_manager_set_shell(g_shell.get());
@@ -383,10 +377,6 @@ void cleanup_resources() {
         if (config::login_mode) {
             process_logout_file();
         }
-    }
-
-    if (g_theme) {
-        g_theme.reset();
     }
 
     if (g_shell) {

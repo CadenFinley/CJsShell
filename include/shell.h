@@ -16,6 +16,7 @@
 class Exec;
 class Built_ins;
 class ShellScriptInterpreter;
+class Theme;
 struct Command;
 
 struct RawModeState {
@@ -153,6 +154,10 @@ class Shell {
     void restore_terminal_state();
     void setup_job_control();
 
+    Theme* ensure_theme();
+    Theme* get_theme() const;
+    void reset_theme();
+
     void register_hook(const std::string& hook_type, const std::string& function_name);
     void unregister_hook(const std::string& hook_type, const std::string& function_name);
     std::vector<std::string> get_hooks(const std::string& hook_type) const;
@@ -203,6 +208,7 @@ class Shell {
     bool terminal_state_saved = false;
     bool job_control_enabled = false;
 
+    std::unique_ptr<Theme> shell_theme;
     std::unique_ptr<Prompt> shell_prompt;
     std::unique_ptr<SignalHandler> signal_handler;
     std::unique_ptr<Built_ins> built_ins;

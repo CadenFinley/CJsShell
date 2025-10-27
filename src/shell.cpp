@@ -22,6 +22,7 @@
 #include "isocline.h"
 #include "job_control.h"
 #include "shell_script_interpreter.h"
+#include "theme.h"
 #include "trap_command.h"
 
 namespace {
@@ -203,6 +204,9 @@ Shell::Shell() : shell_pgid(0), shell_tmodes() {
     save_terminal_state();
 
     shell_prompt = std::make_unique<Prompt>();
+    if (shell_prompt) {
+        shell_prompt->set_theme(nullptr);
+    }
     shell_exec = std::make_unique<Exec>();
     signal_handler = std::make_unique<SignalHandler>();
 
@@ -236,8 +240,36 @@ Shell::~Shell() {
         std::cerr << "Destroying Shell.\n";
     }
 
+    reset_theme();
+
     shell_exec->terminate_all_child_process();
     restore_terminal_state();
+}
+
+Theme* Shell::ensure_theme() {
+    if (!config::themes_enabled) {
+        reset_theme();
+        return nullptr;
+    }
+
+    if (!shell_theme) {
+        shell_theme = std::make_unique<Theme>(config::themes_enabled);
+        if (shell_prompt) {
+            shell_prompt->set_theme(shell_theme.get());
+        }
+    }
+    return shell_theme.get();
+}
+
+Theme* Shell::get_theme() const {
+    return shell_theme.get();
+}
+
+void Shell::reset_theme() {
+    if (shell_prompt) {
+        shell_prompt->set_theme(nullptr);
+    }
+    shell_theme.reset();
 }
 
 int Shell::execute_script_file(const std::filesystem::path& path, bool optional) {
