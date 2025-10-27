@@ -61,8 +61,6 @@ Run the suite from the repository root before switching cjsh to your default log
 
 This project is licensed under the MIT License.
 
-# Author
-
 **Caden Finley** @ Abilene Christian University
 © 2025
 
