@@ -5,7 +5,7 @@
 #include <vector>
 
 class Shell;
-const bool PRE_RELEASE = true;
+const bool PRE_RELEASE = false;
 
 constexpr const char* c_version_base = "3.10.8";
 
