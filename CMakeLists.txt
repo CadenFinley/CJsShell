@@ -369,7 +369,7 @@ include(CheckCXXSourceCompiles)
 check_cxx_source_compiles("
     #include <atomic>
     int main() {
-        std::atomic<uint64_t> w;
+        std::atomic<uint64_t> w{0};
         return ++w;
     }
 " CJSH_BUILDS_WITHOUT_LIBATOMIC)
