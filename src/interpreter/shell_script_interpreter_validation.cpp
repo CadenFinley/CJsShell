@@ -808,7 +808,7 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
     std::vector<std::string> sanitized_lines = sanitize_lines_for_validation(lines);
 
     std::vector<std::tuple<std::string, std::string, size_t>> control_stack;
-    bool saw_unclosed_quote = false;
+    bool encountered_unclosed_quote = false;
 
     for (size_t line_num = 0; line_num < lines.size(); ++line_num) {
         const std::string& line = sanitized_lines[line_num];
@@ -840,7 +840,9 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
             SyntaxError quote_error({display_line, 0, 0, 0}, ErrorSeverity::CRITICAL,
                                     ErrorCategory::SYNTAX, "SYN001", message, line, suggestion);
             errors.push_back(std::move(quote_error));
-            saw_unclosed_quote = true;
+            encountered_unclosed_quote = true;
+            control_stack.clear();
+            break;
         }
 
         int paren_balance = 0;
@@ -1074,6 +1076,10 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
         }
     }
 
+    if (encountered_unclosed_quote) {
+        return errors;
+    }
+
     while (!control_stack.empty()) {
         auto& unclosed = control_stack.back();
         const std::string& current_state = std::get<0>(unclosed);
@@ -1117,7 +1123,7 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                 suggestion += std::to_string(opening_line);
                 syn_err.suggestion = suggestion;
             }
-            if (saw_unclosed_quote && syn_err.error_code != "SYN007") {
+            if (encountered_unclosed_quote && syn_err.error_code != "SYN007") {
                 syn_err.related_info.push_back(
                     "An earlier unclosed quote may prevent detecting the matching closure correctly.");
             }
