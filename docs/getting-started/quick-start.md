@@ -1,5 +1,7 @@
 # Quick Start
 
+This guide gets you running cjsh, a POSIX-based interactive shell with integrated modern features, as quickly as possible.
+
 ## Prerequisites
 
 A standard C/C++ Compiler:

@@ -82,7 +82,7 @@ Build must complete without errors or warnings.
 **MANDATORY**: All tests must pass before submitting a pull request.
 
 ```bash
-# Run full test suite (1000+ POSIX compliance tests)
+# Run full test suite (1500+ POSIX-focused tests)
 ./tests/run_shell_tests.sh
 ```
 

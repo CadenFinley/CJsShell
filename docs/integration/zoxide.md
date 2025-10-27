@@ -8,7 +8,7 @@ Before enabling the integration, make sure you have zoxide installed and on your
 brew install zoxide
 ```
 
-Any other installation method supported by zoxide works too—cjsh only needs the executable.
+Any other installation method supported by zoxide works too, cjsh only needs the executable.
 
 ## Enabling the integration in `~/.cjshrc`
 

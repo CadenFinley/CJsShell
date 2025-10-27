@@ -779,14 +779,14 @@ cjshopt keybind <subcommand> [...]
 
 Key subcommands include:
 
-- `list` — Show the active profile plus default vs. custom bindings (runtime safe)
-- `set <action> <keys...>` — Replace bindings for an action
-- `add <action> <keys...>` — Add additional bindings for an action
-- `clear <keys...>` — Remove the provided key specifications
-- `clear-action <action>` — Remove all custom bindings for an action
-- `reset` — Drop every custom binding and restore defaults
-- `profile list` — List available key binding profiles (runtime safe)
-- `profile set <name>` — Persist the named profile
+- `list` - Show the active profile plus default vs. custom bindings (runtime safe)
+- `set <action> <keys...>` - Replace bindings for an action
+- `add <action> <keys...>` - Add additional bindings for an action
+- `clear <keys...>` - Remove the provided key specifications
+- `clear-action <action>` - Remove all custom bindings for an action
+- `reset` - Drop every custom binding and restore defaults
+- `profile list` - List available key binding profiles (runtime safe)
+- `profile set <name>` - Persist the named profile
 
 Key specifications accept pipe (`|`) separated alternatives, so `Ctrl+K|Ctrl+X` is a single argument covering both sequences. Place commands like `cjshopt keybind set cursor-left "Ctrl+H"` in `~/.cjshrc` to keep them between sessions.
 
@@ -841,10 +841,10 @@ cjshopt bookmark-blacklist <subcommand> [path]
 ```
 
 Available subcommands:
-- `add <path>` — Add a directory to the blacklist
-- `remove <path>` — Remove a directory from the blacklist
-- `list` — Display all blacklisted directories
-- `clear` — Remove every entry from the blacklist
+- `add <path>` - Add a directory to the blacklist
+- `remove <path>` - Remove a directory from the blacklist
+- `list` - Display all blacklisted directories
+- `clear` - Remove every entry from the blacklist
 
 Examples:
 

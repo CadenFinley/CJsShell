@@ -1,6 +1,6 @@
 # Shell Scripting Guide
 
-CJ's Shell supports comprehensive shell scripting with POSIX compliance and bash-like extensions. This guide covers the essential scripting features.
+CJ's Shell supports comprehensive shell scripting with a POSIX-based core and optional bash-like extensions. This guide covers the essential scripting features.
 
 ## Script Basics
 

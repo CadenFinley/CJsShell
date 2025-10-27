@@ -1,6 +1,8 @@
 # CJ's Shell <a href="https://github.com/CadenFinley/CJsShell/actions/workflows/ci.yml"><img src="https://github.com/CadenFinley/CJsShell/actions/workflows/ci.yml/badge.svg" alt="Build"></a> <a href="https://app.codacy.com/gh/CadenFinley/CJsShell/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade"><img src="https://app.codacy.com/project/badge/Grade/4e33a26accb6450da43c91c7b8e872e7" alt="Codacy Badge"></a> <a href="https://cadenfinley.github.io/CJsShell/"><img src="https://img.shields.io/badge/docs-GitHub%20Pages-blue" alt="Documentation"></a> <img src="https://img.shields.io/badge/License-MIT-green" alt="License">
 
-CJ's Shell (cjsh) is a shell with out of the box power and speed without any of the modern shell bloat. Baked in are strong first party theme scripting with a custom theme DSL language, a full custom shell script interpreter with minor bash support, custom keybindings for text editing, custom syntax highlighting, fuzzy text auto completions, smart directory navigation, advanced history searching, multiline editing, typeahead, and rich prompts. All with no external shell support and only 1 dependency which is already baked in. cjsh aims to be fast and responsive at all times. It is fully usable on all *nix like systems and Windows with WSL. cjsh aims to be an almost 1 to 1 switch over from other POSIX like shells.
+CJ's Shell (cjsh) is a POSIX-based interactive shell that pairs familiar script compatibility with integrated modern features. Built in are first-party theme scripting with a custom DSL, a POSIX shell interpreter with bash extensions, customizable keybindings, syntax highlighting, fuzzy completions, smart directory navigation, advanced history search, multiline editing, typeahead, and rich prompts. Everything ships in one binary with a single vendored dependency, so cjsh works out of the box on all *nix-like systems and Windows via WSL. cjsh delivers a POSIX+ experience, standard scripting semantics with an enhanced interactive layer you can dial up or down as needed.
+
+The scripting core targets roughly 95% POSIX coverage so existing shell scripts work as expected, while POSIX+ enhancements amplify the interactive experience without requiring external plugins.
 
 > **WARNING** cjsh is still in active development. for the most stable versions, stick to tagged releases or releases through brew. there are known scripting edge cases and bugs.
 
@@ -13,10 +15,10 @@ brew tap CadenFinley/tap
 brew install cjsh
 ```
    
-# Testing and POSIX Compliance
+# Scripting Compatibility & Testing
 
-CJ's Shell includes a comprehensive test suite with over 1500 POSIX compliance tests to ensure reliability and standards compliance.
-This test can be run from the root of the repository, and is recommended to run before setting cjsh as your default login shell.
+CJ's Shell backs its POSIX-based scripting engine with over 1500 targeted tests that validate standards-aligned behavior while covering common bash extensions.
+Run the suite from the repository root before switching cjsh to your default login shell.
 
 ```bash
 ./tests/run_shell_tests.sh

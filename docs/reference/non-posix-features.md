@@ -1,12 +1,12 @@
-# Non-POSIX Features in CJsShell
+# POSIX+ Interactive Features
 
-CJsShell aims for approximately 95% POSIX compliance while adding modern conveniences and interactive features that extend beyond the POSIX shell specification. This document outlines the features and behaviors that deviate from strict POSIX compliance.
+CJsShell targets approximately 95% POSIX coverage for scripting while layering modern conveniences and interactive features that extend beyond the formal specification. This document highlights the POSIX+ surface area, the experiences that are intentionally non-POSIX so you know what is different and how to control it.
 
-## Interactive Features (Non-POSIX)
+## Interactive Enhancements (POSIX+)
 
 ### Advanced Prompt System
 
-CJsShell includes a sophisticated theming and prompt system that is completely non-POSIX:
+CJsShell includes a sophisticated theming and prompt system that is intentionally non-POSIX:
 
 #### Custom Theme DSL
 - **Feature**: Proprietary theme scripting language with `.cjsh` files
@@ -15,7 +15,7 @@ CJsShell includes a sophisticated theming and prompt system that is completely n
 - **Why Non-POSIX**: POSIX only specifies basic prompt variables, not theming systems
 
 ```cjsh-theme
-# Example theme syntax (non-POSIX)
+# Example theme syntax (POSIX+)
 theme_definition {
   ps1 {
     segment "username" {
@@ -44,9 +44,9 @@ CJsShell provides extensive prompt variables beyond POSIX:
 - **POSIX Alternative**: None (plain text input only)
 - **Configuration**: `cjshopt style_def <token_type> <style>`
 
-#### Highlighting Categories (Non-POSIX)
+#### Highlighting Categories (POSIX+)
 ```bash
-# Configure custom highlighting (non-POSIX)
+# Configure custom highlighting (POSIX+)
 cjshopt style_def "unknown-command" "bold color=#FF5555"
 cjshopt style_def "builtin" "color=#FFB86C"
 cjshopt style_def "keyword" "bold color=#BD93F9"
@@ -60,7 +60,7 @@ cjshopt style_def "keyword" "bold color=#BD93F9"
 - **Spell Correction**: Automatic correction of typos
 - **Preview System**: Shows completion results before selection
 
-**Configuration Commands (Non-POSIX)**:
+**Configuration Commands (POSIX+)**:
 ```bash
 cjshopt completion-case on|off        # Case sensitivity
 cjshopt completion-spell on|off       # Spell correction
@@ -78,7 +78,7 @@ cjshopt completion-preview on|off     # Preview system
 - **Line Numbers**: Optional line numbering in multi-line mode
 - **Visible Whitespace**: Optional markers for spaces while editing
 
-**Configuration (Non-POSIX)**:
+**Configuration (POSIX+)**:
 ```bash
 cjshopt multiline on|off              # Multi-line editing
 cjshopt multiline-indent on|off       # Auto-indentation
@@ -86,7 +86,7 @@ cjshopt line-numbers on|off           # Line numbering
 cjshopt visible-whitespace on|off     # Show whitespace markers
 ```
 
-## Custom Built-in Commands (Non-POSIX)
+## Custom Built-in Commands (POSIX+)
 
 ### Enhanced Directory Navigation
 
@@ -98,7 +98,7 @@ When `--no-smart-cd` is not specified, CJsShell's `cd` includes:
 - **Blacklisting**: `cjshopt bookmark-blacklist add <path>`
 
 ```bash
-# These features are non-POSIX
+# These features are POSIX+ (non-POSIX)
 cd doc        # Matches "documents" directory
 cd -          # Previous directory (POSIX compliant)
 ```
@@ -126,7 +126,7 @@ CJsShell supports **bash-style history expansion** for interactive convenience:
 - `^old^new` - Replace `old` with `new` in previous command and execute
 
 ```bash
-# Examples (non-POSIX)
+# Examples (POSIX+)
 echo hello world
 !!              # Repeats: echo hello world
 echo !$         # Expands to: echo world
@@ -139,11 +139,11 @@ ls !^           # Uses first arg from previous command
 **Auto-Disabled**: History expansion is automatically disabled in:
 - Script mode (`cjsh script.sh`)
 - Command mode (`cjsh -c "command"`)
-- Piped input (ensures POSIX compliance)
+- Piped input (preserves POSIX semantics)
 
 ### Configuration Command (`cjshopt`)
 
-**Entirely Non-POSIX**: The `cjshopt` command provides shell configuration:
+**POSIX+ (Non-POSIX)**: The `cjshopt` command provides shell configuration:
 
 ```bash
 cjshopt style_def <token> <style>     # Syntax highlighting styles
@@ -165,7 +165,7 @@ cjshopt set-history-max <number>      # History configuration
 - **Usage**: `validate command_name`
 - **POSIX Alternative**: `command -v` (basic existence check only)
 
-## Color and Visual Features (Non-POSIX)
+## Color and Visual Features (POSIX+)
 
 ### Advanced Color System
 
@@ -177,7 +177,7 @@ cjshopt set-history-max <number>      # History configuration
 
 #### BBCode-style Color Markup
 ```bash
-# Non-POSIX color markup in themes
+# POSIX+ color markup in themes
 content "[color=#FF5555]Error[/color]"
 content "[gradient(#FF0000,#00FF00)]Rainbow Text[/gradient]"
 ```
@@ -190,11 +190,11 @@ content "[gradient(#FF0000,#00FF00)]Rainbow Text[/gradient]"
 - **Implementation**: Escape sequence injection
 
 ```cjsh-theme
-# Non-POSIX terminal title configuration
+# POSIX+ terminal title configuration
 terminal_title "{PATH} - CJsShell"
 ```
 
-## Configuration System (Non-POSIX)
+## Configuration System (POSIX+)
 
 ### Custom Configuration Files
 
@@ -212,10 +212,10 @@ Beyond standard POSIX startup files:
 - **History Management**: Enhanced history with size limits
 - **Bookmark Database**: Persistent directory bookmarks
 
-### Command-Line Flags (Non-POSIX Extensions)
+### Command-Line Flags (POSIX+ Extensions)
 
 ```bash
-# Shell customization flags (non-POSIX)
+# Shell customization flags (POSIX+)
 cjsh --no-themes              # Disable theme system
 cjsh --no-colors              # Disable color output  
 cjsh --no-syntax-highlighting # Disable syntax highlighting
@@ -225,7 +225,7 @@ cjsh --minimal                # Minimal mode
 cjsh --secure                 # Secure mode
 ```
 
-## Performance Features (Non-POSIX)
+## Performance Features (POSIX+)
 
 ### Caching Systems
 - **Command Lookup Cache**: Cached executable path resolution
@@ -239,12 +239,12 @@ cjsh --secure                 # Secure mode
 
 ## Extended Scripting Features
 
-### Bash-like Extensions (Non-POSIX)
+### Bash-like Extensions (POSIX+)
 While maintaining POSIX compatibility, CJsShell supports some bash extensions:
 
 #### Extended Test Expressions
 ```bash
-# Bash-style extended tests (non-POSIX)
+# Bash-style extended tests (POSIX+)
 [[ $var =~ regex ]]          # Pattern matching
 [[ -v variable ]]            # Variable existence test
 ```
@@ -253,16 +253,16 @@ While maintaining POSIX compatibility, CJsShell supports some bash extensions:
 - **Note**: Marked as non-POSIX in test suite
 - **Usage**: Limited support for `<(command)` syntax
 
-### Here Strings (Non-POSIX)
+### Here Strings (POSIX+)
 ```bash
-# Here strings (bash extension, non-POSIX)
+# Here strings (bash extension, POSIX+)
 command <<< "string"
 ```
 
 ## Compliance Notes
 
 ### POSIX Compliance Testing
-CJsShell includes over 1000 POSIX compliance tests that verify:
+CJsShell includes over 1500 POSIX-focused tests that verify:
 - Standard shell scripting syntax
 - Built-in command behavior
 - Variable expansion
@@ -270,28 +270,28 @@ CJsShell includes over 1000 POSIX compliance tests that verify:
 - Signal handling
 
 ### Compatibility Modes
-- **`-c` Flag**: Ensures POSIX compliance for script execution
+- **`-c` Flag**: Preserves POSIX semantics for script execution
 - **Piped Input**: Automatic POSIX mode when shell receives piped input
 - **Script Mode**: Non-interactive mode maintains strict POSIX behavior
 
-### Disabling Non-POSIX Features
-Most non-POSIX features can be disabled for strict compatibility:
+### Disabling POSIX+ Features
+Most POSIX+ features can be disabled for strict compatibility:
 
 ```bash
-# Achieve near-POSIX compliance
+# Run in a standards-aligned mode
 cjsh --minimal --no-themes --no-colors --no-syntax-highlighting \
      --no-completions --no-smart-cd
 ```
 
 ## Summary
 
-CJsShell's non-POSIX features focus on enhancing the interactive shell experience while maintaining strong POSIX compatibility for scripting. The design philosophy allows users to benefit from modern shell conveniences in interactive use while ensuring scripts remain portable and standards-compliant.
+CJsShell's POSIX+ features focus on enhancing the interactive shell experience while maintaining strong POSIX compatibility for scripting. The design philosophy allows users to benefit from modern shell conveniences in interactive use while ensuring scripts remain portable and standards-compliant.
 
-**Key Non-POSIX Areas**:
+**Key POSIX+ Areas**:
 1. **Interactive Features**: Theming, syntax highlighting, advanced completion
 2. **Enhanced Built-ins**: Smart cd, cjshopt configuration
 3. **Visual Enhancements**: Colors, gradients, terminal title management
 4. **Development Tools**: Syntax validation, command validation
 5. **Configuration System**: Custom config files and runtime options
 
-All non-POSIX features are designed to be non-intrusive to POSIX compliance and can be disabled when strict standards adherence is required.
+All POSIX+ features are designed to be non-intrusive to POSIX scripting behavior and can be disabled when strict standards adherence is required.

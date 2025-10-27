@@ -125,7 +125,7 @@ cjshopt login-startup-arg --show-startup-time
 Supported flags: `--login`, `--interactive`, `--debug`, `--no-themes`, `--no-colors`, `--no-titleline`, `--show-startup-time`, `--no-source`, `--no-completions`, `--no-syntax-highlighting`, `--no-smart-cd`, `--no-prompt`, `--minimal`, and `--startup-test`.
 
 ### POSIX & Bash Compatibility
-cjsh targets high POSIX compliance while providing useful extensions such as `[[ ... ]]`, brace expansion, here-strings, process substitution, and rich redirection semantics. Non-POSIX behavior is opt-in through flags or configuration.
+cjsh targets high POSIX coverage for scripting while providing POSIX+ extensions such as `[[ ... ]]`, brace expansion, here-strings, process substitution, and rich redirection semantics. POSIX+ behavior is opt-in through flags or configuration.
 
 ---
 
@@ -141,7 +141,7 @@ unabbr gs            # remove an abbreviation
 ```
 
 ### Typeahead
-Keystrokes are buffered while commands run so no input is lost—this is always enabled.
+Keystrokes are buffered while commands run so no input is lost. This is always enabled.
 
 ### Key Bindings
 Inspect or tweak key bindings with:

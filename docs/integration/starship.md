@@ -8,7 +8,7 @@ Make sure the Starship binary is installed and on your `$PATH`:
 brew install starship
 ```
 
-Any installation method supported by Starship (cargo, curl script, distro package, etc.) will work—the theme only shells out to the executable.
+Any installation method supported by Starship (cargo, curl script, distro package, etc.) will work-the theme only shells out to the executable.
 
 ## Install the bundled theme
 

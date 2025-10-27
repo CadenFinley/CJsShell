@@ -1,5 +1,5 @@
 site_name: CJ's Shell Documentation
-site_description: 'A modern, feature-rich shell with out of the box power, speed, and customization'
+site_description: 'A POSIX-based interactive shell with integrated modern features and out-of-the-box customization'
 site_author: 'Caden Finley'
 site_url: 'https://cadenfinley.github.io/CJsShell'
 

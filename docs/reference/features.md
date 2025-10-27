@@ -1,17 +1,17 @@
 # Features Overview
 
-CJ's Shell is designed to provide a powerful, fast, and customizable shell experience with minimal configuration required.
+CJ's Shell is a POSIX-based interactive shell designed to provide a powerful, fast, and customizable experience with minimal configuration required.
 
 ## Core Features
 
-### POSIX Compliance
-CJ's Shell aims for approximately 95% POSIX compliance, making it compatible with most existing shell scripts while adding modern conveniences.
+### POSIX-Based Scripting
+cjsh targets approximately 95% POSIX coverage for scripting so existing shell scripts run as expected while modern conveniences remain available.
 
-- Standard POSIX shell scripting syntax
-- Compatible with most sh/bash scripts
-- Comprehensive test suite with over 1000 POSIX compliance tests
+- Standards-aligned POSIX shell syntax with common bash extensions
+- Compatible with most `sh`/`bash` scripts and tooling expectations
+- Backed by 1500+ automated tests that focus on scripting semantics
 
-**See Also**: [Non-POSIX Features](non-posix-features.md) for detailed documentation of features that extend beyond POSIX compliance.
+**See Also**: [POSIX+ Interactive Features](non-posix-features.md) for details on the enhancements layered above the core scripting engine.
 
 ### Shell Scripting
 
