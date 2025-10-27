@@ -642,12 +642,21 @@ int Exec::execute_builtin_with_redirections(Command cmd) {
 
     auto duplicate_fd = [](int fd) {
         int min_fd = std::max(fd + 1, 10);
-        int dup_fd = fcntl(fd, F_DUPFD_CLOEXEC, min_fd);
+        int dup_fd = -1;
+#ifdef F_DUPFD_CLOEXEC
+        dup_fd = fcntl(fd, F_DUPFD_CLOEXEC, min_fd);
+#endif
         if (dup_fd == -1) {
             dup_fd = fcntl(fd, F_DUPFD, min_fd);
         }
         if (dup_fd == -1) {
             dup_fd = dup(fd);
+        }
+        if (dup_fd != -1) {
+            int flags = fcntl(dup_fd, F_GETFD);
+            if (flags != -1) {
+                fcntl(dup_fd, F_SETFD, flags | FD_CLOEXEC);
+            }
         }
         return dup_fd;
     };
