@@ -6,6 +6,7 @@
 #include <functional>
 #include <mutex>
 #include <regex>
+#include <unordered_map>
 
 #include "exec.h"
 
