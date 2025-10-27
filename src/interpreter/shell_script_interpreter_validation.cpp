@@ -808,6 +808,7 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
     std::vector<std::string> sanitized_lines = sanitize_lines_for_validation(lines);
 
     std::vector<std::tuple<std::string, std::string, size_t>> control_stack;
+    bool saw_unclosed_quote = false;
 
     for (size_t line_num = 0; line_num < lines.size(); ++line_num) {
         const std::string& line = sanitized_lines[line_num];
@@ -829,10 +830,17 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
         }
 
         if (quote_state.in_quotes) {
-            errors.push_back(
-                {display_line,
-                 "Unclosed quote: missing closing " + std::string(1, quote_state.quote_char),
-                 line});
+            char missing = quote_state.quote_char == '\0' ? '"' : quote_state.quote_char;
+            std::string message = "Unclosed quote: missing closing ";
+            message.push_back(missing);
+            std::string suggestion = "Close the opening ";
+            suggestion.push_back(missing);
+            suggestion += " or remove the stray quote";
+
+            SyntaxError quote_error({display_line, 0, 0, 0}, ErrorSeverity::CRITICAL,
+                                    ErrorCategory::SYNTAX, "SYN001", message, line, suggestion);
+            errors.push_back(std::move(quote_error));
+            saw_unclosed_quote = true;
         }
 
         int paren_balance = 0;
@@ -1108,6 +1116,10 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                 suggestion += "' that started on line ";
                 suggestion += std::to_string(opening_line);
                 syn_err.suggestion = suggestion;
+            }
+            if (saw_unclosed_quote && syn_err.error_code != "SYN007") {
+                syn_err.related_info.push_back(
+                    "An earlier unclosed quote may prevent detecting the matching closure correctly.");
             }
             syn_err.category = ErrorCategory::CONTROL_FLOW;
             syn_err.severity = ErrorSeverity::CRITICAL;
