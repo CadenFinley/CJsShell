@@ -14,8 +14,8 @@
 #include <vector>
 
 #ifdef __APPLE__
-#include <malloc/malloc.h>
 #include <AvailabilityMacros.h>
+#include <malloc/malloc.h>
 #else
 #include <malloc.h>
 #endif
@@ -340,7 +340,7 @@ bool process_command_line(const std::string& command, bool skip_history = false)
 #elif defined(__linux__)
     malloc_trim(0);
 #else
-    g_shell->execute("echo '' > /dev/null");
+    // do nothing for other platforms
 #endif
 
     if (!config::posix_mode) {
