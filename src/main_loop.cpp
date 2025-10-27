@@ -15,6 +15,7 @@
 
 #ifdef __APPLE__
 #include <malloc/malloc.h>
+#include <AvailabilityMacros.h>
 #else
 #include <malloc.h>
 #endif
@@ -334,7 +335,7 @@ bool process_command_line(const std::string& command, bool skip_history = false)
     }
     setenv("?", status_str.c_str(), 1);
 
-#ifdef __APPLE__
+#if defined(__APPLE__) && MAC_OS_X_VERSION_MAX_ALLOWED >= 1070
     (void)malloc_zone_pressure_relief(nullptr, 0);
 #elif defined(__linux__)
     malloc_trim(0);
