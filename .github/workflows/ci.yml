@@ -73,7 +73,11 @@ jobs:
 
       - name: Build CJsShell
         run: |
-          cmake --build build --config Release --parallel
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            cmake --build build --config Release
+          else
+            cmake --build build --config Release --parallel
+          fi
 
       - name: Verify build output
         run: |
