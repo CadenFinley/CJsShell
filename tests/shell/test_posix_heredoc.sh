@@ -293,6 +293,14 @@ else
     fail "Expected empty content, got '$result'"
 fi
 
+log_test "Bitshift operator not treated as here-document"
+result=$("$SHELL_TO_TEST" -c 'echo $((1<<8))' 2>/dev/null)
+if [ "$result" = "256" ]; then
+    pass
+else
+    fail "Expected '256', got '$result'"
+fi
+
 log_test "Here-document error handling"
 "$SHELL_TO_TEST" -c 'cat << EOF
 missing delimiter' >/dev/null 2>&1
