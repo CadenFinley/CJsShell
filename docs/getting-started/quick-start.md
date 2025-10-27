@@ -61,7 +61,7 @@ cjsh is still in active, rapid development so even the latest release can still 
     cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 
     # Compile using all available cores
-    cmake --build build --config Release --parallel
+    cmake --build build --config Release --j$(nproc)
 ```
 
 After building, the `cjsh` executable will be in the `build/` directory. You can run it directly with `./build/cjsh`

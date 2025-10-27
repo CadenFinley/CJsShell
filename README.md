@@ -38,7 +38,7 @@ To build from source:
 ```bash
 git clone https://github.com/CadenFinley/CJsShell && cd CJsShell
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --config Release
+cmake --build build --config Release -j$(nproc)
 ```
    
 # Scripting Compatibility & Testing
