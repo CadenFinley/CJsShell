@@ -14,6 +14,17 @@ The easiest way to get started with CJ's Shell is with brew. For detailed instal
 brew tap CadenFinley/tap
 brew install cjsh
 ```
+
+## Building from source
+
+Any non tagged releases or commits do not have the promise of not containing non breaking changes or working builds. For maximum build safety and usability, stick to tagged releases or through package manager installs.
+
+To build from source:
+```bash
+git clone https://github.com/CadenFinley/CJsShell && cd CJsShell
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release --parallel
+```
    
 # Scripting Compatibility & Testing
 
