@@ -5,9 +5,9 @@
 #include <vector>
 
 class Shell;
-const bool PRE_RELEASE = false;
+const bool PRE_RELEASE = true;
 
-constexpr const char* c_version_base = "3.10.8";
+constexpr const char* c_version_base = "3.10.9";
 
 extern std::string g_cached_version;
 
