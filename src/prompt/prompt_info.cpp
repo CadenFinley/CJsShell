@@ -7,10 +7,13 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstdio>
 #include <cstring>
 #include <ctime>
+#include <mutex>
 #include <regex>
+#include <tuple>
 #include <unordered_set>
 
 #include "cjsh.h"
@@ -18,6 +21,24 @@
 #include "parser.h"
 #include "shell.h"
 #include "theme_parser.h"
+
+namespace {
+constexpr size_t kVariableUsageCacheMaxSize = 10;
+std::unordered_map<std::string, bool> g_variable_usage_cache;
+std::mutex g_variable_usage_mutex;
+
+constexpr size_t kLanguageCacheMaxSize = 100;
+const std::chrono::seconds kLanguageCacheDuration(30);
+std::unordered_map<std::string, std::pair<bool, std::chrono::steady_clock::time_point>>
+    g_language_detection_cache;
+std::unordered_map<std::string, std::pair<std::string, std::chrono::steady_clock::time_point>>
+    g_language_version_cache;
+std::mutex g_language_cache_mutex;
+
+std::unordered_map<std::string, std::pair<std::string, std::chrono::steady_clock::time_point>>
+    g_exec_command_cache;
+std::mutex g_exec_cache_mutex;
+}  // namespace
 
 /* Available prompt placeholders:
  * -----------------------------
@@ -157,102 +178,90 @@ std::string PromptInfo::get_basic_title() {
 bool PromptInfo::is_variable_used(const std::string& var_name,
                                   const std::vector<ThemeSegment>& segments) {
     std::string placeholder = "{" + var_name + "}";
-
-    static std::unordered_map<std::string, bool> cache;
-    static std::mutex cache_mutex;
-    static constexpr size_t MAX_CACHE_SIZE = 10;
-
     std::string cache_key = var_name + "_" + std::to_string(segments.size());
 
     {
-        std::lock_guard<std::mutex> lock(cache_mutex);
+        std::lock_guard<std::mutex> lock(g_variable_usage_mutex);
 
-        if (cache.size() > MAX_CACHE_SIZE) {
-            cache.clear();
+        if (g_variable_usage_cache.size() > kVariableUsageCacheMaxSize) {
+            g_variable_usage_cache.clear();
         }
 
-        auto it = cache.find(cache_key);
-        if (it != cache.end()) {
+        auto it = g_variable_usage_cache.find(cache_key);
+        if (it != g_variable_usage_cache.end()) {
             return it->second;
         }
     }
 
     for (const auto& segment : segments) {
         if (segment.content.find(placeholder) != std::string::npos) {
-            std::lock_guard<std::mutex> lock(cache_mutex);
-            cache[cache_key] = true;
+            std::lock_guard<std::mutex> lock(g_variable_usage_mutex);
+            g_variable_usage_cache[cache_key] = true;
             return true;
         }
     }
 
-    std::lock_guard<std::mutex> lock(cache_mutex);
-    cache[cache_key] = false;
+    std::lock_guard<std::mutex> lock(g_variable_usage_mutex);
+    g_variable_usage_cache[cache_key] = false;
     return false;
 }
 
 std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     const std::vector<ThemeSegment>& segments, bool is_git_repo,
     const std::filesystem::path& repo_root) {
-    static std::unordered_map<std::string, std::pair<bool, std::chrono::steady_clock::time_point>>
-        language_cache;
-    static std::unordered_map<std::string,
-                              std::pair<std::string, std::chrono::steady_clock::time_point>>
-        version_cache;
-    static std::mutex cache_mutex;
-    static const std::chrono::seconds CACHE_DURATION(30);
-    static constexpr size_t MAX_CACHE_SIZE = 100;
 
     auto now = std::chrono::steady_clock::now();
 
     {
-        std::lock_guard<std::mutex> lock(cache_mutex);
+        std::lock_guard<std::mutex> lock(g_language_cache_mutex);
 
-        if (language_cache.size() > MAX_CACHE_SIZE) {
-            for (auto it = language_cache.begin(); it != language_cache.end();) {
-                if ((now - it->second.second) >= CACHE_DURATION) {
-                    it = language_cache.erase(it);
+        if (g_language_detection_cache.size() > kLanguageCacheMaxSize) {
+            for (auto it = g_language_detection_cache.begin();
+                 it != g_language_detection_cache.end();) {
+                if ((now - it->second.second) >= kLanguageCacheDuration) {
+                    it = g_language_detection_cache.erase(it);
                 } else {
                     ++it;
                 }
             }
 
-            if (language_cache.size() > MAX_CACHE_SIZE) {
+            if (g_language_detection_cache.size() > kLanguageCacheMaxSize) {
                 std::vector<std::pair<std::string, std::chrono::steady_clock::time_point>> entries;
-                entries.reserve(language_cache.size());
-                for (const auto& [key, value] : language_cache) {
+                entries.reserve(g_language_detection_cache.size());
+                for (const auto& [key, value] : g_language_detection_cache) {
                     entries.emplace_back(key, value.second);
                 }
                 std::sort(entries.begin(), entries.end(),
                           [](const auto& a, const auto& b) { return a.second < b.second; });
 
-                size_t to_remove = language_cache.size() - (MAX_CACHE_SIZE * 3 / 4);
+                size_t to_remove = g_language_detection_cache.size() - (kLanguageCacheMaxSize * 3 / 4);
                 for (size_t i = 0; i < to_remove && i < entries.size(); ++i) {
-                    language_cache.erase(entries[i].first);
+                    g_language_detection_cache.erase(entries[i].first);
                 }
             }
         }
 
-        if (version_cache.size() > MAX_CACHE_SIZE) {
-            for (auto it = version_cache.begin(); it != version_cache.end();) {
-                if ((now - it->second.second) >= CACHE_DURATION) {
-                    it = version_cache.erase(it);
+        if (g_language_version_cache.size() > kLanguageCacheMaxSize) {
+            for (auto it = g_language_version_cache.begin(); it != g_language_version_cache.end();) {
+                if ((now - it->second.second) >= kLanguageCacheDuration) {
+                    it = g_language_version_cache.erase(it);
                 } else {
                     ++it;
                 }
             }
 
-            if (version_cache.size() > MAX_CACHE_SIZE) {
+            if (g_language_version_cache.size() > kLanguageCacheMaxSize) {
                 std::vector<std::pair<std::string, std::chrono::steady_clock::time_point>> entries;
-                entries.reserve(version_cache.size());
-                for (const auto& [key, value] : version_cache) {
+                entries.reserve(g_language_version_cache.size());
+                for (const auto& [key, value] : g_language_version_cache) {
                     entries.emplace_back(key, value.second);
                 }
                 std::sort(entries.begin(), entries.end(),
                           [](const auto& a, const auto& b) { return a.second < b.second; });
 
-                size_t to_remove = version_cache.size() - (MAX_CACHE_SIZE * 3 / 4);
+                size_t to_remove = g_language_version_cache.size() - (kLanguageCacheMaxSize * 3 / 4);
                 for (size_t i = 0; i < to_remove && i < entries.size(); ++i) {
-                    version_cache.erase(entries[i].first);
+                    g_language_version_cache.erase(entries[i].first);
                 }
             }
         }
@@ -341,11 +350,12 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     }
 
     auto get_cached_language_detection = [&](const std::string& lang) -> bool {
-        std::lock_guard<std::mutex> lock(cache_mutex);
+        std::lock_guard<std::mutex> lock(g_language_cache_mutex);
         auto key = std::filesystem::current_path().string() + "_" + lang;
-        auto it = language_cache.find(key);
+        auto it = g_language_detection_cache.find(key);
 
-        if (it != language_cache.end() && (now - it->second.second) < CACHE_DURATION) {
+        if (it != g_language_detection_cache.end() &&
+            (now - it->second.second) < kLanguageCacheDuration) {
             return it->second.first;
         }
 
@@ -378,7 +388,7 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
             result = is_scala_project();
         }
 
-        language_cache[key] = {result, now};
+        g_language_detection_cache[key] = {result, now};
         return result;
     };
 
@@ -386,11 +396,12 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
         if (!get_cached_language_detection(lang))
             return "";
 
-        std::lock_guard<std::mutex> lock(cache_mutex);
+        std::lock_guard<std::mutex> lock(g_language_cache_mutex);
         auto key = std::filesystem::current_path().string() + "_" + lang + "_version";
-        auto it = version_cache.find(key);
+        auto it = g_language_version_cache.find(key);
 
-        if (it != version_cache.end() && (now - it->second.second) < CACHE_DURATION) {
+        if (it != g_language_version_cache.end() &&
+            (now - it->second.second) < kLanguageCacheDuration) {
             return it->second.first;
         }
 
@@ -423,7 +434,7 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
             result = get_scala_version();
         }
 
-        version_cache[key] = {result, now};
+        g_language_version_cache[key] = {result, now};
         return result;
     };
 
@@ -788,33 +799,36 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
         }
     }
 
-    static std::unordered_map<std::string,
-                              std::pair<std::string, std::chrono::steady_clock::time_point>>
-        exec_cache;
     auto exec_now = std::chrono::steady_clock::now();
 
     for (const auto& [full_match, command, cache_duration] : exec_commands) {
         std::string cache_key = command + ":" + std::to_string(cache_duration);
 
-        auto it = exec_cache.find(cache_key);
         bool use_cache = false;
+        std::pair<std::string, std::chrono::steady_clock::time_point> cached_entry;
 
-        if (it != exec_cache.end()) {
-            if (cache_duration == -1) {
-                use_cache = true;
-            } else {
-                auto elapsed =
-                    std::chrono::duration_cast<std::chrono::seconds>(exec_now - it->second.second)
-                        .count();
-                if (elapsed < cache_duration) {
+        {
+            std::lock_guard<std::mutex> lock(g_exec_cache_mutex);
+            auto it = g_exec_command_cache.find(cache_key);
+            if (it != g_exec_command_cache.end()) {
+                if (cache_duration == -1) {
                     use_cache = true;
+                    cached_entry = it->second;
+                } else {
+                    auto elapsed =
+                        std::chrono::duration_cast<std::chrono::seconds>(exec_now - it->second.second)
+                            .count();
+                    if (elapsed < cache_duration) {
+                        use_cache = true;
+                        cached_entry = it->second;
+                    }
                 }
             }
         }
 
         std::string result;
         if (use_cache) {
-            result = exec_cache[cache_key].first;
+            result = cached_entry.first;
         } else {
             std::string expanded_command = command;
             if (g_shell && g_shell->get_parser()) {
@@ -830,11 +844,35 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
                 }
             }
 
-            exec_cache[cache_key] = {result, exec_now};
+            {
+                std::lock_guard<std::mutex> lock(g_exec_cache_mutex);
+                g_exec_command_cache[cache_key] = {result, exec_now};
+            }
         }
 
         vars[full_match.substr(1, full_match.length() - 2)] = result;
     }
 
     return vars;
+}
+
+void PromptInfo::clear_cached_state() {
+    {
+        std::lock_guard<std::mutex> lock(g_variable_usage_mutex);
+        g_variable_usage_cache.clear();
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(g_language_cache_mutex);
+        g_language_detection_cache.clear();
+        g_language_version_cache.clear();
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(g_exec_cache_mutex);
+        g_exec_command_cache.clear();
+    }
+
+    clear_version_cache();
+    clear_git_info_cache();
 }

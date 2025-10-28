@@ -272,6 +272,12 @@ void Shell::reset_theme() {
     shell_theme.reset();
 }
 
+void Shell::invalidate_prompt_caches() {
+    if (shell_prompt) {
+        shell_prompt->clear_cached_state();
+    }
+}
+
 int Shell::execute_script_file(const std::filesystem::path& path, bool optional) {
     if (!shell_script_interpreter) {
         print_error({ErrorType::RUNTIME_ERROR, "source", "script interpreter not available", {}});
@@ -424,6 +430,19 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
     if (args.empty()) {
         return 0;
     }
+    bool should_invalidate_prompt_cache = false;
+    if (config::interactive_mode || config::force_interactive) {
+        for (const auto& token : args) {
+            bool looks_like_assignment = token.find('=') != std::string::npos &&
+                                      token.find('/') == std::string::npos;
+            if (looks_like_assignment) {
+                continue;
+            }
+            should_invalidate_prompt_cache =
+            std::filesystem::path(token).filename().string() == "clear";
+            break;
+        }
+    }   
     if (!shell_exec || !built_ins) {
         g_exit_flag = true;
         print_error(
@@ -468,6 +487,9 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
     if (!args.empty() && (built_ins->is_builtin_command(args[0]) != 0)) {
         int code = built_ins->builtin_command(args);
         last_terminal_output_error = built_ins->get_last_error();
+        if (should_invalidate_prompt_cache) {
+            invalidate_prompt_caches();
+        }
 
         return code;
     }
@@ -516,6 +538,9 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
             }
         }
         last_terminal_output_error = "Background command launched";
+        if (should_invalidate_prompt_cache) {
+            invalidate_prompt_caches();
+        }
         return 0;
     }
     shell_exec->execute_command_sync(args);
@@ -528,6 +553,9 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
             error.message.find("command failed with exit code") == std::string::npos) {
             shell_exec->print_last_error();
         }
+    }
+    if (should_invalidate_prompt_cache) {
+        invalidate_prompt_caches();
     }
     return exit_code;
 }

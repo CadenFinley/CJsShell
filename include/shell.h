@@ -79,6 +79,8 @@ class Shell {
         }
     }
 
+    void invalidate_prompt_caches();
+
     std::string get_initial_duration() {
         if (shell_prompt) {
             return shell_prompt->get_initial_duration();

@@ -266,3 +266,19 @@ int get_git_uncommitted_changes(const std::filesystem::path& repo_root) {
     }
     return count;
 }
+
+void clear_git_info_cache() {
+    {
+        std::lock_guard<std::mutex> cache_lock(git_info_cache_mutex);
+        git_info_cache.clear();
+    }
+
+    {
+        std::lock_guard<std::mutex> status_lock(git_status_mutex);
+        cached_git_dir.clear();
+        cached_status_symbols.clear();
+        cached_is_clean_repo = true;
+        last_git_status_check = std::chrono::steady_clock::now() - std::chrono::seconds(60);
+        is_git_status_check_running = false;
+    }
+}

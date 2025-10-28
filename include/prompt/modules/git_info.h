@@ -23,3 +23,4 @@ int get_git_ahead_behind(const std::filesystem::path& repo_root, int& ahead, int
 int get_git_stash_count(const std::filesystem::path& repo_root);
 bool get_git_has_staged_changes(const std::filesystem::path& repo_root);
 int get_git_uncommitted_changes(const std::filesystem::path& repo_root);
+void clear_git_info_cache();

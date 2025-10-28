@@ -26,4 +26,5 @@ class PromptInfo {
     std::unordered_map<std::string, std::string> get_variables(
         const std::vector<ThemeSegment>& segments, bool is_git_repo = false,
         const std::filesystem::path& repo_root = {});
+    void clear_cached_state();
 };

@@ -47,4 +47,5 @@ class Prompt {
     void set_initial_duration(long long microseconds);
 
     void set_theme(Theme* theme);
+    void clear_cached_state();
 };

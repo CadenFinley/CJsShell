@@ -160,3 +160,7 @@ void Prompt::set_initial_duration(long long microseconds) {
 void Prompt::set_theme(Theme* theme) {
     theme_ = theme;
 }
+
+void Prompt::clear_cached_state() {
+    info.clear_cached_state();
+}
