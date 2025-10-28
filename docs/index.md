@@ -2,7 +2,7 @@
 
 ## Introduction
 
-CJ's Shell (cjsh) is a POSIX-based interactive shell that pairs familiar script compatibility with integrated modern features. Built in are first-party theme scripting with a custom DSL, a POSIX shell interpreter with bash extensions, customizable keybindings, syntax highlighting, fuzzy completions, smart directory navigation, advanced history search, multiline editing, typeahead, and rich prompts. Everything ships in one binary with a single vendored dependency, so cjsh works out of the box on all *nix-like systems and Windows via WSL. cjsh delivers a POSIX+ experience, standard scripting semantics with an enhanced interactive layer you can dial up or down as needed.
+CJ's Shell (cjsh) POSIX Shell Scripting meets Modern Shell Features. Built in are first-party theme scripting with a custom DSL, a POSIX shell interpreter with bash extensions, customizable keybindings, syntax highlighting, fuzzy completions, smart directory navigation, advanced history search, multiline editing, typeahead, and rich prompts. Everything ships in one binary with a single vendored dependency, so cjsh works out of the box on all *nix-like systems and Windows via WSL. cjsh delivers a POSIX+ experience, standard scripting semantics with an enhanced interactive layer you can dial up or down as needed.
 
 The core scripting engine targets roughly 95% POSIX coverage, validated by 1500+ standards-focused tests, while the interactive layer intentionally stretches beyond POSIX through configurable POSIX+ features.
 
