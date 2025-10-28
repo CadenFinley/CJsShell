@@ -361,60 +361,127 @@ ic_private void completions_sort(completions_t* cms) {
 
 #define IC_MAX_PREFIX (256)
 
-// find longest common prefix and complete with that.
+// find longest common prefix (considering full replacements) and complete with that.
 ic_private ssize_t completions_apply_longest_prefix(completions_t* cms, stringbuf_t* sbuf,
                                                     ssize_t pos) {
     if (cms->count <= 1) {
         return completions_apply(cms, 0, sbuf, pos);
     }
 
-    // set initial prefix to the first entry
-    completion_t* cm = completions_get(cms, 0);
-    if (cm == NULL)
+    if (pos < 0)
         return -1;
 
-    char prefix[IC_MAX_PREFIX + 1];
-    ssize_t delete_before = cm->delete_before;
-    ic_strncpy(prefix, IC_MAX_PREFIX + 1, cm->replacement, IC_MAX_PREFIX);
-    prefix[IC_MAX_PREFIX] = 0;
+    size_t prefix_len = (size_t)pos;
+    if (prefix_len >= IC_MAX_PREFIX)
+        return -1;  // avoid overrunning our working buffer
 
-    // and visit all others to find the longest common prefix
-    for (ssize_t i = 1; i < cms->count; i++) {
-        cm = completions_get(cms, i);
-        if (cm->delete_before != delete_before) {  // deletions must match delete_before
-            prefix[0] = 0;
-            break;
-        }
-        // check if it is still a prefix
-        const char* r = cm->replacement;
-        ssize_t j;
-        for (j = 0; prefix[j] != 0 && r[j] != 0; j++) {
-            if (prefix[j] != r[j])
-                break;
-        }
-        prefix[j] = 0;
-        if (j <= 0)
-            break;
+    size_t buffer_len = (size_t)sbuf_len(sbuf);
+    if (prefix_len > buffer_len)
+        return -1;
+
+    char* original_prefix = NULL;
+    if (prefix_len > 0) {
+        original_prefix = (char*)malloc(prefix_len + 1);
+        if (original_prefix == NULL)
+            return -1;
+        memcpy(original_prefix, sbuf_string(sbuf), prefix_len);
+        original_prefix[prefix_len] = '\0';
     }
 
-    // check the length
-    ssize_t len = ic_strlen(prefix);
-    if (len <= 0 || len < delete_before)
-        return -1;
+    char common[IC_MAX_PREFIX + 1] = {0};
+    size_t common_len = 0;
+    bool common_initialized = false;
 
-    // we found a prefix :-)
+    for (ssize_t i = 0; i < cms->count; i++) {
+        completion_t* cm = completions_get(cms, i);
+        if (cm == NULL || cm->replacement == NULL)
+            continue;
+        if (cm->delete_before < 0)
+            continue;
+        size_t delete_before = (size_t)cm->delete_before;
+        if (delete_before > prefix_len)
+            continue;
+
+        size_t keep_len = prefix_len - delete_before;
+        const char* replacement = cm->replacement;
+        size_t replacement_len = ic_strlen(replacement);
+        size_t final_len = keep_len + replacement_len;
+        if (final_len <= prefix_len)
+            continue;  // nothing new to add
+
+        size_t capped_final_len = (final_len > IC_MAX_PREFIX ? IC_MAX_PREFIX : final_len);
+        char final_prefix[IC_MAX_PREFIX + 1];
+        size_t idx = 0;
+
+        if (keep_len > 0 && original_prefix != NULL) {
+            size_t copy_len = keep_len;
+            if (copy_len > capped_final_len)
+                copy_len = capped_final_len;
+            memcpy(final_prefix, original_prefix, copy_len);
+            idx = copy_len;
+        }
+
+        if (idx < capped_final_len) {
+            size_t remaining = capped_final_len - idx;
+            size_t repl_copy = (replacement_len > remaining ? remaining : replacement_len);
+            memcpy(final_prefix + idx, replacement, repl_copy);
+            idx += repl_copy;
+        }
+
+        final_prefix[idx] = '\0';
+
+        if (!common_initialized) {
+            memcpy(common, final_prefix, idx + 1);
+            common_len = idx;
+            common_initialized = true;
+        } else {
+            size_t limit = (common_len < idx ? common_len : idx);
+            size_t new_common_len = 0;
+            while (new_common_len < limit && common[new_common_len] == final_prefix[new_common_len]) {
+                new_common_len++;
+            }
+            common_len = new_common_len;
+            common[common_len] = '\0';
+        }
+
+        if (common_len <= prefix_len) {
+            common_len = prefix_len;
+            break;
+        }
+    }
+
+    if (original_prefix != NULL) {
+        free(original_prefix);
+    }
+
+    if (!common_initialized || common_len <= prefix_len) {
+        return -1;
+    }
+
+    size_t insert_len = common_len - prefix_len;
+    if (insert_len > IC_MAX_PREFIX)
+        insert_len = IC_MAX_PREFIX;
+
+    char insert_text[IC_MAX_PREFIX + 1];
+    for (size_t j = 0; j < insert_len; j++) {
+        insert_text[j] = common[prefix_len + j];
+    }
+    insert_text[insert_len] = '\0';
+
     completion_t cprefix;
     memset(&cprefix, 0, sizeof(cprefix));
-    cprefix.delete_before = delete_before;
-    cprefix.replacement = prefix;
+    cprefix.delete_before = 0;
+    cprefix.replacement = insert_text;
+
     ssize_t newpos = completion_apply(&cprefix, sbuf, pos);
     if (newpos < 0)
         return newpos;
 
-    // adjust all delete_before for the new replacement
     for (ssize_t i = 0; i < cms->count; i++) {
-        cm = completions_get(cms, i);
-        cm->delete_before = len;
+        completion_t* cm = completions_get(cms, i);
+        if (cm != NULL) {
+            cm->delete_before += (ssize_t)insert_len;
+        }
     }
 
     return newpos;
