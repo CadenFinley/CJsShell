@@ -383,7 +383,9 @@ void cleanup_resources() {
         g_shell.reset();
     }
 
-    // std::cout << "Shutdown Complete." << std::endl;
+    if (config::interactive_mode || config::force_interactive) {
+        std::cout << "Shutdown Complete." << std::endl;
+    }
 }
 
 int main(int argc, char* argv[]) {
