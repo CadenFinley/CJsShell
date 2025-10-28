@@ -9,13 +9,10 @@ const bool PRE_RELEASE = true;
 
 constexpr const char* c_version_base = "3.10.9";
 
-extern std::string g_cached_version;
-
 inline std::string get_version() {
-    if (g_cached_version.empty()) {
-        g_cached_version = std::string(c_version_base) + (PRE_RELEASE ? " (pre-release)" : "");
-    }
-    return g_cached_version;
+    static std::string cached_version =
+        std::string(c_version_base) + (PRE_RELEASE ? " (pre-release)" : "");
+    return cached_version;
 }
 
 #ifndef CJSH_GIT_HASH
@@ -27,8 +24,16 @@ extern bool g_startup_active;
 
 class Shell;
 extern std::unique_ptr<Shell> g_shell;
-extern std::vector<std::string> g_startup_args;
-extern std::vector<std::string> g_profile_startup_args;
+
+inline std::vector<std::string>& startup_args() {
+    static std::vector<std::string> args;
+    return args;
+}
+
+inline std::vector<std::string>& profile_startup_args() {
+    static std::vector<std::string> args;
+    return args;
+}
 
 namespace config {
 extern bool login_mode;

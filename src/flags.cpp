@@ -166,9 +166,7 @@ ParseResult parse_arguments(int argc, char* argv[]) {
 }
 
 void apply_profile_startup_flags() {
-    extern std::vector<std::string> g_profile_startup_args;
-
-    for (const std::string& flag : ::g_profile_startup_args) {
+    for (const std::string& flag : profile_startup_args()) {
         if (flag == "--no-themes") {
             config::themes_enabled = false;
         } else if (flag == "--no-colors") {

@@ -37,9 +37,6 @@
 bool g_exit_flag = false;
 bool g_startup_active = true;
 std::unique_ptr<Shell> g_shell = nullptr;
-std::vector<std::string> g_startup_args;
-std::vector<std::string> g_profile_startup_args;
-std::string g_cached_version;
 
 namespace {
 
@@ -60,9 +57,10 @@ PosixFeatureSnapshot g_posix_snapshot;
 std::chrono::steady_clock::time_point g_startup_begin_time;
 
 void save_startup_arguments(int argc, char* argv[]) {
-    g_startup_args.clear();
+    auto& args = startup_args();
+    args.clear();
     for (int i = 0; i < argc; i++) {
-        g_startup_args.push_back(std::string(argv[i]));
+        args.push_back(std::string(argv[i]));
     }
 }
 

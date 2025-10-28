@@ -62,7 +62,7 @@ int startup_flag_command(const std::vector<std::string>& args) {
         flag == "--no-completions" || flag == "--no-syntax-highlighting" ||
         flag == "--no-smart-cd" || flag == "--minimal" || flag == "--startup-test") {
         bool flag_exists = false;
-        for (const auto& existing_flag : g_profile_startup_args) {
+        for (const auto& existing_flag : profile_startup_args()) {
             if (existing_flag == flag) {
                 flag_exists = true;
                 break;
@@ -70,7 +70,7 @@ int startup_flag_command(const std::vector<std::string>& args) {
         }
 
         if (!flag_exists) {
-            g_profile_startup_args.push_back(flag);
+            profile_startup_args().push_back(flag);
         }
     } else {
         print_error(
