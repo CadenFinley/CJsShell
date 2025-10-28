@@ -382,6 +382,8 @@ void cleanup_resources() {
     if (g_shell) {
         g_shell.reset();
     }
+
+    std::cout << "Shutdown Complete." << std::endl;
 }
 
 int main(int argc, char* argv[]) {
