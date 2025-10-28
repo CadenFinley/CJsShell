@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "builtin.h"
+#include "builtin_argument_completion.h"
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "completion_history.h"
@@ -666,6 +667,22 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
         case CONTEXT_ARGUMENT: {
             std::string prefix_str(current_line_prefix);
             std::vector<std::string> tokens = completion_utils::tokenize_command_line(prefix_str);
+
+            bool ends_with_space =
+                !prefix_str.empty() && std::isspace(static_cast<unsigned char>(prefix_str.back()));
+
+            if (!tokens.empty()) {
+                std::vector<std::string> args;
+                if (tokens.size() > 1) {
+                    args.assign(tokens.begin() + 1, tokens.end());
+                }
+                if (ends_with_space) {
+                    args.emplace_back("");
+                }
+
+                builtin_argument_completion::add_completions(cenv, tokens[0], args,
+                                                             ends_with_space);
+            }
 
             if (!tokens.empty() && completion_utils::equals_completion_token(tokens[0], "cd")) {
                 cjsh_filename_completer(cenv, current_line_prefix);
