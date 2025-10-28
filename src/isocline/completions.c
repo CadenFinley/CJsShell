@@ -437,7 +437,8 @@ ic_private ssize_t completions_apply_longest_prefix(completions_t* cms, stringbu
         } else {
             size_t limit = (common_len < idx ? common_len : idx);
             size_t new_common_len = 0;
-            while (new_common_len < limit && common[new_common_len] == final_prefix[new_common_len]) {
+            while (new_common_len < limit &&
+                   common[new_common_len] == final_prefix[new_common_len]) {
                 new_common_len++;
             }
             common_len = new_common_len;
