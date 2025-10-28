@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <chrono>
 #include <mutex>
 
 #include "cjsh_filesystem.h"
@@ -90,6 +91,38 @@ static inline void debug_msg(const char* fmt, ...) {
     }
 }
 
+class PerformanceTracker {
+   public:
+    explicit PerformanceTracker(const char* label) : label_(label), enabled_(cjsh_debug_enabled()) {
+        if (enabled_) {
+            start_time_ = std::chrono::steady_clock::now();
+        }
+    }
+
+    ~PerformanceTracker() {
+        if (!enabled_) {
+            return;
+        }
+
+        auto end_time = std::chrono::steady_clock::now();
+        auto duration = end_time - start_time_;
+        auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
+
+        if (microseconds < 1000) {
+            debug_msg("PerformanceTracker [%s]: %lld us", label_,
+                      static_cast<long long>(microseconds));
+        } else {
+            double milliseconds = static_cast<double>(microseconds) / 1000.0;
+            debug_msg("PerformanceTracker [%s]: %.3f ms", label_, milliseconds);
+        }
+    }
+
+   private:
+    const char* label_;
+    bool enabled_{false};
+    std::chrono::steady_clock::time_point start_time_{};
+};
+
 #else
 
 static inline int cjsh_debug_enabled(void) {
@@ -103,5 +136,15 @@ static inline int cjsh_debug_file_enabled(void) {
 static inline void debug_msg(const char* fmt, ...) {
     (void)fmt;
 }
+
+class PerformanceTracker {
+   public:
+    PerformanceTracker(const char* label) {
+        (void)label;
+    }
+
+    ~PerformanceTracker() {
+    }
+};
 
 #endif
