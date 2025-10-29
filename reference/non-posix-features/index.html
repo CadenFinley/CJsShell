@@ -1195,18 +1195,9 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#caching-systems" class="md-nav__link">
+  <a href="#dynamic-path-resolution" class="md-nav__link">
     <span class="md-ellipsis">
-      Caching Systems
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#background-processing" class="md-nav__link">
-    <span class="md-ellipsis">
-      Background Processing
+      Dynamic PATH Resolution
     </span>
   </a>
   
@@ -1714,8 +1705,8 @@
 <p><strong>POSIX+ (Non-POSIX)</strong>: The <code>cjshopt</code> command provides shell configuration:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>&lt;token&gt;<span class="w"> </span>&lt;style&gt;<span class="w">     </span><span class="c1"># Syntax highlighting styles</span>
 </span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>&lt;action&gt;<span class="w"> </span>&lt;key&gt;<span class="w">        </span><span class="c1"># Custom key bindings</span>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>cjshopt<span class="w"> </span>generate-profile<span class="w">              </span><span class="c1"># Generate ~/.cjprofile</span>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>cjshopt<span class="w"> </span>generate-rc<span class="w">                   </span><span class="c1"># Generate ~/.cjshrc</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>cjshopt<span class="w"> </span>generate-profile<span class="w"> </span><span class="o">[</span>--alt<span class="o">]</span><span class="w">      </span><span class="c1"># Generate ~/.cjprofile (alt: ~/.config/cjsh/.cjprofile)</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>cjshopt<span class="w"> </span>generate-rc<span class="w"> </span><span class="o">[</span>--alt<span class="o">]</span><span class="w">           </span><span class="c1"># Generate ~/.cjshrc (alt: ~/.config/cjsh/.cjshrc)</span>
 </span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span>&lt;number&gt;<span class="w">      </span><span class="c1"># History configuration</span>
 </span></code></pre></div>
 <h3 id="development-tools">Development Tools</h3>
@@ -1765,8 +1756,7 @@
 <p><strong>POSIX Equivalent</strong>: <code>~/.profile</code>, <code>~/.sh_profile</code> (basic functionality only)</p>
 <h4 id="runtime-configuration">Runtime Configuration</h4>
 <ul>
-<li><strong><code>~/.cache/cjsh/</code></strong>: Cache directory for performance optimization</li>
-<li><strong>Executable Cache</strong>: Cached PATH command lookups</li>
+<li><strong><code>~/.cache/cjsh/</code></strong>: Cache directory for shell data</li>
 <li><strong>History Management</strong>: Enhanced history with size limits</li>
 <li><strong>Bookmark Database</strong>: Persistent directory bookmarks</li>
 </ul>
@@ -1781,17 +1771,11 @@
 </span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>cjsh<span class="w"> </span>--secure<span class="w">                 </span><span class="c1"># Secure mode</span>
 </span></code></pre></div>
 <h2 id="performance-features-posix">Performance Features (POSIX+)</h2>
-<h3 id="caching-systems">Caching Systems</h3>
+<h3 id="dynamic-path-resolution">Dynamic PATH Resolution</h3>
 <ul>
-<li><strong>Command Lookup Cache</strong>: Cached executable path resolution</li>
-<li><strong>Theme Cache</strong>: Parsed theme caching for performance</li>
-<li><strong>History Optimization</strong>: Efficient history file management</li>
-<li><strong>Variable Caching</strong>: Prompt variable caching</li>
-</ul>
-<h3 id="background-processing">Background Processing</h3>
-<ul>
-<li><strong>Asynchronous Operations</strong>: Non-blocking operations where possible</li>
-<li><strong>Lazy Loading</strong>: Deferred initialization of non-essential features</li>
+<li><strong>Real-Time Executable Discovery</strong>: Commands are discovered by crawling PATH on-demand</li>
+<li><strong>No Cache Staleness</strong>: Always reflects current PATH state</li>
+<li><strong>Fast Lookups</strong>: Optimized directory traversal for command resolution</li>
 </ul>
 <h2 id="extended-scripting-features">Extended Scripting Features</h2>
 <h3 id="bash-like-extensions-posix">Bash-like Extensions (POSIX+)</h3>
