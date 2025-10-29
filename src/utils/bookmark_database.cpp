@@ -411,12 +411,19 @@ cjsh_filesystem::Result<void> BookmarkDatabase::import_from_map(
 }
 
 void BookmarkDatabase::enforce_bookmark_limit() {
+    if (MAX_BOOKMARKS == 0) {
+        if (!bookmarks_.empty()) {
+            bookmarks_.clear();
+            dirty_ = true;
+        }
+        return;
+    }
+
     if (bookmarks_.size() <= MAX_BOOKMARKS) {
         return;
     }
 
-    size_t target_size = static_cast<size_t>(static_cast<double>(MAX_BOOKMARKS) * 0.9);
-    size_t to_remove = bookmarks_.size() - target_size;
+    size_t to_remove = bookmarks_.size() - MAX_BOOKMARKS;
 
     std::vector<std::pair<std::string, std::chrono::system_clock::time_point>> bookmark_times;
     bookmark_times.reserve(bookmarks_.size());
