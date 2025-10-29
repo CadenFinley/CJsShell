@@ -128,6 +128,18 @@ bool replace_first_instance(std::string& target, const std::string& from, const 
     return true;
 }
 
+bool strip_temporary_env_assignments(
+    std::vector<std::string>& args, size_t cmd_start_idx, size_t original_arg_count,
+    const std::vector<std::pair<std::string, std::string>>& assignments) {
+    const bool has_temporary_env = !assignments.empty() && cmd_start_idx < original_arg_count;
+    if (has_temporary_env && cmd_start_idx > 0) {
+        auto erase_end =
+            args.begin() + static_cast<std::vector<std::string>::difference_type>(cmd_start_idx);
+        args.erase(args.begin(), erase_end);
+    }
+    return has_temporary_env;
+}
+
 ProcessSubstitutionResources setup_process_substitutions(Command& cmd) {
     ProcessSubstitutionResources resources;
 
@@ -377,10 +389,7 @@ bool setup_here_document_stdin(const std::string& here_doc, ErrorHandler&& on_er
             return false;
         }
 
-        cjsh_filesystem::safe_close(here_pipe[1]);
-
-        auto dup_result = cjsh_filesystem::safe_dup2(here_pipe[0], STDIN_FILENO);
-        cjsh_filesystem::safe_close(here_pipe[0]);
+        auto dup_result = cjsh_filesystem::duplicate_pipe_read_end_to_fd(here_pipe, STDIN_FILENO);
         if (dup_result.is_error()) {
             on_error(HereDocErrorKind::Duplication, dup_result.error());
             return false;
@@ -399,10 +408,7 @@ bool setup_here_document_stdin(const std::string& here_doc, ErrorHandler&& on_er
         }
     }
 
-    cjsh_filesystem::safe_close(here_pipe[1]);
-
-    auto dup_result = cjsh_filesystem::safe_dup2(here_pipe[0], STDIN_FILENO);
-    cjsh_filesystem::safe_close(here_pipe[0]);
+    auto dup_result = cjsh_filesystem::duplicate_pipe_read_end_to_fd(here_pipe, STDIN_FILENO);
     if (dup_result.is_error()) {
         on_error(HereDocErrorKind::Duplication, dup_result.error());
         return false;
@@ -424,6 +430,36 @@ struct StreamRedirectError {
     int src_fd;
     int dst_fd;
 };
+
+[[noreturn]] void handle_stream_redirect_error_and_exit(const StreamRedirectError& error) {
+    switch (error.kind) {
+        case StreamRedirectErrorKind::Noclobber:
+            std::cerr << "cjsh: permission denied: " << error.target << ": " << error.detail
+                      << '\n';
+            break;
+        case StreamRedirectErrorKind::Redirect:
+            std::cerr << "cjsh: " << error.target << ": " << error.detail << '\n';
+            break;
+        case StreamRedirectErrorKind::Duplication:
+            if (error.src_fd == STDOUT_FILENO && error.dst_fd == STDERR_FILENO) {
+                std::cerr << "cjsh: dup2 2>&1: " << error.detail << '\n';
+            } else {
+                std::cerr << "cjsh: dup2 >&2: " << error.detail << '\n';
+            }
+            break;
+    }
+    _exit(EXIT_FAILURE);
+}
+
+[[noreturn]] void handle_fd_operation_error_and_exit(const FdOperationError& error) {
+    if (error.type == FdOperationErrorType::Redirect) {
+        std::cerr << "cjsh: file not found: " << error.spec << ": " << error.error << '\n';
+    } else {
+        std::cerr << "cjsh: runtime error: dup2: failed for " << error.fd_num << ">&"
+                  << error.src_fd << ": " << error.error << '\n';
+    }
+    _exit(EXIT_FAILURE);
+}
 
 template <typename ErrorHandler>
 bool configure_stderr_redirects(const Command& cmd, ErrorHandler&& on_error) {
@@ -910,30 +946,26 @@ bool Exec::handle_empty_args(const std::vector<std::string>& args) {
     return true;
 }
 
-int Exec::execute_command_sync(const std::vector<std::string>& args) {
+bool Exec::initialize_env_assignments(const std::vector<std::string>& args,
+                                      std::vector<std::pair<std::string, std::string>>& assignments,
+                                      size_t& cmd_start_idx) {
     if (handle_empty_args(args)) {
+        return false;
+    }
+
+    cmd_start_idx = cjsh_env::collect_env_assignments(args, assignments);
+    return true;
+}
+
+int Exec::execute_command_sync(const std::vector<std::string>& args) {
+    std::vector<std::pair<std::string, std::string>> env_assignments;
+    size_t cmd_start_idx = 0;
+    if (!initialize_env_assignments(args, env_assignments, cmd_start_idx)) {
         return last_exit_code;
     }
-    std::vector<std::pair<std::string, std::string>> env_assignments;
-    size_t cmd_start_idx = cjsh_env::collect_env_assignments(args, env_assignments);
 
     if (cmd_start_idx >= args.size()) {
-        if (g_shell) {
-            auto& env_vars = g_shell->get_env_vars();
-            for (const auto& env : env_assignments) {
-                env_vars[env.first] = env.second;
-
-                if (env.first == "PATH" || env.first == "PWD" || env.first == "HOME" ||
-                    env.first == "USER" || env.first == "SHELL") {
-                    setenv(env.first.c_str(), env.second.c_str(), 1);
-                }
-            }
-
-            if (g_shell->get_parser() != nullptr) {
-                g_shell->get_parser()->set_env_vars(env_vars);
-            }
-        }
-
+        apply_assignments_to_shell_env(env_assignments);
         last_exit_code = 0;
         return 0;
     }
@@ -1062,12 +1094,11 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
 }
 
 int Exec::execute_command_async(const std::vector<std::string>& args) {
-    if (handle_empty_args(args)) {
+    std::vector<std::pair<std::string, std::string>> env_assignments;
+    size_t cmd_start_idx = 0;
+    if (!initialize_env_assignments(args, env_assignments, cmd_start_idx)) {
         return last_exit_code;
     }
-
-    std::vector<std::pair<std::string, std::string>> env_assignments;
-    size_t cmd_start_idx = cjsh_env::collect_env_assignments(args, env_assignments);
 
     if (cmd_start_idx >= args.size()) {
         cjsh_env::apply_env_assignments(env_assignments);
@@ -1166,13 +1197,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             return finalize_exit(0);
         }
 
-        const bool has_temporary_env =
-            !env_assignments.empty() && cmd_start_idx < original_arg_count;
-        if (has_temporary_env && cmd_start_idx > 0) {
-            auto erase_end = cmd.args.begin() +
-                             static_cast<std::vector<std::string>::difference_type>(cmd_start_idx);
-            cmd.args.erase(cmd.args.begin(), erase_end);
-        }
+        const bool has_temporary_env = strip_temporary_env_assignments(
+            cmd.args, cmd_start_idx, original_arg_count, env_assignments);
 
         if (!has_temporary_env && can_execute_in_process(cmd)) {
             int exit_code = g_shell->get_built_ins()->builtin_command(cmd.args);
@@ -1470,15 +1496,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             std::vector<std::pair<std::string, std::string>> env_assignments;
             size_t cmd_start_idx = cjsh_env::collect_env_assignments(cmd.args, env_assignments);
             const size_t original_arg_count = cmd.args.size();
-            const bool has_temporary_env =
-                !env_assignments.empty() && cmd_start_idx < original_arg_count;
-
-            if (has_temporary_env && cmd_start_idx > 0) {
-                auto erase_end =
-                    cmd.args.begin() +
-                    static_cast<std::vector<std::string>::difference_type>(cmd_start_idx);
-                cmd.args.erase(cmd.args.begin(), erase_end);
-            }
+            const bool has_temporary_env = strip_temporary_env_assignments(
+                cmd.args, cmd_start_idx, original_arg_count, env_assignments);
 
             if (cmd.args.empty()) {
                 set_error(ErrorType::INVALID_ARGUMENT, "",
@@ -1609,42 +1628,11 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                     }
                 }
 
-                auto stream_error = [&](const StreamRedirectError& error) {
-                    switch (error.kind) {
-                        case StreamRedirectErrorKind::Noclobber:
-                            std::cerr << "cjsh: permission denied: " << error.target << ": "
-                                      << error.detail << '\n';
-                            break;
-                        case StreamRedirectErrorKind::Redirect:
-                            std::cerr << "cjsh: " << error.target << ": " << error.detail << '\n';
-                            break;
-                        case StreamRedirectErrorKind::Duplication:
-                            if (error.src_fd == STDOUT_FILENO && error.dst_fd == STDERR_FILENO) {
-                                std::cerr << "cjsh: dup2 2>&1: " << error.detail << '\n';
-                            } else {
-                                std::cerr << "cjsh: dup2 >&2: " << error.detail << '\n';
-                            }
-                            break;
-                    }
-                    _exit(EXIT_FAILURE);
-                };
-
-                if (!configure_stderr_redirects(cmd, stream_error)) {
+                if (!configure_stderr_redirects(cmd, handle_stream_redirect_error_and_exit)) {
                     _exit(EXIT_FAILURE);
                 }
 
-                auto fd_failure = [&](const FdOperationError& error) {
-                    if (error.type == FdOperationErrorType::Redirect) {
-                        std::cerr << "cjsh: file not found: " << error.spec << ": " << error.error
-                                  << '\n';
-                    } else {
-                        std::cerr << "cjsh: runtime error: dup2: failed for " << error.fd_num
-                                  << ">&" << error.src_fd << ": " << error.error << '\n';
-                    }
-                    _exit(EXIT_FAILURE);
-                };
-
-                if (!apply_fd_operations(cmd, fd_failure)) {
+                if (!apply_fd_operations(cmd, handle_fd_operation_error_and_exit)) {
                     _exit(EXIT_FAILURE);
                 }
 
@@ -1787,6 +1775,20 @@ void Exec::update_job_status(int job_id, bool completed, bool stopped, int statu
     }
 }
 
+void Exec::resume_job(Job& job, bool cont, std::string_view context) {
+    if (!cont || !job.stopped) {
+        return;
+    }
+
+    if (kill(-job.pgid, SIGCONT) < 0) {
+        set_error(ErrorType::RUNTIME_ERROR, "kill",
+                  "failed to send SIGCONT to " + std::string(context) + ": " +
+                      std::string(strerror(errno)));
+    }
+
+    job.stopped = false;
+}
+
 void Exec::put_job_in_foreground(int job_id, bool cont) {
     std::lock_guard<std::mutex> lock(jobs_mutex);
 
@@ -1811,13 +1813,7 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
         }
     }
 
-    if (cont && job.stopped) {
-        if (kill(-job.pgid, SIGCONT) < 0) {
-            set_error(ErrorType::RUNTIME_ERROR, "kill",
-                      "failed to send SIGCONT to job: " + std::string(strerror(errno)));
-        }
-        job.stopped = false;
-    }
+    resume_job(job, cont, "job");
 
     jobs_mutex.unlock();
 
@@ -1854,14 +1850,7 @@ void Exec::put_job_in_background(int job_id, bool cont) {
 
     Job& job = it->second;
 
-    if (cont && job.stopped) {
-        if (kill(-job.pgid, SIGCONT) < 0) {
-            set_error(ErrorType::RUNTIME_ERROR, "kill",
-                      "failed to send SIGCONT to background job: " + std::string(strerror(errno)));
-        }
-
-        job.stopped = false;
-    }
+    resume_job(job, cont, "background job");
 }
 
 void Exec::wait_for_job(int job_id) {

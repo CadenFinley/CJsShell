@@ -108,6 +108,7 @@ void safe_close(int fd);
 Result<void> redirect_fd(const std::string& file, int target_fd, int flags);
 Result<void> set_close_on_exec(int fd);
 Result<void> create_pipe_cloexec(int pipe_fds[2]);
+Result<void> duplicate_pipe_read_end_to_fd(int (&pipe_fds)[2], int target_fd);
 void close_pipe(int pipe_fds[2]);
 
 Result<FILE*> safe_fopen(const std::string& path, const std::string& mode);

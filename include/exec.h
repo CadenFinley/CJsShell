@@ -3,6 +3,8 @@
 #include <map>
 #include <mutex>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 #include <sys/types.h>
@@ -42,6 +44,10 @@ class Exec {
     int execute_builtin_with_redirections(Command cmd);
     bool handle_empty_args(const std::vector<std::string>& args);
     void report_missing_job(int job_id);
+    bool initialize_env_assignments(const std::vector<std::string>& args,
+                                    std::vector<std::pair<std::string, std::string>>& assignments,
+                                    size_t& cmd_start_idx);
+    void resume_job(Job& job, bool cont, std::string_view context);
 
    public:
     Exec();

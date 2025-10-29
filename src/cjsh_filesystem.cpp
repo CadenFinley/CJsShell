@@ -135,6 +135,18 @@ Result<void> create_pipe_cloexec(int pipe_fds[2]) {
     return Result<void>::ok();
 }
 
+Result<void> duplicate_pipe_read_end_to_fd(int (&pipe_fds)[2], int target_fd) {
+    safe_close(pipe_fds[1]);
+
+    auto dup_result = safe_dup2(pipe_fds[0], target_fd);
+    safe_close(pipe_fds[0]);
+    if (dup_result.is_error()) {
+        return Result<void>::error(dup_result.error());
+    }
+
+    return Result<void>::ok();
+}
+
 void close_pipe(int pipe_fds[2]) {
     safe_close(pipe_fds[0]);
     safe_close(pipe_fds[1]);
@@ -269,9 +281,7 @@ std::optional<HereStringError> setup_here_string_stdin(const std::string& here_s
         }
     }
 
-    safe_close(here_pipe[1]);
-    auto dup_result = safe_dup2(here_pipe[0], STDIN_FILENO);
-    safe_close(here_pipe[0]);
+    auto dup_result = duplicate_pipe_read_end_to_fd(here_pipe, STDIN_FILENO);
     if (dup_result.is_error()) {
         return HereStringError{HereStringErrorType::Dup, dup_result.error()};
     }
