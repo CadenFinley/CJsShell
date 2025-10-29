@@ -228,19 +228,7 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
         }
     }
 
-    static std::vector<std::string> cached_execs;
-    static std::chrono::steady_clock::time_point last_scan;
-    static std::string last_path_env;
-    const auto now = std::chrono::steady_clock::now();
-    const char* path_env_c = std::getenv("PATH");
-    const std::string path_env = path_env_c ? path_env_c : "";
-    if (cached_execs.empty() || path_env != last_path_env ||
-        now - last_scan > std::chrono::seconds(2)) {
-        cached_execs = cjsh_filesystem::get_executables_in_path();
-        last_scan = now;
-        last_path_env = path_env;
-    }
-    executables_in_path = cached_execs;
+    executables_in_path = cjsh_filesystem::get_executables_in_path();
 
     auto builtin_filter = [&](const std::string& cmd) { return is_interactive_builtin(cmd); };
 
