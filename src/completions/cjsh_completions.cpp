@@ -210,9 +210,9 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
     std::unordered_set<std::string> aliases;
     std::vector<std::string> executables_in_path;
 
-    // if (g_shell && (g_shell->get_built_ins() != nullptr)) {
-    //     builtin_cmds = g_shell->get_built_ins()->get_builtin_commands();
-    // }
+    if (g_shell && (g_shell->get_built_ins() != nullptr)) {
+        builtin_cmds = g_shell->get_built_ins()->get_builtin_commands();
+    }
 
     if (g_shell && (g_shell->get_shell_script_interpreter() != nullptr)) {
         function_names = g_shell->get_shell_script_interpreter()->get_function_names();
