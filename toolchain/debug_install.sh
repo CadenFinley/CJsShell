@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 EXISTING_CJSH=$(which cjsh 2>/dev/null)
 
 if [ -n "$EXISTING_CJSH" ]; then
@@ -21,7 +20,6 @@ else
     
     mkdir -p "$INSTALL_PATH"
 fi
-
 
 mv build/cjsh "$INSTALL_PATH/cjsh"
 echo "Moved cjsh to $INSTALL_PATH"

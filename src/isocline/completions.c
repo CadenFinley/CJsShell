@@ -64,6 +64,45 @@ ic_private void completions_free(completions_t* cms) {
     mem_free(cms->mem, cms);  // free ourselves
 }
 
+// Escape bbcode control characters so completion metadata cannot inject styles.
+static char* completions_escape_bbcode(alloc_t* mem, const char* text) {
+    if (text == NULL)
+        return NULL;
+    const ssize_t len = ic_strlen(text);
+    if (len <= 0)
+        return mem_strdup(mem, text);
+
+    ssize_t extra = 0;
+    for (ssize_t i = 0; i < len; i++) {
+        char ch = text[i];
+        if (ch == '[' || ch == '\\') {
+            extra++;
+        }
+    }
+
+    if (extra == 0)
+        return mem_strdup(mem, text);
+
+    char* escaped = mem_malloc_tp_n(mem, char, len + extra + 1);
+    if (escaped == NULL)
+        return NULL;
+
+    char* dest = escaped;
+    for (ssize_t i = 0; i < len; i++) {
+        unsigned char uch = (unsigned char)text[i];
+        char ch = (char)uch;
+        if (uch < 0x20 || uch == 0x7F) {
+            ch = ' ';
+        }
+        if (ch == '[' || ch == '\\') {
+            *dest++ = '\\';
+        }
+        *dest++ = ch;
+    }
+    *dest = '\0';
+    return escaped;
+}
+
 ic_private void completions_clear(completions_t* cms) {
     while (cms->count > 0) {
         completion_t* cm = cms->elems + cms->count - 1;
@@ -89,18 +128,19 @@ static bool completions_set_entry(completions_t* cms, completion_t* cm, const ch
         if (new_replacement == NULL)
             goto fail;
     }
-    if (display != NULL) {
-        new_display = mem_strdup(cms->mem, display);
+    const char* display_text = (display != NULL ? display : replacement);
+    if (display_text != NULL) {
+        new_display = completions_escape_bbcode(cms->mem, display_text);
         if (new_display == NULL)
             goto fail;
     }
     if (help != NULL) {
-        new_help = mem_strdup(cms->mem, help);
+        new_help = completions_escape_bbcode(cms->mem, help);
         if (new_help == NULL)
             goto fail;
     }
     if (source != NULL) {
-        new_source = mem_strdup(cms->mem, source);
+        new_source = completions_escape_bbcode(cms->mem, source);
         if (new_source == NULL)
             goto fail;
     }
@@ -111,7 +151,7 @@ static bool completions_set_entry(completions_t* cms, completion_t* cm, const ch
     mem_free(cms->mem, cm->source);
 
     cm->replacement = (replacement != NULL ? new_replacement : NULL);
-    cm->display = (display != NULL ? new_display : NULL);
+    cm->display = new_display;
     cm->help = (help != NULL ? new_help : NULL);
     cm->source = (source != NULL ? new_source : NULL);
     cm->delete_before = delete_before;

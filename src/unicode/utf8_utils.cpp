@@ -1,8 +1,5 @@
 #include "utf8_utils.h"
-
 #include <cstring>
-
-// Include isocline's unicode module
 extern "C" {
 #include "isocline/unicode.h"
 }
