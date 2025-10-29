@@ -147,7 +147,7 @@ int set_max_bookmarks_command(const std::vector<std::string>& args) {
         "Usage: set-max-bookmarks <number>",
         "",
         "Set the maximum number of directory bookmarks to store.",
-        "Default is 100. Minimum is 10. Maximum is 1000.",
+        "Default is 100.",
         "",
         "Example:",
         "  set-max-bookmarks 200"};
@@ -192,9 +192,9 @@ int set_max_bookmarks_command(const std::vector<std::string>& args) {
         return 1;
     }
 
-    if (number < 10 || number > 1000) {
-        print_error({ErrorType::INVALID_ARGUMENT, "set-max-bookmarks",
-                     "number must be between 10 and 1000", usage_lines});
+    if (number < 0) {
+        print_error({ErrorType::INVALID_ARGUMENT, "set-max-bookmarks", "number must be positive",
+                     usage_lines});
         return 1;
     }
 

@@ -43,7 +43,7 @@ void print_cjshopt_usage() {
     std::cout << "  generate-profile [--force]       Create or overwrite ~/.cjprofile\n";
     std::cout << "  generate-rc [--force]            Create or overwrite ~/.cjshrc\n";
     std::cout << "  generate-logout [--force]        Create or overwrite ~/.cjsh_logout\n";
-    std::cout << "  set-max-bookmarks <number>       Limit stored directory bookmarks (10-1000)\n";
+    std::cout << "  set-max-bookmarks <number>       Limit stored directory bookmarks\n";
     std::cout << "  set-history-max <number|default|status> Configure history persistence\n";
     std::cout
         << "  bookmark-blacklist <subcommand>  Manage directories excluded from bookmarking\n";
@@ -99,7 +99,7 @@ int cjshopt_command(const std::vector<std::string>& args) {
                  "  generate-profile [--force]       Create or overwrite ~/.cjprofile",
                  "  generate-rc [--force]            Create or overwrite ~/.cjshrc",
                  "  generate-logout [--force]        Create or overwrite ~/.cjsh_logout",
-                 "  set-max-bookmarks <number>       Limit stored directory bookmarks (10-1000)",
+                 "  set-max-bookmarks <number>       Limit stored directory bookmarks",
                  "  set-history-max <number|default|status> Configure history persistence",
                  "  bookmark-blacklist <subcommand>  Manage directories excluded from bookmarking",
              }});
