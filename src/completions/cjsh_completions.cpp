@@ -21,7 +21,6 @@
 #include "completion_spell.h"
 #include "completion_tracker.h"
 #include "completion_utils.h"
-#include "external_argument_completion.h"
 #include "isocline.h"
 #include "shell.h"
 #include "shell_script_interpreter.h"
@@ -680,12 +679,8 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
                     args.emplace_back("");
                 }
 
-                bool handled = builtin_argument_completion::add_completions(cenv, tokens[0], args,
-                                                                            ends_with_space);
-                if (!handled) {
-                    external_argument_completion::add_completions(cenv, tokens[0], args,
-                                                                  ends_with_space);
-                }
+                builtin_argument_completion::add_completions(cenv, tokens[0], args,
+                                                             ends_with_space);
             }
 
             if (!tokens.empty() && completion_utils::equals_completion_token(tokens[0], "cd")) {
@@ -704,7 +699,6 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
 void initialize_completion_system() {
     if (config::completions_enabled) {
         ic_set_default_completer(cjsh_default_completer, nullptr);
-        external_argument_completion::initialize();
     } else {
         ic_set_default_completer(nullptr, nullptr);
         ic_enable_completion_preview(false);

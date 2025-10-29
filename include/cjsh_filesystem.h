@@ -163,8 +163,6 @@ const fs::path g_cjsh_history_path = g_cjsh_cache_path / "history.txt";
 
 const fs::path g_cjsh_first_boot_path = g_cjsh_cache_path / ".first_boot";
 
-const fs::path g_cjsh_completions_path = g_cjsh_cache_path / "completions";
-
 std::vector<std::string> get_executables_in_path();
 bool file_exists(const cjsh_filesystem::fs::path& path);
 bool initialize_cjsh_path();
