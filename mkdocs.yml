@@ -89,17 +89,12 @@ nav:
     - Quick Start: getting-started/quick-start.md
     - What You Need to Know: getting-started/what-to-know.md
     - Want to help?: getting-started/development.md
-  - Scripting:
-    - Scripting Guide: scripting/guide.md
   - Reference:
     - Features Overview: reference/features.md
     - Interactive Editing: reference/editing.md
     - Non-POSIX Features: reference/non-posix-features.md
     - Hooks: reference/hooks.md
     - Built-in Commands: reference/commands.md
-  - Integrations:
-    - Zoxide: integration/zoxide.md
-    - Starship Prompt: integration/starship.md
   - Themes:
     - The Details: themes/thedetails.md
 

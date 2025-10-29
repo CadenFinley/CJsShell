@@ -73,34 +73,34 @@ std::vector<std::string> fast_split_on_whitespace(std::string_view cmdline) {
     return result;
 }
 
-bool handle_arithmetic_expansion(std::string_view text, size_t idx, size_t pos, 
-                                  bool in_double, int& arith_depth) {
+bool handle_arithmetic_expansion(std::string_view text, size_t idx, size_t pos, bool in_double,
+                                 int& arith_depth) {
     if (idx + 2 >= pos || idx + 2 >= text.size()) {
         return false;
     }
-    
+
     char current = text[idx];
-    
+
     if (current == '$' && text[idx + 1] == '(' && text[idx + 2] == '(') {
         arith_depth++;
         return true;
     }
-    
+
     if (!in_double && current == '(' && text[idx + 1] == '(' && idx + 1 < pos) {
         arith_depth++;
         return true;
     }
-    
+
     if (arith_depth > 0 && current == ')' && text[idx + 1] == ')' && idx + 1 < pos) {
         arith_depth--;
         return true;
     }
-    
+
     return false;
 }
 
-bool handle_double_bracket_open(const std::string& command, size_t i, std::string& current, 
-                                 DelimiterState& delimiters, size_t& index_increment) {
+bool handle_double_bracket_open(const std::string& command, size_t i, std::string& current,
+                                DelimiterState& delimiters, size_t& index_increment) {
     if (delimiters.in_quotes || i + 1 >= command.length() || command[i + 1] != '[') {
         return false;
     }
@@ -112,7 +112,7 @@ bool handle_double_bracket_open(const std::string& command, size_t i, std::strin
 }
 
 bool handle_double_bracket_close(const std::string& command, size_t i, std::string& current,
-                                  DelimiterState& delimiters, size_t& index_increment) {
+                                 DelimiterState& delimiters, size_t& index_increment) {
     if (delimiters.in_quotes || delimiters.bracket_depth <= 0 || i + 1 >= command.length() ||
         command[i + 1] != ']') {
         return false;
@@ -138,9 +138,8 @@ void Parser::process_heredoc_content(std::string& content) {
     strip_subst_literal_markers(content);
 }
 
-bool Parser::is_control_word_at_position(const std::string& command, size_t i, 
-                                          int paren_depth, int brace_depth, bool in_quotes,
-                                          int& control_depth) {
+bool Parser::is_control_word_at_position(const std::string& command, size_t i, int paren_depth,
+                                         int brace_depth, bool in_quotes, int& control_depth) {
     if (in_quotes || paren_depth != 0 || brace_depth != 0) {
         return false;
     }
@@ -169,8 +168,8 @@ bool Parser::is_control_word_at_position(const std::string& command, size_t i,
 }
 
 bool Parser::handle_fd_redirection(const std::string& value, size_t& i,
-                                    const std::vector<std::string>& tokens, Command& cmd,
-                                    std::vector<std::string>& filtered_args) {
+                                   const std::vector<std::string>& tokens, Command& cmd,
+                                   std::vector<std::string>& filtered_args) {
     if (value.length() <= 1 || i + 1 >= tokens.size()) {
         return false;
     }
@@ -1416,9 +1415,9 @@ std::vector<LogicalCommand> Parser::parse_logical_commands(const std::string& co
 
             if (single_bracket_depth > 0) {
                 bool is_test_close =
-                    (i + 1 >= command.length() || command[i + 1] == ' ' ||
-                     command[i + 1] == '\t' || command[i + 1] == ';' || command[i + 1] == '&' ||
-                     command[i + 1] == '|' || command[i + 1] == '\n');
+                    (i + 1 >= command.length() || command[i + 1] == ' ' || command[i + 1] == '\t' ||
+                     command[i + 1] == ';' || command[i + 1] == '&' || command[i + 1] == '|' ||
+                     command[i + 1] == '\n');
                 if (is_test_close) {
                     single_bracket_depth--;
                 }
@@ -1427,8 +1426,8 @@ std::vector<LogicalCommand> Parser::parse_logical_commands(const std::string& co
             continue;
         }
 
-        is_control_word_at_position(command, i, delimiters.paren_depth, delimiters.brace_depth, 
-                                     delimiters.in_quotes, control_depth);
+        is_control_word_at_position(command, i, delimiters.paren_depth, delimiters.brace_depth,
+                                    delimiters.in_quotes, control_depth);
 
         if (!delimiters.in_quotes && delimiters.paren_depth == 0 && arith_depth == 0 &&
             delimiters.bracket_depth == 0 && single_bracket_depth == 0 && control_depth == 0 &&
@@ -1489,7 +1488,7 @@ std::vector<std::string> Parser::parse_semicolon_commands(const std::string& com
         }
 
         is_control_word_at_position(command, i, scan_state.paren_depth, scan_state.brace_depth,
-                                     scan_state.in_quotes, control_depth);
+                                    scan_state.in_quotes, control_depth);
 
         if (!scan_state.in_quotes && scan_state.paren_depth == 0 && scan_state.brace_depth == 0) {
             if (split_on_newlines && command[i] == '\n' && control_depth == 0) {
