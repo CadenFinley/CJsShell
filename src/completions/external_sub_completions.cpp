@@ -405,7 +405,6 @@ std::optional<std::pair<std::string, std::string>> parse_command_line(
                 name_part = trim(working.substr(0, double_colon_pos));
                 description_part = trim(working.substr(double_colon_pos + 2));
             } else {
-                std::size_t first_space = working.find_first_of(" \t");
                 std::size_t paren_open = working.find('(');
                 if (paren_open != std::string::npos &&
                     (first_space == std::string::npos || paren_open < first_space)) {
@@ -432,7 +431,37 @@ std::optional<std::pair<std::string, std::string>> parse_command_line(
                     else
                         description_part.clear();
                 } else {
-                    return std::nullopt;
+                    std::string candidate_name;
+                    std::string candidate_description;
+
+                    if (first_space == std::string::npos) {
+                        candidate_name = working;
+                        candidate_description.clear();
+                    } else {
+                        candidate_name = trim(working.substr(0, first_space));
+                        candidate_description = trim(working.substr(first_space));
+                    }
+
+                    auto is_simple_command_name = [](const std::string& name) {
+                        if (name.empty())
+                            return false;
+                        unsigned char first_char = static_cast<unsigned char>(name[0]);
+                        if (std::islower(first_char) == 0 && first_char != '_')
+                            return false;
+                        for (unsigned char ch : name) {
+                            if (std::isalpha(ch) != 0 && std::islower(ch) == 0)
+                                return false;
+                            if (std::isalnum(ch) == 0 && ch != '-' && ch != '_')
+                                return false;
+                        }
+                        return has_lowercase(name);
+                    };
+
+                    if (!is_simple_command_name(candidate_name))
+                        return std::nullopt;
+
+                    name_part = candidate_name;
+                    description_part = candidate_description;
                 }
             }
         }
