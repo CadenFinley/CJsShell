@@ -462,6 +462,7 @@ bool initialize_cjsh_directories() {
     try {
         fs::create_directories(g_cache_path);
         fs::create_directories(g_cjsh_cache_path);
+        fs::create_directories(g_cjsh_completions_path);
 
         return true;
     } catch (const fs::filesystem_error& e) {
