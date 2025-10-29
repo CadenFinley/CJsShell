@@ -193,8 +193,8 @@ int set_max_bookmarks_command(const std::vector<std::string>& args) {
     }
 
     if (number < 0) {
-        print_error({ErrorType::INVALID_ARGUMENT, "set-max-bookmarks", "number must be non-negative",
-                     usage_lines});
+        print_error({ErrorType::INVALID_ARGUMENT, "set-max-bookmarks",
+                     "number must be non-negative", usage_lines});
         return 1;
     }
 
