@@ -4,13 +4,14 @@
 #include <string>
 
 #include "isocline.h"
+#include "isocline/completions.h"
 
 namespace completion_tracker {
 
 namespace {
 
-const size_t MAX_COMPLETION_TRACKER_ENTRIES = 250;
-const size_t MAX_TOTAL_COMPLETIONS = 50;
+const size_t MAX_COMPLETION_TRACKER_ENTRIES = static_cast<size_t>(IC_MAX_COMPLETIONS_TO_SHOW) * 2;
+const size_t MAX_TOTAL_COMPLETIONS = static_cast<size_t>(IC_MAX_COMPLETIONS_TO_SHOW);
 
 thread_local CompletionTracker* g_current_completion_tracker = nullptr;
 
