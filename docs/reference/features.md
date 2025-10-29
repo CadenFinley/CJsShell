@@ -40,7 +40,7 @@ cjsh targets approximately 95% POSIX coverage for scripting so existing shell sc
 
 ### Interactive Features
 
-CJ's Shell provides a rich interactive experience powered by the [isocline](https://github.com/daanx/isocline) line editor library.
+CJ's Shell provides a rich interactive experience powered by the [isocline](https://github.com/cadenfinley/isocline) line editor library.
 
 **See [Interactive Editing Guide](editing.md) for complete documentation of all editing features.**
 
