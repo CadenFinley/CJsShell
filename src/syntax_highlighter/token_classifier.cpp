@@ -4,6 +4,7 @@
 #include <string>
 
 #include "builtin.h"
+#include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "shell.h"
 #include "token_constants.h"
@@ -19,7 +20,6 @@ bool is_shell_keyword(const std::string& token) {
 }
 
 bool is_shell_builtin(const std::string& token) {
-    extern Shell* g_shell;
     if (g_shell != nullptr && g_shell->get_built_ins() != nullptr) {
         return g_shell->get_built_ins()->is_builtin_command(token);
     }
