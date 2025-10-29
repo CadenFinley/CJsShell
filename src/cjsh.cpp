@@ -160,17 +160,11 @@ int initialize_interactive_components() {
 
         initialize_colors();
 
-        std::string saved_current_dir = std::filesystem::current_path().string();
-
         if (config::source_enabled && !config::secure_mode) {
             if (cjsh_filesystem::file_exists(cjsh_filesystem::g_cjsh_source_path)) {
                 g_shell->execute_script_file(cjsh_filesystem::g_cjsh_source_path);
-            }
-        } else {
-            if (std::filesystem::current_path() != saved_current_dir) {
-                std::filesystem::current_path(saved_current_dir);
-                setenv("PWD", saved_current_dir.c_str(), 1);
-                g_shell->get_built_ins()->set_current_directory();
+            } else if (cjsh_filesystem::file_exists(cjsh_filesystem::g_cjsh_source_alt_path)) {
+                g_shell->execute_script_file(cjsh_filesystem::g_cjsh_source_alt_path);
             }
         }
         return 0;
@@ -187,8 +181,11 @@ void process_profile_files() {
     if (std::filesystem::exists(user_profile)) {
         g_shell->execute_script_file(user_profile, true);
     }
+
     if (std::filesystem::exists(cjsh_filesystem::g_cjsh_profile_path)) {
         g_shell->execute_script_file(cjsh_filesystem::g_cjsh_profile_path, true);
+    } else if (std::filesystem::exists(cjsh_filesystem::g_cjsh_profile_alt_path)) {
+        g_shell->execute_script_file(cjsh_filesystem::g_cjsh_profile_alt_path, true);
     }
 }
 

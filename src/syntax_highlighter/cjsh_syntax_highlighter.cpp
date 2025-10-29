@@ -15,17 +15,12 @@
 
 void SyntaxHighlighter::initialize_syntax_highlighting() {
     if (config::syntax_highlighting_enabled) {
-        token_classifier::initialize_external_cache();
         ic_set_default_highlighter(SyntaxHighlighter::highlight, nullptr);
         ic_enable_highlight(true);
     } else {
         ic_set_default_highlighter(nullptr, nullptr);
         ic_enable_highlight(false);
     }
-}
-
-void SyntaxHighlighter::refresh_executables_cache() {
-    token_classifier::refresh_executables_cache();
 }
 
 void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, void*) {
@@ -177,7 +172,7 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
                 }
                 if (std::filesystem::exists(path_to_check)) {
                     ic_highlight(henv, static_cast<long>(cmd_start), static_cast<long>(token_end),
-                                 "cjsh-installed");
+                                 "cjsh-system");
                 } else {
                     ic_highlight(henv, static_cast<long>(cmd_start), static_cast<long>(token_end),
                                  "cjsh-unknown-command");
@@ -209,12 +204,9 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
                 if (cmds.find(token) != cmds.end()) {
                     ic_highlight(henv, static_cast<long>(cmd_start), static_cast<long>(token_end),
                                  "cjsh-builtin");
-                } else if (basic_unix_commands.count(token) > 0) {
-                    ic_highlight(henv, static_cast<long>(cmd_start), static_cast<long>(token_end),
-                                 "cjsh-system");
                 } else if (is_external_command(token)) {
                     ic_highlight(henv, static_cast<long>(cmd_start), static_cast<long>(token_end),
-                                 "cjsh-installed");
+                                 "cjsh-system");
                 } else {
                     ic_highlight(henv, static_cast<long>(cmd_start), static_cast<long>(token_end),
                                  "cjsh-unknown-command");
@@ -284,7 +276,7 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
                                          "cjsh-unknown-command");
                         } else {
                             ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
-                                         static_cast<long>(arg_end - arg_start), "cjsh-installed");
+                                         static_cast<long>(arg_end - arg_start), "cjsh-system");
                         }
                     } else {
                         bool is_abbreviation = false;
@@ -298,12 +290,9 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
                             is_shell_builtin(arg)) {
                             ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
                                          static_cast<long>(arg_end - arg_start), "cjsh-builtin");
-                        } else if (basic_unix_commands.count(arg) > 0) {
-                            ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
-                                         static_cast<long>(arg_end - arg_start), "cjsh-system");
                         } else if (is_external_command(arg)) {
                             ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
-                                         static_cast<long>(arg_end - arg_start), "cjsh-installed");
+                                         static_cast<long>(arg_end - arg_start), "cjsh-system");
                         } else {
                             ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
                                          static_cast<long>(arg_end - arg_start),

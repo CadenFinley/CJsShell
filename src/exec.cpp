@@ -1058,34 +1058,6 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
 
     cleanup_process_substitutions(proc_resources, false);
 
-    if (exit_code == 0 && !cmd_args.empty()) {
-        const std::string& command_name = cmd_args[0];
-
-        std::string basename_command;
-        size_t last_slash = command_name.find_last_of('/');
-        if (last_slash != std::string::npos) {
-            basename_command = command_name.substr(last_slash + 1);
-        } else {
-            basename_command = command_name;
-        }
-
-        bool already_in_cache = cjsh_filesystem::is_executable_in_cache(basename_command);
-
-        if (!already_in_cache) {
-            std::string full_path = cjsh_filesystem::find_executable_in_path(basename_command);
-
-            if (!full_path.empty()) {
-                cjsh_filesystem::add_executable_to_cache(basename_command, full_path);
-            }
-        }
-    } else if (exit_code == 127 && !cmd_args.empty()) {
-        const std::string& command_name = cmd_args[0];
-
-        if (cjsh_filesystem::is_executable_in_cache(command_name)) {
-            cjsh_filesystem::remove_executable_from_cache(command_name);
-        }
-    }
-
     return exit_code;
 }
 

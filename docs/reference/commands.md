@@ -487,9 +487,9 @@ Available subcommands:
 - `inline-help` - Configure inline help messages
 - `auto-tab` - Configure automatic tab completion
 - `keybind` - Inspect or modify key bindings (modifications config file only)
-- `generate-profile` - Create or overwrite ~/.cjprofile
-- `generate-rc` - Create or overwrite ~/.cjshrc
-- `generate-logout` - Create or overwrite ~/.cjsh_logout
+- `generate-profile` - Create or overwrite ~/.cjprofile (use `--alt` for `~/.config/cjsh/.cjprofile`)
+- `generate-rc` - Create or overwrite ~/.cjshrc (use `--alt` for `~/.config/cjsh/.cjshrc`)
+- `generate-logout` - Create or overwrite ~/.cjsh_logout (use `--alt` for `~/.config/cjsh/.cjsh_logout`)
 - `set-max-bookmarks` - Limit stored directory bookmarks
 - `set-history-max` - Configure history persistence limits
 - `bookmark-blacklist` - Manage directories excluded from bookmarking

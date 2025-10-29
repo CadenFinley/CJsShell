@@ -1125,7 +1125,8 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
             }
             if (encountered_unclosed_quote && syn_err.error_code != "SYN007") {
                 syn_err.related_info.push_back(
-                    "An earlier unclosed quote may prevent detecting the matching closure correctly.");
+                    "An earlier unclosed quote may prevent detecting the matching closure "
+                    "correctly.");
             }
             syn_err.category = ErrorCategory::CONTROL_FLOW;
             syn_err.severity = ErrorSeverity::CRITICAL;

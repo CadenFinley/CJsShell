@@ -1149,13 +1149,6 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
 
         if (command_validation_enabled && !cmd.args.empty() &&
             should_validate_command(cmd.args[0]) && !is_valid_command(cmd.args[0])) {
-            if (cjsh_filesystem::is_executable_in_cache(cmd.args[0])) {
-                std::string full_path = cjsh_filesystem::find_executable_in_path(cmd.args[0]);
-                if (full_path.empty()) {
-                    cjsh_filesystem::remove_executable_from_cache(cmd.args[0]);
-                }
-            }
-
             throw std::runtime_error("command not found: " + cmd.args[0]);
         }
 

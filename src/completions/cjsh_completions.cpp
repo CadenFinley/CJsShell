@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -14,15 +15,18 @@
 #include <vector>
 
 #include "builtin.h"
+#include "builtin_argument_completion.h"
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "completion_history.h"
 #include "completion_spell.h"
 #include "completion_tracker.h"
 #include "completion_utils.h"
+#include "external_sub_completions.h"
 #include "isocline.h"
 #include "shell.h"
 #include "shell_script_interpreter.h"
+#include "token_classifier.h"
 
 std::map<std::string, int> g_completion_frequency;
 bool g_completion_case_sensitive = false;
@@ -207,7 +211,7 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
     std::vector<std::string> builtin_cmds;
     std::vector<std::string> function_names;
     std::unordered_set<std::string> aliases;
-    std::vector<std::filesystem::path> cached_executables;
+    std::vector<std::string> executables_in_path;
 
     if (g_shell && (g_shell->get_built_ins() != nullptr)) {
         builtin_cmds = g_shell->get_built_ins()->get_builtin_commands();
@@ -224,7 +228,19 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
         }
     }
 
-    cached_executables = cjsh_filesystem::read_cached_executables();
+    static std::vector<std::string> cached_execs;
+    static std::chrono::steady_clock::time_point last_scan;
+    static std::string last_path_env;
+    const auto now = std::chrono::steady_clock::now();
+    const char* path_env_c = std::getenv("PATH");
+    const std::string path_env = path_env_c ? path_env_c : "";
+    if (cached_execs.empty() || path_env != last_path_env ||
+        now - last_scan > std::chrono::seconds(2)) {
+        cached_execs = cjsh_filesystem::get_executables_in_path();
+        last_scan = now;
+        last_path_env = path_env;
+    }
+    executables_in_path = cached_execs;
 
     auto builtin_filter = [&](const std::string& cmd) { return is_interactive_builtin(cmd); };
 
@@ -244,9 +260,9 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
     if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv))
         return;
 
-    process_command_candidates(
-        cenv, cached_executables, prefix_str, prefix_len, "system", "cached executables",
-        [](const std::filesystem::path& value) { return value.filename().string(); });
+    process_command_candidates(cenv, executables_in_path, prefix_str, prefix_len, "system",
+                               "executables in PATH",
+                               [](const std::string& value) { return value; });
 
     if (!ic_has_completions(cenv) && g_completion_spell_correction_enabled) {
         std::string normalized_prefix = completion_utils::normalize_for_comparison(prefix_str);
@@ -266,8 +282,7 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
                 std::function<bool(const std::string&)>{}, normalized_prefix, spell_matches);
 
             completion_spell::collect_spell_correction_candidates(
-                cached_executables,
-                [](const std::filesystem::path& value) { return value.filename().string(); },
+                executables_in_path, [](const std::string& value) { return value; },
                 std::function<bool(const std::string&)>{}, normalized_prefix, spell_matches);
 
             if (!spell_matches.empty()) {
@@ -666,6 +681,29 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
         case CONTEXT_ARGUMENT: {
             std::string prefix_str(current_line_prefix);
             std::vector<std::string> tokens = completion_utils::tokenize_command_line(prefix_str);
+
+            bool ends_with_space =
+                !prefix_str.empty() && std::isspace(static_cast<unsigned char>(prefix_str.back()));
+
+            if (!tokens.empty()) {
+                std::vector<std::string> args;
+                if (tokens.size() > 1) {
+                    args.assign(tokens.begin() + 1, tokens.end());
+                }
+                if (ends_with_space) {
+                    args.emplace_back("");
+                }
+
+                bool handled = false;
+                if (token_classifier::is_shell_builtin(tokens[0])) {
+                    handled = builtin_argument_completion::add_completions(cenv, tokens[0], args,
+                                                                           ends_with_space);
+                }
+
+                if (!handled) {
+                    handle_external_sub_completions(cenv, current_line_prefix);
+                }
+            }
 
             if (!tokens.empty() && completion_utils::equals_completion_token(tokens[0], "cd")) {
                 cjsh_filename_completer(cenv, current_line_prefix);

@@ -40,10 +40,10 @@ void print_cjshopt_usage() {
     std::cout << "  keybind <subcommand> [...]       Inspect or modify key bindings (modifications "
                  "in config only)\n";
     std::cout << "    - Use 'keybind ext' for custom command keybindings\n";
-    std::cout << "  generate-profile [--force]       Create or overwrite ~/.cjprofile\n";
-    std::cout << "  generate-rc [--force]            Create or overwrite ~/.cjshrc\n";
-    std::cout << "  generate-logout [--force]        Create or overwrite ~/.cjsh_logout\n";
-    std::cout << "  set-max-bookmarks <number>       Limit stored directory bookmarks (10-1000)\n";
+    std::cout << "  generate-profile [--force] [--alt]       Create or overwrite ~/.cjprofile\n";
+    std::cout << "  generate-rc [--force] [--alt]            Create or overwrite ~/.cjshrc\n";
+    std::cout << "  generate-logout [--force] [--alt]        Create or overwrite ~/.cjsh_logout\n";
+    std::cout << "  set-max-bookmarks <number>       Limit stored directory bookmarks\n";
     std::cout << "  set-history-max <number|default|status> Configure history persistence\n";
     std::cout
         << "  bookmark-blacklist <subcommand>  Manage directories excluded from bookmarking\n";
@@ -67,39 +67,43 @@ int cjshopt_command(const std::vector<std::string>& args) {
              {
                  "Usage: cjshopt <subcommand> [options]",
                  "Available subcommands:",
-                 "  style_def <token_type> <style>   Define or redefine a syntax "
-                 "highlighting style",
-                 "  login-startup-arg [--flag-name]  Add a startup flag "
-                 "(config file only)",
-                 "  completion-case <on|off|status>  Configure completion case "
-                 "sensitivity (default: disabled)",
-                 "  completion-spell <on|off|status> Configure completion spell correction "
-                 "(default: enabled)",
-                 "  line-numbers <on|off|relative|absolute|status>    Configure line numbers in "
-                 "multiline input (default: enabled)",
-                 "  current-line-number-highlight <on|off|status>    Configure current line "
-                 "number highlighting (default: enabled)",
-                 "  multiline-start-lines <count|status> Configure default multiline prompt "
-                 "height (default: 1)",
+                 std::string("  style_def <token_type> <style>   Define or redefine a syntax ") +
+                     "highlighting style",
+                 "  login-startup-arg [--flag-name]  Add a startup flag (config file only)",
+                 std::string("  completion-case <on|off|status>  Configure completion case ") +
+                     "sensitivity (default: disabled)",
+                 std::string("  completion-spell <on|off|status> Configure completion spell ") +
+                     "correction (default: enabled)",
+                 std::string(
+                     "  line-numbers <on|off|relative|absolute|status>    Configure line ") +
+                     "numbers in multiline input (default: enabled)",
+                 std::string(
+                     "  current-line-number-highlight <on|off|status>    Configure current ") +
+                     "line number highlighting (default: enabled)",
+                 std::string(
+                     "  multiline-start-lines <count|status> Configure default multiline ") +
+                     "prompt height (default: 1)",
                  "  hint-delay <milliseconds>        Set hint display delay in milliseconds",
-                 "  completion-preview <on|off|status> Configure completion preview (default: "
-                 "enabled)",
-                 "  visible-whitespace <on|off|status> Configure visible whitespace characters "
-                 "(default: disabled)",
+                 std::string("  completion-preview <on|off|status> Configure completion preview ") +
+                     "(default: enabled)",
+                 std::string("  visible-whitespace <on|off|status> Configure visible whitespace ") +
+                     "characters (default: disabled)",
                  "  hint <on|off|status>            Configure inline hints (default: enabled)",
-                 "  multiline-indent <on|off|status> Configure auto-indent in multiline (default: "
-                 "enabled)",
+                 std::string(
+                     "  multiline-indent <on|off|status> Configure auto-indent in multiline ") +
+                     "(default: enabled)",
                  "  multiline <on|off|status>       Configure multiline input (default: enabled)",
-                 "  inline-help <on|off|status>     Configure inline help messages (default: "
-                 "enabled)",
-                 "  auto-tab <on|off|status>        Configure automatic tab completion (default: "
-                 "enabled)",
-                 "  keybind <subcommand> [...]       Inspect or modify key bindings "
-                 "(modifications in config only)",
-                 "  generate-profile [--force]       Create or overwrite ~/.cjprofile",
-                 "  generate-rc [--force]            Create or overwrite ~/.cjshrc",
-                 "  generate-logout [--force]        Create or overwrite ~/.cjsh_logout",
-                 "  set-max-bookmarks <number>       Limit stored directory bookmarks (10-1000)",
+                 std::string("  inline-help <on|off|status>     Configure inline help messages ") +
+                     "(default: enabled)",
+                 std::string(
+                     "  auto-tab <on|off|status>        Configure automatic tab completion ") +
+                     "(default: enabled)",
+                 std::string("  keybind <subcommand> [...]       Inspect or modify key bindings ") +
+                     "(modifications in config only)",
+                 "  generate-profile [--force] [--alt]       Create or overwrite ~/.cjprofile",
+                 "  generate-rc [--force] [--alt]            Create or overwrite ~/.cjshrc",
+                 "  generate-logout [--force] [--alt]        Create or overwrite ~/.cjsh_logout",
+                 "  set-max-bookmarks <number>       Limit stored directory bookmarks",
                  "  set-history-max <number|default|status> Configure history persistence",
                  "  bookmark-blacklist <subcommand>  Manage directories excluded from bookmarking",
              }});

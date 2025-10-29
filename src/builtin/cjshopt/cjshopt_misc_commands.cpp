@@ -96,7 +96,6 @@ int style_def_command(const std::vector<std::string>& args) {
             std::cout << "Examples:\n";
             std::cout << "  style_def builtin \"bold color=#FFB86C\"\n";
             std::cout << "  style_def system \"color=#50FA7B\"\n";
-            std::cout << "  style_def installed \"color=#8BE9FD\"\n";
             std::cout << "  style_def comment \"italic color=green\"\n";
             std::cout << "  style_def string \"color=#F1FA8C\"\n\n";
             std::cout << "To reset all styles to defaults, use: style_def --reset\n";
@@ -148,7 +147,7 @@ int set_max_bookmarks_command(const std::vector<std::string>& args) {
         "Usage: set-max-bookmarks <number>",
         "",
         "Set the maximum number of directory bookmarks to store.",
-        "Default is 100. Minimum is 10. Maximum is 1000.",
+        "Default is 100.",
         "",
         "Example:",
         "  set-max-bookmarks 200"};
@@ -193,9 +192,9 @@ int set_max_bookmarks_command(const std::vector<std::string>& args) {
         return 1;
     }
 
-    if (number < 10 || number > 1000) {
-        print_error({ErrorType::INVALID_ARGUMENT, "set-max-bookmarks",
-                     "number must be between 10 and 1000", usage_lines});
+    if (number < 0) {
+        print_error({ErrorType::INVALID_ARGUMENT, "set-max-bookmarks", "number must be non-negative",
+                     usage_lines});
         return 1;
     }
 

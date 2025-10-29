@@ -21,10 +21,6 @@ std::vector<std::string> find_similar_entries(const std::string& target_name,
 std::vector<std::string> generate_executable_suggestions(
     const std::string& command, const std::unordered_set<std::string>& available_commands);
 
-std::vector<std::string> load_cached_suggestions(const std::string& command);
-
-void cache_suggestions(const std::string& command, const std::vector<std::string>& suggestions);
-
 std::vector<std::string> generate_fuzzy_suggestions(
     const std::string& command, const std::vector<std::string>& available_commands);
 

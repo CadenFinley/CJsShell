@@ -209,7 +209,6 @@ bool PromptInfo::is_variable_used(const std::string& var_name,
 std::unordered_map<std::string, std::string> PromptInfo::get_variables(
     const std::vector<ThemeSegment>& segments, bool is_git_repo,
     const std::filesystem::path& repo_root) {
-
     auto now = std::chrono::steady_clock::now();
 
     {
@@ -234,7 +233,8 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
                 std::sort(entries.begin(), entries.end(),
                           [](const auto& a, const auto& b) { return a.second < b.second; });
 
-                size_t to_remove = g_language_detection_cache.size() - (kLanguageCacheMaxSize * 3 / 4);
+                size_t to_remove =
+                    g_language_detection_cache.size() - (kLanguageCacheMaxSize * 3 / 4);
                 for (size_t i = 0; i < to_remove && i < entries.size(); ++i) {
                     g_language_detection_cache.erase(entries[i].first);
                 }
@@ -242,7 +242,8 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
         }
 
         if (g_language_version_cache.size() > kLanguageCacheMaxSize) {
-            for (auto it = g_language_version_cache.begin(); it != g_language_version_cache.end();) {
+            for (auto it = g_language_version_cache.begin();
+                 it != g_language_version_cache.end();) {
                 if ((now - it->second.second) >= kLanguageCacheDuration) {
                     it = g_language_version_cache.erase(it);
                 } else {
@@ -259,7 +260,8 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
                 std::sort(entries.begin(), entries.end(),
                           [](const auto& a, const auto& b) { return a.second < b.second; });
 
-                size_t to_remove = g_language_version_cache.size() - (kLanguageCacheMaxSize * 3 / 4);
+                size_t to_remove =
+                    g_language_version_cache.size() - (kLanguageCacheMaxSize * 3 / 4);
                 for (size_t i = 0; i < to_remove && i < entries.size(); ++i) {
                     g_language_version_cache.erase(entries[i].first);
                 }
@@ -815,9 +817,9 @@ std::unordered_map<std::string, std::string> PromptInfo::get_variables(
                     use_cache = true;
                     cached_entry = it->second;
                 } else {
-                    auto elapsed =
-                        std::chrono::duration_cast<std::chrono::seconds>(exec_now - it->second.second)
-                            .count();
+                    auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(
+                                       exec_now - it->second.second)
+                                       .count();
                     if (elapsed < cache_duration) {
                         use_cache = true;
                         cached_entry = it->second;

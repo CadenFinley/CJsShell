@@ -1,36 +1,18 @@
 #include "token_classifier.h"
 
 #include <cctype>
-#include <mutex>
 #include <string>
 
+#include "builtin.h"
+#include "cjsh.h"
 #include "cjsh_filesystem.h"
+#include "shell.h"
 #include "token_constants.h"
 
 namespace token_classifier {
 
-std::unordered_set<std::string> external_executables_;
-std::shared_mutex external_cache_mutex_;
-
-void initialize_external_cache() {
-    std::unique_lock<std::shared_mutex> lock(external_cache_mutex_);
-    external_executables_.clear();
-    for (const auto& e : cjsh_filesystem::read_cached_executables()) {
-        external_executables_.insert(e.filename().string());
-    }
-}
-
-void refresh_executables_cache() {
-    std::unique_lock<std::shared_mutex> lock(external_cache_mutex_);
-    external_executables_.clear();
-    for (const auto& e : cjsh_filesystem::read_cached_executables()) {
-        external_executables_.insert(e.filename().string());
-    }
-}
-
 bool is_external_command(const std::string& token) {
-    std::shared_lock<std::shared_mutex> lock(external_cache_mutex_);
-    return external_executables_.count(token) > 0;
+    return !cjsh_filesystem::find_executable_in_path(token).empty();
 }
 
 bool is_shell_keyword(const std::string& token) {
@@ -38,7 +20,10 @@ bool is_shell_keyword(const std::string& token) {
 }
 
 bool is_shell_builtin(const std::string& token) {
-    return token_constants::shell_built_ins.count(token) > 0;
+    if (g_shell != nullptr && g_shell->get_built_ins() != nullptr) {
+        return g_shell->get_built_ins()->is_builtin_command(token);
+    }
+    return false;
 }
 
 bool is_variable_reference(const std::string& token) {
@@ -76,11 +61,7 @@ bool is_quoted_string(const std::string& token, char& quote_type) {
 }
 
 bool is_redirection_operator(const std::string& token) {
-    static const std::unordered_set<std::string> redirection_ops = {
-        ">",  ">>",  "<",  "<<",  "<<<",  "&>",   "&>>", "<&", ">&", "|&",
-        "2>", "2>>", "1>", "1>>", "2>&1", "1>&2", ">&2", "<>", "1<", "2<",
-        "0<", "0>",  "3>", "4>",  "5>",   "6>",   "7>",  "8>", "9>"};
-    return redirection_ops.count(token) > 0;
+    return token_constants::redirection_operators.count(token) > 0;
 }
 
 bool is_glob_pattern(const std::string& token) {

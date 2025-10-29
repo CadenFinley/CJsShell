@@ -148,8 +148,8 @@ ls !^           # Uses first arg from previous command
 ```bash
 cjshopt style_def <token> <style>     # Syntax highlighting styles
 cjshopt keybind <action> <key>        # Custom key bindings
-cjshopt generate-profile              # Generate ~/.cjprofile
-cjshopt generate-rc                   # Generate ~/.cjshrc
+cjshopt generate-profile [--alt]      # Generate ~/.cjprofile (alt: ~/.config/cjsh/.cjprofile)
+cjshopt generate-rc [--alt]           # Generate ~/.cjshrc (alt: ~/.config/cjsh/.cjshrc)
 cjshopt set-history-max <number>      # History configuration
 ```
 
@@ -207,8 +207,7 @@ Beyond standard POSIX startup files:
 **POSIX Equivalent**: `~/.profile`, `~/.sh_profile` (basic functionality only)
 
 #### Runtime Configuration
-- **`~/.cache/cjsh/`**: Cache directory for performance optimization
-- **Executable Cache**: Cached PATH command lookups
+- **`~/.cache/cjsh/`**: Cache directory for shell data
 - **History Management**: Enhanced history with size limits
 - **Bookmark Database**: Persistent directory bookmarks
 
@@ -227,15 +226,10 @@ cjsh --secure                 # Secure mode
 
 ## Performance Features (POSIX+)
 
-### Caching Systems
-- **Command Lookup Cache**: Cached executable path resolution
-- **Theme Cache**: Parsed theme caching for performance
-- **History Optimization**: Efficient history file management
-- **Variable Caching**: Prompt variable caching
-
-### Background Processing
-- **Asynchronous Operations**: Non-blocking operations where possible
-- **Lazy Loading**: Deferred initialization of non-essential features
+### Dynamic PATH Resolution
+- **Real-Time Executable Discovery**: Commands are discovered by crawling PATH on-demand
+- **No Cache Staleness**: Always reflects current PATH state
+- **Fast Lookups**: Optimized directory traversal for command resolution
 
 ## Extended Scripting Features
 

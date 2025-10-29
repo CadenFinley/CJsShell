@@ -149,46 +149,34 @@ const fs::path g_user_home_path = []() {
 
 extern fs::path g_cjsh_path;
 
+const fs::path g_cjsh_config_path = g_user_home_path / ".config" / "cjsh";
+
+const fs::path g_cjsh_cache_path = g_user_home_path / ".cache" / "cjsh";
+
 const fs::path g_cjsh_profile_path = g_user_home_path / ".cjprofile";
-
 const fs::path g_cjsh_source_path = g_user_home_path / ".cjshrc";
-
 const fs::path g_cjsh_logout_path = g_user_home_path / ".cjsh_logout";
 
-const fs::path g_cache_path = g_user_home_path / ".cache";
-
-const fs::path g_cjsh_cache_path = g_cache_path / "cjsh";
+const fs::path g_cjsh_profile_alt_path = g_cjsh_config_path / ".cjprofile";
+const fs::path g_cjsh_source_alt_path = g_cjsh_config_path / ".cjshrc";
+const fs::path g_cjsh_logout_alt_path = g_cjsh_config_path / ".cjsh_logout";
 
 const fs::path g_cjsh_history_path = g_cjsh_cache_path / "history.txt";
 
-const fs::path g_cjsh_found_executables_path = g_cjsh_cache_path / "cached_executables.cache";
-
-const fs::path g_cjsh_path_hash_cache_path = g_cjsh_cache_path / "path_hash.cache";
-
 const fs::path g_cjsh_first_boot_path = g_cjsh_cache_path / ".first_boot";
 
-std::vector<fs::path> read_cached_executables();
-bool build_executable_cache();
-bool file_exists(const cjsh_filesystem::fs::path& path);
-bool should_refresh_executable_cache();
-bool initialize_cjsh_path();
+const fs::path g_cjsh_generated_completions_path = g_cjsh_cache_path / "generated_completions";
 
-void add_executable_to_cache(const std::string& executable_name, const std::string& full_path);
-void remove_executable_from_cache(const std::string& executable_name);
-void invalidate_executable_cache();
-bool is_executable_in_cache(const std::string& executable_name);
-void set_last_path_hash(const std::string& path_hash);
-std::string get_current_path_hash();
-bool has_path_changed();
-void cleanup_stale_cache_entries();
-void notify_cache_systems_of_update();
+std::vector<std::string> get_executables_in_path();
+bool file_exists(const cjsh_filesystem::fs::path& path);
+bool initialize_cjsh_path();
 bool initialize_cjsh_directories();
 std::filesystem::path get_cjsh_path();
 std::string find_executable_in_path(const std::string& name);
 
-bool create_profile_file();
-bool create_source_file();
-bool create_logout_file();
+bool create_profile_file(const fs::path& target_path = g_cjsh_profile_path);
+bool create_source_file(const fs::path& target_path = g_cjsh_source_path);
+bool create_logout_file(const fs::path& target_path = g_cjsh_logout_path);
 
 bool init_interactive_filesystem();
 
