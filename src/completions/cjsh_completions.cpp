@@ -21,6 +21,7 @@
 #include "completion_spell.h"
 #include "completion_tracker.h"
 #include "completion_utils.h"
+#include "external_sub_completions.h"
 #include "isocline.h"
 #include "shell.h"
 #include "shell_script_interpreter.h"
@@ -679,8 +680,13 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
                     args.emplace_back("");
                 }
 
-                builtin_argument_completion::add_completions(cenv, tokens[0], args,
-                                                             ends_with_space);
+                bool handled = builtin_argument_completion::add_completions(cenv, tokens[0], args,
+                                                                            ends_with_space);
+
+                if (!handled) {
+                    // command was not a shell builtin so we assume it's an external command
+                    //  handle_external_sub_completions(cenv, current_line_prefix);
+                }
             }
 
             if (!tokens.empty() && completion_utils::equals_completion_token(tokens[0], "cd")) {
