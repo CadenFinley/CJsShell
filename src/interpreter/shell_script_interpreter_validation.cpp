@@ -1379,15 +1379,37 @@ std::vector<SyntaxError> create_char_iteration_validator(const std::vector<std::
 }
 
 template <typename Callback>
+std::vector<SyntaxError> validate_default_char_iteration(
+    const std::vector<std::string>& lines, Callback&& callback) {
+    return create_char_iteration_validator(lines, false, true, std::forward<Callback>(callback));
+}
+
+template <typename Callback>
 std::vector<SyntaxError> create_tokenized_validator(const std::vector<std::string>& lines,
                                                     Callback&& callback) {
     return validate_with_tokenized_line(lines, std::forward<Callback>(callback));
 }
 
+template <typename Callback>
+std::vector<SyntaxError> validate_tokenized_with_first_token(
+    const std::vector<std::string>& lines, Callback&& callback) {
+    return create_tokenized_validator(
+        lines,
+        [callback = std::forward<Callback>(callback)](
+            std::vector<SyntaxError>& line_errors, const std::string& line,
+            const std::string& trimmed_line, size_t display_line,
+            const std::vector<std::string>& tokens, const std::string& first_token) {
+            if (first_token.empty()) {
+                return;
+            }
+            callback(line_errors, line, trimmed_line, display_line, tokens, first_token);
+        });
+}
+
 std::vector<ShellScriptInterpreter::SyntaxError>
 ShellScriptInterpreter::validate_redirection_syntax(const std::vector<std::string>& lines) {
-    return create_char_iteration_validator(
-        lines, false, true,
+    return validate_default_char_iteration(
+        lines,
         [](std::vector<SyntaxError>& line_errors, const std::string& line, size_t display_line,
            size_t i, char c, const QuoteState& state, size_t& next_index) {
             if (state.in_quotes) {
@@ -1830,96 +1852,95 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::analyze
 
 std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::check_style_guidelines(
     const std::vector<std::string>& lines) {
-    std::vector<SyntaxError> errors;
+    return validate_lines_basic(
+        lines,
+        [](const std::string& line, const std::string& trimmed_line, size_t display_line,
+           size_t /*first_non_space*/) -> std::vector<SyntaxError> {
+            std::vector<SyntaxError> line_errors;
 
-    for (size_t line_num = 0; line_num < lines.size(); ++line_num) {
-        const std::string& line = lines[line_num];
-        size_t display_line = line_num + 1;
+            if (trimmed_line.rfind("if ", 0) == 0 || trimmed_line.rfind("while ", 0) == 0 ||
+                trimmed_line.rfind("until ", 0) == 0) {
+                int logical_ops = 0;
+                int bracket_depth = 0;
+                int max_bracket_depth = 0;
+                QuoteState quote_state;
 
-        std::string trimmed_line;
-        size_t first_non_space = 0;
-        if (!extract_trimmed_line(line, trimmed_line, first_non_space)) {
-            continue;
-        }
+                for (size_t i = 0; i < line.length() - 1; ++i) {
+                    char c = line[i];
 
-        if (trimmed_line.rfind("if ", 0) == 0 || trimmed_line.rfind("while ", 0) == 0 ||
-            trimmed_line.rfind("until ", 0) == 0) {
-            int logical_ops = 0;
-            int bracket_depth = 0;
-            int max_bracket_depth = 0;
-            QuoteState quote_state;
+                    if (!should_process_char(quote_state, c, false, false)) {
+                        continue;
+                    }
 
-            for (size_t i = 0; i < line.length() - 1; ++i) {
-                char c = line[i];
-
-                if (!should_process_char(quote_state, c, false, false)) {
-                    continue;
-                }
-
-                if (!quote_state.in_quotes) {
-                    if ((c == '&' && line[i + 1] == '&') || (c == '|' && line[i + 1] == '|')) {
-                        logical_ops++;
-                        i++;
-                    } else if (c == '[') {
-                        bracket_depth++;
-                        max_bracket_depth = std::max(max_bracket_depth, bracket_depth);
-                    } else if (c == ']') {
-                        bracket_depth--;
+                    if (!quote_state.in_quotes) {
+                        if ((c == '&' && line[i + 1] == '&') || (c == '|' && line[i + 1] == '|')) {
+                            logical_ops++;
+                            i++;
+                        } else if (c == '[') {
+                            bracket_depth++;
+                            max_bracket_depth = std::max(max_bracket_depth, bracket_depth);
+                        } else if (c == ']') {
+                            bracket_depth--;
+                        }
                     }
                 }
+
+                if (logical_ops > 3) {
+                    line_errors.push_back(
+                        SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::INFO,
+                                    ErrorCategory::STYLE, "STYLE001",
+                                    "Complex condition with " + std::to_string(logical_ops) +
+                                        " logical operators",
+                                    line,
+                                    "Consider breaking into multiple if statements or "
+                                    "using a function"));
+                }
+
+                if (max_bracket_depth > 2) {
+                    line_errors.push_back(SyntaxError(
+                        {display_line, 0, 0, 0}, ErrorSeverity::INFO, ErrorCategory::STYLE,
+                        "STYLE002",
+                        "Deeply nested test conditions (depth: " +
+                            std::to_string(max_bracket_depth) + ")",
+                        line, "Consider simplifying the condition logic"));
+                }
             }
 
-            if (logical_ops > 3) {
-                errors.push_back(SyntaxError(
-                    {display_line, 0, 0, 0}, ErrorSeverity::INFO, ErrorCategory::STYLE, "STYLE001",
-                    "Complex condition with " + std::to_string(logical_ops) + " logical operators",
-                    line,
-                    "Consider breaking into multiple if statements or "
-                    "using a function"));
+            if (line.length() > 100) {
+                line_errors.push_back(SyntaxError({display_line, 100, line.length(), 0},
+                                                  ErrorSeverity::INFO, ErrorCategory::STYLE,
+                                                  "STYLE003",
+                                                  "Line length (" + std::to_string(line.length()) +
+                                                      " chars) exceeds recommended 100 characters",
+                                                  line,
+                                                  "Consider breaking long lines for better readability"));
             }
 
-            if (max_bracket_depth > 2) {
-                errors.push_back(SyntaxError(
-                    {display_line, 0, 0, 0}, ErrorSeverity::INFO, ErrorCategory::STYLE, "STYLE002",
-                    "Deeply nested test conditions (depth: " + std::to_string(max_bracket_depth) +
-                        ")",
-                    line, "Consider simplifying the condition logic"));
+            if (line.find('\t') != std::string::npos && line.find(' ') != std::string::npos) {
+                size_t first_tab = line.find('\t');
+                size_t first_space = line.find(' ');
+                if (first_tab < 20 && first_space < 20) {
+                    line_errors.push_back(
+                        SyntaxError({display_line, 0, std::min(first_tab, first_space), 0},
+                                    ErrorSeverity::INFO, ErrorCategory::STYLE, "STYLE004",
+                                    "Mixed tabs and spaces for indentation", line,
+                                    "Use consistent indentation (either all tabs or all spaces)"));
+                }
             }
-        }
 
-        if (line.length() > 100) {
-            errors.push_back(SyntaxError({display_line, 100, line.length(), 0}, ErrorSeverity::INFO,
-                                         ErrorCategory::STYLE, "STYLE003",
-                                         "Line length (" + std::to_string(line.length()) +
-                                             " chars) exceeds recommended 100 characters",
-                                         line,
-                                         "Consider breaking long lines for better readability"));
-        }
-
-        if (line.find('\t') != std::string::npos && line.find(' ') != std::string::npos) {
-            size_t first_tab = line.find('\t');
-            size_t first_space = line.find(' ');
-            if (first_tab < 20 && first_space < 20) {
-                errors.push_back(SyntaxError({display_line, 0, std::min(first_tab, first_space), 0},
-                                             ErrorSeverity::INFO, ErrorCategory::STYLE, "STYLE004",
-                                             "Mixed tabs and spaces for indentation", line,
-                                             "Use consistent indentation (either all tabs or all "
-                                             "spaces)"));
+            if (trimmed_line.find("eval ") != std::string::npos ||
+                trimmed_line.find("$(") != std::string::npos) {
+                std::string warning_type = trimmed_line.find("eval ") != std::string::npos
+                                                ? "eval"
+                                                : "command substitution";
+                line_errors.push_back(SyntaxError(
+                    {display_line, 0, 0, 0}, ErrorSeverity::WARNING, ErrorCategory::STYLE,
+                    "STYLE005", "Use of " + warning_type + " - potential security risk", line,
+                    "Validate input carefully or consider safer alternatives"));
             }
-        }
 
-        if (trimmed_line.find("eval ") != std::string::npos ||
-            trimmed_line.find("$(") != std::string::npos) {
-            std::string warning_type =
-                trimmed_line.find("eval ") != std::string::npos ? "eval" : "command substitution";
-            errors.push_back(
-                SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::WARNING, ErrorCategory::STYLE,
-                            "STYLE005", "Use of " + warning_type + " - potential security risk",
-                            line, "Validate input carefully or consider safer alternatives"));
-        }
-    }
-
-    return errors;
+            return line_errors;
+        });
 }
 
 std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validate_pipeline_syntax(
@@ -2030,13 +2051,11 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
 
 std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validate_loop_syntax(
     const std::vector<std::string>& lines) {
-    return create_tokenized_validator(
-        lines, [](std::vector<SyntaxError>& line_errors, const std::string& line,
-                  const std::string& trimmed_line, size_t display_line,
-                  const std::vector<std::string>& tokens, const std::string& first_token) {
-            if (first_token.empty())
-                return;
-
+    return validate_tokenized_with_first_token(
+        lines,
+        [](std::vector<SyntaxError>& line_errors, const std::string& line,
+           const std::string& trimmed_line, size_t display_line,
+           const std::vector<std::string>& tokens, const std::string& first_token) {
             if (first_token == "for") {
                 auto loop_check = analyze_for_loop_syntax(tokens, trimmed_line);
                 if (loop_check.incomplete) {
@@ -2077,13 +2096,11 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
 
 std::vector<ShellScriptInterpreter::SyntaxError>
 ShellScriptInterpreter::validate_conditional_syntax(const std::vector<std::string>& lines) {
-    return create_tokenized_validator(
-        lines, [](std::vector<SyntaxError>& line_errors, const std::string& line,
-                  const std::string& trimmed_line, size_t display_line,
-                  const std::vector<std::string>& tokens, const std::string& first_token) {
-            if (first_token.empty())
-                return;
-
+    return validate_tokenized_with_first_token(
+        lines,
+        [](std::vector<SyntaxError>& line_errors, const std::string& line,
+           const std::string& trimmed_line, size_t display_line,
+           const std::vector<std::string>& tokens, const std::string& first_token) {
             if (first_token == "if") {
                 auto if_check = analyze_if_syntax(tokens, trimmed_line);
                 if (if_check.missing_then_keyword) {
@@ -2118,8 +2135,8 @@ ShellScriptInterpreter::validate_conditional_syntax(const std::vector<std::strin
 
 std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validate_array_syntax(
     const std::vector<std::string>& lines) {
-    return create_char_iteration_validator(
-        lines, false, true,
+    return validate_default_char_iteration(
+        lines,
         [](std::vector<SyntaxError>& line_errors, const std::string& line, size_t display_line,
            size_t i, char c, const QuoteState& state, size_t& next_index) {
             if (!state.in_quotes && c == '(' && i > 0) {

@@ -147,6 +147,7 @@ void raw_mode_state_release(RawModeState* state) {
     }
 
     if (tcsetattr(state->fd, TCSANOW, &state->saved_modes) == -1) {
+        // dont do anything if saved mode is invalid, likely we inhierited a broken state
     }
 
     state->entered = false;
