@@ -338,12 +338,10 @@ again:
         }
 
         if (visible_start > 0 && visible_end >= visible_start) {
-            snprintf(header, sizeof(header),
-                     "[ic-info]Showing %zd-%zd of %zd completions%s[/]\n", visible_start,
-                     visible_end, count, hint_suffix);
+            snprintf(header, sizeof(header), "[ic-info]Showing %zd-%zd of %zd completions%s[/]\n",
+                     visible_start, visible_end, count, hint_suffix);
         } else {
-            snprintf(header, sizeof(header),
-                     "[ic-info]Showing %zd of %zd completions%s[/]\n",
+            snprintf(header, sizeof(header), "[ic-info]Showing %zd of %zd completions%s[/]\n",
                      (visible_count > 0 ? visible_count : count_displayed), count, hint_suffix);
         }
         sbuf_insert_at(eb->extra, header, 0);

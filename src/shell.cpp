@@ -433,16 +433,16 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
     bool should_invalidate_prompt_cache = false;
     if (config::interactive_mode || config::force_interactive) {
         for (const auto& token : args) {
-            bool looks_like_assignment = token.find('=') != std::string::npos &&
-                                      token.find('/') == std::string::npos;
+            bool looks_like_assignment =
+                token.find('=') != std::string::npos && token.find('/') == std::string::npos;
             if (looks_like_assignment) {
                 continue;
             }
             should_invalidate_prompt_cache =
-            std::filesystem::path(token).filename().string() == "clear";
+                std::filesystem::path(token).filename().string() == "clear";
             break;
         }
-    }   
+    }
     if (!shell_exec || !built_ins) {
         g_exit_flag = true;
         print_error(
