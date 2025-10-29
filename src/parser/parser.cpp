@@ -73,10 +73,126 @@ std::vector<std::string> fast_split_on_whitespace(std::string_view cmdline) {
     return result;
 }
 
+bool handle_arithmetic_expansion(std::string_view text, size_t idx, size_t pos, 
+                                  bool in_double, int& arith_depth) {
+    if (idx + 2 >= pos || idx + 2 >= text.size()) {
+        return false;
+    }
+    
+    char current = text[idx];
+    
+    if (current == '$' && text[idx + 1] == '(' && text[idx + 2] == '(') {
+        arith_depth++;
+        return true;
+    }
+    
+    if (!in_double && current == '(' && text[idx + 1] == '(' && idx + 1 < pos) {
+        arith_depth++;
+        return true;
+    }
+    
+    if (arith_depth > 0 && current == ')' && text[idx + 1] == ')' && idx + 1 < pos) {
+        arith_depth--;
+        return true;
+    }
+    
+    return false;
+}
+
+bool handle_double_bracket_open(const std::string& command, size_t i, std::string& current, 
+                                 DelimiterState& delimiters, size_t& index_increment) {
+    if (delimiters.in_quotes || i + 1 >= command.length() || command[i + 1] != '[') {
+        return false;
+    }
+    delimiters.bracket_depth++;
+    current += command[i];
+    current += command[i + 1];
+    index_increment = 1;
+    return true;
+}
+
+bool handle_double_bracket_close(const std::string& command, size_t i, std::string& current,
+                                  DelimiterState& delimiters, size_t& index_increment) {
+    if (delimiters.in_quotes || delimiters.bracket_depth <= 0 || i + 1 >= command.length() ||
+        command[i + 1] != ']') {
+        return false;
+    }
+    delimiters.bracket_depth--;
+    current += command[i];
+    current += command[i + 1];
+    index_increment = 1;
+    return true;
+}
+
 }  // namespace
 
-void Parser::set_shell(Shell* shell) {
-    this->shell = shell;
+void Parser::process_heredoc_content(std::string& content) {
+    if (content.length() >= 10 && content.substr(0, 10) == "__EXPAND__") {
+        content = content.substr(10);
+        if (!variableExpander) {
+            variableExpander = std::make_unique<VariableExpander>(shell, env_vars);
+        }
+        variableExpander->expand_env_vars(content);
+        variableExpander->expand_command_substitutions_in_string(content);
+    }
+    strip_subst_literal_markers(content);
+}
+
+bool Parser::is_control_word_at_position(const std::string& command, size_t i, 
+                                          int paren_depth, int brace_depth, bool in_quotes,
+                                          int& control_depth) {
+    if (in_quotes || paren_depth != 0 || brace_depth != 0) {
+        return false;
+    }
+
+    if (command[i] != ' ' && command[i] != '\t' && i != 0) {
+        return false;
+    }
+
+    size_t word_start = (command[i] == ' ' || command[i] == '\t') ? i + 1 : i;
+    std::string word;
+    size_t j = word_start;
+    while (j < command.length() && std::isalpha(command[j])) {
+        word += command[j];
+        j++;
+    }
+
+    if (word == "if" || word == "for" || word == "while" || word == "until" || word == "case") {
+        control_depth++;
+        return true;
+    } else if ((word == "fi" || word == "done" || word == "esac") && control_depth > 0) {
+        control_depth--;
+        return true;
+    }
+
+    return false;
+}
+
+bool Parser::handle_fd_redirection(const std::string& value, size_t& i,
+                                    const std::vector<std::string>& tokens, Command& cmd,
+                                    std::vector<std::string>& filtered_args) {
+    if (value.length() <= 1 || i + 1 >= tokens.size()) {
+        return false;
+    }
+
+    char op = value.back();
+    if ((op != '<' && op != '>') || !std::isdigit(value[0])) {
+        return false;
+    }
+
+    try {
+        int fd = std::stoi(value.substr(0, value.length() - 1));
+        std::string file = QuoteInfo(tokens[++i]).value;
+        std::string direction = (op == '<') ? "input:" : "output:";
+        cmd.set_fd_redirection(fd, direction + file);
+        return true;
+    } catch (const std::exception&) {
+        filtered_args.push_back(tokens[i]);
+        return false;
+    }
+}
+
+void Parser::ensure_parsers_initialized() {
     if (!tokenizer) {
         tokenizer = std::make_unique<Tokenizer>();
     }
@@ -86,6 +202,11 @@ void Parser::set_shell(Shell* shell) {
     if (!expansionEngine) {
         expansionEngine = std::make_unique<ExpansionEngine>(shell);
     }
+}
+
+void Parser::set_shell(Shell* shell) {
+    this->shell = shell;
+    ensure_parsers_initialized();
 }
 
 std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
@@ -205,16 +326,12 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
                     idx++;
                     continue;
                 }
-                if (ch == '$' && idx + 2 < pos && idx + 2 < text.size() && text[idx + 1] == '(' &&
-                    text[idx + 2] == '(') {
-                    arith_depth++;
-                    idx += 3;
-                    continue;
-                }
-                if (arith_depth > 0 && ch == ')' && idx + 1 < pos && idx + 1 < text.size() &&
-                    text[idx + 1] == ')') {
-                    arith_depth--;
-                    idx += 2;
+                if (::handle_arithmetic_expansion(text, idx, pos, in_double, arith_depth)) {
+                    if (ch == '$') {
+                        idx += 3;
+                    } else {
+                        idx += 2;
+                    }
                     continue;
                 }
                 idx++;
@@ -227,23 +344,14 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
                 continue;
             }
 
-            if (ch == '$' && idx + 2 < pos && idx + 2 < text.size() && text[idx + 1] == '(' &&
-                text[idx + 2] == '(') {
-                arith_depth++;
-                idx += 3;
-                continue;
-            }
-
-            if (ch == '(' && idx + 1 < pos && idx + 1 < text.size() && text[idx + 1] == '(') {
-                arith_depth++;
-                idx += 2;
-                continue;
-            }
-
-            if (arith_depth > 0 && ch == ')' && idx + 1 < pos && idx + 1 < text.size() &&
-                text[idx + 1] == ')') {
-                arith_depth--;
-                idx += 2;
+            if (::handle_arithmetic_expansion(text, idx, pos, in_double, arith_depth)) {
+                if (ch == '$') {
+                    idx += 3;
+                } else if (ch == '(') {
+                    idx += 2;
+                } else {
+                    idx += 2;
+                }
                 continue;
             }
 
@@ -570,15 +678,7 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
 }
 
 std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
-    if (!tokenizer) {
-        tokenizer = std::make_unique<Tokenizer>();
-    }
-    if (!variableExpander) {
-        variableExpander = std::make_unique<VariableExpander>(shell, env_vars);
-    }
-    if (!expansionEngine) {
-        expansionEngine = std::make_unique<ExpansionEngine>(shell);
-    }
+    ensure_parsers_initialized();
 
     std::vector<std::string> args;
 
@@ -772,18 +872,20 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
         } else if (!delimiters.in_quotes && command[i] == ')') {
             delimiters.paren_depth--;
             current += command[i];
-        } else if (!delimiters.in_quotes && command[i] == '[' && i + 1 < command.length() &&
-                   command[i + 1] == '[') {
-            delimiters.bracket_depth++;
-            current += command[i];
-            current += command[i + 1];
-            i++;
-        } else if (!delimiters.in_quotes && command[i] == ']' && i + 1 < command.length() &&
-                   command[i + 1] == ']' && delimiters.bracket_depth > 0) {
-            delimiters.bracket_depth--;
-            current += command[i];
-            current += command[i + 1];
-            i++;
+        } else if (command[i] == '[') {
+            size_t increment = 0;
+            if (handle_double_bracket_open(command, i, current, delimiters, increment)) {
+                i += increment;
+            } else {
+                current += command[i];
+            }
+        } else if (command[i] == ']') {
+            size_t increment = 0;
+            if (handle_double_bracket_close(command, i, current, delimiters, increment)) {
+                i += increment;
+            } else {
+                current += command[i];
+            }
         } else if (command[i] == '|' && !delimiters.in_quotes && delimiters.paren_depth == 0 &&
                    delimiters.bracket_depth == 0) {
             if (i > 0 && command[i - 1] == '>') {
@@ -1041,24 +1143,8 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                 cmd.stdout_to_stderr = true;
             } else if (handle_fd_duplication_token(qi.value)) {
                 continue;
-            } else if (qi.value.find('<') == qi.value.length() - 1 && qi.value.length() > 1 &&
-                       (std::isdigit(qi.value[0]) != 0) && i + 1 < tokens.size()) {
-                try {
-                    int fd = std::stoi(qi.value.substr(0, qi.value.length() - 1));
-                    std::string file = get_next_token_value(i);
-                    cmd.set_fd_redirection(fd, "input:" + file);
-                } catch (const std::exception&) {
-                    filtered_args.push_back(tokens[i]);
-                }
-            } else if (qi.value.find('>') == qi.value.length() - 1 && qi.value.length() > 1 &&
-                       (std::isdigit(qi.value[0]) != 0) && i + 1 < tokens.size()) {
-                try {
-                    int fd = std::stoi(qi.value.substr(0, qi.value.length() - 1));
-                    std::string file = get_next_token_value(i);
-                    cmd.set_fd_redirection(fd, "output:" + file);
-                } catch (const std::exception&) {
-                    filtered_args.push_back(tokens[i]);
-                }
+            } else if (handle_fd_redirection(qi.value, i, tokens, cmd, filtered_args)) {
+                continue;
             } else {
                 if ((qi.value.find("<(") == 0 && qi.value.back() == ')') ||
                     (qi.value.find(">(") == 0 && qi.value.back() == ')')) {
@@ -1220,18 +1306,7 @@ std::vector<Command> Parser::parse_pipeline_with_preprocessing(const std::string
             auto it = current_here_docs.find(cmd.input_file);
             if (it != current_here_docs.end()) {
                 std::string content = it->second;
-
-                if (content.length() >= 10 && content.substr(0, 10) == "__EXPAND__") {
-                    content = content.substr(10);
-                    if (!variableExpander) {
-                        variableExpander = std::make_unique<VariableExpander>(shell, env_vars);
-                    }
-                    variableExpander->expand_env_vars(content);
-                    variableExpander->expand_command_substitutions_in_string(content);
-                }
-
-                strip_subst_literal_markers(content);
-
+                process_heredoc_content(content);
                 cmd.here_doc = content;
                 cmd.input_file.clear();
             }
@@ -1239,18 +1314,7 @@ std::vector<Command> Parser::parse_pipeline_with_preprocessing(const std::string
 
         if (!cmd.here_doc.empty() && (current_here_docs.count(cmd.here_doc) != 0u)) {
             std::string content = current_here_docs[cmd.here_doc];
-
-            if (content.length() >= 10 && content.substr(0, 10) == "__EXPAND__") {
-                content = content.substr(10);
-                if (!variableExpander) {
-                    variableExpander = std::make_unique<VariableExpander>(shell, env_vars);
-                }
-                variableExpander->expand_env_vars(content);
-                variableExpander->expand_command_substitutions_in_string(content);
-            }
-
-            strip_subst_literal_markers(content);
-
+            process_heredoc_content(content);
             cmd.here_doc = content;
         }
     }
@@ -1328,69 +1392,43 @@ std::vector<LogicalCommand> Parser::parse_logical_commands(const std::string& co
         }
 
         if (!delimiters.in_quotes && command[i] == '[') {
-            if (i + 1 < command.length() && command[i + 1] == '[') {
-                delimiters.bracket_depth++;
-                current += command[i];
-                current += command[i + 1];
-                i++;
-                continue;
-            } else {
-                bool is_test_bracket = (i == 0 || command[i - 1] == ' ' || command[i - 1] == '\t' ||
-                                        command[i - 1] == ';' || command[i - 1] == '\n');
-                if (is_test_bracket) {
-                    single_bracket_depth++;
-                }
-                current += command[i];
+            size_t increment = 0;
+            if (handle_double_bracket_open(command, i, current, delimiters, increment)) {
+                i += increment;
                 continue;
             }
+
+            bool is_test_bracket = (i == 0 || command[i - 1] == ' ' || command[i - 1] == '\t' ||
+                                    command[i - 1] == ';' || command[i - 1] == '\n');
+            if (is_test_bracket) {
+                single_bracket_depth++;
+            }
+            current += command[i];
+            continue;
         }
 
         if (!delimiters.in_quotes && command[i] == ']') {
-            if (i + 1 < command.length() && command[i + 1] == ']' && delimiters.bracket_depth > 0) {
-                delimiters.bracket_depth--;
-                current += command[i];
-                current += command[i + 1];
-                i++;
-                continue;
-            } else {
-                if (single_bracket_depth > 0) {
-                    bool is_test_close =
-                        (i + 1 >= command.length() || command[i + 1] == ' ' ||
-                         command[i + 1] == '\t' || command[i + 1] == ';' || command[i + 1] == '&' ||
-                         command[i + 1] == '|' || command[i + 1] == '\n');
-                    if (is_test_close) {
-                        single_bracket_depth--;
-                    }
-                }
-                current += command[i];
+            size_t increment = 0;
+            if (handle_double_bracket_close(command, i, current, delimiters, increment)) {
+                i += increment;
                 continue;
             }
-        }
 
-        if (!delimiters.in_quotes && delimiters.paren_depth == 0 && delimiters.brace_depth == 0) {
-            if (command[i] == ' ' || command[i] == '\t' || i == 0) {
-                size_t word_start = i;
-                if (command[i] == ' ' || command[i] == '\t') {
-                    word_start = i + 1;
-                }
-
-                std::string word;
-                size_t j = word_start;
-                while (j < command.length() && std::isalpha(command[j])) {
-                    word += command[j];
-                    j++;
-                }
-
-                if (word == "if" || word == "for" || word == "while" || word == "until" ||
-                    word == "case") {
-                    control_depth++;
-
-                } else if ((word == "fi" || word == "done" || word == "esac") &&
-                           control_depth > 0) {
-                    control_depth--;
+            if (single_bracket_depth > 0) {
+                bool is_test_close =
+                    (i + 1 >= command.length() || command[i + 1] == ' ' ||
+                     command[i + 1] == '\t' || command[i + 1] == ';' || command[i + 1] == '&' ||
+                     command[i + 1] == '|' || command[i + 1] == '\n');
+                if (is_test_close) {
+                    single_bracket_depth--;
                 }
             }
+            current += command[i];
+            continue;
         }
+
+        is_control_word_at_position(command, i, delimiters.paren_depth, delimiters.brace_depth, 
+                                     delimiters.in_quotes, control_depth);
 
         if (!delimiters.in_quotes && delimiters.paren_depth == 0 && arith_depth == 0 &&
             delimiters.bracket_depth == 0 && single_bracket_depth == 0 && control_depth == 0 &&
@@ -1448,29 +1486,12 @@ std::vector<std::string> Parser::parse_semicolon_commands(const std::string& com
             scan_state.brace_depth++;
         } else if (!scan_state.in_quotes && command[i] == '}') {
             scan_state.brace_depth--;
-        } else if (!scan_state.in_quotes && scan_state.paren_depth == 0 &&
-                   scan_state.brace_depth == 0) {
-            if (command[i] == ' ' || command[i] == '\t' || i == 0) {
-                size_t word_start = i;
-                if (command[i] == ' ' || command[i] == '\t')
-                    word_start = i + 1;
+        }
 
-                std::string word;
-                size_t j = word_start;
-                while (j < command.length() && (std::isalpha(command[j]) != 0)) {
-                    word += command[j];
-                    j++;
-                }
+        is_control_word_at_position(command, i, scan_state.paren_depth, scan_state.brace_depth,
+                                     scan_state.in_quotes, control_depth);
 
-                if (word == "if" || word == "for" || word == "while" || word == "until" ||
-                    word == "case") {
-                    control_depth++;
-                } else if ((word == "fi" || word == "done" || word == "esac") &&
-                           control_depth > 0) {
-                    control_depth--;
-                }
-            }
-
+        if (!scan_state.in_quotes && scan_state.paren_depth == 0 && scan_state.brace_depth == 0) {
             if (split_on_newlines && command[i] == '\n' && control_depth == 0) {
                 if (!is_newline_split_point.empty()) {
                     is_newline_split_point[i] = true;

@@ -119,6 +119,15 @@ class Parser {
     void set_shell(Shell* shell);
 
    private:
+    void ensure_parsers_initialized();
+    bool is_control_word_at_position(const std::string& command, size_t i, 
+                                     int paren_depth, int brace_depth, bool in_quotes,
+                                     int& control_depth);
+    void process_heredoc_content(std::string& content);
+    bool handle_fd_redirection(const std::string& value, size_t& i, 
+                              const std::vector<std::string>& tokens, Command& cmd,
+                              std::vector<std::string>& filtered_args);
+
     std::unordered_map<std::string, std::string> aliases;
     std::unordered_map<std::string, std::string> env_vars;
     Shell* shell = nullptr;
