@@ -510,7 +510,19 @@ std::string find_executable_in_path(const std::string& name) {
     return "";
 }
 
-bool create_profile_file() {
+bool create_profile_file(const fs::path& target_path) {
+    if (!target_path.parent_path().empty()) {
+        std::error_code dir_error;
+        fs::create_directories(target_path.parent_path(), dir_error);
+        if (dir_error) {
+            print_error({ErrorType::RUNTIME_ERROR,
+                         target_path.parent_path().string(),
+                         "Failed to prepare configuration directory: " + dir_error.message(),
+                         {"Check file permissions"}});
+            return false;
+        }
+    }
+
     std::string profile_content =
         "#!/usr/bin/env cjsh\n"
         "# cjsh Configuration File\n"
@@ -557,7 +569,7 @@ bool create_profile_file() {
         "test "
         "mode\n";
 
-    auto write_result = write_file_content(g_cjsh_profile_path.string(), profile_content);
+    auto write_result = write_file_content(target_path.string(), profile_content);
 
     if (!write_result.is_ok()) {
         print_error(
@@ -568,7 +580,19 @@ bool create_profile_file() {
     return true;
 }
 
-bool create_source_file() {
+bool create_source_file(const fs::path& target_path) {
+    if (!target_path.parent_path().empty()) {
+        std::error_code dir_error;
+        fs::create_directories(target_path.parent_path(), dir_error);
+        if (dir_error) {
+            print_error({ErrorType::RUNTIME_ERROR,
+                         target_path.parent_path().string(),
+                         "Failed to prepare configuration directory: " + dir_error.message(),
+                         {"Check file permissions"}});
+            return false;
+        }
+    }
+
     std::string source_content =
         "#!/usr/bin/env cjsh\n"
         "# cjsh Source File\n"
@@ -737,7 +761,7 @@ bool create_source_file() {
         "# Run 'cjshopt keybind --help' for more information\n"
         "\n";
 
-    auto write_result = write_file_content(g_cjsh_source_path.string(), source_content);
+    auto write_result = write_file_content(target_path.string(), source_content);
 
     if (!write_result.is_ok()) {
         print_error(
@@ -748,7 +772,19 @@ bool create_source_file() {
     return true;
 }
 
-bool create_logout_file() {
+bool create_logout_file(const fs::path& target_path) {
+    if (!target_path.parent_path().empty()) {
+        std::error_code dir_error;
+        fs::create_directories(target_path.parent_path(), dir_error);
+        if (dir_error) {
+            print_error({ErrorType::RUNTIME_ERROR,
+                         target_path.parent_path().string(),
+                         "Failed to prepare configuration directory: " + dir_error.message(),
+                         {"Check file permissions"}});
+            return false;
+        }
+    }
+
     std::string logout_content =
         "#!/usr/bin/env cjsh\n"
         "# cjsh Logout File\n"
@@ -759,7 +795,7 @@ bool create_logout_file() {
         "# Example: Display a goodbye message\n"
         "# echo \"Thank you for using cjsh! Goodbye!\"\n";
 
-    auto write_result = write_file_content(g_cjsh_logout_path.string(), logout_content);
+    auto write_result = write_file_content(target_path.string(), logout_content);
 
     if (!write_result.is_ok()) {
         print_error(

@@ -250,7 +250,8 @@ std::vector<Suggestion> complete_cjshopt(const std::vector<std::string>& args) {
     static const std::vector<std::string> kBookmarkBlacklistSubcommands = {
         "add", "remove", "list", "clear", "--help", "-h"};
 
-    static const std::vector<std::string> kGenerateFlags = {"--force", "-f", "--help", "-h"};
+    static const std::vector<std::string> kGenerateFlags = {"--force", "-f", "--alt", "--help",
+                                                            "-h"};
 
     std::vector<Suggestion> suggestions;
     size_t completed = completed_arg_count(args);
