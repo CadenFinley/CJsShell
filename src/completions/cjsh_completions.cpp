@@ -685,7 +685,7 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
 
                 if (!handled) {
                     // command was not a shell builtin so we assume it's an external command
-                    //  handle_external_sub_completions(cenv, current_line_prefix);
+                    handle_external_sub_completions(cenv, current_line_prefix);
                 }
             }
 
