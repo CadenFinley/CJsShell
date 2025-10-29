@@ -84,7 +84,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Find functions without cross-file usages.")
     parser.add_argument(
         "--compile-commands",
-        default="compile_commands.json",
+        default="build/compile_commands.json",
         help="Path to compile_commands.json (default: %(default)s)",
     )
     parser.add_argument(
@@ -137,6 +137,15 @@ def load_compile_commands(path: Path) -> List[dict]:
     if isinstance(data, list):
         return data
     raise ValueError("Unsupported compile_commands.json structure")
+
+def infer_project_root(compile_commands_path: Path) -> Path:
+    """Infer project root using common VCS markers when --root is not provided."""
+    parent = compile_commands_path.parent.resolve()
+    markers = (".git", ".hg", ".svn")
+    for candidate in (parent, *parent.parents):
+        if any((candidate / marker).exists() for marker in markers):
+            return candidate
+    return parent
 
 
 def determine_language(source_path: Path, args: List[str]) -> str:
@@ -466,7 +475,7 @@ def main() -> None:
     if not compile_commands_path.exists():
         print("Missing compile_commands.json at {}".format(compile_commands_path), file=sys.stderr)
         sys.exit(1)
-    project_root = Path(args.root).resolve() if args.root else compile_commands_path.parent
+    project_root = Path(args.root).resolve() if args.root else infer_project_root(compile_commands_path)
     commands = load_compile_commands(compile_commands_path)
     
     jobs = args.jobs
