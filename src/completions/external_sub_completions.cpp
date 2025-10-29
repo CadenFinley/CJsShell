@@ -726,7 +726,8 @@ std::string fetch_man_page_text(const std::string& target) {
     return {};
 }
 
-std::vector<CompletionEntry> load_entries_for_target(const std::string& doc_target) {
+std::vector<CompletionEntry> load_entries_for_target(const std::string& doc_target,
+                                                     bool allow_fetch) {
     if (doc_target.empty())
         return {};
 
@@ -758,6 +759,9 @@ std::vector<CompletionEntry> load_entries_for_target(const std::string& doc_targ
         return cached_entries;
     }
 
+    if (!allow_fetch)
+        return {};
+
     std::string man_text = fetch_man_page_text(doc_target);
     if (man_text.empty()) {
         write_cache_entries(cache_path, doc_target, {});
@@ -787,7 +791,8 @@ std::vector<CompletionEntry> load_entries_for_target(const std::string& doc_targ
 }
 
 std::vector<CompletionEntry> resolve_entries_for_tokens(const std::vector<std::string>& tokens,
-                                                        std::size_t stable_count) {
+                                                        std::size_t stable_count,
+                                                        bool allow_fetch) {
     std::vector<CompletionEntry> merged;
     std::unordered_set<std::string> seen;
 
@@ -803,7 +808,7 @@ std::vector<CompletionEntry> resolve_entries_for_tokens(const std::vector<std::s
     };
 
     std::string current_doc = tokens[0];
-    auto current_entries = load_entries_for_target(current_doc);
+    auto current_entries = load_entries_for_target(current_doc, allow_fetch);
     append_unique(current_entries);
 
     std::size_t max_depth = std::min(stable_count, tokens.size());
@@ -824,7 +829,7 @@ std::vector<CompletionEntry> resolve_entries_for_tokens(const std::vector<std::s
         current_doc.push_back('-');
         current_doc += token;
 
-        current_entries = load_entries_for_target(current_doc);
+        current_entries = load_entries_for_target(current_doc, allow_fetch);
         if (current_entries.empty())
             continue;
 
@@ -861,7 +866,9 @@ void handle_external_sub_completions(ic_completion_env_t* cenv, const char* raw_
     if (!ends_with_space && !tokens.empty())
         current_prefix = tokens.back();
 
-    auto completions = resolve_entries_for_tokens(tokens, stable_count);
+    bool allow_fetch = !cjsh_filesystem::find_executable_in_path(tokens.front()).empty();
+
+    auto completions = resolve_entries_for_tokens(tokens, stable_count, allow_fetch);
     if (completions.empty())
         return;
 
