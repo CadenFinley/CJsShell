@@ -61,6 +61,12 @@ std::string rtrim_copy(const std::string& input) {
     return input.substr(0, end);
 }
 
+void rtrim_in_place(std::string& input) {
+    while (!input.empty() && std::isspace(static_cast<unsigned char>(input.back()))) {
+        input.pop_back();
+    }
+}
+
 std::string trim_copy(const std::string& input) {
     return rtrim_copy(ltrim_copy(input));
 }
@@ -317,11 +323,17 @@ std::string read_stream(FILE* pipe) {
     }
 
     std::string output;
+    constexpr size_t kMaxCaptureBytes = 2 * 1024 * 1024;
     char buffer[4096];
     while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-        output.append(buffer);
-        if (output.size() > 2 * 1024 * 1024) {
-            break;
+        if (output.size() < kMaxCaptureBytes) {
+            size_t chunk_size = std::char_traits<char>::length(buffer);
+            size_t available = kMaxCaptureBytes - output.size();
+            if (chunk_size > available) {
+                output.append(buffer, available);
+            } else {
+                output.append(buffer, chunk_size);
+            }
         }
     }
     return output;
@@ -1041,14 +1053,10 @@ std::optional<CommandCompletionData> CompletionManager::parse_man_page_for_comma
         return std::nullopt;
     }
 
-    std::vector<std::string> lines;
-    {
-        std::istringstream iss(man_text_opt.value());
-        std::string line;
-        while (std::getline(iss, line)) {
-            lines.push_back(rtrim_copy(line));
-        }
-    }
+    std::string man_text = std::move(man_text_opt.value());
+    man_text_opt.reset();
+
+    std::istringstream iss(std::move(man_text));
 
     CommandCompletionData data;
     data.command = command;
@@ -1089,8 +1097,9 @@ std::optional<CommandCompletionData> CompletionManager::parse_man_page_for_comma
         pending_subcommand = SubcommandLine{};
     };
 
-    for (size_t i = 0; i < lines.size(); ++i) {
-        const std::string& line = lines[i];
+    std::string line;
+    while (std::getline(iss, line)) {
+        rtrim_in_place(line);
 
         if (is_section_heading(line)) {
             flush_option();
