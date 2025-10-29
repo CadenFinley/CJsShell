@@ -177,9 +177,8 @@ bool should_process_char(QuoteState& state, char c, bool ignore_single_quotes,
     return true;
 }
 
-bool find_matching_command_substitution_end_for_validation(const std::string& text,
-                                                           size_t start_index, size_t& end_out) {
-    int depth = 1;
+template <typename Func>
+void for_each_effective_char_basic(const std::string& text, size_t start_index, Func&& callback) {
     bool in_single = false;
     bool in_double = false;
     bool escaped = false;
@@ -208,19 +207,33 @@ bool find_matching_command_substitution_end_for_validation(const std::string& te
         }
 
         if (!in_single) {
-            if (ch == '(') {
-                depth++;
-            } else if (ch == ')') {
-                depth--;
-                if (depth == 0) {
-                    end_out = i;
-                    return true;
-                }
+            if (callback(i, ch)) {
+                return;
             }
         }
     }
+}
 
-    return false;
+bool find_matching_command_substitution_end_for_validation(const std::string& text,
+                                                           size_t start_index, size_t& end_out) {
+    int depth = 1;
+    bool found = false;
+
+    for_each_effective_char_basic(text, start_index, [&](size_t i, char ch) {
+        if (ch == '(') {
+            depth++;
+        } else if (ch == ')') {
+            depth--;
+            if (depth == 0) {
+                end_out = i;
+                found = true;
+                return true;
+            }
+        }
+        return false;
+    });
+
+    return found;
 }
 
 template <typename Predicate>
@@ -504,9 +517,9 @@ bool extract_trimmed_line(const std::string& line, std::string& trimmed_line,
     return true;
 }
 
-template <typename ProcessFunc>
-std::vector<SyntaxError> process_lines_for_validation(const std::vector<std::string>& lines,
-                                                      ProcessFunc process_line_func) {
+template <typename Callback>
+std::vector<SyntaxError> validate_lines_basic(const std::vector<std::string>& lines,
+                                              Callback&& callback) {
     std::vector<SyntaxError> errors;
 
     for (size_t line_num = 0; line_num < lines.size(); ++line_num) {
@@ -519,11 +532,17 @@ std::vector<SyntaxError> process_lines_for_validation(const std::vector<std::str
             continue;
         }
 
-        auto line_errors = process_line_func(line, trimmed_line, display_line, first_non_space);
+        auto line_errors = callback(line, trimmed_line, display_line, first_non_space);
         errors.insert(errors.end(), line_errors.begin(), line_errors.end());
     }
 
     return errors;
+}
+
+template <typename ProcessFunc>
+std::vector<SyntaxError> process_lines_for_validation(const std::vector<std::string>& lines,
+                                                      ProcessFunc process_line_func) {
+    return validate_lines_basic(lines, process_line_func);
 }
 
 std::vector<std::string> tokenize_whitespace(const std::string& input) {
@@ -563,6 +582,20 @@ std::pair<std::vector<std::string>, std::string> tokenize_and_get_first(
     auto tokens = tokenize_whitespace(trimmed_line);
     std::string first_token = tokens.empty() ? "" : tokens[0];
     return {tokens, first_token};
+}
+
+template <typename Callback>
+std::vector<SyntaxError> validate_with_tokenized_line(
+    const std::vector<std::string>& lines, Callback&& callback) {
+    return process_lines_for_validation(
+        lines,
+        [&](const std::string& line, const std::string& trimmed_line, size_t display_line,
+            size_t) -> std::vector<SyntaxError> {
+            std::vector<SyntaxError> line_errors;
+            auto [tokens, first_token] = tokenize_and_get_first(trimmed_line);
+            callback(line_errors, line, trimmed_line, display_line, tokens, first_token);
+            return line_errors;
+        });
 }
 
 void push_function_context(
@@ -1313,23 +1346,38 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
     return errors;
 }
 
-std::vector<ShellScriptInterpreter::SyntaxError>
-ShellScriptInterpreter::validate_redirection_syntax(const std::vector<std::string>& lines) {
+template <typename Callback>
+std::vector<SyntaxError> validate_with_effective_char_iteration(
+    const std::vector<std::string>& lines, bool ignore_single_quotes, bool process_escaped_chars,
+    Callback&& callback) {
     return process_lines_for_validation(
         lines,
-        [](const std::string& line, const std::string&, size_t display_line,
-           size_t) -> std::vector<SyntaxError> {
+        [&](const std::string& line, const std::string&, size_t display_line,
+            size_t) -> std::vector<SyntaxError> {
             std::vector<SyntaxError> line_errors;
-
             for_each_effective_char(
-                line, false, true,
+                line, ignore_single_quotes, process_escaped_chars,
                 [&](size_t i, char c, const QuoteState& state,
                     size_t& next_index) -> IterationAction {
-                    if (state.in_quotes) {
-                        return IterationAction::Continue;
-                    }
+                    callback(line_errors, line, display_line, i, c, state, next_index);
+                    return IterationAction::Continue;
+                });
 
-                    if (c == '<' || c == '>') {
+            return line_errors;
+        });
+}
+
+std::vector<ShellScriptInterpreter::SyntaxError>
+ShellScriptInterpreter::validate_redirection_syntax(const std::vector<std::string>& lines) {
+    return validate_with_effective_char_iteration(
+        lines, false, true,
+        [](std::vector<SyntaxError>& line_errors, const std::string& line, size_t display_line,
+           size_t i, char c, const QuoteState& state, size_t& next_index) {
+            if (state.in_quotes) {
+                return;
+            }
+
+            if (c == '<' || c == '>') {
                         size_t redir_start = i;
                         std::string redir_op;
 
@@ -1379,7 +1427,7 @@ ShellScriptInterpreter::validate_redirection_syntax(const std::vector<std::strin
                                     "Invalid redirection syntax '" + redir_op + " " + next_char +
                                         "'",
                                     line, "Use single redirection operator"));
-                                return IterationAction::Continue;
+                                return;
                             }
                         }
 
@@ -1394,7 +1442,7 @@ ShellScriptInterpreter::validate_redirection_syntax(const std::vector<std::strin
                                 ErrorSeverity::ERROR, ErrorCategory::REDIRECTION, "RED001",
                                 "Redirection '" + redir_op + "' missing target", line,
                                 "Add filename or file descriptor after " + redir_op));
-                            return IterationAction::Continue;
+                            return;
                         }
 
                         std::string target;
@@ -1441,7 +1489,6 @@ ShellScriptInterpreter::validate_redirection_syntax(const std::vector<std::strin
                         }
 
                         next_index = target_end - 1;
-                        return IterationAction::Continue;
                     }
 
                     if (c == '|' && i + 1 < line.length()) {
@@ -1456,26 +1503,16 @@ ShellScriptInterpreter::validate_redirection_syntax(const std::vector<std::strin
                             }
                         }
                     }
-
-                    return IterationAction::Continue;
-                });
-
-            return line_errors;
         });
 }
 
 std::vector<ShellScriptInterpreter::SyntaxError>
 ShellScriptInterpreter::validate_arithmetic_expressions(const std::vector<std::string>& lines) {
-    return process_lines_for_validation(
-        lines,
-        [](const std::string& line, const std::string&, size_t display_line,
-           size_t) -> std::vector<SyntaxError> {
-            std::vector<SyntaxError> line_errors;
-            for_each_effective_char(
-                line, true, true,
-                [&](size_t i, char c, const QuoteState&, size_t& next_index) -> IterationAction {
-                    if (c == '$' && i + 2 < line.length() && line[i + 1] == '(' &&
-                        line[i + 2] == '(') {
+    return validate_with_effective_char_iteration(
+        lines, true, true,
+        [](std::vector<SyntaxError>& line_errors, const std::string& line, size_t display_line,
+           size_t i, char c, const QuoteState&, size_t& next_index) {
+            if (c == '$' && i + 2 < line.length() && line[i + 1] == '(' && line[i + 2] == '(') {
                         size_t start = i;
                         size_t paren_count = 2;
                         size_t j = i + 3;
@@ -1563,7 +1600,6 @@ ShellScriptInterpreter::validate_arithmetic_expressions(const std::vector<std::s
                         }
 
                         next_index = j - 1;
-                        return IterationAction::Continue;
                     }
 
                     if (c == '$' && i + 1 < line.length() && line[i + 1] == '[') {
@@ -1573,26 +1609,16 @@ ShellScriptInterpreter::validate_arithmetic_expressions(const std::vector<std::s
                                         "Deprecated arithmetic syntax $[...], use $((...))", line,
                                         "Replace $[expr] with $((expr))"));
                     }
-
-                    return IterationAction::Continue;
-                });
-
-            return line_errors;
         });
 }
 
 std::vector<ShellScriptInterpreter::SyntaxError>
 ShellScriptInterpreter::validate_parameter_expansions(const std::vector<std::string>& lines) {
-    return process_lines_for_validation(
-        lines,
-        [](const std::string& line, const std::string&, size_t display_line,
-           size_t) -> std::vector<SyntaxError> {
-            std::vector<SyntaxError> line_errors;
-            for_each_effective_char(
-                line, true, true,
-                [&](size_t i, char c, const QuoteState& state,
-                    size_t& next_index) -> IterationAction {
-                    if (c == '$' && i + 1 < line.length() && line[i + 1] == '(') {
+    return validate_with_effective_char_iteration(
+        lines, true, true,
+        [](std::vector<SyntaxError>& line_errors, const std::string& line, size_t display_line,
+           size_t i, char c, const QuoteState& state, size_t& next_index) {
+            if (c == '$' && i + 1 < line.length() && line[i + 1] == '(') {
                         size_t start = i;
                         size_t paren_count = 1;
                         size_t j = i + 2;
@@ -1631,7 +1657,6 @@ ShellScriptInterpreter::validate_parameter_expansions(const std::vector<std::str
                         }
 
                         next_index = j - 1;
-                        return IterationAction::Continue;
                     }
 
                     if (c == '`' && !state.in_quotes) {
@@ -1660,7 +1685,6 @@ ShellScriptInterpreter::validate_parameter_expansions(const std::vector<std::str
                         }
 
                         next_index = j - 1;
-                        return IterationAction::Continue;
                     }
 
                     if (!state.in_quotes && c == '=' && i > 0) {
@@ -1741,7 +1765,7 @@ ShellScriptInterpreter::validate_parameter_expansions(const std::vector<std::str
                                 if (first_word == "export" || first_word == "alias" ||
                                     first_word == "local" || first_word == "declare" ||
                                     first_word == "readonly") {
-                                    return IterationAction::Continue;
+                                    return;
                                 }
 
                                 if (!is_valid_identifier_start(var_name[0])) {
@@ -1782,11 +1806,6 @@ ShellScriptInterpreter::validate_parameter_expansions(const std::vector<std::str
                             }
                         }
                     }
-
-                    return IterationAction::Continue;
-                });
-
-            return line_errors;
         });
 }
 
@@ -1908,32 +1927,28 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
            size_t first_non_space) -> std::vector<SyntaxError> {
             std::vector<SyntaxError> line_errors;
 
-            {
-                const std::string& work = trimmed_line;
+            size_t eq = trimmed_line.find('=');
+            if (eq != std::string::npos) {
+                std::string lhs = trimmed_line.substr(0, eq);
 
-                size_t eq = work.find('=');
-                if (eq != std::string::npos) {
-                    std::string lhs = work.substr(0, eq);
+                while (!lhs.empty() && isspace(static_cast<unsigned char>(lhs.back())))
+                    lhs.pop_back();
 
-                    while (!lhs.empty() && isspace(static_cast<unsigned char>(lhs.back())))
-                        lhs.pop_back();
-
-                    size_t lb = lhs.find('[');
-                    size_t rb = lhs.rfind(']');
-                    if (lb != std::string::npos && rb != std::string::npos && rb > lb &&
-                        rb == lhs.size() - 1) {
-                        std::string name = lhs.substr(0, lb);
-                        bool name_ok = is_valid_identifier(name);
-                        std::string index_text = lhs.substr(lb + 1, rb - lb - 1);
-                        std::string issue;
-                        if (name_ok && !validate_array_index_expression(index_text, issue)) {
-                            line_errors.push_back(SyntaxError(
-                                {display_line, first_non_space + lb, first_non_space + rb + 1, 0},
-                                ErrorSeverity::ERROR, ErrorCategory::VARIABLES, "VAR005",
-                                issue + " for array '" + name + "'", line,
-                                "Use a valid numeric or arithmetic expression "
-                                "index"));
-                        }
+                size_t lb = lhs.find('[');
+                size_t rb = lhs.rfind(']');
+                if (lb != std::string::npos && rb != std::string::npos && rb > lb &&
+                    rb == lhs.size() - 1) {
+                    std::string name = lhs.substr(0, lb);
+                    bool name_ok = is_valid_identifier(name);
+                    std::string index_text = lhs.substr(lb + 1, rb - lb - 1);
+                    std::string issue;
+                    if (name_ok && !validate_array_index_expression(index_text, issue)) {
+                        line_errors.push_back(SyntaxError(
+                            {display_line, first_non_space + lb, first_non_space + rb + 1, 0},
+                            ErrorSeverity::ERROR, ErrorCategory::VARIABLES, "VAR005",
+                            issue + " for array '" + name + "'", line,
+                            "Use a valid numeric or arithmetic expression "
+                            "index"));
                     }
                 }
             }
@@ -1984,15 +1999,12 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
 
 std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validate_function_syntax(
     const std::vector<std::string>& lines) {
-    return process_lines_for_validation(
+    return validate_with_tokenized_line(
         lines,
-        [](const std::string& line, const std::string& trimmed_line, size_t display_line,
-           size_t) -> std::vector<SyntaxError> {
-            std::vector<SyntaxError> line_errors;
-
+        [](std::vector<SyntaxError>& line_errors, const std::string& line,
+           const std::string& trimmed_line, size_t display_line,
+           const std::vector<std::string>& tokens, const std::string&) {
             if (trimmed_line.rfind("function", 0) == 0) {
-                auto tokens = tokenize_whitespace(trimmed_line);
-
                 if (tokens.size() < 2) {
                     append_function_name_errors(line_errors, display_line, line, "",
                                                 "Add function name: function name() { ... }");
@@ -2011,180 +2023,155 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                                                 "Add function name before parentheses");
                 }
             }
-
-            return line_errors;
         });
 }
 
 std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validate_loop_syntax(
     const std::vector<std::string>& lines) {
-    return process_lines_for_validation(
+    return validate_with_tokenized_line(
         lines,
-        [](const std::string& line, const std::string& trimmed_line, size_t display_line,
-           size_t) -> std::vector<SyntaxError> {
-            std::vector<SyntaxError> line_errors;
+        [](std::vector<SyntaxError>& line_errors, const std::string& line,
+           const std::string& trimmed_line, size_t display_line,
+           const std::vector<std::string>& tokens, const std::string& first_token) {
+            if (first_token.empty())
+                return;
 
-            auto [tokens, first_token] = tokenize_and_get_first(trimmed_line);
+            if (first_token == "for") {
+                auto loop_check = analyze_for_loop_syntax(tokens, trimmed_line);
+                if (loop_check.incomplete) {
+                    line_errors.push_back(SyntaxError(
+                        {display_line, 0, 0, 0}, ErrorSeverity::ERROR, ErrorCategory::CONTROL_FLOW,
+                        "SYN002", "'for' statement incomplete", line,
+                        "Complete for statement: for var in list; do"));
+                } else if (!loop_check.missing_in_keyword && loop_check.missing_do_keyword) {
+                    line_errors.push_back(
+                        SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
+                                    ErrorCategory::CONTROL_FLOW, "SYN002",
+                                    "'for' statement missing 'do' keyword", line,
+                                    "Add 'do' keyword: for var in list; do"));
+                }
+            } else if (first_token == "while" || first_token == "until") {
+                auto loop_check = analyze_while_until_syntax(first_token, trimmed_line, tokens);
 
-            if (!first_token.empty()) {
-                if (first_token == "for") {
-                    auto loop_check = analyze_for_loop_syntax(tokens, trimmed_line);
-                    if (loop_check.incomplete) {
-                        line_errors.push_back(SyntaxError(
-                            {display_line, 0, 0, 0}, ErrorSeverity::ERROR,
-                            ErrorCategory::CONTROL_FLOW, "SYN002", "'for' statement incomplete",
-                            line, "Complete for statement: for var in list; do"));
-                    } else if (!loop_check.missing_in_keyword && loop_check.missing_do_keyword) {
-                        line_errors.push_back(
-                            SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
-                                        ErrorCategory::CONTROL_FLOW, "SYN002",
-                                        "'for' statement missing 'do' keyword", line,
-                                        "Add 'do' keyword: for var in list; do"));
-                    }
+                if (loop_check.missing_condition) {
+                    line_errors.push_back(
+                        SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
+                                    ErrorCategory::CONTROL_FLOW, "SYN003",
+                                    "'" + first_token + "' loop missing condition expression", line,
+                                    "Add a condition expression before 'do'"));
+                } else if (loop_check.unclosed_test) {
+                    line_errors.push_back(
+                        SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
+                                    ErrorCategory::CONTROL_FLOW, "SYN003",
+                                    "Unclosed test expression in '" + first_token + "' condition",
+                                    line, "Close the '[' with ']' or use '[[ ... ]]'"));
                 }
 
-                else if (first_token == "while" || first_token == "until") {
-                    auto loop_check = analyze_while_until_syntax(first_token, trimmed_line, tokens);
-
-                    if (loop_check.missing_condition) {
-                        line_errors.push_back(
-                            SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
-                                        ErrorCategory::CONTROL_FLOW, "SYN003",
-                                        "'" + first_token + "' loop missing condition expression",
-                                        line, "Add a condition expression before 'do'"));
-                    } else if (loop_check.unclosed_test) {
-                        line_errors.push_back(SyntaxError(
-                            {display_line, 0, 0, 0}, ErrorSeverity::ERROR,
-                            ErrorCategory::CONTROL_FLOW, "SYN003",
-                            "Unclosed test expression in '" + first_token + "' condition", line,
-                            "Close the '[' with ']' or use '[[ ... ]]'"));
-                    }
-
-                    if (loop_check.missing_do_keyword) {
-                        line_errors.push_back(SyntaxError(
-                            {display_line, 0, 0, 0}, ErrorSeverity::ERROR,
-                            ErrorCategory::CONTROL_FLOW, "SYN002",
-                            "'" + first_token + "' statement missing 'do' keyword", line,
-                            "Add 'do' keyword: " + first_token + " condition; do"));
-                    }
+                if (loop_check.missing_do_keyword) {
+                    line_errors.push_back(SyntaxError(
+                        {display_line, 0, 0, 0}, ErrorSeverity::ERROR, ErrorCategory::CONTROL_FLOW,
+                        "SYN002", "'" + first_token + "' statement missing 'do' keyword", line,
+                        "Add 'do' keyword: " + first_token + " condition; do"));
                 }
             }
-
-            return line_errors;
         });
 }
 
 std::vector<ShellScriptInterpreter::SyntaxError>
 ShellScriptInterpreter::validate_conditional_syntax(const std::vector<std::string>& lines) {
-    return process_lines_for_validation(
+    return validate_with_tokenized_line(
         lines,
-        [](const std::string& line, const std::string& trimmed_line, size_t display_line,
-           size_t) -> std::vector<SyntaxError> {
-            std::vector<SyntaxError> line_errors;
+        [](std::vector<SyntaxError>& line_errors, const std::string& line,
+           const std::string& trimmed_line, size_t display_line,
+           const std::vector<std::string>& tokens, const std::string& first_token) {
+            if (first_token.empty())
+                return;
 
-            auto [tokens, first_token] = tokenize_and_get_first(trimmed_line);
-
-            if (!first_token.empty()) {
-                if (first_token == "if") {
-                    auto if_check = analyze_if_syntax(tokens, trimmed_line);
-                    if (if_check.missing_then_keyword) {
-                        line_errors.push_back(
-                            SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
-                                        ErrorCategory::CONTROL_FLOW, "SYN004",
-                                        "'if' statement missing 'then' keyword", line,
-                                        "Add 'then' keyword: if condition; then"));
-                    }
-
-                    if (if_check.missing_condition) {
-                        line_errors.push_back(SyntaxError({display_line, 0, 0, 0},
-                                                          ErrorSeverity::ERROR,
-                                                          ErrorCategory::CONTROL_FLOW, "SYN004",
-                                                          "'if' statement missing condition", line,
-                                                          "Add condition: if [ condition ]; then"));
-                    }
+            if (first_token == "if") {
+                auto if_check = analyze_if_syntax(tokens, trimmed_line);
+                if (if_check.missing_then_keyword) {
+                    line_errors.push_back(
+                        SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
+                                    ErrorCategory::CONTROL_FLOW, "SYN004",
+                                    "'if' statement missing 'then' keyword", line,
+                                    "Add 'then' keyword: if condition; then"));
                 }
 
-                else if (first_token == "case") {
-                    auto case_check = analyze_case_syntax(tokens);
-                    if (case_check.incomplete) {
-                        line_errors.push_back(SyntaxError(
-                            {display_line, 0, 0, 0}, ErrorSeverity::ERROR,
-                            ErrorCategory::CONTROL_FLOW, "SYN008", "'case' statement incomplete",
-                            line, "Complete case statement: case variable in"));
-                    } else if (case_check.missing_in_keyword) {
-                        line_errors.push_back(
-                            SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
-                                        ErrorCategory::CONTROL_FLOW, "SYN008",
-                                        "'case' statement missing 'in' keyword", line,
-                                        "Add 'in' keyword: case variable in"));
-                    }
+                if (if_check.missing_condition) {
+                    line_errors.push_back(
+                        SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
+                                    ErrorCategory::CONTROL_FLOW, "SYN004",
+                                    "'if' statement missing condition", line,
+                                    "Add condition: if [ condition ]; then"));
+                }
+            } else if (first_token == "case") {
+                auto case_check = analyze_case_syntax(tokens);
+                if (case_check.incomplete) {
+                    line_errors.push_back(
+                        SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
+                                    ErrorCategory::CONTROL_FLOW, "SYN008",
+                                    "'case' statement incomplete", line,
+                                    "Complete case statement: case variable in"));
+                } else if (case_check.missing_in_keyword) {
+                    line_errors.push_back(
+                        SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
+                                    ErrorCategory::CONTROL_FLOW, "SYN008",
+                                    "'case' statement missing 'in' keyword", line,
+                                    "Add 'in' keyword: case variable in"));
                 }
             }
-
-            return line_errors;
         });
 }
 
 std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validate_array_syntax(
     const std::vector<std::string>& lines) {
-    return process_lines_for_validation(
-        lines,
-        [](const std::string& line, const std::string&, size_t display_line,
-           size_t) -> std::vector<SyntaxError> {
-            std::vector<SyntaxError> line_errors;
+    return validate_with_effective_char_iteration(
+        lines, false, true,
+        [](std::vector<SyntaxError>& line_errors, const std::string& line, size_t display_line,
+           size_t i, char c, const QuoteState& state, size_t& next_index) {
+            if (!state.in_quotes && c == '(' && i > 0) {
+                size_t var_end = i;
+                while (var_end > 0 &&
+                       std::isspace(static_cast<unsigned char>(line[var_end - 1]))) {
+                    var_end--;
+                }
 
-            for_each_effective_char(
-                line, false, true,
-                [&](size_t i, char c, const QuoteState& state,
-                    size_t& next_index) -> IterationAction {
-                    if (!state.in_quotes && c == '(' && i > 0) {
-                        size_t var_end = i;
-                        while (var_end > 0 &&
-                               std::isspace(static_cast<unsigned char>(line[var_end - 1]))) {
-                            var_end--;
+                if (var_end > 0 && line[var_end - 1] == '=') {
+                    size_t paren_count = 1;
+                    size_t j = i + 1;
+                    QuoteState nested_state;
+
+                    while (j < line.length() && paren_count > 0) {
+                        char inner_char = line[j];
+
+                        if (!should_process_char(nested_state, inner_char, false)) {
+                            ++j;
+                            continue;
                         }
 
-                        if (var_end > 0 && line[var_end - 1] == '=') {
-                            size_t paren_count = 1;
-                            size_t j = i + 1;
-                            QuoteState nested_state;
-
-                            while (j < line.length() && paren_count > 0) {
-                                char inner_char = line[j];
-
-                                if (!should_process_char(nested_state, inner_char, false)) {
-                                    ++j;
-                                    continue;
-                                }
-
-                                if (!nested_state.in_quotes) {
-                                    if (inner_char == '(') {
-                                        paren_count++;
-                                    } else if (inner_char == ')') {
-                                        paren_count--;
-                                    }
-                                }
-                                ++j;
-                            }
-
-                            if (paren_count > 0) {
-                                line_errors.push_back(
-                                    SyntaxError({display_line, i, j, 0}, ErrorSeverity::ERROR,
-                                                ErrorCategory::SYNTAX, "SYN009",
-                                                "Unclosed array declaration - missing ')'", line,
-                                                "Add closing parenthesis"));
-                            }
-
-                            if (j > 0) {
-                                next_index = j - 1;
+                        if (!nested_state.in_quotes) {
+                            if (inner_char == '(') {
+                                paren_count++;
+                            } else if (inner_char == ')') {
+                                paren_count--;
                             }
                         }
+                        ++j;
                     }
 
-                    return IterationAction::Continue;
-                });
+                    if (paren_count > 0) {
+                        line_errors.push_back(
+                            SyntaxError({display_line, i, j, 0}, ErrorSeverity::ERROR,
+                                        ErrorCategory::SYNTAX, "SYN009",
+                                        "Unclosed array declaration - missing ')'", line,
+                                        "Add closing parenthesis"));
+                    }
 
-            return line_errors;
+                    if (j > 0) {
+                        next_index = j - 1;
+                    }
+                }
+            }
         });
 }
 
