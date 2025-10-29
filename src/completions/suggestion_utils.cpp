@@ -1,12 +1,11 @@
 #include "suggestion_utils.h"
 
 #include <algorithm>
-#include <chrono>
 #include <filesystem>
-#include <fstream>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include "builtin.h"
 #include "cjsh_filesystem.h"
 #include "shell.h"
 #include "shell_script_interpreter.h"
@@ -17,43 +16,13 @@ namespace suggestion_utils {
 std::vector<std::string> generate_command_suggestions(const std::string& command) {
     std::vector<std::string> suggestions;
 
-    static const std::unordered_map<std::string, std::vector<std::string>> essential_typos = {
-
-        {"sl", {"ls"}},      {"ll", {"ls -l"}},    {"la", {"ls -la"}},       {"ks", {"ls"}},
-        {"dir", {"ls"}},     {"cls", {"clear"}},
-
-        {"ehco", {"echo"}},  {"exot", {"exit"}},   {"eixt", {"exit"}},       {"quit", {"exit"}},
-        {"clea", {"clear"}}, {"clera", {"clear"}}, {"whcih", {"which"}},     {"wich", {"which"}},
-
-        {"gii", {"git"}},    {"gitt", {"git"}},    {"tig", {"git"}},
-
-        {"grpe", {"grep"}},  {"gerp", {"grep"}},   {"sudp", {"sudo"}},       {"sduo", {"sudo"}},
-        {"crul", {"curl"}},  {"wgte", {"wget"}},   {"vmi", {"vim"}},         {"ivm", {"vim"}},
-        {"tarr", {"tar"}},   {"unizp", {"unzip"}}, {"gizp", {"gzip"}},       {"gunizp", {"gunzip"}},
-        {"findd", {"find"}}, {"whoa", {"whoami"}}, {"hisotry", {"history"}}, {"basrh", {"bash"}},
-        {"zhs", {"zsh"}},    {"shh", {"ssh"}},     {"rsyn", {"rsync"}},
-    };
-
-    auto it = essential_typos.find(command);
-    if (it != essential_typos.end()) {
-        for (const auto& suggestion : it->second) {
-            suggestions.push_back("Did you mean: " + suggestion);
-        }
-        return suggestions;
-    }
-
     std::unordered_set<std::string> all_commands_set;
 
-    static const std::vector<std::string> shell_builtins = {
-        "echo",     "printf",  "pwd",   "cd",      "ls",       "alias",     "export",
-        "unalias",  "unset",   "set",   "shift",   "break",    "continue",  "return",
-        "source",   ".",       "help",  "approot", "version",  "uninstall", "eval",
-        "syntax",   "history", "exit",  "quit",    "terminal", "test",      "[",
-        "exec",     "trap",    "jobs",  "fg",      "bg",       "wait",      "kill",
-        "readonly", "read",    "umask", "getopts", "times",    "type",      "hash"};
-
-    for (const auto& builtin : shell_builtins) {
-        all_commands_set.insert(builtin);
+    if (g_shell && g_shell->get_built_ins()) {
+        auto builtin_commands = g_shell->get_built_ins()->get_builtin_commands();
+        for (const auto& builtin : builtin_commands) {
+            all_commands_set.insert(builtin);
+        }
     }
 
     if (g_shell) {
@@ -80,27 +49,6 @@ std::vector<std::string> generate_command_suggestions(const std::string& command
     auto executables = cjsh_filesystem::get_executables_in_path();
     for (const auto& exec_name : executables) {
         all_commands_set.insert(exec_name);
-    }
-
-    std::vector<std::string> common_commands = {
-        "man",     "info",    "sudo",  "su",        "which",   "whereis", "locate", "find",
-        "grep",    "egrep",   "fgrep", "sed",       "awk",     "cut",     "sort",   "uniq",
-        "wc",      "head",    "tail",  "less",      "more",    "cat",     "tac",    "rev",
-        "tr",      "paste",   "join",  "comm",      "diff",    "cmp",     "file",   "stat",
-        "touch",   "cp",      "mv",    "rm",        "rmdir",   "mkdir",   "ln",     "chmod",
-        "chown",   "chgrp",   "umask", "tar",       "gzip",    "gunzip",  "zip",    "unzip",
-        "bzip2",   "bunzip2", "xz",    "unxz",      "curl",    "wget",    "ping",   "ssh",
-        "scp",     "rsync",   "ftp",   "sftp",      "ps",      "top",     "htop",   "kill",
-        "killall", "jobs",    "bg",    "fg",        "nohup",   "df",      "du",     "mount",
-        "umount",  "fdisk",   "free",  "uptime",    "uname",   "whoami",  "who",    "w",
-        "last",    "finger",  "id",    "groups",    "su",      "sudo",    "git",    "svn",
-        "hg",      "bzr",     "cvs",   "make",      "cmake",   "gcc",     "g++",    "clang",
-        "python",  "python3", "node",  "npm",       "ruby",    "perl",    "java",   "javac",
-        "docker",  "kubectl", "helm",  "terraform", "ansible", "vagrant", "vim",    "vi",
-        "nano",    "emacs",   "less",  "more",      "cat"};
-
-    for (const auto& cmd : common_commands) {
-        all_commands_set.insert(cmd);
     }
 
     std::vector<std::string> all_commands(all_commands_set.begin(), all_commands_set.end());
@@ -297,11 +245,6 @@ std::vector<std::string> generate_executable_suggestions(
         return suggestions;
     }
 
-    auto cached_suggestions = load_cached_suggestions(command);
-    if (!cached_suggestions.empty()) {
-        return cached_suggestions;
-    }
-
     std::vector<std::pair<int, std::string>> candidates;
 
     for (const auto& exec_name : available_commands) {
@@ -333,84 +276,7 @@ std::vector<std::string> generate_executable_suggestions(
         suggestions.push_back("Did you mean '" + candidates[i].second + "'?");
     }
 
-    cache_suggestions(command, suggestions);
-
     return suggestions;
-}
-
-std::vector<std::string> load_cached_suggestions(const std::string& command) {
-    std::vector<std::string> suggestions;
-
-    try {
-        auto cache_file = cjsh_filesystem::g_cjsh_cache_path / "command_suggestions.cache";
-
-        if (!std::filesystem::exists(cache_file)) {
-            return suggestions;
-        }
-
-        auto last_write = std::filesystem::last_write_time(cache_file);
-        auto now = decltype(last_write)::clock::now();
-        if ((now - last_write) > std::chrono::hours(24)) {
-            return suggestions;
-        }
-
-        std::ifstream cache_stream(cache_file);
-        std::string line;
-        bool found_command = false;
-
-        while (std::getline(cache_stream, line)) {
-            if (line == "CMD:" + command) {
-                found_command = true;
-                continue;
-            }
-
-            if (found_command) {
-                if (line.empty() || line.substr(0, 4) == "CMD:") {
-                    break;
-                }
-                suggestions.push_back(line);
-            }
-        }
-    } catch (const std::exception&) {
-    }
-
-    return suggestions;
-}
-
-void cache_suggestions(const std::string& command, const std::vector<std::string>& suggestions) {
-    try {
-        auto cache_file = cjsh_filesystem::g_cjsh_cache_path / "command_suggestions.cache";
-
-        std::unordered_map<std::string, std::vector<std::string>> cache_data;
-
-        if (std::filesystem::exists(cache_file)) {
-            std::ifstream cache_stream(cache_file);
-            std::string line;
-            std::string current_command;
-
-            while (std::getline(cache_stream, line)) {
-                if (line.substr(0, 4) == "CMD:") {
-                    current_command = line.substr(4);
-                    cache_data[current_command] = std::vector<std::string>();
-                } else if (!line.empty() && !current_command.empty()) {
-                    cache_data[current_command].push_back(line);
-                }
-            }
-        }
-
-        cache_data[command] = suggestions;
-
-        std::ofstream cache_stream(cache_file);
-        for (const auto& entry : cache_data) {
-            cache_stream << "CMD:" << entry.first << "\n";
-            for (const auto& suggestion : entry.second) {
-                cache_stream << suggestion << "\n";
-            }
-            cache_stream << "\n";
-        }
-
-    } catch (const std::exception&) {
-    }
 }
 
 std::vector<std::string> generate_fuzzy_suggestions(
@@ -453,11 +319,6 @@ std::vector<std::string> generate_fuzzy_suggestions(
         return suggestions;
     }
 
-    auto cached_suggestions = load_cached_suggestions(command);
-    if (!cached_suggestions.empty()) {
-        return cached_suggestions;
-    }
-
     std::vector<std::pair<int, std::string>> candidates;
     std::unordered_set<std::string> seen_commands;
 
@@ -478,8 +339,6 @@ std::vector<std::string> generate_fuzzy_suggestions(
     for (size_t i = 0; i < candidates.size() && i < 5; i++) {
         suggestions.push_back("Did you mean '" + candidates[i].second + "'?");
     }
-
-    cache_suggestions(command, suggestions);
 
     return suggestions;
 }
@@ -541,16 +400,14 @@ int calculate_fuzzy_score(const std::string& input, const std::string& candidate
         score -= 10;
     }
 
-    static const std::unordered_set<std::string> shell_builtins = {
-        "echo",  "printf", "pwd",      "cd",      "ls",        "alias",  "export", "unalias",
-        "unset", "set",    "shift",    "break",   "continue",  "return", "source", ".",
-        "theme", "help",   "approot",  "version", "uninstall", "eval",   "syntax", "history",
-        "exit",  "quit",   "terminal", "test",    "[",         "exec",   "trap",   "jobs",
-        "fg",    "bg",     "wait",     "kill",    "readonly",  "read",   "umask",  "getopts",
-        "times", "type",   "hash"};
-
-    if (shell_builtins.count(candidate) != 0u) {
-        score += 15;
+    if (g_shell && g_shell->get_built_ins()) {
+        auto builtin_commands = g_shell->get_built_ins()->get_builtin_commands();
+        for (const auto& builtin : builtin_commands) {
+            if (candidate == builtin) {
+                score += 15;
+                break;
+            }
+        }
     }
 
     return std::max(0, score);

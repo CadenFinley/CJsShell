@@ -37,7 +37,6 @@ std::string describe_errno(int err) {
     return std::system_category().message(err);
 }
 
-
 template <typename Functor>
 void launch_async_once(std::atomic<bool>& guard, Functor&& fn) {
     bool expected = false;
@@ -354,7 +353,7 @@ std::vector<std::string> get_executables_in_path() {
     }
 
     std::string path_str(path_env);
-    std::unordered_set<std::string> seen_executables;  // Avoid duplicates
+    std::unordered_set<std::string> seen_executables;
 
     size_t start = 0;
     while (start < path_str.size()) {
