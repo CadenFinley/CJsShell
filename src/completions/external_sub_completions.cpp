@@ -126,6 +126,36 @@ std::string to_upper_copy(const std::string& value) {
     return upper;
 }
 
+std::string to_lower_copy(const std::string& value) {
+    std::string lower = value;
+    std::transform(lower.begin(), lower.end(), lower.begin(),
+                   [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+    return lower;
+}
+
+std::string normalize_subcommand_token(const std::string& token) {
+    if (!has_lowercase(token))
+        return token;
+
+    std::size_t first_alpha = std::string::npos;
+    for (std::size_t i = 0; i < token.size(); ++i) {
+        unsigned char ch = static_cast<unsigned char>(token[i]);
+        if (std::isalpha(ch) != 0) {
+            first_alpha = i;
+            break;
+        }
+    }
+
+    if (first_alpha == std::string::npos)
+        return token;
+
+    unsigned char first_char = static_cast<unsigned char>(token[first_alpha]);
+    if (std::isupper(first_char) == 0)
+        return token;
+
+    return to_lower_copy(token);
+}
+
 bool is_section_heading(const std::string& trimmed_line) {
     if (trimmed_line.empty())
         return false;
@@ -380,6 +410,8 @@ std::optional<std::pair<std::string, std::string>> parse_command_line(
     if (!has_lowercase(name_part))
         return std::nullopt;
 
+    name_part = normalize_subcommand_token(name_part);
+
     return std::make_pair(name_part, description_part);
 }
 
@@ -563,6 +595,8 @@ std::vector<CompletionEntry> read_cache_entries(const std::filesystem::path& pat
         if (value.empty())
             continue;
         EntryKind kind = (type == 'S') ? EntryKind::Subcommand : EntryKind::Option;
+        if (kind == EntryKind::Subcommand)
+            value = normalize_subcommand_token(value);
         entries.push_back({value, description, kind});
     }
     return entries;
@@ -580,6 +614,8 @@ void write_cache_entries(const std::filesystem::path& path,
     std::ostringstream stream;
     for (const auto& entry : entries) {
         std::string value = entry.text;
+        if (entry.kind == EntryKind::Subcommand)
+            value = normalize_subcommand_token(value);
         std::replace(value.begin(), value.end(), '\t', ' ');
         std::string description = entry.description;
         std::replace(description.begin(), description.end(), '\t', ' ');
@@ -740,12 +776,16 @@ void handle_external_sub_completions(ic_completion_env_t* cenv, const char* raw_
         if (ic_stop_completing(cenv))
             break;
 
+        std::string normalized_text = entry.text;
+        if (entry.kind == EntryKind::Subcommand)
+            normalized_text = normalize_subcommand_token(normalized_text);
+
         if (!current_prefix.empty() &&
-            !completion_utils::matches_completion_prefix(entry.text, current_prefix)) {
+            !completion_utils::matches_completion_prefix(normalized_text, current_prefix)) {
             continue;
         }
 
-        std::string insert_text = entry.text;
+        std::string insert_text = normalized_text;
         bool append_space = false;
         if (entry.kind == EntryKind::Subcommand) {
             append_space = true;
