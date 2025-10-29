@@ -650,12 +650,12 @@ std::string sanitize_command_for_cache(const std::string& command) {
     return sanitized;
 }
 
-std::vector<CompletionEntry> read_cache_entries(const std::filesystem::path& path,
-                                                const std::string& doc_target) {
+std::optional<std::vector<CompletionEntry>> read_cache_entries(const std::filesystem::path& path,
+                                                               const std::string& doc_target) {
     std::vector<CompletionEntry> entries;
     auto result = cjsh_filesystem::read_file_content(path.string());
     if (result.is_error())
-        return entries;
+        return std::nullopt;
 
     std::istringstream stream(result.value());
     std::string line;
@@ -665,7 +665,7 @@ std::vector<CompletionEntry> read_cache_entries(const std::filesystem::path& pat
             continue;
         if (!header_seen) {
             if (line != make_cache_file_header(doc_target))
-                return {};
+                return std::nullopt;
             header_seen = true;
             continue;
         }
@@ -685,14 +685,13 @@ std::vector<CompletionEntry> read_cache_entries(const std::filesystem::path& pat
             value = normalize_subcommand_token(value);
         entries.push_back({value, description, kind});
     }
+    if (!header_seen)
+        return std::nullopt;
     return entries;
 }
 
 void write_cache_entries(const std::filesystem::path& path, const std::string& doc_target,
                          const std::vector<CompletionEntry>& entries) {
-    if (entries.empty())
-        return;
-
     std::error_code ignored;
     std::filesystem::create_directories(path.parent_path(), ignored);
     (void)ignored;
@@ -745,24 +744,35 @@ std::vector<CompletionEntry> load_entries_for_target(const std::string& doc_targ
     std::filesystem::path cache_path = cjsh_filesystem::g_cjsh_generated_completions_path /
                                        (sanitize_command_for_cache(doc_target) + ".txt");
 
-    auto cached_entries = read_cache_entries(cache_path, doc_target);
-    if (!cached_entries.empty()) {
-        std::lock_guard<std::mutex> lock(g_cache_mutex);
-        g_memory_cache[key] = cached_entries;
+    if (auto cached_entries_opt = read_cache_entries(cache_path, doc_target);
+        cached_entries_opt.has_value()) {
+        std::vector<CompletionEntry> cached_entries = std::move(*cached_entries_opt);
+        {
+            std::lock_guard<std::mutex> lock(g_cache_mutex);
+            g_memory_cache[key] = cached_entries;
+            if (cached_entries.empty())
+                g_failed_targets.insert(key);
+            else
+                g_failed_targets.erase(key);
+        }
         return cached_entries;
     }
 
     std::string man_text = fetch_man_page_text(doc_target);
     if (man_text.empty()) {
+        write_cache_entries(cache_path, doc_target, {});
         std::lock_guard<std::mutex> lock(g_cache_mutex);
         g_failed_targets.insert(key);
+        g_memory_cache[key] = {};
         return {};
     }
 
     auto parsed_entries = parse_man_text(doc_target, man_text);
     if (parsed_entries.empty()) {
+        write_cache_entries(cache_path, doc_target, {});
         std::lock_guard<std::mutex> lock(g_cache_mutex);
         g_failed_targets.insert(key);
+        g_memory_cache[key] = {};
         return {};
     }
 
@@ -771,6 +781,7 @@ std::vector<CompletionEntry> load_entries_for_target(const std::string& doc_targ
     {
         std::lock_guard<std::mutex> lock(g_cache_mutex);
         g_memory_cache[key] = parsed_entries;
+        g_failed_targets.erase(key);
     }
     return parsed_entries;
 }
