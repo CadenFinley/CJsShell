@@ -178,6 +178,33 @@ std::string BookmarkDatabase::time_to_iso_string(
     return ss.str();
 }
 
+cjsh_filesystem::Result<std::string> BookmarkDatabase::get_canonical_or_absolute_path(
+    const std::string& path) const {
+    try {
+        std::filesystem::path fs_path(path);
+        if (std::filesystem::exists(fs_path)) {
+            return cjsh_filesystem::Result<std::string>::ok(
+                std::filesystem::canonical(fs_path).string());
+        } else {
+            return cjsh_filesystem::Result<std::string>::ok(
+                std::filesystem::absolute(fs_path).string());
+        }
+    } catch (const std::filesystem::filesystem_error& e) {
+        return cjsh_filesystem::Result<std::string>::error("Filesystem error: " +
+                                                           std::string(e.what()));
+    }
+}
+
+std::vector<std::string> BookmarkDatabase::collect_invalid_bookmarks() const {
+    std::vector<std::string> invalid_bookmarks;
+    for (const auto& [name, entry] : bookmarks_) {
+        if (!std::filesystem::exists(entry.path) || !std::filesystem::is_directory(entry.path)) {
+            invalid_bookmarks.push_back(name);
+        }
+    }
+    return invalid_bookmarks;
+}
+
 std::chrono::system_clock::time_point BookmarkDatabase::time_from_iso_string(
     const std::string& iso_str) const {
     std::tm tm = {};
@@ -331,13 +358,7 @@ void BookmarkDatabase::update_bookmark_access(const std::string& name) {
 }
 
 cjsh_filesystem::Result<void> BookmarkDatabase::cleanup_invalid_bookmarks() {
-    std::vector<std::string> invalid_bookmarks;
-
-    for (const auto& [name, entry] : bookmarks_) {
-        if (!std::filesystem::exists(entry.path) || !std::filesystem::is_directory(entry.path)) {
-            invalid_bookmarks.push_back(name);
-        }
-    }
+    std::vector<std::string> invalid_bookmarks = collect_invalid_bookmarks();
 
     for (const auto& name : invalid_bookmarks) {
         bookmarks_.erase(name);
@@ -351,13 +372,7 @@ cjsh_filesystem::Result<void> BookmarkDatabase::cleanup_invalid_bookmarks() {
 }
 
 cjsh_filesystem::Result<int> BookmarkDatabase::cleanup_invalid_bookmarks_with_count() {
-    std::vector<std::string> invalid_bookmarks;
-
-    for (const auto& [name, entry] : bookmarks_) {
-        if (!std::filesystem::exists(entry.path) || !std::filesystem::is_directory(entry.path)) {
-            invalid_bookmarks.push_back(name);
-        }
-    }
+    std::vector<std::string> invalid_bookmarks = collect_invalid_bookmarks();
 
     int removed_count = static_cast<int>(invalid_bookmarks.size());
 
@@ -421,87 +436,67 @@ void BookmarkDatabase::enforce_bookmark_limit() {
 }
 
 cjsh_filesystem::Result<void> BookmarkDatabase::add_to_blacklist(const std::string& path) {
-    try {
-        std::filesystem::path fs_path(path);
-        std::string canonical_path;
-
-        if (std::filesystem::exists(fs_path)) {
-            canonical_path = std::filesystem::canonical(fs_path).string();
-        } else {
-            canonical_path = std::filesystem::absolute(fs_path).string();
-        }
-
-        blacklisted_paths_.insert(canonical_path);
-
-        std::vector<std::string> to_remove;
-        for (const auto& [name, entry] : bookmarks_) {
-            if (entry.path == canonical_path) {
-                to_remove.push_back(name);
-            }
-        }
-
-        for (const auto& name : to_remove) {
-            bookmarks_.erase(name);
-        }
-
-        if (!to_remove.empty()) {
-            dirty_ = true;
-        }
-        return cjsh_filesystem::Result<void>::ok();
-    } catch (const std::filesystem::filesystem_error& e) {
-        return cjsh_filesystem::Result<void>::error("Filesystem error: " + std::string(e.what()));
+    auto canonical_result = get_canonical_or_absolute_path(path);
+    if (canonical_result.is_error()) {
+        return cjsh_filesystem::Result<void>::error(canonical_result.error());
     }
+
+    std::string canonical_path = canonical_result.value();
+    blacklisted_paths_.insert(canonical_path);
+
+    std::vector<std::string> to_remove;
+    for (const auto& [name, entry] : bookmarks_) {
+        if (entry.path == canonical_path) {
+            to_remove.push_back(name);
+        }
+    }
+
+    for (const auto& name : to_remove) {
+        bookmarks_.erase(name);
+    }
+
+    if (!to_remove.empty()) {
+        dirty_ = true;
+    }
+    return cjsh_filesystem::Result<void>::ok();
 }
 
 cjsh_filesystem::Result<void> BookmarkDatabase::remove_from_blacklist(const std::string& path) {
-    try {
-        std::filesystem::path fs_path(path);
-        std::string canonical_path;
-
-        if (std::filesystem::exists(fs_path)) {
-            canonical_path = std::filesystem::canonical(fs_path).string();
-        } else {
-            canonical_path = std::filesystem::absolute(fs_path).string();
-        }
-
-        auto it = blacklisted_paths_.find(canonical_path);
-        if (it == blacklisted_paths_.end()) {
-            return cjsh_filesystem::Result<void>::error("Path is not in blacklist: " +
-                                                        canonical_path);
-        }
-
-        blacklisted_paths_.erase(it);
-        return cjsh_filesystem::Result<void>::ok();
-    } catch (const std::filesystem::filesystem_error& e) {
-        return cjsh_filesystem::Result<void>::error("Filesystem error: " + std::string(e.what()));
+    auto canonical_result = get_canonical_or_absolute_path(path);
+    if (canonical_result.is_error()) {
+        return cjsh_filesystem::Result<void>::error(canonical_result.error());
     }
+
+    std::string canonical_path = canonical_result.value();
+
+    auto it = blacklisted_paths_.find(canonical_path);
+    if (it == blacklisted_paths_.end()) {
+        return cjsh_filesystem::Result<void>::error("Path is not in blacklist: " + canonical_path);
+    }
+
+    blacklisted_paths_.erase(it);
+    return cjsh_filesystem::Result<void>::ok();
 }
 
 bool BookmarkDatabase::is_blacklisted(const std::string& path) const {
-    try {
-        std::filesystem::path fs_path(path);
-        std::string canonical_path;
-
-        if (std::filesystem::exists(fs_path)) {
-            canonical_path = std::filesystem::canonical(fs_path).string();
-        } else {
-            canonical_path = std::filesystem::absolute(fs_path).string();
-        }
-
-        if (blacklisted_paths_.find(canonical_path) != blacklisted_paths_.end()) {
-            return true;
-        }
-
-        for (const auto& blacklisted : blacklisted_paths_) {
-            if (blacklisted.find(canonical_path + "/") == 0) {
-                return true;
-            }
-        }
-
-        return false;
-    } catch (...) {
+    auto canonical_result = get_canonical_or_absolute_path(path);
+    if (canonical_result.is_error()) {
         return false;
     }
+
+    std::string canonical_path = canonical_result.value();
+
+    if (blacklisted_paths_.find(canonical_path) != blacklisted_paths_.end()) {
+        return true;
+    }
+
+    for (const auto& blacklisted : blacklisted_paths_) {
+        if (blacklisted.find(canonical_path + "/") == 0) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 std::vector<std::string> BookmarkDatabase::get_blacklist() const {
@@ -513,6 +508,25 @@ std::vector<std::string> BookmarkDatabase::get_blacklist() const {
 cjsh_filesystem::Result<void> BookmarkDatabase::clear_blacklist() {
     blacklisted_paths_.clear();
     return cjsh_filesystem::Result<void>::ok();
+}
+
+std::vector<std::string> BookmarkDatabase::get_bookmarks_for_path(const std::string& path) const {
+    std::vector<std::string> result;
+
+    auto canonical_result = get_canonical_or_absolute_path(path);
+    if (canonical_result.is_error()) {
+        return result;
+    }
+
+    std::string canonical_path = canonical_result.value();
+
+    for (const auto& [name, entry] : bookmarks_) {
+        if (entry.path == canonical_path) {
+            result.push_back(name);
+        }
+    }
+
+    return result;
 }
 
 }  // namespace bookmark_database

@@ -65,6 +65,7 @@ class BookmarkDatabase {
     bool is_blacklisted(const std::string& path) const;
     std::vector<std::string> get_blacklist() const;
     cjsh_filesystem::Result<void> clear_blacklist();
+    std::vector<std::string> get_bookmarks_for_path(const std::string& path) const;
 
    private:
     size_t MAX_BOOKMARKS = 10;
@@ -79,6 +80,9 @@ class BookmarkDatabase {
     std::string time_to_iso_string(const std::chrono::system_clock::time_point& tp) const;
     std::chrono::system_clock::time_point time_from_iso_string(const std::string& iso_str) const;
     void enforce_bookmark_limit();
+    cjsh_filesystem::Result<std::string> get_canonical_or_absolute_path(
+        const std::string& path) const;
+    std::vector<std::string> collect_invalid_bookmarks() const;
 };
 
 extern BookmarkDatabase g_bookmark_db;
@@ -122,6 +126,10 @@ inline std::vector<std::string> get_bookmark_blacklist() {
 
 inline cjsh_filesystem::Result<void> clear_bookmark_blacklist() {
     return g_bookmark_db.clear_blacklist();
+}
+
+inline std::vector<std::string> get_bookmarks_for_path(const std::string& path) {
+    return g_bookmark_db.get_bookmarks_for_path(path);
 }
 
 }  // namespace bookmark_database

@@ -1,7 +1,6 @@
 #include "cjshopt_command.h"
 
 #include <algorithm>
-#include <filesystem>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -367,24 +366,7 @@ int bookmark_blacklist_command(const std::vector<std::string>& args) {
 
         std::vector<std::string> affected_bookmarks;
         if (!g_startup_active) {
-            try {
-                std::filesystem::path fs_path(path);
-                std::string canonical_path;
-
-                if (std::filesystem::exists(fs_path)) {
-                    canonical_path = std::filesystem::canonical(fs_path).string();
-                } else {
-                    canonical_path = std::filesystem::absolute(fs_path).string();
-                }
-
-                auto all_bookmarks = bookmark_database::get_directory_bookmarks();
-                for (const auto& [name, bookmark_path] : all_bookmarks) {
-                    if (bookmark_path == canonical_path) {
-                        affected_bookmarks.push_back(name);
-                    }
-                }
-            } catch (...) {
-            }
+            affected_bookmarks = bookmark_database::get_bookmarks_for_path(path);
         }
 
         auto result = bookmark_database::add_path_to_blacklist(path);
