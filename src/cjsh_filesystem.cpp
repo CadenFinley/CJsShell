@@ -460,7 +460,7 @@ bool initialize_cjsh_path() {
 
 bool initialize_cjsh_directories() {
     try {
-        fs::create_directories(g_cache_path);
+        fs::create_directories(g_cjsh_config_path);
         fs::create_directories(g_cjsh_cache_path);
         fs::create_directories(g_cjsh_generated_completions_path);
 

@@ -149,15 +149,17 @@ const fs::path g_user_home_path = []() {
 
 extern fs::path g_cjsh_path;
 
+const fs::path g_cjsh_config_path = g_user_home_path / ".config" / "cjsh";
+
+const fs::path g_cjsh_cache_path = g_user_home_path / ".cache" / "cjsh";
+
 const fs::path g_cjsh_profile_path = g_user_home_path / ".cjprofile";
-
 const fs::path g_cjsh_source_path = g_user_home_path / ".cjshrc";
-
 const fs::path g_cjsh_logout_path = g_user_home_path / ".cjsh_logout";
 
-const fs::path g_cache_path = g_user_home_path / ".cache";
-
-const fs::path g_cjsh_cache_path = g_cache_path / "cjsh";
+const fs::path g_cjsh_profile_alt_path = g_cjsh_config_path / ".cjprofile";
+const fs::path g_cjsh_source_alt_path = g_cjsh_config_path / ".cjshrc";
+const fs::path g_cjsh_logout_alt_path = g_cjsh_config_path / ".cjsh_logout";
 
 const fs::path g_cjsh_history_path = g_cjsh_cache_path / "history.txt";
 
@@ -172,9 +174,9 @@ bool initialize_cjsh_directories();
 std::filesystem::path get_cjsh_path();
 std::string find_executable_in_path(const std::string& name);
 
-bool create_profile_file();
-bool create_source_file();
-bool create_logout_file();
+bool create_profile_file(const fs::path& target_path = g_cjsh_profile_path);
+bool create_source_file(const fs::path& target_path = g_cjsh_source_path);
+bool create_logout_file(const fs::path& target_path = g_cjsh_logout_path);
 
 bool init_interactive_filesystem();
 
