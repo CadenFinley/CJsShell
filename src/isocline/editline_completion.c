@@ -51,9 +51,14 @@ static void editor_append_completion(ic_env_t* env, editor_t* eb, ssize_t idx, s
     if (display == NULL)
         return;
     if (numbered) {
+        ssize_t shown = 1 + idx;
+        ssize_t ndigits = 1;
+        for (ssize_t t = shown; t >= 10; t /= 10) {
+            ndigits++;
+        }
         sbuf_appendf(eb->extra, "[ic-info]%s%zd [/]",
-                     (selected ? (tty_is_utf8(env->tty) ? "\xE2\x86\x92" : "*") : " "), 1 + idx);
-        width -= 3;
+                     (selected ? (tty_is_utf8(env->tty) ? "\xE2\x86\x92" : "*") : " "), shown);
+        width -= (1 + ndigits + 1);
     }
 
     if (width > 0) {
@@ -173,7 +178,10 @@ again:
 
     if (!expanded_mode) {
         ssize_t max_display_width = edit_completions_max_width(env, count_displayed);
+        ssize_t max_col = (twidth > 2 ? twidth - 2 : max_display_width + 3);
         if (count_displayed > 3 && ((colwidth = 3 + max_display_width) * 3 + 2 * 2) < twidth) {
+            if (colwidth > max_col)
+                colwidth = max_col;
             percolumn = (count_displayed + 2) / 3;
             for (ssize_t rw = 0; rw < percolumn; rw++) {
                 if (rw > 0) {
@@ -205,6 +213,9 @@ again:
     } else {
         ssize_t max_display_width = edit_completions_max_width(env, count_displayed);
         colwidth = max_display_width + 6;  // extra space for numbering and padding
+        if (colwidth > twidth - 2) {
+            colwidth = (twidth > 2 ? twidth - 2 : colwidth);
+        }
 
         // force a single-column layout in expanded mode for readability
         const ssize_t columns = 1;
