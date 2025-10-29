@@ -320,13 +320,6 @@ int Built_ins::builtin_command(const std::vector<std::string>& args) {
     }
     auto suggestions = suggestion_utils::generate_command_suggestions(args[0]);
 
-    if (cjsh_filesystem::is_executable_in_cache(args[0])) {
-        std::string full_path = cjsh_filesystem::find_executable_in_path(args[0]);
-        if (full_path.empty()) {
-            cjsh_filesystem::remove_executable_from_cache(args[0]);
-        }
-    }
-
     ErrorInfo error = {ErrorType::COMMAND_NOT_FOUND, args[0], "command not found", suggestions};
     print_error(error);
     last_terminal_output_error = "cjsh: '" + args[0] + "': command not found";

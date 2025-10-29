@@ -77,9 +77,9 @@ std::vector<std::string> generate_command_suggestions(const std::string& command
         }
     }
 
-    auto cached_executables = cjsh_filesystem::read_cached_executables();
-    for (const auto& exec_path : cached_executables) {
-        all_commands_set.insert(exec_path.filename().string());
+    auto executables = cjsh_filesystem::get_executables_in_path();
+    for (const auto& exec_name : executables) {
+        all_commands_set.insert(exec_name);
     }
 
     std::vector<std::string> common_commands = {

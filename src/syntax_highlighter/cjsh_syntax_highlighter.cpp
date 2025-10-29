@@ -15,17 +15,12 @@
 
 void SyntaxHighlighter::initialize_syntax_highlighting() {
     if (config::syntax_highlighting_enabled) {
-        token_classifier::initialize_external_cache();
         ic_set_default_highlighter(SyntaxHighlighter::highlight, nullptr);
         ic_enable_highlight(true);
     } else {
         ic_set_default_highlighter(nullptr, nullptr);
         ic_enable_highlight(false);
     }
-}
-
-void SyntaxHighlighter::refresh_executables_cache() {
-    token_classifier::refresh_executables_cache();
 }
 
 void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, void*) {

@@ -1,7 +1,6 @@
 #include "token_classifier.h"
 
 #include <cctype>
-#include <mutex>
 #include <string>
 
 #include "cjsh_filesystem.h"
@@ -9,28 +8,8 @@
 
 namespace token_classifier {
 
-std::unordered_set<std::string> external_executables_;
-std::shared_mutex external_cache_mutex_;
-
-void initialize_external_cache() {
-    std::unique_lock<std::shared_mutex> lock(external_cache_mutex_);
-    external_executables_.clear();
-    for (const auto& e : cjsh_filesystem::read_cached_executables()) {
-        external_executables_.insert(e.filename().string());
-    }
-}
-
-void refresh_executables_cache() {
-    std::unique_lock<std::shared_mutex> lock(external_cache_mutex_);
-    external_executables_.clear();
-    for (const auto& e : cjsh_filesystem::read_cached_executables()) {
-        external_executables_.insert(e.filename().string());
-    }
-}
-
 bool is_external_command(const std::string& token) {
-    std::shared_lock<std::shared_mutex> lock(external_cache_mutex_);
-    return external_executables_.count(token) > 0;
+    return !cjsh_filesystem::find_executable_in_path(token).empty();
 }
 
 bool is_shell_keyword(const std::string& token) {

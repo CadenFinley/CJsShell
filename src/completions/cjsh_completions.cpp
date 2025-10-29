@@ -208,7 +208,7 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
     std::vector<std::string> builtin_cmds;
     std::vector<std::string> function_names;
     std::unordered_set<std::string> aliases;
-    std::vector<std::filesystem::path> cached_executables;
+    std::vector<std::string> executables_in_path;
 
     if (g_shell && (g_shell->get_built_ins() != nullptr)) {
         builtin_cmds = g_shell->get_built_ins()->get_builtin_commands();
@@ -225,7 +225,7 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
         }
     }
 
-    cached_executables = cjsh_filesystem::read_cached_executables();
+    executables_in_path = cjsh_filesystem::get_executables_in_path();
 
     auto builtin_filter = [&](const std::string& cmd) { return is_interactive_builtin(cmd); };
 
@@ -245,9 +245,9 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
     if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv))
         return;
 
-    process_command_candidates(
-        cenv, cached_executables, prefix_str, prefix_len, "system", "cached executables",
-        [](const std::filesystem::path& value) { return value.filename().string(); });
+    process_command_candidates(cenv, executables_in_path, prefix_str, prefix_len, "system",
+                               "executables in PATH",
+                               [](const std::string& value) { return value; });
 
     if (!ic_has_completions(cenv) && g_completion_spell_correction_enabled) {
         std::string normalized_prefix = completion_utils::normalize_for_comparison(prefix_str);
@@ -267,8 +267,7 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
                 std::function<bool(const std::string&)>{}, normalized_prefix, spell_matches);
 
             completion_spell::collect_spell_correction_candidates(
-                cached_executables,
-                [](const std::filesystem::path& value) { return value.filename().string(); },
+                executables_in_path, [](const std::string& value) { return value; },
                 std::function<bool(const std::string&)>{}, normalized_prefix, spell_matches);
 
             if (!spell_matches.empty()) {

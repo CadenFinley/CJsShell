@@ -1,16 +1,8 @@
 #pragma once
 
-#include <shared_mutex>
 #include <string>
-#include <unordered_set>
 
 namespace token_classifier {
-
-extern std::unordered_set<std::string> external_executables_;
-extern std::shared_mutex external_cache_mutex_;
-
-void initialize_external_cache();
-void refresh_executables_cache();
 
 bool is_external_command(const std::string& token);
 bool is_shell_keyword(const std::string& token);
