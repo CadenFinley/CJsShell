@@ -391,8 +391,15 @@ read_key:
 
     if (c >= '1' && c <= '9') {
         ssize_t i = (c - '1');
-        if (i < count_displayed) {
-            selected = i;
+        ssize_t base = 0;
+        ssize_t limit = count_displayed;
+        if (expanded_mode) {
+            base = scroll_offset;
+            limit = (last_rows_visible > 0 ? last_rows_visible : count_displayed);
+        }
+        ssize_t idx = base + i;
+        if (i < limit && idx < count_displayed) {
+            selected = idx;
             c = KEY_ENTER;
         }
     }
@@ -456,18 +463,21 @@ read_key:
         edit_complete(env, eb, selected);
     } else if ((c == KEY_PAGEDOWN || c == KEY_LINEFEED) && count > 9) {
         c = 0;
-        if (!expanded_mode || more_available) {
-            if (more_available) {
-                count = completions_generate(env, env->completions, sbuf_string(eb->input), eb->pos,
-                                             IC_MAX_COMPLETIONS_TO_SHOW);
-                completions_sort(env->completions);
-                more_available = false;
-                if (selected >= count) {
-                    selected = (env->complete_nopreview ? 0 : -1);
-                }
-            }
+        if (!expanded_mode) {
             expanded_mode = true;
             scroll_offset = 0;
+        } else if (more_available) {
+            ssize_t prev_count = count;
+            count = completions_generate(env, env->completions, sbuf_string(eb->input), eb->pos,
+                                         IC_MAX_COMPLETIONS_TO_SHOW);
+            completions_sort(env->completions);
+            more_available = (count >= IC_MAX_COMPLETIONS_TO_SHOW);
+            if (selected >= count) {
+                selected = (env->complete_nopreview ? 0 : -1);
+            }
+            if (count < prev_count && scroll_offset > 0 && scroll_offset >= count) {
+                scroll_offset = (count > 0 ? count - 1 : 0);
+            }
         } else if (expanded_mode && last_rows_visible > 0) {
             if (scroll_offset < last_max_scroll_offset) {
                 scroll_offset += last_rows_visible;
