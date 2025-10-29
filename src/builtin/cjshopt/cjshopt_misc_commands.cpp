@@ -96,7 +96,6 @@ int style_def_command(const std::vector<std::string>& args) {
             std::cout << "Examples:\n";
             std::cout << "  style_def builtin \"bold color=#FFB86C\"\n";
             std::cout << "  style_def system \"color=#50FA7B\"\n";
-            std::cout << "  style_def installed \"color=#8BE9FD\"\n";
             std::cout << "  style_def comment \"italic color=green\"\n";
             std::cout << "  style_def string \"color=#F1FA8C\"\n\n";
             std::cout << "To reset all styles to defaults, use: style_def --reset\n";

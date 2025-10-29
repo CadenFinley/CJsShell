@@ -3,7 +3,9 @@
 #include <cctype>
 #include <string>
 
+#include "builtin.h"
 #include "cjsh_filesystem.h"
+#include "shell.h"
 #include "token_constants.h"
 
 namespace token_classifier {
@@ -17,7 +19,11 @@ bool is_shell_keyword(const std::string& token) {
 }
 
 bool is_shell_builtin(const std::string& token) {
-    return token_constants::shell_built_ins.count(token) > 0;
+    extern Shell* g_shell;
+    if (g_shell != nullptr && g_shell->get_built_ins() != nullptr) {
+        return g_shell->get_built_ins()->is_builtin_command(token);
+    }
+    return false;
 }
 
 bool is_variable_reference(const std::string& token) {
@@ -55,11 +61,7 @@ bool is_quoted_string(const std::string& token, char& quote_type) {
 }
 
 bool is_redirection_operator(const std::string& token) {
-    static const std::unordered_set<std::string> redirection_ops = {
-        ">",  ">>",  "<",  "<<",  "<<<",  "&>",   "&>>", "<&", ">&", "|&",
-        "2>", "2>>", "1>", "1>>", "2>&1", "1>&2", ">&2", "<>", "1<", "2<",
-        "0<", "0>",  "3>", "4>",  "5>",   "6>",   "7>",  "8>", "9>"};
-    return redirection_ops.count(token) > 0;
+    return token_constants::redirection_operators.count(token) > 0;
 }
 
 bool is_glob_pattern(const std::string& token) {

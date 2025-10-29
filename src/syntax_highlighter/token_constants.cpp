@@ -6,10 +6,6 @@ const std::unordered_set<std::string> comparison_operators = {
     "=",   "==",  "!=",  "<",   "<=",  ">",   ">=",  "-eq",
     "-ne", "-gt", "-ge", "-lt", "-le", "-ef", "-nt", "-ot"};
 
-const std::unordered_set<std::string> basic_unix_commands = {
-    "cat",  "mv",    "cp",    "rm", "mkdir", "rmdir", "touch",  "grep",
-    "find", "chmod", "chown", "ps", "man",   "which", "whereis"};
-
 const std::unordered_set<std::string> command_operators = {"&&", "||", "|", ";"};
 
 const std::unordered_set<std::string> shell_keywords = {
@@ -17,12 +13,10 @@ const std::unordered_set<std::string> shell_keywords = {
     "until", "for",  "do",   "done", "function", "select", "time", "coproc", "{",
     "}",     "[[",   "]]",   "(",    ")",        ":",      "[",    "]"};
 
-const std::unordered_set<std::string> shell_built_ins = {
-    "echo",  "printf",  "pwd",     "cd",     "ls",       "alias",  "export", "unalias",
-    "unset", "set",     "shift",   "break",  "continue", "return", "source", ".",
-    "help",  "version", "eval",    "syntax", "history",  "exit",   "quit",   "test",
-    "exec",  "trap",    "jobs",    "fg",     "bg",       "wait",   "kill",   "readonly",
-    "read",  "umask",   "getopts", "times",  "type",     "hash"};
+const std::unordered_set<std::string> redirection_operators = {
+    ">",  ">>",  "<",  "<<",  "<<<",  "&>",   "&>>", "<&", ">&", "|&",
+    "2>", "2>>", "1>", "1>>", "2>&1", "1>&2", ">&2", "<>", "1<", "2<",
+    "0<", "0>",  "3>", "4>",  "5>",   "6>",   "7>",  "8>", "9>"};
 
 const std::unordered_map<std::string, std::string> default_styles = {
     {"unknown-command", "bold color=#FF5555"},
@@ -34,7 +28,6 @@ const std::unordered_map<std::string, std::string> default_styles = {
     {"keyword", "bold color=#BD93F9"},
     {"builtin", "color=#FFB86C"},
     {"system", "color=#50FA7B"},
-    {"installed", "color=#8BE9FD"},
     {"variable", "color=#8BE9FD"},
     {"assignment-value", "color=#F8F8F2"},
     {"string", "color=#F1FA8C"},
