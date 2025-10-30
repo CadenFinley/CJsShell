@@ -58,8 +58,16 @@ static void editor_append_completion(ic_env_t* env, editor_t* eb, ssize_t idx, s
         for (ssize_t t = shown; t >= 10; t /= 10) {
             ndigits++;
         }
-        sbuf_appendf(eb->extra, "[ic-info]%s%zd [/]",
-                     (selected ? (tty_is_utf8(env->tty) ? "\xE2\x86\x92" : "*") : " "), shown);
+        if (selected) {
+            sbuf_append(eb->extra, "[ic-emphasis]");
+        }
+        sbuf_appendf(eb->extra, "%s%zd ",
+                     (selected ? (tty_is_utf8(env->tty) ? "\xE2\x86\x92" : ">") : " "), shown);
+        if (selected) {
+            sbuf_append(eb->extra, "[/ic-emphasis]");
+        } else {
+            sbuf_append(eb->extra, "[ic-info][/]");
+        }
         width -= (1 + ndigits + 1);
     }
 
@@ -77,9 +85,9 @@ static void editor_append_completion(ic_env_t* env, editor_t* eb, ssize_t idx, s
     // Add source information if available
     if (source != NULL) {
         sbuf_append(eb->extra, " ");
-        sbuf_append_tagged(eb->extra, "ic-info", "(");
-        sbuf_append_tagged(eb->extra, "ic-info", source);
-        sbuf_append_tagged(eb->extra, "ic-info", ")");
+        sbuf_append_tagged(eb->extra, "ic-source", "(");
+        sbuf_append_tagged(eb->extra, "ic-source", source);
+        sbuf_append_tagged(eb->extra, "ic-source", ")");
     }
 
     if (help != NULL) {

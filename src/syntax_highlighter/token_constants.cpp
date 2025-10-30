@@ -38,7 +38,16 @@ const std::unordered_map<std::string, std::string> default_styles = {
     {"number", "color=#FFB86C"},
     {"function-definition", "bold color=#F1FA8C"},
     {"history-expansion", "bold color=#FF79C6"},
+    {"ic-prompt", "ansi-green"},
     {"ic-linenumbers", "ansi-lightgray"},
-    {"ic-linenumber-current", "ansi-yellow"}};
+    {"ic-linenumber-current", "ansi-yellow"},
+    {"ic-info", "ansi-darkgray"},
+    {"ic-source", "#ffffd7"},
+    {"ic-diminish", "ansi-lightgray"},
+    {"ic-emphasis", "#ffffd7"},
+    {"ic-hint", "ansi-darkgray"},
+    {"ic-error", "#d70000"},
+    {"ic-bracematch", "ansi-white"},
+    {"ic-whitespace-char", "ansi-lightgray"}};
 
 }  // namespace token_constants
