@@ -442,7 +442,8 @@ again:;
 
             // Limit preview width so wrapped entries do not push the prompt off-screen.
             ssize_t visible_width = 0;
-            ssize_t visible_len = history_visible_prefix(entry, entry_len, max_columns, &visible_width);
+            ssize_t visible_len =
+                history_visible_prefix(entry, entry_len, max_columns, &visible_width);
             bool truncated = (visible_len < entry_len);
             bool append_ellipsis = (is_multiline || truncated);
 
@@ -451,7 +452,8 @@ again:;
                     ssize_t adjusted_columns = max_columns - 3;
                     if (adjusted_columns < 1)
                         adjusted_columns = 1;
-                    visible_len = history_visible_prefix(entry, entry_len, adjusted_columns, &visible_width);
+                    visible_len =
+                        history_visible_prefix(entry, entry_len, adjusted_columns, &visible_width);
                     truncated = (visible_len < entry_len) || truncated;
                 }
             } else if (!truncated && !is_multiline) {
