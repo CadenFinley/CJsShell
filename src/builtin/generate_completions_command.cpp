@@ -1,6 +1,8 @@
 #include "generate_completions_command.h"
 
 #include "builtin_help.h"
+#include "shell.h"
+#include "signal_handler.h"
 
 #include <algorithm>
 #include <atomic>
@@ -16,8 +18,6 @@
 #include "external_sub_completions.h"
 
 int generate_completions_command(const std::vector<std::string>& args, Shell* shell) {
-    (void)shell;
-
     if (builtin_handle_help(args,
                             {"Usage: generate-completions [OPTIONS] [COMMAND ...]",
                              "Regenerate cached completion data for commands.",
@@ -160,6 +160,40 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
     targets.erase(std::unique(targets.begin(), targets.end()), targets.end());
 
     std::vector<std::string> failures;
+    std::atomic<bool> cancel_requested{false};
+    std::mutex signal_poll_mutex;
+    Shell* shell_ptr = shell;
+
+    auto check_for_interrupt = [&](bool allow_shell_processing) -> bool {
+        if (cancel_requested.load()) {
+            return true;
+        }
+
+#ifdef SIGINT
+        if (!SignalHandler::has_pending_signals()) {
+            return false;
+        }
+
+        SignalProcessingResult pending{};
+        bool processed = false;
+
+        if (allow_shell_processing && shell_ptr != nullptr) {
+            pending = shell_ptr->process_pending_signals();
+            processed = true;
+        } else if (g_signal_handler != nullptr) {
+            std::lock_guard<std::mutex> lock(signal_poll_mutex);
+            pending = g_signal_handler->process_pending_signals(nullptr);
+            processed = true;
+        }
+
+        if (processed && pending.sigint) {
+            cancel_requested.store(true);
+            return true;
+        }
+#endif
+
+        return cancel_requested.load();
+    };
 
     const unsigned int hardware_threads = std::thread::hardware_concurrency();
     std::size_t default_jobs =
@@ -183,6 +217,10 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
     std::size_t success_count = 0;
     if (job_count == 1) {
         for (const auto& command : targets) {
+            if (check_for_interrupt(true)) {
+                break;
+            }
+
             bool generated = regenerate_external_completion_cache(command, force_refresh);
             if (generated) {
                 ++success_count;
@@ -196,6 +234,10 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
                               << " (no manual entry or unable to generate)" << '\n';
                 }
             }
+
+            if (check_for_interrupt(true)) {
+                break;
+            }
         }
     } else {
         std::atomic<std::size_t> next_index{0};
@@ -206,9 +248,17 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
         auto worker = [&]() {
             std::vector<std::string> local_failures;
             while (true) {
+                if (check_for_interrupt(false)) {
+                    break;
+                }
+
                 std::size_t index = next_index.fetch_add(1, std::memory_order_relaxed);
                 if (index >= targets.size())
                     break;
+
+                if (cancel_requested.load()) {
+                    break;
+                }
 
                 const std::string& command = targets[index];
                 bool generated = regenerate_external_completion_cache(command, force_refresh);
@@ -244,6 +294,14 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
         }
 
         success_count = success_counter.load(std::memory_order_relaxed);
+    }
+
+    if (check_for_interrupt(true)) {
+#ifdef SIGINT
+        return 128 + SIGINT;
+#else
+        return 130;
+#endif
     }
 
     if (!quiet) {
