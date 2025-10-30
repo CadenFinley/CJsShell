@@ -218,7 +218,10 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
 
     std::vector<std::string> builtin_cmds;
     std::vector<std::string> function_names;
-    std::unordered_set<std::string> aliases;
+    std::vector<std::string> alias_names;
+    std::vector<std::string> abbreviation_names;
+    const std::unordered_map<std::string, std::string>* alias_map = nullptr;
+    const std::unordered_map<std::string, std::string>* abbreviation_map = nullptr;
     std::vector<std::string> executables_in_path;
 
     if (g_shell && (g_shell->get_built_ins() != nullptr)) {
@@ -230,9 +233,16 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
     }
 
     if (g_shell) {
-        auto shell_aliases = g_shell->get_aliases();
-        for (const auto& alias : shell_aliases) {
-            aliases.insert(alias.first);
+        alias_map = &g_shell->get_aliases();
+        alias_names.reserve(alias_map->size());
+        for (const auto& alias : *alias_map) {
+            alias_names.push_back(alias.first);
+        }
+
+        abbreviation_map = &g_shell->get_abbreviations();
+        abbreviation_names.reserve(abbreviation_map->size());
+        for (const auto& entry : *abbreviation_map) {
+            abbreviation_names.push_back(entry.first);
         }
     }
 
@@ -255,8 +265,35 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
     if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv))
         return;
 
-    process_command_candidates(cenv, aliases, prefix_str, prefix_len, "alias", "aliases",
-                               [](const std::string& value) { return value; });
+    auto alias_source_provider = [alias_map](const std::string& name) -> std::string {
+        if (alias_map == nullptr)
+            return {};
+        auto it = alias_map->find(name);
+        if (it == alias_map->end())
+            return {};
+        return it->second;
+    };
+
+    process_command_candidates(
+        cenv, alias_names, prefix_str, prefix_len, "alias", "aliases",
+        [](const std::string& value) { return value; }, std::function<bool(const std::string&)>{},
+        alias_source_provider);
+    if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv))
+        return;
+
+    auto abbreviation_source_provider = [abbreviation_map](const std::string& name) -> std::string {
+        if (abbreviation_map == nullptr)
+            return {};
+        auto it = abbreviation_map->find(name);
+        if (it == abbreviation_map->end())
+            return {};
+        return it->second;
+    };
+
+    process_command_candidates(
+        cenv, abbreviation_names, prefix_str, prefix_len, "abbreviation", "abbreviations",
+        [](const std::string& value) { return value; }, std::function<bool(const std::string&)>{},
+        abbreviation_source_provider);
     if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv))
         return;
 
@@ -290,7 +327,11 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
                 std::function<bool(const std::string&)>{}, normalized_prefix, spell_matches);
 
             completion_spell::collect_spell_correction_candidates(
-                aliases, [](const std::string& value) { return value; },
+                alias_names, [](const std::string& value) { return value; },
+                std::function<bool(const std::string&)>{}, normalized_prefix, spell_matches);
+
+            completion_spell::collect_spell_correction_candidates(
+                abbreviation_names, [](const std::string& value) { return value; },
                 std::function<bool(const std::string&)>{}, normalized_prefix, spell_matches);
 
             completion_spell::collect_spell_correction_candidates(
