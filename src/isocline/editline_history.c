@@ -288,6 +288,9 @@ static void edit_history_fuzzy_search(ic_env_t* env, editor_t* eb, char* initial
 
     ssize_t match_count = 0;
     ssize_t selected_idx = 0;
+    ssize_t scroll_offset = 0;
+    ssize_t last_display_count = 0;
+    ssize_t last_max_scroll = 0;
 
     if (initial != NULL) {
         sbuf_replace(eb->input, initial);
@@ -298,6 +301,9 @@ static void edit_history_fuzzy_search(ic_env_t* env, editor_t* eb, char* initial
     }
 
 again:;
+
+    last_display_count = 0;
+    last_max_scroll = 0;
 
     bool showing_all_due_to_no_matches = false;
 
@@ -353,17 +359,33 @@ again:;
         }
 
         ssize_t display_count = (match_count > available_lines) ? available_lines : match_count;
+        if (display_count < 1) {
+            display_count = 1;
+        }
 
-        ssize_t scroll_offset = 0;
-        if (selected_idx >= display_count) {
+        ssize_t max_scroll = (match_count > display_count) ? (match_count - display_count) : 0;
+        if (scroll_offset > max_scroll) {
+            scroll_offset = max_scroll;
+        }
+        if (scroll_offset < 0) {
+            scroll_offset = 0;
+        }
+
+        if (selected_idx < scroll_offset) {
+            scroll_offset = selected_idx;
+        } else if (selected_idx >= scroll_offset + display_count) {
             scroll_offset = selected_idx - display_count + 1;
         }
 
-        if (scroll_offset + display_count > match_count) {
-            scroll_offset = match_count - display_count;
-            if (scroll_offset < 0)
-                scroll_offset = 0;
+        if (scroll_offset < 0) {
+            scroll_offset = 0;
         }
+        if (scroll_offset > max_scroll) {
+            scroll_offset = max_scroll;
+        }
+
+        last_display_count = display_count;
+        last_max_scroll = max_scroll;
 
         for (ssize_t i = 0; i < display_count; i++) {
             ssize_t match_idx = scroll_offset + i;
@@ -435,11 +457,13 @@ again:;
             }
         }
     } else {
+        scroll_offset = 0;
         sbuf_append(eb->extra, "[ic-info]No matches found[/]\n");
     }
 
     if (!env->no_help) {
-        sbuf_append(eb->extra, "[ic-diminish](↑↓:navigate enter:run tab:edit esc:cancel)[/]");
+        sbuf_append(eb->extra,
+                    "[ic-diminish](↑↓:navigate shift+↑/↓:page enter:run tab:edit esc:cancel)[/]");
     }
 
     edit_refresh(env, eb);
@@ -500,6 +524,40 @@ again:;
         ic_enable_hint(old_hint);
         edit_refresh(env, eb);
         return;
+    } else if ((KEY_MODS(c) & KEY_MOD_SHIFT) && KEY_NO_MODS(c) == KEY_DOWN) {
+        if (match_count > 0 && last_display_count > 0) {
+            if (scroll_offset < last_max_scroll) {
+                scroll_offset += last_display_count;
+                if (scroll_offset > last_max_scroll) {
+                    scroll_offset = last_max_scroll;
+                }
+                selected_idx = scroll_offset;
+                if (selected_idx >= match_count) {
+                    selected_idx = match_count - 1;
+                }
+            } else {
+                term_beep(env->term);
+            }
+        } else {
+            term_beep(env->term);
+        }
+        goto again;
+    } else if ((KEY_MODS(c) & KEY_MOD_SHIFT) && KEY_NO_MODS(c) == KEY_UP) {
+        if (match_count > 0 && last_display_count > 0) {
+            if (scroll_offset > 0) {
+                if (scroll_offset > last_display_count) {
+                    scroll_offset -= last_display_count;
+                } else {
+                    scroll_offset = 0;
+                }
+                selected_idx = scroll_offset;
+            } else {
+                term_beep(env->term);
+            }
+        } else {
+            term_beep(env->term);
+        }
+        goto again;
     } else if (c == KEY_UP || c == KEY_CTRL_P) {
         if (selected_idx > 0) {
             selected_idx--;

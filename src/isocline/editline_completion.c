@@ -324,9 +324,9 @@ again:
             if (more_available) {
                 sbuf_append(eb->extra, "[ic-info]Press PgDn or ctrl-j to load more completions[/]");
             } else {
-                sbuf_append(
-                    eb->extra,
-                    "[ic-info]Use up/down or tab/shift-tab to move; PgUp/PgDn to scroll[/]");
+                sbuf_append(eb->extra,
+                            "[ic-info]Use up/down or tab/shift-tab to move; Shift+Up/Down to page; "
+                            "PgUp/PgDn to scroll[/]");
             }
         }
 
@@ -403,6 +403,48 @@ read_key:
         if (i < limit && idx < count_displayed) {
             selected = idx;
             c = KEY_ENTER;
+        }
+    }
+
+    if (expanded_mode && (KEY_MODS(c) & KEY_MOD_SHIFT) != 0) {
+        code_t base_key = KEY_NO_MODS(c);
+        ssize_t page = (last_rows_visible > 0 ? last_rows_visible
+                                              : (count_displayed > 0 ? count_displayed : 1));
+        if (page < 1) {
+            page = 1;
+        }
+        if (base_key == KEY_DOWN) {
+            if (scroll_offset < last_max_scroll_offset) {
+                scroll_offset += page;
+                if (scroll_offset > last_max_scroll_offset) {
+                    scroll_offset = last_max_scroll_offset;
+                }
+                selected = (scroll_offset < count_displayed ? scroll_offset : count_displayed - 1);
+                if (selected < 0) {
+                    selected = 0;
+                }
+            } else {
+                term_beep(env->term);
+            }
+            goto again;
+        } else if (base_key == KEY_UP) {
+            if (scroll_offset > 0) {
+                if (scroll_offset > page) {
+                    scroll_offset -= page;
+                } else {
+                    scroll_offset = 0;
+                }
+                selected = scroll_offset;
+                if (selected >= count_displayed) {
+                    selected = count_displayed - 1;
+                }
+                if (selected < 0) {
+                    selected = 0;
+                }
+            } else {
+                term_beep(env->term);
+            }
+            goto again;
         }
     }
 
