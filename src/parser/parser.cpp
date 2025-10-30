@@ -255,6 +255,9 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
     std::string current_here_doc_line;
     current_here_doc_line.reserve(128);
 
+    bool line_is_comment = false;
+    bool in_parameter_brace = false;
+
     auto add_here_doc_placeholder_line = [&](std::string before, const std::string& rest) {
         std::string placeholder;
         placeholder.reserve(32);
@@ -515,12 +518,62 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
             continue;
         }
 
-        if (!in_quotes && (c == '"' || c == '\'')) {
-            in_quotes = true;
-            quote_char = c;
-        } else if (in_quotes && c == quote_char) {
-            in_quotes = false;
-        } else if (!in_quotes && c == '\n') {
+        if (!line_is_comment && !in_quotes) {
+            if (!in_parameter_brace && c == '$' && i + 1 < script.size() && script[i + 1] == '{') {
+                in_parameter_brace = true;
+            } else if (in_parameter_brace && c == '}') {
+                in_parameter_brace = false;
+            }
+        }
+
+        if (!line_is_comment && !in_quotes && !in_parameter_brace && c == '#' &&
+            !is_char_escaped(script, i)) {
+            bool comment_start = false;
+            if (i == start) {
+                comment_start = true;
+            } else {
+                char prev = script[i - 1];
+                if (prev == ' ' || prev == '\t' || prev == '\r' || prev == '\f' || prev == '\v') {
+                    comment_start = true;
+                } else {
+                    size_t j = i;
+                    while (j > start && (script[j - 1] == ' ' || script[j - 1] == '\t' ||
+                                         script[j - 1] == '\r' || script[j - 1] == '\f' ||
+                                         script[j - 1] == '\v')) {
+                        --j;
+                    }
+                    if (j > start) {
+                        char last = script[j - 1];
+                        if (last == ';' || last == '(' || last == ')' || last == '{' ||
+                            last == '}' || last == '[' || last == ']' || last == '|' ||
+                            last == '&') {
+                            comment_start = true;
+                        }
+                    } else {
+                        comment_start = true;
+                    }
+                }
+            }
+
+            if (comment_start) {
+                line_is_comment = true;
+            }
+        }
+
+        if (!line_is_comment) {
+            if (!in_quotes && (c == '"' || c == '\'')) {
+                in_quotes = true;
+                quote_char = c;
+            } else if (in_quotes && c == quote_char) {
+                in_quotes = false;
+            }
+        }
+
+        if (line_is_comment && c == '\n') {
+            line_is_comment = false;
+        }
+
+        if (!in_quotes && c == '\n') {
             std::string_view segment_view{script.data() + start, i - start};
             if (!in_quotes && segment_view.find("<<") != std::string_view::npos) {
                 std::string segment_no_comment = strip_inline_comment(segment_view);
@@ -606,6 +659,7 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
             }
             lines.push_back(std::move(segment));
             start = i + 1;
+            line_is_comment = false;
         }
     }
 
