@@ -561,7 +561,8 @@ read_key:
         completions_clear(env->completions);
         edit_refresh(env, eb);
         c = 0;
-    } else if (selected >= 0 && (c == KEY_ENTER || (!grid_mode && c == KEY_RIGHT) || c == KEY_END)) {
+    } else if (selected >= 0 &&
+               (c == KEY_ENTER || (!grid_mode && c == KEY_RIGHT) || c == KEY_END)) {
         assert(selected < count);
         c = 0;
         edit_complete(env, eb, selected);
