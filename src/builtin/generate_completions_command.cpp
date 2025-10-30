@@ -310,6 +310,7 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
         if (!failures.empty()) {
             std::cout << ", " << failures.size() << " missing";
         }
+        std::cout << '\n';
         std::cout << "You may see elevated reported memory usage during this session until cjsh "
                      "is restarted because of this command."
                   << '\n';
