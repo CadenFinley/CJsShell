@@ -138,9 +138,6 @@ void initialize_colors() {
 
     if (!config::colors_enabled) {
         ic_enable_color(false);
-        ic_style_def("ic-prompt", "");
-        ic_style_def("ic-linenumbers", "");
-        ic_style_def("ic-linenumber-current", "");
     } else if (config::colors_enabled && config::syntax_highlighting_enabled) {
         for (const auto& pair : token_constants::default_styles) {
             std::string style_name = pair.first;
