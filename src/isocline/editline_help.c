@@ -106,6 +106,7 @@ static const char* help_initial =
     "[ic-info]"
     "Isocline v1.0, copyright (c) 2021 Daan Leijen.\n"
     "Largely Modified by Caden Finley 2025 for CJ's Shell.\n"
+    "This distribution of isocline is a fork of <[url]https://github.com/daanx/isocline[/url]>\n"
     "This is free software; you can redistribute it and/or\n"
     "modify it under the terms of the MIT License.\n"
     "See <[url]https://github.com/cadenfinley/isocline[/url]> for further "

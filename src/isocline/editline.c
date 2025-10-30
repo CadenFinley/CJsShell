@@ -2173,8 +2173,10 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
         } else if (c == KEY_ESC) {
             // Clear history preview on ESC
             edit_clear_history_preview(&eb);
-            if (eb.pos == 0 && editor_pos_is_at_end(&eb))
-                break;                  // ESC on empty input returns with empty input
+            if (eb.pos == 0 && editor_pos_is_at_end(&eb)) {
+                // Keep the prompt in place when ESC is pressed on an empty buffer.
+                continue;
+            }
             edit_delete_all(env, &eb);  // otherwise delete the current input
             // edit_delete_line(env,&eb);  // otherwise delete the current line
         } else if (c == KEY_BELL /* ^G */) {
