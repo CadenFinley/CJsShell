@@ -268,8 +268,9 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
     };
 
     process_command_candidates(
-        cenv, executables_in_path, prefix_str, prefix_len, "system", "executables in PATH",
-        [](const std::string& value) { return value; }, {}, system_summary_provider);
+        cenv, executables_in_path, prefix_str, prefix_len, "system installed command",
+        "executables in PATH", [](const std::string& value) { return value; }, {},
+        system_summary_provider);
 
     if (!ic_has_completions(cenv) && g_completion_spell_correction_enabled) {
         std::string normalized_prefix = completion_utils::normalize_for_comparison(prefix_str);
