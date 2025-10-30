@@ -1,6 +1,8 @@
 #include "completion_tracker.h"
 
+#include <cctype>
 #include <string>
+#include <utility>
 
 #include "isocline.h"
 #include "isocline/completions.h"
@@ -13,6 +15,13 @@ const size_t MAX_COMPLETION_TRACKER_ENTRIES = static_cast<size_t>(IC_MAX_COMPLET
 const size_t MAX_TOTAL_COMPLETIONS = static_cast<size_t>(IC_MAX_COMPLETIONS_TO_SHOW);
 
 thread_local CompletionTracker* g_current_completion_tracker = nullptr;
+
+std::string canonicalize_final_result(std::string result) {
+    while (!result.empty() && std::isspace(static_cast<unsigned char>(result.back()))) {
+        result.pop_back();
+    }
+    return result;
+}
 
 }  // namespace
 
@@ -46,7 +55,8 @@ bool CompletionTracker::would_create_duplicate(const char* completion_text, long
     }
 
     std::string final_result = calculate_final_result(completion_text, delete_before);
-    return added_completions.find(final_result) != added_completions.end();
+    std::string canonical_result = canonicalize_final_result(std::move(final_result));
+    return added_completions.find(canonical_result) != added_completions.end();
 }
 
 bool CompletionTracker::add_completion_if_unique(const char* completion_text) {
@@ -59,7 +69,7 @@ bool CompletionTracker::add_completion_if_unique(const char* completion_text) {
     }
 
     std::string final_result = calculate_final_result(completion_text, 0);
-    added_completions.insert(final_result);
+    added_completions.insert(canonicalize_final_result(std::move(final_result)));
     total_completions_added++;
     return ic_add_completion_ex_with_source(cenv, completion_text, nullptr, nullptr, source);
 }
@@ -76,7 +86,7 @@ bool CompletionTracker::add_completion_prim_if_unique(const char* completion_tex
     }
 
     std::string final_result = calculate_final_result(completion_text, delete_before);
-    added_completions.insert(final_result);
+    added_completions.insert(canonicalize_final_result(std::move(final_result)));
     total_completions_added++;
     return ic_add_completion_prim_with_source(cenv, completion_text, display, help, source,
                                               delete_before, delete_after);
@@ -94,7 +104,7 @@ bool CompletionTracker::add_completion_prim_with_source_if_unique(
     }
 
     std::string final_result = calculate_final_result(completion_text, delete_before);
-    added_completions.insert(final_result);
+    added_completions.insert(canonicalize_final_result(std::move(final_result)));
     total_completions_added++;
     return ic_add_completion_prim_with_source(cenv, completion_text, display, help, source,
                                               delete_before, delete_after);

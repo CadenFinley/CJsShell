@@ -711,13 +711,13 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
 
     switch (context) {
         case CONTEXT_COMMAND:
-            cjsh_history_completer(cenv, current_line_prefix);
+            cjsh_command_completer(cenv, current_line_prefix);
             if (ic_has_completions(cenv) && ic_stop_completing(cenv)) {
                 completion_tracker::completion_session_end();
                 return;
             }
 
-            cjsh_command_completer(cenv, current_line_prefix);
+            cjsh_history_completer(cenv, current_line_prefix);
             if (ic_has_completions(cenv) && ic_stop_completing(cenv)) {
                 completion_tracker::completion_session_end();
                 return;
