@@ -1,0 +1,40 @@
+#! /usr/bin/env cjsh
+# Catppuccin Mocha inspired syntax highlighting for CJ's Shell
+# Source this file (e.g. `source ~/.config/cjsh/catppuccin_mocha_highlighting.cjsh`) to apply.
+# Remove or comment out the reset line if you want to layer these styles onto existing tweaks.
+
+# cjshopt style_def --reset
+
+# Core token styling
+cjshopt style_def unknown-command "bold color=#f38ba8"
+cjshopt style_def colon "bold color=#fab387"
+cjshopt style_def path-exists "color=#a6e3a1"
+cjshopt style_def path-not-exists "bold color=#f38ba8"
+cjshopt style_def glob-pattern "color=#f9e2af"
+cjshopt style_def operator "bold color=#94e2d5"
+cjshopt style_def keyword "bold color=#cba6f7"
+cjshopt style_def builtin "color=#89b4fa"
+cjshopt style_def system "color=#94e2d5"
+cjshopt style_def variable "color=#f5c2e7"
+cjshopt style_def assignment-value "color=#cdd6f4"
+cjshopt style_def string "color=#f2cdcd"
+cjshopt style_def comment "italic color=#6c7086"
+cjshopt style_def command-substitution "color=#89dceb"
+cjshopt style_def arithmetic "color=#fab387"
+cjshopt style_def option "color=#74c7ec"
+cjshopt style_def number "color=#fab387"
+cjshopt style_def function-definition "bold color=#b4befe"
+cjshopt style_def history-expansion "bold color=#f38ba8"
+
+# Isocline UI accents
+cjshopt style_def ic-prompt "color=#a6e3a1"
+cjshopt style_def ic-linenumbers "color=#45475a"
+cjshopt style_def ic-linenumber-current "bold color=#cdd6f4"
+cjshopt style_def ic-info "color=#7f849c"
+cjshopt style_def ic-source "color=#cdd6f4"
+cjshopt style_def ic-diminish "color=#585b70"
+cjshopt style_def ic-emphasis "color=#f5e0dc"
+cjshopt style_def ic-hint "color=#7f849c"
+cjshopt style_def ic-error "bold color=#f38ba8"
+cjshopt style_def ic-bracematch "bold color=#b4befe"
+cjshopt style_def ic-whitespace-char "color=#313244"

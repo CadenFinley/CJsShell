@@ -1,0 +1,40 @@
+#! /usr/bin/env cjsh
+# Gruvbox Dark inspired syntax highlighting for CJ's Shell
+# Source this file (e.g. `source ~/.config/cjsh/gruvbox_dark_highlighting.cjsh`) to apply.
+# Remove or comment out the reset line if you want to layer these styles onto existing tweaks.
+
+# cjshopt style_def --reset
+
+# Core token styling
+cjshopt style_def unknown-command "bold color=#fb4934"
+cjshopt style_def colon "bold color=#d79921"
+cjshopt style_def path-exists "color=#b8bb26"
+cjshopt style_def path-not-exists "color=#fb4934"
+cjshopt style_def glob-pattern "color=#fabd2f"
+cjshopt style_def operator "bold color=#fe8019"
+cjshopt style_def keyword "bold color=#d3869b"
+cjshopt style_def builtin "color=#fe8019"
+cjshopt style_def system "color=#8ec07c"
+cjshopt style_def variable "color=#83a598"
+cjshopt style_def assignment-value "color=#ebdbb2"
+cjshopt style_def string "color=#b8bb26"
+cjshopt style_def comment "italic color=#928374"
+cjshopt style_def command-substitution "color=#8ec07c"
+cjshopt style_def arithmetic "color=#d3869b"
+cjshopt style_def option "color=#83a598"
+cjshopt style_def number "color=#d79921"
+cjshopt style_def function-definition "bold color=#b8bb26"
+cjshopt style_def history-expansion "bold color=#fb4934"
+
+# Isocline UI accents
+cjshopt style_def ic-prompt "color=#b8bb26"
+cjshopt style_def ic-linenumbers "color=#7c6f64"
+cjshopt style_def ic-linenumber-current "bold color=#fbf1c7"
+cjshopt style_def ic-info "color=#665c54"
+cjshopt style_def ic-source "color=#ebdbb2"
+cjshopt style_def ic-diminish "color=#7c6f64"
+cjshopt style_def ic-emphasis "color=#ebdbb2"
+cjshopt style_def ic-hint "color=#665c54"
+cjshopt style_def ic-error "bold color=#fb4934"
+cjshopt style_def ic-bracematch "bold color=#fabd2f"
+cjshopt style_def ic-whitespace-char "color=#504945"
