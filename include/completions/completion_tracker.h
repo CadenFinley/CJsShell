@@ -1,25 +1,14 @@
 #pragma once
 
 #include <string>
-#include <unordered_map>
+#include <unordered_set>
 
 #include "isocline/isocline.h"
 
 namespace completion_tracker {
 
-enum SourcePriority : std::uint8_t {
-    PRIORITY_HISTORY = 0,
-    PRIORITY_BOOKMARK = 1,
-    PRIORITY_UNKNOWN = 2,
-    PRIORITY_FILE = 3,
-    PRIORITY_DIRECTORY = 4,
-    PRIORITY_FUNCTION = 5
-};
-
-SourcePriority get_source_priority(const char* source);
-
 struct CompletionTracker {
-    std::unordered_map<std::string, SourcePriority> added_completions;
+    std::unordered_set<std::string> added_completions;
     ic_completion_env_t* cenv;
     std::string original_prefix;
     size_t total_completions_added{};
@@ -29,8 +18,7 @@ struct CompletionTracker {
 
     bool has_reached_completion_limit() const;
     std::string calculate_final_result(const char* completion_text, long delete_before = 0) const;
-    bool would_create_duplicate(const char* completion_text, const char* source,
-                                long delete_before = 0);
+    bool would_create_duplicate(const char* completion_text, long delete_before = 0);
     bool add_completion_if_unique(const char* completion_text);
     bool add_completion_prim_if_unique(const char* completion_text, const char* display,
                                        const char* help, long delete_before, long delete_after);
