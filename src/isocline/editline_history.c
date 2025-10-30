@@ -462,7 +462,9 @@ again:;
 
             if (match_idx == selected_idx) {
                 const char* arrow = tty_is_utf8(env->tty) ? "\xE2\x86\x92" : ">";
-                sbuf_appendf(eb->extra, "[ic-emphasis]%s [/ic-emphasis][!pre]", arrow);
+                sbuf_append(eb->extra, "[ic-emphasis]");
+                sbuf_appendf(eb->extra, "%s ", arrow);
+                sbuf_append(eb->extra, "[!pre]");
             } else {
                 sbuf_append(eb->extra, "[ic-diminish]  [/][!pre]");
             }
@@ -512,7 +514,7 @@ again:;
             sbuf_append(eb->extra, "[/pre]");
 
             if (match_idx == selected_idx) {
-                // Closing tag handled by opening tag already
+                sbuf_append(eb->extra, "[/ic-emphasis]");
             } else {
                 sbuf_append(eb->extra, "[/ic-diminish]");
             }

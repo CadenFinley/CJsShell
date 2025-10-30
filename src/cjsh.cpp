@@ -379,9 +379,6 @@ void cleanup_resources() {
         if (config::login_mode) {
             process_logout_file();
         }
-    }
-
-    if (g_shell) {
         g_shell.reset();
     }
 
