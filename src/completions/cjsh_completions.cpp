@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -14,6 +15,7 @@
 #include <vector>
 
 #include "builtin.h"
+#include "builtin_argument_completion.h"
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "completion_history.h"
@@ -24,6 +26,7 @@
 #include "isocline.h"
 #include "shell.h"
 #include "shell_script_interpreter.h"
+#include "token_classifier.h"
 
 std::map<std::string, int> g_completion_frequency;
 bool g_completion_case_sensitive = false;
@@ -701,7 +704,15 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
                     args.emplace_back("");
                 }
 
-                handle_external_sub_completions(cenv, current_line_prefix);
+                bool handled = false;
+                if (token_classifier::is_shell_builtin(tokens[0])) {
+                    handled = builtin_argument_completion::add_completions(cenv, tokens[0], args,
+                                                                           ends_with_space);
+                }
+
+                if (!handled) {
+                    handle_external_sub_completions(cenv, current_line_prefix);
+                }
             }
 
             if (!tokens.empty() && completion_utils::equals_completion_token(tokens[0], "cd")) {
