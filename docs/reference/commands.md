@@ -305,6 +305,19 @@ Cache command lookups or display the cache.
 hash [-r] [name...]
 ```
 
+### generate-completions
+Regenerate cached completion metadata for external commands.
+
+```bash
+generate-completions [--quiet] [--no-force] [-j jobs] [command ...]
+```
+
+- Runs against every executable discoverable in `PATH` when no command list is supplied
+- `--quiet` suppresses per-command status messages and prints only a summary (failures are listed)
+- `--no-force` keeps existing cache files and only generates data for missing entries
+- `-j/--jobs` limits the number of commands processed simultaneously (defaults to CPU count)
+- Use `--` to end option parsing when processing command names that start with a dash
+
 ### builtin
 Run a builtin directly, bypassing functions and PATH.
 

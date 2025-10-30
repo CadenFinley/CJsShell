@@ -27,6 +27,7 @@
 #include "export_command.h"
 #include "false_command.h"
 #include "fc_command.h"
+#include "generate_completions_command.h"
 #include "getopts_command.h"
 #include "hash_command.h"
 #include "help_command.h"
@@ -225,6 +226,10 @@ Built_ins::Built_ins() : shell(nullptr) {
          [this](const std::vector<std::string>& args) { return ::validate_command(args, shell); }},
         {"hash",
          [](const std::vector<std::string>& args) { return ::hash_command(args, nullptr); }},
+        {"generate-completions",
+         [this](const std::vector<std::string>& args) {
+             return ::generate_completions_command(args, shell);
+         }},
         {"hook",
          [this](const std::vector<std::string>& args) { return ::hook_command(args, shell); }},
         {"command",

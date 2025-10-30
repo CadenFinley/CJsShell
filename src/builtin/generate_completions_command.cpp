@@ -1,0 +1,271 @@
+#include "generate_completions_command.h"
+
+#include "builtin_help.h"
+
+#include <algorithm>
+#include <atomic>
+#include <iostream>
+#include <limits>
+#include <mutex>
+#include <thread>
+#include <vector>
+
+#include "cjsh.h"
+#include "cjsh_filesystem.h"
+#include "error_out.h"
+#include "external_sub_completions.h"
+
+int generate_completions_command(const std::vector<std::string>& args, Shell* shell) {
+    (void)shell;
+
+    if (builtin_handle_help(args,
+                            {"Usage: generate-completions [OPTIONS] [COMMAND ...]",
+                             "Regenerate cached completion data for commands.",
+                             "With no COMMAND, all executables in PATH are processed.",
+                             "Options:", "  --quiet, -q       Suppress per-command output",
+                             "  --no-force        Reuse existing cache entries when present",
+                             "  --force, -f       Force regeneration (default)",
+                             "  --jobs, -j <N>    Process up to N commands in parallel",
+                             "  --                Treat remaining arguments as command names"})) {
+        return 0;
+    }
+
+    if (!config::completions_enabled) {
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "generate-completions",
+                     "completions are disabled in the current shell configuration",
+                     {}});
+        return 1;
+    }
+
+    bool quiet = false;
+    bool force_refresh = true;
+    bool after_separator = false;
+    std::size_t requested_jobs = 0;
+    std::vector<std::string> targets;
+
+    auto set_job_count = [&](const std::string& value) -> bool {
+        if (value.empty())
+            return false;
+        std::size_t parsed = 0;
+        try {
+            unsigned long raw = std::stoul(value);
+            if (raw == 0 || raw > std::numeric_limits<std::size_t>::max())
+                return false;
+            parsed = static_cast<std::size_t>(raw);
+        } catch (const std::exception&) {
+            return false;
+        }
+        if (parsed == 0)
+            return false;
+        requested_jobs = parsed;
+        return true;
+    };
+
+    for (std::size_t i = 1; i < args.size(); ++i) {
+        const std::string& arg = args[i];
+        if (!after_separator && !arg.empty() && arg[0] == '-') {
+            if (arg == "--") {
+                after_separator = true;
+                continue;
+            }
+            if (arg == "--force" || arg == "-f") {
+                force_refresh = true;
+                continue;
+            }
+            if (arg == "--no-force") {
+                force_refresh = false;
+                continue;
+            }
+            if (arg == "--quiet" || arg == "-q") {
+                quiet = true;
+                continue;
+            }
+            if (arg == "--jobs" || arg == "-j") {
+                if (i + 1 >= args.size()) {
+                    print_error({ErrorType::INVALID_ARGUMENT,
+                                 "generate-completions",
+                                 "missing value for " + arg,
+                                 {"Pass a positive integer job count."}});
+                    return 2;
+                }
+                ++i;
+                if (!set_job_count(args[i])) {
+                    print_error({ErrorType::INVALID_ARGUMENT,
+                                 "generate-completions",
+                                 "invalid job count: " + args[i],
+                                 {"Use a positive integer."}});
+                    return 2;
+                }
+                continue;
+            }
+            if (arg.rfind("--jobs=", 0) == 0) {
+                std::string value = arg.substr(7);
+                if (!set_job_count(value)) {
+                    print_error({ErrorType::INVALID_ARGUMENT,
+                                 "generate-completions",
+                                 "invalid job count: " + value,
+                                 {"Use a positive integer."}});
+                    return 2;
+                }
+                continue;
+            }
+            if (arg.size() > 2 && arg[0] == '-' && arg[1] == 'j') {
+                std::string value = arg.substr(2);
+                if (value.empty()) {
+                    print_error({ErrorType::INVALID_ARGUMENT,
+                                 "generate-completions",
+                                 "missing value for -j",
+                                 {"Use -j <count> with a positive integer."}});
+                    return 2;
+                }
+                if (!set_job_count(value)) {
+                    print_error({ErrorType::INVALID_ARGUMENT,
+                                 "generate-completions",
+                                 "invalid job count: " + value,
+                                 {"Use a positive integer."}});
+                    return 2;
+                }
+                continue;
+            }
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         "generate-completions",
+                         "invalid option: " + arg,
+                         {"Use --help for usage."}});
+            return 2;
+        }
+        targets.push_back(arg);
+    }
+
+    if (!cjsh_filesystem::initialize_cjsh_directories()) {
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "generate-completions",
+                     "failed to initialize cjsh directories",
+                     {}});
+        return 1;
+    }
+
+    if (targets.empty()) {
+        targets = cjsh_filesystem::get_executables_in_path();
+    }
+
+    if (targets.empty()) {
+        if (!quiet) {
+            std::cout << "generate-completions: no commands discovered" << '\n';
+        }
+        return 0;
+    }
+
+    std::sort(targets.begin(), targets.end());
+    targets.erase(std::unique(targets.begin(), targets.end()), targets.end());
+
+    std::vector<std::string> failures;
+
+    const unsigned int hardware_threads = std::thread::hardware_concurrency();
+    std::size_t default_jobs =
+        hardware_threads == 0 ? 4 : static_cast<std::size_t>(hardware_threads);
+    if (default_jobs == 0)
+        default_jobs = 1;
+
+    std::size_t job_count = requested_jobs > 0 ? requested_jobs : default_jobs;
+    if (job_count == 0)
+        job_count = 1;
+    job_count = std::min(job_count, targets.size());
+    if (job_count == 0)
+        job_count = 1;
+
+    if (!quiet) {
+        std::cout << "generate-completions: processing " << targets.size() << " command"
+                  << (targets.size() == 1 ? "" : "s") << (force_refresh ? " (forcing refresh)" : "")
+                  << " using " << job_count << " job" << (job_count == 1 ? "" : "s") << '\n';
+    }
+
+    std::size_t success_count = 0;
+    if (job_count == 1) {
+        for (const auto& command : targets) {
+            bool generated = regenerate_external_completion_cache(command, force_refresh);
+            if (generated) {
+                ++success_count;
+                if (!quiet) {
+                    std::cout << "  [OK] " << command << '\n';
+                }
+            } else {
+                failures.push_back(command);
+                if (!quiet) {
+                    std::cout << "  [WARN] " << command
+                              << " (no manual entry or unable to generate)" << '\n';
+                }
+            }
+        }
+    } else {
+        std::atomic<std::size_t> next_index{0};
+        std::atomic<std::size_t> success_counter{0};
+        std::mutex output_mutex;
+        std::mutex failure_mutex;
+
+        auto worker = [&]() {
+            std::vector<std::string> local_failures;
+            while (true) {
+                std::size_t index = next_index.fetch_add(1, std::memory_order_relaxed);
+                if (index >= targets.size())
+                    break;
+
+                const std::string& command = targets[index];
+                bool generated = regenerate_external_completion_cache(command, force_refresh);
+                if (generated) {
+                    success_counter.fetch_add(1, std::memory_order_relaxed);
+                    if (!quiet) {
+                        std::lock_guard<std::mutex> lock(output_mutex);
+                        std::cout << "  [OK] " << command << '\n';
+                    }
+                } else {
+                    local_failures.push_back(command);
+                    if (!quiet) {
+                        std::lock_guard<std::mutex> lock(output_mutex);
+                        std::cout << "  [WARN] " << command
+                                  << " (no manual entry or unable to generate)" << '\n';
+                    }
+                }
+            }
+
+            if (!local_failures.empty()) {
+                std::lock_guard<std::mutex> lock(failure_mutex);
+                failures.insert(failures.end(), local_failures.begin(), local_failures.end());
+            }
+        };
+
+        std::vector<std::thread> workers;
+        workers.reserve(job_count);
+        for (std::size_t i = 0; i < job_count; ++i) {
+            workers.emplace_back(worker);
+        }
+        for (auto& thread : workers) {
+            thread.join();
+        }
+
+        success_count = success_counter.load(std::memory_order_relaxed);
+    }
+
+    if (!quiet) {
+        std::cout << "generate-completions: " << success_count << "/" << targets.size()
+                  << " updated";
+        if (!failures.empty()) {
+            std::cout << ", " << failures.size() << " missing";
+        }
+        std::cout << "You may see elevated reported memory usage during this session until cjsh "
+                     "is restarted because of this command."
+                  << '\n';
+        std::cout << '\n';
+    }
+
+    if (!failures.empty()) {
+        if (quiet) {
+            for (const auto& command : failures) {
+                std::cout << command << '\n';
+            }
+        }
+        return 1;
+    }
+
+    return 0;
+}

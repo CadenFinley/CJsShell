@@ -214,7 +214,6 @@ void start_interactive_process() {
     }
 
     if (cjsh_filesystem::is_first_boot()) {
-        std::cout << '\n';
         std::cout << " Be sure to give us a star on GitHub!" << '\n';
         std::cout << " Type 'help' to see available commands and options." << '\n';
         std::cout << " For additional help and documentation, please visit: "
@@ -237,6 +236,17 @@ void start_interactive_process() {
                   << '\n';
         std::cout << " Or alternatively execute cjsh with this flag: --no-titleline" << '\n';
         std::cout << '\n';
+
+        std::cout << " cjsh uses a very complex, but very smart completions system.\n";
+        std::cout << " During shell use it learns about the commands you use and provides better "
+                     "completions as you use cjsh.\n";
+        std::cout << " If you would like to skip the learning process and make all completions "
+                     "faster please run: 'generate-completions'\n";
+        std::cout
+            << " Please note: This may take a few minutes depending on how many commands you have "
+               "installed, and it can be sped up using the -j flag.\n";
+        std::cout << " For example to use 8 parallel jobs run: 'generate-completions -j 8'\n";
+        std::cout << "\n";
         config::show_startup_time = true;
     }
 

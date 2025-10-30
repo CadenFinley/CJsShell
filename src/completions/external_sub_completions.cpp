@@ -953,9 +953,32 @@ std::string get_command_summary(const std::string& command, bool allow_fetch) {
     if (command.empty())
         return {};
     CommandDoc doc = load_entries_for_target(command, allow_fetch);
-    if (doc.entries.empty())  // No generated completions; keep default source label.
+    if (doc.entries.empty())
         return {};
     return doc.summary;
+}
+
+bool regenerate_external_completion_cache(const std::string& command, bool force_refresh) {
+    if (command.empty())
+        return false;
+
+    std::string key = normalize_key(command);
+    {
+        std::lock_guard<std::mutex> lock(g_cache_mutex);
+        g_memory_cache.erase(key);
+        g_failed_targets.erase(key);
+    }
+
+    std::filesystem::path cache_path = cjsh_filesystem::g_cjsh_generated_completions_path /
+                                       (sanitize_command_for_cache(command) + ".txt");
+
+    if (force_refresh) {
+        std::error_code remove_error;
+        std::filesystem::remove(cache_path, remove_error);
+    }
+
+    CommandDoc doc = load_entries_for_target(command, true);
+    return !doc.entries.empty() || !doc.summary.empty();
 }
 
 void handle_external_sub_completions(ic_completion_env_t* cenv, const char* raw_path_input) {

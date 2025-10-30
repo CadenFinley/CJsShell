@@ -218,6 +218,16 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                 {make_option("-r", "Reset cached entries"),
                  make_option("-d", "Disable caching for specified names")});
 
+        add_doc("generate-completions", "Regenerate cached external completions",
+                {make_option("--quiet", "Suppress per-command output"),
+                 make_option("-q", "Suppress per-command output"),
+                 make_option("--force", "Force regeneration even if cached"),
+                 make_option("-f", "Force regeneration even if cached"),
+                 make_option("--no-force", "Reuse existing cache entries"),
+                 make_option("-j", "Set the number of parallel jobs"),
+                 make_option("--jobs", "Set the number of parallel jobs"),
+                 make_option("--", "Treat remaining arguments as command names")});
+
         add_doc("hook", "Manage shell lifecycle hooks",
                 {make_subcommand("add", "Register a function for a hook"),
                  make_subcommand("remove", "Unregister a function"),
