@@ -461,7 +461,7 @@ again:;
             }
 
             if (match_idx == selected_idx) {
-                const char* arrow = tty_is_utf8(env->tty) ? "\xE2\x86\x92" : "*";
+                const char* arrow = tty_is_utf8(env->tty) ? "\xE2\x86\x92" : ">";
                 sbuf_appendf(eb->extra, "[ic-emphasis]%s [/ic-emphasis][!pre]", arrow);
             } else {
                 sbuf_append(eb->extra, "[ic-diminish]  [/][!pre]");
