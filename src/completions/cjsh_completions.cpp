@@ -607,8 +607,8 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                                 std::string completion_text = bookmark_name;
 
                                 if (!completion_tracker::safe_add_completion_prim_with_source(
-                                        cenv, completion_text.c_str(), nullptr, nullptr, "bookmark",
-                                        delete_before, 0))
+                                        cenv, completion_text.c_str(), nullptr, nullptr,
+                                        bookmark_path.c_str(), delete_before, 0))
                                     return;
                             }
                         }

@@ -15,6 +15,15 @@ const size_t MAX_TOTAL_COMPLETIONS = static_cast<size_t>(IC_MAX_COMPLETIONS_TO_S
 
 thread_local CompletionTracker* g_current_completion_tracker = nullptr;
 
+bool is_bookmark_source(const char* source) {
+    if (source == nullptr)
+        return false;
+    if (std::strncmp(source, "bookmark", 8) != 0)
+        return false;
+    const char next = source[8];
+    return next == '\0' || next == ':' || next == ' ';
+}
+
 }  // namespace
 
 SourcePriority get_source_priority(const char* source) {
@@ -23,7 +32,7 @@ SourcePriority get_source_priority(const char* source) {
 
     if (strcmp(source, "history") == 0)
         return PRIORITY_HISTORY;
-    if (strcmp(source, "bookmark") == 0)
+    if (is_bookmark_source(source))
         return PRIORITY_BOOKMARK;
     if (strcmp(source, "file") == 0)
         return PRIORITY_FILE;
@@ -69,7 +78,7 @@ bool CompletionTracker::would_create_duplicate(const char* completion_text, cons
     auto it = added_completions.find(final_result);
 
     if (it == added_completions.end()) {
-        if ((source != nullptr) && strcmp(source, "bookmark") == 0) {
+        if (is_bookmark_source(source)) {
             std::string directory_result = final_result + "/";
             auto dir_it = added_completions.find(directory_result);
             if (dir_it != added_completions.end()) {
@@ -141,7 +150,7 @@ bool CompletionTracker::add_completion_prim_with_source_if_unique(
     SourcePriority new_priority = get_source_priority(source);
 
     if (it == added_completions.end()) {
-        if ((source != nullptr) && strcmp(source, "bookmark") == 0) {
+        if (is_bookmark_source(source)) {
             std::string directory_result = final_result + "/";
             auto dir_it = added_completions.find(directory_result);
             if (dir_it != added_completions.end()) {
