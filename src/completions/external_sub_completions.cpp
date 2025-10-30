@@ -781,6 +781,7 @@ std::optional<CommandDoc> read_cache_entries(const std::filesystem::path& path,
     }
     if (!header_seen)
         return std::nullopt;
+    doc.summary_present = true;
     return doc;
 }
 
@@ -832,13 +833,8 @@ CommandDoc load_entries_for_target(const std::string& doc_target, bool allow_fet
     {
         std::lock_guard<std::mutex> lock(g_cache_mutex);
         auto memo_it = g_memory_cache.find(key);
-        if (memo_it != g_memory_cache.end()) {
-            if (!memo_it->second.summary_present && allow_fetch) {
-                g_memory_cache.erase(memo_it);
-            } else {
-                return memo_it->second;
-            }
-        }
+        if (memo_it != g_memory_cache.end())
+            return memo_it->second;
     }
 
     if (const auto* builtin_doc = builtin_completions::lookup_builtin_command_doc(doc_target)) {
@@ -864,17 +860,16 @@ CommandDoc load_entries_for_target(const std::string& doc_target, bool allow_fet
     if (auto cached_doc_opt = read_cache_entries(cache_path, doc_target);
         cached_doc_opt.has_value()) {
         CommandDoc cached_doc = std::move(*cached_doc_opt);
-        if (!(allow_fetch && !cached_doc.summary_present)) {
-            {
-                std::lock_guard<std::mutex> lock(g_cache_mutex);
-                g_memory_cache[key] = cached_doc;
-                if (cached_doc.entries.empty() && cached_doc.summary.empty())
-                    g_failed_targets.insert(key);
-                else
-                    g_failed_targets.erase(key);
-            }
-            return cached_doc;
+        cached_doc.summary_present = true;
+        {
+            std::lock_guard<std::mutex> lock(g_cache_mutex);
+            g_memory_cache[key] = cached_doc;
+            if (cached_doc.entries.empty() && cached_doc.summary.empty())
+                g_failed_targets.insert(key);
+            else
+                g_failed_targets.erase(key);
         }
+        return cached_doc;
     }
 
     if (!allow_fetch)
