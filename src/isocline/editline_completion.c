@@ -158,11 +158,17 @@ static void edit_completion_menu(ic_env_t* env, editor_t* eb, bool more_availabl
     ssize_t last_max_scroll_offset = 0;
     ssize_t count_displayed = count;
     code_t c = 0;
+    bool grid_layout_active = false;
+    ssize_t grid_columns = 1;
+    ssize_t grid_rows = 1;
 
 again:
     sbuf_clear(eb->extra);
     last_rows_visible = 0;
     last_max_scroll_offset = 0;
+    grid_layout_active = false;
+    grid_columns = 1;
+    grid_rows = 1;
 
     if (count <= 0) {
         edit_refresh(env, eb);
@@ -187,12 +193,19 @@ again:
     ssize_t visible_count = 0;
 
     if (!expanded_mode) {
+        grid_rows = (count_displayed > 0 ? count_displayed : 1);
         ssize_t max_display_width = edit_completions_max_width(env, count_displayed);
         ssize_t max_col = (twidth > 2 ? twidth - 2 : max_display_width + 3);
         if (count_displayed > 3 && ((colwidth = 3 + max_display_width) * 3 + 2 * 2) < twidth) {
             if (colwidth > max_col)
                 colwidth = max_col;
             percolumn = (count_displayed + 2) / 3;
+            if (percolumn <= 0) {
+                percolumn = 1;
+            }
+            grid_layout_active = true;
+            grid_columns = 3;
+            grid_rows = percolumn;
             for (ssize_t rw = 0; rw < percolumn; rw++) {
                 if (rw > 0) {
                     sbuf_append(eb->extra, "\n");
@@ -202,6 +215,12 @@ again:
             }
         } else if (count_displayed > 4 && ((colwidth = 3 + max_display_width) * 2 + 2) < twidth) {
             percolumn = (count_displayed + 1) / 2;
+            if (percolumn <= 0) {
+                percolumn = 1;
+            }
+            grid_layout_active = true;
+            grid_columns = 2;
+            grid_rows = percolumn;
             for (ssize_t rw = 0; rw < percolumn; rw++) {
                 if (rw > 0) {
                     sbuf_append(eb->extra, "\n");
@@ -209,6 +228,9 @@ again:
                 editor_append_completion2(env, eb, colwidth, rw, percolumn + rw, selected);
             }
         } else {
+            grid_layout_active = false;
+            grid_columns = 1;
+            grid_rows = (count_displayed > 0 ? count_displayed : 1);
             for (ssize_t i = 0; i < count_displayed; i++) {
                 if (i > 0) {
                     sbuf_append(eb->extra, "\n");
@@ -221,6 +243,9 @@ again:
                         "\n[ic-info](press PgDn or ctrl-j to expand the completion list)[/]");
         }
     } else {
+        grid_layout_active = false;
+        grid_columns = 1;
+        grid_rows = (count_displayed > 0 ? count_displayed : 1);
         ssize_t max_display_width = edit_completions_max_width(env, count_displayed);
         colwidth = max_display_width + 6;  // extra space for numbering and padding
         if (colwidth > twidth - 2) {
@@ -399,6 +424,8 @@ read_key:
     }
     sbuf_clear(eb->extra);
 
+    bool grid_mode = (!expanded_mode && grid_layout_active && grid_columns > 1 && grid_rows > 0);
+
     if (c >= '1' && c <= '9') {
         ssize_t i = (c - '1');
         ssize_t base = 0;
@@ -456,6 +483,37 @@ read_key:
         }
     }
 
+    if ((c == KEY_RIGHT || c == KEY_LEFT) && grid_mode) {
+        // Translate the linear selection index to grid coordinates for horizontal movement.
+        if (count_displayed > 0) {
+            if (selected < 0) {
+                selected = (c == KEY_RIGHT ? 0 : count_displayed - 1);
+            } else {
+                ssize_t row = (grid_rows > 0 ? (selected % grid_rows) : 0);
+                ssize_t col = (grid_rows > 0 ? (selected / grid_rows) : 0);
+                ssize_t new_col = col;
+                bool moved = false;
+                for (ssize_t step = 0; step < grid_columns; step++) {
+                    if (c == KEY_RIGHT) {
+                        new_col = (new_col + 1) % grid_columns;
+                    } else {
+                        new_col = (new_col - 1 + grid_columns) % grid_columns;
+                    }
+                    ssize_t candidate = new_col * grid_rows + row;
+                    if (candidate < count_displayed && candidate != selected) {
+                        selected = candidate;
+                        moved = true;
+                        break;
+                    }
+                }
+                if (!moved) {
+                    term_beep(env->term);
+                }
+            }
+        }
+        goto again;
+    }
+
     if (c == KEY_DOWN || c == KEY_TAB) {
         if (count_displayed > 0) {
             if (selected < 0) {
@@ -503,7 +561,7 @@ read_key:
         completions_clear(env->completions);
         edit_refresh(env, eb);
         c = 0;
-    } else if (selected >= 0 && (c == KEY_ENTER || c == KEY_RIGHT || c == KEY_END)) {
+    } else if (selected >= 0 && (c == KEY_ENTER || (!grid_mode && c == KEY_RIGHT) || c == KEY_END)) {
         assert(selected < count);
         c = 0;
         edit_complete(env, eb, selected);
