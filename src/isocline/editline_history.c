@@ -180,6 +180,39 @@ static void edit_history_next(ic_env_t* env, editor_t* eb) {
     edit_history_at(env, eb, -1);
 }
 
+static ssize_t history_visible_prefix(const char* s, ssize_t len, ssize_t max_columns,
+                                      ssize_t* width_out) {
+    if (s == NULL || len <= 0 || max_columns <= 0) {
+        if (width_out != NULL)
+            *width_out = 0;
+        return 0;
+    }
+
+    ssize_t pos = 0;
+    ssize_t width = 0;
+    while (pos < len) {
+        ssize_t cw = 0;
+        ssize_t next = str_next_ofs(s, len, pos, &cw);
+        if (next <= 0)
+            break;
+
+        if (cw <= 0) {
+            pos += next;
+            continue;
+        }
+
+        if (width + cw > max_columns)
+            break;
+
+        width += cw;
+        pos += next;
+    }
+
+    if (width_out != NULL)
+        *width_out = width;
+    return pos;
+}
+
 typedef struct hsearch_s {
     struct hsearch_s* next;
     ssize_t hidx;
@@ -350,6 +383,7 @@ again:;
         }
 
         ssize_t term_height = term_get_height(env->term);
+        ssize_t term_width = term_get_width(env->term);
         ssize_t available_lines = term_height - 4;
         if (eb->prompt_prefix_lines > 0) {
             available_lines -= eb->prompt_prefix_lines;
@@ -400,6 +434,30 @@ again:;
             ssize_t entry_len = line_end ? (line_end - entry) : (ssize_t)strlen(entry);
             bool is_multiline = (line_end && (*line_end == '\n' || *line_end == '\r'));
 
+            ssize_t marker_columns = 4;
+            ssize_t max_columns = term_width - marker_columns;
+            if (max_columns < 4) {
+                max_columns = 4;
+            }
+
+            // Limit preview width so wrapped entries do not push the prompt off-screen.
+            ssize_t visible_width = 0;
+            ssize_t visible_len = history_visible_prefix(entry, entry_len, max_columns, &visible_width);
+            bool truncated = (visible_len < entry_len);
+            bool append_ellipsis = (is_multiline || truncated);
+
+            if (append_ellipsis && max_columns > 3) {
+                if (visible_width + 3 > max_columns) {
+                    ssize_t adjusted_columns = max_columns - 3;
+                    if (adjusted_columns < 1)
+                        adjusted_columns = 1;
+                    visible_len = history_visible_prefix(entry, entry_len, adjusted_columns, &visible_width);
+                    truncated = (visible_len < entry_len) || truncated;
+                }
+            } else if (!truncated && !is_multiline) {
+                append_ellipsis = false;
+            }
+
             if (match_idx == selected_idx) {
                 sbuf_append(eb->extra, "[ic-emphasis][reverse]> [/][!pre]");
             } else {
@@ -408,28 +466,43 @@ again:;
 
             if (is_filtered && !showing_all_due_to_no_matches && matches[match_idx].match_len > 0 &&
                 matches[match_idx].match_pos >= 0) {
-                if (matches[match_idx].match_pos < entry_len) {
-                    sbuf_append_n(eb->extra, entry, matches[match_idx].match_pos);
+                ssize_t match_pos = matches[match_idx].match_pos;
+                ssize_t match_len = matches[match_idx].match_len;
+                if (match_pos < 0)
+                    match_pos = 0;
+                if (match_pos < visible_len) {
+                    if (match_pos > 0) {
+                        ssize_t prefix_len = (match_pos <= visible_len) ? match_pos : visible_len;
+                        sbuf_append_n(eb->extra, entry, prefix_len);
+                    }
 
-                    ssize_t match_end = matches[match_idx].match_pos + matches[match_idx].match_len;
-                    ssize_t highlight_len = (match_end > entry_len)
-                                                ? (entry_len - matches[match_idx].match_pos)
-                                                : matches[match_idx].match_len;
-                    sbuf_append(eb->extra, "[/pre][u ic-emphasis][!pre]");
-                    sbuf_append_n(eb->extra, entry + matches[match_idx].match_pos, highlight_len);
-                    sbuf_append(eb->extra, "[/pre][/u][!pre]");
+                    if (match_len > 0) {
+                        if (match_pos + match_len > entry_len) {
+                            match_len = entry_len - match_pos;
+                        }
+                        if (match_pos + match_len > visible_len) {
+                            match_len = visible_len - match_pos;
+                        }
+                    }
 
-                    if (match_end < entry_len) {
-                        sbuf_append_n(eb->extra, entry + match_end, entry_len - match_end);
+                    if (match_len > 0) {
+                        sbuf_append(eb->extra, "[/pre][u ic-emphasis][!pre]");
+                        sbuf_append_n(eb->extra, entry + match_pos, match_len);
+                        sbuf_append(eb->extra, "[/pre][/u][!pre]");
+                    }
+
+                    ssize_t suffix_start = match_pos + match_len;
+                    if (suffix_start < visible_len) {
+                        sbuf_append_n(eb->extra, entry + suffix_start, visible_len - suffix_start);
                     }
                 } else {
-                    sbuf_append_n(eb->extra, entry, entry_len);
+                    sbuf_append_n(eb->extra, entry, visible_len);
                 }
             } else {
-                sbuf_append_n(eb->extra, entry, entry_len);
+                sbuf_append_n(eb->extra, entry, visible_len);
             }
 
-            if (is_multiline) {
+            if (append_ellipsis && max_columns > 3) {
                 sbuf_append(eb->extra, "...");
             }
 
