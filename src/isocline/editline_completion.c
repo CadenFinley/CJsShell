@@ -138,10 +138,12 @@ static ssize_t edit_completions_max_width(ic_env_t* env, ssize_t count) {
     return max_width;
 }
 
-static void edit_completion_menu(ic_env_t* env, editor_t* eb, bool more_available) {
+static void edit_completion_menu(ic_env_t* env, editor_t* eb, bool more_available,
+                                 bool select_first_entry) {
     ssize_t count = completions_count(env->completions);
     assert(count > 1);
-    ssize_t selected = (env->complete_nopreview ? 0 : -1);
+    bool auto_select = (env->complete_nopreview || select_first_entry);
+    ssize_t selected = (auto_select ? 0 : -1);
     bool expanded_mode = false;
     ssize_t scroll_offset = 0;
     ssize_t last_rows_visible = 0;
@@ -520,10 +522,12 @@ static void edit_generate_completions(ic_env_t* env, editor_t* eb, bool autotab)
         }
     } else {
         // term_beep(env->term);
+        ssize_t longest_prefix_pos = -1;
         if (!more_available) {
-            edit_complete_longest_prefix(env, eb);
+            longest_prefix_pos = edit_complete_longest_prefix(env, eb);
         }
         completions_sort(env->completions);
-        edit_completion_menu(env, eb, more_available);
+        bool select_first_entry = (longest_prefix_pos >= 0);
+        edit_completion_menu(env, eb, more_available, select_first_entry);
     }
 }
