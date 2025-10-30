@@ -1889,6 +1889,26 @@ static bool edit_try_expand_abbreviation(ic_env_t* env, editor_t* eb, bool bound
     return false;
 }
 
+static bool edit_expand_abbreviation_if_needed(ic_env_t* env, editor_t* eb,
+                                               bool modification_started) {
+    if (env == NULL || eb == NULL || eb->input == NULL)
+        return false;
+    if (eb->pos <= 0)
+        return false;
+
+    const char* buffer = sbuf_string(eb->input);
+    if (buffer == NULL)
+        return false;
+
+    if (ic_char_is_white(buffer + eb->pos - 1, 1)) {
+        if (edit_try_expand_abbreviation(env, eb, true, modification_started)) {
+            return true;
+        }
+    }
+
+    return edit_try_expand_abbreviation(env, eb, false, modification_started);
+}
+
 static void edit_insert_char(ic_env_t* env, editor_t* eb, char c) {
     editor_start_modify(eb);
     ssize_t nextpos = sbuf_insert_char_at(eb->input, c, eb->pos);

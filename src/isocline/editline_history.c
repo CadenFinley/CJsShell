@@ -567,7 +567,8 @@ again:;
                 editor_undo_forget(eb);
                 sbuf_replace(eb->input, selected);
                 eb->pos = sbuf_len(eb->input);
-                eb->modified = false;
+                bool expanded = edit_expand_abbreviation_if_needed(env, eb, false);
+                eb->modified = expanded;
                 eb->history_idx = matches[selected_idx].hidx;
             }
         }
@@ -588,7 +589,8 @@ again:;
                 editor_undo_forget(eb);
                 sbuf_replace(eb->input, selected);
                 eb->pos = sbuf_len(eb->input);
-                eb->modified = false;
+                bool expanded = edit_expand_abbreviation_if_needed(env, eb, false);
+                eb->modified = expanded;
                 eb->history_idx = matches[selected_idx].hidx;
             }
         }
@@ -775,7 +777,8 @@ again:
         editor_undo_forget(eb);
         sbuf_replace(eb->input, hentry);
         eb->pos = sbuf_len(eb->input);
-        eb->modified = false;
+        bool expanded = edit_expand_abbreviation_if_needed(env, eb, false);
+        eb->modified = expanded;
         eb->history_idx = hidx;
     } else if (c == KEY_BACKSP || c == KEY_CTRL_Z) {
         bool cinsert;
