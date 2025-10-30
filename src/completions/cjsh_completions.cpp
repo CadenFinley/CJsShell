@@ -61,8 +61,11 @@ bool add_command_completion(ic_completion_env_t* cenv, const std::string& candid
                             size_t prefix_len, const char* source, const char* debug_label) {
     (void)debug_label;
     long delete_before = static_cast<long>(prefix_len);
+    std::string completion_text = candidate;
+    if (completion_text.empty() || completion_text.back() != ' ')
+        completion_text.push_back(' ');
     return completion_tracker::safe_add_completion_prim_with_source(
-        cenv, candidate.c_str(), nullptr, nullptr, source, delete_before, 0);
+        cenv, completion_text.c_str(), nullptr, nullptr, source, delete_before, 0);
 }
 
 std::string build_completion_suffix(const std::filesystem::directory_entry& entry) {
