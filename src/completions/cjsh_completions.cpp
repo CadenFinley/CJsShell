@@ -107,10 +107,11 @@ void determine_directory_target(const std::string& path, bool treat_as_directory
 }
 
 template <typename Container, typename Extractor>
-void process_command_candidates(ic_completion_env_t* cenv, const Container& container,
-                                const std::string& prefix, size_t prefix_len, const char* source,
-                                const char* debug_label, Extractor extractor,
-                                const std::function<bool(const std::string&)>& filter = {}) {
+void process_command_candidates(
+    ic_completion_env_t* cenv, const Container& container, const std::string& prefix,
+    size_t prefix_len, const char* source, const char* debug_label, Extractor extractor,
+    const std::function<bool(const std::string&)>& filter = {},
+    const std::function<std::string(const std::string&)>& source_provider = {}) {
     for (const auto& item : container) {
         if (completion_tracker::completion_limit_hit_with_log(debug_label))
             return;
@@ -121,7 +122,14 @@ void process_command_candidates(ic_completion_env_t* cenv, const Container& cont
             continue;
         if (!completion_utils::matches_completion_prefix(candidate, prefix))
             continue;
-        if (!add_command_completion(cenv, candidate, prefix_len, source, debug_label))
+        const char* source_ptr = source;
+        std::string dynamic_source;
+        if (source_provider) {
+            dynamic_source = source_provider(candidate);
+            if (!dynamic_source.empty())
+                source_ptr = dynamic_source.c_str();
+        }
+        if (!add_command_completion(cenv, candidate, prefix_len, source_ptr, debug_label))
             return;
         if (ic_stop_completing(cenv))
             return;
@@ -245,9 +253,20 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
     if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv))
         return;
 
-    process_command_candidates(cenv, executables_in_path, prefix_str, prefix_len, "system",
-                               "executables in PATH",
-                               [](const std::string& value) { return value; });
+    size_t summary_fetch_budget = prefix_len == 0 ? 2 : 5;
+    auto system_summary_provider = [&](const std::string& cmd) -> std::string {
+        std::string summary = get_command_summary(cmd, false);
+        if (!summary.empty())
+            return summary;
+        if (summary_fetch_budget == 0)
+            return {};
+        --summary_fetch_budget;
+        return get_command_summary(cmd, true);
+    };
+
+    process_command_candidates(
+        cenv, executables_in_path, prefix_str, prefix_len, "system", "executables in PATH",
+        [](const std::string& value) { return value; }, {}, system_summary_provider);
 
     if (!ic_has_completions(cenv) && g_completion_spell_correction_enabled) {
         std::string normalized_prefix = completion_utils::normalize_for_comparison(prefix_str);
