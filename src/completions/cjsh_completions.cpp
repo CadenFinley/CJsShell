@@ -9,6 +9,7 @@
 #include <iostream>
 #include <map>
 #include <string>
+#include <system_error>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -37,6 +38,8 @@ enum CompletionContext : std::uint8_t {
 };
 
 namespace {
+
+const char* classify_entry_source(const std::filesystem::directory_entry& entry);
 
 const char* extract_current_line_prefix(const char* prefix) {
     if (prefix == nullptr) {
@@ -81,7 +84,7 @@ std::string build_completion_suffix(const std::filesystem::directory_entry& entr
 
 bool add_path_completion(ic_completion_env_t* cenv, const std::filesystem::directory_entry& entry,
                          long delete_before, const std::string& completion_suffix) {
-    const char* source = entry.is_directory() ? "directory" : "file";
+    const char* source = classify_entry_source(entry);
     if (delete_before == 0)
         return completion_tracker::safe_add_completion_with_source(cenv, completion_suffix.c_str(),
                                                                    source);
@@ -108,6 +111,41 @@ void determine_directory_target(const std::string& path, bool treat_as_directory
         dir_path = ".";
         match_prefix = path;
     }
+}
+
+bool has_shebang_line(const std::filesystem::path& path) {
+    std::ifstream file(path, std::ios::in | std::ios::binary);
+    if (!file.is_open())
+        return false;
+    char prefix[2];
+    file.read(prefix, sizeof(prefix));
+    return file.gcount() == static_cast<std::streamsize>(sizeof(prefix)) && prefix[0] == '#' &&
+           prefix[1] == '!';
+}
+
+const char* classify_entry_source(const std::filesystem::directory_entry& entry) {
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    if (entry.is_directory(ec))
+        return "directory";
+    if (ec)
+        return "file";
+
+    ec.clear();
+    if (!entry.is_regular_file(ec) || ec)
+        return "file";
+
+    ec.clear();
+    fs::file_status status = entry.status(ec);
+    if (ec)
+        return "file";
+
+    constexpr auto exec_mask =
+        fs::perms::owner_exec | fs::perms::group_exec | fs::perms::others_exec;
+    if ((status.permissions() & exec_mask) == fs::perms::none)
+        return "file";
+
+    return has_shebang_line(entry.path()) ? "executable script" : "executable binary";
 }
 
 template <typename Container, typename Extractor>
