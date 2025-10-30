@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "builtin.h"
+#include "builtins_completions_handler.h"
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "completion_history.h"
@@ -176,9 +177,8 @@ bool iterate_directory_entries(ic_completion_env_t* cenv, const std::filesystem:
 }
 
 bool is_interactive_builtin(const std::string& cmd) {
-    static const std::unordered_set<std::string> script_only_builtins = {
-        "break", "continue", "return", "__INTERNAL_SUBSHELL__", "local",      "shift", "if",
-        "[[",    "[",        ":",      "login-startup-arg",     "prompt_test"};
+    static const std::unordered_set<std::string> script_only_builtins = {"__INTERNAL_SUBSHELL__",
+                                                                         "login-startup-arg"};
 
     return script_only_builtins.find(cmd) == script_only_builtins.end();
 }
@@ -240,9 +240,13 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
 
     auto builtin_filter = [&](const std::string& cmd) { return is_interactive_builtin(cmd); };
 
+    auto builtin_summary_provider = [](const std::string& cmd) -> std::string {
+        return builtin_completions::get_builtin_summary(cmd);
+    };
+
     process_command_candidates(
         cenv, builtin_cmds, prefix_str, prefix_len, "builtin", "builtin commands",
-        [](const std::string& value) { return value; }, builtin_filter);
+        [](const std::string& value) { return value; }, builtin_filter, builtin_summary_provider);
     if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv))
         return;
 
