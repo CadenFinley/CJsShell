@@ -102,8 +102,21 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_doc("version", "Show cjsh version information", {});
         add_doc("eval", "Evaluate arguments as shell code", {});
         add_doc("if", "Evaluate a conditional block", {});
-        add_doc("login-startup-arg", "Internal hook for login startup arguments", {});
-        add_doc("prompt_test", "Internal helper for prompt development", {});
+        add_doc("login-startup-arg", "Add cjsh startup flags",
+                {make_option("--login", "Run cjsh as a login shell"),
+                 make_option("--interactive", "Force interactive mode"),
+                 make_option("--debug", "Enable verbose startup diagnostics"),
+                 make_option("--no-prompt", "Use a minimal prompt"),
+                 make_option("--no-themes", "Disable prompt theming"),
+                 make_option("--no-colors", "Disable color output"),
+                 make_option("--no-titleline", "Disable terminal title updates"),
+                 make_option("--show-startup-time", "Display startup timing"),
+                 make_option("--no-source", "Skip sourcing configuration files"),
+                 make_option("--no-completions", "Disable completion initialization"),
+                 make_option("--no-syntax-highlighting", "Disable syntax highlighting"),
+                 make_option("--no-smart-cd", "Disable smart cd behavior"),
+                 make_option("--minimal", "Disable cjsh enhancements"),
+                 make_option("--startup-test", "Enable startup test mode")});
 
         add_doc("syntax", "Check scripts or command strings for issues",
                 {make_option("-q", "Only report the error count"),
@@ -253,7 +266,15 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
 
         add_doc("builtin", "Invoke a builtin bypassing functions", {});
 
-        add_doc("cjsh-widget", "Invoke an interactive widget", {});
+        add_doc("cjsh-widget", "Invoke an interactive widget",
+                {make_subcommand("get-buffer", "Print the current input buffer"),
+                 make_subcommand("set-buffer", "Replace the input buffer content"),
+                 make_subcommand("get-cursor", "Show the cursor position"),
+                 make_subcommand("set-cursor", "Move the cursor to a byte offset"),
+                 make_subcommand("insert", "Insert text at the cursor"),
+                 make_subcommand("append", "Append text to the buffer"),
+                 make_subcommand("clear", "Clear the input buffer"),
+                 make_subcommand("accept", "Accept and submit the current buffer")});
 
         add_doc("cjshopt", "Configure cjsh interactive behavior",
                 {make_subcommand("style_def", "Define syntax highlight styles"),
@@ -279,6 +300,78 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                  make_subcommand("set-max-bookmarks", "Limit stored directory bookmarks"),
                  make_subcommand("set-history-max", "Configure history persistence"),
                  make_subcommand("bookmark-blacklist", "Manage bookmark exclusions")});
+
+        add_doc("cjshopt-style_def", "Define or reset syntax styles",
+                {make_option("--reset", "Reset all highlight styles to defaults")});
+
+        add_doc("cjshopt-login-startup-arg", "Add cjsh startup flags",
+                {make_option("--login", "Run cjsh as a login shell"),
+                 make_option("--interactive", "Force interactive mode"),
+                 make_option("--debug", "Enable verbose startup diagnostics"),
+                 make_option("--no-prompt", "Use a minimal prompt"),
+                 make_option("--no-themes", "Disable prompt theming"),
+                 make_option("--no-colors", "Disable color output"),
+                 make_option("--no-titleline", "Disable terminal title updates"),
+                 make_option("--show-startup-time", "Display startup timing"),
+                 make_option("--no-source", "Skip sourcing configuration files"),
+                 make_option("--no-completions", "Disable completion initialization"),
+                 make_option("--no-syntax-highlighting", "Disable syntax highlighting"),
+                 make_option("--no-smart-cd", "Disable smart cd behavior"),
+                 make_option("--minimal", "Disable cjsh enhancements"),
+                 make_option("--startup-test", "Enable startup test mode")});
+
+        add_doc("cjshopt-hint-delay", "Adjust inline hint delay",
+                {make_subcommand("status", "Show the current delay in milliseconds"),
+                 make_option("--status", "Show the current delay in milliseconds")});
+
+        add_doc("cjshopt-set-max-bookmarks", "Limit stored directory bookmarks", {});
+
+        add_doc("cjshopt-set-history-max", "Configure history persistence",
+                {make_subcommand("default", "Restore the default history limit"),
+                 make_option("--default", "Restore the default history limit"),
+                 make_subcommand("status", "Display the current history limit"),
+                 make_option("--status", "Display the current history limit")});
+
+        add_doc("cjshopt-keybind", "Inspect or modify key bindings",
+                {make_subcommand("list", "Show current key bindings"),
+                 make_subcommand("set", "Replace bindings for an action"),
+                 make_subcommand("add", "Add bindings for an action"),
+                 make_subcommand("clear", "Remove bindings for key sequences"),
+                 make_subcommand("clear-action", "Remove bindings for an action"),
+                 make_subcommand("reset", "Restore default key bindings"),
+                 make_subcommand("profile", "Manage key binding profiles"),
+                 make_subcommand("ext", "Manage command key bindings")});
+
+        add_doc("cjshopt-keybind-profile", "Manage key binding profiles",
+                {make_subcommand("list", "List available key binding profiles"),
+                 make_subcommand("set", "Activate a key binding profile")});
+
+        add_doc("cjshopt-keybind-ext", "Manage custom command key bindings",
+                {make_subcommand("list", "Show custom command key bindings"),
+                 make_subcommand("set", "Bind a key to a shell command"),
+                 make_subcommand("clear", "Remove custom command key bindings"),
+                 make_subcommand("reset", "Clear all custom command key bindings")});
+
+        add_doc("cjshopt-generate-profile", "Generate ~/.cjprofile",
+                {make_option("--force", "Overwrite the existing profile"),
+                 make_option("-f", "Overwrite the existing profile"),
+                 make_option("--alt", "Write to the alternate configuration path"),
+                 make_option("--help", "Show usage information"),
+                 make_option("-h", "Show usage information")});
+
+        add_doc("cjshopt-generate-rc", "Generate ~/.cjshrc",
+                {make_option("--force", "Overwrite the existing rc file"),
+                 make_option("-f", "Overwrite the existing rc file"),
+                 make_option("--alt", "Write to the alternate configuration path"),
+                 make_option("--help", "Show usage information"),
+                 make_option("-h", "Show usage information")});
+
+        add_doc("cjshopt-generate-logout", "Generate ~/.cjsh_logout",
+                {make_option("--force", "Overwrite the existing logout file"),
+                 make_option("-f", "Overwrite the existing logout file"),
+                 make_option("--alt", "Write to the alternate configuration path"),
+                 make_option("--help", "Show usage information"),
+                 make_option("-h", "Show usage information")});
 
         add_doc("cjshopt-completion-case", "",
                 {make_subcommand("on", "Enable case-sensitive matches"),
@@ -329,9 +422,6 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                  make_subcommand("remove", "Remove a directory from the blacklist"),
                  make_subcommand("list", "List blacklisted directories"),
                  make_subcommand("clear", "Clear the blacklist")});
-
-        add_doc("__INTERNAL_SUBSHELL__", "Internal helper for subshell execution", {});
-        add_doc("__INTERNAL_BRACE_GROUP__", "Internal helper for brace group execution", {});
 
         return map;
     }();
