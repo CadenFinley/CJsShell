@@ -31,7 +31,7 @@ theme_definition {
       bg "RESET"
     }
     segment "directory" {
-      content " {DIRECTORY} "
+      content " {DIRECTORY}"
       fg "#FF55FF"
       bg "RESET"
     }
@@ -79,7 +79,7 @@ theme_definition {
       bg "RESET"
     }
     segment "status" {
-      content "{GIT_STATUS} "
+      content "{GIT_STATUS}"
       fg "{if = {GIT_STATUS} == ✓ ? #55FF55 : #FF5555}"
       bg "RESET"
     }
