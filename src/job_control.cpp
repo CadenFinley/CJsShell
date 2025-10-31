@@ -430,11 +430,17 @@ int fg_command(const std::vector<std::string>& args) {
         }
     }
 
-    if (job->state == JobState::STOPPED) {
-        if (killpg(job->pgid, SIGCONT) < 0) {
-            perror("fg: killpg");
-            return 1;
-        }
+    if (job->state == JobState::DONE || job->state == JobState::TERMINATED) {
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     std::to_string(job_id),
+                     "job has already completed",
+                     {"Use 'jobs' to list available jobs"}});
+        return 1;
+    }
+
+    if (killpg(job->pgid, SIGCONT) < 0) {
+        perror("fg: killpg");
+        return 1;
     }
 
     job->state = JobState::RUNNING;
