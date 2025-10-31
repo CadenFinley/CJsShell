@@ -42,6 +42,8 @@ typedef struct editor_s {
     bool modified;                     // has a modification happened? (used for history navigation
                                        // for example)
     bool disable_undo;                 // temporarily disable auto undo (for history search)
+    bool refresh_suppressed;           // batch screen updates during high-volume input
+    bool refresh_pending;              // remember to refresh when suppression lifts
     bool history_prefix_active;        // whether prefix-prioritized history is active
     bool request_submit;               // request submission of current line
     ssize_t history_idx;               // current index in the history
@@ -1440,6 +1442,13 @@ static void editor_append_hint_help(editor_t* eb, const char* help) {
 
 // refresh with possible hint
 static void edit_refresh_hint(ic_env_t* env, editor_t* eb) {
+    if (eb->refresh_suppressed) {
+        eb->refresh_pending = true;
+        return;
+    }
+
+    eb->refresh_pending = false;
+
     if (env->no_hint || env->hint_delay > 0) {
         // refresh without hint first
         edit_refresh(env, eb);
@@ -2195,9 +2204,15 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
                     edit_generate_completions(env, &eb, true);
                     break;
                 case IC_KEY_PASTE_START:  // bracketed paste start marker
-                case IC_KEY_PASTE_END:    // bracketed paste end marker
-                    // Ignore these event markers - they're handled at the TTY level
-                    // to control NUL byte interpretation
+                    eb.refresh_suppressed = true;
+                    eb.refresh_pending = false;
+                    break;
+                case IC_KEY_PASTE_END:  // bracketed paste end marker
+                    eb.refresh_suppressed = false;
+                    if (eb.refresh_pending) {
+                        eb.refresh_pending = false;
+                        edit_refresh(env, &eb);
+                    }
                     break;
 
                 // completion, history, help, undo
