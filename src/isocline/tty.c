@@ -487,7 +487,6 @@ static bool tty_readc_blocking(tty_t* tty, uint8_t* c) {
                 }
 
                 tty->lost_terminal = true;
-            } else {
             }
             return false;
         }
