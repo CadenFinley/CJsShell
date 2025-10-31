@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(cjsh VERSION 3.11.0 LANGUAGES C CXX)
+project(cjsh VERSION 3.11.1 LANGUAGES C CXX)
 
 include(GNUInstallDirs)
 
