@@ -156,24 +156,6 @@ bool build_executable_cache() {
     }
 }
 
-std::vector<fs::path> read_cached_executables() {
-    std::vector<fs::path> executables;
-    
-    try {
-        std::ifstream file(g_cjsh_found_executables_path);
-        std::string line;
-        while (std::getline(file, line)) {
-            if (!line.empty()) {
-                executables.emplace_back(line);
-            }
-        }
-    } catch (...) {
-        // Return empty vector on error
-    }
-    
-    return executables;
-}
-
 std::string find_executable_in_path(const std::string& name) {
     const char* path_env = std::getenv("PATH");
     if (!path_env) {
@@ -322,17 +304,6 @@ int main(int argc, char* argv[]) {
                 std::cout << "ERROR: build_executable_cache() returned false" << '\n';
             }
         }
-        else if (test_name == "test_read_cached_executables") {
-            // First build the cache
-            build_executable_cache();
-            
-            auto executables = read_cached_executables();
-            if (!executables.empty()) {
-                std::cout << "SUCCESS" << '\n';
-            } else {
-                std::cout << "ERROR: No executables read from cache" << '\n';
-            }
-        }
         else if (test_name == "test_find_executable_in_path") {
             // Test with a common executable that should exist
             std::string path = find_executable_in_path("ls");
@@ -462,13 +433,6 @@ if [ "$OUTPUT" = "SUCCESS" ]; then
     pass_test "build_executable_cache() functionality"
 else
     fail_test "build_executable_cache() functionality - $OUTPUT"
-fi
-
-OUTPUT=$(./test_utilities test_read_cached_executables 2>&1)
-if [ "$OUTPUT" = "SUCCESS" ]; then
-    pass_test "read_cached_executables() functionality"
-else
-    fail_test "read_cached_executables() functionality - $OUTPUT"
 fi
 
 echo "--- Testing Executable Search ---"
