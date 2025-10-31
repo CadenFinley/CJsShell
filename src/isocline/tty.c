@@ -42,6 +42,7 @@ struct tty_s {
     bool is_utf8;
     bool has_term_resize_event;
     bool term_resize_event;
+    bool lost_terminal;
     alloc_t* mem;
     code_t pushbuf[TTY_PUSH_MAX];
     ssize_t push_count;
@@ -145,12 +146,22 @@ static bool tty_code_pop(tty_t* tty, code_t* code);
 
 ic_private bool tty_read_timeout(tty_t* tty, long timeout_ms, code_t* code) {
     if (tty_code_pop(tty, code)) {
-        return code;
+        return true;
     }
 
     uint8_t c;
-    if (!tty_readc_noblock(tty, &c, timeout_ms))
+
+    if (!tty_readc_noblock(tty, &c, timeout_ms)) {
+        /* If a blocking read (timeout_ms < 0) returned no data (likely EOF),
+           surface an explicit stop event so the caller can break out instead
+           of spinning on KEY_NONE. For non-blocking reads, keep returning
+           false as before. */
+        if (timeout_ms < 0) {
+            *code = KEY_EVENT_STOP;
+            return true;
+        }
         return false;
+    }
 
     if (c == KEY_ESC) {
         *code = tty_read_esc(tty, tty->esc_initial_timeout, tty->esc_timeout);
@@ -392,6 +403,7 @@ ic_private tty_t* tty_new(alloc_t* mem, int fd_in) {
     tty_t* tty = mem_zalloc_tp(mem, tty_t);
     tty->mem = mem;
     tty->fd_in = (fd_in < 0 ? STDIN_FILENO : fd_in);
+    tty->lost_terminal = false;
 #if defined(__APPLE__)
     tty->esc_initial_timeout = 200;
 #else
@@ -446,11 +458,40 @@ ic_private void tty_set_esc_delay(tty_t* tty, long initial_delay_ms, long follow
 static bool tty_readc_blocking(tty_t* tty, uint8_t* c) {
     if (tty_cpop(tty, c))
         return true;
-    *c = 0;
-    ssize_t nread = read(tty->fd_in, (char*)c, 1);
-    if (nread < 0 && errno == EINTR) {
+
+    for (;;) {
+        *c = 0;
+        ssize_t nread = read(tty->fd_in, (char*)c, 1);
+        if (nread == 1) {
+            tty->lost_terminal = false;
+            return true;
+        }
+        if (nread == 0) {
+            return false;
+        }
+        if (nread < 0) {
+            int err = errno;
+            if (err == EINTR) {
+                continue;  // interrupted by signal, try again
+            }
+#if defined(EAGAIN) && defined(EWOULDBLOCK)
+            if (err == EAGAIN || err == EWOULDBLOCK) {
+                continue;
+            }
+#endif
+            if (err == EIO && isatty(tty->fd_in)) {
+                pid_t pgid = getpgrp();
+                if (tcsetpgrp(tty->fd_in, pgid) == 0) {
+                    tty->lost_terminal = false;
+                    continue;  // try the read again now that we're foreground
+                }
+
+                tty->lost_terminal = true;
+            } else {
+            }
+            return false;
+        }
     }
-    return (nread == 1);
 }
 
 ic_private bool tty_readc_noblock(tty_t* tty, uint8_t* c, long timeout_ms) {
