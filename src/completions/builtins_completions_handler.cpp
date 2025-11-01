@@ -46,6 +46,45 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_doc("alias", "Create or inspect command aliases", {});
         add_doc("unalias", "Remove command aliases", {});
 
+        add_doc("cjsh", "POSIX Shell Scripting meets Modern Shell Features",
+                {make_option("-h", "Display help message and exit"),
+                 make_option("--help", "Display help message and exit"),
+                 make_option("-v", "Print version information and exit"),
+                 make_option("--version", "Print version information and exit"),
+                 make_option("-l", "Start as a login shell"),
+                 make_option("--login", "Start as a login shell (load profile)"),
+                 make_option("-i", "Force interactive mode"),
+                 make_option("--interactive", "Force interactive mode"),
+                 make_option("-c", "Execute the specified command string and exit"),
+                 make_option("--command=", "Execute the specified command string and exit"),
+                 make_option("-m", "Disable cjsh enhancements"),
+                 make_option("--minimal", "Disable cjsh enhancements"),
+                 make_option("-T", "Disable theme system"),
+                 make_option("--no-themes", "Disable theme system"),
+                 make_option("-C", "Disable color output"),
+                 make_option("--no-colors", "Disable color output"),
+                 make_option("-N", "Skip sourcing ~/.cjshrc"),
+                 make_option("--no-source", "Skip sourcing ~/.cjshrc"),
+                 make_option("-O", "Disable tab completions"),
+                 make_option("--no-completions", "Disable tab completions"),
+                 make_option("-S", "Disable syntax highlighting"),
+                 make_option("--no-syntax-highlighting", "Disable syntax highlighting"),
+                 make_option("-M", "Disable smart cd functionality"),
+                 make_option("--no-smart-cd", "Disable smart cd functionality"),
+                 make_option("-H", "Disable history expansion"),
+                 make_option("--no-history-expansion", "Disable history expansion (!commands)"),
+                 make_option("-L", "Disable title line on startup"),
+                 make_option("--no-titleline", "Disable title line on startup"),
+                 make_option("-P", "Use simple '#' prompt"),
+                 make_option("--no-prompt", "Use simple '#' prompt"),
+                 make_option("-U", "Display startup time"),
+                 make_option("--show-startup-time", "Display startup time"),
+                 make_option("-s", "Secure mode: disable profile and rc files"),
+                 make_option("--secure", "Secure mode: disable profile and rc files"),
+                 make_option("-X", "Enable startup test mode"),
+                 make_option("--startup-test", "Enable startup test mode (internal)"),
+                 make_option("--posix", "Enable POSIX compatibility mode")});
+
         add_doc("break", "Exit the innermost enclosing loop", {});
         add_doc("continue", "Advance to the next loop iteration", {});
         add_doc("return", "Exit the current function with an optional status", {});
