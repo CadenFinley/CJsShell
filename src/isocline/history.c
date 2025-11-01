@@ -7,6 +7,7 @@
 -----------------------------------------------------------------------------*/
 #include "history.h"
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -721,9 +722,58 @@ static int compare_matches(const void* a, const void* b) {
     return (int)(mb->hidx - ma->hidx);
 }
 
+static bool history_parse_exit_code_token(const char* token, size_t len, int* exit_code_out) {
+    if (token == NULL || exit_code_out == NULL || len == 0)
+        return false;
+
+    const char* value_ptr = NULL;
+    if (len > 1 && (token[0] == ':' || token[0] == '!')) {
+        value_ptr = token + 1;
+    } else {
+        static const char* prefixes[] = {"exit:", "status:", "code:"};
+        static const size_t prefix_lengths[] = {5u, 7u, 5u};
+        for (size_t i = 0; i < (sizeof(prefixes) / sizeof(prefixes[0])); i++) {
+            size_t prefix_len = prefix_lengths[i];
+            if (len <= prefix_len)
+                continue;
+            if (ic_strnicmp(token, prefixes[i], (ssize_t)prefix_len) == 0) {
+                value_ptr = token + prefix_len;
+                break;
+            }
+        }
+    }
+
+    if (value_ptr == NULL || value_ptr >= token + len)
+        return false;
+
+    size_t value_len = (size_t)((token + len) - value_ptr);
+    if (value_len == 0 || value_len >= 64)
+        return false;
+
+    char buffer[64];
+    ic_memcpy(buffer, value_ptr, (ssize_t)value_len);
+    buffer[value_len] = '\0';
+
+    char* endptr = NULL;
+    long parsed = strtol(buffer, &endptr, 10);
+    if (endptr == buffer || *endptr != '\0')
+        return false;
+    if (parsed < INT_MIN || parsed > INT_MAX)
+        return false;
+
+    *exit_code_out = (int)parsed;
+    return true;
+}
+
 ic_private bool history_fuzzy_search(const history_t* h, const char* query,
                                      history_match_t* matches, ssize_t max_matches,
-                                     ssize_t* match_count) {
+                                     ssize_t* match_count, bool* exit_filter_applied,
+                                     int* exit_filter_value) {
+    if (exit_filter_applied)
+        *exit_filter_applied = false;
+    if (exit_filter_value)
+        *exit_filter_value = IC_HISTORY_EXIT_CODE_UNKNOWN;
+
     if (h == NULL || query == NULL || matches == NULL || max_matches <= 0) {
         if (match_count)
             *match_count = 0;
@@ -746,56 +796,137 @@ ic_private bool history_fuzzy_search(const history_t* h, const char* query,
         return false;
     }
 
-    if (query[0] == '\0') {
-        ssize_t count = 0;
+    bool filter_by_exit_code = false;
+    int exit_code_filter = 0;
+    char* sanitized_query = NULL;
+    bool sanitized_available = false;
+    size_t sanitized_len = 0;
+
+    ssize_t original_query_len = ic_strlen(query);
+    if (original_query_len < 0)
+        original_query_len = 0;
+    sanitized_query = mem_malloc_tp_n(mutable_h->mem, char, (size_t)original_query_len + 1);
+    if (sanitized_query != NULL) {
+        sanitized_query[0] = '\0';
+        sanitized_available = true;
+    }
+
+    const char* cursor = query;
+    while (*cursor != '\0') {
+        while (*cursor != '\0' && isspace((unsigned char)*cursor)) {
+            cursor++;
+        }
+
+        const char* token_start = cursor;
+        while (*cursor != '\0' && !isspace((unsigned char)*cursor)) {
+            cursor++;
+        }
+
+        size_t token_len = (size_t)(cursor - token_start);
+        if (token_len == 0)
+            break;
+
+        int parsed_exit_code = 0;
+        if (history_parse_exit_code_token(token_start, token_len, &parsed_exit_code)) {
+            filter_by_exit_code = true;
+            exit_code_filter = parsed_exit_code;
+            continue;
+        }
+
+        if (sanitized_available) {
+            if (sanitized_len > 0) {
+                sanitized_query[sanitized_len++] = ' ';
+            }
+            ic_memcpy(sanitized_query + sanitized_len, token_start, (ssize_t)token_len);
+            sanitized_len += token_len;
+            sanitized_query[sanitized_len] = '\0';
+        }
+    }
+
+    if (!sanitized_available && filter_by_exit_code) {
+        sanitized_query = mem_malloc_tp_n(mutable_h->mem, char, 1);
+        if (sanitized_query != NULL) {
+            sanitized_query[0] = '\0';
+            sanitized_available = true;
+            sanitized_len = 0;
+        }
+    }
+
+    const char* effective_query = query;
+    if (filter_by_exit_code) {
+        if (sanitized_available && sanitized_query != NULL) {
+            sanitized_query[sanitized_len] = '\0';
+            effective_query = sanitized_query;
+        } else {
+            effective_query = "";
+        }
+    }
+
+    if (effective_query == NULL)
+        effective_query = "";
+
+    if (filter_by_exit_code) {
+        if (exit_filter_applied)
+            *exit_filter_applied = true;
+        if (exit_filter_value)
+            *exit_filter_value = exit_code_filter;
+    }
+
+    ssize_t count = 0;
+
+    if (effective_query[0] == '\0') {
         for (ssize_t offset = 0; offset < list.count && count < max_matches; offset++) {
+            ssize_t idx = list.count - offset - 1;
+            const history_entry_t* entry = &list.entries[idx];
+            if (entry->command == NULL)
+                continue;
+            if (filter_by_exit_code && entry->exit_code != exit_code_filter)
+                continue;
+
             matches[count].hidx = offset;
             matches[count].score = (int)(100 - offset);
             matches[count].match_pos = 0;
             matches[count].match_len = 0;
             count++;
         }
-        if (match_count)
-            *match_count = count;
-        history_list_free(mutable_h, &list);
-        return count > 0;
-    }
+    } else {
+        for (ssize_t offset = 0; offset < list.count; offset++) {
+            ssize_t idx = list.count - offset - 1;
+            const history_entry_t* entry = &list.entries[idx];
+            if (entry->command == NULL)
+                continue;
+            if (filter_by_exit_code && entry->exit_code != exit_code_filter)
+                continue;
 
-    ssize_t count = 0;
-    for (ssize_t offset = 0; offset < list.count; offset++) {
-        ssize_t idx = list.count - offset - 1;
-        const char* entry = list.entries[idx].command;
-        if (entry == NULL)
-            continue;
+            ssize_t mpos = 0;
+            ssize_t mlen = 0;
+            int score = fuzzy_match_score(entry->command, effective_query, &mpos, &mlen);
 
-        ssize_t mpos = 0;
-        ssize_t mlen = 0;
-        int score = fuzzy_match_score(entry, query, &mpos, &mlen);
+            if (score >= 0) {
+                score += (int)(offset / 10);
 
-        if (score >= 0) {
-            score += (int)(offset / 10);
-
-            if (count < max_matches) {
-                matches[count].hidx = offset;
-                matches[count].score = score;
-                matches[count].match_pos = mpos;
-                matches[count].match_len = mlen;
-                count++;
-            } else {
-                ssize_t worst_idx = 0;
-                int worst_score = matches[0].score;
-                for (ssize_t j = 1; j < max_matches; j++) {
-                    if (matches[j].score < worst_score) {
-                        worst_score = matches[j].score;
-                        worst_idx = j;
+                if (count < max_matches) {
+                    matches[count].hidx = offset;
+                    matches[count].score = score;
+                    matches[count].match_pos = mpos;
+                    matches[count].match_len = mlen;
+                    count++;
+                } else {
+                    ssize_t worst_idx = 0;
+                    int worst_score = matches[0].score;
+                    for (ssize_t j = 1; j < max_matches; j++) {
+                        if (matches[j].score < worst_score) {
+                            worst_score = matches[j].score;
+                            worst_idx = j;
+                        }
                     }
-                }
 
-                if (score > worst_score) {
-                    matches[worst_idx].hidx = offset;
-                    matches[worst_idx].score = score;
-                    matches[worst_idx].match_pos = mpos;
-                    matches[worst_idx].match_len = mlen;
+                    if (score > worst_score) {
+                        matches[worst_idx].hidx = offset;
+                        matches[worst_idx].score = score;
+                        matches[worst_idx].match_pos = mpos;
+                        matches[worst_idx].match_len = mlen;
+                    }
                 }
             }
         }
@@ -805,10 +936,13 @@ ic_private bool history_fuzzy_search(const history_t* h, const char* query,
         qsort(matches, count, sizeof(history_match_t), compare_matches);
     }
 
-    history_list_free(mutable_h, &list);
-
     if (match_count)
         *match_count = count;
+
+    if (sanitized_query != NULL)
+        mem_free(mutable_h->mem, sanitized_query);
+    history_list_free(mutable_h, &list);
+
     return count > 0;
 }
 

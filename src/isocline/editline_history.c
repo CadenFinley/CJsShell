@@ -160,6 +160,17 @@ static void edit_history_at(ic_env_t* env, editor_t* eb, int ofs) {
                     }
                 }
                 sbuf_append(eb->extra, "[/pre]");
+                if (preview_entry->exit_code != IC_HISTORY_EXIT_CODE_UNKNOWN) {
+                    char exit_buf[32];
+                    int exit_len = snprintf(exit_buf, sizeof(exit_buf), " (exit %d)",
+                                            preview_entry->exit_code);
+                    if (exit_len > 0) {
+                        if (exit_len >= (int)sizeof(exit_buf))
+                            exit_len = (int)sizeof(exit_buf) - 1;
+                        exit_buf[exit_len] = '\0';
+                        sbuf_appendf(eb->extra, "[ic-diminish]%s[/]", exit_buf);
+                    }
+                }
                 preview_count++;
             }
         }
@@ -340,14 +351,17 @@ again:;
     last_max_scroll = 0;
 
     bool showing_all_due_to_no_matches = false;
+    bool exit_filter_applied = false;
+    int exit_filter_code = IC_HISTORY_EXIT_CODE_UNKNOWN;
 
     {
         const char* query = sbuf_string(eb->input);
         history_fuzzy_search(env->history, query ? query : "", matches, MAX_FUZZY_RESULTS,
-                             &match_count);
+                             &match_count, &exit_filter_applied, &exit_filter_code);
 
-        if (match_count == 0 && query != NULL && query[0] != '\0') {
-            history_fuzzy_search(env->history, "", matches, MAX_FUZZY_RESULTS, &match_count);
+        if (match_count == 0 && query != NULL && query[0] != '\0' && !exit_filter_applied) {
+            history_fuzzy_search(env->history, "", matches, MAX_FUZZY_RESULTS, &match_count, NULL,
+                                 NULL);
             showing_all_due_to_no_matches = true;
         }
     }
@@ -376,8 +390,13 @@ again:;
             sbuf_appendf(eb->extra, "[ic-info]No matches - showing all history (%zd entr%s)[/]\n",
                          total_history, total_history == 1 ? "y" : "ies");
         } else if (is_filtered) {
-            sbuf_appendf(eb->extra, "[ic-info]%zd match%s found[/]\n", match_count,
-                         match_count == 1 ? "" : "es");
+            if (exit_filter_applied && exit_filter_code != IC_HISTORY_EXIT_CODE_UNKNOWN) {
+                sbuf_appendf(eb->extra, "[ic-info]%zd match%s found (exit %d)[/]\n", match_count,
+                             match_count == 1 ? "" : "es", exit_filter_code);
+            } else {
+                sbuf_appendf(eb->extra, "[ic-info]%zd match%s found[/]\n", match_count,
+                             match_count == 1 ? "" : "es");
+            }
         } else {
             sbuf_appendf(eb->extra, "[ic-info]History (%zd entr%s)[/]\n", total_history,
                          total_history == 1 ? "y" : "ies");
@@ -431,13 +450,28 @@ again:;
             if (entry == NULL || entry->command == NULL)
                 continue;
 
+            char exit_buf[32] = {0};
+            ssize_t exit_reserved_columns = 0;
+            if (entry->exit_code != IC_HISTORY_EXIT_CODE_UNKNOWN) {
+                int formatted =
+                    snprintf(exit_buf, sizeof(exit_buf), " (exit %d)", entry->exit_code);
+                if (formatted > 0) {
+                    if (formatted >= (int)sizeof(exit_buf))
+                        formatted = (int)sizeof(exit_buf) - 1;
+                    exit_buf[formatted] = '\0';
+                    exit_reserved_columns = formatted;
+                } else {
+                    exit_buf[0] = '\0';
+                }
+            }
+
             const char* display = entry->command;
             const char* line_end = get_first_line_end(display);
             ssize_t entry_len = line_end ? (line_end - display) : (ssize_t)strlen(display);
             bool is_multiline = (line_end && (*line_end == '\n' || *line_end == '\r'));
 
             ssize_t marker_columns = 4;
-            ssize_t max_columns = term_width - marker_columns;
+            ssize_t max_columns = term_width - marker_columns - exit_reserved_columns;
             if (max_columns < 4) {
                 max_columns = 4;
             }
@@ -516,6 +550,10 @@ again:;
 
             sbuf_append(eb->extra, "[/pre]");
 
+            if (exit_buf[0] != '\0') {
+                sbuf_appendf(eb->extra, "[ic-diminish]%s[/]", exit_buf);
+            }
+
             if (match_idx == selected_idx) {
                 sbuf_append(eb->extra, "[/ic-emphasis]");
             } else {
@@ -539,7 +577,12 @@ again:;
         }
     } else {
         scroll_offset = 0;
-        sbuf_append(eb->extra, "[ic-info]No matches found[/]\n");
+        if (exit_filter_applied && exit_filter_code != IC_HISTORY_EXIT_CODE_UNKNOWN) {
+            sbuf_appendf(eb->extra, "[ic-info]No history entries with exit %d[/]\n",
+                         exit_filter_code);
+        } else {
+            sbuf_append(eb->extra, "[ic-info]No matches found[/]\n");
+        }
     }
 
     if (!env->no_help) {

@@ -70,6 +70,7 @@ typedef struct history_match_s {
 
 ic_private bool history_fuzzy_search(const history_t* h, const char* query,
                                      history_match_t* matches, ssize_t max_matches,
-                                     ssize_t* match_count);
+                                     ssize_t* match_count, bool* exit_filter_applied,
+                                     int* exit_filter_value);
 
 #endif  // IC_HISTORY_H
