@@ -845,6 +845,88 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
     std::vector<std::tuple<std::string, std::string, size_t>> control_stack;
     bool encountered_unclosed_quote = false;
 
+    auto expected_close_for_entry = [](const std::tuple<std::string, std::string, size_t>& entry) {
+        const std::string& current_state = std::get<0>(entry);
+        const std::string& opening_statement = std::get<1>(entry);
+
+        if (opening_statement == "if" || current_state == "then" || current_state == "elif" ||
+            current_state == "else") {
+            return std::string("fi");
+        }
+        if (opening_statement == "while" || opening_statement == "until" ||
+            opening_statement == "for" || current_state == "do") {
+            return std::string("done");
+        }
+        if (opening_statement == "case") {
+            return std::string("esac");
+        }
+        if (opening_statement == "{" || opening_statement == "function") {
+            return std::string("}");
+        }
+        return std::string();
+    };
+
+    auto report_unclosed_entry = [&](const std::tuple<std::string, std::string, size_t>& entry) {
+        const std::string& opening_statement = std::get<1>(entry);
+        size_t opening_line = std::get<2>(entry);
+        std::string expected_close = expected_close_for_entry(entry);
+        if (expected_close.empty()) {
+            return;
+        }
+
+        std::string msg = "Unclosed '";
+        msg += opening_statement;
+        msg += "' from line ";
+        msg += std::to_string(opening_line);
+        msg += " - missing '";
+        msg += expected_close;
+        msg += "'";
+        SyntaxError syn_err(opening_line, msg, "");
+
+        if (opening_statement == "{" || opening_statement == "function") {
+            syn_err.error_code = "SYN007";
+            syn_err.suggestion =
+                "Add closing '}' to match the opening on line " + std::to_string(opening_line);
+        } else {
+            syn_err.error_code = "SYN001";
+            syn_err.suggestion = "Add '" + expected_close + "' to close the '" + opening_statement +
+                                 "' that started on line " + std::to_string(opening_line);
+            if (encountered_unclosed_quote && syn_err.error_code != "SYN007") {
+                syn_err.related_info.push_back(
+                    "An earlier unclosed quote may prevent detecting the matching closure "
+                    "correctly.");
+            }
+        }
+
+        syn_err.category = ErrorCategory::CONTROL_FLOW;
+        syn_err.severity = ErrorSeverity::CRITICAL;
+        errors.push_back(std::move(syn_err));
+    };
+
+    auto unwind_until_allowed = [&](std::initializer_list<const char*> allowed_states,
+                                    const char* closing_keyword) {
+        while (!control_stack.empty()) {
+            const auto& top = control_stack.back();
+            const std::string& current_state = std::get<0>(top);
+
+            for (const char* allowed : allowed_states) {
+                if (current_state == allowed) {
+                    return true;
+                }
+            }
+
+            std::string expected_close = expected_close_for_entry(top);
+            if (expected_close.empty() ||
+                (closing_keyword != nullptr && expected_close == closing_keyword)) {
+                break;
+            }
+
+            report_unclosed_entry(top);
+            control_stack.pop_back();
+        }
+        return false;
+    };
+
     for (size_t line_num = 0; line_num < lines.size(); ++line_num) {
         const std::string& line = sanitized_lines[line_num];
         size_t display_line = line_num + 1;
@@ -1058,7 +1140,9 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                         std::get<0>(control_stack.back()) = "do";
                     }
                 } else if (first_token == "done") {
-                    if (require_top({"do"}, "'done' without matching 'do'")) {
+                    if (unwind_until_allowed({"do"}, "done")) {
+                        control_stack.pop_back();
+                    } else if (require_top({"do"}, "'done' without matching 'do'")) {
                         control_stack.pop_back();
                     }
                 }
@@ -1116,57 +1200,7 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
     }
 
     while (!control_stack.empty()) {
-        auto& unclosed = control_stack.back();
-        const std::string& current_state = std::get<0>(unclosed);
-        const std::string& opening_statement = std::get<1>(unclosed);
-        size_t opening_line = std::get<2>(unclosed);
-        std::string expected_close;
-
-        if (opening_statement == "if" || current_state == "then" || current_state == "elif" ||
-            current_state == "else") {
-            expected_close = "fi";
-        } else if (opening_statement == "while" || opening_statement == "for" ||
-                   current_state == "do") {
-            expected_close = "done";
-        } else if (opening_statement == "case") {
-            expected_close = "esac";
-        } else if (opening_statement == "{" || opening_statement == "function") {
-            expected_close = "}";
-        }
-
-        {
-            std::string msg = "Unclosed '";
-            msg += opening_statement;
-            msg += "' from line ";
-            msg += std::to_string(opening_line);
-            msg += " - missing '";
-            msg += expected_close;
-            msg += "'";
-            SyntaxError syn_err(opening_line, msg, "");
-            if (opening_statement == "{" || opening_statement == "function") {
-                syn_err.error_code = "SYN007";
-                syn_err.suggestion =
-                    "Add closing '}' to match the opening on line " + std::to_string(opening_line);
-                syn_err.severity = ErrorSeverity::CRITICAL;
-            } else {
-                syn_err.error_code = "SYN001";
-                std::string suggestion = "Add '";
-                suggestion += expected_close;
-                suggestion += "' to close the '";
-                suggestion += opening_statement;
-                suggestion += "' that started on line ";
-                suggestion += std::to_string(opening_line);
-                syn_err.suggestion = suggestion;
-            }
-            if (encountered_unclosed_quote && syn_err.error_code != "SYN007") {
-                syn_err.related_info.push_back(
-                    "An earlier unclosed quote may prevent detecting the matching closure "
-                    "correctly.");
-            }
-            syn_err.category = ErrorCategory::CONTROL_FLOW;
-            syn_err.severity = ErrorSeverity::CRITICAL;
-            errors.push_back(syn_err);
-        }
+        report_unclosed_entry(control_stack.back());
         control_stack.pop_back();
     }
 
