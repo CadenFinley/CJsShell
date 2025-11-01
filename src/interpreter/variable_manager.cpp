@@ -6,9 +6,9 @@
 #include <cstdlib>
 
 #include "cjsh.h"
-#include "job_control.h"
 #include "readonly_command.h"
 #include "shell.h"
+#include "utils/parameter_utils.h"
 
 void VariableManager::push_scope() {
     local_variable_stack.emplace_back();
@@ -175,28 +175,10 @@ std::string VariableManager::get_special_variable(const std::string& var_name) c
         return "0";
     }
     if (var_name == "*" || var_name == "@") {
-        if (g_shell) {
-            auto params = g_shell->get_positional_parameters();
-            std::string result;
-            for (size_t i = 0; i < params.size(); ++i) {
-                if (i > 0)
-                    result += " ";
-                result += params[i];
-            }
-            return result;
-        }
-        return "";
+        return parameter_utils::join_positional_parameters(g_shell ? g_shell.get() : nullptr);
     }
     if (var_name == "!") {
-        const char* last_bg_pid = getenv("!");
-        if (last_bg_pid != nullptr) {
-            return last_bg_pid;
-        }
-        pid_t last_pid = JobManager::instance().get_last_background_pid();
-        if (last_pid > 0) {
-            return std::to_string(last_pid);
-        }
-        return "";
+        return parameter_utils::get_last_background_pid_string();
     }
     return "";
 }

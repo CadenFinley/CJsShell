@@ -4,10 +4,10 @@
 #include <cctype>
 
 #include "exec.h"
-#include "job_control.h"
 #include "parser.h"
 #include "shell.h"
 #include "shell_script_interpreter.h"
+#include "utils/parameter_utils.h"
 
 VariableExpander::VariableExpander(Shell* shell,
                                    const std::unordered_map<std::string, std::string>& env_vars)
@@ -67,31 +67,11 @@ std::string VariableExpander::resolve_parameter_value(const std::string& var_nam
     }
 
     if (var_name == "*" || var_name == "@") {
-        if (shell != nullptr) {
-            auto params = shell->get_positional_parameters();
-            std::string joined;
-            for (size_t i = 0; i < params.size(); ++i) {
-                if (i > 0) {
-                    joined += " ";
-                }
-                joined += params[i];
-            }
-            return joined;
-        }
-        return "";
+        return parameter_utils::join_positional_parameters(shell);
     }
 
     if (var_name == "!") {
-        const char* last_bg_pid = getenv("!");
-        if (last_bg_pid != nullptr) {
-            return last_bg_pid;
-        }
-
-        pid_t last_pid = JobManager::instance().get_last_background_pid();
-        if (last_pid > 0) {
-            return std::to_string(last_pid);
-        }
-        return "";
+        return parameter_utils::get_last_background_pid_string();
     }
 
     if (var_name == "-") {
