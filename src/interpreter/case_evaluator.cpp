@@ -86,6 +86,23 @@ std::string normalize_case_pattern(std::string pattern, Parser* parser) {
     return processed;
 }
 
+std::string normalize_case_value(std::string value, Parser* parser) {
+    if (value.length() >= 2) {
+        char first_char = value.front();
+        char last_char = value.back();
+        if ((first_char == '"' && last_char == '"') || (first_char == '\'' && last_char == '\'')) {
+            value = value.substr(1, value.length() - 2);
+        }
+    }
+
+    strip_subst_literal_markers(value);
+
+    if (!value.empty() && parser != nullptr)
+        parser->expand_env_vars(value);
+
+    return value;
+}
+
 bool parse_case_section(const std::string& section, CaseSectionData& out, Parser* parser) {
     size_t paren_pos = section.find(')');
     if (paren_pos == std::string::npos)
@@ -200,19 +217,7 @@ std::optional<int> handle_inline_case(
         }
     }
 
-    case_value = raw_case_value;
-
-    if (case_value.length() >= 2) {
-        if ((case_value.front() == '"' && case_value.back() == '"') ||
-            (case_value.front() == '\'' && case_value.back() == '\'')) {
-            case_value = case_value.substr(1, case_value.length() - 2);
-        }
-    }
-
-    strip_subst_literal_markers(case_value);
-
-    if (!case_value.empty() && parser != nullptr)
-        parser->expand_env_vars(case_value);
+    case_value = normalize_case_value(raw_case_value, parser);
 
     auto case_result = evaluate_case_patterns(patterns_part, case_value, trim_sections, executor,
                                               parser, pattern_matcher);

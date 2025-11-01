@@ -23,6 +23,8 @@ std::vector<std::string> split_case_sections(const std::string& input, bool trim
 
 std::string normalize_case_pattern(std::string pattern, Parser* parser);
 
+std::string normalize_case_value(std::string value, Parser* parser);
+
 bool parse_case_section(const std::string& section, CaseSectionData& out, Parser* parser);
 
 bool execute_case_sections(
