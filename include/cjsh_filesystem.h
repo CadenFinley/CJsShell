@@ -121,6 +121,7 @@ void cleanup_temp_file(const std::string& path);
 Result<void> write_file_content(const std::string& path, const std::string& content);
 Result<std::string> read_file_content(const std::string& path);
 Result<void> write_all(int fd, std::string_view data);
+bool error_indicates_broken_pipe(std::string_view message);
 
 enum class HereStringErrorType : std::uint8_t {
     Pipe,

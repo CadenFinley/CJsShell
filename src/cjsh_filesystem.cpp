@@ -271,6 +271,11 @@ Result<void> write_all(int fd, std::string_view data) {
     return Result<void>::ok();
 }
 
+bool error_indicates_broken_pipe(std::string_view message) {
+    return (message.find("Broken pipe") != std::string::npos) ||
+           (message.find("EPIPE") != std::string::npos);
+}
+
 std::optional<HereStringError> setup_here_string_stdin(const std::string& here_string) {
     int here_pipe[2];
     auto pipe_result = create_pipe_cloexec(here_pipe);
@@ -286,13 +291,9 @@ std::optional<HereStringError> setup_here_string_stdin(const std::string& here_s
 
     auto write_result = write_all(here_pipe[1], std::string_view{content});
     std::fill(content.begin(), content.end(), '\0');
-    if (write_result.is_error()) {
-        bool is_broken_pipe = (write_result.error().find("Broken pipe") != std::string::npos ||
-                               write_result.error().find("EPIPE") != std::string::npos);
-        if (!is_broken_pipe) {
-            close_pipe(here_pipe);
-            return HereStringError{HereStringErrorType::Write, write_result.error()};
-        }
+    if (write_result.is_error() && !error_indicates_broken_pipe(write_result.error())) {
+        close_pipe(here_pipe);
+        return HereStringError{HereStringErrorType::Write, write_result.error()};
     }
 
     auto dup_result = duplicate_pipe_read_end_to_fd(here_pipe, STDIN_FILENO);

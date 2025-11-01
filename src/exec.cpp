@@ -381,9 +381,7 @@ bool setup_here_document_stdin(const std::string& here_doc, ErrorHandler&& on_er
 
     auto write_result = cjsh_filesystem::write_all(here_pipe[1], std::string_view{here_doc});
     if (write_result.is_error()) {
-        bool is_broken_pipe = (write_result.error().find("Broken pipe") != std::string::npos ||
-                               write_result.error().find("EPIPE") != std::string::npos);
-        if (!is_broken_pipe) {
+        if (!cjsh_filesystem::error_indicates_broken_pipe(write_result.error())) {
             on_error(HereDocErrorKind::ContentWrite, write_result.error());
             cjsh_filesystem::close_pipe(here_pipe);
             return false;
@@ -398,14 +396,11 @@ bool setup_here_document_stdin(const std::string& here_doc, ErrorHandler&& on_er
     }
 
     auto newline_result = cjsh_filesystem::write_all(here_pipe[1], std::string_view("\n", 1));
-    if (newline_result.is_error()) {
-        bool is_broken_pipe = (newline_result.error().find("Broken pipe") != std::string::npos ||
-                               newline_result.error().find("EPIPE") != std::string::npos);
-        if (!is_broken_pipe) {
-            on_error(HereDocErrorKind::NewlineWrite, newline_result.error());
-            cjsh_filesystem::close_pipe(here_pipe);
-            return false;
-        }
+    if (newline_result.is_error() &&
+        !cjsh_filesystem::error_indicates_broken_pipe(newline_result.error())) {
+        on_error(HereDocErrorKind::NewlineWrite, newline_result.error());
+        cjsh_filesystem::close_pipe(here_pipe);
+        return false;
     }
 
     auto dup_result = cjsh_filesystem::duplicate_pipe_read_end_to_fd(here_pipe, STDIN_FILENO);
