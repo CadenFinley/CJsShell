@@ -418,7 +418,10 @@ rm -f "$test_hup_script" "/tmp/child_pid_$$" "/tmp/hup_caught_$$"
 
 log_test "SIGCONT resumes stopped process"
 if command -v ps >/dev/null 2>&1; then
-    "$SHELL_TO_TEST" -c "sleep 10 & echo \$!" 2>/dev/null > /tmp/sigcont_pid_$$
+    "$SHELL_TO_TEST" -c "sleep 10 & echo \$! > /tmp/sigcont_pid_$$; wait" 2>/dev/null &
+    shell_pid=$!
+    sleep 0.3  # Give it time to start and write the PID
+    
     if [ -f "/tmp/sigcont_pid_$$" ]; then
         test_pid=$(cat "/tmp/sigcont_pid_$$")
         if kill -0 $test_pid 2>/dev/null; then
@@ -444,7 +447,9 @@ if command -v ps >/dev/null 2>&1; then
                 kill -9 $test_pid 2>/dev/null
                 skip "Could not verify process stopped state"
             fi
+            kill -9 $shell_pid 2>/dev/null
         else
+            kill -9 $shell_pid 2>/dev/null
             skip "Test process not running"
         fi
     else
