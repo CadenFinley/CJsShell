@@ -203,12 +203,8 @@ if(CJSH_MINIMAL_BUILD AND CMAKE_CONFIGURATION_TYPES AND "Debug" IN_LIST CMAKE_CO
     message(STATUS "CJSH minimal build flags apply to all non-Debug configurations")
 endif()
 
-set(_cjsh_lto_flag "-flto")
-if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    set(_cjsh_lto_flag "-flto=thin")
-elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-    set(_cjsh_lto_flag "-flto=auto")
-endif()
+set(CJSH_LTO_FLAG "-flto" CACHE STRING "Link-time optimisation flag applied to non-Debug builds")
+set(_cjsh_lto_flag "${CJSH_LTO_FLAG}")
 
 set(_cjsh_release_arch_opts)
 set(_cjsh_minimal_arch_opts)

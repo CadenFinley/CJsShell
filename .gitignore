@@ -13,8 +13,9 @@ venv/
 .venv/
 __pycache__/
 *.pyc
-
-# CMake
+nob
+!nob/
+nob.old
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
