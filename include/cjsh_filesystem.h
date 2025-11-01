@@ -136,6 +136,8 @@ struct HereStringError {
 std::optional<HereStringError> setup_here_string_stdin(const std::string& here_string);
 bool should_noclobber_prevent_overwrite(const std::string& filename, bool force_overwrite = false);
 bool command_exists(const std::string& command_path);
+bool resolves_to_executable(const std::string& name, const std::string& cwd);
+bool path_is_directory_candidate(const std::string& value, const std::string& cwd);
 
 const fs::path g_user_home_path = []() {
     const char* home = std::getenv("HOME");

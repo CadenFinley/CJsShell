@@ -10,13 +10,12 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <mutex>
 #include <sstream>
 #include <system_error>
-#include <unordered_map>
 
 #include "builtin.h"
 #include "cjsh.h"
+#include "cjsh_filesystem.h"
 #include "error_out.h"
 #include "exec.h"
 #include "isocline.h"
@@ -24,138 +23,6 @@
 #include "shell_script_interpreter.h"
 #include "theme.h"
 #include "trap_command.h"
-
-namespace {
-struct CachedScript {
-    std::filesystem::file_time_type modified;
-    std::shared_ptr<const std::vector<std::string>> lines;
-};
-
-std::mutex g_script_cache_mutex;
-std::unordered_map<std::string, CachedScript> g_script_cache;
-
-bool resolves_to_executable(const std::string& name, const std::string& cwd) {
-    if (name.empty()) {
-        return false;
-    }
-
-    std::error_code ec;
-
-    auto check_path = [&](const std::filesystem::path& candidate) -> bool {
-        if (!std::filesystem::exists(candidate, ec) || ec) {
-            return false;
-        }
-        if (std::filesystem::is_directory(candidate, ec) || ec) {
-            return false;
-        }
-        return access(candidate.c_str(), X_OK) == 0;
-    };
-
-    std::filesystem::path candidate(name);
-    if (name.find('/') != std::string::npos) {
-        if (!candidate.is_absolute()) {
-            candidate = std::filesystem::path(cwd) / candidate;
-        }
-        return check_path(candidate);
-    }
-
-    const char* path_env = std::getenv("PATH");
-    if (path_env == nullptr) {
-        return false;
-    }
-
-    std::string path_str(path_env);
-    size_t start = 0;
-    while (start < path_str.size()) {
-        size_t pos = path_str.find(':', start);
-        size_t end = (pos != std::string::npos) ? pos : path_str.size();
-
-        std::string segment;
-        if (end > start) {
-            segment.assign(path_str, start, end - start);
-        }
-
-        if (segment.empty()) {
-            segment = ".";
-        }
-
-        std::filesystem::path path_candidate = std::filesystem::path(segment) / name;
-        if (check_path(path_candidate)) {
-            return true;
-        }
-
-        start = (pos != std::string::npos) ? pos + 1 : path_str.size();
-    }
-
-    return false;
-}
-
-bool path_is_directory_candidate(const std::string& value, const std::string& cwd) {
-    if (value.empty()) {
-        return false;
-    }
-
-    std::error_code ec;
-    std::filesystem::path candidate(value);
-    if (!candidate.is_absolute()) {
-        candidate = std::filesystem::path(cwd) / candidate;
-    }
-
-    return std::filesystem::exists(candidate, ec) && !ec &&
-           std::filesystem::is_directory(candidate, ec) && !ec;
-}
-}  // namespace
-
-void raw_mode_state_init(RawModeState* state) {
-    if (state == nullptr) {
-        return;
-    }
-    raw_mode_state_init_with_fd(state, STDIN_FILENO);
-}
-
-void raw_mode_state_init_with_fd(RawModeState* state, int fd) {
-    if (state == nullptr) {
-        return;
-    }
-
-    state->entered = false;
-    state->fd = fd;
-
-    if (fd < 0 || (isatty(fd) == 0)) {
-        return;
-    }
-
-    if (tcgetattr(fd, &state->saved_modes) == -1) {
-        return;
-    }
-
-    struct termios raw_modes = state->saved_modes;
-    raw_modes.c_lflag &= ~ICANON;
-    raw_modes.c_cc[VMIN] = 0;
-    raw_modes.c_cc[VTIME] = 0;
-
-    if (tcsetattr(fd, TCSANOW, &raw_modes) == -1) {
-        return;
-    }
-
-    state->entered = true;
-}
-
-void raw_mode_state_release(RawModeState* state) {
-    if ((state == nullptr) || !state->entered) {
-        return;
-    }
-
-    if (tcsetattr(state->fd, TCSANOW, &state->saved_modes) == -1) {
-        // dont do anything if saved mode is invalid, likely we inhierited a broken state
-    }
-
-    state->entered = false;
-}
-
-bool raw_mode_state_entered(const RawModeState* state) {
-    return (state != nullptr) && state->entered;
-}
 
 void Shell::set_abbreviations(
     const std::unordered_map<std::string, std::string>& new_abbreviations) {
@@ -262,10 +129,6 @@ Theme* Shell::ensure_theme() {
     return shell_theme.get();
 }
 
-Theme* Shell::get_theme() const {
-    return shell_theme.get();
-}
-
 void Shell::reset_theme() {
     if (shell_prompt) {
         shell_prompt->set_theme(nullptr);
@@ -295,46 +158,24 @@ int Shell::execute_script_file(const std::filesystem::path& path, bool optional)
         display_path = normalized.string();
     }
 
-    std::string cache_key = normalized.string();
-
-    std::error_code mod_ec;
-    auto mod_time = std::filesystem::last_write_time(normalized, mod_ec);
-
-    std::shared_ptr<const std::vector<std::string>> cached_lines;
-    if (!mod_ec) {
-        std::lock_guard<std::mutex> lock(g_script_cache_mutex);
-        auto it = g_script_cache.find(cache_key);
-        if (it != g_script_cache.end() && it->second.modified == mod_time) {
-            cached_lines = it->second.lines;
+    std::ifstream file(normalized);
+    if (!file) {
+        if (optional) {
+            return 0;
         }
+        print_error(
+            {ErrorType::FILE_NOT_FOUND, "source", "cannot open file '" + display_path + "'", {}});
+        return 1;
     }
 
-    if (!cached_lines) {
-        std::ifstream file(normalized);
-        if (!file) {
-            if (optional) {
-                return 0;
-            }
-            print_error({ErrorType::FILE_NOT_FOUND,
-                         "source",
-                         "cannot open file '" + display_path + "'",
-                         {}});
-            return 1;
-        }
-
-        std::stringstream buffer;
-        buffer << file.rdbuf();
-        auto parsed_lines = std::make_shared<std::vector<std::string>>(
-            shell_script_interpreter->parse_into_lines(buffer.str()));
-        cached_lines = parsed_lines;
-
-        if (!mod_ec) {
-            std::lock_guard<std::mutex> lock(g_script_cache_mutex);
-            g_script_cache[cache_key] = {mod_time, parsed_lines};
-        }
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    auto parsed_lines = shell_script_interpreter->parse_into_lines(buffer.str());
+    if (parsed_lines.empty()) {
+        return 0;
     }
 
-    return shell_script_interpreter->execute_block(*cached_lines);
+    return shell_script_interpreter->execute_block(parsed_lines);
 }
 
 int Shell::execute(const std::string& script, bool skip_validation) {
@@ -532,9 +373,10 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
         bool is_builtin = built_ins->is_builtin_command(candidate) != 0;
         bool is_function =
             shell_script_interpreter && shell_script_interpreter->has_function(candidate);
-        bool is_executable = resolves_to_executable(candidate, built_ins->get_current_directory());
-        bool is_directory =
-            path_is_directory_candidate(candidate, built_ins->get_current_directory());
+        bool is_executable =
+            cjsh_filesystem::resolves_to_executable(candidate, built_ins->get_current_directory());
+        bool is_directory = cjsh_filesystem::path_is_directory_candidate(
+            candidate, built_ins->get_current_directory());
 
         if (!has_alias && !is_builtin && !is_function && !is_executable && is_directory &&
             !g_startup_active) {

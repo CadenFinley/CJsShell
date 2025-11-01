@@ -53,6 +53,20 @@ void launch_async_once(std::atomic<bool>& guard, Functor&& fn) {
         guard.store(false);
     }).detach();
 }
+
+bool path_is_executable(const fs::path& candidate) {
+    std::error_code ec;
+
+    if (!fs::exists(candidate, ec) || ec) {
+        return false;
+    }
+
+    if (fs::is_directory(candidate, ec) || ec) {
+        return false;
+    }
+
+    return ::access(candidate.c_str(), X_OK) == 0;
+}
 }  // namespace
 
 fs::path g_cjsh_path;
@@ -307,7 +321,7 @@ bool command_exists(const std::string& command_path) {
         return false;
     }
     if (command_path.find('/') != std::string::npos) {
-        return access(command_path.c_str(), F_OK) == 0;
+        return ::access(command_path.c_str(), F_OK) == 0;
     }
     const char* path_env = getenv("PATH");
     if (path_env == nullptr) {
@@ -327,6 +341,68 @@ bool command_exists(const std::string& command_path) {
         }
     }
     return false;
+}
+
+bool resolves_to_executable(const std::string& name, const std::string& cwd) {
+    if (name.empty()) {
+        return false;
+    }
+
+    fs::path candidate(name);
+
+    if (name.find('/') != std::string::npos) {
+        if (!candidate.is_absolute()) {
+            candidate = fs::path(cwd) / candidate;
+        }
+
+        return path_is_executable(candidate);
+    }
+
+    const char* path_env = std::getenv("PATH");
+    if (path_env == nullptr) {
+        return false;
+    }
+
+    std::string path_str(path_env);
+    size_t start = 0;
+
+    while (start < path_str.size()) {
+        size_t pos = path_str.find(':', start);
+        size_t end = (pos != std::string::npos) ? pos : path_str.size();
+
+        std::string segment;
+        if (end > start) {
+            segment.assign(path_str, start, end - start);
+        }
+
+        if (segment.empty()) {
+            segment = ".";
+        }
+
+        fs::path path_candidate = fs::path(segment) / name;
+        if (path_is_executable(path_candidate)) {
+            return true;
+        }
+
+        start = (pos != std::string::npos) ? pos + 1 : path_str.size();
+    }
+
+    return false;
+}
+
+bool path_is_directory_candidate(const std::string& value, const std::string& cwd) {
+    if (value.empty()) {
+        return false;
+    }
+
+    fs::path candidate(value);
+    std::error_code ec;
+
+    if (!candidate.is_absolute()) {
+        candidate = fs::path(cwd) / candidate;
+    }
+
+    return fs::exists(candidate, ec) && !ec && fs::is_directory(candidate, ec) && !ec;
 }
 
 Result<std::string> read_file_content(const std::string& path) {

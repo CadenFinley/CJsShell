@@ -158,7 +158,9 @@ class Shell {
     void handle_sigcont();
 
     Theme* ensure_theme();
-    Theme* get_theme() const;
+    Theme* get_theme() const {
+        return shell_theme.get();
+    }
     void reset_theme();
 
     void register_hook(const std::string& hook_type, const std::string& function_name);
