@@ -528,17 +528,6 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
     if (!run_in_background && args.size() == 1 && built_ins) {
         const std::string& candidate = args[0];
 
-        std::string trimmed_candidate = candidate;
-        while (trimmed_candidate.size() > 1 && trimmed_candidate.back() == '/') {
-            trimmed_candidate.pop_back();
-        }
-
-        if (trimmed_candidate.empty()) {
-            trimmed_candidate = candidate;
-        }
-
-        bool has_path_separator = trimmed_candidate.find('/') != std::string::npos;
-
         bool has_alias = aliases.find(candidate) != aliases.end();
         bool is_builtin = built_ins->is_builtin_command(candidate) != 0;
         bool is_function =
@@ -547,8 +536,8 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
         bool is_directory =
             path_is_directory_candidate(candidate, built_ins->get_current_directory());
 
-        if (!has_alias && !is_builtin && !is_function && !(has_path_separator && is_executable) &&
-            is_directory && !g_startup_active) {
+        if (!has_alias && !is_builtin && !is_function && !is_executable && is_directory &&
+            !g_startup_active) {
             std::vector<std::string> cd_args = {"cd", candidate};
             int code = built_ins->builtin_command(cd_args);
             last_terminal_output_error = built_ins->get_last_error();
