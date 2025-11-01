@@ -8,7 +8,7 @@
 #include <regex>
 #include <unordered_map>
 
-#include "exec.h"
+#include "command_utils.h"
 
 namespace {
 
@@ -73,6 +73,9 @@ const std::vector<std::string> dart_folders = {".dart_tool"};
 const std::vector<std::string> scala_files = {"build.sbt", "build.sc"};
 const std::vector<std::string> scala_extensions = {".scala", ".sc"};
 const std::vector<std::string> scala_folders = {};
+
+using prompt_modules::detail::command_output_trimmed;
+using prompt_modules::detail::first_command_output;
 
 bool scan_directory_recursive(const std::filesystem::path& dir,
                               const std::vector<std::string>& files,
@@ -215,10 +218,7 @@ bool is_scala_project() {
 
 std::string get_python_version() {
     return get_cached_version("python", []() -> std::string {
-        std::string output = exec_utils::execute_command_for_output_trimmed("python3 --version");
-        if (output.empty()) {
-            output = exec_utils::execute_command_for_output_trimmed("python --version");
-        }
+        std::string output = first_command_output({"python3 --version", "python --version"});
         if (output.empty()) {
             return "";
         }
@@ -230,7 +230,7 @@ std::string get_python_version() {
 
 std::string get_nodejs_version() {
     return get_cached_version("nodejs", []() -> std::string {
-        std::string output = exec_utils::execute_command_for_output_trimmed("node --version");
+        std::string output = command_output_trimmed("node --version");
         if (output.empty()) {
             return "";
         }
@@ -245,7 +245,7 @@ std::string get_nodejs_version() {
 
 std::string get_rust_version() {
     return get_cached_version("rust", []() -> std::string {
-        std::string output = exec_utils::execute_command_for_output_trimmed("rustc --version");
+        std::string output = command_output_trimmed("rustc --version");
         if (output.empty()) {
             return "";
         }
@@ -257,7 +257,7 @@ std::string get_rust_version() {
 
 std::string get_golang_version() {
     return get_cached_version("golang", []() -> std::string {
-        std::string output = exec_utils::execute_command_for_output_trimmed("go version");
+        std::string output = command_output_trimmed("go version");
         if (output.empty()) {
             return "";
         }
@@ -275,7 +275,7 @@ std::string get_golang_version() {
 
 std::string get_java_version() {
     return get_cached_version("java", []() -> std::string {
-        std::string output = exec_utils::execute_command_for_output_trimmed("java -version");
+        std::string output = command_output_trimmed("java -version");
         if (output.empty()) {
             return "";
         }
@@ -299,13 +299,8 @@ std::string get_java_version() {
 
 std::string get_cpp_version() {
     return get_cached_version("cpp", []() -> std::string {
-        std::string output = exec_utils::execute_command_for_output_trimmed("g++ --version");
-        if (output.empty()) {
-            output = exec_utils::execute_command_for_output_trimmed("clang++ --version");
-        }
-        if (output.empty()) {
-            output = exec_utils::execute_command_for_output_trimmed("gcc --version");
-        }
+        std::string output =
+            first_command_output({"g++ --version", "clang++ --version", "gcc --version"});
         if (output.empty()) {
             return "";
         }
@@ -322,7 +317,7 @@ std::string get_cpp_version() {
 
 std::string get_csharp_version() {
     return get_cached_version("csharp", []() -> std::string {
-        std::string output = exec_utils::execute_command_for_output_trimmed("dotnet --version");
+        std::string output = command_output_trimmed("dotnet --version");
         if (output.empty()) {
             return "";
         }
@@ -332,7 +327,7 @@ std::string get_csharp_version() {
 
 std::string get_php_version() {
     return get_cached_version("php", []() -> std::string {
-        std::string output = exec_utils::execute_command_for_output_trimmed("php --version");
+        std::string output = command_output_trimmed("php --version");
         if (output.empty()) {
             return "";
         }
@@ -349,7 +344,7 @@ std::string get_php_version() {
 
 std::string get_ruby_version() {
     return get_cached_version("ruby", []() -> std::string {
-        std::string output = exec_utils::execute_command_for_output_trimmed("ruby --version");
+        std::string output = command_output_trimmed("ruby --version");
         if (output.empty()) {
             return "";
         }
@@ -368,7 +363,7 @@ std::string get_ruby_version() {
 
 std::string get_kotlin_version() {
     return get_cached_version("kotlin", []() -> std::string {
-        std::string output = exec_utils::execute_command_for_output_trimmed("kotlin -version 2>&1");
+        std::string output = command_output_trimmed("kotlin -version 2>&1");
         if (output.empty()) {
             return "";
         }
@@ -380,7 +375,7 @@ std::string get_kotlin_version() {
 
 std::string get_swift_version() {
     return get_cached_version("swift", []() -> std::string {
-        std::string output = exec_utils::execute_command_for_output_trimmed("swift --version");
+        std::string output = command_output_trimmed("swift --version");
         if (output.empty()) {
             return "";
         }
@@ -401,7 +396,7 @@ std::string get_swift_version() {
 
 std::string get_dart_version() {
     return get_cached_version("dart", []() -> std::string {
-        std::string output = exec_utils::execute_command_for_output_trimmed("dart --version 2>&1");
+        std::string output = command_output_trimmed("dart --version 2>&1");
         if (output.empty()) {
             return "";
         }
@@ -420,7 +415,7 @@ std::string get_dart_version() {
 
 std::string get_scala_version() {
     return get_cached_version("scala", []() -> std::string {
-        std::string output = exec_utils::execute_command_for_output_trimmed("scala -version 2>&1");
+        std::string output = command_output_trimmed("scala -version 2>&1");
         if (output.empty()) {
             return "";
         }

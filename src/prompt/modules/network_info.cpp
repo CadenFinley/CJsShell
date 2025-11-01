@@ -1,6 +1,11 @@
 #include "network_info.h"
 
-#include "exec.h"
+#include <string>
+
+#include "command_utils.h"
+
+using prompt_modules::detail::command_output_matches_char;
+using prompt_modules::detail::command_output_or;
 
 std::string get_ip_address(bool external) {
     std::string cmd;
@@ -28,17 +33,7 @@ std::string get_ip_address(bool external) {
 #endif
     }
 
-    auto result_data = exec_utils::execute_command_for_output(cmd);
-    if (!result_data.success) {
-        return "N/A";
-    }
-
-    std::string result = result_data.output;
-    if (!result.empty() && result.back() == '\n') {
-        result.pop_back();
-    }
-
-    return result.empty() ? "N/A" : result;
+    return command_output_or(cmd, "N/A");
 }
 
 bool is_vpn_active() {
@@ -54,12 +49,7 @@ bool is_vpn_active() {
     return false;
 #endif
 
-    auto result_data = exec_utils::execute_command_for_output(cmd);
-    if (!result_data.success) {
-        return false;
-    }
-
-    return (result_data.output.length() > 0 && result_data.output[0] == '1');
+    return command_output_matches_char(cmd, '1');
 }
 
 std::string get_active_network_interface() {
@@ -75,15 +65,5 @@ std::string get_active_network_interface() {
     return "N/A";
 #endif
 
-    auto result_data = exec_utils::execute_command_for_output(cmd);
-    if (!result_data.success) {
-        return "N/A";
-    }
-
-    std::string result = result_data.output;
-    if (!result.empty() && result.back() == '\n') {
-        result.pop_back();
-    }
-
-    return result.empty() ? "N/A" : result;
+    return command_output_or(cmd, "N/A");
 }

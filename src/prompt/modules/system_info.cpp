@@ -1,19 +1,17 @@
 #include "system_info.h"
 
 #include <cstdio>
-#include "exec.h"
+#include <filesystem>
+#include <string>
+
+#include "command_utils.h"
+
+using prompt_modules::detail::command_output_float_or;
+using prompt_modules::detail::command_output_or;
 
 std::string get_disk_usage(const std::filesystem::path& path) {
     std::string cmd = "df -h '" + path.string() + "' | awk 'NR==2{print $5}'";
-    auto result = exec_utils::execute_command_for_output(cmd);
-    if (!result.success) {
-        return "";
-    }
-    std::string output = result.output;
-    if (!output.empty() && output.back() == '\n') {
-        output.pop_back();
-    }
-    return output;
+    return command_output_or(cmd, "");
 }
 
 std::string get_swap_usage() {
@@ -24,28 +22,12 @@ std::string get_swap_usage() {
 #else
     std::string cmd = "echo \"N/A\"";
 #endif
-    auto result = exec_utils::execute_command_for_output(cmd);
-    if (!result.success) {
-        return "";
-    }
-    std::string output = result.output;
-    if (!output.empty() && output.back() == '\n') {
-        output.pop_back();
-    }
-    return output;
+    return command_output_or(cmd, "");
 }
 
 std::string get_load_avg() {
     std::string cmd = "uptime | awk -F'load averages?: ' '{print $2}'";
-    auto result = exec_utils::execute_command_for_output(cmd);
-    if (!result.success) {
-        return "";
-    }
-    std::string output = result.output;
-    if (!output.empty() && output.back() == '\n') {
-        output.pop_back();
-    }
-    return output;
+    return command_output_or(cmd, "");
 }
 
 std::string get_os_info() {
@@ -71,16 +53,7 @@ std::string get_os_info() {
     std::string cmd = "uname -s";
 #endif
 
-    auto result_data = exec_utils::execute_command_for_output(cmd);
-    if (!result_data.success) {
-        return "Unknown";
-    }
-
-    std::string result = result_data.output;
-
-    if (!result.empty() && result.back() == '\n') {
-        result.pop_back();
-    }
+    std::string result = command_output_or(cmd, "");
 
 #ifdef __APPLE__
     size_t newline_pos = result.find('\n');
@@ -100,18 +73,7 @@ std::string get_kernel_version() {
 #else
     std::string cmd = "uname -r";
 #endif
-
-    auto result_data = exec_utils::execute_command_for_output(cmd);
-    if (!result_data.success) {
-        return "Unknown";
-    }
-
-    std::string result = result_data.output;
-    if (!result.empty() && result.back() == '\n') {
-        result.pop_back();
-    }
-
-    return result.empty() ? "Unknown" : result;
+    return command_output_or(cmd, "Unknown");
 }
 
 float get_cpu_usage() {
@@ -124,20 +86,7 @@ float get_cpu_usage() {
 #else
     return 0.0f;
 #endif
-
-    auto result_data = exec_utils::execute_command_for_output(cmd);
-    if (!result_data.success) {
-        return 0.0f;
-    }
-
-    float usage = 0.0f;
-    try {
-        usage = std::stof(result_data.output);
-    } catch (const std::exception& e) {
-        usage = 0.0f;
-    }
-
-    return usage;
+    return command_output_float_or(cmd, 0.0f);
 }
 
 float get_memory_usage() {
@@ -160,20 +109,7 @@ float get_memory_usage() {
 #else
     return 0.0f;
 #endif
-
-    auto result_data = exec_utils::execute_command_for_output(cmd);
-    if (!result_data.success) {
-        return 0.0f;
-    }
-
-    float usage = 0.0f;
-    try {
-        usage = std::stof(result_data.output);
-    } catch (const std::exception& e) {
-        usage = 0.0f;
-    }
-
-    return usage;
+    return command_output_float_or(cmd, 0.0f);
 }
 
 std::string get_battery_status() {
@@ -182,7 +118,7 @@ std::string get_battery_status() {
     pmset -g batt | awk '/InternalBattery/ {
       gsub(/[;%]/, "", $3)
       charging = ($4 == "charging" || $4 == "AC")
-      printf "%s%s", $3, (charging ? "⚡" : "🔋")
+      printf "%s%s", $3, (charging ? "⚡" : "")
     }'
   )";
 #elif defined(__linux__)
@@ -193,7 +129,7 @@ std::string get_battery_status() {
       if [ "$status" = "Charging" ] || [ "$status" = "Full" ]; then
         echo "${capacity}%⚡"
       else
-        echo "${capacity}%🔋"
+        echo "${capacity}%"
       fi
     else
       echo "N/A"
@@ -202,18 +138,7 @@ std::string get_battery_status() {
 #else
     return "N/A";
 #endif
-
-    auto result_data = exec_utils::execute_command_for_output(cmd);
-    if (!result_data.success) {
-        return "N/A";
-    }
-
-    std::string result = result_data.output;
-    if (!result.empty() && result.back() == '\n') {
-        result.pop_back();
-    }
-
-    return result.empty() ? "N/A" : result;
+    return command_output_or(cmd, "N/A");
 }
 
 std::string get_uptime() {
@@ -224,16 +149,5 @@ std::string get_uptime() {
 #else
     std::string cmd = "uptime";
 #endif
-
-    auto result_data = exec_utils::execute_command_for_output(cmd);
-    if (!result_data.success) {
-        return "Unknown";
-    }
-
-    std::string result = result_data.output;
-    if (!result.empty() && result.back() == '\n') {
-        result.pop_back();
-    }
-
-    return result.empty() ? "Unknown" : result;
+    return command_output_or(cmd, "Unknown");
 }

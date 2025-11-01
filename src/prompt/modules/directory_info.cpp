@@ -147,42 +147,6 @@ std::string truncate_path(const std::string& path, int max_length) {
     return result;
 }
 
-std::string to_fish_style(int dir_length, const std::string& full_path,
-                          const std::string& truncated_path) {
-    if (dir_length <= 0) {
-        return truncated_path;
-    }
-
-    std::vector<std::string> components;
-    std::stringstream ss(full_path);
-    std::string component;
-
-    while (std::getline(ss, component, '/')) {
-        if (!component.empty()) {
-            components.push_back(component);
-        }
-    }
-
-    std::string result;
-    for (size_t i = 0; i < components.size() - 1; ++i) {
-        if (i > 0)
-            result += "/";
-        if (static_cast<int>(components[i].length()) > dir_length) {
-            result += components[i].substr(0, dir_length);
-        } else {
-            result += components[i];
-        }
-    }
-
-    if (!components.empty()) {
-        if (!result.empty())
-            result += "/";
-        result += components.back();
-    }
-
-    return result;
-}
-
 bool is_readonly_dir(const std::filesystem::path& path) {
     return access(path.c_str(), W_OK) != 0;
 }

@@ -2,8 +2,12 @@
 
 #include <cstdio>
 #include <regex>
+
 #include "cjsh_filesystem.h"
-#include "exec.h"
+#include "command_utils.h"
+
+using prompt_modules::detail::command_output_or;
+using prompt_modules::detail::command_output_trimmed;
 
 bool file_exists(const std::string& path) {
     return std::filesystem::exists(path);
@@ -103,9 +107,7 @@ bool is_in_docker() {
 }
 
 std::string get_docker_context() {
-    std::string context =
-        exec_utils::execute_command_for_output_trimmed("docker context show 2>/dev/null");
-    return context.empty() ? "default" : context;
+    return command_output_or("docker context show 2>/dev/null", "default");
 }
 
 std::string get_docker_image() {
@@ -113,11 +115,11 @@ std::string get_docker_image() {
         return "";
     }
 
-    std::string hostname = exec_utils::execute_command_for_output_trimmed("hostname");
+    std::string hostname = command_output_trimmed("hostname");
     if (!hostname.empty()) {
         std::string image_cmd =
             "docker inspect " + hostname + " --format='{{.Config.Image}}' 2>/dev/null";
-        std::string image = exec_utils::execute_command_for_output_trimmed(image_cmd);
+        std::string image = command_output_trimmed(image_cmd);
         if (!image.empty()) {
             return image;
         }
