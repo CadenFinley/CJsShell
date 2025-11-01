@@ -37,13 +37,6 @@ void Shell::set_interactive_mode(bool flag) {
 
     interactive_mode = flag;
 
-    const char* interactive_value = interactive_mode ? "1" : "0";
-    setenv("CJSH_INTERACTIVE", interactive_value, 1);
-    env_vars["CJSH_INTERACTIVE"] = interactive_value;
-    if (shell_parser) {
-        shell_parser->set_env_vars(env_vars);
-    }
-
     if (interactive_mode) {
         apply_abbreviations_to_line_editor();
     } else {
