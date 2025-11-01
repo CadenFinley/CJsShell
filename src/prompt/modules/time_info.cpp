@@ -5,67 +5,51 @@
 #include <iomanip>
 #include <sstream>
 
-std::string get_current_time(bool twelve_hour_format) {
+namespace {
+std::tm current_local_tm() {
     auto now = std::chrono::system_clock::now();
     std::time_t time_t = std::chrono::system_clock::to_time_t(now);
-    std::tm* tm = std::localtime(&time_t);
-
-    std::ostringstream oss;
-    if (twelve_hour_format) {
-        oss << std::put_time(tm, "%I:%M:%S %p");
-    } else {
-        oss << std::put_time(tm, "%H:%M:%S");
+    if (std::tm* tm_ptr = std::localtime(&time_t)) {
+        return *tm_ptr;
     }
+    return {};
+}
+
+std::string format_current_tm(const char* format) {
+    const auto tm = current_local_tm();
+    std::ostringstream oss;
+    oss << std::put_time(&tm, format);
     return oss.str();
+}
+}  // namespace
+
+std::string get_current_time(bool twelve_hour_format) {
+    return format_current_tm(twelve_hour_format ? "%I:%M:%S %p" : "%H:%M:%S");
 }
 
 std::string get_current_date() {
-    auto now = std::chrono::system_clock::now();
-    std::time_t time_t = std::chrono::system_clock::to_time_t(now);
-    std::tm* tm = std::localtime(&time_t);
-
-    std::ostringstream oss;
-    oss << std::put_time(tm, "%Y-%m-%d");
-    return oss.str();
+    return format_current_tm("%Y-%m-%d");
 }
 
 int get_current_day() {
-    auto now = std::chrono::system_clock::now();
-    std::time_t time_t = std::chrono::system_clock::to_time_t(now);
-    std::tm* tm = std::localtime(&time_t);
-    return tm->tm_mday;
+    const auto tm = current_local_tm();
+    return tm.tm_mday;
 }
 
 int get_current_month() {
-    auto now = std::chrono::system_clock::now();
-    std::time_t time_t = std::chrono::system_clock::to_time_t(now);
-    std::tm* tm = std::localtime(&time_t);
-    return tm->tm_mon + 1;
+    const auto tm = current_local_tm();
+    return tm.tm_mon + 1;
 }
 
 int get_current_year() {
-    auto now = std::chrono::system_clock::now();
-    std::time_t time_t = std::chrono::system_clock::to_time_t(now);
-    std::tm* tm = std::localtime(&time_t);
-    return tm->tm_year + 1900;
+    const auto tm = current_local_tm();
+    return tm.tm_year + 1900;
 }
 
 std::string get_current_day_name() {
-    auto now = std::chrono::system_clock::now();
-    std::time_t time_t = std::chrono::system_clock::to_time_t(now);
-    std::tm* tm = std::localtime(&time_t);
-
-    std::ostringstream oss;
-    oss << std::put_time(tm, "%A");
-    return oss.str();
+    return format_current_tm("%A");
 }
 
 std::string get_current_month_name() {
-    auto now = std::chrono::system_clock::now();
-    std::time_t time_t = std::chrono::system_clock::to_time_t(now);
-    std::tm* tm = std::localtime(&time_t);
-
-    std::ostringstream oss;
-    oss << std::put_time(tm, "%B");
-    return oss.str();
+    return format_current_tm("%B");
 }
