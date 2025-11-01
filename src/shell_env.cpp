@@ -32,7 +32,7 @@ void setup_environment_variables(const char* argv0) {
         auto env_vars = setup_user_system_vars(pw);
 
         for (const auto& [name, value] : env_vars) {
-            setenv(name, value, 1);
+            setenv(name.c_str(), value.c_str(), 1);
         }
     }
 }
@@ -107,16 +107,16 @@ void setup_path_variables(const struct passwd* pw) {
 #endif
 }
 
-std::vector<std::pair<const char*, const char*>> setup_user_system_vars(const struct passwd* pw) {
-    std::vector<std::pair<const char*, const char*>> env_vars;
+std::vector<std::pair<std::string, std::string>> setup_user_system_vars(const struct passwd* pw) {
+    std::vector<std::pair<std::string, std::string>> env_vars;
 
-    env_vars.emplace_back("USER", pw->pw_name);
-    env_vars.emplace_back("LOGNAME", pw->pw_name);
-    env_vars.emplace_back("HOME", pw->pw_dir);
+    env_vars.emplace_back("USER", std::string(pw->pw_name));
+    env_vars.emplace_back("LOGNAME", std::string(pw->pw_name));
+    env_vars.emplace_back("HOME", std::string(pw->pw_dir));
 
     char hostname[256];
     if (gethostname(hostname, sizeof(hostname)) == 0) {
-        env_vars.emplace_back("HOSTNAME", hostname);
+        env_vars.emplace_back("HOSTNAME", std::string(hostname));
     }
 
     std::string current_path = std::filesystem::current_path().string();
@@ -124,19 +124,19 @@ std::vector<std::pair<const char*, const char*>> setup_user_system_vars(const st
 
     setenv("PWD", current_path.c_str(), 1);
     setenv("SHELL", shell_path.c_str(), 1);
-    env_vars.emplace_back("IFS", " \t\n");
+    env_vars.emplace_back("IFS", std::string(" \t\n"));
 
     const char* lang_env = getenv("LANG");
     if ((lang_env == nullptr) || lang_env[0] == '\0') {
-        env_vars.emplace_back("LANG", "en_US.UTF-8");
+        env_vars.emplace_back("LANG", std::string("en_US.UTF-8"));
     }
 
     if (getenv("PAGER") == nullptr) {
-        env_vars.emplace_back("PAGER", "less");
+        env_vars.emplace_back("PAGER", std::string("less"));
     }
 
     if (getenv("TMPDIR") == nullptr) {
-        env_vars.emplace_back("TMPDIR", "/tmp");
+        env_vars.emplace_back("TMPDIR", std::string("/tmp"));
     }
 
     int shlvl = 1;
@@ -157,7 +157,7 @@ std::vector<std::pair<const char*, const char*>> setup_user_system_vars(const st
     setenv("?", status_str.c_str(), 1);
 
     auto version_str = get_version();
-    env_vars.emplace_back("CJSH_VERSION", version_str.c_str());
+    env_vars.emplace_back("CJSH_VERSION", version_str);
 
     return env_vars;
 }
