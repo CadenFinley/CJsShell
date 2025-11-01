@@ -20,8 +20,6 @@ std::string to_lowercase(const std::string& str);
 
 std::string to_uppercase(const std::string& str);
 
-std::string normalize_nfc(const std::string& str);
-
 bool is_grapheme_boundary(uint32_t cp1, uint32_t cp2);
 
 }  // namespace utf8_utils
