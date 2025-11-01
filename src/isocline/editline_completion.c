@@ -163,16 +163,15 @@ static ssize_t edit_completions_max_width(ic_env_t* env, ssize_t count) {
 }
 
 static bool edit_completion_menu_recompute(ic_env_t* env, editor_t* eb, bool* expanded_mode,
-                                           ssize_t* count, bool* more_available,
-                                           ssize_t* selected, ssize_t* scroll_offset,
-                                           bool* menu_has_focus) {
+                                           ssize_t* count, bool* more_available, ssize_t* selected,
+                                           ssize_t* scroll_offset, bool* menu_has_focus) {
     if (env == NULL || eb == NULL || count == NULL || more_available == NULL || selected == NULL ||
         scroll_offset == NULL || menu_has_focus == NULL) {
         return false;
     }
 
-    ssize_t new_count = completions_generate(env, env->completions, sbuf_string(eb->input),
-                                             eb->pos, IC_MAX_COMPLETIONS_TO_TRY);
+    ssize_t new_count = completions_generate(env, env->completions, sbuf_string(eb->input), eb->pos,
+                                             IC_MAX_COMPLETIONS_TO_TRY);
     *count = new_count;
     *more_available = (new_count >= IC_MAX_COMPLETIONS_TO_TRY);
 
