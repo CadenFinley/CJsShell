@@ -54,18 +54,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential
           sudo apt-get install -y libdl-dev || true
-          sudo apt-get install -y ccache
 
       - name: Install macOS dependencies
         if: runner.os == 'macOS'
         run: |
-          brew install ccache || true
-
-      - name: Setup ccache
-        uses: hendrikmuhs/ccache-action@v1.2
-        with:
-          key: ${{ matrix.os }}-ccache
-          max-size: 500M
+          echo "No macOS-specific dependencies required"
 
       - name: Configure CMake
         run: |
