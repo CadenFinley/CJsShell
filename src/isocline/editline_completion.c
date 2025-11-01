@@ -750,10 +750,17 @@ read_key:
         edit_complete(env, eb, selected);
     } else if ((c == KEY_PAGEDOWN || c == KEY_LINEFEED) && count > 9) {
         if (!menu_has_focus) {
-            completions_clear(env->completions);
-            edit_refresh(env, eb);
-            tty_code_pushback(env->tty, c);
-            return;
+            if (c == KEY_LINEFEED) {
+                menu_has_focus = true;
+                if (selected < 0 && count_displayed > 0) {
+                    selected = 0;
+                }
+            } else {
+                completions_clear(env->completions);
+                edit_refresh(env, eb);
+                tty_code_pushback(env->tty, c);
+                return;
+            }
         }
         c = 0;
         if (!expanded_mode) {
