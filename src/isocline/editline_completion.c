@@ -52,27 +52,41 @@ static void editor_append_completion(ic_env_t* env, editor_t* eb, ssize_t idx, s
     const char* source = completions_get_source(env->completions, idx);
     if (display == NULL)
         return;
+
+    const char* arrow = (tty_is_utf8(env->tty) ? "\xE2\x86\x92" : ">");
+    ssize_t width_remaining = width;
+
     if (numbered) {
         ssize_t shown = 1 + idx;
         ssize_t ndigits = 1;
         for (ssize_t t = shown; t >= 10; t /= 10) {
             ndigits++;
         }
+        ssize_t prefix_width = 1 + ndigits + 1;
+        width_remaining -= prefix_width;
         if (selected) {
             sbuf_append(eb->extra, "[ic-emphasis]");
         }
-        sbuf_appendf(eb->extra, "%s%zd ",
-                     (selected ? (tty_is_utf8(env->tty) ? "\xE2\x86\x92" : ">") : " "), shown);
+        sbuf_appendf(eb->extra, "%s%zd ", (selected ? arrow : " "), shown);
         if (selected) {
             sbuf_append(eb->extra, "[/ic-emphasis]");
         } else {
             sbuf_append(eb->extra, "[ic-info][/]");
         }
-        width -= (1 + ndigits + 1);
+    } else {
+        ssize_t prefix_width = 2;  // arrow + space (or two spaces when not selected)
+        width_remaining -= prefix_width;
+        if (selected) {
+            sbuf_append(eb->extra, "[ic-emphasis]");
+            sbuf_appendf(eb->extra, "%s ", arrow);
+            sbuf_append(eb->extra, "[/ic-emphasis]");
+        } else {
+            sbuf_append(eb->extra, "  ");
+        }
     }
 
-    if (width > 0) {
-        sbuf_appendf(eb->extra, "[width=\"%zd;left; ;on\"]", width);
+    if (width_remaining > 0) {
+        sbuf_appendf(eb->extra, "[width=\"%zd;left; ;on\"]", width_remaining);
     }
     if (selected) {
         sbuf_append(eb->extra, "[ic-emphasis]");
@@ -94,7 +108,7 @@ static void editor_append_completion(ic_env_t* env, editor_t* eb, ssize_t idx, s
         sbuf_append(eb->extra, "  ");
         sbuf_append_tagged(eb->extra, "ic-info", help);
     }
-    if (width > 0) {
+    if (width_remaining > 0) {
         sbuf_append(eb->extra, "[/width]");
     }
 }
@@ -247,7 +261,7 @@ again:
         grid_columns = 1;
         grid_rows = (count_displayed > 0 ? count_displayed : 1);
         ssize_t max_display_width = edit_completions_max_width(env, count_displayed);
-        colwidth = max_display_width + 6;  // extra space for numbering and padding
+        colwidth = max_display_width + 6;  // extra space for prefix arrow and padding
         if (colwidth > twidth - 2) {
             colwidth = (twidth > 2 ? twidth - 2 : colwidth);
         }
@@ -341,12 +355,12 @@ again:
                 sbuf_append(eb->extra, "\n");
             }
             wrote_any_row = true;
-            editor_append_completion(env, eb, idx, colwidth, true, (selected == idx));
+            editor_append_completion(env, eb, idx, colwidth, false, (selected == idx));
             visible_count++;
         }
 
         if (visible_count <= 0 && count_displayed > 0) {
-            editor_append_completion(env, eb, 0, -1, true, (selected == 0));
+            editor_append_completion(env, eb, 0, -1, false, (selected == 0));
             visible_count = 1;
         }
 
