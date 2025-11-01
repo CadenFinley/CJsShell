@@ -283,7 +283,9 @@ cjshopt set-history-max status
 ```
 
 **History File:**
-History is stored at `~/.cache/cjsh/history.txt`
+History is stored at `~/.cache/cjsh/history.txt`. Each entry is prefixed by a metadata line in the
+form `# <unix_timestamp> <exit_code>`, where an exit code of `-1` indicates that the status was not
+recorded (for example, when entries are injected programmatically).
 
 **Duplicate Handling:**
 By default, duplicate entries are not stored in history to keep it clean and relevant.

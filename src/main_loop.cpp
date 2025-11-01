@@ -331,7 +331,7 @@ bool process_command_line(const std::string& command, bool skip_history = false)
     std::string status_str = std::to_string(exit_code);
 
     if (!skip_history) {
-        ic_history_add(command.c_str());
+        ic_history_add_with_exit_code(command.c_str(), exit_code);
     }
     setenv("?", status_str.c_str(), 1);
 

@@ -223,6 +223,7 @@ Theme rendering is typically 2-4x faster than popular alternatives like Starship
 - Incremental search (Ctrl+R)
 - History expansion (`!`, `!!`, `!$`, `!-1`, etc.)
 - History file at `~/.cache/cjsh/history.txt`
+- Exit codes persisted alongside each recorded command
 
 See [Editing Guide](editing.md#history-management) for detailed history features.
 

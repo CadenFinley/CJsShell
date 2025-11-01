@@ -118,11 +118,15 @@ ic_public void ic_history_remove_last(void) {
     history_remove_last(env->history);
 }
 
-ic_public void ic_history_add(const char* entry) {
+ic_public void ic_history_add_with_exit_code(const char* entry, int exit_code) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)
         return;
-    history_push(env->history, entry);
+    history_push_with_exit_code(env->history, entry, exit_code);
+}
+
+ic_public void ic_history_add(const char* entry) {
+    ic_history_add_with_exit_code(entry, IC_HISTORY_EXIT_CODE_UNKNOWN);
 }
 
 ic_public void ic_history_clear(void) {

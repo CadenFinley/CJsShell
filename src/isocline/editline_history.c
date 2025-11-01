@@ -80,12 +80,12 @@ static void edit_history_at(ic_env_t* env, editor_t* eb, int ofs) {
         if (prefix != NULL) {
             ssize_t search_idx = current_idx + direction;
             while (search_idx >= 0 && search_idx < total_history) {
-                const char* candidate_entry = history_snapshot_get(&snap, search_idx);
-                if (candidate_entry == NULL) {
+                const history_entry_t* candidate_entry = history_snapshot_get(&snap, search_idx);
+                if (candidate_entry == NULL || candidate_entry->command == NULL) {
                     break;
                 }
-                if (strncmp(candidate_entry, prefix, (size_t)prefix_len) == 0 &&
-                    candidate_entry[prefix_len] != '\0') {
+                if (strncmp(candidate_entry->command, prefix, (size_t)prefix_len) == 0 &&
+                    candidate_entry->command[prefix_len] != '\0') {
                     candidate_idx = search_idx;
                     break;
                 }
@@ -102,15 +102,15 @@ static void edit_history_at(ic_env_t* env, editor_t* eb, int ofs) {
         current_idx = candidate_idx;
     }
 
-    const char* entry = history_snapshot_get(&snap, current_idx);
-    if (entry == NULL) {
+    const history_entry_t* entry = history_snapshot_get(&snap, current_idx);
+    if (entry == NULL || entry->command == NULL) {
         term_beep(env->term);
         history_snapshot_free(env->history, &snap);
         return;
     }
 
     eb->history_idx = current_idx;
-    sbuf_replace(eb->input, entry);
+    sbuf_replace(eb->input, entry->command);
     if (direction > 0) {
         ssize_t end = sbuf_find_line_end(eb->input, 0);
         eb->pos = (end < 0 ? 0 : end);
@@ -125,10 +125,11 @@ static void edit_history_at(ic_env_t* env, editor_t* eb, int ofs) {
 
         int preview_count = 0;
         for (int i = 1; i <= 3 && (eb->history_idx + i) < total_history; i++) {
-            const char* preview_entry = history_snapshot_get(&snap, eb->history_idx + i);
-            if (preview_entry != NULL) {
-                if (prefix != NULL && (strncmp(preview_entry, prefix, (size_t)prefix_len) != 0 ||
-                                       preview_entry[prefix_len] == '\0')) {
+            const history_entry_t* preview_entry = history_snapshot_get(&snap, eb->history_idx + i);
+            if (preview_entry != NULL && preview_entry->command != NULL) {
+                if (prefix != NULL &&
+                    (strncmp(preview_entry->command, prefix, (size_t)prefix_len) != 0 ||
+                     preview_entry->command[prefix_len] == '\0')) {
                     continue;
                 }
 
@@ -137,23 +138,23 @@ static void edit_history_at(ic_env_t* env, editor_t* eb, int ofs) {
                 }
                 sbuf_append(eb->extra, "[!pre]  ");
 
-                const char* newline_pos = strchr(preview_entry, '\n');
+                const char* newline_pos = strchr(preview_entry->command, '\n');
                 ssize_t first_line_len;
                 bool is_multiline = false;
 
                 if (newline_pos != NULL) {
-                    first_line_len = newline_pos - preview_entry;
+                    first_line_len = newline_pos - preview_entry->command;
                     is_multiline = true;
                 } else {
-                    first_line_len = strlen(preview_entry);
+                    first_line_len = strlen(preview_entry->command);
                 }
 
                 ssize_t max_len = eb->termw > 50 ? eb->termw - 10 : 40;
                 if (first_line_len > max_len) {
-                    sbuf_append_n(eb->extra, preview_entry, max_len - 3);
+                    sbuf_append_n(eb->extra, preview_entry->command, max_len - 3);
                     sbuf_append(eb->extra, "...");
                 } else {
-                    sbuf_append_n(eb->extra, preview_entry, first_line_len);
+                    sbuf_append_n(eb->extra, preview_entry->command, first_line_len);
                     if (is_multiline) {
                         sbuf_append(eb->extra, "...");
                     }
@@ -426,12 +427,13 @@ again:;
             if (match_idx >= match_count)
                 break;
 
-            const char* entry = history_snapshot_get(&snap, matches[match_idx].hidx);
-            if (entry == NULL)
+            const history_entry_t* entry = history_snapshot_get(&snap, matches[match_idx].hidx);
+            if (entry == NULL || entry->command == NULL)
                 continue;
 
-            const char* line_end = get_first_line_end(entry);
-            ssize_t entry_len = line_end ? (line_end - entry) : (ssize_t)strlen(entry);
+            const char* display = entry->command;
+            const char* line_end = get_first_line_end(display);
+            ssize_t entry_len = line_end ? (line_end - display) : (ssize_t)strlen(display);
             bool is_multiline = (line_end && (*line_end == '\n' || *line_end == '\r'));
 
             ssize_t marker_columns = 4;
@@ -443,7 +445,7 @@ again:;
             // Limit preview width so wrapped entries do not push the prompt off-screen.
             ssize_t visible_width = 0;
             ssize_t visible_len =
-                history_visible_prefix(entry, entry_len, max_columns, &visible_width);
+                history_visible_prefix(display, entry_len, max_columns, &visible_width);
             bool truncated = (visible_len < entry_len);
             bool append_ellipsis = (is_multiline || truncated);
 
@@ -452,8 +454,8 @@ again:;
                     ssize_t adjusted_columns = max_columns - 3;
                     if (adjusted_columns < 1)
                         adjusted_columns = 1;
-                    visible_len =
-                        history_visible_prefix(entry, entry_len, adjusted_columns, &visible_width);
+                    visible_len = history_visible_prefix(display, entry_len, adjusted_columns,
+                                                         &visible_width);
                     truncated = (visible_len < entry_len) || truncated;
                 }
             } else if (!truncated && !is_multiline) {
@@ -478,7 +480,7 @@ again:;
                 if (match_pos < visible_len) {
                     if (match_pos > 0) {
                         ssize_t prefix_len = (match_pos <= visible_len) ? match_pos : visible_len;
-                        sbuf_append_n(eb->extra, entry, prefix_len);
+                        sbuf_append_n(eb->extra, display, prefix_len);
                     }
 
                     if (match_len > 0) {
@@ -492,19 +494,20 @@ again:;
 
                     if (match_len > 0) {
                         sbuf_append(eb->extra, "[/pre][u ic-emphasis][!pre]");
-                        sbuf_append_n(eb->extra, entry + match_pos, match_len);
+                        sbuf_append_n(eb->extra, display + match_pos, match_len);
                         sbuf_append(eb->extra, "[/pre][/u][!pre]");
                     }
 
                     ssize_t suffix_start = match_pos + match_len;
                     if (suffix_start < visible_len) {
-                        sbuf_append_n(eb->extra, entry + suffix_start, visible_len - suffix_start);
+                        sbuf_append_n(eb->extra, display + suffix_start,
+                                      visible_len - suffix_start);
                     }
                 } else {
-                    sbuf_append_n(eb->extra, entry, visible_len);
+                    sbuf_append_n(eb->extra, display, visible_len);
                 }
             } else {
-                sbuf_append_n(eb->extra, entry, visible_len);
+                sbuf_append_n(eb->extra, display, visible_len);
             }
 
             if (append_ellipsis && max_columns > 3) {
@@ -565,10 +568,11 @@ again:;
     } else if (c == KEY_ENTER) {
         sbuf_clear(eb->extra);
         if (match_count > 0 && selected_idx >= 0 && selected_idx < match_count) {
-            const char* selected = history_snapshot_get(&snap, matches[selected_idx].hidx);
-            if (selected != NULL) {
+            const history_entry_t* selected =
+                history_snapshot_get(&snap, matches[selected_idx].hidx);
+            if (selected != NULL && selected->command != NULL) {
                 editor_undo_forget(eb);
-                sbuf_replace(eb->input, selected);
+                sbuf_replace(eb->input, selected->command);
                 eb->pos = sbuf_len(eb->input);
                 bool expanded = edit_expand_abbreviation_if_needed(env, eb, false);
                 eb->modified = expanded;
@@ -587,10 +591,11 @@ again:;
     } else if (c == KEY_TAB) {
         sbuf_clear(eb->extra);
         if (match_count > 0 && selected_idx >= 0 && selected_idx < match_count) {
-            const char* selected = history_snapshot_get(&snap, matches[selected_idx].hidx);
-            if (selected != NULL) {
+            const history_entry_t* selected =
+                history_snapshot_get(&snap, matches[selected_idx].hidx);
+            if (selected != NULL && selected->command != NULL) {
                 editor_undo_forget(eb);
-                sbuf_replace(eb->input, selected);
+                sbuf_replace(eb->input, selected->command);
                 eb->pos = sbuf_len(eb->input);
                 bool expanded = edit_expand_abbreviation_if_needed(env, eb, false);
                 eb->modified = expanded;

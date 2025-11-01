@@ -9,6 +9,8 @@
 #ifndef IC_HISTORY_H
 #define IC_HISTORY_H
 
+#include <time.h>
+
 #include "common.h"
 
 //-------------------------------------------------------------
@@ -18,8 +20,16 @@
 struct history_s;
 typedef struct history_s history_t;
 
+#define IC_HISTORY_EXIT_CODE_UNKNOWN (-1)
+
+typedef struct history_entry_s {
+    char* command;
+    int exit_code;
+    time_t timestamp;
+} history_entry_t;
+
 typedef struct history_snapshot_s {
-    char** entries;
+    history_entry_t* entries;
     ssize_t count;
     ssize_t capacity;
 } history_snapshot_t;
@@ -35,6 +45,7 @@ ic_private void history_load(history_t* h);
 ic_private void history_save(const history_t* h);
 
 ic_private bool history_push(history_t* h, const char* entry);
+ic_private bool history_push_with_exit_code(history_t* h, const char* entry, int exit_code);
 ic_private bool history_update(history_t* h, const char* entry);
 ic_private const char* history_get(const history_t* h, ssize_t n);
 ic_private void history_remove_last(history_t* h);
@@ -47,7 +58,7 @@ ic_private bool history_search_prefix(const history_t* h, ssize_t from, const ch
 
 ic_private bool history_snapshot_load(history_t* h, history_snapshot_t* snap, bool dedup);
 ic_private void history_snapshot_free(history_t* h, history_snapshot_t* snap);
-ic_private const char* history_snapshot_get(const history_snapshot_t* snap, ssize_t n);
+ic_private const history_entry_t* history_snapshot_get(const history_snapshot_t* snap, ssize_t n);
 ic_private ssize_t history_snapshot_count(const history_snapshot_t* snap);
 
 typedef struct history_match_s {

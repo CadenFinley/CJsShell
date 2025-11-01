@@ -26,6 +26,10 @@ extern "C" {
 /// Token returned from ic_readline* when Ctrl+D is pressed with an empty buffer (EOF).
 #define IC_READLINE_TOKEN_CTRL_D "<CTRL+D>"
 
+#ifndef IC_HISTORY_EXIT_CODE_UNKNOWN
+#define IC_HISTORY_EXIT_CODE_UNKNOWN (-1)
+#endif
+
 /*! \mainpage
 Isocline C API reference.
 
@@ -233,6 +237,10 @@ void ic_history_remove_last(void);
 
 /// Clear the history.
 void ic_history_clear(void);
+
+/// Add an entry to the history with an explicit exit code. Use
+/// IC_HISTORY_EXIT_CODE_UNKNOWN when the exit status is not available.
+void ic_history_add_with_exit_code(const char* entry, int exit_code);
 
 /// Add an entry to the history
 void ic_history_add(const char* entry);
