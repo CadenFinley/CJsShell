@@ -76,6 +76,7 @@ bool report_theme_parse_error_with_script_reporter(const ThemeParseException& ex
 
 Theme::Theme(bool enabled) : is_enabled(enabled) {
     is_enabled = enabled;
+    has_active_theme_ = false;
 }
 
 Theme::~Theme() {
@@ -95,6 +96,7 @@ void Theme::clear_theme_state() {
     last_ps1_raw_length = 0;
     last_git_raw_length = 0;
     last_newline_raw_length = 0;
+    has_active_theme_ = false;
 }
 
 bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
@@ -158,6 +160,7 @@ bool Theme::load_theme(const std::string& theme_name, bool allow_fallback) {
 
 bool Theme::load_theme_from_path(const std::filesystem::path& file_path, bool allow_fallback) {
     if (!is_enabled) {
+        clear_theme_state();
         return false;
     }
 
@@ -227,6 +230,7 @@ bool Theme::load_theme_from_path(const std::filesystem::path& file_path, bool al
 bool Theme::load_theme_from_string(const std::string& theme_content, const std::string& source_name,
                                    bool allow_fallback) {
     if (!is_enabled) {
+        clear_theme_state();
         return false;
     }
 
@@ -365,6 +369,8 @@ bool Theme::apply_theme_definition(const ThemeDefinition& definition, const std:
     cleanup_truncate_multiline_ = theme_data.behavior.cleanup_truncate_multiline;
     newline_after_execution_ = theme_data.behavior.newline_after_execution;
     cleanup_nl_after_exec_ = theme_data.behavior.cleanup_nl_after_exec;
+
+    has_active_theme_ = true;
 
     return true;
 }

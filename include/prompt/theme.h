@@ -57,6 +57,7 @@ class Theme {
     bool cleanup_truncate_multiline_{false};
     bool newline_after_execution_{false};
     bool cleanup_nl_after_exec_{false};
+    bool has_active_theme_{false};
 
    public:
     Theme(bool enabled);
@@ -100,6 +101,10 @@ class Theme {
 
     bool get_enabled() const {
         return is_enabled;
+    }
+
+    bool has_active_theme() const {
+        return has_active_theme_;
     }
 
     bool uses_cleanup() const;

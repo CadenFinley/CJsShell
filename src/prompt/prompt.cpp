@@ -1,5 +1,6 @@
 #include "prompt.h"
 
+#include "cjsh.h"
 #include "command_info.h"
 #include "theme.h"
 #include "theme_parser.h"
@@ -11,7 +12,8 @@ Prompt::~Prompt() {
 }
 
 std::string Prompt::get_prompt() {
-    if (!theme_ || !theme_->get_enabled()) {
+    if (!theme_ || !theme_->get_enabled() || !config::themes_enabled ||
+        !theme_->has_active_theme()) {
         return info.get_basic_prompt();
     }
 
@@ -26,7 +28,8 @@ std::string Prompt::get_prompt() {
 }
 
 std::string Prompt::get_newline_prompt() {
-    if (!theme_ || !theme_->get_enabled()) {
+    if (!theme_ || !theme_->get_enabled() || !config::themes_enabled ||
+        !theme_->has_active_theme()) {
         return " ";
     }
 
@@ -36,7 +39,8 @@ std::string Prompt::get_newline_prompt() {
 }
 
 std::string Prompt::get_inline_right_prompt() {
-    if (!theme_ || !theme_->get_enabled()) {
+    if (!theme_ || !theme_->get_enabled() || !config::themes_enabled ||
+        !theme_->has_active_theme()) {
         return "";
     }
 
@@ -46,7 +50,8 @@ std::string Prompt::get_inline_right_prompt() {
 }
 
 std::string Prompt::get_title_prompt() {
-    if (!theme_ || !theme_->get_enabled()) {
+    if (!theme_ || !theme_->get_enabled() || !config::themes_enabled ||
+        !theme_->has_active_theme()) {
         return info.get_basic_title();
     }
 

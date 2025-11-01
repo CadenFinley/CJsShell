@@ -167,7 +167,7 @@ std::string PromptInfo::get_basic_prompt() {
     std::string prompt;
     prompt.reserve(size);
 
-    prompt = username + "@" + hostname + cwd + " $ ";
+    prompt = username + "@" + hostname + " " + cwd + " $ ";
     return prompt;
 }
 
