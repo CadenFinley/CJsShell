@@ -197,6 +197,9 @@ Multiple command-line flags are available to adjust startup behavior:
 
 See `cjsh --help` for complete list.
 
+#### Environment Variables
+- `CJSH_INTERACTIVE` – Set to `1` when cjsh is running interactively and `0` for script mode so automation can adapt behavior.
+
 ### Performance
 
 #### Optimizations

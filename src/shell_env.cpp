@@ -35,6 +35,10 @@ void setup_environment_variables(const char* argv0) {
             setenv(name, value, 1);
         }
     }
+
+    const char* interactive_value =
+        (config::interactive_mode || config::force_interactive) ? "1" : "0";
+    setenv("CJSH_INTERACTIVE", interactive_value, 1);
 }
 
 void setup_path_variables(const struct passwd* pw) {
