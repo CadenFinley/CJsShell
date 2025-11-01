@@ -1538,7 +1538,9 @@ When you type an opening brace, the closing brace is automatically inserted (ena
 </span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span>status
 </span></code></pre></div><p></p>
 <p><strong>History File:</strong>
-History is stored at <code>~/.cache/cjsh/history.txt</code></p>
+History is stored at <code>~/.cache/cjsh/history.txt</code>. Each entry is prefixed by a metadata line in the
+form <code># &lt;unix_timestamp&gt; &lt;exit_code&gt;</code>, where an exit code of <code>-1</code> indicates that the status was not
+recorded (for example, when entries are injected programmatically).</p>
 <p><strong>Duplicate Handling:</strong>
 By default, duplicate entries are not stored in history to keep it clean and relevant.</p>
 <h3 id="history-search">History Search</h3>
