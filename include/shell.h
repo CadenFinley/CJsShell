@@ -155,6 +155,7 @@ class Shell {
     void save_terminal_state();
     void restore_terminal_state();
     void setup_job_control();
+    void handle_sigcont();
 
     Theme* ensure_theme();
     Theme* get_theme() const;

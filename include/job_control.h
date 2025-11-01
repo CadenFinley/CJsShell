@@ -97,6 +97,8 @@ class JobManager {
 
     void clear_stdin_signal(pid_t pid);
 
+    void handle_shell_continued();
+
    private:
     JobManager() = default;
     std::unordered_map<int, std::shared_ptr<JobControlJob>> jobs;

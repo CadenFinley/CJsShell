@@ -23,9 +23,11 @@ volatile sig_atomic_t SignalHandler::s_sigquit_received = 0;
 volatile sig_atomic_t SignalHandler::s_sigtstp_received = 0;
 volatile sig_atomic_t SignalHandler::s_sigusr1_received = 0;
 volatile sig_atomic_t SignalHandler::s_sigusr2_received = 0;
+volatile sig_atomic_t SignalHandler::s_sigabrt_received = 0;
 volatile sig_atomic_t SignalHandler::s_sigalrm_received = 0;
 volatile sig_atomic_t SignalHandler::s_sigwinch_received = 0;
 volatile sig_atomic_t SignalHandler::s_sigpipe_received = 0;
+volatile sig_atomic_t SignalHandler::s_sigcont_received = 0;
 
 std::atomic<bool> SignalHandler::s_signal_pending(false);
 pid_t SignalHandler::s_main_pid = getpid();
@@ -566,6 +568,21 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
         }
 #endif
 
+#ifdef SIGABRT
+        case SIGABRT: {
+            s_sigabrt_received = 1;
+            break;
+        }
+#endif
+
+#ifdef SIGCONT
+        case SIGCONT: {
+            s_sigcont_received = 1;
+            should_mark_pending = true;
+            break;
+        }
+#endif
+
 #ifdef SIGALRM
         case SIGALRM: {
             s_sigalrm_received = 1;
@@ -878,6 +895,29 @@ SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) 
         if (is_signal_observed(SIGUSR2)) {
             process_trapped_signal(SIGUSR2);
             result.trapped_signals.push_back(SIGUSR2);
+        }
+    }
+#endif
+
+#ifdef SIGABRT
+    if (s_sigabrt_received != 0) {
+        s_sigabrt_received = 0;
+        if (is_signal_observed(SIGABRT)) {
+            process_trapped_signal(SIGABRT);
+            result.trapped_signals.push_back(SIGABRT);
+        }
+    }
+#endif
+
+#ifdef SIGCONT
+    if (s_sigcont_received != 0) {
+        s_sigcont_received = 0;
+
+        JobManager::instance().handle_shell_continued();
+
+        if (is_signal_observed(SIGCONT)) {
+            process_trapped_signal(SIGCONT);
+            result.trapped_signals.push_back(SIGCONT);
         }
     }
 #endif

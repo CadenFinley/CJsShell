@@ -418,13 +418,43 @@ void Shell::setup_job_control() {
                              {}});
             }
         }
-
         job_control_enabled = true;
     } catch (const std::exception& e) {
         print_error(
             {ErrorType::RUNTIME_ERROR, "", e.what(), {"Check terminal settings", "Restart cjsh"}});
         job_control_enabled = false;
     }
+}
+
+void Shell::handle_sigcont() {
+    if (!job_control_enabled) {
+        return;
+    }
+
+    if (isatty(shell_terminal) != 0) {
+        if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
+            const auto error_text = std::system_category().message(errno);
+            print_error({ErrorType::RUNTIME_ERROR,
+                         "tcsetpgrp",
+                         "failed to reclaim terminal after SIGCONT: " + error_text,
+                         {}});
+        }
+
+        if (terminal_state_saved) {
+            if (tcsetattr(shell_terminal, TCSADRAIN, &shell_tmodes) < 0) {
+                const auto error_text = std::system_category().message(errno);
+                print_error({ErrorType::RUNTIME_ERROR,
+                             "tcsetattr",
+                             "failed to restore terminal mode after SIGCONT: " + error_text,
+                             {}});
+            }
+        } else {
+            save_terminal_state();
+        }
+    }
+
+    apply_abbreviations_to_line_editor();
+    invalidate_prompt_caches();
 }
 
 int Shell::execute_command(std::vector<std::string> args, bool run_in_background) {

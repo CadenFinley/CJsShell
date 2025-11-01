@@ -132,9 +132,11 @@ class SignalHandler {
     static volatile sig_atomic_t s_sigtstp_received;
     static volatile sig_atomic_t s_sigusr1_received;
     static volatile sig_atomic_t s_sigusr2_received;
+    static volatile sig_atomic_t s_sigabrt_received;
     static volatile sig_atomic_t s_sigalrm_received;
     static volatile sig_atomic_t s_sigwinch_received;
     static volatile sig_atomic_t s_sigpipe_received;
+    static volatile sig_atomic_t s_sigcont_received;
 
     static std::atomic<bool> s_signal_pending;
     static const std::vector<SignalInfo> s_signal_table;

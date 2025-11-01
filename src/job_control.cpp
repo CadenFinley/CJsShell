@@ -2,6 +2,8 @@
 
 #include "builtin_help.h"
 #include "cjsh_filesystem.h"
+#include "shell.h"
+#include "signal_handler.h"
 #include "suggestion_utils.h"
 
 #include <sys/wait.h>
@@ -19,44 +21,19 @@
 namespace {
 
 int parse_signal(const std::string& signal_str) {
-    if (signal_str.empty())
+    if (signal_str.empty()) {
         return SIGTERM;
-
-    if (std::isdigit(signal_str[0]) != 0) {
-        try {
-            return std::stoi(signal_str);
-        } catch (...) {
-            return -1;
-        }
     }
 
-    std::string name = signal_str;
-    if (name.substr(0, 3) == "SIG") {
-        name = name.substr(3);
+    int resolved = SignalHandler::name_to_signal(signal_str);
+    if (resolved == 0) {
+        // POSIX allows signal 0 as a special case for error checking.
+        return 0;
     }
 
-    std::transform(name.begin(), name.end(), name.begin(), ::toupper);
-
-    if (name == "HUP")
-        return SIGHUP;
-    if (name == "INT")
-        return SIGINT;
-    if (name == "QUIT")
-        return SIGQUIT;
-    if (name == "KILL")
-        return SIGKILL;
-    if (name == "TERM")
-        return SIGTERM;
-    if (name == "USR1")
-        return SIGUSR1;
-    if (name == "USR2")
-        return SIGUSR2;
-    if (name == "STOP")
-        return SIGSTOP;
-    if (name == "CONT")
-        return SIGCONT;
-    if (name == "TSTP")
-        return SIGTSTP;
+    if (resolved > 0 && SignalHandler::is_valid_signal(resolved)) {
+        return resolved;
+    }
 
     return -1;
 }
@@ -311,6 +288,14 @@ void JobManager::clear_stdin_signal(pid_t pid) {
             }
             return;
         }
+    }
+}
+
+void JobManager::handle_shell_continued() {
+    update_job_status();
+
+    if (shell_ref != nullptr) {
+        shell_ref->handle_sigcont();
     }
 }
 
