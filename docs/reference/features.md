@@ -98,6 +98,7 @@ Built-in completion system with advanced features:
 - **Fuzzy matching** for typo tolerance
 - **Frequency-based ranking** (commonly used items first)
 - **Source attribution** (shows where completions come from)
+- **History source tags** include the recorded exit code when available
 - **Spell correction** when no exact match is found
 - **Configurable case sensitivity**
 

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -12,6 +13,7 @@
 #include <system_error>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "builtin.h"
@@ -430,21 +432,57 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
         return;
     }
 
-    std::vector<std::pair<std::string, int>> matches;
+    struct HistoryMatch {
+        std::string command;
+        int frequency;
+        bool has_exit_code;
+        int exit_code;
+    };
+
+    std::vector<HistoryMatch> matches;
     matches.reserve(50);
 
     std::string line;
     line.reserve(256);
 
+    int last_exit_code = 0;
+    bool has_last_exit_code = false;
+
     while (std::getline(history_file, line) && matches.size() < 50) {
         if (line.empty())
             continue;
 
-        if (line.length() > 1 && line[0] == '#' && line[1] == ' ') {
+        if (!line.empty() && line[0] == '#') {
+            last_exit_code = 0;
+            has_last_exit_code = false;
+
+            const char* cursor = line.c_str() + 1;
+            while (*cursor == ' ' || *cursor == '\t')
+                ++cursor;
+
+            if (*cursor != '\0') {
+                char* endptr = nullptr;
+                (void)std::strtoll(cursor, &endptr, 10);
+                cursor = endptr;
+
+                while (*cursor == ' ' || *cursor == '\t')
+                    ++cursor;
+
+                if (*cursor != '\0' && *cursor != '\n' && *cursor != '\r') {
+                    long exit_ll = std::strtol(cursor, &endptr, 10);
+                    if (endptr != cursor) {
+                        last_exit_code = static_cast<int>(exit_ll);
+                        has_last_exit_code = (last_exit_code != IC_HISTORY_EXIT_CODE_UNKNOWN);
+                    }
+                }
+            }
+
             continue;
         }
 
         if (looks_like_file_path(line)) {
+            last_exit_code = 0;
+            has_last_exit_code = false;
             continue;
         }
 
@@ -459,14 +497,19 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
         if (should_match) {
             auto freq_it = g_completion_frequency.find(line);
             int frequency = (freq_it != g_completion_frequency.end()) ? freq_it->second : 1;
-            matches.emplace_back(std::move(line), frequency);
+            matches.push_back(
+                HistoryMatch{std::move(line), frequency, has_last_exit_code, last_exit_code});
         }
+
+        last_exit_code = 0;
+        has_last_exit_code = false;
 
         line.clear();
     }
 
-    std::sort(matches.begin(), matches.end(),
-              [](const auto& a, const auto& b) { return a.second > b.second; });
+    std::sort(matches.begin(), matches.end(), [](const HistoryMatch& a, const HistoryMatch& b) {
+        return a.frequency > b.frequency;
+    });
     const size_t max_suggestions = 15;
     size_t count = 0;
 
@@ -474,11 +517,15 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
         if (completion_tracker::completion_limit_hit_with_log("history suggestions"))
             return;
 
-        const std::string& completion = match.first;
+        const std::string& completion = match.command;
         long delete_before = static_cast<long>(prefix_len);
 
+        const bool display_exit_code =
+            match.has_exit_code && match.exit_code != IC_HISTORY_EXIT_CODE_UNKNOWN;
+        std::string source_label =
+            display_exit_code ? "history: " + std::to_string(match.exit_code) : "history";
         if (!completion_tracker::safe_add_completion_prim_with_source(
-                cenv, completion.c_str(), nullptr, nullptr, "history", delete_before, 0))
+                cenv, completion.c_str(), nullptr, nullptr, source_label.c_str(), delete_before, 0))
             return;
         if (++count >= max_suggestions || ic_stop_completing(cenv))
             return;
