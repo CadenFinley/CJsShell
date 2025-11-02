@@ -1,4 +1,4 @@
-# CJ's Shell (cjsh) <a href="https://github.com/CadenFinley/CJsShell/actions/workflows/ci.yml"><img src="https://github.com/CadenFinley/CJsShell/actions/workflows/ci.yml/badge.svg" alt="Build"></a> <a href="https://app.codacy.com/gh/CadenFinley/CJsShell/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade"><img src="https://app.codacy.com/project/badge/Grade/4e33a26accb6450da43c91c7b8e872e7" alt="Codacy Badge"></a> <a href="https://cadenfinley.github.io/CJsShell/"><img src="https://img.shields.io/badge/docs-GitHub%20Pages-blue" alt="Documentation"></a> <img src="https://img.shields.io/github/repo-size/CadenFinley/CJsShell" alt="Repo Size">
+# CJ's Shell (cjsh) <a href="https://github.com/CadenFinley/CJsShell/actions/workflows/ci.yml"><img src="https://github.com/CadenFinley/CJsShell/actions/workflows/ci.yml/badge.svg" alt="CI"></a> <a href="https://app.codacy.com/gh/CadenFinley/CJsShell/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade"><img src="https://app.codacy.com/project/badge/Grade/4e33a26accb6450da43c91c7b8e872e7" alt="Codacy Badge"></a> <a href="https://cadenfinley.github.io/CJsShell/"><img src="https://img.shields.io/badge/docs-GitHub%20Pages-blue" alt="Documentation"></a> <img src="https://img.shields.io/github/repo-size/CadenFinley/CJsShell" alt="Repo Size">
 
 <p align="center"><strong>POSIX Shell Scripting meets Modern Shell Features.</strong></p>
 <img align="center" src="docs/cjsh_recording.svg"/>
@@ -8,7 +8,7 @@ Built in are first-party theme scripting with a custom DSL, a POSIX shell interp
 
 The scripting core targets roughly 95% POSIX coverage so existing shell scripts work as expected, while POSIX+ enhancements amplify the interactive experience without requiring external plugins.
 
-> **WARNING** cjsh is still in active development. for the most stable versions, stick to tagged releases or releases through package managers. there are known scripting edge cases and bugs.
+> **WARNING** cjsh is still in active development. for the most stable versions, stick to tagged releases or releases through package managers.
 
 ## Quick Install (Recommended)
 
@@ -53,13 +53,6 @@ Run the suite from the repository root before switching cjsh to your default log
 ```bash
 ./tests/run_shell_tests.sh
 ```
-
-# Third‑Party Components
-
-- **isocline**
-  https://github.com/daanx/isocline (MIT License)
-
-> **ALERT** This library has been HEAVILY modified and is far different from its original state. To see the actual isocline implementation that cjsh uses see: https://github.com/CadenFinley/isocline
 
 # License
 
