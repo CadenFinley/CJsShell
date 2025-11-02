@@ -744,13 +744,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                                                "directory-only"))
                     return;
 
-                if (!ic_has_completions(cenv) && !had_completions_before && !match_prefix.empty()) {
-                    if (!iterate_directory_entries(cenv, dir_path, "", true, 30, true,
-                                                   "directory-only (all)"))
-                        return;
-                }
-
-                if (!ic_has_completions(cenv) && !had_completions_before) {
+                if (!ic_has_completions(cenv) && !had_completions_before && match_prefix.empty()) {
                     if (!iterate_directory_entries(cenv, dir_path, "", false, 30, true,
                                                    "all files (fallback)"))
                         return;
