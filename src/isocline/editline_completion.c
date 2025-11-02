@@ -162,9 +162,45 @@ static ssize_t edit_completions_max_width(ic_env_t* env, ssize_t count) {
     return max_width;
 }
 
+static bool edit_recompute_completion_list(ic_env_t* env, editor_t* eb, bool expanded_mode,
+                                           ssize_t* count, bool* more_available, ssize_t* selected,
+                                           ssize_t* scroll_offset) {
+    ssize_t limit = (expanded_mode ? IC_MAX_COMPLETIONS_TO_SHOW : IC_MAX_COMPLETIONS_TO_TRY);
+    ssize_t new_count =
+        completions_generate(env, env->completions, sbuf_string(eb->input), eb->pos, limit);
+    bool new_more_available = (new_count >= limit);
+
+    if (new_count <= 0) {
+        completions_clear(env->completions);
+        return false;
+    }
+
+    completions_sort(env->completions);
+    *count = new_count;
+    *more_available = new_more_available;
+
+    if (*selected >= new_count) {
+        *selected = (new_count > 0 ? new_count - 1 : -1);
+    }
+    if (env->complete_nopreview && *selected < 0 && new_count > 0) {
+        *selected = 0;
+    }
+
+    if (scroll_offset != NULL) {
+        *scroll_offset = 0;
+    }
+
+    return true;
+}
+
 static void edit_completion_menu(ic_env_t* env, editor_t* eb, bool more_available) {
     ssize_t count = completions_count(env->completions);
-    assert(count > 1);
+    if (count <= 0) {
+        sbuf_clear(eb->extra);
+        edit_refresh(env, eb);
+        completions_clear(env->completions);
+        return;
+    }
     ssize_t selected = (env->complete_nopreview ? 0 : -1);
     bool expanded_mode = false;
     ssize_t scroll_offset = 0;
@@ -528,7 +564,21 @@ read_key:
         goto again;
     }
 
-    if (c == KEY_DOWN || c == KEY_TAB) {
+    if (c == KEY_TAB && count_displayed == 1) {
+        // With a single candidate, treat tab as immediate acceptance instead of cycling
+        ssize_t accept_idx = selected;
+        if (accept_idx < 0 || accept_idx >= count) {
+            accept_idx = (count > 0 ? 0 : -1);
+        }
+        if (accept_idx >= 0) {
+            edit_complete(env, eb, accept_idx);
+            if (env->complete_autotab) {
+                tty_code_pushback(env->tty, KEY_EVENT_AUTOTAB);
+            }
+        }
+        c = 0;
+        goto cleanup;
+    } else if (c == KEY_DOWN || c == KEY_TAB) {
         if (count_displayed > 0) {
             if (selected < 0) {
                 selected = 0;
@@ -583,9 +633,47 @@ read_key:
         if (env->complete_autotab) {
             tty_code_pushback(env->tty, KEY_EVENT_AUTOTAB);
         }
-    } else if (!env->complete_nopreview && !code_is_virt_key(c)) {
-        assert(selected < count);
-        edit_complete(env, eb, selected);
+    } else if (c == KEY_BACKSP) {
+        edit_backspace(env, eb);
+        if (!edit_recompute_completion_list(env, eb, expanded_mode, &count, &more_available,
+                                            &selected, &scroll_offset)) {
+            sbuf_clear(eb->extra);
+            edit_refresh(env, eb);
+            c = 0;
+            goto cleanup;
+        }
+        goto again;
+    } else if (c == KEY_DEL) {
+        edit_delete_char(env, eb);
+        if (!edit_recompute_completion_list(env, eb, expanded_mode, &count, &more_available,
+                                            &selected, &scroll_offset)) {
+            sbuf_clear(eb->extra);
+            edit_refresh(env, eb);
+            c = 0;
+            goto cleanup;
+        }
+        goto again;
+    } else if (!code_is_virt_key(c)) {
+        bool inserted = false;
+        char chr = 0;
+        unicode_t uchr = 0;
+        if (code_is_ascii_char(c, &chr)) {
+            edit_insert_char(env, eb, chr);
+            inserted = true;
+        } else if (code_is_unicode(c, &uchr)) {
+            edit_insert_unicode(env, eb, uchr);
+            inserted = true;
+        }
+        if (inserted) {
+            if (!edit_recompute_completion_list(env, eb, expanded_mode, &count, &more_available,
+                                                &selected, &scroll_offset)) {
+                sbuf_clear(eb->extra);
+                edit_refresh(env, eb);
+                c = 0;
+                goto cleanup;
+            }
+            goto again;
+        }
     } else if ((c == KEY_PAGEDOWN || c == KEY_LINEFEED) && count > 9) {
         c = 0;
         if (!expanded_mode) {
@@ -618,10 +706,12 @@ read_key:
         edit_refresh(env, eb);
     }
 
+cleanup:
     completions_clear(env->completions);
     if (c != 0) {
         tty_code_pushback(env->tty, c);
     }
+    return;
 }
 
 static void edit_generate_completions(ic_env_t* env, editor_t* eb, bool autotab) {
