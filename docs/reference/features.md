@@ -102,7 +102,7 @@ Built-in completion system with advanced features:
 - **Spell correction** when no exact match is found
 - **Configurable case sensitivity**
 
-See [Editing Guide](editing.md#completion-system) for detailed completion documentation.
+See [Editing Guide](editing.md#completion-system) for detailed completion documentation, and the [Completion Authoring Guide](completions.md) for cache formats and customization.
 
 #### Syntax Highlighting
 Real-time syntax highlighting as you type with full customization:

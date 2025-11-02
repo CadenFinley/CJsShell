@@ -298,4 +298,3 @@ echo "Hooks loaded successfully"
 
 - [Built-in Commands Reference](commands.md)
 - [Configuration Guide](../getting-started/quick-start.md#configuration)
-- [Scripting Guide](../scripting/guide.md)

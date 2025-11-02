@@ -154,6 +154,8 @@ CJ's Shell features a sophisticated completion system that provides context-awar
 - Preview of selected completion
 - Automatic expansion with auto-tab
 
+Need to author new entries or override the defaults? Check the [Completion Authoring Guide](completions.md) for cache formats, nested command support, and manual customization tips.
+
 **Configuration:**
 ```bash
 # Enable/disable completion preview (enabled by default)
