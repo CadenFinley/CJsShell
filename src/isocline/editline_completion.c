@@ -162,6 +162,26 @@ static ssize_t edit_completions_max_width(ic_env_t* env, ssize_t count) {
     return max_width;
 }
 
+static void edit_completion_menu_update_hint(ic_env_t* env, editor_t* eb) {
+    if (env->no_hint)
+        return;
+
+    sbuf_clear(eb->hint);
+    sbuf_clear(eb->hint_help);
+
+    ssize_t hint_count = completions_count(env->completions);
+    if (hint_count <= 0)
+        return;
+
+    const char* help = NULL;
+    const char* hint = completions_get_hint(env->completions, 0, &help);
+    if (hint == NULL || *hint == '\0')
+        return;
+
+    sbuf_replace(eb->hint, hint);
+    editor_append_hint_help(eb, help);
+}
+
 static bool edit_recompute_completion_list(ic_env_t* env, editor_t* eb, bool expanded_mode,
                                            ssize_t* count, bool* more_available, ssize_t* selected,
                                            ssize_t* scroll_offset) {
@@ -172,6 +192,8 @@ static bool edit_recompute_completion_list(ic_env_t* env, editor_t* eb, bool exp
 
     if (new_count <= 0) {
         completions_clear(env->completions);
+        sbuf_clear(eb->hint);
+        sbuf_clear(eb->hint_help);
         return false;
     }
 
@@ -190,6 +212,8 @@ static bool edit_recompute_completion_list(ic_env_t* env, editor_t* eb, bool exp
         *scroll_offset = 0;
     }
 
+    edit_completion_menu_update_hint(env, eb);
+
     return true;
 }
 
@@ -197,10 +221,13 @@ static void edit_completion_menu(ic_env_t* env, editor_t* eb, bool more_availabl
     ssize_t count = completions_count(env->completions);
     if (count <= 0) {
         sbuf_clear(eb->extra);
+        sbuf_clear(eb->hint);
+        sbuf_clear(eb->hint_help);
         edit_refresh(env, eb);
         completions_clear(env->completions);
         return;
     }
+    edit_completion_menu_update_hint(env, eb);
     ssize_t selected = (env->complete_nopreview ? 0 : -1);
     bool expanded_mode = false;
     ssize_t scroll_offset = 0;
@@ -572,6 +599,7 @@ read_key:
         }
         if (accept_idx >= 0) {
             edit_complete(env, eb, accept_idx);
+            edit_refresh_hint(env, eb);
             if (env->complete_autotab) {
                 tty_code_pushback(env->tty, KEY_EVENT_AUTOTAB);
             }
@@ -630,6 +658,7 @@ read_key:
         assert(selected < count);
         c = 0;
         edit_complete(env, eb, selected);
+        edit_refresh_hint(env, eb);
         if (env->complete_autotab) {
             tty_code_pushback(env->tty, KEY_EVENT_AUTOTAB);
         }
