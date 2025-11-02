@@ -9,13 +9,13 @@
         <meta name="author" content="Caden Finley">
       
       
-        <link rel="canonical" href="https://cadenfinley.github.io/CJsShell/getting-started/quick-start/">
+        <link rel="canonical" href="https://cadenfinley.github.io/CJsShell/reference/completions/">
       
       
-        <link rel="prev" href="../..">
+        <link rel="prev" href="../editing/">
       
       
-        <link rel="next" href="../what-to-know/">
+        <link rel="next" href="../non-posix-features/">
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
@@ -23,7 +23,7 @@
     
     
       
-        <title>Quick Start - CJ's Shell Documentation</title>
+        <title>Completion Authoring - CJ's Shell Documentation</title>
       
     
     
@@ -85,7 +85,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#quick-start" class="md-skip">
+        <a href="#completion-authoring-guide" class="md-skip">
           Skip to content
         </a>
       
@@ -123,7 +123,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Quick Start
+              Completion Authoring
             
           </span>
         </div>
@@ -256,13 +256,11 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="./" class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../../getting-started/quick-start/" class="md-tabs__link">
           
   
   
@@ -280,11 +278,13 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../../reference/features/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../features/" class="md-tabs__link">
           
   
   
@@ -393,10 +393,8 @@
       
   
   
-    
   
   
-  
     
     
       
@@ -410,22 +408,21 @@
     
     
       
-        
-        
-      
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
         
           
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2">
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
             
   
   
@@ -438,7 +435,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
             Getting Started
@@ -449,32 +446,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    Quick Start
-    
-  </span>
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../getting-started/quick-start/" class="md-nav__link">
         
   
   
@@ -485,110 +460,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#prerequisites" class="md-nav__link">
-    <span class="md-ellipsis">
-      Prerequisites
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#installation" class="md-nav__link">
-    <span class="md-ellipsis">
-      Installation
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Installation">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#as-a-package" class="md-nav__link">
-    <span class="md-ellipsis">
-      As a package
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="As a package">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#homebrew-macoslinux" class="md-nav__link">
-    <span class="md-ellipsis">
-      Homebrew (macOS/Linux)
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#arch-linux-aur" class="md-nav__link">
-    <span class="md-ellipsis">
-      Arch Linux (AUR)
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#manual-building-and-installation" class="md-nav__link">
-    <span class="md-ellipsis">
-      Manual building and installation
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#build-info" class="md-nav__link">
-    <span class="md-ellipsis">
-      Build info
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#next-steps" class="md-nav__link">
-    <span class="md-ellipsis">
-      Next Steps
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -601,7 +472,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../what-to-know/" class="md-nav__link">
+      <a href="../../getting-started/what-to-know/" class="md-nav__link">
         
   
   
@@ -624,7 +495,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../development/" class="md-nav__link">
+      <a href="../../getting-started/development/" class="md-nav__link">
         
   
   
@@ -651,8 +522,10 @@
       
   
   
+    
   
   
+  
     
     
       
@@ -672,21 +545,22 @@
     
     
       
+        
+        
+      
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
         
           
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3">
-        
-          
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
             
   
   
@@ -699,7 +573,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             Reference
@@ -713,7 +587,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/features/" class="md-nav__link">
+      <a href="../features/" class="md-nav__link">
         
   
   
@@ -736,7 +610,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/editing/" class="md-nav__link">
+      <a href="../editing/" class="md-nav__link">
         
   
   
@@ -756,10 +630,32 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../reference/completions/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    Completion Authoring
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -770,6 +666,62 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#how-automatic-completions-are-generated" class="md-nav__link">
+    <span class="md-ellipsis">
+      How automatic completions are generated
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cache-layout-and-file-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cache layout and file format
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#authoring-or-overriding-completions-manually" class="md-nav__link">
+    <span class="md-ellipsis">
+      Authoring or overriding completions manually
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tips-and-troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tips and troubleshooting
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -782,7 +734,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/non-posix-features/" class="md-nav__link">
+      <a href="../non-posix-features/" class="md-nav__link">
         
   
   
@@ -805,7 +757,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/hooks/" class="md-nav__link">
+      <a href="../hooks/" class="md-nav__link">
         
   
   
@@ -828,7 +780,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../reference/commands/" class="md-nav__link">
+      <a href="../commands/" class="md-nav__link">
         
   
   
@@ -949,65 +901,85 @@
   
 
 
-<h1 id="quick-start">Quick Start</h1>
-<p>This guide gets you running cjsh, a POSIX-based interactive shell with integrated modern features, as quickly as possible.</p>
-<h2 id="prerequisites">Prerequisites</h2>
-<p>A standard C/C++ Compiler:</p>
+<h1 id="completion-authoring-guide">Completion Authoring Guide</h1>
+<p>CJ's Shell ships with a hybrid completion engine: built-ins are documented in-code, while external
+commands learn their options and subcommands automatically by reading their manual pages. This guide
+explains how that pipeline works and how to author or override completion data when you need to fill
+in gaps or add custom behaviour.</p>
+<h2 id="how-automatic-completions-are-generated">How automatic completions are generated</h2>
 <ul>
-<li>GCC</li>
-<li>clang</li>
+<li><strong>On-demand scraping:</strong> The first time you request completions for an external command that
+  resolves in <code>PATH</code>, cjsh invokes <code>man -P cat &lt;command&gt;</code> (falling back to <code>man &lt;command&gt;</code>) and
+  scrapes the result. The parser looks for <code>OPTIONS</code>, <code>COMMANDS</code>, or <code>SUBCOMMANDS</code> sections, pulls
+  out option switches and subcommand names, and condenses their descriptions to a single line.</li>
+<li><strong>Caching:</strong> Parsed data is written to <code>~/.cache/cjsh/generated_completions/&lt;command&gt;.txt</code>. The
+  next completion request loads this cache instead of invoking <code>man</code> again. Cache entries also store
+  a short summary that feeds inline help and completion source hints.</li>
+<li><strong>Nested commands:</strong> When a completion entry includes subcommands, cjsh will look for additional
+  caches named <code>&lt;command&gt;-&lt;subcommand&gt;.txt</code> and merge their contents. This is how <code>git-remote</code>
+  completions are chained into <code>git</code>.</li>
+<li><strong>Bulk generation:</strong> The <code>generate-completions</code> builtin pre-populates caches for an entire <code>PATH</code>
+  or a list of commands. By default it forces regeneration (<code>--force</code>); pass <code>--no-force</code> to keep
+  existing manual edits. Use <code>-j/--jobs</code> to parallelise scraping and <code>--quiet</code> to suppress per
+  command status output.</li>
 </ul>
-<p>And CMake 3.25 or newer.</p>
-<p>And that is it! cjsh has no external dependencies and was designed like this for pure simplicity. To just work where ever.</p>
-<h2 id="installation">Installation</h2>
-<p>cjsh can be downloaded or built in multiple different ways.</p>
-<h3 id="as-a-package">As a package</h3>
-<p>cjsh is available through multiple package managers:</p>
-<h4 id="homebrew-macoslinux">Homebrew (macOS/Linux)</h4>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="w">    </span>brew<span class="w"> </span>tap<span class="w"> </span>CadenFinley/tap
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">    </span>brew<span class="w"> </span>install<span class="w"> </span>cjsh
+<p>If a man page cannot be read (missing <code>man</code>, atypical formatting, or sandbox restrictions), cjsh
+creates an empty cache entry. You can delete that file or replace it with a manual definition.</p>
+<h2 id="cache-layout-and-file-format">Cache layout and file format</h2>
+<p>Each cache file is plain text:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>generated by cjsh from man page for git
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>summary: the stupid content tracker
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>S   add Record changes to the repository
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>S   commit  Record changes to the repository
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>O   --amend Reuse and edit the last commit
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>O   --patch Interactively choose hunks to stage
 </span></code></pre></div>
-<h4 id="arch-linux-aur">Arch Linux (AUR)</h4>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="w">    </span><span class="c1"># Using yay</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span>yay<span class="w"> </span>-S<span class="w"> </span>cjsh
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="c1"># Using paru</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span>paru<span class="w"> </span>-S<span class="w"> </span>cjsh
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">    </span><span class="c1"># Or manually</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">    </span>git<span class="w"> </span>clone<span class="w"> </span>https://aur.archlinux.org/cjsh.git
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span><span class="nb">cd</span><span class="w"> </span>cjsh
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span>makepkg<span class="w"> </span>-si
-</span></code></pre></div>
-<p>Hopefully more package managers to come as cjsh gets bigger.</p>
-<h3 id="manual-building-and-installation">Manual building and installation</h3>
-<p>cjsh is super easy to download and install. Everything is hosted on the github repo at: <code>https://github.com/CadenFinley/CJsShell</code> </p>
-<p>The master branch holds the most recent commits and may not always be stable and may have breaking changes with no backwards compatibility. For the most stable release, stick to using the latest tagged release from the public GitHub releases.</p>
-<p>cjsh is still in active, rapid development so even the latest release can still have breaking changes with no backwards compatibilities, although they will always be noted in the release if they exist.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="w">    </span><span class="c1"># First clone the repo</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">    </span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/CadenFinley/CJsShell<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>CJsShell
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="c1"># Configure a Release build (outputs to ./build)</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span>cmake<span class="w"> </span>-S<span class="w"> </span>.<span class="w"> </span>-B<span class="w"> </span>build<span class="w"> </span>-DCMAKE_BUILD_TYPE<span class="o">=</span>Release
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span><span class="c1"># Compile using all available cores</span>
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">    </span>cmake<span class="w"> </span>--build<span class="w"> </span>build<span class="w"> </span>--config<span class="w"> </span>Release<span class="w"> </span>--j<span class="k">$(</span>nproc<span class="k">)</span>
-</span></code></pre></div>
-<p>After building, the <code>cjsh</code> executable will be in the <code>build/</code> directory. You can run it directly with <code>./build/cjsh</code></p>
-<h2 id="build-info">Build info</h2>
-<p>By default the commands above produce an optimized Release build.</p>
+<p>Key points:</p>
 <ul>
-<li>Pass <code>-DCMAKE_BUILD_TYPE=Debug</code> to build with sanitizers and full debug info.</li>
-<li>Pass <code>-DCJSH_MINIMAL_BUILD=ON</code> for the ultra-small binary profile.</li>
-<li><code>cmake --build build --target clean</code> removes the build artifacts.</li>
-<li>Disable compile database emission with <code>-DCJSH_GENERATE_COMPILE_COMMANDS=OFF</code> if your tooling does not need it.</li>
-<li>Install the binary anywhere with <code>cmake --install build --config Release --prefix ~/.local</code> (adjust the prefix as desired).</li>
-<li>Export <code>CJSH_STRIP_BINARY=0</code> before configuring to keep symbols in non-Debug builds.</li>
+<li>The header line must stay exactly <code>generated by cjsh from man page for &lt;command&gt;</code> or cjsh will
+  ignore the file.</li>
+<li>The second line contains the summary. Leave it blank after <code>summary:</code> if you do not want one.</li>
+<li>Subsequent lines are tab separated. Use <code>S</code> for subcommands and <code>O</code> for options.</li>
+<li>Values are case-insensitive in matching but should be written the way you want them to appear to
+  users. Tabs inside descriptions are converted to spaces.</li>
+<li>File names are normalised to lower-case with non-alphanumeric characters translated to <code>_</code>. Let
+  <code>generate-completions</code> create the skeleton once if you are unsure about the exact spelling.</li>
 </ul>
-<p>As before, git revision information is embedded automatically; use <code>CJSH_GIT_HASH_OVERRIDE</code> if you need to pin a custom value.</p>
-<hr>
-<h2 id="next-steps">Next Steps</h2>
-<p>Now that you have cjsh installed, check out <a href="../what-to-know/">What You Need to Know</a> to learn about all the powerful features available out of the box and how to configure them to suit your workflow.</p>
+<h2 id="authoring-or-overriding-completions-manually">Authoring or overriding completions manually</h2>
+<ol>
+<li><strong>Create the cache directory (once):</strong> <code>generate-completions</code> or the first automatic scrape will
+   do this, but you can also <code>mkdir -p ~/.cache/cjsh/generated_completions</code> yourself.</li>
+<li><strong>Seed a template (optional):</strong> Run <code>generate-completions --no-force &lt;command&gt;</code> to create the
+   cache without overwriting existing edits. Even if scraping fails, the command establishes the
+   correct file name for you to edit.</li>
+<li><strong>Edit the cache file:</strong> Open <code>~/.cache/cjsh/generated_completions/&lt;sanitised-name&gt;.txt</code> and
+   adjust the summary or add new lines using the format above.</li>
+<li><strong>Add multi-level entries:</strong> For subcommand specific completions (e.g. <code>kubectl get</code>), create a
+   second file named <code>kubectl-get.txt</code> with its own header, summary, and entries. cjsh stitches these
+   together automatically when you tab complete.</li>
+<li><strong>Preserve your changes:</strong> Future runs of <code>generate-completions</code> default to <code>--force</code>. Use
+   <code>generate-completions --no-force ...</code> when you want to refresh other commands without clobbering
+   manual content, or keep a copy of the file under version control and reapply as needed.</li>
+</ol>
+<p>You can delete a cache file to force cjsh to rescrape the man page on the next completion request.
+This is useful after upgrading a tool with new options.</p>
+<h2 id="tips-and-troubleshooting">Tips and troubleshooting</h2>
+<ul>
+<li><strong>Commands without man pages:</strong> Some utilities only provide <code>--help</code>. Create the cache file
+  manually or point <code>generate-completions</code> at a packaged man page (for example, install the
+  corresponding <code>*-doc</code> package).</li>
+<li><strong>Unusual formatting:</strong> If the parser misses options, check the rendered man page. Options that do
+  not start with <code>-</code> or subcommands listed outside dedicated sections may need to be added manually.</li>
+<li><strong>Custom summaries:</strong> Inline help uses the summary line. Tailor it to the way you present the
+  command in your prompts or completion preview.</li>
+<li><strong>Refreshing everything:</strong> Remove <code>~/.cache/cjsh/generated_completions</code> or run
+  <code>generate-completions --force</code> to rebuild all caches. Beware this overwrites manual edits.</li>
+<li><strong>Sandboxed environments:</strong> If <code>man</code> is unavailable, completions fall back to whatever data already
+  exists. Consider bundling cache files with your dotfiles so they can be copied into the cache
+  directory during provisioning.</li>
+</ul>
+<p>With these tools you can match or exceed the curated completion sets provided by fish, bash, or zsh
+while keeping cjsh's zero-dependency footprint.</p>
 
 
 
