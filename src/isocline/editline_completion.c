@@ -164,7 +164,8 @@ static ssize_t edit_completions_max_width(ic_env_t* env, ssize_t count) {
 
 static bool edit_completion_menu_recompute(ic_env_t* env, editor_t* eb, bool* expanded_mode,
                                            ssize_t* count, bool* more_available, ssize_t* selected,
-                                           ssize_t* scroll_offset, bool* menu_has_focus) {
+                                           ssize_t* scroll_offset, bool* menu_has_focus,
+                                           bool initial_had_multiple) {
     if (env == NULL || eb == NULL || count == NULL || more_available == NULL || selected == NULL ||
         scroll_offset == NULL || menu_has_focus == NULL) {
         return false;
@@ -181,14 +182,16 @@ static bool edit_completion_menu_recompute(ic_env_t* env, editor_t* eb, bool* ex
     }
 
     if (new_count == 1) {
-        if (edit_complete(env, eb, 0) && env->complete_autotab) {
-            tty_code_pushback(env->tty, KEY_EVENT_AUTOTAB);
+        if (!initial_had_multiple) {
+            if (edit_complete(env, eb, 0) && env->complete_autotab) {
+                tty_code_pushback(env->tty, KEY_EVENT_AUTOTAB);
+            }
+            completions_clear(env->completions);
+            return false;
         }
-        completions_clear(env->completions);
-        return false;
     }
 
-    if (!*more_available) {
+    if (!*more_available && (!initial_had_multiple || new_count > 1)) {
         edit_complete_longest_prefix(env, eb);
     }
 
@@ -207,7 +210,8 @@ static bool edit_completion_menu_recompute(ic_env_t* env, editor_t* eb, bool* ex
 
 static void edit_completion_menu(ic_env_t* env, editor_t* eb, bool more_available) {
     ssize_t count = completions_count(env->completions);
-    assert(count > 1);
+    assert(count > 0);
+    const bool initial_had_multiple = (count > 1);
     ssize_t selected = (env->complete_nopreview ? 0 : -1);
     bool expanded_mode = false;
     ssize_t scroll_offset = 0;
@@ -556,7 +560,8 @@ read_key:
         }
         if (eb->pos != old_pos) {
             if (!edit_completion_menu_recompute(env, eb, &expanded_mode, &count, &more_available,
-                                                &selected, &scroll_offset, &menu_has_focus)) {
+                                                &selected, &scroll_offset, &menu_has_focus,
+                                                initial_had_multiple)) {
                 return;
             }
             goto again;
@@ -698,7 +703,8 @@ read_key:
         edit_backspace(env, eb);
         if (prev_len != sbuf_len(eb->input) || prev_pos != eb->pos) {
             if (!edit_completion_menu_recompute(env, eb, &expanded_mode, &count, &more_available,
-                                                &selected, &scroll_offset, &menu_has_focus)) {
+                                                &selected, &scroll_offset, &menu_has_focus,
+                                                initial_had_multiple)) {
                 return;
             }
             goto again;
@@ -710,7 +716,8 @@ read_key:
         edit_delete_char(env, eb);
         if (prev_len != sbuf_len(eb->input) || prev_pos != eb->pos) {
             if (!edit_completion_menu_recompute(env, eb, &expanded_mode, &count, &more_available,
-                                                &selected, &scroll_offset, &menu_has_focus)) {
+                                                &selected, &scroll_offset, &menu_has_focus,
+                                                initial_had_multiple)) {
                 return;
             }
             goto again;
@@ -729,7 +736,8 @@ read_key:
         }
         if (inserted) {
             if (!edit_completion_menu_recompute(env, eb, &expanded_mode, &count, &more_available,
-                                                &selected, &scroll_offset, &menu_has_focus)) {
+                                                &selected, &scroll_offset, &menu_has_focus,
+                                                initial_had_multiple)) {
                 return;
             }
             goto again;
@@ -813,7 +821,6 @@ static void edit_generate_completions(ic_env_t* env, editor_t* eb, bool autotab)
             }
         }
     } else if (count == 1) {
-        // complete if only one match
         if (edit_complete(env, eb, 0 /*idx*/) && env->complete_autotab) {
             tty_code_pushback(env->tty, KEY_EVENT_AUTOTAB);
         }
