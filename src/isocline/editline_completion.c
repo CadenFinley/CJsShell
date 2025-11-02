@@ -238,7 +238,6 @@ static void edit_completion_menu(ic_env_t* env, editor_t* eb, bool more_availabl
     bool grid_layout_active = false;
     ssize_t grid_columns = 1;
     ssize_t grid_rows = 1;
-    bool inline_preview_suppressed = false;  // stop inline preview once user navigates the menu
 
 again:
     sbuf_clear(eb->extra);
@@ -474,8 +473,7 @@ again:
         last_max_scroll_offset = max_scroll_offset;
     }
 
-    if (!inline_preview_suppressed && !env->complete_nopreview && selected >= 0 &&
-        selected < count_displayed) {
+    if (!env->complete_nopreview && selected >= 0 && selected < count_displayed) {
         const char* saved_menu = sbuf_strdup(eb->extra);
 
         editor_start_modify(eb);
@@ -563,7 +561,6 @@ read_key:
     }
 
     if ((c == KEY_RIGHT || c == KEY_LEFT) && grid_mode) {
-        inline_preview_suppressed = true;
         // Translate the linear selection index to grid coordinates for horizontal movement.
         if (count_displayed > 0) {
             if (selected < 0) {
@@ -610,7 +607,6 @@ read_key:
         c = 0;
         goto cleanup;
     } else if (c == KEY_DOWN || c == KEY_TAB) {
-        inline_preview_suppressed = true;
         if (count_displayed > 0) {
             if (selected < 0) {
                 selected = 0;
@@ -623,7 +619,6 @@ read_key:
         }
         goto again;
     } else if (c == KEY_UP || c == KEY_SHIFT_TAB) {
-        inline_preview_suppressed = true;
         if (count_displayed > 0) {
             if (selected < 0) {
                 selected = count_displayed - 1;
@@ -636,7 +631,6 @@ read_key:
         }
         goto again;
     } else if (c == KEY_PAGEUP && expanded_mode) {
-        inline_preview_suppressed = true;
         c = 0;
         if (last_rows_visible > 0 && scroll_offset > 0) {
             ssize_t prev_offset = scroll_offset;
@@ -710,7 +704,6 @@ read_key:
             goto again;
         }
     } else if ((c == KEY_PAGEDOWN || c == KEY_LINEFEED) && count > 9) {
-        inline_preview_suppressed = true;
         c = 0;
         if (!expanded_mode) {
             expanded_mode = true;
