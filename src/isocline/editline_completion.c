@@ -162,50 +162,6 @@ static ssize_t edit_completions_max_width(ic_env_t* env, ssize_t count) {
     return max_width;
 }
 
-static bool edit_completion_menu_recompute(ic_env_t* env, editor_t* eb, bool* expanded_mode,
-                                           ssize_t* count, bool* more_available,
-                                           ssize_t* selected, ssize_t* scroll_offset,
-                                           bool* menu_has_focus) {
-    if (env == NULL || eb == NULL || count == NULL || more_available == NULL || selected == NULL ||
-        scroll_offset == NULL || menu_has_focus == NULL) {
-        return false;
-    }
-
-    ssize_t new_count = completions_generate(env, env->completions, sbuf_string(eb->input),
-                                             eb->pos, IC_MAX_COMPLETIONS_TO_TRY);
-    *count = new_count;
-    *more_available = (new_count >= IC_MAX_COMPLETIONS_TO_TRY);
-
-    if (new_count <= 0) {
-        completions_clear(env->completions);
-        return false;
-    }
-
-    if (new_count == 1) {
-        if (edit_complete(env, eb, 0) && env->complete_autotab) {
-            tty_code_pushback(env->tty, KEY_EVENT_AUTOTAB);
-        }
-        completions_clear(env->completions);
-        return false;
-    }
-
-    if (!*more_available) {
-        edit_complete_longest_prefix(env, eb);
-    }
-
-    completions_sort(env->completions);
-
-    *selected = (env->complete_nopreview ? 0 : -1);
-    *scroll_offset = 0;
-    *menu_has_focus = false;
-
-    if (*count <= 9) {
-        *expanded_mode = false;
-    }
-
-    return true;
-}
-
 static void edit_completion_menu(ic_env_t* env, editor_t* eb, bool more_available) {
     ssize_t count = completions_count(env->completions);
     assert(count > 1);
@@ -219,7 +175,6 @@ static void edit_completion_menu(ic_env_t* env, editor_t* eb, bool more_availabl
     bool grid_layout_active = false;
     ssize_t grid_columns = 1;
     ssize_t grid_rows = 1;
-    bool menu_has_focus = false;
 
 again:
     sbuf_clear(eb->extra);
@@ -501,12 +456,6 @@ read_key:
     }
 
     if (expanded_mode && (KEY_MODS(c) & KEY_MOD_SHIFT) != 0) {
-        if (!menu_has_focus) {
-            completions_clear(env->completions);
-            edit_refresh(env, eb);
-            tty_code_pushback(env->tty, c);
-            return;
-        }
         code_t base_key = KEY_NO_MODS(c);
         ssize_t page = (last_rows_visible > 0 ? last_rows_visible
                                               : (count_displayed > 0 ? count_displayed : 1));
@@ -548,30 +497,7 @@ read_key:
         }
     }
 
-    if ((c == KEY_LEFT || c == KEY_RIGHT) && !menu_has_focus) {
-        ssize_t old_pos = eb->pos;
-        if (c == KEY_LEFT) {
-            edit_cursor_left(env, eb);
-        } else {
-            edit_cursor_right(env, eb);
-        }
-        if (eb->pos != old_pos) {
-            if (!edit_completion_menu_recompute(env, eb, &expanded_mode, &count, &more_available,
-                                                &selected, &scroll_offset, &menu_has_focus)) {
-                return;
-            }
-            goto again;
-        }
-        goto read_key;
-    }
-
     if ((c == KEY_RIGHT || c == KEY_LEFT) && grid_mode) {
-        if (!menu_has_focus) {
-            completions_clear(env->completions);
-            edit_refresh(env, eb);
-            tty_code_pushback(env->tty, c);
-            return;
-        }
         // Translate the linear selection index to grid coordinates for horizontal movement.
         if (count_displayed > 0) {
             if (selected < 0) {
@@ -602,44 +528,6 @@ read_key:
         goto again;
     }
 
-    if (c == KEY_TAB) {
-        if (!menu_has_focus) {
-            menu_has_focus = true;
-            if (selected < 0 && count_displayed > 0) {
-                selected = 0;
-            }
-            goto again;
-        }
-    }
-
-    if (c == KEY_SHIFT_TAB) {
-        if (!menu_has_focus) {
-            menu_has_focus = true;
-            if (selected < 0 && count_displayed > 0) {
-                selected = count_displayed - 1;
-            }
-            goto again;
-        }
-    }
-
-    if (c == KEY_DOWN) {
-        if (!menu_has_focus) {
-            completions_clear(env->completions);
-            edit_refresh(env, eb);
-            tty_code_pushback(env->tty, c);
-            return;
-        }
-    }
-
-    if (c == KEY_UP) {
-        if (!menu_has_focus) {
-            completions_clear(env->completions);
-            edit_refresh(env, eb);
-            tty_code_pushback(env->tty, c);
-            return;
-        }
-    }
-
     if (c == KEY_DOWN || c == KEY_TAB) {
         if (count_displayed > 0) {
             if (selected < 0) {
@@ -665,12 +553,6 @@ read_key:
         }
         goto again;
     } else if (c == KEY_PAGEUP && expanded_mode) {
-        if (!menu_has_focus) {
-            completions_clear(env->completions);
-            edit_refresh(env, eb);
-            tty_code_pushback(env->tty, c);
-            return;
-        }
         c = 0;
         if (last_rows_visible > 0 && scroll_offset > 0) {
             ssize_t prev_offset = scroll_offset;
@@ -693,52 +575,8 @@ read_key:
         completions_clear(env->completions);
         edit_refresh(env, eb);
         c = 0;
-    } else if (c == KEY_BACKSP) {
-        ssize_t prev_len = sbuf_len(eb->input);
-        ssize_t prev_pos = eb->pos;
-        edit_backspace(env, eb);
-        if (prev_len != sbuf_len(eb->input) || prev_pos != eb->pos) {
-            if (!edit_completion_menu_recompute(env, eb, &expanded_mode, &count, &more_available,
-                                                &selected, &scroll_offset, &menu_has_focus)) {
-                return;
-            }
-            goto again;
-        }
-        goto read_key;
-    } else if (c == KEY_DEL) {
-        ssize_t prev_len = sbuf_len(eb->input);
-        ssize_t prev_pos = eb->pos;
-        edit_delete_char(env, eb);
-        if (prev_len != sbuf_len(eb->input) || prev_pos != eb->pos) {
-            if (!edit_completion_menu_recompute(env, eb, &expanded_mode, &count, &more_available,
-                                                &selected, &scroll_offset, &menu_has_focus)) {
-                return;
-            }
-            goto again;
-        }
-        goto read_key;
-    } else if (!code_is_virt_key(c)) {
-        bool inserted = false;
-        char ascii_char = 0;
-        unicode_t unicode_char = 0;
-        if (code_is_ascii_char(c, &ascii_char)) {
-            edit_insert_char(env, eb, ascii_char);
-            inserted = true;
-        } else if (code_is_unicode(c, &unicode_char)) {
-            edit_insert_unicode(env, eb, unicode_char);
-            inserted = true;
-        }
-        if (inserted) {
-            if (!edit_completion_menu_recompute(env, eb, &expanded_mode, &count, &more_available,
-                                                &selected, &scroll_offset, &menu_has_focus)) {
-                return;
-            }
-            goto again;
-        }
-        goto read_key;
     } else if (selected >= 0 &&
-               ((c == KEY_ENTER) ||
-                (menu_has_focus && ((!grid_mode && c == KEY_RIGHT) || c == KEY_END)))) {
+               (c == KEY_ENTER || (!grid_mode && c == KEY_RIGHT) || c == KEY_END)) {
         assert(selected < count);
         c = 0;
         edit_complete(env, eb, selected);
@@ -749,12 +587,6 @@ read_key:
         assert(selected < count);
         edit_complete(env, eb, selected);
     } else if ((c == KEY_PAGEDOWN || c == KEY_LINEFEED) && count > 9) {
-        if (!menu_has_focus) {
-            completions_clear(env->completions);
-            edit_refresh(env, eb);
-            tty_code_pushback(env->tty, c);
-            return;
-        }
         c = 0;
         if (!expanded_mode) {
             expanded_mode = true;
