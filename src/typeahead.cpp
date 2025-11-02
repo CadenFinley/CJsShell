@@ -16,7 +16,7 @@
 #include <string>
 #include <string_view>
 
-#include "isocline.h"
+#include "isocline/isocline.h"
 #include "job_control.h"
 
 namespace typeahead {

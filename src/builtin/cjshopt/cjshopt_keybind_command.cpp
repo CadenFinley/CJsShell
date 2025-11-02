@@ -13,8 +13,8 @@
 
 #include "cjsh.h"
 #include "error_out.h"
-#include "isocline.h"
-#include "string_utils.h"
+#include "isocline/isocline.h"
+#include "utils/string_utils.h"
 
 namespace {
 struct KeyBindingDefault {

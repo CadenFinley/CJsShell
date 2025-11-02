@@ -12,7 +12,7 @@
 #include "utils/string_utils.h"
 
 extern "C" {
-#include "unicode.h"
+#include "isocline/unicode.h"
 }
 
 ThemeParseException::ThemeParseException(size_t line, std::string detail, std::string source,

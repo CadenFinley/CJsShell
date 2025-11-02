@@ -4,8 +4,8 @@
 #include <string>
 #include <utility>
 
-#include "completions.h"
 #include "isocline.h"
+#include "isocline/completions.h"
 
 namespace completion_tracker {
 

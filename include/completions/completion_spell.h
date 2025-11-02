@@ -5,7 +5,7 @@
 #include <unordered_map>
 
 #include "completion_utils.h"
-#include "isocline.h"
+#include "isocline/isocline.h"
 
 namespace completion_spell {
 
