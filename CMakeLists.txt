@@ -115,7 +115,7 @@ endif()
 
 file(GLOB_RECURSE CJSH_CPP_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/*.cpp)
 
-set(ISOCLINE_MONOLITHIC OFF CACHE BOOL "Build the embedded isocline library as a single translation unit")
+set(ISOCLINE_MONOLITHIC ON CACHE BOOL "Build the embedded isocline library as a single translation unit")
 set(ISOCLINE_TINY_BUILD ${CJSH_MINIMAL_BUILD} CACHE BOOL "Optimize the embedded isocline library for minimal size" FORCE)
 
 add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/CJsReadline)
