@@ -1437,6 +1437,14 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             cleanup_process_substitutions(proc_resources, false);
             return finalize_exit(exit_code);
         }
+
+        if (setpgid(pid, pid) < 0) {
+            if (errno != EACCES && errno != ESRCH) {
+                set_error(ErrorType::RUNTIME_ERROR, "setpgid",
+                          "failed to set process group ID in parent: " +
+                              std::string(strerror(errno)));
+            }
+        }
         Job job;
         job.pgid = pid;
         job.command = cmd.args[0];
