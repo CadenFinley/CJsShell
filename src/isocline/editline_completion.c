@@ -162,8 +162,7 @@ static ssize_t edit_completions_max_width(ic_env_t* env, ssize_t count) {
     return max_width;
 }
 
-static void edit_completion_menu_update_hint(ic_env_t* env, editor_t* eb,
-                                             bool allow_inline_hint) {
+static void edit_completion_menu_update_hint(ic_env_t* env, editor_t* eb, bool allow_inline_hint) {
     if (env->no_hint)
         return;
 
