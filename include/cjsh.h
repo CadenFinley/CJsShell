@@ -6,8 +6,8 @@
 
 class Shell;
 
-const bool PRE_RELEASE = false;
-constexpr const char* c_version_base = "3.11.6";
+const bool PRE_RELEASE = true;
+constexpr const char* c_version_base = "3.11.7";
 
 inline std::string get_version() {
     static std::string cached_version =
