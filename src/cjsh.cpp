@@ -464,7 +464,6 @@ int main(int argc, char* argv[]) {
         if (g_shell) {
             trap_manager_set_shell(g_shell.get());
             trap_manager_execute_exit_trap();
-            g_shell.reset();
         }
 
         return code;
