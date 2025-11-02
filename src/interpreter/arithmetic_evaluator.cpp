@@ -92,8 +92,7 @@ long long parse_wrapping_literal(const std::string& num_str) {
         }
 
         any_digit = true;
-        unsigned __int128 next = static_cast<unsigned __int128>(accum) * base + digit;
-        accum = static_cast<std::uint64_t>(next);
+        accum = accum * static_cast<std::uint64_t>(base) + static_cast<std::uint64_t>(digit);
         ++ptr;
     }
 
