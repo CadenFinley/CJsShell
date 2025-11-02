@@ -607,6 +607,17 @@ read_key:
     }
 
     if (c == KEY_TAB) {
+        if (count == 1 && initial_had_multiple) {
+            ssize_t accept_idx = (selected >= 0 && selected < count ? selected : 0);
+            if (accept_idx < 0 || accept_idx >= count) {
+                accept_idx = 0;
+            }
+            if (edit_complete(env, eb, accept_idx) && env->complete_autotab) {
+                tty_code_pushback(env->tty, KEY_EVENT_AUTOTAB);
+            }
+            completions_clear(env->completions);
+            return;
+        }
         if (!menu_has_focus) {
             menu_has_focus = true;
             if (selected < 0 && count_displayed > 0) {
