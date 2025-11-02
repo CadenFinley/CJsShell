@@ -40,20 +40,6 @@ std::unique_ptr<Shell> g_shell = nullptr;
 
 namespace {
 
-struct PosixFeatureSnapshot {
-    bool valid = false;
-    bool themes_enabled = true;
-    bool colors_enabled = true;
-    bool completions_enabled = true;
-    bool syntax_highlighting_enabled = true;
-    bool smart_cd_enabled = true;
-    bool show_title_line = true;
-    bool show_startup_time = false;
-    bool history_expansion_enabled = true;
-};
-
-PosixFeatureSnapshot g_posix_snapshot;
-
 std::chrono::steady_clock::time_point g_startup_begin_time;
 
 void save_startup_arguments(int argc, char* argv[]) {
@@ -62,30 +48,6 @@ void save_startup_arguments(int argc, char* argv[]) {
     for (int i = 0; i < argc; i++) {
         args.push_back(std::string(argv[i]));
     }
-}
-
-bool invoked_as_sh(const char* argv0) {
-    if (argv0 == nullptr) {
-        return false;
-    }
-
-    std::filesystem::path executable_path(argv0);
-    std::string base_name = executable_path.filename().string();
-
-    if (base_name.empty()) {
-        return false;
-    }
-
-    size_t non_dash_pos = base_name.find_first_not_of('-');
-    if (non_dash_pos == std::string::npos) {
-        return false;
-    }
-
-    if (non_dash_pos > 0) {
-        base_name = base_name.substr(non_dash_pos);
-    }
-
-    return base_name == "sh";
 }
 
 int handle_non_interactive_mode(const std::string& script_file) {
@@ -314,61 +276,6 @@ bool secure_mode = false;
 bool show_title_line = true;
 bool no_prompt = false;
 bool history_expansion_enabled = true;
-bool posix_mode = false;
-
-void set_posix_mode(bool enable) {
-    if (posix_mode == enable) {
-        return;
-    }
-
-    if (enable) {
-        g_posix_snapshot.valid = true;
-        g_posix_snapshot.themes_enabled = themes_enabled;
-        g_posix_snapshot.colors_enabled = colors_enabled;
-        g_posix_snapshot.completions_enabled = completions_enabled;
-        g_posix_snapshot.syntax_highlighting_enabled = syntax_highlighting_enabled;
-        g_posix_snapshot.smart_cd_enabled = smart_cd_enabled;
-        g_posix_snapshot.show_title_line = show_title_line;
-        g_posix_snapshot.show_startup_time = show_startup_time;
-        g_posix_snapshot.history_expansion_enabled = history_expansion_enabled;
-
-        posix_mode = true;
-        themes_enabled = false;
-        colors_enabled = false;
-        completions_enabled = false;
-        syntax_highlighting_enabled = false;
-        smart_cd_enabled = false;
-        show_title_line = false;
-        show_startup_time = false;
-        history_expansion_enabled = false;
-
-        if (g_shell) {
-            g_shell->reset_theme();
-        }
-    } else {
-        posix_mode = false;
-
-        if (g_posix_snapshot.valid) {
-            themes_enabled = g_posix_snapshot.themes_enabled;
-            colors_enabled = g_posix_snapshot.colors_enabled;
-            completions_enabled = g_posix_snapshot.completions_enabled;
-            syntax_highlighting_enabled = g_posix_snapshot.syntax_highlighting_enabled;
-            smart_cd_enabled = g_posix_snapshot.smart_cd_enabled;
-            show_title_line = g_posix_snapshot.show_title_line;
-            show_startup_time = g_posix_snapshot.show_startup_time;
-            history_expansion_enabled = g_posix_snapshot.history_expansion_enabled;
-            g_posix_snapshot.valid = false;
-        }
-    }
-
-    if (g_shell) {
-        g_shell->set_shell_option("posix", posix_mode);
-    }
-}
-
-bool is_posix_mode() {
-    return posix_mode;
-}
 
 }  // namespace config
 
@@ -388,30 +295,32 @@ void cleanup_resources() {
 }
 
 int main(int argc, char* argv[]) {
+    // main entry
+    // set start time
     g_startup_begin_time = std::chrono::steady_clock::now();
 
+    // parse passed flags
     auto parse_result = flags::parse_arguments(argc, argv);
     if (parse_result.should_exit) {
         return parse_result.exit_code;
     }
 
-    if (invoked_as_sh(argv[0])) {
-        config::set_posix_mode(true);
-    }
-
+    // handle simple flags
     if (config::show_version) {
         std::vector<std::string> empty_args;
         return version_command(empty_args);
     }
-
     if (config::show_help) {
         print_usage();
         return 0;
     }
 
+    // determine if the passed arg is a script file and grab following args to be used for the
+    // script
     std::string script_file = parse_result.script_file;
     std::vector<std::string> script_args = parse_result.script_args;
 
+    // verify essential files for cjsh
     cjsh_filesystem::initialize_cjsh_directories();
     if (std::atexit(cleanup_resources) != 0) {
         print_error({ErrorType::RUNTIME_ERROR,
@@ -421,6 +330,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
+    // create the shell object
     g_shell = std::make_unique<Shell>();
     if (!g_shell) {
         print_error({ErrorType::RUNTIME_ERROR,
@@ -430,17 +340,17 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    g_shell->set_shell_option("posix", config::posix_mode);
-
+    // set args for the script file before saving the startup args for cjsh
     if (!script_args.empty()) {
         g_shell->set_positional_parameters(script_args);
     }
 
+    // set all envvars for cjsh
     cjsh_env::setup_environment_variables(argv[0]);
     save_startup_arguments(argc, argv);
-
     g_shell->sync_env_vars_from_system();
 
+    // start login mode items
     if (config::login_mode) {
         int login_result = initialize_login_mode();
         if (login_result != 0) {
@@ -448,6 +358,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    // execute command passed with -c
     if (config::execute_command) {
         int code = g_shell ? g_shell->execute(config::cmd_to_execute) : 1;
 
@@ -464,25 +375,35 @@ int main(int argc, char* argv[]) {
         if (g_shell) {
             trap_manager_set_shell(g_shell.get());
             trap_manager_execute_exit_trap();
+            g_shell.reset();
         }
 
         return code;
     }
 
+    // at this point everything else with the startup args has been handled so now we handle the
+    // passed script
     if (!config::interactive_mode && !config::force_interactive) {
         return handle_non_interactive_mode(script_file);
     }
 
+    // at this point cjsh has to be in an interactive state as all non-interactive possibilites has
+    // been properly handled
     int interactive_result = initialize_interactive_components();
     if (interactive_result != 0) {
         return interactive_result;
     }
 
+    // disable the global startup flag which disables a lot of interactive features and command
+    // output
     g_startup_active = false;
+
+    // start interactive cjsh process
     if (!g_exit_flag && (config::interactive_mode || config::force_interactive)) {
         start_interactive_process();
     }
 
+    // grab exit code from envvar which was set by the last command that executed
     const char* exit_code_str = getenv("EXIT_CODE");
     int exit_code = 0;
     if (exit_code_str != nullptr) {

@@ -263,10 +263,10 @@ CJsShell includes over 1500 POSIX-focused tests that verify:
 - Job control
 - Signal handling
 
-### Compatibility Modes
-- **`-c` Flag**: Preserves POSIX semantics for script execution
-- **Piped Input**: Automatic POSIX mode when shell receives piped input
-- **Script Mode**: Non-interactive mode maintains strict POSIX behavior
+### Compatibility Considerations
+- **`-c` Flag**: Executes commands non-interactively with POSIX-compatible semantics
+- **Piped Input**: When stdin is not a TTY, the shell follows POSIX-aligned non-interactive behavior
+- **Script Mode**: Non-interactive invocation maintains strict POSIX behavior
 
 ### Disabling POSIX+ Features
 Most POSIX+ features can be disabled for strict compatibility:

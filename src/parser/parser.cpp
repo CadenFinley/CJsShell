@@ -1183,9 +1183,6 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
             } else if ((qi.value == "<<" || qi.value == "<<-") && i + 1 < tokens.size()) {
                 cmd.here_doc = get_next_token_value(i);
             } else if (qi.value == "<<<" && i + 1 < tokens.size()) {
-                if (config::is_posix_mode()) {
-                    throw std::runtime_error("cjsh: syntax error near unexpected token '<<<'");
-                }
                 cmd.here_string = get_next_token_value(i);
             } else if ((qi.value == "2>" || qi.value == "2>>") && i + 1 < tokens.size()) {
                 cmd.stderr_file = get_next_token_value(i);
@@ -1201,9 +1198,6 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
             } else {
                 if ((qi.value.find("<(") == 0 && qi.value.back() == ')') ||
                     (qi.value.find(">(") == 0 && qi.value.back() == ')')) {
-                    if (config::is_posix_mode()) {
-                        throw std::runtime_error("cjsh: syntax error near unexpected token '('");
-                    }
                     cmd.process_substitutions.push_back(qi.value);
                     filtered_args.push_back(tokens[i]);
                 } else {

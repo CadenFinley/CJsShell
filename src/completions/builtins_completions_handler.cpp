@@ -82,8 +82,7 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                  make_option("-s", "Secure mode: disable profile and rc files"),
                  make_option("--secure", "Secure mode: disable profile and rc files"),
                  make_option("-X", "Enable startup test mode"),
-                 make_option("--startup-test", "Enable startup test mode (internal)"),
-                 make_option("--posix", "Enable POSIX compatibility mode")});
+                 make_option("--startup-test", "Enable startup test mode (internal)")});
 
         add_doc("break", "Exit the innermost enclosing loop", {});
         add_doc("continue", "Advance to the next loop iteration", {});

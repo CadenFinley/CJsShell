@@ -27,69 +27,78 @@ if [ ! -x "$SHELL_TO_TEST" ]; then
     exit 1
 fi
 
-echo "Verifying POSIX-mode extension gating for: $SHELL_TO_TEST"
+echo "Checking interactive behavior without POSIX gating for: $SHELL_TO_TEST"
 echo "======================================================="
 
-log_test "Brace expansion disabled"
-result=$("$SHELL_TO_TEST" --posix -c 'echo {1..3}' 2>/dev/null)
-if [ "$result" = "{1..3}" ]; then
+log_test "--posix flag rejected"
+output=$("$SHELL_TO_TEST" --posix -c 'echo hi' 2>&1)
+status=$?
+if [ $status -eq 127 ]; then
     pass
 else
-    fail "Expected literal brace string, got '$result'"
+    clean_output=$(printf "%s" "$output" | tr '\n' ' ')
+    fail "Expected exit status 127 for unknown flag (status=$status, output=$clean_output)"
 fi
 
-log_test "Double bracket builtin unavailable"
-output=$("$SHELL_TO_TEST" --posix -c '[[ 1 == 1 ]]' 2>&1)
-status=$?
-clean_output=$(printf "%s" "$output" | tr '\n' ' ')
-if [ $status -ne 0 ] && printf "%s" "$output" | grep -qi "command not found"; then
+log_test "Brace expansion active"
+result=$("$SHELL_TO_TEST" -c 'echo {1..3}' 2>/dev/null)
+if [ "$result" = "1 2 3" ]; then
     pass
 else
-    fail "Expected [[ command rejection (status=$status, output=$clean_output)"
+    fail "Expected '1 2 3', got '$result'"
 fi
 
-log_test "cjshopt disabled"
-output=$("$SHELL_TO_TEST" --posix -c 'cjshopt enable autosuggest' 2>&1)
+log_test "Double bracket builtin available"
+"$SHELL_TO_TEST" -c '[[ 1 == 1 ]]' >/dev/null 2>&1
 status=$?
-clean_output=$(printf "%s" "$output" | tr '\n' ' ')
-if [ $status -ne 0 ] && printf "%s" "$output" | grep -qi "command not found"; then
+if [ $status -eq 0 ]; then
     pass
 else
-    fail "Expected cjshopt rejection (status=$status, output=$clean_output)"
+    fail "[[ ]] should succeed (status=$status)"
 fi
 
-log_test "Here-strings rejected"
-output=$("$SHELL_TO_TEST" --posix -c 'cat <<< "posix"' 2>&1)
+log_test "cjshopt available"
+output=$("$SHELL_TO_TEST" -c 'cjshopt enable autosuggest' 2>&1)
 status=$?
-clean_output=$(printf "%s" "$output" | tr '\n' ' ')
-if [ $status -ne 0 ] && printf "%s" "$output" | grep -qi "syntax error"; then
+if [ $status -eq 0 ]; then
     pass
 else
-    fail "Expected here-string syntax error (status=$status, output=$clean_output)"
+    clean_output=$(printf "%s" "$output" | tr '\n' ' ')
+    fail "cjshopt command failed (status=$status, output=$clean_output)"
 fi
 
-log_test "Process substitution rejected"
-output=$("$SHELL_TO_TEST" --posix -c 'cat <(echo posix)' 2>&1)
+log_test "Here-strings supported"
+output=$("$SHELL_TO_TEST" -c 'cat <<< "posix"' 2>&1)
 status=$?
 clean_output=$(printf "%s" "$output" | tr '\n' ' ')
-if [ $status -ne 0 ] && printf "%s" "$output" | grep -qi "syntax error"; then
+if [ $status -eq 0 ] && [ "$clean_output" = "posix" ]; then
     pass
 else
-    fail "Expected process substitution syntax error (status=$status, output=$clean_output)"
+    fail "Expected here-string to output 'posix' (status=$status, output=$clean_output)"
 fi
 
-log_test "function keyword rejected"
-output=$("$SHELL_TO_TEST" --posix -c 'function foo { echo hi; }; foo' 2>&1)
+log_test "Process substitution available"
+output=$("$SHELL_TO_TEST" -c 'cat <(echo posix)' 2>&1)
 status=$?
 clean_output=$(printf "%s" "$output" | tr '\n' ' ')
-if [ $status -ne 0 ] && printf "%s" "$output" | grep -qi "syntax error"; then
+if [ $status -eq 0 ] && [ "$clean_output" = "posix" ]; then
     pass
 else
-    fail "Expected function keyword error (status=$status, output=$clean_output)"
+    fail "Expected process substitution to output 'posix' (status=$status, output=$clean_output)"
+fi
+
+log_test "function keyword allowed"
+output=$("$SHELL_TO_TEST" -c 'function foo { echo hi; }; foo' 2>&1)
+status=$?
+clean_output=$(printf "%s" "$output" | tr '\n' ' ')
+if [ $status -eq 0 ] && [ "$clean_output" = "hi" ]; then
+    pass
+else
+    fail "Expected function keyword to execute (status=$status, output=$clean_output)"
 fi
 
 echo "======================================================="
-echo "POSIX Mode Extension Tests Summary:"
+echo "Interactive Mode Tests Summary:"
 echo "Total: $TOTAL"
 echo "Passed: ${GREEN}$PASSED${NC}"
 echo "Failed: ${RED}$FAILED${NC}"

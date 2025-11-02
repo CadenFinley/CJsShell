@@ -343,11 +343,9 @@ bool process_command_line(const std::string& command, bool skip_history = false)
     // do nothing for other platforms
 #endif
 
-    if (!config::posix_mode) {
-        std::string typeahead_input = typeahead::capture_available_input();
-        if (!typeahead_input.empty()) {
-            typeahead::ingest_typeahead_input(typeahead_input);
-        }
+    std::string typeahead_input = typeahead::capture_available_input();
+    if (!typeahead_input.empty()) {
+        typeahead::ingest_typeahead_input(typeahead_input);
     }
 
     return g_exit_flag;
@@ -421,15 +419,11 @@ std::pair<std::string, bool> get_next_command(bool command_was_available,
     thread_local static std::string sanitized_buffer;
     sanitized_buffer.clear();
 
-    if (!config::posix_mode) {
-        typeahead::flush_pending_typeahead();
-        const std::string& pending_buffer = typeahead::get_input_buffer();
-        if (!pending_buffer.empty()) {
-            sanitized_buffer.reserve(pending_buffer.size());
-            typeahead::filter_escape_sequences_into(pending_buffer, sanitized_buffer);
-        }
-    } else {
-        typeahead::clear_input_buffer();
+    typeahead::flush_pending_typeahead();
+    const std::string& pending_buffer = typeahead::get_input_buffer();
+    if (!pending_buffer.empty()) {
+        sanitized_buffer.reserve(pending_buffer.size());
+        typeahead::filter_escape_sequences_into(pending_buffer, sanitized_buffer);
     }
 
     const char* initial_input = sanitized_buffer.empty() ? nullptr : sanitized_buffer.c_str();
