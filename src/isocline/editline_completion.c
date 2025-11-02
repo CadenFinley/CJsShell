@@ -171,6 +171,9 @@ static bool edit_completion_menu_recompute(ic_env_t* env, editor_t* eb, bool* ex
         return false;
     }
 
+    sbuf_clear(eb->hint);
+    sbuf_clear(eb->hint_help);
+
     ssize_t new_count = completions_generate(env, env->completions, sbuf_string(eb->input), eb->pos,
                                              IC_MAX_COMPLETIONS_TO_TRY);
     *count = new_count;
@@ -212,6 +215,8 @@ static void edit_completion_menu(ic_env_t* env, editor_t* eb, bool more_availabl
     ssize_t count = completions_count(env->completions);
     assert(count > 0);
     const bool initial_had_multiple = (count > 1);
+    sbuf_clear(eb->hint);
+    sbuf_clear(eb->hint_help);
     ssize_t selected = (env->complete_nopreview ? 0 : -1);
     bool expanded_mode = false;
     ssize_t scroll_offset = 0;
