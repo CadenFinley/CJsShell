@@ -115,32 +115,18 @@ endif()
 
 file(GLOB_RECURSE CJSH_CPP_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/*.cpp)
 
-set(CJSH_C_SOURCES
-    ${CMAKE_SOURCE_DIR}/src/isocline/attr.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/bbcode.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/bbcode_colors.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/common.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/completers.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/completions.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/editline.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/highlight.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/history.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/isocline.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/isocline_env.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/isocline_keybindings.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/isocline_options.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/isocline_print.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/isocline_readline.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/isocline_terminal.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/stringbuf.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/term.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/tty.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/tty_esc.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/undo.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/unicode.c
-)
+set(ISOCLINE_MONOLITHIC OFF CACHE BOOL "Build the embedded isocline library as a single translation unit")
+set(ISOCLINE_TINY_BUILD ${CJSH_MINIMAL_BUILD} CACHE BOOL "Optimize the embedded isocline library for minimal size" FORCE)
 
-set(CJSH_SOURCES ${CJSH_CPP_SOURCES} ${CJSH_C_SOURCES})
+add_subdirectory(${CMAKE_SOURCE_DIR}/vendor/CJsReadline)
+
+if(TARGET isocline)
+    target_compile_definitions(isocline PRIVATE
+        $<$<NOT:$<CONFIG:Debug>>:IC_NO_DEBUG_MSG=1>
+    )
+endif()
+
+set(CJSH_SOURCES ${CJSH_CPP_SOURCES})
 list(REMOVE_DUPLICATES CJSH_SOURCES)
 list(SORT CJSH_SOURCES)
 
@@ -154,7 +140,6 @@ target_compile_features(cjsh PRIVATE cxx_std_17)
 
 set(CJSH_INCLUDE_DIRS
     ${CMAKE_SOURCE_DIR}/include
-    ${CMAKE_SOURCE_DIR}/include/isocline
     ${CMAKE_SOURCE_DIR}/include/builtin
     ${CMAKE_SOURCE_DIR}/include/utils
     ${CMAKE_SOURCE_DIR}/include/prompt
@@ -169,11 +154,12 @@ set(CJSH_INCLUDE_DIRS
 
 target_include_directories(cjsh PRIVATE ${CJSH_INCLUDE_DIRS})
 
+target_link_libraries(cjsh PRIVATE isocline::isocline)
+
 target_compile_definitions(cjsh PRIVATE
     CJSH_GIT_HASH="${CJSH_GIT_HASH}"
     CJSH_BUILD_ARCH="${CJSH_BUILD_ARCH}"
     CJSH_BUILD_PLATFORM="${CJSH_BUILD_PLATFORM}"
-    IC_SEPARATE_OBJS=1
     JSON_NOEXCEPTION=1
     JSON_USE_IMPLICIT_CONVERSIONS=1
     $<$<CONFIG:Debug>:DEBUG;CJSH_ENABLE_DEBUG>

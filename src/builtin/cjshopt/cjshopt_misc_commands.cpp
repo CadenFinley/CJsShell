@@ -10,7 +10,7 @@
 #include "cjsh.h"
 #include "cjsh_completions.h"
 #include "error_out.h"
-#include "isocline/isocline.h"
+#include "isocline.h"
 #include "token_constants.h"
 
 namespace {

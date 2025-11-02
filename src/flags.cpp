@@ -5,7 +5,7 @@
 
 #include "cjsh.h"
 #include "error_out.h"
-#include "isocline/isocline.h"
+#include "isocline.h"
 #include "usage.h"
 
 namespace flags {

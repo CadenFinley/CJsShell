@@ -1,7 +1,7 @@
 #include "utf8_utils.h"
 #include <cstring>
 extern "C" {
-#include "isocline/unicode.h"
+#include "unicode.h"
 }
 
 namespace utf8_utils {
