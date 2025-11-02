@@ -162,7 +162,8 @@ static ssize_t edit_completions_max_width(ic_env_t* env, ssize_t count) {
     return max_width;
 }
 
-static void edit_completion_menu_update_hint(ic_env_t* env, editor_t* eb) {
+static void edit_completion_menu_update_hint(ic_env_t* env, editor_t* eb,
+                                             bool allow_inline_hint) {
     if (env->no_hint)
         return;
 
@@ -178,13 +179,17 @@ static void edit_completion_menu_update_hint(ic_env_t* env, editor_t* eb) {
     if (hint == NULL || *hint == '\0')
         return;
 
-    sbuf_replace(eb->hint, hint);
-    editor_append_hint_help(eb, help);
+    if (allow_inline_hint) {
+        sbuf_replace(eb->hint, hint);
+    }
+    if (help != NULL) {
+        editor_append_hint_help(eb, help);
+    }
 }
 
 static bool edit_recompute_completion_list(ic_env_t* env, editor_t* eb, bool expanded_mode,
                                            ssize_t* count, bool* more_available, ssize_t* selected,
-                                           ssize_t* scroll_offset) {
+                                           ssize_t* scroll_offset, bool allow_inline_hint) {
     ssize_t limit = (expanded_mode ? IC_MAX_COMPLETIONS_TO_SHOW : IC_MAX_COMPLETIONS_TO_TRY);
     ssize_t new_count =
         completions_generate(env, env->completions, sbuf_string(eb->input), eb->pos, limit);
@@ -212,7 +217,7 @@ static bool edit_recompute_completion_list(ic_env_t* env, editor_t* eb, bool exp
         *scroll_offset = 0;
     }
 
-    edit_completion_menu_update_hint(env, eb);
+    edit_completion_menu_update_hint(env, eb, allow_inline_hint);
 
     return true;
 }
@@ -227,7 +232,25 @@ static void edit_completion_menu(ic_env_t* env, editor_t* eb, bool more_availabl
         completions_clear(env->completions);
         return;
     }
-    edit_completion_menu_update_hint(env, eb);
+    bool completion_applied = false;
+    const bool hints_enabled = !env->no_hint;
+    char* saved_input = NULL;
+    char* saved_hint = NULL;
+    char* saved_hint_help = NULL;
+    ssize_t saved_pos = eb->pos;
+    if (hints_enabled) {
+        saved_input = sbuf_strdup(eb->input);
+        if (sbuf_len(eb->hint) > 0) {
+            saved_hint = sbuf_strdup(eb->hint);
+        }
+        if (sbuf_len(eb->hint_help) > 0) {
+            saved_hint_help = sbuf_strdup(eb->hint_help);
+        }
+    }
+
+    sbuf_clear(eb->hint);
+    sbuf_clear(eb->hint_help);
+    edit_completion_menu_update_hint(env, eb, false);
     ssize_t selected = (env->complete_nopreview ? 0 : -1);
     bool expanded_mode = false;
     ssize_t scroll_offset = 0;
@@ -598,9 +621,12 @@ read_key:
             accept_idx = (count > 0 ? 0 : -1);
         }
         if (accept_idx >= 0) {
-            edit_complete(env, eb, accept_idx);
+            bool applied_here = edit_complete(env, eb, accept_idx);
+            if (applied_here) {
+                completion_applied = true;
+            }
             edit_refresh_hint(env, eb);
-            if (env->complete_autotab) {
+            if (applied_here && env->complete_autotab) {
                 tty_code_pushback(env->tty, KEY_EVENT_AUTOTAB);
             }
         }
@@ -657,15 +683,18 @@ read_key:
                (c == KEY_ENTER || (!grid_mode && c == KEY_RIGHT) || c == KEY_END)) {
         assert(selected < count);
         c = 0;
-        edit_complete(env, eb, selected);
+        bool applied_here = edit_complete(env, eb, selected);
+        if (applied_here) {
+            completion_applied = true;
+        }
         edit_refresh_hint(env, eb);
-        if (env->complete_autotab) {
+        if (applied_here && env->complete_autotab) {
             tty_code_pushback(env->tty, KEY_EVENT_AUTOTAB);
         }
     } else if (c == KEY_BACKSP) {
         edit_backspace(env, eb);
         if (!edit_recompute_completion_list(env, eb, expanded_mode, &count, &more_available,
-                                            &selected, &scroll_offset)) {
+                                            &selected, &scroll_offset, false)) {
             sbuf_clear(eb->extra);
             edit_refresh(env, eb);
             c = 0;
@@ -675,7 +704,7 @@ read_key:
     } else if (c == KEY_DEL) {
         edit_delete_char(env, eb);
         if (!edit_recompute_completion_list(env, eb, expanded_mode, &count, &more_available,
-                                            &selected, &scroll_offset)) {
+                                            &selected, &scroll_offset, false)) {
             sbuf_clear(eb->extra);
             edit_refresh(env, eb);
             c = 0;
@@ -695,7 +724,7 @@ read_key:
         }
         if (inserted) {
             if (!edit_recompute_completion_list(env, eb, expanded_mode, &count, &more_available,
-                                                &selected, &scroll_offset)) {
+                                                &selected, &scroll_offset, false)) {
                 sbuf_clear(eb->extra);
                 edit_refresh(env, eb);
                 c = 0;
@@ -737,6 +766,42 @@ read_key:
 
 cleanup:
     completions_clear(env->completions);
+    if (!completion_applied && hints_enabled) {
+        bool input_changed = true;
+        if (saved_input != NULL) {
+            const char* current_input = sbuf_string(eb->input);
+            if (current_input != NULL) {
+                if (strcmp(saved_input, current_input) == 0 && eb->pos == saved_pos) {
+                    input_changed = false;
+                }
+            }
+        }
+
+        if (!input_changed) {
+            sbuf_clear(eb->hint);
+            if (saved_hint != NULL) {
+                sbuf_replace(eb->hint, saved_hint);
+            }
+            sbuf_clear(eb->hint_help);
+            if (saved_hint_help != NULL) {
+                sbuf_replace(eb->hint_help, saved_hint_help);
+            }
+            edit_refresh(env, eb);
+        } else {
+            edit_refresh_hint(env, eb);
+        }
+    }
+
+    if (saved_hint != NULL) {
+        mem_free(eb->mem, saved_hint);
+    }
+    if (saved_hint_help != NULL) {
+        mem_free(eb->mem, saved_hint_help);
+    }
+    if (saved_input != NULL) {
+        mem_free(eb->mem, saved_input);
+    }
+
     if (c != 0) {
         tty_code_pushback(env->tty, c);
     }
