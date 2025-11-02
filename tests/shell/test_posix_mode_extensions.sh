@@ -58,7 +58,7 @@ else
 fi
 
 log_test "cjshopt available"
-output=$("$SHELL_TO_TEST" -c 'cjshopt enable autosuggest' 2>&1)
+output=$("$SHELL_TO_TEST" -c 'cjshopt completion-case status' 2>&1)
 status=$?
 if [ $status -eq 0 ]; then
     pass

@@ -38,8 +38,30 @@ bool g_exit_flag = false;
 bool g_startup_active = true;
 std::unique_ptr<Shell> g_shell = nullptr;
 
-namespace {
+namespace config {
+bool login_mode = false;
+bool interactive_mode = true;
+bool force_interactive = false;
+bool execute_command = false;
+std::string cmd_to_execute;
+bool themes_enabled = true;
+bool colors_enabled = true;
+bool source_enabled = true;
+bool completions_enabled = true;
+bool syntax_highlighting_enabled = true;
+bool smart_cd_enabled = true;
+bool show_version = false;
+bool show_help = false;
+bool startup_test = false;
+bool minimal_mode = false;
+bool show_startup_time = false;
+bool secure_mode = false;
+bool show_title_line = true;
+bool no_prompt = false;
+bool history_expansion_enabled = true;
+}  // namespace config
 
+namespace {
 std::chrono::steady_clock::time_point g_startup_begin_time;
 
 void save_startup_arguments(int argc, char* argv[]) {
@@ -252,32 +274,7 @@ void process_logout_file() {
         }
     }
 }
-
 }  // namespace
-
-namespace config {
-bool login_mode = false;
-bool interactive_mode = true;
-bool force_interactive = false;
-bool execute_command = false;
-std::string cmd_to_execute;
-bool themes_enabled = true;
-bool colors_enabled = true;
-bool source_enabled = true;
-bool completions_enabled = true;
-bool syntax_highlighting_enabled = true;
-bool smart_cd_enabled = true;
-bool show_version = false;
-bool show_help = false;
-bool startup_test = false;
-bool minimal_mode = false;
-bool show_startup_time = false;
-bool secure_mode = false;
-bool show_title_line = true;
-bool no_prompt = false;
-bool history_expansion_enabled = true;
-
-}  // namespace config
 
 void cleanup_resources() {
     if (g_shell) {
