@@ -1187,9 +1187,9 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#compatibility-modes" class="md-nav__link">
+  <a href="#compatibility-considerations" class="md-nav__link">
     <span class="md-ellipsis">
-      Compatibility Modes
+      Compatibility Considerations
     </span>
   </a>
   
@@ -1600,11 +1600,11 @@
 - Variable expansion
 - Job control
 - Signal handling</p>
-<h3 id="compatibility-modes">Compatibility Modes</h3>
+<h3 id="compatibility-considerations">Compatibility Considerations</h3>
 <ul>
-<li><strong><code>-c</code> Flag</strong>: Preserves POSIX semantics for script execution</li>
-<li><strong>Piped Input</strong>: Automatic POSIX mode when shell receives piped input</li>
-<li><strong>Script Mode</strong>: Non-interactive mode maintains strict POSIX behavior</li>
+<li><strong><code>-c</code> Flag</strong>: Executes commands non-interactively with POSIX-compatible semantics</li>
+<li><strong>Piped Input</strong>: When stdin is not a TTY, the shell follows POSIX-aligned non-interactive behavior</li>
+<li><strong>Script Mode</strong>: Non-interactive invocation maintains strict POSIX behavior</li>
 </ul>
 <h3 id="disabling-posix-features">Disabling POSIX+ Features</h3>
 <p>Most POSIX+ features can be disabled for strict compatibility:</p>
