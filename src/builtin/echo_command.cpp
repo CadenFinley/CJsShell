@@ -1,22 +1,3 @@
-// echo - display a line of text
-// Derived from code in GNU Coreutils and Bash
-// Copyright (C) 1987-2025 Free Software Foundation, Inc.
-//
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
-//
-// Authors: Brian Fox, Chet Ramey
-
 #include "echo_command.h"
 #include "builtin_help.h"
 
@@ -28,7 +9,6 @@
 
 namespace {
 
-// Convert hexadecimal character to integer
 inline int hextobin(unsigned char c) {
     if (c >= '0' && c <= '9')
         return c - '0';
@@ -67,13 +47,12 @@ int echo_command(const std::vector<std::string>& args) {
     }
 
     bool display_return = true;
-    bool do_v9 = false;  // XSI mode (interpret backslash escapes)
+    bool do_v9 = false;
     bool posixly_correct = (std::getenv("POSIXLY_CORRECT") != nullptr);
     bool allow_options = !posixly_correct || (args.size() > 1 && args[1] == "-n");
 
     std::vector<std::string> echo_args = args;
 
-    // Check for redirection to stderr
     bool redirect_to_stderr = false;
     if (!echo_args.empty() && echo_args.back() == ">&2") {
         redirect_to_stderr = true;
@@ -82,15 +61,13 @@ int echo_command(const std::vector<std::string>& args) {
 
     size_t arg_idx = 1;
 
-    // Parse options
     if (allow_options) {
         while (arg_idx < echo_args.size() && !echo_args[arg_idx].empty() &&
                echo_args[arg_idx][0] == '-') {
             const std::string& opt = echo_args[arg_idx];
 
-            // Check if this is just "-" or if it contains invalid options
             if (opt.length() == 1) {
-                break;  // Just a dash, treat as argument
+                break;
             }
 
             bool valid_options = true;
@@ -103,10 +80,9 @@ int echo_command(const std::vector<std::string>& args) {
             }
 
             if (!valid_options) {
-                break;  // Invalid option, treat as argument
+                break;
             }
 
-            // Process valid options
             for (size_t i = 1; i < opt.length(); i++) {
                 switch (opt[i]) {
                     case 'e':
@@ -125,14 +101,11 @@ int echo_command(const std::vector<std::string>& args) {
         }
     }
 
-    // Output target
     std::ostream& out = redirect_to_stderr ? std::cerr : std::cout;
 
-    // Print arguments
     bool first = true;
 
     if (do_v9 || posixly_correct) {
-        // Interpret backslash escapes
         while (arg_idx < echo_args.size()) {
             if (!first) {
                 out << ' ';
@@ -157,7 +130,7 @@ int echo_command(const std::vector<std::string>& args) {
                             out << '\b';
                             break;
                         case 'c':
-                            // Stop processing and return
+
                             out.flush();
                             return 0;
                         case 'e':
@@ -179,7 +152,6 @@ int echo_command(const std::vector<std::string>& args) {
                             out << '\v';
                             break;
                         case 'x': {
-                            // Hexadecimal escape \xHH
                             if (i + 1 < s.length() && is_hex_digit(s[i + 1])) {
                                 i++;
                                 unsigned char ch = s[i];
@@ -192,13 +164,12 @@ int echo_command(const std::vector<std::string>& args) {
                                 }
                                 out << static_cast<char>(c);
                             } else {
-                                // No valid hex digits, output \x literally
                                 out << '\\' << 'x';
                             }
                             break;
                         }
                         case '0':
-                            // Octal escape \0NNN
+
                             c = 0;
                             if (i + 1 < s.length() && s[i + 1] >= '0' && s[i + 1] <= '7') {
                                 i++;
@@ -221,7 +192,6 @@ int echo_command(const std::vector<std::string>& args) {
                         case '5':
                         case '6':
                         case '7': {
-                            // Octal escape \NNN (starting with non-zero)
                             c = c - '0';
                             if (i + 1 < s.length() && s[i + 1] >= '0' && s[i + 1] <= '7') {
                                 i++;
@@ -238,9 +208,9 @@ int echo_command(const std::vector<std::string>& args) {
                             out << '\\';
                             break;
                         default:
-                            // Unknown escape, output backslash literally
+
                             out << '\\';
-                            i--;  // Will be incremented at end of loop
+                            i--;
                             break;
                     }
                 } else {
@@ -251,7 +221,6 @@ int echo_command(const std::vector<std::string>& args) {
             arg_idx++;
         }
     } else {
-        // No escape interpretation
         while (arg_idx < echo_args.size()) {
             if (!first) {
                 out << ' ';
