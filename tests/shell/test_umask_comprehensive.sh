@@ -79,10 +79,10 @@ if [ $? -eq 0 ]; then
     if echo "$OUT" | grep -q "[ugoa]"; then
         pass_test "umask -S symbolic output"
     else
-        skip_test "umask -S format different than expected"
+        fail_test "umask -S format different than expected (got '$OUT')"
     fi
 else
-    skip_test "umask -S not supported"
+    fail_test "umask -S not supported"
 fi
 
 OUT=$("$CJSH_PATH" -c "umask 0027; umask")
@@ -111,10 +111,10 @@ if [ $? -eq 0 ]; then
     if echo "$OUT" | grep -q "0022\|022"; then
         pass_test "umask symbolic mode u=rwx,g=rx,o=rx"
     else
-        skip_test "umask symbolic mode format differs (got '$OUT')"
+        fail_test "umask symbolic mode format differs (got '$OUT', expected '0022')"
     fi
 else
-    skip_test "umask symbolic mode not supported"
+    fail_test "umask symbolic mode not supported"
 fi
 
 OUT=$("$CJSH_PATH" -c "umask u=rwx,g=,o=; umask" 2>&1)
@@ -122,10 +122,10 @@ if [ $? -eq 0 ]; then
     if echo "$OUT" | grep -q "0077\|077"; then
         pass_test "umask symbolic mode u=rwx,g=,o="
     else
-        skip_test "umask symbolic mode restrictive differs (got '$OUT')"
+        fail_test "umask symbolic mode restrictive differs (got '$OUT', expected '0077')"
     fi
 else
-    skip_test "umask symbolic mode restrictive not supported"
+    fail_test "umask symbolic mode restrictive not supported"
 fi
 
 "$CJSH_PATH" -c "umask 0022; mkdir /tmp/test_umask_dir1" >/dev/null 2>&1

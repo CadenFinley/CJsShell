@@ -79,21 +79,21 @@ OUT=$(echo "back\\slash" | "$CJSH_PATH" -c "read -r VAR; echo \"\$VAR\"")
 if [ "$OUT" = "back\\slash" ]; then
     pass_test "read -r preserves backslashes"
 else
-    skip_test "read -r backslash (got '$OUT', may not be supported)"
+    fail_test "read -r backslash (got '$OUT', expected 'back\\slash')"
 fi
 
 OUT=$(echo "hello world" | "$CJSH_PATH" -c "read -n 5 VAR 2>/dev/null; echo \$VAR")
 if [ "$OUT" = "hello" ]; then
     pass_test "read -n characters"
 else
-    skip_test "read -n not supported (got '$OUT')"
+    fail_test "read -n not supported (got '$OUT', expected 'hello')"
 fi
 
 OUT=$(echo "hello:world" | "$CJSH_PATH" -c "read -d ':' VAR 2>/dev/null; echo \$VAR")
 if [ "$OUT" = "hello" ]; then
     pass_test "read -d custom delimiter"
 else
-    skip_test "read -d not supported"
+    fail_test "read -d not supported (got '$OUT', expected 'hello')"
 fi
 
 cat > /tmp/test_read_heredoc.sh << 'EOF'
@@ -154,7 +154,7 @@ OUT=$(echo "default" | "$CJSH_PATH" -c "read; echo \$REPLY" 2>/dev/null)
 if [ "$OUT" = "default" ]; then
     pass_test "read with no variable uses REPLY"
 else
-    skip_test "read REPLY (got '$OUT', may not be supported)"
+    fail_test "read REPLY (got '$OUT', expected 'default')"
 fi
 
 echo "test" | "$CJSH_PATH" -c "read VAR" >/dev/null 2>&1

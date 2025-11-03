@@ -141,7 +141,7 @@ echo "input" | "$CJSH_PATH" -c "read -p 'Enter: ' var; echo \$var" >/tmp/read_pr
 if [ $? -eq 0 ]; then
     pass_test "read builtin with prompt"
 else
-    skip_test "read builtin with prompt (may not be implemented)"
+    fail_test "read builtin with prompt"
 fi
 
 echo "Testing help builtin..."
@@ -156,7 +156,7 @@ fi
 if [ $? -eq 0 ]; then
     pass_test "help builtin with command"
 else
-    skip_test "help builtin with command (may not be implemented)"
+    fail_test "help builtin with command"
 fi
 
 rm -f /tmp/readonly_test.out /tmp/umask_test.out /tmp/umask_set_test.out /tmp/times_test.out

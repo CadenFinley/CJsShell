@@ -63,7 +63,7 @@ rm -f /tmp/clobber_test
 if [ "$OUT" = "second" ]; then
     pass_test "force overwrite with >|"
 else
-    skip_test "force overwrite >| (got '$OUT', may not be supported)"
+    fail_test "force overwrite >| (got '$OUT', expected 'second')"
 fi
 
 cat > /tmp/fd_test.txt << 'EOF'
@@ -99,7 +99,7 @@ if [ $? -ne 0 ]; then
     pass_test "closing file descriptor"
 else
     rm -f /tmp/fd_close_test
-    skip_test "closing file descriptor (error handling varies)"
+    fail_test "closing file descriptor should error when writing to closed fd"
 fi
 
 "$CJSH_PATH" -c "exec 3>&1; echo to_fd3 >&3" > /tmp/dup_fd_test
@@ -115,7 +115,7 @@ OUT=$("$CJSH_PATH" -c "cat <<< 'hello world'" 2>/dev/null)
 if [ "$OUT" = "hello world" ]; then
     pass_test "here-string <<<"
 else
-    skip_test "here-string not supported or different format"
+    fail_test "here-string not supported (got '$OUT', expected 'hello world')"
 fi
 
 echo "first" > /tmp/append_test
@@ -146,7 +146,7 @@ rm -f /tmp/swapped
 if echo "$OUT" | grep -q "stdout" && echo "$OUT" | grep -q "stderr"; then
     pass_test "swapping stdout and stderr"
 else
-    skip_test "swapping stdout/stderr (complex, got '$OUT')"
+    fail_test "swapping stdout/stderr failed (got '$OUT')"
 fi
 
 echo "input_data" > /tmp/input_test

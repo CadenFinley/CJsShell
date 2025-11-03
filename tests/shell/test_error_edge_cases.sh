@@ -64,7 +64,7 @@ EXIT_CODE=$?
 if [ $EXIT_CODE -ne 0 ]; then
     pass_test "unmatched quotes should error"
 else
-    skip_test "unmatched quotes test - shell may handle this differently"
+    fail_test "unmatched quotes should error"
 fi
 
 "$CJSH_PATH" -c "echo test > /invalid/path/file" 2>/dev/null
@@ -86,7 +86,7 @@ OUT2=$("$CJSH_PATH" -c "echo \$(echo \$(echo test))" 2>/dev/null)
 if [ "$OUT1" = "test" ] && [ "$OUT2" = "test" ]; then
     pass_test "nested command substitution"
 else
-    skip_test "nested command substitution failed (OUT1='$OUT1', OUT2='$OUT2')"
+    fail_test "nested command substitution (OUT1='$OUT1', OUT2='$OUT2', both should be 'test')"
 fi
 
 LONG_VAR=$(printf '%*s' 1000 | tr ' ' 'a')
@@ -126,14 +126,14 @@ OUT=$("$CJSH_PATH" -c "echo $MANY_ARGS | wc -w" 2>/dev/null | tr -d ' ')
 if [ "$OUT" = "100" ]; then
     pass_test "command with many arguments"
 else
-    skip_test "command with many arguments failed (got '$OUT')"
+    fail_test "command with many arguments (got '$OUT', expected 100)"
 fi
 
 "$CJSH_PATH" -c "alias test_alias='test_alias'; test_alias" 2>/dev/null
 if [ $? -ne 0 ]; then
     pass_test "recursive alias handled gracefully"
 else
-    skip_test "recursive alias behavior varies"
+    fail_test "recursive alias should error"
 fi
 
 echo -e '\x7fELF' > /tmp/fake_binary

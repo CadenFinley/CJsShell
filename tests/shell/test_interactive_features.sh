@@ -109,7 +109,7 @@ echo "Testing login shell mode..."
 if [ $? -eq 0 ]; then
     pass_test "login shell mode"
 else
-    skip_test "login shell mode (may not be supported)"
+    fail_test "login shell mode not supported"
 fi
 
 echo "Testing color support..."
@@ -133,7 +133,7 @@ echo "Testing prompt customization..."
 if [ $? -eq 0 ] && grep -q "test>" /tmp/prompt_custom_test.out; then
     pass_test "prompt customization (PS1)"
 else
-    skip_test "prompt customization"
+    fail_test "prompt customization"
 fi
 
 

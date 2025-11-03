@@ -52,8 +52,10 @@ EOF
   chmod +x "$AUTO_CD_BIN/autocdtest"
 
   OUTPUT=$(cd "$AUTO_CD_TMP" && PATH="$AUTO_CD_BIN:$PATH" "$CJSH_PATH" -c 'orig="$(pwd)"; autocdtest; pwd')
+  LAST_LINE="$(printf "%s" "$OUTPUT" | tail -n 1)"
+  EXPECTED_DIR="$(cd "$AUTO_CD_TMP" && pwd -P)"
 
-  if printf "%s" "$OUTPUT" | grep -q "ran command" && [ "$(printf "%s" "$OUTPUT" | tail -n 1)" = "$AUTO_CD_TMP" ]; then
+  if printf "%s" "$OUTPUT" | grep -q "ran command" && [ "$LAST_LINE" = "$EXPECTED_DIR" ]; then
     pass_test "auto cd defers to executable when available"
   else
     fail_test "auto cd should not override existing command"

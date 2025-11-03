@@ -92,7 +92,7 @@ fi
 OUT=$("$CJSH_PATH" -c "printf '%e\n' 1000")
 EXPECTED="1.000000e+03"
 if [ "$OUT" != "$EXPECTED" ] && [ "$OUT" != "1.000000e+3" ]; then
-    skip_test "printf exponential lowercase (got '$OUT', implementation may vary)"
+    fail_test "printf exponential lowercase (got '$OUT', expected '$EXPECTED' or '1.000000e+3')"
 else
     pass_test "printf exponential lowercase"
 fi
@@ -100,7 +100,7 @@ fi
 OUT=$("$CJSH_PATH" -c "printf '%E\n' 1000")
 EXPECTED="1.000000E+03"
 if [ "$OUT" != "$EXPECTED" ] && [ "$OUT" != "1.000000E+3" ]; then
-    skip_test "printf exponential uppercase (got '$OUT', implementation may vary)"
+    fail_test "printf exponential uppercase (got '$OUT', expected '$EXPECTED' or '1.000000E+3')"
 else
     pass_test "printf exponential uppercase"
 fi

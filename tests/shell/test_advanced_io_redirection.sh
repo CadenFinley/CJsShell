@@ -57,7 +57,9 @@ OUT=$("$CJSH_PATH" -c "var=world; cat <<< \"hello \$var\"" 2>&1)
 if [ "$OUT" = "hello world" ]; then
     echo "PASS: here strings with variable expansion"
 else
-    echo "SKIP: here strings with expansion not implemented (got: '$OUT')"
+    echo "FAIL: here strings with expansion not implemented (got: '$OUT', expected 'hello world')"
+    rm -rf "$TEST_DIR"
+    exit 1
 fi
 
 "$CJSH_PATH" -c "echo test &> $TEST_DIR/both_output.txt" 2>&1
@@ -89,7 +91,9 @@ fi
 if [ -f "$TEST_DIR/error_output.txt" ] && [ -s "$TEST_DIR/error_output.txt" ]; then
     echo "PASS: error redirection works"
 else
-    echo "SKIP: error redirection not fully implemented"
+    echo "FAIL: error redirection not fully implemented"
+    rm -rf "$TEST_DIR"
+    exit 1
 fi
 
 OUT=$("$CJSH_PATH" -c "echo stdout; echo stderr >&2" 2>&1)
@@ -106,14 +110,18 @@ OUT=$("$CJSH_PATH" -c "exec 3< $TEST_DIR/fd_test.txt; read line <&3; echo \$line
 if [ "$OUT" = "test content" ]; then
     echo "PASS: file descriptor manipulation works"
 else
-    echo "SKIP: file descriptor manipulation not implemented (got: '$OUT')"
+    echo "FAIL: file descriptor manipulation not implemented (got: '$OUT', expected 'test content')"
+    rm -rf "$TEST_DIR"
+    exit 1
 fi
 
 OUT=$("$CJSH_PATH" -c "diff <(echo test) <(echo test)" 2>&1)
 if [ -z "$OUT" ]; then  # diff returns empty when files are identical
     echo "PASS: process substitution works"
 else
-    echo "SKIP: process substitution not implemented (got: '$OUT')"
+    echo "FAIL: process substitution not implemented (got: '$OUT')"
+    rm -rf "$TEST_DIR"
+    exit 1
 fi
 
 "$CJSH_PATH" -c "echo stdout; echo stderr >&2" > "$TEST_DIR/multi_stdout.txt" 2> "$TEST_DIR/multi_stderr.txt"

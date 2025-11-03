@@ -42,7 +42,7 @@ OUT=$("$CJSH_PATH" --login -c "echo \$TEST_PROFILE_VAR" 2>/dev/null)
 if [ "$OUT" = "profile_value" ]; then
     pass_test "profile file sourced in login mode"
 else
-    skip_test "profile file not sourced in login mode (got '$OUT')"
+    fail_test "profile file not sourced in login mode (got '$OUT', expected 'profile_value')"
 fi
 
 OUT=$("$CJSH_PATH" -c "echo \$HOME")
@@ -85,7 +85,7 @@ LINES=$(echo "$OUT" | wc -l)
 if [ "$LINES" -eq 2 ]; then
     pass_test "SHLVL increment test"
 else
-    skip_test "SHLVL increment test inconclusive"
+    fail_test "SHLVL increment test (got $LINES lines, expected 2)"
 fi
 
 OUT=$("$CJSH_PATH" -c "echo \$PATH")
@@ -99,14 +99,14 @@ echo "$OUT" | grep -q "/bin"
 if [ $? -eq 0 ]; then
     pass_test "PATH should contain /bin"
 else
-    skip_test "PATH should contain /bin"
+    fail_test "PATH should contain /bin (got '$OUT')"
 fi
 
 OUT=$("$CJSH_PATH" -c "echo \"\$IFS\"" | od -c 2>/dev/null)
 if [ -n "$OUT" ]; then
     pass_test "IFS variable check"
 else
-    skip_test "IFS variable check failed"
+    fail_test "IFS variable check failed"
 fi
 
 OUT=$("$CJSH_PATH" --no-colors -c "echo test")

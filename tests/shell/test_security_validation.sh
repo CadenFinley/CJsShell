@@ -104,7 +104,7 @@ echo "Testing resource limit handling..."
 if [ $? -eq 0 ]; then
     pass_test "resource limit setting"
 else
-    skip_test "resource limit handling"
+    fail_test "resource limit handling"
 fi
 
 echo "Testing built-in command input validation..."
@@ -112,7 +112,7 @@ echo "Testing built-in command input validation..."
 if [ $? -ne 0 ]; then
     pass_test "invalid option handling"
 else
-    skip_test "invalid option handling"
+    fail_test "invalid option should error"
 fi
 
 echo "Testing memory safety..."
@@ -140,7 +140,7 @@ echo "Testing alias security..."
 if [ $? -eq 0 ]; then
     pass_test "alias command bypass"
 else
-    skip_test "alias security test"
+    fail_test "alias command bypass with 'command' builtin"
 fi
 
 echo "Testing exit code manipulation..."

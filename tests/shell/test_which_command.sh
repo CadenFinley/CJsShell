@@ -55,7 +55,7 @@ OUT=$("$CJSH_PATH" -c "alias testwhichalias='echo testing'; which testwhichalias
 if echo "$OUT" | grep -q "aliased"; then
     pass_test "which identifies aliases"
 else
-    skip_test "which identifies aliases (may not be available in test context: '$OUT')"
+    fail_test "which identifies aliases (got: '$OUT', expected to contain 'aliased')"
 fi
 
 echo "Test 6: Which identifies functions..."
@@ -63,7 +63,7 @@ OUT=$("$CJSH_PATH" -c "testfunc() { echo test; }; which testfunc" 2>&1)
 if echo "$OUT" | grep -q "function"; then
     pass_test "which identifies functions"
 else
-    skip_test "which identifies functions (may not be available in test context: '$OUT')"
+    fail_test "which identifies functions (got: '$OUT', expected to contain 'function')"
 fi
 
 echo "Test 7: Which finds external executables..."

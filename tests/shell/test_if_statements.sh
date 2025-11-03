@@ -276,7 +276,7 @@ OUTPUT=$("$CJSH_PATH" -c "test_func() { return 0; }; if test_func; then echo 'fu
 if [ "$OUTPUT" = "func_success" ]; then
     pass_test "if with function return code"
 else
-    skip_test "if with function return code (functions may not be supported)"
+    fail_test "if with function return code (got '$OUTPUT', expected 'func_success')"
 fi
 
 if "$CJSH_PATH" -c "if true; then echo 'unmatched'" 2>/dev/null; then

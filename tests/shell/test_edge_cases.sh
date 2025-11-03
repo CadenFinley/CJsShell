@@ -129,7 +129,7 @@ echo "Testing variable assignment errors..."
 if [ $? -ne 0 ]; then
     pass_test "invalid variable name error"
 else
-    skip_test "invalid variable name (may be allowed)"
+    fail_test "invalid variable name should error"
 fi
 
 echo "Testing arithmetic errors..."
@@ -137,7 +137,7 @@ echo "Testing arithmetic errors..."
 if [ $? -ne 0 ]; then
     pass_test "arithmetic error handling (division by zero)"
 else
-    skip_test "arithmetic error handling"
+    fail_test "arithmetic error handling (division by zero should error)"
 fi
 
 echo "Testing glob pattern edge cases..."
@@ -146,7 +146,7 @@ if [ $? -eq 0 ]; then
     if grep -q "/nonexistent/path/\*" /tmp/glob_error_test.out; then
         pass_test "glob no-match handling"
     else
-        skip_test "glob no-match behavior"
+        fail_test "glob no-match behavior"
     fi
 else
     pass_test "glob error handling"
@@ -201,7 +201,7 @@ echo "Testing circular dependency in aliases..."
 if [ $? -ne 0 ]; then
     pass_test "circular alias detection"
 else
-    skip_test "circular alias handling"
+    fail_test "circular alias should be detected"
 fi
 
 echo "Testing Unicode and special characters..."
@@ -217,7 +217,7 @@ printf '\x00\x01\x02\xFF' | "$CJSH_PATH" -c "cat" >/tmp/binary_test.out 2>&1
 if [ $? -eq 0 ]; then
     pass_test "binary data handling"
 else
-    skip_test "binary data handling"
+    fail_test "binary data handling"
 fi
 
 echo "Testing paths with spaces..."
@@ -242,7 +242,7 @@ echo "Testing exit code preservation..."
 if [ $? -eq 0 ] && grep -q "1" /tmp/exit_code_test.out; then
     pass_test "exit code preservation"
 else
-    skip_test "exit code preservation"
+    fail_test "exit code preservation"
 fi
 
 rm -f /tmp/empty_cmd_test.out /tmp/whitespace_cmd_test.out /tmp/long_cmd_test.out

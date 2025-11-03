@@ -75,14 +75,14 @@ OUTPUT=$("$CJSH_PATH" -c 'if false; then echo outer_then; else if false; then ec
 if [ "$OUTPUT" = "inner_elif" ]; then
     pass_test "nested elif inside else"
 else
-    skip_test "nested elif inside else (nested elif in single-line format not yet supported)"
+    fail_test "nested elif inside else (got: '$OUTPUT', expected 'inner_elif')"
 fi
 
 OUTPUT=$("$CJSH_PATH" -c "test_func() { return 1; }; other_func() { return 0; }; if test_func; then echo func_if; elif other_func; then echo func_elif; else echo func_else; fi")
 if [ "$OUTPUT" = "func_elif" ]; then
     pass_test "elif evaluates functions"
 else
-    skip_test "elif evaluates functions (functions may not be supported)"
+    fail_test "elif evaluates functions (got: '$OUTPUT', expected 'func_elif')"
 fi
 
 OUTPUT=$("$CJSH_PATH" -c 'if false; then
@@ -102,7 +102,7 @@ OUTPUT=$("$CJSH_PATH" -c 'A=1; B=2; if [ $A -eq 2 ]; then echo first; elif [ $A 
 if [ "$OUTPUT" = "compound" ]; then
     pass_test "elif with compound conditions"
 else
-    skip_test "elif with compound conditions (compound conditions with && in single-line if not yet supported)"
+    fail_test "elif with compound conditions (got: '$OUTPUT', expected 'compound')"
 fi
 
 if "$CJSH_PATH" -c "if true; then echo ok; elif; then echo bad; fi" 2>/dev/null; then

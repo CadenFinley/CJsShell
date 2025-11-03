@@ -58,7 +58,7 @@ OUT=$("$CJSH_PATH" -c "STR='hello world'; echo \${STR: -5}")
 if [ "$OUT" = "world" ]; then
     pass_test "substring negative offset"
 else
-    skip_test "substring negative offset (got '$OUT', may not be supported)"
+    fail_test "substring negative offset (got '$OUT', expected 'world')"
 fi
 
 OUT=$("$CJSH_PATH" -c "PATH='/usr/local/bin'; echo \${PATH#/*/}")
@@ -165,43 +165,43 @@ OUT=$("$CJSH_PATH" -c "STR='hello'; echo \${STR^^}" 2>/dev/null)
 if [ "$OUT" = "HELLO" ]; then
     pass_test "uppercase conversion"
 elif [ "$OUT" = "hello" ]; then
-    skip_test "uppercase conversion not supported"
+    fail_test "uppercase conversion not supported"
 else
-    skip_test "uppercase conversion (got '$OUT')"
+    fail_test "uppercase conversion (got '$OUT', expected 'HELLO')"
 fi
 
 OUT=$("$CJSH_PATH" -c "STR='HELLO'; echo \${STR,,}" 2>/dev/null)
 if [ "$OUT" = "hello" ]; then
     pass_test "lowercase conversion"
 elif [ "$OUT" = "HELLO" ]; then
-    skip_test "lowercase conversion not supported"
+    fail_test "lowercase conversion not supported"
 else
-    skip_test "lowercase conversion (got '$OUT')"
+    fail_test "lowercase conversion (got '$OUT', expected 'hello')"
 fi
 
 OUT=$("$CJSH_PATH" -c "STR='hello world'; echo \${STR^}" 2>/dev/null)
 if [ "$OUT" = "Hello world" ]; then
     pass_test "first character uppercase"
 elif [ "$OUT" = "hello world" ]; then
-    skip_test "first char uppercase not supported"
+    fail_test "first char uppercase not supported"
 else
-    skip_test "first char uppercase (got '$OUT')"
+    fail_test "first char uppercase (got '$OUT', expected 'Hello world')"
 fi
 
 OUT=$("$CJSH_PATH" -c "STR='HELLO WORLD'; echo \${STR,}" 2>/dev/null)
 if [ "$OUT" = "hELLO WORLD" ]; then
     pass_test "first character lowercase"
 elif [ "$OUT" = "HELLO WORLD" ]; then
-    skip_test "first char lowercase not supported"
+    fail_test "first char lowercase not supported"
 else
-    skip_test "first char lowercase (got '$OUT')"
+    fail_test "first char lowercase (got '$OUT', expected 'hELLO WORLD')"
 fi
 
 OUT=$("$CJSH_PATH" -c "A=hello; B=A; echo \${!B}")
 if [ "$OUT" = "hello" ]; then
     pass_test "indirect expansion"
 else
-    skip_test "indirect expansion (got '$OUT', may not be supported)"
+    fail_test "indirect expansion (got '$OUT', expected 'hello')"
 fi
 
 OUT=$("$CJSH_PATH" -c "STR='a:b:c'; echo \${STR//:/ }")

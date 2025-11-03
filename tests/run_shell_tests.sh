@@ -38,23 +38,23 @@ if [ ! -x "$CJSH" ]; then
 fi
 
 
-echo "Checking for existing cjsh processes..."
-EXISTING_CJSH=$(pgrep -f "cjsh" 2>/dev/null || true)
-if [ -n "$EXISTING_CJSH" ]; then
-    echo "${RED}Error: Found running cjsh process(es): $EXISTING_CJSH${NC}"
-    echo "Please terminate any running cjsh instances before running tests."
-    echo "You can use: pkill -f cjsh"
-    exit 1
-else
-    echo "No existing cjsh processes found."
-fi
+# echo "Checking for existing cjsh processes..."
+# EXISTING_CJSH=$(pgrep -f "cjsh" 2>/dev/null || true)
+# if [ -n "$EXISTING_CJSH" ]; then
+#     echo "${RED}Error: Found running cjsh process(es): $EXISTING_CJSH${NC}"
+#     echo "Please terminate any running cjsh instances before running tests."
+#     echo "You can use: pkill -f cjsh"
+#     exit 1
+# else
+#     echo "No existing cjsh processes found."
+# fi
 
-echo "${BLUE}Running CJ's Shell Test Suite${NC}"
-echo "${BLUE}=============================${NC}"
-echo "Testing binary: $CJSH"
-echo "Includes comprehensive POSIX compliance tests"
-echo "This can take a second to complete. Hold tight."
-echo ""
+# echo "${BLUE}Running CJ's Shell Test Suite${NC}"
+# echo "${BLUE}=============================${NC}"
+# echo "Testing binary: $CJSH"
+# echo "Includes comprehensive POSIX compliance tests"
+# echo "This can take a second to complete. Hold tight."
+# echo ""
 
 
 discover_test_files() {
@@ -132,15 +132,15 @@ run_test() {
 }
 
 
-echo "${YELLOW}=== Running All Shell Tests ===${NC}"
+# echo "${YELLOW}=== Running All Shell Tests ===${NC}"
 test_list=$(discover_test_files)
 for test_name in $test_list; do
     run_test "$test_name"
 done
 
 echo ""
-echo "${BLUE}Test Summary${NC}"
-echo "${BLUE}============${NC}"
+# echo "${BLUE}Test Summary${NC}"
+# echo "${BLUE}============${NC}"
 echo "Total individual tests: $TOTAL_TESTS"
 echo "${GREEN}Passed: $TESTS_PASS${NC}"
 if [ $TESTS_FAIL -gt 0 ]; then
