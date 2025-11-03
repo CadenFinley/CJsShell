@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <functional>
 #include <string>
 #include <unordered_map>
@@ -36,10 +37,14 @@ void collect_spell_correction_candidates(
             continue;
         }
 
+        size_t longer_length = std::max(normalized_candidate.length(), normalized_prefix.length());
+        int max_distance = longer_length >= 6 ? 3 : 2;
+
         bool is_transposition_match =
             is_adjacent_transposition(normalized_candidate, normalized_prefix);
-        int distance = compute_edit_distance_with_limit(normalized_candidate, normalized_prefix, 2);
-        if (!is_transposition_match && distance > 2) {
+        int distance =
+            compute_edit_distance_with_limit(normalized_candidate, normalized_prefix, max_distance);
+        if (!is_transposition_match && distance > max_distance) {
             continue;
         }
 
