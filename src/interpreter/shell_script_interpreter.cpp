@@ -344,6 +344,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
 
                 } else {
                     std::vector<std::string> expanded_args = std::move(parsed_args);
+                    if (expanded_args.empty() && !c.args.empty()) {
+                        expanded_args = c.args;
+                    }
                     if (expanded_args.empty())
                         return 0;
 

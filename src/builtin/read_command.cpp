@@ -1,6 +1,7 @@
 #include "read_command.h"
 #include <unistd.h>
 #include <cerrno>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -40,6 +41,10 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
         print_error({ErrorType::RUNTIME_ERROR, "read", "internal error - no shell context", {}});
         return 1;
     }
+
+    // Reset stream state in case previous commands left stdin at EOF.
+    std::cin.clear();
+    clearerr(stdin);
 
     bool raw_mode = false;
     int nchars = -1;

@@ -835,6 +835,137 @@ bool validate_array_index_expression(const std::string& index_text, std::string&
     return true;
 }
 
+bool find_embedded_loop_keyword(const std::string& line, const std::string& keyword,
+                                size_t& position_out) {
+    bool found = false;
+    for_each_effective_char(
+        line, false, false,
+        [&](size_t index, char c, QuoteState&, size_t& next_index) -> IterationAction {
+            if (index == 0 || c != keyword[0]) {
+                return IterationAction::Continue;
+            }
+            if (index + keyword.size() > line.size()) {
+                return IterationAction::Continue;
+            }
+            if (line.compare(index, keyword.size(), keyword) != 0) {
+                return IterationAction::Continue;
+            }
+
+            char previous = line[index - 1];
+            bool prefix_ok = (std::isspace(static_cast<unsigned char>(previous)) != 0) ||
+                             previous == '|' || previous == ';' || previous == '&' ||
+                             previous == '(' || previous == '{';
+            if (!prefix_ok) {
+                return IterationAction::Continue;
+            }
+
+            size_t after = index + keyword.size();
+            if (after < line.size()) {
+                char next_char = line[after];
+                if (!(std::isspace(static_cast<unsigned char>(next_char)) != 0 ||
+                      next_char == '(')) {
+                    return IterationAction::Continue;
+                }
+            }
+
+            position_out = index;
+            next_index = index + keyword.size() - 1;
+            found = true;
+            return IterationAction::Break;
+        });
+    return found;
+}
+
+bool has_inline_loop_terminator(const std::string& line, const std::string& terminator) {
+    bool found = false;
+    for_each_effective_char(
+        line, false, false,
+        [&](size_t index, char c, QuoteState&, size_t& next_index) -> IterationAction {
+            if (c != terminator[0]) {
+                return IterationAction::Continue;
+            }
+            if (index + terminator.size() > line.size()) {
+                return IterationAction::Continue;
+            }
+            if (line.compare(index, terminator.size(), terminator) != 0) {
+                return IterationAction::Continue;
+            }
+
+            bool prefix_ok = (index == 0);
+            if (!prefix_ok) {
+                char prev = line[index - 1];
+                prefix_ok = (std::isspace(static_cast<unsigned char>(prev)) != 0) || prev == ';' ||
+                            prev == '(' || prev == '{' || prev == '|' || prev == '&';
+            }
+
+            size_t after = index + terminator.size();
+            bool suffix_ok = false;
+            if (after >= line.size()) {
+                suffix_ok = true;
+            } else {
+                char next_char = line[after];
+                suffix_ok = (std::isspace(static_cast<unsigned char>(next_char)) != 0) ||
+                            next_char == ';' || next_char == ')' || next_char == '}' ||
+                            next_char == '|' || next_char == '&';
+            }
+
+            if (prefix_ok && suffix_ok) {
+                found = true;
+                next_index = index + terminator.size() - 1;
+                return IterationAction::Break;
+            }
+            return IterationAction::Continue;
+        });
+    return found;
+}
+
+bool handle_embedded_loop_header(
+    const std::string& trimmed_line, size_t display_line,
+    std::vector<std::tuple<std::string, std::string, size_t>>& control_stack) {
+    auto try_keyword = [&](const std::string& keyword) -> bool {
+        size_t position = 0;
+        if (!find_embedded_loop_keyword(trimmed_line, keyword, position)) {
+            return false;
+        }
+
+        std::string remainder = trim(trimmed_line.substr(position));
+        auto [tokens, first_token] = tokenize_and_get_first(remainder);
+        if (first_token != keyword) {
+            return false;
+        }
+
+        if (has_inline_loop_terminator(remainder, "done")) {
+            return false;
+        }
+
+        if (keyword == "for") {
+            auto for_check = analyze_for_loop_syntax(tokens, remainder);
+            control_stack.push_back({"for", "for", display_line});
+            if (for_check.has_inline_do) {
+                std::get<0>(control_stack.back()) = "do";
+            }
+        } else {
+            auto loop_check = analyze_while_until_syntax(keyword, remainder, tokens);
+            control_stack.push_back({keyword, keyword, display_line});
+            if (loop_check.has_inline_do) {
+                std::get<0>(control_stack.back()) = "do";
+            }
+        }
+        return true;
+    };
+
+    if (try_keyword("while")) {
+        return true;
+    }
+    if (try_keyword("until")) {
+        return true;
+    }
+    if (try_keyword("for")) {
+        return true;
+    }
+    return false;
+}
+
 }  // namespace
 
 std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validate_script_syntax(
@@ -1075,6 +1206,8 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                    handle_inline_loop_header(trimmed_for_parsing, "for", display_line,
                                              control_stack)) {
         } else {
+            handle_embedded_loop_header(trimmed_for_parsing, display_line, control_stack);
+
             auto tokens = tokenize_whitespace(trimmed_for_parsing);
 
             if (!tokens.empty()) {

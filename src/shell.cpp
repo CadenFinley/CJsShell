@@ -20,6 +20,7 @@
 #include "exec.h"
 #include "isocline.h"
 #include "job_control.h"
+#include "shell_env.h"
 #include "shell_script_interpreter.h"
 #include "theme.h"
 #include "trap_command.h"
@@ -356,8 +357,79 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
         }
     }
 
-    if (!args.empty() && (built_ins->is_builtin_command(args[0]) != 0)) {
-        int code = built_ins->builtin_command(args);
+    std::vector<std::pair<std::string, std::string>> env_assignments;
+    size_t cmd_start_idx = cjsh_env::collect_env_assignments(args, env_assignments);
+    std::vector<std::string> command_args;
+    if (cmd_start_idx < args.size()) {
+        command_args.assign(std::next(args.begin(), static_cast<std::ptrdiff_t>(cmd_start_idx)),
+                            args.end());
+    }
+    const bool has_temporary_env = !env_assignments.empty() && !command_args.empty();
+
+    if (!command_args.empty() && (built_ins->is_builtin_command(command_args[0]) != 0)) {
+        int code = 0;
+
+        if (has_temporary_env) {
+            struct SavedEnvState {
+                std::string name;
+                bool had_env = false;
+                std::string env_value;
+                bool had_map = false;
+                std::string map_value;
+            };
+
+            auto& env_map = get_env_vars();
+            std::vector<SavedEnvState> saved_states;
+            saved_states.reserve(env_assignments.size());
+
+            auto apply_assignments = [&]() {
+                for (const auto& [name, value] : env_assignments) {
+                    SavedEnvState state;
+                    state.name = name;
+                    if (const char* existing = std::getenv(name.c_str())) {
+                        state.had_env = true;
+                        state.env_value = existing;
+                    }
+                    auto map_it = env_map.find(name);
+                    if (map_it != env_map.end()) {
+                        state.had_map = true;
+                        state.map_value = map_it->second;
+                    }
+
+                    setenv(name.c_str(), value.c_str(), 1);
+                    env_map[name] = value;
+                    saved_states.push_back(std::move(state));
+                }
+                if (shell_parser) {
+                    shell_parser->set_env_vars(env_map);
+                }
+            };
+
+            auto restore_assignments = [&]() {
+                for (auto it = saved_states.rbegin(); it != saved_states.rend(); ++it) {
+                    if (it->had_env) {
+                        setenv(it->name.c_str(), it->env_value.c_str(), 1);
+                    } else {
+                        unsetenv(it->name.c_str());
+                    }
+
+                    if (it->had_map) {
+                        env_map[it->name] = it->map_value;
+                    } else {
+                        env_map.erase(it->name);
+                    }
+                }
+                if (shell_parser) {
+                    shell_parser->set_env_vars(env_map);
+                }
+            };
+
+            apply_assignments();
+            code = built_ins->builtin_command(command_args);
+            restore_assignments();
+        } else {
+            code = built_ins->builtin_command(command_args);
+        }
         last_terminal_output_error = built_ins->get_last_error();
         if (should_invalidate_prompt_cache) {
             invalidate_prompt_caches();
@@ -366,8 +438,8 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
         return code;
     }
 
-    if (!run_in_background && args.size() == 1 && built_ins) {
-        const std::string& candidate = args[0];
+    if (!run_in_background && command_args.size() == 1 && built_ins) {
+        const std::string& candidate = command_args[0];
 
         bool has_alias = aliases.find(candidate) != aliases.end();
         bool is_builtin = built_ins->is_builtin_command(candidate) != 0;
