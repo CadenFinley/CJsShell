@@ -153,18 +153,17 @@ add_executable(cjsh ${CJSH_SOURCES})
 target_compile_features(cjsh PRIVATE cxx_std_17)
 
 set(CJSH_INCLUDE_DIRS
-    ${CMAKE_SOURCE_DIR}/include
-    ${CMAKE_SOURCE_DIR}/include/isocline
-    ${CMAKE_SOURCE_DIR}/include/builtin
-    ${CMAKE_SOURCE_DIR}/include/utils
-    ${CMAKE_SOURCE_DIR}/include/prompt
-    ${CMAKE_SOURCE_DIR}/include/prompt/modules
-    ${CMAKE_SOURCE_DIR}/include/interpreter
-    ${CMAKE_SOURCE_DIR}/include/parser
-    ${CMAKE_SOURCE_DIR}/include/unicode
-    ${CMAKE_SOURCE_DIR}/include/syntax_highlighter
-    ${CMAKE_SOURCE_DIR}/include/completions
-    ${CMAKE_SOURCE_DIR}/include/builtin/cjshopt
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/isocline
+    ${CMAKE_SOURCE_DIR}/src/builtin
+    ${CMAKE_SOURCE_DIR}/src/builtin/cjshopt
+    ${CMAKE_SOURCE_DIR}/src/utils
+    ${CMAKE_SOURCE_DIR}/src/prompt
+    ${CMAKE_SOURCE_DIR}/src/prompt/modules
+    ${CMAKE_SOURCE_DIR}/src/interpreter
+    ${CMAKE_SOURCE_DIR}/src/parser
+    ${CMAKE_SOURCE_DIR}/src/syntax_highlighter
+    ${CMAKE_SOURCE_DIR}/src/completions
 )
 
 target_include_directories(cjsh PRIVATE ${CJSH_INCLUDE_DIRS})
