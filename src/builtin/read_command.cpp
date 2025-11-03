@@ -42,7 +42,6 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
         return 1;
     }
 
-    // Reset stream state in case previous commands left stdin at EOF.
     std::cin.clear();
     clearerr(stdin);
 
