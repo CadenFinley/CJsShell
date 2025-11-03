@@ -182,15 +182,10 @@ void process_command_candidates(
 
 bool iterate_directory_entries(ic_completion_env_t* cenv, const std::filesystem::path& dir_path,
                                const std::string& match_prefix, bool directories_only,
-                               size_t max_completions, bool skip_hidden_without_prefix,
-                               const char* debug_label) {
+                               bool skip_hidden_without_prefix, const char* debug_label) {
     namespace fs = std::filesystem;
-    size_t completion_count = 0;
     std::string limit_label = std::string(debug_label) + " completion";
     for (const auto& entry : fs::directory_iterator(dir_path)) {
-        if (completion_count >= max_completions) {
-            break;
-        }
         if (ic_stop_completing(cenv))
             return false;
         if (completion_tracker::completion_limit_hit_with_log(limit_label.c_str()))
@@ -209,7 +204,6 @@ bool iterate_directory_entries(ic_completion_env_t* cenv, const std::filesystem:
         std::string completion_suffix = build_completion_suffix(entry);
         if (!add_path_completion(cenv, entry, delete_before, completion_suffix))
             return false;
-        ++completion_count;
         if (ic_stop_completing(cenv))
             return false;
     }
@@ -614,8 +608,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
 
         try {
             if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
-                if (!iterate_directory_entries(cenv, dir_path, match_prefix, false, 30, false,
-                                               "tilde"))
+                if (!iterate_directory_entries(cenv, dir_path, match_prefix, false, false, "tilde"))
                     return;
             }
         } catch (const std::exception& e) {
@@ -645,8 +638,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
 
         try {
             if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
-                if (!iterate_directory_entries(cenv, dir_path, match_prefix, false, 30, false,
-                                               "dash"))
+                if (!iterate_directory_entries(cenv, dir_path, match_prefix, false, false, "dash"))
                     return;
             }
         } catch (const std::exception& e) {
@@ -713,12 +705,12 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
         try {
             if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
                 bool had_completions_before = ic_has_completions(cenv);
-                if (!iterate_directory_entries(cenv, dir_path, "", directories_only, 30, false,
+                if (!iterate_directory_entries(cenv, dir_path, "", directories_only, false,
                                                "all files"))
                     return;
 
                 if (directories_only && !ic_has_completions(cenv) && !had_completions_before) {
-                    if (!iterate_directory_entries(cenv, dir_path, "", false, 30, false,
+                    if (!iterate_directory_entries(cenv, dir_path, "", false, false,
                                                    "all files (fallback)"))
                         return;
                 }
@@ -740,12 +732,12 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
         try {
             if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
                 bool had_completions_before = ic_has_completions(cenv);
-                if (!iterate_directory_entries(cenv, dir_path, match_prefix, true, 30, true,
+                if (!iterate_directory_entries(cenv, dir_path, match_prefix, true, true,
                                                "directory-only"))
                     return;
 
                 if (!ic_has_completions(cenv) && !had_completions_before && match_prefix.empty()) {
-                    if (!iterate_directory_entries(cenv, dir_path, "", false, 30, true,
+                    if (!iterate_directory_entries(cenv, dir_path, "", false, true,
                                                    "all files (fallback)"))
                         return;
                 }
@@ -763,7 +755,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
 
         try {
             if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
-                if (!iterate_directory_entries(cenv, dir_path, match_prefix, false, 30, true,
+                if (!iterate_directory_entries(cenv, dir_path, match_prefix, false, true,
                                                "general filename"))
                     return;
             }
