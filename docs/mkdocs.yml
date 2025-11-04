@@ -3,6 +3,9 @@ site_description: 'A POSIX-based interactive shell with integrated modern featur
 site_author: 'Caden Finley'
 site_url: 'https://cadenfinley.github.io/CJsShell'
 
+docs_dir: '.'
+site_dir: '../site'
+
 repo_name: 'CadenFinley/CJsShell'
 repo_url: 'https://github.com/CadenFinley/CJsShell'
 edit_uri: 'edit/master/docs/'
@@ -109,3 +112,4 @@ extra:
       link: mailto:caden@cadenfinley.com
   version:
     provider: mike
+

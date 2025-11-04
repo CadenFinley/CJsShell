@@ -13,7 +13,7 @@ on:
       - 'themes/**'
       - '*.md'
       - 'LICENSE'
-      - 'mkdocs.yml'
+      - 'docs/mkdocs.yml'
   pull_request:
     branches:
       - master
@@ -23,7 +23,7 @@ on:
       - 'themes/**'
       - '*.md'
       - 'LICENSE'
-      - 'mkdocs.yml'
+      - 'docs/mkdocs.yml'
   workflow_dispatch:
 
 jobs:

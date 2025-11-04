@@ -6,7 +6,7 @@ on:
       - master
     paths:
       - 'docs/**'
-      - 'mkdocs.yml'
+      - 'docs/mkdocs.yml'
       - '.github/workflows/deploy-docs.yml'
   workflow_dispatch:
 
@@ -38,9 +38,7 @@ jobs:
       - name: Install MkDocs and dependencies
         run: |
           pip install --upgrade pip
-          pip install mkdocs-material
-          pip install mkdocs-mermaid2-plugin
-          pip install mkdocs-glightbox
+          pip install -r docs/requirements.txt
 
       - name: Deploy to GitHub Pages
-        run: mkdocs gh-deploy --force
+        run: mkdocs gh-deploy --force --config-file docs/mkdocs.yml
