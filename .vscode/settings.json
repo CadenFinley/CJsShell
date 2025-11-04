@@ -1,9 +1,0 @@
-{
-  "files.associations": {
-    "*.cjsh": "cjsh-theme",
-    ".cjshrc": "shellscript",
-    ".cjsh_logout": "shellscript",
-    ".cjprofile": "shellscript"
-  },
-  "vsintellicode.modify.editor.suggestSelection": "automaticallyOverrodeDefaultValue"
-}
