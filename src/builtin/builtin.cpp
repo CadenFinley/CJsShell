@@ -11,7 +11,6 @@
 
 #include "abbr_command.h"
 #include "alias_command.h"
-#include "bookmark_database.h"
 #include "cd_command.h"
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
@@ -62,52 +61,6 @@
 Built_ins::Built_ins() : shell(nullptr) {
     builtins.reserve(32);
 
-    auto load_result = bookmark_database::g_bookmark_db.load();
-    if (load_result.is_error()) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     "bookmark",
-                     "Failed to load bookmark database: " + load_result.error(),
-                     {}});
-    } else {
-        auto cleanup_result =
-            bookmark_database::g_bookmark_db.cleanup_invalid_bookmarks_with_count();
-        if (cleanup_result.is_error()) {
-            print_error({ErrorType::RUNTIME_ERROR,
-                         "bookmark",
-                         "Failed to cleanup invalid bookmarks: " + cleanup_result.error(),
-                         {}});
-        } else {
-            int removed_count = cleanup_result.value();
-            if (removed_count > 0) {
-                auto save_result = bookmark_database::g_bookmark_db.save();
-                if (save_result.is_error()) {
-                    print_error({ErrorType::RUNTIME_ERROR,
-                                 "bookmark",
-                                 "Failed to save cleaned bookmark database: " + save_result.error(),
-                                 {}});
-                }
-            }
-        }
-    }
-
-    if (!directory_bookmarks.empty()) {
-        auto import_result = bookmark_database::g_bookmark_db.import_from_map(directory_bookmarks);
-        if (import_result.is_error()) {
-            print_error({ErrorType::RUNTIME_ERROR,
-                         "bookmark",
-                         "Failed to import existing bookmarks: " + import_result.error(),
-                         {}});
-        } else {
-            auto save_result = bookmark_database::g_bookmark_db.save();
-            if (save_result.is_error()) {
-                print_error({ErrorType::RUNTIME_ERROR,
-                             "bookmark",
-                             "Failed to save imported bookmarks: " + save_result.error(),
-                             {}});
-            }
-        }
-    }
-
     builtins = {
         {"echo", [](const std::vector<std::string>& args) { return ::echo_command(args); }},
         {"printf", [](const std::vector<std::string>& args) { return ::printf_command(args); }},
@@ -128,14 +81,8 @@ Built_ins::Built_ins() : shell(nullptr) {
                  print_error(error);
                  return 2;
              }
-             if (config::smart_cd_enabled && !g_startup_active) {
-                 return ::change_directory_smart(args.size() > 1 ? args[1] : "", current_directory,
-                                                 previous_directory, last_terminal_output_error,
-                                                 shell);
-             } else {
-                 return ::change_directory(args.size() > 1 ? args[1] : "", current_directory,
-                                           previous_directory, last_terminal_output_error, shell);
-             }
+             return ::change_directory(args.size() > 1 ? args[1] : "", current_directory,
+                                       previous_directory, last_terminal_output_error, shell);
          }},
         {"local",
          [this](const std::vector<std::string>& args) { return ::local_command(args, shell); }},
@@ -285,13 +232,6 @@ Built_ins::Built_ins() : shell(nullptr) {
 }
 
 Built_ins::~Built_ins() {
-    auto save_result = bookmark_database::g_bookmark_db.save();
-    if (save_result.is_error()) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     "bookmark",
-                     "Failed to save bookmark database: " + save_result.error(),
-                     {}});
-    }
 }
 
 void Built_ins::set_shell(Shell* shell_ptr) {
@@ -339,8 +279,8 @@ int Built_ins::builtin_command(const std::vector<std::string>& args) {
     auto it = builtins.find(args[0]);
     if (it != builtins.end()) {
         if (args[0] == "cd" && args.size() == 1) {
-            return ::change_directory_smart("", current_directory, previous_directory,
-                                            last_terminal_output_error);
+            return ::change_directory("", current_directory, previous_directory,
+                                      last_terminal_output_error, shell);
         }
         int status = it->second(args);
         return status;
@@ -359,39 +299,4 @@ int Built_ins::is_builtin_command(const std::string& cmd) const {
     }
 
     return builtins.find(cmd) != builtins.end();
-}
-
-void Built_ins::add_directory_bookmark(const std::string& dir_path) {
-    std::filesystem::path path(dir_path);
-    std::string basename = path.filename().string();
-    if (!basename.empty() && basename != "." && basename != "..") {
-        auto result = bookmark_database::g_bookmark_db.add_bookmark(basename, dir_path);
-        if (result.is_error()) {
-            print_error({ErrorType::RUNTIME_ERROR,
-                         "bookmark",
-                         "Failed to add bookmark: " + result.error(),
-                         {}});
-        } else {
-            directory_bookmarks[basename] = dir_path;
-        }
-    }
-}
-
-std::string Built_ins::find_bookmark_path(const std::string& bookmark_name) const {
-    auto bookmark_path = bookmark_database::g_bookmark_db.get_bookmark(bookmark_name);
-    if (bookmark_path.has_value()) {
-        return bookmark_path.value();
-    }
-
-    auto it = directory_bookmarks.find(bookmark_name);
-    if (it != directory_bookmarks.end()) {
-        return it->second;
-    }
-    return "";
-}
-
-const std::unordered_map<std::string, std::string>& Built_ins::get_directory_bookmarks() const {
-    const_cast<Built_ins*>(this)->directory_bookmarks =
-        bookmark_database::g_bookmark_db.get_all_bookmarks();
-    return directory_bookmarks;
 }

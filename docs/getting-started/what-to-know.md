@@ -82,14 +82,7 @@ cjshopt current-line-number-highlight on|off|status
 **Status:** Enabled  
 **Disable:** Run cjsh with `--no-smart-cd` or add `cjshopt login-startup-arg --no-smart-cd` to `~/.cjprofile`.
 
-Smart `cd` adds fuzzy directory matching and automatically records bookmarks. Manage bookmarks with:
-
-```bash
-cjshopt set-max-bookmarks <number>    # limit stored locations (10–1000, default 100)
-cjshopt bookmark-blacklist list       # inspect ignored paths
-cjshopt bookmark-blacklist add <path>
-cjshopt bookmark-blacklist remove <path>
-```
+Smart `cd` adds fuzzy directory matching for quick navigation between directories.
 
 ### Directory Listings
 cjsh leaves directory listing behavior up to your configuration. Add an `ls` wrapper, hook, or alias in `~/.cjshrc` if you prefer automatic listings after `cd`.

@@ -654,45 +654,6 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                (command_part.back() == ' ' || command_part.back() == '\t')) {
             command_part.pop_back();
         }
-
-        if (completion_utils::equals_completion_token(command_part, "cd") ||
-            completion_utils::starts_with_token(command_part, "cd ")) {
-            if (!config::smart_cd_enabled) {
-            } else {
-                if (g_shell && (g_shell->get_built_ins() != nullptr)) {
-                    const auto& bookmarks = g_shell->get_built_ins()->get_directory_bookmarks();
-                    std::string bookmark_match_prefix =
-                        completion_utils::unquote_path(special_part);
-
-                    for (const auto& bookmark : bookmarks) {
-                        const std::string& bookmark_name = bookmark.first;
-                        const std::string& bookmark_path = bookmark.second;
-
-                        if (bookmark_match_prefix.empty() ||
-                            completion_utils::matches_completion_prefix(bookmark_name,
-                                                                        bookmark_match_prefix)) {
-                            namespace fs = std::filesystem;
-                            if (fs::exists(bookmark_path) && fs::is_directory(bookmark_path)) {
-                                std::string current_dir_item = "./" + bookmark_name;
-                                if (fs::exists(current_dir_item) &&
-                                    fs::is_directory(current_dir_item)) {
-                                    continue;
-                                }
-
-                                long delete_before = static_cast<long>(special_part.length());
-
-                                std::string completion_text = bookmark_name;
-
-                                if (!completion_tracker::safe_add_completion_prim_with_source(
-                                        cenv, completion_text.c_str(), nullptr, nullptr,
-                                        bookmark_path.c_str(), delete_before, 0))
-                                    return;
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 
     const bool has_command_prefix = !prefix_before.empty();

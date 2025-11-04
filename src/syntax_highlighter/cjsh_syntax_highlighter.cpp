@@ -327,22 +327,9 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
                         ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
                                      static_cast<long>(arg_end - arg_start), "cjsh-path-exists");
                     } else {
-                        bool is_bookmark = false;
-                        if (is_cd_command && g_shell && (g_shell->get_built_ins() != nullptr)) {
-                            const auto& bookmarks =
-                                g_shell->get_built_ins()->get_directory_bookmarks();
-                            is_bookmark = bookmarks.find(arg) != bookmarks.end();
-                        }
-
-                        if (is_bookmark) {
-                            ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
-                                         static_cast<long>(arg_end - arg_start),
-                                         "cjsh-path-exists");
-                        } else {
-                            ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
-                                         static_cast<long>(arg_end - arg_start),
-                                         "cjsh-path-not-exists");
-                        }
+                        ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
+                                     static_cast<long>(arg_end - arg_start),
+                                     "cjsh-path-not-exists");
                     }
                 }
             }

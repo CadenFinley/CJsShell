@@ -93,9 +93,6 @@ cjshopt visible-whitespace on|off     # Show whitespace markers
 #### Smart CD Command
 When `--no-smart-cd` is not specified, CJsShell's `cd` includes:
 - **Fuzzy Directory Matching**: Partial directory name completion
-- **Directory Bookmarks**: Automatic bookmarking of frequently visited directories
-- **Bookmark Management**: `cjshopt set-max-bookmarks <number>`
-- **Blacklisting**: `cjshopt bookmark-blacklist add <path>`
 
 ```bash
 # These features are POSIX+ (non-POSIX)
@@ -209,7 +206,6 @@ Beyond standard POSIX startup files:
 #### Runtime Configuration
 - **`~/.cache/cjsh/`**: Cache directory for shell data
 - **History Management**: Enhanced history with size limits
-- **Bookmark Database**: Persistent directory bookmarks
 
 ### Command-Line Flags (POSIX+ Extensions)
 

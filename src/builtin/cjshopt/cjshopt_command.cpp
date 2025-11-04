@@ -43,10 +43,7 @@ void print_cjshopt_usage() {
     std::cout << "  generate-profile [--force] [--alt]       Create or overwrite ~/.cjprofile\n";
     std::cout << "  generate-rc [--force] [--alt]            Create or overwrite ~/.cjshrc\n";
     std::cout << "  generate-logout [--force] [--alt]        Create or overwrite ~/.cjsh_logout\n";
-    std::cout << "  set-max-bookmarks <number>       Limit stored directory bookmarks\n";
     std::cout << "  set-history-max <number|default|status> Configure history persistence\n";
-    std::cout
-        << "  bookmark-blacklist <subcommand>  Manage directories excluded from bookmarking\n";
     std::cout << "Use 'cjshopt <subcommand> --help' to see usage for a specific subcommand.\n";
 }
 }  // namespace
@@ -103,9 +100,8 @@ int cjshopt_command(const std::vector<std::string>& args) {
                  "  generate-profile [--force] [--alt]       Create or overwrite ~/.cjprofile",
                  "  generate-rc [--force] [--alt]            Create or overwrite ~/.cjshrc",
                  "  generate-logout [--force] [--alt]        Create or overwrite ~/.cjsh_logout",
-                 "  set-max-bookmarks <number>       Limit stored directory bookmarks",
                  "  set-history-max <number|default|status> Configure history persistence",
-                 "  bookmark-blacklist <subcommand>  Manage directories excluded from bookmarking",
+
              }});
         return 1;
     }
@@ -171,25 +167,17 @@ int cjshopt_command(const std::vector<std::string>& args) {
     if (subcommand == "generate-logout") {
         return generate_logout_command(std::vector<std::string>(args.begin() + 1, args.end()));
     }
-    if (subcommand == "set-max-bookmarks") {
-        return set_max_bookmarks_command(std::vector<std::string>(args.begin() + 1, args.end()));
-    }
     if (subcommand == "set-history-max") {
         return set_history_max_command(std::vector<std::string>(args.begin() + 1, args.end()));
     }
-    if (subcommand == "bookmark-blacklist") {
-        return bookmark_blacklist_command(std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-
     print_error(
         {ErrorType::INVALID_ARGUMENT,
          "cjshopt",
          "unknown subcommand '" + subcommand + "'",
          {"Available subcommands: style_def, login-startup-arg, completion-case, completion-spell, "
           "line-numbers, current-line-number-highlight, multiline-start-lines, hint-delay, "
-          "completion-preview, "
-          "visible-whitespace, hint, multiline-indent, multiline, inline-help, auto-tab, keybind, "
-          "generate-profile, "
-          "generate-rc, generate-logout, set-max-bookmarks, set-history-max, bookmark-blacklist"}});
+          "completion-preview, visible-whitespace, hint, multiline-indent, multiline, inline-help, "
+          "auto-tab, keybind, generate-profile, generate-rc, generate-logout, set-history-max"}});
+
     return 1;
 }

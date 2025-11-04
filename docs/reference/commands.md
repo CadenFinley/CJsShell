@@ -13,7 +13,7 @@ cd [directory]
 
 - Use `cd` without arguments to go to home directory
 - Use `cd -` to switch to the previous directory
-- Smart CD is enabled by default with fuzzy matching and bookmark support
+- Smart CD is enabled by default with fuzzy matching
 
 ### pwd
 Print the current working directory.
@@ -503,9 +503,7 @@ Available subcommands:
 - `generate-profile` - Create or overwrite ~/.cjprofile (use `--alt` for `~/.config/cjsh/.cjprofile`)
 - `generate-rc` - Create or overwrite ~/.cjshrc (use `--alt` for `~/.config/cjsh/.cjshrc`)
 - `generate-logout` - Create or overwrite ~/.cjsh_logout (use `--alt` for `~/.config/cjsh/.cjsh_logout`)
-- `set-max-bookmarks` - Limit stored directory bookmarks
 - `set-history-max` - Configure history persistence limits
-- `bookmark-blacklist` - Manage directories excluded from bookmarking
 
 ### cjsh-widget
 Interact with the embedded line editor (isocline) to drive advanced key bindings.
@@ -803,25 +801,6 @@ Key subcommands include:
 
 Key specifications accept pipe (`|`) separated alternatives, so `Ctrl+K|Ctrl+X` is a single argument covering both sequences. Place commands like `cjshopt keybind set cursor-left "Ctrl+H"` in `~/.cjshrc` to keep them between sessions.
 
-#### set-max-bookmarks
-
-Control how many directory bookmarks the smart `cd` feature retains.
-
-```bash
-cjshopt set-max-bookmarks <number>
-```
-
-- Valid range: **10 – 1000**
-- Default: **100**
-
-Examples:
-
-```bash
-cjshopt set-max-bookmarks 200
-```
-
-Persist the limit by adding the command to `~/.cjshrc`.
-
 #### set-history-max
 
 Adjust the number of entries stored in the persistent history file.
@@ -845,28 +824,3 @@ cjshopt set-history-max status   # Show the current limit
 
 Commands added to `~/.cjshrc` are applied automatically at startup.
 
-#### bookmark-blacklist
-
-Manage a list of directories that should never be bookmarked by the smart `cd` feature. Adding a path automatically removes any existing bookmarks that point to it.
-
-```bash
-cjshopt bookmark-blacklist <subcommand> [path]
-```
-
-Available subcommands:
-- `add <path>` - Add a directory to the blacklist
-- `remove <path>` - Remove a directory from the blacklist
-- `list` - Display all blacklisted directories
-- `clear` - Remove every entry from the blacklist
-
-Examples:
-
-```bash
-cjshopt bookmark-blacklist add /tmp
-cjshopt bookmark-blacklist add ~/.cache
-cjshopt bookmark-blacklist list
-cjshopt bookmark-blacklist remove /tmp
-cjshopt bookmark-blacklist clear
-```
-
-This is ideal for keeping temporary or system directories out of your bookmark suggestions. Add the relevant commands to `~/.cjshrc` to keep the blacklist synchronized between sessions.

@@ -82,9 +82,6 @@ See the [Editing Guide](editing.md) for all available options and detailed usage
 Enhanced `cd` command with intelligent features:
 
 - Fuzzy directory matching
-- Directory bookmarks
-- Adjustable bookmark limit with `cjshopt set-max-bookmarks`
-- Blacklist unwanted locations via `cjshopt bookmark-blacklist`
 - Previous directory switching with `cd -`
 - Can be disabled with `--no-smart-cd` flag
 

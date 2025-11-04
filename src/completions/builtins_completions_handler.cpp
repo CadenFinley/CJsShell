@@ -335,9 +335,7 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                  make_subcommand("generate-profile", "Generate ~/.cjprofile"),
                  make_subcommand("generate-rc", "Generate ~/.cjshrc"),
                  make_subcommand("generate-logout", "Generate ~/.cjsh_logout"),
-                 make_subcommand("set-max-bookmarks", "Limit stored directory bookmarks"),
-                 make_subcommand("set-history-max", "Configure history persistence"),
-                 make_subcommand("bookmark-blacklist", "Manage bookmark exclusions")});
+                 make_subcommand("set-history-max", "Configure history persistence")});
 
         add_doc("cjshopt-style_def", "Define or reset syntax styles",
                 {make_option("--reset", "Reset all highlight styles to defaults")});
@@ -361,8 +359,6 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_doc("cjshopt-hint-delay", "Adjust inline hint delay",
                 {make_subcommand("status", "Show the current delay in milliseconds"),
                  make_option("--status", "Show the current delay in milliseconds")});
-
-        add_doc("cjshopt-set-max-bookmarks", "Limit stored directory bookmarks", {});
 
         add_doc("cjshopt-set-history-max", "Configure history persistence",
                 {make_subcommand("default", "Restore the default history limit"),
@@ -455,12 +451,6 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                  make_subcommand("status", "Show current setting")});
         add_doc("cjshopt-multiline-start-lines", "",
                 {make_subcommand("status", "Show current multiline height")});
-        add_doc("cjshopt-bookmark-blacklist", "",
-                {make_subcommand("add", "Add a directory to the blacklist"),
-                 make_subcommand("remove", "Remove a directory from the blacklist"),
-                 make_subcommand("list", "List blacklisted directories"),
-                 make_subcommand("clear", "Clear the blacklist")});
-
         return map;
     }();
     return docs;
