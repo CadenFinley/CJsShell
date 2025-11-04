@@ -10,6 +10,12 @@
 
 #include "command_utils.h"
 
+bool CachedVersion::is_valid() const {
+    auto now = std::chrono::steady_clock::now();
+    auto age = std::chrono::duration_cast<std::chrono::seconds>(now - timestamp);
+    return age.count() < 300;
+}
+
 namespace {
 
 std::unordered_map<std::string, CachedVersion> version_cache;

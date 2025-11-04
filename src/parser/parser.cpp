@@ -32,6 +32,43 @@
 #include "tokenizer.h"
 #include "variable_expander.h"
 
+Command::Command() {
+    args.reserve(8);
+    process_substitutions.reserve(2);
+    fd_redirections.reserve(2);
+    fd_duplications.reserve(2);
+}
+
+void Command::set_fd_redirection(int fd, std::string value) {
+    auto it = std::find_if(fd_redirections.begin(), fd_redirections.end(),
+                           [fd](const auto& entry) { return entry.first == fd; });
+    if (it != fd_redirections.end()) {
+        it->second = std::move(value);
+    } else {
+        fd_redirections.emplace_back(fd, std::move(value));
+    }
+}
+
+void Command::set_fd_duplication(int fd, int target) {
+    auto it = std::find_if(fd_duplications.begin(), fd_duplications.end(),
+                           [fd](const auto& entry) { return entry.first == fd; });
+    if (it != fd_duplications.end()) {
+        it->second = target;
+    } else {
+        fd_duplications.emplace_back(fd, target);
+    }
+}
+
+bool Command::has_fd_redirection(int fd) const {
+    return std::any_of(fd_redirections.begin(), fd_redirections.end(),
+                       [fd](const auto& entry) { return entry.first == fd; });
+}
+
+bool Command::has_fd_duplication(int fd) const {
+    return std::any_of(fd_duplications.begin(), fd_duplications.end(),
+                       [fd](const auto& entry) { return entry.first == fd; });
+}
+
 namespace {
 
 bool is_simple_command_candidate(std::string_view cmdline) {
@@ -201,6 +238,22 @@ void Parser::ensure_parsers_initialized() {
     if (!expansionEngine) {
         expansionEngine = std::make_unique<ExpansionEngine>(shell);
     }
+}
+
+void Parser::set_command_validation_enabled(bool enabled) {
+    command_validation_enabled = enabled;
+}
+
+bool Parser::get_command_validation_enabled() const {
+    return command_validation_enabled;
+}
+
+void Parser::set_aliases(const std::unordered_map<std::string, std::string>& new_aliases) {
+    aliases = new_aliases;
+}
+
+void Parser::set_env_vars(const std::unordered_map<std::string, std::string>& new_env_vars) {
+    env_vars = new_env_vars;
 }
 
 void Parser::set_shell(Shell* shell) {

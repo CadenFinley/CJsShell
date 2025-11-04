@@ -25,19 +25,13 @@ class VariableManager {
     bool is_local_variable(const std::string& name) const;
     bool unset_local_variable(const std::string& name);
     void mark_local_as_exported(const std::string& name);
-    bool in_function_scope() const {
-        return !local_variable_stack.empty();
-    }
+    bool in_function_scope() const;
 
     std::string get_variable_value(const std::string& var_name) const;
     bool variable_is_set(const std::string& var_name) const;
 
-    const VariableStack& get_local_stack() const {
-        return local_variable_stack;
-    }
-    VariableStack& get_local_stack() {
-        return local_variable_stack;
-    }
+    const VariableStack& get_local_stack() const;
+    VariableStack& get_local_stack();
 
    private:
     VariableStack local_variable_stack;

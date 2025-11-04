@@ -140,36 +140,27 @@ bool command_exists(const std::string& command_path);
 bool resolves_to_executable(const std::string& name, const std::string& cwd);
 bool path_is_directory_candidate(const std::string& value, const std::string& cwd);
 
-const fs::path g_user_home_path = []() {
-    const char* home = std::getenv("HOME");
-    if (!home || home[0] == '\0') {
-        std::cerr << "Warning: HOME environment variable not set or empty. Using "
-                     "/tmp as fallback."
-                  << '\n';
-        return fs::path("/tmp");
-    }
-    return fs::path(home);
-}();
+extern const fs::path g_user_home_path;
 
 extern fs::path g_cjsh_path;
 
-const fs::path g_cjsh_config_path = g_user_home_path / ".config" / "cjsh";
+extern const fs::path g_cjsh_config_path;
 
-const fs::path g_cjsh_cache_path = g_user_home_path / ".cache" / "cjsh";
+extern const fs::path g_cjsh_cache_path;
 
-const fs::path g_cjsh_profile_path = g_user_home_path / ".cjprofile";
-const fs::path g_cjsh_source_path = g_user_home_path / ".cjshrc";
-const fs::path g_cjsh_logout_path = g_user_home_path / ".cjsh_logout";
+extern const fs::path g_cjsh_profile_path;
+extern const fs::path g_cjsh_source_path;
+extern const fs::path g_cjsh_logout_path;
 
-const fs::path g_cjsh_profile_alt_path = g_cjsh_config_path / ".cjprofile";
-const fs::path g_cjsh_source_alt_path = g_cjsh_config_path / ".cjshrc";
-const fs::path g_cjsh_logout_alt_path = g_cjsh_config_path / ".cjsh_logout";
+extern const fs::path g_cjsh_profile_alt_path;
+extern const fs::path g_cjsh_source_alt_path;
+extern const fs::path g_cjsh_logout_alt_path;
 
-const fs::path g_cjsh_history_path = g_cjsh_cache_path / "history.txt";
+extern const fs::path g_cjsh_history_path;
 
-const fs::path g_cjsh_first_boot_path = g_cjsh_cache_path / ".first_boot";
+extern const fs::path g_cjsh_first_boot_path;
 
-const fs::path g_cjsh_generated_completions_path = g_cjsh_cache_path / "generated_completions";
+extern const fs::path g_cjsh_generated_completions_path;
 
 std::vector<std::string> get_executables_in_path();
 bool file_exists(const cjsh_filesystem::fs::path& path);

@@ -6,6 +6,34 @@
 const std::string SUBST_LITERAL_START = "\x1E__SUBST_LITERAL_START__\x1E";
 const std::string SUBST_LITERAL_END = "\x1E__SUBST_LITERAL_END__\x1E";
 
+bool is_hex_digit(char c) {
+    return std::isxdigit(static_cast<unsigned char>(c)) != 0;
+}
+
+bool is_char_escaped(const char* str, size_t pos) {
+    if (pos == 0) {
+        return false;
+    }
+    size_t backslash_count = 0;
+    size_t i = pos - 1;
+    while (true) {
+        if (str[i] == '\\') {
+            ++backslash_count;
+            if (i == 0) {
+                break;
+            }
+            --i;
+        } else {
+            break;
+        }
+    }
+    return (backslash_count % 2) == 1;
+}
+
+bool is_char_escaped(const std::string& str, size_t pos) {
+    return is_char_escaped(str.c_str(), pos);
+}
+
 std::string trim_trailing_whitespace(std::string s) {
     s.erase(s.find_last_not_of(" \t\n\r") + 1);
     return s;

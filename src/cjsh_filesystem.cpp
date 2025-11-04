@@ -32,6 +32,34 @@
 
 namespace cjsh_filesystem {
 
+const fs::path g_user_home_path = []() {
+    const char* home = std::getenv("HOME");
+    if (!home || home[0] == '\0') {
+        std::cerr << "Warning: HOME environment variable not set or empty. Using /tmp as fallback."
+                  << '\n';
+        return fs::path("/tmp");
+    }
+    return fs::path(home);
+}();
+
+const fs::path g_cjsh_config_path = g_user_home_path / ".config" / "cjsh";
+
+const fs::path g_cjsh_cache_path = g_user_home_path / ".cache" / "cjsh";
+
+const fs::path g_cjsh_profile_path = g_user_home_path / ".cjprofile";
+const fs::path g_cjsh_source_path = g_user_home_path / ".cjshrc";
+const fs::path g_cjsh_logout_path = g_user_home_path / ".cjsh_logout";
+
+const fs::path g_cjsh_profile_alt_path = g_cjsh_config_path / ".cjprofile";
+const fs::path g_cjsh_source_alt_path = g_cjsh_config_path / ".cjshrc";
+const fs::path g_cjsh_logout_alt_path = g_cjsh_config_path / ".cjsh_logout";
+
+const fs::path g_cjsh_history_path = g_cjsh_cache_path / "history.txt";
+
+const fs::path g_cjsh_first_boot_path = g_cjsh_cache_path / ".first_boot";
+
+const fs::path g_cjsh_generated_completions_path = g_cjsh_cache_path / "generated_completions";
+
 namespace {
 std::string describe_errno(int err) {
     return std::system_category().message(err);

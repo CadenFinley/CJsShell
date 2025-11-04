@@ -13,6 +13,35 @@
 #include "exec.h"
 #include "job_control.h"
 
+SignalMask::SignalMask(int signum) : active(false) {
+    sigset_t mask{};
+    sigemptyset(&mask);
+    sigaddset(&mask, signum);
+    if (sigprocmask(SIG_BLOCK, &mask, &old_mask) == 0) {
+        active = true;
+    }
+}
+
+SignalMask::SignalMask(const std::vector<int>& signals) : active(false) {
+    if (signals.empty()) {
+        return;
+    }
+    sigset_t mask{};
+    sigemptyset(&mask);
+    for (int sig : signals) {
+        sigaddset(&mask, sig);
+    }
+    if (sigprocmask(SIG_BLOCK, &mask, &old_mask) == 0) {
+        active = true;
+    }
+}
+
+SignalMask::~SignalMask() {
+    if (active) {
+        sigprocmask(SIG_SETMASK, &old_mask, nullptr);
+    }
+}
+
 std::atomic<SignalHandler*> SignalHandler::s_instance(nullptr);
 
 volatile sig_atomic_t SignalHandler::s_sigint_received = 0;

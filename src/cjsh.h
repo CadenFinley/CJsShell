@@ -6,14 +6,10 @@
 
 class Shell;
 
-const bool PRE_RELEASE = true;
-constexpr const char* c_version_base = "3.11.8";
+extern const bool PRE_RELEASE;
+extern const char* const c_version_base;
 
-inline std::string get_version() {
-    static std::string cached_version =
-        std::string(c_version_base) + (PRE_RELEASE ? " (pre-release)" : "");
-    return cached_version;
-}
+std::string get_version();
 
 #ifndef CJSH_GIT_HASH
 #define CJSH_GIT_HASH "unknown"
@@ -25,15 +21,9 @@ extern bool g_startup_active;
 class Shell;
 extern std::unique_ptr<Shell> g_shell;
 
-inline std::vector<std::string>& startup_args() {
-    static std::vector<std::string> args;
-    return args;
-}
+std::vector<std::string>& startup_args();
 
-inline std::vector<std::string>& profile_startup_args() {
-    static std::vector<std::string> args;
-    return args;
-}
+std::vector<std::string>& profile_startup_args();
 
 namespace config {
 extern bool login_mode;

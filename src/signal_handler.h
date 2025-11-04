@@ -22,33 +22,11 @@ class SignalMask {
     bool active;
 
    public:
-    explicit SignalMask(int signum) : active(false) {
-        sigset_t mask{};
-        sigemptyset(&mask);
-        sigaddset(&mask, signum);
-        if (sigprocmask(SIG_BLOCK, &mask, &old_mask) == 0) {
-            active = true;
-        }
-    }
+    explicit SignalMask(int signum);
 
-    explicit SignalMask(const std::vector<int>& signals) : active(false) {
-        if (signals.empty())
-            return;
-        sigset_t mask{};
-        sigemptyset(&mask);
-        for (int sig : signals) {
-            sigaddset(&mask, sig);
-        }
-        if (sigprocmask(SIG_BLOCK, &mask, &old_mask) == 0) {
-            active = true;
-        }
-    }
+    explicit SignalMask(const std::vector<int>& signals);
 
-    ~SignalMask() {
-        if (active) {
-            sigprocmask(SIG_SETMASK, &old_mask, nullptr);
-        }
-    }
+    ~SignalMask();
 
     SignalMask(const SignalMask&) = delete;
     SignalMask& operator=(const SignalMask&) = delete;

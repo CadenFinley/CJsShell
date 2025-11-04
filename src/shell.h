@@ -39,100 +39,43 @@ class Shell {
     int execute_command(std::vector<std::string> args, bool run_in_background = false);
     SignalProcessingResult process_pending_signals();
 
-    std::string get_prompt() {
-        return shell_prompt->get_prompt();
-    }
+    std::string get_prompt();
 
-    std::string get_newline_prompt() {
-        return shell_prompt->get_newline_prompt();
-    }
+    std::string get_newline_prompt();
 
-    std::string get_inline_right_prompt() {
-        return shell_prompt->get_inline_right_prompt();
-    }
+    std::string get_inline_right_prompt();
 
-    std::string get_title_prompt() {
-        return shell_prompt->get_title_prompt();
-    }
+    std::string get_title_prompt();
 
-    void start_command_timing() {
-        if (shell_prompt) {
-            shell_prompt->start_command_timing();
-        }
-    }
+    void start_command_timing();
 
-    void end_command_timing(int exit_code) {
-        if (shell_prompt) {
-            shell_prompt->end_command_timing(exit_code);
-        }
-    }
+    void end_command_timing(int exit_code);
 
-    void reset_command_timing() {
-        if (shell_prompt) {
-            shell_prompt->reset_command_timing();
-        }
-    }
+    void reset_command_timing();
 
-    void set_initial_duration(long long microseconds) {
-        if (shell_prompt) {
-            shell_prompt->set_initial_duration(microseconds);
-        }
-    }
+    void set_initial_duration(long long microseconds);
 
     void invalidate_prompt_caches();
 
-    std::string get_initial_duration() {
-        if (shell_prompt) {
-            return shell_prompt->get_initial_duration();
-        }
-        return "0";
-    }
+    std::string get_initial_duration();
 
     void set_interactive_mode(bool flag);
 
-    bool get_interactive_mode() const {
-        return interactive_mode;
-    }
+    bool get_interactive_mode() const;
 
-    int get_last_exit_code() const {
-        const char* status_env = getenv("?");
-        if (status_env != nullptr) {
-            char* end = nullptr;
-            long value = std::strtol(status_env, &end, 10);
-            if (*end == '\0' && end != status_env) {
-                return static_cast<int>(value);
-            }
-        }
-        return 0;
-    }
+    int get_last_exit_code() const;
 
-    void set_aliases(const std::unordered_map<std::string, std::string>& new_aliases) {
-        aliases = new_aliases;
-        if (shell_parser) {
-            shell_parser->set_aliases(aliases);
-        }
-    }
+    void set_aliases(const std::unordered_map<std::string, std::string>& new_aliases);
 
     void set_abbreviations(const std::unordered_map<std::string, std::string>& new_abbreviations);
 
-    void set_env_vars(const std::unordered_map<std::string, std::string>& new_env_vars) {
-        env_vars = new_env_vars;
-        if (shell_parser) {
-            shell_parser->set_env_vars(env_vars);
-        }
-    }
+    void set_env_vars(const std::unordered_map<std::string, std::string>& new_env_vars);
 
-    std::unordered_map<std::string, std::string>& get_aliases() {
-        return aliases;
-    }
+    std::unordered_map<std::string, std::string>& get_aliases();
 
-    std::unordered_map<std::string, std::string>& get_abbreviations() {
-        return abbreviations;
-    }
+    std::unordered_map<std::string, std::string>& get_abbreviations();
 
-    std::unordered_map<std::string, std::string>& get_env_vars() {
-        return env_vars;
-    }
+    std::unordered_map<std::string, std::string>& get_env_vars();
 
     void set_positional_parameters(const std::vector<std::string>& params);
     int shift_positional_parameters(int count = 1);
@@ -158,9 +101,7 @@ class Shell {
     void handle_sigcont();
 
     Theme* ensure_theme();
-    Theme* get_theme() const {
-        return shell_theme.get();
-    }
+    Theme* get_theme() const;
     void reset_theme();
 
     void register_hook(const std::string& hook_type, const std::string& function_name);
@@ -177,31 +118,15 @@ class Shell {
 
     std::string get_previous_directory() const;
 
-    Built_ins* get_built_ins() {
-        return built_ins.get();
-    }
-    int get_terminal() const {
-        return shell_terminal;
-    }
-    pid_t get_pgid() const {
-        return shell_pgid;
-    }
-    struct termios get_terminal_modes() const {
-        return shell_tmodes;
-    }
-    bool is_terminal_state_saved() const {
-        return terminal_state_saved;
-    }
-    bool is_job_control_enabled() const {
-        return job_control_enabled;
-    }
-    ShellScriptInterpreter* get_shell_script_interpreter() {
-        return shell_script_interpreter.get();
-    }
+    Built_ins* get_built_ins();
+    int get_terminal() const;
+    pid_t get_pgid() const;
+    struct termios get_terminal_modes() const;
+    bool is_terminal_state_saved() const;
+    bool is_job_control_enabled() const;
+    ShellScriptInterpreter* get_shell_script_interpreter();
 
-    Parser* get_parser() {
-        return shell_parser.get();
-    }
+    Parser* get_parser();
 
     int execute_script_file(const std::filesystem::path& path, bool optional = false);
 

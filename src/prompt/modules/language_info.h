@@ -9,11 +9,7 @@
 struct CachedVersion {
     std::string version;
     std::chrono::steady_clock::time_point timestamp;
-    bool is_valid() const {
-        auto now = std::chrono::steady_clock::now();
-        auto age = std::chrono::duration_cast<std::chrono::seconds>(now - timestamp);
-        return age.count() < 300;
-    }
+    bool is_valid() const;
 };
 
 extern const std::vector<std::string> python_files;

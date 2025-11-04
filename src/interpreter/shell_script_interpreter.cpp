@@ -53,6 +53,45 @@ ShellScriptInterpreter::ShellScriptInterpreter() : shell_parser(nullptr) {
 
 ShellScriptInterpreter::~ShellScriptInterpreter() = default;
 
+void ShellScriptInterpreter::set_parser(Parser* parser) {
+    shell_parser = parser;
+}
+
+std::vector<std::string> ShellScriptInterpreter::parse_into_lines(const std::string& script) {
+    if (!shell_parser) {
+        return {};
+    }
+    return shell_parser->parse_into_lines(script);
+}
+
+ShellScriptInterpreter::SyntaxError::SyntaxError(size_t line_num, const std::string& msg,
+                                                 const std::string& line_content)
+    : position({line_num, 0, 0, 0}),
+      severity(ErrorSeverity::ERROR),
+      category(ErrorCategory::SYNTAX),
+      error_code("SYN001"),
+      message(msg),
+      line_content(line_content) {
+}
+
+ShellScriptInterpreter::SyntaxError::SyntaxError(ErrorPosition pos, ErrorSeverity sev,
+                                                 ErrorCategory cat, const std::string& code,
+                                                 const std::string& msg,
+                                                 const std::string& line_content,
+                                                 const std::string& suggestion)
+    : position(pos),
+      severity(sev),
+      category(cat),
+      error_code(code),
+      message(msg),
+      line_content(line_content),
+      suggestion(suggestion) {
+}
+
+VariableManager& ShellScriptInterpreter::get_variable_manager() {
+    return variable_manager;
+}
+
 int ShellScriptInterpreter::execute_subshell(const std::string& subshell_content) {
     pid_t pid = fork();
     if (pid == 0) {

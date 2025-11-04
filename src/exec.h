@@ -71,12 +71,8 @@ class Exec {
     ErrorInfo get_error();
     std::string get_error_string();
     void print_last_error();
-    int get_exit_code() const {
-        return last_exit_code;
-    }
-    void set_exit_code(int code) {
-        last_exit_code = code;
-    }
+    int get_exit_code() const;
+    void set_exit_code(int code);
     void terminate_all_child_process();
 
     std::string last_terminal_output_error;

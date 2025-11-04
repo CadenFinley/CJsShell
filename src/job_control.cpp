@@ -89,6 +89,16 @@ bool pipeline_consumes_terminal_stdin(const std::vector<Command>& commands) {
 
 }  // namespace job_utils
 
+JobControlJob::JobControlJob(int id, pid_t group_id, const std::vector<pid_t>& process_ids,
+                             const std::string& cmd, bool is_background, bool consumes_stdin)
+    : job_id(id),
+      pgid(group_id),
+      pids(process_ids),
+      command(cmd),
+      background(is_background),
+      reads_stdin(consumes_stdin) {
+}
+
 JobManager& JobManager::instance() {
     static JobManager instance;
     return instance;
@@ -174,6 +184,26 @@ void JobManager::update_job_status() {
 
 void JobManager::set_current_job(int job_id) {
     update_current_previous(job_id);
+}
+
+int JobManager::get_current_job() const {
+    return current_job;
+}
+
+int JobManager::get_previous_job() const {
+    return previous_job;
+}
+
+void JobManager::set_last_background_pid(pid_t pid) {
+    last_background_pid = pid;
+}
+
+pid_t JobManager::get_last_background_pid() const {
+    return last_background_pid;
+}
+
+void JobManager::set_shell(Shell* shell) {
+    shell_ref = shell;
 }
 
 void JobManager::update_current_previous(int new_current) {

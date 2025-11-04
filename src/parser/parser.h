@@ -34,42 +34,15 @@ struct Command {
     std::vector<std::pair<int, int>> fd_duplications;
     std::vector<std::string> process_substitutions;
 
-    Command() {
-        args.reserve(8);
-        process_substitutions.reserve(2);
-        fd_redirections.reserve(2);
-        fd_duplications.reserve(2);
-    }
+    Command();
 
-    void set_fd_redirection(int fd, std::string value) {
-        auto it = std::find_if(fd_redirections.begin(), fd_redirections.end(),
-                               [fd](const auto& entry) { return entry.first == fd; });
-        if (it != fd_redirections.end()) {
-            it->second = std::move(value);
-        } else {
-            fd_redirections.emplace_back(fd, std::move(value));
-        }
-    }
+    void set_fd_redirection(int fd, std::string value);
 
-    void set_fd_duplication(int fd, int target) {
-        auto it = std::find_if(fd_duplications.begin(), fd_duplications.end(),
-                               [fd](const auto& entry) { return entry.first == fd; });
-        if (it != fd_duplications.end()) {
-            it->second = target;
-        } else {
-            fd_duplications.emplace_back(fd, target);
-        }
-    }
+    void set_fd_duplication(int fd, int target);
 
-    bool has_fd_redirection(int fd) const {
-        return std::any_of(fd_redirections.begin(), fd_redirections.end(),
-                           [fd](const auto& entry) { return entry.first == fd; });
-    }
+    bool has_fd_redirection(int fd) const;
 
-    bool has_fd_duplication(int fd) const {
-        return std::any_of(fd_duplications.begin(), fd_duplications.end(),
-                           [fd](const auto& entry) { return entry.first == fd; });
-    }
+    bool has_fd_duplication(int fd) const;
 };
 
 struct LogicalCommand {
@@ -84,12 +57,8 @@ class Parser {
     bool should_validate_command(const std::string& command) const;
     bool is_valid_command(const std::string& command_name) const;
     std::string get_command_validation_error(const std::string& command_name) const;
-    void set_command_validation_enabled(bool enabled) {
-        command_validation_enabled = enabled;
-    }
-    bool get_command_validation_enabled() const {
-        return command_validation_enabled;
-    }
+    void set_command_validation_enabled(bool enabled);
+    bool get_command_validation_enabled() const;
 
     std::vector<std::string> parse_command(const std::string& cmdline);
     std::vector<Command> parse_pipeline(const std::string& command);
@@ -108,13 +77,9 @@ class Parser {
 
     std::vector<Command> parse_pipeline_with_preprocessing(const std::string& command);
 
-    void set_aliases(const std::unordered_map<std::string, std::string>& new_aliases) {
-        this->aliases = new_aliases;
-    }
+    void set_aliases(const std::unordered_map<std::string, std::string>& new_aliases);
 
-    void set_env_vars(const std::unordered_map<std::string, std::string>& new_env_vars) {
-        this->env_vars = new_env_vars;
-    }
+    void set_env_vars(const std::unordered_map<std::string, std::string>& new_env_vars);
 
     void set_shell(Shell* shell);
 

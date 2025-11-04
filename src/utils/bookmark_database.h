@@ -16,13 +16,8 @@ struct BookmarkEntry {
     std::chrono::system_clock::time_point last_accessed;
     int access_count;
 
-    BookmarkEntry() : access_count(0) {
-    }
-    explicit BookmarkEntry(const std::string& p) : path(p), access_count(1) {
-        auto now = std::chrono::system_clock::now();
-        added_time = now;
-        last_accessed = now;
-    }
+    BookmarkEntry();
+    explicit BookmarkEntry(const std::string& p);
 };
 
 class BookmarkDatabase {
@@ -33,14 +28,9 @@ class BookmarkDatabase {
     cjsh_filesystem::Result<void> load();
     cjsh_filesystem::Result<void> save();
 
-    void set_max_bookmarks(size_t max_bookmarks) {
-        MAX_BOOKMARKS = max_bookmarks;
-        enforce_bookmark_limit();
-    }
+    void set_max_bookmarks(size_t max_bookmarks);
 
-    size_t get_max_bookmarks() const {
-        return MAX_BOOKMARKS;
-    }
+    size_t get_max_bookmarks() const;
 
     cjsh_filesystem::Result<void> add_bookmark(const std::string& name, const std::string& path);
     cjsh_filesystem::Result<void> remove_bookmark(const std::string& name);
@@ -87,49 +77,27 @@ class BookmarkDatabase {
 
 extern BookmarkDatabase g_bookmark_db;
 
-inline cjsh_filesystem::Result<void> add_directory_bookmark(const std::string& name,
-                                                            const std::string& path) {
-    return g_bookmark_db.add_bookmark(name, path);
-}
+cjsh_filesystem::Result<void> add_directory_bookmark(const std::string& name,
+                                                     const std::string& path);
 
-inline std::optional<std::string> find_directory_bookmark(const std::string& name) {
-    return g_bookmark_db.get_bookmark(name);
-}
+std::optional<std::string> find_directory_bookmark(const std::string& name);
 
-inline std::unordered_map<std::string, std::string> get_directory_bookmarks() {
-    return g_bookmark_db.get_all_bookmarks();
-}
+std::unordered_map<std::string, std::string> get_directory_bookmarks();
 
-inline size_t get_max_bookmarks() {
-    return g_bookmark_db.get_max_bookmarks();
-}
+size_t get_max_bookmarks();
 
-inline void set_max_bookmarks(size_t max_bookmarks) {
-    g_bookmark_db.set_max_bookmarks(max_bookmarks);
-}
+void set_max_bookmarks(size_t max_bookmarks);
 
-inline cjsh_filesystem::Result<void> add_path_to_blacklist(const std::string& path) {
-    return g_bookmark_db.add_to_blacklist(path);
-}
+cjsh_filesystem::Result<void> add_path_to_blacklist(const std::string& path);
 
-inline cjsh_filesystem::Result<void> remove_path_from_blacklist(const std::string& path) {
-    return g_bookmark_db.remove_from_blacklist(path);
-}
+cjsh_filesystem::Result<void> remove_path_from_blacklist(const std::string& path);
 
-inline bool is_path_blacklisted(const std::string& path) {
-    return g_bookmark_db.is_blacklisted(path);
-}
+bool is_path_blacklisted(const std::string& path);
 
-inline std::vector<std::string> get_bookmark_blacklist() {
-    return g_bookmark_db.get_blacklist();
-}
+std::vector<std::string> get_bookmark_blacklist();
 
-inline cjsh_filesystem::Result<void> clear_bookmark_blacklist() {
-    return g_bookmark_db.clear_blacklist();
-}
+cjsh_filesystem::Result<void> clear_bookmark_blacklist();
 
-inline std::vector<std::string> get_bookmarks_for_path(const std::string& path) {
-    return g_bookmark_db.get_bookmarks_for_path(path);
-}
+std::vector<std::string> get_bookmarks_for_path(const std::string& path);
 
 }  // namespace bookmark_database

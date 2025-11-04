@@ -38,14 +38,7 @@ struct JobControlJob {
         std::chrono::steady_clock::time_point::min()};
 
     JobControlJob(int id, pid_t group_id, const std::vector<pid_t>& process_ids,
-                  const std::string& cmd, bool is_background, bool consumes_stdin)
-        : job_id(id),
-          pgid(group_id),
-          pids(process_ids),
-          command(cmd),
-          background(is_background),
-          reads_stdin(consumes_stdin) {
-    }
+                  const std::string& cmd, bool is_background, bool consumes_stdin);
 };
 
 class JobManager {
@@ -67,27 +60,17 @@ class JobManager {
 
     void set_current_job(int job_id);
 
-    int get_current_job() const {
-        return current_job;
-    }
+    int get_current_job() const;
 
-    int get_previous_job() const {
-        return previous_job;
-    }
+    int get_previous_job() const;
 
-    void set_last_background_pid(pid_t pid) {
-        last_background_pid = pid;
-    }
+    void set_last_background_pid(pid_t pid);
 
-    pid_t get_last_background_pid() const {
-        return last_background_pid;
-    }
+    pid_t get_last_background_pid() const;
 
     void cleanup_finished_jobs();
 
-    void set_shell(Shell* shell) {
-        shell_ref = shell;
-    }
+    void set_shell(Shell* shell);
 
     bool foreground_job_reads_stdin();
 

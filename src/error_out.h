@@ -29,27 +29,13 @@ struct ErrorInfo {
     std::string message;
     std::vector<std::string> suggestions;
 
-    ErrorInfo()
-        : type(ErrorType::UNKNOWN_ERROR),
-          severity(ErrorSeverity::ERROR),
-          command_used(""),
-          message(""),
-          suggestions() {
-    }
+    ErrorInfo();
 
     ErrorInfo(ErrorType t, ErrorSeverity s, const std::string& cmd, const std::string& msg,
-              const std::vector<std::string>& sugg)
-        : type(t), severity(s), command_used(cmd), message(msg), suggestions(sugg) {
-    }
+              const std::vector<std::string>& sugg);
 
     ErrorInfo(ErrorType t, const std::string& cmd, const std::string& msg,
-              const std::vector<std::string>& sugg)
-        : type(t),
-          severity(get_default_severity(t)),
-          command_used(cmd),
-          message(msg),
-          suggestions(sugg) {
-    }
+              const std::vector<std::string>& sugg);
 
     static ErrorSeverity get_default_severity(ErrorType type);
 };

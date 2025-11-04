@@ -17,31 +17,11 @@ bool looks_like_assignment(const std::string& value);
 std::pair<std::string, bool> strip_noenv_sentinels(const std::string& s);
 bool strip_subst_literal_markers(std::string& value);
 
-inline bool is_hex_digit(char c) {
-    return std::isxdigit(static_cast<unsigned char>(c)) != 0;
-}
+bool is_hex_digit(char c);
 
-inline bool is_char_escaped(const char* str, size_t pos) {
-    if (pos == 0)
-        return false;
-    size_t backslash_count = 0;
-    size_t i = pos - 1;
-    while (true) {
-        if (str[i] == '\\') {
-            ++backslash_count;
-            if (i == 0)
-                break;
-            --i;
-        } else {
-            break;
-        }
-    }
-    return (backslash_count % 2) == 1;
-}
+bool is_char_escaped(const char* str, size_t pos);
 
-inline bool is_char_escaped(const std::string& str, size_t pos) {
-    return is_char_escaped(str.c_str(), pos);
-}
+bool is_char_escaped(const std::string& str, size_t pos);
 
 size_t find_matching_paren(const std::string& text, size_t start_pos);
 size_t find_matching_brace(const std::string& text, size_t start_pos);

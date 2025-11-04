@@ -1440,9 +1440,9 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
         if (setpgid(pid, pid) < 0) {
             if (errno != EACCES && errno != ESRCH) {
-                set_error(ErrorType::RUNTIME_ERROR, "setpgid",
-                          "failed to set process group ID in parent: " +
-                              std::string(strerror(errno)));
+                set_error(
+                    ErrorType::RUNTIME_ERROR, "setpgid",
+                    "failed to set process group ID in parent: " + std::string(strerror(errno)));
             }
         }
         Job job;
@@ -2016,6 +2016,14 @@ void Exec::terminate_all_child_process() {
     }
 
     set_error(ErrorType::RUNTIME_ERROR, "", "All child processes terminated");
+}
+
+int Exec::get_exit_code() const {
+    return last_exit_code;
+}
+
+void Exec::set_exit_code(int code) {
+    last_exit_code = code;
 }
 
 std::map<int, Job> Exec::get_jobs() {

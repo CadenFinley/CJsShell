@@ -294,6 +294,44 @@ Built_ins::~Built_ins() {
     }
 }
 
+void Built_ins::set_shell(Shell* shell_ptr) {
+    shell = shell_ptr;
+}
+
+std::string Built_ins::get_current_directory() const {
+    return current_directory;
+}
+
+std::string Built_ins::get_previous_directory() const {
+    return previous_directory;
+}
+
+void Built_ins::set_current_directory() {
+    char cwd[PATH_MAX];
+    if (getcwd(cwd, sizeof(cwd)) != nullptr) {
+        current_directory = cwd;
+    } else {
+        current_directory = "/";
+    }
+}
+
+Shell* Built_ins::get_shell() {
+    return shell;
+}
+
+std::vector<std::string> Built_ins::get_builtin_commands() const {
+    std::vector<std::string> names;
+    names.reserve(builtins.size());
+    for (const auto& kv : builtins) {
+        names.push_back(kv.first);
+    }
+    return names;
+}
+
+std::string Built_ins::get_last_error() const {
+    return last_terminal_output_error;
+}
+
 int Built_ins::builtin_command(const std::vector<std::string>& args) {
     if (args.empty())
         return 1;

@@ -8,6 +8,16 @@
 
 namespace bookmark_database {
 
+BookmarkEntry::BookmarkEntry() : access_count(0) {
+}
+
+BookmarkEntry::BookmarkEntry(const std::string& p)
+    : path(p),
+      added_time(std::chrono::system_clock::now()),
+      last_accessed(added_time),
+      access_count(1) {
+}
+
 BookmarkDatabase g_bookmark_db;
 
 BookmarkDatabase::BookmarkDatabase() : dirty_(false) {
@@ -24,6 +34,15 @@ BookmarkDatabase::~BookmarkDatabase() {
                          {}});
         }
     }
+}
+
+void BookmarkDatabase::set_max_bookmarks(size_t max_bookmarks) {
+    MAX_BOOKMARKS = max_bookmarks;
+    enforce_bookmark_limit();
+}
+
+size_t BookmarkDatabase::get_max_bookmarks() const {
+    return MAX_BOOKMARKS;
 }
 
 cjsh_filesystem::Result<void> BookmarkDatabase::ensure_database_directory() {
@@ -534,6 +553,51 @@ std::vector<std::string> BookmarkDatabase::get_bookmarks_for_path(const std::str
     }
 
     return result;
+}
+
+cjsh_filesystem::Result<void> add_directory_bookmark(const std::string& name,
+                                                     const std::string& path) {
+    return g_bookmark_db.add_bookmark(name, path);
+}
+
+std::optional<std::string> find_directory_bookmark(const std::string& name) {
+    return g_bookmark_db.get_bookmark(name);
+}
+
+std::unordered_map<std::string, std::string> get_directory_bookmarks() {
+    return g_bookmark_db.get_all_bookmarks();
+}
+
+size_t get_max_bookmarks() {
+    return g_bookmark_db.get_max_bookmarks();
+}
+
+void set_max_bookmarks(size_t max_bookmarks) {
+    g_bookmark_db.set_max_bookmarks(max_bookmarks);
+}
+
+cjsh_filesystem::Result<void> add_path_to_blacklist(const std::string& path) {
+    return g_bookmark_db.add_to_blacklist(path);
+}
+
+cjsh_filesystem::Result<void> remove_path_from_blacklist(const std::string& path) {
+    return g_bookmark_db.remove_from_blacklist(path);
+}
+
+bool is_path_blacklisted(const std::string& path) {
+    return g_bookmark_db.is_blacklisted(path);
+}
+
+std::vector<std::string> get_bookmark_blacklist() {
+    return g_bookmark_db.get_blacklist();
+}
+
+cjsh_filesystem::Result<void> clear_bookmark_blacklist() {
+    return g_bookmark_db.clear_blacklist();
+}
+
+std::vector<std::string> get_bookmarks_for_path(const std::string& path) {
+    return g_bookmark_db.get_bookmarks_for_path(path);
 }
 
 }  // namespace bookmark_database

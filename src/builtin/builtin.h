@@ -15,41 +15,19 @@ class Built_ins {
     Built_ins();
     ~Built_ins();
 
-    void set_shell(Shell* shell_ptr) {
-        shell = shell_ptr;
-    }
-    std::string get_current_directory() const {
-        return current_directory;
-    }
-    std::string get_previous_directory() const {
-        return previous_directory;
-    }
-    void set_current_directory() {
-        char cwd[PATH_MAX];
-        if (getcwd(cwd, sizeof(cwd)) != nullptr) {
-            current_directory = cwd;
-        } else {
-            current_directory = "/";
-        }
-    }
+    void set_shell(Shell* shell_ptr);
+    std::string get_current_directory() const;
+    std::string get_previous_directory() const;
+    void set_current_directory();
 
-    Shell* get_shell() {
-        return shell;
-    }
+    Shell* get_shell();
 
     int builtin_command(const std::vector<std::string>& args);
     int is_builtin_command(const std::string& cmd) const;
 
-    std::vector<std::string> get_builtin_commands() const {
-        std::vector<std::string> names;
-        for (auto& kv : builtins)
-            names.push_back(kv.first);
-        return names;
-    }
+    std::vector<std::string> get_builtin_commands() const;
 
-    std::string get_last_error() const {
-        return last_terminal_output_error;
-    }
+    std::string get_last_error() const;
     int do_ai_request(const std::string& prompt);
 
     void add_directory_bookmark(const std::string& dir_path);

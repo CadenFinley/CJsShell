@@ -6,6 +6,28 @@
 #include "error_out.h"
 #include "shell.h"
 
+ErrorInfo::ErrorInfo()
+    : type(ErrorType::UNKNOWN_ERROR),
+      severity(ErrorSeverity::ERROR),
+      command_used(""),
+      message(""),
+      suggestions() {
+}
+
+ErrorInfo::ErrorInfo(ErrorType t, ErrorSeverity s, const std::string& cmd, const std::string& msg,
+                     const std::vector<std::string>& sugg)
+    : type(t), severity(s), command_used(cmd), message(msg), suggestions(sugg) {
+}
+
+ErrorInfo::ErrorInfo(ErrorType t, const std::string& cmd, const std::string& msg,
+                     const std::vector<std::string>& sugg)
+    : type(t),
+      severity(get_default_severity(t)),
+      command_used(cmd),
+      message(msg),
+      suggestions(sugg) {
+}
+
 ErrorSeverity ErrorInfo::get_default_severity(ErrorType type) {
     switch (type) {
         case ErrorType::SYNTAX_ERROR:

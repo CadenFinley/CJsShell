@@ -45,6 +45,48 @@ void Shell::set_interactive_mode(bool flag) {
     }
 }
 
+bool Shell::get_interactive_mode() const {
+    return interactive_mode;
+}
+
+int Shell::get_last_exit_code() const {
+    const char* status_env = std::getenv("?");
+    if (status_env != nullptr) {
+        char* end = nullptr;
+        long value = std::strtol(status_env, &end, 10);
+        if (*end == '\0' && end != status_env) {
+            return static_cast<int>(value);
+        }
+    }
+    return 0;
+}
+
+void Shell::set_aliases(const std::unordered_map<std::string, std::string>& new_aliases) {
+    aliases = new_aliases;
+    if (shell_parser) {
+        shell_parser->set_aliases(aliases);
+    }
+}
+
+void Shell::set_env_vars(const std::unordered_map<std::string, std::string>& new_env_vars) {
+    env_vars = new_env_vars;
+    if (shell_parser) {
+        shell_parser->set_env_vars(env_vars);
+    }
+}
+
+std::unordered_map<std::string, std::string>& Shell::get_aliases() {
+    return aliases;
+}
+
+std::unordered_map<std::string, std::string>& Shell::get_abbreviations() {
+    return abbreviations;
+}
+
+std::unordered_map<std::string, std::string>& Shell::get_env_vars() {
+    return env_vars;
+}
+
 void Shell::apply_abbreviations_to_line_editor() {
     if (!interactive_mode) {
         return;
@@ -135,6 +177,69 @@ void Shell::reset_theme() {
         shell_prompt->set_theme(nullptr);
     }
     shell_theme.reset();
+}
+
+Theme* Shell::get_theme() const {
+    return shell_theme.get();
+}
+
+std::string Shell::get_prompt() {
+    if (!shell_prompt) {
+        return "";
+    }
+    return shell_prompt->get_prompt();
+}
+
+std::string Shell::get_newline_prompt() {
+    if (!shell_prompt) {
+        return "";
+    }
+    return shell_prompt->get_newline_prompt();
+}
+
+std::string Shell::get_inline_right_prompt() {
+    if (!shell_prompt) {
+        return "";
+    }
+    return shell_prompt->get_inline_right_prompt();
+}
+
+std::string Shell::get_title_prompt() {
+    if (!shell_prompt) {
+        return "";
+    }
+    return shell_prompt->get_title_prompt();
+}
+
+void Shell::start_command_timing() {
+    if (shell_prompt) {
+        shell_prompt->start_command_timing();
+    }
+}
+
+void Shell::end_command_timing(int exit_code) {
+    if (shell_prompt) {
+        shell_prompt->end_command_timing(exit_code);
+    }
+}
+
+void Shell::reset_command_timing() {
+    if (shell_prompt) {
+        shell_prompt->reset_command_timing();
+    }
+}
+
+void Shell::set_initial_duration(long long microseconds) {
+    if (shell_prompt) {
+        shell_prompt->set_initial_duration(microseconds);
+    }
+}
+
+std::string Shell::get_initial_duration() {
+    if (shell_prompt) {
+        return shell_prompt->get_initial_duration();
+    }
+    return "0";
 }
 
 void Shell::invalidate_prompt_caches() {
@@ -513,6 +618,38 @@ std::unordered_set<std::string> Shell::get_available_commands() const {
 
 std::string Shell::get_previous_directory() const {
     return built_ins->get_previous_directory();
+}
+
+Built_ins* Shell::get_built_ins() {
+    return built_ins.get();
+}
+
+int Shell::get_terminal() const {
+    return shell_terminal;
+}
+
+pid_t Shell::get_pgid() const {
+    return shell_pgid;
+}
+
+struct termios Shell::get_terminal_modes() const {
+    return shell_tmodes;
+}
+
+bool Shell::is_terminal_state_saved() const {
+    return terminal_state_saved;
+}
+
+bool Shell::is_job_control_enabled() const {
+    return job_control_enabled;
+}
+
+ShellScriptInterpreter* Shell::get_shell_script_interpreter() {
+    return shell_script_interpreter.get();
+}
+
+Parser* Shell::get_parser() {
+    return shell_parser.get();
 }
 
 void Shell::set_positional_parameters(const std::vector<std::string>& params) {

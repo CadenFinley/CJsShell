@@ -27,14 +27,10 @@ class ShellScriptInterpreter {
     ShellScriptInterpreter(ShellScriptInterpreter&&) = delete;
     ShellScriptInterpreter& operator=(ShellScriptInterpreter&&) = delete;
 
-    void set_parser(Parser* parser) {
-        this->shell_parser = parser;
-    }
+    void set_parser(Parser* parser);
 
     int execute_block(const std::vector<std::string>& lines, bool skip_validation = false);
-    std::vector<std::string> parse_into_lines(const std::string& script) {
-        return shell_parser->parse_into_lines(script);
-    }
+    std::vector<std::string> parse_into_lines(const std::string& script);
 
     enum class ErrorCategory : std::uint8_t {
         SYNTAX,
@@ -65,25 +61,10 @@ class ShellScriptInterpreter {
         std::vector<std::string> related_info;
         std::string documentation_url;
 
-        SyntaxError(size_t line_num, const std::string& msg, const std::string& line_content)
-            : position({line_num, 0, 0, 0}),
-              severity(ErrorSeverity::ERROR),
-              category(ErrorCategory::SYNTAX),
-              error_code("SYN001"),
-              message(msg),
-              line_content(line_content) {
-        }
+        SyntaxError(size_t line_num, const std::string& msg, const std::string& line_content);
         SyntaxError(ErrorPosition pos, ErrorSeverity sev, ErrorCategory cat,
                     const std::string& code, const std::string& msg,
-                    const std::string& line_content = "", const std::string& suggestion = "")
-            : position(pos),
-              severity(sev),
-              category(cat),
-              error_code(code),
-              message(msg),
-              line_content(line_content),
-              suggestion(suggestion) {
-        }
+                    const std::string& line_content = "", const std::string& suggestion = "");
     };
 
     std::vector<SyntaxError> validate_script_syntax(const std::vector<std::string>& lines);
@@ -137,9 +118,7 @@ class ShellScriptInterpreter {
     void mark_local_as_exported(const std::string& name);
     bool in_function_scope() const;
 
-    VariableManager& get_variable_manager() {
-        return variable_manager;
-    }
+    VariableManager& get_variable_manager();
 
    private:
     Parser* shell_parser = nullptr;

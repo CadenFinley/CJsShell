@@ -37,9 +37,7 @@ class Prompt {
     std::string get_inline_right_prompt();
     bool is_git_repository(std::filesystem::path& repo_root);
 
-    std::string get_initial_duration() {
-        return get_formatted_duration();
-    }
+    std::string get_initial_duration();
 
     void start_command_timing();
     void end_command_timing(int exit_code);

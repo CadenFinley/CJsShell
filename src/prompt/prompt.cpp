@@ -146,6 +146,10 @@ bool Prompt::is_git_repository(std::filesystem::path& repo_root) {
     return false;
 }
 
+std::string Prompt::get_initial_duration() {
+    return get_formatted_duration();
+}
+
 void Prompt::start_command_timing() {
     ::start_command_timing();
 }

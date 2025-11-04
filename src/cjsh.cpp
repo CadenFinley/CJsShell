@@ -34,6 +34,25 @@
 #include "usage.h"
 #include "version_command.h"
 
+const bool PRE_RELEASE = true;
+const char* const c_version_base = "3.11.8";
+
+std::string get_version() {
+    static std::string cached_version =
+        std::string(c_version_base) + (PRE_RELEASE ? " (pre-release)" : "");
+    return cached_version;
+}
+
+std::vector<std::string>& startup_args() {
+    static std::vector<std::string> args;
+    return args;
+}
+
+std::vector<std::string>& profile_startup_args() {
+    static std::vector<std::string> args;
+    return args;
+}
+
 bool g_exit_flag = false;
 bool g_startup_active = true;
 std::unique_ptr<Shell> g_shell = nullptr;
