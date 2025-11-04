@@ -1573,27 +1573,9 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#set-max-bookmarks" class="md-nav__link">
-    <span class="md-ellipsis">
-      set-max-bookmarks
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#set-history-max" class="md-nav__link">
     <span class="md-ellipsis">
       set-history-max
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#bookmark-blacklist" class="md-nav__link">
-    <span class="md-ellipsis">
-      bookmark-blacklist
     </span>
   </a>
   
@@ -1733,7 +1715,7 @@
 <ul>
 <li>Use <code>cd</code> without arguments to go to home directory</li>
 <li>Use <code>cd -</code> to switch to the previous directory</li>
-<li>Smart CD is enabled by default with fuzzy matching and bookmark support</li>
+<li>Smart CD is enabled by default with fuzzy matching</li>
 </ul>
 <h3 id="pwd">pwd</h3>
 <p>Print the current working directory.</p>
@@ -2052,9 +2034,7 @@ register functions and <code>hook list</code> to inspect active hooks. See
 - <code>generate-profile</code> - Create or overwrite ~/.cjprofile (use <code>--alt</code> for <code>~/.config/cjsh/.cjprofile</code>)
 - <code>generate-rc</code> - Create or overwrite ~/.cjshrc (use <code>--alt</code> for <code>~/.config/cjsh/.cjshrc</code>)
 - <code>generate-logout</code> - Create or overwrite ~/.cjsh_logout (use <code>--alt</code> for <code>~/.config/cjsh/.cjsh_logout</code>)
-- <code>set-max-bookmarks</code> - Limit stored directory bookmarks
-- <code>set-history-max</code> - Configure history persistence limits
-- <code>bookmark-blacklist</code> - Manage directories excluded from bookmarking</p>
+- <code>set-history-max</code> - Configure history persistence limits</p>
 <h3 id="cjsh-widget">cjsh-widget</h3>
 <p>Interact with the embedded line editor (isocline) to drive advanced key bindings.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-52-1"><a id="__codelineno-52-1" name="__codelineno-52-1" href="#__codelineno-52-1"></a>cjsh-widget<span class="w"> </span>&lt;subcommand&gt;<span class="w"> </span><span class="o">[</span>...<span class="o">]</span>
@@ -2289,21 +2269,9 @@ editing behaviors.</p>
 <li><code>profile set &lt;name&gt;</code> - Persist the named profile</li>
 </ul>
 <p>Key specifications accept pipe (<code>|</code>) separated alternatives, so <code>Ctrl+K|Ctrl+X</code> is a single argument covering both sequences. Place commands like <code>cjshopt keybind set cursor-left "Ctrl+H"</code> in <code>~/.cjshrc</code> to keep them between sessions.</p>
-<h4 id="set-max-bookmarks">set-max-bookmarks</h4>
-<p>Control how many directory bookmarks the smart <code>cd</code> feature retains.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-80-1"><a id="__codelineno-80-1" name="__codelineno-80-1" href="#__codelineno-80-1"></a>cjshopt<span class="w"> </span>set-max-bookmarks<span class="w"> </span>&lt;number&gt;
-</span></code></pre></div>
-<ul>
-<li>Valid range: <strong>10 – 1000</strong></li>
-<li>Default: <strong>100</strong></li>
-</ul>
-<p>Examples:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-81-1"><a id="__codelineno-81-1" name="__codelineno-81-1" href="#__codelineno-81-1"></a>cjshopt<span class="w"> </span>set-max-bookmarks<span class="w"> </span><span class="m">200</span>
-</span></code></pre></div>
-<p>Persist the limit by adding the command to <code>~/.cjshrc</code>.</p>
 <h4 id="set-history-max">set-history-max</h4>
 <p>Adjust the number of entries stored in the persistent history file.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-82-1"><a id="__codelineno-82-1" name="__codelineno-82-1" href="#__codelineno-82-1"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span>&lt;number<span class="p">|</span>default<span class="p">|</span>status&gt;
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-80-1"><a id="__codelineno-80-1" name="__codelineno-80-1" href="#__codelineno-80-1"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span>&lt;number<span class="p">|</span>default<span class="p">|</span>status&gt;
 </span></code></pre></div>
 <ul>
 <li>Provide a number between <strong>0</strong> and <strong>5000</strong> (0 disables history persistence entirely)</li>
@@ -2311,29 +2279,12 @@ editing behaviors.</p>
 <li>Use <code>status</code> (or <code>--status</code>) to display the current setting</li>
 </ul>
 <p>Examples:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-83-1"><a id="__codelineno-83-1" name="__codelineno-83-1" href="#__codelineno-83-1"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span><span class="m">0</span><span class="w">        </span><span class="c1"># Disable history persistence</span>
-</span><span id="__span-83-2"><a id="__codelineno-83-2" name="__codelineno-83-2" href="#__codelineno-83-2"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span><span class="m">500</span><span class="w">      </span><span class="c1"># Retain the latest 500 commands</span>
-</span><span id="__span-83-3"><a id="__codelineno-83-3" name="__codelineno-83-3" href="#__codelineno-83-3"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span>default<span class="w">  </span><span class="c1"># Go back to the default limit</span>
-</span><span id="__span-83-4"><a id="__codelineno-83-4" name="__codelineno-83-4" href="#__codelineno-83-4"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span>status<span class="w">   </span><span class="c1"># Show the current limit</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-81-1"><a id="__codelineno-81-1" name="__codelineno-81-1" href="#__codelineno-81-1"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span><span class="m">0</span><span class="w">        </span><span class="c1"># Disable history persistence</span>
+</span><span id="__span-81-2"><a id="__codelineno-81-2" name="__codelineno-81-2" href="#__codelineno-81-2"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span><span class="m">500</span><span class="w">      </span><span class="c1"># Retain the latest 500 commands</span>
+</span><span id="__span-81-3"><a id="__codelineno-81-3" name="__codelineno-81-3" href="#__codelineno-81-3"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span>default<span class="w">  </span><span class="c1"># Go back to the default limit</span>
+</span><span id="__span-81-4"><a id="__codelineno-81-4" name="__codelineno-81-4" href="#__codelineno-81-4"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span>status<span class="w">   </span><span class="c1"># Show the current limit</span>
 </span></code></pre></div>
 <p>Commands added to <code>~/.cjshrc</code> are applied automatically at startup.</p>
-<h4 id="bookmark-blacklist">bookmark-blacklist</h4>
-<p>Manage a list of directories that should never be bookmarked by the smart <code>cd</code> feature. Adding a path automatically removes any existing bookmarks that point to it.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-84-1"><a id="__codelineno-84-1" name="__codelineno-84-1" href="#__codelineno-84-1"></a>cjshopt<span class="w"> </span>bookmark-blacklist<span class="w"> </span>&lt;subcommand&gt;<span class="w"> </span><span class="o">[</span>path<span class="o">]</span>
-</span></code></pre></div>
-<p>Available subcommands:
-- <code>add &lt;path&gt;</code> - Add a directory to the blacklist
-- <code>remove &lt;path&gt;</code> - Remove a directory from the blacklist
-- <code>list</code> - Display all blacklisted directories
-- <code>clear</code> - Remove every entry from the blacklist</p>
-<p>Examples:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-85-1"><a id="__codelineno-85-1" name="__codelineno-85-1" href="#__codelineno-85-1"></a>cjshopt<span class="w"> </span>bookmark-blacklist<span class="w"> </span>add<span class="w"> </span>/tmp
-</span><span id="__span-85-2"><a id="__codelineno-85-2" name="__codelineno-85-2" href="#__codelineno-85-2"></a>cjshopt<span class="w"> </span>bookmark-blacklist<span class="w"> </span>add<span class="w"> </span>~/.cache
-</span><span id="__span-85-3"><a id="__codelineno-85-3" name="__codelineno-85-3" href="#__codelineno-85-3"></a>cjshopt<span class="w"> </span>bookmark-blacklist<span class="w"> </span>list
-</span><span id="__span-85-4"><a id="__codelineno-85-4" name="__codelineno-85-4" href="#__codelineno-85-4"></a>cjshopt<span class="w"> </span>bookmark-blacklist<span class="w"> </span>remove<span class="w"> </span>/tmp
-</span><span id="__span-85-5"><a id="__codelineno-85-5" name="__codelineno-85-5" href="#__codelineno-85-5"></a>cjshopt<span class="w"> </span>bookmark-blacklist<span class="w"> </span>clear
-</span></code></pre></div>
-<p>This is ideal for keeping temporary or system directories out of your bookmark suggestions. Add the relevant commands to <code>~/.cjshrc</code> to keep the blacklist synchronized between sessions.</p>
 
 
 
