@@ -1,8 +1,12 @@
 #!/usr/bin/env sh
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+
 if [ -n "$CJSH" ]; then 
     CJSH_PATH="$CJSH"
 else 
-    CJSH_PATH="$(cd "$(dirname "$0")/../../build" && pwd)/cjsh"
+    CJSH_PATH="$REPO_ROOT/build/cjsh"
 fi
 
 echo "Test: interactive features..."
@@ -43,10 +47,17 @@ else
 fi
 
 echo "Testing prompt components..."
-PROMPT_DIR="$(cd "$(dirname "$0")/../../include/prompt" && pwd)"
-if [ -d "$PROMPT_DIR" ]; then
+PROMPT_DIR=""
+for candidate in "$REPO_ROOT/include/prompt" "$REPO_ROOT/src/prompt"; do
+    if [ -d "$candidate" ]; then
+        PROMPT_DIR="$candidate"
+        break
+    fi
+done
+
+if [ -n "$PROMPT_DIR" ]; then
     pass_test "prompt directory exists"
-    
+
     if ls "$PROMPT_DIR"/*.h >/dev/null 2>&1; then
         pass_test "prompt header files exist"
     else
@@ -56,29 +67,37 @@ else
     fail_test "prompt directory not found"
 fi
 
-PROMPT_SRC_DIR="$(cd "$(dirname "$0")/../../src/prompt" && pwd)"
-if [ -d "$PROMPT_SRC_DIR" ]; then
-    pass_test "prompt source directory exists"
-    
-    if ls "$PROMPT_SRC_DIR"/*.cpp >/dev/null 2>&1; then
-        pass_test "prompt source files exist"
-    else
-        fail_test "prompt source files missing"
+PROMPT_SRC_DIR=""
+for candidate in "$REPO_ROOT/src/prompt" "$PROMPT_DIR"; do
+    if [ -d "$candidate" ] && ls "$candidate"/*.c* >/dev/null 2>&1; then
+        PROMPT_SRC_DIR="$candidate"
+        break
     fi
+done
+
+if [ -n "$PROMPT_SRC_DIR" ]; then
+    pass_test "prompt source directory exists"
+    pass_test "prompt source files exist"
 else
     fail_test "prompt source directory not found"
 fi
 
 echo "Testing isocline integration..."
-ISOCLINE_DIR="$(cd "$(dirname "$0")/../../include/isocline" && pwd)"
-if [ -d "$ISOCLINE_DIR" ]; then
+ISOCLINE_DIR=""
+for candidate in "$REPO_ROOT/src/isocline" "$REPO_ROOT/vendor/isocline" "$REPO_ROOT/include/isocline"; do
+    if [ -d "$candidate" ]; then
+        ISOCLINE_DIR="$candidate"
+        break
+    fi
+done
+
+if [ -n "$ISOCLINE_DIR" ]; then
     pass_test "isocline directory exists"
 else
     fail_test "isocline directory not found"
 fi
 
-ISOCLINE_SRC_DIR="$(cd "$(dirname "$0")/../../src/isocline" && pwd)"
-if [ -d "$ISOCLINE_SRC_DIR" ]; then
+if [ -d "$REPO_ROOT/src/isocline" ] && ls "$REPO_ROOT/src/isocline"/*.[ch] >/dev/null 2>&1; then
     pass_test "isocline source directory exists"
 else
     fail_test "isocline source directory not found"
@@ -121,7 +140,18 @@ else
 fi
 
 echo "Testing syntax highlighting..."
-if grep -r "syntax.*highlight\|highlight.*syntax" "$(dirname "$0")/../../include" >/dev/null 2>&1; then
+SYNTAX_FOUND=0
+for candidate in \
+    "$REPO_ROOT/src/syntax_highlighter" \
+    "$REPO_ROOT/src/isocline" \
+    "$REPO_ROOT/include/syntax_highlighter"; do
+    if [ -d "$candidate" ] && grep -r "highlight" "$candidate" >/dev/null 2>&1; then
+        SYNTAX_FOUND=1
+        break
+    fi
+done
+
+if [ "$SYNTAX_FOUND" -eq 1 ]; then
     pass_test "syntax highlighting code exists"
 else
     skip_test "syntax highlighting (may not be implemented)"
