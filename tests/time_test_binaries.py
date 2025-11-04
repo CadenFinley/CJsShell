@@ -44,7 +44,7 @@ COMMAND_PLAN = [
     {"key": "function_calls", "description": "Define and repeatedly invoke a function"},
     {"key": "subshell_traversal", "description": "Traverse directories using subshells or directory stack"}
 ]
-BASELINE_SHELLS = ["cjsh", "../fish-shell/build/fish", "bash", "zsh", "fish", "nu", "osh"]
+BASELINE_SHELLS = ["cjsh", "../old_fish-shell/build/fish", "bash", "zsh", "fish", "nu", "osh"]
 CJSH_BINARY_TYPES = [""]
 
 ENABLE_BASELINE_TESTS = True
