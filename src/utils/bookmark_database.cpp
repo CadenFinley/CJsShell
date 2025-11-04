@@ -21,7 +21,6 @@ BookmarkEntry::BookmarkEntry(const std::string& p)
 BookmarkDatabase g_bookmark_db;
 
 BookmarkDatabase::BookmarkDatabase() : dirty_(false) {
-    database_path_ = (cjsh_filesystem::g_cjsh_cache_path / "directory_bookmarks.txt").string();
 }
 
 BookmarkDatabase::~BookmarkDatabase() {
@@ -45,7 +44,14 @@ size_t BookmarkDatabase::get_max_bookmarks() const {
     return MAX_BOOKMARKS;
 }
 
+void BookmarkDatabase::ensure_database_path() {
+    if (database_path_.empty()) {
+        database_path_ = (cjsh_filesystem::g_cjsh_cache_path / "directory_bookmarks.txt").string();
+    }
+}
+
 cjsh_filesystem::Result<void> BookmarkDatabase::ensure_database_directory() {
+    ensure_database_path();
     try {
         std::filesystem::path db_path(database_path_);
         std::filesystem::path parent_dir = db_path.parent_path();

@@ -64,6 +64,7 @@ class BookmarkDatabase {
     std::string database_path_;
     bool dirty_;
 
+    void ensure_database_path();
     cjsh_filesystem::Result<void> ensure_database_directory();
     std::string to_text_format() const;
     cjsh_filesystem::Result<void> from_text_format(const std::string& text_content);
