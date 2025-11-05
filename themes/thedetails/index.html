@@ -83,7 +83,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#themes" class="md-skip">
+        <a href="#prompt-markup-and-styling" class="md-skip">
           Skip to content
         </a>
       
@@ -829,56 +829,46 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#loading-themes" class="md-nav__link">
+  <a href="#quick-start" class="md-nav__link">
     <span class="md-ellipsis">
-      Loading Themes
+      Quick Start
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Loading Themes">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#markup-building-blocks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Markup Building Blocks
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Markup Building Blocks">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#theme-definition" class="md-nav__link">
+  <a href="#inline-tags" class="md-nav__link">
     <span class="md-ellipsis">
-      Theme Definition
+      Inline Tags
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#prompt-definitions-and-theme-structure" class="md-nav__link">
+  <a href="#named-styles" class="md-nav__link">
     <span class="md-ellipsis">
-      Prompt Definitions and Theme Structure
+      Named Styles
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#theme-variables" class="md-nav__link">
+  <a href="#closing-tags" class="md-nav__link">
     <span class="md-ellipsis">
-      Theme Variables
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#theme-segment-behaviors" class="md-nav__link">
-    <span class="md-ellipsis">
-      Theme Segment behaviors
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Theme Segment behaviors">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#text-style-properties" class="md-nav__link">
-    <span class="md-ellipsis">
-      Text Style Properties
+      Closing Tags
     </span>
   </a>
   
@@ -888,54 +878,49 @@
     </nav>
   
 </li>
-        
-          <li class="md-nav__item">
-  <a href="#theme-behaviors" class="md-nav__link">
+      
+        <li class="md-nav__item">
+  <a href="#prompt-escape-sequences" class="md-nav__link">
     <span class="md-ellipsis">
-      Theme Behaviors
+      Prompt Escape Sequences
     </span>
   </a>
   
 </li>
-        
-          <li class="md-nav__item">
-  <a href="#prompt-information-variables" class="md-nav__link">
+      
+        <li class="md-nav__item">
+  <a href="#right-aligned-prompt-and-continuation-lines" class="md-nav__link">
     <span class="md-ellipsis">
-      Prompt Information Variables
+      Right-Aligned Prompt and Continuation Lines
     </span>
   </a>
   
 </li>
-        
-          <li class="md-nav__item">
-  <a href="#default-cjsh-theme" class="md-nav__link">
+      
+        <li class="md-nav__item">
+  <a href="#prompt-cleanup-and-layout-options" class="md-nav__link">
     <span class="md-ellipsis">
-      Default cjsh Theme
+      Prompt Cleanup and Layout Options
     </span>
   </a>
   
 </li>
-        
-          <li class="md-nav__item">
-  <a href="#available-prompt-tags" class="md-nav__link">
+      
+        <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
     <span class="md-ellipsis">
-      Available Prompt Tags
+      Examples
     </span>
   </a>
   
 </li>
-        
-          <li class="md-nav__item">
-  <a href="#command-execution-tags" class="md-nav__link">
+      
+        <li class="md-nav__item">
+  <a href="#persisting-configuration" class="md-nav__link">
     <span class="md-ellipsis">
-      Command Execution Tags
+      Persisting Configuration
     </span>
   </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -974,374 +959,135 @@
   
 
 
-<h1 id="themes">Themes</h1>
-<p>Programming and designing themes uses its own proprietary cjsh DSL language inspired by json and ruby. I know, it's cursed, but it works, it's pretty flexible and fairly easy to write and I'm stuck with it so yeah. Themes are data oriented, hierarchical, and strongly typed. Upon loading a theme, the theme is stored in a theme cache to avoid repeated file reads for themes. Also many prompt info variables are cached to avoid repeated unneeded calculations and executions for information. Any and all white space defined in content areas or in conditionals is rendered in the main prompt output. Frequently I brag about my themes being 2-4 times faster than starship and powerlevel10k at fastest, but you do have to create the themes in a crappy, custom scripting language so there are trade offs. </p>
-<h2 id="loading-themes">Loading Themes</h2>
-<p>To load a theme file, use the <code>source</code> command:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nb">source</span><span class="w"> </span>path/to/theme.cjsh
-</span></code></pre></div>
-<p>For automatic loading on shell startup, add the source command to your <code>~/.cjshrc</code> file:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># In ~/.cjshrc</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">source</span><span class="w"> </span>~/mythemes/gruvbox_dark.cjsh
-</span></code></pre></div>
-<p>Alternatively, theme definitions inlined in .cjshrc will be automatically loaded</p>
-<p>Theme files included with cjsh can be found in the <code>themes/</code> directory of the repository.</p>
-<h3 id="theme-definition">Theme Definition</h3>
-<p>Themes are started with a beginning structure:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>theme_definition<span class="w"> </span><span class="o">[</span>optional<span class="w"> </span>name<span class="o">]</span><span class="w"> </span><span class="o">{</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="o">}</span>
+<h1 id="prompt-markup-and-styling">Prompt Markup and Styling</h1>
+<p>CJ's Shell no longer relies on an external theme DSL. Prompt styling is handled directly through
+the standard shell prompt variables (<code>PS1</code>, <code>RPS1</code>/<code>RPROMPT</code>, and <code>PROMPT_COMMAND</code>) combined with
+inline BBCode-style markup. This page explains how the markup works, which escape sequences are
+available, and how to persist your preferred prompt layout.</p>
+<h2 id="quick-start">Quick Start</h2>
+<ul>
+<li>Set <code>PS1</code> to control the primary prompt. The default template is:
+  <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nv">PS1</span><span class="o">=</span><span class="s1">'[!red][[/red][yellow]\u[/yellow][green]@[/green][blue]\h[/blue] [color=#ff69b4]\w[/color][!red]][/red][!b] \$ [/b]'</span>
+</span></code></pre></div></li>
+<li>Set <code>RPS1</code> (or <code>RPROMPT</code>) to control the right-aligned prompt. The default is <code>[ic-hint]\A[/ic-hint]</code>.</li>
+<li>Use <code>PROMPT_COMMAND</code> for commands that should run before each prompt.</li>
+<li>Apply markup directly inside these variables to style text, add colors, and align sections.</li>
+</ul>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PS1</span><span class="o">=</span><span class="s1">'[b hotpink]\u[/b] in [color=#87ceeb]\w[/color]\n$ '</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">RPS1</span><span class="o">=</span><span class="s1">'[dim]\A[/dim]'</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PROMPT_COMMAND</span><span class="o">=</span><span class="s1">'__update_git_info'</span>
 </span></code></pre></div>
 <blockquote>
-<p><strong>Heads up:</strong> Comment syntax (for example lines beginning with <code>#</code>) isn't currently supported inside a theme definition. Including comment markers will usually cause the parser to error out.</p>
+<p>Markup is parsed by the isocline line editor. Invalid tags are ignored; run with
+<code>ISOCLINE_BBCODE_DEBUG=1</code> to print debugging information if you are experimenting.</p>
 </blockquote>
-<h3 id="prompt-definitions-and-theme-structure">Prompt Definitions and Theme Structure</h3>
-<p>Themes are made up of different prompt types: PS1 and GIT. The PS1 is the default prompt that is used at all times except when within a git repo, at which point the GIT prompt is used. There are two more additional prompts that have special features. Those prompts are the newline and inline_right prompts. It does not matter the order in which each prompt is defined in the theme file. The terminal window title can also be defined here in the theme file.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>theme_definition<span class="w"> </span><span class="s2">"theme_name"</span><span class="w"> </span><span class="o">{</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span>variables<span class="w"> </span><span class="o">{</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">    </span><span class="o">}</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">    </span>terminal_title<span class="w"> </span><span class="s2">""</span>
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>
-</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">    </span>fill<span class="w"> </span><span class="o">{</span>
-</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>
-</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">    </span><span class="o">}</span>
-</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>
-</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">    </span>ps1<span class="w"> </span><span class="o">{</span>
-</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>
-</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">    </span><span class="o">}</span>
-</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>
-</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="w">    </span>git<span class="w"> </span><span class="o">{</span>
-</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>
-</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="w">    </span><span class="o">}</span>
-</span><span id="__span-3-19"><a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a>
-</span><span id="__span-3-20"><a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a><span class="w">    </span>inline_right<span class="w"> </span><span class="o">{</span>
-</span><span id="__span-3-21"><a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a>
-</span><span id="__span-3-22"><a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a><span class="w">    </span><span class="o">}</span>
-</span><span id="__span-3-23"><a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a>
-</span><span id="__span-3-24"><a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a><span class="w">    </span>newline<span class="w"> </span><span class="o">{</span>
-</span><span id="__span-3-25"><a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a>
-</span><span id="__span-3-26"><a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a><span class="w">    </span><span class="o">}</span>
-</span><span id="__span-3-27"><a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a>
-</span><span id="__span-3-28"><a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a><span class="w">    </span>behavior<span class="w"> </span><span class="o">{</span>
-</span><span id="__span-3-29"><a id="__codelineno-3-29" name="__codelineno-3-29" href="#__codelineno-3-29"></a>
-</span><span id="__span-3-30"><a id="__codelineno-3-30" name="__codelineno-3-30" href="#__codelineno-3-30"></a><span class="w">    </span><span class="o">}</span>
-</span><span id="__span-3-31"><a id="__codelineno-3-31" name="__codelineno-3-31" href="#__codelineno-3-31"></a>
-</span><span id="__span-3-32"><a id="__codelineno-3-32" name="__codelineno-3-32" href="#__codelineno-3-32"></a><span class="o">}</span>
-</span></code></pre></div>
-<h3 id="theme-variables">Theme Variables</h3>
-<p>Then structure and behaviors are designed inside. Variables can be used to define commonly used characters, colors, conditional structures, and prompt segments. Comments are not supported anywhere in theme files right now, so avoid adding <code>#</code> or other comment-like markers.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>variables<span class="w"> </span><span class="o">{</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span>project_type_bg<span class="w"> </span><span class="s2">"{if = {IS_PYTHON_PROJECT} == 'true' ? #504945 : {if = {IS_NODEJS_PROJECT} == 'true' ? #504945 : {if = {IS_RUST_PROJECT} == 'true' ? #504945 : {if = {IS_GOLANG_PROJECT} == 'true' ? #504945 : {if = {IS_JAVA_PROJECT} == 'true' ? #504945 : {if = {IS_CPP_PROJECT} == 'true' ? #504945 : {if = {IS_CSHARP_PROJECT} == 'true' ? #504945 : {if = {IS_PHP_PROJECT} == 'true' ? #504945 : {if = {IS_RUBY_PROJECT} == 'true' ? #504945 : {if = {IS_KOTLIN_PROJECT} == 'true' ? #504945 : {if = {IS_SWIFT_PROJECT} == 'true' ? #504945 : {if = {IS_DART_PROJECT} == 'true' ? #504945 : {if = {IS_SCALA_PROJECT} == 'true' ? #504945 : #665c54}}}}}}}}}}}}}"</span>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span>project_language_badge<span class="w"> </span><span class="s2">" {if = {IS_PYTHON_PROJECT} == 'true' ?🐍 {PYTHON_VERSION} :}{if = {IS_NODEJS_PROJECT} == 'true' ?⚡ {NODEJS_VERSION} :}{if = {IS_RUST_PROJECT} == 'true' ?🦀 {RUST_VERSION} :}{if = {IS_GOLANG_PROJECT} == 'true' ?🐹 {GOLANG_VERSION} :}{if = {IS_JAVA_PROJECT} == 'true' ?☕ {JAVA_VERSION} :}{if = {IS_CPP_PROJECT} == 'true' ?⚙️ {CPP_VERSION} :}{if = {IS_CSHARP_PROJECT} == 'true' ?🔷 {CSHARP_VERSION} :}{if = {IS_PHP_PROJECT} == 'true' ?🐘 {PHP_VERSION} :}{if = {IS_RUBY_PROJECT} == 'true' ?💎 {RUBY_VERSION} :}{if = {IS_KOTLIN_PROJECT} == 'true' ?🎯 {KOTLIN_VERSION} :}{if = {IS_SWIFT_PROJECT} == 'true' ?🦉 {SWIFT_VERSION} :}{if = {IS_DART_PROJECT} == 'true' ?🎯 {DART_VERSION} :}{if = {IS_SCALA_PROJECT} == 'true' ?📈 {SCALA_VERSION} :}"</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span>segment<span class="w"> </span><span class="s2">"shared_user_segment"</span><span class="w"> </span><span class="o">{</span>
-</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">      </span>content<span class="w"> </span><span class="s2">" {USERNAME} "</span>
-</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">      </span><span class="nb">fg</span><span class="w"> </span><span class="s2">"#ebdbb2"</span>
-</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">      </span><span class="nb">bg</span><span class="w"> </span><span class="s2">"#282828"</span>
-</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">      </span>separator<span class="w"> </span><span class="s2">"\uE0B0"</span>
-</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">      </span>separator_fg<span class="w"> </span><span class="s2">"#282828"</span>
-</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">      </span>separator_bg<span class="w"> </span><span class="s2">"#3c3836"</span>
-</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">      </span>forward_separator<span class="w"> </span><span class="s2">"\uE0B6"</span>
-</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="w">      </span>forward_separator_fg<span class="w"> </span><span class="s2">"#282828"</span>
-</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="w">      </span>forward_separator_bg<span class="w"> </span>RESET
-</span><span id="__span-4-15"><a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="w">      </span>alignment<span class="w"> </span><span class="s2">"left"</span>
-</span><span id="__span-4-16"><a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="w">    </span><span class="o">}</span>
-</span><span id="__span-4-17"><a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a>
-</span><span id="__span-4-18"><a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="w">    </span>segment<span class="w"> </span><span class="s2">"shared_status_segment"</span><span class="w"> </span><span class="o">{</span>
-</span><span id="__span-4-19"><a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a><span class="w">      </span>content<span class="w"> </span><span class="s2">" [{STATUS}]"</span>
-</span><span id="__span-4-20"><a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a><span class="w">      </span><span class="nb">fg</span><span class="w"> </span><span class="s2">"{if = {STATUS} == 0 ? #b8bb26 : #fb4934}"</span>
-</span><span id="__span-4-21"><a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a><span class="w">      </span><span class="nb">bg</span><span class="w"> </span><span class="s2">"#3c3836"</span>
-</span><span id="__span-4-22"><a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a><span class="w">      </span>separator<span class="w"> </span><span class="s2">"\uE0B0"</span>
-</span><span id="__span-4-23"><a id="__codelineno-4-23" name="__codelineno-4-23" href="#__codelineno-4-23"></a><span class="w">      </span>separator_fg<span class="w"> </span><span class="s2">"#3c3836"</span>
-</span><span id="__span-4-24"><a id="__codelineno-4-24" name="__codelineno-4-24" href="#__codelineno-4-24"></a><span class="w">      </span>separator_bg<span class="w"> </span><span class="s2">"#3c3836"</span>
-</span><span id="__span-4-25"><a id="__codelineno-4-25" name="__codelineno-4-25" href="#__codelineno-4-25"></a><span class="w">      </span>alignment<span class="w"> </span><span class="s2">"left"</span>
-</span><span id="__span-4-26"><a id="__codelineno-4-26" name="__codelineno-4-26" href="#__codelineno-4-26"></a><span class="w">    </span><span class="o">}</span>
-</span><span id="__span-4-27"><a id="__codelineno-4-27" name="__codelineno-4-27" href="#__codelineno-4-27"></a>
-</span><span id="__span-4-28"><a id="__codelineno-4-28" name="__codelineno-4-28" href="#__codelineno-4-28"></a><span class="w">    </span>segment<span class="w"> </span><span class="s2">"shared_duration_segment"</span><span class="w"> </span><span class="o">{</span>
-</span><span id="__span-4-29"><a id="__codelineno-4-29" name="__codelineno-4-29" href="#__codelineno-4-29"></a><span class="w">      </span>content<span class="w"> </span><span class="s2">"in {CMD_DURATION} "</span>
-</span><span id="__span-4-30"><a id="__codelineno-4-30" name="__codelineno-4-30" href="#__codelineno-4-30"></a><span class="w">      </span><span class="nb">fg</span><span class="w"> </span><span class="s2">"#ebdbb2"</span>
-</span><span id="__span-4-31"><a id="__codelineno-4-31" name="__codelineno-4-31" href="#__codelineno-4-31"></a><span class="w">      </span><span class="nb">bg</span><span class="w"> </span><span class="s2">"#3c3836"</span>
-</span><span id="__span-4-32"><a id="__codelineno-4-32" name="__codelineno-4-32" href="#__codelineno-4-32"></a><span class="w">      </span>separator<span class="w"> </span><span class="s2">"\uE0B0"</span>
-</span><span id="__span-4-33"><a id="__codelineno-4-33" name="__codelineno-4-33" href="#__codelineno-4-33"></a><span class="w">      </span>separator_fg<span class="w"> </span><span class="s2">"#3c3836"</span>
-</span><span id="__span-4-34"><a id="__codelineno-4-34" name="__codelineno-4-34" href="#__codelineno-4-34"></a><span class="w">      </span>separator_bg<span class="w"> </span>RESET
-</span><span id="__span-4-35"><a id="__codelineno-4-35" name="__codelineno-4-35" href="#__codelineno-4-35"></a><span class="w">      </span>alignment<span class="w"> </span><span class="s2">"left"</span>
-</span><span id="__span-4-36"><a id="__codelineno-4-36" name="__codelineno-4-36" href="#__codelineno-4-36"></a><span class="w">    </span><span class="o">}</span>
-</span><span id="__span-4-37"><a id="__codelineno-4-37" name="__codelineno-4-37" href="#__codelineno-4-37"></a>
-</span><span id="__span-4-38"><a id="__codelineno-4-38" name="__codelineno-4-38" href="#__codelineno-4-38"></a><span class="w">    </span>segment<span class="w"> </span><span class="s2">"shared_language_badge_segment"</span><span class="w"> </span><span class="o">{</span>
-</span><span id="__span-4-39"><a id="__codelineno-4-39" name="__codelineno-4-39" href="#__codelineno-4-39"></a><span class="w">      </span>content<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">project_language_badge</span><span class="si">}</span><span class="s2">"</span>
-</span><span id="__span-4-40"><a id="__codelineno-4-40" name="__codelineno-4-40" href="#__codelineno-4-40"></a><span class="w">      </span><span class="nb">fg</span><span class="w"> </span><span class="s2">"#83a598"</span>
-</span><span id="__span-4-41"><a id="__codelineno-4-41" name="__codelineno-4-41" href="#__codelineno-4-41"></a><span class="w">      </span><span class="nb">bg</span><span class="w"> </span><span class="s2">"#504945"</span>
-</span><span id="__span-4-42"><a id="__codelineno-4-42" name="__codelineno-4-42" href="#__codelineno-4-42"></a><span class="w">      </span>separator<span class="w"> </span><span class="s2">"\uE0B0"</span>
-</span><span id="__span-4-43"><a id="__codelineno-4-43" name="__codelineno-4-43" href="#__codelineno-4-43"></a><span class="w">      </span>separator_fg<span class="w"> </span><span class="s2">"#504945"</span>
-</span><span id="__span-4-44"><a id="__codelineno-4-44" name="__codelineno-4-44" href="#__codelineno-4-44"></a><span class="w">      </span>separator_bg<span class="w"> </span><span class="s2">"#665c54"</span>
-</span><span id="__span-4-45"><a id="__codelineno-4-45" name="__codelineno-4-45" href="#__codelineno-4-45"></a><span class="w">      </span>alignment<span class="w"> </span><span class="s2">"left"</span>
-</span><span id="__span-4-46"><a id="__codelineno-4-46" name="__codelineno-4-46" href="#__codelineno-4-46"></a><span class="w">    </span><span class="o">}</span>
-</span><span id="__span-4-47"><a id="__codelineno-4-47" name="__codelineno-4-47" href="#__codelineno-4-47"></a><span class="w">  </span><span class="o">}</span>
-</span></code></pre></div>
-<p>And can be used in a segment like this:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>use_segment<span class="w"> </span><span class="s2">"shared_user_segment"</span><span class="w"> </span>as<span class="w"> </span><span class="s2">"userseg"</span>
-</span></code></pre></div>
-<h3 id="theme-segment-behaviors">Theme Segment behaviors</h3>
-<p>Segments use a tag system to that certain segments can be separated from the main prompt and can have their own behaviors defined only for a given tag. One prompt may have many different segments that make up its self. Segments are evaluated and rendered by hierarchical definition from top to bottom as defined in the prompt definition.</p>
-<p>Here is an example of all available segment behaviors being used:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>segment<span class="w"> </span><span class="s2">"user_segment"</span><span class="w"> </span><span class="o">{</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">      </span>content<span class="w"> </span><span class="s2">" {USERNAME} "</span>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">      </span><span class="nb">fg</span><span class="w"> </span><span class="s2">"#d3869b"</span>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">      </span><span class="nb">bg</span><span class="w"> </span><span class="s2">"#282828"</span>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">      </span>separator<span class="w"> </span><span class="s2">"\uE0B0"</span>
-</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">      </span>separator_fg<span class="w"> </span><span class="s2">"#282828"</span>
-</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">      </span>separator_bg<span class="w"> </span><span class="s2">"#3c3836"</span>
-</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">      </span>forward_separator<span class="w"> </span><span class="s2">"\uE0B6"</span>
-</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="w">      </span>forward_separator_fg<span class="w"> </span><span class="s2">"#282828"</span>
-</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="w">      </span>forward_separator_bg<span class="w"> </span>RESET
-</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="w">      </span>alignment<span class="w"> </span><span class="s2">"left"</span>
-</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="w">      </span>bold<span class="w"> </span><span class="nb">true</span>
-</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="w">      </span>italic<span class="w"> </span><span class="nb">false</span>
-</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="w">      </span>underline<span class="w"> </span><span class="nb">false</span>
-</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="w">      </span>dim<span class="w"> </span><span class="nb">false</span>
-</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a><span class="w">      </span>strikethrough<span class="w"> </span><span class="nb">false</span>
-</span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="w">    </span><span class="o">}</span>
-</span></code></pre></div>
-<p>The separator is the separator to the right of the content and the forward separator is the one to the left. The alignment value allows the prompt to be anchored to a given side of the screen, center, left, or right. This placement will dynamically scale with terminal window size.</p>
-<h4 id="text-style-properties">Text Style Properties</h4>
-<p>Segments support text styling properties;xw</p>
+<h2 id="markup-building-blocks">Markup Building Blocks</h2>
+<h3 id="inline-tags">Inline Tags</h3>
 <ul>
-<li><strong><code>bold</code></strong> - Makes text bold/thicker (values: <code>true</code>, <code>false</code>, <code>yes</code>, <code>no</code>, <code>1</code>, <code>0</code>)</li>
-<li><strong><code>italic</code></strong> - Renders text in italics (values: <code>true</code>, <code>false</code>, <code>yes</code>, <code>no</code>, <code>1</code>, <code>0</code>)</li>
-<li><strong><code>underline</code></strong> - Underlines the text (values: <code>true</code>, <code>false</code>, <code>yes</code>, <code>no</code>, <code>1</code>, <code>0</code>)</li>
-<li><strong><code>dim</code></strong> - Renders text with reduced intensity/dimmed (values: <code>true</code>, <code>false</code>, <code>yes</code>, <code>no</code>, <code>1</code>, <code>0</code>)</li>
-<li><strong><code>strikethrough</code></strong> - Strikes through the text (values: <code>true</code>, <code>false</code>, <code>yes</code>, <code>no</code>, <code>1</code>, <code>0</code>)</li>
+<li><code>[b]…[/b]</code> – bold text</li>
+<li><code>[i]…[/i]</code> – italics</li>
+<li><code>[u]…[/u]</code> – underline</li>
+<li><code>[r]…[/r]</code> – reverse video</li>
+<li><code>[dim]…[/dim]</code>, <code>[strike]…[/strike]</code>, <code>[blink]…[/blink]</code>, <code>[hidden]…[/hidden]</code></li>
+<li><code>[color=&lt;name|#RRGGBB&gt;]…[/color]</code> – foreground color</li>
+<li><code>[bgcolor=&lt;name|#RRGGBB&gt;]…[/bgcolor]</code> – background color</li>
+<li><code>[ansi-sgr=sequence]…[/]</code> – inject raw SGR codes (advanced)</li>
+<li><code>[width=columns;&lt;align&gt;;&lt;fill&gt;;dots]…[/]</code> – restrict content width (align is <code>left|center|right</code>)</li>
 </ul>
-<p>All text style properties are optional and default to <code>false</code>. Multiple styles can be combined on the same segment. For example:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>segment<span class="w"> </span><span class="s2">"emphasized_segment"</span><span class="w"> </span><span class="o">{</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">      </span>content<span class="w"> </span><span class="s2">" IMPORTANT "</span>
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">      </span><span class="nb">fg</span><span class="w"> </span><span class="s2">"#ff0000"</span>
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">      </span><span class="nb">bg</span><span class="w"> </span><span class="s2">"#000000"</span>
-</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">      </span>bold<span class="w"> </span><span class="nb">true</span>
-</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">      </span>underline<span class="w"> </span><span class="nb">true</span>
-</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">      </span>alignment<span class="w"> </span><span class="s2">"left"</span>
-</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="w">    </span><span class="o">}</span>
-</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>
-</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>segment<span class="w"> </span><span class="s2">"subtle_segment"</span><span class="w"> </span><span class="o">{</span>
-</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="w">      </span>content<span class="w"> </span><span class="s2">" (optional) "</span>
-</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="w">      </span><span class="nb">fg</span><span class="w"> </span><span class="s2">"#888888"</span>
-</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="w">      </span><span class="nb">bg</span><span class="w"> </span><span class="s2">"RESET"</span>
-</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a><span class="w">      </span>dim<span class="w"> </span><span class="nb">true</span>
-</span><span id="__span-7-15"><a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a><span class="w">      </span>italic<span class="w"> </span><span class="nb">true</span>
-</span><span id="__span-7-16"><a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a><span class="w">      </span>alignment<span class="w"> </span><span class="s2">"left"</span>
-</span><span id="__span-7-17"><a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a><span class="w">    </span><span class="o">}</span>
+<p>Color names include the full HTML color table plus <code>ansi-</code> variants such as <code>ansi-red</code>,
+<code>ansi-lightgray</code>, and <code>ansi-teal</code>. Hex values (<code>#ff69b4</code>) are also supported.</p>
+<p>Tag attributes can be combined inline: <code>[b color=hotpink]…[/]</code> applies both bold and the color.</p>
+<h3 id="named-styles">Named Styles</h3>
+<p>The syntax highlighter exposes reusable style names that can be used as tags. The defaults come
+from <code>token_constants::default_styles</code> and include:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>unknown-command  colon  path-exists  path-not-exists
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>glob-pattern     operator  keyword  builtin  system
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>variable         assignment-value  string  comment
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>command-substitution  arithmetic  option  number
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>function-definition  history-expansion
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>ic-prompt  ic-hint  ic-error  ic-info  ic-emphasis
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>ic-source  ic-diminish  ic-bracematch  ic-whitespace-char
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>ic-linenumbers  ic-linenumber-current
 </span></code></pre></div>
-<p><strong>Note:</strong> Text style support depends on your terminal emulator. Most modern terminals support bold, italic, underline, and dim. Support for strikethrough varies by terminal.</p>
-<h3 id="theme-behaviors">Theme Behaviors</h3>
-<p>Theme Behaviors have 3 potential toggles: cleanup, cleanup_empty_line, and newline_after_execution. Cleanup is only able to be used with a newline prompt and it removes the main prompt upon the user pressing enter on input and it will move the newline prompts and all text up to where the main prompt line started. cleanup_empty_line places a newline after the cleanup before execution. newline_after_execution is self-explanatory.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>behavior<span class="w"> </span><span class="o">{</span>
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">    </span>cleanup<span class="w"> </span><span class="nb">false</span>
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">    </span>cleanup_empty_line<span class="w"> </span><span class="nb">false</span>
-</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">    </span>newline_after_execution<span class="w"> </span><span class="nb">false</span>
-</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="o">}</span>
-</span></code></pre></div>
-<p>There is also the fill behavior. It defines what should fill the space in between main prompt alligned segements.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="w">  </span>fill<span class="w"> </span><span class="o">{</span>
-</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">    </span>char<span class="w"> </span><span class="s2">" "</span>,
-</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span><span class="nb">fg</span><span class="w"> </span>RESET
-</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">    </span><span class="nb">bg</span><span class="w"> </span>RESET
-</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">  </span><span class="o">}</span>
-</span></code></pre></div>
-<h3 id="prompt-information-variables">Prompt Information Variables</h3>
-<p>The information variables are defined like {VAR_NAME} and will replace the var with the proper information. Some basic vars are: {USERNAME} {HOSTNAME} {PATH} {DIRECTORY} {TIME} Vars can be defined in any content field, and prompt type, conditional, and separator. You can see a comprehensive list at the bottom of this page. Some prompt tags should only be used while within a certain prompt, but you can kind of just put whatever information you want anywhere. Nothing is stopping you. Additionally custom EXEC prompt variables can be defined, see below.</p>
-<h3 id="default-cjsh-theme">Default cjsh Theme</h3>
-<p>Here is what the default cjsh theme looks like and this theme is created upon creation of the .cjshrc file within cjsh:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="ch">#! usr/bin/env cjsh</span>
-</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>
-</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>theme_definition<span class="w"> </span><span class="o">{</span>
-</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">  </span>terminal_title<span class="w"> </span><span class="s2">"{PATH}"</span>
-</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>
-</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="w">  </span>fill<span class="w"> </span><span class="o">{</span>
-</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="w">    </span>char<span class="w"> </span><span class="s2">""</span>,
-</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="w">    </span><span class="nb">fg</span><span class="w"> </span>RESET
-</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="w">    </span><span class="nb">bg</span><span class="w"> </span>RESET
-</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="w">  </span><span class="o">}</span>
-</span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a>
-</span><span id="__span-10-12"><a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a><span class="w">  </span>ps1<span class="w"> </span><span class="o">{</span>
-</span><span id="__span-10-13"><a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a><span class="w">    </span>segment<span class="w"> </span><span class="s2">"username"</span><span class="w"> </span><span class="o">{</span>
-</span><span id="__span-10-14"><a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a><span class="w">      </span>content<span class="w"> </span><span class="s2">"{USERNAME}@{HOSTNAME}:"</span>
-</span><span id="__span-10-15"><a id="__codelineno-10-15" name="__codelineno-10-15" href="#__codelineno-10-15"></a><span class="w">      </span><span class="nb">fg</span><span class="w"> </span><span class="s2">"#5555FF"</span>
-</span><span id="__span-10-16"><a id="__codelineno-10-16" name="__codelineno-10-16" href="#__codelineno-10-16"></a><span class="w">      </span><span class="nb">bg</span><span class="w"> </span><span class="s2">"RESET"</span>
-</span><span id="__span-10-17"><a id="__codelineno-10-17" name="__codelineno-10-17" href="#__codelineno-10-17"></a><span class="w">    </span><span class="o">}</span>
-</span><span id="__span-10-18"><a id="__codelineno-10-18" name="__codelineno-10-18" href="#__codelineno-10-18"></a><span class="w">    </span>segment<span class="w"> </span><span class="s2">"directory"</span><span class="w"> </span><span class="o">{</span>
-</span><span id="__span-10-19"><a id="__codelineno-10-19" name="__codelineno-10-19" href="#__codelineno-10-19"></a><span class="w">      </span>content<span class="w"> </span><span class="s2">" {DIRECTORY} "</span>
-</span><span id="__span-10-20"><a id="__codelineno-10-20" name="__codelineno-10-20" href="#__codelineno-10-20"></a><span class="w">      </span><span class="nb">fg</span><span class="w"> </span><span class="s2">"#55FF55"</span>
-</span><span id="__span-10-21"><a id="__codelineno-10-21" name="__codelineno-10-21" href="#__codelineno-10-21"></a><span class="w">      </span><span class="nb">bg</span><span class="w"> </span><span class="s2">"RESET"</span>
-</span><span id="__span-10-22"><a id="__codelineno-10-22" name="__codelineno-10-22" href="#__codelineno-10-22"></a><span class="w">      </span>separator<span class="w"> </span><span class="s2">" "</span>
-</span><span id="__span-10-23"><a id="__codelineno-10-23" name="__codelineno-10-23" href="#__codelineno-10-23"></a><span class="w">      </span>separator_fg<span class="w"> </span><span class="s2">"#FFFFFF"</span>
-</span><span id="__span-10-24"><a id="__codelineno-10-24" name="__codelineno-10-24" href="#__codelineno-10-24"></a><span class="w">      </span>separator_bg<span class="w"> </span><span class="s2">"RESET"</span>
-</span><span id="__span-10-25"><a id="__codelineno-10-25" name="__codelineno-10-25" href="#__codelineno-10-25"></a><span class="w">    </span><span class="o">}</span>
-</span><span id="__span-10-26"><a id="__codelineno-10-26" name="__codelineno-10-26" href="#__codelineno-10-26"></a><span class="w">    </span>segment<span class="w"> </span><span class="s2">"prompt"</span><span class="w"> </span><span class="o">{</span>
-</span><span id="__span-10-27"><a id="__codelineno-10-27" name="__codelineno-10-27" href="#__codelineno-10-27"></a><span class="w">      </span>content<span class="w"> </span><span class="s2">"</span>$<span class="s2"> "</span>
-</span><span id="__span-10-28"><a id="__codelineno-10-28" name="__codelineno-10-28" href="#__codelineno-10-28"></a><span class="w">      </span><span class="nb">fg</span><span class="w"> </span><span class="s2">"#FFFFFF"</span>
-</span><span id="__span-10-29"><a id="__codelineno-10-29" name="__codelineno-10-29" href="#__codelineno-10-29"></a><span class="w">      </span><span class="nb">bg</span><span class="w"> </span><span class="s2">"RESET"</span>
-</span><span id="__span-10-30"><a id="__codelineno-10-30" name="__codelineno-10-30" href="#__codelineno-10-30"></a><span class="w">    </span><span class="o">}</span>
-</span><span id="__span-10-31"><a id="__codelineno-10-31" name="__codelineno-10-31" href="#__codelineno-10-31"></a><span class="w">  </span><span class="o">}</span>
-</span><span id="__span-10-32"><a id="__codelineno-10-32" name="__codelineno-10-32" href="#__codelineno-10-32"></a>
-</span><span id="__span-10-33"><a id="__codelineno-10-33" name="__codelineno-10-33" href="#__codelineno-10-33"></a><span class="w">  </span>git_segments<span class="w"> </span><span class="o">{</span>
-</span><span id="__span-10-34"><a id="__codelineno-10-34" name="__codelineno-10-34" href="#__codelineno-10-34"></a><span class="w">    </span>segment<span class="w"> </span><span class="s2">"path"</span><span class="w"> </span><span class="o">{</span>
-</span><span id="__span-10-35"><a id="__codelineno-10-35" name="__codelineno-10-35" href="#__codelineno-10-35"></a><span class="w">      </span>content<span class="w"> </span><span class="s2">" {LOCAL_PATH} "</span>
-</span><span id="__span-10-36"><a id="__codelineno-10-36" name="__codelineno-10-36" href="#__codelineno-10-36"></a><span class="w">      </span><span class="nb">fg</span><span class="w"> </span><span class="s2">"#55FF55"</span>
-</span><span id="__span-10-37"><a id="__codelineno-10-37" name="__codelineno-10-37" href="#__codelineno-10-37"></a><span class="w">      </span><span class="nb">bg</span><span class="w"> </span><span class="s2">"RESET"</span>
-</span><span id="__span-10-38"><a id="__codelineno-10-38" name="__codelineno-10-38" href="#__codelineno-10-38"></a><span class="w">      </span>separator<span class="w"> </span><span class="s2">" "</span>
-</span><span id="__span-10-39"><a id="__codelineno-10-39" name="__codelineno-10-39" href="#__codelineno-10-39"></a><span class="w">      </span>separator_fg<span class="w"> </span><span class="s2">"#FFFFFF"</span>
-</span><span id="__span-10-40"><a id="__codelineno-10-40" name="__codelineno-10-40" href="#__codelineno-10-40"></a><span class="w">      </span>separator_bg<span class="w"> </span><span class="s2">"RESET"</span>
-</span><span id="__span-10-41"><a id="__codelineno-10-41" name="__codelineno-10-41" href="#__codelineno-10-41"></a><span class="w">    </span><span class="o">}</span>
-</span><span id="__span-10-42"><a id="__codelineno-10-42" name="__codelineno-10-42" href="#__codelineno-10-42"></a><span class="w">    </span>segment<span class="w"> </span><span class="s2">"branch"</span><span class="w"> </span><span class="o">{</span>
-</span><span id="__span-10-43"><a id="__codelineno-10-43" name="__codelineno-10-43" href="#__codelineno-10-43"></a><span class="w">      </span>content<span class="w"> </span><span class="s2">"{GIT_BRANCH}"</span>
-</span><span id="__span-10-44"><a id="__codelineno-10-44" name="__codelineno-10-44" href="#__codelineno-10-44"></a><span class="w">      </span><span class="nb">fg</span><span class="w"> </span><span class="s2">"#FFFF55"</span>
-</span><span id="__span-10-45"><a id="__codelineno-10-45" name="__codelineno-10-45" href="#__codelineno-10-45"></a><span class="w">      </span><span class="nb">bg</span><span class="w"> </span><span class="s2">"RESET"</span>
-</span><span id="__span-10-46"><a id="__codelineno-10-46" name="__codelineno-10-46" href="#__codelineno-10-46"></a><span class="w">    </span><span class="o">}</span>
-</span><span id="__span-10-47"><a id="__codelineno-10-47" name="__codelineno-10-47" href="#__codelineno-10-47"></a><span class="w">    </span>segment<span class="w"> </span><span class="s2">"status"</span><span class="w"> </span><span class="o">{</span>
-</span><span id="__span-10-48"><a id="__codelineno-10-48" name="__codelineno-10-48" href="#__codelineno-10-48"></a><span class="w">      </span>content<span class="w"> </span><span class="s2">"{GIT_STATUS}"</span>
-</span><span id="__span-10-49"><a id="__codelineno-10-49" name="__codelineno-10-49" href="#__codelineno-10-49"></a><span class="w">      </span><span class="nb">fg</span><span class="w"> </span><span class="s2">"#FF5555"</span>
-</span><span id="__span-10-50"><a id="__codelineno-10-50" name="__codelineno-10-50" href="#__codelineno-10-50"></a><span class="w">      </span><span class="nb">bg</span><span class="w"> </span><span class="s2">"RESET"</span>
-</span><span id="__span-10-51"><a id="__codelineno-10-51" name="__codelineno-10-51" href="#__codelineno-10-51"></a><span class="w">      </span>separator<span class="w"> </span><span class="s2">" </span>$<span class="s2"> "</span>
-</span><span id="__span-10-52"><a id="__codelineno-10-52" name="__codelineno-10-52" href="#__codelineno-10-52"></a><span class="w">      </span>separator_fg<span class="w"> </span><span class="s2">"#FFFFFF"</span>
-</span><span id="__span-10-53"><a id="__codelineno-10-53" name="__codelineno-10-53" href="#__codelineno-10-53"></a><span class="w">      </span>separator_bg<span class="w"> </span><span class="s2">"RESET"</span>
-</span><span id="__span-10-54"><a id="__codelineno-10-54" name="__codelineno-10-54" href="#__codelineno-10-54"></a><span class="w">    </span><span class="o">}</span>
-</span><span id="__span-10-55"><a id="__codelineno-10-55" name="__codelineno-10-55" href="#__codelineno-10-55"></a><span class="w">  </span><span class="o">}</span>
-</span><span id="__span-10-56"><a id="__codelineno-10-56" name="__codelineno-10-56" href="#__codelineno-10-56"></a>
-</span><span id="__span-10-57"><a id="__codelineno-10-57" name="__codelineno-10-57" href="#__codelineno-10-57"></a><span class="w">  </span>inline_right<span class="w"> </span><span class="o">{</span>
-</span><span id="__span-10-58"><a id="__codelineno-10-58" name="__codelineno-10-58" href="#__codelineno-10-58"></a><span class="w">    </span>segment<span class="w"> </span><span class="s2">"time"</span><span class="w"> </span><span class="o">{</span>
-</span><span id="__span-10-59"><a id="__codelineno-10-59" name="__codelineno-10-59" href="#__codelineno-10-59"></a><span class="w">      </span>content<span class="w"> </span><span class="s2">"[{TIME}]"</span>
-</span><span id="__span-10-60"><a id="__codelineno-10-60" name="__codelineno-10-60" href="#__codelineno-10-60"></a><span class="w">      </span><span class="nb">fg</span><span class="w"> </span><span class="s2">"#888888"</span>
-</span><span id="__span-10-61"><a id="__codelineno-10-61" name="__codelineno-10-61" href="#__codelineno-10-61"></a><span class="w">      </span><span class="nb">bg</span><span class="w"> </span><span class="s2">"RESET"</span>
-</span><span id="__span-10-62"><a id="__codelineno-10-62" name="__codelineno-10-62" href="#__codelineno-10-62"></a><span class="w">    </span><span class="o">}</span>
-</span><span id="__span-10-63"><a id="__codelineno-10-63" name="__codelineno-10-63" href="#__codelineno-10-63"></a><span class="w">  </span><span class="o">}</span>
-</span><span id="__span-10-64"><a id="__codelineno-10-64" name="__codelineno-10-64" href="#__codelineno-10-64"></a>
-</span><span id="__span-10-65"><a id="__codelineno-10-65" name="__codelineno-10-65" href="#__codelineno-10-65"></a><span class="w">  </span>behavior<span class="w"> </span><span class="o">{</span>
-</span><span id="__span-10-66"><a id="__codelineno-10-66" name="__codelineno-10-66" href="#__codelineno-10-66"></a><span class="w">    </span>cleanup<span class="w"> </span><span class="nb">false</span>
-</span><span id="__span-10-67"><a id="__codelineno-10-67" name="__codelineno-10-67" href="#__codelineno-10-67"></a><span class="w">    </span>cleanup_empty_line<span class="w"> </span><span class="nb">false</span>
-</span><span id="__span-10-68"><a id="__codelineno-10-68" name="__codelineno-10-68" href="#__codelineno-10-68"></a><span class="w">    </span>newline_after_execution<span class="w"> </span><span class="nb">false</span>
-</span><span id="__span-10-69"><a id="__codelineno-10-69" name="__codelineno-10-69" href="#__codelineno-10-69"></a><span class="w">  </span><span class="o">}</span>
-</span><span id="__span-10-70"><a id="__codelineno-10-70" name="__codelineno-10-70" href="#__codelineno-10-70"></a><span class="o">}</span>
-</span></code></pre></div>
-<h3 id="available-prompt-tags">Available Prompt Tags</h3>
-<div class="language-cpp highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="cm">/*</span>
-</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="cm"> * {USERNAME}   - Current user's name</span>
-</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="cm"> * {HOSTNAME}   - System hostname</span>
-</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="cm"> * {PATH}       - Current working directory (with ~ for home)</span>
-</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="cm"> * {DIRECTORY}  - Name of the current directory</span>
-</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="cm"> * {TIME12}     - Current time (HH:MM:SS) in 12 hour format</span>
-</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="cm"> * {TIME24}, {TIME} - Current time (HH:MM:SS) in 24 hour format</span>
-</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="cm"> * {DATE}       - Current date (YYYY-MM-DD)</span>
-</span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="cm"> * {DAY}        - Current day of the month (1-31)</span>
-</span><span id="__span-11-10"><a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a><span class="cm"> * {MONTH}      - Current month (1-12)</span>
-</span><span id="__span-11-11"><a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a><span class="cm"> * {YEAR}       - Current year (YYYY)</span>
-</span><span id="__span-11-12"><a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a><span class="cm"> * {DAY_NAME}   - Name of the current day (e.g., Monday)</span>
-</span><span id="__span-11-13"><a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a><span class="cm"> * {MONTH_NAME} - Name of the current month (e.g., September)</span>
-</span><span id="__span-11-14"><a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a><span class="cm"> * {SHELL}      - Name of the shell</span>
-</span><span id="__span-11-15"><a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a><span class="cm"> * {SHELL_VER}  - Version of the shell</span>
-</span><span id="__span-11-16"><a id="__codelineno-11-16" name="__codelineno-11-16" href="#__codelineno-11-16"></a><span class="cm"> *</span>
-</span><span id="__span-11-17"><a id="__codelineno-11-17" name="__codelineno-11-17" href="#__codelineno-11-17"></a><span class="cm"> * Directory placeholders:</span>
-</span><span id="__span-11-18"><a id="__codelineno-11-18" name="__codelineno-11-18" href="#__codelineno-11-18"></a><span class="cm"> * {DISPLAY_DIR} - Enhanced directory display with repo/home contraction</span>
-</span><span id="__span-11-19"><a id="__codelineno-11-19" name="__codelineno-11-19" href="#__codelineno-11-19"></a><span class="cm"> * {TRUNCATED_PATH} - Truncated path with symbol</span>
-</span><span id="__span-11-20"><a id="__codelineno-11-20" name="__codelineno-11-20" href="#__codelineno-11-20"></a><span class="cm"> * {REPO_PATH}  - Repository-relative path</span>
-</span><span id="__span-11-21"><a id="__codelineno-11-21" name="__codelineno-11-21" href="#__codelineno-11-21"></a><span class="cm"> * {DIR_TRUNCATED} - Whether directory display is truncated (true/false)</span>
-</span><span id="__span-11-22"><a id="__codelineno-11-22" name="__codelineno-11-22" href="#__codelineno-11-22"></a><span class="cm"> *</span>
-</span><span id="__span-11-23"><a id="__codelineno-11-23" name="__codelineno-11-23" href="#__codelineno-11-23"></a><span class="cm"> * Git prompt additional placeholders:</span>
-</span><span id="__span-11-24"><a id="__codelineno-11-24" name="__codelineno-11-24" href="#__codelineno-11-24"></a><span class="cm"> * {LOCAL_PATH} - Local path of the git repository</span>
-</span><span id="__span-11-25"><a id="__codelineno-11-25" name="__codelineno-11-25" href="#__codelineno-11-25"></a><span class="cm"> * {GIT_BRANCH} - Current Git branch</span>
-</span><span id="__span-11-26"><a id="__codelineno-11-26" name="__codelineno-11-26" href="#__codelineno-11-26"></a><span class="cm"> * {GIT_STATUS} - Git status (✓ for clean, * for dirty)</span>
-</span><span id="__span-11-27"><a id="__codelineno-11-27" name="__codelineno-11-27" href="#__codelineno-11-27"></a><span class="cm"> * {GIT_AHEAD}  - Number of commits ahead of remote</span>
-</span><span id="__span-11-28"><a id="__codelineno-11-28" name="__codelineno-11-28" href="#__codelineno-11-28"></a><span class="cm"> * {GIT_BEHIND} - Number of commits behind remote</span>
-</span><span id="__span-11-29"><a id="__codelineno-11-29" name="__codelineno-11-29" href="#__codelineno-11-29"></a><span class="cm"> * {GIT_STASHES} - Number of stashes in the repository</span>
-</span><span id="__span-11-30"><a id="__codelineno-11-30" name="__codelineno-11-30" href="#__codelineno-11-30"></a><span class="cm"> * {GIT_STAGED} - Has staged changes (✓ or empty)</span>
-</span><span id="__span-11-31"><a id="__codelineno-11-31" name="__codelineno-11-31" href="#__codelineno-11-31"></a><span class="cm"> * {GIT_CHANGES} - Number of uncommitted changes</span>
-</span><span id="__span-11-32"><a id="__codelineno-11-32" name="__codelineno-11-32" href="#__codelineno-11-32"></a><span class="cm"> * {GIT_REMOTE} - Remote URL of the current repo</span>
-</span><span id="__span-11-33"><a id="__codelineno-11-33" name="__codelineno-11-33" href="#__codelineno-11-33"></a><span class="cm"> * {GIT_TAG} - Current Git tag (if any)</span>
-</span><span id="__span-11-34"><a id="__codelineno-11-34" name="__codelineno-11-34" href="#__codelineno-11-34"></a><span class="cm"> * {GIT_LAST_COMMIT} - Last commit hash or message</span>
-</span><span id="__span-11-35"><a id="__codelineno-11-35" name="__codelineno-11-35" href="#__codelineno-11-35"></a><span class="cm"> * {GIT_AUTHOR} - Author of the last commit</span>
-</span><span id="__span-11-36"><a id="__codelineno-11-36" name="__codelineno-11-36" href="#__codelineno-11-36"></a><span class="cm"> *</span>
-</span><span id="__span-11-37"><a id="__codelineno-11-37" name="__codelineno-11-37" href="#__codelineno-11-37"></a><span class="cm"> * Command placeholders:</span>
-</span><span id="__span-11-38"><a id="__codelineno-11-38" name="__codelineno-11-38" href="#__codelineno-11-38"></a><span class="cm"> * {CMD_DURATION} - Duration of last command (formatted)</span>
-</span><span id="__span-11-39"><a id="__codelineno-11-39" name="__codelineno-11-39" href="#__codelineno-11-39"></a><span class="cm"> * {CMD_DURATION_MS} - Duration of last command in milliseconds</span>
-</span><span id="__span-11-40"><a id="__codelineno-11-40" name="__codelineno-11-40" href="#__codelineno-11-40"></a><span class="cm"> * {EXIT_CODE}  - Last command exit code</span>
-</span><span id="__span-11-41"><a id="__codelineno-11-41" name="__codelineno-11-41" href="#__codelineno-11-41"></a><span class="cm"> * {EXIT_SYMBOL} - Exit status symbol (✓ for success, ✗ for failure)</span>
-</span><span id="__span-11-42"><a id="__codelineno-11-42" name="__codelineno-11-42" href="#__codelineno-11-42"></a><span class="cm"> * {CMD_SUCCESS} - Whether last command was successful (true/false)</span>
-</span><span id="__span-11-43"><a id="__codelineno-11-43" name="__codelineno-11-43" href="#__codelineno-11-43"></a><span class="cm"> *</span>
-</span><span id="__span-11-44"><a id="__codelineno-11-44" name="__codelineno-11-44" href="#__codelineno-11-44"></a><span class="cm"> * Language detection placeholders:</span>
-</span><span id="__span-11-45"><a id="__codelineno-11-45" name="__codelineno-11-45" href="#__codelineno-11-45"></a><span class="cm"> * {PYTHON_VERSION} - Python version if in Python project</span>
-</span><span id="__span-11-46"><a id="__codelineno-11-46" name="__codelineno-11-46" href="#__codelineno-11-46"></a><span class="cm"> * {NODEJS_VERSION} - Node.js version if in Node.js project</span>
-</span><span id="__span-11-47"><a id="__codelineno-11-47" name="__codelineno-11-47" href="#__codelineno-11-47"></a><span class="cm"> * {RUST_VERSION} - Rust version if in Rust project</span>
-</span><span id="__span-11-48"><a id="__codelineno-11-48" name="__codelineno-11-48" href="#__codelineno-11-48"></a><span class="cm"> * {GOLANG_VERSION} - Go version if in Go project</span>
-</span><span id="__span-11-49"><a id="__codelineno-11-49" name="__codelineno-11-49" href="#__codelineno-11-49"></a><span class="cm"> * {JAVA_VERSION} - Java version if in Java project</span>
-</span><span id="__span-11-50"><a id="__codelineno-11-50" name="__codelineno-11-50" href="#__codelineno-11-50"></a><span class="cm"> * {LANGUAGE_VERSIONS} - Combined language versions (only shows detected projects) </span>
-</span><span id="__span-11-51"><a id="__codelineno-11-51" name="__codelineno-11-51" href="#__codelineno-11-51"></a><span class="cm"> * {PYTHON_VENV} - Python virtual environment name </span>
-</span><span id="__span-11-52"><a id="__codelineno-11-52" name="__codelineno-11-52" href="#__codelineno-11-52"></a><span class="cm"> * {NODEJS_PM} - Node.js package manager (npm, yarn, pnpm) </span>
-</span><span id="__span-11-53"><a id="__codelineno-11-53" name="__codelineno-11-53" href="#__codelineno-11-53"></a><span class="cm"> * {IS_PYTHON_PROJECT} - Whether current directory is a Python project </span>
-</span><span id="__span-11-54"><a id="__codelineno-11-54" name="__codelineno-11-54" href="#__codelineno-11-54"></a><span class="cm"> * {IS_NODEJS_PROJECT} - Whether current directory is a Node.js project </span>
-</span><span id="__span-11-55"><a id="__codelineno-11-55" name="__codelineno-11-55" href="#__codelineno-11-55"></a><span class="cm"> * {IS_RUST_PROJECT} - Whether current directory is a Rust project </span>
-</span><span id="__span-11-56"><a id="__codelineno-11-56" name="__codelineno-11-56" href="#__codelineno-11-56"></a><span class="cm"> * {IS_GOLANG_PROJECT} - Whether current directory is a Go project </span>
-</span><span id="__span-11-57"><a id="__codelineno-11-57" name="__codelineno-11-57" href="#__codelineno-11-57"></a><span class="cm"> * {IS_JAVA_PROJECT} - Whether current directory is a Java project</span>
-</span><span id="__span-11-58"><a id="__codelineno-11-58" name="__codelineno-11-58" href="#__codelineno-11-58"></a><span class="cm"> *</span>
-</span><span id="__span-11-59"><a id="__codelineno-11-59" name="__codelineno-11-59" href="#__codelineno-11-59"></a><span class="cm"> * Container placeholders:</span>
-</span><span id="__span-11-60"><a id="__codelineno-11-60" name="__codelineno-11-60" href="#__codelineno-11-60"></a><span class="cm"> * {CONTAINER_NAME} - Name of container (Docker, Podman, etc.)</span>
-</span><span id="__span-11-61"><a id="__codelineno-11-61" name="__codelineno-11-61" href="#__codelineno-11-61"></a><span class="cm"> * {CONTAINER_TYPE} - Type of container technology</span>
-</span><span id="__span-11-62"><a id="__codelineno-11-62" name="__codelineno-11-62" href="#__codelineno-11-62"></a><span class="cm"> * {IS_CONTAINER} - Whether running in a container (true/false)</span>
-</span><span id="__span-11-63"><a id="__codelineno-11-63" name="__codelineno-11-63" href="#__codelineno-11-63"></a><span class="cm"> * {DOCKER_CONTEXT} - Docker context name</span>
-</span><span id="__span-11-64"><a id="__codelineno-11-64" name="__codelineno-11-64" href="#__codelineno-11-64"></a><span class="cm"> * {DOCKER_IMAGE} - Docker image name if available</span>
-</span><span id="__span-11-65"><a id="__codelineno-11-65" name="__codelineno-11-65" href="#__codelineno-11-65"></a><span class="cm"> *</span>
-</span><span id="__span-11-66"><a id="__codelineno-11-66" name="__codelineno-11-66" href="#__codelineno-11-66"></a><span class="cm"> * System information placeholders:</span>
-</span><span id="__span-11-67"><a id="__codelineno-11-67" name="__codelineno-11-67" href="#__codelineno-11-67"></a><span class="cm"> * {OS_INFO}     - Operating system name and version</span>
-</span><span id="__span-11-68"><a id="__codelineno-11-68" name="__codelineno-11-68" href="#__codelineno-11-68"></a><span class="cm"> * {KERNEL_VER}  - Kernel version</span>
-</span><span id="__span-11-69"><a id="__codelineno-11-69" name="__codelineno-11-69" href="#__codelineno-11-69"></a><span class="cm"> * {CPU_USAGE}   - Current CPU usage percentage</span>
-</span><span id="__span-11-70"><a id="__codelineno-11-70" name="__codelineno-11-70" href="#__codelineno-11-70"></a><span class="cm"> * {MEM_USAGE}   - Current memory usage percentage</span>
-</span><span id="__span-11-71"><a id="__codelineno-11-71" name="__codelineno-11-71" href="#__codelineno-11-71"></a><span class="cm"> * {BATTERY}     - Battery percentage and charging status</span>
-</span><span id="__span-11-72"><a id="__codelineno-11-72" name="__codelineno-11-72" href="#__codelineno-11-72"></a><span class="cm"> * {UPTIME}      - System uptime</span>
-</span><span id="__span-11-73"><a id="__codelineno-11-73" name="__codelineno-11-73" href="#__codelineno-11-73"></a><span class="cm"> * {DISK_USAGE}  - Disk usage of current directory or root</span>
-</span><span id="__span-11-74"><a id="__codelineno-11-74" name="__codelineno-11-74" href="#__codelineno-11-74"></a><span class="cm"> * {SWAP_USAGE}  - Swap memory usage</span>
-</span><span id="__span-11-75"><a id="__codelineno-11-75" name="__codelineno-11-75" href="#__codelineno-11-75"></a><span class="cm"> * {LOAD_AVG}    - System load average</span>
-</span><span id="__span-11-76"><a id="__codelineno-11-76" name="__codelineno-11-76" href="#__codelineno-11-76"></a><span class="cm"> *</span>
-</span><span id="__span-11-77"><a id="__codelineno-11-77" name="__codelineno-11-77" href="#__codelineno-11-77"></a><span class="cm"> * Environment information placeholders:</span>
-</span><span id="__span-11-78"><a id="__codelineno-11-78" name="__codelineno-11-78" href="#__codelineno-11-78"></a><span class="cm"> * {TERM_TYPE}   - Terminal type (e.g., xterm, screen)</span>
-</span><span id="__span-11-79"><a id="__codelineno-11-79" name="__codelineno-11-79" href="#__codelineno-11-79"></a><span class="cm"> * {TERM_SIZE}   - Terminal dimensions (columns x rows)</span>
-</span><span id="__span-11-80"><a id="__codelineno-11-80" name="__codelineno-11-80" href="#__codelineno-11-80"></a><span class="cm"> * {LANG_VER:X}  - Version of language X (python, node, ruby, go, rust)</span>
-</span><span id="__span-11-81"><a id="__codelineno-11-81" name="__codelineno-11-81" href="#__codelineno-11-81"></a><span class="cm"> * {VIRTUAL_ENV} - Name of active virtual environment, if any</span>
-</span><span id="__span-11-82"><a id="__codelineno-11-82" name="__codelineno-11-82" href="#__codelineno-11-82"></a><span class="cm"> * {BG_JOBS}     - Number of background jobs</span>
-</span><span id="__span-11-83"><a id="__codelineno-11-83" name="__codelineno-11-83" href="#__codelineno-11-83"></a><span class="cm"> * {STATUS}      - Last command exit code</span>
-</span><span id="__span-11-84"><a id="__codelineno-11-84" name="__codelineno-11-84" href="#__codelineno-11-84"></a><span class="cm"> *</span>
-</span><span id="__span-11-85"><a id="__codelineno-11-85" name="__codelineno-11-85" href="#__codelineno-11-85"></a><span class="cm"> * Network information placeholders:</span>
-</span><span id="__span-11-86"><a id="__codelineno-11-86" name="__codelineno-11-86" href="#__codelineno-11-86"></a><span class="cm"> * {IP_LOCAL}    - Local IP address</span>
-</span><span id="__span-11-87"><a id="__codelineno-11-87" name="__codelineno-11-87" href="#__codelineno-11-87"></a><span class="cm"> * {IP_EXTERNAL} - External IP address</span>
-</span><span id="__span-11-88"><a id="__codelineno-11-88" name="__codelineno-11-88" href="#__codelineno-11-88"></a><span class="cm"> * {VPN_STATUS}  - VPN connection status (on/off)</span>
-</span><span id="__span-11-89"><a id="__codelineno-11-89" name="__codelineno-11-89" href="#__codelineno-11-89"></a><span class="cm"> * {NET_IFACE}   - Active network interface</span>
-</span></code></pre></div>
-<h3 id="command-execution-tags">Command Execution Tags</h3>
-<p>The shell supports executing arbitrary commands in your prompt with automatic caching:</p>
+<p>Use them as simple tags: <code>[ic-hint]⌛[/ic-hint]</code>. Redefine a style with
+<code>cjshopt style_def &lt;name&gt; &lt;style&gt;</code> to change both the syntax highlighter and any markup that uses
+that tag.</p>
+<h3 id="closing-tags">Closing Tags</h3>
+<p>Use <code>[/tag]</code> to end a specific style or <code>[/]</code> to end the most recent open tag. You can also nest
+tags freely; the parser keeps a stack so <code>[b][color=hotpink]...[/color][/b]</code> works as expected.</p>
+<h2 id="prompt-escape-sequences">Prompt Escape Sequences</h2>
+<p>Prompt templates use familiar POSIX/Bash escapes. CJ's Shell expands the following sequences:</p>
 <ul>
-<li>{EXEC%%%<command>%%%<cache_duration>} - Execute a shell command with caching</cache_duration></command></li>
-<li><code>command</code>: The shell command to execute</li>
-<li><code>cache_duration</code>: Cache duration in seconds (optional, defaults to 30)
-                       Use <code>-1</code> for permanent caching (execute once, cache forever)</li>
+<li><code>\a</code> bell character</li>
+<li><code>\d</code> locale-specific date (e.g., <code>Tue Mar 04</code>)</li>
+<li><code>\D{fmt}</code> date formatted with <code>strftime</code></li>
+<li><code>\e</code> / <code>\E</code> escape character (<code>\033</code>)</li>
+<li><code>\h</code> short hostname, <code>\H</code> full hostname</li>
+<li><code>\j</code> number of background jobs</li>
+<li><code>\l</code> current tty</li>
+<li><code>\n</code> newline, <code>\r</code> carriage return</li>
+<li><code>\s</code> shell name (<code>cjsh</code> by default)</li>
+<li><code>\t</code> current time <code>HH:MM:SS</code>, <code>\T</code> 12-hour, <code>\@</code> 12-hour + AM/PM, <code>\A</code> <code>HH:MM</code></li>
+<li><code>\u</code> username</li>
+<li><code>\v</code> short cjsh version, <code>\V</code> full version string</li>
+<li><code>\w</code> working directory with <code>$HOME</code> shortened to <code>~</code>, <code>\W</code> basename of working directory</li>
+<li><code>\$</code> <code>#</code> for root, otherwise <code>$</code></li>
+<li><code>\?</code> exit status of last command</li>
+<li><code>\\</code> literal backslash, <code>\[</code> and <code>\]</code> for zero-width control regions</li>
+<li>Octal escapes (<code>\033</code>) for arbitrary characters</li>
 </ul>
-<p>Here are some examples:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># Show current time, cached for 60 seconds</span>
-</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="o">{</span>EXEC%%%date<span class="w"> </span>+%H:%M%%%60<span class="o">}</span>
-</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>
-</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="c1"># Show git commit count, cached for 30 seconds (default)</span>
-</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="o">{</span>EXEC%%%git<span class="w"> </span>rev-list<span class="w"> </span>--count<span class="w"> </span>HEAD%%%<span class="o">}</span>
-</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>
-</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="c1"># Show battery percentage on macOS, cached for 120 seconds</span>
-</span><span id="__span-12-8"><a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="o">{</span>EXEC%%%pmset<span class="w"> </span>-g<span class="w"> </span>batt<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-Eo<span class="w"> </span><span class="s2">"\d+%"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>cut<span class="w"> </span>-d%<span class="w"> </span>-f1%%%120<span class="o">}</span>
-</span><span id="__span-12-9"><a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a>
-</span><span id="__span-12-10"><a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a><span class="c1"># Show kubernetes context, cached for 10 seconds</span>
-</span><span id="__span-12-11"><a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a><span class="o">{</span>EXEC%%%kubectl<span class="w"> </span>config<span class="w"> </span>current-context%%%10<span class="o">}</span>
-</span><span id="__span-12-12"><a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a>
-</span><span id="__span-12-13"><a id="__codelineno-12-13" name="__codelineno-12-13" href="#__codelineno-12-13"></a><span class="c1"># Show kernel version, cached permanently (execute only once)</span>
-</span><span id="__span-12-14"><a id="__codelineno-12-14" name="__codelineno-12-14" href="#__codelineno-12-14"></a><span class="o">{</span>EXEC%%%uname<span class="w"> </span>-r%%%-1<span class="o">}</span>
-</span><span id="__span-12-15"><a id="__codelineno-12-15" name="__codelineno-12-15" href="#__codelineno-12-15"></a>
-</span><span id="__span-12-16"><a id="__codelineno-12-16" name="__codelineno-12-16" href="#__codelineno-12-16"></a><span class="c1"># Show hostname, cached permanently</span>
-</span><span id="__span-12-17"><a id="__codelineno-12-17" name="__codelineno-12-17" href="#__codelineno-12-17"></a><span class="o">{</span>EXEC%%%hostname%%%-1<span class="o">}</span>
+<p>All escape processing happens before markup is interpreted.</p>
+<h2 id="right-aligned-prompt-and-continuation-lines">Right-Aligned Prompt and Continuation Lines</h2>
+<ul>
+<li><code>RPS1</code> (preferred) or <code>RPROMPT</code> controls the inline right prompt. Markup and escapes work the
+  same way as <code>PS1</code>.</li>
+<li><code>PS2</code> is used automatically for continuation lines by the line editor. Set it if you want a
+  custom secondary prompt, e.g. <code>export PS2='[dim]&gt; [/dim]'</code>.</li>
+<li><code>PROMPT_COMMAND</code>, when set, runs before CJ's Shell generates <code>PS1</code>/<code>RPS1</code>. Use it to refresh
+  environment variables, collect Git metadata, or update the terminal title.</li>
+</ul>
+<h2 id="prompt-cleanup-and-layout-options">Prompt Cleanup and Layout Options</h2>
+<p>Use <code>cjshopt</code> to control how the prompt behaves after command execution:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>cjshopt<span class="w"> </span>prompt-cleanup<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status<span class="w">          </span><span class="c1"># Remove the previous prompt when you press Enter</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>cjshopt<span class="w"> </span>prompt-cleanup-newline<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status<span class="w">  </span><span class="c1"># Insert a blank line before the next prompt</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>cjshopt<span class="w"> </span>prompt-cleanup-empty-line<span class="w"> </span>on<span class="p">|</span>off<span class="w">      </span><span class="c1"># Emit an extra spacer line during cleanup</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>cjshopt<span class="w"> </span>prompt-cleanup-truncate<span class="w"> </span>on<span class="p">|</span>off<span class="w">        </span><span class="c1"># Collapse multiline prompts to a single line</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>cjshopt<span class="w"> </span>prompt-newline<span class="w"> </span>on<span class="p">|</span>off<span class="w">                 </span><span class="c1"># Always print a blank line after commands</span>
 </span></code></pre></div>
+<p>Each toggle prints guidance on how to persist the setting. Add the chosen command to <code>~/.cjshrc</code>
+to make it stick.</p>
+<h2 id="examples">Examples</h2>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Minimal prompt that still highlights errors</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PS1</span><span class="o">=</span><span class="s1">'[ic-error]\$[/ic-error] '</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c1"># Git-aware prompt via PROMPT_COMMAND</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>prompt_git_info<span class="o">()</span><span class="w"> </span><span class="o">{</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span><span class="k">if</span><span class="w"> </span>git<span class="w"> </span>rev-parse<span class="w"> </span>--is-inside-work-tree<span class="w"> </span>&gt;/dev/null<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">    </span><span class="nb">local</span><span class="w"> </span>branch
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">    </span><span class="nv">branch</span><span class="o">=</span><span class="k">$(</span>git<span class="w"> </span>branch<span class="w"> </span>--show-current<span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="k">)</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">    </span><span class="nb">export</span><span class="w"> </span><span class="nv">GIT_SEG</span><span class="o">=</span><span class="s2">"[color=gold](</span><span class="si">${</span><span class="nv">branch</span><span class="k">:-</span><span class="nv">detached</span><span class="si">}</span><span class="s2">)[/color] "</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">  </span><span class="k">else</span>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">    </span><span class="nb">unset</span><span class="w"> </span>GIT_SEG
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">  </span><span class="k">fi</span>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="o">}</span>
+</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PROMPT_COMMAND</span><span class="o">=</span>prompt_git_info
+</span><span id="__span-4-15"><a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PS1</span><span class="o">=</span><span class="s1">'[b]\u[/b] [color=#6cb6ff]\w[/color] ${GIT_SEG}\$ '</span>
+</span><span id="__span-4-16"><a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a>
+</span><span id="__span-4-17"><a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="c1"># Right prompt that shows the time and exit code when non-zero</span>
+</span><span id="__span-4-18"><a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="nb">export</span><span class="w"> </span><span class="nv">RPS1</span><span class="o">=</span><span class="s1">'[dim]\A[/dim][if $?&gt;0][space][ic-error]✗ $?[ic-error][/if]'</span>
+</span></code></pre></div>
+<p>The last example demonstrates mixing markup with shell substitutions. Because prompt evaluation
+occurs inside CJ's Shell, you can use regular shell parameter expansion to build dynamic strings
+before markup is parsed.</p>
+<h2 id="persisting-configuration">Persisting Configuration</h2>
+<ul>
+<li>Add <code>export</code> statements to <code>~/.cjshrc</code> for prompt variables.</li>
+<li>Use <code>cjshopt style_def</code> in the same file to adjust highlight palettes.</li>
+<li>When creating configuration files through <code>cjshopt generate-rc</code> or <code>cjshopt generate-profile</code>,
+  you can drop your prompt definitions into the generated files directly.</li>
+</ul>
+<p>That is all you need to theme CJ's Shell now—no external DSL, no extra tooling. Compose the prompt
+you want with markup, save it in your rc files, and CJSH will handle the rest.</p>
 
 
 
