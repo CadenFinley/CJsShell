@@ -128,6 +128,10 @@ static const unicode_interval_t kWideTable[] = {
     {0x1FAE0, 0x1FAE8}, {0x1FAF0, 0x1FAF8}, {0x1FB00, 0x1FB92}, {0x1FB94, 0x1FBCA},
     {0x1FBF0, 0x1FBF9}, {0x20000, 0x2FFFD}, {0x30000, 0x3FFFD}};
 
+static const unicode_interval_t kZeroWidthTable[] = {
+    {0x200B, 0x200F}, {0x202A, 0x202E},   {0x2060, 0x2064},   {0x2066, 0x206F},
+    {0xFEFF, 0xFEFF}, {0x1BCA0, 0x1BCA3}, {0x1D173, 0x1D17A}, {0xE0000, 0xE0FFF}};
+
 static bool is_in_intervals(unicode_codepoint_t cp, const unicode_interval_t* table,
                             size_t length) {
     size_t low = 0;
@@ -270,6 +274,11 @@ bool unicode_is_combining_codepoint(unicode_codepoint_t codepoint) {
                            sizeof(kCombiningTable) / sizeof(unicode_interval_t));
 }
 
+static bool unicode_is_zero_width_format(unicode_codepoint_t codepoint) {
+    return is_in_intervals(codepoint, kZeroWidthTable,
+                           sizeof(kZeroWidthTable) / sizeof(unicode_interval_t));
+}
+
 int unicode_codepoint_width(unicode_codepoint_t codepoint) {
     if (!unicode_is_valid_codepoint(codepoint)) {
         return 0;
@@ -278,6 +287,9 @@ int unicode_codepoint_width(unicode_codepoint_t codepoint) {
         return 0;
     }
     if (unicode_is_combining_codepoint(codepoint)) {
+        return 0;
+    }
+    if (unicode_is_zero_width_format(codepoint)) {
         return 0;
     }
 
