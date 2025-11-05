@@ -521,6 +521,7 @@ Exec::Exec()
     : shell_pgid(getpid()),
       shell_terminal(STDIN_FILENO),
       shell_is_interactive(isatty(shell_terminal)),
+      last_pipeline_statuses(1, 0),
       last_terminal_output_error("") {
     if (shell_is_interactive) {
         if (tcgetattr(shell_terminal, &shell_tmodes) < 0) {
@@ -592,6 +593,17 @@ void Exec::handle_child_signal(pid_t pid, int status) {
 
         auto it = std::find(job.pids.begin(), job.pids.end(), pid);
         if (it != job.pids.end()) {
+            auto order_it = std::find(job.pid_order.begin(), job.pid_order.end(), pid);
+            if (order_it != job.pid_order.end()) {
+                size_t index = static_cast<size_t>(std::distance(job.pid_order.begin(), order_it));
+                int recorded = -1;
+                if (WIFEXITED(status) || WIFSIGNALED(status)) {
+                    recorded = extract_exit_code(status);
+                }
+                if (recorded != -1 && index < job.pipeline_statuses.size()) {
+                    job.pipeline_statuses[index] = recorded;
+                }
+            }
             if (pid == job.last_pid) {
                 job.last_status = status;
             }
@@ -956,12 +968,14 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
     std::vector<std::pair<std::string, std::string>> env_assignments;
     size_t cmd_start_idx = 0;
     if (!initialize_env_assignments(args, env_assignments, cmd_start_idx)) {
+        set_last_pipeline_statuses({last_exit_code});
         return last_exit_code;
     }
 
     if (cmd_start_idx >= args.size()) {
         apply_assignments_to_shell_env(env_assignments);
         last_exit_code = 0;
+        set_last_pipeline_statuses({0});
         return 0;
     }
 
@@ -986,6 +1000,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
             set_error(ErrorType::RUNTIME_ERROR, cmd_args.empty() ? "command" : cmd_args[0],
                       e.what(), {});
             last_exit_code = EX_OSERR;
+            set_last_pipeline_statuses({EX_OSERR});
             return EX_OSERR;
         }
     }
@@ -997,6 +1012,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
                   "failed to fork process: " + std::string(strerror(errno)), {});
         last_exit_code = EX_OSERR;
         cleanup_process_substitutions(proc_resources, true);
+        set_last_pipeline_statuses({EX_OSERR});
         return EX_OSERR;
     }
 
@@ -1048,6 +1064,9 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
     job.completed = false;
     job.stopped = false;
     job.pids.push_back(pid);
+    job.last_pid = pid;
+    job.pid_order.push_back(pid);
+    job.pipeline_statuses.assign(1, -1);
 
     int job_id = add_job(job);
 
@@ -1082,6 +1101,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
         args[0], exit_code, "command completed successfully", "command failed with exit code ");
     set_error(exit_result.type, args[0], exit_result.message, exit_result.suggestions);
     last_exit_code = exit_code;
+    set_last_pipeline_statuses({exit_code});
 
     cleanup_process_substitutions(proc_resources, false);
 
@@ -1092,6 +1112,7 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
     std::vector<std::pair<std::string, std::string>> env_assignments;
     size_t cmd_start_idx = 0;
     if (!initialize_env_assignments(args, env_assignments, cmd_start_idx)) {
+        set_last_pipeline_statuses({last_exit_code});
         return last_exit_code;
     }
 
@@ -1099,6 +1120,7 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
         cjsh_env::apply_env_assignments(env_assignments);
         set_error(ErrorType::RUNTIME_ERROR, "", "Environment variables set", {});
         last_exit_code = 0;
+        set_last_pipeline_statuses({0});
         return 0;
     }
 
@@ -1112,6 +1134,7 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
         set_error(ErrorType::RUNTIME_ERROR, cmd_name,
                   "failed to create background process: " + std::string(strerror(errno)), {});
         last_exit_code = EX_OSERR;
+        set_last_pipeline_statuses({EX_OSERR});
         return EX_OSERR;
     }
 
@@ -1150,6 +1173,9 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
         job.completed = false;
         job.stopped = false;
         job.pids.push_back(pid);
+        job.last_pid = pid;
+        job.pid_order.push_back(pid);
+        job.pipeline_statuses.assign(1, -1);
 
         int job_id = add_job(job);
 
@@ -1178,6 +1204,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
     if (commands.empty()) {
         set_error(ErrorType::INVALID_ARGUMENT, "",
                   "cannot execute empty pipeline - no commands provided", {});
+        set_last_pipeline_statuses({EX_USAGE});
         return finalize_exit(EX_USAGE);
     }
 
@@ -1189,6 +1216,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
         if (cmd_start_idx >= original_arg_count) {
             apply_assignments_to_shell_env(env_assignments);
+            set_last_pipeline_statuses({0});
             return finalize_exit(0);
         }
 
@@ -1197,17 +1225,22 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
         if (!has_temporary_env && can_execute_in_process(cmd)) {
             int exit_code = g_shell->get_built_ins()->builtin_command(cmd.args);
+            set_last_pipeline_statuses({exit_code});
             return finalize_exit(exit_code);
         }
 
         if (cmd.background) {
             int async_result = execute_command_async(commands[0].args);
+            if (async_result != 0) {
+                set_last_pipeline_statuses({async_result});
+            }
             return finalize_exit(async_result);
         }
         if (!has_temporary_env && !cmd.args.empty() && g_shell &&
             (g_shell->get_built_ins() != nullptr) &&
             (g_shell->get_built_ins()->is_builtin_command(cmd.args[0]) != 0)) {
             int builtin_exit = execute_builtin_with_redirections(cmd);
+            set_last_pipeline_statuses({builtin_exit});
             return finalize_exit(builtin_exit);
         }
 
@@ -1217,6 +1250,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         } catch (const std::exception& e) {
             set_error(ErrorType::RUNTIME_ERROR, cmd.args.empty() ? "command" : cmd.args[0],
                       std::string(e.what()));
+            set_last_pipeline_statuses({EX_OSERR});
             return finalize_exit(EX_OSERR);
         }
 
@@ -1226,6 +1260,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             cleanup_process_substitutions(proc_resources, true);
             set_error(ErrorType::RUNTIME_ERROR, cmd.args.empty() ? "unknown" : cmd.args[0],
                       "failed to fork process: " + std::string(strerror(errno)));
+            set_last_pipeline_statuses({EX_OSERR});
             return finalize_exit(EX_OSERR);
         }
 
@@ -1435,6 +1470,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                                                                  "command failed with exit code ");
             set_error(exit_result.type, cmd.args[0], exit_result.message, exit_result.suggestions);
             cleanup_process_substitutions(proc_resources, false);
+            set_last_pipeline_statuses({exit_code});
             return finalize_exit(exit_code);
         }
 
@@ -1453,6 +1489,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         job.stopped = false;
         job.pids.push_back(pid);
         job.last_pid = pid;
+        job.pid_order.push_back(pid);
+        job.pipeline_statuses.assign(1, -1);
 
         int job_id = add_job(job);
         std::string full_command = join_arguments(cmd.args);
@@ -1477,6 +1515,15 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
         int raw_exit = last_exit_code;
         cleanup_process_substitutions(proc_resources, false);
+        {
+            std::lock_guard<std::mutex> lock(jobs_mutex);
+            auto it = jobs.find(job_id);
+            if (it != jobs.end()) {
+                set_last_pipeline_statuses(it->second.pipeline_statuses);
+            } else {
+                set_last_pipeline_statuses({raw_exit});
+            }
+        }
         return finalize_exit(raw_exit);
     }
     std::vector<pid_t> pids;
@@ -1490,6 +1537,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 set_error(ErrorType::RUNTIME_ERROR, "",
                           "failed to create pipe " + std::to_string(i + 1) +
                               " for pipeline: " + std::string(strerror(errno)));
+                set_last_pipeline_statuses({EX_OSERR});
                 return finalize_exit(EX_OSERR);
             }
         }
@@ -1512,6 +1560,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                     close(pipes[j][1]);
                 }
 
+                set_last_pipeline_statuses({1});
                 return finalize_exit(1);
             }
 
@@ -1522,6 +1571,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 set_error(ErrorType::RUNTIME_ERROR, cmd_name,
                           "failed to create process (command " + std::to_string(i + 1) +
                               " in pipeline): " + std::string(strerror(errno)));
+                set_last_pipeline_statuses({EX_OSERR});
                 return finalize_exit(EX_OSERR);
             }
 
@@ -1692,6 +1742,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         for (pid_t pid : pids) {
             kill(pid, SIGTERM);
         }
+        set_last_pipeline_statuses({1});
         return finalize_exit(1);
     }
 
@@ -1703,6 +1754,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
     job.stopped = false;
     job.pids = pids;
     job.last_pid = pids.empty() ? -1 : pids.back();
+    job.pid_order = pids;
+    job.pipeline_statuses.assign(pids.size(), -1);
 
     int job_id = add_job(job);
 
@@ -1738,7 +1791,14 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         if (it != jobs.end()) {
             JobManager::instance().remove_job(new_job_id);
             raw_exit = extract_exit_code(it->second.last_status);
+            set_last_pipeline_statuses(it->second.pipeline_statuses);
+        } else {
+            set_last_pipeline_statuses({raw_exit});
         }
+    }
+
+    if (job.background) {
+        // Leave PIPESTATUS untouched for background pipelines to mirror bash behaviour.
     }
 
     return finalize_exit(raw_exit);
@@ -1867,6 +1927,8 @@ void Exec::wait_for_job(int job_id) {
     pid_t job_pgid = it->second.pgid;
     std::vector<pid_t> remaining_pids = it->second.pids;
     pid_t last_pid = it->second.last_pid;
+    std::vector<pid_t> pid_order = it->second.pid_order;
+    std::vector<int> pipeline_statuses = it->second.pipeline_statuses;
 
     lock.unlock();
 
@@ -1898,6 +1960,14 @@ void Exec::wait_for_job(int job_id) {
             remaining_pids.erase(pid_it);
         }
 
+        auto order_it = std::find(pid_order.begin(), pid_order.end(), pid);
+        if (order_it != pid_order.end()) {
+            size_t index = static_cast<size_t>(std::distance(pid_order.begin(), order_it));
+            if (index < pipeline_statuses.size() && (WIFEXITED(status) || WIFSIGNALED(status))) {
+                pipeline_statuses[index] = extract_exit_code(status);
+            }
+        }
+
         if (pid == last_pid) {
         }
 
@@ -1917,6 +1987,9 @@ void Exec::wait_for_job(int job_id) {
     it = jobs.find(job_id);
     if (it != jobs.end()) {
         Job& job = it->second;
+        if (!pipeline_statuses.empty()) {
+            job.pipeline_statuses = pipeline_statuses;
+        }
 
         if (job_stopped) {
             job.stopped = true;
@@ -2018,12 +2091,20 @@ void Exec::terminate_all_child_process() {
     set_error(ErrorType::RUNTIME_ERROR, "", "All child processes terminated");
 }
 
+void Exec::set_last_pipeline_statuses(std::vector<int> statuses) {
+    last_pipeline_statuses = std::move(statuses);
+}
+
 int Exec::get_exit_code() const {
     return last_exit_code;
 }
 
 void Exec::set_exit_code(int code) {
     last_exit_code = code;
+}
+
+const std::vector<int>& Exec::get_last_pipeline_statuses() const {
+    return last_pipeline_statuses;
 }
 
 std::map<int, Job> Exec::get_jobs() {

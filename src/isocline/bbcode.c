@@ -784,6 +784,10 @@ ic_private ssize_t bbcode_process_tag(bbcode_t* bb, const char* s, const ssize_t
     bool recognized = false;
     const char* end =
         parse_tag(&tag, idbuf, &open, &ispre, s, bb->styles, bb->styles_count, &recognized);
+
+    if (!open && tag.name == NULL) {
+        recognized = true;  // allow bare closing tags like [/]
+    }
     assert(end > s);
     const bool has_closing_bracket = (end > s) && (end[-1] == ']');
     const bool tag_has_effect =

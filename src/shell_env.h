@@ -12,6 +12,8 @@ void setup_environment_variables(const char* argv0 = nullptr);
 void setup_path_variables(const struct passwd* pw);
 std::vector<std::pair<std::string, std::string>> setup_user_system_vars(const struct passwd* pw);
 
+bool update_terminal_dimensions();
+
 bool is_valid_env_name(const std::string& name);
 size_t collect_env_assignments(const std::vector<std::string>& args,
                                std::vector<std::pair<std::string, std::string>>& env_assignments);

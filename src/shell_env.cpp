@@ -1,6 +1,7 @@
 #include "shell_env.h"
 
 #include <pwd.h>
+#include <sys/ioctl.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -273,6 +274,40 @@ std::vector<char*> build_exec_argv(const std::vector<std::string>& args) {
     }
     c_args.push_back(nullptr);
     return c_args;
+}
+
+bool update_terminal_dimensions() {
+    struct winsize ws{};
+
+    const int fds[] = {STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO};
+    bool updated = false;
+
+    for (int fd : fds) {
+        if (fd < 0) {
+            continue;
+        }
+
+        if (ioctl(fd, TIOCGWINSZ, &ws) == 0 && (ws.ws_col > 0 || ws.ws_row > 0)) {
+            updated = true;
+            break;
+        }
+    }
+
+    if (!updated) {
+        return false;
+    }
+
+    if (ws.ws_col > 0) {
+        std::string columns = std::to_string(ws.ws_col);
+        setenv("COLUMNS", columns.c_str(), 1);
+    }
+
+    if (ws.ws_row > 0) {
+        std::string lines = std::to_string(ws.ws_row);
+        setenv("LINES", lines.c_str(), 1);
+    }
+
+    return updated;
 }
 
 }  // namespace cjsh_env

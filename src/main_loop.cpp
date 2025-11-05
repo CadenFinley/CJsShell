@@ -8,9 +8,11 @@
 #include <cerrno>
 #include <csignal>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <vector>
 
 #ifdef __APPLE__
@@ -23,15 +25,18 @@
 #include <sys/select.h>
 #include <sys/time.h>
 
+#include "builtin/trap_command.h"
 #include "cjsh.h"
 #include "cjsh_completions.h"
 #include "cjsh_syntax_highlighter.h"
 #include "cjshopt_command.h"
+#include "exec.h"
 #include "history_expansion.h"
 #include "isocline.h"
 #include "job_control.h"
 #include "prompt.h"
 #include "shell.h"
+#include "shell_env.h"
 #include "typeahead.h"
 
 namespace {
@@ -322,8 +327,30 @@ bool process_command_line(const std::string& command, bool skip_history = false)
     }
 
     g_shell->execute_hooks("preexec");
+    trap_manager_execute_debug_trap();
 
     int exit_code = g_shell->execute(expanded_command);
+
+    Exec* exec_ptr = (g_shell && g_shell->shell_exec) ? g_shell->shell_exec.get() : nullptr;
+    if (exec_ptr != nullptr) {
+        const std::vector<int>& pipeline_statuses = exec_ptr->get_last_pipeline_statuses();
+        if (!pipeline_statuses.empty()) {
+            std::stringstream status_builder;
+            for (size_t i = 0; i < pipeline_statuses.size(); ++i) {
+                if (i != 0) {
+                    status_builder << ' ';
+                }
+                status_builder << pipeline_statuses[i];
+            }
+
+            const std::string pipe_status_str = status_builder.str();
+            setenv("PIPESTATUS", pipe_status_str.c_str(), 1);
+        } else {
+            unsetenv("PIPESTATUS");
+        }
+    } else {
+        unsetenv("PIPESTATUS");
+    }
 
     std::string status_str = std::to_string(exit_code);
 
@@ -385,6 +412,8 @@ std::pair<std::string, bool> get_next_command(bool command_was_available,
 
     g_shell->execute_hooks("precmd");
     prompt::execute_prompt_command();
+
+    cjsh_env::update_terminal_dimensions();
 
     std::string prompt = generate_prompt(command_was_available);
     std::string inline_right_text;

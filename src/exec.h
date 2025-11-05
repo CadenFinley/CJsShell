@@ -24,6 +24,8 @@ struct Job {
     std::vector<pid_t> pids;
     pid_t last_pid{-1};
     int last_status{0};
+    std::vector<pid_t> pid_order;
+    std::vector<int> pipeline_statuses;
 };
 
 class Exec {
@@ -37,6 +39,7 @@ class Exec {
     int shell_terminal;
     bool shell_is_interactive;
     int last_exit_code = 0;
+    std::vector<int> last_pipeline_statuses;
     ErrorInfo last_error;
 
     bool requires_fork(const Command& cmd) const;
@@ -48,6 +51,7 @@ class Exec {
                                     std::vector<std::pair<std::string, std::string>>& assignments,
                                     size_t& cmd_start_idx);
     void resume_job(Job& job, bool cont, std::string_view context);
+    void set_last_pipeline_statuses(std::vector<int> statuses);
 
    public:
     Exec();
@@ -73,6 +77,7 @@ class Exec {
     void print_last_error();
     int get_exit_code() const;
     void set_exit_code(int code);
+    const std::vector<int>& get_last_pipeline_statuses() const;
     void terminate_all_child_process();
 
     std::string last_terminal_output_error;
