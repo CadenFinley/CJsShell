@@ -33,6 +33,10 @@ std::pair<std::string, int> execute_command_for_substitution(
         close(pipefd[1]);
 
         int exit_code = executor(command);
+        std::cout.flush();
+        std::cerr.flush();
+        std::clog.flush();
+        fflush(nullptr);
         _exit(exit_code);
     } else if (pid > 0) {
         close(pipefd[1]);
