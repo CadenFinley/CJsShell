@@ -301,11 +301,11 @@ std::string expand_prompt_string(const std::string& templ) {
 }
 
 std::string get_ps(const char* name, const std::string& fallback) {
-    std::string value = get_env(name);
-    if (value.empty()) {
-        return fallback;
+    const char* value = std::getenv(name);
+    if (value != nullptr) {
+        return value;
     }
-    return value;
+    return fallback;
 }
 
 }  // namespace
@@ -325,11 +325,12 @@ std::string render_primary_prompt() {
 }
 
 std::string render_right_prompt() {
-    std::string rprompt = get_ps("RPROMPT", "");
-    if (rprompt.empty()) {
-        rprompt = get_ps("RPS1", default_right_prompt_template());
+    if (const char* rprompt = std::getenv("RPROMPT"); rprompt != nullptr) {
+        return expand_prompt_string(rprompt);
     }
-    return expand_prompt_string(rprompt);
+
+    std::string rps1 = get_ps("RPS1", default_right_prompt_template());
+    return expand_prompt_string(rps1);
 }
 
 void execute_prompt_command() {
