@@ -1,20 +1,4 @@
-STARSHIP_BIN="$(command -v starship 2>/dev/null || true)"
-
-if [ -z "${STARSHIP_BIN}" ]; then
-    hash -r 2>/dev/null || true
-    STARSHIP_BIN="$(command -v starship 2>/dev/null || true)"
-fi
-
-if [ -z "${STARSHIP_BIN}" ] && [ -x "/opt/homebrew/bin/starship" ]; then
-    STARSHIP_BIN="/opt/homebrew/bin/starship"
-elif [ -z "${STARSHIP_BIN}" ] && [ -x "/usr/local/bin/starship" ]; then
-    STARSHIP_BIN="/usr/local/bin/starship"
-fi
-
-if [ -z "${STARSHIP_BIN}" ]; then
-    return 1 2>/dev/null || exit 1
-fi
-
+STARSHIP_BIN="$(which starship)"
 export STARSHIP_SHELL="bash"  # Use bash for now since cjsh is bash-compatible
 
 # Set up a unique session key for logging
