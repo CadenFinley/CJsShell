@@ -82,42 +82,77 @@ void launch_async_once(std::atomic<bool>& guard, Functor&& fn) {
     }).detach();
 }
 
-bool path_is_executable(const fs::path& candidate) {
-    std::error_code ec;
-
-    if (!fs::exists(candidate, ec) || ec) {
+bool set_cloexec_flag(int fd) {
+    int flags = ::fcntl(fd, F_GETFD);
+    if (flags == -1) {
         return false;
     }
 
-    if (fs::is_directory(candidate, ec) || ec) {
+    if (::fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == -1) {
         return false;
     }
 
-    return ::access(candidate.c_str(), X_OK) == 0;
+    return true;
 }
+
+bool path_is_executable(const fs::path& path) {
+    std::error_code ec;
+    auto status = fs::status(path, ec);
+    if (ec || !fs::is_regular_file(status)) {
+        return false;
+    }
+
+    constexpr auto exec_mask =
+        fs::perms::owner_exec | fs::perms::group_exec | fs::perms::others_exec;
+    return (status.permissions() & exec_mask) != fs::perms::none;
+}
+
 }  // namespace
 
-fs::path g_cjsh_path;
-
 Result<int> safe_open(const std::string& path, int flags, mode_t mode) {
-    int fd = ::open(path.c_str(), flags, mode);
-    if (fd == -1) {
-        return Result<int>::error("Failed to open file '" + path + "': " + describe_errno(errno));
+    int fd = -1;
+
+    while (true) {
+        fd = ::open(path.c_str(), flags, mode);
+        if (fd == -1 && errno == EINTR) {
+            continue;
+        }
+        break;
     }
+
+    if (fd == -1) {
+        return Result<int>::error("Failed to open '" + path + "': " + describe_errno(errno));
+    }
+
     return Result<int>::ok(fd);
 }
 
 Result<void> safe_dup2(int oldfd, int newfd) {
-    if (::dup2(oldfd, newfd) == -1) {
-        return Result<void>::error("Failed to duplicate file descriptor " + std::to_string(oldfd) +
-                                   " to " + std::to_string(newfd) + ": " + describe_errno(errno));
+    while (true) {
+        if (::dup2(oldfd, newfd) == -1) {
+            if (errno == EINTR) {
+                continue;
+            }
+            return Result<void>::error("dup2 failed: " + describe_errno(errno));
+        }
+        break;
     }
+
     return Result<void>::ok();
 }
 
 void safe_close(int fd) {
-    if (fd >= 0) {
-        ::close(fd);
+    if (fd < 0) {
+        return;
+    }
+
+    while (true) {
+        if (::close(fd) == -1) {
+            if (errno == EINTR) {
+                continue;
+            }
+        }
+        break;
     }
 }
 
@@ -127,65 +162,53 @@ Result<void> redirect_fd(const std::string& file, int target_fd, int flags) {
         return Result<void>::error(open_result.error());
     }
 
-    int file_fd = open_result.value();
+    int fd = open_result.value();
+    auto dup_result = safe_dup2(fd, target_fd);
+    safe_close(fd);
 
-    if (file_fd != target_fd) {
-        auto dup_result = safe_dup2(file_fd, target_fd);
-        safe_close(file_fd);
-        if (dup_result.is_error()) {
-            return dup_result;
-        }
+    if (dup_result.is_error()) {
+        return Result<void>::error(dup_result.error());
     }
 
     return Result<void>::ok();
 }
 
 Result<void> set_close_on_exec(int fd) {
-    int flags = ::fcntl(fd, F_GETFD);
-    if (flags == -1) {
-        return Result<void>::error("failed to get file descriptor flags for fd " +
-                                   std::to_string(fd) + ": " + describe_errno(errno));
+    if (!set_cloexec_flag(fd)) {
+        return Result<void>::error("Failed to set close-on-exec flag: " + describe_errno(errno));
     }
-
-    if (::fcntl(fd, F_SETFD, flags | FD_CLOEXEC) == -1) {
-        return Result<void>::error("failed to set close-on-exec on fd " + std::to_string(fd) +
-                                   ": " + describe_errno(errno));
-    }
-
     return Result<void>::ok();
 }
 
 Result<void> create_pipe_cloexec(int pipe_fds[2]) {
+#if defined(__linux__)
+    if (::pipe2(pipe_fds, O_CLOEXEC) == -1) {
+        return Result<void>::error("pipe2 failed: " + describe_errno(errno));
+    }
+    return Result<void>::ok();
+#else
     if (::pipe(pipe_fds) == -1) {
-        return Result<void>::error("failed to create pipe: " + describe_errno(errno));
+        return Result<void>::error("pipe failed: " + describe_errno(errno));
     }
 
-    auto read_result = set_close_on_exec(pipe_fds[0]);
-    if (read_result.is_error()) {
-        safe_close(pipe_fds[0]);
-        safe_close(pipe_fds[1]);
-        return Result<void>::error("failed to secure pipe read end: " + read_result.error());
-    }
-
-    auto write_result = set_close_on_exec(pipe_fds[1]);
-    if (write_result.is_error()) {
-        safe_close(pipe_fds[0]);
-        safe_close(pipe_fds[1]);
-        return Result<void>::error("failed to secure pipe write end: " + write_result.error());
+    if (!set_cloexec_flag(pipe_fds[0]) || !set_cloexec_flag(pipe_fds[1])) {
+        int err = errno;
+        close_pipe(pipe_fds);
+        return Result<void>::error("Failed to set close-on-exec flag: " + describe_errno(err));
     }
 
     return Result<void>::ok();
+#endif
 }
 
 Result<void> duplicate_pipe_read_end_to_fd(int (&pipe_fds)[2], int target_fd) {
-    safe_close(pipe_fds[1]);
-
     auto dup_result = safe_dup2(pipe_fds[0], target_fd);
-    safe_close(pipe_fds[0]);
     if (dup_result.is_error()) {
+        close_pipe(pipe_fds);
         return Result<void>::error(dup_result.error());
     }
 
+    close_pipe(pipe_fds);
     return Result<void>::ok();
 }
 
@@ -195,17 +218,18 @@ void close_pipe(int pipe_fds[2]) {
 }
 
 Result<FILE*> safe_fopen(const std::string& path, const std::string& mode) {
+    errno = 0;
     FILE* file = std::fopen(path.c_str(), mode.c_str());
     if (file == nullptr) {
-        return Result<FILE*>::error("Failed to open file '" + path + "' with mode '" + mode +
-                                    "': " + describe_errno(errno));
+        return Result<FILE*>::error("Failed to open '" + path + "': " + describe_errno(errno));
     }
+
     return Result<FILE*>::ok(file);
 }
 
 void safe_fclose(FILE* file) {
     if (file != nullptr) {
-        (void)std::fclose(file);
+        std::fclose(file);
     }
 }
 
@@ -540,39 +564,6 @@ bool file_exists(const fs::path& path) {
     return fs::exists(path);
 }
 
-bool initialize_cjsh_path() {
-    char path[PATH_MAX];
-#ifdef __linux__
-    ssize_t len = readlink("/proc/self/exe", path, PATH_MAX - 1);
-    if (len != -1) {
-        path[len] = '\0';
-        g_cjsh_path = path;
-        return true;
-    }
-#endif
-
-#ifdef __APPLE__
-    uint32_t size = PATH_MAX;
-    if (_NSGetExecutablePath(path, &size) == 0) {
-        std::unique_ptr<char, decltype(&std::free)> resolved_path(realpath(path, nullptr),
-                                                                  std::free);
-        if (resolved_path) {
-            g_cjsh_path = resolved_path.get();
-            return true;
-        }
-        g_cjsh_path = path;
-        return true;
-    }
-#endif
-
-    if (g_cjsh_path.empty()) {
-        g_cjsh_path = "cjsh";
-        return true;
-    }
-
-    return true;
-}
-
 bool initialize_cjsh_directories() {
     try {
         fs::create_directories(g_cjsh_config_path);
@@ -584,13 +575,6 @@ bool initialize_cjsh_directories() {
         std::cerr << "Error creating cjsh directories: " << e.what() << '\n';
         return false;
     }
-}
-
-std::filesystem::path get_cjsh_path() {
-    if (g_cjsh_path.empty() || g_cjsh_path == ".") {
-        initialize_cjsh_path();
-    }
-    return g_cjsh_path;
 }
 
 std::string find_executable_in_path(const std::string& name) {
@@ -652,7 +636,6 @@ bool create_profile_file(const fs::path& target_path) {
         "# if test -n \"$TMUX\"; then\n"
         "#     echo \"In tmux session, no flags required\"\n"
         "# else\n"
-        "#     cjshopt login-startup-arg --no-themes\n"
         "#     cjshopt login-startup-arg --no-colors\n"
         "#     cjshopt login-startup-arg --no-titleline\n"
         "# fi\n"
@@ -663,9 +646,8 @@ bool create_profile_file(const fs::path& target_path) {
         "mode\n"
         "# cjshopt login-startup-arg --minimal             # Disable all "
         "unique cjsh "
-        "features (themes, colors, completions, syntax "
+        "features (colors, completions, syntax "
         "highlighting, smart cd, sourcing, startup time display)\n"
-        "# cjshopt login-startup-arg --no-themes           # Disable themes\n"
         "# cjshopt login-startup-arg --no-colors           # Disable colors\n"
         "# cjshopt login-startup-arg --no-titleline        # Disable title "
         "line\n"
@@ -712,132 +694,12 @@ bool create_source_file(const fs::path& target_path) {
         "#!/usr/bin/env cjsh\n"
         "# cjsh Source File\n"
         "# this file is sourced when the shell starts in interactive mode\n"
-        "# this is where your aliases and theme setup will be stored by default.\n"
+        "# this is where your aliases and custom setup will be stored by default.\n"
         "\n"
         "# Alias examples\n"
         "alias ll='ls -la'\n"
         "\n"
-        "# Theme configuration\n"
-        "# This is the default cjsh theme\n"
-        "# Theme definitions placed in the cjshrc file are always\n"
-        "# activated when starting an interactive session\n"
-        "# You can also load external theme files with: source path/to/theme.cjsh\n"
-        "\n"
-        "theme_definition {\n"
-        "  terminal_title \"{PATH}\"\n"
-        "\n"
-        "  fill {\n"
-        "    char \"\"\n"
-        "    fg RESET\n"
-        "    bg RESET\n"
-        "  }\n"
-        "\n"
-        "  ps1 {\n"
-        "    segment \"left_bracket\" {\n"
-        "      content \"[\"\n"
-        "      fg \"#FF5555\"\n"
-        "      bg \"RESET\"\n"
-        "    }\n"
-        "    segment \"username\" {\n"
-        "      content \"{USERNAME}\"\n"
-        "      fg \"#FFFF55\"\n"
-        "      bg \"RESET\"\n"
-        "    }\n"
-        "    segment \"at_sign\" {\n"
-        "      content \"@\"\n"
-        "      fg \"#55FF55\"\n"
-        "      bg \"RESET\"\n"
-        "    }\n"
-        "    segment \"hostname\" {\n"
-        "      content \"{HOSTNAME}\"\n"
-        "      fg \"#5555FF\"\n"
-        "      bg \"RESET\"\n"
-        "    }\n"
-        "    segment \"directory\" {\n"
-        "      content \" {DIRECTORY}\"\n"
-        "      fg \"#FF55FF\"\n"
-        "      bg \"RESET\"\n"
-        "    }\n"
-        "    segment \"right_bracket\" {\n"
-        "      content \"]\"\n"
-        "      fg \"#FF5555\"\n"
-        "      bg \"RESET\"\n"
-        "    }\n"
-        "    segment \"exit_status\" {\n"
-        "      content \"{if = {STATUS} == 0 ?  : {STATUS}}\"\n"
-        "      fg \"{if = {STATUS} == 0 ? RESET : #FF5555}\"\n"
-        "      bg \"RESET\"\n"
-        "    }\n"
-        "    segment \"prompt\" {\n"
-        "      content \" $ \"\n"
-        "      fg \"#FFFFFF\"\n"
-        "      bg \"RESET\"\n"
-        "    }\n"
-        "  }\n"
-        "\n"
-        "  git_segments {\n"
-        "    segment \"left_bracket\" {\n"
-        "      content \"[\"\n"
-        "      fg \"#FF5555\"\n"
-        "      bg \"RESET\"\n"
-        "    }\n"
-        "    segment \"username\" {\n"
-        "      content \"{USERNAME}\"\n"
-        "      fg \"#FFFF55\"\n"
-        "      bg \"RESET\"\n"
-        "    }\n"
-        "    segment \"at_sign\" {\n"
-        "      content \"@\"\n"
-        "      fg \"#55FF55\"\n"
-        "      bg \"RESET\"\n"
-        "    }\n"
-        "    segment \"directory\" {\n"
-        "      content \" {LOCAL_PATH} \"\n"
-        "      fg \"#FF55FF\"\n"
-        "      bg \"RESET\"\n"
-        "    }\n"
-        "    segment \"branch\" {\n"
-        "      content \"in {GIT_BRANCH}\"\n"
-        "      fg \"#5555FF\"\n"
-        "      bg \"RESET\"\n"
-        "    }\n"
-        "    segment \"status\" {\n"
-        "      content \"{GIT_STATUS}\"\n"
-        "      fg \"{if = {GIT_STATUS} == ✓ ? #55FF55 : #FF5555}\"\n"
-        "      bg \"RESET\"\n"
-        "    }\n"
-        "    segment \"right_bracket\" {\n"
-        "      content \"]\"\n"
-        "      fg \"#FF5555\"\n"
-        "      bg \"RESET\"\n"
-        "    }\n"
-        "    segment \"exit_status\" {\n"
-        "      content \"{if = {STATUS} == 0 ?  : {STATUS}}\"\n"
-        "      fg \"{if = {STATUS} == 0 ? RESET : #FF5555}\"\n"
-        "      bg \"RESET\"\n"
-        "    }\n"
-        "    segment \"prompt\" {\n"
-        "      content \" $ \"\n"
-        "      fg \"#FFFFFF\"\n"
-        "      bg \"RESET\"\n"
-        "    }\n"
-        "  }\n"
-        "\n"
-        "  inline_right {\n"
-        "    segment \"time\" {\n"
-        "      content \"[{TIME}]\"\n"
-        "      fg \"#888888\"\n"
-        "      bg \"RESET\"\n"
-        "    }\n"
-        "  }\n"
-        "\n"
-        "  behavior {\n"
-        "    cleanup false\n"
-        "    cleanup_empty_line false\n"
-        "    cleanup_truncate_multiline false\n"
-        "    newline_after_execution false\n"
-        "  }\n"
-        "}\n"
+        "# Add any additional shell scripting you need here.\n"
         "\n"
         "# Syntax highlighting customization examples\n"
         "# Use 'cjshopt style_def' to customize syntax highlighting colors\n"

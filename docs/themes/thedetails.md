@@ -300,95 +300,56 @@ theme_definition {
 
 ```cpp
 /*
- * {USERNAME}   - Current user's name
- * {HOSTNAME}   - System hostname
- * {PATH}       - Current working directory (with ~ for home)
- * {DIRECTORY}  - Name of the current directory
- * {TIME12}     - Current time (HH:MM:SS) in 12 hour format
- * {TIME24}, {TIME} - Current time (HH:MM:SS) in 24 hour format
+ * Core identity:
+ * {USERNAME}    - Current user's name
+ * {HOSTNAME}    - System hostname
+ * {PATH}        - Current working directory (with ~ for home)
+ * {DIRECTORY}   - Name of the current directory
+ *
+ * Time and date:
+ * {TIME}, {TIME24} - Current time (HH:MM:SS) in 24-hour format
+ * {TIME12}     - Current time (HH:MM:SS) in 12-hour format
  * {DATE}       - Current date (YYYY-MM-DD)
  * {DAY}        - Current day of the month (1-31)
  * {MONTH}      - Current month (1-12)
  * {YEAR}       - Current year (YYYY)
  * {DAY_NAME}   - Name of the current day (e.g., Monday)
  * {MONTH_NAME} - Name of the current month (e.g., September)
- * {SHELL}      - Name of the shell
- * {SHELL_VER}  - Version of the shell
  *
- * Directory placeholders:
- * {DISPLAY_DIR} - Enhanced directory display with repo/home contraction
+ * Command status:
+ * {STATUS}       - Last command exit code as reported by $?
+ * {EXIT_CODE}    - Last command exit code (empty when zero)
+ * {EXIT_SYMBOL}  - Exit status symbol (✓ for success, ✗ for failure)
+ * {CMD_SUCCESS}  - Whether the last command was successful (true/false)
+ * {CMD_DURATION} - Duration of the last command (formatted if above threshold)
+ * {CMD_DURATION_MS} - Duration of the last command in microseconds
+ *
+ * Directory helpers:
+ * {DISPLAY_DIR}    - Enhanced directory display with repo/home contraction
  * {TRUNCATED_PATH} - Truncated path with symbol
- * {REPO_PATH}  - Repository-relative path
- * {DIR_TRUNCATED} - Whether directory display is truncated (true/false)
+ * {DIR_TRUNCATED}  - Whether directory display is truncated (true/false)
+ * {REPO_PATH}      - Repository-relative path when inside a Git repo
  *
- * Git prompt additional placeholders:
- * {LOCAL_PATH} - Local path of the git repository
- * {GIT_BRANCH} - Current Git branch
- * {GIT_STATUS} - Git status (✓ for clean, * for dirty)
- * {GIT_AHEAD}  - Number of commits ahead of remote
- * {GIT_BEHIND} - Number of commits behind remote
+ * Git specifics (only inside Git repositories):
+ * {LOCAL_PATH}  - Local path of the Git repository
+ * {GIT_BRANCH}  - Current Git branch
+ * {GIT_STATUS}  - Git status indicator (✓ for clean, * for dirty)
+ * {GIT_AHEAD}   - Number of commits ahead of remote
+ * {GIT_BEHIND}  - Number of commits behind remote
  * {GIT_STASHES} - Number of stashes in the repository
- * {GIT_STAGED} - Has staged changes (✓ or empty)
+ * {GIT_STAGED}  - Indicator when staged changes exist (✓ or empty)
  * {GIT_CHANGES} - Number of uncommitted changes
- * {GIT_REMOTE} - Remote URL of the current repo
- * {GIT_TAG} - Current Git tag (if any)
- * {GIT_LAST_COMMIT} - Last commit hash or message
- * {GIT_AUTHOR} - Author of the last commit
  *
- * Command placeholders:
- * {CMD_DURATION} - Duration of last command (formatted)
- * {CMD_DURATION_MS} - Duration of last command in milliseconds
- * {EXIT_CODE}  - Last command exit code
- * {EXIT_SYMBOL} - Exit status symbol (✓ for success, ✗ for failure)
- * {CMD_SUCCESS} - Whether last command was successful (true/false)
+ * Language helpers:
+ * {LANG_VER:<language>} - Active version for the given language
+ *                         (e.g., python, node, go, rust, java, cpp, csharp,
+ *                         php, ruby, kotlin, swift, dart, scala)
  *
- * Language detection placeholders:
- * {PYTHON_VERSION} - Python version if in Python project
- * {NODEJS_VERSION} - Node.js version if in Node.js project
- * {RUST_VERSION} - Rust version if in Rust project
- * {GOLANG_VERSION} - Go version if in Go project
- * {JAVA_VERSION} - Java version if in Java project
- * {LANGUAGE_VERSIONS} - Combined language versions (only shows detected projects) 
- * {PYTHON_VENV} - Python virtual environment name 
- * {NODEJS_PM} - Node.js package manager (npm, yarn, pnpm) 
- * {IS_PYTHON_PROJECT} - Whether current directory is a Python project 
- * {IS_NODEJS_PROJECT} - Whether current directory is a Node.js project 
- * {IS_RUST_PROJECT} - Whether current directory is a Rust project 
- * {IS_GOLANG_PROJECT} - Whether current directory is a Go project 
- * {IS_JAVA_PROJECT} - Whether current directory is a Java project
- *
- * Container placeholders:
- * {CONTAINER_NAME} - Name of container (Docker, Podman, etc.)
- * {CONTAINER_TYPE} - Type of container technology
- * {IS_CONTAINER} - Whether running in a container (true/false)
- * {DOCKER_CONTEXT} - Docker context name
- * {DOCKER_IMAGE} - Docker image name if available
- *
- * System information placeholders:
- * {OS_INFO}     - Operating system name and version
- * {KERNEL_VER}  - Kernel version
- * {CPU_USAGE}   - Current CPU usage percentage
- * {MEM_USAGE}   - Current memory usage percentage
- * {BATTERY}     - Battery percentage and charging status
- * {UPTIME}      - System uptime
- * {DISK_USAGE}  - Disk usage of current directory or root
- * {SWAP_USAGE}  - Swap memory usage
- * {LOAD_AVG}    - System load average
- *
- * Environment information placeholders:
- * {TERM_TYPE}   - Terminal type (e.g., xterm, screen)
- * {TERM_SIZE}   - Terminal dimensions (columns x rows)
- * {LANG_VER:X}  - Version of language X (python, node, ruby, go, rust)
- * {VIRTUAL_ENV} - Name of active virtual environment, if any
- * {BG_JOBS}     - Number of background jobs
- * {STATUS}      - Last command exit code
- *
- * Network information placeholders:
- * {IP_LOCAL}    - Local IP address
- * {IP_EXTERNAL} - External IP address
- * {VPN_STATUS}  - VPN connection status (on/off)
- * {NET_IFACE}   - Active network interface
+ * Command execution tag:
+ * {EXEC%%%<command>%%%<cache_duration>} - Execute a shell command with caching
+ */
 ```
+
 ### Command Execution Tags
 
 The shell supports executing arbitrary commands in your prompt with automatic caching:

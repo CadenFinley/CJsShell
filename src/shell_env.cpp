@@ -19,8 +19,12 @@ namespace cjsh_env {
 void setup_environment_variables(const char* argv0) {
     if (argv0 != nullptr) {
         setenv("0", argv0, 1);
+        setenv("SHELL", argv0, 1);
+        setenv("_", argv0, 1);
     } else {
         setenv("0", "cjsh", 1);
+        setenv("SHELL", "cjsh", 1);
+        setenv("_", "cjsh", 1);
     }
 
     uid_t uid = getuid();
@@ -120,10 +124,8 @@ std::vector<std::pair<std::string, std::string>> setup_user_system_vars(const st
     }
 
     std::string current_path = std::filesystem::current_path().string();
-    std::string shell_path = cjsh_filesystem::get_cjsh_path().string();
 
     setenv("PWD", current_path.c_str(), 1);
-    setenv("SHELL", shell_path.c_str(), 1);
     env_vars.emplace_back("IFS", std::string(" \t\n"));
 
     const char* lang_env = getenv("LANG");
@@ -149,9 +151,6 @@ std::vector<std::pair<std::string, std::string>> setup_user_system_vars(const st
     }
     std::string shlvl_str = std::to_string(shlvl);
     setenv("SHLVL", shlvl_str.c_str(), 1);
-
-    std::string cjsh_path = cjsh_filesystem::get_cjsh_path().string();
-    setenv("_", cjsh_path.c_str(), 1);
 
     std::string status_str = std::to_string(0);
     setenv("?", status_str.c_str(), 1);

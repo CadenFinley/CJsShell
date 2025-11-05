@@ -22,7 +22,6 @@
 #include "job_control.h"
 #include "shell_env.h"
 #include "shell_script_interpreter.h"
-#include "theme.h"
 #include "trap_command.h"
 
 void Shell::set_abbreviations(
@@ -114,13 +113,8 @@ SignalProcessingResult Shell::process_pending_signals() {
 Shell::Shell() : shell_pgid(0), shell_tmodes() {
     save_terminal_state();
 
-    shell_prompt = std::make_unique<Prompt>();
-    if (shell_prompt) {
-        shell_prompt->set_theme(nullptr);
-    }
     shell_exec = std::make_unique<Exec>();
     signal_handler = std::make_unique<SignalHandler>();
-
     shell_parser = std::make_unique<Parser>();
     built_ins = std::make_unique<Built_ins>();
     shell_script_interpreter = std::make_unique<ShellScriptInterpreter>();
@@ -151,101 +145,8 @@ Shell::~Shell() {
         std::cerr << "Destroying Shell.\n";
     }
 
-    reset_theme();
-
     shell_exec->terminate_all_child_process();
     restore_terminal_state();
-}
-
-Theme* Shell::ensure_theme() {
-    if (!config::themes_enabled) {
-        reset_theme();
-        return nullptr;
-    }
-
-    if (!shell_theme) {
-        shell_theme = std::make_unique<Theme>(config::themes_enabled);
-        if (shell_prompt) {
-            shell_prompt->set_theme(shell_theme.get());
-        }
-    }
-    return shell_theme.get();
-}
-
-void Shell::reset_theme() {
-    if (shell_prompt) {
-        shell_prompt->set_theme(nullptr);
-    }
-    shell_theme.reset();
-}
-
-Theme* Shell::get_theme() const {
-    return shell_theme.get();
-}
-
-std::string Shell::get_prompt() {
-    if (!shell_prompt) {
-        return "";
-    }
-    return shell_prompt->get_prompt();
-}
-
-std::string Shell::get_newline_prompt() {
-    if (!shell_prompt) {
-        return "";
-    }
-    return shell_prompt->get_newline_prompt();
-}
-
-std::string Shell::get_inline_right_prompt() {
-    if (!shell_prompt) {
-        return "";
-    }
-    return shell_prompt->get_inline_right_prompt();
-}
-
-std::string Shell::get_title_prompt() {
-    if (!shell_prompt) {
-        return "";
-    }
-    return shell_prompt->get_title_prompt();
-}
-
-void Shell::start_command_timing() {
-    if (shell_prompt) {
-        shell_prompt->start_command_timing();
-    }
-}
-
-void Shell::end_command_timing(int exit_code) {
-    if (shell_prompt) {
-        shell_prompt->end_command_timing(exit_code);
-    }
-}
-
-void Shell::reset_command_timing() {
-    if (shell_prompt) {
-        shell_prompt->reset_command_timing();
-    }
-}
-
-void Shell::set_initial_duration(long long microseconds) {
-    if (shell_prompt) {
-        shell_prompt->set_initial_duration(microseconds);
-    }
-}
-
-std::string Shell::get_initial_duration() {
-    if (shell_prompt) {
-        return shell_prompt->get_initial_duration();
-    }
-    return "0";
-}
-
-void Shell::invalidate_prompt_caches() {
-    if (shell_prompt) {
-        shell_prompt->clear_cached_state();
-    }
 }
 
 int Shell::execute_script_file(const std::filesystem::path& path, bool optional) {
@@ -401,25 +302,11 @@ void Shell::handle_sigcont() {
     }
 
     apply_abbreviations_to_line_editor();
-    invalidate_prompt_caches();
 }
 
 int Shell::execute_command(std::vector<std::string> args, bool run_in_background) {
     if (args.empty()) {
         return 0;
-    }
-    bool should_invalidate_prompt_cache = false;
-    if (config::interactive_mode || config::force_interactive) {
-        for (const auto& token : args) {
-            bool looks_like_assignment =
-                token.find('=') != std::string::npos && token.find('/') == std::string::npos;
-            if (looks_like_assignment) {
-                continue;
-            }
-            should_invalidate_prompt_cache =
-                std::filesystem::path(token).filename().string() == "clear";
-            break;
-        }
     }
     if (!shell_exec || !built_ins) {
         g_exit_flag = true;
@@ -536,9 +423,6 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
             code = built_ins->builtin_command(command_args);
         }
         last_terminal_output_error = built_ins->get_last_error();
-        if (should_invalidate_prompt_cache) {
-            invalidate_prompt_caches();
-        }
 
         return code;
     }
@@ -577,9 +461,6 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
             }
         }
         last_terminal_output_error = "Background command launched";
-        if (should_invalidate_prompt_cache) {
-            invalidate_prompt_caches();
-        }
         return 0;
     }
     shell_exec->execute_command_sync(args);
@@ -592,9 +473,6 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
             error.message.find("command failed with exit code") == std::string::npos) {
             shell_exec->print_last_error();
         }
-    }
-    if (should_invalidate_prompt_cache) {
-        invalidate_prompt_caches();
     }
     return exit_code;
 }

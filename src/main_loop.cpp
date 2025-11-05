@@ -31,7 +31,6 @@
 #include "isocline.h"
 #include "job_control.h"
 #include "shell.h"
-#include "theme.h"
 #include "typeahead.h"
 
 namespace {
@@ -299,7 +298,6 @@ TerminalStatus check_terminal_health(TerminalCheckLevel level = TerminalCheckLev
 
 bool process_command_line(const std::string& command, bool skip_history = false) {
     if (command.empty()) {
-        g_shell->reset_command_timing();
         return g_exit_flag;
     }
 
@@ -324,9 +322,7 @@ bool process_command_line(const std::string& command, bool skip_history = false)
 
     g_shell->execute_hooks("preexec");
 
-    g_shell->start_command_timing();
     int exit_code = g_shell->execute(expanded_command);
-    g_shell->end_command_timing(exit_code);
 
     std::string status_str = std::to_string(exit_code);
 
@@ -352,7 +348,7 @@ bool process_command_line(const std::string& command, bool skip_history = false)
 }
 
 void update_terminal_title() {
-    std::cout << "\033]0;" << g_shell->get_title_prompt() << "\007";
+    std::cout << "\033]0;CJ's Shell\007";
     std::cout.flush();
 }
 
@@ -371,26 +367,11 @@ void update_job_management() {
 }
 
 std::string generate_prompt(bool command_was_available) {
+    (void)command_was_available;
     // std::printf(" \r");
     // (void)std::fflush(stdout);
 
-    if (config::no_prompt) {
-        return "# ";
-    }
-
-    Theme* theme = g_shell ? g_shell->get_theme() : nullptr;
-    std::string prompt = g_shell->get_prompt();
-
-    if (theme && theme->uses_newline()) {
-        prompt += "\n";
-        prompt += g_shell->get_newline_prompt();
-    }
-    if (theme) {
-        ic_enable_prompt_cleanup(theme->uses_cleanup(),
-                                 (theme->cleanup_nl_after_exec() && command_was_available) ? 1 : 0);
-        ic_enable_prompt_cleanup_empty_line(theme->cleanup_adds_empty_line());
-        ic_enable_prompt_cleanup_truncate_multiline(theme->cleanup_truncates_multiline());
-    }
+    std::string prompt = " > ";
 
     return prompt;
 }
@@ -414,7 +395,7 @@ std::pair<std::string, bool> get_next_command(bool command_was_available,
     g_shell->execute_hooks("precmd");
 
     std::string prompt = generate_prompt(command_was_available);
-    std::string inline_right_text = g_shell->get_inline_right_prompt();
+    std::string inline_right_text;
 
     thread_local static std::string sanitized_buffer;
     sanitized_buffer.clear();
@@ -436,7 +417,6 @@ std::pair<std::string, bool> get_next_command(bool command_was_available,
         if (handle_null_input()) {
             return {command_to_run, false};
         }
-        g_shell->reset_command_timing();
         return {command_to_run, false};
     }
 
@@ -452,7 +432,6 @@ std::pair<std::string, bool> get_next_command(bool command_was_available,
     }
 
     if (command_to_run == IC_READLINE_TOKEN_CTRL_C) {
-        g_shell->reset_command_timing();
         return {std::string(), false};
     }
 
@@ -462,7 +441,6 @@ std::pair<std::string, bool> get_next_command(bool command_was_available,
     if (heredoc_info.has_heredoc && !heredoc_info.delimiter.empty()) {
         auto [processed_command, history_entries] = process_heredoc_command(command_to_run);
         if (processed_command.empty()) {
-            g_shell->reset_command_timing();
             return {std::string(), false};
         }
 
@@ -569,12 +547,12 @@ void main_process_loop() {
             }
             break;
         }
-        Theme* theme = g_shell ? g_shell->get_theme() : nullptr;
-        if (theme && theme->newline_after_execution() && command_available &&
-            (command_to_run != "clear")) {
-            (void)std::fputc('\n', stdout);
-            (void)std::fflush(stdout);
-        }
+        // Theme* theme = g_shell ? g_shell->get_theme() : nullptr;
+        // if (theme && theme->newline_after_execution() && command_available &&
+        //     (command_to_run != "clear")) {
+        //     (void)std::fputc('\n', stdout);
+        //     (void)std::fflush(stdout);
+        // }
 
         history_already_added = false;
     }
