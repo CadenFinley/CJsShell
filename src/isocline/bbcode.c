@@ -434,7 +434,7 @@ static const style_t builtin_styles[] = {
     {"url", {{IC_COLOR_NONE, IC_NONE, IC_NONE, IC_COLOR_NONE, IC_ON, IC_NONE}}},  // underline
     {NULL, {{IC_COLOR_NONE, IC_NONE, IC_NONE, IC_COLOR_NONE, IC_NONE, IC_NONE}}}};
 
-static void attr_update_with_styles(tag_t* tag, const char* attr_name, const char* value,
+static bool attr_update_with_styles(tag_t* tag, const char* attr_name, const char* value,
                                     bool usebgcolor, const style_t* styles, ssize_t count) {
     // direct hex color?
     if (attr_name[0] == '#' && (value == NULL || value[0] == 0)) {
@@ -444,27 +444,27 @@ static void attr_update_with_styles(tag_t* tag, const char* attr_name, const cha
     // first try if it is a builtin property
     const char* name;
     if ((name = attr_update_property(tag, attr_name, value)) != NULL) {
-        if (tag->name != NULL)
+        if (tag->name == NULL)
             tag->name = name;
-        return;
+        return true;
     }
     // then check all styles
     while (count-- > 0) {
         const style_t* style = styles + count;
         if (strcmp(style->name, attr_name) == 0) {
             tag->attr = attr_update_with(tag->attr, style->attr);
-            if (tag->name != NULL)
+            if (tag->name == NULL)
                 tag->name = style->name;
-            return;
+            return true;
         }
     }
     // check builtin styles; todo: binary search?
     for (const style_t* style = builtin_styles; style->name != NULL; style++) {
         if (strcmp(style->name, attr_name) == 0) {
             tag->attr = attr_update_with(tag->attr, style->attr);
-            if (tag->name != NULL)
+            if (tag->name == NULL)
                 tag->name = style->name;
-            return;
+            return true;
         }
     }
     // check colors as a style
@@ -486,13 +486,14 @@ static void attr_update_with_styles(tag_t* tag, const char* attr_name, const cha
                 cattr.x.color = info->color;
             }
             tag->attr = attr_update_with(tag->attr, cattr);
-            if (tag->name != NULL)
+            if (tag->name == NULL)
                 tag->name = info->name;
-            return;
+            return true;
         }
     }
     // not found
     bbcode_invalid("bbcode: unknown style: %s\n", attr_name);
+    return false;
 }
 
 ic_private attr_t bbcode_style(bbcode_t* bb, const char* style_name) {
@@ -586,7 +587,7 @@ ic_private const char* parse_value(const char* s, const char** start, const char
 }
 
 ic_private const char* parse_tag_value(tag_t* tag, char* idbuf, const char* s,
-                                       const style_t* styles, ssize_t scount) {
+                                       const style_t* styles, ssize_t scount, bool* recognized) {
     // parse: \s*[\w-]+\s*(=\s*<value>)
     bool usebgcolor = false;
     const char* id = s;
@@ -622,18 +623,25 @@ ic_private const char* parse_tag_value(tag_t* tag, char* idbuf, const char* s,
     ic_strncpy(valbuf, 128, val, valend - val);
     ic_str_tolower(idbuf);
     ic_str_tolower(valbuf);
-    attr_update_with_styles(tag, idbuf, valbuf, usebgcolor, styles, scount);
+    if (attr_update_with_styles(tag, idbuf, valbuf, usebgcolor, styles, scount)) {
+        if (recognized != NULL) {
+            *recognized = true;
+        }
+    }
     return s;
 }
 
 static const char* parse_tag_values(tag_t* tag, char* idbuf, const char* s, const style_t* styles,
-                                    ssize_t scount) {
+                                    ssize_t scount, bool* recognized) {
     s = parse_skip_white(s);
     idbuf[0] = 0;
+    if (recognized != NULL) {
+        *recognized = false;
+    }
     ssize_t count = 0;
     while (*s != 0 && *s != ']') {
         char idbuf_next[128];
-        s = parse_tag_value(tag, (count == 0 ? idbuf : idbuf_next), s, styles, scount);
+        s = parse_tag_value(tag, (count == 0 ? idbuf : idbuf_next), s, styles, scount, recognized);
         count++;
     }
     if (*s == ']') {
@@ -643,7 +651,7 @@ static const char* parse_tag_values(tag_t* tag, char* idbuf, const char* s, cons
 }
 
 static const char* parse_tag(tag_t* tag, char* idbuf, bool* open, bool* pre, const char* s,
-                             const style_t* styles, ssize_t scount) {
+                             const style_t* styles, ssize_t scount, bool* recognized) {
     *open = true;
     *pre = false;
     if (*s != '[')
@@ -656,7 +664,7 @@ static const char* parse_tag(tag_t* tag, char* idbuf, bool* open, bool* pre, con
         *open = false;
         s = parse_skip_white(s + 1);
     };
-    s = parse_tag_values(tag, idbuf, s, styles, scount);
+    s = parse_tag_values(tag, idbuf, s, styles, scount, recognized);
     return s;
 }
 
@@ -668,7 +676,7 @@ static void bbcode_parse_tag_content(bbcode_t* bb, const char* s, tag_t* tag) {
     tag_init(tag);
     if (s != NULL) {
         char idbuf[128];
-        parse_tag_values(tag, idbuf, s, bb->styles, bb->styles_count);
+        parse_tag_values(tag, idbuf, s, bb->styles, bb->styles_count, NULL);
     }
 }
 
@@ -773,9 +781,20 @@ ic_private ssize_t bbcode_process_tag(bbcode_t* bb, const char* s, const ssize_t
     bool open = true;
     bool ispre = false;
     char idbuf[128];
-    const char* end = parse_tag(&tag, idbuf, &open, &ispre, s, bb->styles,
-                                bb->styles_count);  // todo: styles
+    bool recognized = false;
+    const char* end =
+        parse_tag(&tag, idbuf, &open, &ispre, s, bb->styles, bb->styles_count, &recognized);
     assert(end > s);
+    const bool has_closing_bracket = (end > s) && (end[-1] == ']');
+    const bool tag_has_effect =
+        !attr_is_none(tag.attr) || tag.width.w > 0 || tag.name != NULL || recognized;
+    // If the sequence isn't well-formed BBCode, push it through literally (prevents losing '[').
+    if (!has_closing_bracket || (!ispre && open && !tag_has_effect) ||
+        (!open && tag.name == NULL && !recognized)) {
+        const ssize_t literal_len = (has_closing_bracket ? (end - s) : 1);
+        attrbuf_append_n(out, attr_out, s, literal_len, *cur_attr);
+        return literal_len;
+    }
     if (open) {
         if (!ispre) {
             // open tag

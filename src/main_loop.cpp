@@ -30,6 +30,7 @@
 #include "history_expansion.h"
 #include "isocline.h"
 #include "job_control.h"
+#include "prompt.h"
 #include "shell.h"
 #include "typeahead.h"
 
@@ -347,11 +348,6 @@ bool process_command_line(const std::string& command, bool skip_history = false)
     return g_exit_flag;
 }
 
-void update_terminal_title() {
-    std::cout << "\033]0;CJ's Shell\007";
-    std::cout.flush();
-}
-
 bool perform_terminal_check() {
     TerminalStatus status = check_terminal_health(TerminalCheckLevel::QUICK);
     if (!status.terminal_alive) {
@@ -368,12 +364,7 @@ void update_job_management() {
 
 std::string generate_prompt(bool command_was_available) {
     (void)command_was_available;
-    // std::printf(" \r");
-    // (void)std::fflush(stdout);
-
-    std::string prompt = " > ";
-
-    return prompt;
+    return prompt::render_primary_prompt();
 }
 
 bool handle_null_input() {
@@ -393,6 +384,7 @@ std::pair<std::string, bool> get_next_command(bool command_was_available,
     history_already_added = false;
 
     g_shell->execute_hooks("precmd");
+    prompt::execute_prompt_command();
 
     std::string prompt = generate_prompt(command_was_available);
     std::string inline_right_text;
@@ -526,8 +518,6 @@ void main_process_loop() {
         }
 
         update_job_management();
-
-        update_terminal_title();
 
         std::tie(command_to_run, command_available) =
             get_next_command(command_available, history_already_added);

@@ -12,6 +12,7 @@
 
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
+#include "prompt/prompt.h"
 #include "shell.h"
 
 namespace cjsh_env {
@@ -157,6 +158,23 @@ std::vector<std::pair<std::string, std::string>> setup_user_system_vars(const st
 
     auto version_str = get_version();
     env_vars.emplace_back("CJSH_VERSION", version_str);
+
+    if (getenv("PS1") == nullptr) {
+        std::string default_ps1 = prompt::default_primary_prompt_template();
+        setenv("PS1", default_ps1.c_str(), 1);
+    }
+    if (getenv("PS2") == nullptr) {
+        setenv("PS2", "> ", 1);
+    }
+    if (getenv("PS3") == nullptr) {
+        setenv("PS3", "#? ", 1);
+    }
+    if (getenv("PS4") == nullptr) {
+        setenv("PS4", "+ ", 1);
+    }
+    if (getenv("HISTCMD") == nullptr) {
+        setenv("HISTCMD", "1", 1);
+    }
 
     return env_vars;
 }
