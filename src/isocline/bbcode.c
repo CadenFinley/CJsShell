@@ -790,10 +790,11 @@ ic_private ssize_t bbcode_process_tag(bbcode_t* bb, const char* s, const ssize_t
     }
     assert(end > s);
     const bool has_closing_bracket = (end > s) && (end[-1] == ']');
+    const bool missing_pre_identifier = (ispre && open && idbuf[0] == '\0');
     const bool tag_has_effect =
         !attr_is_none(tag.attr) || tag.width.w > 0 || tag.name != NULL || recognized;
     // If the sequence isn't well-formed BBCode, push it through literally (prevents losing '[').
-    if (!has_closing_bracket || (!ispre && open && !tag_has_effect) ||
+    if (!has_closing_bracket || missing_pre_identifier || (!ispre && open && !tag_has_effect) ||
         (!open && tag.name == NULL && !recognized)) {
         const ssize_t literal_len = (has_closing_bracket ? (end - s) : 1);
         attrbuf_append_n(out, attr_out, s, literal_len, *cur_attr);

@@ -149,11 +149,10 @@ void initialize_colors() {
 
 int initialize_interactive_components() {
     g_shell->set_interactive_mode(true);
-
     if (cjsh_filesystem::init_interactive_filesystem()) {
         g_shell->setup_interactive_handlers();
-
         initialize_colors();
+        cjsh_env::update_terminal_dimensions();
 
         if (config::source_enabled && !config::secure_mode) {
             if (cjsh_filesystem::file_exists(cjsh_filesystem::g_cjsh_source_path)) {
@@ -162,6 +161,9 @@ int initialize_interactive_components() {
                 g_shell->execute_script_file(cjsh_filesystem::g_cjsh_source_alt_path);
             }
         }
+
+        initialize_isocline();
+
         return 0;
     }
 

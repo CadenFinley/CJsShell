@@ -312,12 +312,24 @@ std::string get_ps(const char* name, const std::string& fallback) {
 
 std::string default_primary_prompt_template() {
     return "[!red][[/red][yellow]\\u[/yellow][green]@[/green][blue]\\h[/blue] "
-           "[color=#ff69b4]\\w[/color][!red]][/red] \\$ ";
+           "[color=#ff69b4]\\w[/color][!red]][/red][!b] \\$ [/b]";
+}
+
+std::string default_right_prompt_template() {
+    return "[ic-hint]\\A[/ic-hint]";
 }
 
 std::string render_primary_prompt() {
     std::string ps1 = get_ps("PS1", default_primary_prompt_template());
     return expand_prompt_string(ps1);
+}
+
+std::string render_right_prompt() {
+    std::string rprompt = get_ps("RPROMPT", "");
+    if (rprompt.empty()) {
+        rprompt = get_ps("RPS1", default_right_prompt_template());
+    }
+    return expand_prompt_string(rprompt);
 }
 
 void execute_prompt_command() {

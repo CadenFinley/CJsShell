@@ -416,7 +416,7 @@ std::pair<std::string, bool> get_next_command(bool command_was_available,
     cjsh_env::update_terminal_dimensions();
 
     std::string prompt = generate_prompt(command_was_available);
-    std::string inline_right_text;
+    std::string inline_right_text = prompt::render_right_prompt();
 
     thread_local static std::string sanitized_buffer;
     sanitized_buffer.clear();
@@ -528,7 +528,6 @@ void initialize_isocline() {
 }
 
 void main_process_loop() {
-    initialize_isocline();
     typeahead::initialize();
 
     std::string command_to_run;
@@ -566,13 +565,6 @@ void main_process_loop() {
             }
             break;
         }
-        // Theme* theme = g_shell ? g_shell->get_theme() : nullptr;
-        // if (theme && theme->newline_after_execution() && command_available &&
-        //     (command_to_run != "clear")) {
-        //     (void)std::fputc('\n', stdout);
-        //     (void)std::fflush(stdout);
-        // }
-
         history_already_added = false;
     }
 
