@@ -149,9 +149,8 @@ def time_binary(binary: Path, runs: int, warmup: int) -> List[float]:
     return durations
 
 
-def format_row(values: Iterable[str]) -> str:
+def format_row(values: Iterable[str], widths: Sequence[int]) -> str:
     columns = list(values)
-    widths = [24, 12, 12, 12, 12]
     padded = [col.ljust(widths[i]) if i == 0 else col.rjust(widths[i]) for i, col in enumerate(columns)]
     return " ".join(padded)
 
@@ -177,18 +176,23 @@ def main(argv: List[str]) -> int:
         print("No executable cjsh binaries found under build/. Run the build first.", file=sys.stderr)
         return 1
 
-    header = format_row(["Binary", "Runs", "Average", "Std Dev", "Range"])
+    binary_labels = [str(binary) for binary in binaries]
+    name_width = max(len("Binary"), *(len(label) for label in binary_labels))
+    widths = [name_width, 12, 12, 12, 12]
+
+    header = format_row(["Binary", "Runs", "Average", "Std Dev", "Range"], widths)
     print(header)
     print("-" * len(header))
 
-    for binary in binaries:
+    for binary, label in zip(binaries, binary_labels):
+        # if this is the binary in build then show it in the test results
         try:
             durations = time_binary(binary, args.runs, args.warmup)
         except subprocess.CalledProcessError as exc:
-            print(f"Failed to run {binary.name}: {exc}", file=sys.stderr)
+            print(f"Failed to run {label}: {exc}", file=sys.stderr)
             continue
         except ValueError as exc:
-            print(f"Failed to parse output from {binary.name}: {exc}", file=sys.stderr)
+            print(f"Failed to parse output from {label}: {exc}", file=sys.stderr)
             continue
 
         average = statistics.mean(durations)
@@ -198,12 +202,13 @@ def main(argv: List[str]) -> int:
         print(
             format_row(
                 [
-                    binary.name,
+                    label,
                     str(args.runs),
                     f"{average:0.3f} ms",
                     f"{stddev:0.3f} ms",
                     f"{run_range:0.3f} ms",
-                ]
+                ],
+                widths,
             )
         )
 
