@@ -46,6 +46,7 @@ typedef struct editor_s {
     bool refresh_pending;              // remember to refresh when suppression lifts
     bool history_prefix_active;        // whether prefix-prioritized history is active
     bool request_submit;               // request submission of current line
+    bool force_linear_line_numbers;    // final render should drop relative numbering styling
     ssize_t history_idx;               // current index in the history
     editstate_t* undo;                 // undo buffer
     editstate_t* redo;                 // redo buffer
@@ -1050,6 +1051,7 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
     ssize_t rows = 0;
     ssize_t indent_target = compute_continuation_indent_target(env, eb, promptw);
     int layout_adjustments = 0;
+    ssize_t cursor_row_for_display = 0;
 
     while (true) {
         rc = (rowcol_t){0};
@@ -1063,17 +1065,18 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
         }
 
         rows = rows_input + rows_extra;
+        cursor_row_for_display = (eb->force_linear_line_numbers ? -1 : rc.row);
 
         if (env->show_line_numbers) {
             ssize_t max_line_number_width = 0;
             if (rows_input > 0) {
                 char line_number_str[16];
-                format_line_number_prompt(line_number_str, sizeof(line_number_str), 0, rc.row,
-                                          env->relative_line_numbers);
+                format_line_number_prompt(line_number_str, sizeof(line_number_str), 0,
+                                          cursor_row_for_display, env->relative_line_numbers);
                 max_line_number_width = (ssize_t)strlen(line_number_str);
 
                 format_line_number_prompt(line_number_str, sizeof(line_number_str), rows_input - 1,
-                                          rc.row, env->relative_line_numbers);
+                                          cursor_row_for_display, env->relative_line_numbers);
                 ssize_t last_width = (ssize_t)strlen(line_number_str);
                 if (last_width > max_line_number_width) {
                     max_line_number_width = last_width;
@@ -1128,14 +1131,14 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
 
     // render rows
     edit_refresh_rows(env, eb, eb->input, eb->attrs, promptw, cpromptw, false, first_row, last_row,
-                      rc.row);
+                      cursor_row_for_display);
     if (rows_extra > 0) {
         assert(extra != NULL);
         const ssize_t first_rowx = (first_row > rows_input ? first_row - rows_input : 0);
         const ssize_t last_rowx = last_row - rows_input;
         assert(last_rowx >= 0);
         edit_refresh_rows(env, eb, extra, eb->attrs_extra, 0, 0, true, first_rowx, last_rowx,
-                          rc.row);
+                          cursor_row_for_display);
     }
 
     // overwrite trailing rows we do not use anymore
@@ -1161,8 +1164,8 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
     } else if (env->show_line_numbers) {
         // Calculate the actual width of the line number for this specific row
         char line_number_str[16];
-        format_line_number_prompt(line_number_str, sizeof(line_number_str), rc.row, rc.row,
-                                  env->relative_line_numbers);
+        format_line_number_prompt(line_number_str, sizeof(line_number_str), rc.row,
+                                  cursor_row_for_display, env->relative_line_numbers);
         ssize_t line_number_width = (ssize_t)strlen(line_number_str);
         actual_prompt_width = indent_target;
         if (line_number_width > actual_prompt_width) {
@@ -1193,6 +1196,7 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
     // update previous
     eb->cur_rows = rows;
     eb->cur_row = rc.row;
+    eb->force_linear_line_numbers = false;
 }
 
 // clear current output
@@ -2369,6 +2373,10 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
 
     // goto end
     eb.pos = sbuf_len(eb.input);
+
+    if (!env->prompt_cleanup && env->show_line_numbers) {
+        eb.force_linear_line_numbers = true;
+    }
 
     // refresh once more but without brace matching
     bool bm = env->no_bracematch;
