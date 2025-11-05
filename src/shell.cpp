@@ -24,45 +24,6 @@
 #include "shell_script_interpreter.h"
 #include "trap_command.h"
 
-Shell::Shell() : shell_pgid(0), shell_tmodes() {
-    save_terminal_state();
-
-    shell_exec = std::make_unique<Exec>();
-    signal_handler = std::make_unique<SignalHandler>();
-    shell_parser = std::make_unique<Parser>();
-    built_ins = std::make_unique<Built_ins>();
-    shell_script_interpreter = std::make_unique<ShellScriptInterpreter>();
-
-    if (shell_script_interpreter && shell_parser) {
-        shell_script_interpreter->set_parser(shell_parser.get());
-        shell_parser->set_shell(this);
-    }
-    built_ins->set_shell(this);
-    built_ins->set_current_directory();
-
-    abbreviations.emplace("abbr", "abbreviate");
-    abbreviations.emplace("unabbr", "unabbreviate");
-    set_abbreviations(abbreviations);
-
-    shell_terminal = STDIN_FILENO;
-
-    JobManager::instance().set_shell(this);
-    trap_manager_set_shell(this);
-
-    setup_signal_handlers();
-    g_signal_handler = signal_handler.get();
-    setup_job_control();
-}
-
-Shell::~Shell() {
-    if (interactive_mode) {
-        std::cerr << "Destroying Shell.\n";
-    }
-
-    shell_exec->terminate_all_child_process();
-    restore_terminal_state();
-}
-
 void Shell::set_abbreviations(
     const std::unordered_map<std::string, std::string>& new_abbreviations) {
     abbreviations = new_abbreviations;
@@ -147,6 +108,45 @@ SignalProcessingResult Shell::process_pending_signals() {
 
     Exec* exec_ptr = shell_exec ? shell_exec.get() : nullptr;
     return signal_handler->process_pending_signals(exec_ptr);
+}
+
+Shell::Shell() : shell_pgid(0), shell_tmodes() {
+    save_terminal_state();
+
+    shell_exec = std::make_unique<Exec>();
+    signal_handler = std::make_unique<SignalHandler>();
+    shell_parser = std::make_unique<Parser>();
+    built_ins = std::make_unique<Built_ins>();
+    shell_script_interpreter = std::make_unique<ShellScriptInterpreter>();
+
+    if (shell_script_interpreter && shell_parser) {
+        shell_script_interpreter->set_parser(shell_parser.get());
+        shell_parser->set_shell(this);
+    }
+    built_ins->set_shell(this);
+    built_ins->set_current_directory();
+
+    abbreviations.emplace("abbr", "abbreviate");
+    abbreviations.emplace("unabbr", "unabbreviate");
+    set_abbreviations(abbreviations);
+
+    shell_terminal = STDIN_FILENO;
+
+    JobManager::instance().set_shell(this);
+    trap_manager_set_shell(this);
+
+    setup_signal_handlers();
+    g_signal_handler = signal_handler.get();
+    setup_job_control();
+}
+
+Shell::~Shell() {
+    if (interactive_mode) {
+        std::cerr << "Destroying Shell.\n";
+    }
+
+    shell_exec->terminate_all_child_process();
+    restore_terminal_state();
 }
 
 int Shell::execute_script_file(const std::filesystem::path& path, bool optional) {
@@ -707,55 +707,4 @@ void Shell::execute_hooks(const std::string& hook_type) {
     for (const auto& function_name : hook_list) {
         execute(function_name);
     }
-}
-
-void raw_mode_state_init(RawModeState* state) {
-    if (state == nullptr) {
-        return;
-    }
-    raw_mode_state_init_with_fd(state, STDIN_FILENO);
-}
-
-void raw_mode_state_init_with_fd(RawModeState* state, int fd) {
-    if (state == nullptr) {
-        return;
-    }
-
-    state->entered = false;
-    state->fd = fd;
-
-    if (fd < 0 || (isatty(fd) == 0)) {
-        return;
-    }
-
-    if (tcgetattr(fd, &state->saved_modes) == -1) {
-        return;
-    }
-
-    struct termios raw_modes = state->saved_modes;
-    raw_modes.c_lflag &= ~ICANON;
-    raw_modes.c_cc[VMIN] = 0;
-    raw_modes.c_cc[VTIME] = 0;
-
-    if (tcsetattr(fd, TCSANOW, &raw_modes) == -1) {
-        return;
-    }
-
-    state->entered = true;
-}
-
-void raw_mode_state_release(RawModeState* state) {
-    if ((state == nullptr) || !state->entered) {
-        return;
-    }
-
-    if (tcsetattr(state->fd, TCSANOW, &state->saved_modes) == -1) {
-        // Don't do anything if saved mode is invalid; we likely inherited a broken state
-    }
-
-    state->entered = false;
-}
-
-bool raw_mode_state_entered(const RawModeState* state) {
-    return (state != nullptr) && state->entered;
 }
