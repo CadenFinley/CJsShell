@@ -390,7 +390,11 @@ void update_job_management() {
 }
 
 std::string generate_prompt(bool command_was_available) {
-    (void)command_was_available;
+    ic_enable_prompt_cleanup(
+        config::uses_cleanup,
+        (config::cleanup_newline_after_execution && command_was_available) ? 1 : 0);
+    ic_enable_prompt_cleanup_empty_line(config::cleanup_adds_empty_line);
+    ic_enable_prompt_cleanup_truncate_multiline(config::cleanup_truncates_multiline);
     return prompt::render_primary_prompt();
 }
 
@@ -564,6 +568,11 @@ void main_process_loop() {
                 std::cerr << "Exiting main process loop..." << '\n';
             }
             break;
+        }
+
+        if (config::newline_after_execution && command_available && (command_to_run != "clear")) {
+            (void)std::fputc('\n', stdout);
+            (void)std::fflush(stdout);
         }
         history_already_added = false;
     }

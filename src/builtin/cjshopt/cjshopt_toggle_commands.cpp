@@ -609,3 +609,108 @@ int auto_tab_command(const std::vector<std::string>& args) {
 
     return handle_toggle_command(config, args);
 }
+
+int prompt_newline_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: prompt-newline <on|off|status>",
+        "Examples:", "  prompt-newline on      Add a newline after each command",
+        "  prompt-newline off     Disable newlines after commands",
+        "  prompt-newline status  Show the current setting"};
+
+    static const ToggleCommandConfig config{
+        "prompt-newline",
+        usage_lines,
+        []() { return config::newline_after_execution; },
+        [](bool enable) { config::newline_after_execution = enable; },
+        "Post-execution newline",
+        false,
+        "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
+        {},
+        {}};
+
+    return handle_toggle_command(config, args);
+}
+
+int prompt_cleanup_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: prompt-cleanup <on|off|status>",
+        "Examples:", "  prompt-cleanup on      Enable prompt cleanup",
+        "  prompt-cleanup off     Disable prompt cleanup",
+        "  prompt-cleanup status  Show the current setting"};
+
+    static const ToggleCommandConfig config{
+        "prompt-cleanup",
+        usage_lines,
+        []() { return config::uses_cleanup; },
+        [](bool enable) { config::uses_cleanup = enable; },
+        "Prompt cleanup",
+        false,
+        "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
+        {},
+        {}};
+
+    return handle_toggle_command(config, args);
+}
+
+int prompt_cleanup_newline_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: prompt-cleanup-newline <on|off|status>",
+        "Examples:", "  prompt-cleanup-newline on      Add cleanup newline before execution",
+        "  prompt-cleanup-newline off     Disable cleanup newline",
+        "  prompt-cleanup-newline status  Show the current setting"};
+
+    static const ToggleCommandConfig config{
+        "prompt-cleanup-newline",
+        usage_lines,
+        []() { return config::cleanup_newline_after_execution; },
+        [](bool enable) { config::cleanup_newline_after_execution = enable; },
+        "Prompt cleanup newline",
+        false,
+        "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
+        {},
+        {}};
+
+    return handle_toggle_command(config, args);
+}
+
+int prompt_cleanup_empty_line_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: prompt-cleanup-empty-line <on|off|status>",
+        "Examples:", "  prompt-cleanup-empty-line on      Insert an empty line after cleanup",
+        "  prompt-cleanup-empty-line off     Keep prompt cleanup compact",
+        "  prompt-cleanup-empty-line status  Show the current setting"};
+
+    static const ToggleCommandConfig config{
+        "prompt-cleanup-empty-line",
+        usage_lines,
+        []() { return config::cleanup_adds_empty_line; },
+        [](bool enable) { config::cleanup_adds_empty_line = enable; },
+        "Prompt cleanup empty line",
+        false,
+        "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
+        {},
+        {}};
+
+    return handle_toggle_command(config, args);
+}
+
+int prompt_cleanup_truncate_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: prompt-cleanup-truncate <on|off|status>",
+        "Examples:", "  prompt-cleanup-truncate on      Truncate multiline prompts during cleanup",
+        "  prompt-cleanup-truncate off     Preserve multiline prompts during cleanup",
+        "  prompt-cleanup-truncate status  Show the current setting"};
+
+    static const ToggleCommandConfig config{
+        "prompt-cleanup-truncate",
+        usage_lines,
+        []() { return config::cleanup_truncates_multiline; },
+        [](bool enable) { config::cleanup_truncates_multiline = enable; },
+        "Prompt cleanup truncation",
+        false,
+        "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
+        {},
+        {}};
+
+    return handle_toggle_command(config, args);
+}

@@ -44,6 +44,11 @@ extern bool show_startup_time;
 extern bool secure_mode;
 extern bool show_title_line;
 extern bool history_expansion_enabled;
+extern bool newline_after_execution;
+extern bool uses_cleanup;
+extern bool cleanup_newline_after_execution;
+extern bool cleanup_adds_empty_line;
+extern bool cleanup_truncates_multiline;
 }  // namespace config
 
 void cleanup_resources();
