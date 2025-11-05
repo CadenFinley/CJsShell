@@ -142,6 +142,7 @@ void initialize_colors() {
                 style_name = "cjsh-" + style_name;
             }
             ic_style_def(style_name.c_str(), pair.second.c_str());
+            ic_style_def("ic-prompt", "white");
         }
     }
 }

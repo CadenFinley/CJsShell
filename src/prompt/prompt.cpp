@@ -311,7 +311,7 @@ std::string get_ps(const char* name, const std::string& fallback) {
 }  // namespace
 
 std::string default_primary_prompt_template() {
-    return "[!red][[/red][yellow]\\u[/yellow][green]@[/green][blue]\\H[/blue] "
+    return "[!red][[/red][yellow]\\u[/yellow][green]@[/green][blue]\\h[/blue] "
            "[color=#ff69b4]\\w[/color][!red]][/red] \\$ ";
 }
 
