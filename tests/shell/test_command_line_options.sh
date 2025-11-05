@@ -71,19 +71,6 @@ if [ "$OUT" != "test" ]; then
     exit 1
 fi
 
-echo "Testing --no-themes option..."
-OUT=$("$CJSH_PATH" --no-themes -c "echo test")
-if [ "$OUT" != "test" ]; then
-    echo "FAIL: --no-themes option (got '$OUT')"
-    exit 1
-fi
-
-OUT=$("$CJSH_PATH" --no-themes -c "echo test")
-if [ "$OUT" != "test" ]; then
-    echo "FAIL: --no-themes option (got '$OUT')"
-    exit 1
-fi
-
 OUT=$("$CJSH_PATH" --no-colors --no-themes -c "echo multi-test")
 if [ "$OUT" != "multi-test" ]; then
     echo "FAIL: multiple options (got '$OUT')"
