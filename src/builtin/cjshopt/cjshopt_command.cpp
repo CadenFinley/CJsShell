@@ -37,6 +37,19 @@ void print_cjshopt_usage() {
         << "  inline-help <on|off|status>     Configure inline help messages (default: enabled)\n";
     std::cout << "  auto-tab <on|off|status>        Configure automatic tab completion (default: "
                  "enabled)\n";
+    std::cout
+        << "  prompt-newline <on|off|status>  Add a newline after command execution (default: "
+           "disabled)\n";
+    std::cout
+        << "  prompt-cleanup <on|off|status>  Toggle prompt cleanup behavior (default: disabled)\n";
+    std::cout
+        << "  prompt-cleanup-newline <on|off|status>  Control cleanup newline behavior (default: "
+           "disabled)\n";
+    std::cout
+        << "  prompt-cleanup-empty-line <on|off|status>  Control cleanup empty line insertion "
+           "(default: disabled)\n";
+    std::cout << "  prompt-cleanup-truncate <on|off|status>  Control cleanup multiline truncation "
+                 "(default: disabled)\n";
     std::cout << "  keybind <subcommand> [...]       Inspect or modify key bindings (modifications "
                  "in config only)\n";
     std::cout << "    - Use 'keybind ext' for custom command keybindings\n";
@@ -95,6 +108,20 @@ int cjshopt_command(const std::vector<std::string>& args) {
                  std::string(
                      "  auto-tab <on|off|status>        Configure automatic tab completion ") +
                      "(default: enabled)",
+                 std::string(
+                     "  prompt-newline <on|off|status>  Add a newline after command execution ") +
+                     "(default: disabled)",
+                 std::string("  prompt-cleanup <on|off|status>  Toggle prompt cleanup behavior ") +
+                     "(default: disabled)",
+                 std::string("  prompt-cleanup-newline <on|off|status>  Control cleanup newline "
+                             "behavior ") +
+                     "(default: disabled)",
+                 std::string("  prompt-cleanup-empty-line <on|off|status>  Control cleanup empty "
+                             "line insertion ") +
+                     "(default: disabled)",
+                 std::string("  prompt-cleanup-truncate <on|off|status>  Control cleanup multiline "
+                             "truncation ") +
+                     "(default: disabled)",
                  std::string("  keybind <subcommand> [...]       Inspect or modify key bindings ") +
                      "(modifications in config only)",
                  "  generate-profile [--force] [--alt]       Create or overwrite ~/.cjprofile",
@@ -155,6 +182,24 @@ int cjshopt_command(const std::vector<std::string>& args) {
     if (subcommand == "auto-tab") {
         return auto_tab_command(std::vector<std::string>(args.begin() + 1, args.end()));
     }
+    if (subcommand == "prompt-newline") {
+        return prompt_newline_command(std::vector<std::string>(args.begin() + 1, args.end()));
+    }
+    if (subcommand == "prompt-cleanup") {
+        return prompt_cleanup_command(std::vector<std::string>(args.begin() + 1, args.end()));
+    }
+    if (subcommand == "prompt-cleanup-newline") {
+        return prompt_cleanup_newline_command(
+            std::vector<std::string>(args.begin() + 1, args.end()));
+    }
+    if (subcommand == "prompt-cleanup-empty-line") {
+        return prompt_cleanup_empty_line_command(
+            std::vector<std::string>(args.begin() + 1, args.end()));
+    }
+    if (subcommand == "prompt-cleanup-truncate") {
+        return prompt_cleanup_truncate_command(
+            std::vector<std::string>(args.begin() + 1, args.end()));
+    }
     if (subcommand == "keybind") {
         return keybind_command(std::vector<std::string>(args.begin() + 1, args.end()));
     }
@@ -177,7 +222,9 @@ int cjshopt_command(const std::vector<std::string>& args) {
          {"Available subcommands: style_def, login-startup-arg, completion-case, completion-spell, "
           "line-numbers, current-line-number-highlight, multiline-start-lines, hint-delay, "
           "completion-preview, visible-whitespace, hint, multiline-indent, multiline, inline-help, "
-          "auto-tab, keybind, generate-profile, generate-rc, generate-logout, set-history-max"}});
+          "auto-tab, prompt-newline, prompt-cleanup, prompt-cleanup-newline, "
+          "prompt-cleanup-empty-line, prompt-cleanup-truncate, keybind, generate-profile, "
+          "generate-rc, generate-logout, set-history-max"}});
 
     return 1;
 }

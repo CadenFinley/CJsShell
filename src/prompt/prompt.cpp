@@ -1,175 +1,345 @@
 #include "prompt.h"
 
+#include <pwd.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+#include <cstdint>
+#include <cstdlib>
+#include <ctime>
+#include <filesystem>
+#include <string>
+
 #include "cjsh.h"
-#include "command_info.h"
-#include "theme.h"
-#include "theme_parser.h"
+#include "job_control.h"
+#include "shell.h"
 
-Prompt::Prompt() : repo_root() {
+namespace prompt {
+namespace {
+
+std::string get_env(const char* name, const char* fallback = nullptr) {
+    const char* value = std::getenv(name);
+    if (value != nullptr && value[0] != '\0') {
+        return value;
+    }
+    if (fallback != nullptr) {
+        return fallback;
+    }
+    return {};
 }
 
-Prompt::~Prompt() {
+std::string get_shell_name() {
+    std::string shell_name = get_env("0");
+    if (shell_name.empty() && !startup_args().empty()) {
+        shell_name = startup_args().front();
+    }
+    if (shell_name.empty()) {
+        shell_name = "cjsh";
+    }
+    auto pos = shell_name.find_last_of('/');
+    if (pos != std::string::npos) {
+        shell_name = shell_name.substr(pos + 1);
+    }
+    return shell_name;
 }
 
-std::string Prompt::get_prompt() {
-    if (!theme_ || !theme_->get_enabled() || !config::themes_enabled ||
-        !theme_->has_active_theme()) {
-        return info.get_basic_prompt();
+std::string get_username() {
+    std::string username = get_env("USER");
+    if (!username.empty()) {
+        return username;
     }
-
-    bool is_git_repo = is_git_repository(repo_root);
-
-    if (is_git_repo) {
-        std::unordered_map<std::string, std::string> vars = get_variables(PromptType::GIT, true);
-        return theme_->get_git_prompt_format(vars);
+    uid_t uid = geteuid();
+    passwd* pw = getpwuid(uid);
+    if (pw != nullptr && pw->pw_name != nullptr) {
+        return pw->pw_name;
     }
-    std::unordered_map<std::string, std::string> vars = get_variables(PromptType::PS1, false);
-    return theme_->get_ps1_prompt_format(vars);
+    return {};
 }
 
-std::string Prompt::get_newline_prompt() {
-    if (!theme_ || !theme_->get_enabled() || !config::themes_enabled ||
-        !theme_->has_active_theme()) {
-        return " ";
+std::string get_hostname(bool full) {
+    char buffer[256] = {0};
+    if (gethostname(buffer, sizeof(buffer)) != 0) {
+        return {};
     }
-
-    std::unordered_map<std::string, std::string> vars = get_variables(PromptType::NEWLINE);
-
-    return theme_->get_newline_prompt(vars);
+    std::string host(buffer);
+    if (!full) {
+        auto pos = host.find('.');
+        if (pos != std::string::npos) {
+            host.resize(pos);
+        }
+    }
+    return host;
 }
 
-std::string Prompt::get_inline_right_prompt() {
-    if (!theme_ || !theme_->get_enabled() || !config::themes_enabled ||
-        !theme_->has_active_theme()) {
-        return "";
+std::string format_time(const char* fmt) {
+    std::time_t now = std::time(nullptr);
+    std::tm tm_now{};
+    localtime_r(&now, &tm_now);
+
+    char buffer[256];
+    size_t written = std::strftime(buffer, sizeof(buffer), fmt, &tm_now);
+    if (written == 0) {
+        return {};
     }
-
-    std::unordered_map<std::string, std::string> vars = get_variables(PromptType::INLINE_RIGHT);
-
-    return theme_->get_inline_right_prompt(vars);
+    return std::string(buffer, written);
 }
 
-std::string Prompt::get_title_prompt() {
-    if (!theme_ || !theme_->get_enabled() || !config::themes_enabled ||
-        !theme_->has_active_theme()) {
-        return info.get_basic_title();
+std::string get_cwd(bool abbreviate_home, bool basename_only) {
+    std::error_code ec;
+    std::filesystem::path cwd = std::filesystem::current_path(ec);
+    if (ec) {
+        return {};
+    }
+    std::string path = cwd.string();
+
+    std::string home = get_env("HOME");
+    if (abbreviate_home && !home.empty()) {
+        if (path == home) {
+            path = "~";
+        } else if (path.rfind(home + "/", 0) == 0) {
+            path = "~" + path.substr(home.size());
+        }
     }
 
-    std::string prompt_format = theme_->get_terminal_title_format();
-
-    std::unordered_map<std::string, std::string> vars = get_variables(PromptType::TITLE);
-
-    for (const auto& [key, value] : vars) {
-        std::string placeholder = "{";
-        placeholder += key;
-        placeholder += "}";
-        prompt_format = replace_placeholder(prompt_format, placeholder, value);
+    if (!basename_only) {
+        return path;
     }
 
-    return prompt_format;
+    if (path == "~") {
+        return path;
+    }
+
+    std::filesystem::path path_obj(path);
+    std::string base = path_obj.filename().string();
+    if (base.empty()) {
+        base = path_obj.root_path().string();
+    }
+    if (abbreviate_home && !home.empty() && path.rfind(home + "/", 0) == 0) {
+        if (path == home) {
+            return "~";
+        }
+        base = path.substr(path.find_last_of('/') + 1);
+    }
+    return base;
 }
 
-std::string Prompt::replace_placeholder(const std::string& format, const std::string& placeholder,
-                                        const std::string& value) {
-    std::string result = format;
-    size_t pos = 0;
-    while ((pos = result.find(placeholder, pos)) != std::string::npos) {
-        result.replace(pos, placeholder.length(), value);
-        pos += value.length();
+std::string get_terminal_name() {
+    const char* tty = ttyname(STDIN_FILENO);
+    if (tty == nullptr) {
+        return {};
     }
+    std::string name(tty);
+    auto pos = name.find_last_of('/');
+    if (pos != std::string::npos) {
+        name = name.substr(pos + 1);
+    }
+    return name;
+}
+
+std::string get_version_short() {
+    std::string version = get_version();
+    auto pos = version.find(' ');
+    if (pos != std::string::npos) {
+        version = version.substr(0, pos);
+    }
+    pos = version.find_last_of('.');
+    if (pos != std::string::npos) {
+        return version.substr(0, pos);
+    }
+    return version;
+}
+
+std::string get_version_full() {
+    return get_version();
+}
+
+std::string get_exit_status() {
+    return get_env("?");
+}
+
+std::string get_job_count() {
+    size_t count = JobManager::instance().get_all_jobs().size();
+    return std::to_string(count);
+}
+
+char prompt_dollar() {
+    if (geteuid() == 0) {
+        return '#';
+    }
+    return '$';
+}
+
+char to_ascii(std::uint8_t value) {
+    return static_cast<char>(value);
+}
+
+std::string expand_prompt_string(const std::string& templ) {
+    std::string result;
+    result.reserve(templ.size() + 16);
+
+    for (size_t i = 0; i < templ.size(); ++i) {
+        char ch = templ[i];
+        if (ch != '\\') {
+            result.push_back(ch);
+            continue;
+        }
+
+        ++i;
+        if (i >= templ.size()) {
+            result.push_back('\\');
+            break;
+        }
+
+        char code = templ[i];
+        switch (code) {
+            case 'a':
+                result.push_back('\a');
+                break;
+            case 'd':
+                result += format_time("%a %b %e");
+                break;
+            case 'D': {
+                if (i + 1 < templ.size() && templ[i + 1] == '{') {
+                    size_t closing = templ.find('}', i + 2);
+                    if (closing != std::string::npos) {
+                        std::string fmt = templ.substr(i + 2, closing - (i + 2));
+                        result += format_time(fmt.c_str());
+                        i = closing;
+                        break;
+                    }
+                }
+                result.push_back('D');
+                break;
+            }
+            case 'e':
+            case 'E':
+                result.push_back('\033');
+                break;
+            case 'h':
+                result += get_hostname(false);
+                break;
+            case 'H':
+                result += get_hostname(true);
+                break;
+            case 'j':
+                result += get_job_count();
+                break;
+            case 'l':
+                result += get_terminal_name();
+                break;
+            case 'n':
+                result.push_back('\n');
+                break;
+            case 'r':
+                result.push_back('\r');
+                break;
+            case 's':
+                result += get_shell_name();
+                break;
+            case 't':
+                result += format_time("%H:%M:%S");
+                break;
+            case 'T':
+                result += format_time("%I:%M:%S");
+                break;
+            case '@':
+                result += format_time("%I:%M %p");
+                break;
+            case 'A':
+                result += format_time("%H:%M");
+                break;
+            case 'u':
+                result += get_username();
+                break;
+            case 'v':
+                result += get_version_short();
+                break;
+            case 'V':
+                result += get_version_full();
+                break;
+            case 'w':
+                result += get_cwd(true, false);
+                break;
+            case 'W':
+                result += get_cwd(true, true);
+                break;
+            case '$':
+                result.push_back(prompt_dollar());
+                break;
+            case '?':
+                result += get_exit_status();
+                break;
+            case '\\':
+                result.push_back('\\');
+                break;
+            case '[':
+            case ']':
+                break;
+            default: {
+                if (code >= '0' && code <= '7') {
+                    int value = code - '0';
+                    int digits = 1;
+                    while (digits < 3 && (i + 1) < templ.size()) {
+                        char next = templ[i + 1];
+                        if (next < '0' || next > '7') {
+                            break;
+                        }
+                        value = (value * 8) + (next - '0');
+                        ++i;
+                        ++digits;
+                    }
+                    result.push_back(to_ascii(static_cast<std::uint8_t>(value & 0xFF)));
+                } else {
+                    result.push_back(code);
+                }
+                break;
+            }
+        }
+    }
+
     return result;
 }
 
-std::unordered_map<std::string, std::string> Prompt::get_variables(PromptType type,
-                                                                   bool is_git_repo) {
-    std::vector<ThemeSegment> segments;
-
-    if (!theme_) {
-        return info.get_variables(segments, is_git_repo, repo_root);
+std::string get_ps(const char* name, const std::string& fallback) {
+    std::string value = get_env(name);
+    if (value.empty()) {
+        return fallback;
     }
+    return value;
+}
 
-    switch (type) {
-        case PromptType::PS1:
-            segments.insert(segments.end(), theme_->ps1_segments.begin(),
-                            theme_->ps1_segments.end());
-            break;
-        case PromptType::GIT:
-            segments.insert(segments.end(), theme_->git_segments.begin(),
-                            theme_->git_segments.end());
-            break;
-        case PromptType::NEWLINE:
-            segments.insert(segments.end(), theme_->newline_segments.begin(),
-                            theme_->newline_segments.end());
-            break;
-        case PromptType::INLINE_RIGHT:
-            segments.insert(segments.end(), theme_->inline_right_segments.begin(),
-                            theme_->inline_right_segments.end());
-            break;
-        case PromptType::TITLE: {
-            ThemeSegment title_segment("title");
-            title_segment.content = theme_->get_terminal_title_format();
-            segments.push_back(title_segment);
-            break;
-        }
-        case PromptType::ALL:
-            segments.insert(segments.end(), theme_->ps1_segments.begin(),
-                            theme_->ps1_segments.end());
-            segments.insert(segments.end(), theme_->git_segments.begin(),
-                            theme_->git_segments.end());
-            segments.insert(segments.end(), theme_->newline_segments.begin(),
-                            theme_->newline_segments.end());
-            segments.insert(segments.end(), theme_->inline_right_segments.begin(),
-                            theme_->inline_right_segments.end());
+}  // namespace
 
-            ThemeSegment title_segment("title");
-            title_segment.content = theme_->get_terminal_title_format();
-            segments.push_back(title_segment);
-            break;
+std::string default_primary_prompt_template() {
+    return "[!red][[/red][yellow]\\u[/yellow][green]@[/green][blue]\\h[/blue] "
+           "[color=#ff69b4]\\w[/color][!red]][/red][!b] \\$ [/b]";
+}
+
+std::string default_right_prompt_template() {
+    return "[ic-hint]\\A[/ic-hint]";
+}
+
+std::string render_primary_prompt() {
+    std::string ps1 = get_ps("PS1", default_primary_prompt_template());
+    return expand_prompt_string(ps1);
+}
+
+std::string render_right_prompt() {
+    std::string rprompt = get_ps("RPROMPT", "");
+    if (rprompt.empty()) {
+        rprompt = get_ps("RPS1", default_right_prompt_template());
     }
-
-    return info.get_variables(segments, is_git_repo, repo_root);
+    return expand_prompt_string(rprompt);
 }
 
-bool Prompt::is_git_repository(std::filesystem::path& repo_root) {
-    std::filesystem::path current_path = std::filesystem::current_path();
-    std::filesystem::path git_head_path;
-
-    repo_root = current_path;
-
-    while (!is_root_path(repo_root)) {
-        git_head_path = repo_root / ".git" / "HEAD";
-        if (std::filesystem::exists(git_head_path)) {
-            return true;
-        }
-        repo_root = repo_root.parent_path();
+void execute_prompt_command() {
+    if (!g_shell) {
+        return;
     }
-    return false;
+    std::string command = get_env("PROMPT_COMMAND");
+    if (command.empty()) {
+        return;
+    }
+    g_shell->execute(command);
 }
-
-std::string Prompt::get_initial_duration() {
-    return get_formatted_duration();
-}
-
-void Prompt::start_command_timing() {
-    ::start_command_timing();
-}
-
-void Prompt::end_command_timing(int exit_code) {
-    ::end_command_timing(exit_code);
-}
-
-void Prompt::reset_command_timing() {
-    ::reset_command_timing();
-}
-
-void Prompt::set_initial_duration(long long microseconds) {
-    ::set_initial_duration(microseconds);
-}
-
-void Prompt::set_theme(Theme* theme) {
-    theme_ = theme;
-}
-
-void Prompt::clear_cached_state() {
-    info.clear_cached_state();
-}
+}  // namespace prompt

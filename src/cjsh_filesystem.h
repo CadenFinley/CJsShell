@@ -142,8 +142,6 @@ bool path_is_directory_candidate(const std::string& value, const std::string& cw
 
 extern const fs::path g_user_home_path;
 
-extern fs::path g_cjsh_path;
-
 extern const fs::path g_cjsh_config_path;
 
 extern const fs::path g_cjsh_cache_path;
@@ -164,9 +162,7 @@ extern const fs::path g_cjsh_generated_completions_path;
 
 std::vector<std::string> get_executables_in_path();
 bool file_exists(const cjsh_filesystem::fs::path& path);
-bool initialize_cjsh_path();
 bool initialize_cjsh_directories();
-std::filesystem::path get_cjsh_path();
 std::string find_executable_in_path(const std::string& name);
 
 bool create_profile_file(const fs::path& target_path = g_cjsh_profile_path);

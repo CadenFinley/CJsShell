@@ -1,299 +1,129 @@
 # Features Overview
 
-CJ's Shell is a POSIX-based interactive shell designed to provide a powerful, fast, and customizable experience with minimal configuration required.
-
-## Core Features
-
-### POSIX-Based Scripting
-cjsh targets approximately 95% POSIX coverage for scripting so existing shell scripts run as expected while modern conveniences remain available.
-
-- Standards-aligned POSIX shell syntax with common bash extensions
-- Compatible with most `sh`/`bash` scripts and tooling expectations
-- Backed by 1500+ automated tests that focus on scripting semantics
-
-**See Also**: [POSIX+ Interactive Features](non-posix-features.md) for details on the enhancements layered above the core scripting engine.
-
-### Shell Scripting
-
-#### Conditionals
-- `if/elif/else/fi` constructs
-- `test`, `[`, and `[[` expressions
-- Supports both POSIX and extended test expressions
-
-#### Loops
-- `for` loops
-- `while` loops
-- `until` loops
-- `break` and `continue` statements
-
-#### Functions
-- POSIX-style function definitions
-- Local variables with `local` command
-- Return codes and `return` statement
-
-#### Advanced Features
-- Command substitution with `$(...)`
-- Pipelines and command chaining
-- Redirection (stdin, stdout, stderr)
-- Here-strings and here-documents
-- Background jobs and job control
-
-### Interactive Features
-
-CJ's Shell provides a rich interactive experience powered by the [isocline](https://github.com/cadenfinley/isocline) line editor library.
-
-**See [Interactive Editing Guide](editing.md) for complete documentation of all editing features.**
-
-#### Line Editing
-Advanced text editing capabilities including:
-
-- **Multiline input** with intelligent continuation detection
-- **Line numbering** (absolute and relative modes)
-- **Syntax highlighting** in real-time as you type
-- **Context-aware tab completion** with fuzzy matching
-- **Incremental history search** (Ctrl+R)
-- **Inline hints** and completion preview
-- **Visible whitespace markers** for spotting stray spaces
-- **Spell correction** for commands and completions
-- **Brace matching** and auto-insertion
-- **Fish-style abbreviations** with `abbr`/`unabbr` management commands
-- **Customizable key bindings** (emacs and vi modes)
-- **Interactive help** (F1 for full key binding cheat sheet)
-
-**Configuration:**
-All editing features can be configured via the `cjshopt` command:
-```bash
-cjshopt multiline on|off|status                 # Toggle multiline input
-cjshopt multiline-start-lines <count|status>    # Prefill multiline prompts with extra lines
-cjshopt line-numbers <relative|absolute|off|status>
-cjshopt completion-preview on|off|status        # Show completion preview popups
-cjshopt completion-spell on|off|status          # Completion spell correction
-cjshopt completion-case on|off|status           # Case-sensitive matching (default off)
-cjshopt visible-whitespace on|off|status        # Render whitespace markers
-cjshopt hint on|off|status                      # Inline hints
-cjshopt hint-delay <milliseconds|status>        # Delay before showing hints
-cjshopt auto-tab on|off|status                  # Auto-expand unique completions (default off)
-cjshopt keybind profile set emacs               # Select a key binding profile (also supports 'vi')
-```
-
-See the [Editing Guide](editing.md) for all available options and detailed usage.
-
-#### Smart Directory Navigation
-Enhanced `cd` command with intelligent features:
-
-- Fuzzy directory matching
-- Previous directory switching with `cd -`
-- Can be disabled with `--no-smart-cd` flag
-
-#### Auto-completion
-Built-in completion system with advanced features:
-
-- **Command completion** from PATH, builtins, aliases, and functions
-- **File and directory completion** with intelligent quoting
-- **Variable completion** for shell variables
-- **User and hostname completion** for ssh, scp, etc.
-- **Fuzzy matching** for typo tolerance
-- **Frequency-based ranking** (commonly used items first)
-- **Source attribution** (shows where completions come from)
-- **History source tags** include the recorded exit code when available
-- **Spell correction** when no exact match is found
-- **Configurable case sensitivity**
-
-See [Editing Guide](editing.md#completion-system) for detailed completion documentation, and the [Completion Authoring Guide](completions.md) for cache formats and customization.
-
-#### Syntax Highlighting
-Real-time syntax highlighting as you type with full customization:
-
-- **Command recognition** (valid commands, builtins, errors)
-- **String highlighting** (single and double quoted)
-- **Operator highlighting** (pipes, redirections, logical operators)
-- **Keyword highlighting** (if, then, else, while, for, etc.)
-- **Variable highlighting** (parameter expansions)
-- **Comment highlighting**
-- **Brace matching** (matching pairs highlighted)
-- **Customizable color schemes** via `cjshopt style_def`
-
-**Example style customization:**
-```bash
-cjshopt style_def ic-keyword "bold blue"
-cjshopt style_def ic-command "green"
-cjshopt style_def ic-error "bold red"
-cjshopt style_def ic-string "#ffaa00"
-```
-
-See [Editing Guide](editing.md#syntax-highlighting) for all available styles and customization options.
-
-### Theming System
-
-#### Custom Theme DSL
-Proprietary theme scripting language inspired by JSON and Ruby:
-
-- Data-oriented and hierarchical
-- Strongly typed
-- Fast evaluation (2-4x faster than alternatives)
-- Theme caching for performance
-
-#### Prompt Types
-- **PS1**: Default prompt
-- **GIT**: Git repository prompt with status information
-- **inline_right**: Right-aligned prompt elements
-- **newline**: Multi-line prompt support
-
-#### Prompt Information Variables
-Extensive set of variables for displaying system information:
-
-- User and system info (username, hostname, path)
-- Time and date formatting
-- Git repository status and metrics
-- Language detection (Python, Node.js, Rust, Go, Java, etc.)
-- Container detection (Docker, Podman)
-- System resources (CPU, memory, disk usage)
-- Network information
-- Custom command execution with caching
-
-See the themes documentation for complete variable list.
-
-### Configuration
-
-#### Startup Files
-- `~/.cjprofile` - Login configuration and startup flags
-- `~/.cjshrc` - Interactive session configuration
-- `~/.cjsh_logout` - Optional logout script
-
-**Note**: To load custom themes, use `source path/to/theme.cjsh` in your `~/.cjshrc` file or directly at the command line.
-
-#### Configuration Directories
-- `~/.cache/cjsh/` - Cache directory (history, exec cache)
-
-#### Runtime Options
-Multiple command-line flags are available to adjust startup behavior:
-
-**General execution:**
-- `--login` – Start in login mode (mirrors `-l`)
-- `--interactive` – Force interactive behavior even when stdin is not a TTY
-- `--debug` – Enable verbose startup diagnostics
-- `--command=<command>` – Run a single command and exit
-- `--version` – Print version information and exit
-- `--help` – Display the built-in help text
-
-**Feature toggles:**
-- `--minimal` – Disable cjsh-specific features (themes, colors, completions, syntax highlighting,
-  smart cd, sourcing, startup timers)
-- `--no-themes` – Disable the theme system
-- `--no-colors` – Disable color output
-- `--no-titleline` – Skip dynamic title line updates
-- `--no-source` – Skip sourcing `~/.cjshrc`
-- `--no-completions` – Disable the completion system
-- `--no-syntax-highlighting` – Disable syntax highlighting
-- `--no-smart-cd` – Use the basic `cd` implementation
-- `--no-prompt` – Use a minimal `#` prompt instead of the themed prompt
-- `--no-history-expansion` – Turn off history expansion (`!!`, `!$`, etc.)
-- `--show-startup-time` – Print how long startup took
-- `--startup-test` – Enable startup test mode for diagnostics
-- `--secure` – Run in secure mode with additional restrictions
-
-See `cjsh --help` for complete list.
-
-### Performance
-
-#### Optimizations
-- Compiled with aggressive optimization flags
-- Theme caching to avoid repeated parsing
-- Command lookup caching
-- Prompt variable caching
-- Executable path caching
-
-#### Benchmarks
-Theme rendering is typically 2-4x faster than popular alternatives like Starship and Powerlevel10k.
-
-### Development Tools
-
-#### Script Validation
-- `syntax` command for checking script syntax
-- `validate` command for command verification
-- Detailed error messages with suggestions
-
-#### History Management
-- Persistent command history across sessions
-- Configurable history size with `cjshopt set-history-max`
-- Duplicate suppression (enabled by default)
-- History search and editing
-- Incremental search (Ctrl+R)
-- History expansion (`!`, `!!`, `!$`, `!-1`, etc.)
-- History file at `~/.cache/cjsh/history.txt`
-- Exit codes persisted alongside each recorded command
-
-See [Editing Guide](editing.md#history-management) for detailed history features.
-
-#### Debugging Support
-- Detailed error reporting
-- Stack traces for script errors
-- Command timing information
-
-### Job Control
-
-Full job control support:
-- Background jobs with `&`
-- Job listing with `jobs`
-- Foreground/background switching with `fg`/`bg`
-- Job waiting with `wait`
-- Signal sending with `kill`
-- Proper signal handling with `trap`
-
-### Security
-
-#### Secure Mode
-When enabled with `--secure`:
-- Restricts certain operations
-- Prevents sourcing untrusted files
-- Additional safety checks
-
-#### Read-only Variables
-Support for marking variables as read-only to prevent modification.
-
-## Platform Support
-
-### Supported Platforms
-- Linux (all major distributions)
-- macOS
-- Windows with WSL (Windows Subsystem for Linux)
-- Other *nix systems
-
-### Requirements
-- C++17 compatible compiler
-- POSIX-compatible environment
-- Terminal with color support (recommended)
-
-## Installation Methods
-
-### Package Manager (Recommended)
-
-#### Homebrew (macOS/Linux)
-```bash
-brew tap CadenFinley/tap
-brew install cjsh
-```
-
-#### Arch Linux (AUR)
-```bash
-# Using yay
-yay -S cjsh
-
-# Using paru
-paru -S cjsh
-
-# Or manually
-git clone https://aur.archlinux.org/cjsh.git
-cd cjsh
-makepkg -si
-```
-
-### Manual Build
-```bash
-git clone https://github.com/CadenFinley/CJsShell.git
-cd CJsShell
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --config Release --parallel
-```
-
-See the Quick Start guide for detailed installation instructions.
+CJ's Shell (cjsh) pairs a standards-focused POSIX shell engine with a modern interactive
+experience. The goal is zero-compromise scripting compatibility backed by rich editing tools that
+require no third-party plugins.
+
+## Core Shell Engine
+
+- **POSIX-first semantics** – Roughly 95% POSIX coverage with >1500 standards-focused tests.
+- **Bourne-compatible surface** – Classic constructs (`if`, `case`, `for`, `while`, functions,
+    redirections, here-documents, command substitution) behave the way portable scripts expect.
+- **Selective bash extensions** – `[[ … ]]`, arithmetic contexts, here-strings, and history
+    expansion ship enabled for interactive use but stay out of the way for scripts.
+- **Job control** – Background jobs, `fg`, `bg`, `jobs`, `wait`, and `trap` integrate with the
+    internal process manager so interactive sessions stay responsive.
+
+## Interactive Layer
+
+Powered by the embedded [isocline](https://github.com/cadenfinley/isocline) editor:
+
+- **Multiline editing** with automatic indentation and optional line numbers.
+- **Syntax highlighting** that understands commands, keywords, paths, arguments, substitutions,
+    comments, and error states.
+- **Fuzzy completions** for commands, files, options, variables, users, and hosts. Completions learn
+    from your `PATH` and cached man-page metadata.
+- **Inline hints & preview** with configurable delays, spell correction, and case sensitivity.
+- **Advanced history** – reverse search (`Ctrl+R`), deduplicated persistent history with exit codes,
+    and bash-style history expansion that auto-disables in non-interactive contexts.
+- **Custom key bindings** – Emacs and Vi profiles plus fine-grained overrides via
+    `cjshopt keybind` (including command-driven bindings through `cjsh-widget`).
+- **Typeahead capture** – Keystrokes entered while a command runs are buffered and replayed when the prompt returns so you never lose input.
+- **Abbreviations** – `abbr`/`unabbr` provide fish-style expansions for frequently typed snippets.
+
+See the [Interactive Editing Guide](editing.md) and [Completion Authoring Guide](completions.md)
+for full details.
+
+## Prompt & Visual Styling
+
+- **BBCode-inspired markup** inside `PS1`, `RPS1`/`RPROMPT`, `PS2`, and other prompt variables.
+    Tags such as `[b]`, `[color=hotpink]`, `[ic-hint]`, and `[bgcolor=#202020]` let you mix ANSI
+    styles with reusable highlight names. The full markup reference lives in
+    [Prompt Markup and Styling](../themes/thedetails.md).
+- **Prompt cleanup toggles** via `cjshopt prompt-cleanup*` set whether the previous prompt is
+    removed, whether blank lines are inserted, and whether multiline prompts are truncated.
+- **`cjshopt style_def`** redefines syntax-highlighter styles (`unknown-command`, `ic-hint`, etc.),
+    instantly applying to both inline highlighting and prompt markup tags that reference them.
+
+## Configuration Surface
+
+- **Runtime toggles** – Every major interactive feature has a `cjshopt` command. Highlights:
+    - `cjshopt multiline`, `cjshopt multiline-indent`, `cjshopt line-numbers`,
+        `cjshopt multiline-start-lines`
+    - `cjshopt completion-preview`, `cjshopt completion-case`, `cjshopt completion-spell`,
+        `cjshopt auto-tab`
+    - `cjshopt hint`, `cjshopt hint-delay`, `cjshopt inline-help`, `cjshopt visible-whitespace`
+    - `cjshopt prompt-newline`, `cjshopt prompt-cleanup`, `cjshopt prompt-cleanup-newline`,
+        `cjshopt prompt-cleanup-empty-line`, `cjshopt prompt-cleanup-truncate`
+    - `cjshopt keybind …` and `cjshopt keybind ext …` for keymap management
+    - `cjshopt set-history-max` to adjust persistent history size (0–5000 entries)
+- **Login/startup flags** – Place `cjshopt login-startup-arg <flag>` lines in `~/.cjprofile` to
+    replay command-line switches (`--minimal`, `--no-completions`, `--show-startup-time`, etc.) on
+    every launch. Flags that are valid on the CLI are respected during profile evaluation.
+- **Generated config skeletons** – `cjshopt generate-profile`, `cjshopt generate-rc`, and
+    `cjshopt generate-logout` create `~/.cjprofile`, `~/.cjshrc`, and `~/.cjsh_logout` (or alternate
+    locations under `~/.config/cjsh/`) with sensible defaults.
+
+### Startup Files
+
+| File | When it runs | Typical responsibilities |
+| --- | --- | --- |
+| `~/.cjprofile` (or `~/.config/cjsh/.cjprofile`) | Login shells before interactive setup | Export environment vars, add `cjshopt login-startup-arg` flags |
+| `~/.cjshrc` | Every interactive shell (unless `--no-source`) | Prompt definitions, aliases, key bindings, abbreviations |
+| `~/.cjsh_logout` | When a login shell exits | Cleanup hooks, session summaries |
+
+Persistent caches (history, generated completions, etc.) live under `~/.cache/cjsh/`.
+
+## Command-line Flags
+
+`cjsh` accepts these switches (short/long forms shown where available):
+
+- `-h, --help` – usage information
+- `-v, --version` – print the version banner and exit
+- `-l, --login` – treat the shell as a login shell (source `~/.cjprofile`)
+- `-i, --interactive` – force interactive behavior even if stdin is not a tty
+- `-c, --command=<string>` – execute a single command and exit (disables history expansion)
+- `-m, --minimal` – disable colors, completions, syntax highlighting, smart `cd`, rc sourcing,
+    title line, and history expansion
+- `-C, --no-colors`
+- `-L, --no-titleline`
+- `-U, --show-startup-time`
+- `-N, --no-source`
+- `-O, --no-completions`
+- `-S, --no-syntax-highlighting`
+- `-M, --no-smart-cd`
+- `-H, --no-history-expansion`
+- `-s, --secure` – skip profile/rc/logout files entirely
+- `-X, --startup-test` – diagnostic mode used by the bundled tests
+
+Flags affecting feature toggles take effect early in startup and can also be injected via
+`cjshopt login-startup-arg` in configuration files.
+
+## Built-in Tooling Highlights
+
+- `syntax` – Static script checking with configurable severity filters.
+- `validate` – Verify command existence or toggle auto validation of external commands.
+- `generate-completions` – Pre-populate completion caches by scraping manual pages in parallel.
+- `hash` – Inspect or reset execution caches.
+- `history` / `fc` – Explore, edit, and replay persistent history (exit codes are stored alongside entries).
+- `hook` – Lightweight precmd/preexec/chpwd hook system.
+- `cjsh-widget` – Bridge between shell code and the line editor for custom key-driven behaviors.
+
+## Performance Characteristics
+
+- Single statically linked executable (vendored dependencies only).
+- Aggressive optimization flags and caching layers (completion caches, prompt helpers, execution
+    lookup cache).
+- Prompt markup renders quickly because formatting is handled inside the line editor with minimal
+    allocations.
+
+## Platform & Build Support
+
+- **Targets** – Linux, macOS, and WSL are primary; other POSIX-like systems generally work.
+- **Toolchain** – Requires CMake ≥3.25 and a C++17-capable compiler (clang, GCC, or MSVC via WSL).
+- **Quick build** – `cmake -S . -B build -DCMAKE_BUILD_TYPE=Release && cmake --build build --parallel`.
+- **Package installs** – Homebrew (`brew install cjsh`) and Arch AUR (`cjsh`) are maintained.
+
+For installation walkthroughs, see [Quick Start](../getting-started/quick-start.md). For the
+interactive feature matrix, continue to the [Editing](editing.md) and
+[POSIX+ Interactive Features](non-posix-features.md) documents.

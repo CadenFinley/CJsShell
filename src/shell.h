@@ -10,13 +10,11 @@
 #include <termios.h>
 
 #include "parser.h"
-#include "prompt.h"
 #include "signal_handler.h"
 
 class Exec;
 class Built_ins;
 class ShellScriptInterpreter;
-class Theme;
 struct Command;
 
 struct RawModeState {
@@ -38,26 +36,6 @@ class Shell {
 
     int execute_command(std::vector<std::string> args, bool run_in_background = false);
     SignalProcessingResult process_pending_signals();
-
-    std::string get_prompt();
-
-    std::string get_newline_prompt();
-
-    std::string get_inline_right_prompt();
-
-    std::string get_title_prompt();
-
-    void start_command_timing();
-
-    void end_command_timing(int exit_code);
-
-    void reset_command_timing();
-
-    void set_initial_duration(long long microseconds);
-
-    void invalidate_prompt_caches();
-
-    std::string get_initial_duration();
 
     void set_interactive_mode(bool flag);
 
@@ -100,10 +78,6 @@ class Shell {
     void setup_job_control();
     void handle_sigcont();
 
-    Theme* ensure_theme();
-    Theme* get_theme() const;
-    void reset_theme();
-
     void register_hook(const std::string& hook_type, const std::string& function_name);
     void unregister_hook(const std::string& hook_type, const std::string& function_name);
     std::vector<std::string> get_hooks(const std::string& hook_type) const;
@@ -138,8 +112,6 @@ class Shell {
     bool terminal_state_saved = false;
     bool job_control_enabled = false;
 
-    std::unique_ptr<Theme> shell_theme;
-    std::unique_ptr<Prompt> shell_prompt;
     std::unique_ptr<SignalHandler> signal_handler;
     std::unique_ptr<Built_ins> built_ins;
     std::unique_ptr<Parser> shell_parser;

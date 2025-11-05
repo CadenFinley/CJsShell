@@ -36,7 +36,7 @@ makepkg -si
 
 ## Building from source
 
-Any non tagged releases or commits do not have the promise of not containing non breaking changes or working builds. For maximum build safety and usability, stick to tagged releases or through package manager installs.
+Any non tagged releases or commits do not have the promise of not containing non breaking changes or working builds. For maximum build safety and usability, stick to tagged releases or through package manager installs of released builds.
 
 To build from source:
 ```bash

@@ -1,6 +1,7 @@
 #include "shell_env.h"
 
 #include <pwd.h>
+#include <sys/ioctl.h>
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -12,6 +13,7 @@
 
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
+#include "prompt/prompt.h"
 #include "shell.h"
 
 namespace cjsh_env {
@@ -19,8 +21,12 @@ namespace cjsh_env {
 void setup_environment_variables(const char* argv0) {
     if (argv0 != nullptr) {
         setenv("0", argv0, 1);
+        setenv("SHELL", argv0, 1);
+        setenv("_", argv0, 1);
     } else {
         setenv("0", "cjsh", 1);
+        setenv("SHELL", "cjsh", 1);
+        setenv("_", "cjsh", 1);
     }
 
     uid_t uid = getuid();
@@ -120,10 +126,8 @@ std::vector<std::pair<std::string, std::string>> setup_user_system_vars(const st
     }
 
     std::string current_path = std::filesystem::current_path().string();
-    std::string shell_path = cjsh_filesystem::get_cjsh_path().string();
 
     setenv("PWD", current_path.c_str(), 1);
-    setenv("SHELL", shell_path.c_str(), 1);
     env_vars.emplace_back("IFS", std::string(" \t\n"));
 
     const char* lang_env = getenv("LANG");
@@ -150,14 +154,16 @@ std::vector<std::pair<std::string, std::string>> setup_user_system_vars(const st
     std::string shlvl_str = std::to_string(shlvl);
     setenv("SHLVL", shlvl_str.c_str(), 1);
 
-    std::string cjsh_path = cjsh_filesystem::get_cjsh_path().string();
-    setenv("_", cjsh_path.c_str(), 1);
-
     std::string status_str = std::to_string(0);
     setenv("?", status_str.c_str(), 1);
 
     auto version_str = get_version();
     env_vars.emplace_back("CJSH_VERSION", version_str);
+
+    if (getenv("PS1") == nullptr) {
+        std::string default_ps1 = prompt::default_primary_prompt_template();
+        setenv("PS1", default_ps1.c_str(), 1);
+    }
 
     return env_vars;
 }
@@ -268,6 +274,40 @@ std::vector<char*> build_exec_argv(const std::vector<std::string>& args) {
     }
     c_args.push_back(nullptr);
     return c_args;
+}
+
+bool update_terminal_dimensions() {
+    struct winsize ws{};
+
+    const int fds[] = {STDIN_FILENO, STDOUT_FILENO, STDERR_FILENO};
+    bool updated = false;
+
+    for (int fd : fds) {
+        if (fd < 0) {
+            continue;
+        }
+
+        if (ioctl(fd, TIOCGWINSZ, &ws) == 0 && (ws.ws_col > 0 || ws.ws_row > 0)) {
+            updated = true;
+            break;
+        }
+    }
+
+    if (!updated) {
+        return false;
+    }
+
+    if (ws.ws_col > 0) {
+        std::string columns = std::to_string(ws.ws_col);
+        setenv("COLUMNS", columns.c_str(), 1);
+    }
+
+    if (ws.ws_row > 0) {
+        std::string lines = std::to_string(ws.ws_row);
+        setenv("LINES", lines.c_str(), 1);
+    }
+
+    return updated;
 }
 
 }  // namespace cjsh_env
