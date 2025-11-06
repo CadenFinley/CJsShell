@@ -1,5 +1,4 @@
 #include "shell_script_interpreter.h"
-#include "shell_script_interpreter_error_reporter.h"
 #include "shell_script_interpreter_utils.h"
 
 #include "parser/parser_utils.h"
@@ -1356,14 +1355,47 @@ bool ShellScriptInterpreter::has_syntax_errors(const std::vector<std::string>& l
     }
 
     if (has_blocking_errors && print_errors) {
-        std::vector<SyntaxError> blocking_errors;
-        for (const auto& error : errors) {
-            if (error.severity == ErrorSeverity::CRITICAL && error.error_code != "SYN007") {
-                blocking_errors.push_back(error);
+        auto format_message = [](const SyntaxError& error) {
+            std::ostringstream oss;
+            if (error.position.line_number != 0) {
+                oss << "line " << error.position.line_number;
+                if (error.position.column_start != 0) {
+                    oss << ':' << (error.position.column_start + 1);
+                }
+                oss << " ";
             }
-        }
-        if (!blocking_errors.empty()) {
-            shell_script_interpreter::print_error_report(blocking_errors, true, true);
+            if (!error.error_code.empty()) {
+                oss << '[' << error.error_code << "] ";
+            }
+            oss << error.message;
+            return oss.str();
+        };
+
+        auto gather_suggestions = [](const SyntaxError& error) {
+            std::vector<std::string> suggestions;
+            if (!error.suggestion.empty()) {
+                suggestions.push_back(error.suggestion);
+            }
+            suggestions.insert(suggestions.end(), error.related_info.begin(),
+                               error.related_info.end());
+            if (!error.documentation_url.empty()) {
+                suggestions.push_back("See: " + error.documentation_url);
+            }
+            return suggestions;
+        };
+
+        for (const auto& error : errors) {
+            if (error.severity != ErrorSeverity::CRITICAL || error.error_code == "SYN007") {
+                continue;
+            }
+
+            std::string message = format_message(error);
+            std::vector<std::string> suggestions = gather_suggestions(error);
+            auto line_context = error.line_content;
+
+            ErrorInfo info(ErrorType::SYNTAX_ERROR, error.severity, "", message, suggestions,
+                           line_context);
+            print_error(info);
         }
     }
 

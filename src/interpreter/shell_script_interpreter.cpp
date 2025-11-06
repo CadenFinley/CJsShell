@@ -1,5 +1,4 @@
 #include "shell_script_interpreter.h"
-#include "shell_script_interpreter_error_reporter.h"
 
 #include <sys/ioctl.h>
 #include <sys/stat.h>
@@ -45,6 +44,103 @@ using shell_script_interpreter::detail::process_line_for_validation;
 using shell_script_interpreter::detail::should_skip_line;
 using shell_script_interpreter::detail::strip_inline_comment;
 using shell_script_interpreter::detail::trim;
+
+namespace {
+
+constexpr size_t kCommandSummaryLimit = 120;
+
+std::string summarize_command_for_error(const std::string& text) {
+    std::string trimmed_text = trim(text);
+    if (trimmed_text.size() <= kCommandSummaryLimit) {
+        return trimmed_text;
+    }
+    return trimmed_text.substr(0, kCommandSummaryLimit - 3) + "...";
+}
+
+void append_line_hint(std::vector<std::string>& suggestions, size_t line_number) {
+    if (line_number == 0) {
+        return;
+    }
+    suggestions.push_back("Error reported near script line " + std::to_string(line_number) + ".");
+}
+
+}  // namespace
+
+namespace shell_script_interpreter {
+
+int handle_memory_allocation_error(const std::string& context) {
+    std::string command = summarize_command_for_error(context);
+    std::vector<std::string> suggestions = {
+        "Close other applications or simplify the script to reduce memory usage."};
+    ErrorInfo error(ErrorType::RUNTIME_ERROR, ErrorSeverity::CRITICAL, command,
+                    "Out of memory while evaluating script input.", suggestions);
+    print_error(error);
+    return 1;
+}
+
+int handle_system_error(const std::string& context, const std::system_error& ex) {
+    std::string command = summarize_command_for_error(context);
+    std::string message = ex.what();
+    if (message.empty()) {
+        message = ex.code().message();
+    }
+    if (message.empty()) {
+        message = "System error while executing script input.";
+    }
+    std::vector<std::string> suggestions;
+    if (ex.code()) {
+        suggestions.push_back("OS error code " + std::to_string(ex.code().value()) + ": " +
+                              ex.code().message());
+    }
+    ErrorInfo error(ErrorType::RUNTIME_ERROR, ErrorSeverity::ERROR, command, message, suggestions);
+    print_error(error);
+    return 1;
+}
+
+int handle_runtime_error(const std::string& context, const std::runtime_error& ex,
+                         size_t line_number) {
+    std::string command = summarize_command_for_error(context);
+    std::string message = ex.what();
+    if (message.empty()) {
+        message = "Runtime error encountered while executing script input.";
+    }
+    std::vector<std::string> suggestions;
+    append_line_hint(suggestions, line_number);
+    ErrorInfo error(ErrorType::RUNTIME_ERROR, ErrorSeverity::ERROR, command, message, suggestions);
+    print_error(error);
+    return 1;
+}
+
+int handle_generic_exception(const std::string& context, const std::exception& ex) {
+    std::string command = summarize_command_for_error(context);
+    std::string message = ex.what();
+    if (message.empty()) {
+        message = "Unexpected exception encountered while executing script input.";
+    }
+    ErrorInfo error(ErrorType::UNKNOWN_ERROR, ErrorSeverity::ERROR, command, message, {});
+    print_error(error);
+    return 1;
+}
+
+int handle_unknown_error(const std::string& context) {
+    std::string command = summarize_command_for_error(context);
+    ErrorInfo error(ErrorType::UNKNOWN_ERROR, ErrorSeverity::ERROR, command,
+                    "Unknown error while executing script input.", {});
+    print_error(error);
+    return 1;
+}
+
+void print_runtime_error(const std::string& raw_message, const std::string& context,
+                         size_t line_number) {
+    std::string message = raw_message;
+    std::string command = summarize_command_for_error(context);
+    std::vector<std::string> suggestions;
+    append_line_hint(suggestions, line_number);
+    ErrorInfo error(ErrorType::RUNTIME_ERROR, ErrorSeverity::ERROR, command, message, suggestions);
+    print_error(error);
+}
+
+}  // namespace shell_script_interpreter
 
 ShellScriptInterpreter::ShellScriptInterpreter() : shell_parser(nullptr) {
 }

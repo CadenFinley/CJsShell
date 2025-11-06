@@ -27,12 +27,12 @@
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "error_out.h"
-#include "interpreter/shell_script_interpreter_error_reporter.h"
 #include "job_control.h"
 #include "parser.h"
 #include "shell.h"
 #include "shell_env.h"
 #include "signal_handler.h"
+#include "suggestion_utils.h"
 namespace {
 
 int extract_exit_code(int status) {
@@ -152,9 +152,10 @@ bool replace_first_instance(std::string& target, const std::string& from, const 
     const std::string invocation = join_arguments(args);
 
     if (saved_errno == ENOENT) {
-        std::runtime_error runtime_error("command not found: " + command_name);
-        int exit_code =
-            shell_script_interpreter::handle_runtime_error(invocation, runtime_error, 1);
+        print_error(ErrorInfo{ErrorType::COMMAND_NOT_FOUND, ErrorSeverity::ERROR, command_name, "",
+                              suggestion_utils::generate_command_suggestions(command_name)});
+        int exit_code = 127;
+        setenv("?", "127", 1);
         _exit(exit_code);
     }
 
@@ -185,7 +186,8 @@ bool replace_first_instance(std::string& target, const std::string& from, const 
         message = message_prefix + detail + ": " + std::string(strerror(saved_errno));
     }
 
-    shell_script_interpreter::print_runtime_error(message, invocation, 1);
+    print_error(
+        ErrorInfo{ErrorType::RUNTIME_ERROR, ErrorSeverity::ERROR, command_name, message, {}});
     _exit(exit_code);
 }
 
