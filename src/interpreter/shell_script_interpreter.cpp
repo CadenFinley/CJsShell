@@ -1150,8 +1150,11 @@ int ShellScriptInterpreter::run_pipeline(const std::vector<Command>& cmds) {
     int exit_code = g_shell->shell_exec->execute_pipeline(cmds);
     if (exit_code != 0) {
         ErrorInfo error = g_shell->shell_exec->get_error();
-        if (error.type != ErrorType::RUNTIME_ERROR ||
-            error.message.find("command failed with exit code") == std::string::npos) {
+        bool already_reported = (exit_code == 127 && error.type == ErrorType::COMMAND_NOT_FOUND &&
+                                 error.message.empty());
+        if (!already_reported &&
+            (error.type != ErrorType::RUNTIME_ERROR ||
+             error.message.find("command failed with exit code") == std::string::npos)) {
             g_shell->shell_exec->print_last_error();
         }
     }

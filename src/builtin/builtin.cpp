@@ -45,7 +45,6 @@
 #include "shell.h"
 #include "source_command.h"
 #include "suggestion_utils.h"
-#include "syntax_command.h"
 #include "test_command.h"
 #include "times_command.h"
 #include "trap_command.h"
@@ -53,7 +52,6 @@
 #include "type_command.h"
 #include "ulimit_command.h"
 #include "umask_command.h"
-#include "validate_command.h"
 #include "version_command.h"
 #include "which_command.h"
 #include "widget_command.h"
@@ -122,8 +120,6 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"version", [](const std::vector<std::string>& args) { return ::version_command(args); }},
         {"eval",
          [this](const std::vector<std::string>& args) { return ::eval_command(args, shell); }},
-        {"syntax",
-         [this](const std::vector<std::string>& args) { return ::syntax_command(args, shell); }},
         {"history", [](const std::vector<std::string>& args) { return ::history_command(args); }},
         {"fc", [this](const std::vector<std::string>& args) { return ::fc_command(args, shell); }},
         {"exit", [](const std::vector<std::string>& args) { return ::exit_command(args); }},
@@ -168,8 +164,6 @@ Built_ins::Built_ins() : shell(nullptr) {
          [this](const std::vector<std::string>& args) { return ::type_command(args, shell); }},
         {"which",
          [this](const std::vector<std::string>& args) { return ::which_command(args, shell); }},
-        {"validate",
-         [this](const std::vector<std::string>& args) { return ::validate_command(args, shell); }},
         {"hash",
          [](const std::vector<std::string>& args) { return ::hash_command(args, nullptr); }},
         {"generate-completions",

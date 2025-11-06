@@ -156,21 +156,6 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                  make_option("--minimal", "Disable cjsh enhancements"),
                  make_option("--startup-test", "Enable startup test mode")});
 
-        add_doc("syntax", "Check scripts or command strings for issues",
-                {make_option("-q", "Only report the error count"),
-                 make_option("--quiet", "Only report the error count"),
-                 make_option("-v", "Show detailed errors"),
-                 make_option("--verbose", "Show detailed errors"),
-                 make_option("--no-suggestions", "Suppress fix suggestions"),
-                 make_option("--no-context", "Hide offending line context"),
-                 make_option("--comprehensive", "Run all validation checks"),
-                 make_option("--semantic", "Include semantic validation"),
-                 make_option("--style", "Include style checks"),
-                 make_option("--performance", "Include performance analysis"),
-                 make_option("--severity", "Filter by severity level"),
-                 make_option("--category", "Filter by category"),
-                 make_option("-c", "Validate the remaining arguments as a command string")});
-
         add_doc("history", "Show command history", {});
         add_doc("fc", "Edit or list commands from history",
                 {make_option("-e", "Select editor for editing"),
@@ -259,11 +244,6 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_doc("which", "Locate commands in PATH",
                 {make_option("-a", "Show all matches"), make_option("-s", "Silent mode"),
                  make_option("--", "Stop processing options")});
-
-        add_doc("validate", "Toggle command validation or check names",
-                {make_subcommand("on", "Enable command validation"),
-                 make_subcommand("off", "Disable command validation"),
-                 make_subcommand("status", "Show whether validation is enabled")});
 
         add_doc("hash", "Manage the command lookup cache",
                 {make_option("-r", "Reset cached entries"),

@@ -19,7 +19,6 @@
 
 #include "builtin.h"
 #include "cjsh.h"
-#include "cjsh_filesystem.h"
 #include "command_preprocessor.h"
 #include "delimiter_state.h"
 #include "expansion_engine.h"
@@ -28,7 +27,6 @@
 #include "quote_info.h"
 #include "readonly_command.h"
 #include "shell.h"
-#include "shell_script_interpreter.h"
 #include "tokenizer.h"
 #include "variable_expander.h"
 
@@ -238,14 +236,6 @@ void Parser::ensure_parsers_initialized() {
     if (!expansionEngine) {
         expansionEngine = std::make_unique<ExpansionEngine>(shell);
     }
-}
-
-void Parser::set_command_validation_enabled(bool enabled) {
-    command_validation_enabled = enabled;
-}
-
-bool Parser::get_command_validation_enabled() const {
-    return command_validation_enabled;
 }
 
 void Parser::set_aliases(const std::unordered_map<std::string, std::string>& new_aliases) {
@@ -1333,11 +1323,6 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
             variableExpander->expand_command_paths_with_home(cmd, std::string(home));
         }
 
-        if (command_validation_enabled && !cmd.args.empty() &&
-            should_validate_command(cmd.args[0]) && !is_valid_command(cmd.args[0])) {
-            throw std::runtime_error("command not found: " + cmd.args[0]);
-        }
-
         commands.push_back(cmd);
     }
 
@@ -1682,98 +1667,6 @@ std::vector<std::string> Parser::split_by_ifs(const std::string& input) {
         tokenizer = std::make_unique<Tokenizer>();
     }
     return tokenizer->split_by_ifs(input, shell);
-}
-
-bool Parser::should_validate_command(const std::string& command) const {
-    if (looks_like_assignment(command)) {
-        return false;
-    }
-
-    if (command == "&&" || command == "||" || command == "|" || command == ";" || command == "(" ||
-        command == ")" || command == "{" || command == "}" || command == "if" ||
-        command == "then" || command == "else" || command == "elif" || command == "fi" ||
-        command == "for" || command == "while" || command == "do" || command == "done" ||
-        command == "case" || command == "esac" || command == "function") {
-        return false;
-    }
-
-    if (command.empty() || command[0] == '>' || command[0] == '<' || command == ">>" ||
-        command == "<<" || command == "2>" || command == "2>>" || command == "&>" ||
-        command == "&>>") {
-        return false;
-    }
-
-    return true;
-}
-
-bool Parser::is_valid_command(const std::string& command_name) const {
-    if (command_name.empty()) {
-        return false;
-    }
-
-    if ((shell != nullptr) && (shell->get_built_ins() != nullptr) &&
-        (shell->get_built_ins()->is_builtin_command(command_name) != 0)) {
-        return true;
-    }
-
-    if (shell != nullptr) {
-        auto aliases = shell->get_aliases();
-        if (aliases.find(command_name) != aliases.end()) {
-            return true;
-        }
-    }
-
-    if ((shell != nullptr) && (shell->get_shell_script_interpreter() != nullptr)) {
-        auto* interpreter = shell->get_shell_script_interpreter();
-        if ((interpreter != nullptr) && interpreter->has_function(command_name)) {
-            return true;
-        }
-    }
-
-    std::string cwd;
-    if (shell != nullptr && shell->get_built_ins() != nullptr) {
-        cwd = shell->get_built_ins()->get_current_directory();
-    } else {
-        std::error_code cwd_ec;
-        auto current = std::filesystem::current_path(cwd_ec);
-        if (!cwd_ec) {
-            cwd = current.string();
-        }
-    }
-
-    if (!cwd.empty()) {
-        std::string trimmed_command = command_name;
-        while (trimmed_command.size() > 1 && trimmed_command.back() == '/') {
-            trimmed_command.pop_back();
-        }
-
-        if (!trimmed_command.empty() && trimmed_command.find('/') == std::string::npos) {
-            std::error_code ec;
-            std::filesystem::path candidate(command_name);
-            if (!candidate.is_absolute()) {
-                candidate = std::filesystem::path(cwd) / candidate;
-            }
-
-            if (std::filesystem::exists(candidate, ec) && !ec &&
-                std::filesystem::is_directory(candidate, ec) && !ec) {
-                return true;
-            }
-        }
-    }
-
-    if (command_name.find('/') != std::string::npos) {
-        return true;
-    }
-    std::string path = cjsh_filesystem::find_executable_in_path(command_name);
-    return !path.empty();
-}
-
-std::string Parser::get_command_validation_error(const std::string& command_name) const {
-    if (command_name.empty()) {
-        return "cjsh: empty command name";
-    }
-
-    return "cjsh: command not found: " + command_name;
 }
 
 long long Parser::evaluate_arithmetic(const std::string& expr) {
