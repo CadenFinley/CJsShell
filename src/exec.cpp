@@ -10,6 +10,7 @@
 #include <array>
 #include <atomic>
 #include <cctype>
+#include <cerrno>
 #include <csignal>
 #include <cstdint>
 #include <cstring>
@@ -25,6 +26,7 @@
 #include "builtin.h"
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
+#include "error_out.h"
 #include "interpreter/shell_script_interpreter_error_reporter.h"
 #include "job_control.h"
 #include "parser.h"
@@ -116,6 +118,24 @@ void replace_all_instances(std::string& target, const std::string& from, const s
         target.replace(pos, from.length(), to);
         pos += to.length();
     }
+}
+
+ErrorType classify_filesystem_error(int err) {
+    switch (err) {
+        case ENOENT:
+            return ErrorType::FILE_NOT_FOUND;
+        case EACCES:
+            return ErrorType::PERMISSION_DENIED;
+        default:
+            return ErrorType::RUNTIME_ERROR;
+    }
+}
+
+[[noreturn]] void child_exit_with_error(ErrorType type, const std::string& command,
+                                        const std::string& message) {
+    ErrorInfo info{type, ErrorSeverity::ERROR, command, message, {}};
+    print_error(info);
+    _exit(EXIT_FAILURE);
 }
 
 bool replace_first_instance(std::string& target, const std::string& from, const std::string& to) {
@@ -1602,18 +1622,31 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             }
 
             if (pid == 0) {
+                const std::string command_name = cmd.args.empty() ? "exec" : cmd.args[0];
+                const auto child_error = [&](ErrorType type, std::string message) {
+                    child_exit_with_error(type, command_name, message);
+                };
+
                 if (i == 0) {
                     pgid = getpid();
                 }
 
                 if (setpgid(0, pgid) < 0) {
-                    perror("cjsh: setpgid failed in child");
-                    _exit(EXIT_FAILURE);
+                    const int saved_errno = errno;
+                    child_error(ErrorType::RUNTIME_ERROR, "failed to set process group in child: " +
+                                                              std::string(strerror(saved_errno)));
                 }
 
                 maybe_set_foreground_terminal(
                     shell_is_interactive && i == 0, shell_terminal, pgid, [&](int err) {
-                        std::cerr << "cjsh: tcsetpgrp failed in child: " << strerror(err) << '\n';
+                        ErrorInfo info{
+                            ErrorType::RUNTIME_ERROR,
+                            ErrorSeverity::WARNING,
+                            command_name,
+                            std::string("failed to set controlling terminal in child: ") +
+                                strerror(err),
+                            {}};
+                        print_error(info);
                     });
 
                 reset_child_signals();
@@ -1624,51 +1657,50 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                     if (!cmd.here_doc.empty()) {
                         auto here_doc_error = [&](HereDocErrorKind kind,
                                                   const std::string& detail) {
+                            std::string message;
                             switch (kind) {
                                 case HereDocErrorKind::Pipe:
-                                    std::cerr << "cjsh: failed to create pipe for here document: "
-                                              << detail << '\n';
+                                    message = "failed to create pipe for here document: " + detail;
                                     break;
                                 case HereDocErrorKind::ContentWrite:
-                                    std::cerr
-                                        << "cjsh: failed to write here document content: " << detail
-                                        << '\n';
+                                    message = "failed to write here document content: " + detail;
                                     break;
                                 case HereDocErrorKind::NewlineWrite:
-                                    std::cerr
-                                        << "cjsh: failed to write here document newline: " << detail
-                                        << '\n';
+                                    message = "failed to write here document newline: " + detail;
                                     break;
                                 case HereDocErrorKind::Duplication:
-                                    std::cerr
-                                        << "cjsh: failed to duplicate here document descriptor: "
-                                        << detail << '\n';
+                                    message =
+                                        "failed to duplicate here document descriptor: " + detail;
                                     break;
                             }
-                            _exit(EXIT_FAILURE);
+                            child_error(ErrorType::RUNTIME_ERROR, message);
                         };
 
                         if (!setup_here_document_stdin(cmd.here_doc, here_doc_error)) {
-                            _exit(EXIT_FAILURE);
+                            child_error(ErrorType::RUNTIME_ERROR,
+                                        "failed to set up here document for pipeline input");
                         }
                     } else if (!cmd.input_file.empty()) {
                         int fd = open(cmd.input_file.c_str(), O_RDONLY);
                         if (fd == -1) {
-                            std::cerr << "cjsh: " << cmd.input_file << ": " << strerror(errno)
-                                      << '\n';
-                            _exit(EXIT_FAILURE);
+                            const int saved_errno = errno;
+                            child_error(classify_filesystem_error(saved_errno),
+                                        cmd.input_file + ": " + std::string(strerror(saved_errno)));
                         }
                         if (dup2(fd, STDIN_FILENO) == -1) {
-                            perror("cjsh: dup2 input");
+                            const int saved_errno = errno;
                             close(fd);
-                            _exit(EXIT_FAILURE);
+                            child_error(ErrorType::RUNTIME_ERROR,
+                                        std::string("dup2 input failed: ") + strerror(saved_errno));
                         }
                         close(fd);
                     }
                 } else {
                     if (dup2(pipes[i - 1][0], STDIN_FILENO) == -1) {
-                        perror("cjsh: dup2 pipe input");
-                        _exit(EXIT_FAILURE);
+                        const int saved_errno = errno;
+                        child_error(
+                            ErrorType::RUNTIME_ERROR,
+                            std::string("dup2 pipe input failed: ") + strerror(saved_errno));
                     }
                 }
 
@@ -1676,43 +1708,53 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                     if (!cmd.output_file.empty()) {
                         int fd = open(cmd.output_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
                         if (fd == -1) {
-                            std::cerr << "cjsh: " << cmd.output_file << ": " << strerror(errno)
-                                      << '\n';
-                            _exit(EXIT_FAILURE);
+                            const int saved_errno = errno;
+                            child_error(
+                                classify_filesystem_error(saved_errno),
+                                cmd.output_file + ": " + std::string(strerror(saved_errno)));
                         }
                         if (dup2(fd, STDOUT_FILENO) == -1) {
-                            perror("cjsh: dup2 output");
+                            const int saved_errno = errno;
                             close(fd);
-                            _exit(EXIT_FAILURE);
+                            child_error(
+                                ErrorType::RUNTIME_ERROR,
+                                std::string("dup2 output failed: ") + strerror(saved_errno));
                         }
                         close(fd);
                     } else if (!cmd.append_file.empty()) {
                         int fd = open(cmd.append_file.c_str(), O_WRONLY | O_CREAT | O_APPEND, 0644);
                         if (fd == -1) {
-                            std::cerr << "cjsh: " << cmd.append_file << ": " << strerror(errno)
-                                      << '\n';
-                            _exit(EXIT_FAILURE);
+                            const int saved_errno = errno;
+                            child_error(
+                                classify_filesystem_error(saved_errno),
+                                cmd.append_file + ": " + std::string(strerror(saved_errno)));
                         }
                         if (dup2(fd, STDOUT_FILENO) == -1) {
-                            perror("cjsh: dup2 append");
+                            const int saved_errno = errno;
                             close(fd);
-                            _exit(EXIT_FAILURE);
+                            child_error(
+                                ErrorType::RUNTIME_ERROR,
+                                std::string("dup2 append failed: ") + strerror(saved_errno));
                         }
                         close(fd);
                     }
                 } else {
                     if (dup2(pipes[i][1], STDOUT_FILENO) == -1) {
-                        perror("cjsh: dup2 pipe output");
-                        _exit(EXIT_FAILURE);
+                        const int saved_errno = errno;
+                        child_error(
+                            ErrorType::RUNTIME_ERROR,
+                            std::string("dup2 pipe output failed: ") + strerror(saved_errno));
                     }
                 }
 
                 if (!configure_stderr_redirects(cmd, handle_stream_redirect_error_and_exit)) {
-                    _exit(EXIT_FAILURE);
+                    child_error(ErrorType::RUNTIME_ERROR,
+                                "failed to configure stderr redirections for pipeline child");
                 }
 
                 if (!apply_fd_operations(cmd, handle_fd_operation_error_and_exit)) {
-                    _exit(EXIT_FAILURE);
+                    child_error(ErrorType::RUNTIME_ERROR,
+                                "failed to apply file descriptor operations for pipeline child");
                 }
 
                 for (size_t j = 0; j < commands.size() - 1; j++) {

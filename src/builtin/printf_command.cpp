@@ -29,6 +29,14 @@ static void report_format_error(const std::string& message) {
     exit_status = 1;
 }
 
+static void report_character_constant_warning() {
+    print_error({ErrorType::INVALID_ARGUMENT,
+                 ErrorSeverity::WARNING,
+                 "printf",
+                 "character(s) following character constant have been ignored",
+                 {}});
+}
+
 static inline bool is_octal_digit(char c) {
     return c >= '0' && c <= '7';
 }
@@ -90,8 +98,7 @@ static intmax_t vstrtoimax(const char* s) {
 
         ++s;
         if (*s != '\0' && *s != quote) {
-            std::cerr
-                << "printf: warning: character(s) following character constant have been ignored\n";
+            report_character_constant_warning();
         }
     } else {
         errno = 0;
@@ -127,8 +134,7 @@ static uintmax_t vstrtoumax(const char* s) {
 
         ++s;
         if (*s != '\0' && *s != quote) {
-            std::cerr
-                << "printf: warning: character(s) following character constant have been ignored\n";
+            report_character_constant_warning();
         }
     } else {
         errno = 0;
@@ -164,8 +170,7 @@ static long double vstrtold(const char* s) {
 
         ++s;
         if (*s != '\0' && *s != quote) {
-            std::cerr
-                << "printf: warning: character(s) following character constant have been ignored\n";
+            report_character_constant_warning();
         }
     } else {
         errno = 0;

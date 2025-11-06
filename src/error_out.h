@@ -42,4 +42,8 @@ struct ErrorInfo {
 
 void print_error(const ErrorInfo& error);
 
+// Provided for the shell script interpreter error reporter to bypass routing logic
+// when it needs to write directly to stderr without risking recursion.
+void print_error_fallback(const ErrorInfo& error);
+
 bool should_abort_on_error(const ErrorInfo& error);

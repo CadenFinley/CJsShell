@@ -109,6 +109,78 @@ ErrorType map_category_to_error_type(ErrorCategory category) {
     }
 }
 
+ShellScriptInterpreter::ErrorCategory map_error_type_to_category(ErrorType type) {
+    using Category = ShellScriptInterpreter::ErrorCategory;
+    switch (type) {
+        case ErrorType::SYNTAX_ERROR:
+            return Category::SYNTAX;
+        case ErrorType::COMMAND_NOT_FOUND:
+            return Category::COMMANDS;
+        case ErrorType::PERMISSION_DENIED:
+            return Category::REDIRECTION;
+        case ErrorType::FILE_NOT_FOUND:
+            return Category::REDIRECTION;
+        case ErrorType::INVALID_ARGUMENT:
+            return Category::SEMANTICS;
+        case ErrorType::RUNTIME_ERROR:
+        case ErrorType::UNKNOWN_ERROR:
+        default:
+            return Category::COMMANDS;
+    }
+}
+
+std::string error_code_from_type(ErrorType type) {
+    switch (type) {
+        case ErrorType::SYNTAX_ERROR:
+            return "SYN001";
+        case ErrorType::COMMAND_NOT_FOUND:
+            return "CMD404";
+        case ErrorType::PERMISSION_DENIED:
+            return "PER001";
+        case ErrorType::FILE_NOT_FOUND:
+            return "FS001";
+        case ErrorType::INVALID_ARGUMENT:
+            return "ARG001";
+        case ErrorType::RUNTIME_ERROR:
+            return "RUN001";
+        case ErrorType::UNKNOWN_ERROR:
+        default:
+            return "UNK001";
+    }
+}
+
+std::string describe_error_type(ErrorType type) {
+    switch (type) {
+        case ErrorType::COMMAND_NOT_FOUND:
+            return "command not found";
+        case ErrorType::SYNTAX_ERROR:
+            return "syntax error";
+        case ErrorType::PERMISSION_DENIED:
+            return "permission denied";
+        case ErrorType::FILE_NOT_FOUND:
+            return "file not found";
+        case ErrorType::INVALID_ARGUMENT:
+            return "invalid argument";
+        case ErrorType::RUNTIME_ERROR:
+            return "runtime error";
+        case ErrorType::UNKNOWN_ERROR:
+        default:
+            return "unknown error";
+    }
+}
+
+std::string build_basic_error_message(const ErrorInfo& error) {
+    std::string message = "cjsh: ";
+    if (!error.command_used.empty()) {
+        message += error.command_used + ": ";
+    }
+    message += describe_error_type(error.type);
+    if (!error.message.empty()) {
+        message += ": " + error.message;
+    }
+    return message;
+}
+
 }  // namespace
 
 void print_error_report(const std::vector<ShellScriptInterpreter::SyntaxError>& errors,
@@ -131,9 +203,12 @@ void print_error_report(const std::vector<ShellScriptInterpreter::SyntaxError>& 
 
     static thread_local bool error_reporting_in_progress = false;
     if (error_reporting_in_progress) {
-        std::cerr << "cjsh: error: recursive error reporting detected, "
-                     "aborting to prevent infinite loop"
-                  << '\n';
+        print_error_fallback(
+            {ErrorType::UNKNOWN_ERROR,
+             ErrorSeverity::ERROR,
+             "error-reporter",
+             "recursive error reporting detected, aborting to prevent infinite loop",
+             {}});
         return;
     }
     error_reporting_in_progress = true;
@@ -223,7 +298,7 @@ void print_error_report(const std::vector<ShellScriptInterpreter::SyntaxError>& 
                 compact_error.message = message_stream.str();
                 compact_error.suggestions = suggestions;
 
-                print_error(compact_error);
+                print_error_fallback(compact_error);
                 continue;
             }
 
@@ -494,8 +569,18 @@ void print_error_report(const std::vector<ShellScriptInterpreter::SyntaxError>& 
             std::cerr << '\n';
         }
 
+    } catch (const std::exception& e) {
+        print_error_fallback({ErrorType::UNKNOWN_ERROR,
+                              ErrorSeverity::ERROR,
+                              "error-reporter",
+                              std::string("exception during error reporting: ") + e.what(),
+                              {}});
     } catch (...) {
-        std::cerr << "cjsh: error: exception during error reporting" << '\n';
+        print_error_fallback({ErrorType::UNKNOWN_ERROR,
+                              ErrorSeverity::ERROR,
+                              "error-reporter",
+                              "unknown exception during error reporting",
+                              {}});
     }
 
     error_reporting_in_progress = false;
@@ -678,6 +763,45 @@ int handle_unknown_error(const std::string& text) {
     print_error_report(errors, true, true);
     setenv("?", "6", 1);
     return 6;
+}
+
+bool report_error(const ErrorInfo& error) {
+    static thread_local bool basic_error_reporting_in_progress = false;
+    if (basic_error_reporting_in_progress) {
+        return false;
+    }
+
+    basic_error_reporting_in_progress = true;
+    struct ReportingGuard {
+        bool* flag;
+        ~ReportingGuard() {
+            if (flag) {
+                *flag = false;
+            }
+        }
+    } guard{&basic_error_reporting_in_progress};
+
+    try {
+        SyntaxError converted({0, 0, 0, 0}, error.severity, map_error_type_to_category(error.type),
+                              error_code_from_type(error.type), build_basic_error_message(error));
+
+        if (!error.suggestions.empty()) {
+            converted.suggestion = error.suggestions.front();
+            for (size_t i = 1; i < error.suggestions.size(); ++i) {
+                converted.related_info.push_back(error.suggestions[i]);
+            }
+        }
+
+        std::vector<SyntaxError> errors;
+        errors.emplace_back(std::move(converted));
+
+        bool show_suggestions = !error.suggestions.empty();
+        print_error_report(errors, show_suggestions, false);
+
+        return true;
+    } catch (...) {
+        return false;
+    }
 }
 
 }  // namespace shell_script_interpreter

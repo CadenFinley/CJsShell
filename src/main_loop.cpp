@@ -30,6 +30,7 @@
 #include "cjsh_completions.h"
 #include "cjsh_syntax_highlighter.h"
 #include "cjshopt_command.h"
+#include "error_out.h"
 #include "exec.h"
 #include "history_expansion.h"
 #include "isocline.h"
@@ -166,13 +167,21 @@ std::pair<std::string, std::vector<std::string>> process_heredoc_command(
     int temp_fd = mkstemp(temp_template);
 
     if (temp_fd == -1) {
-        std::cerr << "cjsh: failed to create temporary file for heredoc\n";
+        print_error({ErrorType::RUNTIME_ERROR,
+                     ErrorSeverity::ERROR,
+                     "main-loop",
+                     "failed to create temporary file for heredoc",
+                     {"Ensure /tmp is writable and not full."}});
         return {"", {}};
     }
 
     ssize_t written = write(temp_fd, heredoc_content, strlen(heredoc_content));
     if (written == -1) {
-        std::cerr << "cjsh: failed to write heredoc content\n";
+        print_error({ErrorType::RUNTIME_ERROR,
+                     ErrorSeverity::ERROR,
+                     "main-loop",
+                     "failed to write heredoc content",
+                     {"Check disk space and permissions for temporary files."}});
         close(temp_fd);
         unlink(temp_template);
         return {"", {}};
@@ -313,7 +322,11 @@ bool process_command_line(const std::string& command, bool skip_history = false)
         auto expansion_result = HistoryExpansion::expand(command, history_entries);
 
         if (expansion_result.has_error) {
-            std::cerr << "cjsh: " << expansion_result.error_message << std::endl;
+            print_error({ErrorType::RUNTIME_ERROR,
+                         ErrorSeverity::ERROR,
+                         "history-expansion",
+                         expansion_result.error_message,
+                         {"Review your history expansion syntax or disable '!' expansions."}});
             setenv("?", "1", 1);
             return g_exit_flag;
         }

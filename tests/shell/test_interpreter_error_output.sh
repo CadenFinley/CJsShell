@@ -68,35 +68,35 @@ NONTTY_CLEAN=$(printf "%s" "$NONTTY_OUTPUT" | strip_ansi)
 TTY_CLEAN=$(printf "%s" "$TTY_OUTPUT" | strip_ansi)
 
 if printf "%s" "$NONTTY_CLEAN" | grep -Eq "^cjsh: [a-z ]*error: \[[A-Z0-9]+\]"; then
-    pass "non-tty error uses compact error_out pathway"
+    pass "non-tty error uses compact error_out pathway: $NONTTY_CLEAN"
 else
-    fail "non-tty error missing compact error_out format"
+    fail "non-tty error missing compact error_out format: $NONTTY_CLEAN"
 fi
 
 if printf "%s" "$NONTTY_CLEAN" | grep -q "┌─"; then
-    fail "non-tty error unexpectedly used rich formatter"
+    fail "non-tty error unexpectedly used rich formatter: $NONTTY_CLEAN"
 else
-    pass "non-tty error avoided rich formatter"
+    pass "non-tty error avoided rich formatter: $NONTTY_CLEAN"
 fi
 
 if printf "%s" "$TTY_CLEAN" | head -n1 | grep -q "^┌"; then
-    pass "tty error uses rich formatter"
+    pass "tty error uses rich formatter: $TTY_CLEAN"
 else
-    fail "tty error missing rich formatter markers"
+    fail "tty error missing rich formatter markers: $TTY_CLEAN"
 fi
 
 if printf "%s" "$TTY_CLEAN" | head -n1 | grep -q "^cjsh:"; then
-    fail "tty error should not use compact error_out prefix"
+    fail "tty error should not use compact error_out prefix: $TTY_CLEAN"
 else
-    pass "tty error avoided compact error_out prefix"
+    pass "tty error avoided compact error_out prefix: $TTY_CLEAN"
 fi
 
 if [ $NONTTY_STATUS -eq 0 ]; then
-    fail "non-tty syntax validation unexpectedly succeeded"
+    fail "non-tty syntax validation unexpectedly succeeded: $NONTTY_CLEAN"
 fi
 
 if [ $TTY_STATUS -eq 0 ]; then
-    fail "tty syntax validation unexpectedly succeeded"
+    fail "tty syntax validation unexpectedly succeeded: $TTY_CLEAN"
 fi
 
 rm -rf "$TEMP_DIR"

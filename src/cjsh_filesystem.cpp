@@ -35,8 +35,11 @@ namespace cjsh_filesystem {
 const fs::path g_user_home_path = []() {
     const char* home = std::getenv("HOME");
     if (!home || home[0] == '\0') {
-        std::cerr << "Warning: HOME environment variable not set or empty. Using /tmp as fallback."
-                  << '\n';
+        print_error({ErrorType::UNKNOWN_ERROR,
+                     ErrorSeverity::WARNING,
+                     "filesystem",
+                     "HOME environment variable not set or empty. Using /tmp as fallback.",
+                     {}});
         return fs::path("/tmp");
     }
     return fs::path(home);
@@ -581,7 +584,11 @@ bool initialize_cjsh_directories() {
 
         return true;
     } catch (const fs::filesystem_error& e) {
-        std::cerr << "Error creating cjsh directories: " << e.what() << '\n';
+        print_error({ErrorType::RUNTIME_ERROR,
+                     ErrorSeverity::ERROR,
+                     "filesystem",
+                     std::string("Error creating cjsh directories: ") + e.what(),
+                     {"Ensure the configuration and cache directories are writable."}});
         return false;
     }
 }

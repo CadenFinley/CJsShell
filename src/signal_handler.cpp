@@ -6,10 +6,10 @@
 #include <atomic>
 #include <csignal>
 #include <cstring>
-#include <iostream>
 
 #include "builtin/trap_command.h"
 #include "cjsh.h"
+#include "error_out.h"
 #include "exec.h"
 #include "job_control.h"
 
@@ -829,8 +829,13 @@ SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) 
             }
 
             if (reaped_count >= max_reap_iterations) {
-                std::cerr << "WARNING: SIGCHLD handler hit maximum iteration limit ("
-                          << max_reap_iterations << "), breaking to prevent infinite loop" << '\n';
+                print_error({ErrorType::RUNTIME_ERROR,
+                             ErrorSeverity::WARNING,
+                             "signal-handler",
+                             "SIGCHLD handler hit maximum iteration limit (" +
+                                 std::to_string(max_reap_iterations) +
+                                 "); breaking to prevent infinite loop",
+                             {"Investigate stuck child processes or signal storms."}});
             }
         }
     }

@@ -11,7 +11,6 @@
 #include <cctype>
 #include <cstdlib>
 #include <cstring>
-#include <iostream>
 #include <map>
 #include <stdexcept>
 #include <string_view>
@@ -21,6 +20,7 @@
 #include "cjsh.h"
 #include "command_preprocessor.h"
 #include "delimiter_state.h"
+#include "error_out.h"
 #include "expansion_engine.h"
 #include "job_control.h"
 #include "parser_utils.h"
@@ -877,11 +877,19 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
                     std::string error_msg = e.what();
                     if (shell != nullptr && shell->get_shell_option("nounset") &&
                         error_msg.find("parameter not set") != std::string::npos) {
-                        std::cerr << "cjsh: " << e.what() << '\n';
+                        print_error({ErrorType::RUNTIME_ERROR,
+                                     ErrorSeverity::ERROR,
+                                     "parser",
+                                     e.what(),
+                                     {"Disable 'set -u' or ensure all parameters are defined "
+                                      "before expansion."}});
                         throw;
                     }
-                    std::cerr << "Warning: Error expanding environment variables: " << e.what()
-                              << '\n';
+                    print_error({ErrorType::RUNTIME_ERROR,
+                                 ErrorSeverity::WARNING,
+                                 "parser",
+                                 std::string("Error expanding environment variables: ") + e.what(),
+                                 {"Check that referenced variables are set or properly quoted."}});
                 }
                 strip_subst_literal_markers(noenv_stripped);
             } else {
@@ -889,9 +897,13 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
                 try {
                     variableExpander->expand_env_vars_selective(value_to_expand);
                 } catch (const std::runtime_error& e) {
-                    std::cerr << "Warning: Error in selective environment "
-                                 "variable expansion: "
-                              << e.what() << '\n';
+                    print_error(
+                        {ErrorType::RUNTIME_ERROR,
+                         ErrorSeverity::WARNING,
+                         "parser",
+                         std::string("Error in selective environment variable expansion: ") +
+                             e.what(),
+                         {"Check variable names and ensure they are exported when required."}});
                 }
                 strip_subst_literal_markers(value_to_expand);
                 auto stripped_pair = strip_noenv_sentinels(value_to_expand);
@@ -1424,7 +1436,11 @@ bool Parser::is_env_assignment(const std::string& command, std::string& var_name
     var_value = command.substr(equals_pos + 1);
 
     if (readonly_manager_is(var_name)) {
-        std::cerr << "cjsh: " << var_name << ": readonly variable" << '\n';
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     ErrorSeverity::ERROR,
+                     "parser",
+                     var_name + ": readonly variable",
+                     {"Use 'unset -f' or adjust variable declarations before reassigning."}});
         return false;
     }
 

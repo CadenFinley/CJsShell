@@ -116,7 +116,11 @@ int ShellScriptInterpreter::execute_subshell(const std::string& subshell_content
         int exit_code = WIFEXITED(status) ? WEXITSTATUS(status) : 1;
         return set_last_status(exit_code);
     } else {
-        std::cerr << "Failed to fork for subshell execution" << '\n';
+        print_error({ErrorType::RUNTIME_ERROR,
+                     ErrorSeverity::ERROR,
+                     "subshell",
+                     "failed to fork for subshell execution",
+                     {"Check system process limits."}});
         return 1;
     }
 }

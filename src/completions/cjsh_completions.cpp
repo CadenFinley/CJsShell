@@ -7,7 +7,6 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
-#include <iostream>
 #include <map>
 #include <string>
 #include <system_error>
@@ -24,6 +23,7 @@
 #include "completion_spell.h"
 #include "completion_tracker.h"
 #include "completion_utils.h"
+#include "error_out.h"
 #include "external_sub_completions.h"
 #include "isocline.h"
 #include "shell.h"
@@ -845,9 +845,12 @@ void initialize_completion_system() {
         ic_enable_inline_help(false);
     }
     if (!completion_history::enforce_history_limit(nullptr)) {
-        std::cerr << "cjsh: warning: failed to enforce history limit; history file may exceed the "
-                     "configured size."
-                  << '\n';
+        print_error(
+            {ErrorType::RUNTIME_ERROR,
+             ErrorSeverity::WARNING,
+             "completions",
+             "failed to enforce history limit; history file may exceed the configured size.",
+             {"Check disk permissions or trim the history file manually."}});
     }
 }
 

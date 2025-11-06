@@ -33,7 +33,11 @@ int widget_builtin(const std::vector<std::string>& args) {
     if (subcommand == "get-buffer") {
         const char* buffer = ic_get_buffer();
         if (buffer == nullptr) {
-            std::cerr << "cjsh-widget: no active readline session\n";
+            print_error({ErrorType::RUNTIME_ERROR,
+                         ErrorSeverity::ERROR,
+                         "cjsh-widget",
+                         "no active readline session",
+                         {"This widget requires an active interactive cjsh session."}});
             return 1;
         }
         std::cout << buffer;
@@ -57,7 +61,11 @@ int widget_builtin(const std::vector<std::string>& args) {
         }
 
         if (!ic_set_buffer(text.c_str())) {
-            std::cerr << "cjsh-widget: no active readline session\n";
+            print_error({ErrorType::RUNTIME_ERROR,
+                         ErrorSeverity::ERROR,
+                         "cjsh-widget",
+                         "no active readline session",
+                         {"This widget requires an active interactive cjsh session."}});
             return 1;
         }
         return 0;
@@ -66,7 +74,11 @@ int widget_builtin(const std::vector<std::string>& args) {
     if (subcommand == "get-cursor") {
         size_t pos = 0;
         if (!ic_get_cursor_pos(&pos)) {
-            std::cerr << "cjsh-widget: no active readline session\n";
+            print_error({ErrorType::RUNTIME_ERROR,
+                         ErrorSeverity::ERROR,
+                         "cjsh-widget",
+                         "no active readline session",
+                         {"This widget requires an active interactive cjsh session."}});
             return 1;
         }
         std::cout << pos;
@@ -93,7 +105,11 @@ int widget_builtin(const std::vector<std::string>& args) {
         }
 
         if (!ic_set_cursor_pos((size_t)pos)) {
-            std::cerr << "cjsh-widget: no active readline session\n";
+            print_error({ErrorType::RUNTIME_ERROR,
+                         ErrorSeverity::ERROR,
+                         "cjsh-widget",
+                         "no active readline session",
+                         {"This widget requires an active interactive cjsh session."}});
             return 1;
         }
         return 0;
@@ -112,7 +128,11 @@ int widget_builtin(const std::vector<std::string>& args) {
         size_t cursor_pos = 0;
 
         if (!buffer || !ic_get_cursor_pos(&cursor_pos)) {
-            std::cerr << "cjsh-widget: no active readline session\n";
+            print_error({ErrorType::RUNTIME_ERROR,
+                         ErrorSeverity::ERROR,
+                         "cjsh-widget",
+                         "no active readline session",
+                         {"This widget requires an active interactive cjsh session."}});
             return 1;
         }
 
@@ -127,7 +147,11 @@ int widget_builtin(const std::vector<std::string>& args) {
         std::string new_buffer = buf_str.substr(0, cursor_pos) + text + buf_str.substr(cursor_pos);
 
         if (!ic_set_buffer(new_buffer.c_str())) {
-            std::cerr << "cjsh-widget: failed to update buffer\n";
+            print_error({ErrorType::RUNTIME_ERROR,
+                         ErrorSeverity::ERROR,
+                         "cjsh-widget",
+                         "failed to update buffer",
+                         {"Verify the session is interactive and try again."}});
             return 1;
         }
 
@@ -146,7 +170,11 @@ int widget_builtin(const std::vector<std::string>& args) {
 
         const char* buffer = ic_get_buffer();
         if (!buffer) {
-            std::cerr << "cjsh-widget: no active readline session\n";
+            print_error({ErrorType::RUNTIME_ERROR,
+                         ErrorSeverity::ERROR,
+                         "cjsh-widget",
+                         "no active readline session",
+                         {"This widget requires an active interactive cjsh session."}});
             return 1;
         }
 
@@ -160,7 +188,11 @@ int widget_builtin(const std::vector<std::string>& args) {
         std::string new_buffer = std::string(buffer) + text;
 
         if (!ic_set_buffer(new_buffer.c_str())) {
-            std::cerr << "cjsh-widget: failed to update buffer\n";
+            print_error({ErrorType::RUNTIME_ERROR,
+                         ErrorSeverity::ERROR,
+                         "cjsh-widget",
+                         "failed to update buffer",
+                         {"Verify the session is interactive and try again."}});
             return 1;
         }
         return 0;
@@ -168,7 +200,11 @@ int widget_builtin(const std::vector<std::string>& args) {
 
     if (subcommand == "clear") {
         if (!ic_set_buffer("")) {
-            std::cerr << "cjsh-widget: no active readline session\n";
+            print_error({ErrorType::RUNTIME_ERROR,
+                         ErrorSeverity::ERROR,
+                         "cjsh-widget",
+                         "no active readline session",
+                         {"This widget requires an active interactive cjsh session."}});
             return 1;
         }
         return 0;
@@ -176,7 +212,11 @@ int widget_builtin(const std::vector<std::string>& args) {
 
     if (subcommand == "accept") {
         if (!ic_request_submit()) {
-            std::cerr << "cjsh-widget: no active readline session\n";
+            print_error({ErrorType::RUNTIME_ERROR,
+                         ErrorSeverity::ERROR,
+                         "cjsh-widget",
+                         "no active readline session",
+                         {"This widget requires an active interactive cjsh session."}});
             return 1;
         }
         ic_push_key_event(0);

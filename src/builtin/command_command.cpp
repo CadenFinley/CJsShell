@@ -108,7 +108,11 @@ int command_command(const std::vector<std::string>& args, Shell* shell) {
         }
 
         if (verbose_description) {
-            std::cerr << command_name << ": not found\n";
+            print_error({ErrorType::COMMAND_NOT_FOUND,
+                         ErrorSeverity::ERROR,
+                         "command",
+                         command_name + ": not found",
+                         {}});
         }
         return 1;
     }
