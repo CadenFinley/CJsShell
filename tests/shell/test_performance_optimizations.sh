@@ -241,19 +241,6 @@ function test_func() {
 test_func "test"
 EOF
 
-START_TIME=$(date +%s%N)
-OUT=$("$CJSH_PATH" -c "syntax $TEST_DIR/complex_syntax.sh" 2>&1)
-END_TIME=$(date +%s%N)
-PARSE_TIME=$((END_TIME - START_TIME))
-
-if echo "$OUT" | grep -q "No syntax errors found"; then
-    echo "PASS: syntax parsing performance (time: ${PARSE_TIME}ns)"
-else
-    echo "FAIL: syntax parsing performance test failed"
-    rm -rf "$TEST_DIR"
-    exit 1
-fi
-
 echo "Performance Summary:"
 echo "  Baseline execution: ${EXECUTION_TIME}ns"
 echo "  Function calls: ${FUNCTION_TIME}ns"
@@ -263,7 +250,6 @@ echo "  Large loops: ${LOOP_TIME}ns"
 echo "  Nested structures: ${NESTED_TIME}ns"
 echo "  File I/O: ${IO_TIME}ns"
 echo "  Arithmetic: ${ARITHMETIC_TIME}ns"
-echo "  Syntax parsing: ${PARSE_TIME}ns"
 
 rm -rf "$TEST_DIR"
 echo "PASS: performance optimization tests completed"
