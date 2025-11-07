@@ -62,17 +62,8 @@ struct tty_s {
 };
 
 //-------------------------------------------------------------
-// Forward declarations of platform dependent primitives below
-//-------------------------------------------------------------
-
-ic_private bool tty_readc_noblock(
-    tty_t* tty, uint8_t* c,
-    long timeout_ms);  // does not modify `c` when no input (false is returned)
-
-//-------------------------------------------------------------
 // Key code helpers
 //-------------------------------------------------------------
-ic_private bool tty_readc_noblock(tty_t* tty, uint8_t* c, long timeout_ms);
 
 ic_private bool code_is_ascii_char(code_t c, char* chr) {
     if (c >= ' ' && c <= 0x7F) {
@@ -325,7 +316,6 @@ static void tty_cpush(tty_t* tty, const char* s) {
         tty->cpushbuf[tty->cpush_count + i] = (uint8_t)(s[len - i - 1]);
     }
     tty->cpush_count += len;
-    return;
 }
 
 static void tty_cpushf(tty_t* tty, const char* fmt, ...) {
@@ -336,7 +326,6 @@ static void tty_cpushf(tty_t* tty, const char* fmt, ...) {
     buf[TTY_PUSH_MAX] = 0;
     tty_cpush(tty, buf);
     va_end(args);
-    return;
 }
 
 ic_private void tty_cpush_char(tty_t* tty, uint8_t c) {

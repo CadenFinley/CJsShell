@@ -1507,9 +1507,6 @@ static void edit_refresh_hint(ic_env_t* env, editor_t* eb) {
 // Edit operations
 //-------------------------------------------------------------
 
-static void edit_history_prev(ic_env_t* env, editor_t* eb);
-static void edit_history_next(ic_env_t* env, editor_t* eb);
-
 static void edit_undo_restore(ic_env_t* env, editor_t* eb) {
     editor_undo_restore(eb, true);
     edit_refresh(env, eb);

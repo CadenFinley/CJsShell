@@ -12,7 +12,6 @@
 #include "bbcode.h"
 #include "common.h"
 #include "stringbuf.h"
-#include "term.h"
 
 //-------------------------------------------------------------
 // Syntax highlighting

@@ -554,7 +554,7 @@ ic_public bool ic_format_key_spec(ic_keycode_t key, char* buffer, size_t buflen)
         base_buf[1] = '\0';
         base_name = base_buf;
     } else if (base >= IC_KEY_F1 && base <= IC_KEY_F1 + 23) {
-        unsigned number = 1u + (unsigned)(base - IC_KEY_F1);
+        unsigned number = 1U + (unsigned)(base - IC_KEY_F1);
         if (number > 24)
             return false;
         snprintf(base_buf, sizeof(base_buf), "f%u", number);

@@ -731,7 +731,7 @@ static bool history_parse_exit_code_token(const char* token, size_t len, int* ex
         value_ptr = token + 1;
     } else {
         static const char* prefixes[] = {"exit:", "status:", "code:"};
-        static const size_t prefix_lengths[] = {5u, 7u, 5u};
+        static const size_t prefix_lengths[] = {5U, 7U, 5U};
         for (size_t i = 0; i < (sizeof(prefixes) / sizeof(prefixes[0])); i++) {
             size_t prefix_len = prefix_lengths[i];
             if (len <= prefix_len)

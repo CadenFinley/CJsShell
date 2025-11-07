@@ -811,7 +811,6 @@ ic_private void sbuf_delete_char_at(stringbuf_t* sbuf, ssize_t pos) {
         return;
     assert(pos + n <= sbuf->count);
     sbuf_delete_at(sbuf, pos, n);
-    return;
 }
 
 ic_private ssize_t sbuf_swap_char(stringbuf_t* sbuf, ssize_t pos) {
