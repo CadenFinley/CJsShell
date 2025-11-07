@@ -108,7 +108,9 @@ int handle_runtime_error(const std::string& context, const std::runtime_error& e
     append_line_hint(suggestions, line_number);
     ErrorInfo error(ErrorType::RUNTIME_ERROR, ErrorSeverity::ERROR, command, message, suggestions);
     print_error(error);
-    return 1;
+    bool is_syntax_error = (message.find("syntax error") != std::string::npos) ||
+                           (message.find("Unclosed quote") != std::string::npos);
+    return is_syntax_error ? 2 : 1;
 }
 
 int handle_generic_exception(const std::string& context, const std::exception& ex) {
@@ -193,7 +195,7 @@ int ShellScriptInterpreter::execute_subshell(const std::string& subshell_content
             perror("cjsh: setpgid failed in subshell child");
         }
 
-        int exit_code = g_shell->execute(subshell_content, true);
+        int exit_code = g_shell->execute(subshell_content);
 
         const char* exit_code_str = getenv("EXIT_CODE");
         if (exit_code_str) {
@@ -291,42 +293,35 @@ int ShellScriptInterpreter::handle_env_assignment(const std::vector<std::string>
     return -1;
 }
 
-int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
-                                          bool skip_validation) {
-    struct ValidationScope {
+int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines) {
+    struct ExecutionDepthGuard {
         ShellScriptInterpreter* self;
-        bool previous;
-        ValidationScope(ShellScriptInterpreter* s, bool skip)
-            : self(s), previous(s->skip_validation_mode) {
-            if (skip) {
-                self->skip_validation_mode = true;
+        explicit ExecutionDepthGuard(ShellScriptInterpreter* instance) : self(instance) {
+            ++self->validation_depth;
+        }
+        ~ExecutionDepthGuard() {
+            if (self->validation_depth > 0) {
+                --self->validation_depth;
             }
         }
-
-        ~ValidationScope() {
-            self->skip_validation_mode = previous;
-        }
-    } validation_scope(this, skip_validation);
-
-    const bool effective_skip = skip_validation_mode;
+    } depth_guard(this);
 
     if (g_shell == nullptr) {
         print_error({ErrorType::RUNTIME_ERROR, "", "No shell instance available", {}});
     }
 
     if (shell_parser == nullptr) {
-        std::vector<std::string> empty_suggestions;
         ErrorInfo error(ErrorType::RUNTIME_ERROR, ErrorSeverity::CRITICAL, "",
-                        "Script interpreter not properly initialized", empty_suggestions);
+                        "Script interpreter not properly initialized", {});
         print_error(error);
         return 1;
     }
 
-    if (!effective_skip && has_syntax_errors(lines)) {
-        std::vector<std::string> empty_suggestions;
-        ErrorInfo error(ErrorType::SYNTAX_ERROR, ErrorSeverity::CRITICAL, "",
-                        "Critical syntax errors detected in script block, process aborted",
-                        empty_suggestions);
+    const bool should_validate = (validation_depth == 1);
+
+    if (should_validate && has_syntax_errors(lines)) {
+        ErrorInfo error(ErrorType::RUNTIME_ERROR, ErrorSeverity::CRITICAL, "",
+                        "Critical syntax errors detected in script block, process aborted", {});
         print_error(error);
         return 2;
     }
@@ -567,10 +562,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         return execute_block(block_lines);
     };
 
-    auto execute_block_skip_validation = [&](const std::vector<std::string>& block_lines) -> int {
-        return execute_block(block_lines, true);
-    };
-
     auto handle_if_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
         return conditional_evaluator::handle_if_block(src_lines, idx, execute_block_wrapper,
                                                       execute_simple_or_pipeline,
@@ -578,7 +569,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
     };
 
     auto handle_for_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
-        return loop_evaluator::handle_for_block(src_lines, idx, execute_block_skip_validation,
+        return loop_evaluator::handle_for_block(src_lines, idx, execute_block_wrapper,
                                                 shell_parser);
     };
 
@@ -696,12 +687,12 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
     };
 
     auto handle_while_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
-        return loop_evaluator::handle_while_block(src_lines, idx, execute_block_skip_validation,
+        return loop_evaluator::handle_while_block(src_lines, idx, execute_block_wrapper,
                                                   execute_simple_or_pipeline, shell_parser);
     };
 
     auto handle_until_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
-        return loop_evaluator::handle_until_block(src_lines, idx, execute_block_skip_validation,
+        return loop_evaluator::handle_until_block(src_lines, idx, execute_block_wrapper,
                                                   execute_simple_or_pipeline, shell_parser);
     };
 

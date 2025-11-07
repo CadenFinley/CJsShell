@@ -29,7 +29,7 @@ class ShellScriptInterpreter {
 
     void set_parser(Parser* parser);
 
-    int execute_block(const std::vector<std::string>& lines, bool skip_validation = false);
+    int execute_block(const std::vector<std::string>& lines);
     std::vector<std::string> parse_into_lines(const std::string& script);
 
     enum class ErrorCategory : std::uint8_t {
@@ -138,8 +138,7 @@ class ShellScriptInterpreter {
     size_t current_line_number = 1;
     std::optional<int> last_substitution_exit_status;
     std::optional<int> pending_assignment_exit_status;
-
-    bool skip_validation_mode = false;
+    size_t validation_depth = 0;
 
     bool should_interpret_as_cjsh_script(const std::string& path) const;
 

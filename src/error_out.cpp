@@ -45,42 +45,42 @@ void print_error(const ErrorInfo& error) {
 
     std::cerr << '\n';
 
-    if (!error.suggestions.empty()) {
-        std::vector<std::string> commands;
-        bool has_command_suggestions = false;
+    // if (!error.suggestions.empty()) {
+    //     std::vector<std::string> commands;
+    //     bool has_command_suggestions = false;
 
-        for (const auto& suggestion : error.suggestions) {
-            if (suggestion.find("Did you mean '") != std::string::npos) {
-                size_t start = suggestion.find('\'') + 1;
-                size_t end = suggestion.find('\'', start);
-                if (start != std::string::npos && end != std::string::npos && end > start) {
-                    commands.push_back(suggestion.substr(start, end - start));
-                    has_command_suggestions = true;
-                }
-            }
-        }
+    //     for (const auto& suggestion : error.suggestions) {
+    //         if (suggestion.find("Did you mean '") != std::string::npos) {
+    //             size_t start = suggestion.find('\'') + 1;
+    //             size_t end = suggestion.find('\'', start);
+    //             if (start != std::string::npos && end != std::string::npos && end > start) {
+    //                 commands.push_back(suggestion.substr(start, end - start));
+    //                 has_command_suggestions = true;
+    //             }
+    //         }
+    //     }
 
-        if (has_command_suggestions && !commands.empty()) {
-            std::cerr << "Did you mean: ";
-            for (size_t i = 0; i < commands.size(); ++i) {
-                std::cerr << commands[i];
-                if (i < commands.size() - 1) {
-                    std::cerr << ", ";
-                }
-            }
-            std::cerr << "?" << '\n';
+    //     if (has_command_suggestions && !commands.empty()) {
+    //         std::cerr << "Did you mean: ";
+    //         for (size_t i = 0; i < commands.size(); ++i) {
+    //             std::cerr << commands[i];
+    //             if (i < commands.size() - 1) {
+    //                 std::cerr << ", ";
+    //             }
+    //         }
+    //         std::cerr << "?" << '\n';
 
-            for (const auto& suggestion : error.suggestions) {
-                if (suggestion.find("Did you mean '") == std::string::npos) {
-                    std::cerr << suggestion << '\n';
-                }
-            }
-        } else {
-            for (const auto& suggestion : error.suggestions) {
-                std::cerr << suggestion << '\n';
-            }
-        }
-    }
+    //         for (const auto& suggestion : error.suggestions) {
+    //             if (suggestion.find("Did you mean '") == std::string::npos) {
+    //                 std::cerr << suggestion << '\n';
+    //             }
+    //         }
+    //     } else {
+    //         for (const auto& suggestion : error.suggestions) {
+    //             std::cerr << suggestion << '\n';
+    //         }
+    //     }
+    // }
 }
 
 ErrorInfo::ErrorInfo()
