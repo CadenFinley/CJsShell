@@ -1,8 +1,10 @@
 #pragma once
 
+#include <cstdint>
+
 namespace utils {
 
-enum class QuoteAdvanceResult {
+enum class QuoteAdvanceResult : std::uint8_t {
     Continue,
     Process
 };

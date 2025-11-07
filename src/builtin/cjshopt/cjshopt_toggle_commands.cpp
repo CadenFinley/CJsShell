@@ -326,7 +326,7 @@ int hint_delay_command(const std::vector<std::string>& args) {
         return 1;
     }
 
-    std::string option = args[1];
+    const std::string& option = args[1];
     std::string normalized = option;
     std::transform(normalized.begin(), normalized.end(), normalized.begin(),
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
@@ -389,7 +389,7 @@ int multiline_start_lines_command(const std::vector<std::string>& args) {
         return 1;
     }
 
-    std::string option = args[1];
+    const std::string& option = args[1];
     std::string normalized = option;
     std::transform(normalized.begin(), normalized.end(), normalized.begin(),
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });

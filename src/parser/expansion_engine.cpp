@@ -132,7 +132,11 @@ std::vector<std::string> ExpansionEngine::expand_braces(const std::string& patte
     result.reserve(options.size());
 
     for (const auto& option : options) {
-        std::string combined = prefix + option + suffix;
+        std::string combined;
+        combined.reserve(prefix.size() + option.size() + suffix.size());
+        combined = prefix;
+        combined += option;
+        combined += suffix;
         expand_and_append_results(combined, result);
     }
 

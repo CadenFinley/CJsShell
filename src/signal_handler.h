@@ -3,6 +3,7 @@
 #include <signal.h>
 
 #include <atomic>
+#include <cstdint>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -31,8 +32,7 @@ class SignalMask {
     SignalMask(const SignalMask&) = delete;
     SignalMask& operator=(const SignalMask&) = delete;
 };
-
-enum class SignalDisposition {
+enum class SignalDisposition : std::uint8_t {
     DEFAULT,
     IGNORE,
     TRAPPED,

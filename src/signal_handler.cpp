@@ -292,30 +292,20 @@ bool SignalHandler::is_valid_signal(int signum) {
     if (signum <= 0) {
         return false;
     }
-    for (const auto& signal : s_signal_table) {
-        if (signal.signal == signum) {
-            return true;
-        }
-    }
-    return false;
+    return std::any_of(s_signal_table.begin(), s_signal_table.end(),
+                       [signum](const auto& signal_info) { return signal_info.signal == signum; });
 }
 
 bool SignalHandler::can_trap_signal(int signum) {
-    for (const auto& signal : s_signal_table) {
-        if (signal.signal == signum) {
-            return signal.can_trap;
-        }
-    }
-    return false;
+    return std::any_of(s_signal_table.begin(), s_signal_table.end(), [signum](const auto& signal) {
+        return signal.signal == signum && signal.can_trap;
+    });
 }
 
 bool SignalHandler::can_ignore_signal(int signum) {
-    for (const auto& signal : s_signal_table) {
-        if (signal.signal == signum) {
-            return signal.can_ignore;
-        }
-    }
-    return false;
+    return std::any_of(s_signal_table.begin(), s_signal_table.end(), [signum](const auto& signal) {
+        return signal.signal == signum && signal.can_ignore;
+    });
 }
 
 bool SignalHandler::is_forked_child() {

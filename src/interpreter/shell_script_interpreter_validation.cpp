@@ -862,8 +862,7 @@ bool find_embedded_loop_keyword(const std::string& line, const std::string& keyw
             size_t after = index + keyword.size();
             if (after < line.size()) {
                 char next_char = line[after];
-                if (!(std::isspace(static_cast<unsigned char>(next_char)) != 0 ||
-                      next_char == '(')) {
+                if (std::isspace(static_cast<unsigned char>(next_char)) == 0 && next_char != '(') {
                     return IterationAction::Continue;
                 }
             }

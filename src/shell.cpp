@@ -647,11 +647,7 @@ bool Shell::should_abort_on_nonzero_exit() const {
 
     std::string threshold = get_errexit_severity();
 
-    if (threshold == "critical") {
-        return false;
-    }
-
-    return true;
+    return threshold != "critical";
 }
 
 bool Shell::should_abort_on_nonzero_exit(int exit_code) const {

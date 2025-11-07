@@ -1409,7 +1409,7 @@ std::vector<Command> Parser::parse_pipeline_with_preprocessing(const std::string
             }
         }
 
-        if (!cmd.here_doc.empty() && (current_here_docs.count(cmd.here_doc) != 0u)) {
+        if (!cmd.here_doc.empty() && (current_here_docs.count(cmd.here_doc) != 0U)) {
             std::string content = current_here_docs[cmd.here_doc];
             process_heredoc_content(content);
             cmd.here_doc = content;

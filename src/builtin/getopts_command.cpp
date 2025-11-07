@@ -65,8 +65,8 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
         return 1;
     }
 
-    std::string optstring = args[1];
-    std::string name = args[2];
+    const std::string& optstring = args[1];
+    const std::string& name = args[2];
 
     std::vector<std::string> argv_list;
     if (args.size() > 3) {

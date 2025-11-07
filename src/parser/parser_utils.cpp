@@ -39,7 +39,7 @@ std::string trim_trailing_whitespace(std::string s) {
     return s;
 }
 
-std::string trim_leading_whitespace(std::string s) {
+std::string trim_leading_whitespace(const std::string& s) {
     size_t start = s.find_first_not_of(" \t\n\r");
     return (start == std::string::npos) ? "" : s.substr(start);
 }

@@ -334,7 +334,7 @@ bool process_command_line(const std::string& command, bool skip_history = false)
         if (expansion_result.was_expanded) {
             expanded_command = expansion_result.expanded_command;
             if (expansion_result.should_echo) {
-                std::cout << expanded_command << std::endl;
+                std::cout << expanded_command << '\n';
             }
         }
     }

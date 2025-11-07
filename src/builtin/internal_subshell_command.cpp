@@ -14,7 +14,7 @@ int internal_subshell_command(const std::vector<std::string>& args, Shell* shell
         return 1;
     }
 
-    std::string subshell_content = args[1];
+    const std::string& subshell_content = args[1];
 
     pid_t pid = fork();
     if (pid == -1) {

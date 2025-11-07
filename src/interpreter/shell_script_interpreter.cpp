@@ -101,7 +101,11 @@ int ShellScriptInterpreter::execute_subshell(const std::string& subshell_content
 
         const char* exit_code_str = getenv("EXIT_CODE");
         if (exit_code_str) {
-            exit_code = std::atoi(exit_code_str);
+            char* end;
+            long result = std::strtol(exit_code_str, &end, 10);
+            if (end != exit_code_str && *end == '\0') {
+                exit_code = static_cast<int>(result);
+            }
             unsetenv("EXIT_CODE");
         }
 
@@ -920,7 +924,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                     {
                         std::vector<std::string> first_toks = shell_parser->parse_command(cmd_text);
 
-                        if (!first_toks.empty() && (functions.count(first_toks[0]) != 0u)) {
+                        if (!first_toks.empty() && (functions.count(first_toks[0]) != 0U)) {
                             std::string expanded_cmd = cmd_text;
                             try {
                                 expanded_cmd =
@@ -932,7 +936,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                             first_toks = shell_parser->parse_command(expanded_cmd);
                         }
 
-                        if (!first_toks.empty() && (functions.count(first_toks[0]) != 0u)) {
+                        if (!first_toks.empty() && (functions.count(first_toks[0]) != 0U)) {
                             is_function_call = true;
 
                             push_function_scope();

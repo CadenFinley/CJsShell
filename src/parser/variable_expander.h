@@ -1,6 +1,5 @@
 #pragma once
 
-#include <functional>
 #include <string>
 #include <unordered_map>
 
@@ -45,7 +44,7 @@ class VariableExpander {
 template <typename ExpandFunc, typename EvalFunc>
 std::pair<bool, std::string> VariableExpander::try_expand_arithmetic_expression(
     const std::string& arg, size_t& i, ExpandFunc expand_func, EvalFunc eval_func) {
-    if (!(arg[i] == '$' && i + 2 < arg.length() && arg[i + 1] == '(' && arg[i + 2] == '(')) {
+    if (arg[i] != '$' || i + 2 >= arg.length() || arg[i + 1] != '(' || arg[i + 2] != '(') {
         return {false, ""};
     }
 

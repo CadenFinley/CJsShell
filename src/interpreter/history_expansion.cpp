@@ -1,12 +1,9 @@
 #include "history_expansion.h"
 
-#include <algorithm>
 #include <cctype>
-#include <fstream>
 #include <sstream>
 
 #include "cjsh_filesystem.h"
-#include "error_out.h"
 #include "parser/quote_info.h"
 
 namespace {
@@ -143,7 +140,7 @@ bool HistoryExpansion::expand_double_bang(const std::string& command, size_t& po
         return false;
     }
 
-    std::string last_command = history[history.size() - 2];
+    const std::string& last_command = history[history.size() - 2];
     pos += 2;
 
     if (pos < command.length() && command[pos] == ':') {
@@ -273,7 +270,7 @@ bool HistoryExpansion::expand_quick_substitution(const std::string& command,
         return false;
     }
 
-    std::string last_command = history.back();
+    const std::string& last_command = history.back();
     size_t pos = last_command.find(old_text);
     if (pos == std::string::npos) {
         error = "^" + old_text + "^" + new_text + ": substitution failed";

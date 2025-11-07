@@ -379,8 +379,8 @@ bool ParameterExpansionEvaluator::try_evaluate_substring(const std::string& para
     }
 
     char marker = param_expr[pos];
-    if (!is_digit(marker) && !((marker == '+' || marker == '-') && pos + 1 < param_expr.length() &&
-                               is_digit(param_expr[pos + 1]))) {
+    if (!is_digit(marker) && ((marker != '+' && marker != '-') || pos + 1 >= param_expr.length() ||
+                              !is_digit(param_expr[pos + 1]))) {
         return false;
     }
 

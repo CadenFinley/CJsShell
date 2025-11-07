@@ -7,7 +7,6 @@
 #include <sys/stat.h>
 #include <cstdint>
 #include <filesystem>
-#include <iostream>
 #include <optional>
 #include <string>
 #include <string_view>

@@ -45,7 +45,7 @@ int exec_command(const std::vector<std::string>& args, Shell* shell,
                 std::string op = arg.substr(fd_end);
 
                 if (op == "<" && i + 1 < args.size()) {
-                    std::string filename = args[i + 1];
+                    const std::string& filename = args[i + 1];
                     auto redirect_result = cjsh_filesystem::redirect_fd(filename, fd_num, O_RDONLY);
                     if (redirect_result.is_error()) {
                         record_error(
@@ -56,7 +56,7 @@ int exec_command(const std::vector<std::string>& args, Shell* shell,
                     i++;
                     continue;
                 } else if (op == ">" && i + 1 < args.size()) {
-                    std::string filename = args[i + 1];
+                    const std::string& filename = args[i + 1];
                     auto redirect_result = cjsh_filesystem::redirect_fd(
                         filename, fd_num, O_WRONLY | O_CREAT | O_TRUNC);
                     if (redirect_result.is_error()) {

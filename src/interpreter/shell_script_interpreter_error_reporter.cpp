@@ -258,11 +258,14 @@ void print_error_report(const std::vector<ShellScriptInterpreter::SyntaxError>& 
                     std::replace(context_line.begin(), context_line.end(), '\n', ' ');
                     std::replace(context_line.begin(), context_line.end(), '\r', ' ');
                     if (context_line.size() > 120) {
-                        context_line = context_line.substr(0, 117) + "...";
+                        context_line = context_line.substr(0, 117);
+                        context_line.append("...");
                     }
                     if (error.position.line_number > 0) {
-                        context_line = "at line " + std::to_string(error.position.line_number) +
-                                       ": " + context_line;
+                        std::string prefix = "at line ";
+                        prefix.append(std::to_string(error.position.line_number));
+                        prefix.append(": ");
+                        context_line.insert(0, prefix);
                     }
                 }
                 if (show_suggestions && !sanitized_suggestion.empty()) {

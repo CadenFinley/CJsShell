@@ -87,12 +87,7 @@ void print_error_to_stderr(const ErrorInfo& error) {
 
 }  // namespace
 
-ErrorInfo::ErrorInfo()
-    : type(ErrorType::UNKNOWN_ERROR),
-      severity(ErrorSeverity::ERROR),
-      command_used(""),
-      message(""),
-      suggestions() {
+ErrorInfo::ErrorInfo() : type(ErrorType::UNKNOWN_ERROR), severity(ErrorSeverity::ERROR) {
 }
 
 ErrorInfo::ErrorInfo(ErrorType t, ErrorSeverity s, const std::string& cmd, const std::string& msg,

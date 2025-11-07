@@ -8,7 +8,7 @@ extern const std::string SUBST_LITERAL_START;
 extern const std::string SUBST_LITERAL_END;
 
 std::string trim_trailing_whitespace(std::string s);
-std::string trim_leading_whitespace(std::string s);
+std::string trim_leading_whitespace(const std::string& s);
 std::string trim_whitespace(const std::string& s);
 bool is_valid_identifier_start(char c);
 bool is_valid_identifier_char(char c);

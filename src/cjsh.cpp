@@ -144,7 +144,8 @@ void initialize_colors() {
         for (const auto& pair : token_constants::default_styles) {
             std::string style_name = pair.first;
             if (style_name.rfind("ic-", 0) != 0) {
-                style_name = "cjsh-" + style_name;
+                style_name = "cjsh-";
+                style_name += pair.first;
             }
             ic_style_def(style_name.c_str(), pair.second.c_str());
             ic_style_def("ic-prompt", "white");
@@ -298,7 +299,7 @@ void cleanup_resources() {
     }
 
     if (config::interactive_mode || config::force_interactive) {
-        std::cout << "Shutdown Complete." << std::endl;
+        std::cout << "Shutdown Complete." << '\n';
     }
 }
 

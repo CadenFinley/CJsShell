@@ -350,7 +350,7 @@ void cleanup_process_substitutions(ProcessSubstitutionResources& resources,
     resources.fifo_paths.clear();
 }
 
-enum class FdOperationErrorType {
+enum class FdOperationErrorType : std::uint8_t {
     Redirect,
     Duplication
 };
@@ -420,7 +420,7 @@ bool apply_fd_operations(const Command& cmd, FailureHandler&& on_failure) {
     return true;
 }
 
-enum class HereDocErrorKind {
+enum class HereDocErrorKind : std::uint8_t {
     Pipe,
     ContentWrite,
     NewlineWrite,
@@ -473,7 +473,7 @@ bool setup_here_document_stdin(const std::string& here_doc, ErrorHandler&& on_er
     return true;
 }
 
-enum class StreamRedirectErrorKind {
+enum class StreamRedirectErrorKind : std::uint8_t {
     Noclobber,
     Redirect,
     Duplication
@@ -582,8 +582,7 @@ Exec::Exec()
     : shell_pgid(getpid()),
       shell_terminal(STDIN_FILENO),
       shell_is_interactive(isatty(shell_terminal)),
-      last_pipeline_statuses(1, 0),
-      last_terminal_output_error("") {
+      last_pipeline_statuses(1, 0) {
     if (shell_is_interactive) {
         if (tcgetattr(shell_terminal, &shell_tmodes) < 0) {
             set_error(ErrorType::RUNTIME_ERROR, "tcgetattr",
@@ -1623,7 +1622,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
             if (pid == 0) {
                 const std::string command_name = cmd.args.empty() ? "exec" : cmd.args[0];
-                const auto child_error = [&](ErrorType type, std::string message) {
+                const auto child_error = [&](ErrorType type, const std::string& message) {
                     child_exit_with_error(type, command_name, message);
                 };
 

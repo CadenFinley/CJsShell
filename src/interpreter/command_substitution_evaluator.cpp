@@ -21,7 +21,7 @@ std::pair<std::string, int> execute_command_for_substitution(
     }
 
     std::cout.flush();
-    fflush(nullptr);
+    (void)fflush(nullptr);
 
     pid_t pid = fork();
     if (pid == 0) {
@@ -36,7 +36,7 @@ std::pair<std::string, int> execute_command_for_substitution(
         std::cout.flush();
         std::cerr.flush();
         std::clog.flush();
-        fflush(nullptr);
+        (void)fflush(nullptr);
         _exit(exit_code);
     } else if (pid > 0) {
         close(pipefd[1]);

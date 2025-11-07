@@ -184,7 +184,7 @@ int edit_and_execute_string(const std::string& initial_content, const std::strin
         return 1;
     }
 
-    std::string edited_content = read_result.value();
+    const std::string& edited_content = read_result.value();
 
     if (edited_content.empty()) {
         return 0;
@@ -247,7 +247,7 @@ int edit_and_execute(const std::vector<std::string>& entries, int first, int las
         return 1;
     }
 
-    std::string edited_content = read_result.value();
+    const std::string& edited_content = read_result.value();
 
     if (edited_content.empty()) {
         return 0;

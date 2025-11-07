@@ -1,6 +1,5 @@
 #include "function_evaluator.h"
 
-#include <algorithm>
 #include <cctype>
 
 namespace function_evaluator {

@@ -7,7 +7,6 @@
 #include <vector>
 
 #include "completion_tracker.h"
-#include "completion_utils.h"
 #include "isocline.h"
 
 namespace completion_spell {

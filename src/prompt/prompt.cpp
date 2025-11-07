@@ -74,7 +74,7 @@ std::string get_hostname(bool full) {
 std::string format_time(const char* fmt) {
     std::time_t now = std::time(nullptr);
     std::tm tm_now{};
-    localtime_r(&now, &tm_now);
+    (void)localtime_r(&now, &tm_now);
 
     char buffer[256];
     size_t written = std::strftime(buffer, sizeof(buffer), fmt, &tm_now);

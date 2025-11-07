@@ -31,7 +31,7 @@ int hash_command(const std::vector<std::string>& args, Shell* shell) {
 
         std::cout << "hits\tcommand\n";
         for (const auto& pair : command_hash) {
-            int hits = (command_hits.count(pair.first) != 0u) ? command_hits[pair.first] : 0;
+            int hits = (command_hits.count(pair.first) != 0U) ? command_hits[pair.first] : 0;
             std::cout << hits << "\t" << pair.second << '\n';
         }
         return 0;

@@ -294,7 +294,7 @@ std::vector<std::string> generate_fuzzy_suggestions(
 
         for (const auto& cmd : available_commands) {
             if (!cmd.empty() && std::tolower(cmd[0]) == target_char &&
-                (seen_commands.count(cmd) == 0u)) {
+                (seen_commands.count(cmd) == 0U)) {
                 int priority = 0;
                 if (cmd == "ls" || cmd == "cd" || cmd == "ps" || cmd == "cp" || cmd == "mv") {
                     priority = 100;
@@ -323,7 +323,7 @@ std::vector<std::string> generate_fuzzy_suggestions(
     std::unordered_set<std::string> seen_commands;
 
     for (const auto& cmd : available_commands) {
-        if (cmd == command || (seen_commands.count(cmd) != 0u))
+        if (cmd == command || (seen_commands.count(cmd) != 0U))
             continue;
 
         int score = calculate_fuzzy_score(command, cmd);
@@ -387,7 +387,7 @@ int calculate_fuzzy_score(const std::string& input, const std::string& candidate
     for (const auto& pair : input_chars) {
         char ch = pair.first;
         int count = pair.second;
-        if (candidate_chars.count(ch) != 0u) {
+        if (candidate_chars.count(ch) != 0U) {
             common_chars += std::min(count, candidate_chars[ch]);
         }
     }
