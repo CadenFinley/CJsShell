@@ -11,26 +11,6 @@
 #include "shell_script_interpreter.h"
 
 extern std::unique_ptr<Shell> g_shell;
-
-namespace {
-
-void collapse_did_you_mean_prefix(std::vector<std::string>& suggestions) {
-    const std::string prefix = "Did you mean ";
-    bool seen = false;
-
-    for (auto& suggestion : suggestions) {
-        if (suggestion.rfind(prefix, 0) == 0) {
-            if (!seen) {
-                seen = true;
-            } else {
-                suggestion = suggestion.substr(prefix.size());
-            }
-        }
-    }
-}
-
-}  // namespace
-
 namespace suggestion_utils {
 
 std::vector<std::string> generate_command_suggestions(const std::string& command) {
@@ -79,8 +59,6 @@ std::vector<std::string> generate_command_suggestions(const std::string& command
         suggestions.push_back("Try 'help' to see available commands.");
     }
 
-    collapse_did_you_mean_prefix(suggestions);
-
     return suggestions;
 }
 
@@ -106,8 +84,6 @@ std::vector<std::string> generate_cd_suggestions(const std::string& target_dir,
             suggestions.push_back("Check if '" + parent_path + "' exists first.");
         }
     }
-
-    collapse_did_you_mean_prefix(suggestions);
 
     return suggestions;
 }
@@ -152,8 +128,6 @@ std::vector<std::string> generate_ls_suggestions(const std::string& path,
         }
         suggestions.push_back("Use 'ls -la' to see hidden files.");
     }
-
-    collapse_did_you_mean_prefix(suggestions);
 
     return suggestions;
 }
@@ -302,8 +276,6 @@ std::vector<std::string> generate_executable_suggestions(
         suggestions.push_back("Did you mean '" + candidates[i].second + "'?");
     }
 
-    collapse_did_you_mean_prefix(suggestions);
-
     return suggestions;
 }
 
@@ -344,8 +316,6 @@ std::vector<std::string> generate_fuzzy_suggestions(
             suggestions.push_back("Did you mean '" + single_letter_candidates[i].second + "'?");
         }
 
-        collapse_did_you_mean_prefix(suggestions);
-
         return suggestions;
     }
 
@@ -369,8 +339,6 @@ std::vector<std::string> generate_fuzzy_suggestions(
     for (size_t i = 0; i < candidates.size() && i < 5; i++) {
         suggestions.push_back("Did you mean '" + candidates[i].second + "'?");
     }
-
-    collapse_did_you_mean_prefix(suggestions);
 
     return suggestions;
 }
