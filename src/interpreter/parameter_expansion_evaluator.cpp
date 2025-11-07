@@ -4,7 +4,7 @@
 #include <cstdlib>
 #include <stdexcept>
 
-#include "error_out.h"
+#include "shell_script_interpreter_error_reporter.h"
 
 ParameterExpansionEvaluator::ParameterExpansionEvaluator(VariableReader var_reader,
                                                          VariableWriter var_writer,
@@ -170,6 +170,8 @@ std::string ParameterExpansionEvaluator::expand(const std::string& param_expr) {
         if (!is_set || var_value.empty()) {
             std::string error_msg = "cjsh: " + var_name + ": " +
                                     (operand.empty() ? "parameter null or not set" : operand);
+            shell_script_interpreter::print_runtime_error(error_msg,
+                                                          "${" + var_name + op + operand + "}");
             throw std::runtime_error(error_msg);
         }
         return var_value;
@@ -178,6 +180,8 @@ std::string ParameterExpansionEvaluator::expand(const std::string& param_expr) {
         if (!is_set) {
             std::string error_msg =
                 "cjsh: " + var_name + ": " + (operand.empty() ? "parameter not set" : operand);
+            shell_script_interpreter::print_runtime_error(error_msg,
+                                                          "${" + var_name + op + operand + "}");
             throw std::runtime_error(error_msg);
         }
         return var_value;

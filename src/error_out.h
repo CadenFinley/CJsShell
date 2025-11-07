@@ -25,21 +25,25 @@ enum class ErrorType : std::uint8_t {
 struct ErrorInfo {
     ErrorType type;
     ErrorSeverity severity;
-    std::string command_used = "";
-    std::string message = "";
-    std::vector<std::string> suggestions = {};
-    std::string context = "";
+    std::string command_used;
+    std::string message;
+    std::vector<std::string> suggestions;
 
     ErrorInfo();
 
-    ErrorInfo(ErrorType t, ErrorSeverity s, const std::string& cmd = "",
-              const std::string& msg = "", const std::vector<std::string>& sugg = {},
-              const std::string& ctx = "");
+    ErrorInfo(ErrorType t, ErrorSeverity s, const std::string& cmd, const std::string& msg,
+              const std::vector<std::string>& sugg);
 
-    ErrorInfo(ErrorType t, const std::string& cmd = "", const std::string& msg = "",
-              const std::vector<std::string>& sugg = {}, const std::string& ctx = "");
+    ErrorInfo(ErrorType t, const std::string& cmd, const std::string& msg,
+              const std::vector<std::string>& sugg);
 
     static ErrorSeverity get_default_severity(ErrorType type);
 };
 
 void print_error(const ErrorInfo& error);
+
+// Provided for the shell script interpreter error reporter to bypass routing logic
+// when it needs to write directly to stderr without risking recursion.
+void print_error_fallback(const ErrorInfo& error);
+
+bool should_abort_on_error(const ErrorInfo& error);
