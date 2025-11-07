@@ -249,6 +249,7 @@ void print_error_report(const std::vector<ShellScriptInterpreter::SyntaxError>& 
             std::string severity_color;
             std::string severity_icon;
             std::string severity_prefix;
+            bool has_line_number = error.position.line_number > 0;
 
             size_t column_start = error.position.column_start;
             size_t column_end = error.position.column_end;
@@ -276,8 +277,10 @@ void print_error_report(const std::vector<ShellScriptInterpreter::SyntaxError>& 
                     if (context_line.size() > 120) {
                         context_line = context_line.substr(0, 117) + "...";
                     }
-                    suggestions.push_back("Line " + std::to_string(error.position.line_number) +
-                                          ": " + context_line);
+                    if (error.position.line_number > 0) {
+                        context_line = "at line " + std::to_string(error.position.line_number) +
+                                       ": " + context_line;
+                    }
                 }
                 if (show_suggestions && !sanitized_suggestion.empty()) {
                     suggestions.push_back(sanitized_suggestion);
@@ -330,19 +333,23 @@ void print_error_report(const std::vector<ShellScriptInterpreter::SyntaxError>& 
                       << blue_color << error.error_code << reset_color << bold_style << "]"
                       << reset_color << '\n';
 
-            std::cerr << "│  " << dim_style << "at line " << bold_style
-                      << error.position.line_number << reset_color;
-            if (column_start > 0) {
-                std::cerr << dim_style << ", column " << bold_style << column_start << reset_color;
+            if (has_line_number) {
+                std::cerr << "│  " << dim_style << "at line " << bold_style
+                          << error.position.line_number << reset_color;
+                if (column_start > 0) {
+                    std::cerr << dim_style << ", column " << bold_style << column_start
+                              << reset_color;
+                }
+                std::cerr << '\n';
             }
-            std::cerr << '\n';
 
             std::cerr << "│  " << severity_color << sanitized_message << reset_color << '\n';
 
             if (show_context && !sanitized_line_content.empty()) {
                 std::cerr << "│" << '\n';
 
-                std::string line_num_str = std::to_string(error.position.line_number);
+                std::string line_num_str =
+                    has_line_number ? std::to_string(error.position.line_number) : std::string();
                 std::cerr << "│  " << dim_style << line_num_str << " │ " << reset_color;
 
                 size_t terminal_width = get_terminal_width();
@@ -539,7 +546,8 @@ void print_error_report(const std::vector<ShellScriptInterpreter::SyntaxError>& 
             size_t content_width = 0;
 
             if (!sanitized_line_content.empty()) {
-                std::string line_num_str = std::to_string(error.position.line_number);
+                std::string line_num_str =
+                    has_line_number ? std::to_string(error.position.line_number) : std::string();
                 size_t line_prefix_width = 6 + line_num_str.length();
                 size_t max_line_display_width = terminal_width > line_prefix_width + 10
                                                     ? terminal_width - line_prefix_width - 5
