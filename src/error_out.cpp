@@ -1,10 +1,29 @@
 #include "error_out.h"
+
 #include <iostream>
 #include <string>
 #include <vector>
 
+namespace {
+const char* severity_to_string(ErrorSeverity severity) {
+    switch (severity) {
+        case ErrorSeverity::INFO:
+            return "info";
+        case ErrorSeverity::WARNING:
+            return "warning";
+        case ErrorSeverity::ERROR:
+            return "error";
+        case ErrorSeverity::CRITICAL:
+            return "critical";
+        default:
+            return "error";
+    }
+}
+}  // namespace
+
 void print_error(const ErrorInfo& error) {
     std::cerr << "cjsh: ";
+    std::cerr << severity_to_string(error.severity) << " ";
 
     if (!error.command_used.empty()) {
         std::cerr << error.command_used << ": ";
@@ -39,48 +58,32 @@ void print_error(const ErrorInfo& error) {
         std::cerr << ": " << error.message;
     }
 
-    // if (!error.context.empty()) {
-    //     std::cerr << "\n" << error.context;
-    // }
-
     std::cerr << '\n';
 
-    // if (!error.suggestions.empty()) {
-    //     std::vector<std::string> commands;
-    //     bool has_command_suggestions = false;
+    if (!error.suggestions.empty()) {
+        const std::string did_you_mean_prefix = "Did you mean ";
+        std::vector<std::string> did_you_mean;
+        std::vector<std::string> other;
 
-    //     for (const auto& suggestion : error.suggestions) {
-    //         if (suggestion.find("Did you mean '") != std::string::npos) {
-    //             size_t start = suggestion.find('\'') + 1;
-    //             size_t end = suggestion.find('\'', start);
-    //             if (start != std::string::npos && end != std::string::npos && end > start) {
-    //                 commands.push_back(suggestion.substr(start, end - start));
-    //                 has_command_suggestions = true;
-    //             }
-    //         }
-    //     }
+        for (const auto& suggestion : error.suggestions) {
+            if (suggestion.rfind(did_you_mean_prefix, 0) == 0) {
+                did_you_mean.push_back(suggestion.substr(did_you_mean_prefix.size()));
+            } else {
+                other.push_back(suggestion);
+            }
+        }
 
-    //     if (has_command_suggestions && !commands.empty()) {
-    //         std::cerr << "Did you mean: ";
-    //         for (size_t i = 0; i < commands.size(); ++i) {
-    //             std::cerr << commands[i];
-    //             if (i < commands.size() - 1) {
-    //                 std::cerr << ", ";
-    //             }
-    //         }
-    //         std::cerr << "?" << '\n';
+        if (!did_you_mean.empty()) {
+            std::cerr << "  Did you mean:\n";
+            for (const auto& suggestion : did_you_mean) {
+                std::cerr << "    - " << suggestion << '\n';
+            }
+        }
 
-    //         for (const auto& suggestion : error.suggestions) {
-    //             if (suggestion.find("Did you mean '") == std::string::npos) {
-    //                 std::cerr << suggestion << '\n';
-    //             }
-    //         }
-    //     } else {
-    //         for (const auto& suggestion : error.suggestions) {
-    //             std::cerr << suggestion << '\n';
-    //         }
-    //     }
-    // }
+        for (const auto& suggestion : other) {
+            std::cerr << "    - " << suggestion << '\n';
+        }
+    }
 }
 
 ErrorInfo::ErrorInfo()
