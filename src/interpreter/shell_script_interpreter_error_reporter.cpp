@@ -184,22 +184,8 @@ std::string build_basic_error_message(const ErrorInfo& error) {
 }  // namespace
 
 void print_error_report(const std::vector<ShellScriptInterpreter::SyntaxError>& errors,
-                        bool show_suggestions, bool show_context, int start_error_number) {
+                        bool show_suggestions, bool show_context) {
     using SyntaxError = ShellScriptInterpreter::SyntaxError;
-
-    static thread_local int global_error_count = 0;
-
-    int actual_start_number = 0;
-    if (start_error_number == -1) {
-        global_error_count++;
-        actual_start_number = global_error_count;
-    } else {
-        actual_start_number = start_error_number;
-
-        if (start_error_number == 1) {
-            global_error_count = 0;
-        }
-    }
 
     static thread_local bool error_reporting_in_progress = false;
     if (error_reporting_in_progress) {
@@ -242,10 +228,7 @@ void print_error_report(const std::vector<ShellScriptInterpreter::SyntaxError>& 
 
         const bool use_compact_error_output = !isatty(STDERR_FILENO);
 
-        int error_count = actual_start_number - 1;
         for (const auto& error : sorted_errors) {
-            error_count++;
-
             std::string severity_color;
             std::string severity_icon;
             std::string severity_prefix;
@@ -328,8 +311,11 @@ void print_error_report(const std::vector<ShellScriptInterpreter::SyntaxError>& 
                     break;
             }
 
-            std::cerr << bold_style << "┌─ " << error_count << ". " << severity_icon << " "
-                      << severity_color << severity_prefix << reset_color << bold_style << " ["
+            std::cerr << bold_style << "┌─ ";
+            if (!severity_icon.empty()) {
+                std::cerr << severity_icon << ' ';
+            }
+            std::cerr << severity_color << severity_prefix << reset_color << bold_style << " ["
                       << blue_color << error.error_code << reset_color << bold_style << "]"
                       << reset_color << '\n';
 
