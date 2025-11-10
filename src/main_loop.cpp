@@ -219,9 +219,9 @@ void update_job_management() {
 std::string generate_prompt(bool command_was_available) {
     std::printf(" \r");
     (void)std::fflush(stdout);
-    if (config::uses_cleanup && command_was_available) {
-        std::printf(" \n");
-    }
+    // if (config::uses_cleanup && command_was_available) {
+    //     std::printf(" \n");
+    // }
     ic_enable_prompt_cleanup(
         config::uses_cleanup,
         (config::cleanup_newline_after_execution && command_was_available) ? 1 : 0);

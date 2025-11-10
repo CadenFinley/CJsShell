@@ -52,6 +52,7 @@ typedef struct editor_s {
     editstate_t* redo;                 // redo buffer
     const char* prompt_text;           // text of the prompt before the prompt marker
     ssize_t prompt_prefix_lines;       // number of prefix lines emitted for prompt
+    bool prompt_begins_with_newline;   // prompt started with a leading newline
     const char* inline_right_text;     // inline right-aligned text on input line
     ssize_t inline_right_width;        // cached width of inline right text
     ssize_t line_number_column_width;  // cached total prefix width when line numbers are shown
@@ -1150,6 +1151,9 @@ static void edit_cleanup_erase_prompt(ic_env_t* env, editor_t* eb) {
 
     ssize_t rows = (eb->cur_rows < 0 ? 0 : eb->cur_rows);
     ssize_t prefixes = (eb->prompt_prefix_lines < 0 ? 0 : eb->prompt_prefix_lines);
+    if (eb->prompt_begins_with_newline && prefixes > 0) {
+        prefixes -= 1;
+    }
     ssize_t total = rows + prefixes + (extra > 0 ? extra : 0);
     if (total <= 0)
         return;
@@ -1924,6 +1928,7 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
     // as the prompt
     const char* original_prompt = (prompt_text != NULL ? prompt_text : "");
     eb.prompt_prefix_lines = print_prompt_prefix_lines(env, original_prompt);
+    eb.prompt_begins_with_newline = (original_prompt[0] == '\n');
     char* last_line_prompt = extract_last_prompt_line(env->mem, original_prompt);
     eb.prompt_text = last_line_prompt;
 
@@ -2430,6 +2435,7 @@ ic_public bool ic_current_loop_reset(const char* new_buffer, const char* new_pro
 
         // Print prefix lines if any
         eb->prompt_prefix_lines = print_prompt_prefix_lines(env, new_prompt);
+        eb->prompt_begins_with_newline = (new_prompt[0] == '\n');
     }
 
     // Update inline right text if provided
