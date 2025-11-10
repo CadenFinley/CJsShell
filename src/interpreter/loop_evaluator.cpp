@@ -1,5 +1,6 @@
 #include "loop_evaluator.h"
 
+#include <algorithm>
 #include <array>
 #include <cctype>
 #include <csignal>
@@ -142,23 +143,19 @@ bool starts_with_loop_keyword(const std::string& text) {
     static constexpr std::array<std::string_view, 4> kLoopKeywords = {"for", "while", "until",
                                                                       "select"};
 
-    for (std::string_view keyword : kLoopKeywords) {
+    return std::any_of(kLoopKeywords.begin(), kLoopKeywords.end(), [&](std::string_view keyword) {
         if (text.size() < keyword.size()) {
-            continue;
+            return false;
         }
         if (text.compare(0, keyword.size(), keyword) != 0) {
-            continue;
+            return false;
         }
         if (text.size() == keyword.size()) {
             return true;
         }
         char next = text[keyword.size()];
-        if ((std::isspace(static_cast<unsigned char>(next)) != 0) || next == ';' || next == '(') {
-            return true;
-        }
-    }
-
-    return false;
+        return (std::isspace(static_cast<unsigned char>(next)) != 0) || next == ';' || next == '(';
+    });
 }
 
 int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
