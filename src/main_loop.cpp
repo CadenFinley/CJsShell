@@ -42,195 +42,11 @@
 
 namespace {
 
-struct HeredocInfo {
-    bool has_heredoc = false;
-    bool strip_tabs = false;
-    std::string delimiter;
-    size_t operator_pos = std::string::npos;
-};
-
 struct CommandInfo {
     std::string command;
     std::string history_entry;
     bool available = false;
 };
-
-HeredocInfo detect_heredoc(const std::string& command) {
-    HeredocInfo info;
-
-    size_t pos = 0;
-    bool in_single_quote = false;
-    bool in_double_quote = false;
-
-    while (pos < command.length()) {
-        char c = command[pos];
-
-        if (c == '\'' && !in_double_quote) {
-            in_single_quote = !in_single_quote;
-            pos++;
-            continue;
-        }
-        if (c == '"' && !in_single_quote) {
-            in_double_quote = !in_double_quote;
-            pos++;
-            continue;
-        }
-
-        if (in_single_quote || in_double_quote) {
-            pos++;
-            continue;
-        }
-
-        if (c == '<' && pos + 1 < command.length() && command[pos + 1] == '<') {
-            info.has_heredoc = true;
-            info.operator_pos = pos;
-
-            if (pos + 2 < command.length() && command[pos + 2] == '-') {
-                info.strip_tabs = true;
-                pos += 3;
-            } else {
-                pos += 2;
-            }
-
-            while (pos < command.length() &&
-                   std::isspace(static_cast<unsigned char>(command[pos])) != 0) {
-                pos++;
-            }
-
-            bool delimiter_quoted = false;
-            char quote_char = '\0';
-
-            if (pos < command.length() &&
-                (command[pos] == '\'' || command[pos] == '"' || command[pos] == '\\')) {
-                quote_char = command[pos];
-                delimiter_quoted = true;
-                pos++;
-            }
-
-            while (pos < command.length()) {
-                char dc = command[pos];
-
-                if (delimiter_quoted && dc == quote_char) {
-                    break;
-                }
-                if (!delimiter_quoted &&
-                    (std::isspace(static_cast<unsigned char>(dc)) != 0 || dc == ';' || dc == '&' ||
-                     dc == '|' || dc == '<' || dc == '>')) {
-                    break;
-                }
-
-                info.delimiter += dc;
-                pos++;
-            }
-
-            return info;
-        }
-
-        pos++;
-    }
-
-    return info;
-}
-
-std::pair<std::string, std::vector<std::string>> process_heredoc_command(
-    const std::string& initial_command) {
-    HeredocInfo info = detect_heredoc(initial_command);
-
-    if (!info.has_heredoc || info.delimiter.empty()) {
-        return {initial_command, {}};
-    }
-
-    char* heredoc_content = ic_read_heredoc(info.delimiter.c_str(), info.strip_tabs);
-
-    if (heredoc_content == nullptr) {
-        return {"", {}};
-    }
-
-    std::unique_ptr<char, decltype(&free)> heredoc_ptr(heredoc_content, &free);
-
-    std::vector<std::string> history_entries;
-    history_entries.emplace_back(initial_command);
-
-    std::string heredoc_string(heredoc_content);
-    std::size_t line_start = 0;
-    while (line_start < heredoc_string.size()) {
-        std::size_t newline_pos = heredoc_string.find('\n', line_start);
-        if (newline_pos == std::string::npos) {
-            history_entries.emplace_back(heredoc_string.substr(line_start));
-            break;
-        }
-        history_entries.emplace_back(heredoc_string.substr(line_start, newline_pos - line_start));
-        line_start = newline_pos + 1;
-    }
-
-    char temp_template[] = "/tmp/cjsh_heredoc_XXXXXX";
-    int temp_fd = mkstemp(temp_template);
-
-    if (temp_fd == -1) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     ErrorSeverity::ERROR,
-                     "main-loop",
-                     "failed to create temporary file for heredoc",
-                     {"Ensure /tmp is writable and not full."}});
-        return {"", {}};
-    }
-
-    ssize_t written = write(temp_fd, heredoc_content, strlen(heredoc_content));
-    if (written == -1) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     ErrorSeverity::ERROR,
-                     "main-loop",
-                     "failed to write heredoc content",
-                     {"Check disk space and permissions for temporary files."}});
-        close(temp_fd);
-        unlink(temp_template);
-        return {"", {}};
-    }
-
-    close(temp_fd);
-
-    std::string reconstructed;
-
-    reconstructed += initial_command.substr(0, info.operator_pos);
-
-    reconstructed += "< ";
-    reconstructed += temp_template;
-
-    size_t after_delimiter = info.operator_pos + 2;
-    if (info.strip_tabs) {
-        after_delimiter++;
-    }
-
-    while (after_delimiter < initial_command.length() &&
-           std::isspace(static_cast<unsigned char>(initial_command[after_delimiter])) != 0) {
-        after_delimiter++;
-    }
-
-    bool found_quote = false;
-    if (after_delimiter < initial_command.length()) {
-        char fc = initial_command[after_delimiter];
-        if (fc == '\'' || fc == '"' || fc == '\\') {
-            found_quote = true;
-            after_delimiter++;
-        }
-    }
-
-    size_t delim_len = info.delimiter.length();
-    after_delimiter += delim_len;
-
-    if (found_quote && after_delimiter < initial_command.length()) {
-        after_delimiter++;
-    }
-
-    if (after_delimiter < initial_command.length()) {
-        reconstructed += initial_command.substr(after_delimiter);
-    }
-
-    reconstructed += "; rm -f ";
-    reconstructed += temp_template;
-
-    return {reconstructed, history_entries};
-}
 
 struct TerminalStatus {
     bool terminal_alive;
@@ -311,7 +127,7 @@ TerminalStatus check_terminal_health(TerminalCheckLevel level = TerminalCheckLev
     return status;
 }
 
-bool process_command_line(const std::string& command, bool skip_history = false) {
+bool process_command_line(const std::string& command) {
     if (command.empty()) {
         return g_exit_flag;
     }
@@ -367,9 +183,7 @@ bool process_command_line(const std::string& command, bool skip_history = false)
 
     std::string status_str = std::to_string(exit_code);
 
-    if (!skip_history) {
-        ic_history_add_with_exit_code(command.c_str(), exit_code);
-    }
+    ic_history_add_with_exit_code(command.c_str(), exit_code);
     setenv("?", status_str.c_str(), 1);
 
 #if defined(__APPLE__) && MAC_OS_X_VERSION_MAX_ALLOWED >= 1070
@@ -403,6 +217,11 @@ void update_job_management() {
 }
 
 std::string generate_prompt(bool command_was_available) {
+    std::printf(" \r");
+    (void)std::fflush(stdout);
+    if (config::uses_cleanup && command_was_available) {
+        std::printf(" \n");
+    }
     ic_enable_prompt_cleanup(
         config::uses_cleanup,
         (config::cleanup_newline_after_execution && command_was_available) ? 1 : 0);
@@ -421,11 +240,9 @@ bool handle_null_input() {
     return false;
 }
 
-std::pair<std::string, bool> get_next_command(bool command_was_available,
-                                              bool& history_already_added) {
+std::pair<std::string, bool> get_next_command(bool command_was_available) {
     std::string command_to_run;
     bool command_available = false;
-    history_already_added = false;
 
     g_shell->execute_hooks("precmd");
     prompt::execute_prompt_command();
@@ -474,23 +291,6 @@ std::pair<std::string, bool> get_next_command(bool command_was_available,
     }
 
     command_available = true;
-
-    HeredocInfo heredoc_info = detect_heredoc(command_to_run);
-    if (heredoc_info.has_heredoc && !heredoc_info.delimiter.empty()) {
-        auto [processed_command, history_entries] = process_heredoc_command(command_to_run);
-        if (processed_command.empty()) {
-            return {std::string(), false};
-        }
-
-        if (!history_entries.empty()) {
-            for (const auto& entry : history_entries) {
-                ic_history_add(entry.c_str());
-            }
-            history_already_added = true;
-        }
-
-        command_to_run = processed_command;
-    }
 
     return {command_to_run, command_available};
 }
@@ -549,7 +349,6 @@ void main_process_loop() {
 
     std::string command_to_run;
     bool command_available = false;
-    bool history_already_added = false;
 
     while (true) {
         g_shell->process_pending_signals();
@@ -564,8 +363,7 @@ void main_process_loop() {
 
         update_job_management();
 
-        std::tie(command_to_run, command_available) =
-            get_next_command(command_available, history_already_added);
+        std::tie(command_to_run, command_available) = get_next_command(command_available);
 
         if (g_exit_flag) {
             break;
@@ -575,7 +373,7 @@ void main_process_loop() {
             continue;
         }
 
-        bool exit_requested = process_command_line(command_to_run, history_already_added);
+        bool exit_requested = process_command_line(command_to_run);
         if (exit_requested || g_exit_flag) {
             if (g_exit_flag) {
                 std::cerr << "Exiting main process loop..." << '\n';
@@ -583,11 +381,11 @@ void main_process_loop() {
             break;
         }
 
-        if (config::newline_after_execution && command_available && (command_to_run != "clear")) {
+        if ((config::newline_after_execution && command_to_run != "clear") || command_available) {
             (void)std::fputc('\n', stdout);
             (void)std::fflush(stdout);
+            // command_available = false;
         }
-        history_already_added = false;
     }
 
     typeahead::cleanup();

@@ -302,91 +302,6 @@ static bool editor_pos_is_at_end(editor_t* eb) {
     return (eb->pos == sbuf_len(eb->input));
 }
 
-static bool editor_input_has_unclosed_heredoc(editor_t* eb) {
-    if (eb == NULL || eb->input == NULL) {
-        return false;
-    }
-
-    const char* input = sbuf_string(eb->input);
-    if (input == NULL) {
-        return false;
-    }
-
-    ssize_t len = sbuf_len(eb->input);
-    ssize_t pos = 0;
-    bool in_single_quote = false;
-    bool in_double_quote = false;
-
-    while (pos < len) {
-        char c = input[pos];
-
-        if (c == '\'' && !in_double_quote) {
-            in_single_quote = !in_single_quote;
-            pos++;
-            continue;
-        }
-        if (c == '"' && !in_single_quote) {
-            in_double_quote = !in_double_quote;
-            pos++;
-            continue;
-        }
-        if (in_single_quote || in_double_quote) {
-            pos++;
-            continue;
-        }
-
-        if (c == '<' && (pos + 1) < len && input[pos + 1] == '<') {
-            ssize_t lookahead = pos + 2;
-            if (lookahead < len && input[lookahead] == '-') {
-                lookahead++;
-            }
-
-            while (lookahead < len && isspace((unsigned char)input[lookahead]) != 0) {
-                lookahead++;
-            }
-
-            bool delimiter_quoted = false;
-            char quote_char = '\0';
-
-            if (lookahead < len &&
-                (input[lookahead] == '\'' || input[lookahead] == '"' || input[lookahead] == '\\')) {
-                delimiter_quoted = true;
-                quote_char = input[lookahead];
-                lookahead++;
-            }
-
-            ssize_t delimiter_length = 0;
-            while (lookahead < len) {
-                char dc = input[lookahead];
-                if (delimiter_quoted) {
-                    if (dc == quote_char) {
-                        break;
-                    }
-                } else {
-                    if (isspace((unsigned char)dc) != 0 || dc == ';' || dc == '&' || dc == '|' ||
-                        dc == '<' || dc == '>') {
-                        break;
-                    }
-                }
-                delimiter_length++;
-                lookahead++;
-            }
-
-            if (delimiter_quoted && lookahead < len && input[lookahead] == quote_char) {
-                lookahead++;
-            }
-
-            if (delimiter_length > 0) {
-                return true;
-            }
-        }
-
-        pos++;
-    }
-
-    return false;
-}
-
 //-------------------------------------------------------------
 // Row/Column width and positioning
 //-------------------------------------------------------------
@@ -2152,16 +2067,8 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
             if (!env->singleline_only && eb.pos > 0 &&
                 sbuf_string(eb.input)[eb.pos - 1] == env->multiline_eol &&
                 edit_pos_is_at_row_end(env, &eb)) {
-                if (editor_input_has_unclosed_heredoc(&eb)) {
-                    editor_start_modify(&eb);
-                    sbuf_delete_at(eb.input, eb.pos - 1, 1);
-                    eb.pos--;
-                    edit_refresh(env, &eb);
-                    request_submit = true;
-                } else {
-                    // replace line-continuation with newline
-                    edit_multiline_eol(env, &eb);
-                }
+                // replace line-continuation with newline
+                edit_multiline_eol(env, &eb);
             } else {
                 // otherwise done
                 if (edit_try_expand_abbreviation(env, &eb, false, false)) {
@@ -2333,11 +2240,7 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
                 case KEY_SHIFT_TAB:
                 case KEY_LINEFEED:  // '\n' (ctrl+J, shift+enter)
                     if (!env->singleline_only) {
-                        if (editor_input_has_unclosed_heredoc(&eb)) {
-                            request_submit = true;
-                        } else {
-                            edit_insert_char(env, &eb, '\n');
-                        }
+                        edit_insert_char(env, &eb, '\n');
                     }
                     break;
                 default: {
