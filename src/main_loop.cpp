@@ -59,6 +59,8 @@ enum class TerminalCheckLevel : std::uint8_t {
     COMPREHENSIVE
 };
 
+bool last_prompt_started_with_newline = false;
+
 TerminalStatus check_terminal_health(TerminalCheckLevel level = TerminalCheckLevel::COMPREHENSIVE) {
     TerminalStatus status{true, true};
 
@@ -250,6 +252,7 @@ std::pair<std::string, bool> get_next_command(bool command_was_available) {
     cjsh_env::update_terminal_dimensions();
 
     std::string prompt = generate_prompt(command_was_available);
+    last_prompt_started_with_newline = (!prompt.empty() && prompt.front() == '\n');
     std::string inline_right_text = prompt::render_right_prompt();
 
     thread_local static std::string sanitized_buffer;
@@ -381,10 +384,11 @@ void main_process_loop() {
             break;
         }
 
-        if ((config::newline_after_execution && command_to_run != "clear" && command_available)) {
+        if (config::newline_after_execution && command_to_run != "clear" && command_available &&
+            !last_prompt_started_with_newline) {
             (void)std::fputc('\n', stdout);
             (void)std::fflush(stdout);
-            // command_available = false;
+            command_available = false;
         }
     }
 
