@@ -120,66 +120,6 @@ static void edit_history_at(ic_env_t* env, editor_t* eb, int ofs) {
 
     sbuf_clear(eb->extra);
 
-    if (eb->history_prefix_active && total_history > 0 && eb->history_idx < total_history - 1) {
-        sbuf_append(eb->extra, "[ic-diminish]");
-
-        int preview_count = 0;
-        for (int i = 1; i <= 3 && (eb->history_idx + i) < total_history; i++) {
-            const history_entry_t* preview_entry = history_snapshot_get(&snap, eb->history_idx + i);
-            if (preview_entry != NULL && preview_entry->command != NULL) {
-                if (prefix != NULL &&
-                    (strncmp(preview_entry->command, prefix, (size_t)prefix_len) != 0 ||
-                     preview_entry->command[prefix_len] == '\0')) {
-                    continue;
-                }
-
-                if (preview_count > 0) {
-                    sbuf_append(eb->extra, "\n");
-                }
-                sbuf_append(eb->extra, "[!pre]  ");
-
-                const char* newline_pos = strchr(preview_entry->command, '\n');
-                ssize_t first_line_len;
-                bool is_multiline = false;
-
-                if (newline_pos != NULL) {
-                    first_line_len = newline_pos - preview_entry->command;
-                    is_multiline = true;
-                } else {
-                    first_line_len = strlen(preview_entry->command);
-                }
-
-                ssize_t max_len = eb->termw > 50 ? eb->termw - 10 : 40;
-                if (first_line_len > max_len) {
-                    sbuf_append_n(eb->extra, preview_entry->command, max_len - 3);
-                    sbuf_append(eb->extra, "...");
-                } else {
-                    sbuf_append_n(eb->extra, preview_entry->command, first_line_len);
-                    if (is_multiline) {
-                        sbuf_append(eb->extra, "...");
-                    }
-                }
-                sbuf_append(eb->extra, "[/pre]");
-                if (preview_entry->exit_code != IC_HISTORY_EXIT_CODE_UNKNOWN) {
-                    char exit_buf[32];
-                    int exit_len = snprintf(exit_buf, sizeof(exit_buf), " (exit %d)",
-                                            preview_entry->exit_code);
-                    if (exit_len > 0) {
-                        if (exit_len >= (int)sizeof(exit_buf))
-                            exit_len = (int)sizeof(exit_buf) - 1;
-                        exit_buf[exit_len] = '\0';
-                        sbuf_appendf(eb->extra, "[ic-diminish]%s[/]", exit_buf);
-                    }
-                }
-                preview_count++;
-            }
-        }
-
-        if (preview_count > 0) {
-            sbuf_append(eb->extra, "[/ic-diminish]\n");
-        }
-    }
-
     edit_refresh(env, eb);
     history_snapshot_free(env->history, &snap);
 }
