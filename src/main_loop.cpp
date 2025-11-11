@@ -381,7 +381,7 @@ void main_process_loop() {
             break;
         }
 
-        if ((config::newline_after_execution && command_to_run != "clear") || command_available) {
+        if ((config::newline_after_execution && command_to_run != "clear" && command_available)) {
             (void)std::fputc('\n', stdout);
             (void)std::fflush(stdout);
             // command_available = false;
