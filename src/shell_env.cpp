@@ -10,6 +10,7 @@
 #include <cstring>
 #include <filesystem>
 #include <memory>
+#include <string>
 
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
@@ -19,15 +20,64 @@
 namespace cjsh_env {
 
 void setup_environment_variables(const char* argv0) {
+    std::string shell_value = "cjsh";
+    std::string existing_shell_value;
+    if (const char* existing_shell_env = getenv("SHELL");
+        existing_shell_env != nullptr && existing_shell_env[0] != '\0') {
+        existing_shell_value = existing_shell_env;
+        shell_value = existing_shell_value;
+    }
+
+    std::string candidate_shell;
+
     if (argv0 != nullptr) {
         setenv("0", argv0, 1);
-        setenv("SHELL", argv0, 1);
-        setenv("_", argv0, 1);
+        std::string argv0_str(argv0);
+        if (!argv0_str.empty() && argv0_str.front() == '-') {
+            argv0_str.erase(argv0_str.begin());
+        }
+        if (!argv0_str.empty()) {
+            if (argv0_str.find('/') != std::string::npos) {
+                std::filesystem::path path_candidate(argv0_str);
+                if (!path_candidate.is_absolute()) {
+                    path_candidate = std::filesystem::absolute(path_candidate);
+                }
+                candidate_shell = path_candidate.lexically_normal().string();
+            } else {
+                std::string resolved_shell = cjsh_filesystem::find_executable_in_path(argv0_str);
+                if (!resolved_shell.empty()) {
+                    candidate_shell = resolved_shell;
+                } else {
+                    candidate_shell = argv0_str;
+                }
+            }
+        }
     } else {
         setenv("0", "cjsh", 1);
-        setenv("SHELL", "cjsh", 1);
-        setenv("_", "cjsh", 1);
     }
+
+    if (candidate_shell.empty() && !existing_shell_value.empty() &&
+        existing_shell_value.front() == '-') {
+        candidate_shell = existing_shell_value.substr(1);
+    }
+
+    if (!candidate_shell.empty()) {
+        bool existing_invalid = existing_shell_value.empty() ||
+                                existing_shell_value.front() == '-' || shell_value == "cjsh";
+        if (existing_invalid) {
+            shell_value = candidate_shell;
+        }
+    }
+
+    if (!shell_value.empty() && shell_value.front() == '-') {
+        shell_value.erase(shell_value.begin());
+    }
+    if (shell_value.empty()) {
+        shell_value = "cjsh";
+    }
+
+    setenv("SHELL", shell_value.c_str(), 1);
+    setenv("_", shell_value.c_str(), 1);
 
     uid_t uid = getuid();
     struct passwd* pw = getpwuid(uid);

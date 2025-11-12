@@ -385,7 +385,7 @@ void main_process_loop() {
         }
 
         if (config::newline_after_execution && command_to_run != "clear" && command_available &&
-            !last_prompt_started_with_newline) {
+            !last_prompt_started_with_newline && config::uses_cleanup) {
             (void)std::fputc('\n', stdout);
             (void)std::fflush(stdout);
             command_available = false;
