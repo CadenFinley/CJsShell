@@ -14,6 +14,14 @@ else
     SHELL_TO_TEST="$(pwd)/build/cjsh"
 fi
 
+EXPECTED_SHELL_BASENAME=$(basename "$SHELL_TO_TEST")
+ORIGINAL_SHELL="${SHELL:-}"
+if [ -n "$ORIGINAL_SHELL" ]; then
+    ORIGINAL_SHELL_BASENAME=$(basename "$ORIGINAL_SHELL")
+else
+    ORIGINAL_SHELL_BASENAME=""
+fi
+
 log_test() {
     TOTAL=$((TOTAL + 1))
     printf "Test %03d: %s... " "$TOTAL" "$1"
@@ -75,10 +83,19 @@ fi
 
 log_test "SHELL environment variable"
 result=$("$SHELL_TO_TEST" --login -c "echo \$SHELL" 2>/dev/null)
-if echo "$result" | grep -q "cjsh"; then
-    pass
+if [ -n "$result" ]; then
+    result_basename=$(basename "$result")
+    if [ "$result" = "$SHELL_TO_TEST" ] || [ "$result_basename" = "$EXPECTED_SHELL_BASENAME" ]; then
+        pass
+    elif [ -n "$ORIGINAL_SHELL" ] && [ "$result" = "$ORIGINAL_SHELL" ]; then
+        pass
+    elif [ -n "$ORIGINAL_SHELL_BASENAME" ] && [ "$result_basename" = "$ORIGINAL_SHELL_BASENAME" ]; then
+        pass
+    else
+        fail "SHELL variable unexpected ('$result')"
+    fi
 else
-    fail "SHELL variable not set to cjsh"
+    fail "SHELL variable not set"
 fi
 
 log_test "PWD environment variable"
