@@ -109,30 +109,6 @@ const char* severity_to_label(ErrorSeverity severity) {
     }
 }
 
-const char* error_category_label(ShellScriptInterpreter::ErrorCategory category) {
-    using Category = ShellScriptInterpreter::ErrorCategory;
-    switch (category) {
-        case Category::SYNTAX:
-            return "syntax";
-        case Category::CONTROL_FLOW:
-            return "control-flow";
-        case Category::REDIRECTION:
-            return "redirection";
-        case Category::VARIABLES:
-            return "variables";
-        case Category::COMMANDS:
-            return "commands";
-        case Category::SEMANTICS:
-            return "semantics";
-        case Category::STYLE:
-            return "style";
-        case Category::PERFORMANCE:
-            return "performance";
-        default:
-            return "";
-    }
-}
-
 std::string format_error_location(const ShellScriptInterpreter::SyntaxError& error) {
     const auto& pos = error.position;
     if (pos.line_number == 0) {
@@ -252,7 +228,6 @@ std::string build_validation_status_message(
         message.append(severity_to_label(error->severity));
         message.append("] ");
 
-        const char* category = error_category_label(error->category);
         std::string location = format_error_location(*error);
         std::string sanitized_text = sanitize_for_status(error->message);
         std::string detail_text;
@@ -267,25 +242,8 @@ std::string build_validation_status_message(
             detail_text.append(sanitized_text);
         }
 
-        if (category != nullptr && category[0] != '\0') {
-            message.append(category);
-            message.push_back(':');
-            if (!detail_text.empty()) {
-                message.push_back(' ');
-            }
-        }
-
         if (!detail_text.empty()) {
             message.append(detail_text);
-        }
-
-        if (!error->suggestion.empty()) {
-            std::string suggestion = sanitize_for_status(error->suggestion);
-            if (!suggestion.empty()) {
-                message.push_back('\n');
-                message.append("  Hint: ");
-                message.append(suggestion);
-            }
         }
 
         if (i + 1 < sorted_errors.size()) {

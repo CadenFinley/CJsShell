@@ -1012,10 +1012,17 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
     };
 
     auto report_unclosed_entry = [&](const std::tuple<std::string, std::string, size_t>& entry) {
+        const std::string& current_state = std::get<0>(entry);
         const std::string& opening_statement = std::get<1>(entry);
         size_t opening_line = std::get<2>(entry);
         std::string expected_close = expected_close_for_entry(entry);
         if (expected_close.empty()) {
+            return;
+        }
+
+        if (opening_statement == current_state &&
+            (opening_statement == "for" || opening_statement == "while" ||
+             opening_statement == "until" || opening_statement == "if")) {
             return;
         }
 
