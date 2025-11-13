@@ -92,12 +92,6 @@ std::string sanitize_for_status(const std::string& text) {
         sanitized.erase(end + 1);
     }
 
-    constexpr size_t kMaxStatusFragment = 240;
-    if (sanitized.size() > kMaxStatusFragment) {
-        sanitized.resize(kMaxStatusFragment - 3);
-        sanitized.append("...");
-    }
-
     return sanitized;
 }
 
@@ -139,20 +133,6 @@ const char* error_category_label(ShellScriptInterpreter::ErrorCategory category)
     }
 }
 
-int severity_rank(ErrorSeverity severity) {
-    switch (severity) {
-        case ErrorSeverity::CRITICAL:
-            return 3;
-        case ErrorSeverity::ERROR:
-            return 2;
-        case ErrorSeverity::WARNING:
-            return 1;
-        case ErrorSeverity::INFO:
-        default:
-            return 0;
-    }
-}
-
 std::string format_error_location(const ShellScriptInterpreter::SyntaxError& error) {
     const auto& pos = error.position;
     if (pos.line_number == 0) {
@@ -181,7 +161,8 @@ std::string build_validation_status_message(
         size_t critical = 0;
     } buckets;
 
-    const ShellScriptInterpreter::SyntaxError* primary = nullptr;
+    std::vector<const ShellScriptInterpreter::SyntaxError*> sorted_errors;
+    sorted_errors.reserve(errors.size());
 
     for (const auto& err : errors) {
         switch (err.severity) {
@@ -200,26 +181,39 @@ std::string build_validation_status_message(
                 break;
         }
 
-        if (primary == nullptr) {
-            primary = &err;
-            continue;
-        }
-
-        int current_rank = severity_rank(err.severity);
-        int best_rank = severity_rank(primary->severity);
-
-        if (current_rank > best_rank) {
-            primary = &err;
-        } else if (current_rank == best_rank) {
-            if (err.position.line_number < primary->position.line_number ||
-                (err.position.line_number == primary->position.line_number &&
-                 err.position.column_start < primary->position.column_start)) {
-                primary = &err;
-            }
-        }
+        sorted_errors.push_back(&err);
     }
 
-    if (primary == nullptr) {
+    auto severity_rank = [](ErrorSeverity severity) {
+        switch (severity) {
+            case ErrorSeverity::CRITICAL:
+                return 3;
+            case ErrorSeverity::ERROR:
+                return 2;
+            case ErrorSeverity::WARNING:
+                return 1;
+            case ErrorSeverity::INFO:
+            default:
+                return 0;
+        }
+    };
+
+    std::sort(sorted_errors.begin(), sorted_errors.end(), [&](const auto* lhs, const auto* rhs) {
+        int lhs_rank = severity_rank(lhs->severity);
+        int rhs_rank = severity_rank(rhs->severity);
+        if (lhs_rank != rhs_rank) {
+            return lhs_rank > rhs_rank;
+        }
+        if (lhs->position.line_number != rhs->position.line_number) {
+            return lhs->position.line_number < rhs->position.line_number;
+        }
+        if (lhs->position.column_start != rhs->position.column_start) {
+            return lhs->position.column_start < rhs->position.column_start;
+        }
+        return lhs->message < rhs->message;
+    });
+
+    if (sorted_errors.empty()) {
         return {};
     }
 
@@ -259,61 +253,56 @@ std::string build_validation_status_message(
         message.push_back('\n');
     }
 
-    message.push_back('[');
-    message.append(severity_to_label(primary->severity));
-    message.append("] ");
+    for (size_t i = 0; i < sorted_errors.size(); ++i) {
+        const auto* error = sorted_errors[i];
 
-    std::string location = format_error_location(*primary);
-    std::string primary_message = sanitize_for_status(primary->message);
-    std::string detail_text;
-
-    if (!location.empty()) {
-        detail_text.append(location);
-    }
-    if (!primary_message.empty()) {
-        if (!detail_text.empty()) {
-            detail_text.append(" - ");
-        }
-        detail_text.append(primary_message);
-    }
-
-    const char* category = error_category_label(primary->category);
-    if (category != nullptr && category[0] != '\0') {
-        message.append(category);
-        message.append(":");
-        if (!detail_text.empty()) {
-            message.push_back(' ');
-        }
-    }
-
-    if (!detail_text.empty()) {
-        message.append(detail_text);
-    }
-
-    if (!primary->suggestion.empty()) {
-        std::string suggestion = sanitize_for_status(primary->suggestion);
-        if (!suggestion.empty()) {
+        if (!message.empty() && message.back() != '\n') {
             message.push_back('\n');
-            message.append("Hint: ");
-            message.append(suggestion);
         }
-    }
 
-    if (errors.size() > 1) {
-        message.push_back('\n');
-        message.push_back('(');
-        message.append(std::to_string(errors.size() - 1));
-        message.append(" additional issue");
-        if (errors.size() - 1 > 1) {
-            message.push_back('s');
+        message.push_back('[');
+        message.append(severity_to_label(error->severity));
+        message.append("] ");
+
+        const char* category = error_category_label(error->category);
+        std::string location = format_error_location(*error);
+        std::string sanitized_text = sanitize_for_status(error->message);
+        std::string detail_text;
+
+        if (!location.empty()) {
+            detail_text.append(location);
         }
-        message.append(" not shown)");
-    }
+        if (!sanitized_text.empty()) {
+            if (!detail_text.empty()) {
+                detail_text.append(" - ");
+            }
+            detail_text.append(sanitized_text);
+        }
 
-    constexpr size_t kMaxStatusLength = 512;
-    if (message.size() > kMaxStatusLength) {
-        message.resize(kMaxStatusLength - 3);
-        message.append("...");
+        if (category != nullptr && category[0] != '\0') {
+            message.append(category);
+            message.push_back(':');
+            if (!detail_text.empty()) {
+                message.push_back(' ');
+            }
+        }
+
+        if (!detail_text.empty()) {
+            message.append(detail_text);
+        }
+
+        if (!error->suggestion.empty()) {
+            std::string suggestion = sanitize_for_status(error->suggestion);
+            if (!suggestion.empty()) {
+                message.push_back('\n');
+                message.append("  Hint: ");
+                message.append(suggestion);
+            }
+        }
+
+        if (i + 1 < sorted_errors.size()) {
+            message.push_back('\n');
+        }
     }
 
     return message;

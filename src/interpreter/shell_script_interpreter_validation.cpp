@@ -1553,6 +1553,56 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
             }
 
             if (c == '$' && i + 1 < line.length()) {
+                if (i + 2 < line.length() && line[i + 1] == '(' && line[i + 2] == '(') {
+                    size_t paren_count = 2;
+                    size_t expr_start = i + 3;
+                    size_t j = expr_start;
+
+                    while (j < line.length() && paren_count > 0) {
+                        if (line[j] == '(') {
+                            paren_count++;
+                        } else if (line[j] == ')') {
+                            paren_count--;
+                        }
+                        j++;
+                    }
+
+                    if (paren_count == 0) {
+                        size_t expr_end = (j >= 2) ? j - 2 : expr_start;
+                        if (expr_end < expr_start) {
+                            expr_end = expr_start;
+                        }
+
+                        std::string expr = line.substr(expr_start, expr_end - expr_start);
+
+                        size_t pos = 0;
+                        while (pos < expr.length()) {
+                            char ec = expr[pos];
+                            if ((std::isalpha(static_cast<unsigned char>(ec)) != 0) || ec == '_') {
+                                size_t start_pos = pos;
+                                pos++;
+                                while (
+                                    pos < expr.length() &&
+                                    ((std::isalnum(static_cast<unsigned char>(expr[pos])) != 0) ||
+                                     expr[pos] == '_')) {
+                                    pos++;
+                                }
+
+                                std::string token = expr.substr(start_pos, pos - start_pos);
+                                if (!token.empty() && is_valid_identifier(token)) {
+                                    used_vars[token].push_back(adjust_display_line(
+                                        line, display_line, expr_start + start_pos));
+                                }
+                            } else {
+                                pos++;
+                            }
+                        }
+
+                        i = (j == 0) ? i : j - 1;
+                        continue;
+                    }
+                }
+
                 std::string var_name;
                 size_t var_start = i + 1;
                 size_t var_end = var_start;
@@ -1824,17 +1874,14 @@ ShellScriptInterpreter::validate_arithmetic_expressions(const std::vector<std::s
             if (c == '$' && i + 2 < line.length() && line[i + 1] == '(' && line[i + 2] == '(') {
                 size_t start = i;
                 size_t paren_count = 2;
-                size_t j = i + 3;
-                std::string expr;
+                size_t expr_start = i + 3;
+                size_t j = expr_start;
 
                 while (j < line.length() && paren_count > 0) {
                     if (line[j] == '(') {
                         paren_count++;
                     } else if (line[j] == ')') {
                         paren_count--;
-                    }
-                    if (paren_count > 0) {
-                        expr += line[j];
                     }
                     j++;
                 }
@@ -1846,6 +1893,13 @@ ShellScriptInterpreter::validate_arithmetic_expressions(const std::vector<std::s
                         {adjusted_line, start, j, 0}, ErrorSeverity::ERROR, ErrorCategory::SYNTAX,
                         "ARITH001", "Unclosed arithmetic expansion $(()", line, "Add closing ))"));
                 } else {
+                    size_t expr_end = (j >= 2) ? j - 2 : expr_start;
+                    if (expr_end < expr_start) {
+                        expr_end = expr_start;
+                    }
+
+                    std::string expr = line.substr(expr_start, expr_end - expr_start);
+
                     if (expr.empty()) {
                         line_errors.push_back(SyntaxError(
                             {adjusted_line, start, j, 0}, ErrorSeverity::ERROR,
@@ -2084,9 +2138,9 @@ ShellScriptInterpreter::validate_parameter_expansions(const std::vector<std::str
 
                         if (var_start == 0 || line.substr(0, var_start).find_first_not_of(" \t") ==
                                                   std::string::npos) {
-                            if (var_start > 0 && std::isspace(line[var_start - 1])) {
+                            if (i > 0 && std::isspace(line[i - 1])) {
                                 line_errors.push_back(SyntaxError(
-                                    {display_line, var_start - 1, i + 1, 0}, ErrorSeverity::ERROR,
+                                    {display_line, i - 1, i + 1, 0}, ErrorSeverity::ERROR,
                                     ErrorCategory::VARIABLES, "VAR005",
                                     "Variable assignment cannot have "
                                     "spaces around '='",
