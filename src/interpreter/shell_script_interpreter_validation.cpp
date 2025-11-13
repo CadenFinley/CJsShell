@@ -80,6 +80,21 @@ bool is_comment_token(const std::string& token) {
     return !token.empty() && token[0] == '#';
 }
 
+std::string extract_identifier_from_token(const std::string& token) {
+    size_t start = 0;
+    while (start < token.size() && !is_valid_identifier_start(token[start])) {
+        ++start;
+    }
+    if (start >= token.size()) {
+        return "";
+    }
+    size_t end = start + 1;
+    while (end < token.size() && is_valid_identifier_char(token[end])) {
+        ++end;
+    }
+    return token.substr(start, end - start);
+}
+
 bool is_do_token(const std::string& token) {
     if (token.size() < 2)
         return false;
@@ -1419,6 +1434,98 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
             continue;
         }
 
+        std::string trimmed_line = trim(strip_inline_comment(line));
+        if (starts_with_keyword_token(trimmed_line, "for")) {
+            auto tokens = tokenize_whitespace(trimmed_line);
+            if (tokens.size() >= 2) {
+                std::string loop_var = extract_identifier_from_token(tokens[1]);
+                if (!loop_var.empty() && is_valid_identifier(loop_var)) {
+                    size_t var_pos = line.find(loop_var);
+                    size_t offset = (var_pos != std::string::npos) ? var_pos : 0;
+                    defined_vars[loop_var].push_back(
+                        adjust_display_line(line, display_line, offset));
+                }
+            }
+        }
+
+        if (starts_with_keyword_token(trimmed_line, "export")) {
+            size_t pos = 6;  // length of "export"
+            while (pos < trimmed_line.size()) {
+                while (pos < trimmed_line.size() &&
+                       (std::isspace(static_cast<unsigned char>(trimmed_line[pos])) != 0)) {
+                    ++pos;
+                }
+                if (pos >= trimmed_line.size()) {
+                    break;
+                }
+
+                if (trimmed_line[pos] == '-') {
+                    ++pos;
+                    while (pos < trimmed_line.size() &&
+                           (std::isspace(static_cast<unsigned char>(trimmed_line[pos])) == 0)) {
+                        ++pos;
+                    }
+                    continue;
+                }
+
+                size_t name_start = pos;
+                if (!is_valid_identifier_start(trimmed_line[pos])) {
+                    while (pos < trimmed_line.size() &&
+                           (std::isspace(static_cast<unsigned char>(trimmed_line[pos])) == 0)) {
+                        ++pos;
+                    }
+                    continue;
+                }
+
+                ++pos;
+                while (pos < trimmed_line.size() && is_valid_identifier_char(trimmed_line[pos])) {
+                    ++pos;
+                }
+
+                size_t name_end = pos;
+                if (pos < trimmed_line.size() && trimmed_line[pos] == '+' &&
+                    pos + 1 < trimmed_line.size() && trimmed_line[pos + 1] == '=') {
+                    ++pos;
+                }
+
+                if (pos < trimmed_line.size() && trimmed_line[pos] == '=') {
+                    ++pos;
+                    bool in_single = false;
+                    bool in_double = false;
+                    while (pos < trimmed_line.size()) {
+                        char ch = trimmed_line[pos];
+                        if (ch == '\\' && pos + 1 < trimmed_line.size()) {
+                            pos += 2;
+                            continue;
+                        }
+                        if (!in_single && ch == '"') {
+                            in_double = !in_double;
+                            ++pos;
+                            continue;
+                        }
+                        if (!in_double && ch == '\'') {
+                            in_single = !in_single;
+                            ++pos;
+                            continue;
+                        }
+                        if (!in_single && !in_double &&
+                            (std::isspace(static_cast<unsigned char>(ch)) != 0)) {
+                            break;
+                        }
+                        ++pos;
+                    }
+                }
+
+                std::string exported_name = trimmed_line.substr(name_start, name_end - name_start);
+                if (!exported_name.empty() && is_valid_identifier(exported_name)) {
+                    size_t var_pos = line.find(exported_name);
+                    size_t offset = (var_pos != std::string::npos) ? var_pos : 0;
+                    defined_vars[exported_name].push_back(
+                        adjust_display_line(line, display_line, offset));
+                }
+            }
+        }
+
         size_t eq_pos = line.find('=');
         if (eq_pos != std::string::npos) {
             std::string before_eq = line.substr(0, eq_pos);
@@ -1489,6 +1596,7 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                 var_name != "TMUX" && var_name != "DISPLAY" && var_name != "EDITOR" &&
                 var_name != "PAGER" && var_name != "LANG" && var_name != "LC_ALL" &&
                 var_name != "TZ" && var_name != "SSH_CLIENT" && var_name != "SSH_TTY" &&
+                var_name != "SHLVL" && var_name != "OLDPWD" && var_name != "PS1" &&
                 (std::isdigit(var_name[0]) == 0)) {
                 for (size_t line : usage_lines) {
                     errors.push_back(SyntaxError(
