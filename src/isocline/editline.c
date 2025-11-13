@@ -1750,14 +1750,47 @@ static void edit_insert_unicode(ic_env_t* env, editor_t* eb, unicode_t u) {
     edit_refresh_hint(env, eb);
 }
 
+static bool edit_is_word_char(char ch) {
+    return (ch != 0 && (isalnum((unsigned char)ch) || ch == '_'));
+}
+
+static bool edit_is_escaped_at(stringbuf_t* input, ssize_t index) {
+    if (input == NULL || index <= 0)
+        return false;
+    ssize_t backslash_count = 0;
+    for (ssize_t i = index - 1; i >= 0; --i) {
+        if (sbuf_char_at(input, i) != '\\')
+            break;
+        backslash_count++;
+    }
+    return (backslash_count % 2) == 1;
+}
+
 static void edit_auto_brace(ic_env_t* env, editor_t* eb, char c) {
     if (env->no_autobrace)
         return;
     const char* braces = ic_env_get_auto_braces(env);
     for (const char* b = braces; *b != 0; b += 2) {
-        if (*b == c) {
-            const char close = b[1];
-            // if (sbuf_char_at(eb->input, eb->pos) != close) {
+        const char open = b[0];
+        const char close = b[1];
+        const bool symmetric = (open == close);
+        if (open == c) {
+            if (symmetric) {
+                const ssize_t inserted_index = eb->pos - 1;
+                const bool escaped = edit_is_escaped_at(eb->input, inserted_index);
+                const char next = sbuf_char_at(eb->input, eb->pos);
+                if (!escaped && next == close) {
+                    // move over existing auto-inserted closing quote
+                    sbuf_delete_char_at(eb->input, eb->pos);
+                    return;
+                }
+                if (escaped)
+                    return;
+                if (open == '\'' && edit_is_word_char(sbuf_char_at(eb->input, inserted_index - 1)))
+                    return;
+                sbuf_insert_char_at(eb->input, close, eb->pos);
+                return;
+            }
             sbuf_insert_char_at(eb->input, close, eb->pos);
             bool balanced = false;
             find_matching_brace(sbuf_string(eb->input), eb->pos, braces, &balanced);
@@ -1765,10 +1798,9 @@ static void edit_auto_brace(ic_env_t* env, editor_t* eb, char c) {
                 // don't insert if it leads to an unbalanced expression.
                 sbuf_delete_char_at(eb->input, eb->pos);
             }
-            //}
             return;
-        } else if (b[1] == c) {
-            // close brace, check if there we don't overwrite to the right
+        } else if (!symmetric && close == c) {
+            // close brace, check if we don't overwrite to the right
             if (sbuf_char_at(eb->input, eb->pos) == c) {
                 sbuf_delete_char_at(eb->input, eb->pos);
             }
