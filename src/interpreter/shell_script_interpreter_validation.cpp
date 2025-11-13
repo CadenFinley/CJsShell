@@ -1020,6 +1020,10 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
             return;
         }
 
+        if (current_state == "case-header") {
+            return;
+        }
+
         if (opening_statement == current_state &&
             (opening_statement == "for" || opening_statement == "while" ||
              opening_statement == "until" || opening_statement == "if")) {
@@ -1320,8 +1324,21 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                             {display_line, "'case' statement missing 'in' clause", line});
                     }
 
+                    bool header_complete = !case_check.incomplete && !case_check.missing_in_keyword;
                     if (!has_inline_terminator(trimmed_for_parsing, "esac")) {
-                        control_stack.push_back({"case", "case", display_line});
+                        control_stack.push_back({"case-header", "case", display_line});
+                        if (header_complete) {
+                            std::get<0>(control_stack.back()) = "case";
+                        }
+                    }
+                }
+
+                else if (first_token == "in") {
+                    if (!control_stack.empty()) {
+                        auto& top = control_stack.back();
+                        if (std::get<1>(top) == "case" && std::get<0>(top) == "case-header") {
+                            std::get<0>(top) = "case";
+                        }
                     }
                 } else if (first_token == "esac") {
                     if (require_top({"case"}, "'esac' without matching 'case'")) {
@@ -1647,14 +1664,11 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
     }
 
     for (const auto& [var_name, usage_lines] : used_vars) {
-        if (defined_vars.find(var_name) == defined_vars.end()) {
-            if (var_name != "PATH" && var_name != "HOME" && var_name != "USER" &&
-                var_name != "PWD" && var_name != "SHELL" && var_name != "TERM" &&
-                var_name != "TMUX" && var_name != "DISPLAY" && var_name != "EDITOR" &&
-                var_name != "PAGER" && var_name != "LANG" && var_name != "LC_ALL" &&
-                var_name != "TZ" && var_name != "SSH_CLIENT" && var_name != "SSH_TTY" &&
-                var_name != "SHLVL" && var_name != "OLDPWD" && var_name != "PS1" &&
-                (std::isdigit(var_name[0]) == 0)) {
+        const bool defined_in_script = defined_vars.find(var_name) != defined_vars.end();
+        const bool known_to_environment = variable_is_set(var_name);
+
+        if (!defined_in_script && !known_to_environment) {
+            if ((std::isdigit(var_name[0]) == 0)) {
                 for (size_t line : usage_lines) {
                     errors.push_back(SyntaxError(
                         {line, 0, 0, 0}, ErrorSeverity::WARNING, ErrorCategory::VARIABLES, "VAR002",
