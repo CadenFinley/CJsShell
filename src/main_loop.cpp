@@ -241,18 +241,6 @@ std::string build_validation_status_message(
     std::string message;
     message.reserve(256);
 
-    if (!counter_parts.empty()) {
-        message.append("Validation issues: ");
-        for (size_t i = 0; i < counter_parts.size(); ++i) {
-            if (i > 0) {
-                message.append(", ");
-            }
-            message.append(counter_parts[i]);
-        }
-        message.push_back('.');
-        message.push_back('\n');
-    }
-
     for (size_t i = 0; i < sorted_errors.size(); ++i) {
         const auto* error = sorted_errors[i];
 
