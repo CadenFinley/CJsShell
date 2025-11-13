@@ -853,8 +853,9 @@ static bool edit_refresh_rows_iter(const char* s, ssize_t row, ssize_t row_start
         term_clear_to_end_of_line(term);
         term_writeln(term, "");
     } else {
-        // Handle inline right-aligned text on the last (input) row
-        if (row == 0 && !info->in_extra && info->eb->inline_right_text != NULL) {
+        if (info->in_extra) {
+            term_clear_to_end_of_line(term);
+        } else if (row == 0 && info->eb->inline_right_text != NULL) {
             ssize_t promptw, cpromptw;
             edit_get_prompt_width(info->env, info->eb, info->in_extra, &promptw, &cpromptw);
 

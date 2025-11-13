@@ -4,12 +4,14 @@
 #include <sys/types.h>
 #include <termios.h>
 #include <unistd.h>
+#include <algorithm>
 #include <cctype>
 #include <cerrno>
 #include <csignal>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <exception>
 #include <iostream>
 #include <memory>
 #include <sstream>
@@ -38,9 +40,284 @@
 #include "prompt.h"
 #include "shell.h"
 #include "shell_env.h"
+#include "shell_script_interpreter.h"
 #include "typeahead.h"
 
 namespace {
+
+std::string sanitize_for_status(const std::string& text) {
+    if (text.empty()) {
+        return {};
+    }
+
+    std::string sanitized;
+    sanitized.reserve(text.size());
+    bool previous_space = false;
+
+    for (char ch : text) {
+        unsigned char uch = static_cast<unsigned char>(ch);
+        char normalized = ch;
+
+        if (normalized == '\n' || normalized == '\r' || normalized == '\t') {
+            normalized = ' ';
+        }
+
+        if (std::iscntrl(uch) && normalized != ' ') {
+            continue;
+        }
+
+        if (normalized == ' ') {
+            if (sanitized.empty() || previous_space) {
+                previous_space = true;
+                continue;
+            }
+            previous_space = true;
+        } else {
+            previous_space = false;
+        }
+
+        sanitized.push_back(normalized);
+    }
+
+    size_t start = sanitized.find_first_not_of(' ');
+    if (start == std::string::npos) {
+        return {};
+    }
+    if (start > 0) {
+        sanitized.erase(0, start);
+    }
+
+    size_t end = sanitized.find_last_not_of(' ');
+    if (end != std::string::npos && end + 1 < sanitized.size()) {
+        sanitized.erase(end + 1);
+    }
+
+    constexpr size_t kMaxStatusFragment = 240;
+    if (sanitized.size() > kMaxStatusFragment) {
+        sanitized.resize(kMaxStatusFragment - 3);
+        sanitized.append("...");
+    }
+
+    return sanitized;
+}
+
+const char* severity_to_label(ErrorSeverity severity) {
+    switch (severity) {
+        case ErrorSeverity::CRITICAL:
+            return "critical";
+        case ErrorSeverity::ERROR:
+            return "error";
+        case ErrorSeverity::WARNING:
+            return "warning";
+        case ErrorSeverity::INFO:
+        default:
+            return "info";
+    }
+}
+
+const char* error_category_label(ShellScriptInterpreter::ErrorCategory category) {
+    using Category = ShellScriptInterpreter::ErrorCategory;
+    switch (category) {
+        case Category::SYNTAX:
+            return "syntax";
+        case Category::CONTROL_FLOW:
+            return "control-flow";
+        case Category::REDIRECTION:
+            return "redirection";
+        case Category::VARIABLES:
+            return "variables";
+        case Category::COMMANDS:
+            return "commands";
+        case Category::SEMANTICS:
+            return "semantics";
+        case Category::STYLE:
+            return "style";
+        case Category::PERFORMANCE:
+            return "performance";
+        default:
+            return "";
+    }
+}
+
+int severity_rank(ErrorSeverity severity) {
+    switch (severity) {
+        case ErrorSeverity::CRITICAL:
+            return 3;
+        case ErrorSeverity::ERROR:
+            return 2;
+        case ErrorSeverity::WARNING:
+            return 1;
+        case ErrorSeverity::INFO:
+        default:
+            return 0;
+    }
+}
+
+std::string format_error_location(const ShellScriptInterpreter::SyntaxError& error) {
+    const auto& pos = error.position;
+    if (pos.line_number == 0) {
+        return {};
+    }
+
+    std::string location = "line ";
+    location += std::to_string(pos.line_number);
+    if (pos.column_start > 0) {
+        location += ", col ";
+        location += std::to_string(pos.column_start + 1);
+    }
+    return location;
+}
+
+std::string build_validation_status_message(
+    const std::vector<ShellScriptInterpreter::SyntaxError>& errors) {
+    if (errors.empty()) {
+        return {};
+    }
+
+    struct SeverityBuckets {
+        size_t info = 0;
+        size_t warning = 0;
+        size_t error = 0;
+        size_t critical = 0;
+    } buckets;
+
+    const ShellScriptInterpreter::SyntaxError* primary = nullptr;
+
+    for (const auto& err : errors) {
+        switch (err.severity) {
+            case ErrorSeverity::CRITICAL:
+                ++buckets.critical;
+                break;
+            case ErrorSeverity::ERROR:
+                ++buckets.error;
+                break;
+            case ErrorSeverity::WARNING:
+                ++buckets.warning;
+                break;
+            case ErrorSeverity::INFO:
+            default:
+                ++buckets.info;
+                break;
+        }
+
+        if (primary == nullptr) {
+            primary = &err;
+            continue;
+        }
+
+        int current_rank = severity_rank(err.severity);
+        int best_rank = severity_rank(primary->severity);
+
+        if (current_rank > best_rank) {
+            primary = &err;
+        } else if (current_rank == best_rank) {
+            if (err.position.line_number < primary->position.line_number ||
+                (err.position.line_number == primary->position.line_number &&
+                 err.position.column_start < primary->position.column_start)) {
+                primary = &err;
+            }
+        }
+    }
+
+    if (primary == nullptr) {
+        return {};
+    }
+
+    std::vector<std::string> counter_parts;
+    counter_parts.reserve(4);
+
+    auto append_part = [&counter_parts](size_t count, const char* label) {
+        if (count == 0) {
+            return;
+        }
+        std::string part = std::to_string(count);
+        part.push_back(' ');
+        part.append(label);
+        if (count > 1) {
+            part.push_back('s');
+        }
+        counter_parts.push_back(std::move(part));
+    };
+
+    append_part(buckets.critical, "critical");
+    append_part(buckets.error, "error");
+    append_part(buckets.warning, "warning");
+    append_part(buckets.info, "info");
+
+    std::string message;
+    message.reserve(256);
+
+    if (!counter_parts.empty()) {
+        message.append("Validation issues: ");
+        for (size_t i = 0; i < counter_parts.size(); ++i) {
+            if (i > 0) {
+                message.append(", ");
+            }
+            message.append(counter_parts[i]);
+        }
+        message.push_back('.');
+        message.push_back('\n');
+    }
+
+    message.push_back('[');
+    message.append(severity_to_label(primary->severity));
+    message.append("] ");
+
+    std::string location = format_error_location(*primary);
+    std::string primary_message = sanitize_for_status(primary->message);
+    std::string detail_text;
+
+    if (!location.empty()) {
+        detail_text.append(location);
+    }
+    if (!primary_message.empty()) {
+        if (!detail_text.empty()) {
+            detail_text.append(" - ");
+        }
+        detail_text.append(primary_message);
+    }
+
+    const char* category = error_category_label(primary->category);
+    if (category != nullptr && category[0] != '\0') {
+        message.append(category);
+        message.append(":");
+        if (!detail_text.empty()) {
+            message.push_back(' ');
+        }
+    }
+
+    if (!detail_text.empty()) {
+        message.append(detail_text);
+    }
+
+    if (!primary->suggestion.empty()) {
+        std::string suggestion = sanitize_for_status(primary->suggestion);
+        if (!suggestion.empty()) {
+            message.push_back('\n');
+            message.append("Hint: ");
+            message.append(suggestion);
+        }
+    }
+
+    if (errors.size() > 1) {
+        message.push_back('\n');
+        message.push_back('(');
+        message.append(std::to_string(errors.size() - 1));
+        message.append(" additional issue");
+        if (errors.size() - 1 > 1) {
+            message.push_back('s');
+        }
+        message.append(" not shown)");
+    }
+
+    constexpr size_t kMaxStatusLength = 512;
+    if (message.size() > kMaxStatusLength) {
+        message.resize(kMaxStatusLength - 3);
+        message.append("...");
+    }
+
+    return message;
+}
 
 struct CommandInfo {
     std::string command;
@@ -342,20 +619,62 @@ std::string previous_passed_buffer;
 const char* create_below_syntax_message(const char* input_buffer, void*) {
     static thread_local std::string status_message;
 
-    // avoid recomputing if the input buffer hasn't changed
-    if (previous_passed_buffer == input_buffer)
-        return status_message.c_str();
+    const std::string current_input = (input_buffer != nullptr) ? input_buffer : "";
 
-    previous_passed_buffer = input_buffer;
+    if (previous_passed_buffer == current_input) {
+        return status_message.empty() ? nullptr : status_message.c_str();
+    }
 
-    // no current input, so no needed status message
-    if (input_buffer == nullptr || input_buffer[0] == '\0') {
+    previous_passed_buffer = current_input;
+
+    if (current_input.empty()) {
         status_message.clear();
         return nullptr;
     }
 
-    status_message.assign("this is the users current input: ");
-    status_message.append(input_buffer);
+    bool has_visible_content = std::any_of(current_input.begin(), current_input.end(), [](char ch) {
+        return std::isspace(static_cast<unsigned char>(ch)) == 0;
+    });
+
+    if (!has_visible_content) {
+        status_message.clear();
+        return nullptr;
+    }
+
+    Shell* shell = g_shell.get();
+    if (shell == nullptr) {
+        status_message.clear();
+        return nullptr;
+    }
+
+    ShellScriptInterpreter* interpreter = shell->get_shell_script_interpreter();
+    if (interpreter == nullptr) {
+        status_message.clear();
+        return nullptr;
+    }
+
+    std::vector<std::string> lines = interpreter->parse_into_lines(current_input);
+    if (lines.empty()) {
+        lines.emplace_back(current_input);
+    }
+
+    std::vector<ShellScriptInterpreter::SyntaxError> errors;
+    try {
+        errors = interpreter->validate_comprehensive_syntax(lines);
+    } catch (const std::exception& ex) {
+        status_message.assign("Validation failed: ");
+        status_message.append(sanitize_for_status(ex.what()));
+        return status_message.c_str();
+    } catch (...) {
+        status_message.assign("Validation failed: unknown error.");
+        return status_message.c_str();
+    }
+
+    status_message = build_validation_status_message(errors);
+    if (status_message.empty()) {
+        return nullptr;
+    }
+
     return status_message.c_str();
 }
 
