@@ -98,6 +98,7 @@ static ic_env_t* ic_env_create(ic_malloc_fun_t* _malloc, ic_realloc_fun_t* _real
     bbcode_style_def(env->bbcode, "ic-linenumbers", "ansi-lightgray");
     bbcode_style_def(env->bbcode, "ic-linenumber-current", "ansi-yellow");
     bbcode_style_def(env->bbcode, "ic-info", "ansi-darkgray");
+    bbcode_style_def(env->bbcode, "ic-status", "ansi-darkgray");
     bbcode_style_def(env->bbcode, "ic-source", "#ffffd7");
     bbcode_style_def(env->bbcode, "ic-diminish", "ansi-lightgray");
     bbcode_style_def(env->bbcode, "ic-emphasis", "#ffffd7");
@@ -173,7 +174,7 @@ ic_private ic_env_t* ic_get_env(void) {
     if (rpenv == NULL) {
         rpenv = ic_env_create(NULL, NULL, NULL);
         if (rpenv != NULL) {
-            atexit(&ic_atexit);
+            (void)atexit(&ic_atexit);
         }
     }
     if (!ic_default_abbreviations_initialized && rpenv != NULL) {
@@ -193,7 +194,7 @@ ic_public void ic_init_custom_malloc(ic_malloc_fun_t* _malloc, ic_realloc_fun_t*
     } else {
         rpenv = ic_env_create(_malloc, _realloc, _free);
         if (rpenv != NULL) {
-            atexit(&ic_atexit);
+            (void)atexit(&ic_atexit);
         }
     }
 }

@@ -107,6 +107,20 @@ typedef bool(ic_unhandled_key_fun_t)(ic_keycode_t key, void* arg);
 /// @param arg User-provided argument that will be passed to the callback
 void ic_set_unhandled_key_handler(ic_unhandled_key_fun_t* callback, void* arg);
 
+/// Callback that produces a transient status message below the current input.
+/// The callback runs before each key read while readline is active. The returned
+/// string is copied immediately, so it does not need to remain valid after the
+/// function returns. Return NULL or an empty string to hide the status message.
+/// @param input_buffer The current readline buffer (UTF-8, null-terminated).
+/// @param arg User-provided argument passed to ic_set_status_message_callback()
+/// @returns Pointer to a UTF-8 string or NULL for no message.
+typedef const char*(ic_status_message_fun_t)(const char* input_buffer, void* arg);
+
+/// Set the status message callback that renders text below the current input.
+/// @param callback The callback that produces the status message, or NULL to disable
+/// @param arg User-provided argument forwarded to the callback
+void ic_set_status_message_callback(ic_status_message_fun_t* callback, void* arg);
+
 /// Queue multiple key events so they are processed before the next read.
 /// Returns `false` if the readline environment is not yet initialized.
 bool ic_push_key_sequence(const ic_keycode_t* keys, size_t count);

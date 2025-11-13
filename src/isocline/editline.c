@@ -30,6 +30,7 @@
 typedef struct editor_s {
     stringbuf_t* input;           // current user input
     stringbuf_t* extra;           // extra displayed info (for completion menu etc)
+    stringbuf_t* status;          // transient status message below the prompt
     stringbuf_t* hint;            // hint displayed as part of the input
     stringbuf_t* hint_help;       // help for a hint.
     stringbuf_t* history_prefix;  // cached prefix before history navigation
@@ -229,6 +230,8 @@ static void insert_initial_input(const char* initial_input,
 static char* edit_line(ic_env_t* env, const char* prompt_text,
                        const char* inline_right_text);  // defined at bottom
 static void edit_refresh(ic_env_t* env, editor_t* eb);
+static bool sbuf_ends_with_newline(stringbuf_t* sbuf);
+static bool edit_update_status_message(ic_env_t* env, editor_t* eb);
 
 ic_private char* ic_editline(ic_env_t* env, const char* prompt_text,
                              const char* inline_right_text) {
@@ -921,6 +924,13 @@ static void edit_refresh_rows(ic_env_t* env, editor_t* eb, stringbuf_t* input, a
     sbuf_for_each_row(input, eb->termw, promptw, cpromptw, &edit_refresh_rows_iter, &info, NULL);
 }
 
+static bool sbuf_ends_with_newline(stringbuf_t* sbuf) {
+    ssize_t len = sbuf_len(sbuf);
+    if (len <= 0)
+        return false;
+    return (sbuf_char_at(sbuf, len - 1) == '\n');
+}
+
 static void edit_refresh(ic_env_t* env, editor_t* eb) {
     // calculate the new cursor row and total rows needed
     ssize_t promptw, cpromptw;
@@ -947,13 +957,36 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
         sbuf_insert_at(eb->input, sbuf_string(eb->hint), eb->pos);
     }
 
-    // render extra (like a completion menu)
+    // render extra (like a completion menu) and status message
     stringbuf_t* extra = NULL;
-    if (sbuf_len(eb->extra) > 0) {
+    const bool menu_active = (sbuf_len(eb->extra) > 0);
+
+    if (!menu_active && sbuf_len(eb->status) > 0) {
         extra = sbuf_new(eb->mem);
         if (extra != NULL) {
-            if (sbuf_len(eb->hint_help) > 0) {
-                bbcode_append(env->bbcode, sbuf_string(eb->hint_help), extra, eb->attrs_extra);
+            bbcode_append(env->bbcode, sbuf_string(eb->status), extra, eb->attrs_extra);
+        }
+    }
+
+    if (sbuf_len(eb->hint_help) > 0) {
+        if (extra == NULL) {
+            extra = sbuf_new(eb->mem);
+        }
+        if (extra != NULL) {
+            if (sbuf_len(extra) > 0 && !sbuf_ends_with_newline(extra)) {
+                bbcode_append(env->bbcode, "\n", extra, eb->attrs_extra);
+            }
+            bbcode_append(env->bbcode, sbuf_string(eb->hint_help), extra, eb->attrs_extra);
+        }
+    }
+
+    if (menu_active) {
+        if (extra == NULL) {
+            extra = sbuf_new(eb->mem);
+        }
+        if (extra != NULL) {
+            if (sbuf_len(extra) > 0 && !sbuf_ends_with_newline(extra)) {
+                bbcode_append(env->bbcode, "\n", extra, eb->attrs_extra);
             }
             bbcode_append(env->bbcode, sbuf_string(eb->extra), extra, eb->attrs_extra);
         }
@@ -1908,6 +1941,37 @@ static void insert_initial_input(const char* initial_input, editor_t* eb) {
     }
 }
 
+static bool edit_update_status_message(ic_env_t* env, editor_t* eb) {
+    if (env == NULL || eb == NULL || eb->status == NULL)
+        return false;
+
+    const char* next = NULL;
+    if (env->status_message_callback != NULL) {
+        const char* input_text = sbuf_string(eb->input);
+        next = env->status_message_callback(input_text != NULL ? input_text : "",
+                                            env->status_message_arg);
+        if (next != NULL && next[0] == '\0') {
+            next = NULL;
+        }
+    }
+
+    if (next == NULL) {
+        if (sbuf_len(eb->status) > 0) {
+            sbuf_clear(eb->status);
+            return true;
+        }
+        return false;
+    }
+
+    const char* current = sbuf_string(eb->status);
+    if (current != NULL && strcmp(current, next) == 0) {
+        return false;
+    }
+
+    sbuf_replace(eb->status, next);
+    return true;
+}
+
 static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inline_right_text) {
     // set up an edit buffer
     editor_t eb;
@@ -1915,6 +1979,7 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
     eb.mem = env->mem;
     eb.input = sbuf_new(env->mem);
     eb.extra = sbuf_new(env->mem);
+    eb.status = sbuf_new(env->mem);
     eb.hint = sbuf_new(env->mem);
     eb.hint_help = sbuf_new(env->mem);
     eb.history_prefix = sbuf_new(env->mem);
@@ -1952,10 +2017,11 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
         seeded_multiline_lines = apply_default_multiline_start_lines(env, &eb);
     }
 
-    if (eb.input == NULL || eb.extra == NULL || eb.hint == NULL || eb.hint_help == NULL ||
-        eb.history_prefix == NULL) {
+    if (eb.input == NULL || eb.extra == NULL || eb.status == NULL || eb.hint == NULL ||
+        eb.hint_help == NULL || eb.history_prefix == NULL) {
         sbuf_free(eb.input);
         sbuf_free(eb.extra);
+        sbuf_free(eb.status);
         sbuf_free(eb.hint);
         sbuf_free(eb.hint_help);
         sbuf_free(eb.history_prefix);
@@ -1982,12 +2048,28 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
     // always a history entry for the current input
     history_push(env->history, "");
 
+    if (edit_update_status_message(env, &eb)) {
+        if (eb.refresh_suppressed) {
+            eb.refresh_pending = true;
+        } else {
+            edit_refresh(env, &eb);
+        }
+    }
+
     // process keys
     code_t c;  // current key code
     bool ctrl_c_pressed = false;
     bool ctrl_d_pressed = false;
 
     while (true) {
+        if (edit_update_status_message(env, &eb)) {
+            if (eb.refresh_suppressed) {
+                eb.refresh_pending = true;
+            } else {
+                edit_refresh(env, &eb);
+            }
+        }
+
         // read a character
         term_flush(env->term);
         if (env->hint_delay <= 0 || sbuf_len(eb.hint) == 0) {
@@ -2324,6 +2406,7 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
     attrbuf_free(eb.attrs_extra);
     sbuf_free(eb.input);
     sbuf_free(eb.extra);
+    sbuf_free(eb.status);
     sbuf_free(eb.hint);
     sbuf_free(eb.hint_help);
     sbuf_free(eb.history_prefix);
@@ -2451,6 +2534,10 @@ ic_public bool ic_current_loop_reset(const char* new_buffer, const char* new_pro
 
     // Rewrite the prompt
     edit_write_prompt(env, eb, 0, false, 0);
+
+    if (edit_update_status_message(env, eb) && eb->refresh_suppressed) {
+        eb->refresh_pending = true;
+    }
 
     // Refresh the entire display
     edit_refresh(env, eb);

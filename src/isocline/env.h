@@ -46,11 +46,13 @@ struct ic_env_s {
                                       // (defaults to `prompt_marker`)
     ic_highlight_fun_t* highlighter;  // highlight callback
     void* highlighter_arg;            // user state for the highlighter.
-    ic_unhandled_key_fun_t* unhandled_key_handler;  // callback for unhandled keys
-    void* unhandled_key_arg;                        // user state for unhandled key handler
-    const char* match_braces;                       // matching braces, e.g "()[]{}"
-    const char* auto_braces;                        // auto insertion braces, e.g "()[]{}\"\"''"
-    const char* initial_input;                      // initial input text to insert into editor
+    ic_unhandled_key_fun_t* unhandled_key_handler;     // callback for unhandled keys
+    void* unhandled_key_arg;                           // user state for unhandled key handler
+    ic_status_message_fun_t* status_message_callback;  // callback for status message text
+    void* status_message_arg;                          // user state for status callback
+    const char* match_braces;                          // matching braces, e.g "()[]{}"
+    const char* auto_braces;                           // auto insertion braces, e.g "()[]{}\"\"''"
+    const char* initial_input;                         // initial input text to insert into editor
     char multiline_eol;                      // character used for multiline input ("\") (set to 0
                                              // to disable)
     bool initialized;                        // are we initialized?

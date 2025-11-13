@@ -10,8 +10,7 @@ const std::unordered_set<std::string> command_operators = {"&&", "||", "|", ";"}
 
 const std::unordered_set<std::string> shell_keywords = {
     "if",    "then", "else", "elif", "fi",       "case",   "in",   "esac",   "while",
-    "until", "for",  "do",   "done", "function", "select", "time", "coproc", "{",
-    "}",     "[[",   "]]",   "(",    ")",        ":",      "[",    "]"};
+    "until", "for",  "do",   "done", "function", "select", "time", "coproc", ":"};
 
 const std::unordered_set<std::string> redirection_operators = {
     ">",  ">>",  "<",  "<<",  "<<<",  "&>",   "&>>", "<&", ">&", "|&",

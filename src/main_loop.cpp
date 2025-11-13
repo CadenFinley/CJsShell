@@ -337,6 +337,28 @@ bool handle_runoff_bind(ic_keycode_t key, void*) {
     return false;
 }
 
+std::string previous_passed_buffer;
+
+const char* create_below_syntax_message(const char* input_buffer, void*) {
+    static thread_local std::string status_message;
+
+    // avoid recomputing if the input buffer hasn't changed
+    if (previous_passed_buffer == input_buffer)
+        return status_message.c_str();
+
+    previous_passed_buffer = input_buffer;
+
+    // no current input, so no needed status message
+    if (input_buffer == nullptr || input_buffer[0] == '\0') {
+        status_message.clear();
+        return nullptr;
+    }
+
+    status_message.assign("this is the users current input: ");
+    status_message.append(input_buffer);
+    return status_message.c_str();
+}
+
 }  // namespace
 
 void initialize_isocline() {
@@ -345,6 +367,7 @@ void initialize_isocline() {
     ic_enable_history_duplicates(false);
     ic_set_prompt_marker("", nullptr);
     ic_set_unhandled_key_handler(handle_runoff_bind, nullptr);
+    ic_set_status_message_callback(create_below_syntax_message, nullptr);
 }
 
 void main_process_loop() {

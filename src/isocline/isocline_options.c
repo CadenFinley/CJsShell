@@ -512,6 +512,14 @@ ic_public void ic_set_unhandled_key_handler(ic_unhandled_key_fun_t* callback, vo
     env->unhandled_key_arg = arg;
 }
 
+ic_public void ic_set_status_message_callback(ic_status_message_fun_t* callback, void* arg) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return;
+    env->status_message_callback = callback;
+    env->status_message_arg = arg;
+}
+
 ic_public void ic_free(void* p) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)
