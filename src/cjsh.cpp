@@ -257,9 +257,12 @@ int initialize_login_mode() {
 }
 
 void start_interactive_process() {
-    auto startup_end_time = std::chrono::steady_clock::now();
-    auto startup_duration = std::chrono::duration_cast<std::chrono::microseconds>(
-        startup_end_time - g_startup_begin_time);
+    std::chrono::microseconds startup_duration(0);
+    if (config::show_startup_time) {
+        auto startup_end_time = std::chrono::steady_clock::now();
+        startup_duration = std::chrono::duration_cast<std::chrono::microseconds>(
+            startup_end_time - g_startup_begin_time);
+    }
 
     if (config::show_title_line) {
         std::cout << " CJ's Shell v" << get_version() << " - Caden J Finley (c) 2025" << '\n';
