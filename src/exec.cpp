@@ -27,6 +27,7 @@
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "error_out.h"
+#include "interpreter/shell_script_interpreter.h"
 #include "interpreter/shell_script_interpreter_error_reporter.h"
 #include "job_control.h"
 #include "parser.h"
@@ -1761,6 +1762,9 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                     close(pipes[j][1]);
                 }
 
+                ShellScriptInterpreter* interpreter =
+                    g_shell ? g_shell->get_shell_script_interpreter() : nullptr;
+
                 if (is_shell_control_structure(cmd)) {
                     int exit_code = 1;
                     if (g_shell) {
@@ -1768,6 +1772,13 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                     }
                     (void)fflush(stdout);
                     (void)fflush(stderr);
+                    _exit(exit_code);
+                } else if (interpreter && interpreter->has_function(cmd.args[0])) {
+                    int exit_code = interpreter->invoke_function(cmd.args);
+
+                    (void)fflush(stdout);
+                    (void)fflush(stderr);
+
                     _exit(exit_code);
                 } else if (g_shell && (g_shell->get_built_ins() != nullptr) &&
                            (g_shell->get_built_ins()->is_builtin_command(cmd.args[0]) != 0)) {

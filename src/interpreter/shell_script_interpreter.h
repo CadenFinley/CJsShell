@@ -103,6 +103,7 @@ class ShellScriptInterpreter {
 
     bool has_function(const std::string& name) const;
     std::vector<std::string> get_function_names() const;
+    int invoke_function(const std::vector<std::string>& args);
 
     std::string expand_parameter_expression(const std::string& param_expr);
 

@@ -178,6 +178,19 @@ int ShellScriptInterpreter::execute_function_call(const std::vector<std::string>
     return set_last_status(exit_code);
 }
 
+int ShellScriptInterpreter::invoke_function(const std::vector<std::string>& args) {
+    if (args.empty()) {
+        return set_last_status(0);
+    }
+
+    auto it = functions.find(args[0]);
+    if (it == functions.end()) {
+        return set_last_status(127);
+    }
+
+    return execute_function_call(args);
+}
+
 int ShellScriptInterpreter::handle_env_assignment(const std::vector<std::string>& expanded_args) {
     std::string var_name;
     std::string var_value;
@@ -276,6 +289,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         }
 
         std::vector<std::string> parsed_args;
+        std::vector<Command> cmds;
         try {
             text = expand_all_substitutions(text, execute_simple_or_pipeline);
 
@@ -335,7 +349,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         }
 
         try {
-            std::vector<Command> cmds = shell_parser->parse_pipeline_with_preprocessing(text);
+            cmds = shell_parser->parse_pipeline_with_preprocessing(pipeline_source);
 
             bool has_redir_or_pipe = cmds.size() > 1;
             if (!has_redir_or_pipe && !cmds.empty()) {
@@ -922,6 +936,56 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                     int code = 0;
                     bool is_function_call = false;
                     {
+                        auto command_has_pipeline = [](const std::string& command) {
+                            bool in_single = false;
+                            bool in_double = false;
+                            bool escaped = false;
+                            int paren_depth = 0;
+
+                            for (size_t idx = 0; idx < command.size(); ++idx) {
+                                char ch = command[idx];
+
+                                if (escaped) {
+                                    escaped = false;
+                                    continue;
+                                }
+
+                                if (ch == '\\') {
+                                    escaped = true;
+                                    continue;
+                                }
+
+                                if (ch == '\'' && !in_double) {
+                                    in_single = !in_single;
+                                    continue;
+                                }
+
+                                if (ch == '"' && !in_single) {
+                                    in_double = !in_double;
+                                    continue;
+                                }
+
+                                if (in_single) {
+                                    continue;
+                                }
+
+                                if (!in_double) {
+                                    if (ch == '(') {
+                                        ++paren_depth;
+                                    } else if (ch == ')' && paren_depth > 0) {
+                                        --paren_depth;
+                                    }
+                                }
+
+                                if (!in_double && paren_depth == 0 && ch == '|') {
+                                    return true;
+                                }
+                            }
+
+                            return false;
+                        };
+
+                        bool contains_pipeline = command_has_pipeline(cmd_text);
                         std::vector<std::string> first_toks = shell_parser->parse_command(cmd_text);
 
                         if (!first_toks.empty() && (functions.count(first_toks[0]) != 0U)) {
@@ -933,10 +997,12 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                                 expanded_cmd = cmd_text;
                             }
 
+                            contains_pipeline = command_has_pipeline(expanded_cmd);
                             first_toks = shell_parser->parse_command(expanded_cmd);
                         }
 
-                        if (!first_toks.empty() && (functions.count(first_toks[0]) != 0U)) {
+                        if (!contains_pipeline && !first_toks.empty() &&
+                            (functions.count(first_toks[0]) != 0U)) {
                             is_function_call = true;
 
                             push_function_scope();
@@ -1148,6 +1214,35 @@ long long ShellScriptInterpreter::evaluate_arithmetic_expression(const std::stri
 int ShellScriptInterpreter::set_last_status(int code) {
     std::string value = std::to_string(code);
     setenv("?", value.c_str(), 1);
+
+    Exec* exec_ptr = (g_shell && g_shell->shell_exec) ? g_shell->shell_exec.get() : nullptr;
+    if (exec_ptr != nullptr) {
+        const std::vector<int>& pipeline_statuses = exec_ptr->get_last_pipeline_statuses();
+        if (!pipeline_statuses.empty()) {
+            std::stringstream status_builder;
+            for (size_t i = 0; i < pipeline_statuses.size(); ++i) {
+                if (i != 0) {
+                    status_builder << ' ';
+                }
+                status_builder << pipeline_statuses[i];
+            }
+            const std::string pipe_status_str = status_builder.str();
+            setenv("PIPESTATUS", pipe_status_str.c_str(), 1);
+            variable_manager.set_environment_variable("PIPESTATUS", pipe_status_str);
+        } else {
+            if (g_shell) {
+                auto& env_map = g_shell->get_env_vars();
+                env_map.erase("PIPESTATUS");
+                if (auto* parser = g_shell->get_parser()) {
+                    parser->set_env_vars(env_map);
+                }
+            }
+            unsetenv("PIPESTATUS");
+        }
+    } else {
+        unsetenv("PIPESTATUS");
+    }
+
     return code;
 }
 
