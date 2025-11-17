@@ -52,8 +52,7 @@ FunctionParseResult parse_and_register_functions(
                 }
             }
 
-            if (start < source.length() &&
-                (source[start] == '{' || source[start] == '(')) {
+            if (start < source.length() && (source[start] == '{' || source[start] == '(')) {
                 char open = source[start];
                 char close = open == '{' ? '}' : ')';
                 return std::pair<size_t, char>{start, close};
@@ -96,13 +95,13 @@ FunctionParseResult parse_and_register_functions(
 
         size_t name_end = current_line.find("()");
 
-                        if (!has_function_keyword && name_end != std::string::npos) {
-                            std::string potential_name = trim_func(current_line.substr(0, name_end));
+        if (!has_function_keyword && name_end != std::string::npos) {
+            std::string potential_name = trim_func(current_line.substr(0, name_end));
             auto potential_body = find_body_start(current_line, potential_name);
             size_t potential_pos = potential_body.first;
             if (potential_pos != std::string::npos && name_end <= potential_pos) {
-                                func_name = potential_name;
-                            }
+                func_name = potential_name;
+            }
         }
 
         auto body_info = find_body_start(current_line, func_name);
@@ -110,22 +109,22 @@ FunctionParseResult parse_and_register_functions(
         char closing_delim = body_info.second;
         char opening_delim = body_pos != std::string::npos ? current_line[body_pos] : '{';
 
-                        if (!func_name.empty() && func_name.find(' ') == std::string::npos &&
-                            body_pos != std::string::npos) {
+        if (!func_name.empty() && func_name.find(' ') == std::string::npos &&
+            body_pos != std::string::npos) {
             std::vector<std::string> body_lines;
             bool handled_single_line = false;
-                            std::string after_body = trim_func(current_line.substr(body_pos + 1));
+            std::string after_body = trim_func(current_line.substr(body_pos + 1));
 
-                            if (!after_body.empty()) {
-                                size_t end_delim = after_body.find(closing_delim);
-                                if (end_delim != std::string::npos) {
-                                    std::string body_part = trim_func(after_body.substr(0, end_delim));
+            if (!after_body.empty()) {
+                size_t end_delim = after_body.find(closing_delim);
+                if (end_delim != std::string::npos) {
+                    std::string body_part = trim_func(after_body.substr(0, end_delim));
                     if (!body_part.empty())
                         body_lines.push_back(body_part);
 
                     functions[func_name] = body_lines;
 
-                                    std::string remainder = trim_func(after_body.substr(end_delim + 1));
+                    std::string remainder = trim_func(after_body.substr(end_delim + 1));
 
                     size_t start_pos = 0;
                     while (
