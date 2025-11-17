@@ -349,7 +349,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         }
 
         try {
-            cmds = shell_parser->parse_pipeline_with_preprocessing(pipeline_source);
+            cmds = shell_parser->parse_pipeline_with_preprocessing(text);
 
             bool has_redir_or_pipe = cmds.size() > 1;
             if (!has_redir_or_pipe && !cmds.empty()) {
