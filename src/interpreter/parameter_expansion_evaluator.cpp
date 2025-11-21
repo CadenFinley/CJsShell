@@ -4,7 +4,6 @@
 #include <cstdlib>
 #include <stdexcept>
 
-#include "shell_script_interpreter_error_reporter.h"
 
 ParameterExpansionEvaluator::ParameterExpansionEvaluator(VariableReader var_reader,
                                                          VariableWriter var_writer,
@@ -168,21 +167,19 @@ std::string ParameterExpansionEvaluator::expand(const std::string& param_expr) {
 
     if (op == ":?") {
         if (!is_set || var_value.empty()) {
-            std::string error_msg = "cjsh: " + var_name + ": " +
+            std::string error_msg = var_name + ": " +
                                     (operand.empty() ? "parameter null or not set" : operand);
-            shell_script_interpreter::print_runtime_error(error_msg,
-                                                          "${" + var_name + op + operand + "}");
-            throw std::runtime_error(error_msg);
+            throw std::runtime_error("parameter expansion error: " + error_msg +
+                                     " in ${" + var_name + op + operand + "}");
         }
         return var_value;
     }
     if (op == "?") {
         if (!is_set) {
             std::string error_msg =
-                "cjsh: " + var_name + ": " + (operand.empty() ? "parameter not set" : operand);
-            shell_script_interpreter::print_runtime_error(error_msg,
-                                                          "${" + var_name + op + operand + "}");
-            throw std::runtime_error(error_msg);
+                var_name + ": " + (operand.empty() ? "parameter not set" : operand);
+            throw std::runtime_error("parameter expansion error: " + error_msg +
+                                     " in ${" + var_name + op + operand + "}");
         }
         return var_value;
     }

@@ -28,7 +28,7 @@
 #include "cjsh_filesystem.h"
 #include "error_out.h"
 #include "interpreter/shell_script_interpreter.h"
-#include "interpreter/shell_script_interpreter_error_reporter.h"
+#include "completions/suggestion_utils.h"
 #include "job_control.h"
 #include "parser.h"
 #include "shell.h"
@@ -153,40 +153,55 @@ bool replace_first_instance(std::string& target, const std::string& from, const 
     const std::string invocation = join_arguments(args);
 
     if (saved_errno == ENOENT) {
-        std::runtime_error runtime_error("command not found: " + command_name);
-        int exit_code =
-            shell_script_interpreter::handle_runtime_error(invocation, runtime_error, 1);
-        _exit(exit_code);
+        std::vector<std::string> suggestions;
+        if (!command_name.empty()) {
+            suggestions = suggestion_utils::generate_command_suggestions(command_name);
+            if (suggestions.empty()) {
+                suggestions.push_back("Check your PATH or install '" + command_name + "'.");
+            }
+        }
+        if (!invocation.empty()) {
+            suggestions.push_back("Command: " + invocation);
+        }
+        print_error({ErrorType::COMMAND_NOT_FOUND,
+                     ErrorSeverity::ERROR,
+                     command_name,
+                     "",
+                     suggestions});
+        _exit(ShellScriptInterpreter::exit_command_not_found);
     }
 
     const bool permission_error = (saved_errno == EACCES || saved_errno == EISDIR);
     const bool exec_format_error = (saved_errno == ENOEXEC);
     const int exit_code = (permission_error || exec_format_error) ? 126 : 127;
 
-    std::string message_prefix = "cjsh: ";
-    std::string detail;
+    std::string detail = permission_error ? "permission denied"
+                                          : exec_format_error ? "exec format error"
+                                                              : "execution failed";
 
-    if (permission_error) {
-        detail = "permission denied";
-    } else if (exec_format_error) {
-        detail = "exec format error";
-    } else {
-        detail = "execution failed";
-    }
-
-    std::string message;
-    if (!command_name.empty()) {
-        if (permission_error || exec_format_error) {
-            message = message_prefix + detail + ": " + command_name;
-        } else {
-            message = message_prefix + detail + ": " + command_name + ": " +
-                      std::string(strerror(saved_errno));
+    std::string message_detail;
+    if (!permission_error && !exec_format_error) {
+        message_detail = detail;
+        if (saved_errno != 0) {
+            message_detail += ": ";
+            message_detail += strerror(saved_errno);
         }
-    } else {
-        message = message_prefix + detail + ": " + std::string(strerror(saved_errno));
     }
 
-    shell_script_interpreter::print_runtime_error(message, invocation, 1);
+    ErrorType error_type = permission_error
+                               ? ErrorType::PERMISSION_DENIED
+                               : exec_format_error ? ErrorType::INVALID_ARGUMENT
+                                                   : ErrorType::RUNTIME_ERROR;
+
+    std::vector<std::string> suggestions;
+    if (!invocation.empty()) {
+        suggestions.push_back("Command: " + invocation);
+    }
+    if (!message_detail.empty()) {
+        suggestions.push_back("Detail: " + message_detail);
+    }
+
+    print_error({error_type, ErrorSeverity::ERROR, command_name, message_detail, suggestions});
     _exit(exit_code);
 }
 

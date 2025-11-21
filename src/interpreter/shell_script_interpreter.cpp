@@ -1,5 +1,4 @@
 #include "shell_script_interpreter.h"
-#include "shell_script_interpreter_error_reporter.h"
 
 #include <sys/ioctl.h>
 #include <sys/stat.h>
@@ -28,6 +27,7 @@
 #include "command_substitution_evaluator.h"
 #include "conditional_evaluator.h"
 #include "error_out.h"
+#include "completions/suggestion_utils.h"
 #include "exec.h"
 #include "function_evaluator.h"
 #include "job_control.h"
@@ -45,6 +45,122 @@ using shell_script_interpreter::detail::process_line_for_validation;
 using shell_script_interpreter::detail::should_skip_line;
 using shell_script_interpreter::detail::strip_inline_comment;
 using shell_script_interpreter::detail::trim;
+
+namespace {
+
+int report_error_with_code(ErrorType type, ErrorSeverity severity, const std::string& command,
+                           const std::string& message,
+                           std::vector<std::string> suggestions, int code) {
+    print_error({type, severity, command, message, suggestions});
+    setenv("?", std::to_string(code).c_str(), 1);
+    return code;
+}
+
+std::string sanitize_context(const std::string& text) {
+    std::string sanitized = text;
+    sanitized.erase(std::remove(sanitized.begin(), sanitized.end(), '\n'), sanitized.end());
+    sanitized.erase(std::remove(sanitized.begin(), sanitized.end(), '\r'), sanitized.end());
+    sanitized = trim(sanitized);
+    if (sanitized.size() > 160) {
+        sanitized.resize(157);
+        sanitized.append("...");
+    }
+    return sanitized;
+}
+
+void append_context_hint(std::vector<std::string>& suggestions, const std::string& text,
+                         size_t line_number) {
+    if (text.empty() && line_number == 0) {
+        return;
+    }
+
+    std::ostringstream builder;
+    std::string sanitized = sanitize_context(text);
+    if (line_number > 0) {
+        builder << "line " << line_number;
+        if (!sanitized.empty()) {
+            builder << ": " << sanitized;
+        }
+    } else if (!sanitized.empty()) {
+        builder << sanitized;
+    }
+
+    if (builder.tellp() > 0) {
+        suggestions.push_back("Context: " + builder.str());
+    }
+}
+
+std::string strip_cjsh_prefix(std::string message) {
+    const std::string prefix = "cjsh:";
+    if (message.rfind(prefix, 0) == 0) {
+        message.erase(0, prefix.size());
+        while (!message.empty() && std::isspace(static_cast<unsigned char>(message.front()))) {
+            message.erase(message.begin());
+        }
+    }
+    if (message.rfind("cjsh ", 0) == 0) {
+        message.erase(0, 5);
+        while (!message.empty() && std::isspace(static_cast<unsigned char>(message.front()))) {
+            message.erase(message.begin());
+        }
+    }
+    return message;
+}
+
+std::vector<std::string> build_command_suggestions(const std::string& command_name) {
+    auto suggestions = suggestion_utils::generate_command_suggestions(command_name);
+    if (suggestions.empty()) {
+        suggestions.push_back("Check your PATH or install '" + command_name + "'.");
+    }
+    return suggestions;
+}
+
+int handle_runtime_exception(const std::string& text, const std::runtime_error& e,
+                             size_t line_number) {
+    const std::string raw_message = e.what() ? std::string(e.what()) : "runtime error";
+    std::string message = strip_cjsh_prefix(raw_message);
+    std::vector<std::string> suggestions;
+    auto add_context = [&]() { append_context_hint(suggestions, text, line_number); };
+
+    const std::string needle = "command not found: ";
+    size_t pos = raw_message.find(needle);
+    if (pos != std::string::npos) {
+        std::string command_name = trim(raw_message.substr(pos + needle.length()));
+        if (command_name.empty()) {
+            command_name = trim(text);
+        }
+        suggestions = build_command_suggestions(command_name);
+        add_context();
+        return report_error_with_code(ErrorType::COMMAND_NOT_FOUND, ErrorSeverity::ERROR,
+                                      command_name, "", suggestions,
+                                      ShellScriptInterpreter::exit_command_not_found);
+    }
+
+    if (message.find("Unclosed quote") != std::string::npos ||
+        message.find("missing closing") != std::string::npos ||
+        message.find("syntax error near unexpected token") != std::string::npos) {
+        suggestions.push_back("Make sure all quotes and delimiters are balanced.");
+        add_context();
+        return report_error_with_code(ErrorType::SYNTAX_ERROR, ErrorSeverity::ERROR, "", message,
+                                      suggestions, 2);
+    }
+
+    if (message.find("Failed to open") != std::string::npos ||
+        message.find("Failed to redirect") != std::string::npos ||
+        message.find("Failed to write") != std::string::npos) {
+        suggestions.push_back("Check file permissions and paths.");
+        add_context();
+        return report_error_with_code(ErrorType::FILE_NOT_FOUND, ErrorSeverity::ERROR, "",
+                                      message, suggestions, 2);
+    }
+
+    suggestions.push_back("Check command syntax and system resources.");
+    add_context();
+    return report_error_with_code(ErrorType::RUNTIME_ERROR, ErrorSeverity::ERROR, "", message,
+                                  suggestions, 2);
+}
+
+}  // namespace
 
 ShellScriptInterpreter::ShellScriptInterpreter() : shell_parser(nullptr) {
 }
@@ -446,16 +562,36 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
             if (cmds.empty())
                 return 0;
             return run_pipeline(cmds);
-        } catch (const std::bad_alloc& e) {
-            return shell_script_interpreter::handle_memory_allocation_error(text);
+        } catch (const std::bad_alloc&) {
+            std::vector<std::string> suggestions = {
+                "Command may be too complex or system is low on memory."};
+            append_context_hint(suggestions, text, current_line_number);
+            return report_error_with_code(ErrorType::RUNTIME_ERROR, ErrorSeverity::ERROR,
+                                          "interpreter", "memory allocation failed",
+                                          std::move(suggestions), 3);
         } catch (const std::system_error& e) {
-            return shell_script_interpreter::handle_system_error(text, e);
+            std::vector<std::string> suggestions = {
+                "Check system resources and permissions."};
+            append_context_hint(suggestions, text, current_line_number);
+            return report_error_with_code(ErrorType::RUNTIME_ERROR, ErrorSeverity::ERROR,
+                                          "interpreter", strip_cjsh_prefix(e.what()),
+                                          std::move(suggestions), 4);
         } catch (const std::runtime_error& e) {
-            return shell_script_interpreter::handle_runtime_error(text, e, current_line_number);
+            return handle_runtime_exception(text, e, current_line_number);
         } catch (const std::exception& e) {
-            return shell_script_interpreter::handle_generic_exception(text, e);
+            std::vector<std::string> suggestions = {
+                "Please report this issue along with steps to reproduce."};
+            append_context_hint(suggestions, text, current_line_number);
+            return report_error_with_code(ErrorType::UNKNOWN_ERROR, ErrorSeverity::ERROR,
+                                          "interpreter", strip_cjsh_prefix(e.what()),
+                                          std::move(suggestions), 5);
         } catch (...) {
-            return shell_script_interpreter::handle_unknown_error(text);
+            std::vector<std::string> suggestions = {
+                "Please report this issue along with steps to reproduce."};
+            append_context_hint(suggestions, text, current_line_number);
+            return report_error_with_code(ErrorType::UNKNOWN_ERROR, ErrorSeverity::ERROR,
+                                          "interpreter", "unknown interpreter error",
+                                          std::move(suggestions), 6);
         }
     };
 
@@ -1511,10 +1647,8 @@ std::string ShellScriptInterpreter::expand_all_substitutions(
                     try {
                         out += std::to_string(evaluate_arithmetic_expression(expanded_expr));
                     } catch (const std::runtime_error& e) {
-                        shell_script_interpreter::print_runtime_error(
-                            "cjsh: " + std::string(e.what()), "$(" + expr + "))",
-                            current_line_number);
-                        throw;
+                        throw std::runtime_error(std::string(e.what()) +
+                                                 " while evaluating $(" + expr + "))");
                     }
                     i = j + 1;
                     continue;

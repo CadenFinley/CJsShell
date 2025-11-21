@@ -5,7 +5,6 @@
 #include "cjsh.h"
 #include "error_out.h"
 #include "shell.h"
-#include "shell_script_interpreter_error_reporter.h"
 
 namespace {
 
@@ -125,9 +124,6 @@ ErrorSeverity ErrorInfo::get_default_severity(ErrorType type) {
 }
 
 void print_error(const ErrorInfo& error) {
-    if (shell_script_interpreter::report_error(error)) {
-        return;
-    }
     print_error_to_stderr(error);
 }
 

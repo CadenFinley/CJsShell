@@ -1,5 +1,4 @@
 #include "shell_script_interpreter.h"
-#include "shell_script_interpreter_error_reporter.h"
 #include "shell_script_interpreter_utils.h"
 
 #include "parser/parser_utils.h"
@@ -27,6 +26,63 @@ namespace {
 using SyntaxError = ShellScriptInterpreter::SyntaxError;
 
 using ErrorCategory = ShellScriptInterpreter::ErrorCategory;
+
+ErrorType map_category_to_error_type(ErrorCategory category) {
+    switch (category) {
+        case ErrorCategory::SYNTAX:
+            return ErrorType::SYNTAX_ERROR;
+        case ErrorCategory::CONTROL_FLOW:
+        case ErrorCategory::COMMANDS:
+        case ErrorCategory::SEMANTICS:
+            return ErrorType::RUNTIME_ERROR;
+        case ErrorCategory::REDIRECTION:
+            return ErrorType::FILE_NOT_FOUND;
+        case ErrorCategory::VARIABLES:
+            return ErrorType::INVALID_ARGUMENT;
+        case ErrorCategory::STYLE:
+            return ErrorType::INVALID_ARGUMENT;
+        case ErrorCategory::PERFORMANCE:
+            return ErrorType::INVALID_ARGUMENT;
+        default:
+            return ErrorType::UNKNOWN_ERROR;
+    }
+}
+
+std::string build_error_message(const SyntaxError& error) {
+    std::ostringstream builder;
+    if (!error.error_code.empty()) {
+        builder << "[" << error.error_code << "] ";
+    }
+    builder << error.message;
+    if (error.position.line_number > 0) {
+        builder << " (line " << error.position.line_number;
+        if (error.position.column_start > 0) {
+            builder << ", column " << error.position.column_start;
+        }
+        builder << ")";
+    }
+    return builder.str();
+}
+
+void emit_validation_errors(const std::vector<SyntaxError>& errors) {
+    for (const auto& error : errors) {
+        std::vector<std::string> suggestions;
+        if (!error.suggestion.empty()) {
+            suggestions.push_back(error.suggestion);
+        }
+        for (const auto& info : error.related_info) {
+            if (!info.empty()) {
+                suggestions.push_back(info);
+            }
+        }
+        if (!error.documentation_url.empty()) {
+            suggestions.push_back("More info: " + error.documentation_url);
+        }
+
+        print_error({map_category_to_error_type(error.category), error.severity, "",
+                     build_error_message(error), suggestions});
+    }
+}
 
 constexpr const char* kSubstLiteralStart = "\x1E__SUBST_LITERAL_START__\x1E";
 constexpr const char* kSubstLiteralEnd = "\x1E__SUBST_LITERAL_END__\x1E";
@@ -1401,7 +1457,7 @@ bool ShellScriptInterpreter::has_syntax_errors(const std::vector<std::string>& l
             }
         }
         if (!blocking_errors.empty()) {
-            shell_script_interpreter::print_error_report(blocking_errors, true, true);
+            emit_validation_errors(blocking_errors);
         }
     }
 
