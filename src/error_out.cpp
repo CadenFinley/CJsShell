@@ -12,7 +12,10 @@ void print_error_to_stderr(const ErrorInfo& error) {
     std::cerr << "cjsh: ";
 
     if (!error.command_used.empty()) {
-        std::cerr << error.command_used << ": ";
+        std::cerr << error.command_used;
+        if (error.type != ErrorType::UNKNOWN_ERROR) {
+            std::cerr << ": ";
+        }
     }
 
     switch (error.type) {
@@ -36,7 +39,6 @@ void print_error_to_stderr(const ErrorInfo& error) {
             break;
         case ErrorType::UNKNOWN_ERROR:
         default:
-            std::cerr << "unknown error";
             break;
     }
 

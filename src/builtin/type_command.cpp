@@ -155,7 +155,7 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
         if (!found) {
             if (show_type_only) {
             } else {
-                print_error({ErrorType::COMMAND_NOT_FOUND,
+                print_error({ErrorType::UNKNOWN_ERROR,  // as to not output an error type message
                              ErrorSeverity::ERROR,
                              "type",
                              name + ": not found",
