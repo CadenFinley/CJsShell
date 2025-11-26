@@ -26,9 +26,9 @@
 #include "builtin.h"
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
+#include "completions/suggestion_utils.h"
 #include "error_out.h"
 #include "interpreter/shell_script_interpreter.h"
-#include "completions/suggestion_utils.h"
 #include "job_control.h"
 #include "parser.h"
 #include "shell.h"
@@ -160,14 +160,8 @@ bool replace_first_instance(std::string& target, const std::string& from, const 
                 suggestions.push_back("Check your PATH or install '" + command_name + "'.");
             }
         }
-        if (!invocation.empty()) {
-            suggestions.push_back("Command: " + invocation);
-        }
-        print_error({ErrorType::COMMAND_NOT_FOUND,
-                     ErrorSeverity::ERROR,
-                     command_name,
-                     "",
-                     suggestions});
+        print_error(
+            {ErrorType::COMMAND_NOT_FOUND, ErrorSeverity::ERROR, command_name, "", suggestions});
         _exit(ShellScriptInterpreter::exit_command_not_found);
     }
 
@@ -175,9 +169,9 @@ bool replace_first_instance(std::string& target, const std::string& from, const 
     const bool exec_format_error = (saved_errno == ENOEXEC);
     const int exit_code = (permission_error || exec_format_error) ? 126 : 127;
 
-    std::string detail = permission_error ? "permission denied"
-                                          : exec_format_error ? "exec format error"
-                                                              : "execution failed";
+    std::string detail = permission_error    ? "permission denied"
+                         : exec_format_error ? "exec format error"
+                                             : "execution failed";
 
     std::string message_detail;
     if (!permission_error && !exec_format_error) {
@@ -188,15 +182,11 @@ bool replace_first_instance(std::string& target, const std::string& from, const 
         }
     }
 
-    ErrorType error_type = permission_error
-                               ? ErrorType::PERMISSION_DENIED
-                               : exec_format_error ? ErrorType::INVALID_ARGUMENT
-                                                   : ErrorType::RUNTIME_ERROR;
+    ErrorType error_type = permission_error    ? ErrorType::PERMISSION_DENIED
+                           : exec_format_error ? ErrorType::INVALID_ARGUMENT
+                                               : ErrorType::RUNTIME_ERROR;
 
     std::vector<std::string> suggestions;
-    if (!invocation.empty()) {
-        suggestions.push_back("Command: " + invocation);
-    }
     if (!message_detail.empty()) {
         suggestions.push_back("Detail: " + message_detail);
     }
