@@ -4,12 +4,22 @@ TOTAL=0
 PASSED=0
 FAILED=0
 
-SHELL_TO_TEST="${1:-./build/cjsh}"
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+DEFAULT_SHELL="$SCRIPT_DIR/../../build/cjsh"
 
-case "$SHELL_TO_TEST" in
-    /*) ;; # Already absolute
-    *) SHELL_TO_TEST="$(pwd)/$SHELL_TO_TEST" ;;
-esac
+if [ -n "$1" ]; then
+    SHELL_TO_TEST="$1"
+elif [ -z "$SHELL_TO_TEST" ]; then
+    if [ -n "$CJSH" ]; then
+        SHELL_TO_TEST="$CJSH"
+    else
+        SHELL_TO_TEST="$DEFAULT_SHELL"
+    fi
+fi
+
+if [ "${SHELL_TO_TEST#/}" = "$SHELL_TO_TEST" ]; then
+    SHELL_TO_TEST="$(pwd)/$SHELL_TO_TEST"
+fi
 
 log_test() {
     TOTAL=$((TOTAL + 1))

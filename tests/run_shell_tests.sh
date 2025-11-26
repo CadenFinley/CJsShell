@@ -2,7 +2,21 @@
 # Run all shell tests for cjsh
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 
-export CJSH="$SCRIPT_DIR/../build/cjsh"
+if [ -n "$1" ]; then
+    CJSH_CANDIDATE="$1"
+    shift
+else
+    CJSH_CANDIDATE="${CJSH:-$SCRIPT_DIR/../build/cjsh}"
+fi
+
+if [ "${CJSH_CANDIDATE#/}" = "$CJSH_CANDIDATE" ]; then
+    CJSH_CANDIDATE="$(pwd)/$CJSH_CANDIDATE"
+fi
+
+CJSH_DIR=$(cd "$(dirname "$CJSH_CANDIDATE")" && pwd)
+CJSH_BASENAME=$(basename "$CJSH_CANDIDATE")
+CJSH="$CJSH_DIR/$CJSH_BASENAME"
+export CJSH
 SHELL_TESTS_DIR="$SCRIPT_DIR/shell"
 
 
@@ -37,6 +51,7 @@ if [ ! -x "$CJSH" ]; then
     exit 1
 fi
 
+echo "Using cjsh binary: $CJSH"
 
 # echo "Checking for existing cjsh processes..."
 # EXISTING_CJSH=$(pgrep -f "cjsh" 2>/dev/null || true)
@@ -71,7 +86,7 @@ run_test() {
     
     if [ -f "$test_file" ]; then
         
-        output=$(sh "$test_file" "$CJSH" 2>&1)
+        output=$(CJSH="$CJSH" CJSH_PATH="$CJSH" SHELL_TO_TEST="$CJSH" sh "$test_file" "$CJSH" 2>&1)
         exit_code=$?
         clean_output=$(printf "%s\n" "$output" | awk '{gsub(/\033\[[0-9;]*[A-Za-z]/, ""); print}')
         

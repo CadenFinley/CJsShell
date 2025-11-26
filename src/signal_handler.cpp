@@ -56,6 +56,8 @@ volatile sig_atomic_t SignalHandler::s_sigabrt_received = 0;
 volatile sig_atomic_t SignalHandler::s_sigalrm_received = 0;
 volatile sig_atomic_t SignalHandler::s_sigwinch_received = 0;
 volatile sig_atomic_t SignalHandler::s_sigpipe_received = 0;
+volatile sig_atomic_t SignalHandler::s_sigttin_received = 0;
+volatile sig_atomic_t SignalHandler::s_sigttou_received = 0;
 volatile sig_atomic_t SignalHandler::s_sigcont_received = 0;
 
 std::atomic<bool> SignalHandler::s_signal_pending(false);
@@ -232,7 +234,7 @@ bool SignalHandler::has_pending_signals() {
         return true;
     }
     return s_sigint_received != 0 || s_sigchld_received != 0 || s_sighup_received != 0 ||
-           s_sigterm_received != 0;
+           s_sigterm_received != 0 || s_sigttin_received != 0 || s_sigttou_received != 0;
 }
 
 SignalHandler::~SignalHandler() {
@@ -628,6 +630,20 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
         }
 #endif
 
+#ifdef SIGTTIN
+        case SIGTTIN: {
+            s_sigttin_received = 1;
+            break;
+        }
+#endif
+
+#ifdef SIGTTOU
+        case SIGTTOU: {
+            s_sigttou_received = 1;
+            break;
+        }
+#endif
+
         default: {
             break;
         }
@@ -972,6 +988,26 @@ SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) 
         if (is_signal_observed(SIGPIPE)) {
             process_trapped_signal(SIGPIPE);
             result.trapped_signals.push_back(SIGPIPE);
+        }
+    }
+#endif
+
+#ifdef SIGTTIN
+    if (s_sigttin_received != 0) {
+        s_sigttin_received = 0;
+        if (is_signal_observed(SIGTTIN)) {
+            process_trapped_signal(SIGTTIN);
+            result.trapped_signals.push_back(SIGTTIN);
+        }
+    }
+#endif
+
+#ifdef SIGTTOU
+    if (s_sigttou_received != 0) {
+        s_sigttou_received = 0;
+        if (is_signal_observed(SIGTTOU)) {
+            process_trapped_signal(SIGTTOU);
+            result.trapped_signals.push_back(SIGTTOU);
         }
     }
 #endif

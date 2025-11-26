@@ -4,14 +4,21 @@ TOTAL=0
 PASSED=0
 FAILED=0
 
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+DEFAULT_SHELL="$SCRIPT_DIR/../../build/cjsh"
+
 if [ -n "$1" ]; then
-    if [ "${1#/}" = "$1" ]; then
-        SHELL_TO_TEST="$(pwd)/$1"
+    SHELL_TO_TEST="$1"
+elif [ -z "$SHELL_TO_TEST" ]; then
+    if [ -n "$CJSH" ]; then
+        SHELL_TO_TEST="$CJSH"
     else
-        SHELL_TO_TEST="$1"
+        SHELL_TO_TEST="$DEFAULT_SHELL"
     fi
-else
-    SHELL_TO_TEST="$(pwd)/build/cjsh"
+fi
+
+if [ "${SHELL_TO_TEST#/}" = "$SHELL_TO_TEST" ]; then
+    SHELL_TO_TEST="$(pwd)/$SHELL_TO_TEST"
 fi
 
 EXPECTED_SHELL_BASENAME=$(basename "$SHELL_TO_TEST")
