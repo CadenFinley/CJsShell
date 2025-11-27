@@ -540,45 +540,55 @@ read_key:
         }
     }
 
-    if (expanded_mode && (KEY_MODS(c) & KEY_MOD_SHIFT) != 0) {
+    bool shift_pressed = ((KEY_MODS(c) & KEY_MOD_SHIFT) != 0);
+    if (shift_pressed) {
         code_t base_key = KEY_NO_MODS(c);
-        ssize_t page = (last_rows_visible > 0 ? last_rows_visible
-                                              : (count_displayed > 0 ? count_displayed : 1));
-        if (page < 1) {
-            page = 1;
-        }
-        if (base_key == KEY_DOWN) {
-            if (scroll_offset < last_max_scroll_offset) {
-                scroll_offset += page;
-                if (scroll_offset > last_max_scroll_offset) {
-                    scroll_offset = last_max_scroll_offset;
-                }
-                selected = (scroll_offset < count_displayed ? scroll_offset : count_displayed - 1);
-                if (selected < 0) {
-                    selected = 0;
-                }
-            } else {
-                term_beep(env->term);
+        if (!expanded_mode && (base_key == KEY_DOWN || base_key == KEY_UP)) {
+            if (count > count_displayed) {
+                expanded_mode = true;
+                scroll_offset = 0;
+                goto again;
             }
-            goto again;
-        } else if (base_key == KEY_UP) {
-            if (scroll_offset > 0) {
-                if (scroll_offset > page) {
-                    scroll_offset -= page;
+        } else if (expanded_mode) {
+            ssize_t page = (last_rows_visible > 0 ? last_rows_visible
+                                                  : (count_displayed > 0 ? count_displayed : 1));
+            if (page < 1) {
+                page = 1;
+            }
+            if (base_key == KEY_DOWN) {
+                if (scroll_offset < last_max_scroll_offset) {
+                    scroll_offset += page;
+                    if (scroll_offset > last_max_scroll_offset) {
+                        scroll_offset = last_max_scroll_offset;
+                    }
+                    selected =
+                        (scroll_offset < count_displayed ? scroll_offset : count_displayed - 1);
+                    if (selected < 0) {
+                        selected = 0;
+                    }
                 } else {
-                    scroll_offset = 0;
+                    term_beep(env->term);
                 }
-                selected = scroll_offset;
-                if (selected >= count_displayed) {
-                    selected = count_displayed - 1;
+                goto again;
+            } else if (base_key == KEY_UP) {
+                if (scroll_offset > 0) {
+                    if (scroll_offset > page) {
+                        scroll_offset -= page;
+                    } else {
+                        scroll_offset = 0;
+                    }
+                    selected = scroll_offset;
+                    if (selected >= count_displayed) {
+                        selected = count_displayed - 1;
+                    }
+                    if (selected < 0) {
+                        selected = 0;
+                    }
+                } else {
+                    term_beep(env->term);
                 }
-                if (selected < 0) {
-                    selected = 0;
-                }
-            } else {
-                term_beep(env->term);
+                goto again;
             }
-            goto again;
         }
     }
 
