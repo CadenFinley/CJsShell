@@ -1119,8 +1119,10 @@ require no third-party plugins.</p>
     redirections, here-documents, command substitution) behave the way portable scripts expect.</li>
 <li><strong>Selective bash extensions</strong> – <code>[[ … ]]</code>, arithmetic contexts, here-strings, and history
     expansion ship enabled for interactive use but stay out of the way for scripts.</li>
-<li><strong>Job control</strong> – Background jobs, <code>fg</code>, <code>bg</code>, <code>jobs</code>, <code>wait</code>, and <code>trap</code> integrate with the
-    internal process manager so interactive sessions stay responsive.</li>
+<li><strong>Job control</strong> – Background jobs, <code>fg</code>, <code>bg</code>, <code>jobs</code>, <code>wait</code>, <code>disown</code>, and <code>trap</code> integrate with
+    the internal process manager so interactive sessions stay responsive. <code>set -o huponexit</code>
+    controls whether exiting shells hang up or leave running jobs alone (default: off, so long-lived
+    helpers keep running until you explicitly stop them).</li>
 </ul>
 <h2 id="interactive-layer">Interactive Layer</h2>
 <p>Powered by the embedded <a href="https://github.com/cadenfinley/isocline">isocline</a> editor:</p>
@@ -1163,6 +1165,8 @@ for full details.</p>
     <code>cjshopt prompt-cleanup-empty-line</code>, <code>cjshopt prompt-cleanup-truncate</code></li>
 <li><code>cjshopt keybind …</code> and <code>cjshopt keybind ext …</code> for keymap management</li>
 <li><code>cjshopt set-history-max</code> to adjust persistent history size (0–5000 entries)</li>
+<li><code>set -o huponexit</code> mirrors bash's option for sending SIGHUP/SIGTERM to background jobs when the
+    shell exits (off by default so long-running helpers stick around)</li>
 </ul>
 </li>
 <li><strong>Login/startup flags</strong> – Place <code>cjshopt login-startup-arg &lt;flag&gt;</code> lines in <code>~/.cjprofile</code> to
