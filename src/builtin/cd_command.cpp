@@ -114,4 +114,3 @@ int change_directory(const std::string& dir, std::string& current_directory,
         return 1;
     }
 }
-

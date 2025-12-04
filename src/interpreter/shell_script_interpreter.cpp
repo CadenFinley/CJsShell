@@ -25,9 +25,9 @@
 #include "case_evaluator.h"
 #include "cjsh.h"
 #include "command_substitution_evaluator.h"
+#include "completions/suggestion_utils.h"
 #include "conditional_evaluator.h"
 #include "error_out.h"
-#include "completions/suggestion_utils.h"
 #include "exec.h"
 #include "function_evaluator.h"
 #include "job_control.h"
@@ -49,8 +49,8 @@ using shell_script_interpreter::detail::trim;
 namespace {
 
 int report_error_with_code(ErrorType type, ErrorSeverity severity, const std::string& command,
-                           const std::string& message,
-                           std::vector<std::string> suggestions, int code) {
+                           const std::string& message, std::vector<std::string> suggestions,
+                           int code) {
     print_error({type, severity, command, message, suggestions});
     setenv("?", std::to_string(code).c_str(), 1);
     return code;
@@ -150,8 +150,8 @@ int handle_runtime_exception(const std::string& text, const std::runtime_error& 
         message.find("Failed to write") != std::string::npos) {
         suggestions.push_back("Check file permissions and paths.");
         add_context();
-        return report_error_with_code(ErrorType::FILE_NOT_FOUND, ErrorSeverity::ERROR, "",
-                                      message, suggestions, 2);
+        return report_error_with_code(ErrorType::FILE_NOT_FOUND, ErrorSeverity::ERROR, "", message,
+                                      suggestions, 2);
     }
 
     suggestions.push_back("Check command syntax and system resources.");
@@ -570,8 +570,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                                           "interpreter", "memory allocation failed",
                                           std::move(suggestions), 3);
         } catch (const std::system_error& e) {
-            std::vector<std::string> suggestions = {
-                "Check system resources and permissions."};
+            std::vector<std::string> suggestions = {"Check system resources and permissions."};
             append_context_hint(suggestions, text, current_line_number);
             return report_error_with_code(ErrorType::RUNTIME_ERROR, ErrorSeverity::ERROR,
                                           "interpreter", strip_cjsh_prefix(e.what()),
@@ -1647,8 +1646,8 @@ std::string ShellScriptInterpreter::expand_all_substitutions(
                     try {
                         out += std::to_string(evaluate_arithmetic_expression(expanded_expr));
                     } catch (const std::runtime_error& e) {
-                        throw std::runtime_error(std::string(e.what()) +
-                                                 " while evaluating $(" + expr + "))");
+                        throw std::runtime_error(std::string(e.what()) + " while evaluating $(" +
+                                                 expr + "))");
                     }
                     i = j + 1;
                     continue;

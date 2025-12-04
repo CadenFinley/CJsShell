@@ -4,7 +4,6 @@
 #include <cstdlib>
 #include <stdexcept>
 
-
 ParameterExpansionEvaluator::ParameterExpansionEvaluator(VariableReader var_reader,
                                                          VariableWriter var_writer,
                                                          VariableChecker var_checker,
@@ -167,10 +166,10 @@ std::string ParameterExpansionEvaluator::expand(const std::string& param_expr) {
 
     if (op == ":?") {
         if (!is_set || var_value.empty()) {
-            std::string error_msg = var_name + ": " +
-                                    (operand.empty() ? "parameter null or not set" : operand);
-            throw std::runtime_error("parameter expansion error: " + error_msg +
-                                     " in ${" + var_name + op + operand + "}");
+            std::string error_msg =
+                var_name + ": " + (operand.empty() ? "parameter null or not set" : operand);
+            throw std::runtime_error("parameter expansion error: " + error_msg + " in ${" +
+                                     var_name + op + operand + "}");
         }
         return var_value;
     }
@@ -178,8 +177,8 @@ std::string ParameterExpansionEvaluator::expand(const std::string& param_expr) {
         if (!is_set) {
             std::string error_msg =
                 var_name + ": " + (operand.empty() ? "parameter not set" : operand);
-            throw std::runtime_error("parameter expansion error: " + error_msg +
-                                     " in ${" + var_name + op + operand + "}");
+            throw std::runtime_error("parameter expansion error: " + error_msg + " in ${" +
+                                     var_name + op + operand + "}");
         }
         return var_value;
     }
