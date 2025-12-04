@@ -457,6 +457,11 @@ int main(int argc, char* argv[]) {
         return handle_non_interactive_mode(script_file);
     }
 
+    const bool stdin_is_piped = (isatty(STDIN_FILENO) == 0);
+    if (config::force_interactive && stdin_is_piped && !config::execute_command) {
+        return handle_non_interactive_mode(script_file);
+    }
+
     // at this point cjsh has to be in an interactive state as all non-interactive possibilites has
     // been properly handled
     int interactive_result = initialize_interactive_components();

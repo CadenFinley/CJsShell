@@ -371,6 +371,34 @@ void JobManager::clear_all_jobs() {
     last_background_pid = -1;
 }
 
+void JobManager::mark_pid_completed(pid_t pid, int status) {
+    for (auto& pair : jobs) {
+        auto& job = pair.second;
+        if (!job) {
+            continue;
+        }
+        auto pid_it = std::find(job->pids.begin(), job->pids.end(), pid);
+        if (pid_it == job->pids.end()) {
+            continue;
+        }
+
+        job->pids.erase(pid_it);
+
+        if (WIFEXITED(status)) {
+            job->state = JobState::DONE;
+            job->exit_status = WEXITSTATUS(status);
+        } else if (WIFSIGNALED(status)) {
+            job->state = JobState::TERMINATED;
+            job->exit_status = WTERMSIG(status);
+        }
+
+        if (job->pids.empty()) {
+            remove_job(job->job_id);
+        }
+        return;
+    }
+}
+
 int jobs_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(
             args, {"Usage: jobs [-lp]", "List active jobs. -l shows PIDs, -p prints PIDs only."})) {
@@ -665,6 +693,8 @@ int wait_command(const std::vector<std::string>& args) {
                 } else if (WIFSIGNALED(status)) {
                     last_exit_status = 128 + WTERMSIG(status);
                 }
+
+                job_manager.mark_pid_completed(pid, status);
             } catch (...) {
                 print_error({ErrorType::INVALID_ARGUMENT,
                              target,

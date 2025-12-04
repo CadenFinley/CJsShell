@@ -87,6 +87,7 @@ class JobManager {
 
     void handle_shell_continued();
     void clear_all_jobs();
+    void mark_pid_completed(pid_t pid, int status);
 
    private:
     JobManager() = default;

@@ -49,7 +49,14 @@ int exit_command(const std::vector<std::string>& args) {
         return 0;
     }
 
-    if (!force_exit) {
+    const auto& initial_args = startup_args();
+    const bool invoked_with_dash_c =
+        std::find(initial_args.begin(), initial_args.end(), "-c") != initial_args.end();
+    const bool running_dash_c =
+        config::execute_command || !config::cmd_to_execute.empty() || invoked_with_dash_c;
+    const bool should_check_jobs = !force_exit && !running_dash_c;
+
+    if (should_check_jobs) {
         auto& job_manager = JobManager::instance();
         job_manager.update_job_status();
 
