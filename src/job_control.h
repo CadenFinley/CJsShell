@@ -68,6 +68,8 @@ class JobManager {
 
     pid_t get_last_background_pid() const;
 
+    static pid_t get_last_background_pid_atomic();
+
     void cleanup_finished_jobs();
 
     void set_shell(Shell* shell);
@@ -81,6 +83,7 @@ class JobManager {
     void clear_stdin_signal(pid_t pid);
 
     void handle_shell_continued();
+    void clear_all_jobs();
 
    private:
     JobManager() = default;
@@ -99,6 +102,7 @@ int fg_command(const std::vector<std::string>& args);
 int bg_command(const std::vector<std::string>& args);
 int wait_command(const std::vector<std::string>& args);
 int kill_command(const std::vector<std::string>& args);
+int disown_command(const std::vector<std::string>& args);
 
 namespace job_utils {
 

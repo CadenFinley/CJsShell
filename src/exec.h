@@ -79,6 +79,7 @@ class Exec {
     void set_exit_code(int code);
     const std::vector<int>& get_last_pipeline_statuses() const;
     void terminate_all_child_process();
+    void abandon_all_child_processes();
 
     std::string last_terminal_output_error;
 };

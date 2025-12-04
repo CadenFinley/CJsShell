@@ -2174,6 +2174,14 @@ void Exec::terminate_all_child_process() {
     set_error(ErrorType::RUNTIME_ERROR, "", "All child processes terminated");
 }
 
+void Exec::abandon_all_child_processes() {
+    if (!jobs_mutex.try_lock()) {
+        return;
+    }
+    jobs.clear();
+    jobs_mutex.unlock();
+}
+
 void Exec::set_last_pipeline_statuses(std::vector<int> statuses) {
     last_pipeline_statuses = std::move(statuses);
 }

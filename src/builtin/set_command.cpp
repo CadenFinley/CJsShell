@@ -23,7 +23,7 @@ int set_command(const std::vector<std::string>& args, Shell* shell) {
                                    "  -n              Read but don't execute commands (noexec)",
                                    "  -f              Disable pathname expansion (noglob)",
                                    "  -a              Auto-export modified variables (allexport)",
-                                   "  -o option       Set option by name",
+                                   "  -o option       Set option by name (huponexit, etc.)",
                                    "  +<option>       Unset the specified option",
                                    "  --              End options; remaining args set $1, $2, etc.",
                                    "",
@@ -139,6 +139,12 @@ int set_command(const std::vector<std::string>& args, Shell* shell) {
             if (arg == "+o") {
                 ++i;
             }
+        } else if ((arg == "-o" && i + 1 < args.size() && args[i + 1] == "huponexit")) {
+            shell->set_shell_option("huponexit", true);
+            ++i;
+        } else if ((arg == "+o" && i + 1 < args.size() && args[i + 1] == "huponexit")) {
+            shell->set_shell_option("huponexit", false);
+            ++i;
         } else if (arg == "-o" && i + 1 < args.size() &&
                    args[i + 1].find("errexit_severity=") == 0) {
             std::string severity = args[i + 1].substr(17);
@@ -164,6 +170,8 @@ int set_command(const std::vector<std::string>& args, Shell* shell) {
                       << '\n';
             std::cout << "allexport      \t"
                       << (shell->get_shell_option("allexport") ? "on" : "off") << '\n';
+            std::cout << "huponexit      \t"
+                      << (shell->get_shell_option("huponexit") ? "on" : "off") << '\n';
             std::cout << "errexit_severity\t" << shell->get_errexit_severity() << '\n';
             return 0;
         } else if (arg.substr(0, 2) == "--") {

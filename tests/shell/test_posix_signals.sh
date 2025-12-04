@@ -412,16 +412,24 @@ sleep 2
 EOF
 chmod +x "$test_hup_script"
 
-"$SHELL_TO_TEST" -c "$test_hup_script & echo \$! > /tmp/child_pid_$$" &
+"$SHELL_TO_TEST" -c "$test_hup_script & echo \$! > /tmp/child_pid_$$; sleep 1" &
 shell_pid=$!
 sleep 0.2
 
 if [ -f "/tmp/child_pid_$$" ]; then
     child_pid=$(cat "/tmp/child_pid_$$")
     kill -HUP $shell_pid 2>/dev/null
-    sleep 0.3
-    
-    if [ -f "/tmp/hup_caught_$$" ] || ! kill -0 $child_pid 2>/dev/null; then
+
+    hup_ok=0
+    for _ in 1 2 3 4 5; do
+        if [ -f "/tmp/hup_caught_$$" ] || ! kill -0 $child_pid 2>/dev/null; then
+            hup_ok=1
+            break
+        fi
+        sleep 0.2
+    done
+
+    if [ $hup_ok -eq 1 ]; then
         pass
     else
         kill -9 $child_pid 2>/dev/null

@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <atomic>
 #include <csignal>
+#include <cstdio>
 #include <cstring>
 
 #include "builtin/trap_command.h"
@@ -12,6 +13,7 @@
 #include "error_out.h"
 #include "exec.h"
 #include "job_control.h"
+#include "shell.h"
 
 SignalMask::SignalMask(int signum) : active(false) {
     sigset_t mask{};
@@ -523,7 +525,7 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
             if (!is_observed) {
                 if (!config::interactive_mode) {
                     g_exit_flag = true;
-                    exit(128 + SIGINT);
+                    _exit(128 + SIGINT);
                 }
             }
             should_mark_pending = true;
@@ -539,9 +541,9 @@ void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
         case SIGHUP: {
             s_sighup_received = 1;
             g_exit_flag = true;
-
-            if (!is_observed) {
-                _exit(129);
+            pid_t bg_pgid = JobManager::get_last_background_pid_atomic();
+            if (bg_pgid > 0) {
+                killpg(bg_pgid, SIGHUP);
             }
             should_mark_pending = true;
             break;
@@ -851,12 +853,44 @@ SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) 
         result.sighup = true;
         g_exit_flag = true;
 
-        if (shell_exec != nullptr) {
-            shell_exec->terminate_all_child_process();
+        bool enforce_hup = !g_shell || g_shell->get_shell_option("huponexit");
 
-            auto& job_manager = JobManager::instance();
-            auto all_jobs = job_manager.get_all_jobs();
-            for (auto& job : all_jobs) {
+        auto& job_manager = JobManager::instance();
+        auto jobs_snapshot = job_manager.get_all_jobs();
+
+        for (const auto& job : jobs_snapshot) {
+            if (job->state == JobState::RUNNING || job->state == JobState::STOPPED) {
+                fprintf(stderr, "cjsh(debug): hup propagate pgid=%d state=%d\n", job->pgid,
+                        static_cast<int>(job->state));
+                if (killpg(job->pgid, SIGHUP) < 0) {
+                    fprintf(stderr, "cjsh(debug): killpg HUP failed for %d: %s\n", job->pgid,
+                            strerror(errno));
+                }
+#ifdef SIGCONT
+                if (job->state == JobState::STOPPED) {
+                    killpg(job->pgid, SIGCONT);
+                }
+#endif
+            }
+        }
+
+        if (jobs_snapshot.empty()) {
+            pid_t orphan_pid = job_manager.get_last_background_pid();
+            if (orphan_pid > 0) {
+                kill(orphan_pid, SIGHUP);
+            }
+        }
+
+        if (shell_exec != nullptr) {
+            if (enforce_hup) {
+                shell_exec->terminate_all_child_process();
+            } else {
+                shell_exec->abandon_all_child_processes();
+            }
+        }
+
+        if (enforce_hup) {
+            for (auto& job : jobs_snapshot) {
                 if (job->state == JobState::RUNNING || job->state == JobState::STOPPED) {
                     killpg(job->pgid, SIGTERM);
                     usleep(10000);
@@ -865,6 +899,8 @@ SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) 
                 }
             }
         }
+
+        job_manager.clear_all_jobs();
 
         if (!is_signal_observed(SIGHUP)) {
 #ifdef __APPLE__

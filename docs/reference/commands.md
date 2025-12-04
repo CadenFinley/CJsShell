@@ -130,6 +130,10 @@ Adjust shell options or positional parameters.
 set [options] [args...]
 ```
 
+- `set -o huponexit` mirrors bash's hangup behavior toggle; when enabled the shell sends
+  SIGHUP/SIGTERM to managed background jobs as it exits. Leave it off (the default) to keep helpers
+  like dev servers alive until you explicitly stop them.
+
 ### shift
 Rotate positional parameters to the left.
 
@@ -272,6 +276,17 @@ Send signals to jobs or processes.
 ```bash
 kill [-signal] pid|job_spec
 ```
+
+### disown
+Detach jobs from the shell so they are no longer listed or sent hangup signals when cjsh exits.
+
+```bash
+disown [-a|--all] [job_spec...]
+```
+
+- With no arguments, the current job is disowned
+- `-a/--all` removes every tracked job in one shot
+- Disowned jobs continue running even if `set -o huponexit` is enabled later in the session
 
 ## Signal Handling
 

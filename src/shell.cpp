@@ -59,7 +59,15 @@ Shell::~Shell() {
         std::cerr << "Destroying Shell.\n";
     }
 
-    shell_exec->terminate_all_child_process();
+    if (shell_exec) {
+        if (get_shell_option("huponexit")) {
+            shell_exec->terminate_all_child_process();
+        } else {
+            shell_exec->abandon_all_child_processes();
+        }
+    }
+
+    JobManager::instance().clear_all_jobs();
     restore_terminal_state();
 }
 

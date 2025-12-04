@@ -128,6 +128,7 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                  make_option("+a", "Stop auto-exporting variables"),
                  make_option("-o", "Set option by name"),
                  make_option("+o", "Unset option by name"),
+                 make_option("huponexit", "Send SIGHUP/SIGTERM to jobs when the shell exits"),
                  make_option("--errexit-severity=", "Set errexit sensitivity level"),
                  make_option("--", "Treat remaining arguments as positional parameters")});
 
@@ -190,6 +191,8 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_doc("fg", "Bring a job to the foreground", {});
         add_doc("bg", "Resume a job in the background", {});
         add_doc("wait", "Wait for jobs or processes to finish", {});
+        add_doc("disown", "Remove jobs from the shell's management",
+                {make_option("-a", "Disown every job"), make_option("--all", "Disown every job")});
 
         add_doc(
             "kill", "Send signals to processes or jobs",

@@ -11,8 +11,10 @@ require no third-party plugins.
     redirections, here-documents, command substitution) behave the way portable scripts expect.
 - **Selective bash extensions** – `[[ … ]]`, arithmetic contexts, here-strings, and history
     expansion ship enabled for interactive use but stay out of the way for scripts.
-- **Job control** – Background jobs, `fg`, `bg`, `jobs`, `wait`, and `trap` integrate with the
-    internal process manager so interactive sessions stay responsive.
+- **Job control** – Background jobs, `fg`, `bg`, `jobs`, `wait`, `disown`, and `trap` integrate with
+    the internal process manager so interactive sessions stay responsive. `set -o huponexit`
+    controls whether exiting shells hang up or leave running jobs alone (default: off, so long-lived
+    helpers keep running until you explicitly stop them).
 
 ## Interactive Layer
 
@@ -57,6 +59,8 @@ for full details.
         `cjshopt prompt-cleanup-empty-line`, `cjshopt prompt-cleanup-truncate`
     - `cjshopt keybind …` and `cjshopt keybind ext …` for keymap management
     - `cjshopt set-history-max` to adjust persistent history size (0–5000 entries)
+    - `set -o huponexit` mirrors bash's option for sending SIGHUP/SIGTERM to background jobs when the
+        shell exits (off by default so long-running helpers stick around)
 - **Login/startup flags** – Place `cjshopt login-startup-arg <flag>` lines in `~/.cjprofile` to
     replay command-line switches (`--minimal`, `--no-completions`, `--show-startup-time`, etc.) on
     every launch. Flags that are valid on the CLI are respected during profile evaluation.
