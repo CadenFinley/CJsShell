@@ -1872,9 +1872,13 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         std::lock_guard<std::mutex> lock(jobs_mutex);
         auto it = jobs.find(job_id);
         if (it != jobs.end()) {
-            JobManager::instance().remove_job(new_job_id);
-            raw_exit = extract_exit_code(it->second.last_status);
-            set_last_pipeline_statuses(it->second.pipeline_statuses);
+            if (it->second.completed) {
+                JobManager::instance().remove_job(new_job_id);
+                raw_exit = extract_exit_code(it->second.last_status);
+                set_last_pipeline_statuses(it->second.pipeline_statuses);
+            } else {
+                raw_exit = last_exit_code;
+            }
         } else {
             set_last_pipeline_statuses({raw_exit});
         }
@@ -2078,6 +2082,26 @@ void Exec::wait_for_job(int job_id) {
             job.stopped = true;
             job.status = status;
             last_exit_code = 128 + SIGTSTP;
+
+            auto job_control = JobManager::instance().get_job_by_pgid(job_pgid);
+            if (!job_control) {
+                auto jobs_snapshot = JobManager::instance().get_all_jobs();
+                for (const auto& candidate : jobs_snapshot) {
+                    if (!candidate) {
+                        continue;
+                    }
+                    if (candidate->pgid == job_pgid ||
+                        std::find(candidate->pids.begin(), candidate->pids.end(), job_pgid) !=
+                            candidate->pids.end()) {
+                        job_control = candidate;
+                        break;
+                    }
+                }
+            }
+
+            if (job_control) {
+                JobManager::instance().notify_job_stopped(job_control);
+            }
         } else {
             job.completed = true;
             job.stopped = false;

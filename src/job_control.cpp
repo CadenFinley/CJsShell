@@ -180,6 +180,7 @@ void JobManager::update_job_status() {
                     job->state = JobState::STOPPED;
                 } else if (WIFCONTINUED(status)) {
                     job->state = JobState::RUNNING;
+                    job->stop_notified = false;
                 }
             } else if (result == -1) {
             }
@@ -214,6 +215,30 @@ pid_t JobManager::get_last_background_pid_atomic() {
 
 void JobManager::set_shell(Shell* shell) {
     shell_ref = shell;
+}
+
+void JobManager::notify_job_stopped(const std::shared_ptr<JobControlJob>& job) {
+    if (!job || job->stop_notified) {
+        return;
+    }
+
+    if (!config::interactive_mode && !config::force_interactive) {
+        return;
+    }
+
+    job->state = JobState::STOPPED;
+
+    char status_char = ' ';
+    if (job->job_id == current_job) {
+        status_char = '+';
+    } else if (job->job_id == previous_job) {
+        status_char = '-';
+    }
+
+    std::cerr << "\n[" << job->job_id << "]" << status_char << "  Stopped\t" << job->command
+              << '\n';
+
+    job->stop_notified = true;
 }
 
 void JobManager::update_current_previous(int new_current) {
@@ -476,6 +501,7 @@ int fg_command(const std::vector<std::string>& args) {
     }
 
     job->state = JobState::RUNNING;
+    job->stop_notified = false;
     job_manager.set_current_job(job_id);
 
     std::cout << job->command << '\n';
@@ -495,6 +521,7 @@ int fg_command(const std::vector<std::string>& args) {
     }
     if (WIFSTOPPED(status)) {
         job->state = JobState::STOPPED;
+        job_manager.notify_job_stopped(job);
         return 128 + WSTOPSIG(status);
     }
     if (WIFSIGNALED(status)) {
@@ -555,6 +582,7 @@ int bg_command(const std::vector<std::string>& args) {
     }
 
     job->state = JobState::RUNNING;
+    job->stop_notified = false;
     std::cout << "[" << job_id << "]+ " << job->command << " &" << '\n';
 
     return 0;

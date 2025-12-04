@@ -1,6 +1,8 @@
 #include "exit_command.h"
 
 #include "builtin_help.h"
+#include "error_out.h"
+#include "job_control.h"
 
 #include <algorithm>
 #include <cstdlib>
@@ -45,6 +47,45 @@ int exit_command(const std::vector<std::string>& args) {
         g_exit_flag = true;
         setenv("EXIT_CODE", "128", 1);
         return 0;
+    }
+
+    if (!force_exit) {
+        auto& job_manager = JobManager::instance();
+        job_manager.update_job_status();
+
+        const auto jobs = job_manager.get_all_jobs();
+        bool has_stopped_jobs = false;
+        bool has_running_jobs = false;
+
+        for (const auto& job : jobs) {
+            if (!job) {
+                continue;
+            }
+            if (job->state == JobState::STOPPED) {
+                has_stopped_jobs = true;
+            } else if (job->state == JobState::RUNNING) {
+                has_running_jobs = true;
+            }
+        }
+
+        if (has_stopped_jobs || has_running_jobs) {
+            std::string warning;
+            if (has_stopped_jobs && has_running_jobs) {
+                warning = "There are stopped and running jobs.";
+            } else if (has_stopped_jobs) {
+                warning = "There are stopped jobs.";
+            } else {
+                warning = "There are running jobs.";
+            }
+
+            print_error({ErrorType::RUNTIME_ERROR,
+                         ErrorSeverity::WARNING,
+                         "exit",
+                         warning,
+                         {"Use `jobs` to inspect them.",
+                          "Resume, disown, or run `exit --force` to exit."}});
+            return 1;
+        }
     }
 
     if (force_exit) {

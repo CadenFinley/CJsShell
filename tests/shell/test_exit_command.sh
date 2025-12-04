@@ -212,6 +212,80 @@ else
     fail "Exit should handle background processes, expected 33, got $exit_code"
 fi
 
+log_test "Exit blocked when stopped jobs exist"
+stopped_pid_file=$(mktemp /tmp/cjsh_stopped_exit.XXXXXX)
+exit_output=$(PID_FILE="$stopped_pid_file" "$SHELL_TO_TEST" <<'EOF' 2>&1
+sleep 1000 &
+job=$!
+echo "$job" > "$PID_FILE"
+kill -STOP "$job"
+sleep 0.2
+exit 17
+echo "exit-aborted"
+kill -KILL "$job" 2>/dev/null
+wait "$job" 2>/dev/null
+exit 5
+EOF
+)
+exit_status=$?
+stopped_pid=$(cat "$stopped_pid_file" 2>/dev/null)
+rm -f "$stopped_pid_file"
+if [ -n "$stopped_pid" ] && kill -0 "$stopped_pid" 2>/dev/null; then
+    kill -KILL "$stopped_pid" 2>/dev/null || true
+fi
+if [ $exit_status -eq 5 ] && printf '%s' "$exit_output" | grep -q "exit-aborted"; then
+    pass
+else
+    fail "Exit should be blocked until stopped jobs clear (status=$exit_status, output=$exit_output)"
+fi
+
+log_test "Exit blocked when running jobs exist"
+running_pid_file=$(mktemp /tmp/cjsh_running_exit.XXXXXX)
+running_output=$(PID_FILE="$running_pid_file" "$SHELL_TO_TEST" <<'EOF' 2>&1
+sleep 1000 &
+job=$!
+echo "$job" > "$PID_FILE"
+exit 21
+echo "exit-running-aborted"
+kill -KILL "$job" 2>/dev/null
+wait "$job" 2>/dev/null
+exit 7
+EOF
+)
+running_status=$?
+running_pid=$(cat "$running_pid_file" 2>/dev/null)
+rm -f "$running_pid_file"
+if [ -n "$running_pid" ] && kill -0 "$running_pid" 2>/dev/null; then
+    kill -KILL "$running_pid" 2>/dev/null || true
+fi
+if [ $running_status -eq 7 ] && printf '%s' "$running_output" | grep -q "exit-running-aborted"; then
+    pass
+else
+    fail "Exit should be blocked until running jobs clear (status=$running_status, output=$running_output)"
+fi
+
+log_test "Forced exit bypasses stopped job guard"
+force_pid_file=$(mktemp /tmp/cjsh_force_exit.XXXXXX)
+PID_FILE="$force_pid_file" "$SHELL_TO_TEST" <<'EOF' >/dev/null 2>&1
+sleep 1000 &
+job=$!
+echo "$job" > "$PID_FILE"
+kill -STOP "$job"
+sleep 0.2
+exit --force 19
+EOF
+force_status=$?
+force_pid=$(cat "$force_pid_file" 2>/dev/null)
+rm -f "$force_pid_file"
+if [ -n "$force_pid" ] && kill -0 "$force_pid" 2>/dev/null; then
+    kill -KILL "$force_pid" 2>/dev/null || true
+fi
+if [ $force_status -eq 19 ]; then
+    pass
+else
+    fail "Forced exit should succeed even with stopped jobs, got $force_status"
+fi
+
 log_test "Resource cleanup verification"
 if command -v ps >/dev/null 2>&1; then
     zombies_before=$(ps axo stat 2>/dev/null | grep '^Z' | wc -l 2>/dev/null || echo 0)

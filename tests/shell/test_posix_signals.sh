@@ -492,6 +492,61 @@ else
     skip "SIGTSTP handling complex in non-interactive mode"
 fi
 
+log_test "Ctrl+Z stop notification"
+if command -v pgrep >/dev/null 2>&1; then
+    ctrlz_output="/tmp/cjsh_ctrlz_$$"
+    "$SHELL_TO_TEST" -i -c "sleep 30" >"$ctrlz_output" 2>&1 &
+    shell_pid=$!
+    child_pid=""
+
+    for _ in 1 2 3 4 5; do
+        sleep 0.2
+        for candidate in $(pgrep -P "$shell_pid" 2>/dev/null); do
+            cmd_name=$(ps -p "$candidate" -o comm= 2>/dev/null | tr -d ' ')
+            if [ "$cmd_name" = "sleep" ]; then
+                child_pid="$candidate"
+                break 2
+            fi
+        done
+    done
+
+    if [ -n "$child_pid" ]; then
+        kill -TSTP "$child_pid" 2>/dev/null
+        sleep 0.3
+        kill -KILL "$child_pid" 2>/dev/null
+        wait "$shell_pid" 2>/dev/null
+        if grep -q "Stopped" "$ctrlz_output"; then
+            pass
+        else
+            fail "Stop notification missing"
+        fi
+    else
+        kill -9 "$shell_pid" 2>/dev/null
+        skip "Could not identify child process for Ctrl+Z test"
+    fi
+    rm -f "$ctrlz_output"
+else
+    skip "pgrep not available for Ctrl+Z test"
+fi
+
+log_test "jobs reports stopped state"
+jobs_output=$("$SHELL_TO_TEST" -i <<'EOF' 2>&1
+sleep 1000 &
+job=$!
+kill -STOP "$job"
+sleep 0.2
+jobs
+kill -KILL "$job" 2>/dev/null
+wait "$job" 2>/dev/null
+exit
+EOF
+)
+if echo "$jobs_output" | grep -q "Stopped"; then
+    pass
+else
+    fail "jobs output did not show stopped state"
+fi
+
 log_test "SIGWINCH signal (window change)"
 result=$("$SHELL_TO_TEST" -c "trap 'echo winch' WINCH; kill -WINCH \$\$; sleep 0.1; echo done" 2>/dev/null)
 if echo "$result" | grep -q "done"; then

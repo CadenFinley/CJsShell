@@ -29,6 +29,7 @@ struct JobControlJob {
     JobState state{};
     int exit_status{};
     bool notified{false};
+    bool stop_notified{false};
     bool background{false};
     bool reads_stdin{false};
     bool awaiting_stdin_signal{false};
@@ -73,6 +74,8 @@ class JobManager {
     void cleanup_finished_jobs();
 
     void set_shell(Shell* shell);
+
+    void notify_job_stopped(const std::shared_ptr<JobControlJob>& job);
 
     bool foreground_job_reads_stdin();
 

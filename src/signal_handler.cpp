@@ -823,6 +823,7 @@ SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) 
                         }
                     } else if (WIFSTOPPED(status)) {
                         job->state = JobState::STOPPED;
+                        JobManager::instance().notify_job_stopped(job);
 #ifdef SIGTTIN
                         if (WSTOPSIG(status) == SIGTTIN) {
                             JobManager::instance().mark_job_reads_stdin(pid, true);
@@ -831,6 +832,7 @@ SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) 
 #endif
                     } else if (WIFCONTINUED(status)) {
                         job->state = JobState::RUNNING;
+                        job->stop_notified = false;
                         JobManager::instance().clear_stdin_signal(job->pgid);
                     }
                 }
