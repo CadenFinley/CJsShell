@@ -30,6 +30,7 @@ constexpr std::size_t kReserveSlack = 64;
 bool initialized = false;
 std::string g_input_buffer;
 std::string g_pending_raw_bytes;
+bool g_pending_initial_submit = false;
 
 }  // namespace
 
@@ -237,26 +238,49 @@ void ingest_typeahead_input(const std::string& raw_input) {
     }
     g_input_buffer.clear();
 
-    std::size_t last_newline = normalized_temp.find_last_of('\n');
-    if (last_newline == std::string::npos) {
-        if (!normalized_temp.empty()) {
-            std::size_t leftover_len = normalized_temp.size();
-            std::size_t needed = std::clamp<std::size_t>(leftover_len + kReserveSlack,
-                                                         kDefaultInputReserve, kMaxInputReserve);
-            if (g_input_buffer.capacity() < needed) {
-                g_input_buffer.reserve(needed);
-            }
-            g_input_buffer.assign(normalized_temp.data(), leftover_len);
+    if (normalized_temp.empty()) {
+        g_pending_initial_submit = false;
+        return;
+    }
+
+    auto assign_view = [&](const char* data, std::size_t length) {
+        if (length == 0) {
+            g_input_buffer.clear();
+            return;
         }
-    } else if (last_newline + 1 < normalized_temp.size()) {
-        std::size_t leftover_len = normalized_temp.size() - (last_newline + 1);
-        std::size_t needed = std::clamp<std::size_t>(leftover_len + kReserveSlack,
-                                                     kDefaultInputReserve, kMaxInputReserve);
+        std::size_t needed =
+            std::clamp<std::size_t>(length + kReserveSlack, kDefaultInputReserve, kMaxInputReserve);
         if (g_input_buffer.capacity() < needed) {
             g_input_buffer.reserve(needed);
         }
-        g_input_buffer.assign(normalized_temp.data() + last_newline + 1, leftover_len);
+        g_input_buffer.assign(data, length);
+    };
+
+    if (normalized_temp.back() == '\n') {
+        std::size_t last_non_newline = normalized_temp.find_last_not_of('\n');
+        std::size_t segment_start = 0;
+        if (last_non_newline != std::string::npos) {
+            std::size_t previous_newline = normalized_temp.find_last_of('\n', last_non_newline);
+            segment_start = (previous_newline == std::string::npos) ? 0 : previous_newline + 1;
+        }
+        assign_view(normalized_temp.data() + segment_start, normalized_temp.size() - segment_start);
+    } else {
+        std::size_t last_newline = normalized_temp.find_last_of('\n');
+        if (last_newline == std::string::npos) {
+            assign_view(normalized_temp.data(), normalized_temp.size());
+        } else {
+            std::size_t leftover_len = normalized_temp.size() - (last_newline + 1);
+            assign_view(normalized_temp.data() + last_newline + 1, leftover_len);
+        }
     }
+
+    bool ends_with_newline = !g_input_buffer.empty() && g_input_buffer.back() == '\n';
+    bool has_prior_newline = false;
+    if (ends_with_newline && normalized_temp.size() > 1) {
+        has_prior_newline =
+            normalized_temp.rfind('\n', normalized_temp.size() - 2) != std::string::npos;
+    }
+    g_pending_initial_submit = ends_with_newline && !has_prior_newline;
 }
 
 void flush_pending_typeahead() {
@@ -264,6 +288,12 @@ void flush_pending_typeahead() {
     if (!pending_input.empty()) {
         ingest_typeahead_input(pending_input);
     }
+
+    if (g_pending_initial_submit) {
+        g_pending_raw_bytes.clear();
+        return;
+    }
+
     if (!g_pending_raw_bytes.empty()) {
         const auto* data = reinterpret_cast<const uint8_t*>(g_pending_raw_bytes.data());
         if (ic_push_raw_input(data, g_pending_raw_bytes.size())) {
@@ -275,6 +305,7 @@ void flush_pending_typeahead() {
 
 void clear_input_buffer() {
     g_input_buffer.clear();
+    g_pending_initial_submit = false;
 }
 
 const std::string& get_input_buffer() {
@@ -411,6 +442,7 @@ void initialize() {
         g_pending_raw_bytes.reserve(kDefaultInputReserve);
     }
     g_pending_raw_bytes.clear();
+    g_pending_initial_submit = false;
 }
 
 void cleanup() {
@@ -419,6 +451,7 @@ void cleanup() {
     g_input_buffer.shrink_to_fit();
     g_pending_raw_bytes.clear();
     g_pending_raw_bytes.shrink_to_fit();
+    g_pending_initial_submit = false;
 }
 
 }  // namespace typeahead
