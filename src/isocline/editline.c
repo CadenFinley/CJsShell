@@ -627,7 +627,8 @@ static void format_line_number_prompt(char* buffer, size_t buffer_size, ssize_t 
 }
 
 static void edit_write_prompt(ic_env_t* env, editor_t* eb, ssize_t row, bool in_extra,
-                              ssize_t cursor_row) {
+                              ssize_t cursor_row, ssize_t logical_line, ssize_t cursor_logical_line,
+                              bool is_continuation_row) {
     if (in_extra)
         return;
     bbcode_style_open(env->bbcode, "ic-prompt");
@@ -637,39 +638,45 @@ static void edit_write_prompt(ic_env_t* env, editor_t* eb, ssize_t row, bool in_
     } else if (env->show_line_numbers) {
         // show line numbers for multiline input
         bbcode_style_close(env->bbcode, NULL);
-        // Use different color for current line number if highlighting is enabled
-        const char* style = (env->highlight_current_line_number && row == cursor_row)
-                                ? "ic-linenumber-current"
-                                : "ic-linenumbers";
-        bbcode_style_open(env->bbcode, style);
-        char line_number_str[16];
-        format_line_number_prompt(line_number_str, sizeof(line_number_str), row, cursor_row,
-                                  env->relative_line_numbers);
+
         ssize_t textw = bbcode_column_width(env->bbcode, eb->prompt_text);
         ssize_t markerw = bbcode_column_width(env->bbcode, env->prompt_marker);
         ssize_t promptw = markerw + textw;
         ssize_t indent_target = compute_continuation_indent_target(env, eb, promptw);
-        ssize_t line_number_width = (ssize_t)strlen(line_number_str);
-        ssize_t desired_width = indent_target;
-        if (eb->line_number_column_width > desired_width) {
-            desired_width = eb->line_number_column_width;
-        }
-        if (line_number_width > desired_width) {
-            desired_width = line_number_width;
-        }
+        ssize_t desired_width =
+            (eb->line_number_column_width > indent_target ? eb->line_number_column_width
+                                                          : indent_target);
 
-        ssize_t leading_spaces = desired_width - line_number_width;
-        if (leading_spaces > 0) {
-            term_write_repeat(env->term, " ", leading_spaces);
-        }
+        if (!is_continuation_row) {
+            const bool highlight_line = (cursor_row >= 0 && env->highlight_current_line_number &&
+                                         logical_line == cursor_logical_line);
+            const char* style = (highlight_line ? "ic-linenumber-current" : "ic-linenumbers");
 
-        bbcode_print(env->bbcode, line_number_str);
+            bbcode_style_open(env->bbcode, style);
+
+            char line_number_str[16];
+            format_line_number_prompt(line_number_str, sizeof(line_number_str), logical_line,
+                                      cursor_logical_line, env->relative_line_numbers);
+            ssize_t line_number_width = (ssize_t)strlen(line_number_str);
+            if (line_number_width > desired_width) {
+                desired_width = line_number_width;
+            }
+
+            ssize_t leading_spaces = desired_width - line_number_width;
+            if (leading_spaces > 0) {
+                term_write_repeat(env->term, " ", leading_spaces);
+            }
+
+            bbcode_print(env->bbcode, line_number_str);
+            bbcode_style_close(env->bbcode, NULL);
+        } else {
+            term_write_repeat(env->term, " ", desired_width);
+        }
 
         if (desired_width > eb->line_number_column_width) {
             eb->line_number_column_width = desired_width;
         }
 
-        bbcode_style_close(env->bbcode, NULL);
         bbcode_style_open(env->bbcode, "ic-prompt");
     } else if (!env->no_multiline_indent) {
         // multiline continuation indentation
@@ -809,109 +816,128 @@ typedef struct refresh_info_s {
     ssize_t first_row;
     ssize_t last_row;
     ssize_t cursor_row;
+    ssize_t logical_line;
+    ssize_t cursor_logical_line;
+    bool continuation_row;
 } refresh_info_t;
 
 static bool edit_refresh_rows_iter(const char* s, ssize_t row, ssize_t row_start, ssize_t row_len,
                                    ssize_t startw, bool is_wrap, const void* arg, void* res) {
     ic_unused(res);
     ic_unused(startw);
-    const refresh_info_t* info = (const refresh_info_t*)(arg);
+    refresh_info_t* info = (refresh_info_t*)(arg);
     term_t* term = info->env->term;
 
     // debug_msg("edit: line refresh: row %zd, len: %zd\n", row, row_len);
-    if (row < info->first_row)
-        return false;
     if (row > info->last_row)
         return true;  // should not occur
 
-    // term_clear_line(term);
-    edit_write_prompt(info->env, info->eb, row, info->in_extra, info->cursor_row);
+    const bool should_render = (row >= info->first_row);
+    const bool row_is_continuation = (!info->in_extra ? info->continuation_row : false);
+    const ssize_t logical_line = info->logical_line;
+    const ssize_t cursor_line = info->cursor_logical_line;
 
-    //' write output
-    const bool use_attrs =
-        !(info->env->no_highlight && info->env->no_bracematch) && info->attrs != NULL;
-    const attr_t* row_attrs = NULL;
-    if (use_attrs) {
-        const attr_t* attrs = attrbuf_attrs(info->attrs, row_start + row_len);
-        if (attrs != NULL) {
-            row_attrs = attrs + row_start;
+    if (should_render) {
+        // term_clear_line(term);
+        edit_write_prompt(info->env, info->eb, row, info->in_extra, info->cursor_row, logical_line,
+                          cursor_line, row_is_continuation);
+
+        //' write output
+        const bool use_attrs =
+            !(info->env->no_highlight && info->env->no_bracematch) && info->attrs != NULL;
+        const attr_t* row_attrs = NULL;
+        if (use_attrs) {
+            const attr_t* attrs = attrbuf_attrs(info->attrs, row_start + row_len);
+            if (attrs != NULL) {
+                row_attrs = attrs + row_start;
+            }
         }
-    }
-    edit_write_row_text(info->env, s + row_start, row_len, row_attrs, info->in_extra);
+        edit_write_row_text(info->env, s + row_start, row_len, row_attrs, info->in_extra);
 
-    // write line ending
-    if (row < info->last_row) {
-        if (is_wrap && tty_is_utf8(info->env->tty)) {
+        // write line ending
+        if (row < info->last_row) {
+            if (is_wrap && tty_is_utf8(info->env->tty)) {
 #ifndef __APPLE__
-            bbcode_print(info->env->bbcode,
-                         "[ic-diminish]\xE2\x86\x90[/]");  // left arrow
+                bbcode_print(info->env->bbcode,
+                             "[ic-diminish]\xE2\x86\x90[/]");  // left arrow
 #else
-            bbcode_print(info->env->bbcode,
-                         "[ic-diminish]\xE2\x86\xB5[/]");  // return symbol
+                bbcode_print(info->env->bbcode,
+                             "[ic-diminish]\xE2\x86\xB5[/]");  // return symbol
 #endif
-        }
-        term_clear_to_end_of_line(term);
-        term_writeln(term, "");
-    } else {
-        if (info->in_extra) {
+            }
             term_clear_to_end_of_line(term);
-        } else if (row == 0 && info->eb->inline_right_text != NULL) {
-            ssize_t promptw, cpromptw;
-            edit_get_prompt_width(info->env, info->eb, info->in_extra, &promptw, &cpromptw);
+            term_writeln(term, "");
+        } else {
+            if (info->in_extra) {
+                term_clear_to_end_of_line(term);
+            } else if (row == 0 && info->eb->inline_right_text != NULL) {
+                ssize_t promptw, cpromptw;
+                edit_get_prompt_width(info->env, info->eb, info->in_extra, &promptw, &cpromptw);
 
-            ssize_t current_pos = promptw + row_len;
-            ssize_t right_text_width = info->eb->inline_right_width;
-            ssize_t terminal_width = info->eb->termw;
+                ssize_t current_pos = promptw + row_len;
+                ssize_t right_text_width = info->eb->inline_right_width;
+                ssize_t terminal_width = info->eb->termw;
 
-            // Only show right text if there's enough space and input hasn't
-            // reached it
+                // Only show right text if there's enough space and input hasn't
+                // reached it
 
-            if (terminal_width > current_pos + right_text_width + 1) {
-                ssize_t spaces_needed = terminal_width - current_pos - right_text_width;
-                // Write spaces and then right-aligned text
-                term_write_repeat(term, " ", spaces_needed);
-                // Write the inline right text, extracting plain text from
-                // bbcode if needed
-                const char* text_to_write = info->eb->inline_right_text;
-                const char* time_start = NULL;
+                if (terminal_width > current_pos + right_text_width + 1) {
+                    ssize_t spaces_needed = terminal_width - current_pos - right_text_width;
+                    // Write spaces and then right-aligned text
+                    term_write_repeat(term, " ", spaces_needed);
+                    // Write the inline right text, extracting plain text from
+                    // bbcode if needed
+                    const char* text_to_write = info->eb->inline_right_text;
+                    const char* time_start = NULL;
 
-                // Look for time pattern [HH:MM:SS] in the text to extract from
-                // bbcode formatting
-                for (const char* p = text_to_write; *p; p++) {
-                    if (*p == '[' && p[1] >= '0' && p[1] <= '9' && p[2] >= '0' && p[2] <= '9' &&
-                        p[3] == ':' && p[4] >= '0' && p[4] <= '9' && p[5] >= '0' && p[5] <= '9' &&
-                        p[6] == ':' && p[7] >= '0' && p[7] <= '9' && p[8] >= '0' && p[8] <= '9' &&
-                        p[9] == ']') {
-                        time_start = p;
-                        break;
+                    // Look for time pattern [HH:MM:SS] in the text to extract from
+                    // bbcode formatting
+                    for (const char* p = text_to_write; *p; p++) {
+                        if (*p == '[' && p[1] >= '0' && p[1] <= '9' && p[2] >= '0' && p[2] <= '9' &&
+                            p[3] == ':' && p[4] >= '0' && p[4] <= '9' && p[5] >= '0' &&
+                            p[5] <= '9' && p[6] == ':' && p[7] >= '0' && p[7] <= '9' &&
+                            p[8] >= '0' && p[8] <= '9' && p[9] == ']') {
+                            time_start = p;
+                            break;
+                        }
                     }
-                }
 
-                if (time_start) {
-                    // Found time pattern, write just the clean time without
-                    // ANSI codes
-                    term_write_n(info->env->term, time_start,
-                                 10);  // [HH:MM:SS] is exactly 10 chars
+                    if (time_start) {
+                        // Found time pattern, write just the clean time without
+                        // ANSI codes
+                        term_write_n(info->env->term, time_start,
+                                     10);  // [HH:MM:SS] is exactly 10 chars
+                    } else {
+                        // Fallback: use bbcode_print for other content
+                        bbcode_print(info->env->bbcode, info->eb->inline_right_text);
+                    }
+                    term_flush(info->env->term);  // Ensure text is flushed to terminal
+                    // DON'T clear to end of line after writing the text!
                 } else {
-                    // Fallback: use bbcode_print for other content
-                    bbcode_print(info->env->bbcode, info->eb->inline_right_text);
+                    // Clear to end of line if no space for right text
+                    term_clear_to_end_of_line(term);
                 }
-                term_flush(info->env->term);  // Ensure text is flushed to terminal
-                // DON'T clear to end of line after writing the text!
             } else {
-                // Clear to end of line if no space for right text
                 term_clear_to_end_of_line(term);
             }
-        } else {
-            term_clear_to_end_of_line(term);
         }
     }
+
+    if (!info->in_extra) {
+        if (is_wrap) {
+            info->continuation_row = true;
+        } else {
+            info->continuation_row = false;
+            info->logical_line++;
+        }
+    }
+
     return (row >= info->last_row);
 }
 
 static void edit_refresh_rows(ic_env_t* env, editor_t* eb, stringbuf_t* input, attrbuf_t* attrs,
                               ssize_t promptw, ssize_t cpromptw, bool in_extra, ssize_t first_row,
-                              ssize_t last_row, ssize_t cursor_row) {
+                              ssize_t last_row, ssize_t cursor_row, ssize_t cursor_logical_line) {
     if (input == NULL)
         return;
     refresh_info_t info;
@@ -922,6 +948,9 @@ static void edit_refresh_rows(ic_env_t* env, editor_t* eb, stringbuf_t* input, a
     info.first_row = first_row;
     info.last_row = last_row;
     info.cursor_row = cursor_row;
+    info.logical_line = 0;
+    info.cursor_logical_line = cursor_logical_line;
+    info.continuation_row = false;
     sbuf_for_each_row(input, eb->termw, promptw, cpromptw, &edit_refresh_rows_iter, &info, NULL);
 }
 
@@ -930,6 +959,46 @@ static bool sbuf_ends_with_newline(stringbuf_t* sbuf) {
     if (len <= 0)
         return false;
     return (sbuf_char_at(sbuf, len - 1) == '\n');
+}
+
+static ssize_t count_logical_lines(stringbuf_t* sbuf) {
+    if (sbuf == NULL)
+        return 1;
+    ssize_t len = sbuf_len(sbuf);
+    if (len <= 0)
+        return 1;
+    const char* data = sbuf_string(sbuf);
+    if (data == NULL)
+        return 1;
+    ssize_t lines = 1;
+    for (ssize_t i = 0; i < len; ++i) {
+        if (data[i] == '\n') {
+            lines++;
+        }
+    }
+    return lines;
+}
+
+static ssize_t logical_line_at_pos(stringbuf_t* sbuf, ssize_t pos) {
+    if (sbuf == NULL)
+        return 0;
+    ssize_t len = sbuf_len(sbuf);
+    if (len <= 0)
+        return 0;
+    if (pos < 0)
+        pos = 0;
+    if (pos > len)
+        pos = len;
+    const char* data = sbuf_string(sbuf);
+    if (data == NULL)
+        return 0;
+    ssize_t line = 0;
+    for (ssize_t i = 0; i < pos; ++i) {
+        if (data[i] == '\n') {
+            line++;
+        }
+    }
+    return line;
 }
 
 static void edit_refresh(ic_env_t* env, editor_t* eb) {
@@ -1002,6 +1071,12 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
     ssize_t indent_target = compute_continuation_indent_target(env, eb, promptw);
     int layout_adjustments = 0;
     ssize_t cursor_row_for_display = 0;
+    ssize_t logical_line_count = count_logical_lines(eb->input);
+    ssize_t cursor_logical_line = logical_line_at_pos(eb->input, eb->pos);
+    if (cursor_logical_line >= logical_line_count) {
+        cursor_logical_line = logical_line_count - 1;
+    }
+    ssize_t cursor_line_for_display = 0;
 
     while (true) {
         rc = (rowcol_t){0};
@@ -1016,17 +1091,19 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
 
         rows = rows_input + rows_extra;
         cursor_row_for_display = (eb->force_linear_line_numbers ? -1 : rc.row);
+        cursor_line_for_display = (eb->force_linear_line_numbers ? -1 : cursor_logical_line);
 
         if (env->show_line_numbers) {
             ssize_t max_line_number_width = 0;
-            if (rows_input > 0) {
+            if (logical_line_count > 0) {
                 char line_number_str[16];
                 format_line_number_prompt(line_number_str, sizeof(line_number_str), 0,
-                                          cursor_row_for_display, env->relative_line_numbers);
+                                          cursor_line_for_display, env->relative_line_numbers);
                 max_line_number_width = (ssize_t)strlen(line_number_str);
 
-                format_line_number_prompt(line_number_str, sizeof(line_number_str), rows_input - 1,
-                                          cursor_row_for_display, env->relative_line_numbers);
+                format_line_number_prompt(line_number_str, sizeof(line_number_str),
+                                          logical_line_count - 1, cursor_line_for_display,
+                                          env->relative_line_numbers);
                 ssize_t last_width = (ssize_t)strlen(line_number_str);
                 if (last_width > max_line_number_width) {
                     max_line_number_width = last_width;
@@ -1081,14 +1158,14 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
 
     // render rows
     edit_refresh_rows(env, eb, eb->input, eb->attrs, promptw, cpromptw, false, first_row, last_row,
-                      cursor_row_for_display);
+                      cursor_row_for_display, cursor_line_for_display);
     if (rows_extra > 0) {
         assert(extra != NULL);
         const ssize_t first_rowx = (first_row > rows_input ? first_row - rows_input : 0);
         const ssize_t last_rowx = last_row - rows_input;
         assert(last_rowx >= 0);
         edit_refresh_rows(env, eb, extra, eb->attrs_extra, 0, 0, true, first_rowx, last_rowx,
-                          cursor_row_for_display);
+                          cursor_row_for_display, -1);
     }
 
     // overwrite trailing rows we do not use anymore
@@ -1112,14 +1189,21 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
     if (rc.row == 0) {
         actual_prompt_width = promptw;
     } else if (env->show_line_numbers) {
-        // Calculate the actual width of the line number for this specific row
-        char line_number_str[16];
-        format_line_number_prompt(line_number_str, sizeof(line_number_str), rc.row,
-                                  cursor_row_for_display, env->relative_line_numbers);
-        ssize_t line_number_width = (ssize_t)strlen(line_number_str);
+        bool cursor_row_is_continuation = false;
+        ssize_t input_len = sbuf_len(eb->input);
+        if (rc.row_start > 0 && rc.row_start <= input_len) {
+            cursor_row_is_continuation = (sbuf_char_at(eb->input, rc.row_start - 1) != '\n');
+        }
+
         actual_prompt_width = indent_target;
-        if (line_number_width > actual_prompt_width) {
-            actual_prompt_width = line_number_width;
+        if (!cursor_row_is_continuation) {
+            char line_number_str[16];
+            format_line_number_prompt(line_number_str, sizeof(line_number_str), cursor_logical_line,
+                                      cursor_line_for_display, env->relative_line_numbers);
+            ssize_t line_number_width = (ssize_t)strlen(line_number_str);
+            if (line_number_width > actual_prompt_width) {
+                actual_prompt_width = line_number_width;
+            }
         }
         if (eb->line_number_column_width > actual_prompt_width) {
             actual_prompt_width = eb->line_number_column_width;
@@ -2088,7 +2172,7 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
     }
 
     // show prompt
-    edit_write_prompt(env, &eb, 0, false, 0);
+    edit_write_prompt(env, &eb, 0, false, 0, 0, 0, false);
 
     // Force refresh if initial input was provided to display it immediately
     if (env->initial_input != NULL) {
@@ -2590,7 +2674,7 @@ ic_public bool ic_current_loop_reset(const char* new_buffer, const char* new_pro
     eb->cur_rows = 1;
 
     // Rewrite the prompt
-    edit_write_prompt(env, eb, 0, false, 0);
+    edit_write_prompt(env, eb, 0, false, 0, 0, 0, false);
 
     if (edit_update_status_message(env, eb) && eb->refresh_suppressed) {
         eb->refresh_pending = true;
