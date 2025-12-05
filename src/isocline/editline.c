@@ -844,10 +844,10 @@ static bool edit_refresh_rows_iter(const char* s, ssize_t row, ssize_t row_start
         if (is_wrap && tty_is_utf8(info->env->tty)) {
 #ifndef __APPLE__
             bbcode_print(info->env->bbcode,
-                         "[ic-dim]\xE2\x86\x90");  // left arrow
+                         "[ic-diminish]\xE2\x86\x90[/]");  // left arrow
 #else
             bbcode_print(info->env->bbcode,
-                         "[ic-dim]\xE2\x86\xB5");  // return symbol
+                         "[ic-diminish]\xE2\x86\xB5[/]");  // return symbol
 #endif
         }
         term_clear_to_end_of_line(term);
