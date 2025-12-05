@@ -55,8 +55,6 @@
 #include "widget_command.h"
 
 Built_ins::Built_ins() : shell(nullptr) {
-    builtins.reserve(32);
-
     builtins = {
         {"echo", [](const std::vector<std::string>& args) { return ::echo_command(args); }},
         {"printf", [](const std::vector<std::string>& args) { return ::printf_command(args); }},
