@@ -4,17 +4,31 @@ Welcome to CJ's Shell (cjsh)! This guide highlights the interactive features tha
 
 ## Visual & Interface Features
 
-### Themes
+### Prompt Styling & Themes
 **Status:** Enabled  
-**Configure:** Load a theme with `source path/to/theme.cjsh` or embed a `theme_definition` directly inside `~/.cjshrc`.  
+**Configure:** Edit `PS1`, `RPS1`, `PS2`, and `PROMPT_COMMAND` directly in your config using the BBCode-style markup described in [Prompt Markup and Styling](../themes/thedetails.md). Use `cjshopt style_def <token_type> <style>` to redefine highlight palettes that are shared between syntax highlighting and prompt tags.  
 **Disable:** Start cjsh with `--no-themes` or add `cjshopt login-startup-arg --no-themes` to `~/.cjprofile`.
 
-Themes live in the `themes/` directory and can be customized or authored from scratch using the theme DSL. Sourcing a theme in `~/.cjshrc` applies it automatically on startup.
+All prompt styling now lives inside your dotfiles—no external theme DSL or bundled theme directory is required. Share a prompt by exporting new variables or sourcing a file that sets them, just like any other shell configuration.
 
 ### True Color Support
 **Status:** Enabled when the terminal advertises 24-bit color.  
-**Configure:** Automatically detected; adjust styling through theme definitions.  
+**Configure:** Automatically detected; adjust styling through your prompt definitions or `cjshopt style_def`.  
 **Disable:** Launch with `cjsh --no-colors` or persist by adding `cjshopt login-startup-arg --no-colors` to `~/.cjprofile`.
+
+### Prompt Cleanup & Layout
+**Status:** `prompt-cleanup`, `prompt-cleanup-newline`, `prompt-cleanup-empty-line`, and `prompt-cleanup-truncate` default to off so prompts stay exactly as rendered; `prompt-newline` is also off by default.  
+**Configure:**
+
+```bash
+cjshopt prompt-cleanup on|off|status
+cjshopt prompt-cleanup-newline on|off|status
+cjshopt prompt-cleanup-empty-line on|off|status
+cjshopt prompt-cleanup-truncate on|off|status
+cjshopt prompt-newline on|off|status
+```
+
+These toggles control whether the previous prompt is erased, whether spacer lines are inserted before or after cleanup, and whether multiline prompts collapse to a single line once a command runs. Enable them to keep transcripts compact; leave them off for a literal transcription of your prompts.
 
 ### Syntax Highlighting
 **Status:** Enabled  
@@ -102,7 +116,7 @@ cjsh leaves directory listing behavior up to your configuration. Add an `ls` wra
 
 ### Startup Files
 - `~/.cjprofile` – Executed for login shells before interactive setup.
-- `~/.cjshrc` – Interactive configuration (aliases, themes, hooks, etc.).
+- `~/.cjshrc` – Interactive configuration (aliases, prompt definitions, hooks, etc.).
 - `~/.cjsh_logout` – Optional cleanup script sourced on exit.
 
 ### Persisting Startup Flags
@@ -156,7 +170,7 @@ Use `cjshopt keybind --help` for the full action catalog. For custom widgets, se
 - `help` – Overview of built-in commands.
 - `help <builtin>` – Detailed usage for a specific builtin.
 - `cjshopt --help` and `cjshopt <subcommand> --help` – Configuration guidance.
-- Documentation lives under `docs/reference/` for deeper dives into editing, scripting, hooks, and themes.
+- Documentation lives under `docs/reference/` for deeper dives into editing, scripting, hooks, and prompt styling.
 
 ---
 

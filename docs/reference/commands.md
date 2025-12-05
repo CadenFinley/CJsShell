@@ -240,6 +240,20 @@ No-op command that always succeeds.
 :
 ```
 
+### true
+Always succeed and return exit status 0. Handy for conditionals or resetting `$?`.
+
+```bash
+true
+```
+
+### false
+Always fail and return exit status 1. Useful for testing error paths or short-circuiting scripts.
+
+```bash
+false
+```
+
 ## Job Control
 
 ### jobs
@@ -481,16 +495,33 @@ Show or set the file creation mask.
 umask [mode]
 ```
 
-## Theming and Customization
-
-### Loading Themes
-To load custom themes, use the `source` command with your theme file:
+### ulimit
+Inspect or adjust resource limits for the current shell and any processes it launches.
 
 ```bash
-source path/to/theme.cjsh
+ulimit [-HS] [-a] [-f | -n | -t | ...] [limit]
 ```
 
-You can add this to your `~/.cjshrc` file to automatically load a theme on startup.
+- `-a` lists every supported limit along with the active hard/soft values.
+- Use `-H` or `-S` to operate on the hard or soft limit respectively (defaults to soft).
+- Resource selectors mirror the underlying OS (`-f` file size, `-n` open files, `-t` CPU time, `-v` virtual memory, etc.). Unsupported switches print a descriptive error.
+- Limits accept numeric values, or the keywords `unlimited`, `hard`, or `soft`.
+
+Run `ulimit --help` for the full table of supported options on your platform.
+
+## Theming and Customization
+
+
+### Prompt Styling
+cjsh reads the standard prompt variables, so customizing the look is as simple as exporting new values inside your configuration files:
+
+```bash
+export PS1='[b]\u[/b] [color=#87ceeb]\w[/color]\n$ '
+export RPS1='[ic-hint]\A[/ic-hint]'
+export PROMPT_COMMAND='__update_git_info'
+```
+
+Add snippets like these to `~/.cjshrc` (or any sourced config) to persist them across sessions. See [Prompt Markup and Styling](../themes/thedetails.md) for the full markup reference plus additional examples.
 
 ### cjshopt
 Generate config files and adjust cjsh options.
@@ -514,6 +545,11 @@ Available subcommands:
 - `multiline` - Configure multiline input mode
 - `inline-help` - Configure inline help messages
 - `auto-tab` - Configure automatic tab completion
+- `prompt-newline` - Force a blank line after each command
+- `prompt-cleanup` - Enable/disable removal of the previous prompt after execution
+- `prompt-cleanup-newline` - Control whether cleanup inserts a newline before the next prompt
+- `prompt-cleanup-empty-line` - Insert an empty spacer line during cleanup
+- `prompt-cleanup-truncate` - Collapse multiline prompts when cleanup runs
 - `keybind` - Inspect or modify key bindings (modifications config file only)
 - `generate-profile` - Create or overwrite ~/.cjprofile (use `--alt` for `~/.config/cjsh/.cjprofile`)
 - `generate-rc` - Create or overwrite ~/.cjshrc (use `--alt` for `~/.config/cjsh/.cjshrc`)
@@ -552,16 +588,10 @@ Supported flags:
 | `--login` | Mark the current shell instance as a login shell |
 | `--interactive` | Force interactive startup behavior |
 | `--debug` | Enable verbose startup debugging |
-| `--no-themes` | Disable theme initialization |
-| `--no-colors` | Disable colored output |
-| `--no-titleline` | Skip the dynamic title line |
-| `--show-startup-time` | Print how long startup took |
-| `--no-source` | Skip sourcing `~/.cjshrc` |
-| `--no-completions` | Disable the completion system |
-| `--no-syntax-highlighting` | Disable syntax highlighting |
-| `--no-smart-cd` | Use the basic `cd` implementation |
-| `--no-prompt` | Use a minimal `#` prompt instead of the themed prompt |
-| `--minimal` | Disable all cjsh extras (themes, colors, completions, smart cd, etc.) |
+| `--no-themes` | Skip prompt styling initialization |
+| `--no-prompt` | Use a minimal `#` prompt instead of the styled prompt |
+| `--minimal` | Disable all cjsh extras (prompt styling, colors, completions, smart cd, etc.) |
+
 | `--startup-test` | Enable startup test mode |
 
 Add one line per flag in `~/.cjprofile` to persist the desired behavior:
@@ -838,4 +868,59 @@ cjshopt set-history-max status   # Show the current limit
 ```
 
 Commands added to `~/.cjshrc` are applied automatically at startup.
+
+#### prompt-newline
+
+Control whether cjsh prints a blank line after every command, regardless of what your prompt already emitted.
+
+```bash
+cjshopt prompt-newline on
+cjshopt prompt-newline off
+cjshopt prompt-newline status
+```
+
+Enable the toggle to keep transcripts readable when prompts have dense information; disable it for a compact display.
+
+#### prompt-cleanup
+
+Remove the previous prompt before printing command output. This keeps long prompts from duplicating when you scroll back through logs.
+
+```bash
+cjshopt prompt-cleanup on
+cjshopt prompt-cleanup off
+```
+
+Pair this with the newline/empty-line toggles below for additional spacing control.
+
+#### prompt-cleanup-newline
+
+Decide whether prompt cleanup inserts a newline before the next prompt renders.
+
+```bash
+cjshopt prompt-cleanup-newline on
+cjshopt prompt-cleanup-newline off
+```
+
+When enabled, you always get a spacer line between commands once cleanup runs.
+
+#### prompt-cleanup-empty-line
+
+Insert an extra empty line while cleanup runs. This is useful when you want one blank line before and after prompts in transcripts.
+
+```bash
+cjshopt prompt-cleanup-empty-line on
+cjshopt prompt-cleanup-empty-line off
+```
+
+#### prompt-cleanup-truncate
+
+Collapse multiline prompts to a single line after a command has executed so the previous prompt does not dominate your scrollback.
+
+```bash
+cjshopt prompt-cleanup-truncate on
+cjshopt prompt-cleanup-truncate off
+```
+
+All prompt-cleanup toggles accept `status` to report their current state and can be persisted by adding the commands to `~/.cjshrc`.
+
 

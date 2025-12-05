@@ -436,10 +436,7 @@ Control how the prompt is displayed after accepting input.
 - Multiline truncation
 
 **Configuration:**
-CJ's Shell automatically manages prompt cleanup based on your theme's settings. Theme authors can control:
-- `cleanup_removes_prompt()`: Whether to enable prompt cleanup
-- `cleanup_adds_empty_line()`: Whether to add an empty line after
-- `cleanup_truncates_multiline()`: Whether to truncate multiline input
+Tune cleanup behavior with the `cjshopt prompt-cleanup`, `prompt-cleanup-newline`, `prompt-cleanup-empty-line`, `prompt-cleanup-truncate`, and `prompt-newline` toggles. Add the desired commands to your startup files (typically `~/.cjshrc`) to keep the settings persistent.
 
 ### Prompt Markers
 
@@ -452,7 +449,7 @@ Displayed at the end of the main prompt (default: `"> "`).
 Displayed for continuation lines in multiline input.
 
 **Customization:**
-These are typically set by your theme and control the visual appearance of prompts.
+Define these markers directly inside `PS1`, `PS2`, and any helper functions you call from `PROMPT_COMMAND`.
 
 ## Terminal Features
 
@@ -532,7 +529,7 @@ EOF
 CJ's Shell uses isocline's unified `ic_readline()` API for input, which provides:
 
 **Inline Right Text:**
-Some prompts may display additional information on the right side of the input line (configured by themes).
+Prompts can display additional information on the right side of the input line when you embed markup in `RPS1`/`RPROMPT` or inject text via `PROMPT_COMMAND`.
 
 **Initial Input:**
 Commands can pre-populate the input buffer (used by `fc` command for editing).
@@ -667,7 +664,7 @@ cjshopt inline-help off
 1. **Disable unnecessary features** in resource-constrained environments
 2. **Increase hint delay** if experiencing lag while typing
 3. **Reduce history size** for faster search
-4. **Use simpler themes** to reduce prompt rendering time
+4. **Use simpler prompt markup** to reduce rendering time
 
 ### Benchmarks
 
@@ -689,7 +686,7 @@ Isocline is designed to be fast and responsive:
 **Syntax highlighting not showing:**
 - Ensure not started with `--no-syntax-highlighting`
 - Check terminal color support
-- Verify theme styles are defined
+- Verify your prompt/style definitions (`cjshopt style_def`) are loaded
 
 **Key bindings not working:**
 - Check terminal emulator key sending

@@ -25,7 +25,7 @@ To produce a clean build of cjsh run:
 
 ## Themes
 
-I love themes, the more the merrier! If you have one you would like to contribute please do so! Themes can be hosted on the main repository if you would like. See the themes page for details on how to develop these and what tools you have at your disposal.
+I love prompt experiments, the more the merrier! If you have a BBCode-marked prompt, `PS1`/`RPS1` template, or `cjshopt style_def` palette you would like to share, please do so by opening a PR that adds it to the documentation or sample configs. There is no external theme DSL anymore, so everything lives in plain shell script—see the [Prompt Markup and Styling](../themes/thedetails.md) guide for the knobs you can use.
 
 ## Documentation 
 
