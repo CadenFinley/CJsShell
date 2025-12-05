@@ -1924,10 +1924,7 @@ run interactively, but setters only take effect during startup.</p>
 - Optional empty line insertion
 - Multiline truncation</p>
 <p><strong>Configuration:</strong>
-CJ's Shell automatically manages prompt cleanup based on your theme's settings. Theme authors can control:
-- <code>cleanup_removes_prompt()</code>: Whether to enable prompt cleanup
-- <code>cleanup_adds_empty_line()</code>: Whether to add an empty line after
-- <code>cleanup_truncates_multiline()</code>: Whether to truncate multiline input</p>
+Tune cleanup behavior with the <code>cjshopt prompt-cleanup</code>, <code>prompt-cleanup-newline</code>, <code>prompt-cleanup-empty-line</code>, <code>prompt-cleanup-truncate</code>, and <code>prompt-newline</code> toggles. Add the desired commands to your startup files (typically <code>~/.cjshrc</code>) to keep the settings persistent.</p>
 <h3 id="prompt-markers">Prompt Markers</h3>
 <p>The prompt system uses markers to indicate different states:</p>
 <p><strong>Primary Prompt Marker:</strong>
@@ -1935,7 +1932,7 @@ Displayed at the end of the main prompt (default: <code>"&gt; "</code>).</p>
 <p><strong>Continuation Prompt Marker:</strong>
 Displayed for continuation lines in multiline input.</p>
 <p><strong>Customization:</strong>
-These are typically set by your theme and control the visual appearance of prompts.</p>
+Define these markers directly inside <code>PS1</code>, <code>PS2</code>, and any helper functions you call from <code>PROMPT_COMMAND</code>.</p>
 <h2 id="terminal-features">Terminal Features</h2>
 <h3 id="color-support">Color Support</h3>
 <p>CJ's Shell automatically detects terminal capabilities:</p>
@@ -1990,7 +1987,7 @@ When no exact match is found, cjsh attempts to find the closest match using edit
 <h3 id="readline-integration">Readline Integration</h3>
 <p>CJ's Shell uses isocline's unified <code>ic_readline()</code> API for input, which provides:</p>
 <p><strong>Inline Right Text:</strong>
-Some prompts may display additional information on the right side of the input line (configured by themes).</p>
+Prompts can display additional information on the right side of the input line when you embed markup in <code>RPS1</code>/<code>RPROMPT</code> or inject text via <code>PROMPT_COMMAND</code>.</p>
 <p><strong>Initial Input:</strong>
 Commands can pre-populate the input buffer (used by <code>fc</code> command for editing).</p>
 <p><strong>Special Return Values:</strong>
@@ -2098,7 +2095,7 @@ Commands can pre-populate the input buffer (used by <code>fc</code> command for 
 <li><strong>Disable unnecessary features</strong> in resource-constrained environments</li>
 <li><strong>Increase hint delay</strong> if experiencing lag while typing</li>
 <li><strong>Reduce history size</strong> for faster search</li>
-<li><strong>Use simpler themes</strong> to reduce prompt rendering time</li>
+<li><strong>Use simpler prompt markup</strong> to reduce rendering time</li>
 </ol>
 <h3 id="benchmarks">Benchmarks</h3>
 <p>Isocline is designed to be fast and responsive:
@@ -2115,7 +2112,7 @@ Commands can pre-populate the input buffer (used by <code>fc</code> command for 
 <p><strong>Syntax highlighting not showing:</strong>
 - Ensure not started with <code>--no-syntax-highlighting</code>
 - Check terminal color support
-- Verify theme styles are defined</p>
+- Verify your prompt/style definitions (<code>cjshopt style_def</code>) are loaded</p>
 <p><strong>Key bindings not working:</strong>
 - Check terminal emulator key sending
 - Verify with <code>cjshopt keybind list</code>
