@@ -271,7 +271,6 @@ void ingest_typeahead_input(const std::string& raw_input) {
             assign_view(normalized_temp.data() + last_newline + 1, leftover_len);
         }
     }
-
 }
 
 void flush_pending_typeahead() {
