@@ -628,7 +628,8 @@ static bool filename_complete_indir(ic_completion_env_t* cenv, stringbuf_t* dir,
     dir_cursor d = 0;
     dir_entry entry;
     bool cont = true;
-    if (os_findfirst(cenv->env->mem, sbuf_string(dir), &d, &entry)) {
+    bool opened = os_findfirst(cenv->env->mem, sbuf_string(dir), &d, &entry);
+    if (opened) {
         do {
             const char* name = os_direntry_name(&entry);
             if (name != NULL && strcmp(name, ".") != 0 && strcmp(name, "..") != 0 &&
@@ -661,6 +662,8 @@ static bool filename_complete_indir(ic_completion_env_t* cenv, stringbuf_t* dir,
                 sbuf_delete_from(dir_prefix, plen);  // restore dir_prefix
             }
         } while (cont && os_findnext(d, &entry));
+    }
+    if (d != 0) {
         os_findclose(d);
     }
     return cont;
