@@ -1458,10 +1458,14 @@ static bool edit_resize(ic_env_t* env, editor_t* eb) {
         "cursor row %zd)\n",
         rows, rc.row, eb->cur_rows, eb->cur_row);
 
-    // update the newly calculated row and rows
-    eb->cur_row = rc.row;
+    // update the newly calculated row and rows (but keep enough history to clear old lines)
+    if (rc.row > eb->cur_row) {
+        eb->cur_row = rc.row;
+    }
     if (rows > eb->cur_rows) {
         eb->cur_rows = rows;
+    } else if (rows < eb->cur_rows) {
+        eb->cur_rows++;
     }
     eb->termw = newtermw;
     edit_refresh(env, eb);
@@ -2229,8 +2233,12 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
                 }
             }
 
-            // update terminal in case of a resize
-            if (tty_term_resize_event(env->tty)) {
+            // update terminal in case of a resize (also detect polling changes)
+            bool should_resize = tty_term_resize_event(env->tty);
+            if (!should_resize && term_update_dim(env->term)) {
+                should_resize = true;
+            }
+            if (should_resize) {
                 edit_resize(env, &eb);
             }
 
