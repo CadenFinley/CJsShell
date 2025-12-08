@@ -30,7 +30,6 @@ constexpr std::size_t kReserveSlack = 64;
 bool initialized = false;
 std::string g_input_buffer;
 std::string g_pending_raw_bytes;
-bool g_pending_initial_submit = false;
 
 }  // namespace
 
@@ -239,7 +238,6 @@ void ingest_typeahead_input(const std::string& raw_input) {
     g_input_buffer.clear();
 
     if (normalized_temp.empty()) {
-        g_pending_initial_submit = false;
         return;
     }
 
@@ -274,24 +272,12 @@ void ingest_typeahead_input(const std::string& raw_input) {
         }
     }
 
-    bool ends_with_newline = !g_input_buffer.empty() && g_input_buffer.back() == '\n';
-    bool has_prior_newline = false;
-    if (ends_with_newline && normalized_temp.size() > 1) {
-        has_prior_newline =
-            normalized_temp.rfind('\n', normalized_temp.size() - 2) != std::string::npos;
-    }
-    g_pending_initial_submit = ends_with_newline && !has_prior_newline;
 }
 
 void flush_pending_typeahead() {
     std::string pending_input = capture_available_input();
     if (!pending_input.empty()) {
         ingest_typeahead_input(pending_input);
-    }
-
-    if (g_pending_initial_submit) {
-        g_pending_raw_bytes.clear();
-        return;
     }
 
     if (!g_pending_raw_bytes.empty()) {
@@ -305,7 +291,6 @@ void flush_pending_typeahead() {
 
 void clear_input_buffer() {
     g_input_buffer.clear();
-    g_pending_initial_submit = false;
 }
 
 const std::string& get_input_buffer() {
@@ -442,7 +427,6 @@ void initialize() {
         g_pending_raw_bytes.reserve(kDefaultInputReserve);
     }
     g_pending_raw_bytes.clear();
-    g_pending_initial_submit = false;
 }
 
 void cleanup() {
@@ -451,7 +435,6 @@ void cleanup() {
     g_input_buffer.shrink_to_fit();
     g_pending_raw_bytes.clear();
     g_pending_raw_bytes.shrink_to_fit();
-    g_pending_initial_submit = false;
 }
 
 }  // namespace typeahead
