@@ -454,7 +454,6 @@ static file_type_t os_get_filetype(const char* cpath) {
 
 #define dir_cursor intptr_t
 #define dir_entry struct __finddata64_t
-#define DIR_CURSOR_INVALID ((dir_cursor)(-1))
 
 static bool os_findfirst(alloc_t* mem, const char* path, dir_cursor* d, dir_entry* entry) {
     stringbuf_t* spath = sbuf_new(mem);
@@ -547,7 +546,6 @@ static file_type_t os_get_filetype(const char* cpath) {
 
 #define dir_cursor DIR*
 #define dir_entry struct dirent*
-#define DIR_CURSOR_INVALID NULL
 
 static bool os_findnext(dir_cursor d, dir_entry* entry) {
     *entry = readdir(d);
@@ -627,11 +625,10 @@ static bool match_extension(const char* name, const char* extensions) {
 static bool filename_complete_indir(ic_completion_env_t* cenv, stringbuf_t* dir,
                                     stringbuf_t* dir_prefix, stringbuf_t* display,
                                     const char* base_prefix, char dir_sep, const char* extensions) {
-    dir_cursor d = DIR_CURSOR_INVALID;
+    dir_cursor d = 0;
     dir_entry entry;
     bool cont = true;
-    const bool opened = os_findfirst(cenv->env->mem, sbuf_string(dir), &d, &entry);
-    if (opened) {
+    if (os_findfirst(cenv->env->mem, sbuf_string(dir), &d, &entry)) {
         do {
             const char* name = os_direntry_name(&entry);
             if (name != NULL && strcmp(name, ".") != 0 && strcmp(name, "..") != 0 &&
@@ -664,8 +661,6 @@ static bool filename_complete_indir(ic_completion_env_t* cenv, stringbuf_t* dir,
                 sbuf_delete_from(dir_prefix, plen);  // restore dir_prefix
             }
         } while (cont && os_findnext(d, &entry));
-    }
-    if (d != DIR_CURSOR_INVALID) {
         os_findclose(d);
     }
     return cont;
