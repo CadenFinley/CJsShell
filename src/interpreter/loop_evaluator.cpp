@@ -11,6 +11,7 @@
 #include <unordered_map>
 
 #include "cjsh.h"
+#include "error_out.h"
 #include "parser.h"
 #include "shell.h"
 #include "shell_script_interpreter_utils.h"
@@ -27,6 +28,30 @@ constexpr size_t kInlineLoopCacheLimit = 64;
 
 thread_local std::unordered_map<std::string, std::shared_ptr<std::vector<std::string>>>
     g_inline_loop_cache;
+
+std::string extract_loop_keyword(const std::string& segment) {
+    std::string trimmed = trim(strip_inline_comment(segment));
+    if (trimmed.empty()) {
+        return "loop";
+    }
+
+    size_t end = trimmed.find_first_of(" \t;");
+    if (end == std::string::npos) {
+        return trimmed;
+    }
+    return trimmed.substr(0, end);
+}
+
+int report_inline_loop_syntax_error(const std::string& segment, std::string_view missing_token) {
+    std::string keyword = extract_loop_keyword(segment);
+    std::string message = "syntax error: expected '" + std::string(missing_token) +
+                          "' to complete the " + keyword + " loop";
+    std::vector<std::string> suggestions = {"Insert '" + std::string(missing_token) +
+                                            "' between the loop header and body (e.g. '" + keyword +
+                                            " ...; do ...; done')."};
+    print_error({ErrorType::SYNTAX_ERROR, ErrorSeverity::ERROR, keyword, message, suggestions});
+    return 2;
+}
 
 const std::shared_ptr<std::vector<std::string>>& get_cached_inline_loop_body(
     const std::string& body, Parser* shell_parser) {
@@ -706,11 +731,11 @@ std::optional<int> try_execute_inline_do_block(
 
     size_t lookahead = segment_index + 1;
     if (lookahead >= segments.size())
-        return std::optional<int>{1};
+        return std::optional<int>{report_inline_loop_syntax_error(first_segment, "do")};
 
     std::string next_segment = trim(strip_inline_comment(segments[lookahead]));
     if (next_segment != "do" && next_segment.rfind("do ", 0) != 0)
-        return std::optional<int>{1};
+        return std::optional<int>{report_inline_loop_syntax_error(first_segment, "do")};
 
     std::string body = next_segment.size() > 3 && next_segment.rfind("do ", 0) == 0
                            ? trim(next_segment.substr(3))
@@ -730,7 +755,7 @@ std::optional<int> try_execute_inline_do_block(
     }
 
     if (!found_done)
-        return std::optional<int>{1};
+        return std::optional<int>{report_inline_loop_syntax_error(first_segment, "done")};
 
     std::string combined = first_segment + "; do";
     if (!body.empty())

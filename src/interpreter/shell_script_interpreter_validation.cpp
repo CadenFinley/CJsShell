@@ -639,6 +639,50 @@ std::vector<std::string> tokenize_whitespace(const std::string& input) {
     return tokens;
 }
 
+bool is_word_boundary(const std::string& text, size_t start, size_t length) {
+    auto is_boundary_char = [](char c) {
+        return (std::isspace(static_cast<unsigned char>(c)) != 0) || c == ';' || c == '&' ||
+               c == '|' || c == '(' || c == ')' || c == '{' || c == '}';
+    };
+
+    if (start > text.size()) {
+        return false;
+    }
+
+    size_t end = start + length;
+    bool start_ok = (start == 0) || is_boundary_char(text[start - 1]);
+    bool end_ok = (end >= text.size()) || is_boundary_char(text[end]);
+    return start_ok && end_ok;
+}
+
+size_t find_inline_do_position(const std::string& line) {
+    size_t pos = line.find("do");
+    while (pos != std::string::npos) {
+        if (is_word_boundary(line, pos, 2)) {
+            size_t prev = pos;
+            while (prev > 0 && (std::isspace(static_cast<unsigned char>(line[prev - 1])) != 0)) {
+                --prev;
+            }
+            if (prev > 0 && line[prev - 1] == ';') {
+                return pos;
+            }
+        }
+        pos = line.find("do", pos + 2);
+    }
+    return std::string::npos;
+}
+
+size_t find_inline_done_position(const std::string& line, size_t search_from) {
+    size_t pos = line.find("done", search_from);
+    while (pos != std::string::npos) {
+        if (is_word_boundary(line, pos, 4)) {
+            return pos;
+        }
+        pos = line.find("done", pos + 4);
+    }
+    return std::string::npos;
+}
+
 bool check_pipe_missing_command(const std::string& line, size_t pipe_pos) {
     size_t after_pipe = pipe_pos + 1;
     while (after_pipe < line.length() && std::isspace(line[after_pipe])) {
@@ -656,10 +700,10 @@ SyntaxError create_pipe_error(size_t display_line, size_t start_pos, size_t end_
 
 std::pair<bool, bool> check_for_loop_keywords(const std::vector<std::string>& tokens,
                                               const std::string& trimmed_line) {
-    bool has_do = std::any_of(tokens.begin(), tokens.end(),
-                              [](const std::string& token) { return is_do_token(token); });
+    (void)tokens;
+    size_t inline_do_pos = find_inline_do_position(trimmed_line);
     bool has_semicolon = trimmed_line.find(';') != std::string::npos;
-    return {has_do, has_semicolon};
+    return {inline_do_pos != std::string::npos, has_semicolon};
 }
 
 std::pair<std::vector<std::string>, std::string> tokenize_and_get_first(
@@ -754,6 +798,7 @@ struct ForLoopCheckResult {
     bool missing_do_keyword = false;
     bool has_inline_do = false;
     bool inline_body_without_done = false;
+    bool missing_iteration_list = false;
 };
 
 ForLoopCheckResult analyze_for_loop_syntax(const std::vector<std::string>& tokens,
@@ -765,47 +810,52 @@ ForLoopCheckResult analyze_for_loop_syntax(const std::vector<std::string>& token
         return result;
     }
 
-    bool has_in_clause = std::find(tokens.begin(), tokens.end(), "in") != tokens.end();
-    if (!has_in_clause) {
+    auto in_it = std::find(tokens.begin(), tokens.end(), "in");
+    if (in_it == tokens.end()) {
         result.missing_in_keyword = true;
         return result;
     }
 
+    bool has_iteration_values = false;
+    for (auto iter = std::next(in_it); iter != tokens.end(); ++iter) {
+        const std::string& candidate = *iter;
+        if (candidate.empty()) {
+            continue;
+        }
+        if (candidate[0] == '#') {
+            break;
+        }
+        if (candidate == "do" || candidate == "done" || candidate == "then" ||
+            candidate == "elif" || candidate == "else") {
+            break;
+        }
+        has_iteration_values = true;
+        break;
+    }
+    if (!has_iteration_values) {
+        result.missing_iteration_list = true;
+    }
+
     auto [has_do, has_semicolon] = check_for_loop_keywords(tokens, trimmed_line);
-    std::string last_token = get_last_non_comment_token(tokens);
-    result.has_inline_do = is_do_token(last_token);
+    result.has_inline_do = has_do;
     if (!has_do && !has_semicolon) {
         result.missing_do_keyword = true;
     }
 
-    bool found_do = false;
-    bool inline_body_present = false;
-    bool has_done_after_do = false;
+    if (result.has_inline_do) {
+        size_t inline_do_pos = find_inline_do_position(trimmed_line);
+        size_t body_start = std::string::npos;
+        if (inline_do_pos != std::string::npos) {
+            body_start = trimmed_line.find_first_not_of(" \t;", inline_do_pos + 2);
+        }
 
-    for (size_t idx = 0; idx < tokens.size(); ++idx) {
-        const std::string& token = tokens[idx];
-        if (!found_do) {
-            if (is_do_token(token)) {
-                found_do = true;
+        bool inline_body_present = body_start != std::string::npos;
+        if (inline_body_present) {
+            size_t done_pos = find_inline_done_position(trimmed_line, body_start);
+            if (done_pos == std::string::npos) {
+                result.inline_body_without_done = true;
             }
-            continue;
         }
-
-        if (token.empty()) {
-            continue;
-        }
-        if (token[0] == '#') {
-            break;
-        }
-        if (is_done_token(token)) {
-            has_done_after_do = true;
-            break;
-        }
-        inline_body_present = true;
-    }
-
-    if (found_do && inline_body_present && !has_done_after_do) {
-        result.inline_body_without_done = true;
     }
 
     return result;
@@ -2578,6 +2628,11 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                                                   ErrorCategory::CONTROL_FLOW, "SYN002",
                                                   "'for' statement incomplete", line,
                                                   "Complete for statement: for var in list; do"));
+            } else if (loop_check.missing_iteration_list) {
+                line_errors.push_back(SyntaxError(
+                    {display_line, 0, 0, 0}, ErrorSeverity::ERROR, ErrorCategory::CONTROL_FLOW,
+                    "SYN002", "'for' statement missing iteration list after 'in'", line,
+                    "Add values after 'in': for var in 1 2 3; do"));
             } else if (!loop_check.missing_in_keyword && loop_check.missing_do_keyword) {
                 line_errors.push_back(SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
                                                   ErrorCategory::CONTROL_FLOW, "SYN002",

@@ -69,12 +69,20 @@ else
   pass_test "while loop"
 fi
 
-assert_error_contains "inline for missing done" "for i in 1 2 3 do echo \$i" "missing closing 'done'"
+assert_error_contains "inline for missing do" "for i in 1 2 3 do echo \$i" "missing 'do' keyword"
 assert_error_contains "multiline for missing done" "for i in 1 2 3; do echo \$i" "missing closing 'done'"
+assert_error_contains "for missing iteration list" "for i in do done" "missing iteration list after 'in'"
+assert_error_contains "for missing do keyword" "for i in 1 2 3 echo \$i" "missing 'do' keyword"
 assert_error_contains "while missing done" "while true; do echo ok" "missing 'done'"
+assert_error_contains "while missing condition" "while do echo ok; done" "loop missing condition expression"
+assert_error_contains "while missing do keyword" "while true echo ok" "missing 'do' keyword"
 assert_error_contains "until missing done" "until false; do echo ok" "missing 'done'"
+assert_error_contains "until missing condition" "until do echo ok; done" "loop missing condition expression"
 assert_error_contains "if missing fi" "if true; then echo ok" "missing 'fi'"
+assert_error_contains "if missing then" "if true echo ok" "missing 'then' keyword"
+assert_error_contains "if missing condition" "if then" "missing condition"
 assert_error_contains "case missing esac" "case foo in foo) echo ok ;;" "missing 'esac'"
+assert_error_contains "case missing in keyword" "case foo foo) echo ok ;; esac" "missing 'in' keyword"
 
 echo ""
 echo "Control Structures Tests Summary:"
