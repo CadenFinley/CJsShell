@@ -1438,12 +1438,50 @@ bool ShellScriptInterpreter::has_syntax_errors(const std::vector<std::string>& l
                                                bool print_errors) {
     std::vector<SyntaxError> errors = validate_script_syntax(lines);
 
-    auto var_errors = validate_variable_usage(lines);
-    errors.insert(errors.end(), var_errors.begin(), var_errors.end());
+    auto append_errors = [&errors](const std::vector<SyntaxError>& source) {
+        errors.insert(errors.end(), source.begin(), source.end());
+    };
+
+    append_errors(validate_variable_usage(lines));
+
+    const bool enforce_inline_completion = [&]() {
+        size_t non_empty = 0;
+        for (const auto& line : lines) {
+            if (!trim(line).empty()) {
+                ++non_empty;
+                if (non_empty > 1) {
+                    return false;
+                }
+            }
+        }
+        return non_empty == 1;
+    }();
+
+    if (enforce_inline_completion) {
+        auto append_control_flow_errors = [&errors](const std::vector<SyntaxError>& source) {
+            for (const auto& err : source) {
+                if (err.error_code == "SYN002" || err.error_code == "SYN003" ||
+                    err.error_code == "SYN004" || err.error_code == "SYN008") {
+                    errors.push_back(err);
+                }
+            }
+        };
+
+        append_control_flow_errors(validate_loop_syntax(lines));
+        append_control_flow_errors(validate_conditional_syntax(lines));
+    }
+
+    auto is_blocking_error = [&](const SyntaxError& error) {
+        if (error.error_code == "SYN002" || error.error_code == "SYN003" ||
+            error.error_code == "SYN004" || error.error_code == "SYN008") {
+            return enforce_inline_completion;
+        }
+        return error.severity == ErrorSeverity::CRITICAL && error.error_code != "SYN007";
+    };
 
     bool has_blocking_errors = false;
     for (const auto& error : errors) {
-        if (error.severity == ErrorSeverity::CRITICAL && error.error_code != "SYN007") {
+        if (is_blocking_error(error)) {
             has_blocking_errors = true;
             break;
         }
@@ -1452,7 +1490,7 @@ bool ShellScriptInterpreter::has_syntax_errors(const std::vector<std::string>& l
     if (has_blocking_errors && print_errors) {
         std::vector<SyntaxError> blocking_errors;
         for (const auto& error : errors) {
-            if (error.severity == ErrorSeverity::CRITICAL && error.error_code != "SYN007") {
+            if (is_blocking_error(error)) {
                 blocking_errors.push_back(error);
             }
         }
@@ -2453,27 +2491,38 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
 
 std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validate_loop_syntax(
     const std::vector<std::string>& lines) {
-    return validate_tokenized_with_first_token(
-        lines, [](std::vector<SyntaxError>& line_errors, const std::string& line,
-                  const std::string& trimmed_line, size_t display_line,
-                  const std::vector<std::string>& tokens, const std::string& first_token) {
-            if (first_token == "for") {
-                auto loop_check = analyze_for_loop_syntax(tokens, trimmed_line);
-                if (loop_check.incomplete) {
-                    line_errors.push_back(SyntaxError(
-                        {display_line, 0, 0, 0}, ErrorSeverity::ERROR, ErrorCategory::CONTROL_FLOW,
-                        "SYN002", "'for' statement incomplete", line,
-                        "Complete for statement: for var in list; do"));
-                } else if (!loop_check.missing_in_keyword && loop_check.missing_do_keyword) {
-                    line_errors.push_back(SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
-                                                      ErrorCategory::CONTROL_FLOW, "SYN002",
-                                                      "'for' statement missing 'do' keyword", line,
-                                                      "Add 'do' keyword: for var in list; do"));
-                }
-            } else if (first_token == "while" || first_token == "until") {
-                auto loop_check = analyze_while_until_syntax(first_token, trimmed_line, tokens);
+    return validate_tokenized_with_first_token(lines, [](std::vector<SyntaxError>& line_errors,
+                                                         const std::string& line,
+                                                         const std::string& trimmed_line,
+                                                         size_t display_line,
+                                                         const std::vector<std::string>& tokens,
+                                                         const std::string& first_token) {
+        if (first_token == "for") {
+            auto loop_check = analyze_for_loop_syntax(tokens, trimmed_line);
+            if (loop_check.incomplete) {
+                line_errors.push_back(SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
+                                                  ErrorCategory::CONTROL_FLOW, "SYN002",
+                                                  "'for' statement incomplete", line,
+                                                  "Complete for statement: for var in list; do"));
+            } else if (!loop_check.missing_in_keyword && loop_check.missing_do_keyword) {
+                line_errors.push_back(SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
+                                                  ErrorCategory::CONTROL_FLOW, "SYN002",
+                                                  "'for' statement missing 'do' keyword", line,
+                                                  "Add 'do' keyword: for var in list; do"));
+            }
+        } else if (first_token == "while" || first_token == "until") {
+            auto loop_check = analyze_while_until_syntax(first_token, trimmed_line, tokens);
+            const bool missing_condition = loop_check.missing_condition;
+            const bool missing_do = loop_check.missing_do_keyword;
 
-                if (loop_check.missing_condition) {
+            if (missing_condition && missing_do) {
+                line_errors.push_back(SyntaxError(
+                    {display_line, 0, 0, 0}, ErrorSeverity::ERROR, ErrorCategory::CONTROL_FLOW,
+                    "SYN003",
+                    "'" + first_token + "' statement missing condition expression and 'do' keyword",
+                    line, "Use syntax: " + first_token + " condition; do"));
+            } else {
+                if (missing_condition) {
                     line_errors.push_back(SyntaxError(
                         {display_line, 0, 0, 0}, ErrorSeverity::ERROR, ErrorCategory::CONTROL_FLOW,
                         "SYN003", "'" + first_token + "' loop missing condition expression", line,
@@ -2485,52 +2534,65 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                         line, "Close the '[' with ']' or use '[[ ... ]]'"));
                 }
 
-                if (loop_check.missing_do_keyword) {
+                if (missing_do) {
                     line_errors.push_back(SyntaxError(
                         {display_line, 0, 0, 0}, ErrorSeverity::ERROR, ErrorCategory::CONTROL_FLOW,
                         "SYN002", "'" + first_token + "' statement missing 'do' keyword", line,
                         "Add 'do' keyword: " + first_token + " condition; do"));
                 }
             }
-        });
+        }
+    });
 }
 
 std::vector<ShellScriptInterpreter::SyntaxError>
 ShellScriptInterpreter::validate_conditional_syntax(const std::vector<std::string>& lines) {
-    return validate_tokenized_with_first_token(
-        lines, [](std::vector<SyntaxError>& line_errors, const std::string& line,
-                  const std::string& trimmed_line, size_t display_line,
-                  const std::vector<std::string>& tokens, const std::string& first_token) {
-            if (first_token == "if") {
-                auto if_check = analyze_if_syntax(tokens, trimmed_line);
-                if (if_check.missing_then_keyword) {
+    return validate_tokenized_with_first_token(lines, [](std::vector<SyntaxError>& line_errors,
+                                                         const std::string& line,
+                                                         const std::string& trimmed_line,
+                                                         size_t display_line,
+                                                         const std::vector<std::string>& tokens,
+                                                         const std::string& first_token) {
+        if (first_token == "if") {
+            auto if_check = analyze_if_syntax(tokens, trimmed_line);
+            const bool missing_then = if_check.missing_then_keyword;
+            const bool missing_condition = if_check.missing_condition;
+
+            if (missing_then && missing_condition) {
+                line_errors.push_back(SyntaxError(
+                    {display_line, 0, 0, 0}, ErrorSeverity::ERROR, ErrorCategory::CONTROL_FLOW,
+                    "SYN004", "'if' statement missing condition and 'then' keyword", line,
+                    "Use syntax: if [ condition ]; then"));
+            } else {
+                if (missing_then) {
                     line_errors.push_back(SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
                                                       ErrorCategory::CONTROL_FLOW, "SYN004",
                                                       "'if' statement missing 'then' keyword", line,
                                                       "Add 'then' keyword: if condition; then"));
                 }
 
-                if (if_check.missing_condition) {
+                if (missing_condition) {
                     line_errors.push_back(SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
                                                       ErrorCategory::CONTROL_FLOW, "SYN004",
                                                       "'if' statement missing condition", line,
                                                       "Add condition: if [ condition ]; then"));
                 }
-            } else if (first_token == "case") {
-                auto case_check = analyze_case_syntax(tokens);
-                if (case_check.incomplete) {
-                    line_errors.push_back(SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
-                                                      ErrorCategory::CONTROL_FLOW, "SYN008",
-                                                      "'case' statement incomplete", line,
-                                                      "Complete case statement: case variable in"));
-                } else if (case_check.missing_in_keyword) {
-                    line_errors.push_back(SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
-                                                      ErrorCategory::CONTROL_FLOW, "SYN008",
-                                                      "'case' statement missing 'in' keyword", line,
-                                                      "Add 'in' keyword: case variable in"));
-                }
             }
-        });
+        } else if (first_token == "case") {
+            auto case_check = analyze_case_syntax(tokens);
+            if (case_check.incomplete) {
+                line_errors.push_back(SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
+                                                  ErrorCategory::CONTROL_FLOW, "SYN008",
+                                                  "'case' statement incomplete", line,
+                                                  "Complete case statement: case variable in"));
+            } else if (case_check.missing_in_keyword) {
+                line_errors.push_back(SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
+                                                  ErrorCategory::CONTROL_FLOW, "SYN008",
+                                                  "'case' statement missing 'in' keyword", line,
+                                                  "Add 'in' keyword: case variable in"));
+            }
+        }
+    });
 }
 
 std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validate_array_syntax(

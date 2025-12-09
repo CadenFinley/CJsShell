@@ -109,6 +109,22 @@ const char* severity_to_label(ErrorSeverity severity) {
     }
 }
 
+constexpr const char* kAnsiReset = "\x1b[0m";
+
+const char* severity_to_underline_style(ErrorSeverity severity) {
+    switch (severity) {
+        case ErrorSeverity::CRITICAL:
+            return "\x1b[4m\x1b[58;5;196m";
+        case ErrorSeverity::ERROR:
+            return "\x1b[4m\x1b[58;5;160m";
+        case ErrorSeverity::WARNING:
+            return "\x1b[4m\x1b[58;5;214m";
+        case ErrorSeverity::INFO:
+        default:
+            return "\x1b[4m\x1b[58;5;51m";
+    }
+}
+
 std::string format_error_location(const ShellScriptInterpreter::SyntaxError& error) {
     const auto& pos = error.position;
     if (pos.line_number == 0) {
@@ -220,13 +236,15 @@ std::string build_validation_status_message(
     for (size_t i = 0; i < sorted_errors.size(); ++i) {
         const auto* error = sorted_errors[i];
 
-        if (!message.empty() && message.back() != '\n') {
+        if (i != 0) {
             message.push_back('\n');
         }
 
-        message.push_back('[');
-        message.append(severity_to_label(error->severity));
-        message.append("] ");
+        std::string line;
+        line.reserve(128);
+        line.push_back('[');
+        line.append(severity_to_label(error->severity));
+        line.append("]");
 
         std::string location = format_error_location(*error);
         std::string sanitized_text = sanitize_for_status(error->message);
@@ -243,11 +261,17 @@ std::string build_validation_status_message(
         }
 
         if (!detail_text.empty()) {
-            message.append(detail_text);
+            line.push_back(' ');
+            line.append(detail_text);
         }
 
-        if (i + 1 < sorted_errors.size()) {
-            message.push_back('\n');
+        const char* style_prefix = severity_to_underline_style(error->severity);
+        if (style_prefix != nullptr && style_prefix[0] != '\0') {
+            message.append(style_prefix);
+            message.append(line);
+            message.append(kAnsiReset);
+        } else {
+            message.append(line);
         }
     }
 

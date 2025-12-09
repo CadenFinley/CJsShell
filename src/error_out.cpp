@@ -1,3 +1,4 @@
+#include <unistd.h>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -5,6 +6,35 @@
 #include "cjsh.h"
 #include "error_out.h"
 #include "shell.h"
+
+namespace {
+
+constexpr const char* kResetColor = "\x1b[0m";
+
+const char* severity_to_color(ErrorSeverity severity) {
+    switch (severity) {
+        case ErrorSeverity::INFO:
+            return "\x1b[4m\x1b[58;5;51m";
+        case ErrorSeverity::WARNING:
+            return "\x1b[4m\x1b[58;5;214m";
+        case ErrorSeverity::ERROR:
+            return "\x1b[4m\x1b[58;5;160m";
+        case ErrorSeverity::CRITICAL:
+            return "\x1b[4m\x1b[58;5;196m";
+        default:
+            return "\x1b[4m\x1b[58;5;160m";
+    }
+}
+
+bool should_colorize_output() {
+    if (!g_shell || !g_shell->get_interactive_mode()) {
+        return false;
+    }
+
+    return isatty(STDERR_FILENO) != 0;
+}
+
+}  // namespace
 
 ErrorInfo::ErrorInfo() : type(ErrorType::UNKNOWN_ERROR), severity(ErrorSeverity::ERROR) {
 }
@@ -71,6 +101,14 @@ bool should_abort_on_error(const ErrorInfo& error) {
 }
 
 void print_error(const ErrorInfo& error) {
+    const bool colorize_output = should_colorize_output();
+    const char* color_prefix = colorize_output ? severity_to_color(error.severity) : "";
+    const char* color_reset = colorize_output ? kResetColor : "";
+
+    if (colorize_output) {
+        std::cerr << color_prefix;
+    }
+
     std::cerr << "cjsh: ";
 
     if (!error.command_used.empty()) {
@@ -145,5 +183,9 @@ void print_error(const ErrorInfo& error) {
                 std::cerr << suggestion << '\n';
             }
         }
+    }
+
+    if (colorize_output) {
+        std::cerr << color_reset;
     }
 }
