@@ -1149,6 +1149,8 @@ available, and how to persist your preferred prompt layout.</p>
 <li><code>[dim]…[/dim]</code>, <code>[strike]…[/strike]</code>, <code>[blink]…[/blink]</code>, <code>[hidden]…[/hidden]</code></li>
 <li><code>[color=&lt;name|#RRGGBB&gt;]…[/color]</code> – foreground color</li>
 <li><code>[bgcolor=&lt;name|#RRGGBB&gt;]…[/bgcolor]</code> – background color</li>
+<li><code>underline-color=&lt;name|#RRGGBB&gt;</code> or <code>ansi-underline-color=&lt;idx&gt;</code> – attribute value that recolors
+  just the underline stroke (combine with any tag, e.g. <code>[u underline-color=#ffaa00]...[/u]</code>)</li>
 <li><code>[ansi-sgr=sequence]…[/]</code> – inject raw SGR codes (advanced)</li>
 <li><code>[width=columns;&lt;align&gt;;&lt;fill&gt;;dots]…[/]</code> – restrict content width (align is <code>left|center|right</code>)</li>
 </ul>
