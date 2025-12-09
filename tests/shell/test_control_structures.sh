@@ -22,6 +22,29 @@ skip_test() {
     TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
 }
 
+assert_error_contains() {
+  description="$1"
+  command_text="$2"
+  expected_substring="$3"
+
+  OUTPUT=$("$CJSH_PATH" -c "$command_text" 2>&1)
+  STATUS=$?
+
+  if [ $STATUS -eq 0 ]; then
+    fail_test "$description (unexpected success)"
+    echo "$OUTPUT"
+    exit 1
+  fi
+
+  if ! printf "%s" "$OUTPUT" | grep -q "$expected_substring"; then
+    fail_test "$description (missing message)"
+    echo "$OUTPUT"
+    exit 1
+  fi
+
+  pass_test "$description"
+}
+
 IF_OUTPUT=$("$CJSH_PATH" -c "if [ 1 -eq 1 ]; then printf ok; else printf fail; fi")
 if [ "$IF_OUTPUT" != "ok" ]; then
   fail_test "if statement"
@@ -45,6 +68,13 @@ if [ "$WHILE_OUTPUT" != "6" ]; then
 else
   pass_test "while loop"
 fi
+
+assert_error_contains "inline for missing done" "for i in 1 2 3 do echo \$i" "missing closing 'done'"
+assert_error_contains "multiline for missing done" "for i in 1 2 3; do echo \$i" "missing closing 'done'"
+assert_error_contains "while missing done" "while true; do echo ok" "missing 'done'"
+assert_error_contains "until missing done" "until false; do echo ok" "missing 'done'"
+assert_error_contains "if missing fi" "if true; then echo ok" "missing 'fi'"
+assert_error_contains "case missing esac" "case foo in foo) echo ok ;;" "missing 'esac'"
 
 echo ""
 echo "Control Structures Tests Summary:"

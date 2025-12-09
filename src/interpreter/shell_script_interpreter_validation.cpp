@@ -151,19 +151,30 @@ std::string extract_identifier_from_token(const std::string& token) {
     return token.substr(start, end - start);
 }
 
-bool is_do_token(const std::string& token) {
-    if (token.size() < 2)
+bool is_keyword_token(const std::string& token, const std::string& keyword) {
+    if (token.size() < keyword.size()) {
         return false;
+    }
 
-    if (token[0] != 'd' || token[1] != 'o')
+    if (token.compare(0, keyword.size(), keyword) != 0) {
         return false;
+    }
 
-    for (size_t i = 2; i < token.size(); ++i) {
-        if (token[i] != ';')
+    for (size_t i = keyword.size(); i < token.size(); ++i) {
+        if (token[i] != ';') {
             return false;
+        }
     }
 
     return true;
+}
+
+bool is_do_token(const std::string& token) {
+    return is_keyword_token(token, "do");
+}
+
+bool is_done_token(const std::string& token) {
+    return is_keyword_token(token, "done");
 }
 
 std::string get_last_non_comment_token(const std::vector<std::string>& tokens) {
@@ -645,7 +656,8 @@ SyntaxError create_pipe_error(size_t display_line, size_t start_pos, size_t end_
 
 std::pair<bool, bool> check_for_loop_keywords(const std::vector<std::string>& tokens,
                                               const std::string& trimmed_line) {
-    bool has_do = std::find(tokens.begin(), tokens.end(), "do") != tokens.end();
+    bool has_do = std::any_of(tokens.begin(), tokens.end(),
+                              [](const std::string& token) { return is_do_token(token); });
     bool has_semicolon = trimmed_line.find(';') != std::string::npos;
     return {has_do, has_semicolon};
 }
@@ -741,6 +753,7 @@ struct ForLoopCheckResult {
     bool missing_in_keyword = false;
     bool missing_do_keyword = false;
     bool has_inline_do = false;
+    bool inline_body_without_done = false;
 };
 
 ForLoopCheckResult analyze_for_loop_syntax(const std::vector<std::string>& tokens,
@@ -765,6 +778,36 @@ ForLoopCheckResult analyze_for_loop_syntax(const std::vector<std::string>& token
         result.missing_do_keyword = true;
     }
 
+    bool found_do = false;
+    bool inline_body_present = false;
+    bool has_done_after_do = false;
+
+    for (size_t idx = 0; idx < tokens.size(); ++idx) {
+        const std::string& token = tokens[idx];
+        if (!found_do) {
+            if (is_do_token(token)) {
+                found_do = true;
+            }
+            continue;
+        }
+
+        if (token.empty()) {
+            continue;
+        }
+        if (token[0] == '#') {
+            break;
+        }
+        if (is_done_token(token)) {
+            has_done_after_do = true;
+            break;
+        }
+        inline_body_present = true;
+    }
+
+    if (found_do && inline_body_present && !has_done_after_do) {
+        result.inline_body_without_done = true;
+    }
+
     return result;
 }
 
@@ -773,6 +816,7 @@ struct WhileUntilCheckResult {
     bool missing_condition = false;
     bool unclosed_test = false;
     bool has_inline_do = false;
+    bool inline_body_without_done = false;
 };
 
 WhileUntilCheckResult analyze_while_until_syntax(const std::string& first_token,
@@ -785,6 +829,36 @@ WhileUntilCheckResult analyze_while_until_syntax(const std::string& first_token,
     result.has_inline_do = is_do_token(last_token);
     if (!has_do && !has_semicolon) {
         result.missing_do_keyword = true;
+    }
+
+    bool found_do = false;
+    bool inline_body_present = false;
+    bool has_done_after_do = false;
+
+    for (size_t idx = 0; idx < tokens.size(); ++idx) {
+        const std::string& token = tokens[idx];
+        if (!found_do) {
+            if (is_do_token(token)) {
+                found_do = true;
+            }
+            continue;
+        }
+
+        if (token.empty()) {
+            continue;
+        }
+        if (token[0] == '#') {
+            break;
+        }
+        if (is_done_token(token)) {
+            has_done_after_do = true;
+            break;
+        }
+        inline_body_present = true;
+    }
+
+    if (found_do && inline_body_present && !has_done_after_do) {
+        result.inline_body_without_done = true;
     }
 
     size_t kw_pos = trimmed_line.find(first_token);
@@ -2509,6 +2583,11 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                                                   ErrorCategory::CONTROL_FLOW, "SYN002",
                                                   "'for' statement missing 'do' keyword", line,
                                                   "Add 'do' keyword: for var in list; do"));
+            } else if (loop_check.inline_body_without_done) {
+                line_errors.push_back(SyntaxError(
+                    {display_line, 0, 0, 0}, ErrorSeverity::ERROR, ErrorCategory::CONTROL_FLOW,
+                    "SYN002", "'for' loop missing closing 'done' after inline body", line,
+                    "End inline loop bodies with 'done' or move the body to a new line"));
             }
         } else if (first_token == "while" || first_token == "until") {
             auto loop_check = analyze_while_until_syntax(first_token, trimmed_line, tokens);
