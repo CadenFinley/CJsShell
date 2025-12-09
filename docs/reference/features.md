@@ -105,8 +105,6 @@ Flags affecting feature toggles take effect early in startup and can also be inj
 
 ## Built-in Tooling Highlights
 
-- `syntax` – Static script checking with configurable severity filters.
-- `validate` – Verify command existence or toggle auto validation of external commands.
 - `generate-completions` – Pre-populate completion caches by scraping manual pages in parallel.
 - `hash` – Inspect or reset execution caches.
 - `history` / `fc` – Explore, edit, and replay persistent history (exit codes are stored alongside entries).

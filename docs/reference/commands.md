@@ -86,13 +86,6 @@ Replace the shell process with another program.
 exec command [args...]
 ```
 
-### syntax
-Check scripts or command strings for syntax issues.
-
-```bash
-syntax [script_file]
-```
-
 ## Variables and Environment
 
 ### export
@@ -371,11 +364,20 @@ engine, allowing you to bypass shell functions that shadow external commands. Th
 the exit status of the invoked program.
 
 ### validate
-Toggle command validation or verify command names.
+Toggle proactive command validation or manually verify command availability.
 
 ```bash
-validate [on|off|command_name]
+validate on
+validate off
+validate command [command...]
 ```
+
+- `validate on` enables interactive command checking so cjsh warns (and fails fast) when a
+  command cannot be resolved before it runs.
+- `validate off` disables proactive checks and returns to the default, laissez-faire behavior.
+- `validate command [command...]` prints how each name would be resolved (builtin, alias,
+  function, or full path) and exits non-zero if any entry cannot be found.
+- Pair with scripts or CI to ensure required tools exist (`validate git jq yq`).
 
 ## Hook System
 
