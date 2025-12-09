@@ -19,7 +19,7 @@
 
 ic_private attr_t attr_none(void) {
     attr_t attr;
-    attr.value = 0;
+    memset(&attr, 0, sizeof(attr));
     return attr;
 }
 
@@ -31,15 +31,17 @@ ic_private attr_t attr_default(void) {
     attr.x.underline = IC_OFF;
     attr.x.reverse = IC_OFF;
     attr.x.italic = IC_OFF;
+    attr.x.underline_color = IC_ANSI_DEFAULT;
     return attr;
 }
 
 ic_private bool attr_is_none(attr_t attr) {
-    return (attr.value == 0);
+    static const attr_t none = {0};
+    return (memcmp(&attr, &none, sizeof(attr_t)) == 0);
 }
 
 ic_private bool attr_is_eq(attr_t attr1, attr_t attr2) {
-    return (attr1.value == attr2.value);
+    return (memcmp(&attr1, &attr2, sizeof(attr_t)) == 0);
 }
 
 ic_private attr_t attr_from_color(ic_color_t color) {
@@ -55,6 +57,9 @@ ic_private attr_t attr_update_with(attr_t oldattr, attr_t newattr) {
     }
     if (newattr.x.bgcolor != IC_COLOR_NONE) {
         attr.x.bgcolor = newattr.x.bgcolor;
+    }
+    if (newattr.x.underline_color != IC_COLOR_NONE) {
+        attr.x.underline_color = newattr.x.underline_color;
     }
     if (newattr.x.bold != IC_NONE) {
         attr.x.bold = newattr.x.bold;
@@ -150,6 +155,9 @@ ic_private attr_t attr_from_sgr(const char* s, ssize_t len) {
             case 49:
                 attr.x.bgcolor = IC_ANSI_DEFAULT;
                 break;
+            case 59:
+                attr.x.underline_color = IC_ANSI_DEFAULT;
+                break;
             default: {
                 if (cmd >= 30 && cmd <= 37) {
                     attr.x.color = IC_ANSI_BLACK + (unsigned)(cmd - 30);
@@ -159,7 +167,7 @@ ic_private attr_t attr_from_sgr(const char* s, ssize_t len) {
                     attr.x.color = IC_ANSI_DARKGRAY + (unsigned)(cmd - 90);
                 } else if (cmd >= 100 && cmd <= 107) {
                     attr.x.bgcolor = IC_ANSI_DARKGRAY + (unsigned)(cmd - 100);
-                } else if ((cmd == 38 || cmd == 48) && sgr_is_sep(s[i])) {
+                } else if ((cmd == 38 || cmd == 48 || cmd == 58) && sgr_is_sep(s[i])) {
                     // non-associative SGR :-(
                     ssize_t par = 0;
                     i++;
@@ -171,8 +179,10 @@ ic_private attr_t attr_from_sgr(const char* s, ssize_t len) {
                                 ic_color_t color = color_from_ansi256(par);
                                 if (cmd == 38) {
                                     attr.x.color = color;
-                                } else {
+                                } else if (cmd == 48) {
                                     attr.x.bgcolor = color;
+                                } else {
+                                    attr.x.underline_color = color;
                                 }
                             }
                         } else if (par == 2 && sgr_is_sep(s[i])) {
@@ -183,8 +193,10 @@ ic_private attr_t attr_from_sgr(const char* s, ssize_t len) {
                                 ic_color_t color = ic_rgbx(r, g, b);
                                 if (cmd == 38) {
                                     attr.x.color = color;
-                                } else {
+                                } else if (cmd == 48) {
                                     attr.x.bgcolor = color;
+                                } else {
+                                    attr.x.underline_color = color;
                                 }
                             }
                         }

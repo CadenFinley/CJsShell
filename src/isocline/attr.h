@@ -20,19 +20,17 @@
 #define IC_OFF (-1)
 #define IC_NONE (0)
 
-// try to fit in 64 bits
-// note: order is important for some compilers
-// note: each color can actually be 25 bits
-typedef union attr_s {
+// Each color channel is stored separately to allow underline specific coloring.
+typedef struct attr_s {
     struct {
-        unsigned int color : 28;
-        signed int bold : 2;
-        signed int reverse : 2;
-        unsigned int bgcolor : 28;
-        signed int underline : 2;
-        signed int italic : 2;
+        ic_color_t color;
+        signed int bold;
+        signed int reverse;
+        ic_color_t bgcolor;
+        signed int underline;
+        signed int italic;
+        ic_color_t underline_color;
     } x;
-    uint64_t value;
 } attr_t;
 
 ic_private attr_t attr_none(void);

@@ -386,6 +386,16 @@ static const char* attr_update_property(tag_t* tag, const char* attr_name, const
         }
         return fname;
     }
+    fname = "underline-color";
+    if (strcmp(attr_name, fname) == 0 || strcmp(attr_name, "underlinecolor") == 0 ||
+        strcmp(attr_name, "ulcolor") == 0) {
+        unsigned int color = IC_COLOR_NONE;
+        attr_update_color(fname, &color, value);
+        if (color != IC_COLOR_NONE) {
+            tag->attr.x.underline_color = color;
+        }
+        return fname;
+    }
     fname = "ansi-sgr";
     if (strcmp(attr_name, fname) == 0) {
         attr_update_sgr(fname, &tag->attr, value);
@@ -411,6 +421,15 @@ static const char* attr_update_property(tag_t* tag, const char* attr_name, const
         }
         return fname;
     }
+    fname = "ansi-underline-color";
+    if (strcmp(attr_name, fname) == 0) {
+        ic_color_t color = IC_COLOR_NONE;
+        attr_update_ansi_color(fname, &color, value);
+        if (color != IC_COLOR_NONE) {
+            tag->attr.x.underline_color = color;
+        }
+        return fname;
+    }
     fname = "width";
     if (strcmp(attr_name, fname) == 0) {
         attr_update_width(&tag->width, ' ', value);
@@ -426,13 +445,13 @@ static const char* attr_update_property(tag_t* tag, const char* attr_name, const
 }
 
 static const style_t builtin_styles[] = {
-    {"b", {{IC_COLOR_NONE, IC_ON, IC_NONE, IC_COLOR_NONE, IC_NONE, IC_NONE}}},
-    {"r", {{IC_COLOR_NONE, IC_NONE, IC_ON, IC_COLOR_NONE, IC_NONE, IC_NONE}}},
-    {"u", {{IC_COLOR_NONE, IC_NONE, IC_NONE, IC_COLOR_NONE, IC_ON, IC_NONE}}},
-    {"i", {{IC_COLOR_NONE, IC_NONE, IC_NONE, IC_COLOR_NONE, IC_NONE, IC_ON}}},
-    {"em", {{IC_COLOR_NONE, IC_ON, IC_NONE, IC_COLOR_NONE, IC_NONE, IC_NONE}}},   // bold
-    {"url", {{IC_COLOR_NONE, IC_NONE, IC_NONE, IC_COLOR_NONE, IC_ON, IC_NONE}}},  // underline
-    {NULL, {{IC_COLOR_NONE, IC_NONE, IC_NONE, IC_COLOR_NONE, IC_NONE, IC_NONE}}}};
+    {"b", {{IC_COLOR_NONE, IC_ON, IC_NONE, IC_COLOR_NONE, IC_NONE, IC_NONE, IC_COLOR_NONE}}},
+    {"r", {{IC_COLOR_NONE, IC_NONE, IC_ON, IC_COLOR_NONE, IC_NONE, IC_NONE, IC_COLOR_NONE}}},
+    {"u", {{IC_COLOR_NONE, IC_NONE, IC_NONE, IC_COLOR_NONE, IC_ON, IC_NONE, IC_COLOR_NONE}}},
+    {"i", {{IC_COLOR_NONE, IC_NONE, IC_NONE, IC_COLOR_NONE, IC_NONE, IC_ON, IC_COLOR_NONE}}},
+    {"em", {{IC_COLOR_NONE, IC_ON, IC_NONE, IC_COLOR_NONE, IC_NONE, IC_NONE, IC_COLOR_NONE}}},
+    {"url", {{IC_COLOR_NONE, IC_NONE, IC_NONE, IC_COLOR_NONE, IC_ON, IC_NONE, IC_COLOR_NONE}}},
+    {NULL, {{IC_COLOR_NONE, IC_NONE, IC_NONE, IC_COLOR_NONE, IC_NONE, IC_NONE, IC_COLOR_NONE}}}};
 
 static bool attr_update_with_styles(tag_t* tag, const char* attr_name, const char* value,
                                     bool usebgcolor, const style_t* styles, ssize_t count) {

@@ -35,6 +35,8 @@ export PROMPT_COMMAND='__update_git_info'
 - `[dim]…[/dim]`, `[strike]…[/strike]`, `[blink]…[/blink]`, `[hidden]…[/hidden]`
 - `[color=<name|#RRGGBB>]…[/color]` – foreground color
 - `[bgcolor=<name|#RRGGBB>]…[/bgcolor]` – background color
+- `underline-color=<name|#RRGGBB>` or `ansi-underline-color=<idx>` – attribute value that recolors
+  just the underline stroke (combine with any tag, e.g. `[u underline-color=#ffaa00]...[/u]`)
 - `[ansi-sgr=sequence]…[/]` – inject raw SGR codes (advanced)
 - `[width=columns;<align>;<fill>;dots]…[/]` – restrict content width (align is `left|center|right`)
 

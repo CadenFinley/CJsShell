@@ -601,6 +601,8 @@ cjshopt style_def ic-string "italic #ffaa00"
 - ANSI colors: `ansi-red`, `ansi-bright-blue`, etc.
 - RGB colors: `#RRGGBB` or `#RGB`
 - Attributes: `bold`, `italic`, `underline`, `reverse`
+- Underline color only: `underline-color=<color>` or `ansi-underline-color=<idx>` (also accepts
+	shorthand `ulcolor`)
 - Background: `on <color>`
 
 ## Configuration Examples

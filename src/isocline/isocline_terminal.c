@@ -186,3 +186,19 @@ ic_public void ic_term_color_rgb(bool foreground, uint32_t hcolor) {
         term_bgcolor(env->term, color);
     }
 }
+
+ic_public void ic_term_underline_color_ansi(int ansi_color) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL || env->term == NULL)
+        return;
+    ic_color_t color = color_from_ansi256(ansi_color);
+    term_underline_color(env->term, color);
+}
+
+ic_public void ic_term_underline_color_rgb(uint32_t hcolor) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL || env->term == NULL)
+        return;
+    ic_color_t color = ic_rgb(hcolor);
+    term_underline_color(env->term, color);
+}

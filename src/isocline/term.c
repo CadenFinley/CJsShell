@@ -194,6 +194,13 @@ ic_private void term_set_attr(term_t* term, attr_t attr) {
     if (attr.x.underline != term->attr.x.underline && attr.x.underline != IC_NONE) {
         term_underline(term, attr.x.underline == IC_ON);
     }
+    if (attr.x.underline_color != term->attr.x.underline_color &&
+        attr.x.underline_color != IC_COLOR_NONE) {
+        term_underline_color(term, attr.x.underline_color);
+        if (term->palette < ANSIRGB && color_is_rgb(attr.x.underline_color)) {
+            term->attr.x.underline_color = attr.x.underline_color;
+        }
+    }
     if (attr.x.reverse != term->attr.x.reverse && attr.x.reverse != IC_NONE) {
         term_reverse(term, attr.x.reverse == IC_ON);
     }
@@ -206,6 +213,8 @@ ic_private void term_set_attr(term_t* term, attr_t attr) {
     assert(attr.x.reverse == term->attr.x.reverse || attr.x.reverse == IC_NONE);
     assert(attr.x.underline == term->attr.x.underline || attr.x.underline == IC_NONE);
     assert(attr.x.italic == term->attr.x.italic || attr.x.italic == IC_NONE);
+    assert(attr.x.underline_color == term->attr.x.underline_color ||
+           attr.x.underline_color == IC_COLOR_NONE);
 }
 
 /*

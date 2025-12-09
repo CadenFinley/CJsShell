@@ -226,6 +226,16 @@ static int rgb_to_ansi256(ic_color_t color) {
     return c;
 }
 
+static int ansi_code_to_ansi256_index(ic_color_t color) {
+    if (color >= IC_ANSI_BLACK && color <= IC_ANSI_SILVER) {
+        return (int)(color - IC_ANSI_BLACK);
+    } else if (color >= IC_ANSI_GRAY && color <= IC_ANSI_WHITE) {
+        return 8 + (int)(color - IC_ANSI_GRAY);
+    } else {
+        return -1;
+    }
+}
+
 // Match RGB to an ANSI 16 color code (30-37, 90-97)
 static int color_to_ansi16(ic_color_t color) {
     if (!color_is_rgb(color)) {
@@ -322,6 +332,32 @@ ic_private void term_color(term_t* term, ic_color_t color) {
 
 ic_private void term_bgcolor(term_t* term, ic_color_t color) {
     term_color_ex(term, color, true);
+}
+
+ic_private void term_underline_color(term_t* term, ic_color_t color) {
+    if (color == IC_COLOR_NONE || term->palette == MONOCHROME)
+        return;
+    if (color == IC_ANSI_DEFAULT) {
+        term_write(term, IC_CSI "59m");
+        return;
+    }
+    if (color_is_rgb(color) && term->palette == ANSIRGB) {
+        int r, g, b;
+        color_to_rgb(color, &r, &g, &b);
+        term_writef(term, IC_CSI "58;2;%d;%d;%dm", r, g, b);
+        return;
+    }
+    int idx = -1;
+    if (color_is_rgb(color)) {
+        idx = rgb_to_ansi256(color);
+    } else {
+        idx = ansi_code_to_ansi256_index(color);
+    }
+    if (idx < 0) {
+        term_write(term, IC_CSI "59m");
+        return;
+    }
+    term_writef(term, IC_CSI "58;5;%dm", idx);
 }
 
 ic_private void term_append_color(term_t* term, stringbuf_t* sbuf, ic_color_t color) {

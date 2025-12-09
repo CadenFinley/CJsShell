@@ -925,6 +925,15 @@ void ic_term_color_ansi(bool foreground, int color);
 /// (auto matched to smaller palette if not supported)
 void ic_term_color_rgb(bool foreground, uint32_t color);
 
+/// Set underline color using an ANSI palette index between 0 and 255
+/// (or 256 for the ANSI "default" color). (auto matched to smaller palette if
+/// not supported)
+void ic_term_underline_color_ansi(int color);
+
+/// Set underline color using a 24-bit RGB color (between `0x000000` and
+/// `0xFFFFFF`). (auto matched to smaller palette if not supported)
+void ic_term_underline_color_rgb(uint32_t color);
+
 /// Reset the text attributes.
 void ic_term_reset(void);
 

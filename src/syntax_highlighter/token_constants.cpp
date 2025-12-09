@@ -18,7 +18,7 @@ const std::unordered_set<std::string> redirection_operators = {
     "0<", "0>",  "3>", "4>",  "5>",   "6>",   "7>",  "8>", "9>"};
 
 const std::unordered_map<std::string, std::string> default_styles = {
-    {"unknown-command", "bold color=#FF5555"},
+    {"unknown-command", "color=#FFFFFF underline underline-color=#FF0000"},
     {"colon", "bold color=#8BE9FD"},
     {"path-exists", "color=#50FA7B"},
     {"path-not-exists", "color=#FF5555"},
