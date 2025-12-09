@@ -5,11 +5,23 @@
 #include "job_control.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <cstdlib>
 #include <string>
 #include <vector>
 
 #include "cjsh.h"
+#include "exec.h"
+#include "shell.h"
+
+namespace {
+enum class JobWarningState : std::uint8_t {
+    NONE,
+    RUNNING_OR_STOPPED
+};
+
+JobWarningState g_last_job_warning = JobWarningState::NONE;
+}  // namespace
 
 int exit_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(args, {"Usage: exit [-f|--force] [N]",
@@ -55,6 +67,7 @@ int exit_command(const std::vector<std::string>& args) {
     const bool running_dash_c =
         config::execute_command || !config::cmd_to_execute.empty() || invoked_with_dash_c;
     const bool should_check_jobs = !force_exit && !running_dash_c;
+    bool forced_by_repeated_exit = false;
 
     if (should_check_jobs) {
         auto& job_manager = JobManager::instance();
@@ -75,27 +88,48 @@ int exit_command(const std::vector<std::string>& args) {
             }
         }
 
-        if (has_stopped_jobs || has_running_jobs) {
-            std::string warning;
-            if (has_stopped_jobs && has_running_jobs) {
-                warning = "There are stopped and running jobs.";
-            } else if (has_stopped_jobs) {
-                warning = "There are stopped jobs.";
+        const bool has_blocking_jobs = has_stopped_jobs || has_running_jobs;
+        if (!has_blocking_jobs) {
+            g_last_job_warning = JobWarningState::NONE;
+        } else {
+            if (g_last_job_warning == JobWarningState::RUNNING_OR_STOPPED) {
+                force_exit = true;
+                forced_by_repeated_exit = true;
             } else {
-                warning = "There are running jobs.";
-            }
+                std::string warning;
+                if (has_stopped_jobs && has_running_jobs) {
+                    warning = "There are stopped and running jobs.";
+                } else if (has_stopped_jobs) {
+                    warning = "There are stopped jobs.";
+                } else {
+                    warning = "There are running jobs.";
+                }
 
-            print_error({ErrorType::RUNTIME_ERROR,
-                         ErrorSeverity::WARNING,
-                         "exit",
-                         warning,
-                         {"Use `jobs` to inspect them.",
-                          "Resume, disown, or run `exit --force` to exit."}});
-            return 1;
+                g_last_job_warning = JobWarningState::RUNNING_OR_STOPPED;
+
+                print_error({ErrorType::RUNTIME_ERROR,
+                             ErrorSeverity::WARNING,
+                             "exit",
+                             warning,
+                             {"Use `jobs` to inspect them.",
+                              "Resume, disown, or run `exit --force` to exit."}});
+                return 1;
+            }
         }
     }
 
     if (force_exit) {
+        if (forced_by_repeated_exit) {
+            print_error({ErrorType::RUNTIME_ERROR,
+                         ErrorSeverity::WARNING,
+                         "exit",
+                         "Second exit attempt detected. Forcing exit despite active jobs.",
+                         {"Use `exit --force` to skip the warning immediately."}});
+        }
+        if (g_shell && g_shell->shell_exec) {
+            g_shell->shell_exec->terminate_all_child_process();
+        }
+        JobManager::instance().clear_all_jobs();
         cleanup_resources();
         std::exit(exit_code);
     }
