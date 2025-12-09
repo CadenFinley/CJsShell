@@ -153,6 +153,18 @@ bool replace_first_instance(std::string& target, const std::string& from, const 
     const std::string invocation = join_arguments(args);
 
     if (saved_errno == ENOENT) {
+        const bool has_explicit_path = command_name.find('/') != std::string::npos;
+        if (has_explicit_path) {
+            const char* err_detail = strerror(saved_errno);
+            std::string message_detail = err_detail ? err_detail : "no such file or directory";
+            print_error({ErrorType::FILE_NOT_FOUND,
+                         ErrorSeverity::ERROR,
+                         command_name,
+                         message_detail,
+                         {"try checking the file path or creating the file."}});
+            _exit(ShellScriptInterpreter::exit_command_not_found);
+        }
+
         std::vector<std::string> suggestions;
         if (!command_name.empty()) {
             suggestions = suggestion_utils::generate_command_suggestions(command_name);
