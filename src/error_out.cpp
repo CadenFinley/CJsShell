@@ -6,9 +6,71 @@
 #include "error_out.h"
 #include "shell.h"
 
-namespace {
+ErrorInfo::ErrorInfo() : type(ErrorType::UNKNOWN_ERROR), severity(ErrorSeverity::ERROR) {
+}
 
-void print_error_to_stderr(const ErrorInfo& error) {
+ErrorInfo::ErrorInfo(ErrorType t, ErrorSeverity s, const std::string& cmd, const std::string& msg,
+                     const std::vector<std::string>& sugg)
+    : type(t), severity(s), command_used(cmd), message(msg), suggestions(sugg) {
+}
+
+ErrorInfo::ErrorInfo(ErrorType t, const std::string& cmd, const std::string& msg,
+                     const std::vector<std::string>& sugg)
+    : type(t),
+      severity(get_default_severity(t)),
+      command_used(cmd),
+      message(msg),
+      suggestions(sugg) {
+}
+
+ErrorSeverity ErrorInfo::get_default_severity(ErrorType type) {
+    switch (type) {
+        case ErrorType::SYNTAX_ERROR:
+            return ErrorSeverity::CRITICAL;
+        case ErrorType::COMMAND_NOT_FOUND:
+            return ErrorSeverity::ERROR;
+        case ErrorType::PERMISSION_DENIED:
+            return ErrorSeverity::ERROR;
+        case ErrorType::FILE_NOT_FOUND:
+            return ErrorSeverity::ERROR;
+        case ErrorType::INVALID_ARGUMENT:
+            return ErrorSeverity::WARNING;
+        case ErrorType::RUNTIME_ERROR:
+            return ErrorSeverity::ERROR;
+        case ErrorType::UNKNOWN_ERROR:
+        default:
+            return ErrorSeverity::ERROR;
+    }
+}
+
+bool should_abort_on_error(const ErrorInfo& error) {
+    if (error.severity == ErrorSeverity::CRITICAL) {
+        return true;
+    }
+
+    if (!g_shell || !g_shell->is_errexit_enabled()) {
+        return false;
+    }
+
+    if (g_shell) {
+        std::string severity_threshold = g_shell->get_errexit_severity();
+
+        ErrorSeverity threshold = ErrorSeverity::ERROR;
+        if (severity_threshold == "info") {
+            threshold = ErrorSeverity::INFO;
+        } else if (severity_threshold == "warning") {
+            threshold = ErrorSeverity::WARNING;
+        } else if (severity_threshold == "critical") {
+            threshold = ErrorSeverity::CRITICAL;
+        }
+
+        return error.severity >= threshold;
+    }
+
+    return error.severity >= ErrorSeverity::ERROR;
+}
+
+void print_error(const ErrorInfo& error) {
     std::cerr << "cjsh: ";
 
     if (!error.command_used.empty()) {
@@ -84,78 +146,4 @@ void print_error_to_stderr(const ErrorInfo& error) {
             }
         }
     }
-}
-
-}  // namespace
-
-ErrorInfo::ErrorInfo() : type(ErrorType::UNKNOWN_ERROR), severity(ErrorSeverity::ERROR) {
-}
-
-ErrorInfo::ErrorInfo(ErrorType t, ErrorSeverity s, const std::string& cmd, const std::string& msg,
-                     const std::vector<std::string>& sugg)
-    : type(t), severity(s), command_used(cmd), message(msg), suggestions(sugg) {
-}
-
-ErrorInfo::ErrorInfo(ErrorType t, const std::string& cmd, const std::string& msg,
-                     const std::vector<std::string>& sugg)
-    : type(t),
-      severity(get_default_severity(t)),
-      command_used(cmd),
-      message(msg),
-      suggestions(sugg) {
-}
-
-ErrorSeverity ErrorInfo::get_default_severity(ErrorType type) {
-    switch (type) {
-        case ErrorType::SYNTAX_ERROR:
-            return ErrorSeverity::CRITICAL;
-        case ErrorType::COMMAND_NOT_FOUND:
-            return ErrorSeverity::ERROR;
-        case ErrorType::PERMISSION_DENIED:
-            return ErrorSeverity::ERROR;
-        case ErrorType::FILE_NOT_FOUND:
-            return ErrorSeverity::ERROR;
-        case ErrorType::INVALID_ARGUMENT:
-            return ErrorSeverity::WARNING;
-        case ErrorType::RUNTIME_ERROR:
-            return ErrorSeverity::ERROR;
-        case ErrorType::UNKNOWN_ERROR:
-        default:
-            return ErrorSeverity::ERROR;
-    }
-}
-
-void print_error(const ErrorInfo& error) {
-    print_error_to_stderr(error);
-}
-
-void print_error_fallback(const ErrorInfo& error) {
-    print_error_to_stderr(error);
-}
-
-bool should_abort_on_error(const ErrorInfo& error) {
-    if (error.severity == ErrorSeverity::CRITICAL) {
-        return true;
-    }
-
-    if (!g_shell || !g_shell->is_errexit_enabled()) {
-        return false;
-    }
-
-    if (g_shell) {
-        std::string severity_threshold = g_shell->get_errexit_severity();
-
-        ErrorSeverity threshold = ErrorSeverity::ERROR;
-        if (severity_threshold == "info") {
-            threshold = ErrorSeverity::INFO;
-        } else if (severity_threshold == "warning") {
-            threshold = ErrorSeverity::WARNING;
-        } else if (severity_threshold == "critical") {
-            threshold = ErrorSeverity::CRITICAL;
-        }
-
-        return error.severity >= threshold;
-    }
-
-    return error.severity >= ErrorSeverity::ERROR;
 }

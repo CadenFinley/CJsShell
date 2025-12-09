@@ -41,5 +41,3 @@ struct ErrorInfo {
 };
 
 void print_error(const ErrorInfo& error);
-void print_error_fallback(const ErrorInfo& error);
-bool should_abort_on_error(const ErrorInfo& error);
