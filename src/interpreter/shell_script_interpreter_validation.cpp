@@ -2835,13 +2835,15 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                     continue;
                 }
 
-                if (arithmetic_depth > 0 && i + 1 < line.length() && line.compare(i, 2, "))") == 0) {
+                if (arithmetic_depth > 0 && i + 1 < line.length() &&
+                    line.compare(i, 2, "))") == 0) {
                     arithmetic_depth--;
                     i += 2;
                     continue;
                 }
 
-                if (arithmetic_depth == 0 && i + 1 < line.length() && line.compare(i, 2, "<<") == 0) {
+                if (arithmetic_depth == 0 && i + 1 < line.length() &&
+                    line.compare(i, 2, "<<") == 0) {
                     size_t heredoc_pos = i;
                     size_t delim_start = heredoc_pos + 2;
                     while (delim_start < line.length() &&
@@ -2873,8 +2875,7 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                                     ErrorSeverity::WARNING, ErrorCategory::SYNTAX, "SYN011",
                                     "Nested heredoc detected - may cause parsing issues", line,
                                     "Consider closing previous heredoc '" +
-                                        heredoc_stack.back().first +
-                                    "' before starting new one"));
+                                        heredoc_stack.back().first + "' before starting new one"));
                             }
 
                             heredoc_stack.push_back({delimiter, display_line});
