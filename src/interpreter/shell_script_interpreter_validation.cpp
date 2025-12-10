@@ -2800,58 +2800,93 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
             }
         }
 
-        size_t heredoc_pos = line.find("<<");
-        if (heredoc_pos != std::string::npos) {
-            bool in_quotes = false;
-            char quote_char = '\0';
+        bool in_quotes = false;
+        char quote_char = '\0';
+        size_t i = 0;
+        int arithmetic_depth = 0;
 
-            for (size_t i = 0; i < heredoc_pos; ++i) {
-                if ((line[i] == '"' || line[i] == '\'') && !in_quotes) {
-                    in_quotes = true;
-                    quote_char = line[i];
-                } else if (line[i] == quote_char && in_quotes) {
-                    in_quotes = false;
-                    quote_char = '\0';
-                }
+        while (i < line.length()) {
+            char current_char = line[i];
+
+            if (!in_quotes && (current_char == '"' || current_char == '\'')) {
+                in_quotes = true;
+                quote_char = current_char;
+                ++i;
+                continue;
+            }
+
+            if (in_quotes && current_char == quote_char) {
+                in_quotes = false;
+                quote_char = '\0';
+                ++i;
+                continue;
             }
 
             if (!in_quotes) {
-                size_t delim_start = heredoc_pos + 2;
-                while (delim_start < line.length() && (std::isspace(line[delim_start]) != 0)) {
-                    delim_start++;
+                if (i + 2 < line.length() && line.compare(i, 3, "$((") == 0) {
+                    arithmetic_depth++;
+                    i += 3;
+                    continue;
                 }
 
-                if (delim_start < line.length()) {
+                if (i + 1 < line.length() && line.compare(i, 2, "((") == 0) {
+                    arithmetic_depth++;
+                    i += 2;
+                    continue;
+                }
+
+                if (arithmetic_depth > 0 && i + 1 < line.length() && line.compare(i, 2, "))") == 0) {
+                    arithmetic_depth--;
+                    i += 2;
+                    continue;
+                }
+
+                if (arithmetic_depth == 0 && i + 1 < line.length() && line.compare(i, 2, "<<") == 0) {
+                    size_t heredoc_pos = i;
+                    size_t delim_start = heredoc_pos + 2;
+                    while (delim_start < line.length() &&
+                           (std::isspace(static_cast<unsigned char>(line[delim_start])) != 0)) {
+                        ++delim_start;
+                    }
+
                     size_t delim_end = delim_start;
-                    while (delim_end < line.length() && (std::isspace(line[delim_end]) == 0) &&
-                           line[delim_end] != ';' && line[delim_end] != '&' &&
-                           line[delim_end] != '|') {
-                        delim_end++;
-                    }
-
-                    if (delim_start < delim_end) {
-                        std::string delimiter = line.substr(delim_start, delim_end - delim_start);
-
-                        if ((delimiter.front() == '"' && delimiter.back() == '"') ||
-                            (delimiter.front() == '\'' && delimiter.back() == '\'')) {
-                            delimiter = delimiter.substr(1, delimiter.length() - 2);
+                    if (delim_start < line.length()) {
+                        while (delim_end < line.length() &&
+                               (std::isspace(static_cast<unsigned char>(line[delim_end])) == 0) &&
+                               line[delim_end] != ';' && line[delim_end] != '&' &&
+                               line[delim_end] != '|') {
+                            ++delim_end;
                         }
 
-                        if (!heredoc_stack.empty()) {
-                            errors.push_back(SyntaxError(
-                                {display_line, heredoc_pos, delim_end, 0}, ErrorSeverity::WARNING,
-                                ErrorCategory::SYNTAX, "SYN011",
-                                "Nested heredoc detected - may cause parsing "
-                                "issues",
-                                line,
-                                "Consider closing previous heredoc '" + heredoc_stack.back().first +
+                        if (delim_start < delim_end) {
+                            std::string delimiter =
+                                line.substr(delim_start, delim_end - delim_start);
+
+                            if ((delimiter.front() == '"' && delimiter.back() == '"') ||
+                                (delimiter.front() == '\'' && delimiter.back() == '\'')) {
+                                delimiter = delimiter.substr(1, delimiter.length() - 2);
+                            }
+
+                            if (!heredoc_stack.empty()) {
+                                errors.push_back(SyntaxError(
+                                    {display_line, heredoc_pos, delim_end, 0},
+                                    ErrorSeverity::WARNING, ErrorCategory::SYNTAX, "SYN011",
+                                    "Nested heredoc detected - may cause parsing issues", line,
+                                    "Consider closing previous heredoc '" +
+                                        heredoc_stack.back().first +
                                     "' before starting new one"));
-                        }
+                            }
 
-                        heredoc_stack.push_back({delimiter, display_line});
+                            heredoc_stack.push_back({delimiter, display_line});
+                        }
                     }
+
+                    i = delim_end;
+                    continue;
                 }
             }
+
+            ++i;
         }
     }
 
