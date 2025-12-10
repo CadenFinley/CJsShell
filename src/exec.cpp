@@ -1523,6 +1523,11 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             int status = 0;
             pid_t wpid = waitpid(pid, &status, 0);
             while (wpid == -1 && errno == EINTR) {
+                if (g_shell) {
+                    g_shell->process_pending_signals();
+                } else if (g_signal_handler) {
+                    g_signal_handler->process_pending_signals(this);
+                }
                 wpid = waitpid(pid, &status, 0);
             }
 
@@ -2043,6 +2048,11 @@ void Exec::wait_for_job(int job_id) {
 
         if (pid == -1) {
             if (errno == EINTR) {
+                if (g_shell) {
+                    g_shell->process_pending_signals();
+                } else if (g_signal_handler) {
+                    g_signal_handler->process_pending_signals(this);
+                }
                 continue;
             }
             if (errno == ECHILD) {
