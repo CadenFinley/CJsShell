@@ -235,6 +235,8 @@ int echo_command(const std::vector<std::string>& args) {
         out << '\n';
     }
 
-    out.flush();
+    if (!redirect_to_stderr) {
+        out.flush();
+    }
     return 0;
 }

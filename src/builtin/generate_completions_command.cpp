@@ -151,10 +151,12 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
 
     if (targets.empty()) {
         if (!quiet) {
-            std::cout << "generate-completions: no commands discovered" << '\n';
+            std::cout << "generate-completions: no commands discovered" << std::endl;
         }
         return 0;
     }
+
+    // quiet = false;
 
     std::sort(targets.begin(), targets.end());
     targets.erase(std::unique(targets.begin(), targets.end()), targets.end());
@@ -211,7 +213,7 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
     if (!quiet) {
         std::cout << "generate-completions: processing " << targets.size() << " command"
                   << (targets.size() == 1 ? "" : "s") << (force_refresh ? " (forcing refresh)" : "")
-                  << " using " << job_count << " job" << (job_count == 1 ? "" : "s") << '\n';
+                  << " using " << job_count << " job" << (job_count == 1 ? "" : "s") << std::endl;
     }
 
     std::size_t success_count = 0;
@@ -225,13 +227,13 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
             if (generated) {
                 ++success_count;
                 if (!quiet) {
-                    std::cout << "  [OK] " << command << '\n';
+                    std::cout << "  [OK] " << command << std::endl;
                 }
             } else {
                 failures.push_back(command);
                 if (!quiet) {
                     std::cout << "  [WARN] " << command
-                              << " (no manual entry or unable to generate)" << '\n';
+                              << " (no manual entry or unable to generate)" << std::endl;
                 }
             }
 
@@ -266,14 +268,14 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
                     success_counter.fetch_add(1, std::memory_order_relaxed);
                     if (!quiet) {
                         std::lock_guard<std::mutex> lock(output_mutex);
-                        std::cout << "  [OK] " << command << '\n';
+                        std::cout << "  [OK] " << command << std::endl;
                     }
                 } else {
                     local_failures.push_back(command);
                     if (!quiet) {
                         std::lock_guard<std::mutex> lock(output_mutex);
                         std::cout << "  [WARN] " << command
-                                  << " (no manual entry or unable to generate)" << '\n';
+                                  << " (no manual entry or unable to generate)" << std::endl;
                     }
                 }
             }
@@ -310,17 +312,17 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
         if (!failures.empty()) {
             std::cout << ", " << failures.size() << " missing";
         }
-        std::cout << '\n';
+        std::cout << std::endl;
         std::cout << "You may see elevated reported memory usage during this session until cjsh "
                      "is restarted because of this command."
-                  << '\n';
-        std::cout << '\n';
+                  << std::endl;
+        std::cout << std::endl;
     }
 
     if (!failures.empty()) {
         if (quiet) {
             for (const auto& command : failures) {
-                std::cout << command << '\n';
+                std::cout << command << std::endl;
             }
         }
         return 1;
