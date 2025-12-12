@@ -217,7 +217,7 @@ void JobManager::set_shell(Shell* shell) {
     shell_ref = shell;
 }
 
-void JobManager::notify_job_stopped(const std::shared_ptr<JobControlJob>& job) {
+void JobManager::notify_job_stopped(const std::shared_ptr<JobControlJob>& job) const {
     if (!job || job->stop_notified) {
         return;
     }

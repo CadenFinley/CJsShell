@@ -75,7 +75,7 @@ class JobManager {
 
     void set_shell(Shell* shell);
 
-    void notify_job_stopped(const std::shared_ptr<JobControlJob>& job);
+    void notify_job_stopped(const std::shared_ptr<JobControlJob>& job) const;
 
     bool foreground_job_reads_stdin();
 

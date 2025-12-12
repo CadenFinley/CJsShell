@@ -1246,7 +1246,7 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
         JobManager::instance().add_job(pid, {pid}, full_command, true, false);
         JobManager::instance().set_last_background_pid(pid);
 
-        std::cerr << "[" << job_id << "] " << pid << '\n';
+        std::cerr << "[" << job_id << "] " << pid << " " << job.command << '\n';
         last_exit_code = 0;
         return 0;
     }
@@ -1881,7 +1881,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
     if (job.background) {
         put_job_in_background(job_id, false);
-        std::cerr << "[" << job_id << "] " << pgid << '\n';
+        std::cerr << "[" << job_id << "] " << pgid << " " << job.command << '\n';
         raw_exit = 0;
     } else {
         put_job_in_foreground(job_id, false);
