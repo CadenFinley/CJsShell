@@ -698,12 +698,17 @@ SyntaxError create_pipe_error(size_t display_line, size_t start_pos, size_t end_
                        ErrorCategory::REDIRECTION, "PIPE001", message, line, suggestion);
 }
 
-std::pair<bool, bool> check_for_loop_keywords(const std::vector<std::string>& tokens,
-                                              const std::string& trimmed_line) {
-    (void)tokens;
+bool check_for_loop_keywords(const std::vector<std::string>& tokens,
+                             const std::string& trimmed_line, bool allow_loose_do_detection) {
+    if (allow_loose_do_detection) {
+        for (const auto& token : tokens) {
+            if (is_do_token(token)) {
+                return true;
+            }
+        }
+    }
     size_t inline_do_pos = find_inline_do_position(trimmed_line);
-    bool has_semicolon = trimmed_line.find(';') != std::string::npos;
-    return {inline_do_pos != std::string::npos, has_semicolon};
+    return inline_do_pos != std::string::npos;
 }
 
 std::pair<std::vector<std::string>, std::string> tokenize_and_get_first(
@@ -836,9 +841,9 @@ ForLoopCheckResult analyze_for_loop_syntax(const std::vector<std::string>& token
         result.missing_iteration_list = true;
     }
 
-    auto [has_do, has_semicolon] = check_for_loop_keywords(tokens, trimmed_line);
+    bool has_do = check_for_loop_keywords(tokens, trimmed_line, false);
     result.has_inline_do = has_do;
-    if (!has_do && !has_semicolon) {
+    if (!has_do) {
         result.missing_do_keyword = true;
     }
 
@@ -874,10 +879,10 @@ WhileUntilCheckResult analyze_while_until_syntax(const std::string& first_token,
                                                  const std::vector<std::string>& tokens) {
     WhileUntilCheckResult result;
 
-    auto [has_do, has_semicolon] = check_for_loop_keywords(tokens, trimmed_line);
+    bool has_do = check_for_loop_keywords(tokens, trimmed_line, true);
     std::string last_token = get_last_non_comment_token(tokens);
     result.has_inline_do = is_do_token(last_token);
-    if (!has_do && !has_semicolon) {
+    if (!has_do) {
         result.missing_do_keyword = true;
     }
 
