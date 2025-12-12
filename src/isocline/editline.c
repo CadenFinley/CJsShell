@@ -2510,6 +2510,10 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
 
     eb.pos = sbuf_len(eb.input);
 
+    if (ctrl_c_pressed && eb.status != NULL) {
+        sbuf_clear(eb.status);
+    }
+
     if (!env->prompt_cleanup && env->show_line_numbers) {
         eb.force_linear_line_numbers = true;
     }

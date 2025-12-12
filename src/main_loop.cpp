@@ -248,6 +248,7 @@ std::string build_validation_status_message(
 
         std::string location = format_error_location(*error);
         std::string sanitized_text = sanitize_for_status(error->message);
+        std::string sanitized_suggestion = sanitize_for_status(error->suggestion);
         std::string detail_text;
 
         if (!location.empty()) {
@@ -258,6 +259,13 @@ std::string build_validation_status_message(
                 detail_text.append(" - ");
             }
             detail_text.append(sanitized_text);
+        }
+        if (!sanitized_suggestion.empty()) {
+            if (!detail_text.empty()) {
+                detail_text.append(" | ");
+            }
+            // detail_text.append("Suggestion: ");
+            detail_text.append(sanitized_suggestion);
         }
 
         if (!detail_text.empty()) {
