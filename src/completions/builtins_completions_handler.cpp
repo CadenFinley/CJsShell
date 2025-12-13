@@ -141,6 +141,19 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_doc("version", "Show cjsh version information", {});
         add_doc("eval", "Evaluate arguments as shell code", {});
         add_doc("if", "Evaluate a conditional block", {});
+        add_doc("then", "Start the body of an if or elif branch", {});
+        add_doc("elif", "Add an additional conditional branch", {});
+        add_doc("else", "Provide the fallback branch for an if block", {});
+        add_doc("fi", "Close an if/elif/else block", {});
+        add_doc("case", "Match a word against multiple patterns", {});
+        add_doc("esac", "Terminate the current case block", {});
+        add_doc("for", "Iterate over each word in a list", {});
+        add_doc("select", "Build an interactive menu over a list", {});
+        add_doc("while", "Loop while a command succeeds", {});
+        add_doc("until", "Loop until a command succeeds", {});
+        add_doc("do", "Begin a loop body", {});
+        add_doc("done", "End the current loop body", {});
+        add_doc("function", "Define a named shell function", {});
         add_doc("login-startup-arg", "Add cjsh startup flags",
                 {make_option("--login", "Run cjsh as a login shell"),
                  make_option("--interactive", "Force interactive mode"),
