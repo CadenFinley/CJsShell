@@ -26,7 +26,6 @@ void print_usage(bool print_version, bool print_hook, bool print_footer) {
               << "                             (themes, colors, completions, syntax\n"
               << "                             highlighting, smart cd, sourcing,\n"
               << "                             startup time, history expansion)\n"
-              << "  -T, --no-themes            Disable theme system\n"
               << "  -C, --no-colors            Disable color output\n"
               << "  -N, --no-source            Don't source the ~/.cjshrc file\n"
               << "  -O, --no-completions       Disable tab completions\n"
@@ -36,8 +35,8 @@ void print_usage(bool print_version, bool print_hook, bool print_footer) {
               << "\n"
               << "Display Options:\n"
               << "  -L, --no-titleline         Disable title line on startup\n"
-              << "  -P, --no-prompt            Use simple '#' prompt (disables themes)\n"
               << "  -U, --show-startup-time    Display shell startup time\n"
+
               << "\n"
               << "Security and Testing:\n"
               << "  -s, --secure               Secure mode: disable profile/rc files\n"
