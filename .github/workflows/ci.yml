@@ -62,7 +62,7 @@ jobs:
 
       - name: Configure CMake
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCJSH_GENERATE_COMPILE_COMMANDS=ON
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCJSH_GENERATE_COMPILE_COMMANDS=ON -DBUILD_TESTING=ON
 
       - name: Build CJsShell
         run: |
@@ -78,8 +78,14 @@ jobs:
             echo "Error: build/cjsh not found"
             exit 1
           fi
+          if [ ! -f "build/isocline_behavior_tests" ]; then
+            echo "Error: build/isocline_behavior_tests not found"
+            exit 1
+          fi
           echo "CJsShell binary exists"
           ls -lh build/cjsh
+          echo "Isocline behavior tests binary exists"
+          ls -lh build/isocline_behavior_tests
 
       - name: Run tests
         run: |

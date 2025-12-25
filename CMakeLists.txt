@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.25)
 
 project(cjsh VERSION 4.1.2 LANGUAGES C CXX)
 
+include(CTest)
 include(GNUInstallDirs)
 
 if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
@@ -414,3 +415,28 @@ if(CJSH_STRIP_BINARY)
 endif()
 
 install(TARGETS cjsh RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+if(BUILD_TESTING)
+    add_executable(isocline_behavior_tests
+        ${CJSH_C_SOURCES}
+        ${CMAKE_SOURCE_DIR}/tests/isocline/test_isocline_behavior.c
+    )
+    target_include_directories(isocline_behavior_tests PRIVATE ${CJSH_INCLUDE_DIRS})
+    target_compile_definitions(isocline_behavior_tests PRIVATE
+        CJSH_GIT_HASH="${CJSH_GIT_HASH}"
+        CJSH_BUILD_ARCH="${CJSH_BUILD_ARCH}"
+        CJSH_BUILD_PLATFORM="${CJSH_BUILD_PLATFORM}"
+        IC_SEPARATE_OBJS=1
+        JSON_NOEXCEPTION=1
+        JSON_USE_IMPLICIT_CONVERSIONS=1
+        $<$<CONFIG:Debug>:DEBUG;CJSH_ENABLE_DEBUG>
+        $<$<NOT:$<CONFIG:Debug>>:IC_NO_DEBUG_MSG=1>
+        $<$<BOOL:${CJSH_MINIMAL_BUILD}>:CJSH_MINIMAL_BUILD=1;CJSH_NO_FANCY_FEATURES=1>
+        $<$<AND:$<NOT:$<CONFIG:Debug>>,$<BOOL:${CJSH_MINIMAL_BUILD}>>:_FORTIFY_SOURCE=1>
+        $<$<AND:$<NOT:$<CONFIG:Debug>>,$<NOT:$<BOOL:${CJSH_MINIMAL_BUILD}>>>:_FORTIFY_SOURCE=1>
+    )
+    foreach(_cjsh_opt -Wall -Wno-error -Wno-unused-function -Wno-unused-variable)
+        target_compile_options(isocline_behavior_tests PRIVATE $<$<COMPILE_LANGUAGE:C>:${_cjsh_opt}>)
+    endforeach()
+    add_test(NAME isocline_behavior COMMAND isocline_behavior_tests)
+endif()
