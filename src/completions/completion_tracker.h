@@ -3,7 +3,7 @@
 #include <string>
 #include <unordered_set>
 
-#include "isocline/isocline.h"
+#include "isocline.h"
 
 namespace completion_tracker {
 

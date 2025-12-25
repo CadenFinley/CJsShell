@@ -13,7 +13,7 @@
 
 #include "cjsh.h"
 #include "error_out.h"
-#include "isocline/isocline.h"
+#include "isocline.h"
 #include "utils/string_utils.h"
 
 namespace {
