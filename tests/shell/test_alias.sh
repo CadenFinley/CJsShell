@@ -45,6 +45,25 @@ else
   pass_test "unalias removes alias"
 fi
 
+OUT_PIPE=$("$CJSH_PATH" -c "alias shout='echo hello'; shout | tr 'a-z' 'A-Z'")
+if [ "$OUT_PIPE" != "HELLO" ]; then
+  fail_test "alias not expanded in pipeline (got '$OUT_PIPE')"
+  exit 1
+else
+  pass_test "alias expands inside pipeline"
+fi
+
+TMP_FILE=$(mktemp)
+"$CJSH_PATH" -c "alias saver='echo hello'; saver > \"$TMP_FILE\""
+OUT_RED=$(cat "$TMP_FILE")
+rm -f "$TMP_FILE"
+if [ "$OUT_RED" != "hello" ]; then
+  fail_test "alias not expanded with redirection (got '$OUT_RED')"
+  exit 1
+else
+  pass_test "alias expands with redirection"
+fi
+
 echo ""
 echo "Alias Tests Summary:"
 echo "Passed: $TESTS_PASSED"

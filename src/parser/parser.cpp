@@ -1261,6 +1261,41 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
             }
         }
 
+        if (!filtered_args.empty()) {
+            const std::string& alias_candidate = QuoteInfo(filtered_args[0]).value;
+            auto alias_it = aliases.find(alias_candidate);
+            if (alias_it != aliases.end()) {
+                try {
+                    std::vector<std::string> raw_alias_args =
+                        Tokenizer::tokenize_command(alias_it->second);
+                    std::vector<std::string> alias_args =
+                        Tokenizer::merge_redirection_tokens(raw_alias_args);
+
+                    bool alias_has_pipe = false;
+                    for (const auto& alias_arg : alias_args) {
+                        if (QuoteInfo(alias_arg).value == "|") {
+                            alias_has_pipe = true;
+                            break;
+                        }
+                    }
+
+                    if (!alias_args.empty() && !alias_has_pipe) {
+                        size_t remaining_args =
+                            filtered_args.size() > 1 ? filtered_args.size() - 1 : 0;
+                        std::vector<std::string> new_args;
+                        new_args.reserve(alias_args.size() + remaining_args);
+                        new_args.insert(new_args.end(), alias_args.begin(), alias_args.end());
+                        if (filtered_args.size() > 1) {
+                            new_args.insert(new_args.end(), filtered_args.begin() + 1,
+                                            filtered_args.end());
+                        }
+                        filtered_args = std::move(new_args);
+                    }
+                } catch (const std::exception&) {
+                }
+            }
+        }
+
         bool is_double_bracket_cmd =
             !filtered_args.empty() && QuoteInfo(filtered_args[0]).value == "[[";
 
