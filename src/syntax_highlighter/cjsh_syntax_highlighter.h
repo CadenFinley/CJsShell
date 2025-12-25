@@ -1,6 +1,6 @@
 #pragma once
 
-#include "isocline.h"
+#include "isocline/isocline.h"
 
 class SyntaxHighlighter {
    public:

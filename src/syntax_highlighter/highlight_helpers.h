@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include "isocline.h"
+#include "isocline/isocline.h"
 
 namespace highlight_helpers {
 

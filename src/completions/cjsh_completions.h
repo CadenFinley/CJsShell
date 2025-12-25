@@ -2,7 +2,7 @@
 
 #include <string>
 
-#include "isocline.h"
+#include "isocline/isocline.h"
 
 extern bool g_completion_case_sensitive;
 void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix);
