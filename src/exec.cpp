@@ -78,6 +78,20 @@ void apply_assignments_to_shell_env(
     }
 }
 
+Job make_single_process_job(pid_t pid, const std::string& command, bool background) {
+    Job job;
+    job.pgid = pid;
+    job.command = command;
+    job.background = background;
+    job.completed = false;
+    job.stopped = false;
+    job.pids.push_back(pid);
+    job.last_pid = pid;
+    job.pid_order.push_back(pid);
+    job.pipeline_statuses.assign(1, -1);
+    return job;
+}
+
 bool is_shell_control_structure(const Command& cmd) {
     if (cmd.args.empty()) {
         return false;
@@ -458,6 +472,15 @@ bool setup_here_document_stdin(const std::string& here_doc, ErrorHandler&& on_er
         return false;
     }
 
+    const auto duplicate_pipe_to_stdin = [&]() -> bool {
+        auto dup_result = cjsh_filesystem::duplicate_pipe_read_end_to_fd(here_pipe, STDIN_FILENO);
+        if (dup_result.is_error()) {
+            on_error(HereDocErrorKind::Duplication, dup_result.error());
+            return false;
+        }
+        return true;
+    };
+
     auto write_result = cjsh_filesystem::write_all(here_pipe[1], std::string_view{here_doc});
     if (write_result.is_error()) {
         if (!cjsh_filesystem::error_indicates_broken_pipe(write_result.error())) {
@@ -466,9 +489,7 @@ bool setup_here_document_stdin(const std::string& here_doc, ErrorHandler&& on_er
             return false;
         }
 
-        auto dup_result = cjsh_filesystem::duplicate_pipe_read_end_to_fd(here_pipe, STDIN_FILENO);
-        if (dup_result.is_error()) {
-            on_error(HereDocErrorKind::Duplication, dup_result.error());
+        if (!duplicate_pipe_to_stdin()) {
             return false;
         }
         return true;
@@ -482,9 +503,7 @@ bool setup_here_document_stdin(const std::string& here_doc, ErrorHandler&& on_er
         return false;
     }
 
-    auto dup_result = cjsh_filesystem::duplicate_pipe_read_end_to_fd(here_pipe, STDIN_FILENO);
-    if (dup_result.is_error()) {
-        on_error(HereDocErrorKind::Duplication, dup_result.error());
+    if (!duplicate_pipe_to_stdin()) {
         return false;
     }
 
@@ -1042,19 +1061,51 @@ bool Exec::initialize_env_assignments(const std::vector<std::string>& args,
     return true;
 }
 
-int Exec::execute_command_sync(const std::vector<std::string>& args) {
-    std::vector<std::pair<std::string, std::string>> env_assignments;
-    size_t cmd_start_idx = 0;
-    if (!initialize_env_assignments(args, env_assignments, cmd_start_idx)) {
+std::optional<int> Exec::handle_assignments_prefix(
+    const std::vector<std::string>& args,
+    std::vector<std::pair<std::string, std::string>>& assignments, size_t& cmd_start_idx,
+    const std::function<void()>& on_assignments_only) {
+    if (!initialize_env_assignments(args, assignments, cmd_start_idx)) {
         set_last_pipeline_statuses({last_exit_code});
         return last_exit_code;
     }
 
     if (cmd_start_idx >= args.size()) {
-        apply_assignments_to_shell_env(env_assignments);
+        if (on_assignments_only) {
+            on_assignments_only();
+        }
         last_exit_code = 0;
         set_last_pipeline_statuses({0});
         return 0;
+    }
+
+    return std::nullopt;
+}
+
+void Exec::warn_parent_setpgid_failure() {
+    if (errno != EACCES && errno != ESRCH) {
+        set_error(ErrorType::RUNTIME_ERROR, "setpgid",
+                  "failed to set process group ID in parent: " + std::string(strerror(errno)));
+    }
+}
+
+Job* Exec::find_job_locked(int job_id) {
+    auto it = jobs.find(job_id);
+    if (it == jobs.end()) {
+        report_missing_job(job_id);
+        return nullptr;
+    }
+    return &it->second;
+}
+
+int Exec::execute_command_sync(const std::vector<std::string>& args) {
+    std::vector<std::pair<std::string, std::string>> env_assignments;
+    size_t cmd_start_idx = 0;
+    auto early_exit = handle_assignments_prefix(args, env_assignments, cmd_start_idx, [&]() {
+        apply_assignments_to_shell_env(env_assignments);
+    });
+    if (early_exit.has_value()) {
+        return early_exit.value();
     }
 
     std::vector<std::string> cmd_args(
@@ -1115,22 +1166,10 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
     }
 
     if (setpgid(pid, pid) < 0) {
-        if (errno != EACCES && errno != ESRCH) {
-            set_error(ErrorType::RUNTIME_ERROR, "setpgid",
-                      "failed to set process group ID in parent: " + std::string(strerror(errno)));
-        }
+        warn_parent_setpgid_failure();
     }
 
-    Job job;
-    job.pgid = pid;
-    job.command = args[0];
-    job.background = false;
-    job.completed = false;
-    job.stopped = false;
-    job.pids.push_back(pid);
-    job.last_pid = pid;
-    job.pid_order.push_back(pid);
-    job.pipeline_statuses.assign(1, -1);
+    Job job = make_single_process_job(pid, args[0], false);
 
     int job_id = add_job(job);
 
@@ -1175,17 +1214,12 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
 int Exec::execute_command_async(const std::vector<std::string>& args) {
     std::vector<std::pair<std::string, std::string>> env_assignments;
     size_t cmd_start_idx = 0;
-    if (!initialize_env_assignments(args, env_assignments, cmd_start_idx)) {
-        set_last_pipeline_statuses({last_exit_code});
-        return last_exit_code;
-    }
-
-    if (cmd_start_idx >= args.size()) {
+    auto early_exit = handle_assignments_prefix(args, env_assignments, cmd_start_idx, [&]() {
         cjsh_env::apply_env_assignments(env_assignments);
         set_error(ErrorType::RUNTIME_ERROR, "", "Environment variables set", {});
-        last_exit_code = 0;
-        set_last_pipeline_statuses({0});
-        return 0;
+    });
+    if (early_exit.has_value()) {
+        return early_exit.value();
     }
 
     std::vector<std::string> cmd_args(
@@ -1229,16 +1263,7 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
                           std::string(strerror(errno)));
         }
 
-        Job job;
-        job.pgid = pid;
-        job.command = args[0];
-        job.background = true;
-        job.completed = false;
-        job.stopped = false;
-        job.pids.push_back(pid);
-        job.last_pid = pid;
-        job.pid_order.push_back(pid);
-        job.pipeline_statuses.assign(1, -1);
+        Job job = make_single_process_job(pid, args[0], true);
 
         int job_id = add_job(job);
 
@@ -1477,42 +1502,11 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 close(fd);
             }
 
-            auto stream_error = [&](const StreamRedirectError& error) {
-                switch (error.kind) {
-                    case StreamRedirectErrorKind::Noclobber:
-                        std::cerr << "cjsh: permission denied: " << error.target << ": "
-                                  << error.detail << '\n';
-                        break;
-                    case StreamRedirectErrorKind::Redirect:
-                        std::cerr << "cjsh: " << error.target << ": " << error.detail << '\n';
-                        break;
-                    case StreamRedirectErrorKind::Duplication:
-                        if (error.src_fd == STDOUT_FILENO && error.dst_fd == STDERR_FILENO) {
-                            std::cerr << "cjsh: dup2 2>&1: " << error.detail << '\n';
-                        } else {
-                            std::cerr << "cjsh: dup2 >&2: " << error.detail << '\n';
-                        }
-                        break;
-                }
-                _exit(EXIT_FAILURE);
-            };
-
-            if (!configure_stderr_redirects(cmd, stream_error)) {
+            if (!configure_stderr_redirects(cmd, handle_stream_redirect_error_and_exit)) {
                 _exit(EXIT_FAILURE);
             }
 
-            auto fd_failure = [&](const FdOperationError& error) {
-                if (error.type == FdOperationErrorType::Redirect) {
-                    std::cerr << "cjsh: file not found: " << error.spec << ": " << error.error
-                              << '\n';
-                } else {
-                    std::cerr << "cjsh: runtime error: dup2: failed for " << error.fd_num << ">&"
-                              << error.src_fd << ": " << error.error << '\n';
-                }
-                _exit(EXIT_FAILURE);
-            };
-
-            if (!apply_fd_operations(cmd, fd_failure)) {
+            if (!apply_fd_operations(cmd, handle_fd_operation_error_and_exit)) {
                 _exit(EXIT_FAILURE);
             }
 
@@ -1543,22 +1537,9 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         }
 
         if (setpgid(pid, pid) < 0) {
-            if (errno != EACCES && errno != ESRCH) {
-                set_error(
-                    ErrorType::RUNTIME_ERROR, "setpgid",
-                    "failed to set process group ID in parent: " + std::string(strerror(errno)));
-            }
+            warn_parent_setpgid_failure();
         }
-        Job job;
-        job.pgid = pid;
-        job.command = cmd.args[0];
-        job.background = false;
-        job.completed = false;
-        job.stopped = false;
-        job.pids.push_back(pid);
-        job.last_pid = pid;
-        job.pid_order.push_back(pid);
-        job.pipeline_statuses.assign(1, -1);
+        Job job = make_single_process_job(pid, cmd.args[0], false);
 
         int job_id = add_job(job);
         std::string full_command = join_arguments(cmd.args);
@@ -1959,17 +1940,14 @@ void Exec::resume_job(Job& job, bool cont, std::string_view context) {
 void Exec::put_job_in_foreground(int job_id, bool cont) {
     std::lock_guard<std::mutex> lock(jobs_mutex);
 
-    auto it = jobs.find(job_id);
-    if (it == jobs.end()) {
-        report_missing_job(job_id);
+    Job* job = find_job_locked(job_id);
+    if (job == nullptr) {
         return;
     }
 
-    Job& job = it->second;
-
     bool terminal_control_acquired = false;
     if (shell_is_interactive && (isatty(shell_terminal) != 0)) {
-        if (tcsetpgrp(shell_terminal, job.pgid) == 0) {
+        if (tcsetpgrp(shell_terminal, job->pgid) == 0) {
             terminal_control_acquired = true;
         } else {
             if (errno != ENOTTY && errno != EINVAL && errno != EPERM) {
@@ -1980,7 +1958,7 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
         }
     }
 
-    resume_job(job, cont, "job");
+    resume_job(*job, cont, "job");
 
     jobs_mutex.unlock();
 
@@ -2009,15 +1987,12 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
 void Exec::put_job_in_background(int job_id, bool cont) {
     std::lock_guard<std::mutex> lock(jobs_mutex);
 
-    auto it = jobs.find(job_id);
-    if (it == jobs.end()) {
-        report_missing_job(job_id);
+    Job* job = find_job_locked(job_id);
+    if (job == nullptr) {
         return;
     }
 
-    Job& job = it->second;
-
-    resume_job(job, cont, "background job");
+    resume_job(*job, cont, "background job");
 }
 
 void Exec::wait_for_job(int job_id) {

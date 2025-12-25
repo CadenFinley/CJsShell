@@ -1,7 +1,9 @@
 #pragma once
 
+#include <functional>
 #include <map>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -50,6 +52,12 @@ class Exec {
     bool initialize_env_assignments(const std::vector<std::string>& args,
                                     std::vector<std::pair<std::string, std::string>>& assignments,
                                     size_t& cmd_start_idx);
+    std::optional<int> handle_assignments_prefix(
+        const std::vector<std::string>& args,
+        std::vector<std::pair<std::string, std::string>>& assignments, size_t& cmd_start_idx,
+        const std::function<void()>& on_assignments_only);
+    void warn_parent_setpgid_failure();
+    Job* find_job_locked(int job_id);
     void resume_job(Job& job, bool cont, std::string_view context);
     void set_last_pipeline_statuses(std::vector<int> statuses);
 
