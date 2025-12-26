@@ -387,6 +387,40 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         if (text.empty())
             return 0;
 
+        if (shell_parser) {
+            std::vector<LogicalCommand> logical_cmds = shell_parser->parse_logical_commands(text);
+            bool has_logical_op = false;
+            for (const auto& lc : logical_cmds) {
+                if (!lc.op.empty()) {
+                    has_logical_op = true;
+                    break;
+                }
+            }
+
+            if (has_logical_op) {
+                int logical_status = 0;
+                for (size_t idx = 0; idx < logical_cmds.size(); ++idx) {
+                    if (idx > 0) {
+                        const std::string& prev_op = logical_cmds[idx - 1].op;
+                        bool is_control_flow = is_control_flow_exit_code(logical_status);
+                        if (prev_op == "&&" && logical_status != 0 && !is_control_flow) {
+                            continue;
+                        }
+                        if (prev_op == "||" && logical_status == 0) {
+                            continue;
+                        }
+                        if (is_control_flow) {
+                            break;
+                        }
+                    }
+
+                    logical_status =
+                        execute_simple_or_pipeline_impl(logical_cmds[idx].command, true);
+                }
+                return logical_status;
+            }
+        }
+
         if (allow_semicolon_split && text.find(';') != std::string::npos) {
             auto semicolon_commands = shell_parser->parse_semicolon_commands(text);
 
