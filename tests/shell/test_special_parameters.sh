@@ -141,7 +141,7 @@ else
 fi
 
 echo "Test special parameters in function context"
-output=$("$CJSH_PATH" -c 'func() { echo "args: \\$# = \$#, \\$1 = \$1"; }; func one two' 2>/dev/null)
+output=$("$CJSH_PATH" -c 'func() { echo "args: \\$# = $#, \\$1 = $1"; }; func one two' 2>/dev/null)
 if echo "$output" | grep -q "args: \$# = 2, \$1 = one"; then
     pass_test "Special parameters in function context"
 else
@@ -149,7 +149,7 @@ else
 fi
 
 echo "Test \$\$ consistency"
-output=$("$CJSH_PATH" -c 'pid1=\$\$; sleep 0.01; pid2=\$\$; if [ "\$pid1" = "\$pid2" ]; then echo same; fi' 2>/dev/null)
+output=$("$CJSH_PATH" -c 'pid1=$$; sleep 0.01; pid2=$$; if [ "$pid1" = "$pid2" ]; then echo same; fi' 2>/dev/null)
 if [ "$output" = "same" ]; then
     pass_test "\$\$ (process ID) - consistent within script"
 else
