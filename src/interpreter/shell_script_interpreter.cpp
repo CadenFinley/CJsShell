@@ -572,19 +572,6 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                         }
                     }
 
-                    if (!expanded_args.empty() && g_shell && g_shell->get_built_ins() &&
-                        !g_shell->get_built_ins()->is_builtin_command(expanded_args[0])) {
-                        bool is_function = functions.count(expanded_args[0]) > 0;
-
-                        if (!is_function) {
-                            std::vector<std::string> external_args =
-                                shell_parser->parse_command_exported_vars_only(text);
-                            if (!external_args.empty()) {
-                                expanded_args = external_args;
-                            }
-                        }
-                    }
-
                     if (!expanded_args.empty() && functions.count(expanded_args[0])) {
                         return execute_function_call(expanded_args);
                     }
