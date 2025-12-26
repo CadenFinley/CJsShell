@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
+
 #include <initializer_list>
 #include <map>
 #include <sstream>
@@ -230,7 +231,7 @@ struct QuoteState {
 };
 
 bool should_process_char(QuoteState& state, char c, bool ignore_single_quotes,
-                         bool process_escaped_chars = true) {
+                         bool process_escaped_chars = true, bool ignore_double_quotes = false) {
     if (state.escaped) {
         state.escaped = false;
         return process_escaped_chars;
@@ -253,8 +254,12 @@ bool should_process_char(QuoteState& state, char c, bool ignore_single_quotes,
         return false;
     }
 
-    if (state.in_quotes && state.quote_char == '\'' && ignore_single_quotes)
-        return false;
+    if (state.in_quotes) {
+        if ((state.quote_char == '\'' && ignore_single_quotes) ||
+            (state.quote_char == '"' && ignore_double_quotes)) {
+            return false;
+        }
+    }
 
     return true;
 }
@@ -571,12 +576,14 @@ enum class IterationAction : std::uint8_t {
 
 template <typename Callback>
 void for_each_effective_char(const std::string& line, bool ignore_single_quotes,
-                             bool process_escaped_chars, Callback&& callback) {
+                             bool process_escaped_chars, Callback&& callback,
+                             bool ignore_double_quotes = false) {
     QuoteState state;
     size_t index = 0;
     while (index < line.size()) {
         char c = line[index];
-        if (!should_process_char(state, c, ignore_single_quotes, process_escaped_chars)) {
+        if (!should_process_char(state, c, ignore_single_quotes, process_escaped_chars,
+                                 ignore_double_quotes)) {
             ++index;
             continue;
         }
@@ -1071,7 +1078,7 @@ bool find_embedded_loop_keyword(const std::string& line, const std::string& keyw
             next_index = index + keyword.size() - 1;
             found = true;
             return IterationAction::Break;
-        });
+        }, true);
     return found;
 }
 
@@ -1114,7 +1121,7 @@ bool has_inline_loop_terminator(const std::string& line, const std::string& term
                 return IterationAction::Break;
             }
             return IterationAction::Continue;
-        });
+        }, true);
     return found;
 }
 
