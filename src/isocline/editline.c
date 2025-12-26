@@ -31,6 +31,7 @@
 #include "common.h"
 #include "completions.h"
 #include "env.h"
+#include "env_internal.h"
 #include "highlight.h"
 #include "history.h"
 #include "isocline.h"
@@ -696,20 +697,29 @@ static void edit_write_prompt(ic_env_t* env, editor_t* eb, ssize_t row, bool in_
 
         bbcode_style_open(env->bbcode, "ic-prompt");
     } else if (!env->no_multiline_indent) {
-        // multiline continuation indentation
-        // todo: cache prompt widths
-        ssize_t textw = bbcode_column_width(env->bbcode, eb->prompt_text);
-        ssize_t markerw = bbcode_column_width(env->bbcode, env->prompt_marker);
-        ssize_t cmarkerw = bbcode_column_width(env->bbcode, env->cprompt_marker);
-        if (cmarkerw < markerw + textw) {
-            term_write_repeat(env->term, " ", markerw + textw - cmarkerw);
-        }
+        ic_emit_continuation_indent(env, eb->prompt_text);
     }
     // the marker (skip for line numbers since we include our own separator)
     if (row == 0 || !env->show_line_numbers) {
         bbcode_print(env->bbcode, (row == 0 ? env->prompt_marker : env->cprompt_marker));
     }
     bbcode_style_close(env->bbcode, NULL);
+}
+
+static ssize_t edit_decode_codepoint(const char* text, ssize_t len, ssize_t offset,
+                                     unicode_t* code_out) {
+    if (text == NULL || len <= 0 || offset >= len)
+        return 0;
+    ssize_t char_len = 0;
+    unicode_t code = unicode_from_qutf8((const uint8_t*)text + offset, len - offset, &char_len);
+    if (char_len <= 0 || offset + char_len > len) {
+        char_len = 1;
+        code = (uint8_t)text[offset];
+    }
+    if (code_out != NULL) {
+        *code_out = code;
+    }
+    return char_len;
 }
 
 static void edit_write_row_text(ic_env_t* env, const char* text, ssize_t len, const attr_t* attrs,
@@ -747,13 +757,10 @@ static void edit_write_row_text(ic_env_t* env, const char* text, ssize_t len, co
         }
         ssize_t offset = 0;
         while (offset < len) {
-            ssize_t char_len = 0;
-            unicode_t code =
-                unicode_from_qutf8((const uint8_t*)text + offset, len - offset, &char_len);
-            if (char_len <= 0 || offset + char_len > len) {
-                char_len = 1;
-                code = (uint8_t)text[offset];
-            }
+            unicode_t code = 0;
+            ssize_t char_len = edit_decode_codepoint(text, len, offset, &code);
+            if (char_len <= 0)
+                break;
 
             if (code == ' ') {
                 if (has_whitespace_style && !whitespace_active) {
@@ -783,12 +790,10 @@ static void edit_write_row_text(ic_env_t* env, const char* text, ssize_t len, co
     attr_t whitespace_base_attr = attr_none();
     ssize_t offset = 0;
     while (offset < len) {
-        ssize_t char_len = 0;
-        unicode_t code = unicode_from_qutf8((const uint8_t*)text + offset, len - offset, &char_len);
-        if (char_len <= 0 || offset + char_len > len) {
-            char_len = 1;
-            code = (uint8_t)text[offset];
-        }
+        unicode_t code = 0;
+        ssize_t char_len = edit_decode_codepoint(text, len, offset, &code);
+        if (char_len <= 0)
+            break;
 
         attr_t attr = attrs[offset];
         attr_t base_attr = attr_update_with(default_attr, attr);
@@ -819,6 +824,30 @@ static void edit_write_row_text(ic_env_t* env, const char* text, ssize_t len, co
         offset += char_len;
     }
     term_set_attr(env->term, default_attr);
+}
+
+static stringbuf_t* edit_ensure_extra_buffer(editor_t* eb, stringbuf_t* extra) {
+    if (extra == NULL && eb != NULL) {
+        extra = sbuf_new(eb->mem);
+    }
+    return extra;
+}
+
+static stringbuf_t* edit_append_extra_block(ic_env_t* env, editor_t* eb, stringbuf_t* extra,
+                                            stringbuf_t* block) {
+    if (env == NULL || eb == NULL || block == NULL || sbuf_len(block) <= 0)
+        return extra;
+
+    extra = edit_ensure_extra_buffer(eb, extra);
+    if (extra == NULL)
+        return NULL;
+
+    if (sbuf_len(extra) > 0 && !sbuf_ends_with_newline(extra)) {
+        bbcode_append(env->bbcode, "\n", extra, eb->attrs_extra);
+    }
+
+    bbcode_append(env->bbcode, sbuf_string(block), extra, eb->attrs_extra);
+    return extra;
 }
 
 //-------------------------------------------------------------
@@ -1056,27 +1085,11 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
     }
 
     if (sbuf_len(eb->hint_help) > 0) {
-        if (extra == NULL) {
-            extra = sbuf_new(eb->mem);
-        }
-        if (extra != NULL) {
-            if (sbuf_len(extra) > 0 && !sbuf_ends_with_newline(extra)) {
-                bbcode_append(env->bbcode, "\n", extra, eb->attrs_extra);
-            }
-            bbcode_append(env->bbcode, sbuf_string(eb->hint_help), extra, eb->attrs_extra);
-        }
+        extra = edit_append_extra_block(env, eb, extra, eb->hint_help);
     }
 
     if (menu_active) {
-        if (extra == NULL) {
-            extra = sbuf_new(eb->mem);
-        }
-        if (extra != NULL) {
-            if (sbuf_len(extra) > 0 && !sbuf_ends_with_newline(extra)) {
-                bbcode_append(env->bbcode, "\n", extra, eb->attrs_extra);
-            }
-            bbcode_append(env->bbcode, sbuf_string(eb->extra), extra, eb->attrs_extra);
-        }
+        extra = edit_append_extra_block(env, eb, extra, eb->extra);
     }
 
     // calculate rows and row/col position (account for dynamic line number width)
@@ -1709,12 +1722,41 @@ static void edit_delete_all(ic_env_t* env, editor_t* eb) {
     edit_refresh(env, eb);
 }
 
-static void edit_delete_to_end_of_line(ic_env_t* env, editor_t* eb) {
-    ssize_t start = sbuf_find_line_start(eb->input, eb->pos);
-    if (start < 0)
+static bool edit_get_line_bounds(editor_t* eb, ssize_t* start, ssize_t* end) {
+    if (eb == NULL || start == NULL || end == NULL)
+        return false;
+    *start = sbuf_find_line_start(eb->input, eb->pos);
+    if (*start < 0)
+        return false;
+    *end = sbuf_find_line_end(eb->input, eb->pos);
+    if (*end < 0)
+        return false;
+    return true;
+}
+
+typedef ssize_t (*edit_boundary_finder_t)(stringbuf_t*, ssize_t);
+
+static void edit_delete_to_boundary(ic_env_t* env, editor_t* eb, edit_boundary_finder_t finder,
+                                    bool delete_to_start) {
+    if (finder == NULL)
         return;
-    ssize_t end = sbuf_find_line_end(eb->input, eb->pos);
-    if (end < 0)
+    ssize_t boundary = finder(eb->input, eb->pos);
+    if (boundary < 0)
+        return;
+    editor_start_modify(eb);
+    if (delete_to_start) {
+        sbuf_delete_from_to(eb->input, boundary, eb->pos);
+        eb->pos = boundary;
+    } else {
+        sbuf_delete_from_to(eb->input, eb->pos, boundary);
+    }
+    edit_refresh(env, eb);
+}
+
+static void edit_delete_to_end_of_line(ic_env_t* env, editor_t* eb) {
+    ssize_t start = 0;
+    ssize_t end = 0;
+    if (!edit_get_line_bounds(eb, &start, &end))
         return;
     editor_start_modify(eb);
     // if on an empty line, remove it completely
@@ -1728,11 +1770,9 @@ static void edit_delete_to_end_of_line(ic_env_t* env, editor_t* eb) {
 }
 
 static void edit_delete_to_start_of_line(ic_env_t* env, editor_t* eb) {
-    ssize_t start = sbuf_find_line_start(eb->input, eb->pos);
-    if (start < 0)
-        return;
-    ssize_t end = sbuf_find_line_end(eb->input, eb->pos);
-    if (end < 0)
+    ssize_t start = 0;
+    ssize_t end = 0;
+    if (!edit_get_line_bounds(eb, &start, &end))
         return;
     editor_start_modify(eb);
     // delete start newline if it was an empty line
@@ -1752,11 +1792,9 @@ static void edit_delete_to_start_of_line(ic_env_t* env, editor_t* eb) {
 }
 
 static void edit_delete_line(ic_env_t* env, editor_t* eb) {
-    ssize_t start = sbuf_find_line_start(eb->input, eb->pos);
-    if (start < 0)
-        return;
-    ssize_t end = sbuf_find_line_end(eb->input, eb->pos);
-    if (end < 0)
+    ssize_t start = 0;
+    ssize_t end = 0;
+    if (!edit_get_line_bounds(eb, &start, &end))
         return;
     editor_start_modify(eb);
     // delete newline as well so no empty line is left;
@@ -1777,41 +1815,19 @@ static void edit_delete_line(ic_env_t* env, editor_t* eb) {
 }
 
 static void edit_delete_to_start_of_word(ic_env_t* env, editor_t* eb) {
-    ssize_t start = sbuf_find_word_start(eb->input, eb->pos);
-    if (start < 0)
-        return;
-    editor_start_modify(eb);
-    sbuf_delete_from_to(eb->input, start, eb->pos);
-    eb->pos = start;
-    edit_refresh(env, eb);
+    edit_delete_to_boundary(env, eb, sbuf_find_word_start, true);
 }
 
 static void edit_delete_to_end_of_word(ic_env_t* env, editor_t* eb) {
-    ssize_t end = sbuf_find_word_end(eb->input, eb->pos);
-    if (end < 0)
-        return;
-    editor_start_modify(eb);
-    sbuf_delete_from_to(eb->input, eb->pos, end);
-    edit_refresh(env, eb);
+    edit_delete_to_boundary(env, eb, sbuf_find_word_end, false);
 }
 
 static void edit_delete_to_start_of_ws_word(ic_env_t* env, editor_t* eb) {
-    ssize_t start = sbuf_find_ws_word_start(eb->input, eb->pos);
-    if (start < 0)
-        return;
-    editor_start_modify(eb);
-    sbuf_delete_from_to(eb->input, start, eb->pos);
-    eb->pos = start;
-    edit_refresh(env, eb);
+    edit_delete_to_boundary(env, eb, sbuf_find_ws_word_start, true);
 }
 
 static void edit_delete_to_end_of_ws_word(ic_env_t* env, editor_t* eb) {
-    ssize_t end = sbuf_find_ws_word_end(eb->input, eb->pos);
-    if (end < 0)
-        return;
-    editor_start_modify(eb);
-    sbuf_delete_from_to(eb->input, eb->pos, end);
-    edit_refresh(env, eb);
+    edit_delete_to_boundary(env, eb, sbuf_find_ws_word_end, false);
 }
 
 static void edit_delete_word(ic_env_t* env, editor_t* eb) {
@@ -2128,6 +2144,22 @@ static bool edit_update_status_message(ic_env_t* env, editor_t* eb) {
     return true;
 }
 
+static void edit_release_editor(ic_env_t* env, editor_t* eb) {
+    if (env == NULL || eb == NULL)
+        return;
+    editstate_done(env->mem, &eb->undo);
+    editstate_done(env->mem, &eb->redo);
+    attrbuf_free(eb->attrs);
+    attrbuf_free(eb->attrs_extra);
+    sbuf_free(eb->input);
+    sbuf_free(eb->extra);
+    sbuf_free(eb->status);
+    sbuf_free(eb->hint);
+    sbuf_free(eb->hint_help);
+    sbuf_free(eb->history_prefix);
+    mem_free(env->mem, (void*)eb->prompt_text);
+}
+
 static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inline_right_text) {
     // set up an edit buffer
     editor_t eb;
@@ -2176,13 +2208,8 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
 
     if (eb.input == NULL || eb.extra == NULL || eb.status == NULL || eb.hint == NULL ||
         eb.hint_help == NULL || eb.history_prefix == NULL) {
-        sbuf_free(eb.input);
-        sbuf_free(eb.extra);
-        sbuf_free(eb.status);
-        sbuf_free(eb.hint);
-        sbuf_free(eb.hint_help);
-        sbuf_free(eb.history_prefix);
-        mem_free(env->mem, (void*)eb.prompt_text);
+        env->current_editor = NULL;
+        edit_release_editor(env, &eb);
         return NULL;
     }
 
@@ -2569,20 +2596,7 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
     // Clear the current editor pointer
     env->current_editor = NULL;
 
-    // free resources
-    editstate_done(env->mem, &eb.undo);
-    editstate_done(env->mem, &eb.redo);
-    attrbuf_free(eb.attrs);
-    attrbuf_free(eb.attrs_extra);
-    sbuf_free(eb.input);
-    sbuf_free(eb.extra);
-    sbuf_free(eb.status);
-    sbuf_free(eb.hint);
-    sbuf_free(eb.hint_help);
-    sbuf_free(eb.history_prefix);
-    mem_free(env->mem,
-             (void*)eb.prompt_text);  // Free the allocated last line prompt
-
+    edit_release_editor(env, &eb);
     return res;
 }
 

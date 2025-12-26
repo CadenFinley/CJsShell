@@ -38,4 +38,7 @@ typedef struct ic_env_s ic_env_t;
 ic_private void ic_env_apply_prompt_markers(ic_env_t* env, const char* prompt_marker,
                                             const char* continuation_prompt_marker);
 
+// Shared prompt rendering helpers
+ic_private void ic_emit_continuation_indent(ic_env_t* env, const char* prompt_text);
+
 #endif  // IC_INTERNAL_ENV_H

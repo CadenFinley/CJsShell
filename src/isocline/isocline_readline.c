@@ -151,13 +151,8 @@ ic_public void ic_print_prompt(const char* prompt_text, bool continuation_line) 
 
     if (!continuation_line) {
         bbcode_print(env->bbcode, text);
-    } else if (!env->no_multiline_indent) {
-        ssize_t textw = bbcode_column_width(env->bbcode, text);
-        ssize_t markerw = bbcode_column_width(env->bbcode, env->prompt_marker);
-        ssize_t cmarkerw = bbcode_column_width(env->bbcode, env->cprompt_marker);
-        if (cmarkerw < markerw + textw) {
-            term_write_repeat(env->term, " ", markerw + textw - cmarkerw);
-        }
+    } else {
+        ic_emit_continuation_indent(env, text);
     }
 
     bbcode_print(env->bbcode, (continuation_line ? env->cprompt_marker : env->prompt_marker));

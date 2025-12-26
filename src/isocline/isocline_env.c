@@ -52,6 +52,18 @@ ic_private void ic_env_apply_prompt_markers(ic_env_t* env, const char* prompt_ma
     env->cprompt_marker = mem_strdup(env->mem, continuation_prompt_marker);
 }
 
+ic_private void ic_emit_continuation_indent(ic_env_t* env, const char* prompt_text) {
+    if (env == NULL || env->no_multiline_indent || env->term == NULL || env->bbcode == NULL)
+        return;
+    const char* text = (prompt_text != NULL ? prompt_text : "");
+    ssize_t textw = bbcode_column_width(env->bbcode, text);
+    ssize_t markerw = bbcode_column_width(env->bbcode, env->prompt_marker);
+    ssize_t cmarkerw = bbcode_column_width(env->bbcode, env->cprompt_marker);
+    if (cmarkerw < markerw + textw) {
+        term_write_repeat(env->term, " ", markerw + textw - cmarkerw);
+    }
+}
+
 //-------------------------------------------------------------
 // Environment allocation & teardown
 //-------------------------------------------------------------
