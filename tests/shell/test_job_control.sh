@@ -108,6 +108,35 @@ test_disown_removes_job() {
     return $result
 }
 
+fg_command_name_resolves_job() {
+    log "Test: fg resolves job by command name"
+    local output
+    output=$("$CJSH_PATH" -i -c "sleep 1 & fg sleep" 2>&1)
+    local exit_code=$?
+
+    if [ $exit_code -ne 0 ]; then
+        echo "FAIL: fg sleep via command name failed (exit $exit_code): $output"
+        return 1
+    fi
+
+    echo "PASS"
+    return 0
+}
+
+fg_command_name_requires_disambiguation() {
+    log "Test: fg requires job id when command name is ambiguous"
+    local output
+    output=$("$CJSH_PATH" -i -c "sleep 5 & pid1=\$!; sleep 5 & pid2=\$!; fg sleep; fg_status=\$?; kill \$pid1 \$pid2 2>/dev/null; wait \$pid1 \$pid2 2>/dev/null; exit \$fg_status" 2>&1)
+    local exit_code=$?
+
+    if [ $exit_code -eq 1 ] && echo "$output" | grep -q "multiple jobs match command"; then
+        echo "PASS"
+        return 0
+    fi
+
+    echo "FAIL: fg sleep should require disambiguation (exit $exit_code): $output"
+    return 1
+}
 
 if ! test_background_persists; then
     status=1
@@ -118,6 +147,14 @@ if ! test_huponexit_kills_jobs; then
 fi
 
 if ! test_disown_removes_job; then
+    status=1
+fi
+
+if ! fg_command_name_resolves_job; then
+    status=1
+fi
+
+if ! fg_command_name_requires_disambiguation; then
     status=1
 fi
 

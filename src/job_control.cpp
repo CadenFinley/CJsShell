@@ -18,6 +18,7 @@
 #include <iostream>
 #include <limits>
 #include <memory>
+#include <string_view>
 
 #include "error_out.h"
 
@@ -41,6 +42,138 @@ int parse_signal(const std::string& signal_str) {
     }
 
     return -1;
+}
+
+std::string_view trim_view(const std::string& value) {
+    const auto start = value.find_first_not_of(" \t");
+    if (start == std::string::npos) {
+        return std::string_view{};
+    }
+    const auto end = value.find_last_not_of(" \t");
+    return std::string_view(value).substr(start, end - start + 1);
+}
+
+void trim_in_place(std::string& value) {
+    const auto start = value.find_first_not_of(" \t");
+    if (start == std::string::npos) {
+        value.clear();
+        return;
+    }
+    const auto end = value.find_last_not_of(" \t");
+    value = value.substr(start, end - start + 1);
+}
+
+bool job_command_matches(const std::shared_ptr<JobControlJob>& job, const std::string& spec) {
+    if (spec.empty()) {
+        return false;
+    }
+
+    const auto trimmed_command = trim_view(job->command);
+    if (trimmed_command.empty()) {
+        return false;
+    }
+
+    const std::string_view spec_view(spec);
+    if (trimmed_command == spec_view) {
+        return true;
+    }
+
+    const auto first_space = trimmed_command.find_first_of(" \t");
+    if (first_space == std::string::npos) {
+        return false;
+    }
+
+    return trimmed_command.substr(0, first_space) == spec_view;
+}
+
+std::shared_ptr<JobControlJob> find_job_by_command(const std::string& spec, JobManager& job_manager,
+                                                   bool& ambiguous) {
+    ambiguous = false;
+    std::shared_ptr<JobControlJob> match;
+
+    const auto jobs = job_manager.get_all_jobs();
+    for (const auto& job : jobs) {
+        if (job_command_matches(job, spec)) {
+            if (match) {
+                ambiguous = true;
+                return nullptr;
+            }
+            match = job;
+        }
+    }
+
+    return match;
+}
+
+std::shared_ptr<JobControlJob> resolve_job_argument(const std::vector<std::string>& args,
+                                                    JobManager& job_manager, int& job_id_out) {
+    job_id_out = job_manager.get_current_job();
+
+    if (args.size() <= 1) {
+        auto job = job_manager.get_job(job_id_out);
+        if (!job) {
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         std::to_string(job_id_out),
+                         "no such job",
+                         {"Use 'jobs' to list available jobs"}});
+        }
+        return job;
+    }
+
+    std::string job_spec = args[1];
+    if (!job_spec.empty() && job_spec[0] == '%') {
+        job_spec.erase(0, 1);
+    }
+
+    trim_in_place(job_spec);
+
+    if (job_spec.empty()) {
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     args[1],
+                     "no such job",
+                     {"Use 'jobs' to list available jobs"}});
+        return nullptr;
+    }
+
+    size_t consumed = 0;
+    try {
+        int parsed_value = std::stoi(job_spec, &consumed);
+        if (consumed == job_spec.size()) {
+            auto job = job_manager.get_job(parsed_value);
+            if (job) {
+                job_id_out = parsed_value;
+                return job;
+            }
+
+            auto job_by_pid = job_manager.get_job_by_pid(static_cast<pid_t>(parsed_value));
+            if (job_by_pid) {
+                job_id_out = job_by_pid->job_id;
+                return job_by_pid;
+            }
+        }
+    } catch (...) {
+    }
+
+    bool ambiguous = false;
+    auto job = find_job_by_command(job_spec, job_manager, ambiguous);
+    if (job) {
+        job_id_out = job->job_id;
+        return job;
+    }
+
+    if (ambiguous) {
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     args[1],
+                     "multiple jobs match command",
+                     {"Use job id or PID to disambiguate"}});
+    } else {
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     args[1],
+                     "no such job",
+                     {"Use 'jobs' to list available jobs"}});
+    }
+
+    return nullptr;
 }
 
 }  // namespace
@@ -144,6 +277,16 @@ std::shared_ptr<JobControlJob> JobManager::get_job_by_pgid(pid_t pgid) {
     for (const auto& pair : jobs) {
         if (pair.second->pgid == pgid) {
             return pair.second;
+        }
+    }
+    return nullptr;
+}
+
+std::shared_ptr<JobControlJob> JobManager::get_job_by_pid(pid_t pid) {
+    for (const auto& pair : jobs) {
+        const auto& job = pair.second;
+        if (std::find(job->pids.begin(), job->pids.end(), pid) != job->pids.end()) {
+            return job;
         }
     }
     return nullptr;
@@ -481,32 +624,11 @@ int fg_command(const std::vector<std::string>& args) {
     job_manager.update_job_status();
 
     int job_id = job_manager.get_current_job();
-
-    if (args.size() > 1) {
-        std::string job_spec = args[1];
-        if (job_spec.substr(0, 1) == "%") {
-            job_spec = job_spec.substr(1);
-        }
-
-        try {
-            job_id = std::stoi(job_spec);
-        } catch (...) {
-            print_error({ErrorType::INVALID_ARGUMENT,
-                         args[1],
-                         "no such job",
-                         {"Use 'jobs' to list available jobs"}});
-            return 1;
-        }
-    }
-
-    auto job = job_manager.get_job(job_id);
+    auto job = resolve_job_argument(args, job_manager, job_id);
     if (!job) {
-        print_error({ErrorType::INVALID_ARGUMENT,
-                     std::to_string(job_id),
-                     "no such job",
-                     {"Use 'jobs' to list available jobs"}});
         return 1;
     }
+    job_id = job->job_id;
 
     if (isatty(STDIN_FILENO) != 0) {
         if (tcsetpgrp(STDIN_FILENO, job->pgid) < 0) {
@@ -569,32 +691,11 @@ int bg_command(const std::vector<std::string>& args) {
     job_manager.update_job_status();
 
     int job_id = job_manager.get_current_job();
-
-    if (args.size() > 1) {
-        std::string job_spec = args[1];
-        if (job_spec.substr(0, 1) == "%") {
-            job_spec = job_spec.substr(1);
-        }
-
-        try {
-            job_id = std::stoi(job_spec);
-        } catch (...) {
-            print_error({ErrorType::INVALID_ARGUMENT,
-                         args[1],
-                         "no such job",
-                         {"Use 'jobs' to list available jobs"}});
-            return 1;
-        }
-    }
-
-    auto job = job_manager.get_job(job_id);
+    auto job = resolve_job_argument(args, job_manager, job_id);
     if (!job) {
-        print_error({ErrorType::INVALID_ARGUMENT,
-                     std::to_string(job_id),
-                     "no such job",
-                     {"Use 'jobs' to list available jobs"}});
         return 1;
     }
+    job_id = job->job_id;
 
     if (job->state != JobState::STOPPED) {
         print_error({ErrorType::INVALID_ARGUMENT,

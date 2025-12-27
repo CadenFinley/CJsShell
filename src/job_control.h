@@ -55,6 +55,8 @@ class JobManager {
 
     std::shared_ptr<JobControlJob> get_job_by_pgid(pid_t pgid);
 
+    std::shared_ptr<JobControlJob> get_job_by_pid(pid_t pid);
+
     std::vector<std::shared_ptr<JobControlJob>> get_all_jobs();
 
     void update_job_status();
