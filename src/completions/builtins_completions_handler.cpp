@@ -153,9 +153,6 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_doc("login-startup-arg", "Add cjsh startup flags",
                 {make_option("--login", "Run cjsh as a login shell"),
                  make_option("--interactive", "Force interactive mode"),
-                 make_option("--debug", "Enable verbose startup diagnostics"),
-                 make_option("--no-prompt", "Use a minimal prompt"),
-                 make_option("--no-themes", "Disable prompt theming"),
                  make_option("--no-colors", "Disable color output"),
                  make_option("--no-titleline", "Disable terminal title updates"),
                  make_option("--show-startup-time", "Display startup timing"),
@@ -163,7 +160,9 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                  make_option("--no-completions", "Disable completion initialization"),
                  make_option("--no-syntax-highlighting", "Disable syntax highlighting"),
                  make_option("--no-smart-cd", "Disable smart cd behavior"),
+                 make_option("--no-history-expansion", "Disable history expansion"),
                  make_option("--minimal", "Disable cjsh enhancements"),
+                 make_option("--secure", "Skip profile/rc/logout sourcing"),
                  make_option("--startup-test", "Enable startup test mode")});
 
         add_doc("history", "Show command history", {});
@@ -341,9 +340,6 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_doc("cjshopt-login-startup-arg", "Add cjsh startup flags",
                 {make_option("--login", "Run cjsh as a login shell"),
                  make_option("--interactive", "Force interactive mode"),
-                 make_option("--debug", "Enable verbose startup diagnostics"),
-                 make_option("--no-prompt", "Use a minimal prompt"),
-                 make_option("--no-themes", "Disable prompt theming"),
                  make_option("--no-colors", "Disable color output"),
                  make_option("--no-titleline", "Disable terminal title updates"),
                  make_option("--show-startup-time", "Display startup timing"),
@@ -351,7 +347,9 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                  make_option("--no-completions", "Disable completion initialization"),
                  make_option("--no-syntax-highlighting", "Disable syntax highlighting"),
                  make_option("--no-smart-cd", "Disable smart cd behavior"),
+                 make_option("--no-history-expansion", "Disable history expansion"),
                  make_option("--minimal", "Disable cjsh enhancements"),
+                 make_option("--secure", "Skip profile/rc/logout sourcing"),
                  make_option("--startup-test", "Enable startup test mode")});
 
         add_doc("cjshopt-hint-delay", "Adjust inline hint delay",

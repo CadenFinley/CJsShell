@@ -103,12 +103,8 @@ int help_command() {
         {"false", "Return failure (exit code 1)"},
 
         // Shell customization
-        {"theme", "Manage themes and previews"},
         {"cjshopt", "Generate config files and adjust cjsh options"},
-        {"hook", "Manage shell hooks (precmd, preexec, chpwd)"},
-
-        // Validation
-        {"validate", "Toggle command validation or verify names"}};
+        {"hook", "Manage shell hooks (precmd, preexec, chpwd)"}};
 
     std::cout << std::left;
     constexpr int column_width = 20;
@@ -122,8 +118,8 @@ int help_command() {
     std::cout << "  - Conditionals with if/elif/else/fi plus test, [, and [[ expressions.\n";
     std::cout << "  - Loop constructs (for/while/until) and loop controls (break/continue).\n";
     std::cout << "  - Command substitution $(...), pipelines, redirection, and here-strings.\n";
-    std::cout << "  - Script tooling: source plus manual/proactive command validation modes via "
-                 "'validate'.\n";
+    std::cout << "  - Script tooling: source plus built-in inspection utilities like 'type',\n"
+                 "    'which', and 'hash' for verifying commands before execution.\n";
 
     heading("Startup and shutdown");
     std::cout << "  Startup sequence:\n";

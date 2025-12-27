@@ -34,7 +34,7 @@
 #include "usage.h"
 #include "version_command.h"
 
-const bool PRE_RELEASE = true;
+const bool PRE_RELEASE = false;
 const char* const c_version_base = "4.1.2";
 
 std::string get_version() {

@@ -67,7 +67,6 @@ Consult the [Completion Authoring Guide](completions.md) for cache format and cu
 
 - **Startup diagnostics** – `--show-startup-time` prints the duration spent initializing CJSH.
 - **Secure mode** – `--secure` skips all profile/rc/logout sourcing for hardened sessions.
-- **Command validation** – `validate on` enables proactive command existence checks during editing.
 - **Consistent error output** – Interpreter failures now use the same compact `cjsh:` error_out
   format as other builtins for predictable logs.
 

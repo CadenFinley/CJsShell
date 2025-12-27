@@ -13,6 +13,49 @@
 #include "token_constants.h"
 
 namespace {
+
+struct StartupFlagInfo {
+    const char* name;
+    const char* description;
+};
+
+constexpr StartupFlagInfo kStartupFlags[] = {
+    {"--login", "Set login mode"},
+    {"--interactive", "Force interactive mode"},
+    {"--no-colors", "Disable colors"},
+    {"--no-titleline", "Disable title line"},
+    {"--show-startup-time", "Display shell startup time"},
+    {"--no-source", "Skip sourcing configuration files"},
+    {"--no-completions", "Disable tab completions"},
+    {"--no-syntax-highlighting", "Disable syntax highlighting"},
+    {"--no-smart-cd", "Disable smart cd functionality"},
+    {"--no-history-expansion", "Disable history expansion"},
+    {"--minimal", "Disable cjsh extras"},
+    {"--secure", "Enable secure mode"},
+    {"--startup-test", "Enable startup test mode"},
+};
+
+const std::vector<std::string>& startup_flag_help_lines() {
+    static const std::vector<std::string> lines = [] {
+        std::vector<std::string> help = {"Usage: login-startup-arg [--flag-name]",
+                                         "Available flags:"};
+        for (const auto& entry : kStartupFlags) {
+            help.emplace_back("  " + std::string(entry.name) + "  " + entry.description);
+        }
+        return help;
+    }();
+    return lines;
+}
+
+bool is_supported_startup_flag(const std::string& flag) {
+    for (const auto& entry : kStartupFlags) {
+        if (flag == entry.name) {
+            return true;
+        }
+    }
+    return false;
+}
+
 std::string resolve_style_registry_name(const std::string& token_type) {
     if (token_type.rfind("ic-", 0) == 0) {
         return token_type;
@@ -31,49 +74,25 @@ int startup_flag_command(const std::vector<std::string>& args) {
         return 1;
     }
 
+    const auto& help_lines = startup_flag_help_lines();
+
     if (args.size() < 2) {
-        print_error(
-            {ErrorType::INVALID_ARGUMENT,
-             "login-startup-arg",
-             "Missing flag argument",
-             {"Usage: login-startup-arg [--flag-name]",
-              "Available flags:", "  --login              Set login mode",
-              "  --interactive        Force interactive mode",
-              "  --debug              Enable debug mode", "  --no-themes          Disable themes",
-              "  --no-colors          Disable colors", "  --no-titleline       Disable title line",
-              "  --show-startup-time  Display shell startup time",
-              "  --no-source          Don't source the .cjshrc file",
-              "  --no-completions     Disable tab completions",
-              "  --no-syntax-highlighting Disable syntax highlighting",
-              "  --no-smart-cd        Disable smart cd functionality",
-              "  --no-prompt          Use simple '#' prompt instead of themed prompt",
-              R"(  --minimal            Disable all unique cjsh features (themes, colors, completions, syntax highlighting, smart cd, sourcing, startup time display))",
-              "  --startup-test       Enable startup test mode"}});
+        print_error({ErrorType::INVALID_ARGUMENT, "login-startup-arg", "Missing flag argument",
+                     help_lines});
         return 1;
     }
 
     const std::string& flag = args[1];
 
-    if (flag == "--login" || flag == "--interactive" || flag == "--debug" ||
-        flag == "--no-prompt" || flag == "--no-themes" || flag == "--no-colors" ||
-        flag == "--no-titleline" || flag == "--show-startup-time" || flag == "--no-source" ||
-        flag == "--no-completions" || flag == "--no-syntax-highlighting" ||
-        flag == "--no-smart-cd" || flag == "--minimal" || flag == "--startup-test") {
-        bool flag_exists = false;
-        for (const auto& existing_flag : profile_startup_args()) {
-            if (existing_flag == flag) {
-                flag_exists = true;
-                break;
-            }
-        }
-
-        if (!flag_exists) {
-            profile_startup_args().push_back(flag);
-        }
-    } else {
-        print_error(
-            {ErrorType::INVALID_ARGUMENT, "login-startup-arg", "unknown flag '" + flag + "'", {}});
+    if (!is_supported_startup_flag(flag)) {
+        print_error({ErrorType::INVALID_ARGUMENT, "login-startup-arg",
+                     "unknown flag '" + flag + "'", help_lines});
         return 1;
+    }
+
+    auto& stored_flags = profile_startup_args();
+    if (std::find(stored_flags.begin(), stored_flags.end(), flag) == stored_flags.end()) {
+        stored_flags.push_back(flag);
     }
 
     return 0;

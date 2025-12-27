@@ -363,22 +363,6 @@ When no inspection flags are supplied, `command` runs the target using the shell
 engine, allowing you to bypass shell functions that shadow external commands. The command returns
 the exit status of the invoked program.
 
-### validate
-Toggle proactive command validation or manually verify command availability.
-
-```bash
-validate on
-validate off
-validate command [command...]
-```
-
-- `validate on` enables interactive command checking so cjsh warns (and fails fast) when a
-  command cannot be resolved before it runs.
-- `validate off` disables proactive checks and returns to the default, laissez-faire behavior.
-- `validate command [command...]` prints how each name would be resolved (builtin, alias,
-  function, or full path) and exits non-zero if any entry cannot be found.
-- Pair with scripts or CI to ensure required tools exist (`validate git jq yq`).
-
 ## Hook System
 
 ### hook
@@ -589,11 +573,16 @@ Supported flags:
 | --- | --- |
 | `--login` | Mark the current shell instance as a login shell |
 | `--interactive` | Force interactive startup behavior |
-| `--debug` | Enable verbose startup debugging |
-| `--no-themes` | Skip prompt styling initialization |
-| `--no-prompt` | Use a minimal `#` prompt instead of the styled prompt |
-| `--minimal` | Disable all cjsh extras (prompt styling, colors, completions, smart cd, etc.) |
-
+| `--no-colors` | Disable colorized prompt and syntax output |
+| `--no-titleline` | Disable terminal title updates on startup |
+| `--show-startup-time` | Print the time spent initializing cjsh |
+| `--no-source` | Skip sourcing interactive configuration files |
+| `--no-completions` | Skip completion initialization |
+| `--no-syntax-highlighting` | Disable syntax highlighting in the editor |
+| `--no-smart-cd` | Disable fuzzy/smart directory changes |
+| `--no-history-expansion` | Disable `!!`, `!$`, and related history tokens |
+| `--minimal` | Disable cjsh extras (colors, completions, smart cd, sourcing, etc.) |
+| `--secure` | Skip profile/rc/logout sourcing even for login shells |
 | `--startup-test` | Enable startup test mode |
 
 Add one line per flag in `~/.cjprofile` to persist the desired behavior:
