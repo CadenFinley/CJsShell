@@ -22,7 +22,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
     
     
       
@@ -30,7 +30,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.618322db.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -1358,7 +1358,7 @@
 <h3 id="prompt-styling-themes">Prompt Styling &amp; Themes</h3>
 <p><strong>Status:</strong> Enabled<br>
 <strong>Configure:</strong> Edit <code>PS1</code>, <code>RPS1</code>, <code>PS2</code>, and <code>PROMPT_COMMAND</code> directly in your config using the BBCode-style markup described in <a href="../../themes/thedetails/">Prompt Markup and Styling</a>. Use <code>cjshopt style_def &lt;token_type&gt; &lt;style&gt;</code> to redefine highlight palettes that are shared between syntax highlighting and prompt tags.<br>
-<strong>Disable:</strong> Start cjsh with <code>--no-themes</code> or add <code>cjshopt login-startup-arg --no-themes</code> to <code>~/.cjprofile</code>.</p>
+<strong>Disable:</strong> Start cjsh with <code>--minimal</code> (disables colors, completions, and prompt helpers) or add <code>cjshopt login-startup-arg --minimal</code> to <code>~/.cjprofile</code>.</p>
 <p>All prompt styling now lives inside your dotfiles—no external theme DSL or bundled theme directory is required. Share a prompt by exporting new variables or sourcing a file that sets them, just like any other shell configuration.</p>
 <h3 id="true-color-support">True Color Support</h3>
 <p><strong>Status:</strong> Enabled when the terminal advertises 24-bit color.<br>
@@ -1443,11 +1443,11 @@ Fuzzy matching powers command, path, and argument completions without additional
 <h3 id="persisting-startup-flags">Persisting Startup Flags</h3>
 <p><code>cjshopt login-startup-arg</code> is only valid while configuration files are being sourced. Call it once per flag inside <code>~/.cjprofile</code>:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># ~/.cjprofile</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>cjshopt<span class="w"> </span>login-startup-arg<span class="w"> </span>--no-themes
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>cjshopt<span class="w"> </span>login-startup-arg<span class="w"> </span>--no-colors
 </span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>cjshopt<span class="w"> </span>login-startup-arg<span class="w"> </span>--no-smart-cd
 </span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>cjshopt<span class="w"> </span>login-startup-arg<span class="w"> </span>--show-startup-time
 </span></code></pre></div>
-<p>Supported flags: <code>--login</code>, <code>--interactive</code>, <code>--debug</code>, <code>--no-themes</code>, <code>--no-colors</code>, <code>--no-titleline</code>, <code>--show-startup-time</code>, <code>--no-source</code>, <code>--no-completions</code>, <code>--no-syntax-highlighting</code>, <code>--no-smart-cd</code>, <code>--no-prompt</code>, <code>--minimal</code>, and <code>--startup-test</code>.</p>
+<p>Supported flags: <code>--login</code>, <code>--interactive</code>, <code>--no-colors</code>, <code>--no-titleline</code>, <code>--show-startup-time</code>, <code>--no-source</code>, <code>--no-completions</code>, <code>--no-syntax-highlighting</code>, <code>--no-smart-cd</code>, <code>--no-history-expansion</code>, <code>--minimal</code>, <code>--secure</code>, and <code>--startup-test</code>.</p>
 <h3 id="posix-bash-compatibility">POSIX &amp; Bash Compatibility</h3>
 <p>cjsh targets high POSIX coverage for scripting while providing POSIX+ extensions such as <code>[[ ... ]]</code>, brace expansion, here-strings, process substitution, and rich redirection semantics. POSIX+ behavior is opt-in through flags or configuration.</p>
 <hr>
@@ -1592,10 +1592,10 @@ Fuzzy matching powers command, path, and argument completions without additional
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.path", "navigation.indexes", "toc.integrate", "navigation.top", "search.highlight", "search.share", "content.tabs.link", "content.code.annotation", "content.code.copy"], "search": "../../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.path", "navigation.indexes", "toc.integrate", "navigation.top", "search.highlight", "search.share", "content.tabs.link", "content.code.annotation", "content.code.copy"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.e71a0d61.min.js"></script>
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   
