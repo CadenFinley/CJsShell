@@ -1637,6 +1637,12 @@ CJ's Shell automatically enters multiline mode when:
 </span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="c1"># Check current status</span>
 </span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>cjshopt<span class="w"> </span>line-numbers<span class="w"> </span>status
 </span></code></pre></div><p></p>
+<blockquote>
+<p><strong>Tip:</strong> Custom continuation prompts normally suppress multiline line numbers. Restore them
+by running <code>cjshopt line-numbers-continuation on</code> (or calling
+<code>ic_enable_line_numbers_with_continuation_prompt(true)</code> from your startup scripts) before the
+editor initializes.</p>
+</blockquote>
 <p><strong>Current Line Highlighting:</strong>
 The line containing the cursor can be highlighted differently:
 </p><div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Enable/disable current line number highlighting (enabled by default)</span>
