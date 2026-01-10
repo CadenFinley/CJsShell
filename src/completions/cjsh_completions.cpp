@@ -220,15 +220,32 @@ bool iterate_directory_entries(
     const std::function<bool(const std::filesystem::directory_entry&)>& entry_filter = {}) {
     namespace fs = std::filesystem;
     std::string limit_label = std::string(debug_label) + " completion";
-    for (const auto& entry : fs::directory_iterator(dir_path)) {
+
+    std::error_code ec;
+    fs::directory_iterator it(dir_path, fs::directory_options::skip_permission_denied, ec);
+    if (ec) {
+        return true;
+    }
+
+    fs::directory_iterator end;
+    for (; it != end; it.increment(ec)) {
+        if (ec) {
+            break;
+        }
+        const auto& entry = *it;
         if (ic_stop_completing(cenv))
             return false;
         if (completion_tracker::completion_limit_hit_with_log(limit_label.c_str()))
             return false;
-        if (directories_only && !entry.is_directory())
-            continue;
+
+        if (directories_only) {
+            std::error_code dir_ec;
+            if (!entry.is_directory(dir_ec) || dir_ec)
+                continue;
+        }
         if (entry_filter && !entry_filter(entry))
             continue;
+
         std::string filename = entry.path().filename().string();
         if (filename.empty())
             continue;
