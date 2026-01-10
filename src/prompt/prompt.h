@@ -8,6 +8,8 @@ std::string render_primary_prompt();
 
 std::string render_right_prompt();
 
+std::string render_secondary_prompt();
+
 std::string default_primary_prompt_template();
 
 std::string default_right_prompt_template();

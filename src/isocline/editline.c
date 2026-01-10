@@ -81,6 +81,14 @@ typedef struct editor_s {
     attrbuf_t* attrs_extra;
 } editor_t;
 
+static bool has_continuation_prompt_marker(const ic_env_t* env) {
+    return (env != NULL && env->cprompt_marker != NULL && env->cprompt_marker[0] != '\0');
+}
+
+static bool line_numbers_enabled(const ic_env_t* env) {
+    return (env != NULL && env->show_line_numbers && !has_continuation_prompt_marker(env));
+}
+
 static void edit_generate_completions(ic_env_t* env, editor_t* eb, bool autotab);
 static void edit_history_search_with_current_word(ic_env_t* env, editor_t* eb);
 static void edit_history_prev(ic_env_t* env, editor_t* eb);
@@ -362,7 +370,7 @@ static void edit_get_prompt_width(ic_env_t* env, editor_t* eb, bool in_extra, ss
         *promptw = markerw + textw;
 
         ssize_t indent_target = compute_continuation_indent_target(env, eb, *promptw);
-        if (env->show_line_numbers) {
+        if (line_numbers_enabled(env)) {
             ssize_t cached_width =
                 (eb->line_number_column_width > 0 ? eb->line_number_column_width
                                                   : estimate_line_number_column_width(eb));
@@ -653,7 +661,7 @@ static void edit_write_prompt(ic_env_t* env, editor_t* eb, ssize_t row, bool in_
     if (row == 0) {
         // regular prompt text
         bbcode_print(env->bbcode, eb->prompt_text);
-    } else if (env->show_line_numbers) {
+    } else if (line_numbers_enabled(env)) {
         // show line numbers for multiline input
         bbcode_style_close(env->bbcode, NULL);
 
@@ -700,7 +708,7 @@ static void edit_write_prompt(ic_env_t* env, editor_t* eb, ssize_t row, bool in_
         ic_emit_continuation_indent(env, eb->prompt_text);
     }
     // the marker (skip for line numbers since we include our own separator)
-    if (row == 0 || !env->show_line_numbers) {
+    if (row == 0 || !line_numbers_enabled(env)) {
         bbcode_print(env->bbcode, (row == 0 ? env->prompt_marker : env->cprompt_marker));
     }
     bbcode_style_close(env->bbcode, NULL);
@@ -1123,7 +1131,7 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
         cursor_row_for_display = (eb->force_linear_line_numbers ? -1 : rc.row);
         cursor_line_for_display = (eb->force_linear_line_numbers ? -1 : cursor_logical_line);
 
-        if (env->show_line_numbers) {
+        if (line_numbers_enabled(env)) {
             ssize_t max_line_number_width = 0;
             if (logical_line_count > 0) {
                 char line_number_str[16];
@@ -1218,7 +1226,7 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
     ssize_t actual_prompt_width;
     if (rc.row == 0) {
         actual_prompt_width = promptw;
-    } else if (env->show_line_numbers) {
+    } else if (line_numbers_enabled(env)) {
         bool cursor_row_is_continuation = false;
         ssize_t input_len = sbuf_len(eb->input);
         if (rc.row_start > 0 && rc.row_start <= input_len) {
@@ -1397,7 +1405,7 @@ static void edit_cleanup_print(ic_env_t* env, editor_t* eb, const char* final_in
                     if (newline != NULL && offset < final_len) {
                         // Print line number prefix for continuation lines if line numbers are
                         // enabled
-                        if (env->show_line_numbers) {
+                        if (line_numbers_enabled(env)) {
                             bbcode_style_open(env->bbcode, "ic-linenumbers");
                             char line_number_str[16];
                             format_line_number_prompt(line_number_str, sizeof(line_number_str),
@@ -2558,7 +2566,7 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
         sbuf_clear(eb.status);
     }
 
-    if (!env->prompt_cleanup && env->show_line_numbers) {
+    if (!env->prompt_cleanup && line_numbers_enabled(env)) {
         eb.force_linear_line_numbers = true;
     }
 

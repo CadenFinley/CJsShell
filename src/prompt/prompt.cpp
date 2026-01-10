@@ -333,6 +333,14 @@ std::string render_right_prompt() {
     return expand_prompt_string(rps1);
 }
 
+std::string render_secondary_prompt() {
+    const char* ps2 = std::getenv("PS2");
+    if (ps2 == nullptr || ps2[0] == '\0') {
+        return {};
+    }
+    return expand_prompt_string(ps2);
+}
+
 void execute_prompt_command() {
     if (!g_shell) {
         return;

@@ -498,6 +498,12 @@ std::pair<std::string, bool> get_next_command(bool command_was_available) {
     std::string prompt = generate_prompt(command_was_available);
     last_prompt_started_with_newline = (!prompt.empty() && prompt.front() == '\n');
     std::string inline_right_text = prompt::render_right_prompt();
+    std::string continuation_prompt = prompt::render_secondary_prompt();
+    if (continuation_prompt.empty()) {
+        ic_set_prompt_marker("", nullptr);
+    } else {
+        ic_set_prompt_marker("", continuation_prompt.c_str());
+    }
 
     thread_local static std::string sanitized_buffer;
     sanitized_buffer.clear();
