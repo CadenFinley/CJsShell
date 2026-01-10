@@ -312,9 +312,12 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
              make_subcommand("completion-case", "Configure completion case sensitivity"),
              make_subcommand("completion-spell", "Configure completion spell correction"),
              make_subcommand("line-numbers", "Configure multiline line numbers"),
+             make_subcommand("line-numbers-continuation",
+                             "Control line numbers during continuation prompts"),
              make_subcommand("current-line-number-highlight",
                              "Toggle current line number highlighting"),
              make_subcommand("multiline-start-lines", "Set default multiline prompt height"),
+
              make_subcommand("hint-delay", "Adjust inline hint delay"),
              make_subcommand("completion-preview", "Toggle completion preview"),
              make_subcommand("visible-whitespace", "Toggle visible whitespace"),
@@ -444,6 +447,34 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                  make_subcommand("off", "Hide line numbers"),
                  make_subcommand("relative", "Show relative line numbers"),
                  make_subcommand("absolute", "Show absolute line numbers"),
+                 make_subcommand("status", "Show current setting")});
+        add_doc("cjshopt-line-numbers-continuation", "",
+                {make_subcommand("on", "Show line numbers with continuation prompts"),
+                 make_subcommand("off", "Hide line numbers when a continuation prompt is active"),
+                 make_subcommand("status", "Show current setting")});
+        add_doc("cjshopt-current-line-number-highlight", "",
+                {make_subcommand("on", "Highlight the active line number"),
+                 make_subcommand("off", "Disable line number highlighting"),
+                 make_subcommand("status", "Show current setting")});
+        add_doc("cjshopt-prompt-newline", "",
+                {make_subcommand("on", "Insert a newline after every command"),
+                 make_subcommand("off", "Skip the post-command newline"),
+                 make_subcommand("status", "Show current setting")});
+        add_doc("cjshopt-prompt-cleanup", "",
+                {make_subcommand("on", "Enable prompt cleanup before execution"),
+                 make_subcommand("off", "Disable prompt cleanup"),
+                 make_subcommand("status", "Show current setting")});
+        add_doc("cjshopt-prompt-cleanup-newline", "",
+                {make_subcommand("on", "Add a newline as part of prompt cleanup"),
+                 make_subcommand("off", "Skip the cleanup newline"),
+                 make_subcommand("status", "Show current setting")});
+        add_doc("cjshopt-prompt-cleanup-empty-line", "",
+                {make_subcommand("on", "Insert an empty line while cleaning prompts"),
+                 make_subcommand("off", "Keep cleanup compact"),
+                 make_subcommand("status", "Show current setting")});
+        add_doc("cjshopt-prompt-cleanup-truncate", "",
+                {make_subcommand("on", "Truncate multiline prompts during cleanup"),
+                 make_subcommand("off", "Keep multiline prompts intact"),
                  make_subcommand("status", "Show current setting")});
         add_doc("cjshopt-multiline-start-lines", "",
                 {make_subcommand("status", "Show current multiline height")});
