@@ -244,6 +244,22 @@ ic_public bool ic_line_numbers_are_relative(void) {
     return env->relative_line_numbers;
 }
 
+ic_public bool ic_enable_line_numbers_with_continuation_prompt(bool enable) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return false;
+    bool prev = env->allow_line_numbers_with_continuation_prompt;
+    env->allow_line_numbers_with_continuation_prompt = enable;
+    return prev;
+}
+
+ic_public bool ic_line_numbers_with_continuation_prompt_are_enabled(void) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return false;
+    return env->allow_line_numbers_with_continuation_prompt;
+}
+
 ic_public bool ic_enable_current_line_number_highlight(bool enable) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)

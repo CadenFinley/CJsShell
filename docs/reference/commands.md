@@ -649,6 +649,24 @@ Add the command to `~/.cjshrc` to persist the setting across sessions. The subco
 
 > **Tip:** Style the line numbers themselves with `cjshopt style_def ic-linenumbers "color=#FFB86C"` (or any other style). See `cjshopt style_def` for the full list of supported style directives.
 
+#### line-numbers-continuation
+
+Control whether multiline line numbers remain visible when a continuation prompt marker (PS2) is configured. By default, configuring a continuation prompt hides the numbers; enabling this option keeps them aligned with the continuation marker instead.
+
+```bash
+cjshopt line-numbers-continuation <on|off|status>
+```
+
+Examples:
+
+```bash
+cjshopt line-numbers-continuation on      # Keep line numbers even with custom continuation prompts
+cjshopt line-numbers-continuation off     # Hide line numbers whenever a continuation prompt exists
+cjshopt line-numbers-continuation status  # Show the current setting
+```
+
+Add the command to `~/.cjshrc` to persist the setting across sessions. Synonyms such as `enable`, `disable`, `true`, `false`, and `--status` are also accepted.
+
 #### current-line-number-highlight
 
 Enable or disable highlighting of the current line number in multiline input mode. When enabled (default), the line number for the line containing the cursor is displayed in a different style than other line numbers.

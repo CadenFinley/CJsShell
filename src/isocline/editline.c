@@ -86,7 +86,13 @@ static bool has_continuation_prompt_marker(const ic_env_t* env) {
 }
 
 static bool line_numbers_enabled(const ic_env_t* env) {
-    return (env != NULL && env->show_line_numbers && !has_continuation_prompt_marker(env));
+    if (env == NULL || !env->show_line_numbers) {
+        return false;
+    }
+    if (has_continuation_prompt_marker(env) && !env->allow_line_numbers_with_continuation_prompt) {
+        return false;
+    }
+    return true;
 }
 
 static void edit_generate_completions(ic_env_t* env, editor_t* eb, bool autotab);

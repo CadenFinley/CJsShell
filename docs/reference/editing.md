@@ -76,6 +76,11 @@ cjshopt line-numbers off
 cjshopt line-numbers status
 ```
 
+> **Tip:** Custom continuation prompts normally suppress multiline line numbers. Restore them
+> by running `cjshopt line-numbers-continuation on` (or calling
+> `ic_enable_line_numbers_with_continuation_prompt(true)` from your startup scripts) before the
+> editor initializes.
+
 **Current Line Highlighting:**
 The line containing the cursor can be highlighted differently:
 ```bash

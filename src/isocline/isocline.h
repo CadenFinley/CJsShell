@@ -558,6 +558,14 @@ bool ic_line_numbers_are_enabled(void);
 /// Returns whether relative line numbers are currently active.
 bool ic_line_numbers_are_relative(void);
 
+/// Allow line numbers to remain visible even when a continuation prompt marker is configured.
+/// When disabled (default), setting a continuation prompt hides multiline line numbers.
+/// Returns the previous state.
+bool ic_enable_line_numbers_with_continuation_prompt(bool enable);
+
+/// Returns whether line numbers stay visible when a continuation prompt is set.
+bool ic_line_numbers_with_continuation_prompt_are_enabled(void);
+
 /// Enable or disable highlighting of the current line number.
 /// When enabled (default), the line number for the line containing the cursor
 /// is displayed in a different color ("ic-linenumber-current" style) compared to

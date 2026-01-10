@@ -298,6 +298,28 @@ int line_numbers_command(const std::vector<std::string>& args) {
     return 0;
 }
 
+int line_numbers_continuation_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: line-numbers-continuation <on|off|status>", "Examples:",
+        "  line-numbers-continuation on       Keep line numbers when a continuation prompt is set",
+        "  line-numbers-continuation off      Hide line numbers whenever a continuation prompt is "
+        "set",
+        "  line-numbers-continuation status   Show the current setting"};
+
+    static const ToggleCommandConfig config{
+        "line-numbers-continuation",
+        usage_lines,
+        []() { return ic_line_numbers_with_continuation_prompt_are_enabled(); },
+        [](bool enable) { ic_enable_line_numbers_with_continuation_prompt(enable); },
+        "Line numbers with continuation prompts",
+        false,
+        "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
+        {},
+        {}};
+
+    return handle_toggle_command(config, args);
+}
+
 int hint_delay_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {
         "Usage: hint-delay <milliseconds>",

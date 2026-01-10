@@ -124,6 +124,8 @@ int cjshopt_command(const std::vector<std::string>& args) {
                      "(default: disabled)",
                  std::string("  keybind <subcommand> [...]       Inspect or modify key bindings ") +
                      "(modifications in config only)",
+                 "  line-numbers-continuation <on|off|status> Control line numbers when a "
+                 "continuation prompt is active",
                  "  generate-profile [--force] [--alt]       Create or overwrite ~/.cjprofile",
                  "  generate-rc [--force] [--alt]            Create or overwrite ~/.cjshrc",
                  "  generate-logout [--force] [--alt]        Create or overwrite ~/.cjsh_logout",
@@ -149,6 +151,10 @@ int cjshopt_command(const std::vector<std::string>& args) {
     }
     if (subcommand == "line-numbers") {
         return line_numbers_command(std::vector<std::string>(args.begin() + 1, args.end()));
+    }
+    if (subcommand == "line-numbers-continuation") {
+        return line_numbers_continuation_command(
+            std::vector<std::string>(args.begin() + 1, args.end()));
     }
     if (subcommand == "current-line-number-highlight") {
         return current_line_number_highlight_command(
@@ -220,8 +226,10 @@ int cjshopt_command(const std::vector<std::string>& args) {
          "cjshopt",
          "unknown subcommand '" + subcommand + "'",
          {"Available subcommands: style_def, login-startup-arg, completion-case, completion-spell, "
-          "line-numbers, current-line-number-highlight, multiline-start-lines, hint-delay, "
+          "line-numbers, line-numbers-continuation, current-line-number-highlight, "
+          "multiline-start-lines, hint-delay, "
           "completion-preview, visible-whitespace, hint, multiline-indent, multiline, inline-help, "
+
           "auto-tab, prompt-newline, prompt-cleanup, prompt-cleanup-newline, "
           "prompt-cleanup-empty-line, prompt-cleanup-truncate, keybind, generate-profile, "
           "generate-rc, generate-logout, set-history-max"}});
