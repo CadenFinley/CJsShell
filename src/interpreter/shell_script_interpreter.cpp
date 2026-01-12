@@ -774,13 +774,15 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
     };
 
     auto handle_while_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
-        return loop_evaluator::handle_while_block(src_lines, idx, execute_block_skip_validation,
-                                                  execute_simple_or_pipeline, shell_parser);
+        return loop_evaluator::handle_condition_loop_block(
+            loop_evaluator::LoopCondition::WHILE, src_lines, idx, execute_block_skip_validation,
+            execute_simple_or_pipeline, shell_parser);
     };
 
     auto handle_until_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
-        return loop_evaluator::handle_until_block(src_lines, idx, execute_block_skip_validation,
-                                                  execute_simple_or_pipeline, shell_parser);
+        return loop_evaluator::handle_condition_loop_block(
+            loop_evaluator::LoopCondition::UNTIL, src_lines, idx, execute_block_skip_validation,
+            execute_simple_or_pipeline, shell_parser);
     };
 
     for (size_t line_index = 0; line_index < lines.size(); ++line_index) {

@@ -183,6 +183,58 @@ bool starts_with_loop_keyword(const std::string& text) {
     });
 }
 
+bool collect_loop_body_lines(const std::vector<std::string>& src_lines, size_t start_index,
+                             int initial_depth, std::vector<std::string>& body_lines,
+                             size_t& next_index) {
+    size_t k = start_index;
+    int depth = initial_depth;
+
+    if (depth <= 0) {
+        next_index = k;
+        return depth == 0;
+    }
+
+    while (k < src_lines.size() && depth > 0) {
+        const std::string& cur_raw = src_lines[k];
+        std::string cur = trim(strip_inline_comment(cur_raw));
+        if (starts_with_loop_keyword(cur)) {
+            ++depth;
+        } else if (matches_keyword_only(cur, "done")) {
+            --depth;
+            if (depth == 0)
+                break;
+        }
+        if (depth > 0)
+            body_lines.push_back(cur_raw);
+        ++k;
+    }
+
+    next_index = k;
+    return depth == 0;
+}
+
+int iterate_numeric_range(int start, int end, bool is_ascending,
+                          const std::function<LoopCommandOutcome(int)>& run_iteration) {
+    int step = is_ascending ? 1 : -1;
+    int value = start;
+    int rc_local = 0;
+    while (step > 0 ? value <= end : value >= end) {
+        int signal_rc = 0;
+        if (check_loop_interrupt(signal_rc)) {
+            rc_local = signal_rc;
+            break;
+        }
+        LoopCommandOutcome outcome = run_iteration(value);
+        rc_local = outcome.code;
+        if (outcome.flow == LoopFlow::NONE || outcome.flow == LoopFlow::CONTINUE) {
+            value += step;
+            continue;
+        }
+        break;
+    }
+    return rc_local;
+}
+
 int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
                       const std::string& keyword, bool is_until,
                       const std::function<int(const std::vector<std::string>&)>& execute_block,
@@ -265,27 +317,12 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
             bi = trim(bi.substr(0, done_pos));
         body_lines = shell_parser->parse_into_lines(bi);
     } else {
-        size_t k = j + 1;
-        int depth = 1;
-        while (k < src_lines.size() && depth > 0) {
-            const std::string& cur_raw = src_lines[k];
-            std::string cur = trim(strip_inline_comment(cur_raw));
-            if (starts_with_loop_keyword(cur)) {
-                depth++;
-            } else if (matches_keyword_only(cur, "done")) {
-                depth--;
-                if (depth == 0)
-                    break;
-            }
-            if (depth > 0)
-                body_lines.push_back(cur_raw);
-            k++;
-        }
-        if (depth != 0) {
-            idx = k;
+        size_t body_end_idx = 0;
+        if (!collect_loop_body_lines(src_lines, j + 1, 1, body_lines, body_end_idx)) {
+            idx = body_end_idx;
             return 1;
         }
-        idx = k;
+        idx = body_end_idx;
     }
 
     int rc = 0;
@@ -378,6 +415,16 @@ int handle_for_block(const std::vector<std::string>& src_lines, size_t& idx,
         bool is_ascending = true;
     } range_info;
 
+    auto assign_loop_variable = [&](const std::string& value) {
+        if (g_shell) {
+            g_shell->get_env_vars()[var] = value;
+            if (shell_parser != nullptr) {
+                shell_parser->expand_env_vars(var);
+            }
+        }
+        setenv(var.c_str(), value.c_str(), 1);
+    };
+
     auto parse_header = [&](const std::string& header) -> bool {
         std::vector<std::string> raw_toks;
 
@@ -452,7 +499,6 @@ int handle_for_block(const std::vector<std::string>& src_lines, size_t& idx,
         if (done_pos == std::string::npos)
             done_pos = tail.rfind("done");
         std::string body = done_pos == std::string::npos ? tail : trim(tail.substr(0, done_pos));
-        int rc = 0;
 
         if (shell_parser == nullptr) {
             return 1;
@@ -465,48 +511,18 @@ int handle_for_block(const std::vector<std::string>& src_lines, size_t& idx,
             return 1;
         }
 
+        auto run_cached_body = [&, body_lines_ptr]() -> LoopCommandOutcome {
+            return handle_loop_command_result(execute_block(*body_lines_ptr), 0, 255, 0, 254, true);
+        };
+
+        int rc = 0;
         if (range_info.is_range) {
-            auto execute_range_iteration = [&, body_lines_ptr](int value) -> int {
-                std::string val_str = std::to_string(value);
-                if (g_shell) {
-                    g_shell->get_env_vars()[var] = val_str;
-                    if (shell_parser) {
-                        shell_parser->expand_env_vars(var);
-                    }
-                }
-                setenv(var.c_str(), val_str.c_str(), 1);
-
-                int cmd_rc = execute_block(*body_lines_ptr);
-                auto outcome = handle_loop_command_result(cmd_rc, 0, 255, 0, 254, true);
-                return outcome.code;
-            };
-
-            auto iterate_range = [&](int start, int end, int step) -> int {
-                int value = start;
-                int rc_local = 0;
-                while (step > 0 ? value <= end : value >= end) {
-                    int signal_rc = 0;
-                    if (check_loop_interrupt(signal_rc)) {
-                        rc_local = signal_rc;
-                        break;
-                    }
-                    rc_local = execute_range_iteration(value);
-                    auto outcome = handle_loop_command_result(rc_local, 0, 255, 0, 254, true);
-                    rc_local = outcome.code;
-                    if (outcome.flow == LoopFlow::NONE) {
-                        value += step;
-                        continue;
-                    }
-                    if (outcome.flow == LoopFlow::CONTINUE) {
-                        value += step;
-                        continue;
-                    }
-                    break;
-                }
-                return rc_local;
-            };
-
-            rc = iterate_range(range_info.start, range_info.end, range_info.is_ascending ? 1 : -1);
+            rc = iterate_numeric_range(range_info.start, range_info.end, range_info.is_ascending,
+                                       [&](int value) -> LoopCommandOutcome {
+                                           std::string val_str = std::to_string(value);
+                                           assign_loop_variable(val_str);
+                                           return run_cached_body();
+                                       });
         } else {
             for (const auto& it : items) {
                 int signal_rc = 0;
@@ -514,20 +530,11 @@ int handle_for_block(const std::vector<std::string>& src_lines, size_t& idx,
                     rc = signal_rc;
                     break;
                 }
-                if (g_shell) {
-                    g_shell->get_env_vars()[var] = it;
-                    if (shell_parser != nullptr) {
-                        shell_parser->expand_env_vars(var);
-                    }
-                }
-                setenv(var.c_str(), it.c_str(), 1);
+                assign_loop_variable(it);
 
-                rc = execute_block(*body_lines_ptr);
-                auto outcome = handle_loop_command_result(rc, 0, 255, 0, 254, true);
+                auto outcome = run_cached_body();
                 rc = outcome.code;
-                if (outcome.flow == LoopFlow::NONE)
-                    continue;
-                if (outcome.flow == LoopFlow::CONTINUE)
+                if (outcome.flow == LoopFlow::NONE || outcome.flow == LoopFlow::CONTINUE)
                     continue;
                 break;
             }
@@ -618,24 +625,12 @@ int handle_for_block(const std::vector<std::string>& src_lines, size_t& idx,
         }
     }
 
-    size_t k = inline_consumes_done ? j : (j + 1);
-    int depth = inline_consumes_done ? 0 : 1;
-    while (k < src_lines.size() && depth > 0) {
-        const std::string& cur_raw = src_lines[k];
-        std::string cur = trim(strip_inline_comment(cur_raw));
-        if (starts_with_loop_keyword(cur)) {
-            depth++;
-        } else if (matches_keyword_only(cur, "done")) {
-            depth--;
-            if (depth == 0)
-                break;
-        }
-        if (depth > 0)
-            body_lines.push_back(cur_raw);
-        k++;
-    }
-    if (depth != 0) {
-        idx = k;
+    size_t body_start_idx = inline_consumes_done ? j : (j + 1);
+    size_t body_end_idx = 0;
+    int initial_depth = inline_consumes_done ? 0 : 1;
+    if (!collect_loop_body_lines(src_lines, body_start_idx, initial_depth, body_lines,
+                                 body_end_idx)) {
+        idx = body_end_idx;
         return 1;
     }
 
@@ -646,39 +641,12 @@ int handle_for_block(const std::vector<std::string>& src_lines, size_t& idx,
     };
 
     if (range_info.is_range) {
-        auto iterate_range_body = [&](int start, int end, int step) -> int {
-            int value = start;
-            int rc_local = 0;
-            while (step > 0 ? value <= end : value >= end) {
-                int signal_rc = 0;
-                if (check_loop_interrupt(signal_rc)) {
-                    rc_local = signal_rc;
-                    break;
-                }
-                if (g_shell) {
-                    std::string val_str = std::to_string(value);
-                    g_shell->get_env_vars()[var] = val_str;
-                    if (shell_parser) {
-                        shell_parser->expand_env_vars(var);
-                    }
-                    setenv(var.c_str(), val_str.c_str(), 1);
-                }
-                auto outcome = run_body_and_handle_result();
-                rc_local = outcome.code;
-                if (outcome.flow == LoopFlow::NONE) {
-                    value += step;
-                    continue;
-                }
-                if (outcome.flow == LoopFlow::CONTINUE) {
-                    value += step;
-                    continue;
-                }
-                break;
-            }
-            return rc_local;
-        };
-
-        rc = iterate_range_body(range_info.start, range_info.end, range_info.is_ascending ? 1 : -1);
+        rc = iterate_numeric_range(range_info.start, range_info.end, range_info.is_ascending,
+                                   [&](int value) -> LoopCommandOutcome {
+                                       std::string val_str = std::to_string(value);
+                                       assign_loop_variable(val_str);
+                                       return run_body_and_handle_result();
+                                   });
     } else {
         for (const auto& it : items) {
             int signal_rc = 0;
@@ -686,39 +654,26 @@ int handle_for_block(const std::vector<std::string>& src_lines, size_t& idx,
                 rc = signal_rc;
                 break;
             }
-            if (g_shell) {
-                g_shell->get_env_vars()[var] = it;
-                if (shell_parser != nullptr) {
-                    shell_parser->expand_env_vars(var);
-                }
-                setenv(var.c_str(), it.c_str(), 1);
-            }
+            assign_loop_variable(it);
             auto outcome = run_body_and_handle_result();
             rc = outcome.code;
-            if (outcome.flow == LoopFlow::NONE)
-                continue;
-            if (outcome.flow == LoopFlow::CONTINUE)
+            if (outcome.flow == LoopFlow::NONE || outcome.flow == LoopFlow::CONTINUE)
                 continue;
             break;
         }
     }
-    idx = k;
+    idx = body_end_idx;
     return rc;
 }
 
-int handle_while_block(const std::vector<std::string>& src_lines, size_t& idx,
-                       const std::function<int(const std::vector<std::string>&)>& execute_block,
-                       const std::function<int(const std::string&)>& execute_simple_or_pipeline,
-                       Parser* shell_parser) {
-    return handle_loop_block(src_lines, idx, "while", false, execute_block,
-                             execute_simple_or_pipeline, shell_parser);
-}
-
-int handle_until_block(const std::vector<std::string>& src_lines, size_t& idx,
-                       const std::function<int(const std::vector<std::string>&)>& execute_block,
-                       const std::function<int(const std::string&)>& execute_simple_or_pipeline,
-                       Parser* shell_parser) {
-    return handle_loop_block(src_lines, idx, "until", true, execute_block,
+int handle_condition_loop_block(
+    LoopCondition condition, const std::vector<std::string>& src_lines, size_t& idx,
+    const std::function<int(const std::vector<std::string>&)>& execute_block,
+    const std::function<int(const std::string&)>& execute_simple_or_pipeline,
+    Parser* shell_parser) {
+    const char* keyword = condition == LoopCondition::WHILE ? "while" : "until";
+    bool is_until = condition == LoopCondition::UNTIL;
+    return handle_loop_block(src_lines, idx, keyword, is_until, execute_block,
                              execute_simple_or_pipeline, shell_parser);
 }
 

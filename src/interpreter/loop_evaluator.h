@@ -17,6 +17,11 @@ enum class LoopFlow : std::uint8_t {
     BREAK
 };
 
+enum class LoopCondition : std::uint8_t {
+    WHILE,
+    UNTIL
+};
+
 struct LoopCommandOutcome {
     LoopFlow flow;
     int code;
@@ -30,15 +35,10 @@ int handle_for_block(const std::vector<std::string>& src_lines, size_t& idx,
                      const std::function<int(const std::vector<std::string>&)>& execute_block,
                      Parser* shell_parser);
 
-int handle_while_block(const std::vector<std::string>& src_lines, size_t& idx,
-                       const std::function<int(const std::vector<std::string>&)>& execute_block,
-                       const std::function<int(const std::string&)>& execute_simple_or_pipeline,
-                       Parser* shell_parser);
-
-int handle_until_block(const std::vector<std::string>& src_lines, size_t& idx,
-                       const std::function<int(const std::vector<std::string>&)>& execute_block,
-                       const std::function<int(const std::string&)>& execute_simple_or_pipeline,
-                       Parser* shell_parser);
+int handle_condition_loop_block(
+    LoopCondition condition, const std::vector<std::string>& src_lines, size_t& idx,
+    const std::function<int(const std::vector<std::string>&)>& execute_block,
+    const std::function<int(const std::string&)>& execute_simple_or_pipeline, Parser* shell_parser);
 
 std::optional<int> try_execute_inline_do_block(
     const std::string& first_segment, const std::vector<std::string>& segments,
