@@ -58,24 +58,25 @@ typedef struct editor_s {
     ssize_t cur_row;              // current row that has the cursor (0 based, relative to
                                   // the prompt)
     ssize_t termw;
-    bool modified;                     // has a modification happened? (used for history navigation
-                                       // for example)
-    bool disable_undo;                 // temporarily disable auto undo (for history search)
-    bool refresh_suppressed;           // batch screen updates during high-volume input
-    bool refresh_pending;              // remember to refresh when suppression lifts
-    bool history_prefix_active;        // whether prefix-prioritized history is active
-    bool request_submit;               // request submission of current line
-    bool force_linear_line_numbers;    // final render should drop relative numbering styling
-    ssize_t history_idx;               // current index in the history
-    editstate_t* undo;                 // undo buffer
-    editstate_t* redo;                 // redo buffer
-    const char* prompt_text;           // text of the prompt before the prompt marker
-    ssize_t prompt_prefix_lines;       // number of prefix lines emitted for prompt
-    bool prompt_begins_with_newline;   // prompt started with a leading newline
-    const char* inline_right_text;     // inline right-aligned text on input line
-    ssize_t inline_right_width;        // cached width of inline right text
-    ssize_t line_number_column_width;  // cached total prefix width when line numbers are shown
-    alloc_t* mem;                      // allocator
+    bool modified;                    // has a modification happened? (used for history navigation
+                                      // for example)
+    bool disable_undo;                // temporarily disable auto undo (for history search)
+    bool refresh_suppressed;          // batch screen updates during high-volume input
+    bool refresh_pending;             // remember to refresh when suppression lifts
+    bool history_prefix_active;       // whether prefix-prioritized history is active
+    bool request_submit;              // request submission of current line
+    bool force_linear_line_numbers;   // final render should drop relative numbering styling
+    ssize_t history_idx;              // current index in the history
+    editstate_t* undo;                // undo buffer
+    editstate_t* redo;                // redo buffer
+    const char* prompt_text;          // text of the prompt before the prompt marker
+    ssize_t prompt_prefix_lines;      // number of prefix lines emitted for prompt
+    bool prompt_begins_with_newline;  // prompt started with a leading newline
+    bool replace_prompt_line_with_number;  // should row 0 use line numbers instead of prompt text?
+    const char* inline_right_text;         // inline right-aligned text on input line
+    ssize_t inline_right_width;            // cached width of inline right text
+    ssize_t line_number_column_width;      // cached total prefix width when line numbers are shown
+    alloc_t* mem;                          // allocator
     // caches
     attrbuf_t* attrs;  // reuse attribute buffers
     attrbuf_t* attrs_extra;
@@ -93,6 +94,19 @@ static bool line_numbers_enabled(const ic_env_t* env) {
         return false;
     }
     return true;
+}
+
+static bool prompt_line_should_use_line_numbers(const ic_env_t* env, const editor_t* eb) {
+    if (env == NULL || eb == NULL) {
+        return false;
+    }
+    if (!env->replace_prompt_line_with_line_number) {
+        return false;
+    }
+    if (eb->prompt_prefix_lines <= 0 && !eb->prompt_begins_with_newline) {
+        return false;
+    }
+    return line_numbers_enabled(env);
 }
 
 static void edit_generate_completions(ic_env_t* env, editor_t* eb, bool autotab);
@@ -373,19 +387,24 @@ static void edit_get_prompt_width(ic_env_t* env, editor_t* eb, bool in_extra, ss
         // todo: cache prompt widths
         ssize_t textw = bbcode_column_width(env->bbcode, eb->prompt_text);
         ssize_t markerw = bbcode_column_width(env->bbcode, env->prompt_marker);
-        *promptw = markerw + textw;
+        ssize_t base_promptw = markerw + textw;
 
-        ssize_t indent_target = compute_continuation_indent_target(env, eb, *promptw);
+        ssize_t indent_target = compute_continuation_indent_target(env, eb, base_promptw);
+        ssize_t line_prefix_width = indent_target;
         if (line_numbers_enabled(env)) {
             ssize_t cached_width =
                 (eb->line_number_column_width > 0 ? eb->line_number_column_width
                                                   : estimate_line_number_column_width(eb));
-            *cpromptw = (cached_width > indent_target ? cached_width : indent_target);
-        } else {
-            *cpromptw = indent_target;
+            if (cached_width > line_prefix_width) {
+                line_prefix_width = cached_width;
+            }
         }
 
+        *promptw = (eb->replace_prompt_line_with_number ? line_prefix_width : base_promptw);
+        *cpromptw = line_prefix_width;
+
         // Update cached inline right text width
+
         if (eb->inline_right_text != NULL) {
             eb->inline_right_width = bbcode_column_width(env->bbcode, eb->inline_right_text);
             // Try direct string length as backup
@@ -663,12 +682,17 @@ static void edit_write_prompt(ic_env_t* env, editor_t* eb, ssize_t row, bool in_
                               bool is_continuation_row) {
     if (in_extra)
         return;
+    const bool line_numbers_active = line_numbers_enabled(env);
+    const bool row_uses_prompt_text = (row == 0 && !eb->replace_prompt_line_with_number);
+    const bool row_uses_line_numbers =
+        (!in_extra && line_numbers_active && (row > 0 || eb->replace_prompt_line_with_number));
+
     bbcode_style_open(env->bbcode, "ic-prompt");
-    if (row == 0) {
+    if (row_uses_prompt_text) {
         // regular prompt text
         bbcode_print(env->bbcode, eb->prompt_text);
-    } else if (line_numbers_enabled(env)) {
-        // show line numbers for multiline input
+    } else if (row_uses_line_numbers) {
+        // show line numbers for multiline input (row 0 or continuation rows)
         bbcode_style_close(env->bbcode, NULL);
 
         ssize_t textw = bbcode_column_width(env->bbcode, eb->prompt_text);
@@ -714,7 +738,7 @@ static void edit_write_prompt(ic_env_t* env, editor_t* eb, ssize_t row, bool in_
         ic_emit_continuation_indent(env, eb->prompt_text);
     }
     // the marker (skip for line numbers since we include our own separator)
-    if (row == 0 || !line_numbers_enabled(env)) {
+    if ((row == 0 && !eb->replace_prompt_line_with_number) || !line_numbers_active) {
         bbcode_print(env->bbcode, (row == 0 ? env->prompt_marker : env->cprompt_marker));
     }
     bbcode_style_close(env->bbcode, NULL);
@@ -2198,6 +2222,7 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
     eb.prompt_begins_with_newline = (original_prompt[0] == '\n');
     char* last_line_prompt = extract_last_prompt_line(env->mem, original_prompt);
     eb.prompt_text = last_line_prompt;
+    eb.replace_prompt_line_with_number = prompt_line_should_use_line_numbers(env, &eb);
 
     eb.inline_right_text = inline_right_text;
     eb.inline_right_width = 0;
@@ -2717,6 +2742,7 @@ ic_public bool ic_current_loop_reset(const char* new_buffer, const char* new_pro
         // Print prefix lines if any
         eb->prompt_prefix_lines = print_prompt_prefix_lines(env, new_prompt);
         eb->prompt_begins_with_newline = (new_prompt[0] == '\n');
+        eb->replace_prompt_line_with_number = prompt_line_should_use_line_numbers(env, eb);
     }
 
     // Update inline right text if provided

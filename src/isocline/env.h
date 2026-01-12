@@ -94,6 +94,7 @@ struct ic_env_s {
     bool highlight_current_line_number;  // highlight the current line number differently?
     bool allow_line_numbers_with_continuation_prompt;  // keep line numbers when continuation
                                                        // prompts are active?
+    bool replace_prompt_line_with_line_number;         // swap final prompt line with line numbers?
     bool show_whitespace_characters;                   // visualize spaces while editing?
     bool prompt_cleanup;                               // after enter, rewrite prompt inline?
     bool prompt_cleanup_add_empty_line;                // optionally add empty line after

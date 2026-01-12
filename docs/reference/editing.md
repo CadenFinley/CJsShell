@@ -80,6 +80,16 @@ cjshopt line-numbers status
 > by running `cjshopt line-numbers-continuation on` (or calling
 > `ic_enable_line_numbers_with_continuation_prompt(true)` from your startup scripts) before the
 > editor initializes.
+>
+> Multi-line prompts that render banners or status lines can swap the final PS1 row with the
+> numeric gutter so that every editable line begins with `1|`, `2|`, etc. Enable this behavior with:
+>
+> ```bash
+> cjshopt line-numbers-replace-prompt on|off|status
+> ```
+>
+> The replacement only applies when line numbers are visible (and, if `PS2` is set, when
+> `cjshopt line-numbers-continuation on` is active).
 
 **Current Line Highlighting:**
 The line containing the cursor can be highlighted differently:

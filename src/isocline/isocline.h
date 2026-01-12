@@ -566,6 +566,18 @@ bool ic_enable_line_numbers_with_continuation_prompt(bool enable);
 /// Returns whether line numbers stay visible when a continuation prompt is set.
 bool ic_line_numbers_with_continuation_prompt_are_enabled(void);
 
+/// Replace the final line of a multi-line prompt with the line-number column.
+/// When enabled, the last PS1 line will be dropped whenever line numbers are
+/// displayed (e.g., when line numbers are active and either no PS2 is set or
+/// continuation line numbers are forced). This makes the `1|` gutter appear in
+/// place of the final prompt line so that every editable row shares a common
+/// prefix.
+bool ic_enable_line_number_prompt_replacement(bool enable);
+
+/// Returns whether the last line of a multi-line prompt is replaced by the
+/// line-number column.
+bool ic_line_number_prompt_replacement_is_enabled(void);
+
 /// Enable or disable highlighting of the current line number.
 /// When enabled (default), the line number for the line containing the cursor
 /// is displayed in a different color ("ic-linenumber-current" style) compared to

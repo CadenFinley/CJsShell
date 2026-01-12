@@ -260,6 +260,22 @@ ic_public bool ic_line_numbers_with_continuation_prompt_are_enabled(void) {
     return env->allow_line_numbers_with_continuation_prompt;
 }
 
+ic_public bool ic_enable_line_number_prompt_replacement(bool enable) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return false;
+    bool prev = env->replace_prompt_line_with_line_number;
+    env->replace_prompt_line_with_line_number = enable;
+    return prev;
+}
+
+ic_public bool ic_line_number_prompt_replacement_is_enabled(void) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return false;
+    return env->replace_prompt_line_with_line_number;
+}
+
 ic_public bool ic_enable_current_line_number_highlight(bool enable) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)

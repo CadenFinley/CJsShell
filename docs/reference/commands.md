@@ -522,6 +522,7 @@ Available subcommands:
 - `completion-case` - Configure completion case sensitivity
 - `completion-spell` - Toggle spell correction suggestions in completions
 - `line-numbers` - Configure line numbers in multiline input (on/off/relative/absolute)
+- `line-numbers-replace-prompt` - Replace the final prompt line with the line-number gutter
 - `current-line-number-highlight` - Toggle highlighting of the current line number
 - `hint-delay` - Set hint display delay in milliseconds
 - `completion-preview` - Configure completion preview
@@ -666,6 +667,24 @@ cjshopt line-numbers-continuation status  # Show the current setting
 ```
 
 Add the command to `~/.cjshrc` to persist the setting across sessions. Synonyms such as `enable`, `disable`, `true`, `false`, and `--status` are also accepted.
+
+#### line-numbers-replace-prompt
+
+Swap the final line of a multi-line prompt (the row that normally precedes your input) with the line-number gutter. This option only takes effect when line numbers are active and either no custom `PS2` is configured or `cjshopt line-numbers-continuation on` is in effect.
+
+```bash
+cjshopt line-numbers-replace-prompt <on|off|status>
+```
+
+Examples:
+
+```bash
+cjshopt line-numbers-replace-prompt on      # Replace the final prompt line with the numeric gutter
+cjshopt line-numbers-replace-prompt off     # Keep the final prompt line visible
+cjshopt line-numbers-replace-prompt status  # Show the current setting
+```
+
+Add the command to `~/.cjshrc` to persist the setting across sessions.
 
 #### current-line-number-highlight
 

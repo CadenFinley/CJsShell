@@ -110,6 +110,7 @@ static ic_env_t* ic_env_create(ic_malloc_fun_t* _malloc, ic_realloc_fun_t* _real
     env->relative_line_numbers = false;         // absolute numbering by default
     env->highlight_current_line_number = true;  // highlight current line number by default
     env->allow_line_numbers_with_continuation_prompt = false;  // keep legacy suppression by default
+    env->replace_prompt_line_with_line_number = false;  // keep final prompt line visible by default
     env->complete_nopreview = false;      // completion preview (inverted: false = enabled)
     env->no_hint = false;                 // hint (inverted: false = enabled)
     env->complete_autotab = false;        // auto tab (disabled by default)

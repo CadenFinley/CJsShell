@@ -20,6 +20,9 @@ void print_cjshopt_usage() {
                  "(default: enabled)\n";
     std::cout << "  line-numbers <on|off|relative|absolute|status>    Configure line numbers in "
                  "multiline input (default: enabled)\n";
+    std::cout
+        << "  line-numbers-replace-prompt <on|off|status>       Replace the final prompt line "
+           "with line numbers (default: disabled)\n";
     std::cout << "  current-line-number-highlight <on|off|status>    Configure current line number "
                  "highlighting (default: enabled)\n";
     std::cout << "  multiline-start-lines <count|status> Configure default multiline prompt "
@@ -88,6 +91,9 @@ int cjshopt_command(const std::vector<std::string>& args) {
                      "  line-numbers <on|off|relative|absolute|status>    Configure line ") +
                      "numbers in multiline input (default: enabled)",
                  std::string(
+                     "  line-numbers-replace-prompt <on|off|status>       Replace the final ") +
+                     "prompt line with line numbers (default: disabled)",
+                 std::string(
                      "  current-line-number-highlight <on|off|status>    Configure current ") +
                      "line number highlighting (default: enabled)",
                  std::string(
@@ -154,6 +160,10 @@ int cjshopt_command(const std::vector<std::string>& args) {
     }
     if (subcommand == "line-numbers-continuation") {
         return line_numbers_continuation_command(
+            std::vector<std::string>(args.begin() + 1, args.end()));
+    }
+    if (subcommand == "line-numbers-replace-prompt") {
+        return line_numbers_replace_prompt_command(
             std::vector<std::string>(args.begin() + 1, args.end()));
     }
     if (subcommand == "current-line-number-highlight") {
@@ -226,8 +236,9 @@ int cjshopt_command(const std::vector<std::string>& args) {
          "cjshopt",
          "unknown subcommand '" + subcommand + "'",
          {"Available subcommands: style_def, login-startup-arg, completion-case, completion-spell, "
-          "line-numbers, line-numbers-continuation, current-line-number-highlight, "
-          "multiline-start-lines, hint-delay, "
+          "line-numbers, line-numbers-continuation, line-numbers-replace-prompt, "
+          "current-line-number-highlight, multiline-start-lines, hint-delay, "
+
           "completion-preview, visible-whitespace, hint, multiline-indent, multiline, inline-help, "
 
           "auto-tab, prompt-newline, prompt-cleanup, prompt-cleanup-newline, "

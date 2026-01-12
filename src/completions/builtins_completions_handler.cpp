@@ -312,8 +312,11 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
              make_subcommand("completion-case", "Configure completion case sensitivity"),
              make_subcommand("completion-spell", "Configure completion spell correction"),
              make_subcommand("line-numbers", "Configure multiline line numbers"),
+             make_subcommand("line-numbers-replace-prompt",
+                             "Replace the final prompt line with line numbers"),
              make_subcommand("line-numbers-continuation",
                              "Control line numbers during continuation prompts"),
+
              make_subcommand("current-line-number-highlight",
                              "Toggle current line number highlighting"),
              make_subcommand("multiline-start-lines", "Set default multiline prompt height"),
@@ -447,6 +450,10 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                  make_subcommand("off", "Hide line numbers"),
                  make_subcommand("relative", "Show relative line numbers"),
                  make_subcommand("absolute", "Show absolute line numbers"),
+                 make_subcommand("status", "Show current setting")});
+        add_doc("cjshopt-line-numbers-replace-prompt", "",
+                {make_subcommand("on", "Replace the final prompt line with line numbers"),
+                 make_subcommand("off", "Keep the final prompt line visible"),
                  make_subcommand("status", "Show current setting")});
         add_doc("cjshopt-line-numbers-continuation", "",
                 {make_subcommand("on", "Show line numbers with continuation prompts"),

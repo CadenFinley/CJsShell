@@ -320,6 +320,27 @@ int line_numbers_continuation_command(const std::vector<std::string>& args) {
     return handle_toggle_command(config, args);
 }
 
+int line_numbers_replace_prompt_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: line-numbers-replace-prompt <on|off|status>", "Examples:",
+        "  line-numbers-replace-prompt on      Replace the final prompt line with line numbers",
+        "  line-numbers-replace-prompt off     Keep the final prompt line visible",
+        "  line-numbers-replace-prompt status  Show the current setting"};
+
+    static const ToggleCommandConfig config{
+        "line-numbers-replace-prompt",
+        usage_lines,
+        []() { return ic_line_number_prompt_replacement_is_enabled(); },
+        [](bool enable) { ic_enable_line_number_prompt_replacement(enable); },
+        "Line number prompt replacement",
+        false,
+        "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
+        {},
+        {}};
+
+    return handle_toggle_command(config, args);
+}
+
 int hint_delay_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {
         "Usage: hint-delay <milliseconds>",

@@ -145,6 +145,30 @@ static bool test_line_number_continuation_prompt_toggle(void) {
     return true;
 }
 
+static bool test_line_number_prompt_replacement_toggle(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    env->replace_prompt_line_with_line_number = false;
+    bool prev = ic_enable_line_number_prompt_replacement(true);
+    EXPECT_FALSE(prev, "enabling prompt line replacement should report previously disabled state");
+    EXPECT_TRUE(env->replace_prompt_line_with_line_number,
+                "environment flag should mirror requested enablement");
+    EXPECT_TRUE(ic_line_number_prompt_replacement_is_enabled(),
+                "getter should report enabled state");
+
+    bool prev_disable = ic_enable_line_number_prompt_replacement(false);
+    EXPECT_TRUE(prev_disable,
+                "disabling prompt line replacement should report prior enabled state");
+    EXPECT_FALSE(env->replace_prompt_line_with_line_number,
+                 "environment flag should be cleared after disabling");
+    EXPECT_FALSE(ic_line_number_prompt_replacement_is_enabled(),
+                 "getter should report disabled state");
+
+    return true;
+}
+
 static bool test_visible_whitespace_marker(void) {
     ic_env_t* env = ensure_env();
     if (env == NULL)
@@ -413,6 +437,7 @@ static const test_case_t kTests[] = {
     {"multiline_toggle", test_multiline_toggle},
     {"line_number_modes", test_line_number_modes},
     {"line_number_continuation_prompt_toggle", test_line_number_continuation_prompt_toggle},
+    {"line_number_prompt_replacement_toggle", test_line_number_prompt_replacement_toggle},
     {"visible_whitespace_marker", test_visible_whitespace_marker},
     {"prompt_cleanup_modes", test_prompt_cleanup_modes},
     {"multiline_start_line_count_clamp", test_multiline_start_line_count_clamp},

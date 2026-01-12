@@ -276,6 +276,8 @@ static void edit_history_fuzzy_search(ic_env_t* env, editor_t* eb, char* initial
     eb->disable_undo = true;
     bool old_hint = ic_enable_hint(false);
     const char* prompt_text = eb->prompt_text;
+    bool prompt_replacement = eb->replace_prompt_line_with_number;
+    eb->replace_prompt_line_with_number = false;
     eb->prompt_text = "history search: ";
 
     history_match_t* matches =
@@ -284,6 +286,7 @@ static void edit_history_fuzzy_search(ic_env_t* env, editor_t* eb, char* initial
         term_beep(env->term);
         eb->disable_undo = false;
         eb->prompt_text = prompt_text;
+        eb->replace_prompt_line_with_number = prompt_replacement;
         ic_enable_hint(old_hint);
         return;
     }
@@ -562,6 +565,7 @@ again:;
         history_snapshot_free(env->history, &snap);
         mem_free(env->mem, matches);
         eb->prompt_text = prompt_text;
+        eb->replace_prompt_line_with_number = prompt_replacement;
         ic_enable_hint(old_hint);
         edit_refresh(env, eb);
         return;
@@ -583,6 +587,7 @@ again:;
         mem_free(env->mem, matches);
         eb->disable_undo = false;
         eb->prompt_text = prompt_text;
+        eb->replace_prompt_line_with_number = prompt_replacement;
         ic_enable_hint(old_hint);
         edit_refresh(env, eb);
 
@@ -606,6 +611,7 @@ again:;
         mem_free(env->mem, matches);
         eb->disable_undo = false;
         eb->prompt_text = prompt_text;
+        eb->replace_prompt_line_with_number = prompt_replacement;
         ic_enable_hint(old_hint);
         edit_refresh(env, eb);
         return;
@@ -720,6 +726,8 @@ static void edit_history_search_incremental(ic_env_t* env, editor_t* eb, char* i
     eb->disable_undo = true;
     bool old_hint = ic_enable_hint(false);
     const char* prompt_text = eb->prompt_text;
+    bool prompt_replacement = eb->replace_prompt_line_with_number;
+    eb->replace_prompt_line_with_number = false;
     eb->prompt_text = "history search";
 
     hsearch_t* hs = NULL;
@@ -839,6 +847,7 @@ again:
     eb->disable_undo = false;
     hsearch_done(env->mem, hs);
     eb->prompt_text = prompt_text;
+    eb->replace_prompt_line_with_number = prompt_replacement;
     ic_enable_hint(old_hint);
     edit_refresh(env, eb);
     if (c != 0)

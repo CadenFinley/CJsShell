@@ -14,6 +14,7 @@ int completion_case_command(const std::vector<std::string>& args);
 int completion_spell_command(const std::vector<std::string>& args);
 int line_numbers_command(const std::vector<std::string>& args);
 int line_numbers_continuation_command(const std::vector<std::string>& args);
+int line_numbers_replace_prompt_command(const std::vector<std::string>& args);
 int current_line_number_highlight_command(const std::vector<std::string>& args);
 int hint_delay_command(const std::vector<std::string>& args);
 int completion_preview_command(const std::vector<std::string>& args);
