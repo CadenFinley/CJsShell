@@ -82,6 +82,8 @@ typedef struct editor_s {
     attrbuf_t* attrs_extra;
 } editor_t;
 
+static ssize_t count_logical_lines(stringbuf_t* sbuf);
+
 static bool has_continuation_prompt_marker(const ic_env_t* env) {
     return (env != NULL && env->cprompt_marker != NULL && env->cprompt_marker[0] != '\0');
 }
@@ -106,7 +108,21 @@ static bool prompt_line_should_use_line_numbers(const ic_env_t* env, const edito
     if (eb->prompt_prefix_lines <= 0 && !eb->prompt_begins_with_newline) {
         return false;
     }
-    return line_numbers_enabled(env);
+    if (!line_numbers_enabled(env)) {
+        return false;
+    }
+
+    bool input_has_content = (eb->input != NULL && sbuf_len(eb->input) > 0);
+    bool multiple_lines_displayed = (eb->cur_rows > 1);
+    if (!multiple_lines_displayed && eb->input != NULL) {
+        multiple_lines_displayed = (count_logical_lines(eb->input) > 1);
+    }
+
+    if (!input_has_content && !multiple_lines_displayed) {
+        return false;
+    }
+
+    return true;
 }
 
 static void edit_generate_completions(ic_env_t* env, editor_t* eb, bool autotab);
@@ -1086,6 +1102,7 @@ static ssize_t logical_line_at_pos(stringbuf_t* sbuf, ssize_t pos) {
 }
 
 static void edit_refresh(ic_env_t* env, editor_t* eb) {
+    eb->replace_prompt_line_with_number = prompt_line_should_use_line_numbers(env, eb);
     // calculate the new cursor row and total rows needed
     ssize_t promptw, cpromptw;
     edit_get_prompt_width(env, eb, false, &promptw, &cpromptw);
