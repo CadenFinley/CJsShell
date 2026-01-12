@@ -18,6 +18,7 @@
 #include <iostream>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <string_view>
 
 #include "error_out.h"
@@ -176,6 +177,59 @@ std::shared_ptr<JobControlJob> resolve_job_argument(const std::vector<std::strin
     return nullptr;
 }
 
+struct ResolvedJob {
+    int job_id;
+    std::shared_ptr<JobControlJob> job;
+};
+
+std::optional<ResolvedJob> resolve_control_job_target(const std::vector<std::string>& args,
+                                                      JobManager& job_manager) {
+    int job_id = job_manager.get_current_job();
+    auto job = resolve_job_argument(args, job_manager, job_id);
+    if (!job) {
+        return std::nullopt;
+    }
+    return ResolvedJob{job->job_id, job};
+}
+
+std::optional<int> interpret_wait_status(int status) {
+    if (WIFEXITED(status)) {
+        return WEXITSTATUS(status);
+    }
+    if (WIFSIGNALED(status)) {
+        return 128 + WTERMSIG(status);
+    }
+    return std::nullopt;
+}
+
+std::optional<int> wait_for_job_and_remove(const std::shared_ptr<JobControlJob>& job,
+                                           JobManager& job_manager) {
+    int status = 0;
+    std::optional<int> last_exit_status;
+    for (pid_t pid : job->pids) {
+        if (waitpid(pid, &status, 0) > 0) {
+            auto interpreted = interpret_wait_status(status);
+            if (interpreted.has_value()) {
+                last_exit_status = interpreted;
+            }
+        }
+    }
+    job_manager.remove_job(job->job_id);
+    return last_exit_status;
+}
+
+std::optional<int> parse_job_specifier(const std::string& target) {
+    if (target.empty() || target[0] != '%') {
+        return std::nullopt;
+    }
+
+    try {
+        return std::stoi(target.substr(1));
+    } catch (...) {
+        return std::nullopt;
+    }
+}
+
 }  // namespace
 
 namespace job_utils {
@@ -286,6 +340,18 @@ std::shared_ptr<JobControlJob> JobManager::get_job_by_pid(pid_t pid) {
     for (const auto& pair : jobs) {
         const auto& job = pair.second;
         if (std::find(job->pids.begin(), job->pids.end(), pid) != job->pids.end()) {
+            return job;
+        }
+    }
+    return nullptr;
+}
+
+std::shared_ptr<JobControlJob> JobManager::get_job_by_pid_or_pgid(pid_t id) {
+    for (const auto& pair : jobs) {
+        const auto& job = pair.second;
+        const bool matches_process =
+            job->pgid == id || std::find(job->pids.begin(), job->pids.end(), id) != job->pids.end();
+        if (matches_process) {
             return job;
         }
     }
@@ -452,50 +518,44 @@ bool JobManager::foreground_job_reads_stdin() {
 }
 
 void JobManager::mark_job_reads_stdin(pid_t pid, bool reads_stdin) {
-    for (const auto& pair : jobs) {
-        const auto& job = pair.second;
-        if (job->pgid == pid ||
-            std::find(job->pids.begin(), job->pids.end(), pid) != job->pids.end()) {
-            if (job->reads_stdin != reads_stdin) {
-                job->reads_stdin = reads_stdin;
-            }
-            return;
-        }
+    auto job = get_job_by_pid_or_pgid(pid);
+    if (!job) {
+        return;
+    }
+
+    if (job->reads_stdin != reads_stdin) {
+        job->reads_stdin = reads_stdin;
     }
 }
 
 void JobManager::record_stdin_signal(pid_t pid, int signal_number) {
-    auto now = std::chrono::steady_clock::now();
-    for (const auto& pair : jobs) {
-        const auto& job = pair.second;
-        if (job->pgid == pid ||
-            std::find(job->pids.begin(), job->pids.end(), pid) != job->pids.end()) {
-            job->reads_stdin = true;
-            job->awaiting_stdin_signal = true;
-            const auto clamped_signal = std::clamp(signal_number, 0, 255);
-            job->last_stdin_signal = static_cast<std::uint8_t>(clamped_signal);
-            if (job->stdin_signal_count < std::numeric_limits<std::uint16_t>::max()) {
-                job->stdin_signal_count = static_cast<std::uint16_t>(job->stdin_signal_count + 1);
-            }
-            job->last_stdin_signal_time = now;
-            return;
-        }
+    auto job = get_job_by_pid_or_pgid(pid);
+    if (!job) {
+        return;
     }
+
+    auto now = std::chrono::steady_clock::now();
+    job->reads_stdin = true;
+    job->awaiting_stdin_signal = true;
+    const auto clamped_signal = std::clamp(signal_number, 0, 255);
+    job->last_stdin_signal = static_cast<std::uint8_t>(clamped_signal);
+    if (job->stdin_signal_count < std::numeric_limits<std::uint16_t>::max()) {
+        job->stdin_signal_count = static_cast<std::uint16_t>(job->stdin_signal_count + 1);
+    }
+    job->last_stdin_signal_time = now;
 }
 
 void JobManager::clear_stdin_signal(pid_t pid) {
-    for (const auto& pair : jobs) {
-        const auto& job = pair.second;
-        if (job->pgid == pid ||
-            std::find(job->pids.begin(), job->pids.end(), pid) != job->pids.end()) {
-            if (job->awaiting_stdin_signal || job->stdin_signal_count > 0) {
-                job->awaiting_stdin_signal = false;
-                job->last_stdin_signal = 0;
-                job->stdin_signal_count = 0;
-                job->last_stdin_signal_time = std::chrono::steady_clock::time_point::min();
-            }
-            return;
-        }
+    auto job = get_job_by_pid_or_pgid(pid);
+    if (!job) {
+        return;
+    }
+
+    if (job->awaiting_stdin_signal || job->stdin_signal_count > 0) {
+        job->awaiting_stdin_signal = false;
+        job->last_stdin_signal = 0;
+        job->stdin_signal_count = 0;
+        job->last_stdin_signal_time = std::chrono::steady_clock::time_point::min();
     }
 }
 
@@ -623,12 +683,13 @@ int fg_command(const std::vector<std::string>& args) {
     auto& job_manager = JobManager::instance();
     job_manager.update_job_status();
 
-    int job_id = job_manager.get_current_job();
-    auto job = resolve_job_argument(args, job_manager, job_id);
-    if (!job) {
+    auto resolved_job = resolve_control_job_target(args, job_manager);
+    if (!resolved_job) {
         return 1;
     }
-    job_id = job->job_id;
+
+    auto job = resolved_job->job;
+    int job_id = resolved_job->job_id;
 
     if (isatty(STDIN_FILENO) != 0) {
         if (tcsetpgrp(STDIN_FILENO, job->pgid) < 0) {
@@ -690,12 +751,13 @@ int bg_command(const std::vector<std::string>& args) {
     auto& job_manager = JobManager::instance();
     job_manager.update_job_status();
 
-    int job_id = job_manager.get_current_job();
-    auto job = resolve_job_argument(args, job_manager, job_id);
-    if (!job) {
+    auto resolved_job = resolve_control_job_target(args, job_manager);
+    if (!resolved_job) {
         return 1;
     }
-    job_id = job->job_id;
+
+    auto job = resolved_job->job;
+    int job_id = resolved_job->job_id;
 
     if (job->state != JobState::STOPPED) {
         print_error({ErrorType::INVALID_ARGUMENT,
@@ -730,18 +792,13 @@ int wait_command(const std::vector<std::string>& args) {
         int last_exit_status = 0;
 
         for (const auto& job : jobs) {
-            if (job->state == JobState::RUNNING) {
-                int status = 0;
-                for (pid_t pid : job->pids) {
-                    if (waitpid(pid, &status, 0) > 0) {
-                        if (WIFEXITED(status)) {
-                            last_exit_status = WEXITSTATUS(status);
-                        } else if (WIFSIGNALED(status)) {
-                            last_exit_status = 128 + WTERMSIG(status);
-                        }
-                    }
-                }
-                job_manager.remove_job(job->job_id);
+            if (job->state != JobState::RUNNING) {
+                continue;
+            }
+
+            auto job_exit = wait_for_job_and_remove(job, job_manager);
+            if (job_exit.has_value()) {
+                last_exit_status = job_exit.value();
             }
         }
 
@@ -752,33 +809,26 @@ int wait_command(const std::vector<std::string>& args) {
     for (size_t i = 1; i < args.size(); ++i) {
         std::string target = args[i];
 
-        if (target.substr(0, 1) == "%") {
-            try {
-                int job_id = std::stoi(target.substr(1));
-                auto job = job_manager.get_job(job_id);
-                if (!job) {
-                    std::cerr << "wait: %" << job_id << ": no such job" << '\n';
-                    return 1;
-                }
-
-                int status = 0;
-                for (pid_t pid : job->pids) {
-                    if (waitpid(pid, &status, 0) > 0) {
-                        if (WIFEXITED(status)) {
-                            last_exit_status = WEXITSTATUS(status);
-                        } else if (WIFSIGNALED(status)) {
-                            last_exit_status = 128 + WTERMSIG(status);
-                        }
-                    }
-                }
-
-                job_manager.remove_job(job_id);
-            } catch (...) {
+        if (!target.empty() && target[0] == '%') {
+            auto parsed_job_id = parse_job_specifier(target);
+            if (!parsed_job_id.has_value()) {
                 print_error({ErrorType::INVALID_ARGUMENT,
                              target,
                              "Arguments must be process or job IDs",
                              {"Use 'jobs' to list available jobs"}});
                 return 1;
+            }
+
+            int job_id = parsed_job_id.value();
+            auto job = job_manager.get_job(job_id);
+            if (!job) {
+                std::cerr << "wait: %" << job_id << ": no such job" << '\n';
+                return 1;
+            }
+
+            auto job_exit = wait_for_job_and_remove(job, job_manager);
+            if (job_exit.has_value()) {
+                last_exit_status = job_exit.value();
             }
         } else {
             try {
@@ -789,10 +839,9 @@ int wait_command(const std::vector<std::string>& args) {
                     return 1;
                 }
 
-                if (WIFEXITED(status)) {
-                    last_exit_status = WEXITSTATUS(status);
-                } else if (WIFSIGNALED(status)) {
-                    last_exit_status = 128 + WTERMSIG(status);
+                auto interpreted = interpret_wait_status(status);
+                if (interpreted.has_value()) {
+                    last_exit_status = interpreted.value();
                 }
 
                 job_manager.mark_pid_completed(pid, status);
@@ -862,26 +911,28 @@ int kill_command(const std::vector<std::string>& args) {
     for (size_t i = start_index; i < args.size(); ++i) {
         std::string target = args[i];
 
-        if (target.substr(0, 1) == "%") {
-            try {
-                int job_id = std::stoi(target.substr(1));
-                auto job = job_manager.get_job(job_id);
-                if (!job) {
-                    print_error({ErrorType::INVALID_ARGUMENT,
-                                 target,
-                                 "No such job",
-                                 {"Use 'jobs' to list available jobs"}});
-                    continue;
-                }
-
-                if (killpg(job->pgid, signal) < 0) {
-                    perror("kill");
-                }
-            } catch (...) {
+        if (!target.empty() && target[0] == '%') {
+            auto parsed_job_id = parse_job_specifier(target);
+            if (!parsed_job_id.has_value()) {
                 print_error({ErrorType::INVALID_ARGUMENT,
                              target,
                              "Arguments must be process or job IDs",
                              {"Use 'jobs' to list available jobs"}});
+                continue;
+            }
+
+            int job_id = parsed_job_id.value();
+            auto job = job_manager.get_job(job_id);
+            if (!job) {
+                print_error({ErrorType::INVALID_ARGUMENT,
+                             target,
+                             "No such job",
+                             {"Use 'jobs' to list available jobs"}});
+                continue;
+            }
+
+            if (killpg(job->pgid, signal) < 0) {
+                perror("kill");
             }
         } else {
             try {

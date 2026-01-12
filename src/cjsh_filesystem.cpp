@@ -223,14 +223,26 @@ Result<std::string> create_temp_file(const std::string& prefix) {
     return Result<std::string>::ok(temp_path);
 }
 
-Result<void> write_temp_file(const std::string& path, const std::string& content) {
+namespace {
+Result<void> write_content_with_permissions(const std::string& path, std::string_view content,
+                                            bool enforce_secure_permissions) {
     auto open_result = safe_open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
     if (open_result.is_error()) {
         return Result<void>::error(open_result.error());
     }
 
     int fd = open_result.value();
-    auto write_result = write_all(fd, std::string_view{content});
+
+    if (enforce_secure_permissions) {
+        if (::fchmod(fd, S_IRUSR | S_IWUSR) == -1) {
+            std::string error_message =
+                "Failed to set secure permissions on '" + path + "': " + describe_errno(errno);
+            safe_close(fd);
+            return Result<void>::error(error_message);
+        }
+    }
+
+    auto write_result = write_all(fd, content);
     safe_close(fd);
 
     if (write_result.is_error()) {
@@ -238,33 +250,19 @@ Result<void> write_temp_file(const std::string& path, const std::string& content
     }
 
     return Result<void>::ok();
+}
+}  // namespace
+
+Result<void> write_temp_file(const std::string& path, const std::string& content) {
+    return write_content_with_permissions(path, std::string_view{content}, false);
+}
+
+Result<void> write_file_content(const std::string& path, const std::string& content) {
+    return write_content_with_permissions(path, std::string_view{content}, true);
 }
 
 void cleanup_temp_file(const std::string& path) {
     (void)std::remove(path.c_str());
-}
-
-Result<void> write_file_content(const std::string& path, const std::string& content) {
-    auto open_result = safe_open(path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
-    if (open_result.is_error()) {
-        return Result<void>::error(open_result.error());
-    }
-
-    int fd = open_result.value();
-    if (::fchmod(fd, S_IRUSR | S_IWUSR) == -1) {
-        std::string error_message =
-            "Failed to set secure permissions on '" + path + "': " + describe_errno(errno);
-        safe_close(fd);
-        return Result<void>::error(error_message);
-    }
-    auto write_result = write_all(fd, std::string_view{content});
-    safe_close(fd);
-
-    if (write_result.is_error()) {
-        return Result<void>::error(write_result.error());
-    }
-
-    return Result<void>::ok();
 }
 
 Result<void> write_all(int fd, std::string_view data) {
@@ -375,6 +373,22 @@ bool command_exists(const std::string& command_path) {
     return false;
 }
 
+namespace {
+template <typename Callback>
+bool for_each_path_segment(std::string_view path_str, Callback&& callback) {
+    size_t start = 0;
+    while (start < path_str.size()) {
+        size_t pos = path_str.find(':', start);
+        size_t end = (pos != std::string::npos) ? pos : path_str.size();
+        if (callback(path_str.substr(start, end - start))) {
+            return true;
+        }
+        start = (pos != std::string::npos) ? pos + 1 : path_str.size();
+    }
+    return false;
+}
+}  // namespace
+
 bool resolves_to_executable(const std::string& name, const std::string& cwd) {
     if (name.empty()) {
         return false;
@@ -396,30 +410,14 @@ bool resolves_to_executable(const std::string& name, const std::string& cwd) {
     }
 
     std::string path_str(path_env);
-    size_t start = 0;
 
-    while (start < path_str.size()) {
-        size_t pos = path_str.find(':', start);
-        size_t end = (pos != std::string::npos) ? pos : path_str.size();
+    bool found = for_each_path_segment(path_str, [&](std::string_view raw_segment) {
+        fs::path base = raw_segment.empty() ? fs::path(".") : fs::path(raw_segment);
+        fs::path path_candidate = base / name;
+        return path_is_executable(path_candidate);
+    });
 
-        std::string segment;
-        if (end > start) {
-            segment.assign(path_str, start, end - start);
-        }
-
-        if (segment.empty()) {
-            segment = ".";
-        }
-
-        fs::path path_candidate = fs::path(segment) / name;
-        if (path_is_executable(path_candidate)) {
-            return true;
-        }
-
-        start = (pos != std::string::npos) ? pos + 1 : path_str.size();
-    }
-
-    return false;
+    return found;
 }
 
 bool path_is_directory_candidate(const std::string& value, const std::string& cwd) {
@@ -473,68 +471,59 @@ std::vector<std::string> get_executables_in_path() {
     std::string path_str(path_env);
     std::unordered_set<std::string> seen_executables;
 
-    size_t start = 0;
-    while (start < path_str.size()) {
-        size_t pos = path_str.find(':', start);
-        size_t end = (pos != std::string::npos) ? pos : path_str.size();
+    for_each_path_segment(path_str, [&](std::string_view raw_segment) {
+        if (raw_segment.empty()) {
+            return false;
+        }
 
-        if (end > start) {
-            std::string dir(path_str, start, end - start);
+        fs::path directory_path(raw_segment);
+        std::error_code ec;
 
-            if (!dir.empty()) {
-                fs::path directory_path(dir);
-                std::error_code ec;
+        if (!fs::exists(directory_path, ec) || ec) {
+            return false;
+        }
 
-                if (!fs::exists(directory_path, ec) || ec) {
-                    start = (pos != std::string::npos) ? pos + 1 : path_str.size();
-                    continue;
-                }
+        ec.clear();
+        if (!fs::is_directory(directory_path, ec) || ec) {
+            return false;
+        }
 
+        fs::directory_iterator it(directory_path, fs::directory_options::skip_permission_denied,
+                                  ec);
+        if (ec) {
+            return false;
+        }
+
+        for (; it != fs::directory_iterator(); it.increment(ec)) {
+            if (ec) {
+                break;
+            }
+
+            const auto& entry = *it;
+            auto status = entry.status(ec);
+            if (ec) {
                 ec.clear();
-                if (!fs::is_directory(directory_path, ec) || ec) {
-                    start = (pos != std::string::npos) ? pos + 1 : path_str.size();
-                    continue;
-                }
+                continue;
+            }
 
-                fs::directory_iterator it(directory_path,
-                                          fs::directory_options::skip_permission_denied, ec);
-                if (ec) {
-                    start = (pos != std::string::npos) ? pos + 1 : path_str.size();
-                    continue;
-                }
+            if (!fs::is_regular_file(status)) {
+                continue;
+            }
 
-                for (; it != fs::directory_iterator(); it.increment(ec)) {
-                    if (ec) {
-                        break;
-                    }
+            auto perms = status.permissions();
+            constexpr auto exec_mask =
+                fs::perms::owner_exec | fs::perms::group_exec | fs::perms::others_exec;
 
-                    const auto& entry = *it;
-                    auto status = entry.status(ec);
-                    if (ec) {
-                        ec.clear();
-                        continue;
-                    }
-
-                    if (!fs::is_regular_file(status)) {
-                        continue;
-                    }
-
-                    auto perms = status.permissions();
-                    constexpr auto exec_mask =
-                        fs::perms::owner_exec | fs::perms::group_exec | fs::perms::others_exec;
-
-                    if ((perms & exec_mask) != fs::perms::none) {
-                        std::string exec_name = entry.path().filename().string();
-                        if (seen_executables.insert(exec_name).second) {
-                            executables.push_back(exec_name);
-                        }
-                    }
+            if ((perms & exec_mask) != fs::perms::none) {
+                std::string exec_name = entry.path().filename().string();
+                if (seen_executables.insert(exec_name).second) {
+                    executables.push_back(exec_name);
                 }
             }
         }
 
-        start = (pos != std::string::npos) ? pos + 1 : path_str.size();
-    }
+        return false;
+    });
 
     return executables;
 }
@@ -632,7 +621,8 @@ std::string find_executable_in_path(const std::string& name) {
     return "";
 }
 
-bool create_profile_file(const fs::path& target_path) {
+namespace {
+bool write_configuration_file(const fs::path& target_path, const std::string& content) {
     if (!target_path.parent_path().empty()) {
         std::error_code dir_error;
         fs::create_directories(target_path.parent_path(), dir_error);
@@ -645,6 +635,19 @@ bool create_profile_file(const fs::path& target_path) {
         }
     }
 
+    auto write_result = write_file_content(target_path.string(), content);
+
+    if (!write_result.is_ok()) {
+        print_error(
+            {ErrorType::RUNTIME_ERROR, "", write_result.error(), {"Check file permissions"}});
+        return false;
+    }
+
+    return true;
+}
+}  // namespace
+
+bool create_profile_file(const fs::path& target_path) {
     std::string profile_content =
         "#!/usr/bin/env cjsh\n"
         "# cjsh Configuration File\n"
@@ -687,30 +690,10 @@ bool create_profile_file(const fs::path& target_path) {
         "test "
         "mode\n";
 
-    auto write_result = write_file_content(target_path.string(), profile_content);
-
-    if (!write_result.is_ok()) {
-        print_error(
-            {ErrorType::RUNTIME_ERROR, "", write_result.error(), {"Check file permissions"}});
-        return false;
-    }
-
-    return true;
+    return write_configuration_file(target_path, profile_content);
 }
 
 bool create_source_file(const fs::path& target_path) {
-    if (!target_path.parent_path().empty()) {
-        std::error_code dir_error;
-        fs::create_directories(target_path.parent_path(), dir_error);
-        if (dir_error) {
-            print_error({ErrorType::RUNTIME_ERROR,
-                         target_path.parent_path().string(),
-                         "Failed to prepare configuration directory: " + dir_error.message(),
-                         {"Check file permissions"}});
-            return false;
-        }
-    }
-
     std::string source_content =
         "#!/usr/bin/env cjsh\n"
         "# cjsh Source File\n"
@@ -757,30 +740,10 @@ bool create_source_file(const fs::path& target_path) {
         "# Run 'cjshopt keybind --help' for more information\n"
         "\n";
 
-    auto write_result = write_file_content(target_path.string(), source_content);
-
-    if (!write_result.is_ok()) {
-        print_error(
-            {ErrorType::RUNTIME_ERROR, "", write_result.error(), {"Check file permissions"}});
-        return false;
-    }
-
-    return true;
+    return write_configuration_file(target_path, source_content);
 }
 
 bool create_logout_file(const fs::path& target_path) {
-    if (!target_path.parent_path().empty()) {
-        std::error_code dir_error;
-        fs::create_directories(target_path.parent_path(), dir_error);
-        if (dir_error) {
-            print_error({ErrorType::RUNTIME_ERROR,
-                         target_path.parent_path().string(),
-                         "Failed to prepare configuration directory: " + dir_error.message(),
-                         {"Check file permissions"}});
-            return false;
-        }
-    }
-
     std::string logout_content =
         "#!/usr/bin/env cjsh\n"
         "# cjsh Logout File\n"
@@ -791,15 +754,7 @@ bool create_logout_file(const fs::path& target_path) {
         "# Example: Display a goodbye message\n"
         "# echo \"Thank you for using cjsh! Goodbye!\"\n";
 
-    auto write_result = write_file_content(target_path.string(), logout_content);
-
-    if (!write_result.is_ok()) {
-        print_error(
-            {ErrorType::RUNTIME_ERROR, "", write_result.error(), {"Check file permissions"}});
-        return false;
-    }
-
-    return true;
+    return write_configuration_file(target_path, logout_content);
 }
 
 bool init_interactive_filesystem() {
