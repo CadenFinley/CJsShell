@@ -96,6 +96,7 @@ static void edit_history_at(ic_env_t* env, editor_t* eb, int ofs) {
 
         if (prefix != NULL) {
             ssize_t search_idx = current_idx + direction;
+            bool match_found = false;
             while (search_idx >= 0 && search_idx < total_history) {
                 const history_entry_t* candidate_entry = history_snapshot_get(&snap, search_idx);
                 if (candidate_entry == NULL || candidate_entry->command == NULL) {
@@ -104,9 +105,23 @@ static void edit_history_at(ic_env_t* env, editor_t* eb, int ofs) {
                 if (strncmp(candidate_entry->command, prefix, (size_t)prefix_len) == 0 &&
                     candidate_entry->command[prefix_len] != '\0') {
                     candidate_idx = search_idx;
+                    match_found = true;
                     break;
                 }
                 search_idx += direction;
+            }
+
+            if (!match_found && direction > 0) {
+                if (eb->history_prefix != NULL) {
+                    sbuf_clear(eb->history_prefix);
+                }
+                eb->history_prefix_active = false;
+                prefix = NULL;
+                prefix_len = 0;
+                eb->history_idx = 0;
+                current_idx = 0;
+                --step_idx;
+                continue;
             }
         }
 
