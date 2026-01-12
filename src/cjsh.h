@@ -5,6 +5,7 @@
 #include <vector>
 
 class Shell;
+extern std::unique_ptr<Shell> g_shell;
 
 extern const bool PRE_RELEASE;
 extern const char* const c_version_base;
@@ -17,9 +18,6 @@ std::string get_version();
 
 extern bool g_exit_flag;
 extern bool g_startup_active;
-
-class Shell;
-extern std::unique_ptr<Shell> g_shell;
 
 std::vector<std::string>& startup_args();
 
