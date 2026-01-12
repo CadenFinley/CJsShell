@@ -292,6 +292,7 @@ static void edit_history_fuzzy_search(ic_env_t* env, editor_t* eb, char* initial
     bool old_hint = ic_enable_hint(false);
     const char* prompt_text = eb->prompt_text;
     bool prompt_replacement = eb->replace_prompt_line_with_number;
+    const ssize_t saved_line_number_width = eb->line_number_column_width;
     eb->replace_prompt_line_with_number = false;
     eb->prompt_text = "history search: ";
 
@@ -302,6 +303,7 @@ static void edit_history_fuzzy_search(ic_env_t* env, editor_t* eb, char* initial
         eb->disable_undo = false;
         eb->prompt_text = prompt_text;
         eb->replace_prompt_line_with_number = prompt_replacement;
+        eb->line_number_column_width = saved_line_number_width;
         ic_enable_hint(old_hint);
         return;
     }
@@ -581,6 +583,7 @@ again:;
         mem_free(env->mem, matches);
         eb->prompt_text = prompt_text;
         eb->replace_prompt_line_with_number = prompt_replacement;
+        eb->line_number_column_width = saved_line_number_width;
         ic_enable_hint(old_hint);
         edit_refresh(env, eb);
         return;
@@ -603,6 +606,7 @@ again:;
         eb->disable_undo = false;
         eb->prompt_text = prompt_text;
         eb->replace_prompt_line_with_number = prompt_replacement;
+        eb->line_number_column_width = saved_line_number_width;
         ic_enable_hint(old_hint);
         edit_refresh(env, eb);
 
@@ -627,6 +631,7 @@ again:;
         eb->disable_undo = false;
         eb->prompt_text = prompt_text;
         eb->replace_prompt_line_with_number = prompt_replacement;
+        eb->line_number_column_width = saved_line_number_width;
         ic_enable_hint(old_hint);
         edit_refresh(env, eb);
         return;
@@ -742,6 +747,7 @@ static void edit_history_search_incremental(ic_env_t* env, editor_t* eb, char* i
     bool old_hint = ic_enable_hint(false);
     const char* prompt_text = eb->prompt_text;
     bool prompt_replacement = eb->replace_prompt_line_with_number;
+    const ssize_t saved_line_number_width = eb->line_number_column_width;
     eb->replace_prompt_line_with_number = false;
     eb->prompt_text = "history search";
 
@@ -863,8 +869,10 @@ again:
     hsearch_done(env->mem, hs);
     eb->prompt_text = prompt_text;
     eb->replace_prompt_line_with_number = prompt_replacement;
+    eb->line_number_column_width = saved_line_number_width;
     ic_enable_hint(old_hint);
     edit_refresh(env, eb);
+
     if (c != 0)
         tty_code_pushback(env->tty, c);
 }
