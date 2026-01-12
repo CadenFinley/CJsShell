@@ -1642,11 +1642,17 @@ CJ's Shell automatically enters multiline mode when:
 by running <code>cjshopt line-numbers-continuation on</code> (or calling
 <code>ic_enable_line_numbers_with_continuation_prompt(true)</code> from your startup scripts) before the
 editor initializes.</p>
+<p>Multi-line prompts that render banners or status lines can swap the final PS1 row with the
+numeric gutter so that every editable line begins with <code>1|</code>, <code>2|</code>, etc. Enable this behavior with:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>cjshopt<span class="w"> </span>line-numbers-replace-prompt<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</span></code></pre></div>
+<p>The replacement only applies when line numbers are visible (and, if <code>PS2</code> is set, when
+<code>cjshopt line-numbers-continuation on</code> is active).</p>
 </blockquote>
 <p><strong>Current Line Highlighting:</strong>
 The line containing the cursor can be highlighted differently:
-</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Enable/disable current line number highlighting (enabled by default)</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>cjshopt<span class="w"> </span>current-line-number-highlight<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Enable/disable current line number highlighting (enabled by default)</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>cjshopt<span class="w"> </span>current-line-number-highlight<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
 </span></code></pre></div><p></p>
 <p>The line number styles can be customized:
 - <code>ic-linenumbers</code>: Style for regular line numbers
@@ -1654,8 +1660,8 @@ The line containing the cursor can be highlighted differently:
 <h3 id="visible-whitespace-markers">Visible Whitespace Markers</h3>
 <p>You can visualize whitespace characters while editing to spot stray spaces or indentation issues. When enabled, spaces are rendered using a subtle middle-dot marker.</p>
 <p><strong>Configuration:</strong>
-</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Show or hide visible whitespace markers (disabled by default)</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>cjshopt<span class="w"> </span>visible-whitespace<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Show or hide visible whitespace markers (disabled by default)</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>cjshopt<span class="w"> </span>visible-whitespace<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
 </span></code></pre></div><p></p>
 <p>Pair this option with custom styling via <code>cjshopt style_def ic-whitespace-char "&lt;style&gt;"</code> to adjust the marker color.</p>
 <h3 id="syntax-highlighting">Syntax Highlighting</h3>
@@ -1669,11 +1675,11 @@ The line containing the cursor can be highlighted differently:
 - Comments
 - Errors (unmatched quotes, invalid syntax)</p>
 <p><strong>Configuration:</strong>
-</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Enable/disable syntax highlighting (enabled by default)</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="c1"># Note: Can also be controlled with --no-syntax-highlighting flag</span>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c1"># Customize highlighting styles</span>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>&lt;token_type&gt;<span class="w"> </span>&lt;style&gt;
+</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Enable/disable syntax highlighting (enabled by default)</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="c1"># Note: Can also be controlled with --no-syntax-highlighting flag</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Customize highlighting styles</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>&lt;token_type&gt;<span class="w"> </span>&lt;style&gt;
 </span></code></pre></div><p></p>
 <p><strong>Available Style Names:</strong>
 - <code>ic-keyword</code>: Shell keywords
@@ -1704,18 +1710,18 @@ The syntax highlighter can be temporarily disabled with the <code>--no-syntax-hi
 - Automatic expansion with auto-tab</p>
 <p>Need to author new entries or override the defaults? Check the <a href="../completions/">Completion Authoring Guide</a> for cache formats, nested command support, and manual customization tips.</p>
 <p><strong>Configuration:</strong>
-</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Enable/disable completion preview (enabled by default)</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>cjshopt<span class="w"> </span>completion-preview<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Enable/disable auto-tab (disabled by default)</span>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="c1"># Auto-tab automatically completes unique prefixes</span>
-</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>cjshopt<span class="w"> </span>auto-tab<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
-</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>
-</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="c1"># Configure case sensitivity (enabled by default)</span>
-</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>cjshopt<span class="w"> </span>completion-case<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
-</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>
-</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="c1"># Enable/disable spell correction (enabled by default)</span>
-</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>cjshopt<span class="w"> </span>completion-spell<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Enable/disable completion preview (enabled by default)</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>cjshopt<span class="w"> </span>completion-preview<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Enable/disable auto-tab (disabled by default)</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="c1"># Auto-tab automatically completes unique prefixes</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>cjshopt<span class="w"> </span>auto-tab<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="c1"># Configure case sensitivity (enabled by default)</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>cjshopt<span class="w"> </span>completion-case<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="c1"># Enable/disable spell correction (enabled by default)</span>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>cjshopt<span class="w"> </span>completion-spell<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
 </span></code></pre></div><p></p>
 <p><strong>Using Completions:</strong>
 - Press <code>Tab</code> to show completions
@@ -1732,11 +1738,11 @@ When there's a single possible completion, a hint is displayed inline with dimme
 - Appears after a configurable delay
 - Can be accepted by pressing → (right arrow)</p>
 <p><strong>Configuration:</strong>
-</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Enable/disable hints (enabled by default)</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>cjshopt<span class="w"> </span>hint<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Set hint delay in milliseconds (0ms by default)</span>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>cjshopt<span class="w"> </span>hint-delay<span class="w"> </span>&lt;milliseconds&gt;
+</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Enable/disable hints (enabled by default)</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>cjshopt<span class="w"> </span>hint<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1"># Set hint delay in milliseconds (0ms by default)</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>cjshopt<span class="w"> </span>hint-delay<span class="w"> </span>&lt;milliseconds&gt;
 </span></code></pre></div><p></p>
 <p><strong>Inline Help:</strong>
 Short help messages are displayed for certain operations:
@@ -1744,8 +1750,8 @@ Short help messages are displayed for certain operations:
 - Completion menu navigation
 - Special key binding hints</p>
 <p><strong>Configuration:</strong>
-</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Enable/disable inline help (enabled by default)</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>cjshopt<span class="w"> </span>inline-help<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># Enable/disable inline help (enabled by default)</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>cjshopt<span class="w"> </span>inline-help<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
 </span></code></pre></div><p></p>
 <p><strong>Full Help:</strong>
 Press <code>F1</code> at any time to display the complete key binding cheat sheet, regardless of the inline-help setting.</p>
@@ -1790,14 +1796,14 @@ When you type an opening brace, the closing brace is automatically inserted (ena
 - History expansion (<code>!</code>, <code>!!</code>, <code>!$</code>, etc.)
 - Incremental search</p>
 <p><strong>Configuration:</strong>
-</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># Set maximum history entries</span>
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span>&lt;number&gt;
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>
-</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="c1"># Use default history size</span>
-</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span>default
-</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>
-</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="c1"># Check current setting</span>
-</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span>status
+</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># Set maximum history entries</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span>&lt;number&gt;
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="c1"># Use default history size</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span>default
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="c1"># Check current setting</span>
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span>status
 </span></code></pre></div><p></p>
 <p><strong>History File:</strong>
 History is stored at <code>~/.cache/cjsh/history.txt</code>. Each entry is prefixed by a metadata line in the
@@ -1824,7 +1830,7 @@ By default, duplicate entries are not stored in history to keep it clean and rel
 - <code>emacs</code>: Emacs-style key bindings (default)
 - <code>vi</code>: Vi/Vim-style key bindings</p>
 <p><strong>Set Profile:</strong>
-</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>profile<span class="w"> </span><span class="nb">set</span><span class="w"> </span>emacs<span class="p">|</span>vi
+</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>profile<span class="w"> </span><span class="nb">set</span><span class="w"> </span>emacs<span class="p">|</span>vi
 </span></code></pre></div><p></p>
 <h3 id="common-key-bindings-emacs-mode">Common Key Bindings (Emacs Mode)</h3>
 <h4 id="cursor-movement">Cursor Movement</h4>
@@ -1875,29 +1881,29 @@ By default, duplicate entries are not stored in history to keep it clean and rel
 </ul>
 <h3 id="custom-key-bindings">Custom Key Bindings</h3>
 <p>You can inspect and customize key bindings through the <code>cjshopt keybind</code> subcommands:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># List all current key bindings (safe at runtime)</span>
-</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>list
-</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>
-</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="c1"># Show available key binding profiles</span>
-</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>profile<span class="w"> </span>list
-</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>
-</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="c1"># Activate a key binding profile (add to ~/.cjshrc to persist)</span>
-</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>profile<span class="w"> </span><span class="nb">set</span><span class="w"> </span>vi
-</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>
-</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="c1"># Replace bindings for an action (config file only)</span>
-</span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span><span class="nb">set</span><span class="w"> </span>cursor-left<span class="w"> </span>ctrl-h<span class="p">|</span>left
-</span><span id="__span-10-12"><a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a>
-</span><span id="__span-10-13"><a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a><span class="c1"># Add bindings without removing existing ones (config file only)</span>
-</span><span id="__span-10-14"><a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>add<span class="w"> </span>delete-word-end<span class="w"> </span>alt-d
-</span><span id="__span-10-15"><a id="__codelineno-10-15" name="__codelineno-10-15" href="#__codelineno-10-15"></a>
-</span><span id="__span-10-16"><a id="__codelineno-10-16" name="__codelineno-10-16" href="#__codelineno-10-16"></a><span class="c1"># Remove specific key bindings (config file only)</span>
-</span><span id="__span-10-17"><a id="__codelineno-10-17" name="__codelineno-10-17" href="#__codelineno-10-17"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>clear<span class="w"> </span>ctrl-h<span class="w"> </span>ctrl-b
-</span><span id="__span-10-18"><a id="__codelineno-10-18" name="__codelineno-10-18" href="#__codelineno-10-18"></a>
-</span><span id="__span-10-19"><a id="__codelineno-10-19" name="__codelineno-10-19" href="#__codelineno-10-19"></a><span class="c1"># Remove all custom bindings for an action (config file only)</span>
-</span><span id="__span-10-20"><a id="__codelineno-10-20" name="__codelineno-10-20" href="#__codelineno-10-20"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>clear-action<span class="w"> </span>delete-word-end
-</span><span id="__span-10-21"><a id="__codelineno-10-21" name="__codelineno-10-21" href="#__codelineno-10-21"></a>
-</span><span id="__span-10-22"><a id="__codelineno-10-22" name="__codelineno-10-22" href="#__codelineno-10-22"></a><span class="c1"># Restore default bindings (config file only)</span>
-</span><span id="__span-10-23"><a id="__codelineno-10-23" name="__codelineno-10-23" href="#__codelineno-10-23"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>reset
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># List all current key bindings (safe at runtime)</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>list
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="c1"># Show available key binding profiles</span>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>profile<span class="w"> </span>list
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="c1"># Activate a key binding profile (add to ~/.cjshrc to persist)</span>
+</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>profile<span class="w"> </span><span class="nb">set</span><span class="w"> </span>vi
+</span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a>
+</span><span id="__span-11-10"><a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a><span class="c1"># Replace bindings for an action (config file only)</span>
+</span><span id="__span-11-11"><a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span><span class="nb">set</span><span class="w"> </span>cursor-left<span class="w"> </span>ctrl-h<span class="p">|</span>left
+</span><span id="__span-11-12"><a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a>
+</span><span id="__span-11-13"><a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a><span class="c1"># Add bindings without removing existing ones (config file only)</span>
+</span><span id="__span-11-14"><a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>add<span class="w"> </span>delete-word-end<span class="w"> </span>alt-d
+</span><span id="__span-11-15"><a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a>
+</span><span id="__span-11-16"><a id="__codelineno-11-16" name="__codelineno-11-16" href="#__codelineno-11-16"></a><span class="c1"># Remove specific key bindings (config file only)</span>
+</span><span id="__span-11-17"><a id="__codelineno-11-17" name="__codelineno-11-17" href="#__codelineno-11-17"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>clear<span class="w"> </span>ctrl-h<span class="w"> </span>ctrl-b
+</span><span id="__span-11-18"><a id="__codelineno-11-18" name="__codelineno-11-18" href="#__codelineno-11-18"></a>
+</span><span id="__span-11-19"><a id="__codelineno-11-19" name="__codelineno-11-19" href="#__codelineno-11-19"></a><span class="c1"># Remove all custom bindings for an action (config file only)</span>
+</span><span id="__span-11-20"><a id="__codelineno-11-20" name="__codelineno-11-20" href="#__codelineno-11-20"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>clear-action<span class="w"> </span>delete-word-end
+</span><span id="__span-11-21"><a id="__codelineno-11-21" name="__codelineno-11-21" href="#__codelineno-11-21"></a>
+</span><span id="__span-11-22"><a id="__codelineno-11-22" name="__codelineno-11-22" href="#__codelineno-11-22"></a><span class="c1"># Restore default bindings (config file only)</span>
+</span><span id="__span-11-23"><a id="__codelineno-11-23" name="__codelineno-11-23" href="#__codelineno-11-23"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>reset
 </span></code></pre></div>
 <p><strong>Key Specification Format:</strong>
 - <code>ctrl-&lt;key&gt;</code>: Control key combinations (e.g., <code>ctrl-a</code>)
@@ -1907,17 +1913,17 @@ By default, duplicate entries are not stored in history to keep it clean and rel
 - <code>&lt;key&gt;</code>: Regular keys (e.g., <code>tab</code>, <code>enter</code>)</p>
 <h2 id="command-driven-key-bindings">Command-Driven Key Bindings</h2>
 <p>Use the extended key binding namespace to trigger shell commands directly from key presses:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># List custom command key bindings (safe at runtime)</span>
-</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>ext<span class="w"> </span>list
-</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>
-</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="c1"># Bind Ctrl+G to run a command (add to ~/.cjshrc)</span>
-</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>ext<span class="w"> </span><span class="nb">set</span><span class="w"> </span>ctrl-g<span class="w"> </span><span class="s1">'cjsh-widget accept'</span>
-</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>
-</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="c1"># Remove a command binding</span>
-</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>ext<span class="w"> </span>clear<span class="w"> </span>ctrl-g
-</span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a>
-</span><span id="__span-11-10"><a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a><span class="c1"># Clear every custom command binding</span>
-</span><span id="__span-11-11"><a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>ext<span class="w"> </span>reset
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># List custom command key bindings (safe at runtime)</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>ext<span class="w"> </span>list
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="c1"># Bind Ctrl+G to run a command (add to ~/.cjshrc)</span>
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>ext<span class="w"> </span><span class="nb">set</span><span class="w"> </span>ctrl-g<span class="w"> </span><span class="s1">'cjsh-widget accept'</span>
+</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>
+</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="c1"># Remove a command binding</span>
+</span><span id="__span-12-8"><a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>ext<span class="w"> </span>clear<span class="w"> </span>ctrl-g
+</span><span id="__span-12-9"><a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a>
+</span><span id="__span-12-10"><a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a><span class="c1"># Clear every custom command binding</span>
+</span><span id="__span-12-11"><a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>ext<span class="w"> </span>reset
 </span></code></pre></div>
 <p>Command key bindings typically leverage the <code>cjsh-widget</code> builtin to read or modify editor state. As
 with standard bindings, modifications must be placed in configuration files; inspection commands can
@@ -1963,8 +1969,8 @@ Use the <code>--no-colors</code> flag or set <code>TERM=dumb</code> to disable a
 - <code>[#RRGGBB]...[/]</code>: Hex RGB colors
 - <code>[on color]...[/]</code>: Background colors</p>
 <p><strong>Style Combinations:</strong>
-</p><div class="language-text highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>[b red on blue]Bold red text on blue background[/]
-</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>[i #ff00ff]Italic magenta text[/]
+</p><div class="language-text highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>[b red on blue]Bold red text on blue background[/]
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>[i #ff00ff]Italic magenta text[/]
 </span></code></pre></div><p></p>
 <h2 id="advanced-features">Advanced Features</h2>
 <h3 id="spell-correction">Spell Correction</h3>
@@ -1972,18 +1978,18 @@ Use the <code>--no-colors</code> flag or set <code>TERM=dumb</code> to disable a
 <p><strong>How It Works:</strong>
 When no exact match is found, cjsh attempts to find the closest match using edit distance algorithms.</p>
 <p><strong>Configuration:</strong>
-</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1"># Enable/disable spell correction (enabled by default)</span>
-</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>cjshopt<span class="w"> </span>completion-spell<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="c1"># Enable/disable spell correction (enabled by default)</span>
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>cjshopt<span class="w"> </span>completion-spell<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
 </span></code></pre></div><p></p>
 <h3 id="heredoc-support">Heredoc Support</h3>
 <p>Full editing capabilities when entering heredocs:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>cat<span class="w"> </span><span class="s">&lt;&lt;EOF</span>
-</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="s"># You get full editing features here:</span>
-</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="s"># - Syntax highlighting</span>
-</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="s"># - Multiline editing</span>
-</span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a><span class="s"># - History access</span>
-</span><span id="__span-14-6"><a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a><span class="s"># - All normal key bindings</span>
-</span><span id="__span-14-7"><a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="s">EOF</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>cat<span class="w"> </span><span class="s">&lt;&lt;EOF</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="s"># You get full editing features here:</span>
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="s"># - Syntax highlighting</span>
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="s"># - Multiline editing</span>
+</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="s"># - History access</span>
+</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="s"># - All normal key bindings</span>
+</span><span id="__span-15-7"><a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="s">EOF</span>
 </span></code></pre></div>
 <p><strong>Features:</strong>
 - Each line is edited with full isocline capabilities
@@ -2029,20 +2035,20 @@ Commands can pre-populate the input buffer (used by <code>fc</code> command for 
 - <code>ic-completion</code>: Completion menu
 - <code>ic-completion-selected</code>: Selected completion</p>
 <h3 id="style-syntax">Style Syntax</h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>&lt;style-name&gt;<span class="w"> </span><span class="s2">"&lt;bbcode-style&gt;"</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>&lt;style-name&gt;<span class="w"> </span><span class="s2">"&lt;bbcode-style&gt;"</span>
 </span></code></pre></div>
 <p><strong>Examples:</strong>
-</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="c1"># Make errors bright red and bold</span>
-</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>ic-error<span class="w"> </span><span class="s2">"bold red"</span>
-</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>
-</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="c1"># Use custom RGB color for commands</span>
-</span><span id="__span-16-5"><a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>ic-command<span class="w"> </span><span class="s2">"#00ff00"</span>
-</span><span id="__span-16-6"><a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>
-</span><span id="__span-16-7"><a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="c1"># Style keywords with italic blue</span>
-</span><span id="__span-16-8"><a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>ic-keyword<span class="w"> </span><span class="s2">"italic blue"</span>
-</span><span id="__span-16-9"><a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a>
-</span><span id="__span-16-10"><a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a><span class="c1"># Combine multiple attributes</span>
-</span><span id="__span-16-11"><a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>ic-string<span class="w"> </span><span class="s2">"italic #ffaa00"</span>
+</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="c1"># Make errors bright red and bold</span>
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>ic-error<span class="w"> </span><span class="s2">"bold red"</span>
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>
+</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="c1"># Use custom RGB color for commands</span>
+</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>ic-command<span class="w"> </span><span class="s2">"#00ff00"</span>
+</span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>
+</span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="c1"># Style keywords with italic blue</span>
+</span><span id="__span-17-8"><a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>ic-keyword<span class="w"> </span><span class="s2">"italic blue"</span>
+</span><span id="__span-17-9"><a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a>
+</span><span id="__span-17-10"><a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a><span class="c1"># Combine multiple attributes</span>
+</span><span id="__span-17-11"><a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>ic-string<span class="w"> </span><span class="s2">"italic #ffaa00"</span>
 </span></code></pre></div><p></p>
 <p><strong>Style Attributes:</strong>
 - Colors: <code>red</code>, <code>blue</code>, <code>green</code>, <code>yellow</code>, <code>cyan</code>, <code>magenta</code>, <code>white</code>, <code>black</code>
@@ -2055,47 +2061,47 @@ Commands can pre-populate the input buffer (used by <code>fc</code> command for 
 <h2 id="configuration-examples">Configuration Examples</h2>
 <h3 id="complete-editing-configuration">Complete Editing Configuration</h3>
 <p>Here's a comprehensive example for <code>~/.cjshrc</code>:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="c1"># Multiline settings</span>
-</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>cjshopt<span class="w"> </span>multiline<span class="w"> </span>on
-</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>cjshopt<span class="w"> </span>multiline-indent<span class="w"> </span>on
-</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>cjshopt<span class="w"> </span>line-numbers<span class="w"> </span>relative
-</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>cjshopt<span class="w"> </span>current-line-number-highlight<span class="w"> </span>on
-</span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>
-</span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="c1"># Completion settings</span>
-</span><span id="__span-17-8"><a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>cjshopt<span class="w"> </span>completion-preview<span class="w"> </span>on
-</span><span id="__span-17-9"><a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a>cjshopt<span class="w"> </span>auto-tab<span class="w"> </span>off
-</span><span id="__span-17-10"><a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a>cjshopt<span class="w"> </span>completion-case<span class="w"> </span>off<span class="w">  </span><span class="c1"># Case-insensitive completions</span>
-</span><span id="__span-17-11"><a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a>cjshopt<span class="w"> </span>completion-spell<span class="w"> </span>on
-</span><span id="__span-17-12"><a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a>
-</span><span id="__span-17-13"><a id="__codelineno-17-13" name="__codelineno-17-13" href="#__codelineno-17-13"></a><span class="c1"># Hint settings</span>
-</span><span id="__span-17-14"><a id="__codelineno-17-14" name="__codelineno-17-14" href="#__codelineno-17-14"></a>cjshopt<span class="w"> </span>hint<span class="w"> </span>on
-</span><span id="__span-17-15"><a id="__codelineno-17-15" name="__codelineno-17-15" href="#__codelineno-17-15"></a>cjshopt<span class="w"> </span>hint-delay<span class="w"> </span><span class="m">100</span><span class="w">  </span><span class="c1"># 100ms delay before showing hints</span>
-</span><span id="__span-17-16"><a id="__codelineno-17-16" name="__codelineno-17-16" href="#__codelineno-17-16"></a>
-</span><span id="__span-17-17"><a id="__codelineno-17-17" name="__codelineno-17-17" href="#__codelineno-17-17"></a><span class="c1"># Help settings</span>
-</span><span id="__span-17-18"><a id="__codelineno-17-18" name="__codelineno-17-18" href="#__codelineno-17-18"></a>cjshopt<span class="w"> </span>inline-help<span class="w"> </span>on
-</span><span id="__span-17-19"><a id="__codelineno-17-19" name="__codelineno-17-19" href="#__codelineno-17-19"></a>
-</span><span id="__span-17-20"><a id="__codelineno-17-20" name="__codelineno-17-20" href="#__codelineno-17-20"></a><span class="c1"># History</span>
-</span><span id="__span-17-21"><a id="__codelineno-17-21" name="__codelineno-17-21" href="#__codelineno-17-21"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span><span class="m">10000</span>
-</span><span id="__span-17-22"><a id="__codelineno-17-22" name="__codelineno-17-22" href="#__codelineno-17-22"></a>
-</span><span id="__span-17-23"><a id="__codelineno-17-23" name="__codelineno-17-23" href="#__codelineno-17-23"></a><span class="c1"># Key bindings</span>
-</span><span id="__span-17-24"><a id="__codelineno-17-24" name="__codelineno-17-24" href="#__codelineno-17-24"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>profile<span class="w"> </span><span class="nb">set</span><span class="w"> </span>emacs
-</span><span id="__span-17-25"><a id="__codelineno-17-25" name="__codelineno-17-25" href="#__codelineno-17-25"></a>
-</span><span id="__span-17-26"><a id="__codelineno-17-26" name="__codelineno-17-26" href="#__codelineno-17-26"></a><span class="c1"># Syntax highlighting styles</span>
-</span><span id="__span-17-27"><a id="__codelineno-17-27" name="__codelineno-17-27" href="#__codelineno-17-27"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>ic-keyword<span class="w"> </span><span class="s2">"bold blue"</span>
-</span><span id="__span-17-28"><a id="__codelineno-17-28" name="__codelineno-17-28" href="#__codelineno-17-28"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>ic-command<span class="w"> </span><span class="s2">"green"</span>
-</span><span id="__span-17-29"><a id="__codelineno-17-29" name="__codelineno-17-29" href="#__codelineno-17-29"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>ic-error<span class="w"> </span><span class="s2">"bold red"</span>
-</span><span id="__span-17-30"><a id="__codelineno-17-30" name="__codelineno-17-30" href="#__codelineno-17-30"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>ic-string<span class="w"> </span><span class="s2">"#ffaa00"</span>
-</span><span id="__span-17-31"><a id="__codelineno-17-31" name="__codelineno-17-31" href="#__codelineno-17-31"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>ic-comment<span class="w"> </span><span class="s2">"italic #888888"</span>
-</span><span id="__span-17-32"><a id="__codelineno-17-32" name="__codelineno-17-32" href="#__codelineno-17-32"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>ic-operator<span class="w"> </span><span class="s2">"bold"</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="c1"># Multiline settings</span>
+</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>cjshopt<span class="w"> </span>multiline<span class="w"> </span>on
+</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>cjshopt<span class="w"> </span>multiline-indent<span class="w"> </span>on
+</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>cjshopt<span class="w"> </span>line-numbers<span class="w"> </span>relative
+</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>cjshopt<span class="w"> </span>current-line-number-highlight<span class="w"> </span>on
+</span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>
+</span><span id="__span-18-7"><a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="c1"># Completion settings</span>
+</span><span id="__span-18-8"><a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a>cjshopt<span class="w"> </span>completion-preview<span class="w"> </span>on
+</span><span id="__span-18-9"><a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a>cjshopt<span class="w"> </span>auto-tab<span class="w"> </span>off
+</span><span id="__span-18-10"><a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a>cjshopt<span class="w"> </span>completion-case<span class="w"> </span>off<span class="w">  </span><span class="c1"># Case-insensitive completions</span>
+</span><span id="__span-18-11"><a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a>cjshopt<span class="w"> </span>completion-spell<span class="w"> </span>on
+</span><span id="__span-18-12"><a id="__codelineno-18-12" name="__codelineno-18-12" href="#__codelineno-18-12"></a>
+</span><span id="__span-18-13"><a id="__codelineno-18-13" name="__codelineno-18-13" href="#__codelineno-18-13"></a><span class="c1"># Hint settings</span>
+</span><span id="__span-18-14"><a id="__codelineno-18-14" name="__codelineno-18-14" href="#__codelineno-18-14"></a>cjshopt<span class="w"> </span>hint<span class="w"> </span>on
+</span><span id="__span-18-15"><a id="__codelineno-18-15" name="__codelineno-18-15" href="#__codelineno-18-15"></a>cjshopt<span class="w"> </span>hint-delay<span class="w"> </span><span class="m">100</span><span class="w">  </span><span class="c1"># 100ms delay before showing hints</span>
+</span><span id="__span-18-16"><a id="__codelineno-18-16" name="__codelineno-18-16" href="#__codelineno-18-16"></a>
+</span><span id="__span-18-17"><a id="__codelineno-18-17" name="__codelineno-18-17" href="#__codelineno-18-17"></a><span class="c1"># Help settings</span>
+</span><span id="__span-18-18"><a id="__codelineno-18-18" name="__codelineno-18-18" href="#__codelineno-18-18"></a>cjshopt<span class="w"> </span>inline-help<span class="w"> </span>on
+</span><span id="__span-18-19"><a id="__codelineno-18-19" name="__codelineno-18-19" href="#__codelineno-18-19"></a>
+</span><span id="__span-18-20"><a id="__codelineno-18-20" name="__codelineno-18-20" href="#__codelineno-18-20"></a><span class="c1"># History</span>
+</span><span id="__span-18-21"><a id="__codelineno-18-21" name="__codelineno-18-21" href="#__codelineno-18-21"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span><span class="m">10000</span>
+</span><span id="__span-18-22"><a id="__codelineno-18-22" name="__codelineno-18-22" href="#__codelineno-18-22"></a>
+</span><span id="__span-18-23"><a id="__codelineno-18-23" name="__codelineno-18-23" href="#__codelineno-18-23"></a><span class="c1"># Key bindings</span>
+</span><span id="__span-18-24"><a id="__codelineno-18-24" name="__codelineno-18-24" href="#__codelineno-18-24"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>profile<span class="w"> </span><span class="nb">set</span><span class="w"> </span>emacs
+</span><span id="__span-18-25"><a id="__codelineno-18-25" name="__codelineno-18-25" href="#__codelineno-18-25"></a>
+</span><span id="__span-18-26"><a id="__codelineno-18-26" name="__codelineno-18-26" href="#__codelineno-18-26"></a><span class="c1"># Syntax highlighting styles</span>
+</span><span id="__span-18-27"><a id="__codelineno-18-27" name="__codelineno-18-27" href="#__codelineno-18-27"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>ic-keyword<span class="w"> </span><span class="s2">"bold blue"</span>
+</span><span id="__span-18-28"><a id="__codelineno-18-28" name="__codelineno-18-28" href="#__codelineno-18-28"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>ic-command<span class="w"> </span><span class="s2">"green"</span>
+</span><span id="__span-18-29"><a id="__codelineno-18-29" name="__codelineno-18-29" href="#__codelineno-18-29"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>ic-error<span class="w"> </span><span class="s2">"bold red"</span>
+</span><span id="__span-18-30"><a id="__codelineno-18-30" name="__codelineno-18-30" href="#__codelineno-18-30"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>ic-string<span class="w"> </span><span class="s2">"#ffaa00"</span>
+</span><span id="__span-18-31"><a id="__codelineno-18-31" name="__codelineno-18-31" href="#__codelineno-18-31"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>ic-comment<span class="w"> </span><span class="s2">"italic #888888"</span>
+</span><span id="__span-18-32"><a id="__codelineno-18-32" name="__codelineno-18-32" href="#__codelineno-18-32"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>ic-operator<span class="w"> </span><span class="s2">"bold"</span>
 </span></code></pre></div>
 <h3 id="minimal-configuration">Minimal Configuration</h3>
 <p>For a minimal, fast setup:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="c1"># Use the --minimal flag at startup, or configure selectively:</span>
-</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>cjshopt<span class="w"> </span>multiline<span class="w"> </span>on
-</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>cjshopt<span class="w"> </span>line-numbers<span class="w"> </span>off
-</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>cjshopt<span class="w"> </span>completion-preview<span class="w"> </span>off
-</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>cjshopt<span class="w"> </span>hint<span class="w"> </span>off
-</span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>cjshopt<span class="w"> </span>inline-help<span class="w"> </span>off
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="c1"># Use the --minimal flag at startup, or configure selectively:</span>
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>cjshopt<span class="w"> </span>multiline<span class="w"> </span>on
+</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>cjshopt<span class="w"> </span>line-numbers<span class="w"> </span>off
+</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a>cjshopt<span class="w"> </span>completion-preview<span class="w"> </span>off
+</span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a>cjshopt<span class="w"> </span>hint<span class="w"> </span>off
+</span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>cjshopt<span class="w"> </span>inline-help<span class="w"> </span>off
 </span></code></pre></div>
 <h2 id="performance-considerations">Performance Considerations</h2>
 <h3 id="optimization-tips">Optimization Tips</h3>
