@@ -7,6 +7,7 @@
 #include "env.h"
 #include "history.h"
 #include "isocline.h"
+#include "prompt_line_replacement.h"
 #include "stringbuf.h"
 
 #define EXPECT_TRUE(condition, message)                                                    \
@@ -165,6 +166,25 @@ static bool test_line_number_prompt_replacement_toggle(void) {
                  "environment flag should be cleared after disabling");
     EXPECT_FALSE(ic_line_number_prompt_replacement_is_enabled(),
                  "getter should report disabled state");
+
+    return true;
+}
+
+static bool test_prompt_line_replacement_requires_content(void) {
+    ic_prompt_line_replacement_state_t predicate = {
+        .replace_prompt_line_with_line_number = true,
+        .prompt_has_prefix_lines = true,
+        .prompt_begins_with_newline = false,
+        .line_numbers_enabled = true,
+        .input_has_content = true,
+    };
+
+    EXPECT_TRUE(ic_prompt_line_replacement_should_activate(&predicate),
+                "predicate should activate when buffer contains input");
+
+    predicate.input_has_content = false;
+    EXPECT_FALSE(ic_prompt_line_replacement_should_activate(&predicate),
+                 "predicate should keep the prompt visible when the buffer is empty");
 
     return true;
 }
@@ -438,6 +458,7 @@ static const test_case_t kTests[] = {
     {"line_number_modes", test_line_number_modes},
     {"line_number_continuation_prompt_toggle", test_line_number_continuation_prompt_toggle},
     {"line_number_prompt_replacement_toggle", test_line_number_prompt_replacement_toggle},
+    {"prompt_line_replacement_requires_content", test_prompt_line_replacement_requires_content},
     {"visible_whitespace_marker", test_visible_whitespace_marker},
     {"prompt_cleanup_modes", test_prompt_cleanup_modes},
     {"multiline_start_line_count_clamp", test_multiline_start_line_count_clamp},

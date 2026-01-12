@@ -125,6 +125,7 @@ set(CJSH_C_SOURCES
     ${CMAKE_SOURCE_DIR}/src/isocline/completions.c
     ${CMAKE_SOURCE_DIR}/src/isocline/editline.c
     ${CMAKE_SOURCE_DIR}/src/isocline/highlight.c
+    ${CMAKE_SOURCE_DIR}/src/isocline/prompt_line_replacement.c
     ${CMAKE_SOURCE_DIR}/src/isocline/history.c
     ${CMAKE_SOURCE_DIR}/src/isocline/isocline.c
     ${CMAKE_SOURCE_DIR}/src/isocline/isocline_env.c

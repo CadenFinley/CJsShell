@@ -35,6 +35,7 @@
 #include "highlight.h"
 #include "history.h"
 #include "isocline.h"
+#include "prompt_line_replacement.h"
 #include "stringbuf.h"
 #include "term.h"
 #include "tty.h"
@@ -102,27 +103,16 @@ static bool prompt_line_should_use_line_numbers(const ic_env_t* env, const edito
     if (env == NULL || eb == NULL) {
         return false;
     }
-    if (!env->replace_prompt_line_with_line_number) {
-        return false;
-    }
-    if (eb->prompt_prefix_lines <= 0 && !eb->prompt_begins_with_newline) {
-        return false;
-    }
-    if (!line_numbers_enabled(env)) {
-        return false;
-    }
 
-    bool input_has_content = (eb->input != NULL && sbuf_len(eb->input) > 0);
-    bool multiple_lines_displayed = (eb->cur_rows > 1);
-    if (!multiple_lines_displayed && eb->input != NULL) {
-        multiple_lines_displayed = (count_logical_lines(eb->input) > 1);
-    }
+    ic_prompt_line_replacement_state_t predicate = {
+        .replace_prompt_line_with_line_number = env->replace_prompt_line_with_line_number,
+        .prompt_has_prefix_lines = (eb->prompt_prefix_lines > 0),
+        .prompt_begins_with_newline = eb->prompt_begins_with_newline,
+        .line_numbers_enabled = line_numbers_enabled(env),
+        .input_has_content = (eb->input != NULL && sbuf_len(eb->input) > 0),
+    };
 
-    if (!input_has_content && !multiple_lines_displayed) {
-        return false;
-    }
-
-    return true;
+    return ic_prompt_line_replacement_should_activate(&predicate);
 }
 
 static void edit_generate_completions(ic_env_t* env, editor_t* eb, bool autotab);
