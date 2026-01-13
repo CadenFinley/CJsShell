@@ -481,7 +481,7 @@ HistoryExpansion::ExpansionResult HistoryExpansion::expand(
 
 std::string HistoryExpansion::get_history_file_path() {
     cjsh_filesystem::initialize_cjsh_directories();
-    return cjsh_filesystem::g_cjsh_history_path.string();
+    return cjsh_filesystem::g_cjsh_history_path().string();
 }
 
 std::vector<std::string> HistoryExpansion::read_history_entries() {

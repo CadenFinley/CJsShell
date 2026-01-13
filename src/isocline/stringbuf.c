@@ -351,8 +351,10 @@ static ssize_t str_find_ws_word_end(const char* s, ssize_t len, ssize_t pos) {
 // invoke a function for each terminal row; returns total row count.
 static ssize_t str_for_each_row(const char* s, ssize_t len, ssize_t termw, ssize_t promptw,
                                 ssize_t cpromptw, row_fun_t* fun, const void* arg, void* res) {
-    if (s == NULL)
+    if (s == NULL) {
         s = "";
+        len = 0;
+    }
     ssize_t i;
     ssize_t rcount = 0;
     ssize_t rcol = 0;
@@ -682,6 +684,7 @@ ic_private ssize_t sbuf_append_vprintf(stringbuf_t* sb, const char* fmt, va_list
     va_list args0;
     va_copy(args0, args);
     ssize_t needed = vsnprintf(sb->buf + sb->count, to_size_t(avail), fmt, args0);
+    va_end(args0);
     if (needed > avail) {
         sb->buf[sb->count] = 0;
         if (!sbuf_ensure_extra(sb, needed))
@@ -901,7 +904,7 @@ ic_private char* sbuf_strdup_from_utf8(stringbuf_t* sbuf) {
     ssize_t len = sbuf_len(sbuf);
     if (sbuf == NULL || len <= 0)
         return NULL;
-    char* s = mem_zalloc_tp_n(sbuf->mem, char, len);
+    char* s = mem_zalloc_tp_n(sbuf->mem, char, len + 1);
     if (s == NULL)
         return NULL;
     ssize_t dest = 0;

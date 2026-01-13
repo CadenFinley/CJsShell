@@ -230,9 +230,7 @@ int double_bracket_command(const std::vector<std::string>& args) {
     std::vector<std::string> operators;
     std::vector<std::string> current_expr;
 
-    for (size_t i = 0; i < expression_args.size(); ++i) {
-        const std::string& token = expression_args[i];
-
+    for (const auto& token : expression_args) {
         if (token == "&&" || token == "||") {
             if (!current_expr.empty()) {
                 expressions.push_back(current_expr);

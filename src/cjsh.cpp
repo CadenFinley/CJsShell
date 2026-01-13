@@ -253,7 +253,7 @@ void initialize_colors() {
         return;
     }
 
-    for (const auto& pair : token_constants::default_styles) {
+    for (const auto& pair : token_constants::default_styles()) {
         std::string style_name = pair.first;
         if (style_name.rfind("ic-", 0) != 0) {
             style_name = "cjsh-";
@@ -272,10 +272,10 @@ int initialize_interactive_components() {
         cjsh_env::update_terminal_dimensions();
 
         if (config::source_enabled && !config::secure_mode) {
-            if (cjsh_filesystem::file_exists(cjsh_filesystem::g_cjsh_source_path)) {
-                g_shell->execute_script_file(cjsh_filesystem::g_cjsh_source_path);
-            } else if (cjsh_filesystem::file_exists(cjsh_filesystem::g_cjsh_source_alt_path)) {
-                g_shell->execute_script_file(cjsh_filesystem::g_cjsh_source_alt_path);
+            if (cjsh_filesystem::file_exists(cjsh_filesystem::g_cjsh_source_path())) {
+                g_shell->execute_script_file(cjsh_filesystem::g_cjsh_source_path());
+            } else if (cjsh_filesystem::file_exists(cjsh_filesystem::g_cjsh_source_alt_path())) {
+                g_shell->execute_script_file(cjsh_filesystem::g_cjsh_source_alt_path());
             }
         }
 
@@ -291,15 +291,15 @@ void process_profile_files() {
     if (config::secure_mode) {
         return;
     }
-    std::filesystem::path user_profile = cjsh_filesystem::g_user_home_path / ".profile";
+    std::filesystem::path user_profile = cjsh_filesystem::g_user_home_path() / ".profile";
     if (std::filesystem::exists(user_profile)) {
         g_shell->execute_script_file(user_profile, true);
     }
 
-    if (std::filesystem::exists(cjsh_filesystem::g_cjsh_profile_path)) {
-        g_shell->execute_script_file(cjsh_filesystem::g_cjsh_profile_path, true);
-    } else if (std::filesystem::exists(cjsh_filesystem::g_cjsh_profile_alt_path)) {
-        g_shell->execute_script_file(cjsh_filesystem::g_cjsh_profile_alt_path, true);
+    if (std::filesystem::exists(cjsh_filesystem::g_cjsh_profile_path())) {
+        g_shell->execute_script_file(cjsh_filesystem::g_cjsh_profile_path(), true);
+    } else if (std::filesystem::exists(cjsh_filesystem::g_cjsh_profile_alt_path())) {
+        g_shell->execute_script_file(cjsh_filesystem::g_cjsh_profile_alt_path(), true);
     }
 }
 
@@ -330,18 +330,18 @@ void start_interactive_process() {
         std::cout << " For additional help and documentation, please visit: "
                   << " https://cadenfinley.github.io/CJsShell/" << '\n';
         std::cout << '\n';
-        if (!cjsh_filesystem::file_exists(cjsh_filesystem::g_cjsh_source_path)) {
+        if (!cjsh_filesystem::file_exists(cjsh_filesystem::g_cjsh_source_path())) {
             std::cout << " To create .cjshrc run 'cjshopt generate-rc'" << '\n';
         }
-        if (!cjsh_filesystem::file_exists(cjsh_filesystem::g_cjsh_profile_path)) {
+        if (!cjsh_filesystem::file_exists(cjsh_filesystem::g_cjsh_profile_path())) {
             std::cout << " To create .cjprofile run 'cjshopt generate-profile'" << '\n';
         }
-        if (!cjsh_filesystem::file_exists(cjsh_filesystem::g_cjsh_logout_path)) {
+        if (!cjsh_filesystem::file_exists(cjsh_filesystem::g_cjsh_logout_path())) {
             std::cout << " To create .cjsh_logout run 'cjshopt generate-logout'" << '\n';
         }
         std::cout << '\n';
         std::cout << " To suppress this help message run the command: 'touch "
-                  << cjsh_filesystem::g_cjsh_first_boot_path.string() << "'" << '\n';
+                  << cjsh_filesystem::g_cjsh_first_boot_path().string() << "'" << '\n';
         std::cout << " To suppress the title line, put this command in .cjprofile: 'cjshopt "
                      "login-startup-arg --no-titleline'"
                   << '\n';
@@ -391,7 +391,7 @@ void start_interactive_process() {
 
 void process_logout_file() {
     if (!config::secure_mode && (config::interactive_mode || config::force_interactive)) {
-        const auto& logout_path = cjsh_filesystem::g_cjsh_logout_path;
+        const auto& logout_path = cjsh_filesystem::g_cjsh_logout_path();
         std::error_code logout_status_ec;
         auto logout_status = std::filesystem::status(logout_path, logout_status_ec);
 

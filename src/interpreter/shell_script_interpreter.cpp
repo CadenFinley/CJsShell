@@ -421,7 +421,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
             }
         }
 
-        if (allow_semicolon_split && text.find(';') != std::string::npos) {
+        if (allow_semicolon_split && shell_parser && text.find(';') != std::string::npos) {
             auto semicolon_commands = shell_parser->parse_semicolon_commands(text);
 
             if (semicolon_commands.size() > 1) {

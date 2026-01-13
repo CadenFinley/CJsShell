@@ -807,7 +807,7 @@ int wait_command(const std::vector<std::string>& args) {
 
     int last_exit_status = 0;
     for (size_t i = 1; i < args.size(); ++i) {
-        std::string target = args[i];
+        const std::string& target = args[i];
 
         if (!target.empty() && target[0] == '%') {
             auto parsed_job_id = parse_job_specifier(target);
@@ -909,7 +909,7 @@ int kill_command(const std::vector<std::string>& args) {
     auto& job_manager = JobManager::instance();
 
     for (size_t i = start_index; i < args.size(); ++i) {
-        std::string target = args[i];
+        const std::string& target = args[i];
 
         if (!target.empty() && target[0] == '%') {
             auto parsed_job_id = parse_job_specifier(target);

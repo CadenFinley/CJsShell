@@ -111,6 +111,8 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
         return;
     }
 
+    const auto& comparison_ops = token_constants::comparison_operators();
+
     size_t pos = 0;
     while (pos < len) {
         size_t cmd_end = pos;
@@ -159,7 +161,7 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
                                          token[0] == '/' || token.find('/') != std::string::npos)) {
                 std::string path_to_check = token;
                 if (token.rfind("~/", 0) == 0) {
-                    path_to_check = cjsh_filesystem::g_user_home_path.string() + token.substr(1);
+                    path_to_check = cjsh_filesystem::g_user_home_path().string() + token.substr(1);
                 } else if (token.rfind("-/", 0) == 0) {
                     std::string prev_dir = g_shell->get_previous_directory();
                     if (!prev_dir.empty()) {
@@ -233,7 +235,7 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
 
             std::string arg = cmd_str.substr(arg_start, arg_end - arg_start);
 
-            if (is_redirection_operator(arg) || comparison_operators.count(arg) > 0) {
+            if (is_redirection_operator(arg) || comparison_ops.count(arg) > 0) {
                 ic_highlight(henv, static_cast<long>(cmd_start + arg_start),
                              static_cast<long>(arg_end - arg_start), "cjsh-operator");
             }
@@ -311,7 +313,8 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
                     std::string path_to_check = arg;
 
                     if (arg.rfind("~/", 0) == 0) {
-                        path_to_check = cjsh_filesystem::g_user_home_path.string() + arg.substr(1);
+                        path_to_check =
+                            cjsh_filesystem::g_user_home_path().string() + arg.substr(1);
                     } else if (arg.rfind("-/", 0) == 0) {
                         std::string prev_dir = g_shell->get_previous_directory();
                         if (!prev_dir.empty()) {

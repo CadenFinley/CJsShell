@@ -854,7 +854,7 @@ CommandDoc load_entries_for_target(const std::string& doc_target, bool allow_fet
             return {};
     }
 
-    std::filesystem::path cache_path = cjsh_filesystem::g_cjsh_generated_completions_path /
+    std::filesystem::path cache_path = cjsh_filesystem::g_cjsh_generated_completions_path() /
                                        (sanitize_command_for_cache(doc_target) + ".txt");
 
     if (auto cached_doc_opt = read_cache_entries(cache_path, doc_target);
@@ -969,7 +969,7 @@ bool regenerate_external_completion_cache(const std::string& command, bool force
         g_failed_targets.erase(key);
     }
 
-    std::filesystem::path cache_path = cjsh_filesystem::g_cjsh_generated_completions_path /
+    std::filesystem::path cache_path = cjsh_filesystem::g_cjsh_generated_completions_path() /
                                        (sanitize_command_for_cache(command) + ".txt");
 
     if (force_refresh) {

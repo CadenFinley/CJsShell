@@ -32,36 +32,76 @@
 
 namespace cjsh_filesystem {
 
-const fs::path g_user_home_path = []() {
-    const char* home = std::getenv("HOME");
-    if (!home || home[0] == '\0') {
-        print_error({ErrorType::UNKNOWN_ERROR,
-                     ErrorSeverity::WARNING,
-                     "filesystem",
-                     "HOME environment variable not set or empty. Using /tmp as fallback.",
-                     {}});
-        return fs::path("/tmp");
-    }
-    return fs::path(home);
-}();
+const fs::path& g_user_home_path() {
+    static const fs::path path = []() {
+        const char* home = std::getenv("HOME");
+        if (!home || home[0] == '\0') {
+            print_error({ErrorType::UNKNOWN_ERROR,
+                         ErrorSeverity::WARNING,
+                         "filesystem",
+                         "HOME environment variable not set or empty. Using /tmp as fallback.",
+                         {}});
+            return fs::path("/tmp");
+        }
+        return fs::path(home);
+    }();
+    return path;
+}
 
-const fs::path g_cjsh_config_path = g_user_home_path / ".config" / "cjsh";
+const fs::path& g_cjsh_config_path() {
+    static const fs::path path = g_user_home_path() / ".config" / "cjsh";
+    return path;
+}
 
-const fs::path g_cjsh_cache_path = g_user_home_path / ".cache" / "cjsh";
+const fs::path& g_cjsh_cache_path() {
+    static const fs::path path = g_user_home_path() / ".cache" / "cjsh";
+    return path;
+}
 
-const fs::path g_cjsh_profile_path = g_user_home_path / ".cjprofile";
-const fs::path g_cjsh_source_path = g_user_home_path / ".cjshrc";
-const fs::path g_cjsh_logout_path = g_user_home_path / ".cjsh_logout";
+const fs::path& g_cjsh_profile_path() {
+    static const fs::path path = g_user_home_path() / ".cjprofile";
+    return path;
+}
 
-const fs::path g_cjsh_profile_alt_path = g_cjsh_config_path / ".cjprofile";
-const fs::path g_cjsh_source_alt_path = g_cjsh_config_path / ".cjshrc";
-const fs::path g_cjsh_logout_alt_path = g_cjsh_config_path / ".cjsh_logout";
+const fs::path& g_cjsh_source_path() {
+    static const fs::path path = g_user_home_path() / ".cjshrc";
+    return path;
+}
 
-const fs::path g_cjsh_history_path = g_cjsh_cache_path / "history.txt";
+const fs::path& g_cjsh_logout_path() {
+    static const fs::path path = g_user_home_path() / ".cjsh_logout";
+    return path;
+}
 
-const fs::path g_cjsh_first_boot_path = g_cjsh_cache_path / ".first_boot";
+const fs::path& g_cjsh_profile_alt_path() {
+    static const fs::path path = g_cjsh_config_path() / ".cjprofile";
+    return path;
+}
 
-const fs::path g_cjsh_generated_completions_path = g_cjsh_cache_path / "generated_completions";
+const fs::path& g_cjsh_source_alt_path() {
+    static const fs::path path = g_cjsh_config_path() / ".cjshrc";
+    return path;
+}
+
+const fs::path& g_cjsh_logout_alt_path() {
+    static const fs::path path = g_cjsh_config_path() / ".cjsh_logout";
+    return path;
+}
+
+const fs::path& g_cjsh_history_path() {
+    static const fs::path path = g_cjsh_cache_path() / "history.txt";
+    return path;
+}
+
+const fs::path& g_cjsh_first_boot_path() {
+    static const fs::path path = g_cjsh_cache_path() / ".first_boot";
+    return path;
+}
+
+const fs::path& g_cjsh_generated_completions_path() {
+    static const fs::path path = g_cjsh_cache_path() / "generated_completions";
+    return path;
+}
 
 namespace {
 std::string describe_errno(int err) {
@@ -567,9 +607,9 @@ bool initialize_cjsh_path() {
 
 bool initialize_cjsh_directories() {
     try {
-        fs::create_directories(g_cjsh_config_path);
-        fs::create_directories(g_cjsh_cache_path);
-        fs::create_directories(g_cjsh_generated_completions_path);
+        fs::create_directories(g_cjsh_config_path());
+        fs::create_directories(g_cjsh_cache_path());
+        fs::create_directories(g_cjsh_generated_completions_path());
 
         return true;
     } catch (const fs::filesystem_error& e) {
@@ -762,8 +802,8 @@ bool init_interactive_filesystem() {
     setenv("PWD", current_path.c_str(), 1);
 
     try {
-        bool home_exists = std::filesystem::exists(g_user_home_path);
-        bool history_exists = std::filesystem::exists(g_cjsh_history_path);
+        bool home_exists = std::filesystem::exists(g_user_home_path());
+        bool history_exists = std::filesystem::exists(g_cjsh_history_path());
 
         if (!home_exists) {
             print_error({ErrorType::RUNTIME_ERROR,
@@ -774,10 +814,10 @@ bool init_interactive_filesystem() {
         }
 
         if (!history_exists) {
-            auto write_result = write_file_content(g_cjsh_history_path.string(), "");
+            auto write_result = write_file_content(g_cjsh_history_path().string(), "");
             if (!write_result.is_ok()) {
                 print_error({ErrorType::RUNTIME_ERROR,
-                             g_cjsh_history_path.c_str(),
+                             g_cjsh_history_path().c_str(),
                              write_result.error(),
                              {"Check file permissions"}});
                 return false;
@@ -795,7 +835,7 @@ bool init_interactive_filesystem() {
 }
 
 bool is_first_boot() {
-    return !fs::exists(g_cjsh_first_boot_path);
+    return !fs::exists(g_cjsh_first_boot_path());
 }
 
 }  // namespace cjsh_filesystem

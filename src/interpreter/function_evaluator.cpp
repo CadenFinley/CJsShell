@@ -80,16 +80,6 @@ FunctionParseResult parse_and_register_functions(
                 }
 
                 func_name = trimmed_line.substr(name_start, name_end - name_start);
-
-                size_t pos = name_end;
-                while (pos < trimmed_line.length() &&
-                       std::isspace(static_cast<unsigned char>(trimmed_line[pos]))) {
-                    pos++;
-                }
-                if (pos + 1 < trimmed_line.length() && trimmed_line[pos] == '(' &&
-                    trimmed_line[pos + 1] == ')') {
-                    pos += 2;
-                }
             }
         }
 

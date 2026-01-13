@@ -16,7 +16,7 @@ bool is_external_command(const std::string& token) {
 }
 
 bool is_shell_keyword(const std::string& token) {
-    return token_constants::shell_keywords.count(token) > 0;
+    return token_constants::shell_keywords().count(token) > 0;
 }
 
 bool is_shell_builtin(const std::string& token) {
@@ -61,7 +61,7 @@ bool is_quoted_string(const std::string& token, char& quote_type) {
 }
 
 bool is_redirection_operator(const std::string& token) {
-    return token_constants::redirection_operators.count(token) > 0;
+    return token_constants::redirection_operators().count(token) > 0;
 }
 
 bool is_glob_pattern(const std::string& token) {

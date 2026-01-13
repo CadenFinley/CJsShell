@@ -139,34 +139,34 @@ bool command_exists(const std::string& command_path);
 bool resolves_to_executable(const std::string& name, const std::string& cwd);
 bool path_is_directory_candidate(const std::string& value, const std::string& cwd);
 
-extern const fs::path g_user_home_path;
+const fs::path& g_user_home_path();
 
-extern const fs::path g_cjsh_config_path;
+const fs::path& g_cjsh_config_path();
 
-extern const fs::path g_cjsh_cache_path;
+const fs::path& g_cjsh_cache_path();
 
-extern const fs::path g_cjsh_profile_path;
-extern const fs::path g_cjsh_source_path;
-extern const fs::path g_cjsh_logout_path;
+const fs::path& g_cjsh_profile_path();
+const fs::path& g_cjsh_source_path();
+const fs::path& g_cjsh_logout_path();
 
-extern const fs::path g_cjsh_profile_alt_path;
-extern const fs::path g_cjsh_source_alt_path;
-extern const fs::path g_cjsh_logout_alt_path;
+const fs::path& g_cjsh_profile_alt_path();
+const fs::path& g_cjsh_source_alt_path();
+const fs::path& g_cjsh_logout_alt_path();
 
-extern const fs::path g_cjsh_history_path;
+const fs::path& g_cjsh_history_path();
 
-extern const fs::path g_cjsh_first_boot_path;
+const fs::path& g_cjsh_first_boot_path();
 
-extern const fs::path g_cjsh_generated_completions_path;
+const fs::path& g_cjsh_generated_completions_path();
 
 std::vector<std::string> get_executables_in_path();
 bool file_exists(const cjsh_filesystem::fs::path& path);
 bool initialize_cjsh_directories();
 std::string find_executable_in_path(const std::string& name);
 
-bool create_profile_file(const fs::path& target_path = g_cjsh_profile_path);
-bool create_source_file(const fs::path& target_path = g_cjsh_source_path);
-bool create_logout_file(const fs::path& target_path = g_cjsh_logout_path);
+bool create_profile_file(const fs::path& target_path = g_cjsh_profile_path());
+bool create_source_file(const fs::path& target_path = g_cjsh_source_path());
+bool create_logout_file(const fs::path& target_path = g_cjsh_logout_path());
 
 bool init_interactive_filesystem();
 

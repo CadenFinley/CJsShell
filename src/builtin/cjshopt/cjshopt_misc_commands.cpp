@@ -104,7 +104,7 @@ int style_def_command(const std::vector<std::string>& args) {
             std::cout << "Usage: style_def <token_type> <style>\n\n";
             std::cout << "Define or redefine a syntax highlighting style.\n\n";
             std::cout << "Token types:\n";
-            for (const auto& pair : token_constants::default_styles) {
+            for (const auto& pair : token_constants::default_styles()) {
                 std::cout << "  " << pair.first << " (default: " << pair.second << ")\n";
             }
             std::cout << "\nStyle format: [bold] [italic] [underline] color=#RRGGBB|color=name\n";
@@ -121,7 +121,7 @@ int style_def_command(const std::vector<std::string>& args) {
     }
 
     if (args.size() == 2 && args[1] == "--reset") {
-        for (const auto& pair : token_constants::default_styles) {
+        for (const auto& pair : token_constants::default_styles()) {
             ic_style_def(pair.first.c_str(), pair.second.c_str());
         }
         if (!g_startup_active) {
@@ -141,7 +141,8 @@ int style_def_command(const std::vector<std::string>& args) {
     const std::string& token_type = args[1];
     const std::string& style = args[2];
 
-    if (token_constants::default_styles.find(token_type) == token_constants::default_styles.end()) {
+    if (token_constants::default_styles().find(token_type) ==
+        token_constants::default_styles().end()) {
         print_error({ErrorType::INVALID_ARGUMENT,
                      "style_def",
                      "unknown token type: " + token_type,

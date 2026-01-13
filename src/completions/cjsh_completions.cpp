@@ -7,7 +7,6 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
-#include <map>
 #include <string>
 #include <system_error>
 #include <unordered_map>
@@ -29,7 +28,6 @@
 #include "shell.h"
 #include "shell_script_interpreter.h"
 
-std::map<std::string, int> g_completion_frequency;
 bool g_completion_case_sensitive = false;
 bool g_completion_spell_correction_enabled = true;
 
@@ -483,14 +481,13 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
     std::string prefix_str(prefix);
     size_t prefix_len = prefix_str.length();
 
-    std::ifstream history_file(cjsh_filesystem::g_cjsh_history_path);
+    std::ifstream history_file(cjsh_filesystem::g_cjsh_history_path());
     if (!history_file.is_open()) {
         return;
     }
 
     struct HistoryMatch {
         std::string command;
-        int frequency;
         bool has_exit_code;
         int exit_code;
     };
@@ -551,10 +548,7 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
         }
 
         if (should_match) {
-            auto freq_it = g_completion_frequency.find(line);
-            int frequency = (freq_it != g_completion_frequency.end()) ? freq_it->second : 1;
-            matches.push_back(
-                HistoryMatch{std::move(line), frequency, has_last_exit_code, last_exit_code});
+            matches.push_back(HistoryMatch{std::move(line), has_last_exit_code, last_exit_code});
         }
 
         last_exit_code = 0;
@@ -563,9 +557,6 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
         line.clear();
     }
 
-    std::sort(matches.begin(), matches.end(), [](const HistoryMatch& a, const HistoryMatch& b) {
-        return a.frequency > b.frequency;
-    });
     const size_t max_suggestions = 15;
     size_t count = 0;
 
@@ -656,7 +647,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
         std::string unquoted_special = completion_utils::unquote_path(special_part);
         std::string path_after_tilde =
             unquoted_special.length() > 1 ? unquoted_special.substr(2) : "";
-        std::string dir_to_complete = cjsh_filesystem::g_user_home_path.string();
+        std::string dir_to_complete = cjsh_filesystem::g_user_home_path().string();
 
         if (unquoted_special.length() > 1) {
             dir_to_complete += "/" + path_after_tilde;
@@ -883,12 +874,6 @@ void initialize_completion_system() {
              "completions",
              "failed to enforce history limit; history file may exceed the configured size.",
              {"Check disk permissions or trim the history file manually."}});
-    }
-}
-
-void update_completion_frequency(const std::string& command) {
-    if (!command.empty()) {
-        g_completion_frequency[command]++;
     }
 }
 

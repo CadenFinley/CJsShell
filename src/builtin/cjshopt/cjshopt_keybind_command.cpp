@@ -23,62 +23,75 @@ struct KeyBindingDefault {
     const char* description;
 };
 
-const std::vector<KeyBindingDefault> kKeyBindingDefaults = {
-    {IC_KEY_ACTION_CURSOR_LEFT, "cursor-left", "go one character to the left"},
-    {IC_KEY_ACTION_CURSOR_RIGHT_OR_COMPLETE, "cursor-right", "go one character to the right"},
-    {IC_KEY_ACTION_CURSOR_UP, "cursor-up", "go one row up, or back in the history"},
-    {IC_KEY_ACTION_CURSOR_DOWN, "cursor-down", "go one row down, or forward in the history"},
-    {IC_KEY_ACTION_CURSOR_WORD_PREV, "cursor-word-prev", "go to the start of the previous word"},
-    {IC_KEY_ACTION_CURSOR_WORD_NEXT_OR_COMPLETE, "cursor-word-next",
-     "go to the end of the current word"},
-    {IC_KEY_ACTION_CURSOR_LINE_START, "cursor-line-start", "go to the start of the current line"},
-    {IC_KEY_ACTION_CURSOR_LINE_END, "cursor-line-end", "go to the end of the current line"},
-    {IC_KEY_ACTION_CURSOR_INPUT_START, "cursor-input-start",
-     "go to the start of the current input"},
-    {IC_KEY_ACTION_CURSOR_INPUT_END, "cursor-input-end", "go to the end of the current input"},
-    {IC_KEY_ACTION_CURSOR_MATCH_BRACE, "cursor-match-brace", "jump to matching brace"},
-    {IC_KEY_ACTION_HISTORY_PREV, "history-prev", "go back in the history"},
-    {IC_KEY_ACTION_HISTORY_NEXT, "history-next", "go forward in the history"},
-    {IC_KEY_ACTION_HISTORY_SEARCH, "history-search",
-     "search the history starting with the current word"},
-    {IC_KEY_ACTION_DELETE_FORWARD, "delete-forward", "delete the current character"},
-    {IC_KEY_ACTION_DELETE_BACKWARD, "delete-backward", "delete the previous character"},
-    {IC_KEY_ACTION_DELETE_WORD_START_WS, "delete-word-start-ws", "delete to preceding white space"},
-    {IC_KEY_ACTION_DELETE_WORD_START, "delete-word-start",
-     "delete to the start of the current word"},
-    {IC_KEY_ACTION_DELETE_WORD_END, "delete-word-end", "delete to the end of the current word"},
-    {IC_KEY_ACTION_DELETE_LINE_START, "delete-line-start",
-     "delete to the start of the current line"},
-    {IC_KEY_ACTION_DELETE_LINE_END, "delete-line-end", "delete to the end of the current line"},
-    {IC_KEY_ACTION_TRANSPOSE_CHARS, "transpose-chars",
-     "swap with previous character (move character backward)"},
-    {IC_KEY_ACTION_CLEAR_SCREEN, "clear-screen", "clear screen"},
-    {IC_KEY_ACTION_UNDO, "undo", "undo"},
-    {IC_KEY_ACTION_REDO, "redo", "redo"},
-    {IC_KEY_ACTION_COMPLETE, "complete", "try to complete the current input"},
-    {IC_KEY_ACTION_INSERT_NEWLINE, "insert-newline", "create a new line for multi-line input"},
-};
+const std::vector<KeyBindingDefault>& key_binding_defaults() {
+    static const std::vector<KeyBindingDefault> kDefaults = {
+        {IC_KEY_ACTION_CURSOR_LEFT, "cursor-left", "go one character to the left"},
+        {IC_KEY_ACTION_CURSOR_RIGHT_OR_COMPLETE, "cursor-right", "go one character to the right"},
+        {IC_KEY_ACTION_CURSOR_UP, "cursor-up", "go one row up, or back in the history"},
+        {IC_KEY_ACTION_CURSOR_DOWN, "cursor-down", "go one row down, or forward in the history"},
+        {IC_KEY_ACTION_CURSOR_WORD_PREV, "cursor-word-prev",
+         "go to the start of the previous word"},
+        {IC_KEY_ACTION_CURSOR_WORD_NEXT_OR_COMPLETE, "cursor-word-next",
+         "go to the end of the current word"},
+        {IC_KEY_ACTION_CURSOR_LINE_START, "cursor-line-start",
+         "go to the start of the current line"},
+        {IC_KEY_ACTION_CURSOR_LINE_END, "cursor-line-end", "go to the end of the current line"},
+        {IC_KEY_ACTION_CURSOR_INPUT_START, "cursor-input-start",
+         "go to the start of the current input"},
+        {IC_KEY_ACTION_CURSOR_INPUT_END, "cursor-input-end", "go to the end of the current input"},
+        {IC_KEY_ACTION_CURSOR_MATCH_BRACE, "cursor-match-brace", "jump to matching brace"},
+        {IC_KEY_ACTION_HISTORY_PREV, "history-prev", "go back in the history"},
+        {IC_KEY_ACTION_HISTORY_NEXT, "history-next", "go forward in the history"},
+        {IC_KEY_ACTION_HISTORY_SEARCH, "history-search",
+         "search the history starting with the current word"},
+        {IC_KEY_ACTION_DELETE_FORWARD, "delete-forward", "delete the current character"},
+        {IC_KEY_ACTION_DELETE_BACKWARD, "delete-backward", "delete the previous character"},
+        {IC_KEY_ACTION_DELETE_WORD_START_WS, "delete-word-start-ws",
+         "delete to preceding white space"},
+        {IC_KEY_ACTION_DELETE_WORD_START, "delete-word-start",
+         "delete to the start of the current word"},
+        {IC_KEY_ACTION_DELETE_WORD_END, "delete-word-end", "delete to the end of the current word"},
+        {IC_KEY_ACTION_DELETE_LINE_START, "delete-line-start",
+         "delete to the start of the current line"},
+        {IC_KEY_ACTION_DELETE_LINE_END, "delete-line-end", "delete to the end of the current line"},
+        {IC_KEY_ACTION_TRANSPOSE_CHARS, "transpose-chars",
+         "swap with previous character (move character backward)"},
+        {IC_KEY_ACTION_CLEAR_SCREEN, "clear-screen", "clear screen"},
+        {IC_KEY_ACTION_UNDO, "undo", "undo"},
+        {IC_KEY_ACTION_REDO, "redo", "redo"},
+        {IC_KEY_ACTION_COMPLETE, "complete", "try to complete the current input"},
+        {IC_KEY_ACTION_INSERT_NEWLINE, "insert-newline", "create a new line for multi-line input"},
+    };
+    return kDefaults;
+}
 
-const std::vector<std::string> kKeybindUsage = {
-    "Usage: keybind <subcommand> [...]",
-    "",
-    "Note: Key binding modifications can ONLY be made in configuration files (e.g., ~/.cjshrc).",
-    "      They cannot be changed at runtime.",
-    "",
-    "Subcommands:",
-    "  list                            Show current default and custom key bindings (works at ",
-    "runtime)",
-    "  set <action> <keys...>          Replace bindings for an action (config file only)",
-    "  add <action> <keys...>          Add key bindings for an action (config file only)",
-    "  clear <keys...>                 Remove bindings for the specified key(s) (config file only)",
-    "  clear-action <action>           Remove all custom bindings for an action (config file only)",
-    "  reset                           Clear all custom key bindings and restore defaults (config ",
-    "file only)",
-    "  profile list                    List available key binding profiles (runtime)",
-    "  profile set <name>              Activate a key binding profile (config file only)",
-    "",
-    "Use 'keybind --help' for detailed guidance.",
-};
+const std::vector<std::string>& keybind_usage_lines() {
+    static const std::vector<std::string> kUsage = {
+        "Usage: keybind <subcommand> [...]",
+        "",
+        "Note: Key binding modifications can ONLY be made in configuration files (e.g., "
+        "~/.cjshrc).",
+        "      They cannot be changed at runtime.",
+        "",
+        "Subcommands:",
+        "  list                            Show current default and custom key bindings (works at ",
+        "runtime)",
+        "  set <action> <keys...>          Replace bindings for an action (config file only)",
+        "  add <action> <keys...>          Add key bindings for an action (config file only)",
+        "  clear <keys...>                 Remove bindings for the specified key(s) (config file "
+        "only)",
+        "  clear-action <action>           Remove all custom bindings for an action (config file "
+        "only)",
+        "  reset                           Clear all custom key bindings and restore defaults "
+        "(config ",
+        "file only)",
+        "  profile list                    List available key binding profiles (runtime)",
+        "  profile set <name>              Activate a key binding profile (config file only)",
+        "",
+        "Use 'keybind --help' for detailed guidance.",
+    };
+    return kUsage;
+}
 
 std::vector<std::string> split_key_spec_string(const std::string& spec) {
     std::vector<std::string> result;
@@ -147,7 +160,7 @@ std::vector<ic_key_binding_entry_t> collect_bindings() {
 }
 
 const KeyBindingDefault* find_default(ic_key_action_t action) {
-    for (const auto& entry : kKeyBindingDefaults) {
+    for (const auto& entry : key_binding_defaults()) {
         if (entry.action == action) {
             return &entry;
         }
@@ -174,8 +187,8 @@ std::unordered_map<ic_key_action_t, std::vector<std::string>> group_bindings_by_
 
 std::vector<std::string> available_action_names() {
     std::vector<std::string> names;
-    names.reserve(kKeyBindingDefaults.size() + 1);
-    for (const auto& entry : kKeyBindingDefaults) {
+    names.reserve(key_binding_defaults().size() + 1);
+    for (const auto& entry : key_binding_defaults()) {
         names.emplace_back(entry.canonical_name);
     }
     names.emplace_back("none");
@@ -188,7 +201,7 @@ void print_keybind_usage() {
     if (g_startup_active) {
         return;
     }
-    for (const auto& line : kKeybindUsage) {
+    for (const auto& line : keybind_usage_lines()) {
         std::cout << line << '\n';
     }
     std::cout << "Available actions: ";
@@ -288,7 +301,7 @@ int keybind_list_command() {
               << (active_profile != nullptr ? active_profile : "emacs") << "\n\n";
 
     size_t name_width = std::strlen("Action");
-    for (const auto& entry : kKeyBindingDefaults) {
+    for (const auto& entry : key_binding_defaults()) {
         name_width = std::max(name_width, std::strlen(entry.canonical_name));
     }
     for (const auto& pair : grouped) {
@@ -309,7 +322,7 @@ int keybind_list_command() {
 
     std::unordered_set<ic_key_action_t> printed;
 
-    for (const auto& entry : kKeyBindingDefaults) {
+    for (const auto& entry : key_binding_defaults()) {
         const char* spec_cstr = ic_key_binding_profile_default_specs(entry.action);
         std::string spec_string = (spec_cstr != nullptr ? spec_cstr : "");
         std::vector<std::string> default_specs = split_key_spec_string(spec_string);
@@ -384,7 +397,7 @@ int keybind_profile_list_command() {
 int keybind_profile_set_command(const std::vector<std::string>& args) {
     if (args.size() != 4) {
         print_error({ErrorType::INVALID_ARGUMENT, "keybind", "profile set requires a profile name",
-                     kKeybindUsage});
+                     keybind_usage_lines()});
         return 1;
     }
 
@@ -430,7 +443,7 @@ int keybind_set_or_add_command(const std::vector<std::string>& args, bool replac
         print_error({ErrorType::INVALID_ARGUMENT, "keybind",
                      std::string(replace_existing ? "set" : "add") +
                          " requires an action and at least one key specification",
-                     kKeybindUsage});
+                     keybind_usage_lines()});
         return 1;
     }
 
@@ -438,14 +451,14 @@ int keybind_set_or_add_command(const std::vector<std::string>& args, bool replac
     ic_key_action_t action = ic_key_action_from_name(action_arg.c_str());
     if (action == IC_KEY_ACTION__MAX) {
         print_error({ErrorType::INVALID_ARGUMENT, "keybind", "Unknown action '" + action_arg + "'",
-                     kKeybindUsage});
+                     keybind_usage_lines()});
         return 1;
     }
 
     auto spec_args = parse_key_spec_arguments(args, 3);
     if (spec_args.empty()) {
         print_error({ErrorType::INVALID_ARGUMENT, "keybind",
-                     "Provide at least one key specification", kKeybindUsage});
+                     "Provide at least one key specification", keybind_usage_lines()});
         return 1;
     }
 
@@ -453,7 +466,7 @@ int keybind_set_or_add_command(const std::vector<std::string>& args, bool replac
     std::string invalid_spec;
     if (!parse_key_specs_to_codes(spec_args, &parsed, &invalid_spec)) {
         print_error({ErrorType::INVALID_ARGUMENT, "keybind",
-                     "Invalid key specification '" + invalid_spec + "'", kKeybindUsage});
+                     "Invalid key specification '" + invalid_spec + "'", keybind_usage_lines()});
         return 1;
     }
 
@@ -501,7 +514,8 @@ int keybind_set_or_add_command(const std::vector<std::string>& args, bool replac
                 ic_bind_key(prev.key, prev.action);
             }
             print_error({ErrorType::INVALID_ARGUMENT, "keybind",
-                         "Failed to bind key specification '" + entry.second + "'", kKeybindUsage});
+                         "Failed to bind key specification '" + entry.second + "'",
+                         keybind_usage_lines()});
             return 1;
         }
         bound.push_back(entry.first);
@@ -527,14 +541,14 @@ int keybind_set_or_add_command(const std::vector<std::string>& args, bool replac
 int keybind_clear_keys_command(const std::vector<std::string>& args) {
     if (args.size() < 3) {
         print_error({ErrorType::INVALID_ARGUMENT, "keybind",
-                     "clear requires at least one key specification", kKeybindUsage});
+                     "clear requires at least one key specification", keybind_usage_lines()});
         return 1;
     }
 
     auto spec_args = parse_key_spec_arguments(args, 2);
     if (spec_args.empty()) {
         print_error({ErrorType::INVALID_ARGUMENT, "keybind",
-                     "Provide at least one key specification", kKeybindUsage});
+                     "Provide at least one key specification", keybind_usage_lines()});
         return 1;
     }
 
@@ -542,7 +556,7 @@ int keybind_clear_keys_command(const std::vector<std::string>& args) {
     std::string invalid_spec;
     if (!parse_key_specs_to_codes(spec_args, &parsed, &invalid_spec)) {
         print_error({ErrorType::INVALID_ARGUMENT, "keybind",
-                     "Invalid key specification '" + invalid_spec + "'", kKeybindUsage});
+                     "Invalid key specification '" + invalid_spec + "'", keybind_usage_lines()});
         return 1;
     }
 
@@ -574,7 +588,7 @@ int keybind_clear_keys_command(const std::vector<std::string>& args) {
 int keybind_clear_action_command(const std::vector<std::string>& args) {
     if (args.size() != 3) {
         print_error({ErrorType::INVALID_ARGUMENT, "keybind", "clear-action requires an action name",
-                     kKeybindUsage});
+                     keybind_usage_lines()});
         return 1;
     }
 
@@ -582,7 +596,7 @@ int keybind_clear_action_command(const std::vector<std::string>& args) {
     ic_key_action_t action = ic_key_action_from_name(action_arg.c_str());
     if (action == IC_KEY_ACTION__MAX) {
         print_error({ErrorType::INVALID_ARGUMENT, "keybind", "Unknown action '" + action_arg + "'",
-                     kKeybindUsage});
+                     keybind_usage_lines()});
         return 1;
     }
 
@@ -622,8 +636,8 @@ int keybind_reset_command() {
 
 int keybind_command(const std::vector<std::string>& args) {
     if (args.size() == 1) {
-        print_error(
-            {ErrorType::INVALID_ARGUMENT, "keybind", "Missing subcommand argument", kKeybindUsage});
+        print_error({ErrorType::INVALID_ARGUMENT, "keybind", "Missing subcommand argument",
+                     keybind_usage_lines()});
         return 1;
     }
 
@@ -640,7 +654,7 @@ int keybind_command(const std::vector<std::string>& args) {
     if (subcommand == "list") {
         if (args.size() != 2) {
             print_error({ErrorType::INVALID_ARGUMENT, "keybind",
-                         "list does not accept additional arguments", kKeybindUsage});
+                         "list does not accept additional arguments", keybind_usage_lines()});
             return 1;
         }
         return keybind_list_command();
@@ -694,13 +708,13 @@ int keybind_command(const std::vector<std::string>& args) {
     if (subcommand == "reset") {
         if (args.size() != 2) {
             print_error({ErrorType::INVALID_ARGUMENT, "keybind",
-                         "reset does not accept additional arguments", kKeybindUsage});
+                         "reset does not accept additional arguments", keybind_usage_lines()});
             return 1;
         }
         return keybind_reset_command();
     }
 
     print_error({ErrorType::INVALID_ARGUMENT, "keybind", "Unknown subcommand '" + subcommand + "'",
-                 kKeybindUsage});
+                 keybind_usage_lines()});
     return 1;
 }

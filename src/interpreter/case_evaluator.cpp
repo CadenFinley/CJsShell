@@ -29,7 +29,6 @@ std::pair<std::string, size_t> collect_case_body(const std::vector<std::string>&
                 if (appended)
                     body_stream << '\n';
                 body_stream << before_esac;
-                appended = true;
             }
             end_index = i;
             return {body_stream.str(), end_index};

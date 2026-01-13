@@ -769,7 +769,9 @@ ic_public void ic_complete_filename(ic_completion_env_t* cenv, const char* prefi
     fclosure.dir_sep = dir_sep;
     fclosure.roots = roots;
     fclosure.extensions = extensions;
+    void* previous_arg = cenv->arg;
     cenv->arg = &fclosure;
     ic_complete_qword_ex(cenv, prefix, &filename_completer, &ic_char_is_filename_letter, '\\',
                          "'\"");
+    cenv->arg = previous_arg;
 }

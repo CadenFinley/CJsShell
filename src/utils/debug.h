@@ -45,7 +45,7 @@ static inline FILE* cjsh_get_debug_log_file(void) {
             return;
         }
 
-        auto log_path = cjsh_filesystem::g_cjsh_cache_path / filename;
+        auto log_path = cjsh_filesystem::g_cjsh_cache_path() / filename;
         auto file_result = cjsh_filesystem::safe_fopen(log_path.string(), "a");
         if (file_result.is_error()) {
             return;

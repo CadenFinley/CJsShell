@@ -29,7 +29,7 @@ bool trim_history_file(long max_entries, std::string* error_message) {
         return true;
     }
 
-    const auto& history_path = cjsh_filesystem::g_cjsh_history_path;
+    const auto& history_path = cjsh_filesystem::g_cjsh_history_path();
 
     if (max_entries == 0) {
         std::error_code remove_ec;
@@ -131,7 +131,7 @@ bool enforce_history_limit(std::string* error_message) {
         return trim_history_file(0, error_message);
     }
 
-    ic_set_history(cjsh_filesystem::g_cjsh_history_path.c_str(), g_history_max_entries_value);
+    ic_set_history(cjsh_filesystem::g_cjsh_history_path().c_str(), g_history_max_entries_value);
     return trim_history_file(g_history_max_entries_value, error_message);
 }
 

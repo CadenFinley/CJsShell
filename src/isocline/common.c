@@ -297,7 +297,10 @@ ic_private unicode_t unicode_from_qutf8(const uint8_t* s, ssize_t len, ssize_t* 
 fail:
     if (count != NULL)
         *count = 1;
-    return unicode_from_raw(s[0]);
+    uint8_t fallback = 0;
+    if (s != NULL && len > 0)
+        fallback = s[0];
+    return unicode_from_raw(fallback);
 }
 
 //-------------------------------------------------------------

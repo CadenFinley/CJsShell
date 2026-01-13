@@ -1,6 +1,7 @@
 #include "hook_command.h"
 
 #include <algorithm>
+#include <array>
 #include <iostream>
 
 #include "builtin_help.h"
@@ -9,11 +10,11 @@
 
 namespace {
 
-const std::vector<std::string> g_valid_hook_types = {"precmd", "preexec", "chpwd"};
+constexpr std::array<std::string_view, 3> kValidHookTypes = {"precmd", "preexec", "chpwd"};
 
 bool is_valid_hook_type(const std::string& hook_type) {
-    return std::any_of(g_valid_hook_types.begin(), g_valid_hook_types.end(),
-                       [&hook_type](const std::string& valid) { return hook_type == valid; });
+    return std::any_of(kValidHookTypes.begin(), kValidHookTypes.end(),
+                       [&hook_type](std::string_view valid) { return hook_type == valid; });
 }
 
 }  // namespace
@@ -54,7 +55,8 @@ int hook_command(const std::vector<std::string>& args, Shell* shell) {
     if (command == "list") {
         if (args.size() == 2) {
             bool found_any = false;
-            for (const auto& hook_type : g_valid_hook_types) {
+            for (std::string_view hook_type_view : kValidHookTypes) {
+                std::string hook_type(hook_type_view);
                 auto hooks = shell->get_hooks(hook_type);
                 if (!hooks.empty()) {
                     found_any = true;

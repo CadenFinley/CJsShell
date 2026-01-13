@@ -735,13 +735,13 @@ int printf_command(const std::vector<std::string>& args) {
     std::vector<std::string> argv_storage;
     std::vector<char*> argv_ptrs;
 
-    for (size_t i = 2; i < args.size(); i++) {
+    for (size_t i = 2; i < args.size(); ++i) {
         argv_storage.push_back(args[i]);
     }
 
     argv_ptrs.reserve(argv_storage.size());
-    for (size_t i = 0; i < argv_storage.size(); i++) {
-        argv_ptrs.push_back(const_cast<char*>(argv_storage[i].c_str()));
+    for (const auto& stored_arg : argv_storage) {
+        argv_ptrs.push_back(const_cast<char*>(stored_arg.c_str()));
     }
 
     int argc = argv_ptrs.size();
@@ -756,6 +756,6 @@ int printf_command(const std::vector<std::string>& args) {
         argv += args_used;
     } while (args_used > 0 && argc > 0);
 
-    fflush(stdout);
+    (void)fflush(stdout);
     return exit_status;
 }

@@ -22,7 +22,7 @@ std::vector<std::string> read_history_entries() {
     cjsh_filesystem::initialize_cjsh_directories();
 
     auto read_result =
-        cjsh_filesystem::read_file_content(cjsh_filesystem::g_cjsh_history_path.string());
+        cjsh_filesystem::read_file_content(cjsh_filesystem::g_cjsh_history_path().string());
 
     std::vector<std::string> entries;
     entries.reserve(256);
@@ -156,7 +156,7 @@ std::string get_editor() {
 int edit_and_execute_string(const std::string& initial_content, const std::string& editor,
                             Shell* shell) {
     cjsh_filesystem::initialize_cjsh_directories();
-    auto temp_dir = cjsh_filesystem::g_cjsh_cache_path;
+    auto temp_dir = cjsh_filesystem::g_cjsh_cache_path();
     auto temp_file = temp_dir / ("fc_edit_" + std::to_string(getpid()) + ".sh");
 
     std::ofstream out(temp_file);
@@ -217,7 +217,7 @@ int edit_and_execute(const std::vector<std::string>& entries, int first, int las
     }
 
     cjsh_filesystem::initialize_cjsh_directories();
-    auto temp_dir = cjsh_filesystem::g_cjsh_cache_path;
+    auto temp_dir = cjsh_filesystem::g_cjsh_cache_path();
     auto temp_file = temp_dir / ("fc_edit_" + std::to_string(getpid()) + ".sh");
 
     std::ofstream out(temp_file);

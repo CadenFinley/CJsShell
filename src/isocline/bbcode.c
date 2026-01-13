@@ -329,7 +329,6 @@ static void attr_update_width(width_t* pwidth, char default_fill, const char* va
                         (len == 1 && value[i] == '1')) {
                         width.dots = true;
                     }
-                    i += len;
                 }
             }
         }
