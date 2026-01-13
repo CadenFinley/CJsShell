@@ -1246,11 +1246,7 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
             _exit(EXIT_FAILURE);
         }
 
-        (void)signal(SIGINT, SIG_IGN);
-        (void)signal(SIGQUIT, SIG_IGN);
-        (void)signal(SIGTSTP, SIG_IGN);
-        (void)signal(SIGTTIN, SIG_IGN);
-        (void)signal(SIGTTOU, SIG_IGN);
+        reset_child_signals();
 
         auto c_args = cjsh_env::build_exec_argv(cmd_args);
         execvp(cmd_args[0].c_str(), c_args.data());
