@@ -805,6 +805,12 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
 
     switch (context) {
         case CONTEXT_COMMAND:
+            cjsh_filename_completer(cenv, current_line_prefix);
+            if (ic_has_completions(cenv) && ic_stop_completing(cenv)) {
+                completion_tracker::completion_session_end();
+                return;
+            }
+
             cjsh_command_completer(cenv, current_line_prefix);
             if (ic_has_completions(cenv) && ic_stop_completing(cenv)) {
                 completion_tracker::completion_session_end();
@@ -817,7 +823,6 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
                 return;
             }
 
-            cjsh_filename_completer(cenv, current_line_prefix);
             break;
 
         case CONTEXT_PATH:

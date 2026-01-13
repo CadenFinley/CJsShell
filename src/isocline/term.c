@@ -194,36 +194,32 @@ ic_private void term_set_attr(term_t* term, attr_t attr) {
         return;
     if (attr.x.color != term->attr.x.color && attr.x.color != IC_COLOR_NONE) {
         term_color(term, attr.x.color);
-        if (term->palette < ANSIRGB && color_is_rgb(attr.x.color)) {
-            term->attr.x.color = attr.x.color;  // actual color may have been approximated but we
-                                                // keep the actual color to avoid updating every
-                                                // time
-        }
+        term->attr.x.color = attr.x.color;
     }
     if (attr.x.bgcolor != term->attr.x.bgcolor && attr.x.bgcolor != IC_COLOR_NONE) {
         term_bgcolor(term, attr.x.bgcolor);
-        if (term->palette < ANSIRGB && color_is_rgb(attr.x.bgcolor)) {
-            term->attr.x.bgcolor = attr.x.bgcolor;
-        }
+        term->attr.x.bgcolor = attr.x.bgcolor;
     }
     if (attr.x.bold != term->attr.x.bold && attr.x.bold != IC_NONE) {
         term_bold(term, attr.x.bold == IC_ON);
+        term->attr.x.bold = attr.x.bold;
     }
     if (attr.x.underline != term->attr.x.underline && attr.x.underline != IC_NONE) {
         term_underline(term, attr.x.underline == IC_ON);
+        term->attr.x.underline = attr.x.underline;
     }
     if (attr.x.underline_color != term->attr.x.underline_color &&
         attr.x.underline_color != IC_COLOR_NONE) {
         term_underline_color(term, attr.x.underline_color);
-        if (term->palette < ANSIRGB && color_is_rgb(attr.x.underline_color)) {
-            term->attr.x.underline_color = attr.x.underline_color;
-        }
+        term->attr.x.underline_color = attr.x.underline_color;
     }
     if (attr.x.reverse != term->attr.x.reverse && attr.x.reverse != IC_NONE) {
         term_reverse(term, attr.x.reverse == IC_ON);
+        term->attr.x.reverse = attr.x.reverse;
     }
     if (attr.x.italic != term->attr.x.italic && attr.x.italic != IC_NONE) {
         term_italic(term, attr.x.italic == IC_ON);
+        term->attr.x.italic = attr.x.italic;
     }
     assert(attr.x.color == term->attr.x.color || attr.x.color == IC_COLOR_NONE);
     assert(attr.x.bgcolor == term->attr.x.bgcolor || attr.x.bgcolor == IC_COLOR_NONE);
