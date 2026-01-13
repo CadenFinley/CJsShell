@@ -6,7 +6,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <ctime>
 #include <optional>
 #include <sstream>
 #include <string_view>
@@ -252,17 +251,6 @@ void safe_fclose(FILE* file) {
     }
 }
 
-Result<std::string> create_temp_file(const std::string& prefix) {
-    std::string temp_path =
-        "/tmp/" + prefix + "_" + std::to_string(getpid()) + "_" + std::to_string(time(nullptr));
-    auto open_result = safe_open(temp_path, O_WRONLY | O_CREAT | O_EXCL, 0600);
-    if (open_result.is_error()) {
-        return Result<std::string>::error(open_result.error());
-    }
-    safe_close(open_result.value());
-    return Result<std::string>::ok(temp_path);
-}
-
 namespace {
 Result<void> write_content_with_permissions(const std::string& path, std::string_view content,
                                             bool enforce_secure_permissions) {
@@ -293,16 +281,8 @@ Result<void> write_content_with_permissions(const std::string& path, std::string
 }
 }  // namespace
 
-Result<void> write_temp_file(const std::string& path, const std::string& content) {
-    return write_content_with_permissions(path, std::string_view{content}, false);
-}
-
 Result<void> write_file_content(const std::string& path, const std::string& content) {
     return write_content_with_permissions(path, std::string_view{content}, true);
-}
-
-void cleanup_temp_file(const std::string& path) {
-    (void)std::remove(path.c_str());
 }
 
 Result<void> write_all(int fd, std::string_view data) {

@@ -113,10 +113,6 @@ void close_pipe(int pipe_fds[2]);
 Result<FILE*> safe_fopen(const std::string& path, const std::string& mode);
 void safe_fclose(FILE* file);
 
-Result<std::string> create_temp_file(const std::string& prefix = "cjsh_temp");
-Result<void> write_temp_file(const std::string& path, const std::string& content);
-void cleanup_temp_file(const std::string& path);
-
 Result<void> write_file_content(const std::string& path, const std::string& content);
 Result<std::string> read_file_content(const std::string& path);
 Result<void> write_all(int fd, std::string_view data);
