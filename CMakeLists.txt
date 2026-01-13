@@ -5,6 +5,32 @@ project(cjsh VERSION 4.1.3 LANGUAGES C CXX)
 include(CTest)
 include(GNUInstallDirs)
 
+if(APPLE)
+    if(NOT DEFINED CMAKE_OSX_SYSROOT OR CMAKE_OSX_SYSROOT STREQUAL "")
+        set(_cjsh_sdkroot "")
+        if(DEFINED ENV{SDKROOT} AND NOT "$ENV{SDKROOT}" STREQUAL "")
+            set(_cjsh_sdkroot "$ENV{SDKROOT}")
+        else()
+            find_program(_CJSH_XCRUN xcrun)
+            if(_CJSH_XCRUN)
+                execute_process(
+                    COMMAND ${_CJSH_XCRUN} --sdk macosx --show-sdk-path
+                    OUTPUT_VARIABLE _cjsh_detected_sdk
+                    OUTPUT_STRIP_TRAILING_WHITESPACE
+                    ERROR_QUIET
+                )
+                set(_cjsh_sdkroot "${_cjsh_detected_sdk}")
+            endif()
+        endif()
+        if(_cjsh_sdkroot AND EXISTS "${_cjsh_sdkroot}")
+            set(CMAKE_OSX_SYSROOT "${_cjsh_sdkroot}" CACHE PATH "macOS SDK path" FORCE)
+        endif()
+        unset(_cjsh_sdkroot)
+        unset(_cjsh_detected_sdk)
+        unset(_CJSH_XCRUN CACHE)
+    endif()
+endif()
+
 if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release RelWithDebInfo MinSizeRel)
@@ -20,6 +46,10 @@ option(CJSH_STRIP_BINARY "Strip symbols from the cjsh binary in non-Debug builds
 
 option(CJSH_GENERATE_COMPILE_COMMANDS "Emit compile_commands.json during configuration" ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ${CJSH_GENERATE_COMPILE_COMMANDS} CACHE BOOL "Export compilation database" FORCE)
+option(CJSH_ENABLE_UNUSED_WARNINGS "Emit diagnostics for unused code" ON)
+option(CJSH_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
+option(CJSH_ENABLE_CLANG_TIDY "Run clang-tidy as part of the build" OFF)
+set(CJSH_CLANG_TIDY_BINARY "clang-tidy" CACHE STRING "clang-tidy executable to use when enabled")
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -184,13 +214,42 @@ target_compile_definitions(cjsh PRIVATE
     $<$<AND:$<NOT:$<CONFIG:Debug>>,$<NOT:$<BOOL:${CJSH_MINIMAL_BUILD}>>>:_FORTIFY_SOURCE=1>
 )
 
-foreach(_cjsh_opt -Wall -Wextra -Wpedantic)
-    target_compile_options(cjsh PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${_cjsh_opt}>)
-endforeach()
+if(CJSH_ENABLE_CLANG_TIDY)
+    find_program(CJSH_CLANG_TIDY_PATH ${CJSH_CLANG_TIDY_BINARY})
+    if(NOT CJSH_CLANG_TIDY_PATH)
+        message(FATAL_ERROR "CJSH_ENABLE_CLANG_TIDY is ON but ${CJSH_CLANG_TIDY_BINARY} was not found")
+    endif()
+    set(CMAKE_CXX_CLANG_TIDY ${CJSH_CLANG_TIDY_PATH} CACHE STRING "" FORCE)
+    set(CMAKE_C_CLANG_TIDY ${CJSH_CLANG_TIDY_PATH} CACHE STRING "" FORCE)
+endif()
 
-foreach(_cjsh_opt -Wall -Wno-error -Wno-unused-function -Wno-unused-variable)
-    target_compile_options(cjsh PRIVATE $<$<COMPILE_LANGUAGE:C>:${_cjsh_opt}>)
-endforeach()
+set(_cjsh_common_cxx_warnings
+    -Wall
+    -Wextra
+    -Wpedantic
+)
+set(_cjsh_common_c_warnings
+    -Wall
+    -Wextra
+    -Wpedantic
+)
+
+if(CJSH_ENABLE_UNUSED_WARNINGS)
+    list(APPEND _cjsh_common_cxx_warnings -Wunused -Wunused-parameter -Wunused-variable -Wunused-function)
+    list(APPEND _cjsh_common_c_warnings -Wunused -Wunused-parameter -Wunused-variable -Wunused-function)
+endif()
+
+if(CJSH_WARNINGS_AS_ERRORS)
+    list(APPEND _cjsh_common_cxx_warnings -Werror)
+    list(APPEND _cjsh_common_c_warnings -Werror)
+endif()
+
+if(_cjsh_common_cxx_warnings)
+    target_compile_options(cjsh PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${_cjsh_common_cxx_warnings}>)
+endif()
+if(_cjsh_common_c_warnings)
+    target_compile_options(cjsh PRIVATE $<$<COMPILE_LANGUAGE:C>:${_cjsh_common_c_warnings}>)
+endif()
 
 if(APPLE AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     target_compile_options(cjsh PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-stdlib=libc++>)

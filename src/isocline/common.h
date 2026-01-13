@@ -170,7 +170,7 @@ ic_private ic_color_t ic_rgbx(ssize_t r, ssize_t g, ssize_t b);
 //-------------------------------------------------------------
 
 #if defined(IC_NO_DEBUG_MSG)
-#define debug_msg(fmt, ...) (void)(0)
+#define debug_msg(...) (void)(0)
 #else
 ic_private void debug_msg(const char* fmt, ...);
 #endif

@@ -25,6 +25,7 @@
 #include "history.h"
 
 #include <ctype.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -117,6 +118,24 @@ static void history_list_remove_at(history_t* h, history_list_t* list, ssize_t i
                 (size_t)(list->count - idx - 1) * sizeof(history_entry_t));
     }
     list->count--;
+}
+
+static bool history_write_successful(int result) {
+    if (result < 0) {
+        debug_msg("history: stream write failed\n");
+        return false;
+    }
+    return true;
+}
+
+static bool history_close_stream(FILE* f) {
+    if (f == NULL)
+        return true;
+    if (fclose(f) != 0) {
+        debug_msg("history: fclose failed\n");
+        return false;
+    }
+    return true;
 }
 
 static void history_list_prune_to_max(history_t* h, history_list_t* list) {
