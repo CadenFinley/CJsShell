@@ -25,7 +25,6 @@
 
 //-------------------------------------------------------------
 
-static bool edit_try_spell_correct(ic_env_t* env, editor_t* eb);
 // Completion menu: this file is included in editline.c
 //-------------------------------------------------------------
 

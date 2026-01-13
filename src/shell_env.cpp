@@ -268,9 +268,7 @@ std::vector<std::string> parse_shell_command(const std::string& command) {
     bool in_double_quote = false;
     bool escaped = false;
 
-    for (size_t i = 0; i < command.size(); ++i) {
-        char c = command[i];
-
+    for (char c : command) {
         if (escaped) {
             current += c;
             escaped = false;

@@ -49,7 +49,7 @@ using shell_script_interpreter::detail::trim;
 namespace {
 
 int report_error_with_code(ErrorType type, ErrorSeverity severity, const std::string& command,
-                           const std::string& message, std::vector<std::string> suggestions,
+                           const std::string& message, const std::vector<std::string>& suggestions,
                            int code) {
     print_error({type, severity, command, message, suggestions});
     setenv("?", std::to_string(code).c_str(), 1);
@@ -970,9 +970,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                 auto segs = shell_script_interpreter::detail::split_ampersand(semi);
                 if (segs.empty())
                     segs.push_back(semi);
-                for (size_t si = 0; si < segs.size(); ++si) {
-                    const std::string& cmd_text = segs[si];
-
+                for (const auto& cmd_text : segs) {
                     if (g_shell != nullptr && g_shell->get_shell_option("verbose")) {
                         std::string verbose_text = trim(strip_inline_comment(cmd_text));
                         if (!verbose_text.empty()) {
@@ -1100,9 +1098,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                             bool escaped = false;
                             int paren_depth = 0;
 
-                            for (size_t idx = 0; idx < command.size(); ++idx) {
-                                char ch = command[idx];
-
+                            for (char ch : command) {
                                 if (escaped) {
                                     escaped = false;
                                     continue;

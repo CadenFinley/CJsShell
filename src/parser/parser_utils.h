@@ -4,8 +4,8 @@
 #include <string>
 #include <utility>
 
-extern const std::string SUBST_LITERAL_START;
-extern const std::string SUBST_LITERAL_END;
+const std::string& subst_literal_start();
+const std::string& subst_literal_end();
 
 std::string trim_trailing_whitespace(std::string s);
 std::string trim_leading_whitespace(const std::string& s);

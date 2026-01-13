@@ -363,6 +363,7 @@ static bool editor_pos_is_at_end(editor_t* eb) {
 //-------------------------------------------------------------
 
 static ssize_t compute_continuation_indent_target(ic_env_t* env, editor_t* eb, ssize_t promptw) {
+    ic_unused(eb);
     ssize_t cmarkerw = bbcode_column_width(env->bbcode, env->cprompt_marker);
     if (env->no_multiline_indent) {
         return cmarkerw;
@@ -1687,7 +1688,7 @@ static void edit_cursor_prev_word(ic_env_t* env, editor_t* eb) {
     edit_refresh(env, eb);
 }
 
-static void edit_cursor_next_ws_word(ic_env_t* env, editor_t* eb) {
+static ic_maybe_unused void edit_cursor_next_ws_word(ic_env_t* env, editor_t* eb) {
     ssize_t end = sbuf_find_ws_word_end(eb->input, eb->pos);
     if (end < 0)
         return;
@@ -1695,7 +1696,7 @@ static void edit_cursor_next_ws_word(ic_env_t* env, editor_t* eb) {
     edit_refresh(env, eb);
 }
 
-static void edit_cursor_prev_ws_word(ic_env_t* env, editor_t* eb) {
+static ic_maybe_unused void edit_cursor_prev_ws_word(ic_env_t* env, editor_t* eb) {
     ssize_t start = sbuf_find_ws_word_start(eb->input, eb->pos);
     if (start < 0)
         return;
@@ -1836,7 +1837,7 @@ static void edit_delete_to_start_of_line(ic_env_t* env, editor_t* eb) {
     edit_refresh(env, eb);
 }
 
-static void edit_delete_line(ic_env_t* env, editor_t* eb) {
+static ic_maybe_unused void edit_delete_line(ic_env_t* env, editor_t* eb) {
     ssize_t start = 0;
     ssize_t end = 0;
     if (!edit_get_line_bounds(eb, &start, &end))
@@ -1871,11 +1872,11 @@ static void edit_delete_to_start_of_ws_word(ic_env_t* env, editor_t* eb) {
     edit_delete_to_boundary(env, eb, sbuf_find_ws_word_start, true);
 }
 
-static void edit_delete_to_end_of_ws_word(ic_env_t* env, editor_t* eb) {
+static ic_maybe_unused void edit_delete_to_end_of_ws_word(ic_env_t* env, editor_t* eb) {
     edit_delete_to_boundary(env, eb, sbuf_find_ws_word_end, false);
 }
 
-static void edit_delete_word(ic_env_t* env, editor_t* eb) {
+static ic_maybe_unused void edit_delete_word(ic_env_t* env, editor_t* eb) {
     ssize_t start = sbuf_find_word_start(eb->input, eb->pos);
     if (start < 0)
         return;

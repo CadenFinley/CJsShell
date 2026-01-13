@@ -59,6 +59,11 @@
 #endif
 
 #define ic_unused(x) (void)(x)
+#if defined(__GNUC__) || defined(__clang__)
+#define ic_maybe_unused __attribute__((unused))
+#else
+#define ic_maybe_unused
+#endif
 
 //-------------------------------------------------------------
 // ssize_t

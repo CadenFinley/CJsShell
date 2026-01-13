@@ -51,9 +51,7 @@ std::vector<std::string> split_top_level_semicolons(const std::string& text) {
         current.clear();
     };
 
-    for (size_t i = 0; i < text.size(); ++i) {
-        char c = text[i];
-
+    for (char c : text) {
         if (escape_next) {
             current.push_back(c);
             escape_next = false;

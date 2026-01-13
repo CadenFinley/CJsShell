@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <algorithm>
 #include <atomic>
+#include <cerrno>
 #include <csignal>
 #include <cstdio>
 #include <cstring>
@@ -63,110 +64,115 @@ volatile sig_atomic_t SignalHandler::s_sigttou_received = 0;
 volatile sig_atomic_t SignalHandler::s_sigcont_received = 0;
 
 std::atomic<bool> SignalHandler::s_signal_pending(false);
-pid_t SignalHandler::s_main_pid = getpid();
+pid_t SignalHandler::s_main_pid = 0;
 std::vector<int> SignalHandler::s_observed_signals;
 std::unordered_map<int, SignalState> SignalHandler::s_signal_states;
 sigset_t SignalHandler::s_blocked_mask;
 
-const std::vector<SignalInfo> SignalHandler::s_signal_table = {
+const std::vector<SignalInfo>& SignalHandler::signal_table() {
+    static const std::vector<SignalInfo> kSignalTable = {
 #ifdef SIGHUP
-    {SIGHUP, "SIGHUP", "Terminal hung up", true, true},
+        {SIGHUP, "SIGHUP", "Terminal hung up", true, true},
 #endif
 #ifdef SIGINT
-    {SIGINT, "SIGINT", "Interrupt (Ctrl+C)", true, true},
+        {SIGINT, "SIGINT", "Interrupt (Ctrl+C)", true, true},
 #endif
 #ifdef SIGQUIT
-    {SIGQUIT, "SIGQUIT", "Quit with core dump (Ctrl+\\)", true, true},
+        {SIGQUIT, "SIGQUIT", "Quit with core dump (Ctrl+\\)", true, true},
 #endif
 #ifdef SIGILL
-    {SIGILL, "SIGILL", "Illegal instruction", true, true},
+        {SIGILL, "SIGILL", "Illegal instruction", true, true},
 #endif
 #ifdef SIGTRAP
-    {SIGTRAP, "SIGTRAP", "Trace/breakpoint trap", true, true},
+        {SIGTRAP, "SIGTRAP", "Trace/breakpoint trap", true, true},
 #endif
 #ifdef SIGABRT
-    {SIGABRT, "SIGABRT", "Abort", true, true},
+        {SIGABRT, "SIGABRT", "Abort", true, true},
 #endif
 #ifdef SIGBUS
-    {SIGBUS, "SIGBUS", "Bus error (misaligned address)", true, true},
+        {SIGBUS, "SIGBUS", "Bus error (misaligned address)", true, true},
 #endif
 #ifdef SIGFPE
-    {SIGFPE, "SIGFPE", "Floating point exception", true, true},
+        {SIGFPE, "SIGFPE", "Floating point exception", true, true},
 #endif
 #ifdef SIGKILL
-    {SIGKILL, "SIGKILL", "Kill (cannot be caught or ignored)", false, false},
+        {SIGKILL, "SIGKILL", "Kill (cannot be caught or ignored)", false, false},
 #endif
 #ifdef SIGUSR1
-    {SIGUSR1, "SIGUSR1", "User-defined signal 1", true, true},
+        {SIGUSR1, "SIGUSR1", "User-defined signal 1", true, true},
 #endif
 #ifdef SIGUSR2
-    {SIGUSR2, "SIGUSR2", "User-defined signal 2", true, true},
+        {SIGUSR2, "SIGUSR2", "User-defined signal 2", true, true},
 #endif
 #ifdef SIGSEGV
-    {SIGSEGV, "SIGSEGV", "Segmentation violation", true, true},
+        {SIGSEGV, "SIGSEGV", "Segmentation violation", true, true},
 #endif
 #ifdef SIGPIPE
-    {SIGPIPE, "SIGPIPE", "Broken pipe", true, true},
+        {SIGPIPE, "SIGPIPE", "Broken pipe", true, true},
 #endif
 #ifdef SIGALRM
-    {SIGALRM, "SIGALRM", "Alarm clock", true, true},
+        {SIGALRM, "SIGALRM", "Alarm clock", true, true},
 #endif
 #ifdef SIGTERM
-    {SIGTERM, "SIGTERM", "Termination", true, true},
+        {SIGTERM, "SIGTERM", "Termination", true, true},
 #endif
 #ifdef SIGCHLD
-    {SIGCHLD, "SIGCHLD", "Child status changed", true, true},
+        {SIGCHLD, "SIGCHLD", "Child status changed", true, true},
 #endif
 #ifdef SIGCONT
-    {SIGCONT, "SIGCONT", "Continue executing if stopped", true, true},
+        {SIGCONT, "SIGCONT", "Continue executing if stopped", true, true},
 #endif
 #ifdef SIGSTOP
-    {SIGSTOP, "SIGSTOP", "Stop executing (cannot be caught or ignored)", false, false},
+        {SIGSTOP, "SIGSTOP", "Stop executing (cannot be caught or ignored)", false, false},
 #endif
 #ifdef SIGTSTP
-    {SIGTSTP, "SIGTSTP", "Terminal stop (Ctrl+Z)", true, true},
+        {SIGTSTP, "SIGTSTP", "Terminal stop (Ctrl+Z)", true, true},
 #endif
 #ifdef SIGTTIN
-    {SIGTTIN, "SIGTTIN", "Background process trying to read from TTY", true, true},
+        {SIGTTIN, "SIGTTIN", "Background process trying to read from TTY", true, true},
 #endif
 #ifdef SIGTTOU
-    {SIGTTOU, "SIGTTOU", "Background process trying to write to TTY", true, true},
+        {SIGTTOU, "SIGTTOU", "Background process trying to write to TTY", true, true},
 #endif
 #ifdef SIGURG
-    {SIGURG, "SIGURG", "Urgent condition on socket", true, true},
+        {SIGURG, "SIGURG", "Urgent condition on socket", true, true},
 #endif
 #ifdef SIGXCPU
-    {SIGXCPU, "SIGXCPU", "CPU time limit exceeded", true, true},
+        {SIGXCPU, "SIGXCPU", "CPU time limit exceeded", true, true},
 #endif
 #ifdef SIGXFSZ
-    {SIGXFSZ, "SIGXFSZ", "File size limit exceeded", true, true},
+        {SIGXFSZ, "SIGXFSZ", "File size limit exceeded", true, true},
 #endif
 #ifdef SIGVTALRM
-    {SIGVTALRM, "SIGVTALRM", "Virtual timer expired", true, true},
+        {SIGVTALRM, "SIGVTALRM", "Virtual timer expired", true, true},
 #endif
 #ifdef SIGPROF
-    {SIGPROF, "SIGPROF", "Profiling timer expired", true, true},
+        {SIGPROF, "SIGPROF", "Profiling timer expired", true, true},
 #endif
 #ifdef SIGWINCH
-    {SIGWINCH, "SIGWINCH", "Window size change", true, true},
+        {SIGWINCH, "SIGWINCH", "Window size change", true, true},
 #endif
 #ifdef SIGIO
-    {SIGIO, "SIGIO", "I/O now possible", true, true},
+        {SIGIO, "SIGIO", "I/O now possible", true, true},
 #endif
 #ifdef SIGPWR
-    {SIGPWR, "SIGPWR", "Power failure restart", true, true},
+        {SIGPWR, "SIGPWR", "Power failure restart", true, true},
 #endif
 #ifdef SIGSYS
-    {SIGSYS, "SIGSYS", "Bad system call", true, true},
+        {SIGSYS, "SIGSYS", "Bad system call", true, true},
 #endif
 #ifdef SIGINFO
-    {SIGINFO, "SIGINFO", "Information request", true, true},
+        {SIGINFO, "SIGINFO", "Information request", true, true},
 #endif
-};
+    };
+
+    return kSignalTable;
+}
 
 SignalHandler* g_signal_handler = nullptr;
 
 SignalHandler::SignalHandler()
+
     : m_old_sigint_handler(),
       m_old_sigchld_handler(),
       m_old_sighup_handler(),
@@ -245,7 +251,7 @@ SignalHandler::~SignalHandler() {
 }
 
 const char* SignalHandler::get_signal_name(int signum) {
-    for (const auto& signal : s_signal_table) {
+    for (const auto& signal : signal_table()) {
         if (signal.signal == signum) {
             return signal.name;
         }
@@ -254,7 +260,7 @@ const char* SignalHandler::get_signal_name(int signum) {
 }
 
 const char* SignalHandler::get_signal_description(int signum) {
-    for (const auto& signal : s_signal_table) {
+    for (const auto& signal : signal_table()) {
         if (signal.signal == signum) {
             return signal.description;
         }
@@ -274,7 +280,7 @@ int SignalHandler::name_to_signal(const std::string& name) {
         c = static_cast<char>(toupper(static_cast<unsigned char>(c)));
     }
 
-    for (const auto& signal : s_signal_table) {
+    for (const auto& signal : signal_table()) {
         std::string signal_name = signal.name;
         if (signal_name.size() > 3 && signal_name.substr(0, 3) == "SIG") {
             signal_name = signal_name.substr(3);
@@ -296,24 +302,32 @@ bool SignalHandler::is_valid_signal(int signum) {
     if (signum <= 0) {
         return false;
     }
-    return std::any_of(s_signal_table.begin(), s_signal_table.end(),
+    const auto& table = signal_table();
+    return std::any_of(table.begin(), table.end(),
                        [signum](const auto& signal_info) { return signal_info.signal == signum; });
 }
 
 bool SignalHandler::can_trap_signal(int signum) {
-    return std::any_of(s_signal_table.begin(), s_signal_table.end(), [signum](const auto& signal) {
+    const auto& table = signal_table();
+    return std::any_of(table.begin(), table.end(), [signum](const auto& signal) {
         return signal.signal == signum && signal.can_trap;
     });
 }
 
 bool SignalHandler::can_ignore_signal(int signum) {
-    return std::any_of(s_signal_table.begin(), s_signal_table.end(), [signum](const auto& signal) {
+    const auto& table = signal_table();
+    return std::any_of(table.begin(), table.end(), [signum](const auto& signal) {
         return signal.signal == signum && signal.can_ignore;
     });
 }
 
 bool SignalHandler::is_forked_child() {
-    return getpid() != s_main_pid;
+    pid_t current_pid = getpid();
+    if (s_main_pid == 0) {
+        s_main_pid = current_pid;
+        return false;
+    }
+    return current_pid != s_main_pid;
 }
 
 void SignalHandler::signal_unblock_all() {
@@ -444,7 +458,7 @@ void SignalHandler::block_all_trappable_signals() {
     sigset_t mask{};
     sigemptyset(&mask);
 
-    for (const auto& signal : s_signal_table) {
+    for (const auto& signal : signal_table()) {
         if (signal.can_trap) {
             sigaddset(&mask, signal.signal);
         }
@@ -470,7 +484,7 @@ std::vector<int> SignalHandler::get_blocked_signals() {
     std::vector<int> blocked;
     sigset_t current_mask = get_current_mask();
 
-    for (const auto& signal : s_signal_table) {
+    for (const auto& signal : signal_table()) {
         if (sigismember(&current_mask, signal.signal) == 1) {
             blocked.push_back(signal.signal);
         }
@@ -862,11 +876,15 @@ SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) 
 
         for (const auto& job : jobs_snapshot) {
             if (job->state == JobState::RUNNING || job->state == JobState::STOPPED) {
-                fprintf(stderr, "cjsh(debug): hup propagate pgid=%d state=%d\n", job->pgid,
-                        static_cast<int>(job->state));
+                if (fprintf(stderr, "cjsh(debug): hup propagate pgid=%d state=%d\n", job->pgid,
+                            static_cast<int>(job->state)) < 0) {
+                    (void)0;
+                }
                 if (killpg(job->pgid, SIGHUP) < 0) {
-                    fprintf(stderr, "cjsh(debug): killpg HUP failed for %d: %s\n", job->pgid,
-                            strerror(errno));
+                    if (fprintf(stderr, "cjsh(debug): killpg HUP failed for %d: %s\n", job->pgid,
+                                strerror(errno)) < 0) {
+                        (void)0;
+                    }
                 }
 #ifdef SIGCONT
                 if (job->state == JobState::STOPPED) {

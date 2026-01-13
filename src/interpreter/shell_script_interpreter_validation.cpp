@@ -903,8 +903,7 @@ WhileUntilCheckResult analyze_while_until_syntax(const std::string& first_token,
     bool inline_body_present = false;
     bool has_done_after_do = false;
 
-    for (size_t idx = 0; idx < tokens.size(); ++idx) {
-        const std::string& token = tokens[idx];
+    for (const auto& token : tokens) {
         if (!found_do) {
             if (is_do_token(token)) {
                 found_do = true;

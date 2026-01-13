@@ -24,6 +24,7 @@
 -----------------------------------------------------------------------------*/
 #include "bbcode.h"
 
+#include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -166,7 +167,9 @@ static void bbcode_invalid(const char* fmt, ...) {
     if (getenv("ISOCLINE_BBCODE_DEBUG") != NULL) {
         va_list args;
         va_start(args, fmt);
-        vfprintf(stderr, fmt, args);
+        if (vfprintf(stderr, fmt, args) < 0) {
+            (void)0;
+        }
         va_end(args);
     }
 }
@@ -250,9 +253,11 @@ static const char* attr_update_color(const char* fname, ic_color_t* field, const
 
     // hex value
     if (value[0] == '#') {
-        uint32_t rgb = 0;
-        if (sscanf(value, "#%x", &rgb) == 1) {
-            *field = ic_rgb(rgb);
+        errno = 0;
+        char* endptr = NULL;
+        unsigned long rgb = strtoul(value + 1, &endptr, 16);
+        if (errno == 0 && endptr != NULL && *endptr == '\0' && rgb <= 0xFFFFFFUL) {
+            *field = ic_rgb((uint32_t)rgb);
         } else {
             bbcode_invalid("bbcode: invalid color code: %s\n", value);
         }

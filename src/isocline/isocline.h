@@ -457,7 +457,7 @@ typedef char*(ic_highlight_format_fun_t)(const char* s, void* arg);
 /// using the the provided `formatted` input that is the styled `input` with
 /// bbcodes. The content of `formatted` without bbcode tags should match `input`
 /// exactly.
-void ic_highlight_formatted(ic_highlight_env_t* henv, const char* input, const char* formatted);
+void ic_highlight_formatted(ic_highlight_env_t* henv, const char* s, const char* fmt);
 
 /// \}
 
@@ -489,7 +489,7 @@ char* ic_readline_ex(const char* prompt_text, ic_completer_fun_t* completer, voi
 /// input. Pass \a NULL for the `prompt_marker` for the default marker (`"> "`).
 /// Pass \a NULL for continuation prompt marker to make it equal to the
 /// `prompt_marker`.
-void ic_set_prompt_marker(const char* prompt_marker, const char* continuation_prompt_marker);
+void ic_set_prompt_marker(const char* prompt_marker, const char* cprompt_marker);
 
 /// Get the current prompt marker.
 const char* ic_get_prompt_marker(void);

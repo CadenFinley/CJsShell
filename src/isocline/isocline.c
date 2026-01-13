@@ -55,4 +55,7 @@
 #include "tty_esc.c"
 #include "undo.c"
 #include "unicode.c"
+#else
+static void ic_isocline_translation_unit_anchor(void) {
+}
 #endif

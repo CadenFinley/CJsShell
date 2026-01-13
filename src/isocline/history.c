@@ -543,7 +543,7 @@ ic_private void history_clear(history_t* h) {
 #ifndef _WIN32
         chmod(h->fname, S_IRUSR | S_IWUSR);
 #endif
-        fclose(f);
+        history_close_stream(f);
     }
 }
 
@@ -1032,22 +1032,35 @@ static bool ic_isxdigit(int c) {
 
 static char* history_read_entry(history_t* h, FILE* f, stringbuf_t* sbuf) {
     sbuf_clear(sbuf);
-    while (!feof(f)) {
+    while (true) {
         int c = fgetc(f);
-        if (c == EOF || c == '\n')
+        if (c == EOF) {
+            if (ferror(f)) {
+                return NULL;
+            }
+            break;
+        }
+        if (c == '\n')
             break;
         if (c == '\\') {
-            c = fgetc(f);
-            if (c == 'n') {
+            int esc = fgetc(f);
+            if (esc == EOF)
+                return NULL;
+            if (esc == 'n') {
                 sbuf_append(sbuf, "\n");
-            } else if (c == 'r') {
-            } else if (c == 't') {
+            } else if (esc == 'r') {
+                continue;
+            } else if (esc == 't') {
                 sbuf_append(sbuf, "\t");
-            } else if (c == '\\') {
+            } else if (esc == '\\') {
                 sbuf_append(sbuf, "\\");
-            } else if (c == 'x') {
+            } else if (esc == 'x') {
                 int c1 = fgetc(f);
+                if (c1 == EOF)
+                    return NULL;
                 int c2 = fgetc(f);
+                if (c2 == EOF)
+                    return NULL;
                 if (ic_isxdigit(c1) && ic_isxdigit(c2)) {
                     char chr = from_xdigit(c1) * 16 + from_xdigit(c2);
                     sbuf_append_char(sbuf, chr);
@@ -1074,10 +1087,8 @@ static bool history_write_entry(const char* entry, FILE* f, stringbuf_t* sbuf) {
     if (entry == NULL)
         return true;
 
-    if (*entry == '\0') {
-        fputc('\n', f);
-        return true;
-    }
+    if (*entry == '\0')
+        return history_write_successful(fputc('\n', f));
 
     while (*entry != 0) {
         char c = *entry++;
@@ -1086,6 +1097,7 @@ static bool history_write_entry(const char* entry, FILE* f, stringbuf_t* sbuf) {
         } else if (c == '\n') {
             sbuf_append(sbuf, "\\n");
         } else if (c == '\r') {
+            continue;
         } else if (c == '\t') {
             sbuf_append(sbuf, "\\t");
         } else if (c < ' ' || c > '~' || c == '#') {
@@ -1094,13 +1106,15 @@ static bool history_write_entry(const char* entry, FILE* f, stringbuf_t* sbuf) {
             sbuf_append(sbuf, "\\x");
             sbuf_append_char(sbuf, c1);
             sbuf_append_char(sbuf, c2);
-        } else
+        } else {
             sbuf_append_char(sbuf, c);
+        }
     }
 
     if (sbuf_len(sbuf) > 0) {
         sbuf_append(sbuf, "\n");
-        fputs(sbuf_string(sbuf), f);
+        if (!history_write_successful(fputs(sbuf_string(sbuf), f)))
+            return false;
     }
     return true;
 }
@@ -1110,7 +1124,9 @@ static bool history_write_record(const history_entry_t* entry, FILE* f, stringbu
         return true;
     history_entry_t temp = *entry;
     history_entry_normalize_metadata(&temp);
-    fprintf(f, "# %lld %d\n", (long long)temp.timestamp, temp.exit_code);
+    if (!history_write_successful(
+            fprintf(f, "# %lld %d\n", (long long)temp.timestamp, temp.exit_code)))
+        return false;
     return history_write_entry(temp.command, f, sbuf);
 }
 
@@ -1129,7 +1145,7 @@ static bool history_collect_entries(history_t* h, history_list_t* list, bool ded
 
     stringbuf_t* sbuf = sbuf_new(h->mem);
     if (sbuf == NULL) {
-        fclose(f);
+        history_close_stream(f);
         return false;
     }
 
@@ -1205,13 +1221,13 @@ static bool history_collect_entries(history_t* h, history_list_t* list, bool ded
         if (!history_list_append(h, list, entry)) {
             history_list_free(h, list);
             sbuf_free(sbuf);
-            fclose(f);
+            history_close_stream(f);
             return false;
         }
     }
 
     sbuf_free(sbuf);
-    fclose(f);
+    bool close_ok = history_close_stream(f);
 
     history_list_prune_to_max(h, list);
     if (dedup)
@@ -1219,7 +1235,7 @@ static bool history_collect_entries(history_t* h, history_list_t* list, bool ded
     else if (!h->allow_duplicates)
         history_list_remove_duplicates(h, list);
 
-    return true;
+    return close_ok;
 }
 
 static bool history_write_all(const history_t* h, const history_list_t* list) {
@@ -1235,21 +1251,20 @@ static bool history_write_all(const history_t* h, const history_list_t* list) {
 
     stringbuf_t* sbuf = sbuf_new(h->mem);
     if (sbuf == NULL) {
-        fclose(f);
+        history_close_stream(f);
         return false;
     }
 
     for (ssize_t i = 0; i < list->count; i++) {
         if (!history_write_record(&list->entries[i], f, sbuf)) {
             sbuf_free(sbuf);
-            fclose(f);
+            history_close_stream(f);
             return false;
         }
     }
 
     sbuf_free(sbuf);
-    fclose(f);
-    return true;
+    return history_close_stream(f);
 }
 
 static bool history_append_entry(const history_t* h, const history_entry_t* entry) {
@@ -1265,14 +1280,15 @@ static bool history_append_entry(const history_t* h, const history_entry_t* entr
 
     stringbuf_t* sbuf = sbuf_new(h->mem);
     if (sbuf == NULL) {
-        fclose(f);
+        history_close_stream(f);
         return false;
     }
 
     bool ok = history_write_record(entry, f, sbuf);
 
     sbuf_free(sbuf);
-    fclose(f);
+    if (!history_close_stream(f))
+        ok = false;
     return ok;
 }
 

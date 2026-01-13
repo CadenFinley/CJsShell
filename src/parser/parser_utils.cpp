@@ -3,8 +3,15 @@
 
 #include <cctype>
 
-const std::string SUBST_LITERAL_START = "\x1E__SUBST_LITERAL_START__\x1E";
-const std::string SUBST_LITERAL_END = "\x1E__SUBST_LITERAL_END__\x1E";
+const std::string& subst_literal_start() {
+    static const std::string kValue = "\x1E__SUBST_LITERAL_START__\x1E";
+    return kValue;
+}
+
+const std::string& subst_literal_end() {
+    static const std::string kValue = "\x1E__SUBST_LITERAL_END__\x1E";
+    return kValue;
+}
 
 bool is_hex_digit(char c) {
     return std::isxdigit(static_cast<unsigned char>(c)) != 0;
@@ -124,24 +131,23 @@ std::pair<std::string, bool> strip_noenv_sentinels(const std::string& s) {
 }
 
 bool strip_subst_literal_markers(std::string& value) {
-    if (value.empty()) {
-        return false;
-    }
+    const std::string& start = subst_literal_start();
+    const std::string& end = subst_literal_end();
 
     bool changed = false;
     std::string result;
     result.reserve(value.size());
 
     for (size_t i = 0; i < value.size();) {
-        if (value.compare(i, SUBST_LITERAL_START.size(), SUBST_LITERAL_START) == 0) {
-            i += SUBST_LITERAL_START.size();
+        if (value.compare(i, start.size(), start) == 0) {
+            i += start.size();
             changed = true;
-        } else if (value.compare(i, SUBST_LITERAL_END.size(), SUBST_LITERAL_END) == 0) {
-            i += SUBST_LITERAL_END.size();
+        } else if (value.compare(i, end.size(), end) == 0) {
+            i += end.size();
             changed = true;
         } else {
             result += value[i];
-            i++;
+            ++i;
         }
     }
 

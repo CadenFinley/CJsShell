@@ -19,16 +19,16 @@
 namespace {
 
 struct OptionDescriptor {
-    int resource;
     const char* description;
-    char short_opt;
     const char* long_opt;
     rlim_t multiplier;
+    int resource;
+    char short_opt;
     bool available;
 };
 
-#define CJSH_ULIMIT_SUPPORTED(res, opt, long_opt, desc, mult) {res, desc, opt, long_opt, mult, true}
-#define CJSH_ULIMIT_UNSUPPORTED(opt, long_opt, desc, mult) {-1, desc, opt, long_opt, mult, false}
+#define CJSH_ULIMIT_SUPPORTED(res, opt, long_opt, desc, mult) {desc, long_opt, mult, res, opt, true}
+#define CJSH_ULIMIT_UNSUPPORTED(opt, long_opt, desc, mult) {desc, long_opt, mult, -1, opt, false}
 
 static const OptionDescriptor kOptionTable[] = {
 #ifdef RLIMIT_SBSIZE
@@ -126,19 +126,22 @@ static const OptionDescriptor kOptionTable[] = {
 #undef CJSH_ULIMIT_SUPPORTED
 #undef CJSH_ULIMIT_UNSUPPORTED
 
-static const std::vector<std::string> kHelpText = {
-    "Usage: ulimit [options] [limit]",
-    "Display or change resource limits for the current shell.",
-    "",
-    "Options:",
-    "  -a, --all          list all current limits",
-    "  -H, --hard         operate on hard limits",
-    "  -S, --soft         operate on soft limits",
-    "  -f, --file-size    select limit for files created by the shell (default)",
-    "  -n, --file-descriptor-count  select the open file descriptor limit",
-    "  --help             display this help and exit",
-    "",
-    "Limits can be numeric values, or the keywords 'unlimited', 'hard', or 'soft'."};
+const std::vector<std::string>& ulimit_help_text() {
+    static const std::vector<std::string> kHelpText = {
+        "Usage: ulimit [options] [limit]",
+        "Display or change resource limits for the current shell.",
+        "",
+        "Options:",
+        "  -a, --all          list all current limits",
+        "  -H, --hard         operate on hard limits",
+        "  -S, --soft         operate on soft limits",
+        "  -f, --file-size    select limit for files created by the shell (default)",
+        "  -n, --file-descriptor-count  select the open file descriptor limit",
+        "  --help             display this help and exit",
+        "",
+        "Limits can be numeric values, or the keywords 'unlimited', 'hard', or 'soft'."};
+    return kHelpText;
+}
 
 const OptionDescriptor* find_by_short_option(char opt) {
     for (const auto& entry : kOptionTable) {
@@ -358,7 +361,7 @@ int handle_unsupported_option(const OptionDescriptor& entry) {
 }
 
 int print_help_and_exit() {
-    for (const auto& line : kHelpText) {
+    for (const auto& line : ulimit_help_text()) {
         std::cout << line << '\n';
     }
     return 0;
@@ -367,7 +370,7 @@ int print_help_and_exit() {
 }  // namespace
 
 int ulimit_command(const std::vector<std::string>& args) {
-    if (builtin_handle_help(args, kHelpText)) {
+    if (builtin_handle_help(args, ulimit_help_text())) {
         return 0;
     }
 

@@ -429,7 +429,6 @@ bool ParameterExpansionEvaluator::try_evaluate_substring(const std::string& para
             length_value = 0;
             length_endptr = length_ptr;
         }
-        pos = static_cast<size_t>(length_endptr - param_expr.c_str());
         length_value *= length_sign;
     }
 

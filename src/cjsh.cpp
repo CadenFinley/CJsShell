@@ -84,7 +84,10 @@ bool cleanup_truncates_multiline = false;
 }  // namespace config
 
 namespace {
-std::chrono::steady_clock::time_point g_startup_begin_time;
+std::chrono::steady_clock::time_point& startup_begin_time() {
+    static std::chrono::steady_clock::time_point value;
+    return value;
+}
 
 bool terminal_supports_color() {
     if (isatty(STDOUT_FILENO) == 0) {
@@ -314,7 +317,7 @@ void start_interactive_process() {
     if (config::show_startup_time) {
         auto startup_end_time = std::chrono::steady_clock::now();
         startup_duration = std::chrono::duration_cast<std::chrono::microseconds>(
-            startup_end_time - g_startup_begin_time);
+            startup_end_time - startup_begin_time());
     }
 
     if (config::show_title_line) {
@@ -420,7 +423,7 @@ void cleanup_resources() {
 int main(int argc, char* argv[]) {
     // main entry
     // set start time
-    g_startup_begin_time = std::chrono::steady_clock::now();
+    startup_begin_time() = std::chrono::steady_clock::now();
 
     // parse passed flags
     auto parse_result = flags::parse_arguments(argc, argv);

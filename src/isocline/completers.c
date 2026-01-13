@@ -358,7 +358,7 @@ static bool ls_colors_init(void) {
     return true;
 }
 
-static bool ls_valid_esc(ssize_t c) {
+static ic_maybe_unused bool ls_valid_esc(ssize_t c) {
     return ((c == 0 || c == 1 || c == 4 || c == 7 || c == 22 || c == 24 || c == 27) ||
             (c >= 30 && c <= 37) || (c >= 40 && c <= 47) || (c >= 90 && c <= 97) ||
             (c >= 100 && c <= 107));

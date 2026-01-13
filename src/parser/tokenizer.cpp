@@ -45,18 +45,19 @@ std::vector<std::string> Tokenizer::tokenize_command(const std::string& cmdline)
         }
     };
 
+    const std::string& subst_start = subst_literal_start();
+    const std::string& subst_end = subst_literal_end();
+
     for (size_t i = 0; i < cmdline_len; ++i) {
-        if (!in_subst_literal &&
-            cmdline.compare(i, SUBST_LITERAL_START.size(), SUBST_LITERAL_START) == 0) {
+        if (!in_subst_literal && cmdline.compare(i, subst_start.size(), subst_start) == 0) {
             in_subst_literal = true;
-            i += SUBST_LITERAL_START.size() - 1;
+            i += subst_start.size() - 1;
             continue;
         }
 
-        if (in_subst_literal &&
-            cmdline.compare(i, SUBST_LITERAL_END.size(), SUBST_LITERAL_END) == 0) {
+        if (in_subst_literal && cmdline.compare(i, subst_end.size(), subst_end) == 0) {
             in_subst_literal = false;
-            i += SUBST_LITERAL_END.size() - 1;
+            i += subst_end.size() - 1;
             continue;
         }
 

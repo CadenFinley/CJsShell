@@ -164,7 +164,6 @@ bool replace_first_instance(std::string& target, const std::string& from, const 
 
 [[noreturn]] void report_exec_failure(const std::vector<std::string>& args, int saved_errno) {
     const std::string command_name = args.empty() ? std::string{} : args[0];
-    const std::string invocation = join_arguments(args);
 
     if (saved_errno == ENOENT) {
         const bool has_explicit_path = command_name.find('/') != std::string::npos;
@@ -631,10 +630,13 @@ Exec::Exec()
 
 Exec::~Exec() {
     int status = 0;
-    pid_t pid = 0;
     int zombie_count = 0;
     const int max_cleanup_iterations = 50;
-    while ((pid = waitpid(-1, &status, WNOHANG)) > 0 && zombie_count < max_cleanup_iterations) {
+    while (zombie_count < max_cleanup_iterations) {
+        pid_t reap_pid = waitpid(-1, &status, WNOHANG);
+        if (reap_pid <= 0) {
+            break;
+        }
         zombie_count++;
     }
 
@@ -2101,7 +2103,7 @@ void Exec::wait_for_job(int job_id) {
             job.status = status;
 
             int final_status = saw_last ? last_status : status;
-            if (!(WIFEXITED(final_status) || WIFSIGNALED(final_status))) {
+            if (!WIFEXITED(final_status) && !WIFSIGNALED(final_status)) {
                 final_status = (job.last_status != 0) ? job.last_status : job.status;
             }
             job.last_status = final_status;
@@ -2175,10 +2177,13 @@ void Exec::terminate_all_child_process() {
     }
 
     int status = 0;
-    pid_t pid = 0;
     int zombie_count = 0;
     const int max_terminate_iterations = 50;
-    while ((pid = waitpid(-1, &status, WNOHANG)) > 0 && zombie_count < max_terminate_iterations) {
+    while (zombie_count < max_terminate_iterations) {
+        pid_t reap_pid = waitpid(-1, &status, WNOHANG);
+        if (reap_pid <= 0) {
+            break;
+        }
         zombie_count++;
     }
 
@@ -2264,7 +2269,7 @@ static CommandOutput execute_args_for_output_impl(const std::vector<std::string>
 
         for (const auto& arg : args) {
             auto str_copy = std::make_unique<char[]>(arg.size() + 1);
-            std::strcpy(str_copy.get(), arg.c_str());
+            std::memcpy(str_copy.get(), arg.c_str(), arg.size() + 1);
             argv.push_back(str_copy.get());
             arg_storage.push_back(std::move(str_copy));
         }

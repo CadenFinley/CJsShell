@@ -25,8 +25,11 @@
 
 #include "unicode.h"
 
+#include <errno.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "common.h"
@@ -966,21 +969,6 @@ ic_public long ic_next_char(const char* s, long pos) {
     return (long)(pos + ofs);
 }
 
-// parse a decimal (leave pi unchanged on error)
-ic_private bool ic_atoz(const char* s, ssize_t* pi) {
-    return (sscanf(s, "%zd", pi) == 1);
-}
-
-// parse two decimals separated by a semicolon
-ic_private bool ic_atoz2(const char* s, ssize_t* pi, ssize_t* pj) {
-    return (sscanf(s, "%zd;%zd", pi, pj) == 2);
-}
-
-// parse unsigned 32-bit (leave pu unchanged on error)
-ic_private bool ic_atou32(const char* s, uint32_t* pu) {
-    return (sscanf(s, "%" SCNu32, pu) == 1);
-}
-
 // Convenience: character class for whitespace `[ \t\r\n]`.
 ic_public bool ic_char_is_white(const char* s, long len) {
     if (s == NULL || len != 1)
@@ -992,6 +980,61 @@ ic_public bool ic_char_is_white(const char* s, long len) {
 // Convenience: character class for non-whitespace `[^ \t\r\n]`.
 ic_public bool ic_char_is_nonwhite(const char* s, long len) {
     return !ic_char_is_white(s, len);
+}
+
+static bool parse_ssize_internal(const char* s, ssize_t* out, char** parsed_end) {
+    if (s == NULL || out == NULL)
+        return false;
+    errno = 0;
+    char* local_end = NULL;
+    long long value = strtoll(s, &local_end, 10);
+    if (errno != 0 || local_end == s)
+        return false;
+#if defined(SSIZE_MAX) && defined(SSIZE_MIN)
+    if (value < (long long)SSIZE_MIN || value > (long long)SSIZE_MAX)
+        return false;
+#endif
+    *out = (ssize_t)value;
+    if (parsed_end != NULL)
+        *parsed_end = local_end;
+    return true;
+}
+
+static bool parse_ssize_strict(const char* s, ssize_t* out) {
+    char* endptr = NULL;
+    if (!parse_ssize_internal(s, out, &endptr))
+        return false;
+    return (endptr != NULL) ? (*endptr == '\0') : false;
+}
+
+// parse a decimal (leave pi unchanged on error)
+ic_private bool ic_atoz(const char* s, ssize_t* pi) {
+    return parse_ssize_strict(s, pi);
+}
+
+// parse two decimals separated by a semicolon
+ic_private bool ic_atoz2(const char* s, ssize_t* pi, ssize_t* pj) {
+    if (s == NULL || pi == NULL || pj == NULL)
+        return false;
+    char* endptr = NULL;
+    if (!parse_ssize_internal(s, pi, &endptr) || endptr == NULL)
+        return false;
+    if (*endptr != ';')
+        return false;
+    return parse_ssize_strict(endptr + 1, pj);
+}
+
+// parse unsigned 32-bit (leave pu unchanged on error)
+ic_private bool ic_atou32(const char* s, uint32_t* pu) {
+    if (s == NULL || pu == NULL)
+        return false;
+    errno = 0;
+    char* endptr = NULL;
+    unsigned long value = strtoul(s, &endptr, 10);
+    if (errno != 0 || endptr == s || *endptr != '\0' || value > UINT32_MAX)
+        return false;
+    *pu = (uint32_t)value;
+    return true;
 }
 
 // Convenience: character class for separators `[ \t\r\n,.;:/\\\(\)\{\}\[\]]`.

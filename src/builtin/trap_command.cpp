@@ -12,17 +12,20 @@
 
 namespace {
 
-const std::unordered_map<std::string, int> signal_map = {
-    {"HUP", SIGHUP},       {"INT", SIGINT},   {"QUIT", SIGQUIT},   {"ILL", SIGILL},
-    {"TRAP", SIGTRAP},     {"ABRT", SIGABRT}, {"BUS", SIGBUS},     {"FPE", SIGFPE},
-    {"KILL", SIGKILL},     {"USR1", SIGUSR1}, {"SEGV", SIGSEGV},   {"USR2", SIGUSR2},
-    {"PIPE", SIGPIPE},     {"ALRM", SIGALRM}, {"TERM", SIGTERM},   {"CHLD", SIGCHLD},
-    {"CONT", SIGCONT},     {"STOP", SIGSTOP}, {"TSTP", SIGTSTP},   {"TTIN", SIGTTIN},
-    {"TTOU", SIGTTOU},     {"URG", SIGURG},   {"XCPU", SIGXCPU},   {"XFSZ", SIGXFSZ},
-    {"VTALRM", SIGVTALRM}, {"PROF", SIGPROF}, {"WINCH", SIGWINCH}, {"IO", SIGIO},
-    {"SYS", SIGSYS},
+const std::unordered_map<std::string, int>& signal_name_map() {
+    static const std::unordered_map<std::string, int> kSignalMap = {
+        {"HUP", SIGHUP},       {"INT", SIGINT},   {"QUIT", SIGQUIT},   {"ILL", SIGILL},
+        {"TRAP", SIGTRAP},     {"ABRT", SIGABRT}, {"BUS", SIGBUS},     {"FPE", SIGFPE},
+        {"KILL", SIGKILL},     {"USR1", SIGUSR1}, {"SEGV", SIGSEGV},   {"USR2", SIGUSR2},
+        {"PIPE", SIGPIPE},     {"ALRM", SIGALRM}, {"TERM", SIGTERM},   {"CHLD", SIGCHLD},
+        {"CONT", SIGCONT},     {"STOP", SIGSTOP}, {"TSTP", SIGTSTP},   {"TTIN", SIGTTIN},
+        {"TTOU", SIGTTOU},     {"URG", SIGURG},   {"XCPU", SIGXCPU},   {"XFSZ", SIGXFSZ},
+        {"VTALRM", SIGVTALRM}, {"PROF", SIGPROF}, {"WINCH", SIGWINCH}, {"IO", SIGIO},
+        {"SYS", SIGSYS},
 
-    {"EXIT", 0},           {"ERR", -2},       {"DEBUG", -3},       {"RETURN", -4}};
+        {"EXIT", 0},           {"ERR", -2},       {"DEBUG", -3},       {"RETURN", -4}};
+    return kSignalMap;
+}
 
 std::unordered_map<int, std::string> reverse_signal_map;
 
@@ -39,7 +42,7 @@ TrapManagerState& trap_manager_state() {
 
 void init_reverse_signal_map() {
     if (reverse_signal_map.empty()) {
-        for (const auto& pair : signal_map) {
+        for (const auto& pair : signal_name_map()) {
             reverse_signal_map[pair.second] = pair.first;
         }
     }
@@ -171,8 +174,8 @@ int signal_name_to_number(const std::string& signal_name) {
         return -4;
     }
 
-    auto it = signal_map.find(upper_name);
-    if (it != signal_map.end()) {
+    auto it = signal_name_map().find(upper_name);
+    if (it != signal_name_map().end()) {
         return it->second;
     }
 
@@ -229,7 +232,7 @@ int trap_command(const std::vector<std::string>& args) {
 
     if (args.size() >= 2 && args[1] == "-l") {
         init_reverse_signal_map();
-        for (const auto& pair : signal_map) {
+        for (const auto& pair : signal_name_map()) {
             std::cout << pair.second << ") SIG" << pair.first << '\n';
         }
         return 0;

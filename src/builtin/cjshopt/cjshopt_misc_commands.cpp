@@ -48,12 +48,8 @@ const std::vector<std::string>& startup_flag_help_lines() {
 }
 
 bool is_supported_startup_flag(const std::string& flag) {
-    for (const auto& entry : kStartupFlags) {
-        if (flag == entry.name) {
-            return true;
-        }
-    }
-    return false;
+    return std::any_of(std::begin(kStartupFlags), std::end(kStartupFlags),
+                       [&](const auto& entry) { return flag == entry.name; });
 }
 
 std::string resolve_style_registry_name(const std::string& token_type) {
