@@ -320,8 +320,11 @@ static void fmt_color_rgb(char* buf, ssize_t len, ic_color_t color, bool bg) {
 }
 
 static void fmt_color_ex(char* buf, ssize_t len, palette_t palette, ic_color_t color, bool bg) {
-    if (color == IC_COLOR_NONE || palette == MONOCHROME)
+    if (color == IC_COLOR_NONE || palette == MONOCHROME) {
+        if (len > 0)
+            buf[0] = '\0';
         return;
+    }
     if (palette == ANSI8) {
         fmt_color_ansi8(buf, len, color, bg);
     } else if (!color_is_rgb(color) || palette == ANSI16) {

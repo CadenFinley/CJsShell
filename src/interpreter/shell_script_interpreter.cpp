@@ -588,14 +588,14 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                 "Command may be too complex or system is low on memory."};
             append_context_hint(suggestions, text, current_line_number);
             return report_error_with_code(ErrorType::RUNTIME_ERROR, ErrorSeverity::ERROR,
-                                          "interpreter", "memory allocation failed",
-                                          std::move(suggestions), 3);
+                                          "interpreter", "memory allocation failed", suggestions,
+                                          3);
         } catch (const std::system_error& e) {
             std::vector<std::string> suggestions = {"Check system resources and permissions."};
             append_context_hint(suggestions, text, current_line_number);
             return report_error_with_code(ErrorType::RUNTIME_ERROR, ErrorSeverity::ERROR,
-                                          "interpreter", strip_cjsh_prefix(e.what()),
-                                          std::move(suggestions), 4);
+                                          "interpreter", strip_cjsh_prefix(e.what()), suggestions,
+                                          4);
         } catch (const std::runtime_error& e) {
             return handle_runtime_exception(text, e, current_line_number);
         } catch (const std::exception& e) {
@@ -603,15 +603,15 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                 "Please report this issue along with steps to reproduce."};
             append_context_hint(suggestions, text, current_line_number);
             return report_error_with_code(ErrorType::UNKNOWN_ERROR, ErrorSeverity::ERROR,
-                                          "interpreter", strip_cjsh_prefix(e.what()),
-                                          std::move(suggestions), 5);
+                                          "interpreter", strip_cjsh_prefix(e.what()), suggestions,
+                                          5);
         } catch (...) {
             std::vector<std::string> suggestions = {
                 "Please report this issue along with steps to reproduce."};
             append_context_hint(suggestions, text, current_line_number);
             return report_error_with_code(ErrorType::UNKNOWN_ERROR, ErrorSeverity::ERROR,
-                                          "interpreter", "unknown interpreter error",
-                                          std::move(suggestions), 6);
+                                          "interpreter", "unknown interpreter error", suggestions,
+                                          6);
         }
     };
 

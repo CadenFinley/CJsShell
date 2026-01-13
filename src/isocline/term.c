@@ -293,10 +293,9 @@ ic_private void term_write_formatted_n(term_t* term, const char* s, const attr_t
         }
         if (n > 0) {
             term_write_n(term, s + i, n);
-            i += n;
-            n = 0;
         }
-        assert(s[i] != 0 || i == len);
+        const ssize_t consumed = i + n;
+        assert(s[consumed] != 0 || consumed == len);
         term_set_attr(term, default_attr);
     }
 }
@@ -310,8 +309,14 @@ ic_private void term_write_formatted_n(term_t* term, const char* s, const attr_t
 ic_private void term_beep(term_t* term) {
     if (term->silent)
         return;
-    fprintf(stderr, "\x7");
-    fflush(stderr);
+    if (fputc('\a', stderr) == EOF) {
+        debug_msg("term: failed to emit bell\n");
+        clearerr(stderr);
+        return;
+    }
+    if (fflush(stderr) == EOF) {
+        debug_msg("term: failed to flush bell\n");
+    }
 }
 
 ic_private void term_write_repeat(term_t* term, const char* s, ssize_t count) {
@@ -515,27 +520,6 @@ static void term_append_esc(term_t* term, const char* const s, ssize_t len) {
     }
     // and write out the escape sequence as-is
     sbuf_append_n(term->buf, s, len);
-}
-
-static void term_append_utf8(term_t* term, const char* s, ssize_t len) {
-    ssize_t nread;
-    unicode_t uchr = unicode_from_qutf8((const uint8_t*)s, len, &nread);
-    uint8_t c;
-    if (unicode_is_raw(uchr, &c)) {
-        // write bytes as is; this also ensure that on non-utf8 terminals
-        // characters between 0x80-0xFF go through _as is_ due to the qutf8
-        // encoding.
-        sbuf_append_char(term->buf, (char)c);
-    } else if (!term->is_utf8) {
-        // on non-utf8 terminals still send utf-8 and hope for the best
-        // todo: we could try to convert to the locale first?
-        sbuf_append_n(term->buf, s, len);
-        // sbuf_appendf(term->buf, "\x1B[%" PRIu32 "u", uchr); // unicode escape
-        // code
-    } else {
-        // write utf-8 as is
-        sbuf_append_n(term->buf, s, len);
-    }
 }
 
 static void term_append_buf(term_t* term, const char* s, ssize_t len) {
@@ -1071,12 +1055,30 @@ static bool term_esc_query_color_raw(term_t* term, ssize_t color_idx, uint32_t* 
     if (rgb == NULL)
         return false;
     rgb++;  // skip ':'
-    unsigned int r, g, b;
-    if (sscanf(rgb, "%x/%x/%x", &r, &g, &b) != 3)
-        return false;
-    if (rgb[2] != '/') {         // 48-bit rgb, hexadecimal round to 24-bit
-        r = (r + 0x7F) / 0x100;  // note: can "overflow", e.g. 0xFFFF -> 0x100.
-                                 // (and we need `ic_cap8` to convert.)
+
+    unsigned long components[3] = {0};
+    const char* cursor = rgb;
+    for (int idx = 0; idx < 3; idx++) {
+        errno = 0;
+        char* endptr = NULL;
+        unsigned long value = strtoul(cursor, &endptr, 16);
+        if (cursor == endptr || errno == ERANGE || value > 0xFFFFFFUL)
+            return false;
+        components[idx] = value;
+        if (idx < 2) {
+            if (*endptr != '/')
+                return false;
+            cursor = endptr + 1;
+        } else {
+            cursor = endptr;
+        }
+    }
+
+    unsigned int r = (unsigned int)components[0];
+    unsigned int g = (unsigned int)components[1];
+    unsigned int b = (unsigned int)components[2];
+    if (r > 0xFF || g > 0xFF || b > 0xFF) {  // 48-bit rgb, hexadecimal round to 24-bit
+        r = (r + 0x7F) / 0x100;              // note: can "overflow", e.g. 0xFFFF -> 0x100.
         g = (g + 0x7F) / 0x100;
         b = (b + 0x7F) / 0x100;
     }

@@ -494,16 +494,15 @@ ic_private bool history_push_with_exit_code(history_t* h, const char* entry, int
     history_list_prune_to_max(h, &list);
     bool pruned = (list.count != before_prune);
 
-    bool need_rewrite = removed_existing || pruned;
+    const bool needs_full_rewrite = removed_existing || pruned;
 
     bool ok = false;
-    if (need_rewrite) {
+    if (needs_full_rewrite) {
         ok = history_update_file(h, &list);
     } else {
         history_entry_t* latest = (list.count > 0) ? &list.entries[list.count - 1] : NULL;
         ok = history_append_entry(h, latest);
         if (!ok && latest != NULL) {
-            need_rewrite = true;
             ok = history_update_file(h, &list);
         }
     }
@@ -1122,11 +1121,20 @@ static bool history_write_entry(const char* entry, FILE* f, stringbuf_t* sbuf) {
 static bool history_write_record(const history_entry_t* entry, FILE* f, stringbuf_t* sbuf) {
     if (entry == NULL || entry->command == NULL)
         return true;
+
     history_entry_t temp = *entry;
     history_entry_normalize_metadata(&temp);
-    if (!history_write_successful(
-            fprintf(f, "# %lld %d\n", (long long)temp.timestamp, temp.exit_code)))
+
+    char header[64];
+    int written =
+        snprintf(header, sizeof(header), "# %lld %d\n", (long long)temp.timestamp, temp.exit_code);
+    if (written < 0 || written >= (int)sizeof(header))
         return false;
+
+    size_t to_write = (size_t)written;
+    if (fwrite(header, 1, to_write, f) != to_write)
+        return false;
+
     return history_write_entry(temp.command, f, sbuf);
 }
 
@@ -1149,11 +1157,15 @@ static bool history_collect_entries(history_t* h, history_list_t* list, bool ded
         return false;
     }
 
+    bool success = true;
     char header_buf[512];
-    while (true) {
+    while (success) {
         int c = fgetc(f);
-        if (c == EOF)
+        if (c == EOF) {
+            if (ferror(f))
+                success = false;
             break;
+        }
         if (c == '\n' || c == '\r')
             continue;
 
@@ -1164,9 +1176,15 @@ static bool history_collect_entries(history_t* h, history_list_t* list, bool ded
         };
 
         if (c == '#') {
-            ungetc(c, f);
-            if (fgets(header_buf, sizeof(header_buf), f) == NULL)
+            if (ungetc(c, f) == EOF) {
+                success = false;
                 break;
+            }
+            if (fgets(header_buf, sizeof(header_buf), f) == NULL) {
+                if (ferror(f))
+                    success = false;
+                break;
+            }
 
             const char* cursor = header_buf + 1;
             while (*cursor == ' ' || *cursor == '\t')
@@ -1198,17 +1216,33 @@ static bool history_collect_entries(history_t* h, history_list_t* list, bool ded
             }
 
             long pos_after_header = ftell(f);
-            int next_char = fgetc(f);
-            if (next_char == EOF)
+            if (pos_after_header < 0) {
+                success = false;
                 break;
+            }
+
+            int next_char = fgetc(f);
+            if (next_char == EOF) {
+                if (ferror(f))
+                    success = false;
+                break;
+            }
             if (next_char == '#') {
-                // Malformed entry without a command; rewind to process the next header.
-                fseek(f, pos_after_header, SEEK_SET);
+                if (fseek(f, pos_after_header, SEEK_SET) != 0) {
+                    success = false;
+                    break;
+                }
                 continue;
             }
-            ungetc(next_char, f);
+            if (ungetc(next_char, f) == EOF) {
+                success = false;
+                break;
+            }
         } else {
-            ungetc(c, f);
+            if (ungetc(c, f) == EOF) {
+                success = false;
+                break;
+            }
         }
 
         char* command = history_read_entry(h, f, sbuf);
@@ -1228,6 +1262,11 @@ static bool history_collect_entries(history_t* h, history_list_t* list, bool ded
 
     sbuf_free(sbuf);
     bool close_ok = history_close_stream(f);
+
+    if (!success) {
+        history_list_free(h, list);
+        return false;
+    }
 
     history_list_prune_to_max(h, list);
     if (dedup)

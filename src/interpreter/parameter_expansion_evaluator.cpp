@@ -422,12 +422,10 @@ bool ParameterExpansionEvaluator::try_evaluate_substring(const std::string& para
         }
 
         const char* length_ptr = param_expr.c_str() + pos;
-        char* length_endptr_raw = nullptr;
-        length_value = std::strtol(length_ptr, &length_endptr_raw, 10);
-        const char* length_endptr = length_endptr_raw;
+        char* length_endptr = nullptr;
+        length_value = std::strtol(length_ptr, &length_endptr, 10);
         if (length_ptr == length_endptr) {
             length_value = 0;
-            length_endptr = length_ptr;
         }
         length_value *= length_sign;
     }

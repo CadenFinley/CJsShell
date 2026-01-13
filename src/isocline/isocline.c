@@ -56,6 +56,12 @@
 #include "undo.c"
 #include "unicode.c"
 #else
-static void ic_isocline_translation_unit_anchor(void) {
+#if defined(__GNUC__) || defined(__clang__)
+#define IC_ANCHOR_UNUSED __attribute__((unused))
+#else
+#define IC_ANCHOR_UNUSED
+#endif
+static void IC_ANCHOR_UNUSED ic_isocline_translation_unit_anchor(void) {
 }
+#undef IC_ANCHOR_UNUSED
 #endif

@@ -356,6 +356,7 @@ ic_private void tty_cpush_char(tty_t* tty, uint8_t c) {
 // Push escape codes (used on Windows to insert keys)
 //-------------------------------------------------------------
 
+#if defined(_WIN32)
 static unsigned csi_mods(code_t mods) {
     unsigned m = 1;
     if (mods & KEY_MOD_SHIFT)
@@ -385,6 +386,7 @@ static void tty_cpush_csi_unicode(tty_t* tty, code_t mods, uint32_t unicode) {
         tty_cpushf(tty, "\x1B[%u;%uu", unicode, csi_mods(mods));
     }
 }
+#endif
 
 //-------------------------------------------------------------
 // Init

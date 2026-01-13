@@ -630,7 +630,6 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                             for (const auto& c : cmds) {
                                 execute_simple_or_pipeline(c);
                             }
-                            condition_met = true;
                             idx = 0;
                             return 0;
                         }
@@ -850,7 +849,6 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
     int body_rc = 0;
     if (cond_rc == 0) {
         body_rc = execute_block(then_lines);
-        condition_met = true;
     } else {
         for (const auto& elif_branch : elif_branches) {
             std::string elif_cond_str;
