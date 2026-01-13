@@ -74,10 +74,12 @@ typedef struct editor_s {
     ssize_t prompt_prefix_lines;      // number of prefix lines emitted for prompt
     bool prompt_begins_with_newline;  // prompt started with a leading newline
     bool replace_prompt_line_with_number;  // should row 0 use line numbers instead of prompt text?
-    const char* inline_right_text;         // inline right-aligned text on input line
-    ssize_t inline_right_width;            // cached width of inline right text
-    ssize_t line_number_column_width;      // cached total prefix width when line numbers are shown
-    alloc_t* mem;                          // allocator
+    bool
+        force_prompt_text_visible;  // temporarily prevent prompt replacement (e.g., search prompts)
+    const char* inline_right_text;  // inline right-aligned text on input line
+    ssize_t inline_right_width;     // cached width of inline right text
+    ssize_t line_number_column_width;  // cached total prefix width when line numbers are shown
+    alloc_t* mem;                      // allocator
     // caches
     attrbuf_t* attrs;  // reuse attribute buffers
     attrbuf_t* attrs_extra;
@@ -101,6 +103,10 @@ static bool line_numbers_enabled(const ic_env_t* env) {
 
 static bool prompt_line_should_use_line_numbers(const ic_env_t* env, const editor_t* eb) {
     if (env == NULL || eb == NULL) {
+        return false;
+    }
+
+    if (eb->force_prompt_text_visible) {
         return false;
     }
 

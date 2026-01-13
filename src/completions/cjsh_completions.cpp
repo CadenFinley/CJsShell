@@ -68,6 +68,70 @@ const char* extract_current_line_prefix(const char* prefix) {
     return prefix;
 }
 
+int from_hex_digit(char ch) {
+    if (ch >= '0' && ch <= '9') {
+        return ch - '0';
+    }
+    if (ch >= 'a' && ch <= 'f') {
+        return 10 + (ch - 'a');
+    }
+    if (ch >= 'A' && ch <= 'F') {
+        return 10 + (ch - 'A');
+    }
+    return -1;
+}
+
+bool decode_history_command_line(const std::string& raw, std::string& decoded) {
+    decoded.clear();
+    decoded.reserve(raw.size());
+    for (std::size_t i = 0; i < raw.size(); ++i) {
+        char ch = raw[i];
+        if (ch != '\\') {
+            decoded.push_back(ch);
+            continue;
+        }
+        if (i + 1 >= raw.size()) {
+            return false;
+        }
+        char esc = raw[++i];
+        switch (esc) {
+            case 'n':
+                decoded.push_back('\n');
+                break;
+            case 't':
+                decoded.push_back('\t');
+                break;
+            case 'r':
+                break;
+            case '\\':
+                decoded.push_back('\\');
+                break;
+            case 'x': {
+                if (i + 2 >= raw.size()) {
+                    return false;
+                }
+                char h1 = raw[i + 1];
+                char h2 = raw[i + 2];
+                if (!std::isxdigit(static_cast<unsigned char>(h1)) ||
+                    !std::isxdigit(static_cast<unsigned char>(h2))) {
+                    return false;
+                }
+                int hi = from_hex_digit(h1);
+                int lo = from_hex_digit(h2);
+                if (hi < 0 || lo < 0) {
+                    return false;
+                }
+                decoded.push_back(static_cast<char>((hi << 4) | lo));
+                i += 2;
+                break;
+            }
+            default:
+                return false;
+        }
+    }
+    return true;
+}
+
 bool add_command_completion(ic_completion_env_t* cenv, const std::string& candidate,
                             size_t prefix_len, const char* source, const char* debug_label) {
     (void)debug_label;
@@ -497,6 +561,8 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
 
     std::string line;
     line.reserve(256);
+    std::string decoded_line;
+    decoded_line.reserve(256);
 
     int last_exit_code = 0;
     bool has_last_exit_code = false;
@@ -533,7 +599,12 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
             continue;
         }
 
-        if (looks_like_file_path(line)) {
+        if (!decode_history_command_line(line, decoded_line)) {
+            decoded_line = line;
+        }
+        const std::string& entry_text = decoded_line;
+
+        if (looks_like_file_path(entry_text)) {
             last_exit_code = 0;
             has_last_exit_code = false;
             continue;
@@ -541,14 +612,14 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
 
         bool should_match = false;
         if (prefix_len == 0) {
-            should_match = (line != prefix_str);
-        } else if (completion_utils::matches_completion_prefix(line, prefix_str) &&
-                   line != prefix_str) {
+            should_match = (entry_text != prefix_str);
+        } else if (completion_utils::matches_completion_prefix(entry_text, prefix_str) &&
+                   entry_text != prefix_str) {
             should_match = true;
         }
 
         if (should_match) {
-            matches.push_back(HistoryMatch{std::move(line), has_last_exit_code, last_exit_code});
+            matches.push_back(HistoryMatch{entry_text, has_last_exit_code, last_exit_code});
         }
 
         last_exit_code = 0;
