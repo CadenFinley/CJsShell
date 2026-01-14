@@ -907,49 +907,106 @@ int kill_command(const std::vector<std::string>& args) {
     }
 
     auto& job_manager = JobManager::instance();
+    job_manager.update_job_status();
+
+    bool had_error = false;
+
+    auto send_signal_to_job = [&](const std::shared_ptr<JobControlJob>& job) {
+        if (!job) {
+            return;
+        }
+        if (killpg(job->pgid, signal) < 0) {
+            perror("kill");
+            had_error = true;
+        }
+    };
+
+    auto handle_job_target = [&](const std::string& spec, const std::string& original) -> bool {
+        std::string job_spec = spec;
+        trim_in_place(job_spec);
+        if (job_spec.empty()) {
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         original,
+                         "No such job",
+                         {"Use 'jobs' to list available jobs"}});
+            had_error = true;
+            return false;
+        }
+
+        size_t consumed = 0;
+        try {
+            int parsed_value = std::stoi(job_spec, &consumed);
+            if (consumed == job_spec.size()) {
+                auto job = job_manager.get_job(parsed_value);
+                if (!job) {
+                    job = job_manager.get_job_by_pid(static_cast<pid_t>(parsed_value));
+                }
+
+                if (job) {
+                    send_signal_to_job(job);
+                    return true;
+                }
+
+                print_error({ErrorType::INVALID_ARGUMENT,
+                             original,
+                             "No such job",
+                             {"Use 'jobs' to list available jobs"}});
+                had_error = true;
+                return false;
+            }
+        } catch (...) {
+        }
+
+        bool ambiguous = false;
+        auto job = find_job_by_command(job_spec, job_manager, ambiguous);
+        if (job) {
+            send_signal_to_job(job);
+            return true;
+        }
+
+        had_error = true;
+        if (ambiguous) {
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         original,
+                         "multiple jobs match command",
+                         {"Use job id or PID to disambiguate"}});
+        } else {
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         original,
+                         "No such job",
+                         {"Use 'jobs' to list available jobs"}});
+        }
+        return false;
+    };
 
     for (size_t i = start_index; i < args.size(); ++i) {
         const std::string& target = args[i];
 
         if (!target.empty() && target[0] == '%') {
-            auto parsed_job_id = parse_job_specifier(target);
-            if (!parsed_job_id.has_value()) {
-                print_error({ErrorType::INVALID_ARGUMENT,
-                             target,
-                             "Arguments must be process or job IDs",
-                             {"Use 'jobs' to list available jobs"}});
-                continue;
-            }
+            handle_job_target(target.substr(1), target);
+            continue;
+        }
 
-            int job_id = parsed_job_id.value();
-            auto job = job_manager.get_job(job_id);
-            if (!job) {
-                print_error({ErrorType::INVALID_ARGUMENT,
-                             target,
-                             "No such job",
-                             {"Use 'jobs' to list available jobs"}});
-                continue;
-            }
-
-            if (killpg(job->pgid, signal) < 0) {
-                perror("kill");
-            }
-        } else {
-            try {
-                pid_t pid = std::stoi(target);
+        size_t consumed = 0;
+        bool treated_as_pid = false;
+        try {
+            pid_t pid = std::stoi(target, &consumed);
+            if (consumed == target.size()) {
                 if (kill(pid, signal) < 0) {
                     perror("kill");
+                    had_error = true;
                 }
-            } catch (...) {
-                print_error({ErrorType::INVALID_ARGUMENT,
-                             target,
-                             "Arguments must be process or job IDs",
-                             {"Use 'jobs' to list available jobs"}});
+                treated_as_pid = true;
             }
+        } catch (...) {
+        }
+
+        if (!treated_as_pid) {
+            handle_job_target(target, target);
         }
     }
 
-    return 0;
+    return had_error ? 1 : 0;
 }
 
 int disown_command(const std::vector<std::string>& args) {
