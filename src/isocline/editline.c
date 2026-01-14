@@ -1218,23 +1218,32 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
         rows, rc.row, rc.col, eb->cur_rows, eb->cur_row);
 
     // only render at most terminal height rows
-    const ssize_t termh = term_get_height(env->term);
+    const ssize_t terminal_height = term_get_height(env->term);
+    const ssize_t prompt_prefix_lines = (eb->prompt_prefix_lines > 0 ? eb->prompt_prefix_lines : 0);
+    ssize_t visible_termh = terminal_height;
+    if (menu_active && prompt_prefix_lines > 0) {
+        visible_termh = terminal_height - prompt_prefix_lines;
+        if (visible_termh < 1) {
+            visible_termh = 1;
+        }
+    }
+
     ssize_t first_row = 0;        // first visible row
     ssize_t last_row = rows - 1;  // last visible row
-    if (rows > termh) {
-        first_row = rc.row - termh + 1;  // ensure cursor is visible
+    if (rows > visible_termh) {
+        first_row = rc.row - visible_termh + 1;  // ensure cursor is visible
         if (first_row < 0)
             first_row = 0;
-        last_row = first_row + termh - 1;
+        last_row = first_row + visible_termh - 1;
     }
-    assert(last_row - first_row < termh);
+    assert(last_row - first_row < visible_termh);
 
     // reduce flicker
     buffer_mode_t bmode = term_set_buffer_mode(env->term, BUFFERED);
 
     // back up to the first line
     term_start_of_line(env->term);
-    term_up(env->term, (eb->cur_row >= termh ? termh - 1 : eb->cur_row));
+    term_up(env->term, (eb->cur_row >= visible_termh ? visible_termh - 1 : eb->cur_row));
     // term_clear_lines_to_end(env->term);  // gives flicker in old Windows cmd
     // prompt
 
@@ -1252,9 +1261,9 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
 
     // overwrite trailing rows we do not use anymore
     ssize_t rrows = last_row - first_row + 1;  // rendered rows
-    if (rrows < termh && rows < eb->cur_rows) {
+    if (rrows < visible_termh && rows < eb->cur_rows) {
         ssize_t clear = eb->cur_rows - rows;
-        while (rrows < termh && clear > 0) {
+        while (rrows < visible_termh && clear > 0) {
             clear--;
             rrows++;
             term_writeln(env->term, "");

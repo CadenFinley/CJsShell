@@ -61,6 +61,35 @@ ic_private void sbuf_append_tagged(stringbuf_t* sb, const char* tag, const char*
     sbuf_append(sb, "[/]");
 }
 
+static const char* completion_single_line_view(alloc_t* mem, const char* display,
+                                               char** allocated) {
+    if (allocated != NULL) {
+        *allocated = NULL;
+    }
+    if (display == NULL) {
+        return "";
+    }
+    const char* newline = strchr(display, '\n');
+    if (newline == NULL) {
+        return display;
+    }
+    size_t prefix_len = (size_t)(newline - display);
+    size_t truncated_len = prefix_len + 3;  // account for "..."
+    char* truncated = mem_malloc_tp_n(mem, char, (ssize_t)(truncated_len + 1));
+    if (truncated == NULL) {
+        return display;
+    }
+    if (prefix_len > 0) {
+        memcpy(truncated, display, prefix_len);
+    }
+    memcpy(truncated + prefix_len, "...", 3);
+    truncated[truncated_len] = '\0';
+    if (allocated != NULL) {
+        *allocated = truncated;
+    }
+    return truncated;
+}
+
 static void editor_append_completion(ic_env_t* env, editor_t* eb, ssize_t idx, ssize_t width,
                                      bool numbered, bool selected) {
     const char* help = NULL;
@@ -107,9 +136,15 @@ static void editor_append_completion(ic_env_t* env, editor_t* eb, ssize_t idx, s
     if (selected) {
         sbuf_append(eb->extra, "[ic-emphasis]");
     }
-    sbuf_append(eb->extra, display);
+    char* single_line_alloc = NULL;
+    const char* single_line_display =
+        completion_single_line_view(env->mem, display, &single_line_alloc);
+    sbuf_append(eb->extra, single_line_display);
     if (selected) {
         sbuf_append(eb->extra, "[/ic-emphasis]");
+    }
+    if (single_line_alloc != NULL) {
+        mem_free(env->mem, single_line_alloc);
     }
 
     // Add source information if available
@@ -159,8 +194,11 @@ static ssize_t edit_completions_max_width(ic_env_t* env, ssize_t count) {
     for (ssize_t i = 0; i < count; i++) {
         const char* help = NULL;
         const char* source = completions_get_source(env->completions, i);
-        ssize_t w =
-            bbcode_column_width(env->bbcode, completions_get_display(env->completions, i, &help));
+        const char* display = completions_get_display(env->completions, i, &help);
+        char* display_alloc = NULL;
+        const char* single_line_display =
+            completion_single_line_view(env->mem, display, &display_alloc);
+        ssize_t w = bbcode_column_width(env->bbcode, single_line_display);
 
         // Add space for source information if available
         if (source != NULL) {
@@ -173,6 +211,9 @@ static ssize_t edit_completions_max_width(ic_env_t* env, ssize_t count) {
         }
         if (w > max_width) {
             max_width = w;
+        }
+        if (display_alloc != NULL) {
+            mem_free(env->mem, display_alloc);
         }
     }
     return max_width;
