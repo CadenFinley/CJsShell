@@ -990,10 +990,6 @@ long get_completion_min_allowed_results() {
     return completion_tracker::get_completion_min_allowed_results();
 }
 
-long get_completion_max_allowed_results() {
-    return completion_tracker::get_completion_max_allowed_results();
-}
-
 bool set_history_max_entries(long max_entries, std::string* error_message) {
     return completion_history::set_history_max_entries(max_entries, error_message);
 }
@@ -1008,8 +1004,4 @@ long get_history_default_history_limit() {
 
 long get_history_min_history_limit() {
     return completion_history::get_history_min_history_limit();
-}
-
-long get_history_max_history_limit() {
-    return completion_history::get_history_max_history_limit();
 }

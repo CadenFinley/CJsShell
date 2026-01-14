@@ -14,8 +14,7 @@ namespace completion_history {
 
 namespace {
 constexpr long kHistoryMinEntries = 0;
-constexpr long kHistoryDefaultEntries = 200;
-constexpr long kHistoryAbsoluteMaxEntries = 5000;
+constexpr long kHistoryDefaultEntries = 1000;
 
 long g_history_max_entries_value = kHistoryDefaultEntries;
 
@@ -66,7 +65,6 @@ bool trim_history_file(long max_entries, std::string* error_message) {
     }
 
     std::vector<SerializedHistoryEntry> entries;
-    entries.reserve(static_cast<size_t>(max_entries) + 16);
 
     std::string line;
     SerializedHistoryEntry current;
@@ -148,14 +146,6 @@ bool set_history_max_entries(long max_entries, std::string* error_message) {
         }
     }
 
-    if (resolved > kHistoryAbsoluteMaxEntries) {
-        if (error_message != nullptr) {
-            *error_message =
-                "History limit cannot exceed " + std::to_string(kHistoryAbsoluteMaxEntries) + ".";
-        }
-        return false;
-    }
-
     long previous_limit = g_history_max_entries_value;
     g_history_max_entries_value = resolved;
 
@@ -178,10 +168,6 @@ long get_history_default_history_limit() {
 
 long get_history_min_history_limit() {
     return kHistoryMinEntries;
-}
-
-long get_history_max_history_limit() {
-    return kHistoryAbsoluteMaxEntries;
 }
 
 }  // namespace completion_history

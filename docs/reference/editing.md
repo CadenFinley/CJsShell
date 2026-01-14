@@ -186,12 +186,12 @@ cjshopt completion-case on|off|status
 # Enable/disable spell correction (enabled by default)
 cjshopt completion-spell on|off|status
 
-# Cap the number of suggestions shown per request (default: 1000, max: 10000)
+# Cap the number of suggestions shown per request (default: 1000, no upper limit)
 cjshopt set-completion-max <number|default|status>
 ```
 
-Lower the completion cap (anywhere between 1 and 10000) to keep the menu focused when working
-inside directories that contain thousands of files or deeply nested command trees.
+Lower or raise the completion cap (any value >= 1) to keep the menu focused when working inside
+directories that contain thousands of files or deeply nested command trees.
 
 **Using Completions:**
 - Press `Tab` to show completions

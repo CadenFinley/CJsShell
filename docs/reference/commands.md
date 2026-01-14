@@ -883,8 +883,8 @@ Adjust the number of entries stored in the persistent history file.
 cjshopt set-history-max <number|default|status>
 ```
 
-- Provide a number between **0** and **5000** (0 disables history persistence entirely)
-- Use `default` to restore the built-in limit of **200** entries
+- Provide any non-negative number (0 disables history persistence entirely)
+- Use `default` to restore the built-in limit of **1000** entries
 - Use `status` (or `--status`) to display the current setting
 
 Examples:
@@ -907,7 +907,7 @@ press `Tab`.
 cjshopt set-completion-max <number|default|status>
 ```
 
-- Provide a number between **1** and **10000**
+- Provide any number greater than or equal to **1**
 - Use `default` to restore the built-in limit of **1000** entries
 - Use `status` (or `--status`) to inspect the current setting
 

@@ -83,7 +83,7 @@ This is useful after upgrading a tool with new options.
   exists. Consider bundling cache files with your dotfiles so they can be copied into the cache
   directory during provisioning.
 - **Too many matches?** Reduce menu noise with `cjshopt set-completion-max <number|default|status>`
-  (any value between 1 and 10000).
+  (any value >= 1).
 
 With these tools you can match or exceed the curated completion sets provided by fish, bash, or zsh
 while keeping cjsh's zero-dependency footprint.

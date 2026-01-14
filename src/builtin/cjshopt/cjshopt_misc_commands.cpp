@@ -165,8 +165,7 @@ int set_history_max_command(const std::vector<std::string>& args) {
         "Use 'default' to restore the built-in limit (" +
             std::to_string(get_history_default_history_limit()) + " entries).",
         "Use 'status' to view the current setting.",
-        "Valid range: " + std::to_string(get_history_min_history_limit()) + " - " +
-            std::to_string(get_history_max_history_limit()) + "."};
+        "Minimum value: " + std::to_string(get_history_min_history_limit()) + " (no upper limit)."};
 
     if (args.size() == 1) {
         if (!g_startup_active) {
@@ -236,14 +235,6 @@ int set_history_max_command(const std::vector<std::string>& args) {
         return 1;
     }
 
-    if (requested_limit > get_history_max_history_limit()) {
-        print_error({ErrorType::INVALID_ARGUMENT, "set-history-max",
-                     "value exceeds the maximum allowed: " +
-                         std::to_string(get_history_max_history_limit()),
-                     usage_lines});
-        return 1;
-    }
-
     std::string error_message;
     if (!set_history_max_entries(requested_limit, &error_message)) {
         if (error_message.empty()) {
@@ -273,8 +264,8 @@ int set_completion_max_command(const std::vector<std::string>& args) {
         "Use 'default' to restore the built-in limit (" +
             std::to_string(get_completion_default_max_results()) + " entries).",
         "Use 'status' to view the current setting.",
-        "Valid range: " + std::to_string(get_completion_min_allowed_results()) + " - " +
-            std::to_string(get_completion_max_allowed_results()) + "."};
+        "Minimum value: " + std::to_string(get_completion_min_allowed_results()) +
+            " (no upper limit)."};
 
     if (args.size() == 1) {
         if (!g_startup_active) {
@@ -337,14 +328,6 @@ int set_completion_max_command(const std::vector<std::string>& args) {
         print_error({ErrorType::INVALID_ARGUMENT, "set-completion-max",
                      "value must be greater than or equal to " +
                          std::to_string(get_completion_min_allowed_results()),
-                     usage_lines});
-        return 1;
-    }
-
-    if (requested_limit > get_completion_max_allowed_results()) {
-        print_error({ErrorType::INVALID_ARGUMENT, "set-completion-max",
-                     "value exceeds the maximum allowed: " +
-                         std::to_string(get_completion_max_allowed_results()),
                      usage_lines});
         return 1;
     }

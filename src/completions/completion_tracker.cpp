@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <cctype>
+#include <limits>
 #include <string>
 #include <utility>
 
@@ -14,7 +15,6 @@ namespace {
 
 constexpr size_t kDefaultMaxCompletions = 1000;
 constexpr size_t kMinMaxCompletions = 1;
-constexpr size_t kMaxMaxCompletions = 10000;
 constexpr size_t kTrackerEntryMultiplier = 2;
 
 std::atomic<size_t> g_configured_max_completions{kDefaultMaxCompletions};
@@ -25,16 +25,17 @@ size_t configured_completion_limit() {
     if (limit < kMinMaxCompletions) {
         return kMinMaxCompletions;
     }
-    if (limit > kMaxMaxCompletions) {
-        return kMaxMaxCompletions;
-    }
     return limit;
 }
 
 size_t tracker_entry_cap() {
     size_t limit = configured_completion_limit();
+    const size_t max_allowed = std::numeric_limits<size_t>::max() / kTrackerEntryMultiplier;
+    if (limit > max_allowed) {
+        return std::numeric_limits<size_t>::max();
+    }
     size_t cap = limit * kTrackerEntryMultiplier;
-    return cap > 0 ? cap : kTrackerEntryMultiplier;
+    return cap > 0 ? cap : std::numeric_limits<size_t>::max();
 }
 
 std::string canonicalize_final_result(std::string result) {
@@ -186,14 +187,6 @@ bool set_completion_max_results(long max_results, std::string* error_message) {
         return false;
     }
 
-    if (max_results > static_cast<long>(kMaxMaxCompletions)) {
-        if (error_message != nullptr) {
-            *error_message =
-                "value exceeds the maximum allowed: " + std::to_string(kMaxMaxCompletions);
-        }
-        return false;
-    }
-
     g_configured_max_completions.store(static_cast<size_t>(max_results), std::memory_order_relaxed);
     if (error_message != nullptr) {
         error_message->clear();
@@ -211,10 +204,6 @@ long get_completion_default_max_results() {
 
 long get_completion_min_allowed_results() {
     return static_cast<long>(kMinMaxCompletions);
-}
-
-long get_completion_max_allowed_results() {
-    return static_cast<long>(kMaxMaxCompletions);
 }
 
 }  // namespace completion_tracker

@@ -19,9 +19,7 @@ bool set_completion_max_results(long max_results, std::string* error_message = n
 long get_completion_max_results();
 long get_completion_default_max_results();
 long get_completion_min_allowed_results();
-long get_completion_max_allowed_results();
 bool set_history_max_entries(long max_entries, std::string* error_message = nullptr);
 long get_history_max_entries();
 long get_history_default_history_limit();
 long get_history_min_history_limit();
-long get_history_max_history_limit();

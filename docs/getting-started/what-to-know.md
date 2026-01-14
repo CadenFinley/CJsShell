@@ -108,7 +108,7 @@ cjsh leaves directory listing behavior up to your configuration. Add an `ls` wra
 - **History expansions:** Enabled in interactive sessions (`!!`, `!$`, etc.). Disable with `cjsh --no-history-expansion` or persist by adding `cjshopt login-startup-arg --no-history-expansion` to `~/.cjprofile`.
 - **Reverse search:** Press `Ctrl+R` for fuzzy, incremental history search.
 - **Persistence:** History entries are appended to `~/.cache/cjsh/history.txt`; duplicate commands are suppressed by default.
-- **Retention:** Adjust limits with `cjshopt set-history-max <number|default|status>`.
+- **Retention:** Adjust limits with `cjshopt set-history-max <number|default|status>` (any non-negative value; default 1000 entries).
 
 ---
 
@@ -187,7 +187,7 @@ cjshopt visible-whitespace on
 cjshopt keybind profile set vi
 
 # Increase history retention
-cjshopt set-history-max 5000
+cjshopt set-history-max 20000
 ```
 
 Persist startup flags by placing commands like the following in `~/.cjprofile`:
