@@ -2113,7 +2113,8 @@ void Exec::wait_for_job(int job_id) {
             job.status = status;
 
             int final_status = saw_last ? last_status : status;
-            if (!(WIFEXITED(final_status) || WIFSIGNALED(final_status))) {
+            const bool exited_or_signaled = WIFEXITED(final_status) || WIFSIGNALED(final_status);
+            if (!exited_or_signaled) {
                 final_status = (job.last_status != 0) ? job.last_status : job.status;
             }
             job.last_status = final_status;

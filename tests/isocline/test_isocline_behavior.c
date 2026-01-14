@@ -1,3 +1,4 @@
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -10,40 +11,48 @@
 #include "prompt_line_replacement.h"
 #include "stringbuf.h"
 
-#define EXPECT_TRUE(condition, message)                                                    \
-    do {                                                                                   \
-        if (!(condition)) {                                                                \
-            (void)fprintf(stderr, "EXPECT_TRUE failed at %s:%d: %s\n", __FILE__, __LINE__, \
-                          message);                                                        \
-            return false;                                                                  \
-        }                                                                                  \
+static void expect_safe_log(const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    char buffer[512];
+    vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+    (void)fputs(buffer, stderr);
+    (void)fflush(stderr);
+}
+
+#define EXPECT_TRUE(condition, message)                                                        \
+    do {                                                                                       \
+        if (!(condition)) {                                                                    \
+            expect_safe_log("EXPECT_TRUE failed at %s:%d: %s\n", __FILE__, __LINE__, message); \
+            return false;                                                                      \
+        }                                                                                      \
     } while (0)
 
 #define EXPECT_FALSE(condition, message) EXPECT_TRUE(!(condition), message)
 
-#define EXPECT_STREQ(actual_expr, expected_expr, message)                                        \
-    do {                                                                                         \
-        const char* _actual = (actual_expr);                                                     \
-        const char* _expected = (expected_expr);                                                 \
-        bool _match = false;                                                                     \
-        if (_actual == NULL && _expected == NULL) {                                              \
-            _match = true;                                                                       \
-        } else if (_actual != NULL && _expected != NULL && strcmp(_actual, _expected) == 0) {    \
-            _match = true;                                                                       \
-        }                                                                                        \
-        if (!_match) {                                                                           \
-            (void)fprintf(stderr, "EXPECT_STREQ failed at %s:%d: %s\n", __FILE__, __LINE__,      \
-                          message);                                                              \
-            (void)fprintf(stderr, "  actual:   %s\n", _actual == NULL ? "(null)" : _actual);     \
-            (void)fprintf(stderr, "  expected: %s\n", _expected == NULL ? "(null)" : _expected); \
-            return false;                                                                        \
-        }                                                                                        \
+#define EXPECT_STREQ(actual_expr, expected_expr, message)                                       \
+    do {                                                                                        \
+        const char* _actual = (actual_expr);                                                    \
+        const char* _expected = (expected_expr);                                                \
+        bool _match = false;                                                                    \
+        if (_actual == NULL && _expected == NULL) {                                             \
+            _match = true;                                                                      \
+        } else if (_actual != NULL && _expected != NULL && strcmp(_actual, _expected) == 0) {   \
+            _match = true;                                                                      \
+        }                                                                                       \
+        if (!_match) {                                                                          \
+            expect_safe_log("EXPECT_STREQ failed at %s:%d: %s\n", __FILE__, __LINE__, message); \
+            expect_safe_log("  actual:   %s\n", _actual == NULL ? "(null)" : _actual);          \
+            expect_safe_log("  expected: %s\n", _expected == NULL ? "(null)" : _expected);      \
+            return false;                                                                       \
+        }                                                                                       \
     } while (0)
 
 static ic_env_t* ensure_env(void) {
     ic_env_t* env = ic_get_env();
     if (env == NULL) {
-        (void)fprintf(stderr, "ic_get_env() returned NULL\n");
+        expect_safe_log("ic_get_env() returned NULL\n");
     }
     return env;
 }
@@ -474,13 +483,13 @@ int main(void) {
 
     for (size_t i = 0; i < test_count; ++i) {
         if (!kTests[i].fn()) {
-            (void)fprintf(stderr, "Test '%s' failed\n", kTests[i].name);
+            expect_safe_log("Test '%s' failed\n", kTests[i].name);
             failures += 1;
         }
     }
 
     if (failures > 0) {
-        (void)fprintf(stderr, "%zu/%zu isocline behavior tests failed\n", failures, test_count);
+        expect_safe_log("%zu/%zu isocline behavior tests failed\n", failures, test_count);
         return 1;
     }
 
