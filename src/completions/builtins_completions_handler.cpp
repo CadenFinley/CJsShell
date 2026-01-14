@@ -338,7 +338,8 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
              make_subcommand("generate-profile", "Generate ~/.cjprofile"),
              make_subcommand("generate-rc", "Generate ~/.cjshrc"),
              make_subcommand("generate-logout", "Generate ~/.cjsh_logout"),
-             make_subcommand("set-history-max", "Configure history persistence")});
+             make_subcommand("set-history-max", "Configure history persistence"),
+             make_subcommand("set-completion-max", "Limit completion suggestions")});
 
         add_doc("cjshopt-style_def", "Define or reset syntax styles",
                 {make_option("--reset", "Reset all highlight styles to defaults")});
@@ -367,6 +368,12 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                  make_option("--default", "Restore the default history limit"),
                  make_subcommand("status", "Display the current history limit"),
                  make_option("--status", "Display the current history limit")});
+
+        add_doc("cjshopt-set-completion-max", "Limit completion suggestions",
+                {make_subcommand("default", "Restore the default completion limit"),
+                 make_option("--default", "Restore the default completion limit"),
+                 make_subcommand("status", "Display the current completion limit"),
+                 make_option("--status", "Display the current completion limit")});
 
         add_doc("cjshopt-keybind", "Inspect or modify key bindings",
                 {make_subcommand("list", "Show current key bindings"),

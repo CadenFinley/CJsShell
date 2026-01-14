@@ -1,5 +1,6 @@
 #include "completion_tracker.h"
 
+#include <atomic>
 #include <cctype>
 #include <string>
 #include <utility>
@@ -11,10 +12,30 @@ namespace completion_tracker {
 
 namespace {
 
-const size_t MAX_COMPLETION_TRACKER_ENTRIES = static_cast<size_t>(IC_MAX_COMPLETIONS_TO_SHOW) * 2;
-const size_t MAX_TOTAL_COMPLETIONS = static_cast<size_t>(IC_MAX_COMPLETIONS_TO_SHOW);
+constexpr size_t kDefaultMaxCompletions = 1000;
+constexpr size_t kMinMaxCompletions = 1;
+constexpr size_t kMaxMaxCompletions = 10000;
+constexpr size_t kTrackerEntryMultiplier = 2;
 
+std::atomic<size_t> g_configured_max_completions{kDefaultMaxCompletions};
 thread_local CompletionTracker* g_current_completion_tracker = nullptr;
+
+size_t configured_completion_limit() {
+    size_t limit = g_configured_max_completions.load(std::memory_order_relaxed);
+    if (limit < kMinMaxCompletions) {
+        return kMinMaxCompletions;
+    }
+    if (limit > kMaxMaxCompletions) {
+        return kMaxMaxCompletions;
+    }
+    return limit;
+}
+
+size_t tracker_entry_cap() {
+    size_t limit = configured_completion_limit();
+    size_t cap = limit * kTrackerEntryMultiplier;
+    return cap > 0 ? cap : kTrackerEntryMultiplier;
+}
 
 std::string canonicalize_final_result(std::string result) {
     while (!result.empty() && std::isspace(static_cast<unsigned char>(result.back()))) {
@@ -35,7 +56,7 @@ CompletionTracker::~CompletionTracker() {
 }
 
 bool CompletionTracker::has_reached_completion_limit() const {
-    return total_completions_added >= MAX_TOTAL_COMPLETIONS;
+    return total_completions_added >= configured_completion_limit();
 }
 
 std::string CompletionTracker::calculate_final_result(const char* completion_text,
@@ -50,7 +71,7 @@ std::string CompletionTracker::calculate_final_result(const char* completion_tex
 }
 
 bool CompletionTracker::would_create_duplicate(const char* completion_text, long delete_before) {
-    if (added_completions.size() >= MAX_COMPLETION_TRACKER_ENTRIES) {
+    if (added_completions.size() >= tracker_entry_cap()) {
         return true;
     }
 
@@ -154,6 +175,46 @@ bool completion_limit_hit() {
 bool completion_limit_hit_with_log(const char* label) {
     (void)label;
     return completion_limit_hit();
+}
+
+bool set_completion_max_results(long max_results, std::string* error_message) {
+    if (max_results < static_cast<long>(kMinMaxCompletions)) {
+        if (error_message != nullptr) {
+            *error_message =
+                "value must be greater than or equal to " + std::to_string(kMinMaxCompletions);
+        }
+        return false;
+    }
+
+    if (max_results > static_cast<long>(kMaxMaxCompletions)) {
+        if (error_message != nullptr) {
+            *error_message =
+                "value exceeds the maximum allowed: " + std::to_string(kMaxMaxCompletions);
+        }
+        return false;
+    }
+
+    g_configured_max_completions.store(static_cast<size_t>(max_results), std::memory_order_relaxed);
+    if (error_message != nullptr) {
+        error_message->clear();
+    }
+    return true;
+}
+
+long get_completion_max_results() {
+    return static_cast<long>(configured_completion_limit());
+}
+
+long get_completion_default_max_results() {
+    return static_cast<long>(kDefaultMaxCompletions);
+}
+
+long get_completion_min_allowed_results() {
+    return static_cast<long>(kMinMaxCompletions);
+}
+
+long get_completion_max_allowed_results() {
+    return static_cast<long>(kMaxMaxCompletions);
 }
 
 }  // namespace completion_tracker

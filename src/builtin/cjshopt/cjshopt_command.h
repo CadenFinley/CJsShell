@@ -37,6 +37,7 @@ int generate_rc_command(const std::vector<std::string>& args);
 int generate_logout_command(const std::vector<std::string>& args);
 int keybind_command(const std::vector<std::string>& args);
 int set_history_max_command(const std::vector<std::string>& args);
+int set_completion_max_command(const std::vector<std::string>& args);
 std::string get_custom_keybinding(ic_keycode_t key);
 bool has_custom_keybinding(ic_keycode_t key);
 void set_custom_keybinding(ic_keycode_t key, const std::string& command);

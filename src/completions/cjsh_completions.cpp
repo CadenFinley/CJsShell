@@ -974,6 +974,26 @@ bool is_completion_spell_correction_enabled() {
     return g_completion_spell_correction_enabled;
 }
 
+bool set_completion_max_results(long max_results, std::string* error_message) {
+    return completion_tracker::set_completion_max_results(max_results, error_message);
+}
+
+long get_completion_max_results() {
+    return completion_tracker::get_completion_max_results();
+}
+
+long get_completion_default_max_results() {
+    return completion_tracker::get_completion_default_max_results();
+}
+
+long get_completion_min_allowed_results() {
+    return completion_tracker::get_completion_min_allowed_results();
+}
+
+long get_completion_max_allowed_results() {
+    return completion_tracker::get_completion_max_allowed_results();
+}
+
 bool set_history_max_entries(long max_entries, std::string* error_message) {
     return completion_history::set_history_max_entries(max_entries, error_message);
 }

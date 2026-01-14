@@ -40,4 +40,10 @@ bool safe_add_completion_prim_with_source(ic_completion_env_t* cenv, const char*
 bool completion_limit_hit();
 bool completion_limit_hit_with_log(const char* label);
 
+bool set_completion_max_results(long max_results, std::string* error_message = nullptr);
+long get_completion_max_results();
+long get_completion_default_max_results();
+long get_completion_min_allowed_results();
+long get_completion_max_allowed_results();
+
 }  // namespace completion_tracker

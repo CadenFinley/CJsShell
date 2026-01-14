@@ -32,8 +32,8 @@
 //-------------------------------------------------------------
 // Completions
 //-------------------------------------------------------------
-#define IC_MAX_COMPLETIONS_TO_SHOW (1000)
-#define IC_MAX_COMPLETIONS_TO_TRY (IC_MAX_COMPLETIONS_TO_SHOW / 4)
+#define IC_MAX_COMPLETIONS_TO_SHOW (10000)
+#define IC_MAX_COMPLETIONS_TO_TRY (IC_MAX_COMPLETIONS_TO_SHOW)
 
 typedef struct completions_s completions_t;
 

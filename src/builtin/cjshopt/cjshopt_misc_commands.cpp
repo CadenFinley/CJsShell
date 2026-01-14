@@ -264,3 +264,104 @@ int set_history_max_command(const std::vector<std::string>& args) {
 
     return 0;
 }
+
+int set_completion_max_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: set-completion-max <number|default|status>",
+        "",
+        "Configure the maximum number of completion entries shown in menus.",
+        "Use 'default' to restore the built-in limit (" +
+            std::to_string(get_completion_default_max_results()) + " entries).",
+        "Use 'status' to view the current setting.",
+        "Valid range: " + std::to_string(get_completion_min_allowed_results()) + " - " +
+            std::to_string(get_completion_max_allowed_results()) + "."};
+
+    if (args.size() == 1) {
+        if (!g_startup_active) {
+            for (const auto& line : usage_lines) {
+                std::cout << line << '\n';
+            }
+        }
+        print_error({ErrorType::INVALID_ARGUMENT, "set-completion-max", "expected 1 argument",
+                     usage_lines});
+        return 1;
+    }
+
+    if (args.size() > 2) {
+        print_error({ErrorType::INVALID_ARGUMENT, "set-completion-max",
+                     "too many arguments provided", usage_lines});
+        return 1;
+    }
+
+    const std::string& option = args[1];
+    std::string normalized = option;
+    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+    if (normalized == "--help" || normalized == "-h") {
+        if (!g_startup_active) {
+            for (const auto& line : usage_lines) {
+                std::cout << line << '\n';
+            }
+        }
+        return 0;
+    }
+
+    if (normalized == "status" || normalized == "--status") {
+        if (!g_startup_active) {
+            long current_limit = get_completion_max_results();
+            std::cout << "Completion menu currently shows up to " << current_limit << " entries."
+                      << '\n';
+        }
+        return 0;
+    }
+
+    long requested_limit = 0;
+    if (normalized == "default" || normalized == "--default") {
+        requested_limit = get_completion_default_max_results();
+    } else {
+        try {
+            requested_limit = std::stol(option);
+        } catch (const std::invalid_argument&) {
+            print_error({ErrorType::INVALID_ARGUMENT, "set-completion-max",
+                         "invalid number: " + option, usage_lines});
+            return 1;
+        } catch (const std::out_of_range&) {
+            print_error({ErrorType::INVALID_ARGUMENT, "set-completion-max",
+                         "number out of range: " + option, usage_lines});
+            return 1;
+        }
+    }
+
+    if (requested_limit < get_completion_min_allowed_results()) {
+        print_error({ErrorType::INVALID_ARGUMENT, "set-completion-max",
+                     "value must be greater than or equal to " +
+                         std::to_string(get_completion_min_allowed_results()),
+                     usage_lines});
+        return 1;
+    }
+
+    if (requested_limit > get_completion_max_allowed_results()) {
+        print_error({ErrorType::INVALID_ARGUMENT, "set-completion-max",
+                     "value exceeds the maximum allowed: " +
+                         std::to_string(get_completion_max_allowed_results()),
+                     usage_lines});
+        return 1;
+    }
+
+    std::string error_message;
+    if (!set_completion_max_results(requested_limit, &error_message)) {
+        if (error_message.empty()) {
+            error_message = "Failed to update completion limit.";
+        }
+        print_error({ErrorType::RUNTIME_ERROR, "set-completion-max", error_message, {}});
+        return 1;
+    }
+
+    if (!g_startup_active) {
+        long applied_limit = get_completion_max_results();
+        std::cout << "Completion menu will display up to " << applied_limit << " entries." << '\n';
+    }
+
+    return 0;
+}

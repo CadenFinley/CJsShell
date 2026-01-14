@@ -60,6 +60,7 @@ void print_cjshopt_usage() {
     std::cout << "  generate-rc [--force] [--alt]            Create or overwrite ~/.cjshrc\n";
     std::cout << "  generate-logout [--force] [--alt]        Create or overwrite ~/.cjsh_logout\n";
     std::cout << "  set-history-max <number|default|status> Configure history persistence\n";
+    std::cout << "  set-completion-max <number|default|status> Limit completion suggestions\n";
     std::cout << "Use 'cjshopt <subcommand> --help' to see usage for a specific subcommand.\n";
 }
 }  // namespace
@@ -136,8 +137,10 @@ int cjshopt_command(const std::vector<std::string>& args) {
                  "  generate-rc [--force] [--alt]            Create or overwrite ~/.cjshrc",
                  "  generate-logout [--force] [--alt]        Create or overwrite ~/.cjsh_logout",
                  "  set-history-max <number|default|status> Configure history persistence",
+                 "  set-completion-max <number|default|status> Limit completion suggestions",
 
              }});
+
         return 1;
     }
 
@@ -231,6 +234,9 @@ int cjshopt_command(const std::vector<std::string>& args) {
     if (subcommand == "set-history-max") {
         return set_history_max_command(std::vector<std::string>(args.begin() + 1, args.end()));
     }
+    if (subcommand == "set-completion-max") {
+        return set_completion_max_command(std::vector<std::string>(args.begin() + 1, args.end()));
+    }
     print_error(
         {ErrorType::INVALID_ARGUMENT,
          "cjshopt",
@@ -243,7 +249,7 @@ int cjshopt_command(const std::vector<std::string>& args) {
 
           "auto-tab, prompt-newline, prompt-cleanup, prompt-cleanup-newline, "
           "prompt-cleanup-empty-line, prompt-cleanup-truncate, keybind, generate-profile, "
-          "generate-rc, generate-logout, set-history-max"}});
+          "generate-rc, generate-logout, set-history-max, set-completion-max"}});
 
     return 1;
 }

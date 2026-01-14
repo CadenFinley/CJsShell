@@ -542,6 +542,7 @@ Available subcommands:
 - `generate-rc` - Create or overwrite ~/.cjshrc (use `--alt` for `~/.config/cjsh/.cjshrc`)
 - `generate-logout` - Create or overwrite ~/.cjsh_logout (use `--alt` for `~/.config/cjsh/.cjsh_logout`)
 - `set-history-max` - Configure history persistence limits
+- `set-completion-max` - Limit the maximum number of completion suggestions shown
 
 ### cjsh-widget
 Interact with the embedded line editor (isocline) to drive advanced key bindings.
@@ -896,6 +897,31 @@ cjshopt set-history-max status   # Show the current limit
 ```
 
 Commands added to `~/.cjshrc` are applied automatically at startup.
+
+#### set-completion-max
+
+Limit how many completion entries are generated and displayed inside the menu each time you
+press `Tab`.
+
+```bash
+cjshopt set-completion-max <number|default|status>
+```
+
+- Provide a number between **1** and **10000**
+- Use `default` to restore the built-in limit of **1000** entries
+- Use `status` (or `--status`) to inspect the current setting
+
+Examples:
+
+```bash
+cjshopt set-completion-max 50        # Show at most 50 suggestions
+cjshopt set-completion-max default   # Restore the default cap
+cjshopt set-completion-max status    # Display the current limit
+```
+
+Lowering the cap trims visual noise and speeds up completion-heavy commands, especially when
+thousands of filesystem matches would otherwise be generated. Add the command to `~/.cjshrc`
+to persist the preference.
 
 #### prompt-newline
 
