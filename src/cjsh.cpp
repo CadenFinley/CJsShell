@@ -448,6 +448,11 @@ int main(int argc, char* argv[]) {
 
     // verify essential files for cjsh
     cjsh_filesystem::initialize_cjsh_directories();
+
+    // Ensure JobManager is constructed before registering cleanup so its destructor
+    // runs after cleanup_resources.
+    (void)JobManager::instance();
+
     if (std::atexit(cleanup_resources) != 0) {
         print_error({ErrorType::RUNTIME_ERROR,
                      "",
