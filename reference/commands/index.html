@@ -1865,6 +1865,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#set-completion-max" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        set-completion-max
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#prompt-newline" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2468,7 +2479,8 @@ register functions and <code>hook list</code> to inspect active hooks. See
 - <code>generate-profile</code> - Create or overwrite ~/.cjprofile (use <code>--alt</code> for <code>~/.config/cjsh/.cjprofile</code>)
 - <code>generate-rc</code> - Create or overwrite ~/.cjshrc (use <code>--alt</code> for <code>~/.config/cjsh/.cjshrc</code>)
 - <code>generate-logout</code> - Create or overwrite ~/.cjsh_logout (use <code>--alt</code> for <code>~/.config/cjsh/.cjsh_logout</code>)
-- <code>set-history-max</code> - Configure history persistence limits</p>
+- <code>set-history-max</code> - Configure history persistence limits
+- <code>set-completion-max</code> - Limit the maximum number of completion suggestions shown</p>
 <h3 id="cjsh-widget">cjsh-widget</h3>
 <p>Interact with the embedded line editor (isocline) to drive advanced key bindings.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-54-1"><a id="__codelineno-54-1" name="__codelineno-54-1" href="#__codelineno-54-1"></a>cjsh-widget<span class="w"> </span>&lt;subcommand&gt;<span class="w"> </span><span class="o">[</span>...<span class="o">]</span>
@@ -2735,34 +2747,52 @@ editing behaviors.</p>
 </span><span id="__span-87-4"><a id="__codelineno-87-4" name="__codelineno-87-4" href="#__codelineno-87-4"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span>status<span class="w">   </span><span class="c1"># Show the current limit</span>
 </span></code></pre></div>
 <p>Commands added to <code>~/.cjshrc</code> are applied automatically at startup.</p>
+<h4 id="set-completion-max">set-completion-max</h4>
+<p>Limit how many completion entries are generated and displayed inside the menu each time you
+press <code>Tab</code>.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-88-1"><a id="__codelineno-88-1" name="__codelineno-88-1" href="#__codelineno-88-1"></a>cjshopt<span class="w"> </span>set-completion-max<span class="w"> </span>&lt;number<span class="p">|</span>default<span class="p">|</span>status&gt;
+</span></code></pre></div>
+<ul>
+<li>Provide a number between <strong>1</strong> and <strong>10000</strong></li>
+<li>Use <code>default</code> to restore the built-in limit of <strong>1000</strong> entries</li>
+<li>Use <code>status</code> (or <code>--status</code>) to inspect the current setting</li>
+</ul>
+<p>Examples:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-89-1"><a id="__codelineno-89-1" name="__codelineno-89-1" href="#__codelineno-89-1"></a>cjshopt<span class="w"> </span>set-completion-max<span class="w"> </span><span class="m">50</span><span class="w">        </span><span class="c1"># Show at most 50 suggestions</span>
+</span><span id="__span-89-2"><a id="__codelineno-89-2" name="__codelineno-89-2" href="#__codelineno-89-2"></a>cjshopt<span class="w"> </span>set-completion-max<span class="w"> </span>default<span class="w">   </span><span class="c1"># Restore the default cap</span>
+</span><span id="__span-89-3"><a id="__codelineno-89-3" name="__codelineno-89-3" href="#__codelineno-89-3"></a>cjshopt<span class="w"> </span>set-completion-max<span class="w"> </span>status<span class="w">    </span><span class="c1"># Display the current limit</span>
+</span></code></pre></div>
+<p>Lowering the cap trims visual noise and speeds up completion-heavy commands, especially when
+thousands of filesystem matches would otherwise be generated. Add the command to <code>~/.cjshrc</code>
+to persist the preference.</p>
 <h4 id="prompt-newline">prompt-newline</h4>
 <p>Control whether cjsh prints a blank line after every command, regardless of what your prompt already emitted.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-88-1"><a id="__codelineno-88-1" name="__codelineno-88-1" href="#__codelineno-88-1"></a>cjshopt<span class="w"> </span>prompt-newline<span class="w"> </span>on
-</span><span id="__span-88-2"><a id="__codelineno-88-2" name="__codelineno-88-2" href="#__codelineno-88-2"></a>cjshopt<span class="w"> </span>prompt-newline<span class="w"> </span>off
-</span><span id="__span-88-3"><a id="__codelineno-88-3" name="__codelineno-88-3" href="#__codelineno-88-3"></a>cjshopt<span class="w"> </span>prompt-newline<span class="w"> </span>status
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-90-1"><a id="__codelineno-90-1" name="__codelineno-90-1" href="#__codelineno-90-1"></a>cjshopt<span class="w"> </span>prompt-newline<span class="w"> </span>on
+</span><span id="__span-90-2"><a id="__codelineno-90-2" name="__codelineno-90-2" href="#__codelineno-90-2"></a>cjshopt<span class="w"> </span>prompt-newline<span class="w"> </span>off
+</span><span id="__span-90-3"><a id="__codelineno-90-3" name="__codelineno-90-3" href="#__codelineno-90-3"></a>cjshopt<span class="w"> </span>prompt-newline<span class="w"> </span>status
 </span></code></pre></div>
 <p>Enable the toggle to keep transcripts readable when prompts have dense information; disable it for a compact display.</p>
 <h4 id="prompt-cleanup">prompt-cleanup</h4>
 <p>Remove the previous prompt before printing command output. This keeps long prompts from duplicating when you scroll back through logs.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-89-1"><a id="__codelineno-89-1" name="__codelineno-89-1" href="#__codelineno-89-1"></a>cjshopt<span class="w"> </span>prompt-cleanup<span class="w"> </span>on
-</span><span id="__span-89-2"><a id="__codelineno-89-2" name="__codelineno-89-2" href="#__codelineno-89-2"></a>cjshopt<span class="w"> </span>prompt-cleanup<span class="w"> </span>off
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-91-1"><a id="__codelineno-91-1" name="__codelineno-91-1" href="#__codelineno-91-1"></a>cjshopt<span class="w"> </span>prompt-cleanup<span class="w"> </span>on
+</span><span id="__span-91-2"><a id="__codelineno-91-2" name="__codelineno-91-2" href="#__codelineno-91-2"></a>cjshopt<span class="w"> </span>prompt-cleanup<span class="w"> </span>off
 </span></code></pre></div>
 <p>Pair this with the newline/empty-line toggles below for additional spacing control.</p>
 <h4 id="prompt-cleanup-newline">prompt-cleanup-newline</h4>
 <p>Decide whether prompt cleanup inserts a newline before the next prompt renders.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-90-1"><a id="__codelineno-90-1" name="__codelineno-90-1" href="#__codelineno-90-1"></a>cjshopt<span class="w"> </span>prompt-cleanup-newline<span class="w"> </span>on
-</span><span id="__span-90-2"><a id="__codelineno-90-2" name="__codelineno-90-2" href="#__codelineno-90-2"></a>cjshopt<span class="w"> </span>prompt-cleanup-newline<span class="w"> </span>off
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-92-1"><a id="__codelineno-92-1" name="__codelineno-92-1" href="#__codelineno-92-1"></a>cjshopt<span class="w"> </span>prompt-cleanup-newline<span class="w"> </span>on
+</span><span id="__span-92-2"><a id="__codelineno-92-2" name="__codelineno-92-2" href="#__codelineno-92-2"></a>cjshopt<span class="w"> </span>prompt-cleanup-newline<span class="w"> </span>off
 </span></code></pre></div>
 <p>When enabled, you always get a spacer line between commands once cleanup runs.</p>
 <h4 id="prompt-cleanup-empty-line">prompt-cleanup-empty-line</h4>
 <p>Insert an extra empty line while cleanup runs. This is useful when you want one blank line before and after prompts in transcripts.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-91-1"><a id="__codelineno-91-1" name="__codelineno-91-1" href="#__codelineno-91-1"></a>cjshopt<span class="w"> </span>prompt-cleanup-empty-line<span class="w"> </span>on
-</span><span id="__span-91-2"><a id="__codelineno-91-2" name="__codelineno-91-2" href="#__codelineno-91-2"></a>cjshopt<span class="w"> </span>prompt-cleanup-empty-line<span class="w"> </span>off
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-93-1"><a id="__codelineno-93-1" name="__codelineno-93-1" href="#__codelineno-93-1"></a>cjshopt<span class="w"> </span>prompt-cleanup-empty-line<span class="w"> </span>on
+</span><span id="__span-93-2"><a id="__codelineno-93-2" name="__codelineno-93-2" href="#__codelineno-93-2"></a>cjshopt<span class="w"> </span>prompt-cleanup-empty-line<span class="w"> </span>off
 </span></code></pre></div>
 <h4 id="prompt-cleanup-truncate">prompt-cleanup-truncate</h4>
 <p>Collapse multiline prompts to a single line after a command has executed so the previous prompt does not dominate your scrollback.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-92-1"><a id="__codelineno-92-1" name="__codelineno-92-1" href="#__codelineno-92-1"></a>cjshopt<span class="w"> </span>prompt-cleanup-truncate<span class="w"> </span>on
-</span><span id="__span-92-2"><a id="__codelineno-92-2" name="__codelineno-92-2" href="#__codelineno-92-2"></a>cjshopt<span class="w"> </span>prompt-cleanup-truncate<span class="w"> </span>off
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-94-1"><a id="__codelineno-94-1" name="__codelineno-94-1" href="#__codelineno-94-1"></a>cjshopt<span class="w"> </span>prompt-cleanup-truncate<span class="w"> </span>on
+</span><span id="__span-94-2"><a id="__codelineno-94-2" name="__codelineno-94-2" href="#__codelineno-94-2"></a>cjshopt<span class="w"> </span>prompt-cleanup-truncate<span class="w"> </span>off
 </span></code></pre></div>
 <p>All prompt-cleanup toggles accept <code>status</code> to report their current state and can be persisted by adding the commands to <code>~/.cjshrc</code>.</p>
 

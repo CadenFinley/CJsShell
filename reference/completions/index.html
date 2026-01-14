@@ -1123,6 +1123,8 @@ This is useful after upgrading a tool with new options.</p>
 <li><strong>Sandboxed environments:</strong> If <code>man</code> is unavailable, completions fall back to whatever data already
   exists. Consider bundling cache files with your dotfiles so they can be copied into the cache
   directory during provisioning.</li>
+<li><strong>Too many matches?</strong> Reduce menu noise with <code>cjshopt set-completion-max &lt;number|default|status&gt;</code>
+  (any value between 1 and 10000).</li>
 </ul>
 <p>With these tools you can match or exceed the curated completion sets provided by fish, bash, or zsh
 while keeping cjsh's zero-dependency footprint.</p>
