@@ -290,8 +290,10 @@ ic_private void term_write_formatted_n(term_t* term, const char* s, const attr_t
         if (n > 0) {
             term_write_n(term, s + i, n);
         }
+#ifndef NDEBUG
         const ssize_t consumed = i + n;
         assert(s[consumed] != 0 || consumed == len);
+#endif
         term_set_attr(term, default_attr);
     }
 }

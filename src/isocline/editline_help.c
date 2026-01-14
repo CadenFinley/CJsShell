@@ -153,6 +153,7 @@ static const char* help_initial =
     "[/ansi-lightgray][/ic-info]\n";
 
 static bool key_triggers_action(ic_env_t* env, ic_keycode_t key, ic_key_action_t action) {
+    ic_unused(env);
     ic_key_action_t configured;
     if (ic_get_key_binding(key, &configured)) {
         return configured == action;

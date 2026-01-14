@@ -335,6 +335,7 @@ static void tty_cpush(tty_t* tty, const char* s) {
     tty->cpush_count += len;
 }
 
+#if defined(_WIN32)
 static void tty_cpushf(tty_t* tty, const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
@@ -344,6 +345,7 @@ static void tty_cpushf(tty_t* tty, const char* fmt, ...) {
     tty_cpush(tty, buf);
     va_end(args);
 }
+#endif
 
 ic_private void tty_cpush_char(tty_t* tty, uint8_t c) {
     uint8_t buf[2];

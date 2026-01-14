@@ -409,7 +409,6 @@ again:
         }
 
         // force a single-column layout in expanded mode for readability
-        const ssize_t columns = 1;
         ssize_t total_rows = count_displayed;
         if (total_rows <= 0) {
             total_rows = 1;
