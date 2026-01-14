@@ -1430,7 +1430,7 @@ Fuzzy matching powers command, path, and argument completions without additional
 <li><strong>History expansions:</strong> Enabled in interactive sessions (<code>!!</code>, <code>!$</code>, etc.). Disable with <code>cjsh --no-history-expansion</code> or persist by adding <code>cjshopt login-startup-arg --no-history-expansion</code> to <code>~/.cjprofile</code>.</li>
 <li><strong>Reverse search:</strong> Press <code>Ctrl+R</code> for fuzzy, incremental history search.</li>
 <li><strong>Persistence:</strong> History entries are appended to <code>~/.cache/cjsh/history.txt</code>; duplicate commands are suppressed by default.</li>
-<li><strong>Retention:</strong> Adjust limits with <code>cjshopt set-history-max &lt;number|default|status&gt;</code>.</li>
+<li><strong>Retention:</strong> Adjust limits with <code>cjshopt set-history-max &lt;number|default|status&gt;</code> (any non-negative value; default 1000 entries).</li>
 </ul>
 <hr>
 <h2 id="configuration-compatibility">Configuration &amp; Compatibility</h2>
@@ -1489,7 +1489,7 @@ Fuzzy matching powers command, path, and argument completions without additional
 </span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>profile<span class="w"> </span><span class="nb">set</span><span class="w"> </span>vi
 </span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>
 </span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="c1"># Increase history retention</span>
-</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span><span class="m">5000</span>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span><span class="m">20000</span>
 </span></code></pre></div>
 <p>Persist startup flags by placing commands like the following in <code>~/.cjprofile</code>:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>cjshopt<span class="w"> </span>login-startup-arg<span class="w"> </span>--no-colors

@@ -2736,8 +2736,8 @@ editing behaviors.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-86-1"><a id="__codelineno-86-1" name="__codelineno-86-1" href="#__codelineno-86-1"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span>&lt;number<span class="p">|</span>default<span class="p">|</span>status&gt;
 </span></code></pre></div>
 <ul>
-<li>Provide a number between <strong>0</strong> and <strong>5000</strong> (0 disables history persistence entirely)</li>
-<li>Use <code>default</code> to restore the built-in limit of <strong>200</strong> entries</li>
+<li>Provide any non-negative number (0 disables history persistence entirely)</li>
+<li>Use <code>default</code> to restore the built-in limit of <strong>1000</strong> entries</li>
 <li>Use <code>status</code> (or <code>--status</code>) to display the current setting</li>
 </ul>
 <p>Examples:</p>
@@ -2753,7 +2753,7 @@ press <code>Tab</code>.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-88-1"><a id="__codelineno-88-1" name="__codelineno-88-1" href="#__codelineno-88-1"></a>cjshopt<span class="w"> </span>set-completion-max<span class="w"> </span>&lt;number<span class="p">|</span>default<span class="p">|</span>status&gt;
 </span></code></pre></div>
 <ul>
-<li>Provide a number between <strong>1</strong> and <strong>10000</strong></li>
+<li>Provide any number greater than or equal to <strong>1</strong></li>
 <li>Use <code>default</code> to restore the built-in limit of <strong>1000</strong> entries</li>
 <li>Use <code>status</code> (or <code>--status</code>) to inspect the current setting</li>
 </ul>

@@ -1723,11 +1723,11 @@ The syntax highlighter can be temporarily disabled with the <code>--no-syntax-hi
 </span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="c1"># Enable/disable spell correction (enabled by default)</span>
 </span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>cjshopt<span class="w"> </span>completion-spell<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
 </span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>
-</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="c1"># Cap the number of suggestions shown per request (default: 1000, max: 10000)</span>
+</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="c1"># Cap the number of suggestions shown per request (default: 1000, no upper limit)</span>
 </span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>cjshopt<span class="w"> </span>set-completion-max<span class="w"> </span>&lt;number<span class="p">|</span>default<span class="p">|</span>status&gt;
 </span></code></pre></div><p></p>
-<p>Lower the completion cap (anywhere between 1 and 10000) to keep the menu focused when working
-inside directories that contain thousands of files or deeply nested command trees.</p>
+<p>Lower or raise the completion cap (any value &gt;= 1) to keep the menu focused when working inside
+directories that contain thousands of files or deeply nested command trees.</p>
 <p><strong>Using Completions:</strong>
 - Press <code>Tab</code> to show completions
 - Press <code>Tab</code> again to cycle through options
