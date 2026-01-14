@@ -168,6 +168,26 @@ kill_command_name_requires_disambiguation() {
     return 1
 }
 
+background_failure_prints_exit_code() {
+    log "Test: background command failure reports exit status"
+    local output
+    output=$("$CJSH_PATH" -i -c "slepp 0.01 & sleep 0.2" 2>&1)
+    local exit_code=$?
+
+    if [ $exit_code -ne 0 ]; then
+        echo "FAIL: cjsh exited with $exit_code"
+        return 1
+    fi
+
+    if echo "$output" | grep -q "Exit 127"; then
+        echo "PASS"
+        return 0
+    fi
+
+    echo "FAIL: expected Exit 127 notification, got: $output"
+    return 1
+}
+
 if ! test_background_persists; then
     status=1
 fi
@@ -193,6 +213,10 @@ if ! kill_command_name_resolves_job; then
 fi
 
 if ! kill_command_name_requires_disambiguation; then
+    status=1
+fi
+
+if ! background_failure_prints_exit_code; then
     status=1
 fi
 

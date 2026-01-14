@@ -718,7 +718,17 @@ void Exec::handle_child_signal(pid_t pid, int status) {
                     job.status = status;
 
                     if (job.background) {
-                        std::cerr << "\n[" << job_id << "] Done\t" << job.command << '\n';
+                        if (WIFSIGNALED(status)) {
+                            std::cerr << "\n[" << job_id << "] Terminated\t" << job.command << '\n';
+                        } else {
+                            const int exit_code = WIFEXITED(status) ? WEXITSTATUS(status) : 0;
+                            if (exit_code == 0) {
+                                std::cerr << "\n[" << job_id << "] Done\t" << job.command << '\n';
+                            } else {
+                                std::cerr << "\n[" << job_id << "] Exit " << exit_code << '\t'
+                                          << job.command << '\n';
+                            }
+                        }
                     }
                 }
             }

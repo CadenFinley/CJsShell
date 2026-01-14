@@ -465,7 +465,12 @@ void JobManager::cleanup_finished_jobs() {
         if (job->state == JobState::DONE || job->state == JobState::TERMINATED) {
             if (!job->notified) {
                 if (job->state == JobState::DONE) {
-                    std::cerr << "\n[" << job->job_id << "] Done\t" << job->command << '\n';
+                    const char* label = job->exit_status == 0 ? "Done" : "Exit";
+                    std::cerr << "\n[" << job->job_id << "] " << label;
+                    if (job->exit_status != 0) {
+                        std::cerr << ' ' << job->exit_status;
+                    }
+                    std::cerr << "\t" << job->command << '\n';
                 } else {
                     std::cerr << "\n[" << job->job_id << "] Terminated\t" << job->command << '\n';
                 }
