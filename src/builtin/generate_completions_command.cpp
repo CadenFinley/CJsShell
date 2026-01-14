@@ -17,6 +17,7 @@
 #include "error_out.h"
 #include "external_sub_completions.h"
 
+// NOLINTBEGIN(performance-avoid-endl)
 int generate_completions_command(const std::vector<std::string>& args, Shell* shell) {
     if (builtin_handle_help(args,
                             {"Usage: generate-completions [OPTIONS] [COMMAND ...]",
@@ -330,3 +331,4 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
 
     return 0;
 }
+// NOLINTEND(performance-avoid-endl)
