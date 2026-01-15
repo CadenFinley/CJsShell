@@ -93,8 +93,8 @@ test_disown_removes_job() {
     local remaining
     remaining=$(grep -v '^\[' "$log_file" | sed '/^[[:space:]]*$/d')
 
-    if [ -n "$remaining" ]; then
-        echo "FAIL: jobs output should be empty after disown"
+    if [ "$remaining" != "No jobs" ]; then
+        echo "FAIL: expected 'No jobs' after disown, got: $remaining"
         result=1
     elif ! kill -0 "$pid" 2>/dev/null; then
         echo "FAIL: disowned PID $pid was not running"
@@ -106,6 +106,34 @@ test_disown_removes_job() {
     rm -f "$log_file"
     cleanup_pid "$pid"
     return $result
+}
+
+jobs_reports_when_empty() {
+    log "Test: jobs reports when no jobs exist"
+    local output
+    output=$("$CJSH_PATH" -c "jobs" 2>&1)
+
+    if echo "$output" | grep -q "No jobs"; then
+        echo "PASS"
+        return 0
+    fi
+
+    echo "FAIL: expected 'No jobs' message, got: $output"
+    return 1
+}
+
+jobs_p_option_stays_silent_when_empty() {
+    log "Test: jobs -p stays silent when empty"
+    local output
+    output=$("$CJSH_PATH" -c "jobs -p" 2>&1)
+
+    if [ -n "$output" ]; then
+        echo "FAIL: jobs -p should produce no output when empty, got: $output"
+        return 1
+    fi
+
+    echo "PASS"
+    return 0
 }
 
 fg_command_name_resolves_job() {
@@ -197,6 +225,14 @@ if ! test_huponexit_kills_jobs; then
 fi
 
 if ! test_disown_removes_job; then
+    status=1
+fi
+
+if ! jobs_reports_when_empty; then
+    status=1
+fi
+
+if ! jobs_p_option_stays_silent_when_empty; then
     status=1
 fi
 

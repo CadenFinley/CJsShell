@@ -633,6 +633,13 @@ int jobs_command(const std::vector<std::string>& args) {
     }
 
     auto jobs = job_manager.get_all_jobs();
+    if (jobs.empty()) {
+        if (!pid_only) {
+            std::cout << "No jobs" << '\n';
+        }
+        return 0;
+    }
+
     int current = job_manager.get_current_job();
     int previous = job_manager.get_previous_job();
 
