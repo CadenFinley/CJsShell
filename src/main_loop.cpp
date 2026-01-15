@@ -378,6 +378,8 @@ bool process_command_line(const std::string& command) {
         return g_exit_flag;
     }
 
+    ++g_command_sequence;
+
     std::string expanded_command = command;
     if (config::history_expansion_enabled && isatty(STDIN_FILENO)) {
         auto history_entries = HistoryExpansion::read_history_entries();

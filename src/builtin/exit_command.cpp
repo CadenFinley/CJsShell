@@ -21,6 +21,7 @@ enum class JobWarningState : std::uint8_t {
 };
 
 JobWarningState g_last_job_warning = JobWarningState::NONE;
+std::uint64_t g_last_exit_warning_command = 0;
 }  // namespace
 
 int exit_command(const std::vector<std::string>& args) {
@@ -68,6 +69,7 @@ int exit_command(const std::vector<std::string>& args) {
         config::execute_command || !config::cmd_to_execute.empty() || invoked_with_dash_c;
     const bool should_check_jobs = !force_exit && !running_dash_c;
     bool forced_by_repeated_exit = false;
+    const std::uint64_t current_command_sequence = g_command_sequence;
 
     if (should_check_jobs) {
         auto& job_manager = JobManager::instance();
@@ -91,8 +93,15 @@ int exit_command(const std::vector<std::string>& args) {
         const bool has_blocking_jobs = has_stopped_jobs || has_running_jobs;
         if (!has_blocking_jobs) {
             g_last_job_warning = JobWarningState::NONE;
+            g_last_exit_warning_command = 0;
         } else {
-            if (g_last_job_warning == JobWarningState::RUNNING_OR_STOPPED) {
+            const bool had_previous_warning =
+                g_last_job_warning == JobWarningState::RUNNING_OR_STOPPED;
+            const bool consecutive_exit_attempt =
+                had_previous_warning && g_last_exit_warning_command != 0 &&
+                current_command_sequence == g_last_exit_warning_command + 1;
+
+            if (consecutive_exit_attempt) {
                 force_exit = true;
                 forced_by_repeated_exit = true;
             } else {
@@ -106,6 +115,7 @@ int exit_command(const std::vector<std::string>& args) {
                 }
 
                 g_last_job_warning = JobWarningState::RUNNING_OR_STOPPED;
+                g_last_exit_warning_command = current_command_sequence;
 
                 print_error({ErrorType::RUNTIME_ERROR,
                              ErrorSeverity::WARNING,

@@ -55,6 +55,7 @@ std::vector<std::string>& profile_startup_args() {
 
 bool g_exit_flag = false;
 bool g_startup_active = true;
+std::uint64_t g_command_sequence = 0;
 std::unique_ptr<Shell> g_shell = nullptr;
 
 namespace config {
@@ -84,6 +85,8 @@ bool cleanup_truncates_multiline = false;
 }  // namespace config
 
 namespace {
+bool cleanup_already_invoked = false;
+
 std::chrono::steady_clock::time_point& startup_begin_time() {
     static std::chrono::steady_clock::time_point value;
     return value;
@@ -406,6 +409,11 @@ void process_logout_file() {
 }  // namespace
 
 void cleanup_resources() {
+    if (cleanup_already_invoked) {
+        return;
+    }
+    cleanup_already_invoked = true;
+
     if (g_shell) {
         trap_manager_set_shell(g_shell.get());
         trap_manager_execute_exit_trap();
