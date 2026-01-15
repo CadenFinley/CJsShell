@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -105,12 +106,31 @@ class JobManager {
     void update_current_previous(int new_current);
 };
 
-int jobs_command(const std::vector<std::string>& args);
-int fg_command(const std::vector<std::string>& args);
-int bg_command(const std::vector<std::string>& args);
-int wait_command(const std::vector<std::string>& args);
-int kill_command(const std::vector<std::string>& args);
-int disown_command(const std::vector<std::string>& args);
+namespace job_control_helpers {
+
+struct ResolvedJob {
+    int job_id;
+    std::shared_ptr<JobControlJob> job;
+};
+
+std::shared_ptr<JobControlJob> find_job_by_command(const std::string& spec, JobManager& job_manager,
+                                                   bool& ambiguous);
+
+void trim_in_place(std::string& value);
+
+std::optional<ResolvedJob> resolve_control_job_target(const std::vector<std::string>& args,
+                                                      JobManager& job_manager);
+
+std::optional<int> interpret_wait_status(int status);
+
+std::optional<int> wait_for_job_and_remove(const std::shared_ptr<JobControlJob>& job,
+                                           JobManager& job_manager);
+
+std::optional<int> parse_job_specifier(const std::string& target);
+
+int parse_signal(const std::string& signal_str);
+
+}  // namespace job_control_helpers
 
 namespace job_utils {
 

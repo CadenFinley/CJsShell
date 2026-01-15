@@ -1,0 +1,46 @@
+#include "bg_command.h"
+
+#include <unistd.h>
+#include <csignal>
+#include <iostream>
+
+#include "builtin_help.h"
+#include "error_out.h"
+#include "job_control.h"
+
+int bg_command(const std::vector<std::string>& args) {
+    if (builtin_handle_help(args,
+                            {"Usage: bg [%JOB]", "Resume a stopped job in the background."})) {
+        return 0;
+    }
+
+    auto& job_manager = JobManager::instance();
+    job_manager.update_job_status();
+
+    auto resolved_job = job_control_helpers::resolve_control_job_target(args, job_manager);
+    if (!resolved_job) {
+        return 1;
+    }
+
+    auto job = resolved_job->job;
+    int job_id = resolved_job->job_id;
+
+    if (job->state != JobState::STOPPED) {
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     std::to_string(job_id),
+                     "not stopped",
+                     {"Use 'jobs' to list job states"}});
+        return 1;
+    }
+
+    if (killpg(job->pgid, SIGCONT) < 0) {
+        perror("cjsh: bg: killpg");
+        return 1;
+    }
+
+    job->state = JobState::RUNNING;
+    job->stop_notified = false;
+    std::cout << "[" << job_id << "]+ " << job->command << " &" << '\n';
+
+    return 0;
+}
