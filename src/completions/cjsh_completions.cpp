@@ -25,6 +25,7 @@
 #include "error_out.h"
 #include "external_sub_completions.h"
 #include "isocline.h"
+#include "job_control.h"
 #include "shell.h"
 #include "shell_script_interpreter.h"
 
@@ -351,6 +352,118 @@ CompletionContext detect_completion_context(const char* prefix) {
         return CONTEXT_ARGUMENT;
     }
     return CONTEXT_COMMAND;
+}
+
+bool is_job_control_command(const std::string& token) {
+    if (token.empty())
+        return false;
+
+    static const char* kJobCommands[] = {"bg", "fg", "jobs", "kill", "disown", "wait"};
+    for (const char* command_name : kJobCommands) {
+        if (completion_utils::equals_completion_token(token, command_name))
+            return true;
+    }
+
+    return false;
+}
+
+std::string sanitize_job_command_summary(const std::string& command) {
+    std::string summary;
+    summary.reserve(command.size());
+    bool last_was_space = true;
+
+    for (char ch : command) {
+        unsigned char uch = static_cast<unsigned char>(ch);
+        if (std::isspace(uch) != 0) {
+            if (!summary.empty() && !last_was_space) {
+                summary.push_back(' ');
+                last_was_space = true;
+            }
+            continue;
+        }
+        if (std::isprint(uch) == 0)
+            continue;
+        summary.push_back(ch);
+        last_was_space = false;
+        if (summary.size() >= 80)
+            break;
+    }
+
+    while (!summary.empty() && summary.back() == ' ')
+        summary.pop_back();
+
+    return summary;
+}
+
+bool add_job_control_argument_completions(ic_completion_env_t* cenv,
+                                          const std::vector<std::string>& tokens,
+                                          bool ends_with_space) {
+    if (tokens.empty())
+        return false;
+
+    if (!is_job_control_command(tokens.front()))
+        return false;
+
+    if (tokens.size() == 1 && !ends_with_space)
+        return false;
+
+    std::string current_prefix;
+    if (!ends_with_space && tokens.size() >= 2) {
+        current_prefix = tokens.back();
+    }
+
+    auto jobs = JobManager::instance().get_all_jobs();
+    if (jobs.empty())
+        return false;
+
+    long delete_before = static_cast<long>(current_prefix.size());
+    bool added = false;
+
+    auto format_source_label = [&](const std::shared_ptr<JobControlJob>& job,
+                                   const std::string& summary_text) {
+        std::string pid_text;
+        if (!job->pids.empty()) {
+            pid_text = std::to_string(static_cast<long long>(job->pids.front()));
+        } else if (job->pgid > 0) {
+            pid_text = std::to_string(static_cast<long long>(job->pgid));
+        }
+        if (pid_text.empty())
+            return std::string("pid unavailable · ") + summary_text;
+        return std::string("pid ") + pid_text + " · " + summary_text;
+    };
+
+    for (const auto& job : jobs) {
+        if (completion_tracker::completion_limit_hit_with_log("job control"))
+            break;
+        if (ic_stop_completing(cenv))
+            break;
+
+        std::string summary = sanitize_job_command_summary(job->command);
+        std::string summary_text = summary.empty() ? "command unavailable" : summary;
+        std::string completion_text = "%" + std::to_string(job->job_id);
+
+        if (!current_prefix.empty() &&
+            !completion_utils::matches_completion_prefix(completion_text, current_prefix)) {
+            continue;
+        }
+
+        std::string insert_text = completion_text;
+        if (insert_text.back() != ' ')
+            insert_text.push_back(' ');
+
+        std::string source_label = format_source_label(job, summary_text);
+        if (!completion_tracker::safe_add_completion_prim_with_source(
+                cenv, insert_text.c_str(), nullptr, nullptr, source_label.c_str(), delete_before,
+                0)) {
+            return added;
+        }
+
+        added = true;
+        if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv))
+            break;
+    }
+
+    return added;
 }
 
 }  // namespace
@@ -919,6 +1032,8 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
 
                 handle_external_sub_completions(cenv, current_line_prefix);
             }
+
+            add_job_control_argument_completions(cenv, tokens, ends_with_space);
 
             if (!tokens.empty() && completion_utils::equals_completion_token(tokens[0], "cd")) {
                 cjsh_filename_completer(cenv, current_line_prefix);
