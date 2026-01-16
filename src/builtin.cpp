@@ -35,6 +35,7 @@
 #include "if_command.h"
 #include "internal_brace_group_command.h"
 #include "internal_subshell_command.h"
+#include "jobname_command.h"
 #include "jobs_command.h"
 #include "kill_command.h"
 #include "local_command.h"
@@ -147,6 +148,7 @@ Built_ins::Built_ins() : shell(nullptr) {
          }},
         {"trap", [](const std::vector<std::string>& args) { return ::trap_command(args); }},
         {"jobs", [](const std::vector<std::string>& args) { return ::jobs_command(args); }},
+        {"jobname", [](const std::vector<std::string>& args) { return ::jobname_command(args); }},
         {"fg", [](const std::vector<std::string>& args) { return ::fg_command(args); }},
         {"bg", [](const std::vector<std::string>& args) { return ::bg_command(args); }},
         {"wait", [](const std::vector<std::string>& args) { return ::wait_command(args); }},

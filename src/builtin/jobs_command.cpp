@@ -81,7 +81,8 @@ int jobs_command(const std::vector<std::string>& args) {
             std::cout << std::setw(8) << job->pids[0] << " ";
         }
 
-        std::cout << std::setw(12) << std::left << state_str << " " << job->command << '\n';
+        std::cout << std::setw(12) << std::left << state_str << " " << job->display_command()
+                  << '\n';
 
         job->notified = true;
     }

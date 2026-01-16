@@ -49,7 +49,7 @@ int fg_command(const std::vector<std::string>& args) {
     job->stop_notified = false;
     job_manager.set_current_job(job_id);
 
-    std::cout << job->command << '\n';
+    std::cout << job->display_command() << '\n';
 
     int status = 0;
     for (pid_t pid : job->pids) {

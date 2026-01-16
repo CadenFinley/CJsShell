@@ -40,7 +40,7 @@ int bg_command(const std::vector<std::string>& args) {
 
     job->state = JobState::RUNNING;
     job->stop_notified = false;
-    std::cout << "[" << job_id << "]+ " << job->command << " &" << '\n';
+    std::cout << "[" << job_id << "]+ " << job->display_command() << " &" << '\n';
 
     return 0;
 }

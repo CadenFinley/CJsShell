@@ -94,7 +94,8 @@ std::string sanitize_job_command_summary(const std::string& command) {
 }
 
 std::string format_job_description(const JobControlJob& job) {
-    std::string summary = sanitize_job_command_summary(job.command);
+    const std::string& source = job.has_custom_name() ? job.custom_name : job.command;
+    std::string summary = sanitize_job_command_summary(source);
     if (summary.empty())
         summary = "command unavailable";
     return "job %" + std::to_string(job.job_id) + " · " + summary;

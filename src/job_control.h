@@ -8,6 +8,7 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "error_out.h"
@@ -38,9 +39,26 @@ struct JobControlJob {
     std::uint16_t stdin_signal_count{0};
     std::chrono::steady_clock::time_point last_stdin_signal_time{
         std::chrono::steady_clock::time_point::min()};
+    std::string custom_name;
 
     JobControlJob(int id, pid_t group_id, const std::vector<pid_t>& process_ids,
                   const std::string& cmd, bool is_background, bool consumes_stdin);
+
+    bool has_custom_name() const {
+        return !custom_name.empty();
+    }
+
+    void set_custom_name(std::string name) {
+        custom_name = std::move(name);
+    }
+
+    void clear_custom_name() {
+        custom_name.clear();
+    }
+
+    const std::string& display_command() const {
+        return custom_name.empty() ? command : custom_name;
+    }
 };
 
 class JobManager {

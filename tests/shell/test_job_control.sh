@@ -216,6 +216,56 @@ background_failure_prints_exit_code() {
     return 1
 }
 
+jobname_updates_jobs_output() {
+    log "Test: jobname changes display in jobs"
+    local output
+    output=$("$CJSH_PATH" -i -c "sleep 2 & pid=\$!; if ! jobname \$pid renamed-job; then exit \$?; fi; jobs; kill \$pid 2>/dev/null; wait \$pid 2>/dev/null || true" 2>&1)
+    local exit_code=$?
+
+    if [ $exit_code -ne 0 ]; then
+        echo "FAIL: jobname command failed (exit $exit_code): $output"
+        return 1
+    fi
+
+    if echo "$output" | grep -q "Running[[:space:]]\+renamed-job"; then
+        echo "PASS"
+        return 0
+    fi
+
+    echo "FAIL: expected jobs output to include renamed job, got: $output"
+    return 1
+}
+
+jobname_affects_command_matching() {
+    log "Test: jobname affects fg command resolution"
+    local output
+    output=$("$CJSH_PATH" -i -c "sleep 0.2 & pid=\$!; if ! jobname \$pid special-name; then exit \$?; fi; fg special-name" 2>&1)
+    local exit_code=$?
+
+    if [ $exit_code -eq 0 ]; then
+        echo "PASS"
+        return 0
+    fi
+
+    echo "FAIL: fg special-name failed (exit $exit_code): $output"
+    return 1
+}
+
+jobname_rejects_empty_name() {
+    log "Test: jobname rejects empty rename"
+    local output
+    output=$("$CJSH_PATH" -i -c "sleep 1 & pid=\$!; jobname \$pid ' '; status=\$?; kill \$pid 2>/dev/null; wait \$pid 2>/dev/null || true; exit \$status" 2>&1)
+    local exit_code=$?
+
+    if [ $exit_code -eq 1 ] && echo "$output" | grep -qi "cannot be empty"; then
+        echo "PASS"
+        return 0
+    fi
+
+    echo "FAIL: jobname should reject empty names (exit $exit_code): $output"
+    return 1
+}
+
 if ! test_background_persists; then
     status=1
 fi
@@ -253,6 +303,18 @@ if ! kill_command_name_requires_disambiguation; then
 fi
 
 if ! background_failure_prints_exit_code; then
+    status=1
+fi
+
+if ! jobname_updates_jobs_output; then
+    status=1
+fi
+
+if ! jobname_affects_command_matching; then
+    status=1
+fi
+
+if ! jobname_rejects_empty_name; then
     status=1
 fi
 

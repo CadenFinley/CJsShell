@@ -38,7 +38,8 @@ bool job_command_matches(const std::shared_ptr<JobControlJob>& job, const std::s
         return false;
     }
 
-    const auto trimmed_command = trim_view(job->command);
+    const auto& comparison_source = job->has_custom_name() ? job->custom_name : job->command;
+    const auto trimmed_command = trim_view(comparison_source);
     if (trimmed_command.empty()) {
         return false;
     }
@@ -440,8 +441,8 @@ void JobManager::notify_job_stopped(const std::shared_ptr<JobControlJob>& job) c
         status_char = '-';
     }
 
-    std::cerr << "\n[" << job->job_id << "]" << status_char << "  Stopped\t" << job->command
-              << '\n';
+    std::cerr << "\n[" << job->job_id << "]" << status_char << "  Stopped\t"
+              << job->display_command() << '\n';
 
     job->stop_notified = true;
 }
@@ -466,9 +467,10 @@ void JobManager::cleanup_finished_jobs() {
                     if (job->exit_status != 0) {
                         std::cerr << ' ' << job->exit_status;
                     }
-                    std::cerr << "\t" << job->command << '\n';
+                    std::cerr << "\t" << job->display_command() << '\n';
                 } else {
-                    std::cerr << "\n[" << job->job_id << "] Terminated\t" << job->command << '\n';
+                    std::cerr << "\n[" << job->job_id << "] Terminated\t" << job->display_command()
+                              << '\n';
                 }
                 job->notified = true;
             }

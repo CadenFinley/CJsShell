@@ -355,10 +355,7 @@ CompletionContext detect_completion_context(const char* prefix) {
 }
 
 bool is_job_control_command(const std::string& token) {
-    if (token.empty())
-        return false;
-
-    static const char* kJobCommands[] = {"bg", "fg", "jobs", "kill", "disown", "wait"};
+    static const char* kJobCommands[] = {"bg", "fg", "jobs", "jobname", "kill", "disown", "wait"};
     for (const char* command_name : kJobCommands) {
         if (completion_utils::equals_completion_token(token, command_name))
             return true;
@@ -438,7 +435,8 @@ bool add_job_control_argument_completions(ic_completion_env_t* cenv,
         if (ic_stop_completing(cenv))
             break;
 
-        std::string summary = sanitize_job_command_summary(job->command);
+        std::string summary =
+            sanitize_job_command_summary(job->has_custom_name() ? job->custom_name : job->command);
         std::string summary_text = summary.empty() ? "command unavailable" : summary;
         std::string completion_text = "%" + std::to_string(job->job_id);
 
