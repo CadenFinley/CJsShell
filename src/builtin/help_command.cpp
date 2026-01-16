@@ -78,6 +78,7 @@ int help_command() {
 
         // Job control
         {"jobs", "List background jobs"},
+        {"jobname", "Assign a friendly display name to a job"},
         {"fg", "Bring a job to the foreground"},
         {"bg", "Resume a job in the background"},
         {"wait", "Wait for jobs or processes to finish"},

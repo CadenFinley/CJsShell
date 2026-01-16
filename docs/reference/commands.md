@@ -295,6 +295,19 @@ disown [-a|--all] [job_spec...]
 - `-a/--all` removes every tracked job in one shot
 - Disowned jobs continue running even if `set -o huponexit` is enabled later in the session
 
+### jobname
+Assign or update a friendly display name for a tracked job. The name shows up in `jobs`, `fg`, `bg`,
+and completions while the job remains in the table.
+
+```bash
+jobname JOB_SPEC NEW_NAME
+```
+
+- `JOB_SPEC` can be a `%job_id`, a PID, or any command prefix that normally resolves jobs (`fg`
+and `bg`-style matching)
+- `NEW_NAME` is treated as the rest of the command line after `JOB_SPEC`, so spaces are allowed
+- Names must contain at least one non-whitespace character; use the original command to revert
+
 ## Signal Handling
 
 ### trap
