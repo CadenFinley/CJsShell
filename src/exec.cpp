@@ -265,42 +265,43 @@ ProcessSubstitutionResources setup_process_substitutions(Command& cmd) {
             }
 
             if (pid == 0) {
+                const std::string substitution_label =
+                    command.empty() ? "process substitution" : command;
+                auto exit_with_error = [&](ErrorType type, const std::string& message) {
+                    child_exit_with_error(type, substitution_label, message);
+                };
+
                 if (is_input) {
                     auto fifo_result = cjsh_filesystem::safe_open(fifo_path, O_WRONLY);
                     if (fifo_result.is_error()) {
-                        std::cerr << "cjsh: file not found: open: failed to "
-                                     "open FIFO for writing: "
-                                  << fifo_result.error() << '\n';
-                        _exit(EXIT_FAILURE);
+                        exit_with_error(
+                            ErrorType::FILE_NOT_FOUND,
+                            "open: failed to open FIFO for writing: " + fifo_result.error());
                     }
 
                     auto dup_result =
                         cjsh_filesystem::safe_dup2(fifo_result.value(), STDOUT_FILENO);
                     if (dup_result.is_error()) {
-                        std::cerr << "cjsh: runtime error: dup2: failed to duplicate "
-                                     "stdout descriptor: "
-                                  << dup_result.error() << '\n';
-                        cjsh_filesystem::safe_close(fifo_result.value());
-                        _exit(EXIT_FAILURE);
+                        exit_with_error(
+                            ErrorType::RUNTIME_ERROR,
+                            "dup2: failed to duplicate stdout descriptor: " + dup_result.error());
                     }
 
                     cjsh_filesystem::safe_close(fifo_result.value());
                 } else {
                     auto fifo_result = cjsh_filesystem::safe_open(fifo_path, O_RDONLY);
                     if (fifo_result.is_error()) {
-                        std::cerr << "cjsh: file not found: open: failed to "
-                                     "open FIFO for reading: "
-                                  << fifo_result.error() << '\n';
-                        _exit(EXIT_FAILURE);
+                        exit_with_error(
+                            ErrorType::FILE_NOT_FOUND,
+                            "open: failed to open FIFO for reading: " + fifo_result.error());
                     }
 
                     auto dup_result = cjsh_filesystem::safe_dup2(fifo_result.value(), STDIN_FILENO);
                     if (dup_result.is_error()) {
-                        std::cerr << "cjsh: runtime error: dup2: failed to duplicate "
-                                     "stdin descriptor: "
-                                  << dup_result.error() << '\n';
                         cjsh_filesystem::safe_close(fifo_result.value());
-                        _exit(EXIT_FAILURE);
+                        exit_with_error(
+                            ErrorType::RUNTIME_ERROR,
+                            "dup2: failed to duplicate stdin descriptor: " + dup_result.error());
                     }
 
                     cjsh_filesystem::safe_close(fifo_result.value());
@@ -1342,18 +1343,19 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             }
             pid_t child_pid = getpid();
             if (setpgid(child_pid, child_pid) < 0) {
-                std::cerr << "cjsh: runtime error: setpgid: failed to set "
-                             "process "
-                             "group ID in child: "
-                          << strerror(errno) << '\n';
-                _exit(EXIT_FAILURE);
+                child_exit_with_error(
+                    ErrorType::RUNTIME_ERROR, cmd.args.empty() ? "command" : cmd.args[0],
+                    std::string("setpgid: failed to set process group ID in child: ") +
+                        strerror(errno));
             }
 
             maybe_set_foreground_terminal(
                 shell_is_interactive, shell_terminal, child_pid, [&](int err) {
-                    std::cerr << "cjsh: runtime error: tcsetpgrp: failed to set "
-                                 "terminal foreground process group in child: "
-                              << strerror(err) << '\n';
+                    child_exit_with_error(ErrorType::RUNTIME_ERROR,
+                                          cmd.args.empty() ? "command" : cmd.args[0],
+                                          std::string("tcsetpgrp: failed to set terminal "
+                                                      "foreground process group in child: ") +
+                                              strerror(err));
                 });
 
             reset_child_signals();

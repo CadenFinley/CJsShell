@@ -1425,7 +1425,7 @@ std::string ShellScriptInterpreter::expand_parameter_expression(const std::strin
 
     auto var_writer = [this](const std::string& name, const std::string& value) {
         if (readonly_manager_is(name)) {
-            std::cerr << "cjsh: " << name << ": readonly variable" << '\n';
+            print_error({ErrorType::INVALID_ARGUMENT, name, "readonly variable", {}});
             return;
         }
 

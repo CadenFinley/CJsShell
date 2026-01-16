@@ -105,9 +105,13 @@ int keybind_ext_set_command(const std::vector<std::string>& args) {
     if (ic_get_key_binding(key_code, &existing_action)) {
         if (existing_action != IC_KEY_ACTION_RUNOFF) {
             const char* action_name = ic_key_action_name(existing_action);
-            std::cerr << "Warning: Key '" << key_spec << "' is already bound to '"
-                      << (action_name ? action_name : "(unknown action)")
-                      << "' and will be overridden.\n";
+            std::string bound_name = action_name ? action_name : "(unknown action)";
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         ErrorSeverity::WARNING,
+                         "keybind ext",
+                         "Key '" + key_spec + "' is already bound to '" + bound_name +
+                             "' and will be overridden.",
+                         {"Use 'keybind ext list' to review custom bindings."}});
 
             ic_clear_key_binding(key_code);
         }

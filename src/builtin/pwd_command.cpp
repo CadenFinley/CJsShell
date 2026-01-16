@@ -82,7 +82,11 @@ int pwd_command(const std::vector<std::string>& args) {
                          {"Try 'pwd --help' for more information."}});
             return 1;
         } else {
-            std::cerr << "pwd: ignoring non-option arguments\n";
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         ErrorSeverity::WARNING,
+                         "pwd",
+                         "ignoring non-option arguments",
+                         {"Use '--' to separate options from paths."}});
         }
     }
 

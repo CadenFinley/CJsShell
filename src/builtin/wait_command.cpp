@@ -52,7 +52,10 @@ int wait_command(const std::vector<std::string>& args) {
             int job_id = parsed_job_id.value();
             auto job = job_manager.get_job(job_id);
             if (!job) {
-                std::cerr << "wait: %" << job_id << ": no such job" << '\n';
+                print_error({ErrorType::INVALID_ARGUMENT,
+                             target,
+                             "no such job",
+                             {"Use 'jobs' to list available jobs"}});
                 return 1;
             }
 

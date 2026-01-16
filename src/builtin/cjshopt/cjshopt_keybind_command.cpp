@@ -483,8 +483,12 @@ int keybind_set_or_add_command(const std::vector<std::string>& args, bool replac
 
     if (!conflicts.empty()) {
         for (const auto& conflict : conflicts) {
-            std::cerr << "Warning: Key '" << conflict.first << "' was already bound to '"
-                      << conflict.second << "' and will be overridden.\n";
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         ErrorSeverity::WARNING,
+                         "keybind",
+                         "Key '" + conflict.first + "' was already bound to '" + conflict.second +
+                             "' and will be overridden.",
+                         {"Use 'keybind list' to inspect current bindings."}});
         }
     }
 
