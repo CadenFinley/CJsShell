@@ -10,7 +10,6 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix);
 void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix);
 void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix);
 void initialize_completion_system();
-void cleanup_completion_system();
 void set_completion_case_sensitive(bool case_sensitive);
 bool is_completion_case_sensitive();
 void set_completion_spell_correction_enabled(bool enabled);

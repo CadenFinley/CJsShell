@@ -19,9 +19,6 @@ struct CompletionTracker {
     bool has_reached_completion_limit() const;
     std::string calculate_final_result(const char* completion_text, long delete_before = 0) const;
     bool would_create_duplicate(const char* completion_text, long delete_before = 0);
-    bool add_completion_if_unique(const char* completion_text);
-    bool add_completion_prim_if_unique(const char* completion_text, const char* display,
-                                       const char* help, long delete_before, long delete_after);
     bool add_completion_prim_with_source_if_unique(const char* completion_text, const char* display,
                                                    const char* help, const char* source,
                                                    long delete_before, long delete_after);
@@ -29,7 +26,6 @@ struct CompletionTracker {
 
 void completion_session_begin(ic_completion_env_t* cenv, const char* prefix);
 void completion_session_end();
-CompletionTracker* get_current_tracker();
 
 bool safe_add_completion_with_source(ic_completion_env_t* cenv, const char* completion_text,
                                      const char* source);

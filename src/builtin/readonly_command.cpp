@@ -30,19 +30,11 @@ bool readonly_manager_is(const std::string& name) {
     return vars.find(name) != vars.end();
 }
 
-void readonly_manager_remove(const std::string& name) {
-    readonly_state().readonly_vars.erase(name);
-}
-
 std::vector<std::string> readonly_manager_list() {
     const auto& vars = readonly_state().readonly_vars;
     std::vector<std::string> result(vars.begin(), vars.end());
     std::sort(result.begin(), result.end());
     return result;
-}
-
-void readonly_manager_clear() {
-    readonly_state().readonly_vars.clear();
 }
 
 int readonly_command(const std::vector<std::string>& args, Shell* shell) {
@@ -145,8 +137,4 @@ int readonly_command(const std::vector<std::string>& args, Shell* shell) {
     }
 
     return 0;
-}
-
-bool check_readonly_assignment(const std::string& name) {
-    return readonly_manager_is(name);
 }

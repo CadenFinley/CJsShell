@@ -33,58 +33,6 @@ std::string g_pending_raw_bytes;
 
 }  // namespace
 
-std::string to_debug_visible(const std::string& data) {
-    if (data.empty()) {
-        return "";
-    }
-
-    std::ostringstream oss;
-    oss << std::hex << std::uppercase;
-    for (unsigned char ch : data) {
-        switch (ch) {
-            case '\\':
-                oss << "\\\\";
-                break;
-            case '\n':
-                oss << "\\n";
-                break;
-            case '\r':
-                oss << "\\r";
-                break;
-            case '\t':
-                oss << "\\t";
-                break;
-            case '\f':
-                oss << "\\f";
-                break;
-            case '\v':
-                oss << "\\v";
-                break;
-            case '\b':
-                oss << "\\b";
-                break;
-            case '\a':
-                oss << "\\a";
-                break;
-            case '\0':
-                oss << "\\0";
-                break;
-            case 0x1B:
-                oss << "\\e";
-                break;
-            default:
-                if (std::isprint(ch) != 0) {
-                    oss << static_cast<char>(ch);
-                } else {
-                    oss << "\\x" << std::setw(2) << std::setfill('0') << static_cast<int>(ch);
-                }
-                break;
-        }
-    }
-    oss << std::dec;
-    return oss.str();
-}
-
 void filter_escape_sequences_into(std::string_view input, std::string& output) {
     output.clear();
     if (input.empty()) {
@@ -147,12 +95,6 @@ void filter_escape_sequences_into(std::string_view input, std::string& output) {
     }
 }
 
-std::string filter_escape_sequences(std::string_view input) {
-    std::string result;
-    filter_escape_sequences_into(input, result);
-    return result;
-}
-
 void normalize_line_edit_sequences_into(std::string_view input, std::string& output) {
     output.clear();
     if (output.capacity() < input.size()) {
@@ -189,12 +131,6 @@ void normalize_line_edit_sequences_into(std::string_view input, std::string& out
                 break;
         }
     }
-}
-
-std::string normalize_line_edit_sequences(std::string_view input) {
-    std::string result;
-    normalize_line_edit_sequences_into(input, result);
-    return result;
 }
 
 void ingest_typeahead_input(const std::string& raw_input) {

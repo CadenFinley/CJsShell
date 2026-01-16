@@ -44,10 +44,6 @@ QuoteInfo::QuoteInfo(const std::string& token)
       value(strip_quote_tag(token)) {
 }
 
-bool QuoteInfo::is_quoted() const {
-    return is_single || is_double;
-}
-
 bool QuoteInfo::is_unquoted() const {
     return !is_single && !is_double;
 }

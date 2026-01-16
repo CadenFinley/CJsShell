@@ -175,50 +175,6 @@ std::vector<std::string> generate_cd_suggestions(const std::string& target_dir,
     return suggestions;
 }
 
-std::vector<std::string> generate_ls_suggestions(const std::string& path,
-                                                 const std::string& current_dir) {
-    std::vector<std::string> suggestions;
-
-    std::string directory = current_dir;
-    std::string filename = path;
-
-    size_t last_slash = path.find_last_of('/');
-    if (last_slash != std::string::npos) {
-        directory = path.substr(0, last_slash);
-        filename = path.substr(last_slash + 1);
-        if (directory.empty())
-            directory = "/";
-    }
-
-    std::vector<std::string> similar = find_similar_entries(filename, directory, 3);
-
-    for (const auto& item : similar) {
-        std::string suggestion;
-        if (last_slash != std::string::npos) {
-            suggestion = "Did you mean 'ls ";
-            suggestion += directory;
-            suggestion += "/";
-            suggestion += item;
-            suggestion += "'?";
-        } else {
-            suggestion = "Did you mean 'ls ";
-            suggestion += item;
-            suggestion += "'?";
-        }
-        suggestions.push_back(suggestion);
-    }
-
-    if (suggestions.empty()) {
-        suggestions.push_back("Try 'ls' to see available files and directories.");
-        if (path.find('/') != std::string::npos) {
-            suggestions.push_back("Check if the directory path exists.");
-        }
-        suggestions.push_back("Use 'ls -la' to see hidden files.");
-    }
-
-    return suggestions;
-}
-
 int edit_distance(const std::string& str1, const std::string& str2) {
     const size_t m = str1.length();
     const size_t n = str2.length();
@@ -335,48 +291,6 @@ std::vector<std::string> find_similar_entries(const std::string& target_name,
         }
 
     } catch (const std::filesystem::filesystem_error&) {
-    }
-
-    return suggestions;
-}
-
-std::vector<std::string> generate_executable_suggestions(
-    const std::string& command, const std::unordered_set<std::string>& available_commands) {
-    std::vector<std::string> suggestions;
-
-    if (command.length() < 2) {
-        return suggestions;
-    }
-
-    std::vector<std::pair<int, std::string>> candidates;
-
-    for (const auto& exec_name : available_commands) {
-        int distance = edit_distance(command, exec_name);
-
-        if (distance <= 3 && distance > 0) {
-            int score = distance;
-
-            if (!command.empty() && !exec_name.empty() &&
-                std::tolower(command[0]) == std::tolower(exec_name[0])) {
-                score -= 1;
-            }
-
-            if (exec_name.find(command) != std::string::npos) {
-                score -= 2;
-            }
-
-            if (exec_name.length() <= command.length() + 2) {
-                score -= 1;
-            }
-
-            candidates.emplace_back(std::max(1, score), exec_name);
-        }
-    }
-
-    std::sort(candidates.begin(), candidates.end());
-
-    for (size_t i = 0; i < candidates.size() && i < 5; i++) {
-        suggestions.push_back("Did you mean '" + candidates[i].second + "'?");
     }
 
     return suggestions;

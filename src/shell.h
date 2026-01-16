@@ -17,17 +17,6 @@ class Built_ins;
 class ShellScriptInterpreter;
 struct Command;
 
-struct RawModeState {
-    bool entered;
-    int fd;
-    struct termios saved_modes;
-};
-
-void raw_mode_state_init(RawModeState* state);
-void raw_mode_state_init_with_fd(RawModeState* state, int fd);
-void raw_mode_state_release(RawModeState* state);
-bool raw_mode_state_entered(const RawModeState* state);
-
 class Shell {
    public:
     Shell();
@@ -40,8 +29,6 @@ class Shell {
     void set_interactive_mode(bool flag);
 
     bool get_interactive_mode() const;
-
-    int get_last_exit_code() const;
 
     void set_aliases(const std::unordered_map<std::string, std::string>& new_aliases);
 
@@ -93,10 +80,6 @@ class Shell {
     std::string get_previous_directory() const;
 
     Built_ins* get_built_ins();
-    int get_terminal() const;
-    pid_t get_pgid() const;
-    struct termios get_terminal_modes() const;
-    bool is_terminal_state_saved() const;
     bool is_job_control_enabled() const;
     ShellScriptInterpreter* get_shell_script_interpreter();
 

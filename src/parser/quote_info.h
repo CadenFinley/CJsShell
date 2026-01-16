@@ -18,7 +18,6 @@ struct QuoteInfo {
 
     QuoteInfo(const std::string& token);
 
-    bool is_quoted() const;
     bool is_unquoted() const;
 
    private:

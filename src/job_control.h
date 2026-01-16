@@ -84,13 +84,8 @@ class JobManager {
 
     bool foreground_job_reads_stdin();
 
-    void mark_job_reads_stdin(pid_t pid, bool reads_stdin = true);
-
-    void record_stdin_signal(pid_t pid, int signal_number);
-
     void clear_stdin_signal(pid_t pid);
 
-    void handle_shell_continued();
     void clear_all_jobs();
     void mark_pid_completed(pid_t pid, int status);
 

@@ -20,8 +20,6 @@ class Built_ins {
     std::string get_previous_directory() const;
     void set_current_directory();
 
-    Shell* get_shell();
-
     int builtin_command(const std::vector<std::string>& args);
     int is_builtin_command(const std::string& cmd) const;
 

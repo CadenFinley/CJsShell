@@ -647,30 +647,6 @@ Exec::~Exec() {
     }
 }
 
-void Exec::init_shell() {
-    if (shell_is_interactive) {
-        shell_pgid = getpid();
-        if (setpgid(shell_pgid, shell_pgid) < 0) {
-            if (errno != EPERM) {
-                set_error(ErrorType::RUNTIME_ERROR, "setpgid",
-                          "failed to set process group ID: " + std::string(strerror(errno)));
-                return;
-            }
-        }
-
-        if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
-            set_error(
-                ErrorType::RUNTIME_ERROR, "tcsetpgrp",
-                "failed to set terminal foreground process group: " + std::string(strerror(errno)));
-        }
-
-        if (tcgetattr(shell_terminal, &shell_tmodes) < 0) {
-            set_error(ErrorType::RUNTIME_ERROR, "tcgetattr",
-                      "failed to get terminal attributes: " + std::string(strerror(errno)));
-        }
-    }
-}
-
 void Exec::handle_child_signal(pid_t pid, int status) {
     static bool use_signal_masking = false;
     static int signal_count = 0;
@@ -2223,10 +2199,6 @@ int Exec::get_exit_code() const {
     return last_exit_code;
 }
 
-void Exec::set_exit_code(int code) {
-    last_exit_code = code;
-}
-
 const std::vector<int>& Exec::get_last_pipeline_statuses() const {
     return last_pipeline_statuses;
 }
@@ -2319,19 +2291,6 @@ CommandOutput execute_command_for_output(const std::string& command) {
 
 CommandOutput execute_command_vector_for_output(const std::vector<std::string>& args) {
     return execute_args_for_output_impl(args);
-}
-
-std::string execute_command_for_output_trimmed(const std::string& command) {
-    auto result = execute_command_for_output(command);
-    if (!result.success) {
-        return "";
-    }
-
-    std::string output = std::move(result.output);
-    while (!output.empty() && (output.back() == '\n' || output.back() == '\r')) {
-        output.pop_back();
-    }
-    return output;
 }
 
 }  // namespace exec_utils

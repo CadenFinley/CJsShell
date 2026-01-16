@@ -75,7 +75,6 @@ class Exec {
     void put_job_in_background(int job_id, bool cont);
     void wait_for_job(int job_id);
     std::map<int, Job> get_jobs();
-    void init_shell();
     void handle_child_signal(pid_t pid, int status);
     void set_error(const ErrorInfo& error);
     void set_error(ErrorType type, const std::string& command = "", const std::string& message = "",
@@ -84,7 +83,6 @@ class Exec {
     std::string get_error_string();
     void print_last_error();
     int get_exit_code() const;
-    void set_exit_code(int code);
     const std::vector<int>& get_last_pipeline_statuses() const;
     void terminate_all_child_process();
     void abandon_all_child_processes();
@@ -103,7 +101,5 @@ struct CommandOutput {
 CommandOutput execute_command_for_output(const std::string& command);
 
 CommandOutput execute_command_vector_for_output(const std::vector<std::string>& args);
-
-std::string execute_command_for_output_trimmed(const std::string& command);
 
 }  // namespace exec_utils

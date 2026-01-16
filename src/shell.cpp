@@ -71,57 +71,6 @@ Shell::~Shell() {
     restore_terminal_state();
 }
 
-void raw_mode_state_init(RawModeState* state) {
-    if (state == nullptr) {
-        return;
-    }
-    raw_mode_state_init_with_fd(state, STDIN_FILENO);
-}
-
-void raw_mode_state_init_with_fd(RawModeState* state, int fd) {
-    if (state == nullptr) {
-        return;
-    }
-
-    state->entered = false;
-    state->fd = fd;
-
-    if (fd < 0 || (isatty(fd) == 0)) {
-        return;
-    }
-
-    if (tcgetattr(fd, &state->saved_modes) == -1) {
-        return;
-    }
-
-    struct termios raw_modes = state->saved_modes;
-    raw_modes.c_lflag &= ~ICANON;
-    raw_modes.c_cc[VMIN] = 0;
-    raw_modes.c_cc[VTIME] = 0;
-
-    if (tcsetattr(fd, TCSANOW, &raw_modes) == -1) {
-        return;
-    }
-
-    state->entered = true;
-}
-
-void raw_mode_state_release(RawModeState* state) {
-    if ((state == nullptr) || !state->entered) {
-        return;
-    }
-
-    if (tcsetattr(state->fd, TCSANOW, &state->saved_modes) == -1) {
-        // Don't do anything if saved mode is invalid; we likely inherited a broken state
-    }
-
-    state->entered = false;
-}
-
-bool raw_mode_state_entered(const RawModeState* state) {
-    return (state != nullptr) && state->entered;
-}
-
 void Shell::set_abbreviations(
     const std::unordered_map<std::string, std::string>& new_abbreviations) {
     abbreviations = new_abbreviations;
@@ -144,18 +93,6 @@ void Shell::set_interactive_mode(bool flag) {
 
 bool Shell::get_interactive_mode() const {
     return interactive_mode;
-}
-
-int Shell::get_last_exit_code() const {
-    const char* status_env = std::getenv("?");
-    if (status_env != nullptr) {
-        char* end = nullptr;
-        long value = std::strtol(status_env, &end, 10);
-        if (*end == '\0' && end != status_env) {
-            return static_cast<int>(value);
-        }
-    }
-    return 0;
 }
 
 void Shell::set_aliases(const std::unordered_map<std::string, std::string>& new_aliases) {
@@ -562,22 +499,6 @@ std::string Shell::get_previous_directory() const {
 
 Built_ins* Shell::get_built_ins() {
     return built_ins.get();
-}
-
-int Shell::get_terminal() const {
-    return shell_terminal;
-}
-
-pid_t Shell::get_pgid() const {
-    return shell_pgid;
-}
-
-struct termios Shell::get_terminal_modes() const {
-    return shell_tmodes;
-}
-
-bool Shell::is_terminal_state_saved() const {
-    return terminal_state_saved;
 }
 
 bool Shell::is_job_control_enabled() const {

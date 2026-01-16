@@ -139,10 +139,6 @@ std::string CommandPreprocessor::process_subshells(const std::string& command) {
     return result;
 }
 
-std::string CommandPreprocessor::generate_placeholder() {
-    return "HEREDOC_PLACEHOLDER_" + std::to_string(next_placeholder_id());
-}
-
 std::uint32_t CommandPreprocessor::next_placeholder_id() {
     static std::uint32_t counter = 0;
     if (counter == std::numeric_limits<std::uint32_t>::max()) {

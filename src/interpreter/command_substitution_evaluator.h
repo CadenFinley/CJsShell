@@ -27,8 +27,6 @@ class CommandSubstitutionEvaluator {
     bool find_matching_delimiter(const std::string& text, size_t start, char open_char,
                                  char close_char, size_t& end_out);
 
-    std::string escape_for_double_quotes(const std::string& content);
-
     bool try_handle_arithmetic_expansion(const std::string& input, size_t& i,
                                          std::string& output_text);
 

@@ -9,11 +9,6 @@ const std::unordered_set<std::string>& comparison_operators() {
     return kComparisonOperators;
 }
 
-const std::unordered_set<std::string>& command_operators() {
-    static const std::unordered_set<std::string> kCommandOperators = {"&&", "||", "|", ";"};
-    return kCommandOperators;
-}
-
 const std::unordered_set<std::string>& shell_keywords() {
     static const std::unordered_set<std::string> kShellKeywords = {
         "if",    "then", "else", "elif", "fi",       "case",   "in",   "esac",   "while",

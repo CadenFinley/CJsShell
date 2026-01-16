@@ -30,9 +30,6 @@ class VariableManager {
     std::string get_variable_value(const std::string& var_name) const;
     bool variable_is_set(const std::string& var_name) const;
 
-    const VariableStack& get_local_stack() const;
-    VariableStack& get_local_stack();
-
    private:
     VariableStack local_variable_stack;
     ExportedLocalsStack exported_locals_stack;

@@ -67,7 +67,6 @@ std::atomic<bool> SignalHandler::s_signal_pending(false);
 pid_t SignalHandler::s_main_pid = 0;
 std::vector<int> SignalHandler::s_observed_signals;
 std::unordered_map<int, SignalState> SignalHandler::s_signal_states;
-sigset_t SignalHandler::s_blocked_mask;
 
 const std::vector<SignalInfo>& SignalHandler::signal_table() {
     static const std::vector<SignalInfo> kSignalTable = {
@@ -186,8 +185,6 @@ SignalHandler::SignalHandler()
       m_old_sigalrm_handler(),
       m_old_sigwinch_handler(),
       m_old_sigpipe_handler() {
-    sigemptyset(&s_blocked_mask);
-
     signal_unblock_all();
     s_instance.store(this);
 }
@@ -221,22 +218,6 @@ void reset_child_signals() {
     sigprocmask(SIG_SETMASK, &set, nullptr);
 }
 
-void SignalHandler::reset_signals_for_child() {
-    reset_child_signals();
-}
-
-void SignalHandler::apply_signal_state_for_exec() {
-    for (const auto& [signum, state] : s_signal_states) {
-        if (state.disposition == SignalDisposition::TRAPPED) {
-            struct sigaction sa{};
-            sa.sa_handler = SIG_DFL;
-            sigemptyset(&sa.sa_mask);
-            sa.sa_flags = 0;
-            sigaction(signum, &sa, nullptr);
-        }
-    }
-}
-
 bool SignalHandler::has_pending_signals() {
     if (s_signal_pending.load(std::memory_order_acquire)) {
         return true;
@@ -248,24 +229,6 @@ bool SignalHandler::has_pending_signals() {
 SignalHandler::~SignalHandler() {
     restore_original_handlers();
     s_instance.store(nullptr);
-}
-
-const char* SignalHandler::get_signal_name(int signum) {
-    for (const auto& signal : signal_table()) {
-        if (signal.signal == signum) {
-            return signal.name;
-        }
-    }
-    return "UNKNOWN";
-}
-
-const char* SignalHandler::get_signal_description(int signum) {
-    for (const auto& signal : signal_table()) {
-        if (signal.signal == signum) {
-            return signal.description;
-        }
-    }
-    return "Unknown signal";
 }
 
 int SignalHandler::name_to_signal(const std::string& name) {
@@ -334,7 +297,6 @@ void SignalHandler::signal_unblock_all() {
     sigset_t iset{};
     sigemptyset(&iset);
     sigprocmask(SIG_SETMASK, &iset, nullptr);
-    sigemptyset(&s_blocked_mask);
 }
 
 void SignalHandler::set_signal_disposition(int signum, SignalDisposition disp, const std::string&) {
@@ -398,99 +360,14 @@ void SignalHandler::set_signal_disposition(int signum, SignalDisposition disp, c
     }
 }
 
-SignalDisposition SignalHandler::get_signal_disposition(int signum) {
-    auto it = s_signal_states.find(signum);
-    if (it != s_signal_states.end()) {
-        return it->second.disposition;
-    }
-    return SignalDisposition::DEFAULT;
-}
-
-void SignalHandler::reset_signal_to_default(int signum) {
-    set_signal_disposition(signum, SignalDisposition::DEFAULT);
-}
-
 void SignalHandler::ignore_signal(int signum) {
     set_signal_disposition(signum, SignalDisposition::IGNORE);
-}
-
-void SignalHandler::block_signal(int signum) {
-    if (!is_valid_signal(signum)) {
-        return;
-    }
-
-    sigset_t mask{};
-    sigemptyset(&mask);
-    sigaddset(&mask, signum);
-    sigprocmask(SIG_BLOCK, &mask, nullptr);
-
-    sigaddset(&s_blocked_mask, signum);
-
-    auto it = s_signal_states.find(signum);
-    if (it != s_signal_states.end()) {
-        it->second.is_blocked = true;
-    }
-}
-
-void SignalHandler::unblock_signal(int signum) {
-    if (!is_valid_signal(signum)) {
-        return;
-    }
-
-    sigset_t mask{};
-    sigemptyset(&mask);
-    sigaddset(&mask, signum);
-    sigprocmask(SIG_UNBLOCK, &mask, nullptr);
-
-    sigdelset(&s_blocked_mask, signum);
-
-    auto it = s_signal_states.find(signum);
-    if (it != s_signal_states.end()) {
-        it->second.is_blocked = false;
-    }
-}
-
-bool SignalHandler::is_signal_blocked(int signum) {
-    return sigismember(&s_blocked_mask, signum) == 1;
-}
-
-void SignalHandler::block_all_trappable_signals() {
-    sigset_t mask{};
-    sigemptyset(&mask);
-
-    for (const auto& signal : signal_table()) {
-        if (signal.can_trap) {
-            sigaddset(&mask, signal.signal);
-        }
-    }
-
-    sigprocmask(SIG_BLOCK, &mask, nullptr);
-}
-
-void SignalHandler::unblock_all_signals() {
-    sigset_t mask{};
-    sigemptyset(&mask);
-    sigprocmask(SIG_SETMASK, &mask, nullptr);
-    sigemptyset(&s_blocked_mask);
 }
 
 sigset_t SignalHandler::get_current_mask() {
     sigset_t current_mask{};
     sigprocmask(SIG_SETMASK, nullptr, &current_mask);
     return current_mask;
-}
-
-std::vector<int> SignalHandler::get_blocked_signals() {
-    std::vector<int> blocked;
-    sigset_t current_mask = get_current_mask();
-
-    for (const auto& signal : signal_table()) {
-        if (sigismember(&current_mask, signal.signal) == 1) {
-            blocked.push_back(signal.signal);
-        }
-    }
-
-    return blocked;
 }
 
 void SignalHandler::install_signal_handler(int signum, struct sigaction* old_action) {
@@ -840,8 +717,7 @@ SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) 
                         JobManager::instance().notify_job_stopped(job);
 #ifdef SIGTTIN
                         if (WSTOPSIG(status) == SIGTTIN) {
-                            JobManager::instance().mark_job_reads_stdin(pid, true);
-                            JobManager::instance().record_stdin_signal(pid, WSTOPSIG(status));
+                            JobManager::instance().clear_stdin_signal(job->pgid);
                         }
 #endif
                     } else if (WIFCONTINUED(status)) {
@@ -1009,8 +885,6 @@ SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) 
     if (s_sigcont_received != 0) {
         s_sigcont_received = 0;
 
-        JobManager::instance().handle_shell_continued();
-
         if (is_signal_observed(SIGCONT)) {
             process_trapped_signal(SIGCONT);
             result.trapped_signals.push_back(SIGCONT);
@@ -1097,8 +971,4 @@ void SignalHandler::unobserve_signal(int signum) {
 bool SignalHandler::is_signal_observed(int signum) {
     return std::find(s_observed_signals.begin(), s_observed_signals.end(), signum) !=
            s_observed_signals.end();
-}
-
-std::vector<int> SignalHandler::get_observed_signals() {
-    return s_observed_signals;
 }

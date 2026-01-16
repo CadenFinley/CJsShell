@@ -518,34 +518,6 @@ bool JobManager::foreground_job_reads_stdin() {
     return false;
 }
 
-void JobManager::mark_job_reads_stdin(pid_t pid, bool reads_stdin) {
-    auto job = get_job_by_pid_or_pgid(pid);
-    if (!job) {
-        return;
-    }
-
-    if (job->reads_stdin != reads_stdin) {
-        job->reads_stdin = reads_stdin;
-    }
-}
-
-void JobManager::record_stdin_signal(pid_t pid, int signal_number) {
-    auto job = get_job_by_pid_or_pgid(pid);
-    if (!job) {
-        return;
-    }
-
-    auto now = std::chrono::steady_clock::now();
-    job->reads_stdin = true;
-    job->awaiting_stdin_signal = true;
-    const auto clamped_signal = std::clamp(signal_number, 0, 255);
-    job->last_stdin_signal = static_cast<std::uint8_t>(clamped_signal);
-    if (job->stdin_signal_count < std::numeric_limits<std::uint16_t>::max()) {
-        job->stdin_signal_count = static_cast<std::uint16_t>(job->stdin_signal_count + 1);
-    }
-    job->last_stdin_signal_time = now;
-}
-
 void JobManager::clear_stdin_signal(pid_t pid) {
     auto job = get_job_by_pid_or_pgid(pid);
     if (!job) {
@@ -557,14 +529,6 @@ void JobManager::clear_stdin_signal(pid_t pid) {
         job->last_stdin_signal = 0;
         job->stdin_signal_count = 0;
         job->last_stdin_signal_time = std::chrono::steady_clock::time_point::min();
-    }
-}
-
-void JobManager::handle_shell_continued() {
-    update_job_status();
-
-    if (shell_ref != nullptr) {
-        shell_ref->handle_sigcont();
     }
 }
 

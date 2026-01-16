@@ -122,20 +122,6 @@ bool CommandSubstitutionEvaluator::find_matching_delimiter(const std::string& te
     return false;
 }
 
-std::string CommandSubstitutionEvaluator::escape_for_double_quotes(const std::string& content) {
-    std::string result;
-    result.reserve(content.size() + (content.size() / 10) + 1);
-
-    for (char c : content) {
-        if (c == '"' || c == '\\' || c == '$' || c == '`') {
-            result += '\\';
-        }
-        result += c;
-    }
-
-    return result;
-}
-
 bool CommandSubstitutionEvaluator::try_handle_arithmetic_expansion(const std::string& input,
                                                                    size_t& i,
                                                                    std::string& output_text) {

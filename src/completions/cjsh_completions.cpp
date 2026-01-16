@@ -1068,10 +1068,6 @@ void initialize_completion_system() {
     }
 }
 
-void cleanup_completion_system() {
-    completion_tracker::completion_session_end();
-}
-
 void set_completion_case_sensitive(bool case_sensitive) {
     g_completion_case_sensitive = case_sensitive;
 }

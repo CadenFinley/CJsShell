@@ -96,14 +96,6 @@ bool VariableManager::in_function_scope() const {
     return !local_variable_stack.empty();
 }
 
-const VariableManager::VariableStack& VariableManager::get_local_stack() const {
-    return local_variable_stack;
-}
-
-VariableManager::VariableStack& VariableManager::get_local_stack() {
-    return local_variable_stack;
-}
-
 std::string VariableManager::get_variable_value(const std::string& var_name) const {
     if (!local_variable_stack.empty()) {
         const auto& current_scope = local_variable_stack.back();

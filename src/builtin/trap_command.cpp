@@ -75,12 +75,6 @@ void trap_manager_remove_trap(int signal) {
     state.traps.erase(signal);
 }
 
-std::string trap_manager_get_trap(int signal) {
-    auto& state = trap_manager_state();
-    auto it = state.traps.find(signal);
-    return it != state.traps.end() ? it->second : "";
-}
-
 void trap_manager_execute_trap(int signal) {
     auto& state = trap_manager_state();
     auto it = state.traps.find(signal);
@@ -97,14 +91,6 @@ std::vector<std::pair<int, std::string>> trap_manager_list_traps() {
         result.push_back(pair);
     }
     return result;
-}
-
-void trap_manager_reset_all_traps() {
-    auto keys = trap_manager_list_traps();
-    for (const auto& pair : keys) {
-        trap_manager_remove_trap(pair.first);
-    }
-    trap_manager_state().traps.clear();
 }
 
 bool trap_manager_has_trap(int signal) {
@@ -129,25 +115,9 @@ void trap_manager_execute_exit_trap() {
     }
 }
 
-void trap_manager_execute_err_trap() {
-    auto& state = trap_manager_state();
-    auto it = state.traps.find(-2);
-    if (it != state.traps.end() && (state.shell_ref != nullptr)) {
-        state.shell_ref->execute(it->second);
-    }
-}
-
 void trap_manager_execute_debug_trap() {
     auto& state = trap_manager_state();
     auto it = state.traps.find(-3);
-    if (it != state.traps.end() && (state.shell_ref != nullptr)) {
-        state.shell_ref->execute(it->second);
-    }
-}
-
-void trap_manager_execute_return_trap() {
-    auto& state = trap_manager_state();
-    auto it = state.traps.find(-4);
     if (it != state.traps.end() && (state.shell_ref != nullptr)) {
         state.shell_ref->execute(it->second);
     }

@@ -951,16 +951,6 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
     return final_args;
 }
 
-std::vector<std::string> Parser::parse_command_exported_vars_only(const std::string& cmdline) {
-    if (!variableExpander) {
-        variableExpander = std::make_unique<VariableExpander>(shell, env_vars);
-    }
-    variableExpander->set_use_exported_vars_only(true);
-    std::vector<std::string> result = parse_command(cmdline);
-    variableExpander->set_use_exported_vars_only(false);
-    return result;
-}
-
 std::vector<Command> Parser::parse_pipeline(const std::string& command) {
     std::vector<Command> commands;
     commands.reserve(4);

@@ -66,38 +66,23 @@ class SignalHandler {
     SignalProcessingResult process_pending_signals(Exec* shell_exec);
     static bool has_pending_signals();
 
-    static const char* get_signal_name(int signum);
-    static const char* get_signal_description(int signum);
     static int name_to_signal(const std::string& name);
     static bool is_valid_signal(int signum);
     static bool can_trap_signal(int signum);
     static bool can_ignore_signal(int signum);
+    static bool is_forked_child();
 
     static void set_signal_disposition(int signum, SignalDisposition disp,
                                        const std::string& trap_command = "");
-    static SignalDisposition get_signal_disposition(int signum);
-    static void reset_signal_to_default(int signum);
     static void ignore_signal(int signum);
-
-    static void block_signal(int signum);
-    static void unblock_signal(int signum);
-    static bool is_signal_blocked(int signum);
-    static void block_all_trappable_signals();
-    static void unblock_all_signals();
-
-    static bool is_forked_child();
-    static void reset_signals_for_child();
-    static void apply_signal_state_for_exec();
 
     static void observe_signal(int signum);
     static void unobserve_signal(int signum);
     static bool is_signal_observed(int signum);
-    static std::vector<int> get_observed_signals();
 
     static void signal_handler(int signum, siginfo_t* info, void* context);
 
     static sigset_t get_current_mask();
-    static std::vector<int> get_blocked_signals();
 
    private:
     static std::atomic<SignalHandler*> s_instance;
@@ -124,7 +109,6 @@ class SignalHandler {
 
     static std::unordered_map<int, SignalState> s_signal_states;
     static std::vector<int> s_observed_signals;
-    static sigset_t s_blocked_mask;
 
     struct sigaction m_old_sigint_handler;
     struct sigaction m_old_sigchld_handler;

@@ -252,10 +252,6 @@ void Built_ins::set_current_directory() {
     }
 }
 
-Shell* Built_ins::get_shell() {
-    return shell;
-}
-
 std::vector<std::string> Built_ins::get_builtin_commands() const {
     std::vector<std::string> names;
     names.reserve(builtins.size());

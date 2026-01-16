@@ -81,39 +81,6 @@ bool CompletionTracker::would_create_duplicate(const char* completion_text, long
     return added_completions.find(canonical_result) != added_completions.end();
 }
 
-bool CompletionTracker::add_completion_if_unique(const char* completion_text) {
-    const char* source = nullptr;
-    if (has_reached_completion_limit()) {
-        return true;
-    }
-    if (would_create_duplicate(completion_text, 0)) {
-        return true;
-    }
-
-    std::string final_result = calculate_final_result(completion_text, 0);
-    added_completions.insert(canonicalize_final_result(std::move(final_result)));
-    total_completions_added++;
-    return ic_add_completion_ex_with_source(cenv, completion_text, nullptr, nullptr, source);
-}
-
-bool CompletionTracker::add_completion_prim_if_unique(const char* completion_text,
-                                                      const char* display, const char* help,
-                                                      long delete_before, long delete_after) {
-    const char* source = nullptr;
-    if (has_reached_completion_limit()) {
-        return true;
-    }
-    if (would_create_duplicate(completion_text, delete_before)) {
-        return true;
-    }
-
-    std::string final_result = calculate_final_result(completion_text, delete_before);
-    added_completions.insert(canonicalize_final_result(std::move(final_result)));
-    total_completions_added++;
-    return ic_add_completion_prim_with_source(cenv, completion_text, display, help, source,
-                                              delete_before, delete_after);
-}
-
 bool CompletionTracker::add_completion_prim_with_source_if_unique(
     const char* completion_text, const char* display, const char* help, const char* source,
     long delete_before, long delete_after) {
@@ -142,10 +109,6 @@ void completion_session_end() {
         delete g_current_completion_tracker;
         g_current_completion_tracker = nullptr;
     }
-}
-
-CompletionTracker* get_current_tracker() {
-    return g_current_completion_tracker;
 }
 
 bool safe_add_completion_with_source(ic_completion_env_t* cenv, const char* completion_text,

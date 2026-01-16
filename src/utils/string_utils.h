@@ -21,10 +21,4 @@ inline std::string trim_ascii_whitespace_copy(const std::string& input) {
     return input.substr(begin, end - begin + 1);
 }
 
-inline void rstrip_newlines(std::string& value) {
-    while (!value.empty() && (value.back() == '\n' || value.back() == '\r')) {
-        value.pop_back();
-    }
-}
-
 }  // namespace string_utils

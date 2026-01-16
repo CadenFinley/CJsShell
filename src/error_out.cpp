@@ -73,33 +73,6 @@ ErrorSeverity ErrorInfo::get_default_severity(ErrorType type) {
     }
 }
 
-bool should_abort_on_error(const ErrorInfo& error) {
-    if (error.severity == ErrorSeverity::CRITICAL) {
-        return true;
-    }
-
-    if (!g_shell || !g_shell->is_errexit_enabled()) {
-        return false;
-    }
-
-    if (g_shell) {
-        std::string severity_threshold = g_shell->get_errexit_severity();
-
-        ErrorSeverity threshold = ErrorSeverity::ERROR;
-        if (severity_threshold == "info") {
-            threshold = ErrorSeverity::INFO;
-        } else if (severity_threshold == "warning") {
-            threshold = ErrorSeverity::WARNING;
-        } else if (severity_threshold == "critical") {
-            threshold = ErrorSeverity::CRITICAL;
-        }
-
-        return error.severity >= threshold;
-    }
-
-    return error.severity >= ErrorSeverity::ERROR;
-}
-
 void print_error(const ErrorInfo& error) {
     const bool colorize_output = should_colorize_output();
     const char* color_prefix = colorize_output ? severity_to_color(error.severity) : "";

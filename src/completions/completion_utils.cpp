@@ -198,12 +198,4 @@ bool equals_completion_token(const std::string& value, const std::string& target
                       [](char a, char b) { return std::tolower(a) == std::tolower(b); });
 }
 
-bool starts_with_token(const std::string& value, const std::string& target_prefix) {
-    if (g_completion_case_sensitive) {
-        return starts_with_case_sensitive(value, target_prefix);
-    }
-
-    return starts_with_case_insensitive(value, target_prefix);
-}
-
 }  // namespace completion_utils

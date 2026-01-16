@@ -107,23 +107,6 @@ std::string describe_errno(int err) {
     return std::system_category().message(err);
 }
 
-template <typename Functor>
-void launch_async_once(std::atomic<bool>& guard, Functor&& fn) {
-    bool expected = false;
-    if (!guard.compare_exchange_strong(expected, true)) {
-        return;
-    }
-
-    std::thread([task = std::forward<Functor>(fn), &guard]() mutable {
-        try {
-            task();
-        } catch (...) {
-        }
-
-        guard.store(false);
-    }).detach();
-}
-
 bool path_is_executable(const fs::path& candidate) {
     std::error_code ec;
 
@@ -234,21 +217,6 @@ Result<void> duplicate_pipe_read_end_to_fd(int (&pipe_fds)[2], int target_fd) {
 void close_pipe(int pipe_fds[2]) {
     safe_close(pipe_fds[0]);
     safe_close(pipe_fds[1]);
-}
-
-Result<FILE*> safe_fopen(const std::string& path, const std::string& mode) {
-    FILE* file = std::fopen(path.c_str(), mode.c_str());
-    if (file == nullptr) {
-        return Result<FILE*>::error("Failed to open file '" + path + "' with mode '" + mode +
-                                    "': " + describe_errno(errno));
-    }
-    return Result<FILE*>::ok(file);
-}
-
-void safe_fclose(FILE* file) {
-    if (file != nullptr) {
-        (void)std::fclose(file);
-    }
 }
 
 namespace {
@@ -600,13 +568,6 @@ bool initialize_cjsh_directories() {
                      {"Ensure the configuration and cache directories are writable."}});
         return false;
     }
-}
-
-std::filesystem::path get_cjsh_path() {
-    if (g_cjsh_path.empty() || g_cjsh_path == ".") {
-        initialize_cjsh_path();
-    }
-    return g_cjsh_path;
 }
 
 std::string find_executable_in_path(const std::string& name) {

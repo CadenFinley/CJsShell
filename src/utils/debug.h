@@ -28,7 +28,7 @@ static inline int cjsh_debug_file_enabled(void) {
 
 static inline void close_debug_log_file(void) {
     if (cjsh_debug_detail::g_log_file != nullptr) {
-        cjsh_filesystem::safe_fclose(cjsh_debug_detail::g_log_file);
+        fclose(cjsh_debug_detail::g_log_file);
         cjsh_debug_detail::g_log_file = nullptr;
     }
 }
@@ -46,12 +46,11 @@ static inline FILE* cjsh_get_debug_log_file(void) {
         }
 
         auto log_path = cjsh_filesystem::g_cjsh_cache_path() / filename;
-        auto file_result = cjsh_filesystem::safe_fopen(log_path.string(), "a");
-        if (file_result.is_error()) {
+        cjsh_debug_detail::g_log_file = fopen(log_path.string().c_str(), "a");
+        if (cjsh_debug_detail::g_log_file == nullptr) {
             return;
         }
 
-        cjsh_debug_detail::g_log_file = file_result.value();
         atexit(close_debug_log_file);
     });
 

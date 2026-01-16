@@ -64,7 +64,6 @@ class Parser {
     void expand_env_vars(std::string& arg);
     void expand_env_vars_selective(std::string& arg);
     void expand_exported_env_vars_only(std::string& arg);
-    std::vector<std::string> parse_command_exported_vars_only(const std::string& cmdline);
     std::vector<std::string> split_by_ifs(const std::string& input);
     long long evaluate_arithmetic(const std::string& expr);
 

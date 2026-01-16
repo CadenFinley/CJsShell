@@ -21,7 +21,5 @@ class CommandPreprocessor {
 
     static std::string process_subshells(const std::string& command);
 
-    static std::string generate_placeholder();
-
     static std::uint32_t next_placeholder_id();
 };
