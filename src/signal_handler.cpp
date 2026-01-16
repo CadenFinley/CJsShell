@@ -168,6 +168,10 @@ const std::vector<SignalInfo>& SignalHandler::signal_table() {
     return kSignalTable;
 }
 
+const std::vector<SignalInfo>& SignalHandler::available_signals() {
+    return signal_table();
+}
+
 SignalHandler* g_signal_handler = nullptr;
 
 SignalHandler::SignalHandler()

@@ -65,6 +65,7 @@ class SignalHandler {
 
     SignalProcessingResult process_pending_signals(Exec* shell_exec);
     static bool has_pending_signals();
+    static const std::vector<SignalInfo>& available_signals();
 
     static int name_to_signal(const std::string& name);
     static bool is_valid_signal(int signum);

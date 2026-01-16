@@ -1,7 +1,12 @@
 #include "builtins_completions_handler.h"
 
+#include <cctype>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
+
+#include "job_control.h"
+#include "signal_handler.h"
 
 namespace builtin_completions {
 namespace {
@@ -20,6 +25,130 @@ CompletionEntry make_option(std::string text, std::string description) {
 
 CompletionEntry make_subcommand(std::string text, std::string description) {
     return CompletionEntry{std::move(text), std::move(description), EntryKind::Subcommand};
+}
+
+constexpr const char kKillSummary[] = "Send signals to processes or jobs";
+
+std::string strip_sig_prefix(const std::string& value) {
+    if (value.size() > 3 && value.rfind("SIG", 0) == 0)
+        return value.substr(3);
+    return value;
+}
+
+void append_kill_signal_entries(std::vector<CompletionEntry>& entries) {
+    const auto& signals = SignalHandler::available_signals();
+    if (signals.empty())
+        return;
+
+    std::unordered_set<std::string> seen_tokens;
+    seen_tokens.reserve(signals.size() * 3 + 2);
+
+    auto add_option_entry = [&](const std::string& token, const char* description) {
+        if (token.empty())
+            return;
+        std::string option_text = "-" + token;
+        if (seen_tokens.insert(option_text).second) {
+            entries.push_back(make_option(option_text, description ? description : ""));
+        }
+    };
+
+    for (const auto& info : signals) {
+        if (info.name == nullptr)
+            continue;
+        std::string full_name(info.name);
+        std::string short_name = strip_sig_prefix(full_name);
+        add_option_entry(short_name, info.description);
+        add_option_entry(full_name, info.description);
+        add_option_entry(std::to_string(info.signal), info.description);
+    }
+
+    add_option_entry("0", "Test for process existence without delivering a signal");
+}
+
+std::string sanitize_job_command_summary(const std::string& command) {
+    std::string summary;
+    summary.reserve(command.size());
+    bool last_was_space = true;
+
+    for (char ch : command) {
+        unsigned char uch = static_cast<unsigned char>(ch);
+        if (std::isspace(uch) != 0) {
+            if (!summary.empty() && !last_was_space) {
+                summary.push_back(' ');
+                last_was_space = true;
+            }
+            continue;
+        }
+        if (std::isprint(uch) == 0)
+            continue;
+        summary.push_back(ch);
+        last_was_space = false;
+        if (summary.size() >= 80)
+            break;
+    }
+
+    while (!summary.empty() && summary.back() == ' ')
+        summary.pop_back();
+
+    return summary;
+}
+
+std::string format_job_description(const JobControlJob& job) {
+    std::string summary = sanitize_job_command_summary(job.command);
+    if (summary.empty())
+        summary = "command unavailable";
+    return "job %" + std::to_string(job.job_id) + " · " + summary;
+}
+
+void append_kill_job_pid_entries(std::vector<CompletionEntry>& entries) {
+    auto& job_manager = JobManager::instance();
+    job_manager.update_job_status();
+    auto jobs = job_manager.get_all_jobs();
+    if (jobs.empty())
+        return;
+
+    std::unordered_set<long long> seen_pids;
+    seen_pids.reserve(jobs.size() * 2);
+
+    auto add_pid_entry = [&](const std::shared_ptr<JobControlJob>& job, pid_t pid) {
+        if (!job || pid <= 0)
+            return;
+        long long pid_value = static_cast<long long>(pid);
+        if (!seen_pids.insert(pid_value).second)
+            return;
+        entries.push_back(make_option(std::to_string(pid_value), format_job_description(*job)));
+    };
+
+    for (const auto& job : jobs) {
+        if (!job)
+            continue;
+        for (pid_t pid : job->pids) {
+            add_pid_entry(job, pid);
+        }
+        if (job->pgid > 0)
+            add_pid_entry(job, job->pgid);
+    }
+}
+
+CommandDoc make_kill_command_doc() {
+    CommandDoc doc;
+    doc.summary = kKillSummary;
+    doc.summary_present = true;
+    doc.entries = {make_option("-l", "List signal names"),
+                   make_option("-s", "Specify signal by name"),
+                   make_option("-n", "Specify signal by number")};
+
+    append_kill_signal_entries(doc.entries);
+    append_kill_job_pid_entries(doc.entries);
+    return doc;
+}
+
+const CommandDoc* lookup_dynamic_builtin_doc(const std::string& doc_target) {
+    if (doc_target != "kill")
+        return nullptr;
+    thread_local CommandDoc kill_doc;
+    kill_doc = make_kill_command_doc();
+    return &kill_doc;
 }
 
 const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
@@ -201,16 +330,6 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_doc("wait", "Wait for jobs or processes to finish", {});
         add_doc("disown", "Remove jobs from the shell's management",
                 {make_option("-a", "Disown every job"), make_option("--all", "Disown every job")});
-
-        add_doc(
-            "kill", "Send signals to processes or jobs",
-            {make_option("-l", "List signal names"), make_option("-s", "Specify signal by name"),
-             make_option("-HUP", "Send the HUP signal"), make_option("-INT", "Send the INT signal"),
-             make_option("-TERM", "Send the TERM signal"),
-             make_option("-KILL", "Send the KILL signal"),
-             make_option("-STOP", "Send the STOP signal"),
-             make_option("-USR1", "Send the USR1 signal"),
-             make_option("-USR2", "Send the USR2 signal")});
 
         add_doc("readonly", "Mark variables as read-only",
                 {make_option("-p", "Print current readonly variables"),
@@ -500,6 +619,9 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
 }  // namespace
 
 const CommandDoc* lookup_builtin_command_doc(const std::string& doc_target) {
+    if (const auto* dynamic_doc = lookup_dynamic_builtin_doc(doc_target))
+        return dynamic_doc;
+
     const auto& docs = builtin_command_docs();
     auto it = docs.find(doc_target);
     if (it != docs.end())
