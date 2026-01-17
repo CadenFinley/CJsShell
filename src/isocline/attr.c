@@ -61,12 +61,6 @@ ic_private bool attr_is_eq(attr_t attr1, attr_t attr2) {
     return (memcmp(&attr1, &attr2, sizeof(attr_t)) == 0);
 }
 
-ic_private attr_t attr_from_color(ic_color_t color) {
-    attr_t attr = attr_none();
-    attr.x.color = color;
-    return attr;
-}
-
 ic_private attr_t attr_update_with(attr_t oldattr, attr_t newattr) {
     attr_t attr = oldattr;
     if (newattr.x.color != IC_COLOR_NONE) {

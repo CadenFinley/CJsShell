@@ -52,7 +52,6 @@ typedef struct attr_s {
 
 ic_private attr_t attr_none(void);
 ic_private attr_t attr_default(void);
-ic_private attr_t attr_from_color(ic_color_t color);
 
 ic_private bool attr_is_none(attr_t attr);
 ic_private bool attr_is_eq(attr_t attr1, attr_t attr2);

@@ -565,13 +565,6 @@ ic_private const char* parse_skip_to_white(const char* s) {
     return parse_skip_white(s);
 }
 
-ic_private const char* parse_skip_to_end(const char* s) {
-    while (*s != 0 && *s != ']') {
-        s++;
-    }
-    return s;
-}
-
 ic_private const char* parse_attr_name(const char* s) {
     if (*s == '#') {
         s++;  // hex rgb color as id

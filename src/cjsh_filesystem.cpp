@@ -520,39 +520,6 @@ bool file_exists(const fs::path& path) {
     return fs::exists(path);
 }
 
-bool initialize_cjsh_path() {
-    char path[PATH_MAX];
-#ifdef __linux__
-    ssize_t len = readlink("/proc/self/exe", path, PATH_MAX - 1);
-    if (len != -1) {
-        path[len] = '\0';
-        g_cjsh_path = path;
-        return true;
-    }
-#endif
-
-#ifdef __APPLE__
-    uint32_t size = PATH_MAX;
-    if (_NSGetExecutablePath(path, &size) == 0) {
-        std::unique_ptr<char, decltype(&std::free)> resolved_path(realpath(path, nullptr),
-                                                                  std::free);
-        if (resolved_path) {
-            g_cjsh_path = resolved_path.get();
-            return true;
-        }
-        g_cjsh_path = path;
-        return true;
-    }
-#endif
-
-    if (g_cjsh_path.empty()) {
-        g_cjsh_path = "cjsh";
-        return true;
-    }
-
-    return true;
-}
-
 bool initialize_cjsh_directories() {
     try {
         fs::create_directories(g_cjsh_config_path());
