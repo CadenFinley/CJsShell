@@ -356,12 +356,10 @@ CompletionContext detect_completion_context(const char* prefix) {
 
 bool is_job_control_command(const std::string& token) {
     static const char* kJobCommands[] = {"bg", "fg", "jobs", "jobname", "kill", "disown", "wait"};
-    for (const char* command_name : kJobCommands) {
-        if (completion_utils::equals_completion_token(token, command_name))
-            return true;
-    }
-
-    return false;
+    return std::any_of(std::begin(kJobCommands), std::end(kJobCommands),
+                       [&](const char* command_name) {
+                           return completion_utils::equals_completion_token(token, command_name);
+                       });
 }
 
 std::string sanitize_job_command_summary(const std::string& command) {

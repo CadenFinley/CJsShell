@@ -1160,10 +1160,17 @@ static bool history_collect_entries(history_t* h, history_list_t* list, bool ded
     bool success = true;
     char header_buf[512];
     while (success) {
+        if (feof(f)) {
+            clearerr(f);
+            break;
+        }
+
         int c = fgetc(f);
         if (c == EOF) {
             if (ferror(f))
                 success = false;
+            else
+                clearerr(f);
             break;
         }
         if (c == '\n' || c == '\r')
@@ -1180,6 +1187,7 @@ static bool history_collect_entries(history_t* h, history_list_t* list, bool ded
                 success = false;
                 break;
             }
+            errno = 0;
             if (fgets(header_buf, sizeof(header_buf), f) == NULL) {
                 if (ferror(f))
                     success = false;
@@ -1232,22 +1240,35 @@ static bool history_collect_entries(history_t* h, history_list_t* list, bool ded
                     success = false;
                     break;
                 }
+                clearerr(f);
                 continue;
             }
             if (ungetc(next_char, f) == EOF) {
+                clearerr(f);
                 success = false;
                 break;
             }
         } else {
             if (ungetc(c, f) == EOF) {
+                clearerr(f);
                 success = false;
                 break;
             }
         }
 
+        clearerr(f);
+
         char* command = history_read_entry(h, f, sbuf);
-        if (command == NULL)
+        if (command == NULL) {
+            if (ferror(f)) {
+                success = false;
+                break;
+            }
+            if (feof(f))
+                break;
+            clearerr(f);
             continue;
+        }
 
         entry.command = command;
         history_entry_normalize_metadata(&entry);
