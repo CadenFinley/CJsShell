@@ -16,6 +16,7 @@ CommandDoc make_doc(std::string summary, std::vector<CompletionEntry> entries) {
     doc.summary = std::move(summary);
     doc.summary_present = !doc.summary.empty();
     doc.entries = std::move(entries);
+    doc.executable_path.clear();
     return doc;
 }
 

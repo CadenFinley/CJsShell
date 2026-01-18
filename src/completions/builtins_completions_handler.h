@@ -20,6 +20,7 @@ struct CompletionEntry {
 struct CommandDoc {
     std::vector<CompletionEntry> entries;
     std::string summary;
+    std::string executable_path;
     bool summary_present{false};
 };
 
