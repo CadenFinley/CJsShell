@@ -6,9 +6,12 @@
 
 #include <algorithm>
 #include <atomic>
+#include <chrono>
+#include <iomanip>
 #include <iostream>
 #include <limits>
 #include <mutex>
+#include <sstream>
 #include <thread>
 #include <vector>
 
@@ -162,6 +165,8 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
     std::sort(targets.begin(), targets.end());
     targets.erase(std::unique(targets.begin(), targets.end()), targets.end());
 
+    const auto start_time = std::chrono::steady_clock::now();
+
     std::vector<std::string> failures;
     std::atomic<bool> cancel_requested{false};
     std::mutex signal_poll_mutex;
@@ -308,12 +313,18 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
     }
 
     if (!quiet) {
+        const auto elapsed = std::chrono::steady_clock::now() - start_time;
+        const auto elapsed_seconds =
+            std::chrono::duration_cast<std::chrono::duration<double>>(elapsed);
+        std::ostringstream elapsed_stream;
+        elapsed_stream << std::fixed << std::setprecision(1) << elapsed_seconds.count() << "s";
+
         std::cout << "generate-completions: " << success_count << "/" << targets.size()
                   << " updated";
         if (!failures.empty()) {
             std::cout << ", " << failures.size() << " missing";
         }
-        std::cout << std::endl;
+        std::cout << ", total time " << elapsed_stream.str() << std::endl;
         std::cout << "You may see elevated reported memory usage during this session until cjsh "
                      "is restarted because of this command."
                   << std::endl;
