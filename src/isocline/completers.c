@@ -435,11 +435,11 @@ static bool ls_colors_append(stringbuf_t* sb, file_type_t ft, const char* ext) {
 static void ls_colorize(bool no_lscolor, stringbuf_t* sb, file_type_t ft, const char* name,
                         const char* ext, char dirsep) {
     bool close = (no_lscolor ? false : ls_colors_append(sb, ft, ext));
-    sbuf_append(sb, "[!pre]");
+    sbuf_append(sb, "[ic-source]");
     sbuf_append(sb, name);
     if (dirsep != 0)
         sbuf_append_char(sb, dirsep);
-    sbuf_append(sb, "[/pre]");
+    sbuf_append(sb, "[/ic-source]");
     if (close) {
         sbuf_append(sb, "[/]");
     }
