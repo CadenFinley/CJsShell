@@ -49,6 +49,7 @@
 #include "isocline_print.c"
 #include "isocline_readline.c"
 #include "isocline_terminal.c"
+#include "prompt_line_replacement.c"
 #include "stringbuf.c"
 #include "term.c"
 #include "tty.c"
