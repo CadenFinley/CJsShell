@@ -63,5 +63,6 @@
 #define SPEC_UNDO "ctrl+z|ctrl+_"
 #define SPEC_REDO "ctrl+y"
 #define SPEC_COMPLETE "tab|alt+?"
+#define SPEC_SHOW_HELP "f1"
 
 #endif  // CJSH_KEYBINDING_SPECS_H

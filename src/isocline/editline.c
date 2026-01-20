@@ -2108,6 +2108,40 @@ static void edit_insert_char(ic_env_t* env, editor_t* eb, char c) {
 #include "editline_help.c"
 
 //-------------------------------------------------------------
+// Status hints
+//-------------------------------------------------------------
+
+enum {
+    EDIT_STATUS_HINT_BUFFER_LEN = 512,
+    EDIT_STATUS_HINT_KEYS_LEN = 128
+};
+
+static bool edit_format_default_status_hints(ic_env_t* env, char* buffer, size_t buflen) {
+    if (env == NULL || buffer == NULL || buflen == 0) {
+        return false;
+    }
+
+    char completion_keys[EDIT_STATUS_HINT_KEYS_LEN];
+    char history_search_keys[EDIT_STATUS_HINT_KEYS_LEN];
+    char help_keys[EDIT_STATUS_HINT_KEYS_LEN];
+
+    format_binding_keys(env, IC_KEY_ACTION_COMPLETE, NULL, completion_keys,
+                        sizeof(completion_keys));
+    format_binding_keys(env, IC_KEY_ACTION_HISTORY_SEARCH, NULL, history_search_keys,
+                        sizeof(history_search_keys));
+    format_binding_keys(env, IC_KEY_ACTION_SHOW_HELP, NULL, help_keys, sizeof(help_keys));
+
+    int written =
+        snprintf(buffer, buflen, "[ic-status]complete: %s  history search: %s  help: %s[/]",
+                 completion_keys, history_search_keys, help_keys);
+    if (written < 0) {
+        buffer[0] = '\0';
+        return false;
+    }
+    return true;
+}
+
+//-------------------------------------------------------------
 // History
 //-------------------------------------------------------------
 
@@ -2179,6 +2213,7 @@ static bool edit_update_status_message(ic_env_t* env, editor_t* eb) {
         return false;
 
     const char* next = NULL;
+    char fallback_buffer[EDIT_STATUS_HINT_BUFFER_LEN];
     if (env->status_message_callback != NULL) {
         const char* input_text = sbuf_string(eb->input);
         next = env->status_message_callback(input_text != NULL ? input_text : "",
@@ -2189,11 +2224,14 @@ static bool edit_update_status_message(ic_env_t* env, editor_t* eb) {
     }
 
     if (next == NULL) {
-        if (sbuf_len(eb->status) > 0) {
+        if (edit_format_default_status_hints(env, fallback_buffer, sizeof(fallback_buffer))) {
+            next = fallback_buffer;
+        } else if (sbuf_len(eb->status) > 0) {
             sbuf_clear(eb->status);
             return true;
+        } else {
+            return false;
         }
-        return false;
     }
 
     const char* current = sbuf_string(eb->status);
