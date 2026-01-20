@@ -178,6 +178,70 @@ static void beautify_key_label(char* label) {
     }
 }
 
+static bool format_first_default_binding(ic_env_t* env, ic_key_action_t action,
+                                         const char* default_specs, char* buffer, size_t buflen) {
+    if (buffer == NULL || buflen == 0)
+        return false;
+
+    const char* specs_to_use = default_specs;
+    if ((specs_to_use == NULL || specs_to_use[0] == '\0') && action > IC_KEY_ACTION_NONE &&
+        action < IC_KEY_ACTION__MAX) {
+        specs_to_use = ic_key_binding_profile_default_specs(action);
+    }
+    if (specs_to_use == NULL || specs_to_use[0] == '\0')
+        return false;
+
+    size_t len = strlen(specs_to_use);
+    size_t start = 0;
+    for (size_t i = 0; i <= len; ++i) {
+        if (specs_to_use[i] == '|' || specs_to_use[i] == '\0') {
+            size_t tok_len = i - start;
+            if (tok_len > 0 && tok_len < 64) {
+                char token[64];
+                memcpy(token, specs_to_use + start, tok_len);
+                token[tok_len] = '\0';
+                size_t left = 0;
+                while (token[left] == ' ')
+                    left++;
+                size_t right = strlen(token);
+                while (right > left && token[right - 1] == ' ')
+                    right--;
+                token[right] = '\0';
+                if (right > left) {
+                    const char* trimmed = token + left;
+                    ic_keycode_t key;
+                    if (ic_parse_key_spec(trimmed, &key) &&
+                        key_triggers_action(env, key, action) &&
+                        ic_format_key_spec(key, buffer, buflen)) {
+                        beautify_key_label(buffer);
+                        return true;
+                    }
+                }
+            }
+            start = i + 1;
+        }
+    }
+    return false;
+}
+
+static bool format_first_custom_binding(ic_env_t* env, ic_key_action_t action, char* buffer,
+                                        size_t buflen) {
+    if (env == NULL || buffer == NULL || buflen == 0)
+        return false;
+    if (env->key_binding_count <= 0 || env->key_bindings == NULL)
+        return false;
+    for (ssize_t i = 0; i < env->key_binding_count; ++i) {
+        ic_key_binding_entry_t entry = env->key_bindings[i];
+        if (entry.action != action)
+            continue;
+        if (ic_format_key_spec(entry.key, buffer, buflen)) {
+            beautify_key_label(buffer);
+            return true;
+        }
+    }
+    return false;
+}
+
 #define HELP_MAX_LABELS 16
 #define HELP_LABEL_LEN 64
 
@@ -206,9 +270,18 @@ static void help_label_add(char labels[][HELP_LABEL_LEN], size_t* count, const c
 }
 
 static void format_binding_keys(ic_env_t* env, ic_key_action_t action, const char* default_specs,
-                                char* buffer, size_t buflen) {
+                                char* buffer, size_t buflen, bool status_hint_mode) {
     if (buffer == NULL || buflen == 0)
         return;
+
+    if (status_hint_mode) {
+        if (format_first_custom_binding(env, action, buffer, buflen))
+            return;
+        if (format_first_default_binding(env, action, default_specs, buffer, buflen))
+            return;
+        ic_strncpy(buffer, (ssize_t)buflen, "(unbound)", (ssize_t)buflen - 1);
+        return;
+    }
     char labels[HELP_MAX_LABELS][HELP_LABEL_LEN];
     size_t label_count = 0;
 
@@ -305,7 +378,7 @@ static void edit_show_help(ic_env_t* env, editor_t* eb) {
             case HELP_LINE_BINDING: {
                 char key_buffer[256];
                 format_binding_keys(env, line->action, line->default_specs, key_buffer,
-                                    sizeof(key_buffer));
+                                    sizeof(key_buffer), false);
                 bbcode_printf(env->bbcode, "  [ic-emphasis]%-13s[/][ansi-lightgray]%s%s[/]\n",
                               key_buffer, (line->description[0] == 0 ? "" : ": "),
                               line->description);

@@ -2126,10 +2126,10 @@ static bool edit_format_default_status_hints(ic_env_t* env, char* buffer, size_t
     char help_keys[EDIT_STATUS_HINT_KEYS_LEN];
 
     format_binding_keys(env, IC_KEY_ACTION_COMPLETE, NULL, completion_keys,
-                        sizeof(completion_keys));
+                        sizeof(completion_keys), true);
     format_binding_keys(env, IC_KEY_ACTION_HISTORY_SEARCH, NULL, history_search_keys,
-                        sizeof(history_search_keys));
-    format_binding_keys(env, IC_KEY_ACTION_SHOW_HELP, NULL, help_keys, sizeof(help_keys));
+                        sizeof(history_search_keys), true);
+    format_binding_keys(env, IC_KEY_ACTION_SHOW_HELP, NULL, help_keys, sizeof(help_keys), true);
 
     int written =
         snprintf(buffer, buflen, "[ic-status]complete: %s  history search: %s  help: %s[/]",
