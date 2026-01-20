@@ -26,6 +26,11 @@
 // Help: this is included into editline.c
 //-------------------------------------------------------------
 
+#include <string.h>
+
+#include "common.h"
+#include "isocline.h"
+
 typedef enum help_line_type_e {
     HELP_LINE_BLANK,
     HELP_LINE_HEADING,
@@ -40,8 +45,6 @@ typedef struct help_line_s {
     ic_key_action_t action;
     const char* default_specs;
 } help_line_t;
-
-#include "isocline.h"
 
 static const help_line_t help_lines[] = {
     {HELP_LINE_BLANK, NULL, NULL, IC_KEY_ACTION__MAX, NULL},
@@ -387,6 +390,9 @@ static void edit_show_help(ic_env_t* env, editor_t* eb) {
         }
     }
 
+    if (eb->prompt_prefix_lines > 0) {
+        redraw_prompt_prefix_lines(env, eb);
+    }
     eb->cur_rows = 0;
     eb->cur_row = 0;
     edit_refresh(env, eb);

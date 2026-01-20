@@ -71,6 +71,7 @@ typedef struct editor_s {
     editstate_t* undo;                // undo buffer
     editstate_t* redo;                // redo buffer
     const char* prompt_text;          // text of the prompt before the prompt marker
+    char* prompt_prefix_text;         // cached multi-line prompt prefix (everything before last line)
     ssize_t prompt_prefix_lines;      // number of prefix lines emitted for prompt
     bool prompt_begins_with_newline;  // prompt started with a leading newline
     bool replace_prompt_line_with_number;  // should row 0 use line numbers instead of prompt text?
@@ -153,6 +154,8 @@ static void edit_swap_char(ic_env_t* env, editor_t* eb);
 static void edit_insert_char(ic_env_t* env, editor_t* eb, char c);
 static bool edit_try_expand_abbreviation(ic_env_t* env, editor_t* eb, bool boundary_char_present,
                                          bool modification_started);
+static void edit_refresh(ic_env_t* env, editor_t* eb);
+static void redraw_prompt_prefix_lines(ic_env_t* env, editor_t* eb);
 
 static bool key_action_execute(ic_env_t* env, editor_t* eb, ic_key_action_t action) {
     switch (action) {
@@ -287,7 +290,6 @@ static bool insert_initial_input(const char* initial_input,
 
 static char* edit_line(ic_env_t* env, const char* prompt_text,
                        const char* inline_right_text);  // defined at bottom
-static void edit_refresh(ic_env_t* env, editor_t* eb);
 static bool sbuf_ends_with_newline(stringbuf_t* sbuf);
 static bool edit_update_status_message(ic_env_t* env, editor_t* eb);
 
@@ -636,7 +638,15 @@ static char* extract_last_prompt_line(alloc_t* mem, const char* prompt_text) {
 }
 
 // Helper function to print all but the last line of a multi-line prompt
-static ssize_t print_prompt_prefix_lines(ic_env_t* env, const char* prompt_text) {
+static ssize_t print_prompt_prefix_lines(ic_env_t* env, editor_t* eb, const char* prompt_text) {
+    if (env == NULL || eb == NULL)
+        return 0;
+
+    if (eb->prompt_prefix_text != NULL) {
+        mem_free(env->mem, eb->prompt_prefix_text);
+        eb->prompt_prefix_text = NULL;
+    }
+
     if (prompt_text == NULL)
         return 0;
 
@@ -646,27 +656,37 @@ static ssize_t print_prompt_prefix_lines(ic_env_t* env, const char* prompt_text)
         return 0;
     }
 
-    // Print everything up to (but not including) the last newline
-    size_t prefix_length = to_size_t(last_newline - prompt_text + 1);  // +1 to include newline
-    char* prefix = (char*)malloc(prefix_length + 1);
+    ssize_t prefix_length = to_ssize_t(last_newline - prompt_text + 1);  // +1 to include newline
+    if (prefix_length <= 0)
+        return 0;
+
+    char* prefix = mem_strndup(env->mem, prompt_text, prefix_length);
     if (prefix == NULL)
         return 0;
 
-    strncpy(prefix, prompt_text, prefix_length);
-    prefix[prefix_length] = '\0';
+    eb->prompt_prefix_text = prefix;
 
     // Print the prefix lines directly to the terminal
     bbcode_print(env->bbcode, prefix);
 
     // Count how many lines we emitted (number of newline characters)
     ssize_t lines = 0;
-    for (const char* p = prompt_text; p <= last_newline; ++p) {
-        if (*p == '\n')
+    for (ssize_t i = 0; i < prefix_length; ++i) {
+        if (prefix[i] == '\n') {
             lines++;
+        }
     }
 
-    free(prefix);
     return lines;
+}
+
+static void redraw_prompt_prefix_lines(ic_env_t* env, editor_t* eb) {
+    if (env == NULL || eb == NULL)
+        return;
+    if (eb->prompt_prefix_text == NULL || eb->prompt_prefix_lines <= 0)
+        return;
+    term_start_of_line(env->term);
+    bbcode_print(env->bbcode, eb->prompt_prefix_text);
 }
 
 static void format_line_number_prompt(char* buffer, size_t buffer_size, ssize_t row,
@@ -1345,6 +1365,9 @@ static void edit_clear_screen(ic_env_t* env, editor_t* eb) {
     eb->cur_rows = term_get_height(env->term) - 1;
     edit_clear(env, eb);
     eb->cur_rows = cur_rows;
+    if (eb->prompt_prefix_lines > 0) {
+        redraw_prompt_prefix_lines(env, eb);
+    }
     edit_refresh(env, eb);
 }
 
@@ -2310,6 +2333,7 @@ static void edit_release_editor(ic_env_t* env, editor_t* eb) {
     sbuf_free(eb->hint_help);
     sbuf_free(eb->history_prefix);
     mem_free(env->mem, (void*)eb->prompt_text);
+    mem_free(env->mem, eb->prompt_prefix_text);
 }
 
 static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inline_right_text) {
@@ -2332,7 +2356,7 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
     // Handle multi-line prompts: print prefix lines and use only the last line
     // as the prompt
     const char* original_prompt = (prompt_text != NULL ? prompt_text : "");
-    eb.prompt_prefix_lines = print_prompt_prefix_lines(env, original_prompt);
+    eb.prompt_prefix_lines = print_prompt_prefix_lines(env, &eb, original_prompt);
     eb.prompt_begins_with_newline = (original_prompt[0] == '\n');
     char* last_line_prompt = extract_last_prompt_line(env->mem, original_prompt);
     eb.prompt_text = last_line_prompt;
@@ -2854,7 +2878,7 @@ ic_public bool ic_current_loop_reset(const char* new_buffer, const char* new_pro
         eb->prompt_text = last_line_prompt;
 
         // Print prefix lines if any
-        eb->prompt_prefix_lines = print_prompt_prefix_lines(env, new_prompt);
+        eb->prompt_prefix_lines = print_prompt_prefix_lines(env, eb, new_prompt);
         eb->prompt_begins_with_newline = (new_prompt[0] == '\n');
         eb->replace_prompt_line_with_number = prompt_line_should_use_line_numbers(env, eb);
     }
