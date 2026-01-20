@@ -233,6 +233,18 @@ Short help messages are displayed for certain operations:
 cjshopt inline-help on|off|status
 ```
 
+**Status Hint Banner:**
+Configure when the underlined shortcut banner (`complete`, `history search`, `help`, etc.) shows up.
+
+```bash
+cjshopt status-hints <off|normal|transient|persistent|status>
+```
+
+- `off` – hide the banner entirely.
+- `normal` (default) – display it only when both the input buffer and status line are empty.
+- `transient` – show it whenever no other status message is present.
+- `persistent` – always prepend it above any status output.
+
 **Full Help:**
 Press `F1` at any time to display the complete key binding cheat sheet, regardless of the inline-help setting.
 

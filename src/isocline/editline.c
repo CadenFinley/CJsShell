@@ -2212,35 +2212,88 @@ static bool edit_update_status_message(ic_env_t* env, editor_t* eb) {
     if (env == NULL || eb == NULL || eb->status == NULL)
         return false;
 
-    const char* next = NULL;
-    char fallback_buffer[EDIT_STATUS_HINT_BUFFER_LEN];
+    const char* custom_message = NULL;
     if (env->status_message_callback != NULL) {
         const char* input_text = sbuf_string(eb->input);
-        next = env->status_message_callback(input_text != NULL ? input_text : "",
-                                            env->status_message_arg);
-        if (next != NULL && next[0] == '\0') {
-            next = NULL;
+        custom_message = env->status_message_callback(input_text != NULL ? input_text : "",
+                                                     env->status_message_arg);
+        if (custom_message != NULL && custom_message[0] == '\0') {
+            custom_message = NULL;
         }
     }
 
-    if (next == NULL) {
+    const bool has_custom_message = (custom_message != NULL);
+    const bool input_empty = (eb->input == NULL ? true : (sbuf_len(eb->input) == 0));
+    const ic_status_hint_mode_t mode = env->status_hint_mode;
+
+    bool request_default = false;
+    bool combine_with_custom = false;
+    switch (mode) {
+        case IC_STATUS_HINT_OFF:
+            request_default = false;
+            break;
+        case IC_STATUS_HINT_NORMAL:
+            request_default = (!has_custom_message && input_empty);
+            break;
+        case IC_STATUS_HINT_TRANSIENT:
+            request_default = !has_custom_message;
+            break;
+        case IC_STATUS_HINT_PERSISTENT:
+            request_default = true;
+            combine_with_custom = has_custom_message;
+            break;
+        default:
+            request_default = !has_custom_message;
+            break;
+    }
+
+    char fallback_buffer[EDIT_STATUS_HINT_BUFFER_LEN];
+    const char* next = custom_message;
+    stringbuf_t* combined = NULL;
+
+    if (request_default) {
         if (edit_format_default_status_hints(env, fallback_buffer, sizeof(fallback_buffer))) {
-            next = fallback_buffer;
-        } else if (sbuf_len(eb->status) > 0) {
-            sbuf_clear(eb->status);
-            return true;
-        } else {
+            if (combine_with_custom && has_custom_message) {
+                combined = sbuf_new(eb->mem);
+                if (combined != NULL) {
+                    sbuf_append(combined, fallback_buffer);
+                    if (custom_message[0] != '\0') {
+                        sbuf_append_char(combined, '\n');
+                        sbuf_append(combined, custom_message);
+                    }
+                    next = sbuf_string(combined);
+                } else {
+                    next = custom_message;
+                }
+            } else {
+                next = fallback_buffer;
+            }
+        } else if (!has_custom_message) {
+            if (sbuf_len(eb->status) > 0) {
+                sbuf_clear(eb->status);
+                return true;
+            }
             return false;
         }
     }
 
+    bool changed = false;
     const char* current = sbuf_string(eb->status);
-    if (current != NULL && strcmp(current, next) == 0) {
-        return false;
+    if (next == NULL) {
+        if (sbuf_len(eb->status) > 0) {
+            sbuf_clear(eb->status);
+            changed = true;
+        }
+    } else if (current == NULL || strcmp(current, next) != 0) {
+        sbuf_replace(eb->status, next);
+        changed = true;
     }
 
-    sbuf_replace(eb->status, next);
-    return true;
+    if (combined != NULL) {
+        sbuf_free(combined);
+    }
+
+    return changed;
 }
 
 static void edit_release_editor(ic_env_t* env, editor_t* eb) {

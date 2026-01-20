@@ -24,6 +24,7 @@ int multiline_indent_command(const std::vector<std::string>& args);
 int multiline_command(const std::vector<std::string>& args);
 int multiline_start_lines_command(const std::vector<std::string>& args);
 int inline_help_command(const std::vector<std::string>& args);
+int status_hints_command(const std::vector<std::string>& args);
 int auto_tab_command(const std::vector<std::string>& args);
 int prompt_newline_command(const std::vector<std::string>& args);
 int prompt_cleanup_command(const std::vector<std::string>& args);

@@ -52,9 +52,10 @@ for full details.
 - **Runtime toggles** – Every major interactive feature has a `cjshopt` command. Highlights:
     - `cjshopt multiline`, `cjshopt multiline-indent`, `cjshopt line-numbers`,
         `cjshopt multiline-start-lines`
-    - `cjshopt completion-preview`, `cjshopt completion-case`, `cjshopt completion-spell`,
-        `cjshopt auto-tab`
-    - `cjshopt hint`, `cjshopt hint-delay`, `cjshopt inline-help`, `cjshopt visible-whitespace`
+     - `cjshopt completion-preview`, `cjshopt completion-case`, `cjshopt completion-spell`,
+         `cjshopt auto-tab`
+     - `cjshopt hint`, `cjshopt hint-delay`, `cjshopt inline-help`, `cjshopt status-hints`,
+        `cjshopt visible-whitespace`
     - `cjshopt prompt-newline`, `cjshopt prompt-cleanup`, `cjshopt prompt-cleanup-newline`,
         `cjshopt prompt-cleanup-empty-line`, `cjshopt prompt-cleanup-truncate`
     - `cjshopt keybind …` and `cjshopt keybind ext …` for keymap management

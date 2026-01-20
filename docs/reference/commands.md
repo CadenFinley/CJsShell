@@ -850,6 +850,29 @@ cjshopt inline-help status   # Show the current setting
 
 Supports synonyms such as `enable`, `disable`, `true`, and `false`. Add the command to `~/.cjshrc` to make the setting permanent.
 
+#### status-hints
+
+Control the underlined status hint banner (the line that lists keys like `complete`, `history search`, and `help`). Pick when it appears using one of four modes:
+
+- `off` – never display the banner.
+- `normal` – only show the banner when both the input buffer and status area are empty (default).
+- `transient` – show the banner whenever the status area has no other content.
+- `persistent` – always prepend the banner above any other status message.
+
+```bash
+cjshopt status-hints <off|normal|transient|persistent|status>
+```
+
+Examples:
+
+```bash
+cjshopt status-hints normal      # Only surface the hints on an empty prompt
+cjshopt status-hints persistent  # Keep the banner visible at all times
+cjshopt status-hints status      # Show the current mode
+```
+
+Add the command to `~/.cjshrc` to persist the mode across sessions.
+
 #### auto-tab
 
 Configure automatic tab completion behavior. When enabled, the shell may automatically complete commands or show completions without requiring explicit tab key presses. **Disabled by default.**
@@ -990,5 +1013,3 @@ cjshopt prompt-cleanup-truncate off
 ```
 
 All prompt-cleanup toggles accept `status` to report their current state and can be persisted by adding the commands to `~/.cjshrc`.
-
-

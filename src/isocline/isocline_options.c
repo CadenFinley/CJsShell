@@ -379,6 +379,33 @@ ic_public bool ic_enable_inline_help(bool enable) {
     return !prev;
 }
 
+ic_public ic_status_hint_mode_t ic_set_status_hint_mode(ic_status_hint_mode_t mode) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return IC_STATUS_HINT_NORMAL;
+
+    ic_status_hint_mode_t prev = env->status_hint_mode;
+    switch (mode) {
+        case IC_STATUS_HINT_OFF:
+        case IC_STATUS_HINT_NORMAL:
+        case IC_STATUS_HINT_TRANSIENT:
+        case IC_STATUS_HINT_PERSISTENT:
+            env->status_hint_mode = mode;
+            break;
+        default:
+            env->status_hint_mode = IC_STATUS_HINT_NORMAL;
+            break;
+    }
+    return prev;
+}
+
+ic_public ic_status_hint_mode_t ic_get_status_hint_mode(void) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return IC_STATUS_HINT_NORMAL;
+    return env->status_hint_mode;
+}
+
 ic_public bool ic_enable_prompt_cleanup(bool enable, size_t extra_lines) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)

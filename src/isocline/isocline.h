@@ -138,6 +138,24 @@ typedef const char*(ic_status_message_fun_t)(const char* input_buffer, void* arg
 /// @param arg User-provided argument forwarded to the callback
 void ic_set_status_message_callback(ic_status_message_fun_t* callback, void* arg);
 
+/// Controls when the built-in status hint line (the underlined control hints) is displayed.
+/// - `IC_STATUS_HINT_OFF`: never show the built-in hints.
+/// - `IC_STATUS_HINT_NORMAL`: show only when both the input buffer and the status line are empty.
+/// - `IC_STATUS_HINT_TRANSIENT`: show whenever the status line has no other content (default).
+/// - `IC_STATUS_HINT_PERSISTENT`: always show and prepend the hints above other status messages.
+typedef enum ic_status_hint_mode_e {
+    IC_STATUS_HINT_OFF = 0,
+    IC_STATUS_HINT_NORMAL,
+    IC_STATUS_HINT_TRANSIENT,
+    IC_STATUS_HINT_PERSISTENT,
+} ic_status_hint_mode_t;
+
+/// Set when the default status hint line should be rendered. Returns the previous mode.
+ic_status_hint_mode_t ic_set_status_hint_mode(ic_status_hint_mode_t mode);
+
+/// Get the current status hint rendering mode.
+ic_status_hint_mode_t ic_get_status_hint_mode(void);
+
 /// Queue multiple key events so they are processed before the next read.
 /// Returns `false` if the readline environment is not yet initialized.
 bool ic_push_key_sequence(const ic_keycode_t* keys, size_t count);

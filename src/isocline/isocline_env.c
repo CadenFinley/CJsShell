@@ -118,6 +118,7 @@ static ic_env_t* ic_env_create(ic_malloc_fun_t* _malloc, ic_realloc_fun_t* _real
     env->no_multiline_indent = false;     // multiline indent (inverted: false = enabled)
     env->singleline_only = false;         // multiline (inverted: false = enabled)
     env->multiline_start_line_count = 1;  // preallocated prompt lines when multiline is on
+    env->status_hint_mode = IC_STATUS_HINT_NORMAL;  // default to legacy behavior
 
     if (env->tty == NULL || env->term == NULL || env->completions == NULL || env->history == NULL ||
         env->bbcode == NULL || !term_is_interactive(env->term)) {

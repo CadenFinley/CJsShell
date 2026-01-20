@@ -86,6 +86,36 @@ std::string format_persist_message(const ToggleCommandConfig& config, bool enabl
     return result;
 }
 
+std::string describe_status_hint_mode(ic_status_hint_mode_t mode) {
+    switch (mode) {
+        case IC_STATUS_HINT_OFF:
+            return "hidden (never shown)";
+        case IC_STATUS_HINT_NORMAL:
+            return "normal (default: only when input and status are empty)";
+        case IC_STATUS_HINT_TRANSIENT:
+            return "transient (show when the status line is empty)";
+        case IC_STATUS_HINT_PERSISTENT:
+            return "persistent (always prepended above status lines)";
+        default:
+            return "unknown";
+    }
+}
+
+const char* canonical_status_hint_token(ic_status_hint_mode_t mode) {
+    switch (mode) {
+        case IC_STATUS_HINT_OFF:
+            return "off";
+        case IC_STATUS_HINT_NORMAL:
+            return "normal";
+        case IC_STATUS_HINT_TRANSIENT:
+            return "transient";
+        case IC_STATUS_HINT_PERSISTENT:
+            return "persistent";
+        default:
+            return "normal";
+    }
+}
+
 int handle_toggle_command(const ToggleCommandConfig& config, const std::vector<std::string>& args) {
     if (args.size() == 1) {
         print_error({ErrorType::INVALID_ARGUMENT, config.command_name, "Missing option argument",
@@ -626,6 +656,86 @@ int inline_help_command(const std::vector<std::string>& args) {
         {}};
 
     return handle_toggle_command(config, args);
+}
+
+int status_hints_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: status-hints <off|normal|transient|persistent|status>",
+        "Examples:",
+        "  status-hints off          Never display the underlined status hints",
+        "  status-hints normal       Only show hints when the buffer and status are blank (default)",
+        "  status-hints transient    Show hints when the status line is empty",
+        "  status-hints persistent   Always prepend hints above other status messages",
+        "  status-hints status       Show the current mode"};
+
+    if (args.size() == 1) {
+        print_error({ErrorType::INVALID_ARGUMENT, "status-hints", "Missing option argument",
+                     usage_lines});
+        return 1;
+    }
+
+    if (args.size() == 2 && (args[1] == "--help" || args[1] == "-h")) {
+        if (!g_startup_active) {
+            for (const auto& line : usage_lines) {
+                std::cout << line << '\n';
+            }
+            std::cout << "Current: " << describe_status_hint_mode(ic_get_status_hint_mode())
+                      << '\n';
+        }
+        return 0;
+    }
+
+    if (args.size() != 2) {
+        print_error({ErrorType::INVALID_ARGUMENT, "status-hints", "Too many arguments provided",
+                     usage_lines});
+        return 1;
+    }
+
+    const std::string& option = args[1];
+    const std::string normalized = normalize_option(option);
+
+    if (matches_token(normalized, {"status", "--status"})) {
+        if (!g_startup_active) {
+            std::cout << "Status hints are currently "
+                      << describe_status_hint_mode(ic_get_status_hint_mode()) << ".\n";
+        }
+        return 0;
+    }
+
+    ic_status_hint_mode_t target = IC_STATUS_HINT_NORMAL;
+    bool recognized = true;
+
+    if (matches_token(normalized,
+                      {"off", "disable", "disabled", "never", "hidden", "--disable"})) {
+        target = IC_STATUS_HINT_OFF;
+    } else if (matches_token(normalized, {"normal", "minimal", "empty-only", "default"})) {
+        target = IC_STATUS_HINT_NORMAL;
+    } else if (matches_token(normalized, {"transient", "auto"})) {
+        target = IC_STATUS_HINT_TRANSIENT;
+    } else if (matches_token(normalized, {"persistent", "always", "always-on", "on"})) {
+        target = IC_STATUS_HINT_PERSISTENT;
+    } else {
+        recognized = false;
+    }
+
+    if (!recognized) {
+        print_error({ErrorType::INVALID_ARGUMENT, "status-hints",
+                     "Unknown option '" + option + "'", usage_lines});
+        return 1;
+    }
+
+    ic_status_hint_mode_t previous = ic_set_status_hint_mode(target);
+    if (previous == target) {
+        return 0;
+    }
+
+    if (!g_startup_active) {
+        std::cout << "Status hints set to " << describe_status_hint_mode(target) << ".\n";
+        std::cout << "Add `cjshopt status-hints " << canonical_status_hint_token(target)
+                  << "` to your ~/.cjshrc to persist this change.\n";
+    }
+
+    return 0;
 }
 
 int auto_tab_command(const std::vector<std::string>& args) {

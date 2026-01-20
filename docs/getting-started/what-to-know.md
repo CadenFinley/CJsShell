@@ -72,6 +72,10 @@ cjshopt hint-delay <milliseconds|status>
 **Status:** Enabled  
 **Configure:** `cjshopt inline-help on|off|status`
 
+### Status Hint Banner
+**Status:** `normal` (only shows when both the buffer and status line are empty)  
+**Configure:** `cjshopt status-hints <off|normal|transient|persistent|status>`
+
 ### Visible Whitespace Markers
 **Status:** Disabled  
 **Configure:** `cjshopt visible-whitespace on|off|status`

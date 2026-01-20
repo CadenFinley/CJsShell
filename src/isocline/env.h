@@ -68,6 +68,7 @@ struct ic_env_s {
     void* unhandled_key_arg;                           // user state for unhandled key handler
     ic_status_message_fun_t* status_message_callback;  // callback for status message text
     void* status_message_arg;                          // user state for status callback
+    ic_status_hint_mode_t status_hint_mode;            // rendering behavior for default hints
     const char* match_braces;                          // matching braces, e.g "()[]{}"
     const char* auto_braces;                           // auto insertion braces, e.g "()[]{}\"\"''"
     const char* initial_input;                         // initial input text to insert into editor

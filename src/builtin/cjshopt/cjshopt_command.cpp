@@ -38,6 +38,8 @@ void print_cjshopt_usage() {
     std::cout << "  multiline <on|off|status>       Configure multiline input (default: enabled)\n";
     std::cout
         << "  inline-help <on|off|status>     Configure inline help messages (default: enabled)\n";
+    std::cout << "  status-hints <off|normal|transient|persistent|status>  Control the default "
+                 "status hint banner (default: normal)\n";
     std::cout << "  auto-tab <on|off|status>        Configure automatic tab completion (default: "
                  "enabled)\n";
     std::cout
@@ -110,11 +112,13 @@ int cjshopt_command(const std::vector<std::string>& args) {
                      "  multiline-indent <on|off|status> Configure auto-indent in multiline ") +
                      "(default: enabled)",
                  "  multiline <on|off|status>       Configure multiline input (default: enabled)",
-                 std::string("  inline-help <on|off|status>     Configure inline help messages ") +
-                     "(default: enabled)",
-                 std::string(
-                     "  auto-tab <on|off|status>        Configure automatic tab completion ") +
-                     "(default: enabled)",
+                  std::string("  inline-help <on|off|status>     Configure inline help messages ") +
+                      "(default: enabled)",
+                  std::string("  status-hints <off|normal|transient|persistent|status>  Control the ") +
+                      "default status hint banner (default: normal)",
+                  std::string(
+                      "  auto-tab <on|off|status>        Configure automatic tab completion ") +
+                      "(default: enabled)",
                  std::string(
                      "  prompt-newline <on|off|status>  Add a newline after command execution ") +
                      "(default: disabled)",
@@ -198,6 +202,9 @@ int cjshopt_command(const std::vector<std::string>& args) {
     if (subcommand == "inline-help") {
         return inline_help_command(std::vector<std::string>(args.begin() + 1, args.end()));
     }
+    if (subcommand == "status-hints") {
+        return status_hints_command(std::vector<std::string>(args.begin() + 1, args.end()));
+    }
     if (subcommand == "auto-tab") {
         return auto_tab_command(std::vector<std::string>(args.begin() + 1, args.end()));
     }
@@ -246,8 +253,7 @@ int cjshopt_command(const std::vector<std::string>& args) {
           "current-line-number-highlight, multiline-start-lines, hint-delay, "
 
           "completion-preview, visible-whitespace, hint, multiline-indent, multiline, inline-help, "
-
-          "auto-tab, prompt-newline, prompt-cleanup, prompt-cleanup-newline, "
+          "status-hints, auto-tab, prompt-newline, prompt-cleanup, prompt-cleanup-newline, "
           "prompt-cleanup-empty-line, prompt-cleanup-truncate, keybind, generate-profile, "
           "generate-rc, generate-logout, set-history-max, set-completion-max"}});
 
