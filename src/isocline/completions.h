@@ -32,6 +32,7 @@
 //-------------------------------------------------------------
 // Completions
 //-------------------------------------------------------------
+#define IC_COMPLETION_DISPLAY_TRUSTED_PREFIX ((char)0x1F)
 #define IC_MAX_COMPLETIONS_TO_SHOW (10000)
 #define IC_MAX_COMPLETIONS_TO_TRY (IC_MAX_COMPLETIONS_TO_SHOW)
 

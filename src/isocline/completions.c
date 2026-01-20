@@ -83,6 +83,9 @@ ic_private void completions_free(completions_t* cms) {
 
 // Escape bbcode control characters so completion metadata cannot inject styles.
 static char* completions_escape_bbcode(alloc_t* mem, const char* text) {
+    if (text != NULL && *text == IC_COMPLETION_DISPLAY_TRUSTED_PREFIX) {
+        return mem_strdup(mem, text + 1);
+    }
     if (text == NULL)
         return NULL;
     const ssize_t len = ic_strlen(text);

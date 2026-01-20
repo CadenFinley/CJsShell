@@ -671,6 +671,7 @@ static bool filename_complete_indir(ic_completion_env_t* cenv, stringbuf_t* dir,
                 if (isdir || match_extension(name, extensions)) {
                     // add completion
                     sbuf_clear(display);
+                    sbuf_append_char(display, IC_COMPLETION_DISPLAY_TRUSTED_PREFIX);
                     ls_colorize(cenv->env->no_lscolors, display, ft, name, NULL,
                                 (isdir ? dir_sep : 0));
                     cont = ic_add_completion_ex(cenv, sbuf_string(dir_prefix), sbuf_string(display),
