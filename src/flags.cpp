@@ -8,6 +8,16 @@
 #include "isocline/isocline.h"
 #include "usage.h"
 
+std::vector<std::string>& startup_args() {
+    static std::vector<std::string> args;
+    return args;
+}
+
+std::vector<std::string>& profile_startup_args() {
+    static std::vector<std::string> args;
+    return args;
+}
+
 namespace flags {
 
 namespace {

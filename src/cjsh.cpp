@@ -30,16 +30,6 @@
 #include "usage.h"
 #include "version_command.h"
 
-std::vector<std::string>& startup_args() {
-    static std::vector<std::string> args;
-    return args;
-}
-
-std::vector<std::string>& profile_startup_args() {
-    static std::vector<std::string> args;
-    return args;
-}
-
 bool g_exit_flag = false;
 bool g_startup_active = true;
 std::uint64_t g_command_sequence = 0;
@@ -122,7 +112,6 @@ void cleanup_resources() {
 }
 
 int run_cjsh(int argc, char* argv[]) {
-    // main entry
     // set start time
     startup_begin_time() = std::chrono::steady_clock::now();
 
@@ -257,6 +246,9 @@ int run_cjsh(int argc, char* argv[]) {
 }
 
 int main(int argc, char* argv[]) {
+    // main entry
+    // we split off the main cjsh runner to allow atexit() to properly scope cleanup if cjsh has to
+    // exit through a non normal path
     int exit_code = run_cjsh(argc, argv);
     cleanup_resources();
     return exit_code;
