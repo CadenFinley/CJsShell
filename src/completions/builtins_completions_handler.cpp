@@ -1,10 +1,10 @@
 #include "builtins_completions_handler.h"
 
-#include <cctype>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
 
+#include "completion_utils.h"
 #include "job_control.h"
 #include "signal_handler.h"
 
@@ -66,37 +66,9 @@ void append_kill_signal_entries(std::vector<CompletionEntry>& entries) {
     add_option_entry("0", "Test for process existence without delivering a signal");
 }
 
-std::string sanitize_job_command_summary(const std::string& command) {
-    std::string summary;
-    summary.reserve(command.size());
-    bool last_was_space = true;
-
-    for (char ch : command) {
-        unsigned char uch = static_cast<unsigned char>(ch);
-        if (std::isspace(uch) != 0) {
-            if (!summary.empty() && !last_was_space) {
-                summary.push_back(' ');
-                last_was_space = true;
-            }
-            continue;
-        }
-        if (std::isprint(uch) == 0)
-            continue;
-        summary.push_back(ch);
-        last_was_space = false;
-        if (summary.size() >= 80)
-            break;
-    }
-
-    while (!summary.empty() && summary.back() == ' ')
-        summary.pop_back();
-
-    return summary;
-}
-
 std::string format_job_description(const JobControlJob& job) {
     const std::string& source = job.has_custom_name() ? job.custom_name : job.command;
-    std::string summary = sanitize_job_command_summary(source);
+    std::string summary = completion_utils::sanitize_job_command_summary(source);
     if (summary.empty())
         summary = "command unavailable";
     return "job %" + std::to_string(job.job_id) + " · " + summary;

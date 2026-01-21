@@ -195,7 +195,35 @@ bool equals_completion_token(const std::string& value, const std::string& target
     }
 
     return std::equal(value.begin(), value.end(), target.begin(),
-                      [](char a, char b) { return std::tolower(a) == std::tolower(b); });
+                       [](char a, char b) { return std::tolower(a) == std::tolower(b); });
+}
+
+std::string sanitize_job_command_summary(const std::string& command) {
+    std::string summary;
+    summary.reserve(command.size());
+    bool last_was_space = true;
+
+    for (char ch : command) {
+        unsigned char uch = static_cast<unsigned char>(ch);
+        if (std::isspace(uch) != 0) {
+            if (!summary.empty() && !last_was_space) {
+                summary.push_back(' ');
+                last_was_space = true;
+            }
+            continue;
+        }
+        if (std::isprint(uch) == 0)
+            continue;
+        summary.push_back(ch);
+        last_was_space = false;
+        if (summary.size() >= 80)
+            break;
+    }
+
+    while (!summary.empty() && summary.back() == ' ')
+        summary.pop_back();
+
+    return summary;
 }
 
 }  // namespace completion_utils

@@ -18,4 +18,6 @@ bool starts_with_case_sensitive(const std::string& str, const std::string& prefi
 bool matches_completion_prefix(const std::string& str, const std::string& prefix);
 bool equals_completion_token(const std::string& value, const std::string& target);
 
+std::string sanitize_job_command_summary(const std::string& command);
+
 }  // namespace completion_utils

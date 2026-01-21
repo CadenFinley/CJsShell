@@ -69,6 +69,18 @@ const char* extract_current_line_prefix(const char* prefix) {
     return prefix;
 }
 
+bool prepare_prefix_state(ic_completion_env_t* cenv, const char* prefix, std::string& prefix_str,
+                          size_t& prefix_len) {
+    if (ic_stop_completing(cenv))
+        return false;
+    if (completion_tracker::completion_limit_hit())
+        return false;
+
+    prefix_str = prefix ? prefix : "";
+    prefix_len = prefix_str.length();
+    return true;
+}
+
 int from_hex_digit(char ch) {
     if (ch >= '0' && ch <= '9') {
         return ch - '0';
@@ -362,34 +374,6 @@ bool is_job_control_command(const std::string& token) {
                        });
 }
 
-std::string sanitize_job_command_summary(const std::string& command) {
-    std::string summary;
-    summary.reserve(command.size());
-    bool last_was_space = true;
-
-    for (char ch : command) {
-        unsigned char uch = static_cast<unsigned char>(ch);
-        if (std::isspace(uch) != 0) {
-            if (!summary.empty() && !last_was_space) {
-                summary.push_back(' ');
-                last_was_space = true;
-            }
-            continue;
-        }
-        if (std::isprint(uch) == 0)
-            continue;
-        summary.push_back(ch);
-        last_was_space = false;
-        if (summary.size() >= 80)
-            break;
-    }
-
-    while (!summary.empty() && summary.back() == ' ')
-        summary.pop_back();
-
-    return summary;
-}
-
 bool add_job_control_argument_completions(ic_completion_env_t* cenv,
                                           const std::vector<std::string>& tokens,
                                           bool ends_with_space) {
@@ -433,8 +417,8 @@ bool add_job_control_argument_completions(ic_completion_env_t* cenv,
         if (ic_stop_completing(cenv))
             break;
 
-        std::string summary =
-            sanitize_job_command_summary(job->has_custom_name() ? job->custom_name : job->command);
+        std::string summary = completion_utils::sanitize_job_command_summary(
+            job->has_custom_name() ? job->custom_name : job->command);
         std::string summary_text = summary.empty() ? "command unavailable" : summary;
         std::string completion_text = "%" + std::to_string(job->job_id);
 
@@ -465,15 +449,10 @@ bool add_job_control_argument_completions(ic_completion_env_t* cenv,
 }  // namespace
 
 void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
-    if (ic_stop_completing(cenv))
+    std::string prefix_str;
+    size_t prefix_len = 0;
+    if (!prepare_prefix_state(cenv, prefix, prefix_str, prefix_len))
         return;
-
-    if (completion_tracker::completion_limit_hit()) {
-        return;
-    }
-
-    std::string prefix_str(prefix);
-    size_t prefix_len = prefix_str.length();
 
     std::vector<std::string> builtin_cmds;
     std::vector<std::string> function_names;
@@ -644,15 +623,10 @@ bool looks_like_file_path(const std::string& str) {
 }
 
 void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
-    if (ic_stop_completing(cenv))
+    std::string prefix_str;
+    size_t prefix_len = 0;
+    if (!prepare_prefix_state(cenv, prefix, prefix_str, prefix_len))
         return;
-
-    if (completion_tracker::completion_limit_hit()) {
-        return;
-    }
-
-    std::string prefix_str(prefix);
-    size_t prefix_len = prefix_str.length();
 
     std::ifstream history_file(cjsh_filesystem::g_cjsh_history_path());
     if (!history_file.is_open()) {
@@ -799,6 +773,25 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
     std::string prefix_before;
     std::string special_part;
 
+    auto complete_special_prefix = [&](const std::string& dir_to_complete,
+                                       bool treat_as_directory, const char* debug_label) {
+        namespace fs = std::filesystem;
+        fs::path dir_path;
+        std::string match_prefix;
+        determine_directory_target(dir_to_complete, treat_as_directory, dir_path, match_prefix);
+
+        try {
+            if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
+                if (!iterate_directory_entries(cenv, dir_path, match_prefix, false, false,
+                                               debug_label))
+                    return false;
+            }
+        } catch (const std::exception&) {
+        }
+
+        return true;
+    };
+
     if (last_space != std::string::npos) {
         prefix_before = prefix_str.substr(0, last_space + 1);
 
@@ -833,20 +826,9 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
             dir_to_complete += "/" + path_after_tilde;
         }
 
-        namespace fs = std::filesystem;
-        fs::path dir_path;
-        std::string match_prefix;
         bool treat_as_directory = !unquoted_special.empty() && unquoted_special.back() == '/';
-        determine_directory_target(dir_to_complete, treat_as_directory, dir_path, match_prefix);
-
-        try {
-            if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
-                if (!iterate_directory_entries(cenv, dir_path, match_prefix, false, false, "tilde"))
-                    return;
-            }
-        } catch (const std::exception& e) {
-        }
-
+        if (!complete_special_prefix(dir_to_complete, treat_as_directory, "tilde"))
+            return;
         return;
     }
     if (has_dash && (special_part.length() == 1 || special_part[1] == '/')) {
@@ -863,20 +845,9 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
             dir_to_complete += "/" + path_after_dash;
         }
 
-        namespace fs = std::filesystem;
-        fs::path dir_path;
-        std::string match_prefix;
         bool treat_as_directory = !unquoted_special.empty() && unquoted_special.back() == '/';
-        determine_directory_target(dir_to_complete, treat_as_directory, dir_path, match_prefix);
-
-        try {
-            if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
-                if (!iterate_directory_entries(cenv, dir_path, match_prefix, false, false, "dash"))
-                    return;
-            }
-        } catch (const std::exception& e) {
-        }
-
+        if (!complete_special_prefix(dir_to_complete, treat_as_directory, "dash"))
+            return;
         return;
     }
 
@@ -923,17 +894,17 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
         return;
     }
 
-    if (directories_only) {
-        std::string path_to_complete = completion_utils::unquote_path(raw_path_input);
+    std::string path_to_complete = completion_utils::unquote_path(raw_path_input);
 
-        namespace fs = std::filesystem;
-        fs::path dir_path;
-        std::string match_prefix;
-        bool treat_as_directory = path_to_complete.empty() || path_to_complete.back() == '/';
-        determine_directory_target(path_to_complete, treat_as_directory, dir_path, match_prefix);
+    namespace fs = std::filesystem;
+    fs::path dir_path;
+    std::string match_prefix;
+    bool treat_as_directory = path_to_complete.empty() || path_to_complete.back() == '/';
+    determine_directory_target(path_to_complete, treat_as_directory, dir_path, match_prefix);
 
-        try {
-            if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
+    try {
+        if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
+            if (directories_only) {
                 bool had_completions_before = ic_has_completions(cenv);
                 if (!iterate_directory_entries(cenv, dir_path, match_prefix, true, true,
                                                "directory-only", entry_filter))
@@ -944,26 +915,13 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                                                    "all files (fallback)", entry_filter))
                         return;
                 }
-            }
-        } catch (const std::exception& e) {
-        }
-    } else {
-        std::string path_to_complete = completion_utils::unquote_path(raw_path_input);
-
-        namespace fs = std::filesystem;
-        fs::path dir_path;
-        std::string match_prefix;
-        bool treat_as_directory = path_to_complete.empty() || path_to_complete.back() == '/';
-        determine_directory_target(path_to_complete, treat_as_directory, dir_path, match_prefix);
-
-        try {
-            if (fs::exists(dir_path) && fs::is_directory(dir_path)) {
+            } else {
                 if (!iterate_directory_entries(cenv, dir_path, match_prefix, false, true,
                                                "general filename", entry_filter))
                     return;
             }
-        } catch (const std::exception& e) {
         }
+    } catch (const std::exception&) {
     }
 }
 
