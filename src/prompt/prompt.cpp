@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <cctype>
 #include <cstdint>
 #include <cstdlib>
 #include <ctime>
@@ -11,8 +12,10 @@
 #include <string>
 
 #include "cjsh.h"
+#include "isocline.h"
 #include "job_control.h"
 #include "shell.h"
+#include "token_constants.h"
 
 namespace prompt {
 namespace {
@@ -69,6 +72,50 @@ std::string get_hostname(bool full) {
         }
     }
     return host;
+}
+
+bool terminal_supports_color() {
+    if (isatty(STDOUT_FILENO) == 0) {
+        return false;
+    }
+
+    if (std::getenv("NO_COLOR") != nullptr) {
+        return false;
+    }
+
+    const char* colorterm = std::getenv("COLORTERM");
+    if (colorterm != nullptr) {
+        std::string colorterm_lower;
+        for (const char* p = colorterm; *p != '\0'; ++p) {
+            colorterm_lower.push_back(
+                static_cast<char>(std::tolower(static_cast<unsigned char>(*p))));
+        }
+        if (colorterm_lower.find("nocolor") != std::string::npos ||
+            colorterm_lower.find("monochrome") != std::string::npos) {
+            return false;
+        }
+        if (!colorterm_lower.empty()) {
+            return true;
+        }
+    }
+
+    const char* term = std::getenv("TERM");
+    if (term == nullptr) {
+        return true;
+    }
+
+    std::string term_lower;
+    for (const char* p = term; *p != '\0'; ++p) {
+        term_lower.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(*p))));
+    }
+
+    const bool unsupported = term_lower.find("dumb") != std::string::npos ||
+                             term_lower.find("cons25") != std::string::npos ||
+                             term_lower.find("emacs") != std::string::npos ||
+                             term_lower.find("nocolor") != std::string::npos ||
+                             term_lower.find("monochrome") != std::string::npos;
+
+    return !unsupported;
 }
 
 std::string format_time(const char* fmt) {
@@ -350,5 +397,34 @@ void execute_prompt_command() {
         return;
     }
     g_shell->execute(command);
+}
+
+void initialize_colors() {
+    if (!config::colors_enabled) {
+        ic_enable_color(false);
+        return;
+    }
+
+    if (!terminal_supports_color()) {
+        config::colors_enabled = false;
+        ic_enable_color(false);
+        return;
+    }
+
+    ic_enable_color(true);
+
+    if (!config::syntax_highlighting_enabled) {
+        return;
+    }
+
+    for (const auto& pair : token_constants::default_styles()) {
+        std::string style_name = pair.first;
+        if (style_name.rfind("ic-", 0) != 0) {
+            style_name = "cjsh-";
+            style_name += pair.first;
+        }
+        ic_style_def(style_name.c_str(), pair.second.c_str());
+        ic_style_def("ic-prompt", "white");
+    }
 }
 }  // namespace prompt

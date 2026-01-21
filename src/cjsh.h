@@ -52,3 +52,5 @@ extern bool cleanup_truncates_multiline;
 }  // namespace config
 
 void cleanup_resources();
+
+int handle_non_interactive_mode(const std::string& script_file);

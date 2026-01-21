@@ -164,4 +164,8 @@ bool create_logout_file(const fs::path& target_path = g_cjsh_logout_path());
 bool init_interactive_filesystem();
 
 bool is_first_boot();
+
+void process_profile_files();
+void process_logout_file();
+void process_source_files();
 }  // namespace cjsh_filesystem

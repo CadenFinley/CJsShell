@@ -7,6 +7,15 @@
 
 #include "cjsh.h"
 
+const bool PRE_RELEASE = false;
+const char* const c_version_base = "4.2.0";
+
+std::string get_version() {
+    static std::string cached_version =
+        std::string(c_version_base) + (PRE_RELEASE ? " (pre-release)" : "");
+    return cached_version;
+}
+
 int version_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(
             args, {"Usage: version", "Display cjsh version and build information.", "",

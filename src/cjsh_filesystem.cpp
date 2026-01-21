@@ -746,4 +746,44 @@ bool is_first_boot() {
     return !fs::exists(g_cjsh_first_boot_path());
 }
 
+void process_profile_files() {
+    if (config::secure_mode) {
+        return;
+    }
+    std::filesystem::path user_profile = g_user_home_path() / ".profile";
+    if (std::filesystem::exists(user_profile)) {
+        g_shell->execute_script_file(user_profile, true);
+    }
+
+    if (std::filesystem::exists(g_cjsh_profile_path())) {
+        g_shell->execute_script_file(g_cjsh_profile_path(), true);
+    } else if (std::filesystem::exists(g_cjsh_profile_alt_path())) {
+        g_shell->execute_script_file(g_cjsh_profile_alt_path(), true);
+    }
+}
+
+void process_logout_file() {
+    if (!config::secure_mode && (config::interactive_mode || config::force_interactive)) {
+        const auto& logout_path = g_cjsh_logout_path();
+        std::error_code logout_status_ec;
+        auto logout_status = std::filesystem::status(logout_path, logout_status_ec);
+
+        if (!logout_status_ec && std::filesystem::is_regular_file(logout_status)) {
+            g_shell->execute_script_file(logout_path, true);
+        }
+    }
+}
+
+void process_source_files() {
+    if (!config::source_enabled || config::secure_mode) {
+        return;
+    }
+
+    if (file_exists(g_cjsh_source_path())) {
+        g_shell->execute_script_file(g_cjsh_source_path());
+    } else if (file_exists(g_cjsh_source_alt_path())) {
+        g_shell->execute_script_file(g_cjsh_source_alt_path());
+    }
+}
+
 }  // namespace cjsh_filesystem

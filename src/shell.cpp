@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <optional>
 #include <sstream>
 #include <system_error>
 
@@ -197,6 +198,103 @@ int Shell::execute(const std::string& script, bool skip_validation) {
     print_error(ErrorInfo{
         ErrorType::RUNTIME_ERROR, "", "No script interpreter available", {"Restart cjsh"}});
     return 1;
+}
+
+int handle_non_interactive_mode(const std::string& script_file) {
+    std::string script_content;
+
+    struct ScriptZeroGuard {
+        ScriptZeroGuard(Shell* shell, const std::string& new_value) : shell_(shell) {
+            const char* current = std::getenv("0");
+            if (current != nullptr) {
+                previous_ = current;
+                had_previous_ = true;
+            }
+            setenv("0", new_value.c_str(), 1);
+            sync_env(new_value.c_str());
+            active_ = true;
+        }
+
+        ~ScriptZeroGuard() {
+            if (!active_) {
+                return;
+            }
+            if (had_previous_) {
+                setenv("0", previous_.c_str(), 1);
+                sync_env(previous_.c_str());
+            } else {
+                unsetenv("0");
+                sync_env(nullptr);
+            }
+        }
+
+       private:
+        void sync_env(const char* value) {
+            if (shell_ == nullptr) {
+                return;
+            }
+            auto& env_vars = shell_->get_env_vars();
+            if (value != nullptr) {
+                env_vars["0"] = value;
+            } else {
+                env_vars.erase("0");
+            }
+            if (auto* parser = shell_->get_parser()) {
+                parser->set_env_vars(env_vars);
+            }
+        }
+
+        Shell* shell_;
+        std::string previous_;
+        bool had_previous_{false};
+        bool active_{false};
+    };
+
+    std::optional<ScriptZeroGuard> zero_guard;
+    if (!script_file.empty()) {
+        zero_guard.emplace(g_shell.get(), script_file);
+    }
+
+    if (!script_file.empty()) {
+        auto read_result = cjsh_filesystem::read_file_content(script_file);
+        if (!read_result.is_ok()) {
+            ErrorType error_type = ErrorType::FILE_NOT_FOUND;
+            if (read_result.error().find("Permission denied") != std::string::npos) {
+                error_type = ErrorType::PERMISSION_DENIED;
+            }
+
+            print_error({error_type,
+                         script_file,
+                         read_result.error(),
+                         {"Check file path and permissions"}});
+            return 127;
+        }
+
+        script_content = read_result.value();
+    } else {
+        std::string line;
+        while (std::getline(std::cin, line)) {
+            script_content += line + "\n";
+        }
+    }
+
+    if (!script_content.empty()) {
+        int code = g_shell ? g_shell->execute(script_content) : 1;
+
+        const char* exit_code_str = getenv("EXIT_CODE");
+        if (exit_code_str != nullptr) {
+            char* endptr = nullptr;
+            long exit_code_long = std::strtol(exit_code_str, &endptr, 10);
+            if (endptr != exit_code_str && *endptr == '\0') {
+                code = static_cast<int>(exit_code_long);
+            }
+            unsetenv("EXIT_CODE");
+        }
+
+        return code;
+    }
+
+    return 0;
 }
 
 void Shell::setup_signal_handlers() {

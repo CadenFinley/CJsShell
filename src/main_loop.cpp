@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cerrno>
+#include <chrono>
 #include <csignal>
 #include <cstdio>
 #include <cstdlib>
@@ -30,6 +31,7 @@
 #include "builtin/trap_command.h"
 #include "cjsh.h"
 #include "cjsh_completions.h"
+#include "cjsh_filesystem.h"
 #include "cjsh_syntax_highlighter.h"
 #include "cjshopt_command.h"
 #include "error_out.h"
@@ -42,6 +44,11 @@
 #include "shell_env.h"
 #include "shell_script_interpreter.h"
 #include "typeahead.h"
+
+std::chrono::steady_clock::time_point& startup_begin_time() {
+    static std::chrono::steady_clock::time_point value;
+    return value;
+}
 
 namespace {
 
@@ -710,4 +717,85 @@ void main_process_loop() {
     }
 
     typeahead::cleanup();
+}
+
+void start_interactive_process() {
+    initialize_isocline();
+    g_startup_active = false;
+
+    std::chrono::microseconds startup_duration(0);
+    if (config::show_startup_time) {
+        auto startup_end_time = std::chrono::steady_clock::now();
+        startup_duration = std::chrono::duration_cast<std::chrono::microseconds>(
+            startup_end_time - startup_begin_time());
+    }
+
+    if (config::show_title_line) {
+        std::cout << " CJ's Shell v" << get_version() << " - Caden J Finley (c) 2025" << '\n';
+        std::cout << " Created 2025 @ \033[1;35mAbilene Christian University\033[0m" << '\n';
+    }
+
+    if (cjsh_filesystem::is_first_boot()) {
+        std::cout << " Be sure to give us a star on GitHub!" << '\n';
+        std::cout << " Type 'help' to see available commands and options." << '\n';
+        std::cout << " For additional help and documentation, please visit: "
+                  << " https://cadenfinley.github.io/CJsShell/" << '\n';
+        std::cout << '\n';
+        if (!cjsh_filesystem::file_exists(cjsh_filesystem::g_cjsh_source_path())) {
+            std::cout << " To create .cjshrc run 'cjshopt generate-rc'" << '\n';
+        }
+        if (!cjsh_filesystem::file_exists(cjsh_filesystem::g_cjsh_profile_path())) {
+            std::cout << " To create .cjprofile run 'cjshopt generate-profile'" << '\n';
+        }
+        if (!cjsh_filesystem::file_exists(cjsh_filesystem::g_cjsh_logout_path())) {
+            std::cout << " To create .cjsh_logout run 'cjshopt generate-logout'" << '\n';
+        }
+        std::cout << '\n';
+        std::cout << " To suppress this help message run the command: 'touch "
+                  << cjsh_filesystem::g_cjsh_first_boot_path().string() << "'" << '\n';
+        std::cout << " To suppress the title line, put this command in .cjprofile: 'cjshopt "
+                     "login-startup-arg --no-titleline'"
+                  << '\n';
+        std::cout << " Or alternatively execute cjsh with this flag: --no-titleline" << '\n';
+        std::cout << '\n';
+
+        std::cout << " cjsh uses a very complex, but very smart completions system.\n";
+        std::cout << " During shell use it learns about the commands you use and provides better "
+                     "completions as you use cjsh.\n";
+        std::cout << " If you would like to skip the learning process and make all completions "
+                     "faster please run: 'generate-completions'\n";
+        std::cout
+            << " Please note: This may take a few minutes depending on how many commands you have "
+               "installed, and it can be sped up using the -j flag.\n";
+        std::cout << " For example to use 8 parallel jobs run: 'generate-completions -j 8'\n";
+        std::cout << "\n";
+        config::show_startup_time = true;
+    }
+
+    if (config::show_title_line && config::show_startup_time) {
+        std::cout << '\n';
+    }
+
+    if (config::show_startup_time) {
+        long long microseconds = startup_duration.count();
+        std::string startup_time_str;
+        if (microseconds < 1000) {
+            startup_time_str = std::to_string(microseconds) + "μs";
+        } else if (microseconds < 1000000) {
+            double milliseconds = static_cast<double>(microseconds) / 1000.0;
+            char buffer[32];
+            (void)snprintf(buffer, sizeof(buffer), "%.2fms", milliseconds);
+            startup_time_str = buffer;
+        } else {
+            double seconds = static_cast<double>(microseconds) / 1000000.0;
+            char buffer[32];
+            (void)snprintf(buffer, sizeof(buffer), "%.2fs", seconds);
+            startup_time_str = buffer;
+        }
+        std::cout << " Started in " << startup_time_str << '\n';
+    }
+
+    if (!config::startup_test) {
+        main_process_loop();
+    }
 }

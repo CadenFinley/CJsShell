@@ -16,4 +16,6 @@ std::string default_right_prompt_template();
 
 void execute_prompt_command();
 
+void initialize_colors();
+
 }  // namespace prompt
