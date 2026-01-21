@@ -33,11 +33,13 @@ struct TrapManagerState {
     std::unordered_map<int, std::string> traps;
     Shell* shell_ref = nullptr;
     bool exit_trap_executed = false;
+    bool has_exit_trap = false;
+    std::string exit_trap_command;
 };
 
 TrapManagerState& trap_manager_state() {
-    static TrapManagerState state;
-    return state;
+    static TrapManagerState* state = new TrapManagerState();
+    return *state;
 }
 
 void init_reverse_signal_map() {
@@ -50,6 +52,10 @@ void init_reverse_signal_map() {
 
 }  // namespace
 
+void trap_manager_initialize() {
+    (void)trap_manager_state();
+}
+
 void trap_manager_set_trap(int signal, const std::string& command) {
     if (signal == SIGKILL || signal == SIGSTOP) {
         return;
@@ -59,7 +65,13 @@ void trap_manager_set_trap(int signal, const std::string& command) {
 
     state.traps[signal] = command;
 
-    if (signal == 0 || signal == -2 || signal == -3 || signal == -4) {
+    if (signal == 0) {
+        state.has_exit_trap = true;
+        state.exit_trap_command = command;
+        return;
+    }
+
+    if (signal == -2 || signal == -3 || signal == -4) {
         return;
     }
 
@@ -73,6 +85,11 @@ void trap_manager_set_trap(int signal, const std::string& command) {
 void trap_manager_remove_trap(int signal) {
     auto& state = trap_manager_state();
     state.traps.erase(signal);
+
+    if (signal == 0) {
+        state.has_exit_trap = false;
+        state.exit_trap_command.clear();
+    }
 }
 
 void trap_manager_execute_trap(int signal) {
@@ -109,9 +126,8 @@ void trap_manager_execute_exit_trap() {
     }
     state.exit_trap_executed = true;
 
-    auto it = state.traps.find(0);
-    if (it != state.traps.end() && (state.shell_ref != nullptr)) {
-        state.shell_ref->execute(it->second);
+    if (state.has_exit_trap && (state.shell_ref != nullptr)) {
+        state.shell_ref->execute(state.exit_trap_command);
     }
 }
 

@@ -15,6 +15,8 @@ std::vector<std::pair<int, std::string>> trap_manager_list_traps();
 
 bool trap_manager_has_trap(int signal);
 
+void trap_manager_initialize();
+
 void trap_manager_set_shell(Shell* shell);
 
 void trap_manager_execute_exit_trap();
