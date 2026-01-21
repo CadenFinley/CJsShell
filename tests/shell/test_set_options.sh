@@ -165,6 +165,126 @@ else
     fail_test "set -o (show options) - should display options"
 fi
 
+echo "Test set +o (show options with plus form)"
+output=$("$CJSH_PATH" -c "set +o" 2>/dev/null)
+if echo "$output" | grep -q "errexit_severity"; then
+    pass_test "set +o (show options) - displays errexit_severity"
+else
+    fail_test "set +o (show options) - should display errexit_severity"
+fi
+
+echo "Test set combined short options (-ex)"
+output=$("$CJSH_PATH" -c 'set -ex; printf "%s" "$-"' 2>/dev/null)
+if echo "$output" | grep -q "e" && echo "$output" | grep -q "x"; then
+    pass_test "set -ex enables both errexit and xtrace"
+else
+    fail_test "set -ex should enable both options, got: '$output'"
+fi
+
+echo "Test set combined disable (+ex)"
+output=$("$CJSH_PATH" -c 'set -ex; set +ex; printf "%s" "$-"' 2>/dev/null)
+if echo "$output" | grep -q "[ex]"; then
+    fail_test "set +ex should disable errexit and xtrace, got: '$output'"
+else
+    pass_test "set +ex disables both errexit and xtrace"
+fi
+
+echo "Test set -oxtrace (inline long option)"
+output=$("$CJSH_PATH" -c 'set -oxtrace; printf "%s" "$-"' 2>/dev/null)
+if echo "$output" | grep -q "x"; then
+    pass_test "set -oxtrace enables tracing via long form"
+else
+    fail_test "set -oxtrace should enable tracing, got: '$output'"
+fi
+
+echo "Test set +oxtrace (inline disable)"
+output=$("$CJSH_PATH" -c 'set -oxtrace; set +oxtrace; printf "%s" "$-"' 2>/dev/null)
+if echo "$output" | grep -q "x"; then
+    fail_test "set +oxtrace should disable tracing, got: '$output'"
+else
+    pass_test "set +oxtrace disables tracing via long form"
+fi
+
+echo "Test set -ohuponexit"
+output=$("$CJSH_PATH" -c 'set -ohuponexit; set -o' 2>/dev/null)
+if echo "$output" | grep -q "huponexit" && echo "$output" | grep -q "huponexit[[:space:]]*on"; then
+    pass_test "set -ohuponexit enables huponexit"
+else
+    fail_test "set -ohuponexit should enable huponexit, got: '$output'"
+fi
+
+echo "Test set +ohuponexit"
+output=$("$CJSH_PATH" -c 'set -ohuponexit; set +ohuponexit; set -o' 2>/dev/null)
+if echo "$output" | grep -q "huponexit[[:space:]]*off"; then
+    pass_test "set +ohuponexit disables huponexit"
+else
+    fail_test "set +ohuponexit should disable huponexit, got: '$output'"
+fi
+
+echo "Test set -o errexit_severity=warning"
+output=$("$CJSH_PATH" -c 'set -o errexit_severity=warning; set -o' 2>/dev/null)
+if echo "$output" | grep -q "errexit_severity" && echo "$output" | grep -q "warning"; then
+    pass_test "set -o errexit_severity=VALUE updates severity"
+else
+    fail_test "set -o errexit_severity=VALUE should update severity, got: '$output'"
+fi
+
+echo "Test set -o errexit-severity critical"
+output=$("$CJSH_PATH" -c 'set -o errexit-severity critical; set -o' 2>/dev/null)
+if echo "$output" | grep -q "errexit_severity" && echo "$output" | grep -q "critical"; then
+    pass_test "set -o errexit-severity VALUE accepts hyphenated name"
+else
+    fail_test "set -o errexit-severity VALUE should work, got: '$output'"
+fi
+
+echo "Test long option --errexit-severity=info"
+output=$("$CJSH_PATH" -c 'set --errexit-severity=info; set -o' 2>/dev/null)
+if echo "$output" | grep -q "errexit_severity" && echo "$output" | grep -q "info"; then
+    pass_test "--errexit-severity=VALUE updates severity"
+else
+    fail_test "--errexit-severity=VALUE should update severity, got: '$output'"
+fi
+
+echo "Test long option --errexit_severity warning"
+output=$("$CJSH_PATH" -c 'set --errexit_severity warning; set -o' 2>/dev/null)
+if echo "$output" | grep -q "errexit_severity" && echo "$output" | grep -q "warning"; then
+    pass_test "--errexit_severity VALUE accepts space-separated form"
+else
+    fail_test "--errexit_severity VALUE should work, got: '$output'"
+fi
+
+echo "Test set -o errexit_severity critical (space after option)"
+output=$("$CJSH_PATH" -c 'set -o errexit_severity critical; set -o' 2>/dev/null)
+if echo "$output" | grep -q "errexit_severity" && echo "$output" | grep -q "critical"; then
+    pass_test "set -o errexit_severity VALUE uses next argument"
+else
+    fail_test "set -o errexit_severity VALUE should use next argument, got: '$output'"
+fi
+
+echo "Test set -e with positional args after --"
+output=$("$CJSH_PATH" -c 'set -e -- first second; echo "$1,$2,$#"' 2>/dev/null)
+if [ "$output" = "first,second,2" ]; then
+    pass_test "set -e -- ARGS preserves positional parameters"
+else
+    fail_test "set -e -- ARGS should set positional params, got: '$output'"
+fi
+
+echo "Test set -e positional args without --"
+output=$("$CJSH_PATH" -c 'set -e alpha beta; echo "$1,$2,$#"' 2>/dev/null)
+if [ "$output" = "alpha,beta,2" ]; then
+    pass_test "set -e ARGS (no --) sets positional params"
+else
+    fail_test "set -e ARGS should set positional params, got: '$output'"
+fi
+
+echo "Test set positional args without any options"
+output=$("$CJSH_PATH" -c 'set uno dos tres; echo "$1,$2,$3,$#"' 2>/dev/null)
+if [ "$output" = "uno,dos,tres,3" ]; then
+    pass_test "set ARGS sets positional parameters"
+else
+    fail_test "set ARGS should set positional params, got: '$output'"
+fi
+
 echo ""
 echo "================================"
 echo "Set Options Summary:"
