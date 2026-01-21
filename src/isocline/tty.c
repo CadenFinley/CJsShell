@@ -216,6 +216,10 @@ static code_t modify_code(code_t code, bool in_paste_mode) {
         code = WITH_CTRL(key_char('_'));
     }
 
+    else if (in_paste_mode && key == KEY_ENTER) {
+        code = KEY_LINEFEED;
+    }
+
     else if (key == KEY_ENTER &&
              (mods == KEY_MOD_SHIFT || mods == KEY_MOD_ALT || mods == KEY_MOD_CTRL)) {
         code = KEY_LINEFEED;
