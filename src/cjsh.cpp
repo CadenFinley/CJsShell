@@ -121,7 +121,7 @@ void cleanup_resources() {
     }
 }
 
-int main(int argc, char* argv[]) {
+int run_cjsh(int argc, char* argv[]) {
     // main entry
     // set start time
     startup_begin_time() = std::chrono::steady_clock::now();
@@ -153,6 +153,9 @@ int main(int argc, char* argv[]) {
     // make sure JobManager is constructed before registering cleanup so its destructor
     // runs after cleanup_resources.
     (void)JobManager::instance();
+
+    // ensure trap manager state outlives cleanup handler
+    trap_manager_initialize();
 
     // register cleanup handler
     if (std::atexit(cleanup_resources) != 0) {
@@ -250,5 +253,11 @@ int main(int argc, char* argv[]) {
         unsetenv("EXIT_CODE");
     }
 
+    return exit_code;
+}
+
+int main(int argc, char* argv[]) {
+    int exit_code = run_cjsh(argc, argv);
+    cleanup_resources();
     return exit_code;
 }
