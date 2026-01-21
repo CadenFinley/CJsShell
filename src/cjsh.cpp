@@ -7,11 +7,8 @@
 #include <cctype>
 #include <chrono>
 #include <cstdlib>
-#include <filesystem>
 #include <iostream>
 #include <memory>
-#include <optional>
-#include <system_error>
 #include <vector>
 
 #ifdef __APPLE__
@@ -24,7 +21,6 @@
 #include "cjsh_filesystem.h"
 #include "error_out.h"
 #include "flags.h"
-#include "isocline.h"
 #include "job_control.h"
 #include "main_loop.h"
 #include "prompt.h"
