@@ -41,6 +41,7 @@
 #include "shell.h"
 #include "shell_script_interpreter_utils.h"
 #include "signal_handler.h"
+#include "utils/pipeline_status_utils.h"
 
 using shell_script_interpreter::detail::contains_token;
 using shell_script_interpreter::detail::is_control_flow_exit_code;
@@ -376,6 +377,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
     std::function<int(const std::string&)> execute_simple_or_pipeline;
 
     std::function<int(const std::string&)> evaluate_logical_condition;
+    std::function<std::optional<int>(const std::string&, bool)> try_handle_inline_case;
 
     execute_simple_or_pipeline = [&](const std::string& cmd_text) -> int {
         return execute_simple_or_pipeline_impl(cmd_text, true);
@@ -390,6 +392,13 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         std::string text = process_line_for_validation(cmd_text);
         if (text.empty())
             return 0;
+
+        auto command_has_redirection = [](const Command& command) {
+            return command.stderr_to_stdout || command.stdout_to_stderr ||
+                   !command.input_file.empty() || !command.output_file.empty() ||
+                   !command.append_file.empty() || !command.stderr_file.empty() ||
+                   !command.here_doc.empty();
+        };
 
         if (shell_parser) {
             std::vector<LogicalCommand> logical_cmds = shell_parser->parse_logical_commands(text);
@@ -592,17 +601,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         }
 
         if (!has_multiple_commands) {
-            auto pattern_match_fn = [this](const std::string& text, const std::string& pattern) {
-                return pattern_matcher.matches_pattern(text, pattern);
-            };
-            auto cmd_sub_expander = [this, &execute_simple_or_pipeline](const std::string& input) {
-                std::string expanded = expand_all_substitutions(input, execute_simple_or_pipeline);
-                return std::make_pair(expanded, std::vector<std::string>{});
-            };
-
-            if (auto inline_case_result = case_evaluator::handle_inline_case(
-                    text, execute_simple_or_pipeline, false, true, shell_parser, pattern_match_fn,
-                    cmd_sub_expander)) {
+            if (auto inline_case_result = try_handle_inline_case(text, false)) {
                 return *inline_case_result;
             }
         }
@@ -612,12 +611,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                 const auto& c = cmds[0];
 
                 if (!c.args.empty() && c.args[0] == "__INTERNAL_SUBSHELL__") {
-                    bool has_redir = c.stderr_to_stdout || c.stdout_to_stderr ||
-                                     !c.input_file.empty() || !c.output_file.empty() ||
-                                     !c.append_file.empty() || !c.stderr_file.empty() ||
-                                     !c.here_doc.empty();
-
-                    if (has_redir) {
+                    if (command_has_redirection(c)) {
                         return run_pipeline(cmds);
                     }
                     if (c.args.size() >= 2) {
@@ -627,12 +621,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                     }
 
                 } else if (!c.args.empty() && c.args[0] == "__INTERNAL_BRACE_GROUP__") {
-                    bool has_redir = c.stderr_to_stdout || c.stdout_to_stderr ||
-                                     !c.input_file.empty() || !c.output_file.empty() ||
-                                     !c.append_file.empty() || !c.stderr_file.empty() ||
-                                     !c.here_doc.empty();
-
-                    if (has_redir) {
+                    if (command_has_redirection(c)) {
                         return run_pipeline(cmds);
                     }
 
@@ -707,6 +696,23 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         }
     };
 
+    try_handle_inline_case = [this, &execute_simple_or_pipeline](
+                                 const std::string& candidate,
+                                 bool allow_command_substitution) -> std::optional<int> {
+        auto pattern_match_fn = [this](const std::string& text, const std::string& pattern) {
+            return pattern_matcher.matches_pattern(text, pattern);
+        };
+        auto cmd_sub_expander =
+            [this, &execute_simple_or_pipeline](const std::string& input) {
+                std::string expanded =
+                    expand_all_substitutions(input, execute_simple_or_pipeline);
+                return std::make_pair(expanded, std::vector<std::string>{});
+            };
+        return case_evaluator::handle_inline_case(candidate, execute_simple_or_pipeline,
+                                                  allow_command_substitution, true, shell_parser,
+                                                  pattern_match_fn, cmd_sub_expander);
+    };
+
     auto check_pending_signals = [&]() -> std::optional<int> {
         if (!g_shell || !SignalHandler::has_pending_signals()) {
             return std::nullopt;
@@ -752,26 +758,16 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                                                 shell_parser);
     };
 
-    auto handle_case_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
-        std::string first = trim(strip_inline_comment(src_lines[idx]));
-        if (first != "case" && first.rfind("case ", 0) != 0)
-            return 1;
+        auto handle_case_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
+            std::string first = trim(strip_inline_comment(src_lines[idx]));
+            if (first != "case" && first.rfind("case ", 0) != 0)
+                return 1;
 
-        auto pattern_match_fn = [this](const std::string& text, const std::string& pattern) {
-            return pattern_matcher.matches_pattern(text, pattern);
-        };
-        auto cmd_sub_expander = [this, &execute_simple_or_pipeline](const std::string& input) {
-            std::string expanded = expand_all_substitutions(input, execute_simple_or_pipeline);
-            return std::make_pair(expanded, std::vector<std::string>{});
-        };
+            if (auto inline_case_result = try_handle_inline_case(first, true)) {
+                return *inline_case_result;
+            }
 
-        if (auto inline_case_result = case_evaluator::handle_inline_case(
-                first, execute_simple_or_pipeline, true, true, shell_parser, pattern_match_fn,
-                cmd_sub_expander)) {
-            return *inline_case_result;
-        }
-
-        std::string header_accum = first;
+            std::string header_accum = first;
         size_t j = idx;
         bool found_in = false;
 
@@ -1462,20 +1458,12 @@ int ShellScriptInterpreter::set_last_status(int code) {
     setenv("?", value.c_str(), 1);
 
     Exec* exec_ptr = (g_shell && g_shell->shell_exec) ? g_shell->shell_exec.get() : nullptr;
-    if (exec_ptr != nullptr) {
-        const std::vector<int>& pipeline_statuses = exec_ptr->get_last_pipeline_statuses();
-        if (!pipeline_statuses.empty()) {
-            std::stringstream status_builder;
-            for (size_t i = 0; i < pipeline_statuses.size(); ++i) {
-                if (i != 0) {
-                    status_builder << ' ';
-                }
-                status_builder << pipeline_statuses[i];
-            }
-            const std::string pipe_status_str = status_builder.str();
-            setenv("PIPESTATUS", pipe_status_str.c_str(), 1);
-            variable_manager.set_environment_variable("PIPESTATUS", pipe_status_str);
-        } else {
+    pipeline_status_utils::apply_pipeline_status_env(
+        exec_ptr,
+        [this](const std::string& value) {
+            variable_manager.set_environment_variable("PIPESTATUS", value);
+        },
+        []() {
             if (g_shell) {
                 auto& env_map = g_shell->get_env_vars();
                 env_map.erase("PIPESTATUS");
@@ -1483,11 +1471,7 @@ int ShellScriptInterpreter::set_last_status(int code) {
                     parser->set_env_vars(env_map);
                 }
             }
-            unsetenv("PIPESTATUS");
-        }
-    } else {
-        unsetenv("PIPESTATUS");
-    }
+        });
 
     return code;
 }
@@ -1497,16 +1481,7 @@ int ShellScriptInterpreter::run_pipeline(const std::vector<Command>& cmds) {
         return set_last_status(1);
 
     int exit_code = g_shell->shell_exec->execute_pipeline(cmds);
-    if (exit_code != 0) {
-        ErrorInfo error = g_shell->shell_exec->get_error();
-        bool already_reported = (exit_code == 127 && error.type == ErrorType::COMMAND_NOT_FOUND &&
-                                 error.message.empty());
-        if (!already_reported &&
-            (error.type != ErrorType::RUNTIME_ERROR ||
-             error.message.find("command failed with exit code") == std::string::npos)) {
-            g_shell->shell_exec->print_last_error();
-        }
-    }
+    g_shell->shell_exec->print_error_if_needed(exit_code);
     return set_last_status(exit_code);
 }
 

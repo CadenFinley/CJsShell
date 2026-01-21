@@ -15,7 +15,6 @@
 #include <exception>
 #include <iostream>
 #include <memory>
-#include <sstream>
 #include <vector>
 
 #ifdef __APPLE__
@@ -44,6 +43,7 @@
 #include "shell_env.h"
 #include "shell_script_interpreter.h"
 #include "typeahead.h"
+#include "utils/pipeline_status_utils.h"
 
 std::chrono::steady_clock::time_point& startup_begin_time() {
     static std::chrono::steady_clock::time_point value;
@@ -416,25 +416,7 @@ bool process_command_line(const std::string& command) {
     int exit_code = g_shell->execute(expanded_command);
 
     Exec* exec_ptr = (g_shell && g_shell->shell_exec) ? g_shell->shell_exec.get() : nullptr;
-    if (exec_ptr != nullptr) {
-        const std::vector<int>& pipeline_statuses = exec_ptr->get_last_pipeline_statuses();
-        if (!pipeline_statuses.empty()) {
-            std::stringstream status_builder;
-            for (size_t i = 0; i < pipeline_statuses.size(); ++i) {
-                if (i != 0) {
-                    status_builder << ' ';
-                }
-                status_builder << pipeline_statuses[i];
-            }
-
-            const std::string pipe_status_str = status_builder.str();
-            setenv("PIPESTATUS", pipe_status_str.c_str(), 1);
-        } else {
-            unsetenv("PIPESTATUS");
-        }
-    } else {
-        unsetenv("PIPESTATUS");
-    }
+    pipeline_status_utils::apply_pipeline_status_env(exec_ptr);
 
     std::string status_str = std::to_string(exit_code);
 

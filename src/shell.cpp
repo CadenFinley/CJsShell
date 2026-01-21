@@ -561,16 +561,7 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
     last_terminal_output_error = shell_exec->get_error_string();
     int exit_code = shell_exec->get_exit_code();
 
-    if (exit_code != 0) {
-        ErrorInfo error = shell_exec->get_error();
-        bool already_reported = (exit_code == 127 && error.type == ErrorType::COMMAND_NOT_FOUND &&
-                                 error.message.empty());
-        if (!already_reported &&
-            (error.type != ErrorType::RUNTIME_ERROR ||
-             error.message.find("command failed with exit code") == std::string::npos)) {
-            shell_exec->print_last_error();
-        }
-    }
+    shell_exec->print_error_if_needed(exit_code);
     return exit_code;
 }
 

@@ -760,6 +760,21 @@ void Exec::print_last_error() {
     print_error(last_error);
 }
 
+void Exec::print_error_if_needed(int exit_code) {
+    if (exit_code == 0) {
+        return;
+    }
+
+    ErrorInfo error = get_error();
+    bool already_reported =
+        (exit_code == 127 && error.type == ErrorType::COMMAND_NOT_FOUND && error.message.empty());
+    if (!already_reported &&
+        (error.type != ErrorType::RUNTIME_ERROR ||
+         error.message.find("command failed with exit code") == std::string::npos)) {
+        print_last_error();
+    }
+}
+
 bool Exec::requires_fork(const Command& cmd) const {
     return !cmd.input_file.empty() || !cmd.output_file.empty() || !cmd.append_file.empty() ||
            cmd.background || !cmd.stderr_file.empty() || cmd.stderr_to_stdout ||
