@@ -19,6 +19,7 @@
 #include <stdexcept>
 #include <system_error>
 #include <utility>
+#include <unordered_set>
 
 #include "arithmetic_evaluator.h"
 #include "builtin.h"
@@ -32,6 +33,9 @@
 #include "function_evaluator.h"
 #include "job_control.h"
 #include "loop_evaluator.h"
+#include "parser/parser.h"
+#include "parser/quote_info.h"
+#include "parser/tokenizer.h"
 #include "parameter_expansion_evaluator.h"
 #include "readonly_command.h"
 #include "shell.h"
@@ -440,75 +444,62 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
 
         std::vector<std::string> parsed_args;
         std::vector<Command> cmds;
+        bool has_redir_or_pipe = false;
+        bool has_multiple_commands = false;
+        std::string trimmed_text = trim(text);
         try {
             text = expand_all_substitutions(text, execute_simple_or_pipeline);
 
-            parsed_args = shell_parser->parse_command(text);
-            if (!parsed_args.empty()) {
-                const std::string& prog = parsed_args[0];
-                if (should_interpret_as_cjsh_script(prog)) {
-                    std::ifstream f(prog);
-                    if (!f) {
-                        print_error({ErrorType::RUNTIME_ERROR,
-                                     "",
-                                     "Failed to open script file: " + prog,
-                                     {}});
-                        return 1;
-                    }
-                    std::stringstream buffer;
-                    buffer << f.rdbuf();
-                    auto nested_lines = shell_parser->parse_into_lines(buffer.str());
-                    return execute_block(nested_lines);
-                }
+            auto raw_tokens = Tokenizer::tokenize_command(text);
+            auto merged_tokens = Tokenizer::merge_redirection_tokens(raw_tokens);
+            if (!merged_tokens.empty()) {
+                static const std::unordered_set<std::string> kRedirectOperators = {
+                    "<",  ">",  ">>",  ">|", "<<", "<<-", "<<<", "&>", "<>",
+                    "<&", ">&"};
 
-                if (prog == "if" || prog.rfind("if ", 0) == 0 || prog == "for" ||
-                    prog.rfind("for ", 0) == 0 || prog == "while" || prog.rfind("while ", 0) == 0 ||
-                    prog == "until" || prog.rfind("until ", 0) == 0) {
-                    std::vector<std::string> block_lines;
-                    if (shell_parser) {
-                        block_lines = shell_parser->parse_into_lines(text);
+                auto requires_operand = [&](const std::string& token) -> bool {
+                    if (kRedirectOperators.count(token) > 0) {
+                        return true;
                     }
-                    if (block_lines.empty()) {
-                        block_lines.push_back(text);
+                    size_t digits = 0;
+                    while (digits < token.size() &&
+                           (std::isdigit(static_cast<unsigned char>(token[digits])) != 0)) {
+                        digits++;
                     }
-                    return execute_block(block_lines);
+                    if (digits == 0 || digits >= token.size()) {
+                        return false;
+                    }
+                    std::string suffix = token.substr(digits);
+                    if (kRedirectOperators.count(suffix) > 0) {
+                        return true;
+                    }
+                    if (suffix == ">" || suffix == ">>" || suffix == "<" || suffix == "<<") {
+                        return true;
+                    }
+                    return false;
+                };
+
+                QuoteInfo last_token(merged_tokens.back());
+                if (requires_operand(last_token.value)) {
+                    std::vector<std::string> suggestions = {
+                        "Provide a destination after the redirection operator."};
+                    append_context_hint(suggestions, text, current_line_number);
+                    return report_error_with_code(ErrorType::SYNTAX_ERROR, ErrorSeverity::ERROR, "",
+                                                  "syntax error near unexpected token `newline'",
+                                                  suggestions, 2);
                 }
             }
-        } catch (const std::runtime_error& e) {
-            throw;
-        }
 
-        if ((text == "case" || text.rfind("case ", 0) == 0) &&
-            text.find("esac") == std::string::npos) {
-            std::string completed_case = text + ";; esac";
-            return execute_simple_or_pipeline(completed_case);
-        }
-
-        auto pattern_match_fn = [this](const std::string& text, const std::string& pattern) {
-            return pattern_matcher.matches_pattern(text, pattern);
-        };
-        auto cmd_sub_expander = [this, &execute_simple_or_pipeline](const std::string& input) {
-            std::string expanded = expand_all_substitutions(input, execute_simple_or_pipeline);
-            return std::make_pair(expanded, std::vector<std::string>{});
-        };
-
-        if (auto inline_case_result = case_evaluator::handle_inline_case(
-                text, execute_simple_or_pipeline, false, true, shell_parser, pattern_match_fn,
-                cmd_sub_expander)) {
-            return *inline_case_result;
-        }
-
-        try {
             cmds = shell_parser->parse_pipeline_with_preprocessing(text);
 
-            bool has_redir_or_pipe = cmds.size() > 1;
-            if (!has_redir_or_pipe && !cmds.empty()) {
+            has_multiple_commands = cmds.size() > 1;
+            has_redir_or_pipe = has_multiple_commands;
+            if (!has_multiple_commands && !cmds.empty()) {
                 const auto& c = cmds[0];
-                has_redir_or_pipe = c.background || !c.input_file.empty() ||
-                                    !c.output_file.empty() || !c.append_file.empty() ||
-                                    c.stderr_to_stdout || c.stdout_to_stderr ||
-                                    !c.stderr_file.empty() || !c.here_doc.empty() ||
-                                    c.both_output || !c.here_string.empty() ||
+                has_redir_or_pipe = c.background || !c.input_file.empty() || !c.output_file.empty() ||
+                                    !c.append_file.empty() || c.stderr_to_stdout ||
+                                    c.stdout_to_stderr || !c.stderr_file.empty() ||
+                                    !c.here_doc.empty() || c.both_output || !c.here_string.empty() ||
                                     !c.fd_redirections.empty() || !c.fd_duplications.empty();
 
                 if (c.negate_pipeline) {
@@ -516,6 +507,107 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                 }
             }
 
+            if (has_multiple_commands) {
+                bool looks_like_case = !trimmed_text.empty() &&
+                                       (trimmed_text.rfind("case ", 0) == 0 ||
+                                        trimmed_text == "case");
+                if (looks_like_case) {
+                    has_multiple_commands = false;
+                    has_redir_or_pipe = false;
+                    cmds.clear();
+                }
+            }
+
+            if (!has_multiple_commands) {
+                parsed_args = shell_parser->parse_command(text);
+                if (!parsed_args.empty()) {
+                    const std::string& prog = parsed_args[0];
+                    if (should_interpret_as_cjsh_script(prog)) {
+                        std::ifstream f(prog);
+                        if (!f) {
+                            print_error({ErrorType::RUNTIME_ERROR,
+                                         "",
+                                         "Failed to open script file: " + prog,
+                                         {}});
+                            return 1;
+                        }
+                        std::stringstream buffer;
+                        buffer << f.rdbuf();
+                        auto nested_lines = shell_parser->parse_into_lines(buffer.str());
+                        return execute_block(nested_lines);
+                    }
+
+                    if (prog == "if" || prog.rfind("if ", 0) == 0 || prog == "for" ||
+                        prog.rfind("for ", 0) == 0 || prog == "while" ||
+                        prog.rfind("while ", 0) == 0 || prog == "until" ||
+                        prog.rfind("until ", 0) == 0) {
+                        std::vector<std::string> block_lines;
+                        if (shell_parser) {
+                            block_lines = shell_parser->parse_into_lines(text);
+                        }
+                        if (block_lines.empty()) {
+                            block_lines.push_back(text);
+                        }
+
+                        auto run_block = [&]() -> int { return execute_block(block_lines); };
+                        int exit_code = 0;
+                        bool handled_with_redirections = false;
+
+                        if (g_shell && g_shell->shell_exec) {
+                            try {
+                                std::vector<Command> control_cmds =
+                                    shell_parser->parse_pipeline_with_preprocessing(text);
+                                if (!control_cmds.empty()) {
+                                    Command control_cmd = control_cmds[0];
+                                    std::string command_name =
+                                        control_cmd.args.empty() ? prog : control_cmd.args[0];
+                                    bool action_invoked = false;
+                                    exit_code = g_shell->shell_exec->run_with_command_redirections(
+                                        control_cmd, run_block, command_name, false, &action_invoked);
+                                    if (!action_invoked) {
+                                        return exit_code;
+                                    }
+                                    handled_with_redirections = true;
+                                }
+                            } catch (const std::exception&) {
+                            }
+                        }
+
+                        if (!handled_with_redirections) {
+                            exit_code = run_block();
+                        }
+
+                        return exit_code;
+                    }
+                }
+            }
+        } catch (const std::runtime_error& e) {
+            throw;
+        }
+
+        if (!has_multiple_commands && (text == "case" || text.rfind("case ", 0) == 0) &&
+            text.find("esac") == std::string::npos) {
+            std::string completed_case = text + ";; esac";
+            return execute_simple_or_pipeline(completed_case);
+        }
+
+        if (!has_multiple_commands) {
+            auto pattern_match_fn = [this](const std::string& text, const std::string& pattern) {
+                return pattern_matcher.matches_pattern(text, pattern);
+            };
+            auto cmd_sub_expander = [this, &execute_simple_or_pipeline](const std::string& input) {
+                std::string expanded = expand_all_substitutions(input, execute_simple_or_pipeline);
+                return std::make_pair(expanded, std::vector<std::string>{});
+            };
+
+            if (auto inline_case_result = case_evaluator::handle_inline_case(
+                    text, execute_simple_or_pipeline, false, true, shell_parser, pattern_match_fn,
+                    cmd_sub_expander)) {
+                return *inline_case_result;
+            }
+        }
+
+        try {
             if (!has_redir_or_pipe && !cmds.empty()) {
                 const auto& c = cmds[0];
 

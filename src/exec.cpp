@@ -618,9 +618,22 @@ void maybe_set_foreground_terminal(bool enabled, int terminal_fd, pid_t pgid,
 Exec::Exec()
     : shell_pgid(getpid()),
       shell_terminal(STDIN_FILENO),
-      shell_is_interactive(isatty(shell_terminal)),
+      shell_is_interactive(false),
       last_pipeline_statuses(1, 0) {
-    if (shell_is_interactive) {
+    bool requested_interactive = config::interactive_mode || config::force_interactive;
+    shell_is_interactive = requested_interactive && (isatty(STDIN_FILENO) != 0);
+
+#ifdef O_CLOEXEC
+    int tty_fd = open("/dev/tty", O_RDWR | O_CLOEXEC);
+#else
+    int tty_fd = open("/dev/tty", O_RDWR);
+#endif
+    if (tty_fd >= 0) {
+        shell_terminal = tty_fd;
+        owns_shell_terminal = true;
+    }
+
+    if (shell_is_interactive && (isatty(shell_terminal) != 0)) {
         if (tcgetattr(shell_terminal, &shell_tmodes) < 0) {
             set_error(ErrorType::RUNTIME_ERROR, "tcgetattr",
                       "failed to get terminal attributes in constructor: " +
@@ -645,6 +658,12 @@ Exec::~Exec() {
         std::cerr << "WARNING: Exec destructor hit maximum cleanup iterations, "
                      "some zombies may remain"
                   << '\n';
+    }
+
+    if (owns_shell_terminal && shell_terminal >= 0) {
+        close(shell_terminal);
+        shell_terminal = STDIN_FILENO;
+        owns_shell_terminal = false;
     }
 }
 
@@ -761,14 +780,9 @@ bool Exec::can_execute_in_process(const Command& cmd) const {
     return false;
 }
 
-int Exec::execute_builtin_with_redirections(Command cmd) {
-    if (!g_shell || (g_shell->get_built_ins() == nullptr)) {
-        set_error(ErrorType::RUNTIME_ERROR, "builtin",
-                  "no shell context available for builtin execution");
-        last_exit_code = EX_SOFTWARE;
-        return EX_SOFTWARE;
-    }
-
+int Exec::run_with_command_redirections(Command cmd, const std::function<int()>& action,
+                                        const std::string& command_name, bool persist_fd_changes,
+                                        bool* action_invoked) {
     auto duplicate_fd = [](int fd) {
         int min_fd = std::max(fd + 1, 10);
         int dup_fd = -1;
@@ -795,7 +809,7 @@ int Exec::execute_builtin_with_redirections(Command cmd) {
     int orig_stderr = duplicate_fd(STDERR_FILENO);
 
     if (orig_stdin == -1 || orig_stdout == -1 || orig_stderr == -1) {
-        set_error(ErrorType::RUNTIME_ERROR, cmd.args.empty() ? "builtin" : cmd.args[0],
+        set_error(ErrorType::RUNTIME_ERROR, command_name,
                   "failed to save original file descriptors", {});
         if (orig_stdin != -1) {
             cjsh_filesystem::safe_close(orig_stdin);
@@ -806,13 +820,10 @@ int Exec::execute_builtin_with_redirections(Command cmd) {
         if (orig_stderr != -1) {
             cjsh_filesystem::safe_close(orig_stderr);
         }
-        last_exit_code = EX_OSERR;
         return EX_OSERR;
     }
 
     ProcessSubstitutionResources proc_resources;
-    int exit_code = 0;
-    bool persist_fd_changes = (!cmd.args.empty() && cmd.args[0] == "exec" && cmd.args.size() == 1);
 
     auto restore_descriptors = [&](bool terminate_process_subs) {
         cleanup_process_substitutions(proc_resources, terminate_process_subs);
@@ -827,6 +838,10 @@ int Exec::execute_builtin_with_redirections(Command cmd) {
         cjsh_filesystem::safe_close(orig_stdout);
         cjsh_filesystem::safe_close(orig_stderr);
     };
+
+    if (action_invoked) {
+        *action_invoked = false;
+    }
 
     try {
         proc_resources = setup_process_substitutions(cmd);
@@ -975,17 +990,18 @@ int Exec::execute_builtin_with_redirections(Command cmd) {
             }
         }
 
-        bool is_exec_builtin = !cmd.args.empty() && cmd.args[0] == "exec";
-
         if (!cmd.fd_redirections.empty() || !cmd.fd_duplications.empty()) {
             auto fd_error_handler = [&](const FdOperationError& error) -> void {
                 switch (error.type) {
                     case FdOperationErrorType::Redirect:
-                        throw std::runtime_error("cjsh: exec: " + error.spec + ": " + error.error);
+                        throw std::runtime_error(command_name + ": " + error.spec + ": " +
+                                                 error.error);
                     case FdOperationErrorType::Duplication:
-                        throw std::runtime_error("cjsh: exec: dup2 failed for " +
+                        throw std::runtime_error(command_name +
+                                                 ": dup2 failed for " +
                                                  std::to_string(error.fd_num) + ">&" +
-                                                 std::to_string(error.src_fd) + ": " + error.error);
+                                                 std::to_string(error.src_fd) + ": " +
+                                                 error.error);
                 }
             };
             (void)apply_fd_operations(cmd, fd_error_handler);
@@ -995,31 +1011,56 @@ int Exec::execute_builtin_with_redirections(Command cmd) {
         std::cerr.flush();
         std::clog.flush();
 
-        if (is_exec_builtin) {
-            if (cmd.args.size() == 1) {
-                exit_code = 0;
-            } else {
-                std::vector<std::string> exec_args(cmd.args.begin() + 1, cmd.args.end());
-                exit_code = g_shell->execute_command(exec_args, false);
-            }
-        } else {
-            exit_code = g_shell->get_built_ins()->builtin_command(cmd.args);
+        int exit_code = action();
+        if (action_invoked) {
+            *action_invoked = true;
         }
 
         std::cout.flush();
         std::cerr.flush();
         std::clog.flush();
+
+        restore_descriptors(false);
+        return exit_code;
     } catch (const std::exception& e) {
         restore_descriptors(true);
-        set_error(ErrorType::RUNTIME_ERROR, cmd.args.empty() ? "builtin" : cmd.args[0],
-                  std::string(e.what()));
-        last_exit_code = EX_OSERR;
+        set_error(ErrorType::RUNTIME_ERROR, command_name, std::string(e.what()));
         return EX_OSERR;
     }
+}
 
-    restore_descriptors(false);
+int Exec::execute_builtin_with_redirections(Command cmd) {
+    if (!g_shell || (g_shell->get_built_ins() == nullptr)) {
+        set_error(ErrorType::RUNTIME_ERROR, "builtin",
+                  "no shell context available for builtin execution");
+        last_exit_code = EX_SOFTWARE;
+        return EX_SOFTWARE;
+    }
 
-    std::string command_name = cmd.args.empty() ? "" : cmd.args[0];
+    bool persist_fd_changes = (!cmd.args.empty() && cmd.args[0] == "exec" && cmd.args.size() == 1);
+    bool is_exec_builtin = !cmd.args.empty() && cmd.args[0] == "exec";
+    std::string command_name = cmd.args.empty() ? "builtin" : cmd.args[0];
+
+    auto action = [&]() -> int {
+        if (is_exec_builtin) {
+            if (cmd.args.size() == 1) {
+                return 0;
+            }
+            std::vector<std::string> exec_args(cmd.args.begin() + 1, cmd.args.end());
+            return g_shell->execute_command(exec_args, false);
+        }
+        return g_shell->get_built_ins()->builtin_command(cmd.args);
+    };
+
+    bool action_invoked = false;
+    int exit_code = run_with_command_redirections(cmd, action, command_name, persist_fd_changes,
+                                                  &action_invoked);
+
+    if (!action_invoked) {
+        last_exit_code = exit_code;
+        return exit_code;
+    }
+
     auto exit_result = job_utils::make_exit_error_result(command_name, exit_code,
                                                          "builtin command completed successfully",
                                                          "builtin command failed with exit code ");

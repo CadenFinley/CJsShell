@@ -39,6 +39,7 @@ class Exec {
     pid_t shell_pgid;
     struct termios shell_tmodes;
     int shell_terminal;
+    bool owns_shell_terminal = false;
     bool shell_is_interactive;
     int last_exit_code = 0;
     std::vector<int> last_pipeline_statuses;
@@ -68,6 +69,9 @@ class Exec {
     int execute_command_sync(const std::vector<std::string>& args);
     int execute_command_async(const std::vector<std::string>& args);
     int execute_pipeline(const std::vector<Command>& commands);
+    int run_with_command_redirections(Command cmd, const std::function<int()>& action,
+                                      const std::string& command_name, bool persist_fd_changes,
+                                      bool* action_invoked = nullptr);
     int add_job(const Job& job);
     void remove_job(int job_id);
     void update_job_status(int job_id, bool completed, bool stopped, int status);
