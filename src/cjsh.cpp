@@ -63,9 +63,8 @@ bool cleanup_truncates_multiline = false;
 
 namespace {
 bool cleanup_already_invoked = false;
-}  // namespace
-
 void cleanup_resources() {
+    // primary exit function that gets called on all exit paths
     if (cleanup_already_invoked) {
         return;
     }
@@ -84,6 +83,7 @@ void cleanup_resources() {
         std::cout << "Shutdown Complete." << '\n';
     }
 }
+}  // namespace
 
 int run_cjsh(int argc, char* argv[]) {
     // set start time
@@ -176,9 +176,15 @@ int run_cjsh(int argc, char* argv[]) {
     if (!cjsh_filesystem::initialize_cjsh_directories()) {
         return 1;
     }
+
+    // init interactive signals
     g_shell->setup_interactive_handlers();
+
+    // init interactive ui
     prompt::initialize_colors();
     cjsh_env::update_terminal_dimensions();
+
+    // use .cjshrc
     cjsh_filesystem::process_source_files();
 
     // start interactive cjsh process

@@ -12,10 +12,12 @@
 #include <string>
 
 #include "cjsh.h"
+#include "flags.h"
 #include "isocline.h"
 #include "job_control.h"
 #include "shell.h"
 #include "token_constants.h"
+#include "version_command.h"
 
 namespace prompt {
 namespace {
@@ -33,8 +35,8 @@ std::string get_env(const char* name, const char* fallback = nullptr) {
 
 std::string get_shell_name() {
     std::string shell_name = get_env("0");
-    if (shell_name.empty() && !startup_args().empty()) {
-        shell_name = startup_args().front();
+    if (shell_name.empty() && !flags::startup_args().empty()) {
+        shell_name = flags::startup_args().front();
     }
     if (shell_name.empty()) {
         shell_name = "cjsh";

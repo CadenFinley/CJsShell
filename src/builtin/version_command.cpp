@@ -35,6 +35,10 @@ int version_command(const std::vector<std::string>& args) {
 #define CJSH_BUILD_PLATFORM "unknown"
 #endif
 
+#ifndef CJSH_GIT_HASH
+#define CJSH_GIT_HASH "unknown"
+#endif
+
     const std::string version = get_version();
 
     std::string build_tags;

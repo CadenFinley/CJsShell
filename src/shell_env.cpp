@@ -16,6 +16,7 @@
 #include "cjsh_filesystem.h"
 #include "prompt/prompt.h"
 #include "shell.h"
+#include "version_command.h"
 
 namespace cjsh_env {
 

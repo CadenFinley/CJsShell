@@ -9,6 +9,7 @@
 #include "cjsh.h"
 #include "cjsh_completions.h"
 #include "error_out.h"
+#include "flags.h"
 #include "isocline/isocline.h"
 #include "token_constants.h"
 
@@ -86,7 +87,7 @@ int startup_flag_command(const std::vector<std::string>& args) {
         return 1;
     }
 
-    auto& stored_flags = profile_startup_args();
+    auto& stored_flags = flags::profile_startup_args();
     if (std::find(stored_flags.begin(), stored_flags.end(), flag) == stored_flags.end()) {
         stored_flags.push_back(flag);
     }

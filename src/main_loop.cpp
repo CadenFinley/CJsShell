@@ -27,7 +27,6 @@
 #include <sys/select.h>
 #include <sys/time.h>
 
-#include "builtin/trap_command.h"
 #include "cjsh.h"
 #include "cjsh_completions.h"
 #include "cjsh_filesystem.h"
@@ -42,8 +41,10 @@
 #include "shell.h"
 #include "shell_env.h"
 #include "shell_script_interpreter.h"
+#include "trap_command.h"
 #include "typeahead.h"
 #include "utils/pipeline_status_utils.h"
+#include "version_command.h"
 
 std::chrono::steady_clock::time_point& startup_begin_time() {
     static std::chrono::steady_clock::time_point value;

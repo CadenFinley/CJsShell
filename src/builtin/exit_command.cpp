@@ -12,6 +12,7 @@
 
 #include "cjsh.h"
 #include "exec.h"
+#include "flags.h"
 #include "shell.h"
 
 namespace {
@@ -62,7 +63,7 @@ int exit_command(const std::vector<std::string>& args) {
         return 0;
     }
 
-    const auto& initial_args = startup_args();
+    const auto& initial_args = flags::startup_args();
     const bool invoked_with_dash_c =
         std::find(initial_args.begin(), initial_args.end(), "-c") != initial_args.end();
     const bool running_dash_c =
@@ -140,7 +141,6 @@ int exit_command(const std::vector<std::string>& args) {
             g_shell->shell_exec->terminate_all_child_process();
         }
         JobManager::instance().clear_all_jobs();
-        cleanup_resources();
         std::exit(exit_code);
     }
 

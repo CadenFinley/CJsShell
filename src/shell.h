@@ -114,3 +114,4 @@ class Shell {
 };
 
 int read_exit_code_or(int fallback);
+int handle_non_interactive_mode(const std::string& script_file);
