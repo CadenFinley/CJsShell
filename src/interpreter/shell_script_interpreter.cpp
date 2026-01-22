@@ -219,16 +219,7 @@ int ShellScriptInterpreter::execute_subshell(const std::string& subshell_content
         }
 
         int exit_code = g_shell->execute(subshell_content, true);
-
-        const char* exit_code_str = getenv("EXIT_CODE");
-        if (exit_code_str) {
-            char* end;
-            long result = std::strtol(exit_code_str, &end, 10);
-            if (end != exit_code_str && *end == '\0') {
-                exit_code = static_cast<int>(result);
-            }
-            unsetenv("EXIT_CODE");
-        }
+        exit_code = read_exit_code_or(exit_code);
 
         int child_status = 0;
         while (waitpid(-1, &child_status, WNOHANG) > 0) {

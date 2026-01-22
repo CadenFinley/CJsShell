@@ -112,3 +112,5 @@ class Shell {
 
     void apply_abbreviations_to_line_editor();
 };
+
+int read_exit_code_or(int fallback);

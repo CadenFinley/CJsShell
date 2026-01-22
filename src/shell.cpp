@@ -200,6 +200,21 @@ int Shell::execute(const std::string& script, bool skip_validation) {
     return 1;
 }
 
+int read_exit_code_or(int fallback) {
+    const char* exit_code_str = getenv("EXIT_CODE");
+    if (exit_code_str == nullptr) {
+        return fallback;
+    }
+
+    char* endptr = nullptr;
+    long exit_code_long = std::strtol(exit_code_str, &endptr, 10);
+    if (endptr != exit_code_str && *endptr == '\0') {
+        fallback = static_cast<int>(exit_code_long);
+    }
+    unsetenv("EXIT_CODE");
+    return fallback;
+}
+
 int handle_non_interactive_mode(const std::string& script_file) {
     std::string script_content;
 
@@ -280,18 +295,7 @@ int handle_non_interactive_mode(const std::string& script_file) {
 
     if (!script_content.empty()) {
         int code = g_shell ? g_shell->execute(script_content) : 1;
-
-        const char* exit_code_str = getenv("EXIT_CODE");
-        if (exit_code_str != nullptr) {
-            char* endptr = nullptr;
-            long exit_code_long = std::strtol(exit_code_str, &endptr, 10);
-            if (endptr != exit_code_str && *endptr == '\0') {
-                code = static_cast<int>(exit_code_long);
-            }
-            unsetenv("EXIT_CODE");
-        }
-
-        return code;
+        return read_exit_code_or(code);
     }
 
     return 0;

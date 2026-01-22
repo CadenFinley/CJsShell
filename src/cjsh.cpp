@@ -154,25 +154,8 @@ int run_cjsh(int argc, char* argv[]) {
 
     // execute command passed with -c
     if (config::execute_command) {
-        int code = g_shell ? g_shell->execute(config::cmd_to_execute) : 1;
-
-        const char* exit_code_str = getenv("EXIT_CODE");
-        if (exit_code_str != nullptr) {
-            char* endptr = nullptr;
-            long exit_code_long = std::strtol(exit_code_str, &endptr, 10);
-            if (endptr != exit_code_str && *endptr == '\0') {
-                code = static_cast<int>(exit_code_long);
-            }
-            unsetenv("EXIT_CODE");
-        }
-
-        if (g_shell) {
-            trap_manager_set_shell(g_shell.get());
-            trap_manager_execute_exit_trap();
-            g_shell.reset();
-        }
-
-        return code;
+        const int code = g_shell ? g_shell->execute(config::cmd_to_execute) : 1;
+        return read_exit_code_or(code);
     }
 
     // at this point everything else with the startup args has been handled so now we handle the
@@ -187,8 +170,8 @@ int run_cjsh(int argc, char* argv[]) {
         return handle_non_interactive_mode(script_file);
     }
 
-    // at this point cjsh has to be in an interactive state as all non-interactive possibilites has
-    // been properly handled
+    // at this point cjsh has to be in an interactive state as all non-interactive possibilites and
+    // early exits have been properly handled
     g_shell->set_interactive_mode(true);
     if (!cjsh_filesystem::initialize_cjsh_directories()) {
         return 1;
@@ -203,19 +186,8 @@ int run_cjsh(int argc, char* argv[]) {
         start_interactive_process();
     }
 
-    // grab exit code from envvar which was set by the last command that executed
-    const char* exit_code_str = getenv("EXIT_CODE");
-    int exit_code = 0;
-    if (exit_code_str != nullptr) {
-        char* endptr = nullptr;
-        long exit_code_long = std::strtol(exit_code_str, &endptr, 10);
-        if (endptr != exit_code_str && *endptr == '\0') {
-            exit_code = static_cast<int>(exit_code_long);
-        }
-        unsetenv("EXIT_CODE");
-    }
-
-    return exit_code;
+    // grab exit code from envvar which was set by the last command that executed and exit cjsh
+    return read_exit_code_or(0);
 }
 
 int main(int argc, char* argv[]) {
