@@ -168,7 +168,16 @@ std::vector<std::pair<std::string, std::string>> setup_user_system_vars(const st
 
     env_vars.emplace_back("USER", std::string(pw->pw_name));
     env_vars.emplace_back("LOGNAME", std::string(pw->pw_name));
-    env_vars.emplace_back("HOME", std::string(pw->pw_dir));
+
+    std::string home_value;
+    if (const char* current_home = getenv("HOME");
+        current_home != nullptr && current_home[0] != '\0') {
+        home_value = current_home;
+    } else {
+        home_value = std::string(pw->pw_dir);
+        setenv("HOME", home_value.c_str(), 1);
+    }
+    env_vars.emplace_back("HOME", home_value);
 
     char hostname[256];
     if (gethostname(hostname, sizeof(hostname)) == 0) {
