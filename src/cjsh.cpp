@@ -111,10 +111,8 @@ int run_cjsh(int argc, char* argv[]) {
     std::vector<std::string> script_args = parse_result.script_args;
 
     // make sure JobManager is constructed before registering cleanup so its destructor
-    // runs after cleanup_resources.
+    // runs after cleanup_resources and outlives the cleanup handler
     (void)JobManager::instance();
-
-    // ensure trap manager state outlives cleanup handler
     trap_manager_initialize();
 
     // register cleanup handler
@@ -123,7 +121,8 @@ int run_cjsh(int argc, char* argv[]) {
                      "",
                      "Failed to set exit handler",
                      {"Resource cleanup may not occur properly"}});
-        return 1;
+        // this is not a fatal error so we continue running cjsh as operating system should clean up
+        // resources on exit
     }
 
     // create the shell object

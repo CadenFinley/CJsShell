@@ -5,8 +5,6 @@
 #include <cstdio>
 #include <string>
 
-#include "cjsh.h"
-
 const bool PRE_RELEASE = false;
 const char* const c_version_base = "4.2.0";
 
