@@ -101,10 +101,6 @@ ic_public char* ic_readline(const char* prompt_text, const char* inline_right_te
     }
 
     if (!env->noedit) {
-        if (env->term != NULL) {
-            term_write(env->term, "\x1b[?2004h");
-            term_flush(env->term);
-        }
         if (initial_input != NULL) {
             ic_env_set_initial_input(env, initial_input);
         }
