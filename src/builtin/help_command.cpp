@@ -17,6 +17,7 @@ int help_command() {
 
     std::cout << "\nCJSH QUICK REFERENCE\n" << separator << "\n";
     (void)version_command({});
+    std::cout << "POSIX shell scripting meets modern shell features." << std::endl;
 
     heading("Project source");
     std::cout << "  Git repository:  https://github.com/CadenFinley/CJsShell\n";
@@ -71,6 +72,7 @@ int help_command() {
         {"type", "Explain how a command name will be resolved"},
         {"which", "Locate executables in PATH"},
         {"hash", "Cache command lookups or display the cache"},
+        {"generate-completions", "Regenerate cached completion metadata"},
 
         // History
         {"history", "Display command history"},
@@ -83,6 +85,7 @@ int help_command() {
         {"bg", "Resume a job in the background"},
         {"wait", "Wait for jobs or processes to finish"},
         {"kill", "Send signals to jobs or processes"},
+        {"disown", "Detach jobs so they survive after cjsh exits"},
 
         // System
         {"umask", "Show or set the file creation mask"},
@@ -105,6 +108,7 @@ int help_command() {
 
         // Shell customization
         {"cjshopt", "Generate config files and adjust cjsh options"},
+        {"cjsh-widget", "Drive the line editor from shell code"},
         {"hook", "Manage shell hooks (precmd, preexec, chpwd)"}};
 
     std::cout << std::left;
@@ -137,6 +141,7 @@ int help_command() {
     std::cout << "  ~/.cjprofile        Login configuration and persisted startup flags.\n";
     std::cout << "  ~/.cjshrc           Interactive configuration (aliases, themes).\n";
     std::cout << "  ~/.cjsh_logout      Optional logout script sourced on exit.\n";
+    std::cout << "  ~/.config/cjsh/     Optional alternate config root for generated files.\n";
     std::cout << "  ~/.cache/cjsh/      Cache directory (history.txt, exec cache).\n";
     std::cout << "  ~/.cache/cjsh/.first_boot  Marker used to suppress the first-run banner.\n";
 

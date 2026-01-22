@@ -9,7 +9,7 @@ void print_usage(bool print_version, bool print_hook, bool print_footer) {
         (void)version_command({});
     }
     if (print_hook)
-        std::cout << "A modern, feature-rich shell with POSIX compatibility\n";
+        std::cout << "POSIX shell scripting meets modern shell features\n";
     std::cout << "Usage: cjsh [options] [script_file [args...]]\n"
               << "       cjsh -c command_string [args...]\n"
               << "\n"
@@ -20,12 +20,14 @@ void print_usage(bool print_version, bool print_hook, bool print_footer) {
               << "  -l, --login                Start as a login shell (load profile)\n"
               << "  -i, --interactive          Force interactive mode\n"
               << "  -c, --command=COMMAND      Execute the specified command and exit\n"
+              << "                             (disables history expansion)\n"
               << "\n"
               << "Feature Control Options:\n"
-              << "  -m, --minimal              Disable all unique cjsh features\n"
-              << "                             (themes, colors, completions, syntax\n"
-              << "                             highlighting, smart cd, sourcing,\n"
-              << "                             startup time, history expansion)\n"
+              << "  -m, --minimal              Disable cjsh extras (prompt themes,\n"
+              << "                             colors, completions, syntax highlighting,\n"
+              << "                             smart cd, rc sourcing, title line, history\n"
+              << "                             expansion, multiline line numbers, auto\n"
+              << "                             indentation, startup time banner)\n"
               << "  -C, --no-colors            Disable color output\n"
               << "  -N, --no-source            Don't source the ~/.cjshrc file\n"
               << "  -O, --no-completions       Disable tab completions\n"
@@ -39,8 +41,13 @@ void print_usage(bool print_version, bool print_hook, bool print_footer) {
 
               << "\n"
               << "Security and Testing:\n"
-              << "  -s, --secure               Secure mode: disable profile/rc files\n"
+              << "  -s, --secure               Secure mode: skip ~/.cjprofile, ~/.cjshrc,\n"
+              << "                             and ~/.cjsh_logout entirely\n"
               << "  -X, --startup-test         Enable startup test mode (internal)\n"
+              << "\n"
+              << "Persisting flags:\n"
+              << "  Add 'cjshopt login-startup-arg <flag>' inside ~/.cjprofile to\n"
+              << "  apply the same switches automatically on login shells.\n"
               << "\n"
               << "Examples:\n"
               << "  cjsh                       Start interactive shell\n"

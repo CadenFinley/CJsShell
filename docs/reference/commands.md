@@ -597,7 +597,7 @@ Supported flags:
 | `--no-syntax-highlighting` | Disable syntax highlighting in the editor |
 | `--no-smart-cd` | Disable fuzzy/smart directory changes |
 | `--no-history-expansion` | Disable `!!`, `!$`, and related history tokens |
-| `--minimal` | Disable cjsh extras (colors, completions, smart cd, sourcing, etc.) |
+| `--minimal` | Disable prompt themes/colors, completions, syntax highlighting, smart `cd`, rc sourcing, title line, history expansion, multiline line numbers, and auto-indentation |
 | `--secure` | Skip profile/rc/logout sourcing even for login shells |
 | `--startup-test` | Enable startup test mode |
 

@@ -73,11 +73,13 @@ Consult the [Completion Authoring Guide](completions.md) for cache format and cu
 ## Disabling Enhancements
 
 CJSH keeps POSIX-focused scripting predictable by disabling most POSIX+ features automatically in
-non-interactive contexts. When you need a strictly standard shell interactively, combine:
+non-interactive contexts. When you need a strictly standard shell interactively, start with
+`--minimal` (disables colors, completions, syntax highlighting, smart `cd`, rc sourcing, the title
+line, history expansion, multiline line numbers, and auto-indentation) and add `--secure` if you
+also want to skip all login/logout dotfiles:
 
 ```bash
-cjsh --minimal --no-colors --no-syntax-highlighting --no-completions --no-smart-cd \
-     --no-history-expansion --no-titleline
+cjsh --minimal --secure
 ```
 
 Or persist equivalent flags through `cjshopt login-startup-arg` in `~/.cjprofile`.

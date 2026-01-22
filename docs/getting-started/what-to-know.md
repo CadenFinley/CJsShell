@@ -7,7 +7,7 @@ Welcome to CJ's Shell (cjsh)! This guide highlights the interactive features tha
 ### Prompt Styling & Themes
 **Status:** Enabled  
 **Configure:** Edit `PS1`, `RPS1`, `PS2`, and `PROMPT_COMMAND` directly in your config using the BBCode-style markup described in [Prompt Markup and Styling](../themes/thedetails.md). Use `cjshopt style_def <token_type> <style>` to redefine highlight palettes that are shared between syntax highlighting and prompt tags.  
-**Disable:** Start cjsh with `--minimal` (disables colors, completions, and prompt helpers) or add `cjshopt login-startup-arg --minimal` to `~/.cjprofile`.
+**Disable:** Start cjsh with `--minimal` (turns off prompt themes/colors, completions, syntax highlighting, smart `cd`, rc sourcing, the title line, history expansion, multiline line numbers, and auto-indentation) or add `cjshopt login-startup-arg --minimal` to `~/.cjprofile`.
 
 All prompt styling now lives inside your dotfiles—no external theme DSL or bundled theme directory is required. Share a prompt by exporting new variables or sourcing a file that sets them, just like any other shell configuration.
 

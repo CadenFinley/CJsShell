@@ -82,4 +82,4 @@ As before, git revision information is embedded automatically; use `CJSH_GIT_HAS
 
 ## Next Steps
 
-Now that you have cjsh installed, check out [What You Need to Know](what-to-know.md) to learn about all the powerful features available out of the box and how to configure them to suit your workflow.
+Now that you have cjsh installed, run `cjsh --help` to review invocation flags, type `help` inside the shell for the built-in quick reference, and check out [What You Need to Know](what-to-know.md) to learn about all the powerful features available out of the box and how to configure them to suit your workflow.

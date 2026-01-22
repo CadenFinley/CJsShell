@@ -88,8 +88,9 @@ Persistent caches (history, generated completions, etc.) live under `~/.cache/cj
 - `-l, --login` – treat the shell as a login shell (source `~/.cjprofile`)
 - `-i, --interactive` – force interactive behavior even if stdin is not a tty
 - `-c, --command=<string>` – execute a single command and exit (disables history expansion)
-- `-m, --minimal` – disable colors, completions, syntax highlighting, smart `cd`, rc sourcing,
-    title line, and history expansion
+- `-m, --minimal` – disable prompt themes/colors, completions, syntax highlighting, smart `cd`, rc
+    sourcing, the title line, history expansion, multiline line numbers, auto-indentation, and the
+    startup time banner
 - `-C, --no-colors`
 - `-L, --no-titleline`
 - `-U, --show-startup-time`
@@ -98,7 +99,7 @@ Persistent caches (history, generated completions, etc.) live under `~/.cache/cj
 - `-S, --no-syntax-highlighting`
 - `-M, --no-smart-cd`
 - `-H, --no-history-expansion`
-- `-s, --secure` – skip profile/rc/logout files entirely
+- `-s, --secure` – skip `~/.cjprofile`, `~/.cjshrc`, and `~/.cjsh_logout` entirely
 - `-X, --startup-test` – diagnostic mode used by the bundled tests
 
 Flags affecting feature toggles take effect early in startup and can also be injected via
