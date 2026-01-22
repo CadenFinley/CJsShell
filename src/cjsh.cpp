@@ -110,9 +110,6 @@ int run_cjsh(int argc, char* argv[]) {
     std::string script_file = parse_result.script_file;
     std::vector<std::string> script_args = parse_result.script_args;
 
-    // verify essential files for cjsh
-    cjsh_filesystem::initialize_cjsh_directories();
-
     // make sure JobManager is constructed before registering cleanup so its destructor
     // runs after cleanup_resources.
     (void)JobManager::instance();
@@ -193,7 +190,7 @@ int run_cjsh(int argc, char* argv[]) {
     // at this point cjsh has to be in an interactive state as all non-interactive possibilites has
     // been properly handled
     g_shell->set_interactive_mode(true);
-    if (!cjsh_filesystem::init_interactive_filesystem()) {
+    if (!cjsh_filesystem::initialize_cjsh_directories()) {
         return 1;
     }
     g_shell->setup_interactive_handlers();

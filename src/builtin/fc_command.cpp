@@ -172,12 +172,12 @@ int edit_and_execute_string(const std::string& initial_content, const std::strin
     int editor_exit_code = shell->execute_command(editor_args, false);
 
     if (editor_exit_code != 0) {
-        cjsh_filesystem::fs::remove(temp_file);
+        std::filesystem::remove(temp_file);
         return editor_exit_code;
     }
 
     auto read_result = cjsh_filesystem::read_file_content(temp_file.string());
-    cjsh_filesystem::fs::remove(temp_file);
+    std::filesystem::remove(temp_file);
 
     if (read_result.is_error()) {
         print_error({ErrorType::RUNTIME_ERROR, "fc", "Failed to read edited commands", {}});
@@ -235,12 +235,12 @@ int edit_and_execute(const std::vector<std::string>& entries, int first, int las
     int editor_exit_code = shell->execute_command(editor_args, false);
 
     if (editor_exit_code != 0) {
-        cjsh_filesystem::fs::remove(temp_file);
+        std::filesystem::remove(temp_file);
         return editor_exit_code;
     }
 
     auto read_result = cjsh_filesystem::read_file_content(temp_file.string());
-    cjsh_filesystem::fs::remove(temp_file);
+    std::filesystem::remove(temp_file);
 
     if (read_result.is_error()) {
         print_error({ErrorType::RUNTIME_ERROR, "fc", "Failed to read edited commands", {}});

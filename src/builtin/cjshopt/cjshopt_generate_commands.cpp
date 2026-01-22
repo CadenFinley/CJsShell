@@ -13,10 +13,10 @@
 namespace {
 int handle_generate_command_common(
     const std::vector<std::string>& args, const std::string& command_name,
-    const cjsh_filesystem::fs::path& default_target_path,
-    const std::optional<cjsh_filesystem::fs::path>& alternate_target_path,
+    const std::filesystem::path& default_target_path,
+    const std::optional<std::filesystem::path>& alternate_target_path,
     const std::string& description,
-    const std::function<bool(const cjsh_filesystem::fs::path&)>& generator) {
+    const std::function<bool(const std::filesystem::path&)>& generator) {
     bool force = false;
     bool use_alternate = false;
 
@@ -71,10 +71,10 @@ int handle_generate_command_common(
         return 1;
     }
 
-    const cjsh_filesystem::fs::path& target_path =
+    const std::filesystem::path& target_path =
         use_alternate ? alternate_target_path.value() : default_target_path;
 
-    bool file_exists = cjsh_filesystem::fs::exists(target_path);
+    bool file_exists = std::filesystem::exists(target_path);
     if (file_exists && !force) {
         print_error({ErrorType::INVALID_ARGUMENT,
                      command_name,
@@ -98,9 +98,9 @@ int handle_generate_command_common(
 int generate_profile_command(const std::vector<std::string>& args) {
     return handle_generate_command_common(
         args, "generate-profile", cjsh_filesystem::g_cjsh_profile_path(),
-        std::optional<cjsh_filesystem::fs::path>{cjsh_filesystem::g_cjsh_profile_alt_path()},
+        std::optional<std::filesystem::path>{cjsh_filesystem::g_cjsh_profile_alt_path()},
         "Create a default ~/.cjprofile configuration file.",
-        [](const cjsh_filesystem::fs::path& target) {
+        [](const std::filesystem::path& target) {
             return cjsh_filesystem::create_profile_file(target);
         });
 }
@@ -108,9 +108,8 @@ int generate_profile_command(const std::vector<std::string>& args) {
 int generate_rc_command(const std::vector<std::string>& args) {
     return handle_generate_command_common(
         args, "generate-rc", cjsh_filesystem::g_cjsh_source_path(),
-        std::optional<cjsh_filesystem::fs::path>{cjsh_filesystem::g_cjsh_source_alt_path()},
-        "Create a default ~/.cjshrc configuration file.",
-        [](const cjsh_filesystem::fs::path& target) {
+        std::optional<std::filesystem::path>{cjsh_filesystem::g_cjsh_source_alt_path()},
+        "Create a default ~/.cjshrc configuration file.", [](const std::filesystem::path& target) {
             return cjsh_filesystem::create_source_file(target);
         });
 }
@@ -118,8 +117,8 @@ int generate_rc_command(const std::vector<std::string>& args) {
 int generate_logout_command(const std::vector<std::string>& args) {
     return handle_generate_command_common(
         args, "generate-logout", cjsh_filesystem::g_cjsh_logout_path(),
-        std::optional<cjsh_filesystem::fs::path>{cjsh_filesystem::g_cjsh_logout_alt_path()},
-        "Create a default ~/.cjsh_logout file.", [](const cjsh_filesystem::fs::path& target) {
+        std::optional<std::filesystem::path>{cjsh_filesystem::g_cjsh_logout_alt_path()},
+        "Create a default ~/.cjsh_logout file.", [](const std::filesystem::path& target) {
             return cjsh_filesystem::create_logout_file(target);
         });
 }

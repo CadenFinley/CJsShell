@@ -1,7 +1,6 @@
 #include "cjsh_filesystem.h"
 
 #include <algorithm>
-#include <atomic>
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
@@ -10,7 +9,6 @@
 #include <sstream>
 #include <string_view>
 #include <system_error>
-#include <thread>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -31,8 +29,8 @@
 
 namespace cjsh_filesystem {
 
-const fs::path& g_user_home_path() {
-    static const fs::path path = []() {
+const std::filesystem::path& g_user_home_path() {
+    static const std::filesystem::path path = []() {
         const char* home = std::getenv("HOME");
         if (!home || home[0] == '\0') {
             print_error({ErrorType::UNKNOWN_ERROR,
@@ -40,65 +38,65 @@ const fs::path& g_user_home_path() {
                          "filesystem",
                          "HOME environment variable not set or empty. Using /tmp as fallback.",
                          {}});
-            return fs::path("/tmp");
+            return std::filesystem::path("/tmp");
         }
-        return fs::path(home);
+        return std::filesystem::path(home);
     }();
     return path;
 }
 
-const fs::path& g_cjsh_config_path() {
-    static const fs::path path = g_user_home_path() / ".config" / "cjsh";
+const std::filesystem::path& g_cjsh_config_path() {
+    static const std::filesystem::path path = g_user_home_path() / ".config" / "cjsh";
     return path;
 }
 
-const fs::path& g_cjsh_cache_path() {
-    static const fs::path path = g_user_home_path() / ".cache" / "cjsh";
+const std::filesystem::path& g_cjsh_cache_path() {
+    static const std::filesystem::path path = g_user_home_path() / ".cache" / "cjsh";
     return path;
 }
 
-const fs::path& g_cjsh_profile_path() {
-    static const fs::path path = g_user_home_path() / ".cjprofile";
+const std::filesystem::path& g_cjsh_profile_path() {
+    static const std::filesystem::path path = g_user_home_path() / ".cjprofile";
     return path;
 }
 
-const fs::path& g_cjsh_source_path() {
-    static const fs::path path = g_user_home_path() / ".cjshrc";
+const std::filesystem::path& g_cjsh_source_path() {
+    static const std::filesystem::path path = g_user_home_path() / ".cjshrc";
     return path;
 }
 
-const fs::path& g_cjsh_logout_path() {
-    static const fs::path path = g_user_home_path() / ".cjsh_logout";
+const std::filesystem::path& g_cjsh_logout_path() {
+    static const std::filesystem::path path = g_user_home_path() / ".cjsh_logout";
     return path;
 }
 
-const fs::path& g_cjsh_profile_alt_path() {
-    static const fs::path path = g_cjsh_config_path() / ".cjprofile";
+const std::filesystem::path& g_cjsh_profile_alt_path() {
+    static const std::filesystem::path path = g_cjsh_config_path() / ".cjprofile";
     return path;
 }
 
-const fs::path& g_cjsh_source_alt_path() {
-    static const fs::path path = g_cjsh_config_path() / ".cjshrc";
+const std::filesystem::path& g_cjsh_source_alt_path() {
+    static const std::filesystem::path path = g_cjsh_config_path() / ".cjshrc";
     return path;
 }
 
-const fs::path& g_cjsh_logout_alt_path() {
-    static const fs::path path = g_cjsh_config_path() / ".cjsh_logout";
+const std::filesystem::path& g_cjsh_logout_alt_path() {
+    static const std::filesystem::path path = g_cjsh_config_path() / ".cjsh_logout";
     return path;
 }
 
-const fs::path& g_cjsh_history_path() {
-    static const fs::path path = g_cjsh_cache_path() / "history.txt";
+const std::filesystem::path& g_cjsh_history_path() {
+    static const std::filesystem::path path = g_cjsh_cache_path() / "history.txt";
     return path;
 }
 
-const fs::path& g_cjsh_first_boot_path() {
-    static const fs::path path = g_cjsh_cache_path() / ".first_boot";
+const std::filesystem::path& g_cjsh_first_boot_path() {
+    static const std::filesystem::path path = g_cjsh_cache_path() / ".first_boot";
     return path;
 }
 
-const fs::path& g_cjsh_generated_completions_path() {
-    static const fs::path path = g_cjsh_cache_path() / "generated_completions";
+const std::filesystem::path& g_cjsh_generated_completions_path() {
+    static const std::filesystem::path path = g_cjsh_cache_path() / "generated_completions";
     return path;
 }
 
@@ -107,14 +105,14 @@ std::string describe_errno(int err) {
     return std::system_category().message(err);
 }
 
-bool path_is_executable(const fs::path& candidate) {
+bool path_is_executable(const std::filesystem::path& candidate) {
     std::error_code ec;
 
-    if (!fs::exists(candidate, ec) || ec) {
+    if (!std::filesystem::exists(candidate, ec) || ec) {
         return false;
     }
 
-    if (fs::is_directory(candidate, ec) || ec) {
+    if (std::filesystem::is_directory(candidate, ec) || ec) {
         return false;
     }
 
@@ -122,7 +120,7 @@ bool path_is_executable(const fs::path& candidate) {
 }
 }  // namespace
 
-fs::path g_cjsh_path;
+std::filesystem::path g_cjsh_path;
 
 Result<int> safe_open(const std::string& path, int flags, mode_t mode) {
     int fd = ::open(path.c_str(), flags, mode);
@@ -382,11 +380,11 @@ bool resolves_to_executable(const std::string& name, const std::string& cwd) {
         return false;
     }
 
-    fs::path candidate(name);
+    std::filesystem::path candidate(name);
 
     if (name.find('/') != std::string::npos) {
         if (!candidate.is_absolute()) {
-            candidate = fs::path(cwd) / candidate;
+            candidate = std::filesystem::path(cwd) / candidate;
         }
 
         return path_is_executable(candidate);
@@ -400,8 +398,9 @@ bool resolves_to_executable(const std::string& name, const std::string& cwd) {
     std::string path_str(path_env);
 
     bool found = for_each_path_segment(path_str, [&](std::string_view raw_segment) {
-        fs::path base = raw_segment.empty() ? fs::path(".") : fs::path(raw_segment);
-        fs::path path_candidate = base / name;
+        std::filesystem::path base =
+            raw_segment.empty() ? std::filesystem::path(".") : std::filesystem::path(raw_segment);
+        std::filesystem::path path_candidate = base / name;
         return path_is_executable(path_candidate);
     });
 
@@ -413,14 +412,15 @@ bool path_is_directory_candidate(const std::string& value, const std::string& cw
         return false;
     }
 
-    fs::path candidate(value);
+    std::filesystem::path candidate(value);
     std::error_code ec;
 
     if (!candidate.is_absolute()) {
-        candidate = fs::path(cwd) / candidate;
+        candidate = std::filesystem::path(cwd) / candidate;
     }
 
-    return fs::exists(candidate, ec) && !ec && fs::is_directory(candidate, ec) && !ec;
+    return std::filesystem::exists(candidate, ec) && !ec &&
+           std::filesystem::is_directory(candidate, ec) && !ec;
 }
 
 Result<std::string> read_file_content(const std::string& path) {
@@ -464,25 +464,25 @@ std::vector<std::string> get_executables_in_path() {
             return false;
         }
 
-        fs::path directory_path(raw_segment);
+        std::filesystem::path directory_path(raw_segment);
         std::error_code ec;
 
-        if (!fs::exists(directory_path, ec) || ec) {
+        if (!std::filesystem::exists(directory_path, ec) || ec) {
             return false;
         }
 
         ec.clear();
-        if (!fs::is_directory(directory_path, ec) || ec) {
+        if (!std::filesystem::is_directory(directory_path, ec) || ec) {
             return false;
         }
 
-        fs::directory_iterator it(directory_path, fs::directory_options::skip_permission_denied,
-                                  ec);
+        std::filesystem::directory_iterator it(
+            directory_path, std::filesystem::directory_options::skip_permission_denied, ec);
         if (ec) {
             return false;
         }
 
-        for (; it != fs::directory_iterator(); it.increment(ec)) {
+        for (; it != std::filesystem::directory_iterator(); it.increment(ec)) {
             if (ec) {
                 break;
             }
@@ -494,15 +494,16 @@ std::vector<std::string> get_executables_in_path() {
                 continue;
             }
 
-            if (!fs::is_regular_file(status)) {
+            if (!std::filesystem::is_regular_file(status)) {
                 continue;
             }
 
             auto perms = status.permissions();
-            constexpr auto exec_mask =
-                fs::perms::owner_exec | fs::perms::group_exec | fs::perms::others_exec;
+            constexpr auto exec_mask = std::filesystem::perms::owner_exec |
+                                       std::filesystem::perms::group_exec |
+                                       std::filesystem::perms::others_exec;
 
-            if ((perms & exec_mask) != fs::perms::none) {
+            if ((perms & exec_mask) != std::filesystem::perms::none) {
                 std::string exec_name = entry.path().filename().string();
                 if (seen_executables.insert(exec_name).second) {
                     executables.push_back(exec_name);
@@ -516,25 +517,48 @@ std::vector<std::string> get_executables_in_path() {
     return executables;
 }
 
-bool file_exists(const fs::path& path) {
-    return fs::exists(path);
+bool file_exists(const std::filesystem::path& path) {
+    return std::filesystem::exists(path);
 }
 
 bool initialize_cjsh_directories() {
-    try {
-        fs::create_directories(g_cjsh_config_path());
-        fs::create_directories(g_cjsh_cache_path());
-        fs::create_directories(g_cjsh_generated_completions_path());
+    std::string current_path = std::filesystem::current_path().string();
+    setenv("PWD", current_path.c_str(), 1);
 
-        return true;
-    } catch (const fs::filesystem_error& e) {
+    try {
+        bool home_exists = file_exists(g_user_home_path());
+
+        if (!home_exists) {
+            print_error({ErrorType::RUNTIME_ERROR,
+                         "",
+                         "User home path not found",
+                         {"Check user account configuration"}});
+            return false;
+        }
+        std::filesystem::create_directories(g_cjsh_config_path());
+        std::filesystem::create_directories(g_cjsh_cache_path());
+        std::filesystem::create_directories(g_cjsh_generated_completions_path());
+        bool history_exists = file_exists(g_cjsh_history_path());
+
+        if (!history_exists) {
+            auto write_result = write_file_content(g_cjsh_history_path().string(), "");
+            if (!write_result.is_ok()) {
+                print_error({ErrorType::RUNTIME_ERROR,
+                             g_cjsh_history_path().c_str(),
+                             write_result.error(),
+                             {"Check file permissions"}});
+                return false;
+            }
+        }
+
+    } catch (const std::exception& e) {
         print_error({ErrorType::RUNTIME_ERROR,
-                     ErrorSeverity::ERROR,
-                     "filesystem",
-                     std::string("Error creating cjsh directories: ") + e.what(),
-                     {"Ensure the configuration and cache directories are writable."}});
+                     "",
+                     "Failed to initialize interactive filesystem",
+                     {"Check file permissions", "Reinstall cjsh"}});
         return false;
     }
+    return true;
 }
 
 std::string find_executable_in_path(const std::string& name) {
@@ -550,18 +574,19 @@ std::string find_executable_in_path(const std::string& name) {
         if (dir.empty())
             continue;
 
-        fs::path executable_path = fs::path(dir) / name;
+        std::filesystem::path executable_path = std::filesystem::path(dir) / name;
 
         try {
-            if (fs::exists(executable_path) && fs::is_regular_file(executable_path)) {
-                auto perms = fs::status(executable_path).permissions();
-                if ((perms & fs::perms::owner_exec) != fs::perms::none ||
-                    (perms & fs::perms::group_exec) != fs::perms::none ||
-                    (perms & fs::perms::others_exec) != fs::perms::none) {
+            if (std::filesystem::exists(executable_path) &&
+                std::filesystem::is_regular_file(executable_path)) {
+                auto perms = std::filesystem::status(executable_path).permissions();
+                if ((perms & std::filesystem::perms::owner_exec) != std::filesystem::perms::none ||
+                    (perms & std::filesystem::perms::group_exec) != std::filesystem::perms::none ||
+                    (perms & std::filesystem::perms::others_exec) != std::filesystem::perms::none) {
                     return executable_path.string();
                 }
             }
-        } catch (const fs::filesystem_error&) {
+        } catch (const std::filesystem::filesystem_error&) {
             continue;
         }
     }
@@ -570,10 +595,11 @@ std::string find_executable_in_path(const std::string& name) {
 }
 
 namespace {
-bool write_configuration_file(const fs::path& target_path, const std::string& content) {
+bool write_configuration_file(const std::filesystem::path& target_path,
+                              const std::string& content) {
     if (!target_path.parent_path().empty()) {
         std::error_code dir_error;
-        fs::create_directories(target_path.parent_path(), dir_error);
+        std::filesystem::create_directories(target_path.parent_path(), dir_error);
         if (dir_error) {
             print_error({ErrorType::RUNTIME_ERROR,
                          target_path.parent_path().string(),
@@ -595,7 +621,7 @@ bool write_configuration_file(const fs::path& target_path, const std::string& co
 }
 }  // namespace
 
-bool create_profile_file(const fs::path& target_path) {
+bool create_profile_file(const std::filesystem::path& target_path) {
     std::string profile_content =
         "#!/usr/bin/env cjsh\n"
         "# cjsh Configuration File\n"
@@ -641,7 +667,7 @@ bool create_profile_file(const fs::path& target_path) {
     return write_configuration_file(target_path, profile_content);
 }
 
-bool create_source_file(const fs::path& target_path) {
+bool create_source_file(const std::filesystem::path& target_path) {
     std::string source_content =
         "#!/usr/bin/env cjsh\n"
         "# cjsh Source File\n"
@@ -691,7 +717,7 @@ bool create_source_file(const fs::path& target_path) {
     return write_configuration_file(target_path, source_content);
 }
 
-bool create_logout_file(const fs::path& target_path) {
+bool create_logout_file(const std::filesystem::path& target_path) {
     std::string logout_content =
         "#!/usr/bin/env cjsh\n"
         "# cjsh Logout File\n"
@@ -705,45 +731,8 @@ bool create_logout_file(const fs::path& target_path) {
     return write_configuration_file(target_path, logout_content);
 }
 
-bool init_interactive_filesystem() {
-    std::string current_path = std::filesystem::current_path().string();
-    setenv("PWD", current_path.c_str(), 1);
-
-    try {
-        bool home_exists = std::filesystem::exists(g_user_home_path());
-        bool history_exists = std::filesystem::exists(g_cjsh_history_path());
-
-        if (!home_exists) {
-            print_error({ErrorType::RUNTIME_ERROR,
-                         "",
-                         "User home path not found",
-                         {"Check user account configuration"}});
-            return false;
-        }
-
-        if (!history_exists) {
-            auto write_result = write_file_content(g_cjsh_history_path().string(), "");
-            if (!write_result.is_ok()) {
-                print_error({ErrorType::RUNTIME_ERROR,
-                             g_cjsh_history_path().c_str(),
-                             write_result.error(),
-                             {"Check file permissions"}});
-                return false;
-            }
-        }
-
-    } catch (const std::exception& e) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     "",
-                     "Failed to initialize interactive filesystem",
-                     {"Check file permissions", "Reinstall cjsh"}});
-        return false;
-    }
-    return true;
-}
-
 bool is_first_boot() {
-    return !fs::exists(g_cjsh_first_boot_path());
+    return !std::filesystem::exists(g_cjsh_first_boot_path());
 }
 
 void process_profile_files() {
