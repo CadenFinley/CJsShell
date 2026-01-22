@@ -159,6 +159,66 @@ bool handle_double_bracket_close(const std::string& command, size_t i, std::stri
     return true;
 }
 
+bool line_has_continuation(const std::string& line, bool ended_in_comment) {
+    if (ended_in_comment) {
+        return false;
+    }
+
+    size_t end = line.find_last_not_of(" \t");
+    if (end == std::string::npos || line[end] != '\\') {
+        return false;
+    }
+
+    size_t backslash_count = 0;
+    size_t idx = end + 1;
+    while (idx > 0 && line[idx - 1] == '\\') {
+        backslash_count++;
+        idx--;
+    }
+
+    return (backslash_count % 2) == 1;
+}
+
+std::vector<std::string> merge_line_continuations(const std::vector<std::string>& lines,
+                                                  const std::vector<bool>& comment_flags) {
+    if (lines.empty()) {
+        return lines;
+    }
+
+    std::vector<std::string> merged;
+    merged.reserve(lines.size());
+    std::string accumulator;
+
+    for (size_t i = 0; i < lines.size(); ++i) {
+        const std::string& line = lines[i];
+        if (accumulator.empty()) {
+            accumulator = line;
+        } else {
+            accumulator += line;
+        }
+
+        if (line_has_continuation(line, comment_flags[i])) {
+            while (!accumulator.empty() &&
+                   (accumulator.back() == ' ' || accumulator.back() == '\t')) {
+                accumulator.pop_back();
+            }
+            if (!accumulator.empty()) {
+                accumulator.pop_back();
+            }
+            continue;
+        }
+
+        merged.push_back(accumulator);
+        accumulator.clear();
+    }
+
+    if (!accumulator.empty()) {
+        merged.push_back(accumulator);
+    }
+
+    return merged;
+}
+
 }  // namespace
 
 void Parser::process_heredoc_content(std::string& content) {
@@ -281,6 +341,8 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
     std::vector<std::string> lines;
 
     lines.reserve(std::min(script.length() / 30 + 2, size_t(64)));
+    std::vector<bool> line_comment_flags;
+    line_comment_flags.reserve(lines.capacity());
     size_t start = 0;
     bool in_quotes = false;
     char quote_char = '\0';
@@ -327,6 +389,7 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
             segment.pop_back();
         }
         lines.push_back(std::move(segment));
+        line_comment_flags.push_back(false);
     };
 
     auto is_in_arithmetic_context = [](std::string_view text, size_t pos) -> bool {
@@ -508,6 +571,7 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
                 segment.pop_back();
             }
             lines.push_back(std::move(segment));
+            line_comment_flags.push_back(false);
         }
     };
 
@@ -700,7 +764,9 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
             if (!segment.empty() && segment.back() == '\r') {
                 segment.pop_back();
             }
+            bool ended_in_comment = line_is_comment;
             lines.push_back(std::move(segment));
+            line_comment_flags.push_back(ended_in_comment);
             start = i + 1;
             line_is_comment = false;
         }
@@ -749,6 +815,7 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
                 tail.pop_back();
             }
             lines.push_back(std::move(tail));
+            line_comment_flags.push_back(false);
             reset_here_doc_state();
         }
     }
@@ -761,13 +828,19 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
                 tail.pop_back();
             }
             lines.push_back(std::move(tail));
+            line_comment_flags.push_back(false);
         } else if (!tail_view.empty()) {
             std::string tail{tail_view};
             if (!tail.empty() && tail.back() == '\r') {
                 tail.pop_back();
             }
             lines.push_back(std::move(tail));
+            line_comment_flags.push_back(false);
         }
+    }
+
+    if (lines.size() == line_comment_flags.size()) {
+        return merge_line_continuations(lines, line_comment_flags);
     }
 
     return lines;
