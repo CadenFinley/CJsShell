@@ -1161,9 +1161,11 @@ necessary.</p>
 </ul>
 <h2 id="disabling-enhancements">Disabling Enhancements</h2>
 <p>CJSH keeps POSIX-focused scripting predictable by disabling most POSIX+ features automatically in
-non-interactive contexts. When you need a strictly standard shell interactively, combine:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>cjsh<span class="w"> </span>--minimal<span class="w"> </span>--no-colors<span class="w"> </span>--no-syntax-highlighting<span class="w"> </span>--no-completions<span class="w"> </span>--no-smart-cd<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">     </span>--no-history-expansion<span class="w"> </span>--no-titleline
+non-interactive contexts. When you need a strictly standard shell interactively, start with
+<code>--minimal</code> (disables colors, completions, syntax highlighting, smart <code>cd</code>, rc sourcing, the title
+line, history expansion, multiline line numbers, and auto-indentation) and add <code>--secure</code> if you
+also want to skip all login/logout dotfiles:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>cjsh<span class="w"> </span>--minimal<span class="w"> </span>--secure
 </span></code></pre></div>
 <p>Or persist equivalent flags through <code>cjshopt login-startup-arg</code> in <code>~/.cjprofile</code>.</p>
 <h2 id="summary">Summary</h2>

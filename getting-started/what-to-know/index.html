@@ -1369,7 +1369,7 @@
 <h3 id="prompt-styling-themes">Prompt Styling &amp; Themes</h3>
 <p><strong>Status:</strong> Enabled<br>
 <strong>Configure:</strong> Edit <code>PS1</code>, <code>RPS1</code>, <code>PS2</code>, and <code>PROMPT_COMMAND</code> directly in your config using the BBCode-style markup described in <a href="../../themes/thedetails/">Prompt Markup and Styling</a>. Use <code>cjshopt style_def &lt;token_type&gt; &lt;style&gt;</code> to redefine highlight palettes that are shared between syntax highlighting and prompt tags.<br>
-<strong>Disable:</strong> Start cjsh with <code>--minimal</code> (disables colors, completions, and prompt helpers) or add <code>cjshopt login-startup-arg --minimal</code> to <code>~/.cjprofile</code>.</p>
+<strong>Disable:</strong> Start cjsh with <code>--minimal</code> (turns off prompt themes/colors, completions, syntax highlighting, smart <code>cd</code>, rc sourcing, the title line, history expansion, multiline line numbers, and auto-indentation) or add <code>cjshopt login-startup-arg --minimal</code> to <code>~/.cjprofile</code>.</p>
 <p>All prompt styling now lives inside your dotfiles—no external theme DSL or bundled theme directory is required. Share a prompt by exporting new variables or sourcing a file that sets them, just like any other shell configuration.</p>
 <h3 id="true-color-support">True Color Support</h3>
 <p><strong>Status:</strong> Enabled when the terminal advertises 24-bit color.<br>

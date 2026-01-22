@@ -1213,8 +1213,9 @@ for full details.</p>
 <li><code>-l, --login</code> – treat the shell as a login shell (source <code>~/.cjprofile</code>)</li>
 <li><code>-i, --interactive</code> – force interactive behavior even if stdin is not a tty</li>
 <li><code>-c, --command=&lt;string&gt;</code> – execute a single command and exit (disables history expansion)</li>
-<li><code>-m, --minimal</code> – disable colors, completions, syntax highlighting, smart <code>cd</code>, rc sourcing,
-    title line, and history expansion</li>
+<li><code>-m, --minimal</code> – disable prompt themes/colors, completions, syntax highlighting, smart <code>cd</code>, rc
+    sourcing, the title line, history expansion, multiline line numbers, auto-indentation, and the
+    startup time banner</li>
 <li><code>-C, --no-colors</code></li>
 <li><code>-L, --no-titleline</code></li>
 <li><code>-U, --show-startup-time</code></li>
@@ -1223,7 +1224,7 @@ for full details.</p>
 <li><code>-S, --no-syntax-highlighting</code></li>
 <li><code>-M, --no-smart-cd</code></li>
 <li><code>-H, --no-history-expansion</code></li>
-<li><code>-s, --secure</code> – skip profile/rc/logout files entirely</li>
+<li><code>-s, --secure</code> – skip <code>~/.cjprofile</code>, <code>~/.cjshrc</code>, and <code>~/.cjsh_logout</code> entirely</li>
 <li><code>-X, --startup-test</code> – diagnostic mode used by the bundled tests</li>
 </ul>
 <p>Flags affecting feature toggles take effect early in startup and can also be injected via
