@@ -63,32 +63,6 @@ bool cleanup_truncates_multiline = false;
 
 namespace {
 bool cleanup_already_invoked = false;
-
-void save_startup_arguments(int argc, char* argv[]) {
-    auto& args = startup_args();
-    args.clear();
-    for (int i = 0; i < argc; i++) {
-        args.push_back(std::string(argv[i]));
-    }
-}
-
-int initialize_interactive_components() {
-    g_shell->set_interactive_mode(true);
-    if (cjsh_filesystem::init_interactive_filesystem()) {
-        g_shell->setup_interactive_handlers();
-        prompt::initialize_colors();
-        cjsh_env::update_terminal_dimensions();
-        cjsh_filesystem::process_source_files();
-        return 0;
-    }
-    return 1;
-}
-
-int initialize_login_mode() {
-    cjsh_filesystem::process_profile_files();
-    flags::apply_profile_startup_flags();
-    return 0;
-}
 }  // namespace
 
 void cleanup_resources() {
@@ -172,15 +146,13 @@ int run_cjsh(int argc, char* argv[]) {
 
     // set all envvars for cjsh
     cjsh_env::setup_environment_variables(argv[0]);
-    save_startup_arguments(argc, argv);
+    flags::save_startup_arguments(argc, argv);
     g_shell->sync_env_vars_from_system();
 
     // start login mode items
     if (config::login_mode) {
-        int login_result = initialize_login_mode();
-        if (login_result != 0) {
-            return login_result;
-        }
+        cjsh_filesystem::process_profile_files();
+        flags::apply_profile_startup_flags();
     }
 
     // execute command passed with -c
@@ -220,10 +192,14 @@ int run_cjsh(int argc, char* argv[]) {
 
     // at this point cjsh has to be in an interactive state as all non-interactive possibilites has
     // been properly handled
-    int interactive_result = initialize_interactive_components();
-    if (interactive_result != 0) {
-        return interactive_result;
+    g_shell->set_interactive_mode(true);
+    if (!cjsh_filesystem::init_interactive_filesystem()) {
+        return 1;
     }
+    g_shell->setup_interactive_handlers();
+    prompt::initialize_colors();
+    cjsh_env::update_terminal_dimensions();
+    cjsh_filesystem::process_source_files();
 
     // start interactive cjsh process
     if (!g_exit_flag && (config::interactive_mode || config::force_interactive)) {

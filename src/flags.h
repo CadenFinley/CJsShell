@@ -14,5 +14,6 @@ struct ParseResult {
 
 ParseResult parse_arguments(int argc, char* argv[]);
 void apply_profile_startup_flags();
+void save_startup_arguments(int argc, char* argv[]);
 
 }  // namespace flags

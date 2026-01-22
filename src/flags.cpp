@@ -44,6 +44,14 @@ void apply_minimal_mode() {
 
 }  // namespace
 
+void save_startup_arguments(int argc, char* argv[]) {
+    auto& args = startup_args();
+    args.clear();
+    for (int i = 0; i < argc; i++) {
+        args.emplace_back(argv[i]);
+    }
+}
+
 ParseResult parse_arguments(int argc, char* argv[]) {
     ParseResult result;
 
