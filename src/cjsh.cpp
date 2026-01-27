@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <memory>
+#include <string_view>
 #include <vector>
 
 #ifdef __APPLE__
@@ -62,6 +63,23 @@ bool cleanup_truncates_multiline = false;
 }  // namespace config
 
 namespace {
+bool invoked_via_sh(const char* arg0) {
+    if (arg0 == nullptr) {
+        return false;
+    }
+
+    std::string_view shell_name(arg0);
+    const std::size_t slash_pos = shell_name.find_last_of('/');
+    if (slash_pos != std::string_view::npos) {
+        shell_name.remove_prefix(slash_pos + 1);
+    }
+    if (!shell_name.empty() && shell_name.front() == '-') {
+        shell_name.remove_prefix(1);
+    }
+
+    return shell_name == "sh";
+}
+
 bool cleanup_already_invoked = false;
 void cleanup_resources() {
     // primary exit function that gets called on all exit paths
@@ -86,6 +104,7 @@ void cleanup_resources() {
 }  // namespace
 
 int run_cjsh(int argc, char* argv[]) {
+    const bool launched_as_sh = invoked_via_sh((argc > 0) ? argv[0] : nullptr);
     // set start time
     startup_begin_time() = std::chrono::steady_clock::now();
 
@@ -171,6 +190,13 @@ int run_cjsh(int argc, char* argv[]) {
 
     // at this point cjsh has to be in an interactive state as all non-interactive possibilites and
     // early exits have been properly handled
+    if (launched_as_sh && (config::interactive_mode || config::force_interactive)) {
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     ErrorSeverity::WARNING,
+                     "sh",
+                     "cjsh was invoked as sh, but it is not 100% POSIX compliant",
+                     {"Run cjsh directly for the intended interactive experience"}});
+    }
     g_shell->set_interactive_mode(true);
     if (!cjsh_filesystem::initialize_cjsh_directories()) {
         return 1;
