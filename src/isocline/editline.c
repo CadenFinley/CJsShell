@@ -2155,7 +2155,7 @@ static bool edit_format_default_status_hints(ic_env_t* env, char* buffer, size_t
     format_binding_keys(env, IC_KEY_ACTION_SHOW_HELP, NULL, help_keys, sizeof(help_keys), true);
 
     int written =
-        snprintf(buffer, buflen, "[ic-status]complete: %s  history search: %s  help: %s[/]",
+        snprintf(buffer, buflen, "[ic-status]complete: %s  search: %s  help: %s[/]",
                  completion_keys, history_search_keys, help_keys);
     if (written < 0) {
         buffer[0] = '\0';
