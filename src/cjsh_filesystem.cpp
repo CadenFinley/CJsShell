@@ -660,6 +660,10 @@ bool create_profile_file(const std::filesystem::path& target_path) {
         "completions\n"
         "# cjshopt login-startup-arg --no-syntax-highlighting # Disable syntax "
         "highlighting\n"
+        "# cjshopt login-startup-arg --no-smart-cd        # Disable smart cd shortcuts\n"
+        "# cjshopt login-startup-arg --no-history-expansion # Disable history !! shortcuts\n"
+        "# cjshopt login-startup-arg --no-sh-warning      # Suppress the sh invocation reminder\n"
+        "# cjshopt login-startup-arg --secure             # Skip sourcing profile/rc/logout files\n"
         "# cjshopt login-startup-arg --startup-test        # Enable startup "
         "test "
         "mode\n";

@@ -73,9 +73,10 @@ ParseResult parse_arguments(int argc, char* argv[]) {
                                            {"minimal", no_argument, nullptr, 'm'},
                                            {"secure", no_argument, nullptr, 's'},
                                            {"no-history-expansion", no_argument, nullptr, 'H'},
+                                           {"no-sh-warning", no_argument, nullptr, 'W'},
                                            {nullptr, 0, nullptr, 0}};
 
-    const char* short_options = "+lic:vhCLUNOSMXmsH";
+    const char* short_options = "+lic:vhCLUNOSMXmsHW";
 
     int option_index = 0;
     int c;
@@ -135,6 +136,9 @@ ParseResult parse_arguments(int argc, char* argv[]) {
                 break;
             case 'H':
                 config::history_expansion_enabled = false;
+                break;
+            case 'W':
+                config::suppress_sh_warning = true;
                 break;
             case '?':
                 print_usage();
@@ -196,6 +200,8 @@ void apply_profile_startup_flags() {
             config::secure_mode = true;
         } else if (flag == "--no-history-expansion") {
             config::history_expansion_enabled = false;
+        } else if (flag == "--no-sh-warning") {
+            config::suppress_sh_warning = true;
         }
     }
 }

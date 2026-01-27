@@ -133,10 +133,12 @@ cjshopt login-startup-arg --no-smart-cd
 cjshopt login-startup-arg --show-startup-time
 ```
 
-Supported flags: `--login`, `--interactive`, `--no-colors`, `--no-titleline`, `--show-startup-time`, `--no-source`, `--no-completions`, `--no-syntax-highlighting`, `--no-smart-cd`, `--no-history-expansion`, `--minimal`, `--secure`, and `--startup-test`.
+Supported flags: `--login`, `--interactive`, `--no-colors`, `--no-titleline`, `--show-startup-time`, `--no-source`, `--no-completions`, `--no-syntax-highlighting`, `--no-smart-cd`, `--no-history-expansion`, `--no-sh-warning`, `--minimal`, `--secure`, and `--startup-test`.
 
 ### POSIX & Bash Compatibility
 cjsh targets high POSIX coverage for scripting while providing POSIX+ extensions such as `[[ ... ]]`, brace expansion, here-strings, process substitution, and rich redirection semantics. POSIX+ behavior is opt-in through flags or configuration.
+
+When `cjsh` is symlinked or launched as `sh`, interactive sessions print a reminder that cjsh is not a drop-in 100% POSIX shell. Suppress this notice with `cjsh --no-sh-warning` or persist the choice by adding `cjshopt login-startup-arg --no-sh-warning` inside `~/.cjprofile`.
 
 ---
 

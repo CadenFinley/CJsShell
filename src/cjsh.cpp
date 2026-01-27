@@ -60,6 +60,7 @@ bool uses_cleanup = false;
 bool cleanup_newline_after_execution = false;
 bool cleanup_adds_empty_line = false;
 bool cleanup_truncates_multiline = false;
+bool suppress_sh_warning = false;
 }  // namespace config
 
 namespace {
@@ -190,12 +191,13 @@ int run_cjsh(int argc, char* argv[]) {
 
     // at this point cjsh has to be in an interactive state as all non-interactive possibilites and
     // early exits have been properly handled
-    if (launched_as_sh && (config::interactive_mode || config::force_interactive)) {
+    if (launched_as_sh && (config::interactive_mode || config::force_interactive) &&
+        !config::suppress_sh_warning) {
         print_error({ErrorType::INVALID_ARGUMENT,
                      ErrorSeverity::WARNING,
                      "sh",
                      "cjsh was invoked as sh, but it is not 100% POSIX compliant",
-                     {"Run cjsh directly for the intended interactive experience"}});
+                     {"Pass --no-sh-warning to hide this warning"}});
     }
     g_shell->set_interactive_mode(true);
     if (!cjsh_filesystem::initialize_cjsh_directories()) {

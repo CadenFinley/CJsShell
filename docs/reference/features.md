@@ -99,6 +99,7 @@ Persistent caches (history, generated completions, etc.) live under `~/.cache/cj
 - `-S, --no-syntax-highlighting`
 - `-M, --no-smart-cd`
 - `-H, --no-history-expansion`
+- `-W, --no-sh-warning` – suppress the reminder shown when cjsh is invoked via `sh`
 - `-s, --secure` – skip `~/.cjprofile`, `~/.cjshrc`, and `~/.cjsh_logout` entirely
 - `-X, --startup-test` – diagnostic mode used by the bundled tests
 
