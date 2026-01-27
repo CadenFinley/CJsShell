@@ -22,9 +22,8 @@ struct OptionDescriptor {
 constexpr size_t kOptionNamePadding = 15;
 
 const OptionDescriptor kOptionDescriptors[] = {
-    {'e', "errexit"},   {'C', "noclobber"}, {'u', "nounset"}, {'x', "xtrace"},
-    {'v', "verbose"},   {'n', "noexec"},    {'f', "noglob"},  {'a', "allexport"},
-    {0, "huponexit"}};
+    {'e', "errexit"}, {'C', "noclobber"}, {'u', "nounset"},   {'x', "xtrace"}, {'v', "verbose"},
+    {'n', "noexec"},  {'f', "noglob"},    {'a', "allexport"}, {0, "huponexit"}};
 
 std::string pad_option_name(const std::string& name) {
     if (name.size() >= kOptionNamePadding) {
@@ -95,11 +94,11 @@ std::string normalize_option_key(std::string key) {
 
 bool handle_named_option(const std::string& raw_option, bool enable, Shell* shell) {
     size_t eq_pos = raw_option.find('=');
-    std::string option_key = (eq_pos == std::string::npos) ? raw_option : raw_option.substr(0, eq_pos);
-    std::string option_value =
-        (eq_pos == std::string::npos || eq_pos + 1 >= raw_option.size())
-            ? ""
-            : raw_option.substr(eq_pos + 1);
+    std::string option_key =
+        (eq_pos == std::string::npos) ? raw_option : raw_option.substr(0, eq_pos);
+    std::string option_value = (eq_pos == std::string::npos || eq_pos + 1 >= raw_option.size())
+                                   ? ""
+                                   : raw_option.substr(eq_pos + 1);
 
     std::string normalized_key = normalize_option_key(option_key);
     if (normalized_key.empty()) {
@@ -157,8 +156,7 @@ bool handle_long_errexit_severity(const std::vector<std::string>& args, size_t& 
 }
 
 void report_invalid_option(const std::string& context) {
-    print_error(
-        {ErrorType::INVALID_ARGUMENT, "set", "option '" + context + "' not supported", {}});
+    print_error({ErrorType::INVALID_ARGUMENT, "set", "option '" + context + "' not supported", {}});
 }
 
 }  // namespace

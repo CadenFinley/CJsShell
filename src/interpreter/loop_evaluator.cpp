@@ -452,19 +452,18 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
                 control_cmd.stdout_to_stderr = true;
             }
             control_cmd.fd_redirections.insert(control_cmd.fd_redirections.end(),
-                                                source.fd_redirections.begin(),
-                                                source.fd_redirections.end());
+                                               source.fd_redirections.begin(),
+                                               source.fd_redirections.end());
             control_cmd.fd_duplications.insert(control_cmd.fd_duplications.end(),
-                                                source.fd_duplications.begin(),
-                                                source.fd_duplications.end());
+                                               source.fd_duplications.begin(),
+                                               source.fd_duplications.end());
             control_cmd.process_substitutions.insert(control_cmd.process_substitutions.end(),
-                                                    source.process_substitutions.begin(),
-                                                    source.process_substitutions.end());
+                                                     source.process_substitutions.begin(),
+                                                     source.process_substitutions.end());
         };
 
-        std::string closing_trim = idx < src_lines.size()
-                                       ? trim(strip_inline_comment(src_lines[idx]))
-                                       : std::string{};
+        std::string closing_trim =
+            idx < src_lines.size() ? trim(strip_inline_comment(src_lines[idx])) : std::string{};
         size_t done_pos = closing_trim.find("done");
         if (done_pos != std::string::npos) {
             std::string redir_part = trim(closing_trim.substr(done_pos + 4));

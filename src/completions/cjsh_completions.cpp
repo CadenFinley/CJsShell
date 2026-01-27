@@ -773,8 +773,8 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
     std::string prefix_before;
     std::string special_part;
 
-    auto complete_special_prefix = [&](const std::string& dir_to_complete,
-                                       bool treat_as_directory, const char* debug_label) {
+    auto complete_special_prefix = [&](const std::string& dir_to_complete, bool treat_as_directory,
+                                       const char* debug_label) {
         namespace fs = std::filesystem;
         fs::path dir_path;
         std::string match_prefix;

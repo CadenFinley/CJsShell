@@ -59,21 +59,21 @@ typedef struct editor_s {
     ssize_t cur_row;              // current row that has the cursor (0 based, relative to
                                   // the prompt)
     ssize_t termw;
-    bool modified;                    // has a modification happened? (used for history navigation
-                                      // for example)
-    bool disable_undo;                // temporarily disable auto undo (for history search)
-    bool refresh_suppressed;          // batch screen updates during high-volume input
-    bool refresh_pending;             // remember to refresh when suppression lifts
-    bool history_prefix_active;       // whether prefix-prioritized history is active
-    bool request_submit;              // request submission of current line
-    bool force_linear_line_numbers;   // final render should drop relative numbering styling
-    ssize_t history_idx;              // current index in the history
-    editstate_t* undo;                // undo buffer
-    editstate_t* redo;                // redo buffer
-    const char* prompt_text;          // text of the prompt before the prompt marker
-    char* prompt_prefix_text;         // cached multi-line prompt prefix (everything before last line)
-    ssize_t prompt_prefix_lines;      // number of prefix lines emitted for prompt
-    bool prompt_begins_with_newline;  // prompt started with a leading newline
+    bool modified;                   // has a modification happened? (used for history navigation
+                                     // for example)
+    bool disable_undo;               // temporarily disable auto undo (for history search)
+    bool refresh_suppressed;         // batch screen updates during high-volume input
+    bool refresh_pending;            // remember to refresh when suppression lifts
+    bool history_prefix_active;      // whether prefix-prioritized history is active
+    bool request_submit;             // request submission of current line
+    bool force_linear_line_numbers;  // final render should drop relative numbering styling
+    ssize_t history_idx;             // current index in the history
+    editstate_t* undo;               // undo buffer
+    editstate_t* redo;               // redo buffer
+    const char* prompt_text;         // text of the prompt before the prompt marker
+    char* prompt_prefix_text;     // cached multi-line prompt prefix (everything before last line)
+    ssize_t prompt_prefix_lines;  // number of prefix lines emitted for prompt
+    bool prompt_begins_with_newline;       // prompt started with a leading newline
     bool replace_prompt_line_with_number;  // should row 0 use line numbers instead of prompt text?
     bool
         force_prompt_text_visible;  // temporarily prevent prompt replacement (e.g., search prompts)
@@ -2148,8 +2148,8 @@ static bool edit_format_default_status_hints(ic_env_t* env, char* buffer, size_t
     char history_search_keys[EDIT_STATUS_HINT_KEYS_LEN];
     char help_keys[EDIT_STATUS_HINT_KEYS_LEN];
 
-    format_binding_keys(env, IC_KEY_ACTION_COMPLETE, NULL, completion_keys,
-                        sizeof(completion_keys), true);
+    format_binding_keys(env, IC_KEY_ACTION_COMPLETE, NULL, completion_keys, sizeof(completion_keys),
+                        true);
     format_binding_keys(env, IC_KEY_ACTION_HISTORY_SEARCH, NULL, history_search_keys,
                         sizeof(history_search_keys), true);
     format_binding_keys(env, IC_KEY_ACTION_SHOW_HELP, NULL, help_keys, sizeof(help_keys), true);
@@ -2239,7 +2239,7 @@ static bool edit_update_status_message(ic_env_t* env, editor_t* eb) {
     if (env->status_message_callback != NULL) {
         const char* input_text = sbuf_string(eb->input);
         custom_message = env->status_message_callback(input_text != NULL ? input_text : "",
-                                                     env->status_message_arg);
+                                                      env->status_message_arg);
         if (custom_message != NULL && custom_message[0] == '\0') {
             custom_message = NULL;
         }

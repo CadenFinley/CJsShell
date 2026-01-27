@@ -18,8 +18,8 @@
 #include <sstream>
 #include <stdexcept>
 #include <system_error>
-#include <utility>
 #include <unordered_set>
+#include <utility>
 
 #include "arithmetic_evaluator.h"
 #include "builtin.h"
@@ -33,10 +33,10 @@
 #include "function_evaluator.h"
 #include "job_control.h"
 #include "loop_evaluator.h"
+#include "parameter_expansion_evaluator.h"
 #include "parser/parser.h"
 #include "parser/quote_info.h"
 #include "parser/tokenizer.h"
-#include "parameter_expansion_evaluator.h"
 #include "readonly_command.h"
 #include "shell.h"
 #include "shell_script_interpreter_utils.h"
@@ -454,8 +454,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
             auto merged_tokens = Tokenizer::merge_redirection_tokens(raw_tokens);
             if (!merged_tokens.empty()) {
                 static const std::unordered_set<std::string> kRedirectOperators = {
-                    "<",  ">",  ">>",  ">|", "<<", "<<-", "<<<", "&>", "<>",
-                    "<&", ">&"};
+                    "<", ">", ">>", ">|", "<<", "<<-", "<<<", "&>", "<>", "<&", ">&"};
 
                 auto requires_operand = [&](const std::string& token) -> bool {
                     if (kRedirectOperators.count(token) > 0) {
@@ -496,10 +495,11 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
             has_redir_or_pipe = has_multiple_commands;
             if (!has_multiple_commands && !cmds.empty()) {
                 const auto& c = cmds[0];
-                has_redir_or_pipe = c.background || !c.input_file.empty() || !c.output_file.empty() ||
-                                    !c.append_file.empty() || c.stderr_to_stdout ||
-                                    c.stdout_to_stderr || !c.stderr_file.empty() ||
-                                    !c.here_doc.empty() || c.both_output || !c.here_string.empty() ||
+                has_redir_or_pipe = c.background || !c.input_file.empty() ||
+                                    !c.output_file.empty() || !c.append_file.empty() ||
+                                    c.stderr_to_stdout || c.stdout_to_stderr ||
+                                    !c.stderr_file.empty() || !c.here_doc.empty() ||
+                                    c.both_output || !c.here_string.empty() ||
                                     !c.fd_redirections.empty() || !c.fd_duplications.empty();
 
                 if (c.negate_pipeline) {
@@ -508,9 +508,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
             }
 
             if (has_multiple_commands) {
-                bool looks_like_case = !trimmed_text.empty() &&
-                                       (trimmed_text.rfind("case ", 0) == 0 ||
-                                        trimmed_text == "case");
+                bool looks_like_case =
+                    !trimmed_text.empty() &&
+                    (trimmed_text.rfind("case ", 0) == 0 || trimmed_text == "case");
                 if (looks_like_case) {
                     has_multiple_commands = false;
                     has_redir_or_pipe = false;
@@ -563,7 +563,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                                         control_cmd.args.empty() ? prog : control_cmd.args[0];
                                     bool action_invoked = false;
                                     exit_code = g_shell->shell_exec->run_with_command_redirections(
-                                        control_cmd, run_block, command_name, false, &action_invoked);
+                                        control_cmd, run_block, command_name, false,
+                                        &action_invoked);
                                     if (!action_invoked) {
                                         return exit_code;
                                     }
@@ -693,12 +694,10 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         auto pattern_match_fn = [this](const std::string& text, const std::string& pattern) {
             return pattern_matcher.matches_pattern(text, pattern);
         };
-        auto cmd_sub_expander =
-            [this, &execute_simple_or_pipeline](const std::string& input) {
-                std::string expanded =
-                    expand_all_substitutions(input, execute_simple_or_pipeline);
-                return std::make_pair(expanded, std::vector<std::string>{});
-            };
+        auto cmd_sub_expander = [this, &execute_simple_or_pipeline](const std::string& input) {
+            std::string expanded = expand_all_substitutions(input, execute_simple_or_pipeline);
+            return std::make_pair(expanded, std::vector<std::string>{});
+        };
         return case_evaluator::handle_inline_case(candidate, execute_simple_or_pipeline,
                                                   allow_command_substitution, true, shell_parser,
                                                   pattern_match_fn, cmd_sub_expander);
@@ -749,16 +748,16 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                                                 shell_parser);
     };
 
-        auto handle_case_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
-            std::string first = trim(strip_inline_comment(src_lines[idx]));
-            if (first != "case" && first.rfind("case ", 0) != 0)
-                return 1;
+    auto handle_case_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
+        std::string first = trim(strip_inline_comment(src_lines[idx]));
+        if (first != "case" && first.rfind("case ", 0) != 0)
+            return 1;
 
-            if (auto inline_case_result = try_handle_inline_case(first, true)) {
-                return *inline_case_result;
-            }
+        if (auto inline_case_result = try_handle_inline_case(first, true)) {
+            return *inline_case_result;
+        }
 
-            std::string header_accum = first;
+        std::string header_accum = first;
         size_t j = idx;
         bool found_in = false;
 

@@ -213,8 +213,7 @@ static bool format_first_default_binding(ic_env_t* env, ic_key_action_t action,
                 if (right > left) {
                     const char* trimmed = token + left;
                     ic_keycode_t key;
-                    if (ic_parse_key_spec(trimmed, &key) &&
-                        key_triggers_action(env, key, action) &&
+                    if (ic_parse_key_spec(trimmed, &key) && key_triggers_action(env, key, action) &&
                         ic_format_key_spec(key, buffer, buflen)) {
                         beautify_key_label(buffer);
                         return true;

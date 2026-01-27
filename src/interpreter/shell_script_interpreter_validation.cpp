@@ -1705,8 +1705,8 @@ std::vector<TokenInfo> tokenize_shell_segment(const std::string& text, size_t st
             }
         }
 
-        if (text[i] == ';' || text[i] == '|' || text[i] == '&' || text[i] == '(' || text[i] == ')' ||
-            text[i] == '{' || text[i] == '}') {
+        if (text[i] == ';' || text[i] == '|' || text[i] == '&' || text[i] == '(' ||
+            text[i] == ')' || text[i] == '{' || text[i] == '}') {
             tokens.push_back({std::string(1, text[i]), i, i + 1});
             ++i;
             continue;
@@ -1746,8 +1746,8 @@ std::vector<TokenInfo> tokenize_shell_segment(const std::string& text, size_t st
 }
 
 bool is_command_separator_token(const std::string& token) {
-    static const char* const separators[] = {";", ";;", "|", "||", "&", "&&", "(", ")", "{", "}",
-                                             "do", "then", "elif", "fi", "done"};
+    static const char* const separators[] = {";", ";;", "|",  "||",   "&",    "&&", "(",   ")",
+                                             "{", "}",  "do", "then", "elif", "fi", "done"};
     for (const char* sep : separators) {
         if (token == sep) {
             return true;
@@ -1758,10 +1758,10 @@ bool is_command_separator_token(const std::string& token) {
 
 bool is_special_shell_variable(const std::string& name) {
     static const std::unordered_set<std::string> kSpecialVars = {
-        "IFS",   "PATH",    "HOME",      "PWD",        "OLDPWD",   "MAIL",
-        "MAILPATH", "PS1", "PS2",       "PS3",        "PS4",      "LANG",
-        "LC_ALL", "LC_CTYPE", "LC_COLLATE", "LC_MESSAGES", "LC_NUMERIC", "OPTIND",
-        "OPTARG", "SECONDS",  "RANDOM",   "LINENO",     "HISTFILE", "HISTSIZE",
+        "IFS",         "PATH",          "HOME",       "PWD",         "OLDPWD",     "MAIL",
+        "MAILPATH",    "PS1",           "PS2",        "PS3",         "PS4",        "LANG",
+        "LC_ALL",      "LC_CTYPE",      "LC_COLLATE", "LC_MESSAGES", "LC_NUMERIC", "OPTIND",
+        "OPTARG",      "SECONDS",       "RANDOM",     "LINENO",      "HISTFILE",   "HISTSIZE",
         "HISTCONTROL", "PROMPT_COMMAND"};
     return kSpecialVars.find(name) != kSpecialVars.end();
 }
@@ -1803,9 +1803,9 @@ std::string normalize_assignment_identifier(const std::string& token) {
     return lhs;
 }
 
-void collect_leading_assignments_from_tokens(const std::vector<TokenInfo>& tokens,
-                                             const std::string& original_line, size_t display_line,
-                                             std::map<std::string, std::vector<size_t>>& defined_vars) {
+void collect_leading_assignments_from_tokens(
+    const std::vector<TokenInfo>& tokens, const std::string& original_line, size_t display_line,
+    std::map<std::string, std::vector<size_t>>& defined_vars) {
     bool command_started = false;
     std::string previous_token;
 
@@ -1837,7 +1837,8 @@ void collect_leading_assignments_from_tokens(const std::vector<TokenInfo>& token
     }
 }
 
-size_t find_unquoted_keyword(const std::string& line, const std::string& keyword, size_t search_from) {
+size_t find_unquoted_keyword(const std::string& line, const std::string& keyword,
+                             size_t search_from) {
     if (keyword.empty() || search_from >= line.size()) {
         return std::string::npos;
     }
@@ -1849,7 +1850,8 @@ size_t find_unquoted_keyword(const std::string& line, const std::string& keyword
             continue;
         }
 
-        if (line.compare(i, keyword.size(), keyword) == 0 && is_word_boundary(line, i, keyword.size())) {
+        if (line.compare(i, keyword.size(), keyword) == 0 &&
+            is_word_boundary(line, i, keyword.size())) {
             return i;
         }
     }
@@ -1858,16 +1860,16 @@ size_t find_unquoted_keyword(const std::string& line, const std::string& keyword
 }
 
 void detect_keyword_assignments(const std::string& line_without_comments,
-                                const std::string& trimmed_line,
-                                const std::string& original_line, size_t display_line,
+                                const std::string& trimmed_line, const std::string& original_line,
+                                size_t display_line,
                                 std::map<std::string, std::vector<size_t>>& defined_vars) {
     struct KeywordInfo {
         const char* keyword;
         const char* terminator;
     };
 
-    static const KeywordInfo kKeywordInfos[] = {{"if", "then"}, {"elif", "then"},
-                                                {"while", "do"}, {"until", "do"}};
+    static const KeywordInfo kKeywordInfos[] = {
+        {"if", "then"}, {"elif", "then"}, {"while", "do"}, {"until", "do"}};
 
     for (const auto& info : kKeywordInfos) {
         if (!starts_with_keyword_token(trimmed_line, info.keyword)) {
@@ -1880,12 +1882,14 @@ void detect_keyword_assignments(const std::string& line_without_comments,
         }
 
         size_t command_start = keyword_pos + std::strlen(info.keyword);
-        while (command_start < line_without_comments.size() &&
-               (std::isspace(static_cast<unsigned char>(line_without_comments[command_start])) != 0)) {
+        while (
+            command_start < line_without_comments.size() &&
+            (std::isspace(static_cast<unsigned char>(line_without_comments[command_start])) != 0)) {
             ++command_start;
         }
 
-        size_t command_end = find_unquoted_keyword(line_without_comments, info.terminator, command_start);
+        size_t command_end =
+            find_unquoted_keyword(line_without_comments, info.terminator, command_start);
         if (command_end == std::string::npos) {
             command_end = line_without_comments.size();
         }
@@ -1940,8 +1944,9 @@ void collect_read_variable_definitions(const std::vector<TokenInfo>& tokens,
             if (!current.text.empty() && current.text[0] == '-') {
                 bool consumes_next = read_option_consumes_argument(current.text);
                 ++j;
-                if (consumes_next && j < tokens.size() && !is_command_separator_token(tokens[j].text) &&
-                    !tokens[j].text.empty() && tokens[j].text[0] != '-') {
+                if (consumes_next && j < tokens.size() &&
+                    !is_command_separator_token(tokens[j].text) && !tokens[j].text.empty() &&
+                    tokens[j].text[0] != '-') {
                     ++j;
                 }
                 continue;
@@ -2079,7 +2084,8 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
         detect_keyword_assignments(line_without_comments, trimmed_line, original_line, display_line,
                                    defined_vars);
 
-        auto tokens = tokenize_shell_segment(line_without_comments, 0, line_without_comments.size());
+        auto tokens =
+            tokenize_shell_segment(line_without_comments, 0, line_without_comments.size());
         collect_read_variable_definitions(tokens, original_line, display_line, defined_vars);
 
         size_t eq_pos = line_without_comments.find('=');
@@ -2107,9 +2113,10 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
             }
 
             if (c == '$' && i + 1 < line_without_comments.length()) {
-                if (i + 2 < line_without_comments.length() && line_without_comments[i + 1] == '('
-                    && line_without_comments[i + 2] == '(') {
-                    const auto bounds = analyze_arithmetic_expansion_bounds(line_without_comments, i);
+                if (i + 2 < line_without_comments.length() && line_without_comments[i + 1] == '(' &&
+                    line_without_comments[i + 2] == '(') {
+                    const auto bounds =
+                        analyze_arithmetic_expansion_bounds(line_without_comments, i);
 
                     if (bounds.closed) {
                         std::string expr = line_without_comments.substr(
@@ -2130,8 +2137,9 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
 
                                 std::string token = expr.substr(start_pos, pos - start_pos);
                                 if (!token.empty() && is_valid_identifier(token)) {
-                                    used_vars[token].push_back(adjust_display_line(
-                                        original_line, display_line, bounds.expr_start + start_pos));
+                                    used_vars[token].push_back(
+                                        adjust_display_line(original_line, display_line,
+                                                            bounds.expr_start + start_pos));
                                 }
                             } else {
                                 pos++;

@@ -195,7 +195,7 @@ bool equals_completion_token(const std::string& value, const std::string& target
     }
 
     return std::equal(value.begin(), value.end(), target.begin(),
-                       [](char a, char b) { return std::tolower(a) == std::tolower(b); });
+                      [](char a, char b) { return std::tolower(a) == std::tolower(b); });
 }
 
 std::string sanitize_job_command_summary(const std::string& command) {

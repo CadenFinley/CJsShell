@@ -546,8 +546,8 @@ ic_public bool ic_format_key_spec(ic_keycode_t key, char* buffer, size_t buflen)
     ic_keycode_t base = IC_KEY_NO_MODS(key);
     bool implicit_ctrl = false;
     bool prefer_named_ctrl_label = (base == IC_KEY_TAB);
-    if ((mods & IC_KEY_MOD_CTRL) == 0 && !prefer_named_ctrl_label &&
-        base >= IC_KEY_CTRL_A && base <= IC_KEY_CTRL_Z) {
+    if ((mods & IC_KEY_MOD_CTRL) == 0 && !prefer_named_ctrl_label && base >= IC_KEY_CTRL_A &&
+        base <= IC_KEY_CTRL_Z) {
         implicit_ctrl = true;
     }
 
