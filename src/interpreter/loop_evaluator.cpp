@@ -401,6 +401,9 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
     };
 
     if (shell_parser && g_shell && g_shell->shell_exec) {
+        Command control_cmd;
+        control_cmd.args.push_back(keyword);
+
         try {
             std::string loop_text;
             for (size_t line_idx = loop_start_idx; line_idx <= idx && line_idx < src_lines.size();
@@ -412,80 +415,80 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
             std::vector<Command> loop_cmds =
                 shell_parser->parse_pipeline_with_preprocessing(loop_text);
             if (!loop_cmds.empty()) {
-                Command control_cmd = loop_cmds[0];
-
-                auto merge_redirections = [&](const Command& source) {
-                    if (control_cmd.input_file.empty() && !source.input_file.empty()) {
-                        control_cmd.input_file = source.input_file;
-                    }
-                    if (control_cmd.here_doc.empty() && !source.here_doc.empty()) {
-                        control_cmd.here_doc = source.here_doc;
-                    }
-                    if (control_cmd.here_string.empty() && !source.here_string.empty()) {
-                        control_cmd.here_string = source.here_string;
-                    }
-                    if (control_cmd.output_file.empty() && !source.output_file.empty()) {
-                        control_cmd.output_file = source.output_file;
-                        control_cmd.force_overwrite = source.force_overwrite;
-                    }
-                    if (control_cmd.append_file.empty() && !source.append_file.empty()) {
-                        control_cmd.append_file = source.append_file;
-                    }
-                    if (control_cmd.stderr_file.empty() && !source.stderr_file.empty()) {
-                        control_cmd.stderr_file = source.stderr_file;
-                        control_cmd.stderr_append = source.stderr_append;
-                    }
-                    if (!control_cmd.both_output && source.both_output) {
-                        control_cmd.both_output = true;
-                        control_cmd.both_output_file = source.both_output_file;
-                    }
-                    if (source.stderr_to_stdout) {
-                        control_cmd.stderr_to_stdout = true;
-                    }
-                    if (source.stdout_to_stderr) {
-                        control_cmd.stdout_to_stderr = true;
-                    }
-                    control_cmd.fd_redirections.insert(control_cmd.fd_redirections.end(),
-                                                        source.fd_redirections.begin(),
-                                                        source.fd_redirections.end());
-                    control_cmd.fd_duplications.insert(control_cmd.fd_duplications.end(),
-                                                        source.fd_duplications.begin(),
-                                                        source.fd_duplications.end());
-                    control_cmd.process_substitutions.insert(
-                        control_cmd.process_substitutions.end(),
-                        source.process_substitutions.begin(), source.process_substitutions.end());
-                };
-
-                std::string closing_trim = idx < src_lines.size()
-                                               ? trim(strip_inline_comment(src_lines[idx]))
-                                               : std::string{};
-                size_t done_pos = closing_trim.find("done");
-                if (done_pos != std::string::npos) {
-                    std::string redir_part = trim(closing_trim.substr(done_pos + 4));
-                    if (!redir_part.empty()) {
-                        std::string pseudo_command = "true " + redir_part;
-                        try {
-                            auto pseudo_cmds =
-                                shell_parser->parse_pipeline_with_preprocessing(pseudo_command);
-                            if (!pseudo_cmds.empty()) {
-                                merge_redirections(pseudo_cmds[0]);
-                            }
-                        } catch (const std::exception&) {
-                        }
-                    }
-                }
-
-                if (command_has_redirections(control_cmd)) {
-                    bool action_invoked = false;
-                    int exit_code = g_shell->shell_exec->run_with_command_redirections(
-                        control_cmd, run_loop_logic, keyword, false, &action_invoked);
-                    if (!action_invoked) {
-                        return exit_code;
-                    }
-                    return exit_code;
-                }
+                control_cmd = loop_cmds[0];
             }
         } catch (const std::exception&) {
+        }
+
+        auto merge_redirections = [&](const Command& source) {
+            if (control_cmd.input_file.empty() && !source.input_file.empty()) {
+                control_cmd.input_file = source.input_file;
+            }
+            if (control_cmd.here_doc.empty() && !source.here_doc.empty()) {
+                control_cmd.here_doc = source.here_doc;
+            }
+            if (control_cmd.here_string.empty() && !source.here_string.empty()) {
+                control_cmd.here_string = source.here_string;
+            }
+            if (control_cmd.output_file.empty() && !source.output_file.empty()) {
+                control_cmd.output_file = source.output_file;
+                control_cmd.force_overwrite = source.force_overwrite;
+            }
+            if (control_cmd.append_file.empty() && !source.append_file.empty()) {
+                control_cmd.append_file = source.append_file;
+            }
+            if (control_cmd.stderr_file.empty() && !source.stderr_file.empty()) {
+                control_cmd.stderr_file = source.stderr_file;
+                control_cmd.stderr_append = source.stderr_append;
+            }
+            if (!control_cmd.both_output && source.both_output) {
+                control_cmd.both_output = true;
+                control_cmd.both_output_file = source.both_output_file;
+            }
+            if (source.stderr_to_stdout) {
+                control_cmd.stderr_to_stdout = true;
+            }
+            if (source.stdout_to_stderr) {
+                control_cmd.stdout_to_stderr = true;
+            }
+            control_cmd.fd_redirections.insert(control_cmd.fd_redirections.end(),
+                                                source.fd_redirections.begin(),
+                                                source.fd_redirections.end());
+            control_cmd.fd_duplications.insert(control_cmd.fd_duplications.end(),
+                                                source.fd_duplications.begin(),
+                                                source.fd_duplications.end());
+            control_cmd.process_substitutions.insert(control_cmd.process_substitutions.end(),
+                                                    source.process_substitutions.begin(),
+                                                    source.process_substitutions.end());
+        };
+
+        std::string closing_trim = idx < src_lines.size()
+                                       ? trim(strip_inline_comment(src_lines[idx]))
+                                       : std::string{};
+        size_t done_pos = closing_trim.find("done");
+        if (done_pos != std::string::npos) {
+            std::string redir_part = trim(closing_trim.substr(done_pos + 4));
+            if (!redir_part.empty()) {
+                std::string pseudo_command = "true " + redir_part;
+                try {
+                    auto pseudo_cmds =
+                        shell_parser->parse_pipeline_with_preprocessing(pseudo_command);
+                    if (!pseudo_cmds.empty()) {
+                        merge_redirections(pseudo_cmds[0]);
+                    }
+                } catch (const std::exception&) {
+                }
+            }
+        }
+
+        if (command_has_redirections(control_cmd)) {
+            bool action_invoked = false;
+            int exit_code = g_shell->shell_exec->run_with_command_redirections(
+                control_cmd, run_loop_logic, keyword, false, &action_invoked);
+            if (!action_invoked) {
+                return exit_code;
+            }
+            return exit_code;
         }
     }
 

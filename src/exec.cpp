@@ -232,6 +232,86 @@ bool strip_temporary_env_assignments(
     return has_temporary_env;
 }
 
+class TemporaryEnvAssignmentScope {
+   public:
+    TemporaryEnvAssignmentScope(Shell* shell,
+                                const std::vector<std::pair<std::string, std::string>>& assignments)
+        : shell_(shell) {
+        if (!shell_ || assignments.empty()) {
+            return;
+        }
+
+        auto& env_vars = shell_->get_env_vars();
+        for (const auto& assignment : assignments) {
+            const std::string& name = assignment.first;
+            const std::string& value = assignment.second;
+
+            if (!has_backup(name)) {
+                Backup backup;
+                backup.name = name;
+                auto it = env_vars.find(name);
+                if (it != env_vars.end()) {
+                    backup.had_previous = true;
+                    backup.previous_value = it->second;
+                }
+                backups_.push_back(std::move(backup));
+            }
+
+            env_vars[name] = value;
+            setenv(name.c_str(), value.c_str(), 1);
+        }
+
+        refresh_parser_env();
+    }
+
+    ~TemporaryEnvAssignmentScope() {
+        if (!shell_ || backups_.empty()) {
+            return;
+        }
+
+        auto& env_vars = shell_->get_env_vars();
+        for (auto it = backups_.rbegin(); it != backups_.rend(); ++it) {
+            if (it->had_previous) {
+                env_vars[it->name] = it->previous_value;
+                setenv(it->name.c_str(), it->previous_value.c_str(), 1);
+            } else {
+                env_vars.erase(it->name);
+                unsetenv(it->name.c_str());
+            }
+        }
+
+        refresh_parser_env();
+    }
+
+   private:
+    struct Backup {
+        std::string name;
+        bool had_previous{false};
+        std::string previous_value;
+    };
+
+    bool has_backup(const std::string& name) const {
+        for (const auto& entry : backups_) {
+            if (entry.name == name) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void refresh_parser_env() {
+        if (!shell_) {
+            return;
+        }
+        if (auto* parser = shell_->get_parser()) {
+            parser->set_env_vars(shell_->get_env_vars());
+        }
+    }
+
+    Shell* shell_ = nullptr;
+    std::vector<Backup> backups_;
+};
+
 ProcessSubstitutionResources setup_process_substitutions(Command& cmd) {
     ProcessSubstitutionResources resources;
 
@@ -1352,7 +1432,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         const bool has_temporary_env = strip_temporary_env_assignments(
             cmd.args, cmd_start_idx, original_arg_count, env_assignments);
 
-        if (!has_temporary_env && can_execute_in_process(cmd)) {
+        if (can_execute_in_process(cmd)) {
+            TemporaryEnvAssignmentScope temp_scope(g_shell.get(), env_assignments);
             int exit_code = g_shell->get_built_ins()->builtin_command(cmd.args);
             set_last_pipeline_statuses({exit_code});
             return finalize_exit(exit_code);
@@ -1365,9 +1446,9 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             }
             return finalize_exit(async_result);
         }
-        if (!has_temporary_env && !cmd.args.empty() && g_shell &&
-            (g_shell->get_built_ins() != nullptr) &&
+        if (!cmd.args.empty() && g_shell && (g_shell->get_built_ins() != nullptr) &&
             (g_shell->get_built_ins()->is_builtin_command(cmd.args[0]) != 0)) {
+            TemporaryEnvAssignmentScope temp_scope(g_shell.get(), env_assignments);
             int builtin_exit = execute_builtin_with_redirections(cmd);
             set_last_pipeline_statuses({builtin_exit});
             return finalize_exit(builtin_exit);
