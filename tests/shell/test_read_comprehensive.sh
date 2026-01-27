@@ -223,6 +223,63 @@ else
 fi
 rm -f /tmp/test_multi_read.sh
 
+cat > /tmp/test_read_loop_redirection.sh << 'EOF'
+#!/bin/sh
+set -eu
+list=$(mktemp)
+printf '%s\n' \
+    "src/interpreter/pattern_matcher.cpp" \
+    "src/interpreter/pattern_matcher.h" >"$list"
+total_files_raw=$(wc -l <"$list")
+total_files_trimmed=$(printf "%s" "$total_files_raw" | tr -d '[:space:]')
+processed=0
+while IFS= read -r file; do
+    [ -f "$file" ] || continue
+    processed=$((processed + 1))
+    if [ $((processed % 1)) -eq 0 ] || [ "$processed" -eq "$total_files_raw" ]; then
+        percent=$((processed * 100 / total_files_trimmed))
+        : "$percent"
+    fi
+done <"$list"
+rm -f "$list"
+echo "$processed/$total_files_trimmed"
+EOF
+chmod +x /tmp/test_read_loop_redirection.sh
+
+OUT=$("$CJSH_PATH" /tmp/test_read_loop_redirection.sh)
+if [ "$OUT" = "2/2" ]; then
+    pass_test "while read loop with redirected stdin"
+else
+    fail_test "while read loop redirection (got '$OUT', expected '2/2')"
+fi
+rm -f /tmp/test_read_loop_redirection.sh
+
+cat > /tmp/test_read_function_scope.sh << 'EOF'
+#!/bin/sh
+set -eu
+process_list() {
+    list=$(mktemp)
+    printf 'alpha\nbeta\n' >"$list"
+    total=0
+    while IFS= read -r entry; do
+        total=$((total + 1))
+    done <"$list"
+    rm -f "$list"
+    echo "$total"
+}
+
+process_list
+EOF
+chmod +x /tmp/test_read_function_scope.sh
+
+OUT=$("$CJSH_PATH" /tmp/test_read_function_scope.sh)
+if [ "$OUT" = "2" ]; then
+    pass_test "function-scoped read honors redirected stdin"
+else
+    fail_test "function read redirection (got '$OUT', expected '2')"
+fi
+rm -f /tmp/test_read_function_scope.sh
+
 echo ""
 echo "Read Command Comprehensive Tests Summary:"
 echo "Passed: $TESTS_PASSED"
