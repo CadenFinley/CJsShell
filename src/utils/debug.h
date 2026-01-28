@@ -62,32 +62,23 @@ static inline void debug_msg(const char* fmt, ...) {
         return;
     }
 
-    int log_to_file = cjsh_debug_file_enabled();
+    FILE* output_stream = nullptr;
+    if (cjsh_debug_file_enabled()) {
+        output_stream = cjsh_get_debug_log_file();
+    }
+
+    if (output_stream == nullptr) {
+        output_stream = stderr;
+    }
 
     va_list args;
     va_start(args, fmt);
 
-    va_list args_copy;
-    if (log_to_file) {
-        va_copy(args_copy, args);
-    }
-
-    fputs("[DEBUG] ", stderr);
-    vfprintf(stderr, fmt, args);
+    fputs("[DEBUG] ", output_stream);
+    vfprintf(output_stream, fmt, args);
     va_end(args);
-    fputc('\n', stderr);
-    fflush(stderr);
-
-    if (log_to_file) {
-        FILE* log_file = cjsh_get_debug_log_file();
-        if (log_file != nullptr) {
-            fputs("[DEBUG] ", log_file);
-            vfprintf(log_file, fmt, args_copy);
-            fputc('\n', log_file);
-            fflush(log_file);
-        }
-        va_end(args_copy);
-    }
+    fputc('\n', output_stream);
+    fflush(output_stream);
 }
 
 class PerformanceTracker {
