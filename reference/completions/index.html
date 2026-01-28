@@ -751,6 +751,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="How automatic completions are generated">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#controlling-automatic-learning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Controlling automatic learning
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1068,6 +1085,19 @@ in gaps or add custom behaviour.</p>
   or a list of commands. By default it forces regeneration (<code>--force</code>); pass <code>--no-force</code> to keep
   existing manual edits. Use <code>-j/--jobs</code> to parallelise scraping and <code>--quiet</code> to suppress per
   command status output.</li>
+</ul>
+<h3 id="controlling-automatic-learning">Controlling automatic learning</h3>
+<p>Scraping man pages on the fly is convenient, but it can consume CPU, spawn short-lived <code>man</code>
+processes, and keep memory allocations around until the session ends. When you prefer a predictable
+footprint, turn learning off and rely exclusively on whatever is already cached (or on
+<code>generate-completions</code>).</p>
+<ul>
+<li>Run <code>cjshopt completion-learning off</code> during a session to stop future man-page lookups. The toggle
+  persists across restarts if you add <code>cjshopt completion-learning off</code> to <code>~/.cjshrc</code>.</li>
+<li>Launch cjsh with <code>--no-completion-learning</code> (or add <code>cjshopt login-startup-arg --no-completion-learning</code>
+  to <code>~/.cjprofile</code>) to start with learning disabled from the first prompt.</li>
+<li>The <code>generate-completions</code> builtin continues to work either way, so you can keep caches warm with a
+  one-time run and leave learning off during normal interactive use.</li>
 </ul>
 <p>If a man page cannot be read (missing <code>man</code>, atypical formatting, or sandbox restrictions), cjsh
 creates an empty cache entry. You can delete that file or replace it with a manual definition.</p>
