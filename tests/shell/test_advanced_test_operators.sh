@@ -62,10 +62,26 @@ fi
 
 echo "Test -b operator for block devices"
 BLOCK_DEV=""
-if [ -b /dev/disk0 ]; then
-    BLOCK_DEV="/dev/disk0"  # macOS
-elif [ -b /dev/sda ]; then
-    BLOCK_DEV="/dev/sda"  # Linux
+
+BLOCK_DEVICE_CANDIDATES="/dev/disk0 /dev/disk1 /dev/sda /dev/sdb /dev/vda /dev/vdb /dev/xvda /dev/nvme0n1 /dev/mmcblk0"
+for candidate in $BLOCK_DEVICE_CANDIDATES; do
+    if [ -b "$candidate" ]; then
+        BLOCK_DEV="$candidate"
+        break
+    fi
+done
+
+if [ -z "$BLOCK_DEV" ] && command -v lsblk >/dev/null 2>&1; then
+    BLOCK_DEV="$(lsblk -ndo PATH,TYPE 2>/dev/null | awk '$2 == "disk" {print $1; exit}')"
+fi
+
+if [ -z "$BLOCK_DEV" ]; then
+    for candidate in /dev/*; do
+        if [ -b "$candidate" ]; then
+            BLOCK_DEV="$candidate"
+            break
+        fi
+    done
 fi
 
 if [ -n "$BLOCK_DEV" ]; then
