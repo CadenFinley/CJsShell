@@ -51,12 +51,25 @@ else
 fi
 
 echo "Testing environment variable security..."
-LD_PRELOAD="/tmp/malicious.so" "$CJSH_PATH" -c "echo test" >/tmp/env_security_test.out 2>&1
-if [ $? -eq 0 ]; then
-    pass_test "environment variable injection handled"
+ENV_SECURITY_OUT=$(mktemp /tmp/cjsh_env_security.XXXXXX)
+MISSING_PRELOAD="/tmp/cjsh_missing_preload_$$.so"
+OS_NAME=$(uname -s 2>/dev/null || echo unknown)
+if [ "$OS_NAME" = "Darwin" ]; then
+    INJECTION_ENV="DYLD_INSERT_LIBRARIES"
 else
-    pass_test "environment variable injection prevented"
+    INJECTION_ENV="LD_PRELOAD"
 fi
+
+{
+    env "$INJECTION_ENV"="$MISSING_PRELOAD" "$CJSH_PATH" -c "echo test" >"$ENV_SECURITY_OUT" 2>&1
+} 2>/dev/null
+ld_status=$?
+if [ $ld_status -ne 0 ]; then
+    pass_test "$INJECTION_ENV injection prevented (exit $ld_status)"
+else
+    fail_test "$INJECTION_ENV injection should fail when library $MISSING_PRELOAD is missing"
+fi
+rm -f "$ENV_SECURITY_OUT"
 
 echo "Testing file permission handling..."
 echo "secret" > /tmp/restricted_file
@@ -180,7 +193,7 @@ else
 fi
 
 rm -f /tmp/command_inject_test.out /tmp/malicious_inject_test.out /tmp/buffer_test.out
-rm -f /tmp/path_traversal_test.out /tmp/env_security_test.out /tmp/permission_test.out
+rm -f /tmp/path_traversal_test.out /tmp/permission_test.out
 rm -f /tmp/null_byte_test.out /tmp/special_chars_test.out /tmp/script_perm_test.out
 rm -f /tmp/ulimit_test.out /tmp/invalid_option_test.out /tmp/signal_test.out
 rm -f /tmp/alias_security_test.out /tmp/function_security_test.out /tmp/exit_code_test.out

@@ -15,6 +15,8 @@ The main test harness can be run like this:
     ./tests/run_shell_tests.sh
 ```
 
+> **Heads up:** The harness launches every test script with Bash. Ensure `bash` is installed (or export `TEST_DRIVER_SHELL=/path/to/shell`) before running it locally or in CI runners that default to `dash`.
+
 Please be sure to have a freshly compiled cjsh in the build directory before running. Also the test suite cannot be run inside or with another cjsh instance running on the same machine.
 
 To produce a clean build of cjsh run:

@@ -88,6 +88,7 @@ jobs:
           ls -lh build/isocline_behavior_tests
 
       - name: Run tests
+        shell: bash
         run: |
           chmod +x tests/run_shell_tests.sh
           echo "Running test suite..."
