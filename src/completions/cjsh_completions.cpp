@@ -391,25 +391,99 @@ bool add_job_control_argument_completions(ic_completion_env_t* cenv,
         current_prefix = tokens.back();
     }
 
-    auto jobs = JobManager::instance().get_all_jobs();
+    auto& job_manager = JobManager::instance();
+    job_manager.update_job_status();
+    auto jobs = job_manager.get_all_jobs();
     if (jobs.empty())
         return false;
 
     long delete_before = static_cast<long>(current_prefix.size());
     bool added = false;
 
-    auto format_source_label = [&](const std::shared_ptr<JobControlJob>& job,
-                                   const std::string& summary_text) {
+    std::unordered_map<int, std::shared_ptr<JobControlJob>> job_lookup;
+    job_lookup.reserve(jobs.size());
+    for (const auto& job : jobs) {
+        if (job) {
+            job_lookup.emplace(job->job_id, job);
+        }
+    }
+
+    auto build_job_summary = [&](const std::shared_ptr<JobControlJob>& job) {
+        const std::string& source = job->has_custom_name() ? job->custom_name : job->command;
+        std::string summary = completion_utils::sanitize_job_command_summary(source);
+        if (summary.empty()) {
+            summary = source.empty() ? std::string("command unavailable") : source;
+        }
+        return summary;
+    };
+
+    auto build_source_label = [&](const std::shared_ptr<JobControlJob>& job,
+                                  const std::string& summary_text, const std::string& qualifier) {
         std::string pid_text;
         if (!job->pids.empty()) {
             pid_text = std::to_string(static_cast<long long>(job->pids.front()));
         } else if (job->pgid > 0) {
             pid_text = std::to_string(static_cast<long long>(job->pgid));
+        } else {
+            pid_text = "unavailable";
         }
-        if (pid_text.empty())
-            return std::string("pid unavailable · ") + summary_text;
-        return std::string("pid ") + pid_text + " · " + summary_text;
+
+        std::string label;
+        if (!qualifier.empty()) {
+            label.append(qualifier);
+            label.append(" · ");
+        }
+        label.append(summary_text);
+        label.append(" · job %");
+        label.append(std::to_string(job->job_id));
+        label.append(" · pid ");
+        label.append(pid_text);
+        return label;
     };
+
+    auto matches_prefix = [&](const std::string& candidate) {
+        return current_prefix.empty() ||
+               completion_utils::matches_completion_prefix(candidate, current_prefix);
+    };
+
+    auto add_job_completion = [&](const std::string& token,
+                                  const std::shared_ptr<JobControlJob>& job,
+                                  const std::string& qualifier) -> bool {
+        if (!job)
+            return true;
+        if (!matches_prefix(token))
+            return true;
+
+        std::string insert_text = token;
+        if (insert_text.empty() || insert_text.back() != ' ')
+            insert_text.push_back(' ');
+
+        std::string summary_text = build_job_summary(job);
+        std::string source_label = build_source_label(job, summary_text, qualifier);
+        if (!completion_tracker::safe_add_completion_prim_with_source(
+                cenv, insert_text.c_str(), nullptr, nullptr, source_label.c_str(), delete_before,
+                0)) {
+            return false;
+        }
+        added = true;
+        return true;
+    };
+
+    auto add_relative_completion = [&](char marker, const std::string& qualifier,
+                                       int job_id) -> bool {
+        if (job_id < 0)
+            return true;
+        auto it = job_lookup.find(job_id);
+        if (it == job_lookup.end())
+            return true;
+        std::string token(1, marker);
+        return add_job_completion(token, it->second, qualifier);
+    };
+
+    if (!add_relative_completion('+', "current job", job_manager.get_current_job()))
+        return added;
+    if (!add_relative_completion('-', "previous job", job_manager.get_previous_job()))
+        return added;
 
     for (const auto& job : jobs) {
         if (completion_tracker::completion_limit_hit_with_log("job control"))
@@ -417,9 +491,6 @@ bool add_job_control_argument_completions(ic_completion_env_t* cenv,
         if (ic_stop_completing(cenv))
             break;
 
-        std::string summary = completion_utils::sanitize_job_command_summary(
-            job->has_custom_name() ? job->custom_name : job->command);
-        std::string summary_text = summary.empty() ? "command unavailable" : summary;
         std::string completion_text = "%" + std::to_string(job->job_id);
 
         if (!current_prefix.empty() &&
@@ -427,18 +498,9 @@ bool add_job_control_argument_completions(ic_completion_env_t* cenv,
             continue;
         }
 
-        std::string insert_text = completion_text;
-        if (insert_text.back() != ' ')
-            insert_text.push_back(' ');
-
-        std::string source_label = format_source_label(job, summary_text);
-        if (!completion_tracker::safe_add_completion_prim_with_source(
-                cenv, insert_text.c_str(), nullptr, nullptr, source_label.c_str(), delete_before,
-                0)) {
+        if (!add_job_completion(completion_text, job, ""))
             return added;
-        }
 
-        added = true;
         if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv))
             break;
     }
@@ -975,6 +1037,8 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
             bool ends_with_space =
                 !prefix_str.empty() && std::isspace(static_cast<unsigned char>(prefix_str.back()));
 
+            add_job_control_argument_completions(cenv, tokens, ends_with_space);
+
             if (!tokens.empty()) {
                 std::vector<std::string> args;
                 if (tokens.size() > 1) {
@@ -986,8 +1050,6 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
 
                 handle_external_sub_completions(cenv, current_line_prefix);
             }
-
-            add_job_control_argument_completions(cenv, tokens, ends_with_space);
 
             if (!tokens.empty() && completion_utils::equals_completion_token(tokens[0], "cd")) {
                 cjsh_filename_completer(cenv, current_line_prefix);
