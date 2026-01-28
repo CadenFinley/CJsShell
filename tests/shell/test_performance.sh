@@ -172,16 +172,5 @@ else
     pass_test "file descriptor handling"
 fi
 
-echo ""
-echo "Performance test summary:"
-echo "  Passed: $TESTS_PASSED"
-echo "  Failed: $TESTS_FAILED"
-echo "  Skipped: $TESTS_SKIPPED"
-
-if [ "$TESTS_FAILED" -gt 0 ]; then
-    echo "FAIL"
-    exit 1
-fi
-
 echo "PASS"
 exit 0

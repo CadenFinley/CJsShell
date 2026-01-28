@@ -34,18 +34,6 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' 
 
-if [ -z "$TEST_DRIVER_SHELL" ]; then
-    if command -v bash >/dev/null 2>&1; then
-        TEST_DRIVER_SHELL=$(command -v bash)
-    else
-        echo "${RED}Error: bash is required to run the cjsh test suite.${NC}"
-        echo "Install bash or set TEST_DRIVER_SHELL to an alternate shell interpreter."
-        exit 1
-    fi
-fi
-
-export TEST_DRIVER_SHELL
-
 TOTAL_FILES=0
 FILES_PASS=0
 FILES_FAIL=0
@@ -67,7 +55,6 @@ if [ ! -x "$CJSH" ]; then
 fi
 
 echo "Using cjsh binary: $CJSH"
-echo "Using test driver shell: $TEST_DRIVER_SHELL"
 
 # echo "Checking for existing cjsh processes..."
 # EXISTING_CJSH=$(pgrep -f "cjsh" 2>/dev/null || true)
@@ -102,7 +89,7 @@ run_test() {
     
     if [ -f "$test_file" ]; then
         
-        output=$(CJSH="$CJSH" CJSH_PATH="$CJSH" SHELL_TO_TEST="$CJSH" "$TEST_DRIVER_SHELL" "$test_file" "$CJSH" 2>&1)
+        output=$(CJSH="$CJSH" CJSH_PATH="$CJSH" SHELL_TO_TEST="$CJSH" sh "$test_file" "$CJSH" 2>&1)
         exit_code=$?
         clean_output=$(printf "%s\n" "$output" | awk '{gsub(/\033\[[0-9;]*[A-Za-z]/, ""); print}')
         
