@@ -938,7 +938,7 @@ typedef struct refresh_info_s {
     bool continuation_row;
 } refresh_info_t;
 
-static void edit_render_inline_right_prompt(refresh_info_t* info, ssize_t row_len) {
+static void edit_render_inline_right_prompt(refresh_info_t* info, ssize_t row, ssize_t row_len) {
     if (info == NULL || info->eb == NULL || info->eb->inline_right_text == NULL) {
         return;
     }
@@ -947,7 +947,8 @@ static void edit_render_inline_right_prompt(refresh_info_t* info, ssize_t row_le
     ssize_t cpromptw = 0;
     edit_get_prompt_width(info->env, info->eb, info->in_extra, &promptw, &cpromptw);
 
-    ssize_t current_pos = promptw + row_len;
+    ssize_t active_promptw = (row == 0 ? promptw : cpromptw);
+    ssize_t current_pos = active_promptw + row_len;
     ssize_t right_text_width = info->eb->inline_right_width;
     if (right_text_width <= 0 && info->eb->inline_right_text[0] != '\0') {
         right_text_width = (ssize_t)strlen(info->eb->inline_right_text);
@@ -1024,11 +1025,15 @@ static bool edit_refresh_rows_iter(const char* s, ssize_t row, ssize_t row_start
         }
         edit_write_row_text(info->env, s + row_start, row_len, row_attrs, info->in_extra);
 
+        ssize_t inline_right_row = 0;
+        if (info->env->inline_right_prompt_follows_cursor && info->cursor_row >= 0) {
+            inline_right_row = info->cursor_row;
+        }
         const bool should_attempt_inline_right =
-            (!info->in_extra && row == 0 && info->eb->inline_right_text != NULL);
+            (!info->in_extra && info->eb->inline_right_text != NULL && row == inline_right_row);
 
         if (should_attempt_inline_right) {
-            edit_render_inline_right_prompt(info, row_len);
+            edit_render_inline_right_prompt(info, row, row_len);
         }
 
         // write line ending

@@ -551,6 +551,7 @@ Available subcommands:
 - `prompt-cleanup-newline` - Control whether cleanup inserts a newline before the next prompt
 - `prompt-cleanup-empty-line` - Insert an empty spacer line during cleanup
 - `prompt-cleanup-truncate` - Collapse multiline prompts when cleanup runs
+- `right-prompt-follow-cursor` - Keep the inline right prompt aligned with the active cursor row
 - `keybind` - Inspect or modify key bindings (modifications config file only)
 - `generate-profile` - Create or overwrite ~/.cjprofile (use `--alt` for `~/.config/cjsh/.cjprofile`)
 - `generate-rc` - Create or overwrite ~/.cjshrc (use `--alt` for `~/.config/cjsh/.cjshrc`)
@@ -1014,3 +1015,15 @@ cjshopt prompt-cleanup-truncate off
 ```
 
 All prompt-cleanup toggles accept `status` to report their current state and can be persisted by adding the commands to `~/.cjshrc`.
+
+#### right-prompt-follow-cursor
+
+Make the inline right prompt (`RPS1`/`RPROMPT`) follow the cursor row while editing multi-line input. When disabled (default), the right prompt always renders on the first line even if the cursor moves down the buffer.
+
+```bash
+cjshopt right-prompt-follow-cursor on
+cjshopt right-prompt-follow-cursor off
+cjshopt right-prompt-follow-cursor status
+```
+
+Enabling the toggle keeps status blocks such as clocks or Git metadata aligned with the active input line, which is especially helpful for long pipelines that wrap across multiple rows.

@@ -434,6 +434,22 @@ ic_public bool ic_enable_prompt_cleanup_truncate_multiline(bool enable) {
     return prev;
 }
 
+ic_public bool ic_enable_inline_right_prompt_cursor_follow(bool enable) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return false;
+    bool prev = env->inline_right_prompt_follows_cursor;
+    env->inline_right_prompt_follows_cursor = enable;
+    return prev;
+}
+
+ic_public bool ic_inline_right_prompt_follows_cursor(void) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return false;
+    return env->inline_right_prompt_follows_cursor;
+}
+
 ic_public bool ic_enable_brace_matching(bool enable) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)

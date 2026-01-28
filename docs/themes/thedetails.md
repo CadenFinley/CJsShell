@@ -113,6 +113,7 @@ cjshopt prompt-cleanup-newline on|off|status  # Insert a blank line before the n
 cjshopt prompt-cleanup-empty-line on|off      # Emit an extra spacer line during cleanup
 cjshopt prompt-cleanup-truncate on|off        # Collapse multiline prompts to a single line
 cjshopt prompt-newline on|off                 # Always print a blank line after commands
+cjshopt right-prompt-follow-cursor on|off     # Make the inline right prompt follow the cursor row
 ```
 
 Each toggle prints guidance on how to persist the setting. Add the chosen command to `~/.cjshrc`

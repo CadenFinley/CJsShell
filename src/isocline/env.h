@@ -101,6 +101,7 @@ struct ic_env_s {
     bool prompt_cleanup_add_empty_line;                // optionally add empty line after
                                                        // cleanup
     bool prompt_cleanup_truncate_multiline;            // during cleanup, collapse multiline input
+    bool inline_right_prompt_follows_cursor;           // right prompt tracks cursor row
     size_t multiline_start_line_count;  // prefill multiline prompts with this many lines
     size_t prompt_cleanup_extra_lines;  // additional terminal lines to erase during cleanup
     long hint_delay;                    // delay before displaying a hint in milliseconds

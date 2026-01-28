@@ -13,6 +13,8 @@ necessary.
 - **Prompt cleanup controls** – `cjshopt prompt-cleanup*` toggles remove the previous prompt, insert
   spacer lines, or truncate multiline prompts. These behaviors are not part of traditional POSIX
   shells.
+- **Right-prompt cursor tracking** – `cjshopt right-prompt-follow-cursor` lets the inline right
+  prompt move with the active cursor row, something stock POSIX shells do not support.
 - **Dynamic title line** – The introductory banner and title-line management (enabled by default)
   can be disabled with `--no-titleline` or `cjshopt login-startup-arg --no-titleline`.
 

@@ -663,14 +663,15 @@ int status_hints_command(const std::vector<std::string>& args) {
         "Usage: status-hints <off|normal|transient|persistent|status>",
         "Examples:",
         "  status-hints off          Never display the underlined status hints",
-        "  status-hints normal       Only show hints when the buffer and status are blank (default)",
+        "  status-hints normal       Only show hints when the buffer and status are blank "
+        "(default)",
         "  status-hints transient    Show hints when the status line is empty",
         "  status-hints persistent   Always prepend hints above other status messages",
         "  status-hints status       Show the current mode"};
 
     if (args.size() == 1) {
-        print_error({ErrorType::INVALID_ARGUMENT, "status-hints", "Missing option argument",
-                     usage_lines});
+        print_error(
+            {ErrorType::INVALID_ARGUMENT, "status-hints", "Missing option argument", usage_lines});
         return 1;
     }
 
@@ -705,8 +706,7 @@ int status_hints_command(const std::vector<std::string>& args) {
     ic_status_hint_mode_t target = IC_STATUS_HINT_NORMAL;
     bool recognized = true;
 
-    if (matches_token(normalized,
-                      {"off", "disable", "disabled", "never", "hidden", "--disable"})) {
+    if (matches_token(normalized, {"off", "disable", "disabled", "never", "hidden", "--disable"})) {
         target = IC_STATUS_HINT_OFF;
     } else if (matches_token(normalized, {"normal", "minimal", "empty-only", "default"})) {
         target = IC_STATUS_HINT_NORMAL;
@@ -719,8 +719,8 @@ int status_hints_command(const std::vector<std::string>& args) {
     }
 
     if (!recognized) {
-        print_error({ErrorType::INVALID_ARGUMENT, "status-hints",
-                     "Unknown option '" + option + "'", usage_lines});
+        print_error({ErrorType::INVALID_ARGUMENT, "status-hints", "Unknown option '" + option + "'",
+                     usage_lines});
         return 1;
     }
 
@@ -860,6 +860,27 @@ int prompt_cleanup_truncate_command(const std::vector<std::string>& args) {
         []() { return config::cleanup_truncates_multiline; },
         [](bool enable) { config::cleanup_truncates_multiline = enable; },
         "Prompt cleanup truncation",
+        false,
+        "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
+        {},
+        {}};
+
+    return handle_toggle_command(config, args);
+}
+
+int right_prompt_follow_cursor_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: right-prompt-follow-cursor <on|off|status>", "Examples:",
+        "  right-prompt-follow-cursor on      Move the inline right prompt with the cursor",
+        "  right-prompt-follow-cursor off     Pin the inline right prompt to the first row",
+        "  right-prompt-follow-cursor status  Show the current setting"};
+
+    static const ToggleCommandConfig config{
+        "right-prompt-follow-cursor",
+        usage_lines,
+        []() { return ic_inline_right_prompt_follows_cursor(); },
+        [](bool enable) { ic_enable_inline_right_prompt_cursor_follow(enable); },
+        "Right prompt cursor tracking",
         false,
         "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
         {},

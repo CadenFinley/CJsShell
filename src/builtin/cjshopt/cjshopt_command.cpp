@@ -55,6 +55,8 @@ void print_cjshopt_usage() {
            "(default: disabled)\n";
     std::cout << "  prompt-cleanup-truncate <on|off|status>  Control cleanup multiline truncation "
                  "(default: disabled)\n";
+    std::cout << "  right-prompt-follow-cursor <on|off|status>  Re-anchor the inline right prompt "
+                 "to the cursor row (default: disabled)\n";
     std::cout << "  keybind <subcommand> [...]       Inspect or modify key bindings (modifications "
                  "in config only)\n";
     std::cout << "    - Use 'keybind ext' for custom command keybindings\n";
@@ -112,13 +114,14 @@ int cjshopt_command(const std::vector<std::string>& args) {
                      "  multiline-indent <on|off|status> Configure auto-indent in multiline ") +
                      "(default: enabled)",
                  "  multiline <on|off|status>       Configure multiline input (default: enabled)",
-                  std::string("  inline-help <on|off|status>     Configure inline help messages ") +
-                      "(default: enabled)",
-                  std::string("  status-hints <off|normal|transient|persistent|status>  Control the ") +
-                      "default status hint banner (default: normal)",
-                  std::string(
-                      "  auto-tab <on|off|status>        Configure automatic tab completion ") +
-                      "(default: enabled)",
+                 std::string("  inline-help <on|off|status>     Configure inline help messages ") +
+                     "(default: enabled)",
+                 std::string(
+                     "  status-hints <off|normal|transient|persistent|status>  Control the ") +
+                     "default status hint banner (default: normal)",
+                 std::string(
+                     "  auto-tab <on|off|status>        Configure automatic tab completion ") +
+                     "(default: enabled)",
                  std::string(
                      "  prompt-newline <on|off|status>  Add a newline after command execution ") +
                      "(default: disabled)",
@@ -132,6 +135,9 @@ int cjshopt_command(const std::vector<std::string>& args) {
                      "(default: disabled)",
                  std::string("  prompt-cleanup-truncate <on|off|status>  Control cleanup multiline "
                              "truncation ") +
+                     "(default: disabled)",
+                 std::string("  right-prompt-follow-cursor <on|off|status>  Move the inline right "
+                             "prompt with the cursor ") +
                      "(default: disabled)",
                  std::string("  keybind <subcommand> [...]       Inspect or modify key bindings ") +
                      "(modifications in config only)",
@@ -226,6 +232,10 @@ int cjshopt_command(const std::vector<std::string>& args) {
         return prompt_cleanup_truncate_command(
             std::vector<std::string>(args.begin() + 1, args.end()));
     }
+    if (subcommand == "right-prompt-follow-cursor") {
+        return right_prompt_follow_cursor_command(
+            std::vector<std::string>(args.begin() + 1, args.end()));
+    }
     if (subcommand == "keybind") {
         return keybind_command(std::vector<std::string>(args.begin() + 1, args.end()));
     }
@@ -254,7 +264,8 @@ int cjshopt_command(const std::vector<std::string>& args) {
 
           "completion-preview, visible-whitespace, hint, multiline-indent, multiline, inline-help, "
           "status-hints, auto-tab, prompt-newline, prompt-cleanup, prompt-cleanup-newline, "
-          "prompt-cleanup-empty-line, prompt-cleanup-truncate, keybind, generate-profile, "
+          "prompt-cleanup-empty-line, prompt-cleanup-truncate, right-prompt-follow-cursor, "
+          "keybind, "
           "generate-rc, generate-logout, set-history-max, set-completion-max"}});
 
     return 1;

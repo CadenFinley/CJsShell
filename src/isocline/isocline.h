@@ -644,6 +644,14 @@ bool ic_enable_prompt_cleanup_empty_line(bool enable);
 /// Returns the previous setting.
 bool ic_enable_prompt_cleanup_truncate_multiline(bool enable);
 
+/// Enable or disable cursor-tracking for the inline right prompt (RPS1).
+/// When enabled, the right-aligned prompt is re-rendered on the same terminal row as the cursor
+/// instead of remaining pinned to the first editable row. Returns the previous setting.
+bool ic_enable_inline_right_prompt_cursor_follow(bool enable);
+
+/// Returns whether the right-aligned prompt follows the cursor height.
+bool ic_inline_right_prompt_follows_cursor(void);
+
 /// Disable or enable hinting (enabled by default)
 /// Shows a hint inline when there is a single possible completion.
 /// @returns the previous setting.

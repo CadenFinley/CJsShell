@@ -44,6 +44,8 @@ for full details.
     [Prompt Markup and Styling](../themes/thedetails.md).
 - **Prompt cleanup toggles** via `cjshopt prompt-cleanup*` set whether the previous prompt is
     removed, whether blank lines are inserted, and whether multiline prompts are truncated.
+- **Right prompt cursor tracking** – `cjshopt right-prompt-follow-cursor` keeps the inline right
+    prompt aligned with the current cursor row instead of pinning it to the first line.
 - **`cjshopt style_def`** redefines syntax-highlighter styles (`unknown-command`, `ic-hint`, etc.),
     instantly applying to both inline highlighting and prompt markup tags that reference them.
 

@@ -431,6 +431,7 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
              make_subcommand("prompt-cleanup-newline", "Toggle cleanup newline behavior"),
              make_subcommand("prompt-cleanup-empty-line", "Toggle cleanup empty line insertion"),
              make_subcommand("prompt-cleanup-truncate", "Toggle cleanup multiline truncation"),
+             make_subcommand("right-prompt-follow-cursor", "Move the right prompt with the cursor"),
              make_subcommand("keybind", "Inspect or modify key bindings"),
              make_subcommand("generate-profile", "Generate ~/.cjprofile"),
              make_subcommand("generate-rc", "Generate ~/.cjshrc"),
@@ -593,6 +594,10 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_doc("cjshopt-prompt-cleanup-truncate", "",
                 {make_subcommand("on", "Truncate multiline prompts during cleanup"),
                  make_subcommand("off", "Keep multiline prompts intact"),
+                 make_subcommand("status", "Show current setting")});
+        add_doc("cjshopt-right-prompt-follow-cursor", "",
+                {make_subcommand("on", "Move the right prompt with the cursor"),
+                 make_subcommand("off", "Keep the right prompt pinned to the first row"),
                  make_subcommand("status", "Show current setting")});
         add_doc("cjshopt-multiline-start-lines", "",
                 {make_subcommand("status", "Show current multiline height")});
