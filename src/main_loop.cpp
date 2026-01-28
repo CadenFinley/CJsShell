@@ -706,12 +706,10 @@ void start_interactive_process() {
     initialize_isocline();
     g_startup_active = false;
 
-    std::chrono::microseconds startup_duration(0);
-    if (config::show_startup_time) {
-        auto startup_end_time = std::chrono::steady_clock::now();
-        startup_duration = std::chrono::duration_cast<std::chrono::microseconds>(
-            startup_end_time - startup_begin_time());
-    }
+    auto startup_end_time = std::chrono::steady_clock::now();
+    std::chrono::microseconds startup_duration =
+        std::chrono::duration_cast<std::chrono::microseconds>(startup_end_time -
+                                                              startup_begin_time());
 
     if (config::show_title_line) {
         std::cout << " CJ's Shell v" << get_version() << " - Caden J Finley (c) 2025" << '\n';
