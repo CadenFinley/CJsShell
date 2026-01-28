@@ -8,9 +8,11 @@
 #include <cstring>
 #include <iostream>
 #include <memory>
+#include <string>
 #include <system_error>
 
 #include "builtin_help.h"
+#include "cjsh_filesystem.h"
 #include "error_out.h"
 
 namespace {
@@ -104,6 +106,13 @@ int pwd_command(const std::vector<std::string>& args) {
     std::unique_ptr<char, decltype(&free)> cwd(getcwd(nullptr, 0), free);
     if (cwd) {
         std::cout << cwd.get() << '\n';
+        std::cout.flush();
+        return 0;
+    }
+
+    std::string fallback = cjsh_filesystem::safe_current_directory();
+    if (!fallback.empty()) {
+        std::cout << fallback << '\n';
         std::cout.flush();
         return 0;
     }
