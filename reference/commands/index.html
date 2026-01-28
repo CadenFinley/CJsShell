@@ -1952,6 +1952,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#right-prompt-follow-cursor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        right-prompt-follow-cursor
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2509,6 +2520,7 @@ register functions and <code>hook list</code> to inspect active hooks. See
 - <code>prompt-cleanup-newline</code> - Control whether cleanup inserts a newline before the next prompt
 - <code>prompt-cleanup-empty-line</code> - Insert an empty spacer line during cleanup
 - <code>prompt-cleanup-truncate</code> - Collapse multiline prompts when cleanup runs
+- <code>right-prompt-follow-cursor</code> - Keep the inline right prompt aligned with the active cursor row
 - <code>keybind</code> - Inspect or modify key bindings (modifications config file only)
 - <code>generate-profile</code> - Create or overwrite ~/.cjprofile (use <code>--alt</code> for <code>~/.config/cjsh/.cjprofile</code>)
 - <code>generate-rc</code> - Create or overwrite ~/.cjshrc (use <code>--alt</code> for <code>~/.config/cjsh/.cjshrc</code>)
@@ -2849,6 +2861,13 @@ to persist the preference.</p>
 </span><span id="__span-97-2"><a id="__codelineno-97-2" name="__codelineno-97-2" href="#__codelineno-97-2"></a>cjshopt<span class="w"> </span>prompt-cleanup-truncate<span class="w"> </span>off
 </span></code></pre></div>
 <p>All prompt-cleanup toggles accept <code>status</code> to report their current state and can be persisted by adding the commands to <code>~/.cjshrc</code>.</p>
+<h4 id="right-prompt-follow-cursor">right-prompt-follow-cursor</h4>
+<p>Make the inline right prompt (<code>RPS1</code>/<code>RPROMPT</code>) follow the cursor row while editing multi-line input. When disabled (default), the right prompt always renders on the first line even if the cursor moves down the buffer.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-98-1"><a id="__codelineno-98-1" name="__codelineno-98-1" href="#__codelineno-98-1"></a>cjshopt<span class="w"> </span>right-prompt-follow-cursor<span class="w"> </span>on
+</span><span id="__span-98-2"><a id="__codelineno-98-2" name="__codelineno-98-2" href="#__codelineno-98-2"></a>cjshopt<span class="w"> </span>right-prompt-follow-cursor<span class="w"> </span>off
+</span><span id="__span-98-3"><a id="__codelineno-98-3" name="__codelineno-98-3" href="#__codelineno-98-3"></a>cjshopt<span class="w"> </span>right-prompt-follow-cursor<span class="w"> </span>status
+</span></code></pre></div>
+<p>Enabling the toggle keeps status blocks such as clocks or Git metadata aligned with the active input line, which is especially helpful for long pipelines that wrap across multiple rows.</p>
 
 
 
