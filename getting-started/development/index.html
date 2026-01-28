@@ -1045,9 +1045,6 @@
 <p>The main test harness can be run like this:
 </p><div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="w">    </span>./tests/run_shell_tests.sh
 </span></code></pre></div><p></p>
-<blockquote>
-<p><strong>Heads up:</strong> The harness launches every test script with Bash. Ensure <code>bash</code> is installed (or export <code>TEST_DRIVER_SHELL=/path/to/shell</code>) before running it locally or in CI runners that default to <code>dash</code>.</p>
-</blockquote>
 <p>Please be sure to have a freshly compiled cjsh in the build directory before running. Also the test suite cannot be run inside or with another cjsh instance running on the same machine.</p>
 <p>To produce a clean build of cjsh run:
 </p><div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="w">    </span>cmake<span class="w"> </span>-S<span class="w"> </span>.<span class="w"> </span>-B<span class="w"> </span>build<span class="w"> </span>-DCMAKE_BUILD_TYPE<span class="o">=</span>Release
