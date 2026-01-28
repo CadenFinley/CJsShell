@@ -217,7 +217,7 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
                     } else if (token[0] != '/' && token.rfind("./", 0) != 0 &&
                                token.rfind("../", 0) != 0 && token.rfind("~/", 0) != 0 &&
                                token.rfind("-/", 0) != 0) {
-                        path_to_check = std::filesystem::current_path().string() + "/" + token;
+                        path_to_check = cjsh_filesystem::safe_current_directory() + "/" + token;
                     }
                     if (std::filesystem::exists(path_to_check)) {
                         ic_highlight(henv, static_cast<long>(absolute_token_start),
@@ -360,7 +360,7 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
                         } else if (is_cd_command && arg[0] != '/' && arg.rfind("./", 0) != 0 &&
                                    arg.rfind("../", 0) != 0 && arg.rfind("~/", 0) != 0 &&
                                    arg.rfind("-/", 0) != 0) {
-                            path_to_check = std::filesystem::current_path().string() + "/" + arg;
+                            path_to_check = cjsh_filesystem::safe_current_directory() + "/" + arg;
                         }
 
                         if (std::filesystem::exists(path_to_check)) {

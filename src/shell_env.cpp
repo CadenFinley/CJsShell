@@ -185,7 +185,7 @@ std::vector<std::pair<std::string, std::string>> setup_user_system_vars(const st
         env_vars.emplace_back("HOSTNAME", std::string(hostname));
     }
 
-    std::string current_path = std::filesystem::current_path().string();
+    std::string current_path = cjsh_filesystem::safe_current_directory();
 
     setenv("PWD", current_path.c_str(), 1);
     env_vars.emplace_back("IFS", std::string(" \t\n"));

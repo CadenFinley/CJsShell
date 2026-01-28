@@ -122,6 +122,26 @@ bool path_is_executable(const std::filesystem::path& candidate) {
 
 std::filesystem::path g_cjsh_path;
 
+std::string safe_current_directory() {
+    char* cwd = ::getcwd(nullptr, 0);
+    if (cwd != nullptr) {
+        std::string result(cwd);
+        std::free(cwd);
+        return result;
+    }
+
+    if (const char* env_pwd = std::getenv("PWD"); env_pwd != nullptr && env_pwd[0] != '\0') {
+        return env_pwd;
+    }
+
+    const auto& home_path = g_user_home_path();
+    if (!home_path.empty()) {
+        return home_path.string();
+    }
+
+    return "/";
+}
+
 Result<int> safe_open(const std::string& path, int flags, mode_t mode) {
     int fd = ::open(path.c_str(), flags, mode);
     if (fd == -1) {
@@ -522,7 +542,7 @@ bool file_exists(const std::filesystem::path& path) {
 }
 
 bool initialize_cjsh_directories() {
-    std::string current_path = std::filesystem::current_path().string();
+    std::string current_path = safe_current_directory();
     setenv("PWD", current_path.c_str(), 1);
 
     try {
