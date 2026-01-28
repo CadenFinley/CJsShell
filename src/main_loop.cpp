@@ -705,18 +705,21 @@ void main_process_loop() {
 void start_interactive_process() {
     initialize_isocline();
     g_startup_active = false;
+    bool first_boot = cjsh_filesystem::is_first_boot();
 
-    auto startup_end_time = std::chrono::steady_clock::now();
-    std::chrono::microseconds startup_duration =
-        std::chrono::duration_cast<std::chrono::microseconds>(startup_end_time -
-                                                              startup_begin_time());
+    std::chrono::microseconds startup_duration(0);
+    if (config::show_startup_time || first_boot) {
+        auto startup_end_time = std::chrono::steady_clock::now();
+        startup_duration = std::chrono::duration_cast<std::chrono::microseconds>(
+            startup_end_time - startup_begin_time());
+    }
 
     if (config::show_title_line) {
         std::cout << " CJ's Shell v" << get_version() << " - Caden J Finley (c) 2025" << '\n';
         std::cout << " Created 2025 @ \033[1;35mAbilene Christian University\033[0m" << '\n';
     }
 
-    if (cjsh_filesystem::is_first_boot()) {
+    if (first_boot) {
         std::cout << " Be sure to give us a star on GitHub!" << '\n';
         std::cout << " Type 'help' to see available commands and options." << '\n';
         std::cout << " For additional help and documentation, please visit: "
@@ -750,14 +753,13 @@ void start_interactive_process() {
                "installed, and it can be sped up using the -j flag.\n";
         std::cout << " For example to use 8 parallel jobs run: 'generate-completions -j 8'\n";
         std::cout << "\n";
-        config::show_startup_time = true;
     }
 
-    if (config::show_title_line && config::show_startup_time) {
+    if (config::show_title_line && (config::show_startup_time || first_boot)) {
         std::cout << '\n';
     }
 
-    if (config::show_startup_time) {
+    if (config::show_startup_time || first_boot) {
         long long microseconds = startup_duration.count();
         std::string startup_time_str;
         if (microseconds < 1000) {
