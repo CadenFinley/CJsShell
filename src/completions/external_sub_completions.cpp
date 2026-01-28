@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "builtins_completions_handler.h"
+#include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "completion_tracker.h"
 #include "completion_utils.h"
@@ -1050,7 +1051,8 @@ void handle_external_sub_completions(ic_completion_env_t* cenv, const char* raw_
     if (!ends_with_space && !tokens.empty())
         current_prefix = tokens.back();
 
-    bool allow_fetch = !cjsh_filesystem::find_executable_in_path(tokens.front()).empty();
+    bool executable_found = !cjsh_filesystem::find_executable_in_path(tokens.front()).empty();
+    bool allow_fetch = config::completion_learning_enabled && executable_found;
 
     auto completions = resolve_entries_for_tokens(tokens, stable_count, allow_fetch);
     if (completions.empty())

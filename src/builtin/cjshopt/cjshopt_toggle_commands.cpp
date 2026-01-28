@@ -240,6 +240,27 @@ int completion_spell_command(const std::vector<std::string>& args) {
     return handle_toggle_command(config, args);
 }
 
+int completion_learning_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: completion-learning <on|off|status>", "Examples:",
+        "  completion-learning on      Allow cjsh to learn completions as you use commands",
+        "  completion-learning off     Only use cached completions (run generate-completions)",
+        "  completion-learning status  Show the current setting"};
+
+    static const ToggleCommandConfig config{
+        "completion-learning",
+        usage_lines,
+        []() { return config::completion_learning_enabled; },
+        [](bool enable) { config::completion_learning_enabled = enable; },
+        "Completion learning",
+        false,
+        "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
+        {},
+        {}};
+
+    return handle_toggle_command(config, args);
+}
+
 int line_numbers_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {
         "Usage: line-numbers <on|off|relative|absolute|status>",

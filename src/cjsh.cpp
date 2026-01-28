@@ -45,6 +45,7 @@ std::string cmd_to_execute;
 bool colors_enabled = true;
 bool source_enabled = true;
 bool completions_enabled = true;
+bool completion_learning_enabled = true;
 bool syntax_highlighting_enabled = true;
 bool smart_cd_enabled = true;
 bool show_version = false;

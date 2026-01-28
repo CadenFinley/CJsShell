@@ -610,7 +610,7 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
         std::string summary = get_command_summary(cmd, false);
         if (!summary.empty())
             return summary;
-        if (summary_fetch_budget == 0)
+        if (!config::completion_learning_enabled || summary_fetch_budget == 0)
             return {};
         --summary_fetch_budget;
         return get_command_summary(cmd, true);

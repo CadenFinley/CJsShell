@@ -22,6 +22,8 @@ std::vector<std::string>& profile_startup_args() {
 
 namespace {
 
+constexpr int kOptNoCompletionLearning = 256;
+
 void detect_login_mode(char* argv[]) {
     if ((argv != nullptr) && (argv[0] != nullptr) && argv[0][0] == '-') {
         config::login_mode = true;
@@ -33,6 +35,7 @@ void apply_minimal_mode() {
     config::colors_enabled = false;
     config::source_enabled = false;
     config::completions_enabled = false;
+    config::completion_learning_enabled = false;
     config::syntax_highlighting_enabled = false;
     config::smart_cd_enabled = false;
     config::show_startup_time = false;
@@ -57,24 +60,26 @@ ParseResult parse_arguments(int argc, char* argv[]) {
 
     detect_login_mode(argv);
 
-    static struct option long_options[] = {{"login", no_argument, nullptr, 'l'},
-                                           {"interactive", no_argument, nullptr, 'i'},
-                                           {"command", required_argument, nullptr, 'c'},
-                                           {"version", no_argument, nullptr, 'v'},
-                                           {"help", no_argument, nullptr, 'h'},
-                                           {"no-colors", no_argument, nullptr, 'C'},
-                                           {"no-titleline", no_argument, nullptr, 'L'},
-                                           {"show-startup-time", no_argument, nullptr, 'U'},
-                                           {"no-source", no_argument, nullptr, 'N'},
-                                           {"no-completions", no_argument, nullptr, 'O'},
-                                           {"no-syntax-highlighting", no_argument, nullptr, 'S'},
-                                           {"no-smart-cd", no_argument, nullptr, 'M'},
-                                           {"startup-test", no_argument, nullptr, 'X'},
-                                           {"minimal", no_argument, nullptr, 'm'},
-                                           {"secure", no_argument, nullptr, 's'},
-                                           {"no-history-expansion", no_argument, nullptr, 'H'},
-                                           {"no-sh-warning", no_argument, nullptr, 'W'},
-                                           {nullptr, 0, nullptr, 0}};
+    static struct option long_options[] = {
+        {"login", no_argument, nullptr, 'l'},
+        {"interactive", no_argument, nullptr, 'i'},
+        {"command", required_argument, nullptr, 'c'},
+        {"version", no_argument, nullptr, 'v'},
+        {"help", no_argument, nullptr, 'h'},
+        {"no-colors", no_argument, nullptr, 'C'},
+        {"no-titleline", no_argument, nullptr, 'L'},
+        {"show-startup-time", no_argument, nullptr, 'U'},
+        {"no-source", no_argument, nullptr, 'N'},
+        {"no-completions", no_argument, nullptr, 'O'},
+        {"no-completion-learning", no_argument, nullptr, kOptNoCompletionLearning},
+        {"no-syntax-highlighting", no_argument, nullptr, 'S'},
+        {"no-smart-cd", no_argument, nullptr, 'M'},
+        {"startup-test", no_argument, nullptr, 'X'},
+        {"minimal", no_argument, nullptr, 'm'},
+        {"secure", no_argument, nullptr, 's'},
+        {"no-history-expansion", no_argument, nullptr, 'H'},
+        {"no-sh-warning", no_argument, nullptr, 'W'},
+        {nullptr, 0, nullptr, 0}};
 
     const char* short_options = "+lic:vhCLUNOSMXmsHW";
 
@@ -118,6 +123,9 @@ ParseResult parse_arguments(int argc, char* argv[]) {
                 break;
             case 'O':
                 config::completions_enabled = false;
+                break;
+            case kOptNoCompletionLearning:
+                config::completion_learning_enabled = false;
                 break;
             case 'S':
                 config::syntax_highlighting_enabled = false;
@@ -185,6 +193,8 @@ void apply_profile_startup_flags() {
             config::source_enabled = false;
         } else if (flag == "--no-completions") {
             config::completions_enabled = false;
+        } else if (flag == "--no-completion-learning") {
+            config::completion_learning_enabled = false;
         } else if (flag == "--no-syntax-highlighting") {
             config::syntax_highlighting_enabled = false;
         } else if (flag == "--no-smart-cd") {

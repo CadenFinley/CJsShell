@@ -18,6 +18,8 @@ void print_cjshopt_usage() {
                  "(default: enabled)\n";
     std::cout << "  completion-spell <on|off|status> Configure completion spell correction "
                  "(default: enabled)\n";
+    std::cout << "  completion-learning <on|off|status> Toggle automatic completion learning "
+                 "(default: enabled)\n";
     std::cout << "  line-numbers <on|off|relative|absolute|status>    Configure line numbers in "
                  "multiline input (default: enabled)\n";
     std::cout
@@ -92,6 +94,8 @@ int cjshopt_command(const std::vector<std::string>& args) {
                      "sensitivity (default: disabled)",
                  std::string("  completion-spell <on|off|status> Configure completion spell ") +
                      "correction (default: enabled)",
+                 std::string("  completion-learning <on|off|status> Toggle automatic completion ") +
+                     "learning (default: enabled)",
                  std::string(
                      "  line-numbers <on|off|relative|absolute|status>    Configure line ") +
                      "numbers in multiline input (default: enabled)",
@@ -167,6 +171,9 @@ int cjshopt_command(const std::vector<std::string>& args) {
     }
     if (subcommand == "completion-spell") {
         return completion_spell_command(std::vector<std::string>(args.begin() + 1, args.end()));
+    }
+    if (subcommand == "completion-learning") {
+        return completion_learning_command(std::vector<std::string>(args.begin() + 1, args.end()));
     }
     if (subcommand == "line-numbers") {
         return line_numbers_command(std::vector<std::string>(args.begin() + 1, args.end()));
@@ -259,6 +266,7 @@ int cjshopt_command(const std::vector<std::string>& args) {
          "cjshopt",
          "unknown subcommand '" + subcommand + "'",
          {"Available subcommands: style_def, login-startup-arg, completion-case, completion-spell, "
+          "completion-learning, "
           "line-numbers, line-numbers-continuation, line-numbers-replace-prompt, "
           "current-line-number-highlight, multiline-start-lines, hint-delay, "
 
