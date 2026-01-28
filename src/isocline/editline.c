@@ -2748,7 +2748,8 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
 
     eb.pos = sbuf_len(eb.input);
 
-    if (ctrl_c_pressed && eb.status != NULL) {
+    if (eb.status != NULL && sbuf_len(eb.status) > 0) {
+        // Ensure status lines are cleared before handing control back to the caller
         sbuf_clear(eb.status);
     }
 
