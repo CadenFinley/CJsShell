@@ -1,7 +1,7 @@
-#include "shell_script_interpreter.h"
-#include "shell_script_interpreter_utils.h"
+#include "interpreter.h"
+#include "interpreter_utils.h"
 
-#include "parser/parser_utils.h"
+#include "parser_utils.h"
 
 #include <algorithm>
 #include <cctype>

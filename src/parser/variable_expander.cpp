@@ -4,10 +4,10 @@
 #include <cctype>
 
 #include "exec.h"
+#include "interpreter.h"
+#include "parameter_utils.h"
 #include "parser.h"
 #include "shell.h"
-#include "shell_script_interpreter.h"
-#include "utils/parameter_utils.h"
 
 VariableExpander::VariableExpander(Shell* shell,
                                    const std::unordered_map<std::string, std::string>& env_vars)

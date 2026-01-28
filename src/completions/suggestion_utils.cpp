@@ -9,8 +9,8 @@
 #include <vector>
 #include "builtin.h"
 #include "cjsh_filesystem.h"
+#include "interpreter.h"
 #include "shell.h"
-#include "shell_script_interpreter.h"
 
 extern std::unique_ptr<Shell> g_shell;
 namespace suggestion_utils {

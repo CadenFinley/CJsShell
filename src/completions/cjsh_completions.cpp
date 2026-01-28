@@ -24,10 +24,10 @@
 #include "completion_utils.h"
 #include "error_out.h"
 #include "external_sub_completions.h"
+#include "interpreter.h"
 #include "isocline.h"
 #include "job_control.h"
 #include "shell.h"
-#include "shell_script_interpreter.h"
 
 bool g_completion_case_sensitive = false;
 bool g_completion_spell_correction_enabled = true;

@@ -2,9 +2,9 @@
 
 #include <sstream>
 
+#include "interpreter_utils.h"
 #include "parser.h"
 #include "parser_utils.h"
-#include "shell_script_interpreter_utils.h"
 
 using shell_script_interpreter::detail::strip_inline_comment;
 using shell_script_interpreter::detail::trim;

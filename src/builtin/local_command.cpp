@@ -4,8 +4,8 @@
 
 #include "cjsh.h"
 #include "error_out.h"
+#include "interpreter.h"
 #include "shell.h"
-#include "shell_script_interpreter.h"
 
 int local_command(const std::vector<std::string>& args, Shell* shell) {
     if (builtin_handle_help(args, {"Usage: local NAME[=VALUE] ...",

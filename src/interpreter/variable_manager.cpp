@@ -6,9 +6,9 @@
 #include <cstdlib>
 
 #include "cjsh.h"
+#include "parameter_utils.h"
 #include "readonly_command.h"
 #include "shell.h"
-#include "utils/parameter_utils.h"
 
 void VariableManager::push_scope() {
     local_variable_stack.emplace_back();

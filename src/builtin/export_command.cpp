@@ -9,9 +9,9 @@
 
 #include "cjsh.h"
 #include "error_out.h"
+#include "interpreter.h"
 #include "readonly_command.h"
 #include "shell.h"
-#include "shell_script_interpreter.h"
 
 namespace {
 

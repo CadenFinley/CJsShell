@@ -35,15 +35,15 @@
 #include "error_out.h"
 #include "exec.h"
 #include "history_expansion.h"
+#include "interpreter.h"
 #include "isocline.h"
 #include "job_control.h"
+#include "pipeline_status_utils.h"
 #include "prompt.h"
 #include "shell.h"
 #include "shell_env.h"
-#include "shell_script_interpreter.h"
 #include "trap_command.h"
 #include "typeahead.h"
-#include "utils/pipeline_status_utils.h"
 #include "version_command.h"
 
 std::chrono::steady_clock::time_point& startup_begin_time() {

@@ -1,4 +1,4 @@
-#include "shell_script_interpreter_utils.h"
+#include "interpreter_utils.h"
 
 #include <sys/stat.h>
 #include <unistd.h>

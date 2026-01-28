@@ -8,8 +8,8 @@
 #include "builtin.h"
 #include "cjsh_filesystem.h"
 #include "error_out.h"
+#include "interpreter.h"
 #include "shell.h"
-#include "shell_script_interpreter.h"
 
 int type_command(const std::vector<std::string>& args, Shell* shell) {
     if (builtin_handle_help(args, {"Usage: type [-afptP] NAME [NAME ...]",

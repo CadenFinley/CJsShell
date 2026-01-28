@@ -26,14 +26,14 @@
 #include "builtin.h"
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
-#include "completions/suggestion_utils.h"
 #include "error_out.h"
-#include "interpreter/shell_script_interpreter.h"
+#include "interpreter.h"
 #include "job_control.h"
 #include "parser.h"
 #include "shell.h"
 #include "shell_env.h"
 #include "signal_handler.h"
+#include "suggestion_utils.h"
 namespace {
 
 int extract_exit_code(int status) {
@@ -1092,11 +1092,9 @@ int Exec::run_with_command_redirections(Command cmd, const std::function<int()>&
                         throw std::runtime_error(command_name + ": " + error.spec + ": " +
                                                  error.error);
                     case FdOperationErrorType::Duplication:
-                        throw std::runtime_error(command_name +
-                                                 ": dup2 failed for " +
+                        throw std::runtime_error(command_name + ": dup2 failed for " +
                                                  std::to_string(error.fd_num) + ">&" +
-                                                 std::to_string(error.src_fd) + ": " +
-                                                 error.error);
+                                                 std::to_string(error.src_fd) + ": " + error.error);
                 }
             };
             (void)apply_fd_operations(cmd, fd_error_handler);

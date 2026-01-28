@@ -6,8 +6,8 @@
 #include <optional>
 
 #include "cjsh.h"
+#include "interpreter_utils.h"
 #include "parser.h"
-#include "shell_script_interpreter_utils.h"
 
 using shell_script_interpreter::detail::process_line_for_validation;
 using shell_script_interpreter::detail::strip_inline_comment;

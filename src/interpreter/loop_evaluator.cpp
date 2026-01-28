@@ -13,9 +13,9 @@
 #include "cjsh.h"
 #include "error_out.h"
 #include "exec.h"
+#include "interpreter_utils.h"
 #include "parser.h"
 #include "shell.h"
-#include "shell_script_interpreter_utils.h"
 #include "signal_handler.h"
 
 using shell_script_interpreter::detail::strip_inline_comment;

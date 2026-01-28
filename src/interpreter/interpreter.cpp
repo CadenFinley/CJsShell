@@ -1,4 +1,4 @@
-#include "shell_script_interpreter.h"
+#include "interpreter.h"
 
 #include <sys/ioctl.h>
 #include <sys/stat.h>
@@ -31,6 +31,7 @@
 #include "error_out.h"
 #include "exec.h"
 #include "function_evaluator.h"
+#include "interpreter_utils.h"
 #include "job_control.h"
 #include "loop_evaluator.h"
 #include "parameter_expansion_evaluator.h"
@@ -39,7 +40,6 @@
 #include "parser/tokenizer.h"
 #include "readonly_command.h"
 #include "shell.h"
-#include "shell_script_interpreter_utils.h"
 #include "signal_handler.h"
 #include "utils/pipeline_status_utils.h"
 

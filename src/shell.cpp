@@ -19,10 +19,10 @@
 #include "cjsh_filesystem.h"
 #include "error_out.h"
 #include "exec.h"
+#include "interpreter.h"
 #include "isocline.h"
 #include "job_control.h"
 #include "shell_env.h"
-#include "shell_script_interpreter.h"
 #include "trap_command.h"
 
 Shell::Shell() : shell_pgid(0), shell_tmodes() {
