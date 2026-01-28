@@ -22,6 +22,20 @@ in gaps or add custom behaviour.
   existing manual edits. Use `-j/--jobs` to parallelise scraping and `--quiet` to suppress per
   command status output.
 
+### Controlling automatic learning
+
+Scraping man pages on the fly is convenient, but it can consume CPU, spawn short-lived `man`
+processes, and keep memory allocations around until the session ends. When you prefer a predictable
+footprint, turn learning off and rely exclusively on whatever is already cached (or on
+`generate-completions`).
+
+- Run `cjshopt completion-learning off` during a session to stop future man-page lookups. The toggle
+  persists across restarts if you add `cjshopt completion-learning off` to `~/.cjshrc`.
+- Launch cjsh with `--no-completion-learning` (or add `cjshopt login-startup-arg --no-completion-learning`
+  to `~/.cjprofile`) to start with learning disabled from the first prompt.
+- The `generate-completions` builtin continues to work either way, so you can keep caches warm with a
+  one-time run and leave learning off during normal interactive use.
+
 If a man page cannot be read (missing `man`, atypical formatting, or sandbox restrictions), cjsh
 creates an empty cache entry. You can delete that file or replace it with a manual definition.
 

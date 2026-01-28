@@ -55,7 +55,7 @@ for full details.
     - `cjshopt multiline`, `cjshopt multiline-indent`, `cjshopt line-numbers`,
         `cjshopt multiline-start-lines`
      - `cjshopt completion-preview`, `cjshopt completion-case`, `cjshopt completion-spell`,
-         `cjshopt auto-tab`
+         `cjshopt completion-learning`, `cjshopt auto-tab`
      - `cjshopt hint`, `cjshopt hint-delay`, `cjshopt inline-help`, `cjshopt status-hints`,
         `cjshopt visible-whitespace`
     - `cjshopt prompt-newline`, `cjshopt prompt-cleanup`, `cjshopt prompt-cleanup-newline`,
@@ -98,6 +98,7 @@ Persistent caches (history, generated completions, etc.) live under `~/.cache/cj
 - `-U, --show-startup-time`
 - `-N, --no-source`
 - `-O, --no-completions`
+- `--no-completion-learning` – keep completions enabled but skip on-demand man-page scraping
 - `-S, --no-syntax-highlighting`
 - `-M, --no-smart-cd`
 - `-H, --no-history-expansion`
