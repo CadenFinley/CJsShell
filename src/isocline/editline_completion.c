@@ -396,7 +396,7 @@ again:
         }
         if (count > count_displayed) {
             sbuf_append(eb->extra,
-                        "\n[ic-info](press PgDn or ctrl-j to expand the completion list)[/]");
+                        "\n[ic-info](press PgDn or ctrl-j to expand; ctrl-j again collapses)[/]");
         }
     } else {
         grid_layout_active = false;
@@ -510,7 +510,9 @@ again:
                 sbuf_append(eb->extra, "\n");
             }
             if (more_available) {
-                sbuf_append(eb->extra, "[ic-info]Press PgDn or ctrl-j to load more completions[/]");
+                sbuf_append(
+                    eb->extra,
+                    "[ic-info]Press PgDn to load more completions; ctrl-j collapses the list[/]");
             } else {
                 sbuf_append(eb->extra,
                             "[ic-info]Use up/down or tab/shift-tab to move; Shift+Up/Down to page; "
@@ -798,10 +800,20 @@ read_key:
             goto again;
         }
     } else if ((c == KEY_PAGEDOWN || c == KEY_LINEFEED) && count > 9) {
+        bool triggered_by_ctrl_j = (c == KEY_LINEFEED);
         c = 0;
         if (!expanded_mode) {
             expanded_mode = true;
             scroll_offset = 0;
+        } else if (triggered_by_ctrl_j) {
+            expanded_mode = false;
+            scroll_offset = 0;
+            ssize_t collapsed_limit = (count > 9 ? 9 : count);
+            if (collapsed_limit <= 0) {
+                selected = -1;
+            } else if (selected >= collapsed_limit) {
+                selected = collapsed_limit - 1;
+            }
         } else if (more_available) {
             ssize_t prev_count = count;
             count = completions_generate(env, env->completions, sbuf_string(eb->input), eb->pos,
@@ -819,6 +831,11 @@ read_key:
                 scroll_offset += last_rows_visible;
                 if (scroll_offset > last_max_scroll_offset) {
                     scroll_offset = last_max_scroll_offset;
+                }
+                if (scroll_offset < count_displayed) {
+                    selected = scroll_offset;
+                } else if (count_displayed > 0) {
+                    selected = count_displayed - 1;
                 }
             } else {
                 term_beep(env->term);
