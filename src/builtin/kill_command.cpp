@@ -82,6 +82,33 @@ int kill_command(const std::vector<std::string>& args) {
             return false;
         }
 
+        if (job_spec == "+" || job_spec == "-") {
+            const bool is_current = job_spec[0] == '+';
+            int target_id =
+                is_current ? job_manager.get_current_job() : job_manager.get_previous_job();
+            if (target_id < 0) {
+                print_error({ErrorType::INVALID_ARGUMENT,
+                             original,
+                             is_current ? "current job not set" : "no previous job",
+                             {"Use 'jobs' to list available jobs"}});
+                had_error = true;
+                return false;
+            }
+
+            auto job = job_manager.get_job(target_id);
+            if (!job) {
+                print_error({ErrorType::INVALID_ARGUMENT,
+                             original,
+                             "No such job",
+                             {"Use 'jobs' to list available jobs"}});
+                had_error = true;
+                return false;
+            }
+
+            send_signal_to_job(job);
+            return true;
+        }
+
         size_t consumed = 0;
         try {
             int parsed_value = std::stoi(job_spec, &consumed);

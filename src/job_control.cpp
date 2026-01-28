@@ -87,6 +87,34 @@ std::shared_ptr<JobControlJob> resolve_job_argument(const std::vector<std::strin
         return nullptr;
     }
 
+    auto resolve_relative_job = [&](char marker) -> std::shared_ptr<JobControlJob> {
+        int target_id =
+            marker == '+' ? job_manager.get_current_job() : job_manager.get_previous_job();
+        if (target_id < 0) {
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         args[1],
+                         marker == '+' ? "current job not set" : "no previous job",
+                         {"Use 'jobs' to list available jobs"}});
+            return nullptr;
+        }
+
+        auto job = job_manager.get_job(target_id);
+        if (!job) {
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         args[1],
+                         "no such job",
+                         {"Use 'jobs' to list available jobs"}});
+            return nullptr;
+        }
+
+        job_id_out = job->job_id;
+        return job;
+    };
+
+    if (job_spec == "+" || job_spec == "-") {
+        return resolve_relative_job(job_spec[0]);
+    }
+
     size_t consumed = 0;
     try {
         int parsed_value = std::stoi(job_spec, &consumed);
