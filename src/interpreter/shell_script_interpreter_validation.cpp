@@ -9,6 +9,7 @@
 #include <cstring>
 #include <unordered_set>
 
+#include <functional>
 #include <initializer_list>
 #include <map>
 #include <sstream>
@@ -970,6 +971,19 @@ WhileUntilCheckResult analyze_while_until_syntax(const std::string& first_token,
     return result;
 }
 
+bool next_effective_line_starts_with_keyword(const std::vector<std::string>& lines,
+                                             size_t current_index, const std::string& keyword) {
+    for (size_t idx = current_index + 1; idx < lines.size(); ++idx) {
+        std::string trimmed_line;
+        size_t first_non_space = 0;
+        if (!extract_trimmed_line(lines[idx], trimmed_line, first_non_space)) {
+            continue;
+        }
+        return starts_with_keyword_token(trimmed_line, keyword);
+    }
+    return false;
+}
+
 struct IfCheckResult {
     bool missing_then_keyword = false;
     bool missing_condition = false;
@@ -1003,7 +1017,6 @@ CaseCheckResult analyze_case_syntax(const std::vector<std::string>& tokens) {
 
     if (tokens.size() < 3) {
         result.incomplete = true;
-        return result;
     }
 
     bool has_in_keyword = std::find(tokens.begin(), tokens.end(), "in") != tokens.end();
@@ -1559,23 +1572,66 @@ bool ShellScriptInterpreter::has_syntax_errors(const std::vector<std::string>& l
         return non_empty == 1;
     }();
 
-    if (enforce_inline_completion) {
-        auto append_control_flow_errors = [&errors](const std::vector<SyntaxError>& source) {
-            for (const auto& err : source) {
-                if (err.error_code == "SYN002" || err.error_code == "SYN003" ||
-                    err.error_code == "SYN004" || err.error_code == "SYN008") {
-                    errors.push_back(err);
-                }
+    auto append_control_flow_errors = [&errors](const std::vector<SyntaxError>& source) {
+        for (const auto& err : source) {
+            if (err.error_code == "SYN002" || err.error_code == "SYN003" ||
+                err.error_code == "SYN004" || err.error_code == "SYN008") {
+                errors.push_back(err);
             }
-        };
+        }
+    };
 
-        append_control_flow_errors(validate_loop_syntax(lines));
-        append_control_flow_errors(validate_conditional_syntax(lines));
+    const std::vector<SyntaxError> loop_errors = validate_loop_syntax(lines);
+    const std::vector<SyntaxError> conditional_errors = validate_conditional_syntax(lines);
+
+    auto append_filtered_errors = [&errors](const std::vector<SyntaxError>& source,
+                                            const std::function<bool(const SyntaxError&)>& filter) {
+        for (const auto& err : source) {
+            if (filter(err)) {
+                errors.push_back(err);
+            }
+        }
+    };
+
+    if (enforce_inline_completion) {
+        append_control_flow_errors(loop_errors);
+        append_control_flow_errors(conditional_errors);
+    } else {
+        append_filtered_errors(loop_errors, [](const SyntaxError& err) {
+            return err.error_code == "SYN002" &&
+                   err.message.find("'do' keyword") != std::string::npos;
+        });
+        append_filtered_errors(conditional_errors, [](const SyntaxError& err) {
+            if (err.error_code == "SYN004") {
+                return err.message.find("'then' keyword") != std::string::npos;
+            }
+            if (err.error_code == "SYN008") {
+                return err.message.find("'in' keyword") != std::string::npos;
+            }
+            return false;
+        });
     }
 
     auto is_blocking_error = [&](const SyntaxError& error) {
-        if (error.error_code == "SYN002" || error.error_code == "SYN003" ||
-            error.error_code == "SYN004" || error.error_code == "SYN008") {
+        if (error.error_code == "SYN002") {
+            if (enforce_inline_completion) {
+                return true;
+            }
+            return error.message.find("'do' keyword") != std::string::npos;
+        }
+        if (error.error_code == "SYN004") {
+            if (enforce_inline_completion) {
+                return true;
+            }
+            return error.message.find("'then' keyword") != std::string::npos;
+        }
+        if (error.error_code == "SYN008") {
+            if (enforce_inline_completion) {
+                return true;
+            }
+            return error.message.find("'in' keyword") != std::string::npos;
+        }
+        if (error.error_code == "SYN003") {
             return enforce_inline_completion;
         }
         return error.severity == ErrorSeverity::CRITICAL && error.error_code != "SYN007";
@@ -2331,25 +2387,36 @@ struct TokenizedLineContext {
     size_t display_line;
     const std::vector<std::string>& tokens;
     const std::string& first_token;
+    const std::vector<std::string>& all_lines;
+    size_t line_index;
 };
-
-template <typename Callback>
-auto adapt_tokenized_line_callback(Callback&& callback) {
-    return [callback = std::forward<Callback>(callback)](
-               std::vector<SyntaxError>& line_errors, const std::string& line,
-               const std::string& trimmed_line, size_t display_line,
-               const std::vector<std::string>& tokens, const std::string& first_token) {
-        TokenizedLineContext context{line_errors,  line,   trimmed_line,
-                                     display_line, tokens, first_token};
-        callback(context);
-    };
-}
 
 template <typename Callback>
 std::vector<SyntaxError> validate_tokenized_with_first_token_context(
     const std::vector<std::string>& lines, Callback&& callback) {
-    return validate_tokenized_with_first_token(
-        lines, adapt_tokenized_line_callback(std::forward<Callback>(callback)));
+    std::vector<SyntaxError> errors;
+
+    for (size_t line_idx = 0; line_idx < lines.size(); ++line_idx) {
+        const std::string& line = lines[line_idx];
+        std::string trimmed_line;
+        size_t first_non_space = 0;
+        if (!extract_trimmed_line(line, trimmed_line, first_non_space)) {
+            continue;
+        }
+
+        auto [tokens, first_token] = tokenize_and_get_first(trimmed_line);
+        if (first_token.empty()) {
+            continue;
+        }
+
+        std::vector<SyntaxError> line_errors;
+        TokenizedLineContext context{line_errors, line,        trimmed_line, line_idx + 1,
+                                     tokens,      first_token, lines,        line_idx};
+        callback(context);
+        errors.insert(errors.end(), line_errors.begin(), line_errors.end());
+    }
+
+    return errors;
 }
 
 std::vector<ShellScriptInterpreter::SyntaxError>
@@ -2998,6 +3065,9 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
 
         if (first_token == "for") {
             auto loop_check = analyze_for_loop_syntax(tokens, trimmed_line);
+            bool missing_do_effective =
+                loop_check.missing_do_keyword &&
+                !next_effective_line_starts_with_keyword(ctx.all_lines, ctx.line_index, "do");
             if (loop_check.incomplete) {
                 line_errors.push_back(SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
                                                   ErrorCategory::CONTROL_FLOW, "SYN002",
@@ -3008,7 +3078,7 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                     {display_line, 0, 0, 0}, ErrorSeverity::ERROR, ErrorCategory::CONTROL_FLOW,
                     "SYN002", "'for' statement missing iteration list after 'in'", line,
                     "Add values after 'in': for var in 1 2 3; do"));
-            } else if (!loop_check.missing_in_keyword && loop_check.missing_do_keyword) {
+            } else if (!loop_check.missing_in_keyword && missing_do_effective) {
                 line_errors.push_back(SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
                                                   ErrorCategory::CONTROL_FLOW, "SYN002",
                                                   "'for' statement missing 'do' keyword", line,
@@ -3022,7 +3092,9 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
         } else if (first_token == "while" || first_token == "until") {
             auto loop_check = analyze_while_until_syntax(first_token, trimmed_line, tokens);
             const bool missing_condition = loop_check.missing_condition;
-            const bool missing_do = loop_check.missing_do_keyword;
+            const bool missing_do =
+                loop_check.missing_do_keyword &&
+                !next_effective_line_starts_with_keyword(ctx.all_lines, ctx.line_index, "do");
 
             if (missing_condition && missing_do) {
                 line_errors.push_back(SyntaxError(
@@ -3068,14 +3140,17 @@ ShellScriptInterpreter::validate_conditional_syntax(const std::vector<std::strin
             auto if_check = analyze_if_syntax(tokens, trimmed_line);
             const bool missing_then = if_check.missing_then_keyword;
             const bool missing_condition = if_check.missing_condition;
+            const bool missing_then_effective =
+                missing_then &&
+                !next_effective_line_starts_with_keyword(ctx.all_lines, ctx.line_index, "then");
 
-            if (missing_then && missing_condition) {
+            if (missing_then_effective && missing_condition) {
                 line_errors.push_back(SyntaxError(
                     {display_line, 0, 0, 0}, ErrorSeverity::ERROR, ErrorCategory::CONTROL_FLOW,
                     "SYN004", "'if' statement missing condition and 'then' keyword", line,
                     "Use syntax: if [ condition ]; then"));
             } else {
-                if (missing_then) {
+                if (missing_then_effective) {
                     line_errors.push_back(SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
                                                       ErrorCategory::CONTROL_FLOW, "SYN004",
                                                       "'if' statement missing 'then' keyword", line,
@@ -3091,16 +3166,19 @@ ShellScriptInterpreter::validate_conditional_syntax(const std::vector<std::strin
             }
         } else if (first_token == "case") {
             auto case_check = analyze_case_syntax(tokens);
-            if (case_check.incomplete) {
-                line_errors.push_back(SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
-                                                  ErrorCategory::CONTROL_FLOW, "SYN008",
-                                                  "'case' statement incomplete", line,
-                                                  "Complete case statement: case variable in"));
-            } else if (case_check.missing_in_keyword) {
+            bool missing_in_effective =
+                case_check.missing_in_keyword &&
+                !next_effective_line_starts_with_keyword(ctx.all_lines, ctx.line_index, "in");
+            if (missing_in_effective) {
                 line_errors.push_back(SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
                                                   ErrorCategory::CONTROL_FLOW, "SYN008",
                                                   "'case' statement missing 'in' keyword", line,
                                                   "Add 'in' keyword: case variable in"));
+            } else if (case_check.incomplete) {
+                line_errors.push_back(SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
+                                                  ErrorCategory::CONTROL_FLOW, "SYN008",
+                                                  "'case' statement incomplete", line,
+                                                  "Complete case statement: case variable in"));
             }
         }
     });

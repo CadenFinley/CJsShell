@@ -45,6 +45,29 @@ assert_error_contains() {
   pass_test "$description"
 }
 
+assert_stdin_error_contains() {
+  description="$1"
+  script_text="$2"
+  expected_substring="$3"
+
+  OUTPUT=$(printf "%s\n" "$script_text" | "$CJSH_PATH" 2>&1)
+  STATUS=$?
+
+  if [ $STATUS -eq 0 ]; then
+    fail_test "$description (unexpected success)"
+    echo "$OUTPUT"
+    exit 1
+  fi
+
+  if ! printf "%s" "$OUTPUT" | grep -q "$expected_substring"; then
+    fail_test "$description (missing message)"
+    echo "$OUTPUT"
+    exit 1
+  fi
+
+  pass_test "$description"
+}
+
 IF_OUTPUT=$("$CJSH_PATH" -c "if [ 1 -eq 1 ]; then printf ok; else printf fail; fi")
 if [ "$IF_OUTPUT" != "ok" ]; then
   fail_test "if statement"
@@ -70,6 +93,10 @@ else
 fi
 
 assert_error_contains "inline for missing do" "for i in 1 2 3 do echo \$i" "missing 'do' keyword"
+MULTILINE_FOR_MISSING_DO='for i in 1 2 3
+echo $i
+done'
+assert_stdin_error_contains "multiline for missing do" "$MULTILINE_FOR_MISSING_DO" "missing 'do' keyword"
 assert_error_contains "multiline for missing done" "for i in 1 2 3; do echo \$i" "missing closing 'done'"
 assert_error_contains "for missing iteration list" "for i in do done" "missing iteration list after 'in'"
 assert_error_contains "for missing do keyword" "for i in 1 2 3 echo \$i" "missing 'do' keyword"
@@ -77,15 +104,31 @@ assert_error_contains "for missing do after semicolon" "for i in {1..3};" "missi
 assert_error_contains "while missing done" "while true; do echo ok" "missing 'done'"
 assert_error_contains "while missing condition" "while do echo ok; done" "loop missing condition expression"
 assert_error_contains "while missing do keyword" "while true echo ok" "missing 'do' keyword"
+MULTILINE_WHILE_MISSING_DO='while true
+echo ok
+done'
+assert_stdin_error_contains "multiline while missing do" "$MULTILINE_WHILE_MISSING_DO" "missing 'do' keyword"
 assert_error_contains "while missing semicolon do" "while true; echo ok" "missing 'do' keyword"
 assert_error_contains "until missing done" "until false; do echo ok" "missing 'done'"
 assert_error_contains "until missing condition" "until do echo ok; done" "loop missing condition expression"
 assert_error_contains "until missing do keyword" "until false echo ok" "missing 'do' keyword"
+MULTILINE_UNTIL_MISSING_DO='until false
+echo ok
+done'
+assert_stdin_error_contains "multiline until missing do" "$MULTILINE_UNTIL_MISSING_DO" "missing 'do' keyword"
 assert_error_contains "if missing fi" "if true; then echo ok" "missing 'fi'"
 assert_error_contains "if missing then" "if true echo ok" "missing 'then' keyword"
 assert_error_contains "if missing condition" "if then" "missing condition"
+MULTILINE_IF_MISSING_THEN='if true
+echo ok
+fi'
+assert_stdin_error_contains "multiline if missing then" "$MULTILINE_IF_MISSING_THEN" "missing 'then' keyword"
 assert_error_contains "case missing esac" "case foo in foo) echo ok ;;" "missing 'esac'"
 assert_error_contains "case missing in keyword" "case foo foo) echo ok ;; esac" "missing 'in' keyword"
+MULTILINE_CASE_MISSING_IN='case foo
+foo) echo ok ;;
+esac'
+assert_stdin_error_contains "multiline case missing in" "$MULTILINE_CASE_MISSING_IN" "missing 'in' keyword"
 
 echo ""
 echo "Control Structures Tests Summary:"
