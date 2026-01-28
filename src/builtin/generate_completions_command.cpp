@@ -87,11 +87,7 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
             }
             if (arg == "--jobs" || arg == "-j") {
                 if (i + 1 >= args.size()) {
-                    print_error({ErrorType::INVALID_ARGUMENT,
-                                 "generate-completions",
-                                 "missing value for " + arg,
-                                 {"Pass a positive integer job count."}});
-                    return 2;
+                    continue;
                 }
                 ++i;
                 if (!set_job_count(args[i])) {
@@ -105,6 +101,9 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
             }
             if (arg.rfind("--jobs=", 0) == 0) {
                 std::string value = arg.substr(7);
+                if (value.empty()) {
+                    continue;
+                }
                 if (!set_job_count(value)) {
                     print_error({ErrorType::INVALID_ARGUMENT,
                                  "generate-completions",
