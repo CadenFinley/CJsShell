@@ -64,7 +64,7 @@ ErrorSeverity ErrorInfo::get_default_severity(ErrorType type) {
         case ErrorType::FILE_NOT_FOUND:
             return ErrorSeverity::ERROR;
         case ErrorType::INVALID_ARGUMENT:
-            return ErrorSeverity::WARNING;
+            return ErrorSeverity::INFO;
         case ErrorType::RUNTIME_ERROR:
             return ErrorSeverity::ERROR;
         case ErrorType::UNKNOWN_ERROR:
