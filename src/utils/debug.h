@@ -28,7 +28,7 @@ static inline int cjsh_debug_file_enabled(void) {
 
 static inline void close_debug_log_file(void) {
     if (cjsh_debug_detail::g_log_file != nullptr) {
-        fclose(cjsh_debug_detail::g_log_file);
+        (void)fclose(cjsh_debug_detail::g_log_file);
         cjsh_debug_detail::g_log_file = nullptr;
     }
 }
@@ -51,13 +51,13 @@ static inline FILE* cjsh_get_debug_log_file(void) {
             return;
         }
 
-        atexit(close_debug_log_file);
+        (void)atexit(close_debug_log_file);
     });
 
     return cjsh_debug_detail::g_log_file;
 }
 
-static inline void debug_msg(const char* fmt, ...) {
+static inline void cjsh_debug_msg(const char* fmt, ...) {
     if (!cjsh_debug_enabled()) {
         return;
     }
@@ -74,11 +74,11 @@ static inline void debug_msg(const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
 
-    fputs("[DEBUG] ", output_stream);
-    vfprintf(output_stream, fmt, args);
+    (void)fputs("[DEBUG] ", output_stream);
+    (void)vfprintf(output_stream, fmt, args);
     va_end(args);
-    fputc('\n', output_stream);
-    fflush(output_stream);
+    (void)fputc('\n', output_stream);
+    (void)fflush(output_stream);
 }
 
 class PerformanceTracker {
@@ -99,18 +99,18 @@ class PerformanceTracker {
         auto microseconds = std::chrono::duration_cast<std::chrono::microseconds>(duration).count();
 
         if (microseconds < 1000) {
-            debug_msg("PerformanceTracker [%s]: %lld us", label_,
-                      static_cast<long long>(microseconds));
+            cjsh_debug_msg("PerformanceTracker [%s]: %lld us", label_,
+                           static_cast<long long>(microseconds));
         } else {
             double milliseconds = static_cast<double>(microseconds) / 1000.0;
-            debug_msg("PerformanceTracker [%s]: %.3f ms", label_, milliseconds);
+            cjsh_debug_msg("PerformanceTracker [%s]: %.3f ms", label_, milliseconds);
         }
     }
 
    private:
     const char* label_;
     bool enabled_{false};
-    std::chrono::steady_clock::time_point start_time_{};
+    std::chrono::steady_clock::time_point start_time_;
 };
 
 #else
@@ -123,7 +123,7 @@ static inline int cjsh_debug_file_enabled(void) {
     return 0;
 }
 
-static inline void debug_msg(const char* fmt, ...) {
+static inline void cjsh_debug_msg(const char* fmt, ...) {
     (void)fmt;
 }
 
