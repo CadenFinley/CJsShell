@@ -938,6 +938,59 @@ typedef struct refresh_info_s {
     bool continuation_row;
 } refresh_info_t;
 
+static void edit_render_inline_right_prompt(refresh_info_t* info, ssize_t row_len) {
+    if (info == NULL || info->eb == NULL || info->eb->inline_right_text == NULL) {
+        return;
+    }
+
+    ssize_t promptw = 0;
+    ssize_t cpromptw = 0;
+    edit_get_prompt_width(info->env, info->eb, info->in_extra, &promptw, &cpromptw);
+
+    ssize_t current_pos = promptw + row_len;
+    ssize_t right_text_width = info->eb->inline_right_width;
+    if (right_text_width <= 0 && info->eb->inline_right_text[0] != '\0') {
+        right_text_width = (ssize_t)strlen(info->eb->inline_right_text);
+    }
+
+    term_clear_to_end_of_line(info->env->term);
+
+    if (right_text_width <= 0) {
+        return;
+    }
+
+    ssize_t terminal_width = info->eb->termw;
+    if (terminal_width <= current_pos + right_text_width + 1) {
+        return;
+    }
+
+    ssize_t spaces_needed = terminal_width - current_pos - right_text_width;
+    if (spaces_needed < 1) {
+        spaces_needed = 1;
+    }
+
+    term_write_repeat(info->env->term, " ", spaces_needed);
+
+    const char* text_to_write = info->eb->inline_right_text;
+    const char* time_start = NULL;
+    for (const char* p = text_to_write; *p; ++p) {
+        if (*p == '[' && p[1] >= '0' && p[1] <= '9' && p[2] >= '0' && p[2] <= '9' && p[3] == ':' &&
+            p[4] >= '0' && p[4] <= '9' && p[5] >= '0' && p[5] <= '9' && p[6] == ':' &&
+            p[7] >= '0' && p[7] <= '9' && p[8] >= '0' && p[8] <= '9' && p[9] == ']') {
+            time_start = p;
+            break;
+        }
+    }
+
+    if (time_start != NULL) {
+        term_write_n(info->env->term, time_start, 10);
+    } else {
+        bbcode_print(info->env->bbcode, text_to_write);
+    }
+
+    term_flush(info->env->term);
+}
+
 static bool edit_refresh_rows_iter(const char* s, ssize_t row, ssize_t row_start, ssize_t row_len,
                                    ssize_t startw, bool is_wrap, const void* arg, void* res) {
     ic_unused(res);
@@ -971,6 +1024,13 @@ static bool edit_refresh_rows_iter(const char* s, ssize_t row, ssize_t row_start
         }
         edit_write_row_text(info->env, s + row_start, row_len, row_attrs, info->in_extra);
 
+        const bool should_attempt_inline_right =
+            (!info->in_extra && row == 0 && info->eb->inline_right_text != NULL);
+
+        if (should_attempt_inline_right) {
+            edit_render_inline_right_prompt(info, row_len);
+        }
+
         // write line ending
         if (row < info->last_row) {
             if (is_wrap && tty_is_utf8(info->env->tty)) {
@@ -982,59 +1042,12 @@ static bool edit_refresh_rows_iter(const char* s, ssize_t row, ssize_t row_start
                              "[ic-diminish]\xE2\x86\xB5[/]");  // return symbol
 #endif
             }
-            term_clear_to_end_of_line(term);
+            if (!should_attempt_inline_right) {
+                term_clear_to_end_of_line(term);
+            }
             term_writeln(term, "");
         } else {
-            if (info->in_extra) {
-                term_clear_to_end_of_line(term);
-            } else if (row == 0 && info->eb->inline_right_text != NULL) {
-                ssize_t promptw, cpromptw;
-                edit_get_prompt_width(info->env, info->eb, info->in_extra, &promptw, &cpromptw);
-
-                ssize_t current_pos = promptw + row_len;
-                ssize_t right_text_width = info->eb->inline_right_width;
-                ssize_t terminal_width = info->eb->termw;
-
-                // Only show right text if there's enough space and input hasn't
-                // reached it
-
-                if (terminal_width > current_pos + right_text_width + 1) {
-                    ssize_t spaces_needed = terminal_width - current_pos - right_text_width;
-                    // Write spaces and then right-aligned text
-                    term_write_repeat(term, " ", spaces_needed);
-                    // Write the inline right text, extracting plain text from
-                    // bbcode if needed
-                    const char* text_to_write = info->eb->inline_right_text;
-                    const char* time_start = NULL;
-
-                    // Look for time pattern [HH:MM:SS] in the text to extract from
-                    // bbcode formatting
-                    for (const char* p = text_to_write; *p; p++) {
-                        if (*p == '[' && p[1] >= '0' && p[1] <= '9' && p[2] >= '0' && p[2] <= '9' &&
-                            p[3] == ':' && p[4] >= '0' && p[4] <= '9' && p[5] >= '0' &&
-                            p[5] <= '9' && p[6] == ':' && p[7] >= '0' && p[7] <= '9' &&
-                            p[8] >= '0' && p[8] <= '9' && p[9] == ']') {
-                            time_start = p;
-                            break;
-                        }
-                    }
-
-                    if (time_start) {
-                        // Found time pattern, write just the clean time without
-                        // ANSI codes
-                        term_write_n(info->env->term, time_start,
-                                     10);  // [HH:MM:SS] is exactly 10 chars
-                    } else {
-                        // Fallback: use bbcode_print for other content
-                        bbcode_print(info->env->bbcode, info->eb->inline_right_text);
-                    }
-                    term_flush(info->env->term);  // Ensure text is flushed to terminal
-                    // DON'T clear to end of line after writing the text!
-                } else {
-                    // Clear to end of line if no space for right text
-                    term_clear_to_end_of_line(term);
-                }
-            } else {
+            if (!should_attempt_inline_right) {
                 term_clear_to_end_of_line(term);
             }
         }
@@ -2154,9 +2167,8 @@ static bool edit_format_default_status_hints(ic_env_t* env, char* buffer, size_t
                         sizeof(history_search_keys), true);
     format_binding_keys(env, IC_KEY_ACTION_SHOW_HELP, NULL, help_keys, sizeof(help_keys), true);
 
-    int written =
-        snprintf(buffer, buflen, "[ic-status]complete: %s  search: %s  help: %s[/]",
-                 completion_keys, history_search_keys, help_keys);
+    int written = snprintf(buffer, buflen, "[ic-status]complete: %s  search: %s  help: %s[/]",
+                           completion_keys, history_search_keys, help_keys);
     if (written < 0) {
         buffer[0] = '\0';
         return false;
