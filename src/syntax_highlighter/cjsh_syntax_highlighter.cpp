@@ -10,6 +10,7 @@
 #include "cjsh_filesystem.h"
 #include "highlight_helpers.h"
 #include "shell.h"
+#include "shell_env.h"
 #include "token_classifier.h"
 #include "token_constants.h"
 #include "utils/quote_state.h"

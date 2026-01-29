@@ -15,6 +15,7 @@
 #include "exec.h"
 #include "job_control.h"
 #include "shell.h"
+#include "shell_env.h"
 
 SignalMask::SignalMask(int signum) : active(false) {
     sigset_t mask{};

@@ -14,6 +14,7 @@
 #include "exec.h"
 #include "flags.h"
 #include "shell.h"
+#include "shell_env.h"
 
 namespace {
 enum class JobWarningState : std::uint8_t {

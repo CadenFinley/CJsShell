@@ -13,6 +13,7 @@
 #include "cjsh_completions.h"
 #include "error_out.h"
 #include "isocline/isocline.h"
+#include "shell_env.h"
 
 namespace {
 struct ToggleCommandConfig {

@@ -6,6 +6,7 @@
 #include "cjsh.h"
 #include "error_out.h"
 #include "isocline/isocline.h"
+#include "shell_env.h"
 #include "usage.h"
 
 namespace flags {

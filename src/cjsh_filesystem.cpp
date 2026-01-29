@@ -19,6 +19,7 @@
 #include "error_out.h"
 #include "parser/parser.h"
 #include "shell.h"
+#include "shell_env.h"
 
 #ifdef __linux__
 #include <linux/limits.h>

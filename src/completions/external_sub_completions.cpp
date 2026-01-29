@@ -20,6 +20,7 @@
 #include "completion_tracker.h"
 #include "completion_utils.h"
 #include "exec.h"
+#include "shell_env.h"
 
 namespace {
 

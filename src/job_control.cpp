@@ -3,6 +3,7 @@
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "shell.h"
+#include "shell_env.h"
 #include "signal_handler.h"
 #include "suggestion_utils.h"
 

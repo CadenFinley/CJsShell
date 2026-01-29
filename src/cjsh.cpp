@@ -36,29 +36,6 @@ bool g_startup_active = true;
 std::uint64_t g_command_sequence = 0;
 std::unique_ptr<Shell> g_shell = nullptr;
 
-namespace config {
-bool login_mode = false;
-bool interactive_mode = true;
-bool force_interactive = false;
-bool execute_command = false;
-std::string cmd_to_execute;
-bool colors_enabled = true;
-bool source_enabled = true;
-bool completions_enabled = true;
-bool completion_learning_enabled = true;
-bool syntax_highlighting_enabled = true;
-bool show_version = false;
-bool show_help = false;
-bool startup_test = false;
-bool minimal_mode = false;
-bool show_startup_time = false;
-bool secure_mode = false;
-bool show_title_line = true;
-bool history_expansion_enabled = true;
-bool newline_after_execution = false;
-bool suppress_sh_warning = false;
-}  // namespace config
-
 namespace {
 bool invoked_via_sh(const char* arg0) {
     if (arg0 == nullptr) {

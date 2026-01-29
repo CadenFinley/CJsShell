@@ -16,6 +16,7 @@
 #include "isocline.h"
 #include "job_control.h"
 #include "shell.h"
+#include "shell_env.h"
 #include "token_constants.h"
 #include "version_command.h"
 

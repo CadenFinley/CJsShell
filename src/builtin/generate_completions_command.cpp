@@ -19,6 +19,7 @@
 #include "cjsh_filesystem.h"
 #include "error_out.h"
 #include "external_sub_completions.h"
+#include "shell_env.h"
 
 // NOLINTBEGIN(performance-avoid-endl)
 int generate_completions_command(const std::vector<std::string>& args, Shell* shell) {

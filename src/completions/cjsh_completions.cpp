@@ -28,6 +28,7 @@
 #include "isocline.h"
 #include "job_control.h"
 #include "shell.h"
+#include "shell_env.h"
 
 bool g_completion_case_sensitive = false;
 bool g_completion_spell_correction_enabled = true;
