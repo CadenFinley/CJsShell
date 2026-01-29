@@ -416,6 +416,36 @@ ic_public bool ic_enable_prompt_cleanup(bool enable, size_t extra_lines) {
     return prev;
 }
 
+ic_public bool ic_prompt_cleanup_is_enabled(void) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return false;
+    return env->prompt_cleanup;
+}
+
+ic_public size_t ic_prompt_cleanup_extra_lines(void) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return 0;
+    return env->prompt_cleanup_extra_lines;
+}
+
+ic_public bool ic_enable_prompt_cleanup_newline(bool enable) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return false;
+    bool prev = env->prompt_cleanup_newline_after_execution;
+    env->prompt_cleanup_newline_after_execution = enable;
+    return prev;
+}
+
+ic_public bool ic_prompt_cleanup_newline_is_enabled(void) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return false;
+    return env->prompt_cleanup_newline_after_execution;
+}
+
 ic_public bool ic_enable_prompt_cleanup_empty_line(bool enable) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)
@@ -425,6 +455,13 @@ ic_public bool ic_enable_prompt_cleanup_empty_line(bool enable) {
     return prev;
 }
 
+ic_public bool ic_prompt_cleanup_empty_line_is_enabled(void) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return false;
+    return env->prompt_cleanup_add_empty_line;
+}
+
 ic_public bool ic_enable_prompt_cleanup_truncate_multiline(bool enable) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)
@@ -432,6 +469,13 @@ ic_public bool ic_enable_prompt_cleanup_truncate_multiline(bool enable) {
     bool prev = env->prompt_cleanup_truncate_multiline;
     env->prompt_cleanup_truncate_multiline = enable;
     return prev;
+}
+
+ic_public bool ic_prompt_cleanup_truncate_multiline_is_enabled(void) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return false;
+    return env->prompt_cleanup_truncate_multiline;
 }
 
 ic_public bool ic_enable_inline_right_prompt_cursor_follow(bool enable) {

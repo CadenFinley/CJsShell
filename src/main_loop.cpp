@@ -457,14 +457,11 @@ void update_job_management() {
 std::string generate_prompt(bool command_was_available) {
     std::printf(" \r");
     (void)std::fflush(stdout);
-    // if (config::uses_cleanup && command_was_available) {
-    //     std::printf(" \n");
-    // }
-    ic_enable_prompt_cleanup(
-        config::uses_cleanup,
-        (config::cleanup_newline_after_execution && command_was_available) ? 1 : 0);
-    ic_enable_prompt_cleanup_empty_line(config::cleanup_adds_empty_line);
-    ic_enable_prompt_cleanup_truncate_multiline(config::cleanup_truncates_multiline);
+    const bool prompt_cleanup_enabled = ic_prompt_cleanup_is_enabled();
+    const bool prompt_cleanup_newline = ic_prompt_cleanup_newline_is_enabled();
+    const size_t extra_cleanup_lines =
+        (prompt_cleanup_enabled && prompt_cleanup_newline && command_was_available) ? 1 : 0;
+    ic_enable_prompt_cleanup(prompt_cleanup_enabled, extra_cleanup_lines);
     return prompt::render_primary_prompt();
 }
 
@@ -692,7 +689,7 @@ void main_process_loop() {
         }
 
         if (config::newline_after_execution && command_to_run != "clear" && command_available &&
-            !last_prompt_started_with_newline && config::uses_cleanup) {
+            !last_prompt_started_with_newline && ic_prompt_cleanup_is_enabled()) {
             (void)std::fputc('\n', stdout);
             (void)std::fflush(stdout);
             command_available = false;

@@ -634,15 +634,21 @@ bool ic_enable_prompt_cleanup(bool enable, size_t extra_lines
                                            = 0
 #endif
 );
+bool ic_prompt_cleanup_is_enabled(void);
+size_t ic_prompt_cleanup_extra_lines(void);
+bool ic_enable_prompt_cleanup_newline(bool enable);
+bool ic_prompt_cleanup_newline_is_enabled(void);
 
 /// Enable or disable inserting an empty line after prompt cleanup output.
 /// Returns the previous setting.
 bool ic_enable_prompt_cleanup_empty_line(bool enable);
+bool ic_prompt_cleanup_empty_line_is_enabled(void);
 
 /// Enable or disable multiline truncation during prompt cleanup.
 /// When enabled, multiline submissions are collapsed to the first line followed by an ellipsis.
 /// Returns the previous setting.
 bool ic_enable_prompt_cleanup_truncate_multiline(bool enable);
+bool ic_prompt_cleanup_truncate_multiline_is_enabled(void);
 
 /// Enable or disable cursor-tracking for the inline right prompt (RPS1).
 /// When enabled, the right-aligned prompt is re-rendered on the same terminal row as the cursor

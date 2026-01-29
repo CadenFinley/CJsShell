@@ -56,10 +56,6 @@ bool secure_mode = false;
 bool show_title_line = true;
 bool history_expansion_enabled = true;
 bool newline_after_execution = false;
-bool uses_cleanup = false;
-bool cleanup_newline_after_execution = false;
-bool cleanup_adds_empty_line = false;
-bool cleanup_truncates_multiline = false;
 bool suppress_sh_warning = false;
 }  // namespace config
 

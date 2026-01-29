@@ -815,8 +815,11 @@ int prompt_cleanup_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "prompt-cleanup",
         usage_lines,
-        []() { return config::uses_cleanup; },
-        [](bool enable) { config::uses_cleanup = enable; },
+        []() { return ic_prompt_cleanup_is_enabled(); },
+        [](bool enable) {
+            size_t extra_lines = ic_prompt_cleanup_extra_lines();
+            ic_enable_prompt_cleanup(enable, extra_lines);
+        },
         "Prompt cleanup",
         false,
         "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
@@ -836,8 +839,8 @@ int prompt_cleanup_newline_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "prompt-cleanup-newline",
         usage_lines,
-        []() { return config::cleanup_newline_after_execution; },
-        [](bool enable) { config::cleanup_newline_after_execution = enable; },
+        []() { return ic_prompt_cleanup_newline_is_enabled(); },
+        [](bool enable) { ic_enable_prompt_cleanup_newline(enable); },
         "Prompt cleanup newline",
         false,
         "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
@@ -857,8 +860,8 @@ int prompt_cleanup_empty_line_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "prompt-cleanup-empty-line",
         usage_lines,
-        []() { return config::cleanup_adds_empty_line; },
-        [](bool enable) { config::cleanup_adds_empty_line = enable; },
+        []() { return ic_prompt_cleanup_empty_line_is_enabled(); },
+        [](bool enable) { ic_enable_prompt_cleanup_empty_line(enable); },
         "Prompt cleanup empty line",
         false,
         "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
@@ -878,8 +881,8 @@ int prompt_cleanup_truncate_command(const std::vector<std::string>& args) {
     static const ToggleCommandConfig config{
         "prompt-cleanup-truncate",
         usage_lines,
-        []() { return config::cleanup_truncates_multiline; },
-        [](bool enable) { config::cleanup_truncates_multiline = enable; },
+        []() { return ic_prompt_cleanup_truncate_multiline_is_enabled(); },
+        [](bool enable) { ic_enable_prompt_cleanup_truncate_multiline(enable); },
         "Prompt cleanup truncation",
         false,
         "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
