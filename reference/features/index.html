@@ -1233,6 +1233,9 @@ for full details.</p>
 </ul>
 <p>Flags affecting feature toggles take effect early in startup and can also be injected via
 <code>cjshopt login-startup-arg</code> in configuration files.</p>
+<p>History persistence defaults to a single read during startup with a single flush on exit. Use
+<code>cjshopt history-single-io off</code> (for the current session or inside <code>~/.cjshrc</code>) if you prefer the
+legacy behavior of appending to the history file after every command.</p>
 <h2 id="built-in-tooling-highlights">Built-in Tooling Highlights</h2>
 <ul>
 <li><code>generate-completions</code> – Pre-populate completion caches by scraping manual pages in parallel.</li>
