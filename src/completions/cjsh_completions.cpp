@@ -608,18 +608,20 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
     size_t summary_fetch_budget = prefix_len == 0 ? 2 : 5;
     auto system_summary_provider = [&](const std::string& cmd) -> std::string {
         std::string summary = get_command_summary(cmd, false);
+        if (summary.empty() && config::completion_learning_enabled && summary_fetch_budget > 0) {
+            --summary_fetch_budget;
+            summary = get_command_summary(cmd, true);
+        }
         if (!summary.empty())
             return summary;
-        if (!config::completion_learning_enabled || summary_fetch_budget == 0)
-            return {};
-        --summary_fetch_budget;
-        return get_command_summary(cmd, true);
+
+        std::string resolved_path = cjsh_filesystem::find_executable_in_path(cmd);
+        return resolved_path;
     };
 
     process_command_candidates(
-        cenv, executables_in_path, prefix_str, prefix_len, "system installed command",
-        "executables in PATH", [](const std::string& value) { return value; }, {},
-        system_summary_provider);
+        cenv, executables_in_path, prefix_str, prefix_len, nullptr, "executables in PATH",
+        [](const std::string& value) { return value; }, {}, system_summary_provider);
 
     if (!ic_has_completions(cenv) && g_completion_spell_correction_enabled) {
         std::string normalized_prefix = completion_utils::normalize_for_comparison(prefix_str);
