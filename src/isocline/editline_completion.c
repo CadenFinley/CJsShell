@@ -28,6 +28,9 @@
 // Completion menu: this file is included in editline.c
 //-------------------------------------------------------------
 
+#define IC_SMALL_MENU_SOURCE_LIMIT 35
+#define IC_LARGE_MENU_SOURCE_LIMIT 70
+
 // return true if anything changed
 static bool edit_complete(ic_env_t* env, editor_t* eb, ssize_t idx) {
     editor_start_modify(eb);
@@ -90,6 +93,44 @@ static const char* completion_single_line_view(alloc_t* mem, const char* display
     return truncated;
 }
 
+static const char* completion_source_view(alloc_t* mem, const char* source, ssize_t max_chars,
+                                          bool allow_full_length, char** allocated) {
+    if (allocated != NULL) {
+        *allocated = NULL;
+    }
+    if (source == NULL) {
+        return NULL;
+    }
+    if (max_chars <= 0 || allow_full_length) {
+        return source;
+    }
+    ssize_t len = ic_strlen(source);
+    if (len <= max_chars) {
+        return source;
+    }
+    ssize_t ellipsis = (max_chars >= 3 ? 3 : 0);
+    ssize_t copy_len = max_chars - ellipsis;
+    if (copy_len < 0) {
+        copy_len = 0;
+    }
+    ssize_t total = copy_len + ellipsis;
+    char* truncated = mem_malloc_tp_n(mem, char, total + 1);
+    if (truncated == NULL) {
+        return source;
+    }
+    if (copy_len > 0) {
+        memcpy(truncated, source, (size_t)copy_len);
+    }
+    if (ellipsis > 0) {
+        memcpy(truncated + copy_len, "...", (size_t)ellipsis);
+    }
+    truncated[total] = '\0';
+    if (allocated != NULL) {
+        *allocated = truncated;
+    }
+    return truncated;
+}
+
 static void editor_append_completion(ic_env_t* env, editor_t* eb, ssize_t idx, ssize_t width,
                                      bool numbered, bool selected) {
     const char* help = NULL;
@@ -130,7 +171,8 @@ static void editor_append_completion(ic_env_t* env, editor_t* eb, ssize_t idx, s
         }
     }
 
-    if (width_remaining > 0) {
+    bool apply_width_constraint = (width_remaining > 0) && (numbered || !selected);
+    if (apply_width_constraint) {
         sbuf_appendf(eb->extra, "[width=\"%zd;left; ;on\"]", width_remaining);
     }
     if (selected) {
@@ -148,10 +190,18 @@ static void editor_append_completion(ic_env_t* env, editor_t* eb, ssize_t idx, s
     }
 
     // Add source information if available
+    const char* source_display = source;
+    char* source_alloc = NULL;
     if (source != NULL) {
+        ssize_t limit = (numbered ? IC_SMALL_MENU_SOURCE_LIMIT : IC_LARGE_MENU_SOURCE_LIMIT);
+        bool allow_full_source = (!numbered && selected);
+        source_display =
+            completion_source_view(env->mem, source, limit, allow_full_source, &source_alloc);
+    }
+    if (source_display != NULL) {
         sbuf_append(eb->extra, " ");
         sbuf_append_tagged(eb->extra, "ic-source", "(");
-        sbuf_append_tagged(eb->extra, "ic-source", source);
+        sbuf_append_tagged(eb->extra, "ic-source", source_display);
         sbuf_append_tagged(eb->extra, "ic-source", ")");
     }
 
@@ -159,8 +209,11 @@ static void editor_append_completion(ic_env_t* env, editor_t* eb, ssize_t idx, s
         sbuf_append(eb->extra, "  ");
         sbuf_append_tagged(eb->extra, "ic-info", help);
     }
-    if (width_remaining > 0) {
+    if (apply_width_constraint) {
         sbuf_append(eb->extra, "[/width]");
+    }
+    if (source_alloc != NULL) {
+        mem_free(env->mem, source_alloc);
     }
 }
 
@@ -189,7 +242,7 @@ static void editor_append_completion3(ic_env_t* env, editor_t* eb, ssize_t col_w
     editor_append_completion(env, eb, idx3, col_width, true, (idx3 == selected));
 }
 
-static ssize_t edit_completions_max_width(ic_env_t* env, ssize_t count) {
+static ssize_t edit_completions_max_width(ic_env_t* env, ssize_t count, ssize_t source_limit) {
     ssize_t max_width = 0;
     for (ssize_t i = 0; i < count; i++) {
         const char* help = NULL;
@@ -202,8 +255,15 @@ static ssize_t edit_completions_max_width(ic_env_t* env, ssize_t count) {
 
         // Add space for source information if available
         if (source != NULL) {
-            w += 3 + bbcode_column_width(env->bbcode,
-                                         source);  // space + ( + source + )
+            char* source_alloc = NULL;
+            const char* limited_source =
+                completion_source_view(env->mem, source, source_limit, false, &source_alloc);
+            if (limited_source != NULL) {
+                w += 3 + bbcode_column_width(env->bbcode, limited_source);
+            }
+            if (source_alloc != NULL) {
+                mem_free(env->mem, source_alloc);
+            }
         }
 
         if (help != NULL) {
@@ -350,7 +410,8 @@ again:
 
     if (!expanded_mode) {
         grid_rows = (count_displayed > 0 ? count_displayed : 1);
-        ssize_t max_display_width = edit_completions_max_width(env, count_displayed);
+        ssize_t max_display_width =
+            edit_completions_max_width(env, count_displayed, IC_SMALL_MENU_SOURCE_LIMIT);
         ssize_t max_col = (twidth > 2 ? twidth - 2 : max_display_width + 3);
         if (count_displayed > 3 && ((colwidth = 3 + max_display_width) * 3 + 2 * 2) < twidth) {
             if (colwidth > max_col)
@@ -402,7 +463,8 @@ again:
         grid_layout_active = false;
         grid_columns = 1;
         grid_rows = (count_displayed > 0 ? count_displayed : 1);
-        ssize_t max_display_width = edit_completions_max_width(env, count_displayed);
+        ssize_t max_display_width =
+            edit_completions_max_width(env, count_displayed, IC_LARGE_MENU_SOURCE_LIMIT);
         colwidth = max_display_width + 6;  // extra space for prefix arrow and padding
         if (colwidth > twidth - 2) {
             colwidth = (twidth > 2 ? twidth - 2 : colwidth);

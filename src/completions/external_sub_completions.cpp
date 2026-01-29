@@ -100,25 +100,11 @@ std::string collapse_whitespace(const std::string& text) {
     return trim(result);
 }
 
-std::string shorten_description(const std::string& text) {
-    constexpr std::size_t kMaxLen = 96;
-    if (text.size() <= kMaxLen)
-        return text;
-
-    std::string truncated = text.substr(0, kMaxLen);
-    std::size_t last_space = truncated.find_last_of(' ');
-    if (last_space != std::string::npos && last_space > kMaxLen / 2) {
-        truncated.erase(last_space);
-    }
-    truncated.append("...");
-    return truncated;
-}
-
 std::string sanitize_description(const std::string& text) {
     std::string collapsed = collapse_whitespace(text);
     if (collapsed.empty())
         return collapsed;
-    return shorten_description(collapsed);
+    return collapsed;
 }
 
 bool attach_executable_path_if_missing(CommandDoc& doc, const std::string& doc_target) {
