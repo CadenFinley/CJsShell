@@ -6,7 +6,7 @@
 #include <string>
 
 const bool PRE_RELEASE = false;
-const char* const c_version_base = "1.1.4";
+const char* const c_version_base = "1.1.3";
 
 std::string get_version() {
     static std::string cached_version =
