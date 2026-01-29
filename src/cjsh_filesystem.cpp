@@ -161,9 +161,10 @@ struct CachedExecutable {
 std::mutex g_path_hash_mutex;
 std::unordered_map<std::string, CachedExecutable> g_path_hash_entries;
 std::string g_path_snapshot;
+bool g_path_hash_seeded = false;
 
 void seed_path_hash_locked(const std::string& path_value) {
-    if (!g_path_hash_entries.empty() || path_value.empty()) {
+    if (g_path_hash_seeded || path_value.empty()) {
         return;
     }
 
@@ -235,6 +236,8 @@ void seed_path_hash_locked(const std::string& path_value) {
 
         return false;
     });
+
+    g_path_hash_seeded = true;
 }
 
 std::string current_path_env_value() {
@@ -249,6 +252,7 @@ void ensure_path_snapshot_locked(const std::string& current_path) {
     if (current_path != g_path_snapshot) {
         g_path_hash_entries.clear();
         g_path_snapshot = current_path;
+        g_path_hash_seeded = false;
     }
 }
 
@@ -722,7 +726,10 @@ bool hash_executable(const std::string& name, std::string* resolved_path) {
 }
 
 std::vector<PathHashEntry> get_path_hash_entries() {
+    std::string current_path = current_path_env_value();
     std::lock_guard<std::mutex> lock(g_path_hash_mutex);
+    ensure_path_snapshot_locked(current_path);
+    seed_path_hash_locked(current_path);
     std::vector<PathHashEntry> entries;
     entries.reserve(g_path_hash_entries.size());
     for (const auto& [command, entry] : g_path_hash_entries) {
@@ -742,6 +749,7 @@ void reset_path_hash() {
     std::lock_guard<std::mutex> lock(g_path_hash_mutex);
     g_path_hash_entries.clear();
     g_path_snapshot = current_path_env_value();
+    g_path_hash_seeded = false;
 }
 
 namespace {
