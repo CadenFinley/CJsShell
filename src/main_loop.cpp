@@ -703,7 +703,6 @@ void main_process_loop() {
 }
 
 void start_interactive_process() {
-    cjsh_filesystem::warm_path_hash_async();
     initialize_isocline();
     g_startup_active = false;
     bool first_boot = cjsh_filesystem::is_first_boot();
