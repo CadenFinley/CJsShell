@@ -39,14 +39,6 @@ bool matches_token(const std::string& value, std::initializer_list<const char*> 
                        [&](const char* token) { return value == token; });
 }
 
-bool history_single_io_is_enabled() {
-    return ic_history_single_io_enabled();
-}
-
-void history_single_io_apply(bool enable) {
-    ic_history_set_single_io_mode(enable);
-}
-
 bool parse_toggle_value(const ToggleCommandConfig& config, const std::string& normalized,
                         bool* enable) {
     if (matches_token(normalized, {"on", "enable", "enabled", "true", "1", "--enable"})) {
@@ -261,27 +253,6 @@ int completion_learning_command(const std::vector<std::string>& args) {
         []() { return config::completion_learning_enabled; },
         [](bool enable) { config::completion_learning_enabled = enable; },
         "Completion learning",
-        false,
-        "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
-        {},
-        {}};
-
-    return handle_toggle_command(config, args);
-}
-
-int history_single_io_command(const std::vector<std::string>& args) {
-    static const std::vector<std::string> usage_lines = {
-        "Usage: history-single-io <on|off|status>", "Examples:",
-        "  history-single-io on       Keep single read/write history mode enabled (default)",
-        "  history-single-io off      Flush history entries to disk after each command",
-        "  history-single-io status   Show the current setting"};
-
-    static const ToggleCommandConfig config{
-        "history-single-io",
-        usage_lines,
-        history_single_io_is_enabled,
-        history_single_io_apply,
-        "Single history file I/O",
         false,
         "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
         {},

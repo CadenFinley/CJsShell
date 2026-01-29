@@ -153,52 +153,6 @@ ic_public void ic_history_clear(void) {
     history_clear(env->history);
 }
 
-ic_public void ic_history_save(void) {
-    ic_env_t* env = ic_get_env();
-    if (env == NULL)
-        return;
-    history_save(env->history);
-}
-
-ic_public bool ic_history_visit_entries(ic_history_visit_fn callback, void* ctx) {
-    if (callback == NULL)
-        return false;
-    ic_env_t* env = ic_get_env();
-    if (env == NULL || env->history == NULL)
-        return false;
-
-    history_snapshot_t snapshot = {0};
-    if (!history_snapshot_load(env->history, &snapshot, true))
-        return false;
-
-    bool keep_going = true;
-    for (ssize_t i = 0; i < snapshot.count && keep_going; i++) {
-        const history_entry_t* entry = &snapshot.entries[i];
-        const char* command = (entry != NULL && entry->command != NULL) ? entry->command : "";
-        int exit_code = (entry != NULL) ? entry->exit_code : IC_HISTORY_EXIT_CODE_UNKNOWN;
-        time_t timestamp = (entry != NULL) ? entry->timestamp : 0;
-        keep_going = callback(command, exit_code, timestamp, ctx);
-    }
-
-    history_snapshot_free(env->history, &snapshot);
-    return true;
-}
-
-ic_public void ic_history_set_single_io_mode(bool enable) {
-    history_set_single_io_default(enable);
-    ic_env_t* env = ic_get_env();
-    if (env == NULL || env->history == NULL)
-        return;
-    history_set_single_io_mode(env->history, enable);
-}
-
-ic_public bool ic_history_single_io_enabled(void) {
-    ic_env_t* env = ic_get_env();
-    if (env == NULL)
-        return history_single_io_mode_enabled(NULL);
-    return history_single_io_mode_enabled(env->history);
-}
-
 ic_public bool ic_enable_auto_tab(bool enable) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)

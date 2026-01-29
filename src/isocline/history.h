@@ -55,9 +55,6 @@ ic_private history_t* history_new(alloc_t* mem);
 ic_private void history_free(history_t* h);
 ic_private void history_clear(history_t* h);
 ic_private bool history_enable_duplicates(history_t* h, bool enable);
-ic_private void history_set_single_io_mode(history_t* h, bool enable);
-ic_private void history_set_single_io_default(bool enable);
-ic_private bool history_single_io_mode_enabled(const history_t* h);
 ic_private ssize_t history_count(const history_t* h);
 
 ic_private void history_load_from(history_t* h, const char* fname, long max_entries);

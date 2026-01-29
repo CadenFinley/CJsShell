@@ -9,10 +9,8 @@
 #include <string>
 #include <vector>
 
-#include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "error_out.h"
-#include "history_utils.h"
 
 int history_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(args,
@@ -22,8 +20,11 @@ int history_command(const std::vector<std::string>& args) {
     }
     cjsh_filesystem::initialize_cjsh_directories();
 
-    auto records = history_utils::load_history_records();
-    if (records.empty()) {
+    auto read_result =
+        cjsh_filesystem::read_file_content(cjsh_filesystem::g_cjsh_history_path().string());
+
+    std::string content;
+    if (read_result.is_error()) {
         auto write_result = cjsh_filesystem::write_file_content(
             cjsh_filesystem::g_cjsh_history_path().string(), "");
         if (write_result.is_error()) {
@@ -35,12 +36,24 @@ int history_command(const std::vector<std::string>& args) {
                          {}});
             return 1;
         }
+        content = "";
+    } else {
+        content = read_result.value();
     }
 
+    std::stringstream content_stream(content);
+    std::string line;
     std::vector<std::string> entries;
-    entries.reserve(records.size());
-    for (const auto& record : records) {
-        entries.push_back(record.command);
+    entries.reserve(256);
+
+    while (std::getline(content_stream, line)) {
+        if (line.empty()) {
+            continue;
+        }
+        if (!line.empty() && line[0] == '#') {
+            continue;
+        }
+        entries.push_back(line);
     }
 
     int limit = static_cast<int>(entries.size());
