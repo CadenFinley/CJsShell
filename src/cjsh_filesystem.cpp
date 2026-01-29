@@ -729,7 +729,6 @@ std::vector<PathHashEntry> get_path_hash_entries() {
     std::string current_path = current_path_env_value();
     std::lock_guard<std::mutex> lock(g_path_hash_mutex);
     ensure_path_snapshot_locked(current_path);
-    seed_path_hash_locked(current_path);
     std::vector<PathHashEntry> entries;
     entries.reserve(g_path_hash_entries.size());
     for (const auto& [command, entry] : g_path_hash_entries) {
