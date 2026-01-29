@@ -162,6 +162,81 @@ std::mutex g_path_hash_mutex;
 std::unordered_map<std::string, CachedExecutable> g_path_hash_entries;
 std::string g_path_snapshot;
 
+void seed_path_hash_locked(const std::string& path_value) {
+    if (!g_path_hash_entries.empty() || path_value.empty()) {
+        return;
+    }
+
+    auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+
+    for_each_path_segment(path_value, [&](std::string_view raw_segment) {
+        if (raw_segment.empty()) {
+            return false;
+        }
+
+        std::filesystem::path directory_path(raw_segment);
+        std::error_code ec;
+
+        if (!std::filesystem::exists(directory_path, ec) || ec) {
+            ec.clear();
+            return false;
+        }
+
+        if (!std::filesystem::is_directory(directory_path, ec) || ec) {
+            ec.clear();
+            return false;
+        }
+
+        std::filesystem::directory_iterator it(
+            directory_path, std::filesystem::directory_options::skip_permission_denied, ec);
+        if (ec) {
+            ec.clear();
+            return false;
+        }
+
+        for (; it != std::filesystem::directory_iterator(); it.increment(ec)) {
+            if (ec) {
+                ec.clear();
+                break;
+            }
+
+            const auto& entry = *it;
+            auto status = entry.status(ec);
+            if (ec) {
+                ec.clear();
+                continue;
+            }
+
+            if (!std::filesystem::is_regular_file(status)) {
+                continue;
+            }
+
+            auto perms = status.permissions();
+            constexpr auto exec_mask = std::filesystem::perms::owner_exec |
+                                       std::filesystem::perms::group_exec |
+                                       std::filesystem::perms::others_exec;
+
+            if ((perms & exec_mask) == std::filesystem::perms::none) {
+                continue;
+            }
+
+            std::string exec_name = entry.path().filename().string();
+            if (g_path_hash_entries.find(exec_name) != g_path_hash_entries.end()) {
+                continue;
+            }
+
+            CachedExecutable cache_entry;
+            cache_entry.path = entry.path().string();
+            cache_entry.hits = 0;
+            cache_entry.last_used = now;
+            cache_entry.manually_added = false;
+            g_path_hash_entries.emplace(std::move(exec_name), std::move(cache_entry));
+        }
+
+        return false;
+    });
+}
+
 std::string current_path_env_value() {
     const char* path_env = std::getenv("PATH");
     if (!path_env) {
@@ -566,7 +641,9 @@ std::vector<std::string> get_executables_in_path() {
     std::vector<std::string> executables;
 
     std::lock_guard<std::mutex> lock(g_path_hash_mutex);
-    ensure_path_snapshot_locked(current_path_env_value());
+    std::string current_path = current_path_env_value();
+    ensure_path_snapshot_locked(current_path);
+    seed_path_hash_locked(current_path);
 
     executables.reserve(g_path_hash_entries.size());
     for (auto it = g_path_hash_entries.begin(); it != g_path_hash_entries.end();) {
