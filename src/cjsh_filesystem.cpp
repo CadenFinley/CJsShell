@@ -163,7 +163,7 @@ std::unordered_map<std::string, CachedExecutable> g_path_hash_entries;
 std::string g_path_snapshot;
 
 void seed_path_hash_locked(const std::string& path_value) {
-    if (path_value.empty()) {
+    if (!g_path_hash_entries.empty() || path_value.empty()) {
         return;
     }
 
