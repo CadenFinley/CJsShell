@@ -1,6 +1,7 @@
 #include "cjsh_filesystem.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cerrno>
 #include <chrono>
 #include <cstdio>
@@ -11,6 +12,7 @@
 #include <sstream>
 #include <string_view>
 #include <system_error>
+#include <thread>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -162,13 +164,11 @@ std::mutex g_path_hash_mutex;
 std::unordered_map<std::string, CachedExecutable> g_path_hash_entries;
 std::string g_path_snapshot;
 bool g_path_hash_seeded = false;
+std::atomic<bool> g_path_hash_warm_inflight{false};
 
-void seed_path_hash_locked(const std::string& path_value) {
-    if (g_path_hash_seeded || path_value.empty()) {
-        return;
-    }
-
-    auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+std::unordered_map<std::string, CachedExecutable> build_path_hash_snapshot(
+    const std::string& path_value, std::time_t timestamp) {
+    std::unordered_map<std::string, CachedExecutable> discovered;
 
     for_each_path_segment(path_value, [&](std::string_view raw_segment) {
         if (raw_segment.empty()) {
@@ -222,20 +222,52 @@ void seed_path_hash_locked(const std::string& path_value) {
             }
 
             std::string exec_name = entry.path().filename().string();
-            if (g_path_hash_entries.find(exec_name) != g_path_hash_entries.end()) {
+            if (discovered.find(exec_name) != discovered.end()) {
                 continue;
             }
 
             CachedExecutable cache_entry;
             cache_entry.path = entry.path().string();
             cache_entry.hits = 0;
-            cache_entry.last_used = now;
+            cache_entry.last_used = timestamp;
             cache_entry.manually_added = false;
-            g_path_hash_entries.emplace(std::move(exec_name), std::move(cache_entry));
+            discovered.emplace(std::move(exec_name), std::move(cache_entry));
         }
 
         return false;
     });
+
+    return discovered;
+}
+
+void seed_path_hash_if_needed(const std::string& path_value) {
+    if (path_value.empty()) {
+        return;
+    }
+
+    auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+
+    std::unique_lock<std::mutex> lock(g_path_hash_mutex);
+    if (g_path_hash_seeded) {
+        return;
+    }
+
+    std::string expected_snapshot = g_path_snapshot;
+    lock.unlock();
+
+    auto discovered = build_path_hash_snapshot(path_value, now);
+
+    lock.lock();
+    if (g_path_hash_seeded || expected_snapshot != g_path_snapshot) {
+        return;
+    }
+
+    for (auto& [exec_name, cache_entry] : discovered) {
+        if (g_path_hash_entries.find(exec_name) != g_path_hash_entries.end()) {
+            continue;
+        }
+        g_path_hash_entries.emplace(std::move(exec_name), std::move(cache_entry));
+    }
 
     g_path_hash_seeded = true;
 }
@@ -644,15 +676,21 @@ Result<std::string> read_file_content(const std::string& path) {
 std::vector<std::string> get_executables_in_path() {
     std::vector<std::string> executables;
 
-    std::lock_guard<std::mutex> lock(g_path_hash_mutex);
     std::string current_path = current_path_env_value();
-    ensure_path_snapshot_locked(current_path);
-    seed_path_hash_locked(current_path);
+    {
+        std::lock_guard<std::mutex> lock(g_path_hash_mutex);
+        ensure_path_snapshot_locked(current_path);
+    }
 
-    executables.reserve(g_path_hash_entries.size());
-    for (const auto& [command, entry] : g_path_hash_entries) {
-        (void)entry;
-        executables.push_back(command);
+    seed_path_hash_if_needed(current_path);
+
+    {
+        std::lock_guard<std::mutex> lock(g_path_hash_mutex);
+        executables.reserve(g_path_hash_entries.size());
+        for (const auto& [command, entry] : g_path_hash_entries) {
+            (void)entry;
+            executables.push_back(command);
+        }
     }
 
     return executables;
@@ -749,6 +787,32 @@ void reset_path_hash() {
     g_path_hash_entries.clear();
     g_path_snapshot = current_path_env_value();
     g_path_hash_seeded = false;
+}
+
+void warm_path_hash_async() {
+    std::string current_path = current_path_env_value();
+    if (current_path.empty()) {
+        return;
+    }
+
+    bool expected = false;
+    if (!g_path_hash_warm_inflight.compare_exchange_strong(expected, true)) {
+        return;
+    }
+
+    try {
+        std::thread([path_value = std::move(current_path)]() {
+            {
+                std::lock_guard<std::mutex> lock(g_path_hash_mutex);
+                ensure_path_snapshot_locked(path_value);
+            }
+
+            seed_path_hash_if_needed(path_value);
+            g_path_hash_warm_inflight.store(false);
+        }).detach();
+    } catch (const std::system_error&) {
+        g_path_hash_warm_inflight.store(false);
+    }
 }
 
 namespace {

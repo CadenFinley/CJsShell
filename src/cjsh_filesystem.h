@@ -168,6 +168,7 @@ std::string resolve_executable_for_execution(const std::string& name);
 bool hash_executable(const std::string& name, std::string* resolved_path = nullptr);
 std::vector<PathHashEntry> get_path_hash_entries();
 void reset_path_hash();
+void warm_path_hash_async();
 
 std::string safe_current_directory();
 
