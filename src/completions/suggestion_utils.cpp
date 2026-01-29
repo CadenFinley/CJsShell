@@ -56,11 +56,6 @@ std::vector<std::string> generate_command_suggestions(const std::string& command
     std::vector<std::string> all_commands(all_commands_set.begin(), all_commands_set.end());
 
     suggestions = generate_fuzzy_suggestions(command, all_commands);
-
-    if (suggestions.empty()) {
-        suggestions.push_back("Try 'help' to see available commands.");
-    }
-
     return suggestions;
 }
 
