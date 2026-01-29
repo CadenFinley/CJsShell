@@ -113,6 +113,7 @@ cjsh leaves directory listing behavior up to your configuration. Add an `ls` wra
 - **Reverse search:** Press `Ctrl+R` for fuzzy, incremental history search.
 - **Persistence:** History entries are appended to `~/.cache/cjsh/history.txt`; duplicate commands are suppressed by default.
 - **Retention:** Adjust limits with `cjshopt set-history-max <number|default|status>` (any non-negative value; default 1000 entries).
+- **Single read/write mode:** Enabled by default. cjsh loads history once at startup and flushes it once on exit; run `cjshopt history-single-io off` (for the current session or inside `~/.cjshrc`) to revert to per-command writes.
 
 ---
 

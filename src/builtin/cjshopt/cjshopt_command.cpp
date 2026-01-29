@@ -62,6 +62,8 @@ void print_cjshopt_usage() {
     std::cout << "  keybind <subcommand> [...]       Inspect or modify key bindings (modifications "
                  "in config only)\n";
     std::cout << "    - Use 'keybind ext' for custom command keybindings\n";
+    std::cout << "  history-single-io <on|off|status> Toggle single read/write history mode "
+                 "(default: enabled)\n";
     std::cout << "  generate-profile [--force] [--alt]       Create or overwrite ~/.cjprofile\n";
     std::cout << "  generate-rc [--force] [--alt]            Create or overwrite ~/.cjshrc\n";
     std::cout << "  generate-logout [--force] [--alt]        Create or overwrite ~/.cjsh_logout\n";
@@ -96,6 +98,9 @@ int cjshopt_command(const std::vector<std::string>& args) {
                      "correction (default: enabled)",
                  std::string("  completion-learning <on|off|status> Toggle automatic completion ") +
                      "learning (default: enabled)",
+                 std::string(
+                     "  history-single-io <on|off|status> Toggle single read/write history ") +
+                     "mode (default: enabled)",
                  std::string(
                      "  line-numbers <on|off|relative|absolute|status>    Configure line ") +
                      "numbers in multiline input (default: enabled)",
@@ -174,6 +179,9 @@ int cjshopt_command(const std::vector<std::string>& args) {
     }
     if (subcommand == "completion-learning") {
         return completion_learning_command(std::vector<std::string>(args.begin() + 1, args.end()));
+    }
+    if (subcommand == "history-single-io") {
+        return history_single_io_command(std::vector<std::string>(args.begin() + 1, args.end()));
     }
     if (subcommand == "line-numbers") {
         return line_numbers_command(std::vector<std::string>(args.begin() + 1, args.end()));

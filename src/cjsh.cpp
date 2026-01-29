@@ -22,6 +22,7 @@
 #include "cjsh_filesystem.h"
 #include "error_out.h"
 #include "flags.h"
+#include "isocline/isocline.h"
 #include "job_control.h"
 #include "main_loop.h"
 #include "prompt.h"
@@ -97,6 +98,8 @@ void cleanup_resources() {
         return;
     }
     cleanup_already_invoked = true;
+
+    ic_history_save();
 
     if (g_shell) {
         trap_manager_set_shell(g_shell.get());

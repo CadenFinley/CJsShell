@@ -646,6 +646,24 @@ cjshopt completion-spell status   # Display the current state
 
 Persist the choice by placing the command in `~/.cjshrc`.
 
+#### history-single-io
+
+Enable, disable, or inspect buffered history persistence. This mode is enabled by default: cjsh loads the history file once during startup and flushes it back to disk when the session ends, rather than touching the file after every command.
+
+```bash
+cjshopt history-single-io <on|off|status>
+```
+
+Examples:
+
+```bash
+cjshopt history-single-io on      # Ensure buffered history I/O stays enabled (default)
+cjshopt history-single-io off     # Append to the history file after each command
+cjshopt history-single-io status  # Show the current mode
+```
+
+Add `cjshopt history-single-io off` to your `~/.cjshrc` if you prefer the legacy append-after-each-command behavior.
+
 #### line-numbers
 
 Enable, disable, or inspect line numbers in multiline input mode. When enabled, cjsh will display numbers on the left side of multiline input, making it easier to navigate and edit multi-line commands or scripts. You can choose between absolute numbering (the default) or relative numbering, which shows the distance to the active cursor line.

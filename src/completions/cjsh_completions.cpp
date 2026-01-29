@@ -24,6 +24,7 @@
 #include "completion_utils.h"
 #include "error_out.h"
 #include "external_sub_completions.h"
+#include "history_utils.h"
 #include "interpreter.h"
 #include "isocline.h"
 #include "job_control.h"
@@ -78,70 +79,6 @@ bool prepare_prefix_state(ic_completion_env_t* cenv, const char* prefix, std::st
 
     prefix_str = prefix ? prefix : "";
     prefix_len = prefix_str.length();
-    return true;
-}
-
-int from_hex_digit(char ch) {
-    if (ch >= '0' && ch <= '9') {
-        return ch - '0';
-    }
-    if (ch >= 'a' && ch <= 'f') {
-        return 10 + (ch - 'a');
-    }
-    if (ch >= 'A' && ch <= 'F') {
-        return 10 + (ch - 'A');
-    }
-    return -1;
-}
-
-bool decode_history_command_line(const std::string& raw, std::string& decoded) {
-    decoded.clear();
-    decoded.reserve(raw.size());
-    for (std::size_t i = 0; i < raw.size(); ++i) {
-        char ch = raw[i];
-        if (ch != '\\') {
-            decoded.push_back(ch);
-            continue;
-        }
-        if (i + 1 >= raw.size()) {
-            return false;
-        }
-        char esc = raw[++i];
-        switch (esc) {
-            case 'n':
-                decoded.push_back('\n');
-                break;
-            case 't':
-                decoded.push_back('\t');
-                break;
-            case 'r':
-                break;
-            case '\\':
-                decoded.push_back('\\');
-                break;
-            case 'x': {
-                if (i + 2 >= raw.size()) {
-                    return false;
-                }
-                char h1 = raw[i + 1];
-                char h2 = raw[i + 2];
-                if (!std::isxdigit(static_cast<unsigned char>(h1)) ||
-                    !std::isxdigit(static_cast<unsigned char>(h2))) {
-                    return false;
-                }
-                int hi = from_hex_digit(h1);
-                int lo = from_hex_digit(h2);
-                if (hi < 0 || lo < 0) {
-                    return false;
-                }
-                decoded.push_back(static_cast<char>((hi << 4) | lo));
-                i += 2;
-                break;
-            }
-            default:
-                return false;
-        }
-    }
     return true;
 }
 
@@ -690,11 +627,6 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
     if (!prepare_prefix_state(cenv, prefix, prefix_str, prefix_len))
         return;
 
-    std::ifstream history_file(cjsh_filesystem::g_cjsh_history_path());
-    if (!history_file.is_open()) {
-        return;
-    }
-
     struct HistoryMatch {
         std::string command;
         bool has_exit_code;
@@ -704,56 +636,14 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
     std::vector<HistoryMatch> matches;
     matches.reserve(50);
 
-    std::string line;
-    line.reserve(256);
-    std::string decoded_line;
-    decoded_line.reserve(256);
+    auto history_records = history_utils::load_history_records();
+    for (const auto& record : history_records) {
+        if (matches.size() >= 50)
+            break;
 
-    int last_exit_code = 0;
-    bool has_last_exit_code = false;
-
-    while (std::getline(history_file, line) && matches.size() < 50) {
-        if (line.empty())
+        const std::string& entry_text = record.command;
+        if (entry_text.empty() || looks_like_file_path(entry_text))
             continue;
-
-        if (!line.empty() && line[0] == '#') {
-            last_exit_code = 0;
-            has_last_exit_code = false;
-
-            const char* cursor = line.c_str() + 1;
-            while (*cursor == ' ' || *cursor == '\t')
-                ++cursor;
-
-            if (*cursor != '\0') {
-                char* endptr = nullptr;
-                (void)std::strtoll(cursor, &endptr, 10);
-                cursor = endptr;
-
-                while (*cursor == ' ' || *cursor == '\t')
-                    ++cursor;
-
-                if (*cursor != '\0' && *cursor != '\n' && *cursor != '\r') {
-                    long exit_ll = std::strtol(cursor, &endptr, 10);
-                    if (endptr != cursor) {
-                        last_exit_code = static_cast<int>(exit_ll);
-                        has_last_exit_code = (last_exit_code != IC_HISTORY_EXIT_CODE_UNKNOWN);
-                    }
-                }
-            }
-
-            continue;
-        }
-
-        if (!decode_history_command_line(line, decoded_line)) {
-            decoded_line = line;
-        }
-        const std::string& entry_text = decoded_line;
-
-        if (looks_like_file_path(entry_text)) {
-            last_exit_code = 0;
-            has_last_exit_code = false;
-            continue;
-        }
 
         bool should_match = false;
         if (prefix_len == 0) {
@@ -764,13 +654,9 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
         }
 
         if (should_match) {
-            matches.push_back(HistoryMatch{entry_text, has_last_exit_code, last_exit_code});
+            const bool has_exit_code = record.exit_code != IC_HISTORY_EXIT_CODE_UNKNOWN;
+            matches.push_back(HistoryMatch{entry_text, has_exit_code, record.exit_code});
         }
-
-        last_exit_code = 0;
-        has_last_exit_code = false;
-
-        line.clear();
     }
 
     const size_t max_suggestions = 15;

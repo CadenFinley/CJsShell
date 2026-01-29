@@ -3,7 +3,9 @@
 #include <cctype>
 #include <sstream>
 
+#include "cjsh.h"
 #include "cjsh_filesystem.h"
+#include "history_utils.h"
 #include "parser/quote_info.h"
 
 namespace {
@@ -485,24 +487,6 @@ std::string HistoryExpansion::get_history_file_path() {
 }
 
 std::vector<std::string> HistoryExpansion::read_history_entries() {
-    std::vector<std::string> entries;
-    std::string history_path = get_history_file_path();
-
-    auto read_result = cjsh_filesystem::read_file_content(history_path);
-    if (read_result.is_error()) {
-        return entries;
-    }
-
-    std::stringstream content_stream(read_result.value());
-    std::string line;
-    entries.reserve(256);
-
-    while (std::getline(content_stream, line)) {
-        if (line.empty() || (!line.empty() && line[0] == '#')) {
-            continue;
-        }
-        entries.push_back(line);
-    }
-
-    return entries;
+    auto records = history_utils::load_history_records();
+    return history_utils::commands_from_records(records);
 }

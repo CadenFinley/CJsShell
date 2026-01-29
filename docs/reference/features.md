@@ -109,6 +109,10 @@ Persistent caches (history, generated completions, etc.) live under `~/.cache/cj
 Flags affecting feature toggles take effect early in startup and can also be injected via
 `cjshopt login-startup-arg` in configuration files.
 
+History persistence defaults to a single read during startup with a single flush on exit. Use
+`cjshopt history-single-io off` (for the current session or inside `~/.cjshrc`) if you prefer the
+legacy behavior of appending to the history file after every command.
+
 ## Built-in Tooling Highlights
 
 - `generate-completions` – Pre-populate completion caches by scraping manual pages in parallel.

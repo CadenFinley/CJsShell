@@ -34,6 +34,7 @@ extern "C" {
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <time.h>
 
 #include "keybindings.h"
 #include "keycodes.h"
@@ -295,6 +296,14 @@ void ic_history_add_with_exit_code(const char* entry, int exit_code);
 void ic_history_add(const char* entry);
 /// Force save in-memory history to the history file.
 void ic_history_save(void);
+/// Visit history entries from oldest to newest. Return false to stop iteration early.
+typedef bool (*ic_history_visit_fn)(const char* command, int exit_code, time_t timestamp,
+                                    void* ctx);
+bool ic_history_visit_entries(ic_history_visit_fn callback, void* ctx);
+/// Configure whether the history file is read/written only once per session.
+void ic_history_set_single_io_mode(bool enable);
+/// Query whether single read/write history mode is enabled.
+bool ic_history_single_io_enabled(void);
 
 /// \}
 
