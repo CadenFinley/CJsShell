@@ -1445,7 +1445,6 @@ Fuzzy matching powers command, path, and argument completions without additional
 <li><strong>Reverse search:</strong> Press <code>Ctrl+R</code> for fuzzy, incremental history search.</li>
 <li><strong>Persistence:</strong> History entries are appended to <code>~/.cache/cjsh/history.txt</code>; duplicate commands are suppressed by default.</li>
 <li><strong>Retention:</strong> Adjust limits with <code>cjshopt set-history-max &lt;number|default|status&gt;</code> (any non-negative value; default 1000 entries).</li>
-<li><strong>Single read/write mode:</strong> Enabled by default. cjsh loads history once at startup and flushes it once on exit; run <code>cjshopt history-single-io off</code> (for the current session or inside <code>~/.cjshrc</code>) to revert to per-command writes.</li>
 </ul>
 <hr>
 <h2 id="configuration-compatibility">Configuration &amp; Compatibility</h2>
