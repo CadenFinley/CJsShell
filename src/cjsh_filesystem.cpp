@@ -646,14 +646,9 @@ std::vector<std::string> get_executables_in_path() {
     seed_path_hash_locked(current_path);
 
     executables.reserve(g_path_hash_entries.size());
-    for (auto it = g_path_hash_entries.begin(); it != g_path_hash_entries.end();) {
-        if (!entry_is_valid(it->second)) {
-            it = g_path_hash_entries.erase(it);
-            continue;
-        }
-
-        executables.push_back(it->first);
-        ++it;
+    for (const auto& [command, entry] : g_path_hash_entries) {
+        (void)entry;
+        executables.push_back(command);
     }
 
     return executables;
