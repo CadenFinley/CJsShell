@@ -1135,9 +1135,8 @@ necessary.</p>
 <p>Consult the <a href="../completions/">Completion Authoring Guide</a> for cache format and customization tips.</p>
 <h2 id="command-enhancements">Command Enhancements</h2>
 <ul>
-<li><strong>Smart <code>cd</code></strong> – When <code>config::smart_cd_enabled</code> is true (the default), <code>cd</code> falls back to fuzzy
-  directory matching and prioritizes frequently visited locations. Disable with <code>--no-smart-cd</code> or
-  <code>cjshopt login-startup-arg --no-smart-cd</code> to regain POSIX behavior.</li>
+<li><strong>Smart <code>cd</code></strong> – <code>cd</code> falls back to fuzzy directory matching and prioritizes frequently visited
+  locations to speed up navigation.</li>
 <li><strong><code>cjshopt</code></strong> – A dedicated configuration builtin that sets editor behaviour, generates config
   files, and manages key bindings/history limits. None of its subcommands exist in POSIX sh.</li>
 <li><strong><code>cjsh-widget</code></strong> – Exposes the line editor to shell scripts for advanced key-driven workflows.</li>
@@ -1164,8 +1163,8 @@ necessary.</p>
 <h2 id="disabling-enhancements">Disabling Enhancements</h2>
 <p>CJSH keeps POSIX-focused scripting predictable by disabling most POSIX+ features automatically in
 non-interactive contexts. When you need a strictly standard shell interactively, start with
-<code>--minimal</code> (disables colors, completions, syntax highlighting, smart <code>cd</code>, rc sourcing, the title
-line, history expansion, multiline line numbers, and auto-indentation) and add <code>--secure</code> if you
+<code>--minimal</code> (disables colors, completions, syntax highlighting, rc sourcing, the title line, history
+expansion, multiline line numbers, and auto-indentation) and add <code>--secure</code> if you
 also want to skip all login/logout dotfiles:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>cjsh<span class="w"> </span>--minimal<span class="w"> </span>--secure
 </span></code></pre></div>

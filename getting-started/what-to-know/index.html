@@ -1434,8 +1434,7 @@ Fuzzy matching powers command, path, and argument completions without additional
 <h2 id="navigation-features">Navigation Features</h2>
 <h3 id="smart-cd">Smart <code>cd</code></h3>
 <p><strong>Status:</strong> Enabled<br>
-<strong>Disable:</strong> Run cjsh with <code>--no-smart-cd</code> or add <code>cjshopt login-startup-arg --no-smart-cd</code> to <code>~/.cjprofile</code>.</p>
-<p>Smart <code>cd</code> adds fuzzy directory matching for quick navigation between directories.</p>
+Smart <code>cd</code> adds fuzzy directory matching for quick navigation between directories.</p>
 <h3 id="directory-listings">Directory Listings</h3>
 <p>cjsh leaves directory listing behavior up to your configuration. Add an <code>ls</code> wrapper, hook, or alias in <code>~/.cjshrc</code> if you prefer automatic listings after <code>cd</code>.</p>
 <hr>
@@ -1458,10 +1457,9 @@ Fuzzy matching powers command, path, and argument completions without additional
 <p><code>cjshopt login-startup-arg</code> is only valid while configuration files are being sourced. Call it once per flag inside <code>~/.cjprofile</code>:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># ~/.cjprofile</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>cjshopt<span class="w"> </span>login-startup-arg<span class="w"> </span>--no-colors
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>cjshopt<span class="w"> </span>login-startup-arg<span class="w"> </span>--no-smart-cd
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>cjshopt<span class="w"> </span>login-startup-arg<span class="w"> </span>--show-startup-time
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>cjshopt<span class="w"> </span>login-startup-arg<span class="w"> </span>--show-startup-time
 </span></code></pre></div>
-<p>Supported flags: <code>--login</code>, <code>--interactive</code>, <code>--no-colors</code>, <code>--no-titleline</code>, <code>--show-startup-time</code>, <code>--no-source</code>, <code>--no-completions</code>, <code>--no-syntax-highlighting</code>, <code>--no-smart-cd</code>, <code>--no-history-expansion</code>, <code>--no-sh-warning</code>, <code>--minimal</code>, <code>--secure</code>, and <code>--startup-test</code>.</p>
+<p>Supported flags: <code>--login</code>, <code>--interactive</code>, <code>--no-colors</code>, <code>--no-titleline</code>, <code>--show-startup-time</code>, <code>--no-source</code>, <code>--no-completions</code>, <code>--no-syntax-highlighting</code>, <code>--no-history-expansion</code>, <code>--no-sh-warning</code>, <code>--minimal</code>, <code>--secure</code>, and <code>--startup-test</code>.</p>
 <h3 id="posix-bash-compatibility">POSIX &amp; Bash Compatibility</h3>
 <p>cjsh targets high POSIX coverage for scripting while providing POSIX+ extensions such as <code>[[ ... ]]</code>, brace expansion, here-strings, process substitution, and rich redirection semantics. POSIX+ behavior is opt-in through flags or configuration.</p>
 <p>When <code>cjsh</code> is symlinked or launched as <code>sh</code>, interactive sessions print a reminder that cjsh is not a drop-in 100% POSIX shell. Suppress this notice with <code>cjsh --no-sh-warning</code> or persist the choice by adding <code>cjshopt login-startup-arg --no-sh-warning</code> inside <code>~/.cjprofile</code>.</p>
@@ -1508,7 +1506,6 @@ Fuzzy matching powers command, path, and argument completions without additional
 </span></code></pre></div>
 <p>Persist startup flags by placing commands like the following in <code>~/.cjprofile</code>:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>cjshopt<span class="w"> </span>login-startup-arg<span class="w"> </span>--no-colors
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>cjshopt<span class="w"> </span>login-startup-arg<span class="w"> </span>--no-smart-cd
 </span></code></pre></div>
 <p>Run <code>cjshopt --help</code> for a complete list of interactive toggles and their detailed help screens.</p>
 
