@@ -71,6 +71,9 @@ int hash_command(const std::vector<std::string>& args) {
 
     if (reset_cache) {
         cjsh_filesystem::reset_path_hash();
+        if (targets.empty()) {
+            return 0;
+        }
     }
 
     if (targets.empty()) {
