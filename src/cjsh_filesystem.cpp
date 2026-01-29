@@ -12,7 +12,6 @@
 #include <string_view>
 #include <system_error>
 #include <unordered_map>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -566,68 +565,19 @@ Result<std::string> read_file_content(const std::string& path) {
 std::vector<std::string> get_executables_in_path() {
     std::vector<std::string> executables;
 
-    const char* path_env = std::getenv("PATH");
-    if (path_env == nullptr) {
-        return executables;
+    std::lock_guard<std::mutex> lock(g_path_hash_mutex);
+    ensure_path_snapshot_locked(current_path_env_value());
+
+    executables.reserve(g_path_hash_entries.size());
+    for (auto it = g_path_hash_entries.begin(); it != g_path_hash_entries.end();) {
+        if (!entry_is_valid(it->second)) {
+            it = g_path_hash_entries.erase(it);
+            continue;
+        }
+
+        executables.push_back(it->first);
+        ++it;
     }
-
-    std::string path_str(path_env);
-    std::unordered_set<std::string> seen_executables;
-
-    for_each_path_segment(path_str, [&](std::string_view raw_segment) {
-        if (raw_segment.empty()) {
-            return false;
-        }
-
-        std::filesystem::path directory_path(raw_segment);
-        std::error_code ec;
-
-        if (!std::filesystem::exists(directory_path, ec) || ec) {
-            return false;
-        }
-
-        ec.clear();
-        if (!std::filesystem::is_directory(directory_path, ec) || ec) {
-            return false;
-        }
-
-        std::filesystem::directory_iterator it(
-            directory_path, std::filesystem::directory_options::skip_permission_denied, ec);
-        if (ec) {
-            return false;
-        }
-
-        for (; it != std::filesystem::directory_iterator(); it.increment(ec)) {
-            if (ec) {
-                break;
-            }
-
-            const auto& entry = *it;
-            auto status = entry.status(ec);
-            if (ec) {
-                ec.clear();
-                continue;
-            }
-
-            if (!std::filesystem::is_regular_file(status)) {
-                continue;
-            }
-
-            auto perms = status.permissions();
-            constexpr auto exec_mask = std::filesystem::perms::owner_exec |
-                                       std::filesystem::perms::group_exec |
-                                       std::filesystem::perms::others_exec;
-
-            if ((perms & exec_mask) != std::filesystem::perms::none) {
-                std::string exec_name = entry.path().filename().string();
-                if (seen_executables.insert(exec_name).second) {
-                    executables.push_back(exec_name);
-                }
-            }
-        }
-
-        return false;
-    });
 
     return executables;
 }
