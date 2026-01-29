@@ -46,9 +46,8 @@ Consult the [Completion Authoring Guide](completions.md) for cache format and cu
 
 ## Command Enhancements
 
-- **Smart `cd`** – When `config::smart_cd_enabled` is true (the default), `cd` falls back to fuzzy
-  directory matching and prioritizes frequently visited locations. Disable with `--no-smart-cd` or
-  `cjshopt login-startup-arg --no-smart-cd` to regain POSIX behavior.
+- **Smart `cd`** – `cd` falls back to fuzzy directory matching and prioritizes frequently visited
+  locations to speed up navigation.
 - **`cjshopt`** – A dedicated configuration builtin that sets editor behaviour, generates config
   files, and manages key bindings/history limits. None of its subcommands exist in POSIX sh.
 - **`cjsh-widget`** – Exposes the line editor to shell scripts for advanced key-driven workflows.
@@ -76,8 +75,8 @@ Consult the [Completion Authoring Guide](completions.md) for cache format and cu
 
 CJSH keeps POSIX-focused scripting predictable by disabling most POSIX+ features automatically in
 non-interactive contexts. When you need a strictly standard shell interactively, start with
-`--minimal` (disables colors, completions, syntax highlighting, smart `cd`, rc sourcing, the title
-line, history expansion, multiline line numbers, and auto-indentation) and add `--secure` if you
+`--minimal` (disables colors, completions, syntax highlighting, rc sourcing, the title line, history
+expansion, multiline line numbers, and auto-indentation) and add `--secure` if you
 also want to skip all login/logout dotfiles:
 
 ```bash

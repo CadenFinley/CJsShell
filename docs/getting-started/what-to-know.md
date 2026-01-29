@@ -98,8 +98,6 @@ cjshopt current-line-number-highlight on|off|status
 
 ### Smart `cd`
 **Status:** Enabled  
-**Disable:** Run cjsh with `--no-smart-cd` or add `cjshopt login-startup-arg --no-smart-cd` to `~/.cjprofile`.
-
 Smart `cd` adds fuzzy directory matching for quick navigation between directories.
 
 ### Directory Listings
@@ -129,11 +127,10 @@ cjsh leaves directory listing behavior up to your configuration. Add an `ls` wra
 ```bash
 # ~/.cjprofile
 cjshopt login-startup-arg --no-colors
-cjshopt login-startup-arg --no-smart-cd
 cjshopt login-startup-arg --show-startup-time
 ```
 
-Supported flags: `--login`, `--interactive`, `--no-colors`, `--no-titleline`, `--show-startup-time`, `--no-source`, `--no-completions`, `--no-syntax-highlighting`, `--no-smart-cd`, `--no-history-expansion`, `--no-sh-warning`, `--minimal`, `--secure`, and `--startup-test`.
+Supported flags: `--login`, `--interactive`, `--no-colors`, `--no-titleline`, `--show-startup-time`, `--no-source`, `--no-completions`, `--no-syntax-highlighting`, `--no-history-expansion`, `--no-sh-warning`, `--minimal`, `--secure`, and `--startup-test`.
 
 ### POSIX & Bash Compatibility
 cjsh targets high POSIX coverage for scripting while providing POSIX+ extensions such as `[[ ... ]]`, brace expansion, here-strings, process substitution, and rich redirection semantics. POSIX+ behavior is opt-in through flags or configuration.
@@ -200,7 +197,6 @@ Persist startup flags by placing commands like the following in `~/.cjprofile`:
 
 ```bash
 cjshopt login-startup-arg --no-colors
-cjshopt login-startup-arg --no-smart-cd
 ```
 
 Run `cjshopt --help` for a complete list of interactive toggles and their detailed help screens.

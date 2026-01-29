@@ -37,7 +37,6 @@ void apply_minimal_mode() {
     config::completions_enabled = false;
     config::completion_learning_enabled = false;
     config::syntax_highlighting_enabled = false;
-    config::smart_cd_enabled = false;
     config::show_startup_time = false;
     config::show_title_line = false;
     config::history_expansion_enabled = false;
@@ -73,7 +72,6 @@ ParseResult parse_arguments(int argc, char* argv[]) {
         {"no-completions", no_argument, nullptr, 'O'},
         {"no-completion-learning", no_argument, nullptr, kOptNoCompletionLearning},
         {"no-syntax-highlighting", no_argument, nullptr, 'S'},
-        {"no-smart-cd", no_argument, nullptr, 'M'},
         {"startup-test", no_argument, nullptr, 'X'},
         {"minimal", no_argument, nullptr, 'm'},
         {"secure", no_argument, nullptr, 's'},
@@ -81,7 +79,7 @@ ParseResult parse_arguments(int argc, char* argv[]) {
         {"no-sh-warning", no_argument, nullptr, 'W'},
         {nullptr, 0, nullptr, 0}};
 
-    const char* short_options = "+lic:vhCLUNOSMXmsHW";
+    const char* short_options = "+lic:vhCLUNOSXmsHW";
 
     int option_index = 0;
     int c;
@@ -129,9 +127,6 @@ ParseResult parse_arguments(int argc, char* argv[]) {
                 break;
             case 'S':
                 config::syntax_highlighting_enabled = false;
-                break;
-            case 'M':
-                config::smart_cd_enabled = false;
                 break;
             case 'X':
                 config::startup_test = true;
@@ -197,8 +192,6 @@ void apply_profile_startup_flags() {
             config::completion_learning_enabled = false;
         } else if (flag == "--no-syntax-highlighting") {
             config::syntax_highlighting_enabled = false;
-        } else if (flag == "--no-smart-cd") {
-            config::smart_cd_enabled = false;
         } else if (flag == "--startup-test") {
             config::startup_test = true;
         } else if (flag == "--interactive") {

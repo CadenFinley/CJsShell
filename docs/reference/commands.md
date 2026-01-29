@@ -596,10 +596,9 @@ Supported flags:
 | `--no-source` | Skip sourcing interactive configuration files |
 | `--no-completions` | Skip completion initialization |
 | `--no-syntax-highlighting` | Disable syntax highlighting in the editor |
-| `--no-smart-cd` | Disable fuzzy/smart directory changes |
 | `--no-history-expansion` | Disable `!!`, `!$`, and related history tokens |
 | `--no-sh-warning` | Suppress the reminder shown when cjsh is invoked via `sh` |
-| `--minimal` | Disable prompt themes/colors, completions, syntax highlighting, smart `cd`, rc sourcing, title line, history expansion, multiline line numbers, and auto-indentation |
+| `--minimal` | Disable prompt themes/colors, completions, syntax highlighting, rc sourcing, title line, history expansion, multiline line numbers, and auto-indentation |
 | `--secure` | Skip profile/rc/logout sourcing even for login shells |
 | `--startup-test` | Enable startup test mode |
 

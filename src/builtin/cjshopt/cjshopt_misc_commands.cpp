@@ -29,7 +29,6 @@ constexpr StartupFlagInfo kStartupFlags[] = {
     {"--no-source", "Skip sourcing configuration files"},
     {"--no-completions", "Disable tab completions"},
     {"--no-syntax-highlighting", "Disable syntax highlighting"},
-    {"--no-smart-cd", "Disable smart cd functionality"},
     {"--no-history-expansion", "Disable history expansion"},
     {"--no-sh-warning", "Suppress the sh invocation warning"},
     {"--minimal", "Disable cjsh extras"},
