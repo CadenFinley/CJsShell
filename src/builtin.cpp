@@ -28,6 +28,7 @@
 #include "fg_command.h"
 #include "generate_completions_command.h"
 #include "getopts_command.h"
+#include "hash_command.h"
 #include "help_command.h"
 #include "history_command.h"
 #include "hook_command.h"
@@ -118,6 +119,7 @@ Built_ins::Built_ins() : shell(nullptr) {
              }
              return ::help_command();
          }},
+        {"hash", [](const std::vector<std::string>& args) { return ::hash_command(args); }},
         {"version", [](const std::vector<std::string>& args) { return ::version_command(args); }},
         {"eval",
          [this](const std::vector<std::string>& args) { return ::eval_command(args, shell); }},

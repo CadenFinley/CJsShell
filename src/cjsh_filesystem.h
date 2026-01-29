@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <cstdint>
+#include <ctime>
 #include <filesystem>
 #include <optional>
 #include <string>
@@ -131,6 +132,14 @@ bool command_exists(const std::string& command_path);
 bool resolves_to_executable(const std::string& name, const std::string& cwd);
 bool path_is_directory_candidate(const std::string& value, const std::string& cwd);
 
+struct PathHashEntry {
+    std::string command;
+    std::string path;
+    std::uint64_t hits;
+    std::time_t last_used;
+    bool manually_added;
+};
+
 const std::filesystem::path& g_user_home_path();
 
 const std::filesystem::path& g_cjsh_config_path();
@@ -155,6 +164,10 @@ std::vector<std::string> get_executables_in_path();
 bool file_exists(const std::filesystem::path& path);
 bool initialize_cjsh_directories();
 std::string find_executable_in_path(const std::string& name);
+std::string resolve_executable_for_execution(const std::string& name);
+bool hash_executable(const std::string& name, std::string* resolved_path = nullptr);
+std::vector<PathHashEntry> get_path_hash_entries();
+void reset_path_hash();
 
 std::string safe_current_directory();
 

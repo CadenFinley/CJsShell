@@ -2,13 +2,16 @@
 
 #include <algorithm>
 #include <cerrno>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <mutex>
 #include <optional>
 #include <sstream>
 #include <string_view>
 #include <system_error>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -28,6 +31,11 @@
 #endif
 
 namespace cjsh_filesystem {
+
+namespace {
+enum class CacheUsage : std::uint8_t;
+std::string resolve_command_with_cache(const std::string& name, CacheUsage usage);
+}  // namespace
 
 const std::filesystem::path& g_user_home_path() {
     static const std::filesystem::path path = []() {
@@ -118,6 +126,140 @@ bool path_is_executable(const std::filesystem::path& candidate) {
 
     return ::access(candidate.c_str(), X_OK) == 0;
 }
+}  // namespace
+
+namespace {
+template <typename Callback>
+bool for_each_path_segment(std::string_view path_str, Callback&& callback) {
+    size_t start = 0;
+    while (start < path_str.size()) {
+        size_t pos = path_str.find(':', start);
+        size_t end = (pos != std::string::npos) ? pos : path_str.size();
+        if (callback(path_str.substr(start, end - start))) {
+            return true;
+        }
+        start = (pos != std::string::npos) ? pos + 1 : path_str.size();
+    }
+    return false;
+}
+}  // namespace
+
+namespace {
+
+enum class CacheUsage : std::uint8_t {
+    Query,
+    Execution,
+    Manual
+};
+
+struct CachedExecutable {
+    std::string path;
+    std::uint64_t hits{0};
+    std::time_t last_used{0};
+    bool manually_added{false};
+};
+
+std::mutex g_path_hash_mutex;
+std::unordered_map<std::string, CachedExecutable> g_path_hash_entries;
+std::string g_path_snapshot;
+
+std::string current_path_env_value() {
+    const char* path_env = std::getenv("PATH");
+    if (!path_env) {
+        return {};
+    }
+    return path_env;
+}
+
+void ensure_path_snapshot_locked(const std::string& current_path) {
+    if (current_path != g_path_snapshot) {
+        g_path_hash_entries.clear();
+        g_path_snapshot = current_path;
+    }
+}
+
+bool entry_is_valid(const CachedExecutable& entry) {
+    return path_is_executable(entry.path);
+}
+
+bool is_cacheable_command(const std::string& name) {
+    return !name.empty() && name.find('/') == std::string::npos;
+}
+
+std::string resolve_explicit_command(const std::string& name) {
+    if (name.empty()) {
+        return {};
+    }
+
+    std::filesystem::path candidate(name);
+    if (!candidate.is_absolute()) {
+        candidate = std::filesystem::path(safe_current_directory()) / candidate;
+    }
+    candidate = candidate.lexically_normal();
+
+    return path_is_executable(candidate) ? candidate.string() : std::string{};
+}
+
+std::string scan_path_for_command(const std::string& name, std::string_view path_value) {
+    std::string resolved;
+    for_each_path_segment(path_value, [&](std::string_view raw_segment) {
+        if (raw_segment.empty()) {
+            return false;
+        }
+        std::filesystem::path directory_path(raw_segment);
+        std::filesystem::path candidate = directory_path / name;
+        if (path_is_executable(candidate)) {
+            resolved = candidate.string();
+            return true;
+        }
+        return false;
+    });
+    return resolved;
+}
+
+std::string resolve_command_with_cache(const std::string& name, CacheUsage usage) {
+    if (!is_cacheable_command(name)) {
+        return resolve_explicit_command(name);
+    }
+
+    std::string current_path = current_path_env_value();
+    std::lock_guard<std::mutex> lock(g_path_hash_mutex);
+    ensure_path_snapshot_locked(current_path);
+
+    auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+
+    auto it = g_path_hash_entries.find(name);
+    if (it != g_path_hash_entries.end()) {
+        if (entry_is_valid(it->second)) {
+            if (usage == CacheUsage::Execution) {
+                it->second.hits++;
+            }
+            if (usage == CacheUsage::Manual) {
+                it->second.manually_added = true;
+            }
+            it->second.last_used = now;
+            return it->second.path;
+        }
+        g_path_hash_entries.erase(it);
+    }
+
+    if (current_path.empty()) {
+        return {};
+    }
+
+    std::string resolved = scan_path_for_command(name, current_path);
+    if (!resolved.empty()) {
+        CachedExecutable entry;
+        entry.path = resolved;
+        entry.hits = (usage == CacheUsage::Execution) ? 1 : 0;
+        entry.manually_added = (usage == CacheUsage::Manual);
+        entry.last_used = now;
+        g_path_hash_entries[name] = std::move(entry);
+    }
+
+    return resolved;
+}
+
 }  // namespace
 
 std::filesystem::path g_cjsh_path;
@@ -359,41 +501,8 @@ bool command_exists(const std::string& command_path) {
     if (command_path.find('/') != std::string::npos) {
         return ::access(command_path.c_str(), F_OK) == 0;
     }
-    const char* path_env = getenv("PATH");
-    if (path_env == nullptr) {
-        return false;
-    }
-    std::string path_str(path_env);
-    std::istringstream path_stream(path_str);
-    std::string path_dir;
-    while (std::getline(path_stream, path_dir, ':')) {
-        if (path_dir.empty()) {
-            continue;
-        }
-        std::string full_path = path_dir;
-        full_path.append("/").append(command_path);
-        if (access(full_path.c_str(), F_OK) == 0) {
-            return true;
-        }
-    }
-    return false;
+    return !resolve_command_with_cache(command_path, CacheUsage::Query).empty();
 }
-
-namespace {
-template <typename Callback>
-bool for_each_path_segment(std::string_view path_str, Callback&& callback) {
-    size_t start = 0;
-    while (start < path_str.size()) {
-        size_t pos = path_str.find(':', start);
-        size_t end = (pos != std::string::npos) ? pos : path_str.size();
-        if (callback(path_str.substr(start, end - start))) {
-            return true;
-        }
-        start = (pos != std::string::npos) ? pos + 1 : path_str.size();
-    }
-    return false;
-}
-}  // namespace
 
 bool resolves_to_executable(const std::string& name, const std::string& cwd) {
     if (name.empty()) {
@@ -410,21 +519,7 @@ bool resolves_to_executable(const std::string& name, const std::string& cwd) {
         return path_is_executable(candidate);
     }
 
-    const char* path_env = std::getenv("PATH");
-    if (path_env == nullptr) {
-        return false;
-    }
-
-    std::string path_str(path_env);
-
-    bool found = for_each_path_segment(path_str, [&](std::string_view raw_segment) {
-        std::filesystem::path base =
-            raw_segment.empty() ? std::filesystem::path(".") : std::filesystem::path(raw_segment);
-        std::filesystem::path path_candidate = base / name;
-        return path_is_executable(path_candidate);
-    });
-
-    return found;
+    return !resolve_command_with_cache(name, CacheUsage::Query).empty();
 }
 
 bool path_is_directory_candidate(const std::string& value, const std::string& cwd) {
@@ -582,36 +677,49 @@ bool initialize_cjsh_directories() {
 }
 
 std::string find_executable_in_path(const std::string& name) {
-    const char* path_env = std::getenv("PATH");
-    if (path_env == nullptr) {
-        return "";
-    }
+    return resolve_command_with_cache(name, CacheUsage::Query);
+}
 
-    std::stringstream ss(path_env);
-    std::string dir;
+std::string resolve_executable_for_execution(const std::string& name) {
+    return resolve_command_with_cache(name, CacheUsage::Execution);
+}
 
-    while (std::getline(ss, dir, ':')) {
-        if (dir.empty())
-            continue;
-
-        std::filesystem::path executable_path = std::filesystem::path(dir) / name;
-
-        try {
-            if (std::filesystem::exists(executable_path) &&
-                std::filesystem::is_regular_file(executable_path)) {
-                auto perms = std::filesystem::status(executable_path).permissions();
-                if ((perms & std::filesystem::perms::owner_exec) != std::filesystem::perms::none ||
-                    (perms & std::filesystem::perms::group_exec) != std::filesystem::perms::none ||
-                    (perms & std::filesystem::perms::others_exec) != std::filesystem::perms::none) {
-                    return executable_path.string();
-                }
-            }
-        } catch (const std::filesystem::filesystem_error&) {
-            continue;
+bool hash_executable(const std::string& name, std::string* resolved_path) {
+    if (name.empty() || name.find('/') != std::string::npos) {
+        if (resolved_path) {
+            resolved_path->clear();
         }
+        return false;
     }
 
-    return "";
+    std::string resolved = resolve_command_with_cache(name, CacheUsage::Manual);
+    if (resolved_path) {
+        *resolved_path = resolved;
+    }
+    return !resolved.empty();
+}
+
+std::vector<PathHashEntry> get_path_hash_entries() {
+    std::lock_guard<std::mutex> lock(g_path_hash_mutex);
+    std::vector<PathHashEntry> entries;
+    entries.reserve(g_path_hash_entries.size());
+    for (const auto& [command, entry] : g_path_hash_entries) {
+        entries.push_back({command, entry.path, entry.hits, entry.last_used, entry.manually_added});
+    }
+    std::sort(entries.begin(), entries.end(),
+              [](const PathHashEntry& lhs, const PathHashEntry& rhs) {
+                  if (lhs.hits == rhs.hits) {
+                      return lhs.command < rhs.command;
+                  }
+                  return lhs.hits > rhs.hits;
+              });
+    return entries;
+}
+
+void reset_path_hash() {
+    std::lock_guard<std::mutex> lock(g_path_hash_mutex);
+    g_path_hash_entries.clear();
+    g_path_snapshot = current_path_env_value();
 }
 
 namespace {

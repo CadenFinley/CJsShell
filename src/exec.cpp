@@ -686,8 +686,12 @@ void maybe_set_foreground_terminal(bool enabled, int terminal_fd, pid_t pgid,
     }
 }
 
-[[noreturn]] void exec_external_child(const std::vector<std::string>& args) {
+[[noreturn]] void exec_external_child(const std::vector<std::string>& args,
+                                      const char* cached_path) {
     auto c_args = cjsh_env::build_exec_argv(args);
+    if (cached_path != nullptr && cached_path[0] != '\0') {
+        execv(cached_path, c_args.data());
+    }
     execvp(args[0].c_str(), c_args.data());
     int saved_errno = errno;
     report_exec_failure(args, saved_errno);
@@ -1257,6 +1261,11 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
         }
     }
 
+    std::string cached_exec_path;
+    if (!cmd_args.empty()) {
+        cached_exec_path = cjsh_filesystem::resolve_executable_for_execution(cmd_args[0]);
+    }
+
     pid_t pid = fork();
 
     if (pid == -1) {
@@ -1281,11 +1290,8 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
 
         reset_child_signals();
 
-        auto c_args = cjsh_env::build_exec_argv(cmd_args);
-        execvp(cmd_args[0].c_str(), c_args.data());
-
-        int saved_errno = errno;
-        report_exec_failure(cmd_args, saved_errno);
+        const char* exec_override = cached_exec_path.empty() ? nullptr : cached_exec_path.c_str();
+        exec_external_child(cmd_args, exec_override);
     }
 
     if (setpgid(pid, pid) < 0) {
@@ -1348,6 +1354,11 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
     std::vector<std::string> cmd_args(
         std::next(args.begin(), static_cast<std::ptrdiff_t>(cmd_start_idx)), args.end());
 
+    std::string cached_exec_path;
+    if (!cmd_args.empty()) {
+        cached_exec_path = cjsh_filesystem::resolve_executable_for_execution(cmd_args[0]);
+    }
+
     pid_t pid = fork();
 
     if (pid == -1) {
@@ -1371,10 +1382,8 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
 
         reset_child_signals();
 
-        auto c_args = cjsh_env::build_exec_argv(cmd_args);
-        execvp(cmd_args[0].c_str(), c_args.data());
-        int saved_errno = errno;
-        report_exec_failure(cmd_args, saved_errno);
+        const char* exec_override = cached_exec_path.empty() ? nullptr : cached_exec_path.c_str();
+        exec_external_child(cmd_args, exec_override);
     } else {
         if (setpgid(pid, pid) < 0 && errno != EACCES && errno != EPERM) {
             set_error(ErrorType::RUNTIME_ERROR, "setpgid",
@@ -1460,6 +1469,11 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                       std::string(e.what()));
             set_last_pipeline_statuses({EX_OSERR});
             return finalize_exit(EX_OSERR);
+        }
+
+        std::string cached_exec_path;
+        if (!cmd.args.empty()) {
+            cached_exec_path = cjsh_filesystem::resolve_executable_for_execution(cmd.args[0]);
         }
 
         pid_t pid = fork();
@@ -1631,7 +1645,9 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 _exit(EXIT_FAILURE);
             }
 
-            exec_external_child(cmd.args);
+            const char* exec_override =
+                cached_exec_path.empty() ? nullptr : cached_exec_path.c_str();
+            exec_external_child(cmd.args, exec_override);
         }
 
         if (g_shell && !g_shell->get_interactive_mode()) {
@@ -1719,6 +1735,11 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             const size_t original_arg_count = cmd.args.size();
             const bool has_temporary_env = strip_temporary_env_assignments(
                 cmd.args, cmd_start_idx, original_arg_count, env_assignments);
+
+            std::string cached_exec_path;
+            if (!cmd.args.empty()) {
+                cached_exec_path = cjsh_filesystem::resolve_executable_for_execution(cmd.args[0]);
+            }
 
             if (cmd.args.empty()) {
                 set_error(ErrorType::INVALID_ARGUMENT, "",
@@ -1913,7 +1934,9 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
                     _exit(exit_code);
                 } else {
-                    exec_external_child(cmd.args);
+                    const char* exec_override =
+                        cached_exec_path.empty() ? nullptr : cached_exec_path.c_str();
+                    exec_external_child(cmd.args, exec_override);
                 }
             }
 
@@ -2360,6 +2383,11 @@ static CommandOutput execute_args_for_output_impl(const std::vector<std::string>
         return result;
     }
 
+    std::string cached_exec_path;
+    if (!args.empty()) {
+        cached_exec_path = cjsh_filesystem::resolve_executable_for_execution(args[0]);
+    }
+
     pid_t pid = fork();
     if (pid == -1) {
         cjsh_filesystem::close_pipe(pipefd);
@@ -2382,22 +2410,8 @@ static CommandOutput execute_args_for_output_impl(const std::vector<std::string>
 
         cjsh_filesystem::safe_close(pipefd[1]);
 
-        std::vector<char*> argv;
-        std::vector<std::unique_ptr<char[]>> arg_storage;
-        argv.reserve(args.size() + 1);
-        arg_storage.reserve(args.size());
-
-        for (const auto& arg : args) {
-            auto str_copy = std::make_unique<char[]>(arg.size() + 1);
-            std::memcpy(str_copy.get(), arg.c_str(), arg.size() + 1);
-            argv.push_back(str_copy.get());
-            arg_storage.push_back(std::move(str_copy));
-        }
-        argv.push_back(nullptr);
-
-        execvp(argv[0], argv.data());
-        int saved_errno = errno;
-        report_exec_failure(args, saved_errno);
+        const char* exec_override = cached_exec_path.empty() ? nullptr : cached_exec_path.c_str();
+        exec_external_child(args, exec_override);
     }
 
     cjsh_filesystem::safe_close(pipefd[1]);
