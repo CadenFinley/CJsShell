@@ -33,7 +33,7 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
                              "  --jobs, -j <N>    Process up to N commands in parallel",
                              "  --                Treat remaining arguments as command names",
                              "IMPORTANT: Please note that this can take signifigant time and",
-                         "system resources. Running with with -j $(nproc) is recommended."})) {
+                             "system resources. Running with with -j $(nproc) is recommended."})) {
         return 0;
     }
 

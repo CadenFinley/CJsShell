@@ -5,7 +5,7 @@
 #include <cstdio>
 #include <string>
 
-const bool PRE_RELEASE = true;
+const bool PRE_RELEASE = false;
 const char* const c_version_base = "1.1.4";
 
 std::string get_version() {

@@ -401,7 +401,8 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
         }
 
         if (cmd_start < cmd_end) {
-            highlight_command_range(henv, input, sanitized_input, cmd_start, cmd_end, comparison_ops);
+            highlight_command_range(henv, input, sanitized_input, cmd_start, cmd_end,
+                                    comparison_ops);
         }
 
         pos = cmd_end;

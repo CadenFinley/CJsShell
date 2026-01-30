@@ -56,10 +56,6 @@ Shell::Shell() : shell_pgid(0), shell_tmodes() {
 }
 
 Shell::~Shell() {
-    if (interactive_mode) {
-        std::cerr << "Destroying Shell.\n";
-    }
-
     if (shell_exec) {
         if (get_shell_option("huponexit")) {
             shell_exec->terminate_all_child_process();
@@ -318,10 +314,6 @@ void Shell::save_terminal_state() {
 }
 
 void Shell::restore_terminal_state() {
-    if (interactive_mode) {
-        std::cerr << "Restoring terminal state.\n";
-    }
-
     if (terminal_state_saved) {
         if (tcsetattr(STDIN_FILENO, TCSANOW, &shell_tmodes) != 0) {
             tcsetattr(STDIN_FILENO, TCSADRAIN, &shell_tmodes);

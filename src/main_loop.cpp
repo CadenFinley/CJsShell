@@ -663,7 +663,7 @@ bool should_show_creator_line() {
     std::transform(value.begin(), value.end(), value.begin(),
                    [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
 
-    (void) unsetenv("CJSH_SHOW_CREATED");
+    (void)unsetenv("CJSH_SHOW_CREATED");
 
     return value == "1" || value == "true" || value == "yes" || value == "on";
 }
@@ -713,9 +713,6 @@ void main_process_loop() {
 
         bool exit_requested = process_command_line(command_to_run);
         if (exit_requested || g_exit_flag) {
-            if (g_exit_flag) {
-                std::cerr << "Exiting main process loop..." << '\n';
-            }
             break;
         }
 
@@ -746,7 +743,13 @@ void start_interactive_process() {
         const bool show_creator_line = should_show_creator_line();
         std::cout << " CJ's Shell v" << get_version() << " - Caden J Finley (c) 2026" << '\n';
         if (show_creator_line) {
-            // cjsh first started as part of an undergrad project at my alma mater, ACU ( abilene christian univeristy ), to create some shell paradigms and shell/ gnu builtins, and eventually a full shell project and i fell in love with the project. That is the reason for this line. I wanted to give the school credit that helped me fall in love with my main project. Most people couldn't care less which is why this is guareded behind a hidden option. But for those who do care like myself the option is still there to have this line appear in the title line during startup.
+            // cjsh first started as part of an undergrad project at my alma mater, ACU ( abilene
+            // christian univeristy ), to create some shell paradigms and shell/ gnu builtins, and
+            // eventually a full shell project and i fell in love with the project. That is the
+            // reason for this line. I wanted to give the school credit that helped me fall in love
+            // with my main project. Most people couldn't care less which is why this is guareded
+            // behind a hidden option. But for those who do care like myself the option is still
+            // there to have this line appear in the title line during startup.
             std::cout << " Created 2024 @ \033[1;35mAbilene Christian University\033[0m" << '\n';
         }
         std::cout << "\n";

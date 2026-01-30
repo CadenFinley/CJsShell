@@ -55,13 +55,6 @@ bool invoked_via_sh(const char* arg0) {
 }
 
 bool cleanup_already_invoked = false;
-bool should_show_interactive_shutdown_banner() {
-    if (!(config::interactive_mode || config::force_interactive)) {
-        return false;
-    }
-
-    return (isatty(STDOUT_FILENO) != 0) || (isatty(STDIN_FILENO) != 0);
-}
 
 void cleanup_resources() {
     // primary exit function that gets called on all exit paths
@@ -77,10 +70,6 @@ void cleanup_resources() {
             cjsh_filesystem::process_logout_file();
         }
         g_shell.reset();
-    }
-
-    if (should_show_interactive_shutdown_banner()) {
-        std::cout << "Shutdown Complete." << '\n';
     }
 }
 }  // namespace
