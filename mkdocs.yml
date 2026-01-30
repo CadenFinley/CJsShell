@@ -10,7 +10,7 @@ repo_name: 'CadenFinley/CJsShell'
 repo_url: 'https://github.com/CadenFinley/CJsShell'
 edit_uri: 'edit/master/docs/'
 
-copyright: '© 2025 Caden Finley. Licensed under MIT License.'
+copyright: '© 2026 Caden Finley. Licensed under MIT License.'
 
 theme:
   name: material
@@ -112,4 +112,3 @@ extra:
       link: mailto:caden@cadenfinley.com
   version:
     provider: mike
-
