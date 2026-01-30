@@ -59,7 +59,7 @@ Run the suite from the repository root before switching cjsh to your default log
 This project is licensed under the MIT License.
 
 **Caden Finley** @ Abilene Christian University
-© 2025
+© 2026
 
 - Website: [cadenfinley.com](https://cadenfinley.com)
 - Email: [caden@cadenfinley.com](mailto:caden@cadenfinley.com)

@@ -727,7 +727,7 @@ void start_interactive_process() {
     }
 
     if (config::show_title_line) {
-        std::cout << " CJ's Shell v" << get_version() << " - Caden J Finley (c) 2025" << '\n';
+        std::cout << " CJ's Shell v" << get_version() << " - Caden J Finley (c) 2026" << '\n';
         std::cout << " Created 2025 @ \033[1;35mAbilene Christian University\033[0m" << '\n';
         std::cout << "\n";
     }
@@ -738,14 +738,14 @@ void start_interactive_process() {
         std::cout << " For additional help and documentation, please visit: "
                   << " https://cadenfinley.github.io/CJsShell/" << '\n';
         std::cout << '\n';
-        
+
         std::cout << " To suppress this help message run the command: 'touch "
                   << cjsh_filesystem::g_cjsh_first_boot_path().string() << "'" << '\n';
         std::cout << " To suppress the title line, put this command in .cjprofile: 'cjshopt "
                      "login-startup-arg --no-titleline'"
                   << '\n';
         std::cout << " Or alternatively execute cjsh with this flag: --no-titleline" << '\n';
-         std::cout << " You can find many more toggles like this to fully customize your cjsh "
+        std::cout << " You can find many more toggles like this to fully customize your cjsh "
                      "experience with: 'cjshopt --help'\n";
         std::cout << '\n';
         std::cout << " cjsh uses a very complex, but very smart completions system.\n";
@@ -756,7 +756,7 @@ void start_interactive_process() {
         std::cout << "\n";
     }
 
-       if (config::show_startup_time || first_boot) {
+    if (config::show_startup_time || first_boot) {
         long long microseconds = startup_duration.count();
         std::string startup_time_str;
         if (microseconds < 1000) {

@@ -46,6 +46,6 @@ int version_command(const std::vector<std::string>& args) {
 
     (void)std::fprintf(stdout, "cjsh v%s%s (git %s) (%s-%s)\n", version.c_str(), build_tags.c_str(),
                        CJSH_GIT_HASH, CJSH_BUILD_ARCH, CJSH_BUILD_PLATFORM);
-    (void)std::fputs("Copyright (c) 2025 Caden Finley MIT License\n", stdout);
+    (void)std::fputs("Copyright (c) 2026 Caden Finley MIT License\n", stdout);
     return 0;
 }
