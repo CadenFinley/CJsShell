@@ -729,10 +729,10 @@ void start_interactive_process() {
     if (config::show_title_line) {
         std::cout << " CJ's Shell v" << get_version() << " - Caden J Finley (c) 2025" << '\n';
         std::cout << " Created 2025 @ \033[1;35mAbilene Christian University\033[0m" << '\n';
+        std::cout << "\n";
     }
 
     if (first_boot) {
-        std::cout << "\n";
         std::cout << " Be sure to give us a star on GitHub!" << '\n';
         std::cout << " Type 'help' to see available commands and options." << '\n';
         std::cout << " For additional help and documentation, please visit: "
@@ -753,13 +753,10 @@ void start_interactive_process() {
                      "completions as you use cjsh.\n";
         std::cout << " If you would like to skip the learning process and make all completions "
                      "faster please see: 'generate-completions --help'\n";
+        std::cout << "\n";
     }
 
-    if (config::show_title_line && (config::show_startup_time || first_boot)) {
-        std::cout << '\n';
-    }
-
-    if (config::show_startup_time || first_boot) {
+       if (config::show_startup_time || first_boot) {
         long long microseconds = startup_duration.count();
         std::string startup_time_str;
         if (microseconds < 1000) {
@@ -776,6 +773,7 @@ void start_interactive_process() {
             startup_time_str = buffer;
         }
         std::cout << " Started in " << startup_time_str << '\n';
+        std::cout << "\n";
     }
 
     if (!config::startup_test) {
