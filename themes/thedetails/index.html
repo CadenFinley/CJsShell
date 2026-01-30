@@ -1124,10 +1124,12 @@ inline BBCode-style markup. This page explains how the markup works, which escap
 available, and how to persist your preferred prompt layout.</p>
 <h2 id="quick-start">Quick Start</h2>
 <ul>
-<li>Set <code>PS1</code> to control the primary prompt. The default template is:
-  <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nv">PS1</span><span class="o">=</span><span class="s1">'[!red][[/red][yellow]\u[/yellow][green]@[/green][blue]\h[/blue] [color=#ff69b4]\w[/color][!red]][/red][!b] \$ [/b]'</span>
+<li>Set <code>PS1</code> to control the primary prompt. The default template now mirrors the classic Robby Russell
+  oh-my-zsh theme:
+  <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nv">PS1</span><span class="o">=</span><span class="s1">'\S  [color=#5fd7ff]\W[/color] \g'</span>
 </span></code></pre></div></li>
-<li>Set <code>RPS1</code> (or <code>RPROMPT</code>) to control the right-aligned prompt. The default is <code>[ic-hint]\A[/ic-hint]</code>.</li>
+<li>Set <code>RPS1</code> (or <code>RPROMPT</code>) to control the right-aligned prompt. The default shows the current time
+  in <code>[ic-hint]</code> markup via <code>RPS1='[ic-hint]\A[/ic-hint]'</code>.</li>
 <li>Use <code>PROMPT_COMMAND</code> for commands that should run before each prompt.</li>
 <li>Apply markup directly inside these variables to style text, add colors, and align sections.</li>
 </ul>
@@ -1191,6 +1193,8 @@ tags freely; the parser keeps a stack so <code>[b][color=hotpink]...[/color][/b]
 <li><code>\u</code> username</li>
 <li><code>\v</code> short cjsh version, <code>\V</code> full version string</li>
 <li><code>\w</code> working directory with <code>$HOME</code> shortened to <code>~</code>, <code>\W</code> basename of working directory</li>
+<li><code>\S</code> status arrow used by the default theme (green when <code>$?</code> is zero, red otherwise)</li>
+<li><code>\g</code> Git segment that renders <code>git:(branch)</code> plus a dirty marker; empty outside Git repos</li>
 <li><code>\$</code> <code>#</code> for root, otherwise <code>$</code></li>
 <li><code>\?</code> exit status of last command</li>
 <li><code>\\</code> literal backslash, <code>\[</code> and <code>\]</code> for zero-width control regions</li>
