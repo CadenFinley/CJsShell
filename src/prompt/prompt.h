@@ -18,4 +18,6 @@ void execute_prompt_command();
 
 void initialize_colors();
 
+void apply_terminal_window_title();
+
 }  // namespace prompt

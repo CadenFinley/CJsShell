@@ -684,6 +684,7 @@ void initialize_isocline() {
 
 void main_process_loop() {
     typeahead::initialize();
+    prompt::apply_terminal_window_title();
 
     std::string command_to_run;
     bool command_available = false;

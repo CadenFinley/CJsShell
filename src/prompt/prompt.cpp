@@ -7,6 +7,7 @@
 
 #include <cctype>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <ctime>
 #include <filesystem>
@@ -125,6 +126,38 @@ bool terminal_supports_color() {
                              term_lower.find("monochrome") != std::string::npos;
 
     return !unsupported;
+}
+
+std::string build_default_terminal_title() {
+    std::string shell_value = "cjsh";
+
+    std::string pwd_value = get_env("PWD");
+    if (pwd_value.empty()) {
+        std::error_code ec;
+        auto cwd = std::filesystem::current_path(ec);
+        if (!ec) {
+            pwd_value = cwd.string();
+        }
+    }
+
+    if (shell_value.empty() && pwd_value.empty()) {
+        return {};
+    }
+
+    if (shell_value.empty()) {
+        return pwd_value;
+    }
+
+    if (pwd_value.empty()) {
+        return shell_value;
+    }
+
+    std::string title;
+    title.reserve(shell_value.size() + 3 + pwd_value.size());
+    title.append(shell_value);
+    title.append(" - ");
+    title.append(pwd_value);
+    return title;
 }
 
 std::string format_time(const char* fmt) {
@@ -612,5 +645,29 @@ void initialize_colors() {
         ic_style_def(style_name.c_str(), pair.second.c_str());
         ic_style_def("ic-prompt", "white");
     }
+}
+
+void apply_terminal_window_title() {
+    if (!config::interactive_mode) {
+        return;
+    }
+
+    std::string title;
+    if (const char* twinprompt = std::getenv("TWINPROMPT");
+        twinprompt != nullptr && twinprompt[0] != '\0') {
+        title.assign(twinprompt);
+    } else {
+        title = build_default_terminal_title();
+        if (!title.empty()) {
+            setenv("TWINPROMPT", title.c_str(), 1);
+        }
+    }
+
+    if (title.empty()) {
+        return;
+    }
+
+    std::printf("\033]0;%s\007", title.c_str());
+    (void)std::fflush(stdout);
 }
 }  // namespace prompt
