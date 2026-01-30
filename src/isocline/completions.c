@@ -337,18 +337,8 @@ ic_private ssize_t completions_apply(completions_t* cms, ssize_t index, stringbu
     return completion_apply(cm, sbuf, pos);
 }
 
-static int completion_compare(const void* p1, const void* p2) {
-    if (p1 == NULL || p2 == NULL)
-        return 0;
-    const completion_t* cm1 = (const completion_t*)p1;
-    const completion_t* cm2 = (const completion_t*)p2;
-    return ic_stricmp(cm1->replacement, cm2->replacement);
-}
-
 ic_private void completions_sort(completions_t* cms) {
-    if (cms->count <= 0)
-        return;
-    qsort(cms->elems, to_size_t(cms->count), sizeof(cms->elems[0]), &completion_compare);
+    (void)cms;  // preserve insertion order; no sorting required
 }
 
 #define IC_MAX_PREFIX (256)
