@@ -27,6 +27,8 @@ extern bool show_title_line;
 extern bool history_expansion_enabled;
 extern bool newline_after_execution;
 extern bool suppress_sh_warning;
+extern bool status_line_enabled;
+extern bool status_reporting_enabled;
 }  // namespace config
 
 namespace cjsh_env {

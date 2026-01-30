@@ -57,7 +57,7 @@ for full details.
      - `cjshopt completion-preview`, `cjshopt completion-case`, `cjshopt completion-spell`,
          `cjshopt completion-learning`, `cjshopt auto-tab`
      - `cjshopt hint`, `cjshopt hint-delay`, `cjshopt inline-help`, `cjshopt status-hints`,
-        `cjshopt visible-whitespace`
+        `cjshopt status-line`, `cjshopt status-reporting`, `cjshopt visible-whitespace`
     - `cjshopt prompt-newline`, `cjshopt prompt-cleanup`, `cjshopt prompt-cleanup-newline`,
         `cjshopt prompt-cleanup-empty-line`, `cjshopt prompt-cleanup-truncate`
     - `cjshopt keybind …` and `cjshopt keybind ext …` for keymap management

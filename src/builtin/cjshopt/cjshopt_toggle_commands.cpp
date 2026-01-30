@@ -117,6 +117,25 @@ const char* canonical_status_hint_token(ic_status_hint_mode_t mode) {
     }
 }
 
+bool g_status_hint_preference_initialized = false;
+ic_status_hint_mode_t g_status_hint_preference = IC_STATUS_HINT_NORMAL;
+
+void ensure_status_hint_preference_initialized() {
+    if (!g_status_hint_preference_initialized) {
+        g_status_hint_preference = ic_get_status_hint_mode();
+        g_status_hint_preference_initialized = true;
+    }
+}
+
+void apply_effective_status_hint_mode() {
+    ensure_status_hint_preference_initialized();
+    if (config::status_line_enabled) {
+        ic_set_status_hint_mode(g_status_hint_preference);
+    } else {
+        ic_set_status_hint_mode(IC_STATUS_HINT_OFF);
+    }
+}
+
 int handle_toggle_command(const ToggleCommandConfig& config, const std::vector<std::string>& args) {
     if (args.size() == 1) {
         print_error({ErrorType::INVALID_ARGUMENT, config.command_name, "Missing option argument",
@@ -691,6 +710,8 @@ int status_hints_command(const std::vector<std::string>& args) {
         "  status-hints persistent   Always prepend hints above other status messages",
         "  status-hints status       Show the current mode"};
 
+    ensure_status_hint_preference_initialized();
+
     if (args.size() == 1) {
         print_error(
             {ErrorType::INVALID_ARGUMENT, "status-hints", "Missing option argument", usage_lines});
@@ -719,8 +740,14 @@ int status_hints_command(const std::vector<std::string>& args) {
 
     if (matches_token(normalized, {"status", "--status"})) {
         if (!g_startup_active) {
-            std::cout << "Status hints are currently "
-                      << describe_status_hint_mode(ic_get_status_hint_mode()) << ".\n";
+            if (config::status_line_enabled) {
+                std::cout << "Status hints are currently "
+                          << describe_status_hint_mode(g_status_hint_preference) << ".\n";
+            } else {
+                std::cout << "Status hints preference is "
+                          << describe_status_hint_mode(g_status_hint_preference)
+                          << ", but the status line toggle is off so the banner stays hidden.\n";
+            }
         }
         return 0;
     }
@@ -746,18 +773,76 @@ int status_hints_command(const std::vector<std::string>& args) {
         return 1;
     }
 
-    ic_status_hint_mode_t previous = ic_set_status_hint_mode(target);
-    if (previous == target) {
+    const bool preference_changed = (g_status_hint_preference != target);
+    g_status_hint_preference = target;
+
+    if (!preference_changed) {
+        if (!g_startup_active && !config::status_line_enabled) {
+            std::cout << "Status hints stay hidden because the status line toggle is off.\n";
+        }
         return 0;
     }
 
+    apply_effective_status_hint_mode();
+
     if (!g_startup_active) {
-        std::cout << "Status hints set to " << describe_status_hint_mode(target) << ".\n";
-        std::cout << "Add `cjshopt status-hints " << canonical_status_hint_token(target)
-                  << "` to your ~/.cjshrc to persist this change.\n";
+        if (config::status_line_enabled) {
+            std::cout << "Status hints set to " << describe_status_hint_mode(target) << ".\n";
+            std::cout << "Add `cjshopt status-hints " << canonical_status_hint_token(target)
+                      << "` to your ~/.cjshrc to persist this change.\n";
+        } else {
+            std::cout << "Stored status hint mode set to " << describe_status_hint_mode(target)
+                      << ", but the status line toggle is off so nothing is shown.\n";
+            std::cout << "Re-enable it with `cjshopt status-line on` to display the banner.\n";
+        }
     }
 
     return 0;
+}
+
+int status_line_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: status-line <on|off|status>",
+        "Examples:", "  status-line on      Show the status area below the prompt",
+        "  status-line off     Hide the status area entirely",
+        "  status-line status  Show the current setting"};
+
+    static const ToggleCommandConfig config{
+        "status-line",
+        usage_lines,
+        []() { return config::status_line_enabled; },
+        [](bool enable) {
+            config::status_line_enabled = enable;
+            apply_effective_status_hint_mode();
+        },
+        "Status line",
+        false,
+        "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
+        {},
+        {}};
+
+    return handle_toggle_command(config, args);
+}
+
+int status_reporting_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: status-reporting <on|off|status>",
+        "Examples:", "  status-reporting on      Show cjsh validation output in the status row",
+        "  status-reporting off     Hide validation and error reporting",
+        "  status-reporting status  Show the current setting"};
+
+    static const ToggleCommandConfig command_config{
+        "status-reporting",
+        usage_lines,
+        []() { return config::status_reporting_enabled; },
+        [](bool enable) { config::status_reporting_enabled = enable; },
+        "Status reporting",
+        false,
+        "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
+        {},
+        {}};
+
+    return handle_toggle_command(command_config, args);
 }
 
 int auto_tab_command(const std::vector<std::string>& args) {

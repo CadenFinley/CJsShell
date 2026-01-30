@@ -245,6 +245,26 @@ cjshopt status-hints <off|normal|transient|persistent|status>
 - `transient` – show it whenever no other status message is present.
 - `persistent` – always prepend it above any status output.
 
+**Status Line Visibility:**
+Hide the entire status area—syntax validation, inline diagnostics, and the hint banner—with a single toggle.
+
+```bash
+cjshopt status-line on|off|status
+```
+
+- `on` (default) – keep validation messages and banners visible.
+- `off` – remove the status row entirely; `status-hints` preferences are remembered but stay hidden until you turn the line back on.
+
+**cjsh Status Reporting:**
+Prefer to keep the status line for banners but hide validation/error text? Toggle the built-in reporting channel.
+
+```bash
+cjshopt status-reporting on|off|status
+```
+
+- `on` (default) – show syntax validation results beneath the prompt.
+- `off` – suppress cjsh-generated status text while still allowing `status-hints` (or custom status callbacks) to render.
+
 **Full Help:**
 Press `F1` at any time to display the complete key binding cheat sheet, regardless of the inline-help setting.
 

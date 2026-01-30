@@ -581,6 +581,18 @@ std::string previous_passed_buffer;
 const char* create_below_syntax_message(const char* input_buffer, void*) {
     static thread_local std::string status_message;
 
+    if (!config::status_line_enabled) {
+        status_message.clear();
+        previous_passed_buffer.clear();
+        return nullptr;
+    }
+
+    if (!config::status_reporting_enabled) {
+        status_message.clear();
+        previous_passed_buffer.clear();
+        return nullptr;
+    }
+
     const std::string current_input = (input_buffer != nullptr) ? input_buffer : "";
 
     if (previous_passed_buffer == current_input) {
@@ -649,6 +661,9 @@ void initialize_isocline() {
     ic_set_prompt_marker("", nullptr);
     ic_set_unhandled_key_handler(handle_runoff_bind, nullptr);
     ic_set_status_message_callback(create_below_syntax_message, nullptr);
+    if (!config::status_line_enabled) {
+        (void)ic_set_status_hint_mode(IC_STATUS_HINT_OFF);
+    }
 }
 
 void main_process_loop() {
@@ -738,6 +753,13 @@ void start_interactive_process() {
                      "login-startup-arg --no-titleline'"
                   << '\n';
         std::cout << " Or alternatively execute cjsh with this flag: --no-titleline" << '\n';
+        std::cout << '\n';
+        std::cout
+            << " To hide the help status line under the prompt use: 'cjshopt status-hints off'\n";
+        std::cout << " Alternatively, to help the status line completely off use: 'cjshopt "
+                     "status-line off'\n";
+        std::cout << " You can find many more toggles like this to fully customize your cjsh "
+                     "experience with: 'cjshopt --help'\n";
         std::cout << '\n';
 
         std::cout << " cjsh uses a very complex, but very smart completions system.\n";

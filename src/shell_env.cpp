@@ -39,6 +39,8 @@ bool show_title_line = true;
 bool history_expansion_enabled = true;
 bool newline_after_execution = false;
 bool suppress_sh_warning = false;
+bool status_line_enabled = true;
+bool status_reporting_enabled = true;
 }  // namespace config
 
 namespace cjsh_env {

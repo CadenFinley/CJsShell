@@ -76,6 +76,14 @@ cjshopt hint-delay <milliseconds|status>
 **Status:** `normal` (only shows when both the buffer and status line are empty)  
 **Configure:** `cjshopt status-hints <off|normal|transient|persistent|status>`
 
+### Status Line Visibility
+**Status:** Enabled  
+**Configure:** `cjshopt status-line on|off|status` (turn it off to hide both syntax feedback and the hint banner entirely)
+
+### Status Reporting
+**Status:** Enabled  
+**Configure:** `cjshopt status-reporting on|off|status` (leave the status line visible but mute cjsh’s validation/error summaries)
+
 ### Visible Whitespace Markers
 **Status:** Disabled  
 **Configure:** `cjshopt visible-whitespace on|off|status`

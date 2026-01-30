@@ -874,6 +874,48 @@ cjshopt status-hints status      # Show the current mode
 
 Add the command to `~/.cjshrc` to persist the mode across sessions.
 
+#### status-line
+
+Remove or restore the entire status row beneath the prompt, including syntax feedback and the hint banner.
+
+```bash
+cjshopt status-line <on|off|status>
+```
+
+- `on` (default) – allow syntax validation text and `status-hints` output to appear.
+- `off` – suppress the status row completely; the last `status-hints` mode is remembered for when you turn it back on.
+
+Examples:
+
+```bash
+cjshopt status-line off     # Hide validation output and the hint banner
+cjshopt status-line on      # Restore the status row using the last hint mode
+cjshopt status-line status  # Display the current setting
+```
+
+Add the command to `~/.cjshrc` to persist the preference.
+
+#### status-reporting
+
+Keep the status line visible for banners and custom output, but disable cjsh’s built-in syntax/error reporting.
+
+```bash
+cjshopt status-reporting <on|off|status>
+```
+
+- `on` (default) – run cjsh’s validation pipeline and print its summary below the prompt.
+- `off` – suppress cjsh-generated status messages while leaving `status-hints` (and any custom callbacks) intact.
+
+Examples:
+
+```bash
+cjshopt status-reporting off     # Keep hint banners but hide validation output
+cjshopt status-reporting on      # Re-enable syntax feedback
+cjshopt status-reporting status  # Display the current setting
+```
+
+Persist preferences by adding the command to `~/.cjshrc`.
+
 #### auto-tab
 
 Configure automatic tab completion behavior. When enabled, the shell may automatically complete commands or show completions without requiring explicit tab key presses. **Disabled by default.**

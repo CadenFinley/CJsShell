@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "cjsh.h"
+#include "cjshopt_command.h"
 #include "error_out.h"
 
 namespace {
@@ -42,6 +43,10 @@ void print_cjshopt_usage() {
         << "  inline-help <on|off|status>     Configure inline help messages (default: enabled)\n";
     std::cout << "  status-hints <off|normal|transient|persistent|status>  Control the default "
                  "status hint banner (default: normal)\n";
+    std::cout << "  status-line <on|off|status>    Hide or show the status area below the prompt "
+                 "(default: enabled)\n";
+    std::cout << "  status-reporting <on|off|status>  Disable cjsh validation output while keeping "
+                 "status-hints (default: enabled)\n";
     std::cout << "  auto-tab <on|off|status>        Configure automatic tab completion (default: "
                  "enabled)\n";
     std::cout
@@ -123,6 +128,12 @@ int cjshopt_command(const std::vector<std::string>& args) {
                  std::string(
                      "  status-hints <off|normal|transient|persistent|status>  Control the ") +
                      "default status hint banner (default: normal)",
+                 std::string(
+                     "  status-line <on|off|status>    Hide or show the status area below ") +
+                     "the prompt (default: enabled)",
+                 std::string(
+                     "  status-reporting <on|off|status>  Disable cjsh validation output while ") +
+                     "keeping status-hints (default: enabled)",
                  std::string(
                      "  auto-tab <on|off|status>        Configure automatic tab completion ") +
                      "(default: enabled)",
@@ -218,6 +229,12 @@ int cjshopt_command(const std::vector<std::string>& args) {
     if (subcommand == "status-hints") {
         return status_hints_command(std::vector<std::string>(args.begin() + 1, args.end()));
     }
+    if (subcommand == "status-line") {
+        return status_line_command(std::vector<std::string>(args.begin() + 1, args.end()));
+    }
+    if (subcommand == "status-reporting") {
+        return status_reporting_command(std::vector<std::string>(args.begin() + 1, args.end()));
+    }
     if (subcommand == "auto-tab") {
         return auto_tab_command(std::vector<std::string>(args.begin() + 1, args.end()));
     }
@@ -271,7 +288,8 @@ int cjshopt_command(const std::vector<std::string>& args) {
           "current-line-number-highlight, multiline-start-lines, hint-delay, "
 
           "completion-preview, visible-whitespace, hint, multiline-indent, multiline, inline-help, "
-          "status-hints, auto-tab, prompt-newline, prompt-cleanup, prompt-cleanup-newline, "
+          "status-hints, status-line, auto-tab, prompt-newline, prompt-cleanup, "
+          "prompt-cleanup-newline, "
           "prompt-cleanup-empty-line, prompt-cleanup-truncate, right-prompt-follow-cursor, "
           "keybind, "
           "generate-rc, generate-logout, set-history-max, set-completion-max"}});
