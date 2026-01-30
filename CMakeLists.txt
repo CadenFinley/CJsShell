@@ -191,10 +191,9 @@ set(CJSH_INCLUDE_DIRS
     ${CMAKE_SOURCE_DIR}/src/builtin/cjshopt
     ${CMAKE_SOURCE_DIR}/src/utils
     ${CMAKE_SOURCE_DIR}/src/prompt
-    ${CMAKE_SOURCE_DIR}/src/prompt/modules
     ${CMAKE_SOURCE_DIR}/src/interpreter
     ${CMAKE_SOURCE_DIR}/src/parser
-    ${CMAKE_SOURCE_DIR}/src/syntax_highlighter
+    ${CMAKE_SOURCE_DIR}/src/highlighter
     ${CMAKE_SOURCE_DIR}/src/completions
 )
 
