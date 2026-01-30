@@ -31,7 +31,9 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
                              "  --no-force        Reuse existing cache entries when present",
                              "  --force, -f       Force regeneration (default)",
                              "  --jobs, -j <N>    Process up to N commands in parallel",
-                             "  --                Treat remaining arguments as command names"})) {
+                             "  --                Treat remaining arguments as command names",
+                             "IMPORTANT: Please note that this can take signifigant time and",
+                         "system resources. Running with with -j $(nproc) is recommended."})) {
         return 0;
     }
 

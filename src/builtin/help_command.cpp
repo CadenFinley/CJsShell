@@ -17,7 +17,7 @@ int help_command() {
 
     std::cout << "\nCJSH QUICK REFERENCE\n" << separator << "\n";
     (void)version_command({});
-    std::cout << "POSIX shell scripting meets modern shell features." << std::endl;
+    std::cout << "POSIX shell scripting meets modern shell features\n";
 
     heading("Project source");
     std::cout << "  Git repository:  https://github.com/CadenFinley/CJsShell\n";
