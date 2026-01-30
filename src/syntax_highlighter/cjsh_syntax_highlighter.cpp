@@ -4,6 +4,7 @@
 #include <cstring>
 #include <filesystem>
 #include <string>
+#include <unordered_set>
 
 #include "builtin.h"
 #include "cjsh.h"
@@ -45,6 +46,231 @@ bool extract_next_token(const std::string& cmd, size_t& cursor, size_t& token_st
     token_start = start;
     token_end = cursor;
     return true;
+}
+
+void highlight_command_range(ic_highlight_env_t* henv, const char* input,
+                             const std::string& analysis, size_t cmd_start, size_t cmd_end,
+                             const std::unordered_set<std::string>& comparison_ops) {
+    using namespace token_classifier;
+    using namespace highlight_helpers;
+
+    if (cmd_start >= cmd_end) {
+        return;
+    }
+
+    std::string cmd_str(analysis.c_str() + cmd_start, cmd_end - cmd_start);
+
+    size_t token_cursor = 0;
+    size_t first_token_start = 0;
+    size_t first_token_end = 0;
+    if (!extract_next_token(cmd_str, token_cursor, first_token_start, first_token_end)) {
+        return;
+    }
+
+    std::string token = cmd_str.substr(first_token_start, first_token_end - first_token_start);
+    bool is_sudo_command = (token == "sudo");
+    bool handled_first_token = false;
+    size_t absolute_token_start = cmd_start + first_token_start;
+    size_t first_token_length = first_token_end - first_token_start;
+
+    if (is_variable_reference(token)) {
+        highlight_variable_assignment(henv, input, absolute_token_start, token);
+        handled_first_token = true;
+    }
+
+    if (!handled_first_token && config::history_expansion_enabled &&
+        (token[0] == '!' || (token[0] == '^' && cmd_start == 0))) {
+        handled_first_token = true;
+    }
+
+    if (!handled_first_token &&
+        (token.rfind("./", 0) == 0 || token.rfind("../", 0) == 0 || token.rfind("~/", 0) == 0 ||
+         token.rfind("-/", 0) == 0 || token[0] == '/' || token.find('/') != std::string::npos)) {
+        std::string path_to_check = token;
+        if (token.rfind("~/", 0) == 0) {
+            path_to_check = cjsh_filesystem::g_user_home_path().string() + token.substr(1);
+        } else if (token.rfind("-/", 0) == 0) {
+            std::string prev_dir = g_shell->get_previous_directory();
+            if (!prev_dir.empty()) {
+                path_to_check = prev_dir + token.substr(1);
+            }
+        } else if (token[0] != '/' && token.rfind("./", 0) != 0 && token.rfind("../", 0) != 0 &&
+                   token.rfind("~/", 0) != 0 && token.rfind("-/", 0) != 0) {
+            path_to_check = cjsh_filesystem::safe_current_directory() + "/" + token;
+        }
+        if (std::filesystem::exists(path_to_check)) {
+            ic_highlight(henv, static_cast<long>(absolute_token_start),
+                         static_cast<long>(first_token_length), "cjsh-system");
+        } else {
+            ic_highlight(henv, static_cast<long>(absolute_token_start),
+                         static_cast<long>(first_token_length), "cjsh-unknown-command");
+        }
+        handled_first_token = true;
+    }
+
+    if (!handled_first_token && g_shell != nullptr && g_shell->get_interactive_mode()) {
+        const auto& abbreviations = g_shell->get_abbreviations();
+        if (abbreviations.find(token) != abbreviations.end()) {
+            ic_highlight(henv, static_cast<long>(absolute_token_start),
+                         static_cast<long>(first_token_length), "cjsh-builtin");
+            handled_first_token = true;
+        }
+    }
+
+    if (!handled_first_token && is_shell_keyword(token)) {
+        ic_highlight(henv, static_cast<long>(absolute_token_start),
+                     static_cast<long>(first_token_length), "cjsh-keyword");
+        handled_first_token = true;
+    } else if (!handled_first_token && is_shell_builtin(token)) {
+        ic_highlight(henv, static_cast<long>(absolute_token_start),
+                     static_cast<long>(first_token_length), "cjsh-builtin");
+        handled_first_token = true;
+    }
+
+    if (!handled_first_token) {
+        auto cmds = g_shell->get_available_commands();
+        if (cmds.find(token) != cmds.end()) {
+            ic_highlight(henv, static_cast<long>(absolute_token_start),
+                         static_cast<long>(first_token_length), "cjsh-builtin");
+        } else if (is_external_command(token)) {
+            ic_highlight(henv, static_cast<long>(absolute_token_start),
+                         static_cast<long>(first_token_length), "cjsh-system");
+        } else {
+            ic_highlight(henv, static_cast<long>(absolute_token_start),
+                         static_cast<long>(first_token_length), "cjsh-unknown-command");
+        }
+    }
+
+    static const std::unordered_set<std::string> kInlineCommandKeywords = {
+        "do", "then", "else", "elif", "if", "while", "until", "time", "coproc"};
+
+    if (kInlineCommandKeywords.find(token) != kInlineCommandKeywords.end()) {
+        size_t nested_start = first_token_end;
+        while (nested_start < cmd_str.size() &&
+               (std::isspace(static_cast<unsigned char>(cmd_str[nested_start])) != 0)) {
+            nested_start++;
+        }
+        if (nested_start < cmd_str.size()) {
+            highlight_command_range(henv, input, analysis, cmd_start + nested_start, cmd_end,
+                                    comparison_ops);
+        }
+        return;
+    }
+
+    bool is_cd_command = (token == "cd");
+    size_t arg_cursor = token_cursor;
+    size_t arg_index = 0;
+    size_t arg_start = 0;
+    size_t arg_end = 0;
+
+    while (extract_next_token(cmd_str, arg_cursor, arg_start, arg_end)) {
+        size_t absolute_arg_start = cmd_start + arg_start;
+        size_t arg_length = arg_end - arg_start;
+        std::string arg = cmd_str.substr(arg_start, arg_length);
+
+        if (is_redirection_operator(arg) || comparison_ops.count(arg) > 0) {
+            ic_highlight(henv, static_cast<long>(absolute_arg_start), static_cast<long>(arg_length),
+                         "cjsh-operator");
+        }
+
+        else if (is_variable_reference(arg)) {
+            highlight_variable_assignment(henv, input, absolute_arg_start, arg);
+        }
+
+        else if (arg == "((" || arg == "))") {
+            ic_highlight(henv, static_cast<long>(absolute_arg_start), static_cast<long>(arg_length),
+                         "cjsh-arithmetic");
+        }
+
+        else if (is_shell_keyword(arg)) {
+            ic_highlight(henv, static_cast<long>(absolute_arg_start), static_cast<long>(arg_length),
+                         "cjsh-keyword");
+        }
+
+        else if (is_option(arg)) {
+            ic_highlight(henv, static_cast<long>(absolute_arg_start), static_cast<long>(arg_length),
+                         "cjsh-option");
+        }
+
+        else if (is_numeric_literal(arg)) {
+            ic_highlight(henv, static_cast<long>(absolute_arg_start), static_cast<long>(arg_length),
+                         "cjsh-number");
+        }
+
+        else {
+            char quote_type = 0;
+            if (is_quoted_string(arg, quote_type)) {
+                ic_highlight(henv, static_cast<long>(absolute_arg_start),
+                             static_cast<long>(arg_length), "cjsh-string");
+            } else if (is_sudo_command && arg_index == 0) {
+                if (arg.rfind("./", 0) == 0) {
+                    if (!std::filesystem::exists(arg) || !std::filesystem::is_regular_file(arg)) {
+                        ic_highlight(henv, static_cast<long>(absolute_arg_start),
+                                     static_cast<long>(arg_length), "cjsh-unknown-command");
+                    } else {
+                        ic_highlight(henv, static_cast<long>(absolute_arg_start),
+                                     static_cast<long>(arg_length), "cjsh-system");
+                    }
+                } else {
+                    bool is_abbreviation = false;
+                    if (g_shell != nullptr && g_shell->get_interactive_mode()) {
+                        const auto& abbreviations = g_shell->get_abbreviations();
+                        is_abbreviation = abbreviations.find(arg) != abbreviations.end();
+                    }
+
+                    auto cmds = g_shell->get_available_commands();
+                    if (is_abbreviation || cmds.find(arg) != cmds.end() || is_shell_builtin(arg)) {
+                        ic_highlight(henv, static_cast<long>(absolute_arg_start),
+                                     static_cast<long>(arg_length), "cjsh-builtin");
+                    } else if (is_external_command(arg)) {
+                        ic_highlight(henv, static_cast<long>(absolute_arg_start),
+                                     static_cast<long>(arg_length), "cjsh-system");
+                    } else {
+                        ic_highlight(henv, static_cast<long>(absolute_arg_start),
+                                     static_cast<long>(arg_length), "cjsh-unknown-command");
+                    }
+                }
+            } else if (is_cd_command && (arg == "~" || arg == "-")) {
+                ic_highlight(henv, static_cast<long>(absolute_arg_start),
+                             static_cast<long>(arg_length), "cjsh-path-exists");
+            } else if (is_glob_pattern(arg)) {
+                ic_highlight(henv, static_cast<long>(absolute_arg_start),
+                             static_cast<long>(arg_length), "cjsh-glob-pattern");
+            } else if (is_cd_command || arg[0] == '/' || arg.rfind("./", 0) == 0 ||
+                       arg.rfind("../", 0) == 0 || arg.rfind("~/", 0) == 0 ||
+                       arg.rfind("-/", 0) == 0 || arg.find('/') != std::string::npos) {
+                std::string path_to_check = arg;
+
+                if (arg.rfind("~/", 0) == 0) {
+                    path_to_check = cjsh_filesystem::g_user_home_path().string() + arg.substr(1);
+                } else if (arg.rfind("-/", 0) == 0) {
+                    std::string prev_dir = g_shell->get_previous_directory();
+                    if (!prev_dir.empty()) {
+                        path_to_check = prev_dir + arg.substr(1);
+                    }
+                } else if (is_cd_command && arg[0] != '/' && arg.rfind("./", 0) != 0 &&
+                           arg.rfind("../", 0) != 0 && arg.rfind("~/", 0) != 0 &&
+                           arg.rfind("-/", 0) != 0) {
+                    path_to_check = cjsh_filesystem::safe_current_directory() + "/" + arg;
+                }
+
+                if (std::filesystem::exists(path_to_check)) {
+                    ic_highlight(henv, static_cast<long>(absolute_arg_start),
+                                 static_cast<long>(arg_length), "cjsh-path-exists");
+                } else {
+                    ic_highlight(henv, static_cast<long>(absolute_arg_start),
+                                 static_cast<long>(arg_length), "cjsh-path-not-exists");
+                }
+            }
+        }
+
+        if (!is_variable_reference(arg) &&
+            (arg.find('$') != std::string::npos || arg.find('`') != std::string::npos)) {
+            highlight_quotes_and_variables(henv, input, absolute_arg_start, arg_length);
+        }
+
+        ++arg_index;
+    }
 }
 
 }  // namespace
@@ -175,212 +401,7 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
         }
 
         if (cmd_start < cmd_end) {
-            std::string cmd_str(analysis + cmd_start, cmd_end - cmd_start);
-
-            size_t token_cursor = 0;
-            size_t first_token_start = 0;
-            size_t first_token_end = 0;
-            std::string token;
-            if (extract_next_token(cmd_str, token_cursor, first_token_start, first_token_end)) {
-                token = cmd_str.substr(first_token_start, first_token_end - first_token_start);
-            }
-
-            bool is_sudo_command = (token == "sudo");
-
-            if (!token.empty()) {
-                bool handled_first_token = false;
-                size_t absolute_token_start = cmd_start + first_token_start;
-                size_t first_token_length = first_token_end - first_token_start;
-
-                if (is_variable_reference(token)) {
-                    highlight_variable_assignment(henv, input, absolute_token_start, token);
-                    handled_first_token = true;
-                }
-
-                if (!handled_first_token && config::history_expansion_enabled &&
-                    (token[0] == '!' || (token[0] == '^' && cmd_start == 0))) {
-                    handled_first_token = true;
-                }
-
-                if (!handled_first_token &&
-                    (token.rfind("./", 0) == 0 || token.rfind("../", 0) == 0 ||
-                     token.rfind("~/", 0) == 0 || token.rfind("-/", 0) == 0 || token[0] == '/' ||
-                     token.find('/') != std::string::npos)) {
-                    std::string path_to_check = token;
-                    if (token.rfind("~/", 0) == 0) {
-                        path_to_check =
-                            cjsh_filesystem::g_user_home_path().string() + token.substr(1);
-                    } else if (token.rfind("-/", 0) == 0) {
-                        std::string prev_dir = g_shell->get_previous_directory();
-                        if (!prev_dir.empty()) {
-                            path_to_check = prev_dir + token.substr(1);
-                        }
-                    } else if (token[0] != '/' && token.rfind("./", 0) != 0 &&
-                               token.rfind("../", 0) != 0 && token.rfind("~/", 0) != 0 &&
-                               token.rfind("-/", 0) != 0) {
-                        path_to_check = cjsh_filesystem::safe_current_directory() + "/" + token;
-                    }
-                    if (std::filesystem::exists(path_to_check)) {
-                        ic_highlight(henv, static_cast<long>(absolute_token_start),
-                                     static_cast<long>(first_token_length), "cjsh-system");
-                    } else {
-                        ic_highlight(henv, static_cast<long>(absolute_token_start),
-                                     static_cast<long>(first_token_length), "cjsh-unknown-command");
-                    }
-                    handled_first_token = true;
-                }
-
-                if (!handled_first_token && g_shell != nullptr && g_shell->get_interactive_mode()) {
-                    const auto& abbreviations = g_shell->get_abbreviations();
-                    if (abbreviations.find(token) != abbreviations.end()) {
-                        ic_highlight(henv, static_cast<long>(absolute_token_start),
-                                     static_cast<long>(first_token_length), "cjsh-builtin");
-                        handled_first_token = true;
-                    }
-                }
-
-                if (!handled_first_token && is_shell_keyword(token)) {
-                    ic_highlight(henv, static_cast<long>(absolute_token_start),
-                                 static_cast<long>(first_token_length), "cjsh-keyword");
-                    handled_first_token = true;
-                } else if (!handled_first_token && is_shell_builtin(token)) {
-                    ic_highlight(henv, static_cast<long>(absolute_token_start),
-                                 static_cast<long>(first_token_length), "cjsh-builtin");
-                    handled_first_token = true;
-                }
-
-                if (!handled_first_token) {
-                    auto cmds = g_shell->get_available_commands();
-                    if (cmds.find(token) != cmds.end()) {
-                        ic_highlight(henv, static_cast<long>(absolute_token_start),
-                                     static_cast<long>(first_token_length), "cjsh-builtin");
-                    } else if (is_external_command(token)) {
-                        ic_highlight(henv, static_cast<long>(absolute_token_start),
-                                     static_cast<long>(first_token_length), "cjsh-system");
-                    } else {
-                        ic_highlight(henv, static_cast<long>(absolute_token_start),
-                                     static_cast<long>(first_token_length), "cjsh-unknown-command");
-                    }
-                }
-            }
-
-            bool is_cd_command = (token == "cd");
-            size_t arg_cursor = token_cursor;
-            size_t arg_index = 0;
-            size_t arg_start = 0;
-            size_t arg_end = 0;
-
-            while (extract_next_token(cmd_str, arg_cursor, arg_start, arg_end)) {
-                size_t absolute_arg_start = cmd_start + arg_start;
-                size_t arg_length = arg_end - arg_start;
-                std::string arg = cmd_str.substr(arg_start, arg_length);
-
-                if (is_redirection_operator(arg) || comparison_ops.count(arg) > 0) {
-                    ic_highlight(henv, static_cast<long>(absolute_arg_start),
-                                 static_cast<long>(arg_length), "cjsh-operator");
-                }
-
-                else if (is_variable_reference(arg)) {
-                    highlight_variable_assignment(henv, input, absolute_arg_start, arg);
-                }
-
-                else if (arg == "((" || arg == "))") {
-                    ic_highlight(henv, static_cast<long>(absolute_arg_start),
-                                 static_cast<long>(arg_length), "cjsh-arithmetic");
-                }
-
-                else if (is_shell_keyword(arg)) {
-                    ic_highlight(henv, static_cast<long>(absolute_arg_start),
-                                 static_cast<long>(arg_length), "cjsh-keyword");
-                }
-
-                else if (is_option(arg)) {
-                    ic_highlight(henv, static_cast<long>(absolute_arg_start),
-                                 static_cast<long>(arg_length), "cjsh-option");
-                }
-
-                else if (is_numeric_literal(arg)) {
-                    ic_highlight(henv, static_cast<long>(absolute_arg_start),
-                                 static_cast<long>(arg_length), "cjsh-number");
-                }
-
-                else {
-                    char quote_type = 0;
-                    if (is_quoted_string(arg, quote_type)) {
-                        ic_highlight(henv, static_cast<long>(absolute_arg_start),
-                                     static_cast<long>(arg_length), "cjsh-string");
-                    } else if (is_sudo_command && arg_index == 0) {
-                        if (arg.rfind("./", 0) == 0) {
-                            if (!std::filesystem::exists(arg) ||
-                                !std::filesystem::is_regular_file(arg)) {
-                                ic_highlight(henv, static_cast<long>(absolute_arg_start),
-                                             static_cast<long>(arg_length), "cjsh-unknown-command");
-                            } else {
-                                ic_highlight(henv, static_cast<long>(absolute_arg_start),
-                                             static_cast<long>(arg_length), "cjsh-system");
-                            }
-                        } else {
-                            bool is_abbreviation = false;
-                            if (g_shell != nullptr && g_shell->get_interactive_mode()) {
-                                const auto& abbreviations = g_shell->get_abbreviations();
-                                is_abbreviation = abbreviations.find(arg) != abbreviations.end();
-                            }
-
-                            auto cmds = g_shell->get_available_commands();
-                            if (is_abbreviation || cmds.find(arg) != cmds.end() ||
-                                is_shell_builtin(arg)) {
-                                ic_highlight(henv, static_cast<long>(absolute_arg_start),
-                                             static_cast<long>(arg_length), "cjsh-builtin");
-                            } else if (is_external_command(arg)) {
-                                ic_highlight(henv, static_cast<long>(absolute_arg_start),
-                                             static_cast<long>(arg_length), "cjsh-system");
-                            } else {
-                                ic_highlight(henv, static_cast<long>(absolute_arg_start),
-                                             static_cast<long>(arg_length), "cjsh-unknown-command");
-                            }
-                        }
-                    } else if (is_cd_command && (arg == "~" || arg == "-")) {
-                        ic_highlight(henv, static_cast<long>(absolute_arg_start),
-                                     static_cast<long>(arg_length), "cjsh-path-exists");
-                    } else if (is_glob_pattern(arg)) {
-                        ic_highlight(henv, static_cast<long>(absolute_arg_start),
-                                     static_cast<long>(arg_length), "cjsh-glob-pattern");
-                    } else if (is_cd_command || arg[0] == '/' || arg.rfind("./", 0) == 0 ||
-                               arg.rfind("../", 0) == 0 || arg.rfind("~/", 0) == 0 ||
-                               arg.rfind("-/", 0) == 0 || arg.find('/') != std::string::npos) {
-                        std::string path_to_check = arg;
-
-                        if (arg.rfind("~/", 0) == 0) {
-                            path_to_check =
-                                cjsh_filesystem::g_user_home_path().string() + arg.substr(1);
-                        } else if (arg.rfind("-/", 0) == 0) {
-                            std::string prev_dir = g_shell->get_previous_directory();
-                            if (!prev_dir.empty()) {
-                                path_to_check = prev_dir + arg.substr(1);
-                            }
-                        } else if (is_cd_command && arg[0] != '/' && arg.rfind("./", 0) != 0 &&
-                                   arg.rfind("../", 0) != 0 && arg.rfind("~/", 0) != 0 &&
-                                   arg.rfind("-/", 0) != 0) {
-                            path_to_check = cjsh_filesystem::safe_current_directory() + "/" + arg;
-                        }
-
-                        if (std::filesystem::exists(path_to_check)) {
-                            ic_highlight(henv, static_cast<long>(absolute_arg_start),
-                                         static_cast<long>(arg_length), "cjsh-path-exists");
-                        } else {
-                            ic_highlight(henv, static_cast<long>(absolute_arg_start),
-                                         static_cast<long>(arg_length), "cjsh-path-not-exists");
-                        }
-                    }
-                }
-
-                if (!is_variable_reference(arg) &&
-                    (arg.find('$') != std::string::npos || arg.find('`') != std::string::npos)) {
-                    highlight_quotes_and_variables(henv, input, absolute_arg_start, arg_length);
-                }
-
-                ++arg_index;
-            }
+            highlight_command_range(henv, input, sanitized_input, cmd_start, cmd_end, comparison_ops);
         }
 
         pos = cmd_end;
