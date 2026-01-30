@@ -114,10 +114,7 @@ std::string strip_cjsh_prefix(std::string message) {
 
 std::vector<std::string> build_command_suggestions(const std::string& command_name) {
     auto suggestions = suggestion_utils::generate_command_suggestions(command_name);
-    if (suggestions.empty()) {
-        suggestions.push_back("Check your PATH or install '" + command_name + "'.");
-    }
-    return suggestions;
+   return suggestions;
 }
 
 int handle_runtime_exception(const std::string& text, const std::runtime_error& e,
