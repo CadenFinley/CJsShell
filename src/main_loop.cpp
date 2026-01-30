@@ -746,7 +746,8 @@ void start_interactive_process() {
         const bool show_creator_line = should_show_creator_line();
         std::cout << " CJ's Shell v" << get_version() << " - Caden J Finley (c) 2026" << '\n';
         if (show_creator_line) {
-            std::cout << " Created 2025 @ \033[1;35mAbilene Christian University\033[0m" << '\n';
+            // cjsh first started as part of an undergrad project at my alma mater, ACU ( abilene christian univeristy ), to create some shell paradigms and shell/ gnu builtins, and eventually a full shell project and i fell in love with the project. That is the reason for this line. I wanted to give the school credit that helped me fall in love with my main project. Most people couldn't care less which is why this is guareded behind a hidden option. But for those who do care like myself the option is still there to have this line appear in the title line during startup.
+            std::cout << " Created 2024 @ \033[1;35mAbilene Christian University\033[0m" << '\n';
         }
         std::cout << "\n";
     }
