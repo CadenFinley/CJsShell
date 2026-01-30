@@ -15,6 +15,7 @@
 #include <exception>
 #include <iostream>
 #include <memory>
+#include <string>
 #include <vector>
 
 #ifdef __APPLE__
@@ -652,6 +653,21 @@ const char* create_below_syntax_message(const char* input_buffer, void*) {
     return status_message.c_str();
 }
 
+bool should_show_creator_line() {
+    const char* env = std::getenv("CJSH_SHOW_CREATED");
+    if (env == nullptr || env[0] == '\0') {
+        return false;
+    }
+
+    std::string value(env);
+    std::transform(value.begin(), value.end(), value.begin(),
+                   [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+
+    (void) unsetenv("CJSH_SHOW_CREATED");
+
+    return value == "1" || value == "true" || value == "yes" || value == "on";
+}
+
 }  // namespace
 
 void initialize_isocline() {
@@ -727,8 +743,11 @@ void start_interactive_process() {
     }
 
     if (config::show_title_line) {
+        const bool show_creator_line = should_show_creator_line();
         std::cout << " CJ's Shell v" << get_version() << " - Caden J Finley (c) 2026" << '\n';
-        std::cout << " Created 2025 @ \033[1;35mAbilene Christian University\033[0m" << '\n';
+        if (show_creator_line) {
+            std::cout << " Created 2025 @ \033[1;35mAbilene Christian University\033[0m" << '\n';
+        }
         std::cout << "\n";
     }
 
