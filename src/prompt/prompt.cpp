@@ -2,6 +2,7 @@
 
 #include <pwd.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include <cctype>
@@ -9,7 +10,10 @@
 #include <cstdlib>
 #include <ctime>
 #include <filesystem>
+#include <fstream>
+#include <optional>
 #include <string>
+#include <string_view>
 
 #include "cjsh.h"
 #include "flags.h"
@@ -33,6 +37,8 @@ std::string get_env(const char* name, const char* fallback = nullptr) {
     }
     return {};
 }
+
+std::string get_exit_status();
 
 std::string get_shell_name() {
     std::string shell_name = get_env("0");
@@ -186,6 +192,178 @@ std::string get_terminal_name() {
     return name;
 }
 
+std::string trim_copy(const std::string& input) {
+    const auto first = input.find_first_not_of(" \t\r\n");
+    if (first == std::string::npos) {
+        return {};
+    }
+    const auto last = input.find_last_not_of(" \t\r\n");
+    return input.substr(first, (last - first) + 1);
+}
+
+std::optional<std::filesystem::path> git_dir_from_worktree_file(
+    const std::filesystem::path& candidate, const std::filesystem::path& base) {
+    std::ifstream file(candidate);
+    if (!file.is_open()) {
+        return std::nullopt;
+    }
+    std::string line;
+    std::getline(file, line);
+    line = trim_copy(line);
+    constexpr std::string_view kPrefix = "gitdir:";
+    if (line.rfind(kPrefix, 0) != 0) {
+        return std::nullopt;
+    }
+    std::string path_str = trim_copy(line.substr(kPrefix.size()));
+    if (path_str.empty()) {
+        return std::nullopt;
+    }
+    std::filesystem::path gitdir(path_str);
+    if (gitdir.is_relative()) {
+        return (base / gitdir).lexically_normal();
+    }
+    return gitdir;
+}
+
+std::optional<std::filesystem::path> locate_git_directory(const std::filesystem::path& dir) {
+    std::error_code ec;
+    std::filesystem::path candidate = dir / ".git";
+    if (!std::filesystem::exists(candidate, ec)) {
+        return std::nullopt;
+    }
+    if (std::filesystem::is_directory(candidate, ec)) {
+        return candidate;
+    }
+    if (!std::filesystem::is_regular_file(candidate, ec)) {
+        return std::nullopt;
+    }
+    return git_dir_from_worktree_file(candidate, dir);
+}
+
+std::optional<std::filesystem::path> find_git_directory(const std::filesystem::path& start) {
+    std::filesystem::path current = start;
+    while (true) {
+        if (auto git_dir = locate_git_directory(current)) {
+            return git_dir;
+        }
+        if (!current.has_parent_path()) {
+            break;
+        }
+        auto parent = current.parent_path();
+        if (parent == current) {
+            break;
+        }
+        current = parent;
+    }
+    return std::nullopt;
+}
+
+std::string read_git_head(const std::filesystem::path& git_dir) {
+    std::ifstream head_file(git_dir / "HEAD");
+    if (!head_file.is_open()) {
+        return {};
+    }
+    std::string line;
+    std::getline(head_file, line);
+    line = trim_copy(line);
+    if (line.empty()) {
+        return {};
+    }
+    constexpr std::string_view kRefPrefix = "ref:";
+    if (line.rfind(kRefPrefix, 0) == 0) {
+        std::string ref = trim_copy(line.substr(kRefPrefix.size()));
+        auto slash = ref.find_last_of('/');
+        if (slash != std::string::npos) {
+            return ref.substr(slash + 1);
+        }
+        return ref;
+    }
+    if (line.size() > 7) {
+        return line.substr(0, 7);
+    }
+    return line;
+}
+
+bool git_has_changes() {
+    int pipefd[2];
+    if (pipe(pipefd) != 0) {
+        return false;
+    }
+
+    pid_t pid = fork();
+    if (pid == -1) {
+        close(pipefd[0]);
+        close(pipefd[1]);
+        return false;
+    }
+
+    if (pid == 0) {
+        // Child: redirect stdout/stderr to the pipe and exec git directly.
+        if (dup2(pipefd[1], STDOUT_FILENO) == -1 || dup2(pipefd[1], STDERR_FILENO) == -1) {
+            _exit(127);
+        }
+        close(pipefd[0]);
+        close(pipefd[1]);
+
+        const char* const argv[] = {"git", "status", "--porcelain", "--untracked-files=normal",
+                                    nullptr};
+        execvp("git", const_cast<char* const*>(argv));
+        _exit(127);
+    }
+
+    close(pipefd[1]);
+    char ch;
+    ssize_t bytes_read = read(pipefd[0], &ch, 1);
+    close(pipefd[0]);
+
+    int status = 0;
+    waitpid(pid, &status, 0);
+    return bytes_read > 0;
+}
+
+std::string git_prompt_segment() {
+    std::error_code ec;
+    std::filesystem::path cwd = std::filesystem::current_path(ec);
+    if (ec) {
+        return {};
+    }
+    auto git_dir = find_git_directory(cwd);
+    if (!git_dir) {
+        return {};
+    }
+    std::string branch = read_git_head(*git_dir);
+    if (branch.empty()) {
+        return {};
+    }
+    std::string segment;
+    segment.reserve(branch.size() + 32);
+    segment += "[b color=ansi-blue]git:([/]";
+    segment += "[color=#ff6b6b]" + branch + "[/]";
+    segment += "[color=ansi-blue])[/]";
+    if (git_has_changes()) {
+        segment += " [color=#ffd166]✗[/color]";
+    }
+    segment.push_back(' ');
+    return segment;
+}
+
+int exit_status_value() {
+    std::string status = get_exit_status();
+    try {
+        return std::stoi(status);
+    } catch (...) {
+        return 0;
+    }
+}
+
+std::string status_symbol() {
+    static const char* arrow = u8"\u279C";
+    if (exit_status_value() == 0) {
+        return std::string("[b color=#2dd881]") + arrow + "[/]";
+    }
+    return std::string("[b color=#ff6b6b]") + arrow + "[/]";
+}
+
 std::string get_version_short() {
     std::string version = get_version();
     auto pos = version.find(' ');
@@ -313,6 +491,12 @@ std::string expand_prompt_string(const std::string& templ) {
             case 'W':
                 result += get_cwd(true, true);
                 break;
+            case 'S':
+                result += status_symbol();
+                break;
+            case 'g':
+                result += git_prompt_segment();
+                break;
             case '$':
                 result.push_back(prompt_dollar());
                 break;
@@ -361,8 +545,7 @@ std::string get_ps(const char* name, const std::string& fallback) {
 }  // namespace
 
 std::string default_primary_prompt_template() {
-    return "[!red][[/red][yellow]\\u[/yellow][green]@[/green][blue]\\h[/blue] "
-           "[color=#ff69b4]\\w[/color][!red]][/red][!b] \\$ [/b]";
+    return "\\S  [color=#5fd7ff]\\W[/color] \\g";
 }
 
 std::string default_right_prompt_template() {

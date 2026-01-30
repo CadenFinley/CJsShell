@@ -7,11 +7,13 @@ available, and how to persist your preferred prompt layout.
 
 ## Quick Start
 
-- Set `PS1` to control the primary prompt. The default template is:
+- Set `PS1` to control the primary prompt. The default template now mirrors the classic Robby Russell
+  oh-my-zsh theme:
   ```bash
-  PS1='[!red][[/red][yellow]\u[/yellow][green]@[/green][blue]\h[/blue] [color=#ff69b4]\w[/color][!red]][/red][!b] \$ [/b]'
+  PS1='\S  [color=#5fd7ff]\W[/color] \g'
   ```
-- Set `RPS1` (or `RPROMPT`) to control the right-aligned prompt. The default is `[ic-hint]\A[/ic-hint]`.
+- Set `RPS1` (or `RPROMPT`) to control the right-aligned prompt. The default shows the current time
+  in `[ic-hint]` markup via `RPS1='[ic-hint]\A[/ic-hint]'`.
 - Use `PROMPT_COMMAND` for commands that should run before each prompt.
 - Apply markup directly inside these variables to style text, add colors, and align sections.
 
@@ -87,6 +89,8 @@ Prompt templates use familiar POSIX/Bash escapes. CJ's Shell expands the followi
 - `\u` username
 - `\v` short cjsh version, `\V` full version string
 - `\w` working directory with `$HOME` shortened to `~`, `\W` basename of working directory
+- `\S` status arrow used by the default theme (green when `$?` is zero, red otherwise)
+- `\g` Git segment that renders `git:(branch)` plus a dirty marker; empty outside Git repos
 - `\$` `#` for root, otherwise `$`
 - `\?` exit status of last command
 - `\\` literal backslash, `\[` and `\]` for zero-width control regions
