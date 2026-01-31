@@ -31,6 +31,7 @@ class ShellScriptInterpreter {
 
     int execute_block(const std::vector<std::string>& lines, bool skip_validation = false);
     std::vector<std::string> parse_into_lines(const std::string& script);
+    bool needs_additional_input(const std::vector<std::string>& lines);
 
     enum class ErrorCategory : std::uint8_t {
         SYNTAX,

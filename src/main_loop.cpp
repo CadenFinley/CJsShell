@@ -15,6 +15,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <vector>
 
 #ifdef __APPLE__
 #include <AvailabilityMacros.h>
@@ -350,6 +351,68 @@ bool should_show_creator_line() {
     return value == "1" || value == "true" || value == "yes" || value == "on";
 }
 
+bool buffer_has_line_continuation_suffix(const std::string& buffer) {
+    if (buffer.empty()) {
+        return false;
+    }
+
+    size_t pos = buffer.size();
+    while (pos > 0 && (buffer[pos - 1] == '\n' || buffer[pos - 1] == '\r')) {
+        --pos;
+    }
+    while (pos > 0 && (buffer[pos - 1] == ' ' || buffer[pos - 1] == '\t')) {
+        --pos;
+    }
+
+    if (pos == 0 || buffer[pos - 1] != '\\') {
+        return false;
+    }
+
+    size_t slash_count = 0;
+    while (pos > 0 && buffer[pos - 1] == '\\') {
+        ++slash_count;
+        --pos;
+    }
+
+    return (slash_count % 2) == 1;
+}
+
+bool buffer_requires_additional_input(const std::string& buffer) {
+    if (buffer.empty()) {
+        return false;
+    }
+
+    if (buffer_has_line_continuation_suffix(buffer)) {
+        return true;
+    }
+
+    if (g_shell == nullptr) {
+        return false;
+    }
+
+    Parser* parser = g_shell->get_parser();
+    ShellScriptInterpreter* interpreter = g_shell->get_shell_script_interpreter();
+    if (parser == nullptr || interpreter == nullptr) {
+        return false;
+    }
+
+    std::vector<std::string> lines = parser->parse_into_lines(buffer);
+    if (lines.empty()) {
+        return false;
+    }
+
+    return interpreter->needs_additional_input(lines);
+}
+
+bool continuation_or_return_callback(const char* input_buffer, void*) {
+    if (input_buffer == nullptr) {
+        return true;
+    }
+
+    std::string buffer(input_buffer);
+    return !buffer_requires_additional_input(buffer);
+}
+
 }  // namespace
 
 void initialize_isocline() {
@@ -359,6 +422,7 @@ void initialize_isocline() {
     ic_set_prompt_marker("", nullptr);
     ic_set_unhandled_key_handler(handle_runoff_bind, nullptr);
     ic_set_status_message_callback(status_line::create_below_syntax_message, nullptr);
+    ic_set_check_for_continuation_or_return_callback(continuation_or_return_callback, nullptr);
     if (!config::status_line_enabled) {
         (void)ic_set_status_hint_mode(IC_STATUS_HINT_OFF);
     }

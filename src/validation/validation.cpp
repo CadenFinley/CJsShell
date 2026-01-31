@@ -100,6 +100,51 @@ void emit_validation_errors(const std::vector<SyntaxError>& errors) {
     }
 }
 
+bool message_contains_any(const std::string& haystack, std::initializer_list<const char*> needles) {
+    for (const char* needle : needles) {
+        if (needle != nullptr && *needle != '\0' && haystack.find(needle) != std::string::npos) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool syntax_error_indicates_incomplete(const SyntaxError& error) {
+    const std::string& code = error.error_code;
+    const std::string& message = error.message;
+
+    if (code == "SYN001" || code == "SYN007") {
+        return message_contains_any(message, {"Unclosed", "Unmatched opening", "missing '"});
+    }
+
+    if (code == "SYN002") {
+        return message_contains_any(message, {"incomplete", "missing", "without done"});
+    }
+
+    if (code == "SYN003" || code == "SYN004") {
+        return message_contains_any(message, {"missing", "Unclosed"});
+    }
+
+    if (code == "SYN008") {
+        return message_contains_any(message, {"missing", "incomplete"});
+    }
+
+    if (code == "SYN012") {
+        return message_contains_any(message, {"without condition"});
+    }
+
+    return false;
+}
+
+bool has_incomplete_construct_errors(const std::vector<SyntaxError>& errors) {
+    for (const auto& error : errors) {
+        if (syntax_error_indicates_incomplete(error)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool has_inline_terminator(const std::string& text, const std::string& terminator) {
     auto is_boundary = [](char ch) {
         if (ch == '\0' || ch == ';' || ch == '(' || ch == ')' || ch == '{' || ch == '}' ||
@@ -779,6 +824,26 @@ bool ShellScriptInterpreter::has_syntax_errors(const std::vector<std::string>& l
     }
 
     return has_blocking_errors;
+}
+
+bool ShellScriptInterpreter::needs_additional_input(const std::vector<std::string>& lines) {
+    if (lines.empty()) {
+        return false;
+    }
+
+    if (has_incomplete_construct_errors(validate_script_syntax(lines))) {
+        return true;
+    }
+
+    if (has_incomplete_construct_errors(validate_loop_syntax(lines))) {
+        return true;
+    }
+
+    if (has_incomplete_construct_errors(validate_conditional_syntax(lines))) {
+        return true;
+    }
+
+    return false;
 }
 
 std::vector<ShellScriptInterpreter::SyntaxError>
