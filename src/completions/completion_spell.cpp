@@ -99,6 +99,9 @@ void add_spell_correction_matches(
                   if (a.is_transposition != b.is_transposition) {
                       return a.is_transposition && !b.is_transposition;
                   }
+                  if (a.shared_prefix_len != b.shared_prefix_len) {
+                      return a.shared_prefix_len > b.shared_prefix_len;
+                  }
                   return a.candidate < b.candidate;
               });
 

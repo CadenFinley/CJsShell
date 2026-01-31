@@ -270,6 +270,19 @@ ic_private const char* completions_get_source(completions_t* cms, ssize_t index)
     return cm->source;
 }
 
+ic_private bool completions_all_sources_equal(completions_t* cms, const char* source) {
+    if (cms == NULL || source == NULL || cms->count <= 0)
+        return false;
+    for (ssize_t i = 0; i < cms->count; ++i) {
+        completion_t* cm = completions_get(cms, i);
+        if (cm == NULL || cm->source == NULL)
+            return false;
+        if (strcmp(cm->source, source) != 0)
+            return false;
+    }
+    return true;
+}
+
 ic_private const char* completions_get_hint(completions_t* cms, ssize_t index, const char** help) {
     if (help != NULL) {
         *help = NULL;
@@ -411,6 +424,11 @@ ic_private ssize_t completions_apply_longest_prefix(completions_t* cms, stringbu
         }
 
         final_prefix[idx] = '\0';
+
+        if (prefix_len > 0 && original_prefix != NULL) {
+            if (memcmp(final_prefix, original_prefix, prefix_len) != 0)
+                continue;
+        }
 
         if (!common_initialized) {
             memcpy(common, final_prefix, idx + 1);
