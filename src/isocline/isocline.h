@@ -138,6 +138,24 @@ typedef const char*(ic_status_message_fun_t)(const char* input_buffer, void* arg
 /// @param arg User-provided argument forwarded to the callback
 void ic_set_status_message_callback(ic_status_message_fun_t* callback, void* arg);
 
+/// Callback invoked when isocline is about to submit the current buffer.
+/// Return `true` to exit the readline loop and hand the buffer back to the caller.
+/// Return `false` to keep editing; isocline inserts a newline (when multiline editing is enabled)
+/// and continues reading input.
+/// @param input_buffer Current UTF-8 buffer contents (never NULL; empty string when buffer is
+/// empty)
+/// @param arg User-provided argument passed to ic_set_check_for_continuation_or_return_callback()
+typedef bool(ic_check_for_continuation_or_return_fun_t)(const char* input_buffer, void* arg);
+
+/// Configure the continuation-or-return callback.
+/// The callback runs whenever the user presses Enter, when ic_request_submit() fires, and when
+/// the initial buffer ends with a newline. Pass NULL to restore the default behavior (always
+/// submit immediately).
+/// @param callback The callback that decides whether to exit the readline loop.
+/// @param arg User-provided argument forwarded to the callback
+void ic_set_check_for_continuation_or_return_callback(
+    ic_check_for_continuation_or_return_fun_t* callback, void* arg);
+
 /// Controls when the built-in status hint line (the underlined control hints) is displayed.
 /// - `IC_STATUS_HINT_OFF`: never show the built-in hints.
 /// - `IC_STATUS_HINT_NORMAL`: show only when both the input buffer and the status line are empty.

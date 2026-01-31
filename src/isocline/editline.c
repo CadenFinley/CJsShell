@@ -2336,6 +2336,21 @@ static bool edit_update_status_message(ic_env_t* env, editor_t* eb) {
     return changed;
 }
 
+static bool edit_should_submit_current_buffer(ic_env_t* env, editor_t* eb) {
+    if (env == NULL || eb == NULL)
+        return true;
+
+    ic_check_for_continuation_or_return_fun_t* callback = env->continuation_check_callback;
+    if (callback == NULL)
+        return true;
+
+    const char* buffer = sbuf_string(eb->input);
+    if (buffer == NULL)
+        buffer = "";
+
+    return callback(buffer, env->continuation_check_arg);
+}
+
 static void edit_release_editor(ic_env_t* env, editor_t* eb) {
     if (env == NULL || eb == NULL)
         return;
@@ -2436,9 +2451,12 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
 
     // process keys
     code_t c = KEY_NONE;  // current key code
+    bool has_pending_key = false;
+    code_t pending_key = KEY_NONE;
     bool ctrl_c_pressed = false;
     bool ctrl_d_pressed = false;
 
+edit_loop_entry:
     if (!initial_requests_submit) {
         while (true) {
             if (edit_update_status_message(env, &eb)) {
@@ -2449,25 +2467,30 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
                 }
             }
 
-            // read a character
-            term_flush(env->term);
-            if (env->hint_delay <= 0 || sbuf_len(eb.hint) == 0) {
-                // blocking read
-                c = tty_read(env->tty);
+            if (has_pending_key) {
+                c = pending_key;
+                has_pending_key = false;
             } else {
-                // timeout to display hint
-                if (!tty_read_timeout(env->tty, env->hint_delay, &c)) {
-                    // timed-out
-                    if (sbuf_len(eb.hint) > 0) {
-                        // display hint
-                        edit_refresh(env, &eb);
-                    }
+                // read a character
+                term_flush(env->term);
+                if (env->hint_delay <= 0 || sbuf_len(eb.hint) == 0) {
+                    // blocking read
                     c = tty_read(env->tty);
                 } else {
-                    // clear the pending hint if we got input before the delay
-                    // expired
-                    sbuf_clear(eb.hint);
-                    sbuf_clear(eb.hint_help);
+                    // timeout to display hint
+                    if (!tty_read_timeout(env->tty, env->hint_delay, &c)) {
+                        // timed-out
+                        if (sbuf_len(eb.hint) > 0) {
+                            // display hint
+                            edit_refresh(env, &eb);
+                        }
+                        c = tty_read(env->tty);
+                    } else {
+                        // clear the pending hint if we got input before the delay
+                        // expired
+                        sbuf_clear(eb.hint);
+                        sbuf_clear(eb.hint_help);
+                    }
                 }
             }
 
@@ -2736,11 +2759,25 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
                 }
 
             if (request_submit || eb.request_submit) {
+                bool should_submit = edit_should_submit_current_buffer(env, &eb);
+                if (!should_submit && !env->singleline_only) {
+                    request_submit = false;
+                    eb.request_submit = false;
+                    has_pending_key = true;
+                    pending_key = KEY_LINEFEED;
+                    continue;
+                }
                 c = KEY_ENTER;
                 break;
             }
         }
     } else {
+        if (!edit_should_submit_current_buffer(env, &eb) && !env->singleline_only) {
+            initial_requests_submit = false;
+            has_pending_key = true;
+            pending_key = KEY_LINEFEED;
+            goto edit_loop_entry;
+        }
         c = KEY_ENTER;
     }
 

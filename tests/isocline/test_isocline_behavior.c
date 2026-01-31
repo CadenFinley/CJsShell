@@ -78,6 +78,11 @@ static stringbuf_t* new_stringbuf(void) {
     return sbuf_new(mem);
 }
 
+static bool stub_continuation_checker(const char* buffer, void* arg) {
+    (void)buffer;
+    return (arg != NULL);
+}
+
 static bool test_multiline_toggle(void) {
     ic_env_t* env = ensure_env();
     if (env == NULL)
@@ -305,6 +310,29 @@ static bool test_editline_buffer_api_without_editor(void) {
     return true;
 }
 
+static bool test_continuation_callback_registration(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    env->continuation_check_callback = NULL;
+    env->continuation_check_arg = NULL;
+
+    ic_set_check_for_continuation_or_return_callback(stub_continuation_checker, (void*)0x1);
+    EXPECT_TRUE(env->continuation_check_callback == stub_continuation_checker,
+                "setter should store continuation callback pointer");
+    EXPECT_TRUE(env->continuation_check_arg == (void*)0x1,
+                "setter should store continuation callback argument");
+
+    ic_set_check_for_continuation_or_return_callback(NULL, NULL);
+    EXPECT_TRUE(env->continuation_check_callback == NULL,
+                "clearing continuation callback should reset pointer");
+    EXPECT_TRUE(env->continuation_check_arg == NULL,
+                "clearing continuation callback should reset argument");
+
+    return true;
+}
+
 static bool test_completion_generation_and_apply(void) {
     ic_env_t* env = ensure_env();
     if (env == NULL)
@@ -472,6 +500,7 @@ static const test_case_t kTests[] = {
     {"prompt_cleanup_modes", test_prompt_cleanup_modes},
     {"multiline_start_line_count_clamp", test_multiline_start_line_count_clamp},
     {"editline_buffer_api_without_editor", test_editline_buffer_api_without_editor},
+    {"continuation_callback_registration", test_continuation_callback_registration},
     {"completion_generation_and_apply", test_completion_generation_and_apply},
     {"history_dedup_snapshot", test_history_dedup_snapshot},
     {"line_wrapping_calculations", test_line_wrapping_calculations},

@@ -68,31 +68,34 @@ struct ic_env_s {
     void* unhandled_key_arg;                           // user state for unhandled key handler
     ic_status_message_fun_t* status_message_callback;  // callback for status message text
     void* status_message_arg;                          // user state for status callback
-    ic_status_hint_mode_t status_hint_mode;            // rendering behavior for default hints
-    const char* match_braces;                          // matching braces, e.g "()[]{}"
-    const char* auto_braces;                           // auto insertion braces, e.g "()[]{}\"\"''"
-    const char* initial_input;                         // initial input text to insert into editor
-    char multiline_eol;                  // character used for multiline input ("\") (set to 0
-                                         // to disable)
-    bool initialized;                    // are we initialized?
-    bool noedit;                         // is rich editing possible (tty != NULL)
-    bool singleline_only;                // allow only single line editing?
-    bool complete_nopreview;             // do not show completion preview for each
-                                         // selection in the completion menu?
-    bool complete_autotab;               // try to keep completing after a completion?
-    bool no_multiline_indent;            // indent continuation lines to line up under the
-                                         // initial prompt
-    bool no_help;                        // show short help line for history search etc.
-    bool no_hint;                        // allow hinting?
-    bool no_highlight;                   // enable highlighting?
-    bool no_bracematch;                  // enable brace matching?
-    bool no_autobrace;                   // enable automatic brace insertion?
-    bool no_lscolors;                    // use LSCOLORS/LS_COLORS to colorize file name
-                                         // completions?
-    bool spell_correct;                  // enable spell correction on completions?
-    bool show_line_numbers;              // show line numbers in multiline mode?
-    bool relative_line_numbers;          // use relative line numbers when enabled?
-    bool highlight_current_line_number;  // highlight the current line number differently?
+    ic_check_for_continuation_or_return_fun_t*
+        continuation_check_callback;         // callback that decides whether to submit or continue
+    void* continuation_check_arg;            // user state for the continuation callback
+    ic_status_hint_mode_t status_hint_mode;  // rendering behavior for default hints
+    const char* match_braces;                // matching braces, e.g "()[]{}"
+    const char* auto_braces;                 // auto insertion braces, e.g "()[]{}\"\"''"
+    const char* initial_input;               // initial input text to insert into editor
+    char multiline_eol;                      // character used for multiline input ("\") (set to 0
+                                             // to disable)
+    bool initialized;                        // are we initialized?
+    bool noedit;                             // is rich editing possible (tty != NULL)
+    bool singleline_only;                    // allow only single line editing?
+    bool complete_nopreview;                 // do not show completion preview for each
+                                             // selection in the completion menu?
+    bool complete_autotab;                   // try to keep completing after a completion?
+    bool no_multiline_indent;                // indent continuation lines to line up under the
+                                             // initial prompt
+    bool no_help;                            // show short help line for history search etc.
+    bool no_hint;                            // allow hinting?
+    bool no_highlight;                       // enable highlighting?
+    bool no_bracematch;                      // enable brace matching?
+    bool no_autobrace;                       // enable automatic brace insertion?
+    bool no_lscolors;                        // use LSCOLORS/LS_COLORS to colorize file name
+                                             // completions?
+    bool spell_correct;                      // enable spell correction on completions?
+    bool show_line_numbers;                  // show line numbers in multiline mode?
+    bool relative_line_numbers;              // use relative line numbers when enabled?
+    bool highlight_current_line_number;      // highlight the current line number differently?
     bool allow_line_numbers_with_continuation_prompt;  // keep line numbers when continuation
                                                        // prompts are active?
     bool replace_prompt_line_with_line_number;         // swap final prompt line with line numbers?

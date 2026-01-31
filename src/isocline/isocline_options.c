@@ -656,6 +656,15 @@ ic_public void ic_set_status_message_callback(ic_status_message_fun_t* callback,
     env->status_message_arg = arg;
 }
 
+ic_public void ic_set_check_for_continuation_or_return_callback(
+    ic_check_for_continuation_or_return_fun_t* callback, void* arg) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return;
+    env->continuation_check_callback = callback;
+    env->continuation_check_arg = arg;
+}
+
 ic_public void ic_free(void* p) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)
