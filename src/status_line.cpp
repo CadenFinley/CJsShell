@@ -3,17 +3,30 @@
 #include <algorithm>
 #include <cctype>
 #include <exception>
+#include <filesystem>
+#include <optional>
 #include <string>
+#include <system_error>
+#include <unordered_set>
 #include <vector>
 
 #include "cjsh.h"
+#include "cjsh_filesystem.h"
+#include "completions/suggestion_utils.h"
 #include "error_out.h"
+#include "highlighter/token_classifier.h"
 #include "interpreter.h"
 #include "shell.h"
 #include "shell_env.h"
+#include "utils/quote_state.h"
 
 namespace status_line {
 namespace {
+
+struct UnknownCommandInfo {
+    std::string command;
+    std::vector<std::string> suggestions;
+};
 
 std::string sanitize_for_status(const std::string& text) {
     if (text.empty()) {
@@ -63,6 +76,397 @@ std::string sanitize_for_status(const std::string& text) {
     }
 
     return sanitized;
+}
+
+bool extract_next_token(const std::string& cmd, size_t& cursor, size_t& token_start,
+                        size_t& token_end) {
+    const size_t len = cmd.length();
+
+    while (cursor < len && (std::isspace(static_cast<unsigned char>(cmd[cursor])) != 0)) {
+        ++cursor;
+    }
+
+    if (cursor >= len) {
+        return false;
+    }
+
+    size_t start = cursor;
+    utils::QuoteState quote_state;
+
+    while (cursor < len) {
+        char ch = cmd[cursor];
+        auto action = quote_state.consume_forward(ch);
+        if (action == utils::QuoteAdvanceResult::Process && !quote_state.inside_quotes() &&
+            (std::isspace(static_cast<unsigned char>(ch)) != 0)) {
+            break;
+        }
+        ++cursor;
+    }
+
+    token_start = start;
+    token_end = cursor;
+    return true;
+}
+
+bool token_has_explicit_path_hint(const std::string& token) {
+    if (token.empty()) {
+        return false;
+    }
+
+    if (token[0] == '/') {
+        return true;
+    }
+
+    return token.rfind("./", 0) == 0 || token.rfind("../", 0) == 0 || token.rfind("~/", 0) == 0 ||
+           token.rfind("-/", 0) == 0 || token.find('/') != std::string::npos;
+}
+
+std::string resolve_token_path(const std::string& token, Shell* shell) {
+    std::string path_to_check = token;
+
+    if (token.rfind("~/", 0) == 0) {
+        path_to_check = cjsh_filesystem::g_user_home_path().string() + token.substr(1);
+    } else if (token.rfind("-/", 0) == 0) {
+        if (shell != nullptr) {
+            std::string prev_dir = shell->get_previous_directory();
+            if (!prev_dir.empty()) {
+                path_to_check = prev_dir + token.substr(1);
+            }
+        }
+    } else if (token[0] != '/' && token.rfind("./", 0) != 0 && token.rfind("../", 0) != 0 &&
+               token.rfind("~/", 0) != 0 && token.rfind("-/", 0) != 0) {
+        path_to_check = cjsh_filesystem::safe_current_directory() + "/" + token;
+    }
+
+    return path_to_check;
+}
+
+bool token_is_history_expansion(const std::string& token, size_t absolute_cmd_start) {
+    if (!config::history_expansion_enabled || token.empty()) {
+        return false;
+    }
+
+    if (token[0] == '!') {
+        return true;
+    }
+
+    if (token[0] == '^' && absolute_cmd_start == 0) {
+        return true;
+    }
+
+    return false;
+}
+
+bool is_known_command_token(const std::string& token, size_t absolute_cmd_start, Shell* shell,
+                            const std::unordered_set<std::string>& available_commands) {
+    using namespace token_classifier;
+
+    if (token.empty()) {
+        return true;
+    }
+
+    if (is_variable_reference(token)) {
+        return true;
+    }
+
+    if (token_is_history_expansion(token, absolute_cmd_start)) {
+        return true;
+    }
+
+    if (token_has_explicit_path_hint(token)) {
+        std::string path_to_check = resolve_token_path(token, shell);
+        std::error_code ec;
+        if (std::filesystem::exists(path_to_check, ec)) {
+            return true;
+        }
+        return false;
+    }
+
+    if (shell != nullptr && shell->get_interactive_mode()) {
+        const auto& abbreviations = shell->get_abbreviations();
+        if (abbreviations.find(token) != abbreviations.end()) {
+            return true;
+        }
+    }
+
+    if (is_shell_keyword(token) || is_shell_builtin(token)) {
+        return true;
+    }
+
+    if (available_commands.find(token) != available_commands.end()) {
+        return true;
+    }
+
+    if (is_external_command(token)) {
+        return true;
+    }
+
+    return false;
+}
+
+bool has_exited_token_context(const std::string& input, size_t absolute_token_end) {
+    if (absolute_token_end >= input.size()) {
+        return false;
+    }
+
+    char next_char = input[absolute_token_end];
+    if ((std::isspace(static_cast<unsigned char>(next_char)) != 0)) {
+        return true;
+    }
+
+    return next_char == '|' || next_char == '&' || next_char == ';';
+}
+
+std::vector<std::string> extract_candidate_commands(const std::vector<std::string>& suggestions) {
+    std::vector<std::string> commands;
+    commands.reserve(std::min<size_t>(suggestions.size(), 3));
+
+    for (const auto& suggestion : suggestions) {
+        size_t first_quote = suggestion.find('\'');
+        if (first_quote == std::string::npos) {
+            continue;
+        }
+        size_t second_quote = suggestion.find('\'', first_quote + 1);
+        if (second_quote == std::string::npos || second_quote <= first_quote + 1) {
+            continue;
+        }
+
+        commands.emplace_back(suggestion.substr(first_quote + 1, second_quote - first_quote - 1));
+        if (commands.size() == 3) {
+            break;
+        }
+    }
+
+    return commands;
+}
+
+UnknownCommandInfo build_unknown_command_info(const std::string& token) {
+    UnknownCommandInfo info;
+    info.command = token;
+    auto suggestions = suggestion_utils::generate_command_suggestions(token);
+    info.suggestions = extract_candidate_commands(suggestions);
+    return info;
+}
+
+std::string sanitize_input_for_analysis(const std::string& input) {
+    std::string sanitized = input;
+    size_t len = input.size();
+    bool in_quotes = false;
+    char quote_char = '\0';
+    bool escaped = false;
+
+    size_t i = 0;
+    while (i < len) {
+        char c = input[i];
+
+        if (escaped) {
+            escaped = false;
+            ++i;
+            continue;
+        }
+
+        if (c == '\\' && (!in_quotes || quote_char != '\'')) {
+            escaped = true;
+            ++i;
+            continue;
+        }
+
+        if ((c == '\"' || c == '\'') && !in_quotes) {
+            in_quotes = true;
+            quote_char = c;
+            ++i;
+            continue;
+        }
+
+        if (c == quote_char && in_quotes) {
+            in_quotes = false;
+            quote_char = '\0';
+            ++i;
+            continue;
+        }
+
+        if (!in_quotes && c == '#') {
+            size_t comment_end = i;
+            while (comment_end < len && input[comment_end] != '\n' && input[comment_end] != '\r') {
+                sanitized[comment_end] = ' ';
+                comment_end++;
+            }
+            i = comment_end;
+            continue;
+        }
+
+        ++i;
+    }
+
+    return sanitized;
+}
+
+std::optional<UnknownCommandInfo> analyze_command_range(
+    Shell* shell, const std::string& original_input, const std::string& analysis,
+    const std::unordered_set<std::string>& available_commands, size_t cmd_start, size_t cmd_end) {
+    std::string cmd_str = analysis.substr(cmd_start, cmd_end - cmd_start);
+
+    size_t token_cursor = 0;
+    size_t first_token_start = 0;
+    size_t first_token_end = 0;
+    if (!extract_next_token(cmd_str, token_cursor, first_token_start, first_token_end)) {
+        return std::nullopt;
+    }
+
+    std::string token = cmd_str.substr(first_token_start, first_token_end - first_token_start);
+    size_t absolute_token_end = cmd_start + first_token_end;
+
+    bool token_unknown =
+        !is_known_command_token(token, cmd_start, shell, available_commands) && !token.empty();
+    if (token_unknown && has_exited_token_context(original_input, absolute_token_end)) {
+        return build_unknown_command_info(token);
+    }
+
+    if (token == "sudo") {
+        size_t arg_cursor = token_cursor;
+        size_t arg_start = 0;
+        size_t arg_end = 0;
+        if (extract_next_token(cmd_str, arg_cursor, arg_start, arg_end)) {
+            std::string arg = cmd_str.substr(arg_start, arg_end - arg_start);
+            size_t absolute_arg_end = cmd_start + arg_end;
+            bool arg_unknown =
+                !is_known_command_token(arg, cmd_start + arg_start, shell, available_commands) &&
+                !arg.empty();
+            if (arg_unknown && has_exited_token_context(original_input, absolute_arg_end)) {
+                return build_unknown_command_info(arg);
+            }
+        }
+    }
+
+    return std::nullopt;
+}
+
+std::optional<UnknownCommandInfo> detect_unknown_command(Shell* shell,
+                                                         const std::string& original_input) {
+    if (shell == nullptr || original_input.empty()) {
+        return std::nullopt;
+    }
+
+    std::string analysis = sanitize_input_for_analysis(original_input);
+    if (analysis.empty()) {
+        return std::nullopt;
+    }
+
+    std::unordered_set<std::string> available_commands = shell->get_available_commands();
+
+    size_t len = analysis.length();
+    size_t pos = 0;
+    while (pos < len) {
+        size_t cmd_end = pos;
+        utils::QuoteState cmd_quote_state;
+        while (cmd_end < len) {
+            char current = analysis[cmd_end];
+            auto action = cmd_quote_state.consume_forward(current);
+            if (action == utils::QuoteAdvanceResult::Process && !cmd_quote_state.inside_quotes()) {
+                if ((cmd_end + 1 < len && analysis[cmd_end] == '&' &&
+                     analysis[cmd_end + 1] == '&') ||
+                    (cmd_end + 1 < len && analysis[cmd_end] == '|' &&
+                     analysis[cmd_end + 1] == '|') ||
+                    analysis[cmd_end] == '|' || analysis[cmd_end] == ';' ||
+                    analysis[cmd_end] == '\n' || analysis[cmd_end] == '\r') {
+                    break;
+                }
+            }
+            cmd_end++;
+        }
+
+        size_t cmd_start = pos;
+        while (cmd_start < cmd_end &&
+               (std::isspace(static_cast<unsigned char>(analysis[cmd_start])) != 0)) {
+            cmd_start++;
+        }
+
+        if (cmd_start < cmd_end) {
+            auto unknown_info = analyze_command_range(shell, original_input, analysis,
+                                                      available_commands, cmd_start, cmd_end);
+            if (unknown_info.has_value()) {
+                return unknown_info;
+            }
+        }
+
+        pos = cmd_end;
+        if (pos < len) {
+            if (pos + 1 < len && ((analysis[pos] == '&' && analysis[pos + 1] == '&') ||
+                                  (analysis[pos] == '|' && analysis[pos + 1] == '|') ||
+                                  (analysis[pos] == '>' && analysis[pos + 1] == '>') ||
+                                  (analysis[pos] == '<' && analysis[pos + 1] == '<') ||
+                                  (analysis[pos] == '&' && analysis[pos + 1] == '>'))) {
+                pos += 2;
+            } else if (analysis[pos] == '|' || analysis[pos] == ';' || analysis[pos] == '>' ||
+                       analysis[pos] == '<' ||
+                       (analysis[pos] == '&' && (pos == len - 1 || analysis[pos + 1] != '&'))) {
+                pos += 1;
+            } else {
+                if (analysis[pos] == '\r' && pos + 1 < len && analysis[pos + 1] == '\n') {
+                    pos += 2;
+                } else {
+                    pos += 1;
+                }
+            }
+        }
+    }
+
+    return std::nullopt;
+}
+
+std::string format_suggestion_list(const std::vector<std::string>& suggestions) {
+    if (suggestions.empty()) {
+        return {};
+    }
+
+    std::vector<std::string> sanitized;
+    sanitized.reserve(suggestions.size());
+    for (const auto& entry : suggestions) {
+        std::string cleaned = sanitize_for_status(entry);
+        if (!cleaned.empty()) {
+            sanitized.push_back(cleaned);
+        }
+    }
+
+    if (sanitized.empty()) {
+        return {};
+    }
+
+    if (sanitized.size() == 1) {
+        return sanitized.front();
+    }
+
+    if (sanitized.size() == 2) {
+        return sanitized[0] + " or " + sanitized[1];
+    }
+
+    std::string result = sanitized[0];
+    result.append(", ");
+    result.append(sanitized[1]);
+    result.append(", or ");
+    result.append(sanitized[2]);
+    return result;
+}
+
+std::string format_unknown_command_message(const UnknownCommandInfo& info) {
+    std::string sanitized_command = sanitize_for_status(info.command);
+    if (sanitized_command.empty()) {
+        sanitized_command = info.command;
+    }
+
+    std::string message = "Unknown command: ";
+    message.append(sanitized_command);
+
+    if (!info.suggestions.empty()) {
+        std::string suggestion_text = format_suggestion_list(info.suggestions);
+        if (!suggestion_text.empty()) {
+            message.append(" | Did you mean: ");
+            message.append(suggestion_text);
+            message.push_back('?');
+        }
+    }
+
+    return message;
 }
 
 const char* severity_to_label(ErrorSeverity severity) {
@@ -325,7 +729,22 @@ const char* create_below_syntax_message(const char* input_buffer, void*) {
         return status_message.c_str();
     }
 
-    status_message = build_validation_status_message(errors);
+    std::optional<UnknownCommandInfo> unknown_info = detect_unknown_command(shell, current_input);
+    std::string validation_message = build_validation_status_message(errors);
+
+    std::string combined_message;
+    if (unknown_info.has_value()) {
+        combined_message = format_unknown_command_message(*unknown_info);
+    }
+
+    if (!validation_message.empty()) {
+        if (!combined_message.empty()) {
+            combined_message.push_back('\n');
+        }
+        combined_message.append(validation_message);
+    }
+
+    status_message = std::move(combined_message);
     if (status_message.empty()) {
         return nullptr;
     }
