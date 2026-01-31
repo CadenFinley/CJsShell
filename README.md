@@ -1,6 +1,6 @@
 # CJ's Shell (cjsh) <a href="https://github.com/CadenFinley/CJsShell/actions/workflows/ci.yml"><img src="https://github.com/CadenFinley/CJsShell/actions/workflows/ci.yml/badge.svg" alt="CI"></a> <a href="https://app.codacy.com/gh/CadenFinley/CJsShell/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade"><img src="https://app.codacy.com/project/badge/Grade/4e33a26accb6450da43c91c7b8e872e7" alt="Codacy Badge"></a> <a href="https://cadenfinley.github.io/CJsShell/"><img src="https://img.shields.io/badge/docs-GitHub%20Pages-blue" alt="Documentation"></a> <img src="https://img.shields.io/github/repo-size/CadenFinley/CJsShell" alt="Repo Size">
 
-<p align="center"><strong>POSIX Shell Scripting meets Modern Shell Features.</strong></p>
+<p align="center"><strong>POSIX Shell Scripting meets Modern Shell Features</strong></p>
 <img align="center" src="docs/cjsh_recording.svg"/>
 <p align="left">We're gonna need a longer svg to show all of the features cjsh has ;)</p>
 
