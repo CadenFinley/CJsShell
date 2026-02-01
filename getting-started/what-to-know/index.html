@@ -1469,7 +1469,8 @@ Smart <code>cd</code> adds fuzzy directory matching for quick navigation between
 <h2 id="history-features">History Features</h2>
 <ul>
 <li><strong>History expansions:</strong> Enabled in interactive sessions (<code>!!</code>, <code>!$</code>, etc.). Disable with <code>cjsh --no-history-expansion</code> or persist by adding <code>cjshopt login-startup-arg --no-history-expansion</code> to <code>~/.cjprofile</code>.</li>
-<li><strong>Reverse search:</strong> Press <code>Ctrl+R</code> for fuzzy, incremental history search.</li>
+<li><strong>Reverse search:</strong> Press <code>Ctrl+R</code> for the fuzzy history search menu (use <code>Alt+C</code> inside it to toggle case sensitivity).</li>
+<li><strong>History search case sensitivity:</strong> Matching is case-sensitive by default; adjust with <code>cjshopt history-search-case on|off|status</code> to set the default for every session.</li>
 <li><strong>Persistence:</strong> History entries are appended to <code>~/.cache/cjsh/history.txt</code>; duplicate commands are suppressed by default.</li>
 <li><strong>Retention:</strong> Adjust limits with <code>cjshopt set-history-max &lt;number|default|status&gt;</code> (any non-negative value; default 1000 entries).</li>
 </ul>

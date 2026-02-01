@@ -1854,6 +1854,7 @@ By default, duplicate entries are not stored in history to keep it clean and rel
 - <code>↓</code> (Down Arrow): Next command
 - <code>Alt+&lt;</code>: Jump to oldest history entry
 - <code>Alt+&gt;</code>: Jump to newest history entry</p>
+<p>Control whether the fuzzy history search menu matches case-sensitively with <code>cjshopt history-search-case &lt;on|off|status&gt;</code> or press <code>Alt+C</code> inside the menu to flip modes on the fly. Turning case sensitivity off lets uppercase queries (for example, <code>LS</code>) match lowercase history entries (<code>ls</code>) when filtering.</p>
 <h2 id="key-bindings">Key Bindings</h2>
 <p>CJ's Shell supports customizable key bindings with multiple profiles.</p>
 <h3 id="key-binding-profiles">Key Binding Profiles</h3>
@@ -1889,8 +1890,9 @@ By default, duplicate entries are not stored in history to keep it clean and rel
 </ul>
 <h4 id="history">History</h4>
 <ul>
-<li><code>Ctrl+R</code>: Incremental history search (reverse)</li>
-<li><code>Ctrl+S</code>: Incremental history search (forward)</li>
+<li><code>Ctrl+R</code>: Open the fuzzy history search menu (reverse search)</li>
+<li><code>Ctrl+S</code>: Open the fuzzy history search menu (forward search)</li>
+<li><code>Alt+C</code>: Toggle case sensitivity while the fuzzy history search menu is open</li>
 <li><code>↑</code>: Previous history entry</li>
 <li><code>↓</code>: Next history entry</li>
 <li><code>Alt+&lt;</code>: First history entry</li>
