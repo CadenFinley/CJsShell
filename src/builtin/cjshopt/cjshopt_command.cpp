@@ -17,6 +17,8 @@ void print_cjshopt_usage() {
     std::cout << "  login-startup-arg [--flag-name]  Add a startup flag (config file only)\n";
     std::cout << "  completion-case <on|off|status>  Configure completion case sensitivity "
                  "(default: enabled)\n";
+    std::cout << "  history-search-case <on|off|status>  Configure fuzzy history case sensitivity "
+                 "(default: enabled)\n";
     std::cout << "  completion-spell <on|off|status> Configure completion spell correction "
                  "(default: enabled)\n";
     std::cout << "  completion-learning <on|off|status> Toggle automatic completion learning "
@@ -97,6 +99,9 @@ int cjshopt_command(const std::vector<std::string>& args) {
                  "  login-startup-arg [--flag-name]  Add a startup flag (config file only)",
                  std::string("  completion-case <on|off|status>  Configure completion case ") +
                      "sensitivity (default: disabled)",
+                 std::string(
+                     "  history-search-case <on|off|status>  Configure fuzzy history case ") +
+                     "sensitivity (default: enabled)",
                  std::string("  completion-spell <on|off|status> Configure completion spell ") +
                      "correction (default: enabled)",
                  std::string("  completion-learning <on|off|status> Toggle automatic completion ") +
@@ -179,6 +184,9 @@ int cjshopt_command(const std::vector<std::string>& args) {
     }
     if (subcommand == "completion-case") {
         return completion_case_command(std::vector<std::string>(args.begin() + 1, args.end()));
+    }
+    if (subcommand == "history-search-case") {
+        return history_search_case_command(std::vector<std::string>(args.begin() + 1, args.end()));
     }
     if (subcommand == "completion-spell") {
         return completion_spell_command(std::vector<std::string>(args.begin() + 1, args.end()));
@@ -282,7 +290,8 @@ int cjshopt_command(const std::vector<std::string>& args) {
         {ErrorType::INVALID_ARGUMENT,
          "cjshopt",
          "unknown subcommand '" + subcommand + "'",
-         {"Available subcommands: style_def, login-startup-arg, completion-case, completion-spell, "
+         {"Available subcommands: style_def, login-startup-arg, completion-case, "
+          "history-search-case, completion-spell, "
           "completion-learning, "
           "line-numbers, line-numbers-continuation, line-numbers-replace-prompt, "
           "current-line-number-highlight, multiline-start-lines, hint-delay, "

@@ -61,6 +61,9 @@ Consult the [Completion Authoring Guide](completions.md) for cache format and cu
   `--no-history-expansion` or `cjshopt login-startup-arg --no-history-expansion` to turn it off.
 - **Persistent exit codes** – Each history entry records the command's exit status to enrich
   completions and prompts.
+- **Fuzzy history case sensitivity** – `cjshopt history-search-case` toggles whether the search menu
+  treats uppercase and lowercase entries as distinct (press `Alt+C` inside the menu to flip the
+  setting temporarily).
 - **Typeahead buffering** – Key presses made while a command runs are replayed automatically once
   the prompt returns.
 

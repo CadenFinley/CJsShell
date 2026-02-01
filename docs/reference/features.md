@@ -27,7 +27,9 @@ Powered by the embedded [isocline](https://github.com/cadenfinley/isocline) edit
     from your `PATH` and cached man-page metadata.
 - **Inline hints & preview** with configurable delays, spell correction, and case sensitivity.
 - **Advanced history** – reverse search (`Ctrl+R`), deduplicated persistent history with exit codes,
-    and bash-style history expansion that auto-disables in non-interactive contexts.
+    and bash-style history expansion that auto-disables in non-interactive contexts. Configure
+    whether the fuzzy history menu matches case-sensitively with `cjshopt history-search-case` or
+    flip it on the fly with `Alt+C` inside the menu.
 - **Custom key bindings** – Emacs and Vi profiles plus fine-grained overrides via
     `cjshopt keybind` (including command-driven bindings through `cjsh-widget`).
 - **Typeahead capture** – Keystrokes entered while a command runs are buffered and replayed when the prompt returns so you never lose input.

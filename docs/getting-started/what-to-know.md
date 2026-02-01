@@ -116,7 +116,8 @@ cjsh leaves directory listing behavior up to your configuration. Add an `ls` wra
 ## History Features
 
 - **History expansions:** Enabled in interactive sessions (`!!`, `!$`, etc.). Disable with `cjsh --no-history-expansion` or persist by adding `cjshopt login-startup-arg --no-history-expansion` to `~/.cjprofile`.
-- **Reverse search:** Press `Ctrl+R` for fuzzy, incremental history search.
+- **Reverse search:** Press `Ctrl+R` for the fuzzy history search menu (use `Alt+C` inside it to toggle case sensitivity).
+- **History search case sensitivity:** Matching is case-sensitive by default; adjust with `cjshopt history-search-case on|off|status` to set the default for every session.
 - **Persistence:** History entries are appended to `~/.cache/cjsh/history.txt`; duplicate commands are suppressed by default.
 - **Retention:** Adjust limits with `cjshopt set-history-max <number|default|status>` (any non-negative value; default 1000 entries).
 

@@ -550,6 +550,13 @@ bool ic_enable_color(bool enable);
 /// Returns the previous setting.
 bool ic_enable_history_duplicates(bool enable);
 
+/// Configure whether the fuzzy history search menu matches case-sensitively (default: enabled).
+/// Returns the previous setting.
+bool ic_enable_history_fuzzy_case_sensitive(bool enable);
+
+/// Report whether the fuzzy history search menu currently matches case-sensitively.
+bool ic_history_fuzzy_search_is_case_sensitive(void);
+
 /// Disable or enable automatic tab completion after a completion
 /// to expand as far as possible if the completions are unique. (disabled by
 /// default). Returns the previous setting.

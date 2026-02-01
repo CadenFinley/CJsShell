@@ -452,6 +452,109 @@ static bool test_history_dedup_snapshot(void) {
     return true;
 }
 
+static bool test_history_fuzzy_case_toggle(void) {
+    ic_env_t* env = ensure_env();
+    alloc_t* mem = test_allocator();
+    if (env == NULL || mem == NULL)
+        return false;
+
+    history_t* history = history_new(mem);
+    if (history == NULL)
+        return false;
+
+    const char* history_path = "./isocline_history_case_toggle.log";
+    (void)remove(history_path);
+    history_load_from(history, history_path, 16);
+    history_clear(history);
+
+    EXPECT_TRUE(history_push(history, "ls"), "initial lowercase history entry should persist");
+    EXPECT_TRUE(history_push(history, "printf hi"), "second entry should persist for contrast");
+    EXPECT_TRUE(history_push(history, "MAX"),
+                "uppercase history entry should persist for symmetry tests");
+
+    history_match_t matches[4];
+    ssize_t match_count = 0;
+    bool exit_filter_applied = false;
+    int exit_filter_code = 0;
+
+    history_set_fuzzy_case_sensitive(history, true);
+    EXPECT_FALSE(history_fuzzy_search(history, "LS", matches, 4, &match_count, &exit_filter_applied,
+                                      &exit_filter_code),
+                 "case-sensitive search should not match entries with different casing");
+    EXPECT_TRUE(match_count == 0, "case-sensitive mismatch should produce zero matches");
+
+    history_set_fuzzy_case_sensitive(history, false);
+    EXPECT_TRUE(history_fuzzy_search(history, "LS", matches, 4, &match_count, &exit_filter_applied,
+                                     &exit_filter_code),
+                "case-insensitive search should find matching entries regardless of case");
+    EXPECT_TRUE(match_count > 0, "case-insensitive mode should yield results");
+
+    ssize_t reverse_match_count = 0;
+    EXPECT_TRUE(
+        history_fuzzy_search(history, "max", matches, 4, &reverse_match_count, NULL, NULL),
+        "case-insensitive search should allow lowercase queries to match uppercase entries");
+    EXPECT_TRUE(
+        reverse_match_count > 0,
+        "lowercase query should match uppercase history entries when case sensitivity is disabled");
+
+    history_clear(history);
+    history_free(history);
+    (void)remove(history_path);
+    return true;
+}
+
+static bool test_history_fuzzy_case_toggle_via_api(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    history_t* original = env->history;
+    history_t* temp_history = history_new(env->mem);
+    if (temp_history == NULL)
+        return false;
+
+    const char* history_path = "./isocline_history_case_toggle_env.log";
+    (void)remove(history_path);
+    history_load_from(temp_history, history_path, 16);
+    history_clear(temp_history);
+
+    env->history = temp_history;
+
+    EXPECT_TRUE(history_push(temp_history, "ls"),
+                "temporary env history should accept initial lowercase entry");
+    EXPECT_TRUE(history_push(temp_history, "printf hi"),
+                "temporary env history should accept secondary entry");
+    EXPECT_TRUE(history_push(temp_history, "MAX"),
+                "temporary env history should accept uppercase entry for symmetry tests");
+
+    history_match_t matches[4];
+    ssize_t match_count = 0;
+
+    ic_enable_history_fuzzy_case_sensitive(true);
+    EXPECT_FALSE(history_fuzzy_search(temp_history, "LS", matches, 4, &match_count, NULL, NULL),
+                 "case-sensitive env history should not match different casing");
+    EXPECT_TRUE(match_count == 0, "case-sensitive env history should produce zero matches");
+
+    ic_enable_history_fuzzy_case_sensitive(false);
+    EXPECT_TRUE(history_fuzzy_search(temp_history, "LS", matches, 4, &match_count, NULL, NULL),
+                "case-insensitive env history should match irrespective of casing");
+    EXPECT_TRUE(match_count > 0, "case-insensitive env history should yield matches");
+
+    ssize_t reverse_match_count = 0;
+    EXPECT_TRUE(
+        history_fuzzy_search(temp_history, "max", matches, 4, &reverse_match_count, NULL, NULL),
+        "case-insensitive env history should allow lowercase queries to match uppercase entries");
+    EXPECT_TRUE(reverse_match_count > 0,
+                "lowercase query should match uppercase entries when toggled globally");
+
+    history_clear(temp_history);
+    env->history = original;
+    history_free(temp_history);
+    (void)remove(history_path);
+    ic_enable_history_fuzzy_case_sensitive(true);
+    return true;
+}
+
 static bool test_line_wrapping_calculations(void) {
     stringbuf_t* sb = new_stringbuf();
     if (sb == NULL)
@@ -503,6 +606,8 @@ static const test_case_t kTests[] = {
     {"continuation_callback_registration", test_continuation_callback_registration},
     {"completion_generation_and_apply", test_completion_generation_and_apply},
     {"history_dedup_snapshot", test_history_dedup_snapshot},
+    {"history_fuzzy_case_toggle", test_history_fuzzy_case_toggle},
+    {"history_fuzzy_case_toggle_via_api", test_history_fuzzy_case_toggle_via_api},
     {"line_wrapping_calculations", test_line_wrapping_calculations},
 };
 

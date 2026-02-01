@@ -534,6 +534,7 @@ Available subcommands:
 - `style_def` - Define or redefine syntax highlighting styles
 - `login-startup-arg` - Add startup flags (config file only)
 - `completion-case` - Configure completion case sensitivity
+- `history-search-case` - Configure fuzzy history case sensitivity
 - `completion-spell` - Toggle spell correction suggestions in completions
 - `line-numbers` - Configure line numbers in multiline input (on/off/relative/absolute)
 - `line-numbers-replace-prompt` - Replace the final prompt line with the line-number gutter
@@ -627,6 +628,24 @@ cjshopt completion-case status  # Show the current mode
 ```
 
 Add the command to `~/.cjshrc` if you want the preference remembered across sessions.
+
+#### history-search-case
+
+Control whether the fuzzy history search menu (`Ctrl+R`/`Ctrl+S` or `cjsh-widget history-search`) treats letter case as significant. When case sensitivity is enabled (the default), `make` and `Make` are treated as different queries. Turning it off allows uppercase queries to match lowercase history entries and vice versa. Synonyms such as `enable`, `disable`, `true`, `false`, and `--status` are supported for convenience, and you can always press `Alt+C` while the menu is open to flip the setting temporarily.
+
+```bash
+cjshopt history-search-case <on|off|status>
+```
+
+Examples:
+
+```bash
+cjshopt history-search-case on      # Require exact casing in the fuzzy history menu (default)
+cjshopt history-search-case off     # Match history entries case insensitively
+cjshopt history-search-case status  # Show the current setting
+```
+
+Add the command to `~/.cjshrc` to persist the preference.
 
 #### completion-spell
 

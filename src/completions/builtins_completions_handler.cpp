@@ -403,6 +403,7 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
             {make_subcommand("style_def", "Define syntax highlight styles"),
              make_subcommand("login-startup-arg", "Add a startup flag"),
              make_subcommand("completion-case", "Configure completion case sensitivity"),
+             make_subcommand("history-search-case", "Configure fuzzy history case sensitivity"),
              make_subcommand("completion-spell", "Configure completion spell correction"),
              make_subcommand("line-numbers", "Configure multiline line numbers"),
              make_subcommand("line-numbers-replace-prompt",
@@ -516,6 +517,10 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_doc("cjshopt-completion-case", "",
                 {make_subcommand("on", "Enable case-sensitive matches"),
                  make_subcommand("off", "Disable case sensitivity"),
+                 make_subcommand("status", "Show current setting")});
+        add_doc("cjshopt-history-search-case", "",
+                {make_subcommand("on", "Require exact case in fuzzy history"),
+                 make_subcommand("off", "Match history regardless of case"),
                  make_subcommand("status", "Show current setting")});
         add_doc("cjshopt-completion-spell", "",
                 {make_subcommand("on", "Enable spell correction"),

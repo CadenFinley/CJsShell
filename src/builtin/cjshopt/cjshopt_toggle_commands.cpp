@@ -239,6 +239,27 @@ int completion_case_command(const std::vector<std::string>& args) {
     return handle_toggle_command(config, args);
 }
 
+int history_search_case_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: history-search-case <on|off|status>", "Examples:",
+        "  history-search-case on       Require exact case matches in fuzzy history search",
+        "  history-search-case off      Match history entries case insensitively",
+        "  history-search-case status   Show the current setting"};
+
+    static const ToggleCommandConfig config{
+        "history-search-case",
+        usage_lines,
+        []() { return ic_history_fuzzy_search_is_case_sensitive(); },
+        [](bool enable) { ic_enable_history_fuzzy_case_sensitive(enable); },
+        "History search case sensitivity",
+        false,
+        "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
+        {"case-sensitive", "--case-sensitive"},
+        {"case-insensitive", "--case-insensitive"}};
+
+    return handle_toggle_command(config, args);
+}
+
 int completion_spell_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {
         "Usage: completion-spell <on|off|status>",

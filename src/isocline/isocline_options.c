@@ -121,6 +121,20 @@ ic_public bool ic_enable_history_duplicates(bool enable) {
     return history_enable_duplicates(env->history, enable);
 }
 
+ic_public bool ic_enable_history_fuzzy_case_sensitive(bool enable) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return true;
+    return history_set_fuzzy_case_sensitive(env->history, enable);
+}
+
+ic_public bool ic_history_fuzzy_search_is_case_sensitive(void) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return true;
+    return history_is_fuzzy_case_sensitive(env->history);
+}
+
 ic_public void ic_set_history(const char* fname, long max_entries) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)

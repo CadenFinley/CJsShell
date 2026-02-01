@@ -286,6 +286,7 @@ again:;
     bool showing_all_due_to_no_matches = false;
     bool exit_filter_applied = false;
     int exit_filter_code = IC_HISTORY_EXIT_CODE_UNKNOWN;
+    bool case_sensitive_mode = ic_history_fuzzy_search_is_case_sensitive();
 
     {
         const char* query = sbuf_string(eb->input);
@@ -334,6 +335,9 @@ again:;
             sbuf_appendf(eb->extra, "[ic-info]History (%zd entr%s)[/]\n", total_history,
                          total_history == 1 ? "y" : "ies");
         }
+
+        sbuf_appendf(eb->extra, "[ic-info]Case sensitivity: %s (alt+c toggles)[/]\n",
+                     case_sensitive_mode ? "sensitive" : "insensitive");
 
         ssize_t term_height = term_get_height(env->term);
         ssize_t term_width = term_get_width(env->term);
@@ -516,11 +520,14 @@ again:;
         } else {
             sbuf_append(eb->extra, "[ic-info]No matches found[/]\n");
         }
+        sbuf_appendf(eb->extra, "[ic-info]Case sensitivity: %s (alt+c toggles)[/]\n",
+                     case_sensitive_mode ? "sensitive" : "insensitive");
     }
 
     if (!env->no_help) {
         sbuf_append(eb->extra,
-                    "[ic-diminish](↑↓:navigate shift+↑/↓:page enter:run tab:edit esc:cancel)[/]");
+                    "[ic-diminish](↑↓:navigate shift+↑/↓:page enter:run tab:edit alt+c:case "
+                    "esc:cancel)[/]");
     }
 
     edit_refresh(env, eb);
@@ -627,6 +634,10 @@ again:;
         } else {
             term_beep(env->term);
         }
+        goto again;
+    } else if ((KEY_MODS(c) & KEY_MOD_ALT) && (KEY_NO_MODS(c) == 'c' || KEY_NO_MODS(c) == 'C')) {
+        bool next_state = !ic_history_fuzzy_search_is_case_sensitive();
+        ic_enable_history_fuzzy_case_sensitive(next_state);
         goto again;
     } else if (c == KEY_UP || c == KEY_CTRL_P) {
         if (selected_idx > 0) {

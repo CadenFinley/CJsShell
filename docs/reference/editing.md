@@ -360,6 +360,8 @@ By default, duplicate entries are not stored in history to keep it clean and rel
 - `Alt+<`: Jump to oldest history entry
 - `Alt+>`: Jump to newest history entry
 
+Control whether the fuzzy history search menu matches case-sensitively with `cjshopt history-search-case <on|off|status>` or press `Alt+C` inside the menu to flip modes on the fly. Turning case sensitivity off lets uppercase queries (for example, `LS`) match lowercase history entries (`ls`) when filtering.
+
 ## Key Bindings
 
 CJ's Shell supports customizable key bindings with multiple profiles.
@@ -399,8 +401,9 @@ cjshopt keybind profile set emacs|vi
 - `Alt+T`: Transpose words
 
 #### History
-- `Ctrl+R`: Incremental history search (reverse)
-- `Ctrl+S`: Incremental history search (forward)
+- `Ctrl+R`: Open the fuzzy history search menu (reverse search)
+- `Ctrl+S`: Open the fuzzy history search menu (forward search)
+- `Alt+C`: Toggle case sensitivity while the fuzzy history search menu is open
 - `↑`: Previous history entry
 - `↓`: Next history entry
 - `Alt+<`: First history entry
