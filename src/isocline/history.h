@@ -92,4 +92,9 @@ ic_private bool history_fuzzy_search(const history_t* h, const char* query,
                                      ssize_t* match_count, bool* exit_filter_applied,
                                      int* exit_filter_value);
 
+ic_private bool history_fuzzy_search_with_case(const history_t* h, const char* query,
+                                               history_match_t* matches, ssize_t max_matches,
+                                               ssize_t* match_count, bool* exit_filter_applied,
+                                               int* exit_filter_value, bool case_sensitive);
+
 #endif  // IC_HISTORY_H

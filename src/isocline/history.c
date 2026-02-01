@@ -820,10 +820,10 @@ static bool history_parse_exit_code_token(const char* token, size_t len, int* ex
     return true;
 }
 
-ic_private bool history_fuzzy_search(const history_t* h, const char* query,
-                                     history_match_t* matches, ssize_t max_matches,
-                                     ssize_t* match_count, bool* exit_filter_applied,
-                                     int* exit_filter_value) {
+ic_private bool history_fuzzy_search_with_case(const history_t* h, const char* query,
+                                               history_match_t* matches, ssize_t max_matches,
+                                               ssize_t* match_count, bool* exit_filter_applied,
+                                               int* exit_filter_value, bool case_sensitive) {
     if (exit_filter_applied)
         *exit_filter_applied = false;
     if (exit_filter_value)
@@ -850,8 +850,6 @@ ic_private bool history_fuzzy_search(const history_t* h, const char* query,
             *match_count = 0;
         return false;
     }
-
-    const bool case_sensitive = history_is_fuzzy_case_sensitive(mutable_h);
 
     bool filter_by_exit_code = false;
     int exit_code_filter = 0;
@@ -1002,6 +1000,16 @@ ic_private bool history_fuzzy_search(const history_t* h, const char* query,
     history_list_free(mutable_h, &list);
 
     return count > 0;
+}
+
+ic_private bool history_fuzzy_search(const history_t* h, const char* query,
+                                     history_match_t* matches, ssize_t max_matches,
+                                     ssize_t* match_count, bool* exit_filter_applied,
+                                     int* exit_filter_value) {
+    history_t* mutable_h = (history_t*)h;
+    const bool case_sensitive = history_is_fuzzy_case_sensitive(mutable_h);
+    return history_fuzzy_search_with_case(h, query, matches, max_matches, match_count,
+                                          exit_filter_applied, exit_filter_value, case_sensitive);
 }
 
 ic_private void history_load_from(history_t* h, const char* fname, long max_entries) {

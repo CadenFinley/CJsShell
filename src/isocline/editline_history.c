@@ -269,6 +269,7 @@ static void edit_history_fuzzy_search(ic_env_t* env, editor_t* eb, char* initial
     ssize_t scroll_offset = 0;
     ssize_t last_display_count = 0;
     ssize_t last_max_scroll = 0;
+    bool session_case_sensitive = ic_history_fuzzy_search_is_case_sensitive();
 
     if (initial != NULL) {
         sbuf_replace(eb->input, initial);
@@ -286,16 +287,16 @@ again:;
     bool showing_all_due_to_no_matches = false;
     bool exit_filter_applied = false;
     int exit_filter_code = IC_HISTORY_EXIT_CODE_UNKNOWN;
-    bool case_sensitive_mode = ic_history_fuzzy_search_is_case_sensitive();
 
     {
         const char* query = sbuf_string(eb->input);
-        history_fuzzy_search(env->history, query ? query : "", matches, MAX_FUZZY_RESULTS,
-                             &match_count, &exit_filter_applied, &exit_filter_code);
+        history_fuzzy_search_with_case(env->history, query ? query : "", matches, MAX_FUZZY_RESULTS,
+                                       &match_count, &exit_filter_applied, &exit_filter_code,
+                                       session_case_sensitive);
 
         if (match_count == 0 && query != NULL && query[0] != '\0' && !exit_filter_applied) {
-            history_fuzzy_search(env->history, "", matches, MAX_FUZZY_RESULTS, &match_count, NULL,
-                                 NULL);
+            history_fuzzy_search_with_case(env->history, "", matches, MAX_FUZZY_RESULTS,
+                                           &match_count, NULL, NULL, session_case_sensitive);
             showing_all_due_to_no_matches = true;
         }
     }
@@ -321,23 +322,25 @@ again:;
         ssize_t total_history = history_snapshot_count(&snap);
 
         if (showing_all_due_to_no_matches) {
-            sbuf_appendf(eb->extra, "[ic-info]No matches - showing all history (%zd entr%s)[/]\n",
-                         total_history, total_history == 1 ? "y" : "ies");
+            sbuf_appendf(eb->extra,
+                         "[ic-info]No matches - showing all history (%zd entr%s) - case %s[/]\n",
+                         total_history, total_history == 1 ? "y" : "ies",
+                         session_case_sensitive ? "sensitive" : "insensitive");
         } else if (is_filtered) {
             if (exit_filter_applied && exit_filter_code != IC_HISTORY_EXIT_CODE_UNKNOWN) {
-                sbuf_appendf(eb->extra, "[ic-info]%zd match%s found (exit %d)[/]\n", match_count,
-                             match_count == 1 ? "" : "es", exit_filter_code);
+                sbuf_appendf(eb->extra, "[ic-info]%zd match%s found (exit %d) - case %s[/]\n",
+                             match_count, match_count == 1 ? "" : "es", exit_filter_code,
+                             session_case_sensitive ? "sensitive" : "insensitive");
             } else {
-                sbuf_appendf(eb->extra, "[ic-info]%zd match%s found[/]\n", match_count,
-                             match_count == 1 ? "" : "es");
+                sbuf_appendf(eb->extra, "[ic-info]%zd match%s found - case %s[/]\n", match_count,
+                             match_count == 1 ? "" : "es",
+                             session_case_sensitive ? "sensitive" : "insensitive");
             }
         } else {
-            sbuf_appendf(eb->extra, "[ic-info]History (%zd entr%s)[/]\n", total_history,
-                         total_history == 1 ? "y" : "ies");
+            sbuf_appendf(eb->extra, "[ic-info]History (%zd entr%s) - case %s[/]\n", total_history,
+                         total_history == 1 ? "y" : "ies",
+                         session_case_sensitive ? "sensitive" : "insensitive");
         }
-
-        sbuf_appendf(eb->extra, "[ic-info]Case sensitivity: %s (alt+c toggles)[/]\n",
-                     case_sensitive_mode ? "sensitive" : "insensitive");
 
         ssize_t term_height = term_get_height(env->term);
         ssize_t term_width = term_get_width(env->term);
@@ -515,13 +518,12 @@ again:;
     } else {
         scroll_offset = 0;
         if (exit_filter_applied && exit_filter_code != IC_HISTORY_EXIT_CODE_UNKNOWN) {
-            sbuf_appendf(eb->extra, "[ic-info]No history entries with exit %d[/]\n",
-                         exit_filter_code);
+            sbuf_appendf(eb->extra, "[ic-info]No history entries with exit %d - case %s[/]\n",
+                         exit_filter_code, session_case_sensitive ? "sensitive" : "insensitive");
         } else {
-            sbuf_append(eb->extra, "[ic-info]No matches found[/]\n");
+            sbuf_appendf(eb->extra, "[ic-info]No matches found - case %s[/]\n",
+                         session_case_sensitive ? "sensitive" : "insensitive");
         }
-        sbuf_appendf(eb->extra, "[ic-info]Case sensitivity: %s (alt+c toggles)[/]\n",
-                     case_sensitive_mode ? "sensitive" : "insensitive");
     }
 
     if (!env->no_help) {
@@ -636,8 +638,7 @@ again:;
         }
         goto again;
     } else if ((KEY_MODS(c) & KEY_MOD_ALT) && (KEY_NO_MODS(c) == 'c' || KEY_NO_MODS(c) == 'C')) {
-        bool next_state = !ic_history_fuzzy_search_is_case_sensitive();
-        ic_enable_history_fuzzy_case_sensitive(next_state);
+        session_case_sensitive = !session_case_sensitive;
         goto again;
     } else if (c == KEY_UP || c == KEY_CTRL_P) {
         if (selected_idx > 0) {
