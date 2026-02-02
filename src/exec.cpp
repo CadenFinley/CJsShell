@@ -316,12 +316,8 @@ class TemporaryEnvAssignmentScope {
     };
 
     bool has_backup(const std::string& name) const {
-        for (const auto& entry : backups_) {
-            if (entry.name == name) {
-                return true;
-            }
-        }
-        return false;
+        return std::any_of(backups_.begin(), backups_.end(),
+                           [&](const Backup& entry) { return entry.name == name; });
     }
 
     void refresh_parser_env() {
