@@ -26,14 +26,18 @@
 #include "trap_command.h"
 
 Shell::Shell() : shell_pgid(0), shell_tmodes() {
+
+    // capture the terminal settings cjsh inherited so we can restore them on exit
     save_terminal_state();
 
+    // construct core subsystems before wiring them together
     shell_exec = std::make_unique<Exec>();
     signal_handler = std::make_unique<SignalHandler>();
     shell_parser = std::make_unique<Parser>();
     built_ins = std::make_unique<Built_ins>();
     shell_script_interpreter = std::make_unique<ShellScriptInterpreter>();
 
+    // share references so the parser interpreter and builtins can coordinate through shell
     if (shell_script_interpreter && shell_parser) {
         shell_script_interpreter->set_parser(shell_parser.get());
         shell_parser->set_shell(this);
@@ -41,17 +45,18 @@ Shell::Shell() : shell_pgid(0), shell_tmodes() {
     built_ins->set_shell(this);
     built_ins->set_current_directory();
 
-    abbreviations.emplace("abbr", "abbreviate");
-    abbreviations.emplace("unabbr", "unabbreviate");
-    set_abbreviations(abbreviations);
-
+    // use stdin as the controlling terminal for cjsh which is validated during job-control setup
     shell_terminal = STDIN_FILENO;
 
+    // job and trap managers need every subsystem initialized before they attach to the shell
     JobManager::instance().set_shell(this);
     trap_manager_set_shell(this);
 
+    // signal dispatch depends on the prior wiring so register handlers after setup completes
     setup_signal_handlers();
     g_signal_handler = signal_handler.get();
+
+    // enable job control now that handlers and managers are ready
     setup_job_control();
 }
 
