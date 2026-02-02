@@ -65,7 +65,7 @@ std::unique_ptr<Shell> g_shell = nullptr;
 
 namespace {
 bool invoked_via_sh(const char* arg0) {
-    // check is cjsh is symlinked to sh
+    // check is cjsh is symlinked to sh and return true or false
     if (arg0 == nullptr) {
         return false;
     }
