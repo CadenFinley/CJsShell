@@ -33,7 +33,8 @@ void detect_login_mode(char* argv[]) {
 }
 
 void apply_minimal_mode() {
-    // literally disable everything which turns cjsh into a worse bash or zsh or oh my zsh which is pretty bad
+    // literally disable everything which turns cjsh into a worse bash or zsh or oh my zsh which is
+    // pretty bad
     config::minimal_mode = true;
     config::colors_enabled = false;
     config::source_enabled = false;

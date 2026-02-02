@@ -7,7 +7,6 @@
 #include <cctype>
 #include <chrono>
 #include <cstdlib>
-#include <iostream>
 #include <memory>
 #include <string_view>
 #include <vector>
@@ -38,6 +37,7 @@ std::unique_ptr<Shell> g_shell = nullptr;
 
 namespace {
 bool invoked_via_sh(const char* arg0) {
+    // check is cjsh is symlinked to sh
     if (arg0 == nullptr) {
         return false;
     }
@@ -63,12 +63,17 @@ void cleanup_resources() {
     }
     cleanup_already_invoked = true;
 
+    // reset everything
     if (g_shell) {
         trap_manager_set_shell(g_shell.get());
         trap_manager_execute_exit_trap();
         if (config::login_mode) {
             cjsh_filesystem::process_logout_file();
         }
+
+        // this might be the most important part of cjsh shutdown. this is so important as
+        // std::unique_ptr doesnt always get reset in the same order when there are multiple so
+        // resetting this earlier allows specific ordering of reset and release
         g_shell.reset();
     }
 }
@@ -163,12 +168,16 @@ int run_cjsh(int argc, char* argv[]) {
     // early exits have been properly handled
     if (launched_as_sh && (config::interactive_mode || config::force_interactive) &&
         !config::suppress_sh_warning) {
+        // is cjsh is symlinked to sh then we throw a warning saying cjsh is not 100% posix
+        // compliant interactively
         print_error({ErrorType::INVALID_ARGUMENT,
                      ErrorSeverity::WARNING,
                      "sh",
                      "cjsh was invoked as sh, but it is not 100% POSIX compliant",
                      {"Pass --no-sh-warning to hide this warning"}});
     }
+
+    // then officially turn the switch to interactive mode and read needed interactive files
     g_shell->set_interactive_mode(true);
     if (!cjsh_filesystem::initialize_cjsh_directories()) {
         return 1;
