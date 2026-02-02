@@ -26,12 +26,14 @@ namespace {
 constexpr int kOptNoCompletionLearning = 256;
 
 void detect_login_mode(char* argv[]) {
+    // detect argv[0] being -cjsh
     if ((argv != nullptr) && (argv[0] != nullptr) && argv[0][0] == '-') {
         config::login_mode = true;
     }
 }
 
 void apply_minimal_mode() {
+    // literally disable everything which turns cjsh into a worse bash or zsh or oh my zsh which is pretty bad
     config::minimal_mode = true;
     config::colors_enabled = false;
     config::source_enabled = false;
@@ -48,6 +50,7 @@ void apply_minimal_mode() {
 }  // namespace
 
 void save_startup_arguments(int argc, char* argv[]) {
+    // save the startup args so that login-startup-arg in cjshopt can be used
     auto& args = startup_args();
     args.clear();
     for (int i = 0; i < argc; i++) {
