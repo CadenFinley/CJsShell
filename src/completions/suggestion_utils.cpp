@@ -281,7 +281,23 @@ std::vector<std::string> find_similar_entries(const std::string& target_name,
         std::sort(candidates.begin(), candidates.end(),
                   std::greater<std::pair<int, std::string>>());
 
-        for (size_t i = 0; i < candidates.size() && i < static_cast<size_t>(max_suggestions); i++) {
+        if (candidates.empty()) {
+            return suggestions;
+        }
+
+        constexpr double kSimilarityRetentionRatio = 0.65;
+        constexpr int kSimilarityGapAllowance = 250;
+
+        int best_score = candidates.front().first;
+        int min_score = std::max(best_score - kSimilarityGapAllowance,
+                                 static_cast<int>(best_score * kSimilarityRetentionRatio));
+
+        for (size_t i = 0;
+             i < candidates.size() && suggestions.size() < static_cast<size_t>(max_suggestions);
+             i++) {
+            if (i > 0 && candidates[i].first < min_score) {
+                break;
+            }
             suggestions.push_back(candidates[i].second);
         }
 
@@ -348,7 +364,21 @@ std::vector<std::string> generate_fuzzy_suggestions(
 
     std::sort(candidates.begin(), candidates.end(), std::greater<std::pair<int, std::string>>());
 
-    for (size_t i = 0; i < candidates.size() && i < 5; i++) {
+    if (candidates.empty()) {
+        return suggestions;
+    }
+
+    constexpr double kFuzzyRetentionRatio = 0.6;
+    constexpr int kFuzzyGapAllowance = 150;
+
+    int best_score = candidates.front().first;
+    int min_score = std::max(best_score - kFuzzyGapAllowance,
+                             static_cast<int>(best_score * kFuzzyRetentionRatio));
+
+    for (size_t i = 0; i < candidates.size() && suggestions.size() < 5; i++) {
+        if (i > 0 && candidates[i].first < min_score) {
+            break;
+        }
         suggestions.push_back("Did you mean '" + candidates[i].second + "'?");
     }
 
