@@ -34,19 +34,25 @@
 #include <unistd.h>
 
 #include <cctype>
+#include <chrono>
+#include <condition_variable>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
 #include <filesystem>
 #include <fstream>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <thread>
+#include <vector>
 
 #include "cjsh.h"
 #include "flags.h"
 #include "isocline.h"
+#include "isocline/keycodes.h"
 #include "job_control.h"
 #include "shell.h"
 #include "shell_env.h"
@@ -55,6 +61,23 @@
 
 namespace prompt {
 namespace {
+
+enum class PromptContext {
+    Primary,
+    Right,
+    Secondary,
+};
+
+struct GitDirInfo {
+    std::filesystem::path root;
+    std::filesystem::path git_dir;
+};
+
+struct GitRepositoryContext {
+    std::filesystem::path workdir;
+    std::filesystem::path root;
+    std::filesystem::path git_dir;
+};
 
 std::string get_env(const char* name, const char* fallback = nullptr) {
     const char* value = std::getenv(name);
@@ -286,26 +309,29 @@ std::optional<std::filesystem::path> git_dir_from_worktree_file(
     return gitdir;
 }
 
-std::optional<std::filesystem::path> locate_git_directory(const std::filesystem::path& dir) {
+std::optional<GitDirInfo> locate_git_directory(const std::filesystem::path& dir) {
     std::error_code ec;
     std::filesystem::path candidate = dir / ".git";
     if (!std::filesystem::exists(candidate, ec)) {
         return std::nullopt;
     }
     if (std::filesystem::is_directory(candidate, ec)) {
-        return candidate;
+        return GitDirInfo{dir, candidate};
     }
     if (!std::filesystem::is_regular_file(candidate, ec)) {
         return std::nullopt;
     }
-    return git_dir_from_worktree_file(candidate, dir);
+    if (auto gitdir = git_dir_from_worktree_file(candidate, dir)) {
+        return GitDirInfo{dir, *gitdir};
+    }
+    return std::nullopt;
 }
 
-std::optional<std::filesystem::path> find_git_directory(const std::filesystem::path& start) {
+std::optional<GitDirInfo> find_git_directory(const std::filesystem::path& start) {
     std::filesystem::path current = start;
     while (true) {
-        if (auto git_dir = locate_git_directory(current)) {
-            return git_dir;
+        if (auto git_info = locate_git_directory(current)) {
+            return git_info;
         }
         if (!current.has_parent_path()) {
             break;
@@ -345,11 +371,14 @@ std::string read_git_head(const std::filesystem::path& git_dir) {
     return line;
 }
 
-bool git_has_changes() {
+bool git_has_changes(const std::filesystem::path& workdir) {
     int pipefd[2];
     if (pipe(pipefd) != 0) {
         return false;
     }
+
+    std::string workdir_str = workdir.empty() ? std::string(".") : workdir.string();
+    const char* workdir_cstr = workdir_str.c_str();
 
     pid_t pid = fork();
     if (pid == -1) {
@@ -366,7 +395,8 @@ bool git_has_changes() {
         close(pipefd[0]);
         close(pipefd[1]);
 
-        const char* const argv[] = {"git", "status", "--porcelain", "--untracked-files=normal",
+        const char* const argv[] = {"git",    "-C",          workdir_cstr,
+                                    "status", "--porcelain", "--untracked-files=normal",
                                     nullptr};
         execvp("git", const_cast<char* const*>(argv));
         _exit(127);
@@ -382,17 +412,25 @@ bool git_has_changes() {
     return bytes_read > 0;
 }
 
-std::string git_prompt_segment() {
+std::optional<GitRepositoryContext> detect_git_context() {
     std::error_code ec;
     std::filesystem::path cwd = std::filesystem::current_path(ec);
     if (ec) {
-        return {};
+        return std::nullopt;
     }
-    auto git_dir = find_git_directory(cwd);
-    if (!git_dir) {
-        return {};
+    auto git_info = find_git_directory(cwd);
+    if (!git_info) {
+        return std::nullopt;
     }
-    std::string branch = read_git_head(*git_dir);
+    GitRepositoryContext context;
+    context.workdir = cwd;
+    context.root = git_info->root;
+    context.git_dir = git_info->git_dir;
+    return context;
+}
+
+std::string build_git_segment(const GitRepositoryContext& ctx) {
+    std::string branch = read_git_head(ctx.git_dir);
     if (branch.empty()) {
         return {};
     }
@@ -401,11 +439,209 @@ std::string git_prompt_segment() {
     segment += "[b color=ansi-blue]git:([/]";
     segment += "[color=#ff6b6b]" + branch + "[/]";
     segment += "[color=ansi-blue])[/]";
-    if (git_has_changes()) {
+    if (git_has_changes(ctx.workdir)) {
         segment += " [color=#ffd166]✗[/color]";
     }
     segment.push_back(' ');
     return segment;
+}
+
+std::string render_git_segment_now() {
+    auto context = detect_git_context();
+    if (!context) {
+        return {};
+    }
+    return build_git_segment(*context);
+}
+
+class AsyncGitPromptManager {
+   public:
+    void begin_render();
+    void finalize_render(const std::string& prompt_snapshot);
+    void append_segment(std::string& builder);
+    std::optional<std::string> consume_ready_prompt();
+
+   private:
+    void start_worker_locked(size_t request_id, const GitRepositoryContext& context);
+    void handle_worker_result(size_t request_id, std::string segment);
+
+    std::mutex mutex_;
+    std::condition_variable cv_;
+    bool async_enabled_cached_ = false;
+    bool worker_running_ = false;
+    size_t worker_request_id_ = 0;
+    size_t request_counter_ = 0;
+    size_t active_request_id_ = 0;
+    size_t pending_prompt_request_id_ = 0;
+    size_t result_request_id_ = 0;
+    bool refresh_pending_ = false;
+    bool awaiting_async_result_ = false;
+    bool prompt_snapshot_ready_ = false;
+    bool notify_when_snapshot_ready_ = false;
+    bool result_ready_ = false;
+    std::string pending_prompt_;
+    std::vector<size_t> placeholder_offsets_;
+    std::string pending_segment_;
+};
+
+constexpr std::chrono::milliseconds kGitInlineBudget(35);
+
+void AsyncGitPromptManager::begin_render() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    async_enabled_cached_ = config::interactive_mode;
+    if (!async_enabled_cached_) {
+        active_request_id_ = 0;
+        placeholder_offsets_.clear();
+        pending_prompt_.clear();
+        refresh_pending_ = false;
+        awaiting_async_result_ = false;
+        prompt_snapshot_ready_ = false;
+        notify_when_snapshot_ready_ = false;
+        result_ready_ = false;
+        return;
+    }
+    ++request_counter_;
+    active_request_id_ = request_counter_;
+    placeholder_offsets_.clear();
+    pending_prompt_.clear();
+    refresh_pending_ = false;
+    awaiting_async_result_ = false;
+    prompt_snapshot_ready_ = false;
+    notify_when_snapshot_ready_ = false;
+    result_ready_ = false;
+}
+
+void AsyncGitPromptManager::append_segment(std::string& builder) {
+    if (!async_enabled_cached_) {
+        builder += render_git_segment_now();
+        return;
+    }
+
+    auto context = detect_git_context();
+    if (!context) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        refresh_pending_ = false;
+        awaiting_async_result_ = false;
+        placeholder_offsets_.clear();
+        pending_prompt_.clear();
+        result_ready_ = false;
+        pending_segment_.clear();
+        prompt_snapshot_ready_ = false;
+        notify_when_snapshot_ready_ = false;
+        return;
+    }
+
+    std::unique_lock<std::mutex> lock(mutex_);
+
+    if (!worker_running_ || worker_request_id_ != active_request_id_) {
+        start_worker_locked(active_request_id_, *context);
+    }
+
+    if (cv_.wait_for(lock, kGitInlineBudget,
+                     [&] { return result_ready_ && result_request_id_ == active_request_id_; })) {
+        builder += pending_segment_;
+        refresh_pending_ = false;
+        awaiting_async_result_ = false;
+        return;
+    }
+
+    awaiting_async_result_ = true;
+    refresh_pending_ = true;
+    placeholder_offsets_.push_back(builder.size());
+}
+
+void AsyncGitPromptManager::finalize_render(const std::string& prompt_snapshot) {
+    std::unique_lock<std::mutex> lock(mutex_);
+    if (!async_enabled_cached_ || !awaiting_async_result_ || placeholder_offsets_.empty()) {
+        pending_prompt_.clear();
+        prompt_snapshot_ready_ = false;
+        notify_when_snapshot_ready_ = false;
+        return;
+    }
+    pending_prompt_ = prompt_snapshot;
+    prompt_snapshot_ready_ = true;
+    pending_prompt_request_id_ = active_request_id_;
+    bool should_notify = notify_when_snapshot_ready_ && result_ready_ &&
+                         result_request_id_ == pending_prompt_request_id_;
+    if (should_notify) {
+        notify_when_snapshot_ready_ = false;
+    }
+    lock.unlock();
+    if (should_notify) {
+        ic_push_key_event(IC_KEY_EVENT_PROMPT_REFRESH);
+    }
+}
+
+std::optional<std::string> AsyncGitPromptManager::consume_ready_prompt() {
+    std::unique_lock<std::mutex> lock(mutex_);
+    if (!async_enabled_cached_ || !refresh_pending_ || !result_ready_ || !prompt_snapshot_ready_ ||
+        pending_prompt_request_id_ != result_request_id_ || placeholder_offsets_.empty()) {
+        return std::nullopt;
+    }
+    std::string updated = pending_prompt_;
+    size_t inserted = 0;
+    for (size_t offset : placeholder_offsets_) {
+        updated.insert(offset + inserted, pending_segment_);
+        inserted += pending_segment_.size();
+    }
+    refresh_pending_ = false;
+    awaiting_async_result_ = false;
+    prompt_snapshot_ready_ = false;
+    placeholder_offsets_.clear();
+    pending_prompt_.clear();
+    result_ready_ = false;
+    notify_when_snapshot_ready_ = false;
+    lock.unlock();
+    return updated;
+}
+
+void AsyncGitPromptManager::start_worker_locked(size_t request_id,
+                                                const GitRepositoryContext& context) {
+    worker_running_ = true;
+    worker_request_id_ = request_id;
+    std::thread worker([this, request_id, context]() {
+        std::string segment = build_git_segment(context);
+        handle_worker_result(request_id, std::move(segment));
+    });
+    worker.detach();
+}
+
+void AsyncGitPromptManager::handle_worker_result(size_t request_id, std::string segment) {
+    bool should_notify = false;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        worker_running_ = false;
+        if (!async_enabled_cached_ || request_id != active_request_id_) {
+            return;
+        }
+        pending_segment_ = std::move(segment);
+        result_ready_ = true;
+        result_request_id_ = request_id;
+        if (refresh_pending_) {
+            if (prompt_snapshot_ready_) {
+                should_notify = true;
+            } else {
+                notify_when_snapshot_ready_ = true;
+            }
+        }
+    }
+    cv_.notify_all();
+    if (should_notify) {
+        ic_push_key_event(IC_KEY_EVENT_PROMPT_REFRESH);
+    }
+}
+
+AsyncGitPromptManager& git_prompt_async_manager() {
+    static AsyncGitPromptManager manager;
+    return manager;
+}
+
+void append_git_segment(std::string& builder, PromptContext context) {
+    if (context == PromptContext::Primary) {
+        git_prompt_async_manager().append_segment(builder);
+    } else {
+        builder += render_git_segment_now();
+    }
 }
 
 int exit_status_value() {
@@ -462,7 +698,7 @@ char to_ascii(std::uint8_t value) {
     return static_cast<char>(value);
 }
 
-std::string expand_prompt_string(const std::string& templ) {
+std::string expand_prompt_string(const std::string& templ, PromptContext context) {
     std::string result;
     result.reserve(templ.size() + 16);
 
@@ -556,7 +792,7 @@ std::string expand_prompt_string(const std::string& templ) {
                 result += status_symbol();
                 break;
             case 'g':
-                result += git_prompt_segment();
+                append_git_segment(result, context);
                 break;
             case '$':
                 result.push_back(prompt_dollar());
@@ -615,16 +851,19 @@ std::string default_right_prompt_template() {
 
 std::string render_primary_prompt() {
     std::string ps1 = get_ps("PS1", default_primary_prompt_template());
-    return expand_prompt_string(ps1);
+    git_prompt_async_manager().begin_render();
+    std::string prompt_text = expand_prompt_string(ps1, PromptContext::Primary);
+    git_prompt_async_manager().finalize_render(prompt_text);
+    return prompt_text;
 }
 
 std::string render_right_prompt() {
     if (const char* rprompt = std::getenv("RPROMPT"); rprompt != nullptr) {
-        return expand_prompt_string(rprompt);
+        return expand_prompt_string(rprompt, PromptContext::Right);
     }
 
     std::string rps1 = get_ps("RPS1", default_right_prompt_template());
-    return expand_prompt_string(rps1);
+    return expand_prompt_string(rps1, PromptContext::Right);
 }
 
 std::string render_secondary_prompt() {
@@ -632,7 +871,7 @@ std::string render_secondary_prompt() {
     if (ps2 == nullptr || ps2[0] == '\0') {
         return {};
     }
-    return expand_prompt_string(ps2);
+    return expand_prompt_string(ps2, PromptContext::Secondary);
 }
 
 void execute_prompt_command() {
@@ -697,5 +936,13 @@ void apply_terminal_window_title() {
 
     std::printf("\033]0;%s\007", title.c_str());
     (void)std::fflush(stdout);
+}
+
+bool handle_async_prompt_refresh() {
+    auto updated_prompt = git_prompt_async_manager().consume_ready_prompt();
+    if (!updated_prompt) {
+        return false;
+    }
+    return ic_current_loop_reset(nullptr, updated_prompt->c_str(), nullptr);
 }
 }  // namespace prompt

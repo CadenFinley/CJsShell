@@ -65,6 +65,7 @@
 #include "history_expansion.h"
 #include "interpreter.h"
 #include "isocline.h"
+#include "isocline/keycodes.h"
 #include "job_control.h"
 #include "pipeline_status_utils.h"
 #include "prompt.h"
@@ -326,6 +327,10 @@ std::pair<std::string, bool> get_next_command(bool command_was_available) {
 }
 
 bool handle_runoff_bind(ic_keycode_t key, void*) {
+    if (key == IC_KEY_EVENT_PROMPT_REFRESH) {
+        return prompt::handle_async_prompt_refresh();
+    }
+
     if (has_custom_keybinding(key)) {
         std::string command = get_custom_keybinding(key);
         if (!command.empty()) {
@@ -449,6 +454,7 @@ void initialize_isocline() {
     ic_enable_history_duplicates(false);
     ic_set_prompt_marker("", nullptr);
     ic_set_unhandled_key_handler(handle_runoff_bind, nullptr);
+    (void)ic_bind_key(IC_KEY_EVENT_PROMPT_REFRESH, IC_KEY_ACTION_RUNOFF);
     ic_set_status_message_callback(status_line::create_below_syntax_message, nullptr);
     ic_set_check_for_continuation_or_return_callback(continuation_or_return_callback, nullptr);
     if (!config::status_line_enabled) {
