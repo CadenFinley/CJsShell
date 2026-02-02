@@ -46,6 +46,51 @@ else
 fi
 
 echo ""
+echo "Testing globstar expansion..."
+GLOB_TMP=$(mktemp -d)
+mkdir -p "$GLOB_TMP/root/a/b"
+touch "$GLOB_TMP/root/a/b/deep.txt"
+touch "$GLOB_TMP/root/root.txt"
+
+OUT=$("$CJSH_PATH" -c "cd '$GLOB_TMP/root'; printf '%s' **/deep.txt" 2>/dev/null)
+if [ "$OUT" = "**/deep.txt" ]; then
+  pass_test "globstar disabled leaves pattern literal"
+else
+  fail_test "expected literal pattern when globstar disabled, got '$OUT'"
+  rm -rf "$GLOB_TMP"
+  exit 1
+fi
+
+OUT=$("$CJSH_PATH" -c "cd '$GLOB_TMP/root'; set -o globstar; printf '%s' **/deep.txt" 2>/dev/null)
+if [ "$OUT" = "a/b/deep.txt" ]; then
+  pass_test "globstar matches nested files"
+else
+  fail_test "globstar lookup mismatch (got '$OUT')"
+  rm -rf "$GLOB_TMP"
+  exit 1
+fi
+
+OUT=$("$CJSH_PATH" -c "cd '$GLOB_TMP/root'; set -o globstar; printf '%s' **/root.txt" 2>/dev/null)
+if [ "$OUT" = "root.txt" ]; then
+  pass_test "globstar zero-depth match"
+else
+  fail_test "globstar zero-depth match failed (got '$OUT')"
+  rm -rf "$GLOB_TMP"
+  exit 1
+fi
+
+DIRS=$("$CJSH_PATH" -c "cd '$GLOB_TMP/root'; set -o globstar; printf '%s ' **/" 2>/dev/null)
+if printf '%s' "$DIRS" | tr ' ' '\n' | grep -q "a/b/"; then
+  pass_test "globstar directory-only expansion"
+else
+  fail_test "globstar directory-only expansion missing nested path"
+  rm -rf "$GLOB_TMP"
+  exit 1
+fi
+
+rm -rf "$GLOB_TMP"
+
+echo ""
 echo "Globbing Tests Summary:"
 echo "Passed: $TESTS_PASSED"
 echo "Failed: $TESTS_FAILED"

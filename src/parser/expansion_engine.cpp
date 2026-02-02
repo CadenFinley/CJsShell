@@ -28,15 +28,225 @@
 
 #include "parser/expansion_engine.h"
 
+#include <fnmatch.h>
 #include <glob.h>
 #include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstring>
+#include <filesystem>
+#include <system_error>
 #include <type_traits>
 
 #include "cjsh.h"
 #include "shell.h"
+
+namespace {
+
+struct GlobComponent {
+    std::string text;
+    bool is_globstar{false};
+    bool has_wildcards{false};
+    bool allows_hidden{false};
+};
+
+struct ParsedGlobPattern {
+    bool absolute{false};
+    bool trailing_slash{false};
+    bool contains_globstar{false};
+    std::vector<GlobComponent> components;
+};
+
+bool component_has_wildcards(const std::string& text) {
+    return text.find_first_of("*?[") != std::string::npos;
+}
+
+bool is_hidden_name(const std::string& name) {
+    return !name.empty() && name[0] == '.';
+}
+
+void append_component(ParsedGlobPattern& pattern, std::string component) {
+    if (component.empty()) {
+        return;
+    }
+    GlobComponent parsed_component;
+    parsed_component.text = std::move(component);
+    parsed_component.is_globstar = parsed_component.text == "**";
+    parsed_component.has_wildcards =
+        parsed_component.is_globstar || component_has_wildcards(parsed_component.text);
+    parsed_component.allows_hidden =
+        !parsed_component.text.empty() && parsed_component.text.front() == '.';
+    pattern.contains_globstar = pattern.contains_globstar || parsed_component.is_globstar;
+    pattern.components.push_back(std::move(parsed_component));
+}
+
+ParsedGlobPattern parse_glob_pattern(const std::string& pattern) {
+    ParsedGlobPattern parsed;
+    if (pattern.empty()) {
+        return parsed;
+    }
+
+    parsed.absolute = pattern.front() == '/';
+    parsed.trailing_slash = pattern.size() > 1 && pattern.back() == '/';
+
+    size_t start_index = parsed.absolute ? 1 : 0;
+    std::string current;
+    current.reserve(pattern.size());
+
+    for (size_t i = start_index; i < pattern.size(); ++i) {
+        char ch = pattern[i];
+        if (ch == '/') {
+            append_component(parsed, current);
+            current.clear();
+        } else {
+            current.push_back(ch);
+        }
+    }
+
+    append_component(parsed, current);
+    return parsed;
+}
+
+std::string format_match_path(const std::filesystem::path& path, bool absolute) {
+    std::string value = path.string();
+    if (!absolute) {
+        if (value == ".") {
+            // keep
+        } else if (value.rfind("./", 0) == 0) {
+            value.erase(0, 2);
+        }
+    }
+
+    if (value.empty()) {
+        value = ".";
+    }
+
+    return value;
+}
+
+bool path_is_directory(const std::filesystem::path& path) {
+    std::error_code ec;
+    return std::filesystem::is_directory(path, ec);
+}
+
+void append_match(const std::filesystem::path& path, bool absolute,
+                  std::vector<std::string>& matches) {
+    std::string formatted = format_match_path(path, absolute);
+
+    if (path_is_directory(path)) {
+        if (formatted != "/" && (formatted.empty() || formatted.back() != '/')) {
+            formatted.push_back('/');
+        }
+    }
+
+    matches.push_back(std::move(formatted));
+}
+
+void globstar_recurse(const ParsedGlobPattern& pattern, size_t index,
+                      const std::filesystem::path& current_path,
+                      std::vector<std::string>& matches) {
+    if (index >= pattern.components.size()) {
+        if (pattern.trailing_slash && !path_is_directory(current_path)) {
+            return;
+        }
+        append_match(current_path, pattern.absolute, matches);
+        return;
+    }
+
+    const auto& component = pattern.components[index];
+
+    if (component.is_globstar) {
+        globstar_recurse(pattern, index + 1, current_path, matches);
+
+        std::error_code dir_ec;
+        if (!std::filesystem::is_directory(current_path, dir_ec)) {
+            return;
+        }
+
+        std::error_code iter_ec;
+        std::filesystem::directory_iterator dir_it(
+            current_path, std::filesystem::directory_options::skip_permission_denied, iter_ec);
+        if (iter_ec) {
+            return;
+        }
+
+        for (const auto& entry : dir_it) {
+            std::string name = entry.path().filename().string();
+            if (!component.allows_hidden && is_hidden_name(name)) {
+                continue;
+            }
+
+            std::error_code dir_entry_ec;
+            bool is_dir = entry.is_directory(dir_entry_ec);
+            if (!is_dir) {
+                continue;
+            }
+
+            std::error_code symlink_ec;
+            bool is_symlink = entry.is_symlink(symlink_ec);
+
+            if (is_symlink && index + 1 < pattern.components.size()) {
+                continue;
+            }
+
+            if (is_symlink) {
+                globstar_recurse(pattern, index + 1, entry.path(), matches);
+                continue;
+            }
+
+            globstar_recurse(pattern, index, entry.path(), matches);
+        }
+        return;
+    }
+
+    if (!component.has_wildcards) {
+        auto next_path = current_path / component.text;
+        std::error_code exists_ec;
+        if (!std::filesystem::exists(next_path, exists_ec)) {
+            return;
+        }
+        globstar_recurse(pattern, index + 1, next_path, matches);
+        return;
+    }
+
+    std::error_code dir_ec;
+    if (!std::filesystem::is_directory(current_path, dir_ec)) {
+        return;
+    }
+
+    std::error_code iter_ec;
+    std::filesystem::directory_iterator dir_it(
+        current_path, std::filesystem::directory_options::skip_permission_denied, iter_ec);
+    if (iter_ec) {
+        return;
+    }
+
+    int fnmatch_flags = FNM_PERIOD;
+    for (const auto& entry : dir_it) {
+        std::string name = entry.path().filename().string();
+        if (fnmatch(component.text.c_str(), name.c_str(), fnmatch_flags) == 0) {
+            globstar_recurse(pattern, index + 1, entry.path(), matches);
+        }
+    }
+}
+
+std::vector<std::string> expand_globstar_pattern(const ParsedGlobPattern& pattern) {
+    std::vector<std::string> matches;
+    std::filesystem::path base =
+        pattern.absolute ? std::filesystem::path("/") : std::filesystem::path(".");
+
+    if (pattern.components.empty()) {
+        append_match(base, pattern.absolute, matches);
+        return matches;
+    }
+
+    globstar_recurse(pattern, 0, base, matches);
+    std::sort(matches.begin(), matches.end());
+    matches.erase(std::unique(matches.begin(), matches.end()), matches.end());
+    return matches;
+}
+
+}  // namespace
 
 ExpansionEngine::ExpansionEngine(Shell* shell) : shell(shell) {
 }
@@ -214,6 +424,19 @@ std::vector<std::string> ExpansionEngine::expand_wildcards(const std::string& pa
     if (!has_wildcards) {
         result.push_back(unescaped);
         return result;
+    }
+
+    bool globstar_enabled = shell != nullptr && shell->get_shell_option("globstar");
+    if (globstar_enabled) {
+        ParsedGlobPattern parsed_pattern = parse_glob_pattern(unescaped);
+        if (parsed_pattern.contains_globstar) {
+            std::vector<std::string> globstar_matches = expand_globstar_pattern(parsed_pattern);
+            if (!globstar_matches.empty()) {
+                return globstar_matches;
+            }
+            result.push_back(unescaped);
+            return result;
+        }
     }
 
     glob_t glob_result;
