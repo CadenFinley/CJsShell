@@ -105,7 +105,6 @@ void cleanup_resources() {
         g_shell.reset();
     }
 }
-}  // namespace
 
 int run_cjsh(int argc, char* argv[]) {
     const bool launched_as_sh = invoked_via_sh((argc > 0) ? argv[0] : nullptr);
@@ -230,6 +229,7 @@ int run_cjsh(int argc, char* argv[]) {
     // grab exit code from envvar which was set by the last command that executed and exit cjsh
     return read_exit_code_or(0);
 }
+}  // namespace
 
 int main(int argc, char* argv[]) {
     // main entry
