@@ -112,15 +112,12 @@ class Exec {
     void set_error(ErrorType type, const std::string& command = "", const std::string& message = "",
                    const std::vector<std::string>& suggestions = {});
     ErrorInfo get_error();
-    std::string get_error_string();
     void print_last_error();
     void print_error_if_needed(int exit_code);
     int get_exit_code() const;
     const std::vector<int>& get_last_pipeline_statuses() const;
     void terminate_all_child_process();
     void abandon_all_child_processes();
-
-    std::string last_terminal_output_error;
 };
 
 namespace exec_utils {

@@ -110,7 +110,7 @@ Built_ins::Built_ins() : shell(nullptr) {
                  return 2;
              }
              return ::change_directory(args.size() > 1 ? args[1] : "", current_directory,
-                                       previous_directory, last_terminal_output_error, shell);
+                                       previous_directory, shell);
          }},
         {"local",
          [this](const std::vector<std::string>& args) { return ::local_command(args, shell); }},
@@ -159,14 +159,9 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"[", [](const std::vector<std::string>& args) { return ::test_command(args); }},
         {"[[", [](const std::vector<std::string>& args) { return ::double_bracket_command(args); }},
         {"exec",
-         [this](const std::vector<std::string>& args) {
-             return ::exec_command(args, shell, last_terminal_output_error);
-         }},
+         [this](const std::vector<std::string>& args) { return ::exec_command(args, shell); }},
         {":", [](const std::vector<std::string>&) { return 0; }},
-        {"if",
-         [this](const std::vector<std::string>& args) {
-             return ::if_command(args, shell, last_terminal_output_error);
-         }},
+        {"if", [this](const std::vector<std::string>& args) { return ::if_command(args, shell); }},
         {"__INTERNAL_SUBSHELL__",
          [this](const std::vector<std::string>& args) {
              return internal_subshell_command(args, shell);
@@ -219,7 +214,6 @@ Built_ins::Built_ins() : shell(nullptr) {
                                     "missing command operand",
                                     {"Usage: builtin <command> [args...]"}};
                  print_error(error);
-                 last_terminal_output_error = "cjsh: builtin: missing command operand";
                  return 2;
              }
 
@@ -230,7 +224,6 @@ Built_ins::Built_ins() : shell(nullptr) {
                                     "cannot invoke builtin recursively",
                                     {"Usage: builtin <command> [args...]"}};
                  print_error(error);
-                 last_terminal_output_error = "cjsh: builtin: cannot invoke builtin recursively";
                  return 2;
              }
 
@@ -241,8 +234,6 @@ Built_ins::Built_ins() : shell(nullptr) {
                                     "'" + target_command + "' is not a builtin command",
                                     {"Use 'help' to list available builtins"}};
                  print_error(error);
-                 last_terminal_output_error =
-                     "cjsh: builtin: " + target_command + ": not a builtin command";
                  return 1;
              }
 
@@ -288,10 +279,6 @@ std::vector<std::string> Built_ins::get_builtin_commands() const {
     return names;
 }
 
-std::string Built_ins::get_last_error() const {
-    return last_terminal_output_error;
-}
-
 int Built_ins::builtin_command(const std::vector<std::string>& args) {
     if (args.empty())
         return 1;
@@ -299,8 +286,7 @@ int Built_ins::builtin_command(const std::vector<std::string>& args) {
     auto it = builtins.find(args[0]);
     if (it != builtins.end()) {
         if (args[0] == "cd" && args.size() == 1) {
-            return ::change_directory("", current_directory, previous_directory,
-                                      last_terminal_output_error, shell);
+            return ::change_directory("", current_directory, previous_directory, shell);
         }
         int status = it->second(args);
         return status;
@@ -309,7 +295,6 @@ int Built_ins::builtin_command(const std::vector<std::string>& args) {
 
     ErrorInfo error = {ErrorType::COMMAND_NOT_FOUND, args[0], "command not found", suggestions};
     print_error(error);
-    last_terminal_output_error = "cjsh: '" + args[0] + "': command not found";
     return 127;
 }
 

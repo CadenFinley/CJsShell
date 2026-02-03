@@ -52,8 +52,6 @@ class Built_ins {
     int is_builtin_command(const std::string& cmd) const;
 
     std::vector<std::string> get_builtin_commands() const;
-
-    std::string get_last_error() const;
     int do_ai_request(const std::string& prompt);
 
    private:
@@ -63,5 +61,4 @@ class Built_ins {
     Shell* shell;
     std::unordered_map<std::string, std::string> aliases;
     std::unordered_map<std::string, std::string> env_vars;
-    std::string last_terminal_output_error;
 };

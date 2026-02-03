@@ -199,14 +199,17 @@ int Shell::execute_script_file(const std::filesystem::path& path, bool optional)
 }
 
 int Shell::execute(const std::string& script, bool skip_validation) {
+    // main execution entry point for cjsh
     if (script.empty()) {
         return 0;
     }
-    std::vector<std::string> lines;
 
+    // convert command into lines for execution
+    std::vector<std::string> lines;
     lines = shell_parser->parse_into_lines(script);
 
     if (shell_script_interpreter) {
+        // execute the parsed lines
         int exit_code = shell_script_interpreter->execute_block(lines, skip_validation);
         last_command = script;
         return exit_code;
@@ -329,6 +332,7 @@ void Shell::handle_sigcont() {
 }
 
 int Shell::execute_command(std::vector<std::string> args, bool run_in_background) {
+    // main single command executor that dirives from execute_block in interpreter.cpp
     if (args.empty()) {
         return 0;
     }
@@ -339,6 +343,7 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
         return 1;
     }
 
+    // xtrace handling
     if (get_shell_option("xtrace") && !args.empty()) {
         std::cerr << "+ ";
         for (size_t i = 0; i < args.size(); ++i) {
@@ -350,10 +355,12 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
         std::cerr << '\n';
     }
 
+    // noexec handling
     if (get_shell_option("noexec")) {
         return 0;
     }
 
+    // handle simple env var assignment with no command
     if (args.size() == 1 && shell_parser) {
         std::string var_name;
         std::string var_value;
@@ -373,6 +380,7 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
         }
     }
 
+    // collect any env var assignments preceding the command
     std::vector<std::pair<std::string, std::string>> env_assignments;
     size_t cmd_start_idx = cjsh_env::collect_env_assignments(args, env_assignments);
     std::vector<std::string> command_args;
@@ -382,6 +390,7 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
     }
     const bool has_temporary_env = !env_assignments.empty() && !command_args.empty();
 
+    // check for built-in command execution
     if (!command_args.empty() && (built_ins->is_builtin_command(command_args[0]) != 0)) {
         int code = 0;
 
@@ -446,11 +455,10 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
         } else {
             code = built_ins->builtin_command(command_args);
         }
-        last_terminal_output_error = built_ins->get_last_error();
-
         return code;
     }
 
+    // not a builtin check for other things
     if (!run_in_background && command_args.size() == 1 && built_ins) {
         const std::string& candidate = command_args[0];
 
@@ -467,11 +475,11 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
             !g_startup_active) {
             std::vector<std::string> cd_args = {"cd", candidate};
             int code = built_ins->builtin_command(cd_args);
-            last_terminal_output_error = built_ins->get_last_error();
             return code;
         }
     }
 
+    // execute the command in the background if requested
     if (run_in_background) {
         int job_id = shell_exec->execute_command_async(args);
         if (job_id > 0) {
@@ -484,13 +492,12 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
                 JobManager::instance().set_last_background_pid(last_pid);
             }
         }
-        last_terminal_output_error = "Background command launched";
         return 0;
     }
-    shell_exec->execute_command_sync(args);
-    last_terminal_output_error = shell_exec->get_error_string();
-    int exit_code = shell_exec->get_exit_code();
 
+    // execute the command synchronously
+    shell_exec->execute_command_sync(args);
+    int exit_code = shell_exec->get_exit_code();
     shell_exec->print_error_if_needed(exit_code);
     return exit_code;
 }

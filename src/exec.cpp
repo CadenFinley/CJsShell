@@ -837,7 +837,6 @@ void Exec::handle_child_signal(pid_t pid, int status) {
 void Exec::set_error(const ErrorInfo& error) {
     std::lock_guard<std::mutex> lock(error_mutex);
     last_error = error;
-    last_terminal_output_error = error.message;
 }
 
 void Exec::set_error(ErrorType type, const std::string& command, const std::string& message,
@@ -849,11 +848,6 @@ void Exec::set_error(ErrorType type, const std::string& command, const std::stri
 ErrorInfo Exec::get_error() {
     std::lock_guard<std::mutex> lock(error_mutex);
     return last_error;
-}
-
-std::string Exec::get_error_string() {
-    std::lock_guard<std::mutex> lock(error_mutex);
-    return last_terminal_output_error;
 }
 
 void Exec::print_last_error() {

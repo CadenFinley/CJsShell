@@ -33,5 +33,4 @@
 
 class Shell;
 
-int exec_command(const std::vector<std::string>& args, Shell* shell,
-                 std::string& last_terminal_output_error);
+int exec_command(const std::vector<std::string>& args, Shell* shell);

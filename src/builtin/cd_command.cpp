@@ -39,8 +39,7 @@
 #include "suggestion_utils.h"
 
 int change_directory(const std::string& dir, std::string& current_directory,
-                     std::string& previous_directory, std::string& last_terminal_output_error,
-                     Shell* shell) {
+                     std::string& previous_directory, Shell* shell) {
     std::string target_dir = dir;
 
     if (target_dir.empty() || target_dir == "~") {
@@ -49,7 +48,6 @@ int change_directory(const std::string& dir, std::string& current_directory,
             ErrorInfo error = {
                 ErrorType::RUNTIME_ERROR, "cd", "HOME environment variable is not set", {}};
             print_error(error);
-            last_terminal_output_error = "cd: HOME environment variable is not set";
             return 1;
         }
         target_dir = home_dir;
@@ -59,7 +57,6 @@ int change_directory(const std::string& dir, std::string& current_directory,
         if (previous_directory.empty()) {
             ErrorInfo error = {ErrorType::RUNTIME_ERROR, "cd", "No previous directory", {}};
             print_error(error);
-            last_terminal_output_error = "cd: No previous directory";
             return 1;
         }
         target_dir = previous_directory;
@@ -73,8 +70,6 @@ int change_directory(const std::string& dir, std::string& current_directory,
                                "Cannot expand '~' - HOME environment variable is not set",
                                {}};
             print_error(error);
-            last_terminal_output_error =
-                "cd: Cannot expand '~' - HOME environment variable is not set";
             return 1;
         }
         target_dir.replace(0, 1, home_dir);
@@ -95,7 +90,6 @@ int change_directory(const std::string& dir, std::string& current_directory,
             ErrorInfo error = {ErrorType::FILE_NOT_FOUND, "cd",
                                target_dir + ": no such file or directory", suggestions};
             print_error(error);
-            last_terminal_output_error = "cd: " + target_dir + ": no such file or directory";
             return 1;
         }
 
@@ -103,7 +97,6 @@ int change_directory(const std::string& dir, std::string& current_directory,
             ErrorInfo error = {
                 ErrorType::INVALID_ARGUMENT, "cd", target_dir + ": not a directory", {}};
             print_error(error);
-            last_terminal_output_error = "cd: " + target_dir + ": not a directory";
             return 1;
         }
 
@@ -115,7 +108,6 @@ int change_directory(const std::string& dir, std::string& current_directory,
         if (chdir(current_directory.c_str()) != 0) {
             ErrorInfo error = {ErrorType::RUNTIME_ERROR, "cd", std::string(strerror(errno)), {}};
             print_error(error);
-            last_terminal_output_error = "cd: " + std::string(strerror(errno));
             return 1;
         }
 
@@ -132,13 +124,11 @@ int change_directory(const std::string& dir, std::string& current_directory,
     } catch (const std::filesystem::filesystem_error& e) {
         ErrorInfo error = {ErrorType::RUNTIME_ERROR, "cd", std::string(e.what()), {}};
         print_error(error);
-        last_terminal_output_error = "cd: " + std::string(e.what());
         return 1;
     } catch (const std::exception& e) {
         ErrorInfo error = {
             ErrorType::RUNTIME_ERROR, "cd", "unexpected error: " + std::string(e.what()), {}};
         print_error(error);
-        last_terminal_output_error = "cd: unexpected error: " + std::string(e.what());
         return 1;
     }
 }

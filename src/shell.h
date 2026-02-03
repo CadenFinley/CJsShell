@@ -88,7 +88,6 @@ class Shell {
     void clear_hooks(const std::string& hook_type);
     void execute_hooks(const std::string& hook_type);
 
-    std::string last_terminal_output_error;
     std::string last_command;
     std::unique_ptr<Exec> shell_exec;
 

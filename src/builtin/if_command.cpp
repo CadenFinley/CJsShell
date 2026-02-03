@@ -33,17 +33,13 @@
 #include "error_out.h"
 #include "shell.h"
 
-int if_command(const std::vector<std::string>& args, Shell* shell,
-               std::string& last_terminal_output_error) {
+int if_command(const std::vector<std::string>& args, Shell* shell) {
     if (builtin_handle_help(args, {"Usage: if CONDITION; then COMMAND; fi",
                                    "Evaluate CONDITION and run COMMAND when it succeeds.",
                                    "Supports standard cjsh command syntax."})) {
         return 0;
     }
-    auto record_error = [&](const ErrorInfo& info) {
-        last_terminal_output_error = info.message;
-        print_error(info);
-    };
+    auto record_error = [&](const ErrorInfo& info) { print_error(info); };
 
     if (args.size() < 2) {
         record_error({ErrorType::INVALID_ARGUMENT, "if", "missing arguments", {}});

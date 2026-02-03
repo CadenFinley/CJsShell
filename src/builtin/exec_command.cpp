@@ -40,8 +40,7 @@
 #include "error_out.h"
 #include "shell.h"
 
-int exec_command(const std::vector<std::string>& args, Shell* shell,
-                 std::string& last_terminal_output_error) {
+int exec_command(const std::vector<std::string>& args, Shell* shell) {
     if (builtin_handle_help(
             args, {"Usage: exec [COMMAND [ARG ...]]", "Replace the current shell with COMMAND.",
                    "If COMMAND is omitted, apply redirections to the shell."})) {
@@ -54,10 +53,7 @@ int exec_command(const std::vector<std::string>& args, Shell* shell,
     std::vector<std::string> exec_args;
     bool has_fd_operations = false;
 
-    auto record_error = [&](const ErrorInfo& info) {
-        last_terminal_output_error = info.message;
-        print_error(info);
-    };
+    auto record_error = [&](const ErrorInfo& info) { print_error(info); };
 
     for (size_t i = 1; i < args.size(); ++i) {
         const std::string& arg = args[i];
