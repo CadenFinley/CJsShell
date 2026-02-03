@@ -145,7 +145,8 @@ int run_cjsh(int argc, char* argv[]) {
                      "Failed to set exit handler",
                      {"Resource cleanup may not occur properly"}});
         // this is not a fatal error so we continue running cjsh as operating system should clean up
-        // resources on exit
+        // resources on exit there just might be some shell errors on exit because of the use of
+        // std::unique_ptr
     }
 
     // create the shell object
