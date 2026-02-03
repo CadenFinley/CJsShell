@@ -502,7 +502,7 @@ void main_process_loop() {
         update_job_management();
 
         // fetch the next command from the user
-        auto next_command = get_next_command(command_available);
+        std::optional<std::string> next_command = get_next_command(command_available);
 
         if (g_exit_flag) {
             break;
