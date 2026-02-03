@@ -62,6 +62,9 @@
 #include "shell_env.h"
 #include "signal_handler.h"
 #include "suggestion_utils.h"
+
+// TODO: organize file
+
 namespace {
 
 int extract_exit_code(int status) {

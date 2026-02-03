@@ -204,10 +204,7 @@ bool is_known_command_token(const std::string& token, size_t absolute_cmd_start,
     if (token_has_explicit_path_hint(token)) {
         std::string path_to_check = resolve_token_path(token, shell);
         std::error_code ec;
-        if (std::filesystem::exists(path_to_check, ec)) {
-            return true;
-        }
-        return false;
+        return std::filesystem::exists(path_to_check, ec);
     }
 
     if (shell != nullptr && shell->get_interactive_mode()) {
