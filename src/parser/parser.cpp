@@ -50,11 +50,13 @@
 #include "delimiter_state.h"
 #include "error_out.h"
 #include "expansion_engine.h"
+#include "interpreter/history_expansion.h"
 #include "job_control.h"
 #include "parser_utils.h"
 #include "quote_info.h"
 #include "readonly_command.h"
 #include "shell.h"
+#include "shell_env.h"
 #include "tokenizer.h"
 #include "variable_expander.h"
 
@@ -248,6 +250,40 @@ std::vector<std::string> merge_line_continuations(const std::vector<std::string>
 }
 
 }  // namespace
+
+Parser::HistoryExpansionResult Parser::perform_history_expansion(const std::string& command) const {
+    HistoryExpansionResult result;
+    result.expanded_command = command;
+
+    if (command.empty()) {
+        return result;
+    }
+
+    if (!config::history_expansion_enabled) {
+        return result;
+    }
+
+    if (isatty(STDIN_FILENO) == 0) {
+        return result;
+    }
+
+    auto history_entries = HistoryExpansion::read_history_entries();
+    auto expansion = HistoryExpansion::expand(command, history_entries);
+
+    if (expansion.has_error) {
+        result.has_error = true;
+        result.error_message = expansion.error_message;
+        return result;
+    }
+
+    if (expansion.was_expanded) {
+        result.was_expanded = true;
+        result.expanded_command = expansion.expanded_command;
+    }
+
+    result.should_echo = expansion.should_echo;
+    return result;
+}
 
 void Parser::process_heredoc_content(std::string& content) {
     if (content.length() >= 10 && content.substr(0, 10) == "__EXPAND__") {

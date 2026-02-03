@@ -42,6 +42,7 @@
 #include <cstring>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -62,11 +63,11 @@
 #include "cjshopt_command.h"
 #include "error_out.h"
 #include "exec.h"
-#include "history_expansion.h"
 #include "interpreter.h"
 #include "isocline.h"
 #include "isocline/keycodes.h"
 #include "job_control.h"
+#include "parser/parser.h"
 #include "pipeline_status_utils.h"
 #include "prompt.h"
 #include "shell.h"
@@ -171,17 +172,19 @@ TerminalStatus check_terminal_health(TerminalCheckLevel level = TerminalCheckLev
 }
 
 bool process_command_line(const std::string& command) {
+    // this condition theoretically should never be hit due to earlier checks, but just in case
     if (command.empty()) {
         return g_exit_flag;
     }
 
+    // tracking for exit commands
     ++g_command_sequence;
 
+    // handle history expansion early before any tokenization or parsing
     std::string expanded_command = command;
-    if (config::history_expansion_enabled && isatty(STDIN_FILENO)) {
-        auto history_entries = HistoryExpansion::read_history_entries();
-        auto expansion_result = HistoryExpansion::expand(command, history_entries);
-
+    Parser* parser = (g_shell != nullptr) ? g_shell->get_parser() : nullptr;
+    if (parser != nullptr) {
+        auto expansion_result = parser->perform_history_expansion(command);
         if (expansion_result.has_error) {
             print_error({ErrorType::RUNTIME_ERROR,
                          ErrorSeverity::ERROR,
@@ -200,19 +203,23 @@ bool process_command_line(const std::string& command) {
         }
     }
 
+    // execute preexec hooks and debug traps
     g_shell->execute_hooks("preexec");
     trap_manager_execute_debug_trap();
 
+    // actually execute the command now
     int exit_code = g_shell->execute(expanded_command);
 
+    // handle post command execution tasks
     Exec* exec_ptr = (g_shell && g_shell->shell_exec) ? g_shell->shell_exec.get() : nullptr;
     pipeline_status_utils::apply_pipeline_status_env(exec_ptr);
-
     std::string status_str = std::to_string(exit_code);
 
+    // add to history
     ic_history_add_with_exit_code(command.c_str(), exit_code);
     setenv("?", status_str.c_str(), 1);
 
+    // perform memory cleanup
 #if defined(__APPLE__) && MAC_OS_X_VERSION_MAX_ALLOWED >= 1070
     (void)malloc_zone_pressure_relief(nullptr, 0);
 #elif defined(__linux__)
@@ -221,6 +228,7 @@ bool process_command_line(const std::string& command) {
     // do nothing for other platforms
 #endif
 
+    // handle typeahead that happened while command was executing
     std::string typeahead_input = typeahead::capture_available_input();
     if (!typeahead_input.empty()) {
         typeahead::ingest_typeahead_input(typeahead_input);
@@ -254,25 +262,25 @@ std::string generate_prompt(bool command_was_available) {
     return prompt::render_primary_prompt();
 }
 
-bool handle_null_input() {
+void handle_null_input() {
     TerminalStatus status = check_terminal_health(TerminalCheckLevel::COMPREHENSIVE);
 
     if (!status.terminal_alive || !status.parent_alive) {
         g_exit_flag = true;
-        return true;
     }
-    return false;
 }
 
-std::pair<std::string, bool> get_next_command(bool command_was_available) {
+std::optional<std::string> get_next_command(bool command_was_available) {
+    // main input getting
     std::string command_to_run;
-    bool command_available = false;
 
+    // handle hooks
     g_shell->execute_hooks("precmd");
+
+    // check terminal size and go ahead and calculate and set the next prompts
     prompt::execute_prompt_command();
-
+    prompt::apply_terminal_window_title();
     cjsh_env::update_terminal_dimensions();
-
     std::string prompt = generate_prompt(command_was_available);
     last_prompt_started_with_newline = (!prompt.empty() && prompt.front() == '\n');
     std::string inline_right_text = prompt::render_right_prompt();
@@ -283,9 +291,9 @@ std::pair<std::string, bool> get_next_command(bool command_was_available) {
         ic_set_prompt_marker("", continuation_prompt.c_str());
     }
 
+    // handle typeahead input from the buffer
     thread_local static std::string sanitized_buffer;
     sanitized_buffer.clear();
-
     typeahead::flush_pending_typeahead();
     const std::string& pending_buffer = typeahead::get_input_buffer();
     if (!pending_buffer.empty()) {
@@ -293,40 +301,43 @@ std::pair<std::string, bool> get_next_command(bool command_was_available) {
         typeahead::filter_escape_sequences_into(pending_buffer, sanitized_buffer);
     }
 
+    // read input from isocline and had over everything that we captured and calculated above
     const char* initial_input = sanitized_buffer.empty() ? nullptr : sanitized_buffer.c_str();
     const char* inline_right_ptr = inline_right_text.empty() ? nullptr : inline_right_text.c_str();
     char* input = ic_readline(prompt.c_str(), inline_right_ptr, initial_input);
     typeahead::clear_input_buffer();
     sanitized_buffer.clear();
 
+    // handle empty buffer and exit early
     if (input == nullptr) {
-        if (handle_null_input()) {
-            return {command_to_run, false};
-        }
-        return {command_to_run, false};
+        // we have to check if terminal is still alive on null input as this could mean eof or
+        // terminal closed
+        handle_null_input();
+        return std::nullopt;
     }
 
+    // there was actual input, assign it to command to run
     command_to_run.assign(input);
-    if (input != nullptr) {
-        ic_free(input);
-        input = nullptr;
-    }
+    ic_free(input);
+    input = nullptr;
 
+    // check for control D as that is kill shell
     if (command_to_run == IC_READLINE_TOKEN_CTRL_D) {
         g_exit_flag = true;
-        return {std::string(), false};
+        return std::nullopt;
     }
 
+    // check for control C as that is cancel input
     if (command_to_run == IC_READLINE_TOKEN_CTRL_C) {
-        return {std::string(), false};
+        return std::nullopt;
     }
 
-    command_available = true;
-
-    return {command_to_run, command_available};
+    // if none early exit hits then we actually have a command to run
+    return command_to_run;
 }
 
 bool handle_runoff_bind(ic_keycode_t key, void*) {
+    // handle custom keybindings from the user
     if (key == IC_KEY_EVENT_PROMPT_REFRESH) {
         return prompt::handle_async_prompt_refresh();
     }
@@ -370,6 +381,7 @@ bool handle_runoff_bind(ic_keycode_t key, void*) {
 }
 
 bool should_show_creator_line() {
+    // only used during startup for the title line if you want to see the creator line
     const char* env = std::getenv("CJSH_SHOW_CREATED");
     if (env == nullptr || env[0] == '\0') {
         return false;
@@ -411,6 +423,7 @@ bool buffer_has_line_continuation_suffix(const std::string& buffer) {
 }
 
 bool buffer_requires_additional_input(const std::string& buffer) {
+    // does input need continuation
     if (buffer.empty()) {
         return false;
     }
@@ -438,6 +451,7 @@ bool buffer_requires_additional_input(const std::string& buffer) {
 }
 
 bool continuation_or_return_callback(const char* input_buffer, void*) {
+    // handle if input buffer needs continuation
     if (input_buffer == nullptr) {
         return true;
     }
@@ -449,6 +463,7 @@ bool continuation_or_return_callback(const char* input_buffer, void*) {
 }  // namespace
 
 void initialize_isocline() {
+    // setup isocline environment and ui styling
     initialize_completion_system();
     SyntaxHighlighter::initialize_syntax_highlighting();
     ic_enable_history_duplicates(false);
@@ -463,40 +478,51 @@ void initialize_isocline() {
 }
 
 void main_process_loop() {
+    // create a typeahead buffer
     typeahead::initialize();
-    prompt::apply_terminal_window_title();
 
     std::string command_to_run;
     bool command_available = false;
 
+    // main input loop, runs until exit
     while (true) {
+        // handle any pending signals before each prompt
         g_shell->process_pending_signals();
 
         if (g_exit_flag) {
             break;
         }
 
+        // check if tty is still healthy and parent process is alive
         if (!perform_terminal_check()) {
             break;
         }
 
+        // check job statuses
         update_job_management();
 
-        std::tie(command_to_run, command_available) = get_next_command(command_available);
+        // fetch the next command from the user
+        auto next_command = get_next_command(command_available);
 
         if (g_exit_flag) {
             break;
         }
 
-        if (!command_available) {
+        if (!next_command.has_value()) {
+            command_available = false;
             continue;
         }
 
+        command_to_run = std::move(*next_command);
+        command_available = true;
+
+        // handle the command from the user
         bool exit_requested = process_command_line(command_to_run);
         if (exit_requested || g_exit_flag) {
             break;
         }
 
+        // handle styling configuration
         if (config::newline_after_execution && command_to_run != "clear" && command_available &&
             !last_prompt_started_with_newline && ic_prompt_cleanup_is_enabled()) {
             (void)std::fputc('\n', stdout);
@@ -509,6 +535,7 @@ void main_process_loop() {
 }
 
 void start_interactive_process() {
+    // activate the line editor
     initialize_isocline();
     g_startup_active = false;
     bool first_boot = cjsh_filesystem::is_first_boot();
@@ -560,6 +587,7 @@ void start_interactive_process() {
         std::cout << "\n";
     }
 
+    // calculate the display for startup time
     if (config::show_startup_time || first_boot) {
         long long microseconds = startup_duration.count();
         std::string startup_time_str;
@@ -580,6 +608,7 @@ void start_interactive_process() {
         std::cout << "\n";
     }
 
+    // go into read input loop
     if (!config::startup_test) {
         main_process_loop();
     }

@@ -79,6 +79,16 @@ struct LogicalCommand {
 
 class Parser {
    public:
+    struct HistoryExpansionResult {
+        bool has_error = false;
+        bool was_expanded = false;
+        bool should_echo = false;
+        std::string expanded_command;
+        std::string error_message;
+    };
+
+    HistoryExpansionResult perform_history_expansion(const std::string& command) const;
+
     std::vector<std::string> parse_into_lines(const std::string& scripts);
 
     std::vector<std::string> parse_command(const std::string& cmdline);
