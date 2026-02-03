@@ -73,11 +73,7 @@ class Exec {
     std::vector<int> last_pipeline_statuses;
     ErrorInfo last_error;
 
-    bool requires_fork(const Command& cmd) const;
-    bool can_execute_in_process(const Command& cmd) const;
-    int execute_builtin_with_redirections(Command cmd);
     bool handle_empty_args(const std::vector<std::string>& args);
-    void report_missing_job(int job_id);
     bool initialize_env_assignments(const std::vector<std::string>& args,
                                     std::vector<std::pair<std::string, std::string>>& assignments,
                                     size_t& cmd_start_idx);
@@ -85,9 +81,15 @@ class Exec {
         const std::vector<std::string>& args,
         std::vector<std::pair<std::string, std::string>>& assignments, size_t& cmd_start_idx,
         const std::function<void()>& on_assignments_only);
+    bool requires_fork(const Command& cmd) const;
+    bool can_execute_in_process(const Command& cmd) const;
+    int execute_builtin_with_redirections(Command cmd);
     void warn_parent_setpgid_failure();
+
     Job* find_job_locked(int job_id);
     void resume_job(Job& job, bool cont, std::string_view context);
+    void report_missing_job(int job_id);
+
     void set_last_pipeline_statuses(std::vector<int> statuses);
 
    public:
@@ -100,14 +102,18 @@ class Exec {
     int run_with_command_redirections(Command cmd, const std::function<int()>& action,
                                       const std::string& command_name, bool persist_fd_changes,
                                       bool* action_invoked = nullptr);
+
     int add_job(const Job& job);
     void remove_job(int job_id);
     void update_job_status(int job_id, bool completed, bool stopped, int status);
     void put_job_in_foreground(int job_id, bool cont);
     void put_job_in_background(int job_id, bool cont);
     void wait_for_job(int job_id);
-    std::map<int, Job> get_jobs();
     void handle_child_signal(pid_t pid, int status);
+    std::map<int, Job> get_jobs();
+    void terminate_all_child_process();
+    void abandon_all_child_processes();
+
     void set_error(const ErrorInfo& error);
     void set_error(ErrorType type, const std::string& command = "", const std::string& message = "",
                    const std::vector<std::string>& suggestions = {});
@@ -116,8 +122,6 @@ class Exec {
     void print_error_if_needed(int exit_code);
     int get_exit_code() const;
     const std::vector<int>& get_last_pipeline_statuses() const;
-    void terminate_all_child_process();
-    void abandon_all_child_processes();
 };
 
 namespace exec_utils {

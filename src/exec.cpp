@@ -63,8 +63,6 @@
 #include "signal_handler.h"
 #include "suggestion_utils.h"
 
-// TODO: organize file
-
 namespace {
 
 int extract_exit_code(int status) {
@@ -771,415 +769,6 @@ Exec::~Exec() {
     }
 }
 
-void Exec::handle_child_signal(pid_t pid, int status) {
-    static bool use_signal_masking = false;
-    static int signal_count = 0;
-
-    if (++signal_count > 10) {
-        use_signal_masking = true;
-    }
-
-    std::unique_ptr<SignalMask> mask;
-    if (use_signal_masking) {
-        mask = std::make_unique<SignalMask>(SIGCHLD);
-    }
-
-    std::lock_guard<std::mutex> lock(jobs_mutex);
-
-    for (auto& job_pair : jobs) {
-        int job_id = job_pair.first;
-        Job& job = job_pair.second;
-
-        auto it = std::find(job.pids.begin(), job.pids.end(), pid);
-        if (it != job.pids.end()) {
-            auto order_it = std::find(job.pid_order.begin(), job.pid_order.end(), pid);
-            if (order_it != job.pid_order.end()) {
-                size_t index = static_cast<size_t>(std::distance(job.pid_order.begin(), order_it));
-                int recorded = -1;
-                if (WIFEXITED(status) || WIFSIGNALED(status)) {
-                    recorded = extract_exit_code(status);
-                }
-                if (recorded != -1 && index < job.pipeline_statuses.size()) {
-                    job.pipeline_statuses[index] = recorded;
-                }
-            }
-            if (pid == job.last_pid) {
-                job.last_status = status;
-            }
-            if (WIFSTOPPED(status)) {
-                job.stopped = true;
-                job.status = status;
-            } else if (WIFEXITED(status) || WIFSIGNALED(status)) {
-                job.pids.erase(it);
-
-                if (job.pids.empty()) {
-                    job.completed = true;
-                    job.stopped = false;
-                    job.status = status;
-
-                    if (job.background) {
-                        if (WIFSIGNALED(status)) {
-                            std::cerr << "\n[" << job_id << "] Terminated\t" << job.command << '\n';
-                        } else {
-                            const int exit_code = WIFEXITED(status) ? WEXITSTATUS(status) : 0;
-                            if (exit_code == 0) {
-                                std::cerr << "\n[" << job_id << "] Done\t" << job.command << '\n';
-                            } else {
-                                std::cerr << "\n[" << job_id << "] Exit " << exit_code << '\t'
-                                          << job.command << '\n';
-                            }
-                        }
-                    }
-                }
-            }
-            break;
-        }
-    }
-}
-
-void Exec::set_error(const ErrorInfo& error) {
-    std::lock_guard<std::mutex> lock(error_mutex);
-    last_error = error;
-}
-
-void Exec::set_error(ErrorType type, const std::string& command, const std::string& message,
-                     const std::vector<std::string>& suggestions) {
-    ErrorInfo error = {type, command, message, suggestions};
-    set_error(error);
-}
-
-ErrorInfo Exec::get_error() {
-    std::lock_guard<std::mutex> lock(error_mutex);
-    return last_error;
-}
-
-void Exec::print_last_error() {
-    std::lock_guard<std::mutex> lock(error_mutex);
-    print_error(last_error);
-}
-
-void Exec::print_error_if_needed(int exit_code) {
-    if (exit_code == 0) {
-        return;
-    }
-
-    ErrorInfo error = get_error();
-    bool already_reported =
-        (exit_code == 127 && error.type == ErrorType::COMMAND_NOT_FOUND && error.message.empty());
-    if (!already_reported &&
-        (error.type != ErrorType::RUNTIME_ERROR ||
-         error.message.find("command failed with exit code") == std::string::npos)) {
-        print_last_error();
-    }
-}
-
-bool Exec::requires_fork(const Command& cmd) const {
-    return !cmd.input_file.empty() || !cmd.output_file.empty() || !cmd.append_file.empty() ||
-           cmd.background || !cmd.stderr_file.empty() || cmd.stderr_to_stdout ||
-           cmd.stdout_to_stderr || !cmd.here_doc.empty() || !cmd.here_string.empty() ||
-           cmd.both_output || !cmd.process_substitutions.empty() || !cmd.fd_redirections.empty() ||
-           !cmd.fd_duplications.empty();
-}
-
-bool Exec::can_execute_in_process(const Command& cmd) const {
-    if (cmd.args.empty())
-        return false;
-
-    if (g_shell && (g_shell->get_built_ins() != nullptr) &&
-        (g_shell->get_built_ins()->is_builtin_command(cmd.args[0]) != 0)) {
-        return !requires_fork(cmd);
-    }
-
-    return false;
-}
-
-int Exec::run_with_command_redirections(Command cmd, const std::function<int()>& action,
-                                        const std::string& command_name, bool persist_fd_changes,
-                                        bool* action_invoked) {
-    auto duplicate_fd = [](int fd) {
-        int min_fd = std::max(fd + 1, 10);
-        int dup_fd = -1;
-#ifdef F_DUPFD_CLOEXEC
-        dup_fd = fcntl(fd, F_DUPFD_CLOEXEC, min_fd);
-#endif
-        if (dup_fd == -1) {
-            dup_fd = fcntl(fd, F_DUPFD, min_fd);
-        }
-        if (dup_fd == -1) {
-            dup_fd = dup(fd);
-        }
-        if (dup_fd != -1) {
-            int flags = fcntl(dup_fd, F_GETFD);
-            if (flags != -1) {
-                fcntl(dup_fd, F_SETFD, flags | FD_CLOEXEC);
-            }
-        }
-        return dup_fd;
-    };
-
-    int orig_stdin = duplicate_fd(STDIN_FILENO);
-    int orig_stdout = duplicate_fd(STDOUT_FILENO);
-    int orig_stderr = duplicate_fd(STDERR_FILENO);
-
-    if (orig_stdin == -1 || orig_stdout == -1 || orig_stderr == -1) {
-        set_error(ErrorType::RUNTIME_ERROR, command_name,
-                  "failed to save original file descriptors", {});
-        if (orig_stdin != -1) {
-            cjsh_filesystem::safe_close(orig_stdin);
-        }
-        if (orig_stdout != -1) {
-            cjsh_filesystem::safe_close(orig_stdout);
-        }
-        if (orig_stderr != -1) {
-            cjsh_filesystem::safe_close(orig_stderr);
-        }
-        return EX_OSERR;
-    }
-
-    ProcessSubstitutionResources proc_resources;
-
-    auto restore_descriptors = [&](bool terminate_process_subs) {
-        cleanup_process_substitutions(proc_resources, terminate_process_subs);
-
-        if (!persist_fd_changes) {
-            cjsh_filesystem::safe_dup2(orig_stdin, STDIN_FILENO);
-            cjsh_filesystem::safe_dup2(orig_stdout, STDOUT_FILENO);
-            cjsh_filesystem::safe_dup2(orig_stderr, STDERR_FILENO);
-        }
-
-        cjsh_filesystem::safe_close(orig_stdin);
-        cjsh_filesystem::safe_close(orig_stdout);
-        cjsh_filesystem::safe_close(orig_stderr);
-    };
-
-    if (action_invoked) {
-        *action_invoked = false;
-    }
-
-    try {
-        proc_resources = setup_process_substitutions(cmd);
-
-        if (!cmd.here_doc.empty()) {
-            int here_pipe[2] = {-1, -1};
-            auto pipe_result = cjsh_filesystem::create_pipe_cloexec(here_pipe);
-            if (pipe_result.is_error()) {
-                throw std::runtime_error("cjsh: failed to create pipe for here document: " +
-                                         pipe_result.error());
-            }
-
-            std::string error;
-            auto write_result =
-                cjsh_filesystem::write_all(here_pipe[1], std::string_view{cmd.here_doc});
-            if (write_result.is_error()) {
-                if (write_result.error().find("Broken pipe") == std::string::npos &&
-                    write_result.error().find("EPIPE") == std::string::npos) {
-                    error = write_result.error();
-                }
-
-            } else {
-                auto newline_result =
-                    cjsh_filesystem::write_all(here_pipe[1], std::string_view("\n", 1));
-                if (newline_result.is_error()) {
-                    if (newline_result.error().find("Broken pipe") == std::string::npos &&
-                        newline_result.error().find("EPIPE") == std::string::npos) {
-                        error = newline_result.error();
-                    }
-                }
-            }
-
-            cjsh_filesystem::safe_close(here_pipe[1]);
-
-            if (!error.empty()) {
-                cjsh_filesystem::safe_close(here_pipe[0]);
-                throw std::runtime_error("cjsh: failed to write here document content: " + error);
-            }
-
-            auto dup_result = cjsh_filesystem::safe_dup2(here_pipe[0], STDIN_FILENO);
-            cjsh_filesystem::safe_close(here_pipe[0]);
-            if (dup_result.is_error()) {
-                throw std::runtime_error("cjsh: failed to redirect stdin for here document: " +
-                                         dup_result.error());
-            }
-        }
-
-        if (!cmd.input_file.empty()) {
-            auto redirect_result =
-                cjsh_filesystem::redirect_fd(cmd.input_file, STDIN_FILENO, O_RDONLY);
-            if (redirect_result.is_error()) {
-                throw std::runtime_error("cjsh: failed to redirect stdin from " + cmd.input_file +
-                                         ": " + redirect_result.error());
-            }
-        }
-
-        if (!cmd.here_string.empty()) {
-            auto here_error = cjsh_filesystem::setup_here_string_stdin(cmd.here_string);
-            if (here_error.has_value()) {
-                switch (here_error->type) {
-                    case cjsh_filesystem::HereStringErrorType::Pipe:
-                        throw std::runtime_error("cjsh: failed to create pipe for here string");
-                    case cjsh_filesystem::HereStringErrorType::Write:
-                        throw std::runtime_error("cjsh: failed to write here string content");
-                    case cjsh_filesystem::HereStringErrorType::Dup:
-                        throw std::runtime_error(
-                            "cjsh: failed to redirect stdin for here string: " +
-                            here_error->detail);
-                }
-            }
-        }
-
-        if (!cmd.output_file.empty()) {
-            if (cjsh_filesystem::should_noclobber_prevent_overwrite(cmd.output_file,
-                                                                    cmd.force_overwrite)) {
-                throw std::runtime_error("cjsh: cannot overwrite existing file '" +
-                                         cmd.output_file + "' (noclobber is set)");
-            }
-
-            auto redirect_result = cjsh_filesystem::redirect_fd(cmd.output_file, STDOUT_FILENO,
-                                                                O_WRONLY | O_CREAT | O_TRUNC);
-            if (redirect_result.is_error()) {
-                throw std::runtime_error("cjsh: failed to redirect stdout to file '" +
-                                         cmd.output_file + "': " + redirect_result.error());
-            }
-        }
-
-        if (cmd.both_output && !cmd.both_output_file.empty()) {
-            if (cjsh_filesystem::should_noclobber_prevent_overwrite(cmd.both_output_file)) {
-                throw std::runtime_error("cjsh: cannot overwrite existing file '" +
-                                         cmd.both_output_file + "' (noclobber is set)");
-            }
-
-            auto stdout_result = cjsh_filesystem::redirect_fd(cmd.both_output_file, STDOUT_FILENO,
-                                                              O_WRONLY | O_CREAT | O_TRUNC);
-            if (stdout_result.is_error()) {
-                throw std::runtime_error("cjsh: failed to redirect stdout for &>: " +
-                                         cmd.both_output_file + ": " + stdout_result.error());
-            }
-
-            auto stderr_result = cjsh_filesystem::safe_dup2(STDOUT_FILENO, STDERR_FILENO);
-            if (stderr_result.is_error()) {
-                throw std::runtime_error("cjsh: failed to redirect stderr for &>: " +
-                                         stderr_result.error());
-            }
-        }
-
-        if (!cmd.append_file.empty()) {
-            auto redirect_result = cjsh_filesystem::redirect_fd(cmd.append_file, STDOUT_FILENO,
-                                                                O_WRONLY | O_CREAT | O_APPEND);
-            if (redirect_result.is_error()) {
-                throw std::runtime_error("cjsh: failed to redirect stdout for append: " +
-                                         cmd.append_file + ": " + redirect_result.error());
-            }
-        }
-
-        if (!cmd.stderr_file.empty()) {
-            if (!cmd.stderr_append &&
-                cjsh_filesystem::should_noclobber_prevent_overwrite(cmd.stderr_file)) {
-                throw std::runtime_error("cjsh: cannot overwrite existing file '" +
-                                         cmd.stderr_file + "' (noclobber is set)");
-            }
-
-            int flags = O_WRONLY | O_CREAT | (cmd.stderr_append ? O_APPEND : O_TRUNC);
-            auto redirect_result =
-                cjsh_filesystem::redirect_fd(cmd.stderr_file, STDERR_FILENO, flags);
-            if (redirect_result.is_error()) {
-                throw std::runtime_error("cjsh: failed to redirect stderr to file '" +
-                                         cmd.stderr_file + "': " + redirect_result.error());
-            }
-        }
-
-        if (cmd.stderr_to_stdout) {
-            auto dup_result = cjsh_filesystem::safe_dup2(STDOUT_FILENO, STDERR_FILENO);
-            if (dup_result.is_error()) {
-                throw std::runtime_error("cjsh: failed to redirect stderr to stdout: " +
-                                         dup_result.error());
-            }
-        }
-
-        if (cmd.stdout_to_stderr) {
-            auto dup_result = cjsh_filesystem::safe_dup2(STDERR_FILENO, STDOUT_FILENO);
-            if (dup_result.is_error()) {
-                throw std::runtime_error("cjsh: failed to redirect stdout to stderr: " +
-                                         dup_result.error());
-            }
-        }
-
-        if (!cmd.fd_redirections.empty() || !cmd.fd_duplications.empty()) {
-            auto fd_error_handler = [&](const FdOperationError& error) -> void {
-                switch (error.type) {
-                    case FdOperationErrorType::Redirect:
-                        throw std::runtime_error(command_name + ": " + error.spec + ": " +
-                                                 error.error);
-                    case FdOperationErrorType::Duplication:
-                        throw std::runtime_error(command_name + ": dup2 failed for " +
-                                                 std::to_string(error.fd_num) + ">&" +
-                                                 std::to_string(error.src_fd) + ": " + error.error);
-                }
-            };
-            (void)apply_fd_operations(cmd, fd_error_handler);
-        }
-
-        std::cout.flush();
-        std::cerr.flush();
-        std::clog.flush();
-
-        int exit_code = action();
-        if (action_invoked) {
-            *action_invoked = true;
-        }
-
-        std::cout.flush();
-        std::cerr.flush();
-        std::clog.flush();
-
-        restore_descriptors(false);
-        return exit_code;
-    } catch (const std::exception& e) {
-        restore_descriptors(true);
-        set_error(ErrorType::RUNTIME_ERROR, command_name, std::string(e.what()));
-        return EX_OSERR;
-    }
-}
-
-int Exec::execute_builtin_with_redirections(Command cmd) {
-    if (!g_shell || (g_shell->get_built_ins() == nullptr)) {
-        set_error(ErrorType::RUNTIME_ERROR, "builtin",
-                  "no shell context available for builtin execution");
-        last_exit_code = EX_SOFTWARE;
-        return EX_SOFTWARE;
-    }
-
-    bool persist_fd_changes = (!cmd.args.empty() && cmd.args[0] == "exec" && cmd.args.size() == 1);
-    bool is_exec_builtin = !cmd.args.empty() && cmd.args[0] == "exec";
-    std::string command_name = cmd.args.empty() ? "builtin" : cmd.args[0];
-
-    auto action = [&]() -> int {
-        if (is_exec_builtin) {
-            if (cmd.args.size() == 1) {
-                return 0;
-            }
-            std::vector<std::string> exec_args(cmd.args.begin() + 1, cmd.args.end());
-            return g_shell->execute_command(exec_args, false);
-        }
-        return g_shell->get_built_ins()->builtin_command(cmd.args);
-    };
-
-    bool action_invoked = false;
-    int exit_code = run_with_command_redirections(cmd, action, command_name, persist_fd_changes,
-                                                  &action_invoked);
-
-    if (!action_invoked) {
-        last_exit_code = exit_code;
-        return exit_code;
-    }
-
-    auto exit_result = job_utils::make_exit_error_result(command_name, exit_code,
-                                                         "builtin command completed successfully",
-                                                         "builtin command failed with exit code ");
-    set_error(exit_result.type, command_name, exit_result.message, exit_result.suggestions);
-    last_exit_code = exit_code;
-    return exit_code;
-}
-
 bool Exec::handle_empty_args(const std::vector<std::string>& args) {
     if (!args.empty()) {
         return false;
@@ -1223,6 +812,66 @@ std::optional<int> Exec::handle_assignments_prefix(
     return std::nullopt;
 }
 
+bool Exec::requires_fork(const Command& cmd) const {
+    return !cmd.input_file.empty() || !cmd.output_file.empty() || !cmd.append_file.empty() ||
+           cmd.background || !cmd.stderr_file.empty() || cmd.stderr_to_stdout ||
+           cmd.stdout_to_stderr || !cmd.here_doc.empty() || !cmd.here_string.empty() ||
+           cmd.both_output || !cmd.process_substitutions.empty() || !cmd.fd_redirections.empty() ||
+           !cmd.fd_duplications.empty();
+}
+
+bool Exec::can_execute_in_process(const Command& cmd) const {
+    if (cmd.args.empty())
+        return false;
+
+    if (g_shell && (g_shell->get_built_ins() != nullptr) &&
+        (g_shell->get_built_ins()->is_builtin_command(cmd.args[0]) != 0)) {
+        return !requires_fork(cmd);
+    }
+
+    return false;
+}
+
+int Exec::execute_builtin_with_redirections(Command cmd) {
+    if (!g_shell || (g_shell->get_built_ins() == nullptr)) {
+        set_error(ErrorType::RUNTIME_ERROR, "builtin",
+                  "no shell context available for builtin execution");
+        last_exit_code = EX_SOFTWARE;
+        return EX_SOFTWARE;
+    }
+
+    bool persist_fd_changes = (!cmd.args.empty() && cmd.args[0] == "exec" && cmd.args.size() == 1);
+    bool is_exec_builtin = !cmd.args.empty() && cmd.args[0] == "exec";
+    std::string command_name = cmd.args.empty() ? "builtin" : cmd.args[0];
+
+    auto action = [&]() -> int {
+        if (is_exec_builtin) {
+            if (cmd.args.size() == 1) {
+                return 0;
+            }
+            std::vector<std::string> exec_args(cmd.args.begin() + 1, cmd.args.end());
+            return g_shell->execute_command(exec_args, false);
+        }
+        return g_shell->get_built_ins()->builtin_command(cmd.args);
+    };
+
+    bool action_invoked = false;
+    int exit_code = run_with_command_redirections(cmd, action, command_name, persist_fd_changes,
+                                                  &action_invoked);
+
+    if (!action_invoked) {
+        last_exit_code = exit_code;
+        return exit_code;
+    }
+
+    auto exit_result = job_utils::make_exit_error_result(command_name, exit_code,
+                                                         "builtin command completed successfully",
+                                                         "builtin command failed with exit code ");
+    set_error(exit_result.type, command_name, exit_result.message, exit_result.suggestions);
+    last_exit_code = exit_code;
+    return exit_code;
+}
+
 void Exec::warn_parent_setpgid_failure() {
     if (errno != EACCES && errno != ESRCH) {
         set_error(ErrorType::RUNTIME_ERROR, "setpgid",
@@ -1237,6 +886,29 @@ Job* Exec::find_job_locked(int job_id) {
         return nullptr;
     }
     return &it->second;
+}
+
+void Exec::report_missing_job(int job_id) {
+    set_error(ErrorType::RUNTIME_ERROR, "job", "job [" + std::to_string(job_id) + "] not found");
+    print_last_error();
+}
+
+void Exec::resume_job(Job& job, bool cont, std::string_view context) {
+    if (!cont || !job.stopped) {
+        return;
+    }
+
+    if (kill(-job.pgid, SIGCONT) < 0) {
+        set_error(ErrorType::RUNTIME_ERROR, "kill",
+                  "failed to send SIGCONT to " + std::string(context) + ": " +
+                      std::string(strerror(errno)));
+    }
+
+    job.stopped = false;
+}
+
+void Exec::set_last_pipeline_statuses(std::vector<int> statuses) {
+    last_pipeline_statuses = std::move(statuses);
 }
 
 int Exec::execute_command_sync(const std::vector<std::string>& args) {
@@ -2047,9 +1719,251 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
     return finalize_exit(raw_exit);
 }
 
-void Exec::report_missing_job(int job_id) {
-    set_error(ErrorType::RUNTIME_ERROR, "job", "job [" + std::to_string(job_id) + "] not found");
-    print_last_error();
+int Exec::run_with_command_redirections(Command cmd, const std::function<int()>& action,
+                                        const std::string& command_name, bool persist_fd_changes,
+                                        bool* action_invoked) {
+    auto duplicate_fd = [](int fd) {
+        int min_fd = std::max(fd + 1, 10);
+        int dup_fd = -1;
+#ifdef F_DUPFD_CLOEXEC
+        dup_fd = fcntl(fd, F_DUPFD_CLOEXEC, min_fd);
+#endif
+        if (dup_fd == -1) {
+            dup_fd = fcntl(fd, F_DUPFD, min_fd);
+        }
+        if (dup_fd == -1) {
+            dup_fd = dup(fd);
+        }
+        if (dup_fd != -1) {
+            int flags = fcntl(dup_fd, F_GETFD);
+            if (flags != -1) {
+                fcntl(dup_fd, F_SETFD, flags | FD_CLOEXEC);
+            }
+        }
+        return dup_fd;
+    };
+
+    int orig_stdin = duplicate_fd(STDIN_FILENO);
+    int orig_stdout = duplicate_fd(STDOUT_FILENO);
+    int orig_stderr = duplicate_fd(STDERR_FILENO);
+
+    if (orig_stdin == -1 || orig_stdout == -1 || orig_stderr == -1) {
+        set_error(ErrorType::RUNTIME_ERROR, command_name,
+                  "failed to save original file descriptors", {});
+        if (orig_stdin != -1) {
+            cjsh_filesystem::safe_close(orig_stdin);
+        }
+        if (orig_stdout != -1) {
+            cjsh_filesystem::safe_close(orig_stdout);
+        }
+        if (orig_stderr != -1) {
+            cjsh_filesystem::safe_close(orig_stderr);
+        }
+        return EX_OSERR;
+    }
+
+    ProcessSubstitutionResources proc_resources;
+
+    auto restore_descriptors = [&](bool terminate_process_subs) {
+        cleanup_process_substitutions(proc_resources, terminate_process_subs);
+
+        if (!persist_fd_changes) {
+            cjsh_filesystem::safe_dup2(orig_stdin, STDIN_FILENO);
+            cjsh_filesystem::safe_dup2(orig_stdout, STDOUT_FILENO);
+            cjsh_filesystem::safe_dup2(orig_stderr, STDERR_FILENO);
+        }
+
+        cjsh_filesystem::safe_close(orig_stdin);
+        cjsh_filesystem::safe_close(orig_stdout);
+        cjsh_filesystem::safe_close(orig_stderr);
+    };
+
+    if (action_invoked) {
+        *action_invoked = false;
+    }
+
+    try {
+        proc_resources = setup_process_substitutions(cmd);
+
+        if (!cmd.here_doc.empty()) {
+            int here_pipe[2] = {-1, -1};
+            auto pipe_result = cjsh_filesystem::create_pipe_cloexec(here_pipe);
+            if (pipe_result.is_error()) {
+                throw std::runtime_error("cjsh: failed to create pipe for here document: " +
+                                         pipe_result.error());
+            }
+
+            std::string error;
+            auto write_result =
+                cjsh_filesystem::write_all(here_pipe[1], std::string_view{cmd.here_doc});
+            if (write_result.is_error()) {
+                if (write_result.error().find("Broken pipe") == std::string::npos &&
+                    write_result.error().find("EPIPE") == std::string::npos) {
+                    error = write_result.error();
+                }
+
+            } else {
+                auto newline_result =
+                    cjsh_filesystem::write_all(here_pipe[1], std::string_view("\n", 1));
+                if (newline_result.is_error()) {
+                    if (newline_result.error().find("Broken pipe") == std::string::npos &&
+                        newline_result.error().find("EPIPE") == std::string::npos) {
+                        error = newline_result.error();
+                    }
+                }
+            }
+
+            cjsh_filesystem::safe_close(here_pipe[1]);
+
+            if (!error.empty()) {
+                cjsh_filesystem::safe_close(here_pipe[0]);
+                throw std::runtime_error("cjsh: failed to write here document content: " + error);
+            }
+
+            auto dup_result = cjsh_filesystem::safe_dup2(here_pipe[0], STDIN_FILENO);
+            cjsh_filesystem::safe_close(here_pipe[0]);
+            if (dup_result.is_error()) {
+                throw std::runtime_error("cjsh: failed to redirect stdin for here document: " +
+                                         dup_result.error());
+            }
+        }
+
+        if (!cmd.input_file.empty()) {
+            auto redirect_result =
+                cjsh_filesystem::redirect_fd(cmd.input_file, STDIN_FILENO, O_RDONLY);
+            if (redirect_result.is_error()) {
+                throw std::runtime_error("cjsh: failed to redirect stdin from " + cmd.input_file +
+                                         ": " + redirect_result.error());
+            }
+        }
+
+        if (!cmd.here_string.empty()) {
+            auto here_error = cjsh_filesystem::setup_here_string_stdin(cmd.here_string);
+            if (here_error.has_value()) {
+                switch (here_error->type) {
+                    case cjsh_filesystem::HereStringErrorType::Pipe:
+                        throw std::runtime_error("cjsh: failed to create pipe for here string");
+                    case cjsh_filesystem::HereStringErrorType::Write:
+                        throw std::runtime_error("cjsh: failed to write here string content");
+                    case cjsh_filesystem::HereStringErrorType::Dup:
+                        throw std::runtime_error(
+                            "cjsh: failed to redirect stdin for here string: " +
+                            here_error->detail);
+                }
+            }
+        }
+
+        if (!cmd.output_file.empty()) {
+            if (cjsh_filesystem::should_noclobber_prevent_overwrite(cmd.output_file,
+                                                                    cmd.force_overwrite)) {
+                throw std::runtime_error("cjsh: cannot overwrite existing file '" +
+                                         cmd.output_file + "' (noclobber is set)");
+            }
+
+            auto redirect_result = cjsh_filesystem::redirect_fd(cmd.output_file, STDOUT_FILENO,
+                                                                O_WRONLY | O_CREAT | O_TRUNC);
+            if (redirect_result.is_error()) {
+                throw std::runtime_error("cjsh: failed to redirect stdout to file '" +
+                                         cmd.output_file + "': " + redirect_result.error());
+            }
+        }
+
+        if (cmd.both_output && !cmd.both_output_file.empty()) {
+            if (cjsh_filesystem::should_noclobber_prevent_overwrite(cmd.both_output_file)) {
+                throw std::runtime_error("cjsh: cannot overwrite existing file '" +
+                                         cmd.both_output_file + "' (noclobber is set)");
+            }
+
+            auto stdout_result = cjsh_filesystem::redirect_fd(cmd.both_output_file, STDOUT_FILENO,
+                                                              O_WRONLY | O_CREAT | O_TRUNC);
+            if (stdout_result.is_error()) {
+                throw std::runtime_error("cjsh: failed to redirect stdout for &>: " +
+                                         cmd.both_output_file + ": " + stdout_result.error());
+            }
+
+            auto stderr_result = cjsh_filesystem::safe_dup2(STDOUT_FILENO, STDERR_FILENO);
+            if (stderr_result.is_error()) {
+                throw std::runtime_error("cjsh: failed to redirect stderr for &>: " +
+                                         stderr_result.error());
+            }
+        }
+
+        if (!cmd.append_file.empty()) {
+            auto redirect_result = cjsh_filesystem::redirect_fd(cmd.append_file, STDOUT_FILENO,
+                                                                O_WRONLY | O_CREAT | O_APPEND);
+            if (redirect_result.is_error()) {
+                throw std::runtime_error("cjsh: failed to redirect stdout for append: " +
+                                         cmd.append_file + ": " + redirect_result.error());
+            }
+        }
+
+        if (!cmd.stderr_file.empty()) {
+            if (!cmd.stderr_append &&
+                cjsh_filesystem::should_noclobber_prevent_overwrite(cmd.stderr_file)) {
+                throw std::runtime_error("cjsh: cannot overwrite existing file '" +
+                                         cmd.stderr_file + "' (noclobber is set)");
+            }
+
+            int flags = O_WRONLY | O_CREAT | (cmd.stderr_append ? O_APPEND : O_TRUNC);
+            auto redirect_result =
+                cjsh_filesystem::redirect_fd(cmd.stderr_file, STDERR_FILENO, flags);
+            if (redirect_result.is_error()) {
+                throw std::runtime_error("cjsh: failed to redirect stderr to file '" +
+                                         cmd.stderr_file + "': " + redirect_result.error());
+            }
+        }
+
+        if (cmd.stderr_to_stdout) {
+            auto dup_result = cjsh_filesystem::safe_dup2(STDOUT_FILENO, STDERR_FILENO);
+            if (dup_result.is_error()) {
+                throw std::runtime_error("cjsh: failed to redirect stderr to stdout: " +
+                                         dup_result.error());
+            }
+        }
+
+        if (cmd.stdout_to_stderr) {
+            auto dup_result = cjsh_filesystem::safe_dup2(STDERR_FILENO, STDOUT_FILENO);
+            if (dup_result.is_error()) {
+                throw std::runtime_error("cjsh: failed to redirect stdout to stderr: " +
+                                         dup_result.error());
+            }
+        }
+
+        if (!cmd.fd_redirections.empty() || !cmd.fd_duplications.empty()) {
+            auto fd_error_handler = [&](const FdOperationError& error) -> void {
+                switch (error.type) {
+                    case FdOperationErrorType::Redirect:
+                        throw std::runtime_error(command_name + ": " + error.spec + ": " +
+                                                 error.error);
+                    case FdOperationErrorType::Duplication:
+                        throw std::runtime_error(command_name + ": dup2 failed for " +
+                                                 std::to_string(error.fd_num) + ">&" +
+                                                 std::to_string(error.src_fd) + ": " + error.error);
+                }
+            };
+            (void)apply_fd_operations(cmd, fd_error_handler);
+        }
+
+        std::cout.flush();
+        std::cerr.flush();
+        std::clog.flush();
+
+        int exit_code = action();
+        if (action_invoked) {
+            *action_invoked = true;
+        }
+
+        std::cout.flush();
+        std::cerr.flush();
+        std::clog.flush();
+
+        restore_descriptors(false);
+        return exit_code;
+    } catch (const std::exception& e) {
+        restore_descriptors(true);
+        set_error(ErrorType::RUNTIME_ERROR, command_name, std::string(e.what()));
+        return EX_OSERR;
+    }
 }
 
 int Exec::add_job(const Job& job) {
@@ -2079,20 +1993,6 @@ void Exec::update_job_status(int job_id, bool completed, bool stopped, int statu
         it->second.stopped = stopped;
         it->second.status = status;
     }
-}
-
-void Exec::resume_job(Job& job, bool cont, std::string_view context) {
-    if (!cont || !job.stopped) {
-        return;
-    }
-
-    if (kill(-job.pgid, SIGCONT) < 0) {
-        set_error(ErrorType::RUNTIME_ERROR, "kill",
-                  "failed to send SIGCONT to " + std::string(context) + ": " +
-                      std::string(strerror(errno)));
-    }
-
-    job.stopped = false;
 }
 
 void Exec::put_job_in_foreground(int job_id, bool cont) {
@@ -2287,6 +2187,77 @@ void Exec::wait_for_job(int job_id) {
     }
 }
 
+void Exec::handle_child_signal(pid_t pid, int status) {
+    static bool use_signal_masking = false;
+    static int signal_count = 0;
+
+    if (++signal_count > 10) {
+        use_signal_masking = true;
+    }
+
+    std::unique_ptr<SignalMask> mask;
+    if (use_signal_masking) {
+        mask = std::make_unique<SignalMask>(SIGCHLD);
+    }
+
+    std::lock_guard<std::mutex> lock(jobs_mutex);
+
+    for (auto& job_pair : jobs) {
+        int job_id = job_pair.first;
+        Job& job = job_pair.second;
+
+        auto it = std::find(job.pids.begin(), job.pids.end(), pid);
+        if (it != job.pids.end()) {
+            auto order_it = std::find(job.pid_order.begin(), job.pid_order.end(), pid);
+            if (order_it != job.pid_order.end()) {
+                size_t index = static_cast<size_t>(std::distance(job.pid_order.begin(), order_it));
+                int recorded = -1;
+                if (WIFEXITED(status) || WIFSIGNALED(status)) {
+                    recorded = extract_exit_code(status);
+                }
+                if (recorded != -1 && index < job.pipeline_statuses.size()) {
+                    job.pipeline_statuses[index] = recorded;
+                }
+            }
+            if (pid == job.last_pid) {
+                job.last_status = status;
+            }
+            if (WIFSTOPPED(status)) {
+                job.stopped = true;
+                job.status = status;
+            } else if (WIFEXITED(status) || WIFSIGNALED(status)) {
+                job.pids.erase(it);
+
+                if (job.pids.empty()) {
+                    job.completed = true;
+                    job.stopped = false;
+                    job.status = status;
+
+                    if (job.background) {
+                        if (WIFSIGNALED(status)) {
+                            std::cerr << "\n[" << job_id << "] Terminated\t" << job.command << '\n';
+                        } else {
+                            const int exit_code = WIFEXITED(status) ? WEXITSTATUS(status) : 0;
+                            if (exit_code == 0) {
+                                std::cerr << "\n[" << job_id << "] Done\t" << job.command << '\n';
+                            } else {
+                                std::cerr << "\n[" << job_id << "] Exit " << exit_code << '\t'
+                                          << job.command << '\n';
+                            }
+                        }
+                    }
+                }
+            }
+            break;
+        }
+    }
+}
+
+std::map<int, Job> Exec::get_jobs() {
+    std::lock_guard<std::mutex> lock(jobs_mutex);
+    return jobs;
+}
+
 void Exec::terminate_all_child_process() {
     std::lock_guard<std::mutex> lock(jobs_mutex);
 
@@ -2365,8 +2336,40 @@ void Exec::abandon_all_child_processes() {
     jobs_mutex.unlock();
 }
 
-void Exec::set_last_pipeline_statuses(std::vector<int> statuses) {
-    last_pipeline_statuses = std::move(statuses);
+void Exec::set_error(const ErrorInfo& error) {
+    std::lock_guard<std::mutex> lock(error_mutex);
+    last_error = error;
+}
+
+void Exec::set_error(ErrorType type, const std::string& command, const std::string& message,
+                     const std::vector<std::string>& suggestions) {
+    ErrorInfo error = {type, command, message, suggestions};
+    set_error(error);
+}
+
+ErrorInfo Exec::get_error() {
+    std::lock_guard<std::mutex> lock(error_mutex);
+    return last_error;
+}
+
+void Exec::print_last_error() {
+    std::lock_guard<std::mutex> lock(error_mutex);
+    print_error(last_error);
+}
+
+void Exec::print_error_if_needed(int exit_code) {
+    if (exit_code == 0) {
+        return;
+    }
+
+    ErrorInfo error = get_error();
+    bool already_reported =
+        (exit_code == 127 && error.type == ErrorType::COMMAND_NOT_FOUND && error.message.empty());
+    if (!already_reported &&
+        (error.type != ErrorType::RUNTIME_ERROR ||
+         error.message.find("command failed with exit code") == std::string::npos)) {
+        print_last_error();
+    }
 }
 
 int Exec::get_exit_code() const {
@@ -2375,11 +2378,6 @@ int Exec::get_exit_code() const {
 
 const std::vector<int>& Exec::get_last_pipeline_statuses() const {
     return last_pipeline_statuses;
-}
-
-std::map<int, Job> Exec::get_jobs() {
-    std::lock_guard<std::mutex> lock(jobs_mutex);
-    return jobs;
 }
 
 namespace exec_utils {
