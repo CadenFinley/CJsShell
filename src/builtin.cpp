@@ -97,20 +97,7 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"false", [](const std::vector<std::string>&) { return ::false_command(); }},
         {"cd",
          [this](const std::vector<std::string>& args) {
-             if (builtin_handle_help(args, {"Usage: cd [DIR]", "Change the current directory.",
-                                            "Use '-' to switch to the previous directory."})) {
-                 return 0;
-             }
-             if (args.size() > 2) {
-                 ErrorInfo error = {ErrorType::INVALID_ARGUMENT,
-                                    "cd",
-                                    "too many arguments",
-                                    {"Usage: cd [directory]"}};
-                 print_error(error);
-                 return 2;
-             }
-             return ::change_directory(args.size() > 1 ? args[1] : "", current_directory,
-                                       previous_directory, shell);
+             return ::cd_command(args, current_directory, previous_directory, shell);
          }},
         {"local",
          [this](const std::vector<std::string>& args) { return ::local_command(args, shell); }},
@@ -285,9 +272,6 @@ int Built_ins::builtin_command(const std::vector<std::string>& args) {
 
     auto it = builtins.find(args[0]);
     if (it != builtins.end()) {
-        if (args[0] == "cd" && args.size() == 1) {
-            return ::change_directory("", current_directory, previous_directory, shell);
-        }
         int status = it->second(args);
         return status;
     }

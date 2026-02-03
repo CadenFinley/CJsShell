@@ -34,9 +34,28 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "builtin_help.h"
 #include "error_out.h"
 #include "shell.h"
 #include "suggestion_utils.h"
+
+int cd_command(const std::vector<std::string>& args, std::string& current_directory,
+               std::string& previous_directory, Shell* shell) {
+    if (builtin_handle_help(args, {"Usage: cd [DIR]", "Change the current directory.",
+                                   "Use '-' to switch to the previous directory."})) {
+        return 0;
+    }
+
+    if (args.size() > 2) {
+        ErrorInfo error = {
+            ErrorType::INVALID_ARGUMENT, "cd", "too many arguments", {"Usage: cd [directory]"}};
+        print_error(error);
+        return 2;
+    }
+
+    return change_directory(args.size() > 1 ? args[1] : "", current_directory, previous_directory,
+                            shell);
+}
 
 int change_directory(const std::string& dir, std::string& current_directory,
                      std::string& previous_directory, Shell* shell) {

@@ -29,8 +29,12 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 class Shell;
+
+int cd_command(const std::vector<std::string>& args, std::string& current_directory,
+               std::string& previous_directory, Shell* shell = nullptr);
 
 int change_directory(const std::string& dir, std::string& current_directory,
                      std::string& previous_directory, Shell* shell = nullptr);
