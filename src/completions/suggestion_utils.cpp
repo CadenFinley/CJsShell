@@ -31,12 +31,15 @@
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
+#include <functional>
 #include <system_error>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 #include "builtin.h"
 #include "cjsh_filesystem.h"
+#include "completion_spell.h"
+#include "completion_utils.h"
 #include "interpreter.h"
 #include "shell.h"
 
@@ -45,6 +48,15 @@ namespace suggestion_utils {
 
 std::vector<std::string> generate_command_suggestions(const std::string& command) {
     std::vector<std::string> suggestions;
+
+    if (command.empty()) {
+        return suggestions;
+    }
+
+    std::string normalized_command = completion_utils::normalize_for_comparison(command);
+    if (!completion_spell::should_consider_spell_correction(normalized_command)) {
+        return suggestions;
+    }
 
     std::unordered_set<std::string> all_commands_set;
 
@@ -83,7 +95,24 @@ std::vector<std::string> generate_command_suggestions(const std::string& command
 
     std::vector<std::string> all_commands(all_commands_set.begin(), all_commands_set.end());
 
-    suggestions = generate_fuzzy_suggestions(command, all_commands);
+    if (all_commands.empty()) {
+        return suggestions;
+    }
+
+    std::unordered_map<std::string, completion_spell::SpellCorrectionMatch> spell_matches;
+    completion_spell::collect_spell_correction_candidates(
+        all_commands, [](const std::string& value) { return value; },
+        std::function<bool(const std::string&)>{}, normalized_command, spell_matches);
+
+    if (spell_matches.empty()) {
+        return suggestions;
+    }
+
+    auto ordered_matches = completion_spell::order_spell_correction_matches(spell_matches);
+    for (size_t i = 0; i < ordered_matches.size() && i < 5; ++i) {
+        suggestions.push_back("Did you mean '" + ordered_matches[i].candidate + "'?");
+    }
+
     return suggestions;
 }
 
@@ -333,154 +362,6 @@ std::vector<std::string> find_similar_entries(const std::string& target_name,
     }
 
     return suggestions;
-}
-
-std::vector<std::string> generate_fuzzy_suggestions(
-    const std::string& command, const std::vector<std::string>& available_commands) {
-    std::vector<std::string> suggestions;
-
-    if (command.empty()) {
-        return suggestions;
-    }
-
-    if (command.length() == 1) {
-        std::vector<std::pair<int, std::string>> single_letter_candidates;
-        std::unordered_set<std::string> seen_commands;
-        char target_char = std::tolower(command[0]);
-
-        for (const auto& cmd : available_commands) {
-            if (!cmd.empty() && std::tolower(cmd[0]) == target_char &&
-                (seen_commands.count(cmd) == 0U)) {
-                int priority = 0;
-                if (cmd == "ls" || cmd == "cd" || cmd == "ps" || cmd == "cp" || cmd == "mv") {
-                    priority = 100;
-                } else if (cmd.length() <= 4) {
-                    priority = 50;
-                } else {
-                    priority = 10;
-                }
-
-                single_letter_candidates.emplace_back(priority, cmd);
-                seen_commands.insert(cmd);
-            }
-        }
-
-        std::sort(single_letter_candidates.begin(), single_letter_candidates.end(),
-                  std::greater<std::pair<int, std::string>>());
-
-        for (size_t i = 0; i < single_letter_candidates.size() && i < 5; i++) {
-            suggestions.push_back("Did you mean '" + single_letter_candidates[i].second + "'?");
-        }
-
-        return suggestions;
-    }
-
-    std::vector<std::pair<int, std::string>> candidates;
-    std::unordered_set<std::string> seen_commands;
-
-    for (const auto& cmd : available_commands) {
-        if (cmd == command || (seen_commands.count(cmd) != 0U))
-            continue;
-
-        int score = calculate_fuzzy_score(command, cmd);
-
-        if (score > 0) {
-            candidates.emplace_back(score, cmd);
-            seen_commands.insert(cmd);
-        }
-    }
-
-    std::sort(candidates.begin(), candidates.end(), std::greater<std::pair<int, std::string>>());
-
-    if (candidates.empty()) {
-        return suggestions;
-    }
-
-    constexpr double kFuzzyRetentionRatio = 0.6;
-    constexpr int kFuzzyGapAllowance = 150;
-
-    int best_score = candidates.front().first;
-    int min_score = std::max(best_score - kFuzzyGapAllowance,
-                             static_cast<int>(best_score * kFuzzyRetentionRatio));
-
-    for (size_t i = 0; i < candidates.size() && suggestions.size() < 5; i++) {
-        if (i > 0 && candidates[i].first < min_score) {
-            break;
-        }
-        suggestions.push_back("Did you mean '" + candidates[i].second + "'?");
-    }
-
-    return suggestions;
-}
-
-int calculate_fuzzy_score(const std::string& input, const std::string& candidate) {
-    if (input.empty() || candidate.empty())
-        return 0;
-
-    if (input == candidate)
-        return 1000;
-
-    int distance = edit_distance(input, candidate);
-
-    int max_distance = std::max(2, static_cast<int>(input.length()) / 2);
-    if (distance > max_distance)
-        return 0;
-
-    int score = 100 - (distance * 20);
-
-    if (std::tolower(input[0]) == std::tolower(candidate[0])) {
-        score += 30;
-    }
-
-    if (candidate.length() >= input.length() && candidate.substr(0, input.length()) == input) {
-        score += 40;
-    }
-
-    if (candidate.find(input) != std::string::npos) {
-        score += 25;
-    }
-
-    int length_diff =
-        std::abs(static_cast<int>(input.length()) - static_cast<int>(candidate.length()));
-    if (length_diff <= 2) {
-        score += 15;
-    }
-
-    int common_chars = 0;
-    std::unordered_map<char, int> input_chars;
-    std::unordered_map<char, int> candidate_chars;
-    for (char c : input)
-        input_chars[std::tolower(c)]++;
-    for (char c : candidate)
-        candidate_chars[std::tolower(c)]++;
-
-    for (const auto& pair : input_chars) {
-        char ch = pair.first;
-        int count = pair.second;
-        if (candidate_chars.count(ch) != 0U) {
-            common_chars += std::min(count, candidate_chars[ch]);
-        }
-    }
-
-    double char_overlap =
-        static_cast<double>(common_chars) / std::max(input.length(), candidate.length());
-    score += static_cast<int>(char_overlap * 20);
-
-    if (input.length() <= 3 && candidate.length() > 8) {
-        score -= 10;
-    }
-
-    if (g_shell && g_shell->get_built_ins()) {
-        auto builtin_commands = g_shell->get_built_ins()->get_builtin_commands();
-        for (const auto& builtin : builtin_commands) {
-            if (candidate == builtin) {
-                score += 15;
-                break;
-            }
-        }
-    }
-
-    return std::max(0, score);
 }
 
 }  // namespace suggestion_utils

@@ -29,7 +29,6 @@
 #pragma once
 
 #include <string>
-#include <unordered_set>
 #include <vector>
 
 namespace suggestion_utils {
@@ -43,11 +42,6 @@ int edit_distance(const std::string& str1, const std::string& str2);
 
 std::vector<std::string> find_similar_entries(const std::string& target_name,
                                               const std::string& directory,
-                                              int max_suggestions = 3);
-
-std::vector<std::string> generate_fuzzy_suggestions(
-    const std::string& command, const std::vector<std::string>& available_commands);
-
-int calculate_fuzzy_score(const std::string& input, const std::string& candidate);
+                                              int max_suggestions = 5);
 
 }  // namespace suggestion_utils

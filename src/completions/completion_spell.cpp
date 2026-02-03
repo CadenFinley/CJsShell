@@ -109,9 +109,8 @@ bool should_consider_spell_correction(const std::string& normalized_prefix) {
     return normalized_prefix.length() >= 2;
 }
 
-void add_spell_correction_matches(
-    ic_completion_env_t* cenv, const std::unordered_map<std::string, SpellCorrectionMatch>& matches,
-    size_t prefix_length) {
+std::vector<SpellCorrectionMatch> order_spell_correction_matches(
+    const std::unordered_map<std::string, SpellCorrectionMatch>& matches) {
     std::vector<SpellCorrectionMatch> ordered_matches;
     ordered_matches.reserve(matches.size());
 
@@ -132,6 +131,14 @@ void add_spell_correction_matches(
                   }
                   return a.candidate < b.candidate;
               });
+
+    return ordered_matches;
+}
+
+void add_spell_correction_matches(
+    ic_completion_env_t* cenv, const std::unordered_map<std::string, SpellCorrectionMatch>& matches,
+    size_t prefix_length) {
+    auto ordered_matches = order_spell_correction_matches(matches);
 
     const size_t kMaxSpellMatches = 10;
     size_t added = 0;

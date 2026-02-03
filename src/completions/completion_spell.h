@@ -32,6 +32,7 @@
 #include <functional>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include "completion_utils.h"
 #include "isocline/isocline.h"
@@ -111,5 +112,8 @@ void collect_spell_correction_candidates(
 void add_spell_correction_matches(
     ic_completion_env_t* cenv, const std::unordered_map<std::string, SpellCorrectionMatch>& matches,
     size_t prefix_length);
+
+std::vector<SpellCorrectionMatch> order_spell_correction_matches(
+    const std::unordered_map<std::string, SpellCorrectionMatch>& matches);
 
 }  // namespace completion_spell
