@@ -1059,7 +1059,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
         QuoteInfo qi(raw_arg);
 
         if (qi.is_unquoted()) {
-            std::vector<std::string> split_words = tokenizer->split_by_ifs(raw_arg, shell);
+            std::vector<std::string> split_words = tokenizer->split_by_ifs(raw_arg);
             ifs_expanded_args.insert(ifs_expanded_args.end(),
                                      std::make_move_iterator(split_words.begin()),
                                      std::make_move_iterator(split_words.end()));
@@ -1845,7 +1845,7 @@ std::vector<std::string> Parser::split_by_ifs(const std::string& input) {
     if (!tokenizer) {
         tokenizer = std::make_unique<Tokenizer>();
     }
-    return tokenizer->split_by_ifs(input, shell);
+    return tokenizer->split_by_ifs(input);
 }
 
 long long Parser::evaluate_arithmetic(const std::string& expr) {

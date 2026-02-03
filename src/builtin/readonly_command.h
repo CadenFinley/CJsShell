@@ -39,4 +39,4 @@ bool readonly_manager_is(const std::string& name);
 
 std::vector<std::string> readonly_manager_list();
 
-int readonly_command(const std::vector<std::string>& args, Shell* shell);
+int readonly_command(const std::vector<std::string>& args);

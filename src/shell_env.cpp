@@ -176,13 +176,13 @@ void setup_path_variables(const struct passwd* pw) {
     }
 
 #ifdef __APPLE__
-
-    (void)pw;
+    if (pw != nullptr && pw->pw_dir != nullptr && getenv("HOME") == nullptr) {
+        setenv("HOME", pw->pw_dir, 1);
+    }
 
     if (config::login_mode && cjsh_filesystem::file_exists("/usr/libexec/path_helper")) {
         if (g_shell) {
-            int result = g_shell->execute("eval \"$(/usr/libexec/path_helper -s)\"");
-            (void)result;
+            g_shell->execute("eval \"$(/usr/libexec/path_helper -s)\"");
         }
     }
 #endif

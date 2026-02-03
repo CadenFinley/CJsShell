@@ -40,13 +40,12 @@
 
 #include "error_out.h"
 
-int times_command(const std::vector<std::string>& args, Shell* shell) {
+int times_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(
             args,
             {"Usage: times", "Print accumulated process times for the shell and its children."})) {
         return 0;
     }
-    (void)shell;
 
     struct tms time_buf{};
     clock_t wall_time = times(&time_buf);

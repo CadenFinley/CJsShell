@@ -405,12 +405,11 @@ sigset_t SignalHandler::get_current_mask() {
 
 void SignalHandler::install_signal_handler(int signum, struct sigaction* old_action) {
     struct sigaction sa{};
-    sa.sa_sigaction = signal_handler;
+    sa.sa_handler = signal_handler;
     sigemptyset(&sa.sa_mask);
-
     sigfillset(&sa.sa_mask);
 
-    sa.sa_flags = SA_SIGINFO;
+    sa.sa_flags = 0;
 
     if (signum != SIGINT) {
         sa.sa_flags |= SA_RESTART;
@@ -425,10 +424,7 @@ void SignalHandler::process_trapped_signal(int signum) {
     }
 }
 
-void SignalHandler::signal_handler(int signum, siginfo_t* info, void* context) {
-    (void)context;
-    (void)info;
-
+void SignalHandler::signal_handler(int signum) {
     if (is_forked_child()) {
         struct sigaction sa{};
         sa.sa_handler = SIG_DFL;

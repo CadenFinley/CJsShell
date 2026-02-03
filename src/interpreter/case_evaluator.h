@@ -45,7 +45,7 @@ struct CaseSectionData {
 };
 
 std::pair<std::string, size_t> collect_case_body(const std::vector<std::string>& src_lines,
-                                                 size_t start_index, Parser* parser);
+                                                 size_t start_index);
 
 std::vector<std::string> split_case_sections(const std::string& input, bool trim_sections);
 

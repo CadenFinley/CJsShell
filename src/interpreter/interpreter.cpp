@@ -844,7 +844,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
             combined_patterns = inline_segment;
 
         if (!inline_has_esac) {
-            auto body_pair = case_evaluator::collect_case_body(src_lines, j + 1, shell_parser);
+            auto body_pair = case_evaluator::collect_case_body(src_lines, j + 1);
             std::string body_content = body_pair.first;
             esac_index = body_pair.second;
             if (esac_index >= src_lines.size()) {

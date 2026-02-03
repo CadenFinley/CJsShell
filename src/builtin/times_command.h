@@ -33,4 +33,4 @@
 
 class Shell;
 
-int times_command(const std::vector<std::string>& args, Shell* shell = nullptr);
+int times_command(const std::vector<std::string>& args);

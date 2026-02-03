@@ -357,7 +357,10 @@ ic_private ssize_t completions_apply(completions_t* cms, ssize_t index, stringbu
 }
 
 ic_private void completions_sort(completions_t* cms) {
-    (void)cms;  // preserve insertion order; no sorting required
+    if (cms == NULL) {
+        return;
+    }
+    // preserve insertion order; intentionally no sorting
 }
 
 #define IC_MAX_PREFIX (256)

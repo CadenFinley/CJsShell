@@ -151,14 +151,12 @@ static inline int cjsh_debug_file_enabled(void) {
     return 0;
 }
 
-static inline void cjsh_debug_msg(const char* fmt, ...) {
-    (void)fmt;
+static inline void cjsh_debug_msg(const char*, ...) {
 }
 
 class PerformanceTracker {
    public:
-    PerformanceTracker(const char* label) {
-        (void)label;
+    explicit PerformanceTracker(const char* = nullptr) {
     }
 
     ~PerformanceTracker() {

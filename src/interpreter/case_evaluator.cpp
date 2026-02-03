@@ -40,8 +40,7 @@ using shell_script_interpreter::detail::trim;
 namespace case_evaluator {
 
 std::pair<std::string, size_t> collect_case_body(const std::vector<std::string>& src_lines,
-                                                 size_t start_index, Parser* parser) {
-    (void)parser;
+                                                 size_t start_index) {
     std::ostringstream body_stream;
     bool appended = false;
     size_t end_index = start_index;

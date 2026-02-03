@@ -36,6 +36,7 @@
 
 #include "isocline.h"
 #include "isocline/completions.h"
+#include "utils/debug.h"
 
 namespace completion_tracker {
 
@@ -165,8 +166,13 @@ bool completion_limit_hit() {
 }
 
 bool completion_limit_hit_with_log(const char* label) {
-    (void)label;
-    return completion_limit_hit();
+    if (!completion_limit_hit()) {
+        return false;
+    }
+    if (label != nullptr && label[0] != '\0') {
+        cjsh_debug_msg("Completion limit reached while generating %s completions", label);
+    }
+    return true;
 }
 
 bool set_completion_max_results(long max_results, std::string* error_message) {

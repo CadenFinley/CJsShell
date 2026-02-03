@@ -840,9 +840,11 @@ std::optional<CommandDoc> read_cache_entries(const std::filesystem::path& path,
 
 void write_cache_entries(const std::filesystem::path& path, const std::string& doc_target,
                          const CommandDoc& doc) {
-    std::error_code ignored;
-    std::filesystem::create_directories(path.parent_path(), ignored);
-    (void)ignored;
+    std::error_code dir_error;
+    std::filesystem::create_directories(path.parent_path(), dir_error);
+    if (dir_error) {
+        return;
+    }
 
     std::ostringstream stream;
     stream << make_cache_file_header(doc_target) << '\n';

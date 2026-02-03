@@ -175,8 +175,7 @@ bool decode_history_command_line(const std::string& raw, std::string& decoded) {
 }
 
 bool add_command_completion(ic_completion_env_t* cenv, const std::string& candidate,
-                            size_t prefix_len, const char* source, const char* debug_label) {
-    (void)debug_label;
+                            size_t prefix_len, const char* source) {
     long delete_before = static_cast<long>(prefix_len);
     std::string completion_text = candidate;
     if (completion_text.empty() || completion_text.back() != ' ')
@@ -332,7 +331,7 @@ void process_command_candidates(
             if (!dynamic_source.empty())
                 source_ptr = dynamic_source.c_str();
         }
-        if (!add_command_completion(cenv, candidate, prefix_len, source_ptr, debug_label))
+        if (!add_command_completion(cenv, candidate, prefix_len, source_ptr))
             return;
         if (ic_stop_completing(cenv))
             return;

@@ -448,8 +448,7 @@ std::vector<std::string> Tokenizer::merge_redirection_tokens(
     return result;
 }
 
-std::vector<std::string> Tokenizer::split_by_ifs(const std::string& input, Shell* shell) {
-    (void)shell;
+std::vector<std::string> Tokenizer::split_by_ifs(const std::string& input) {
     std::vector<std::string> result;
 
     std::string ifs = " \t\n";

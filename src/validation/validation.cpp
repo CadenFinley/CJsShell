@@ -876,10 +876,7 @@ bool ShellScriptInterpreter::needs_additional_input(const std::vector<std::strin
 
 std::vector<ShellScriptInterpreter::SyntaxError>
 ShellScriptInterpreter::validate_comprehensive_syntax(const std::vector<std::string>& lines,
-                                                      bool check_semantics, bool check_style,
-                                                      bool check_performance) {
-    (void)check_performance;
-
+                                                      bool check_semantics, bool check_style) {
     std::vector<SyntaxError> all_errors;
 
     auto add_errors = [&all_errors](const std::vector<SyntaxError>& new_errors) {
@@ -891,7 +888,7 @@ ShellScriptInterpreter::validate_comprehensive_syntax(const std::vector<std::str
     add_errors(validate_redirection_syntax(lines));
     add_errors(validate_arithmetic_expressions(lines));
     add_errors(validate_parameter_expansions(lines));
-    add_errors(analyze_control_flow(lines));
+    add_errors(analyze_control_flow());
     add_errors(validate_pipeline_syntax(lines));
     add_errors(validate_function_syntax(lines));
     add_errors(validate_loop_syntax(lines));
@@ -900,7 +897,7 @@ ShellScriptInterpreter::validate_comprehensive_syntax(const std::vector<std::str
     add_errors(validate_heredoc_syntax(lines));
 
     if (check_semantics) {
-        add_errors(validate_command_existence(lines));
+        add_errors(validate_command_existence());
     }
 
     if (check_style) {

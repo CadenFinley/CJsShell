@@ -65,8 +65,7 @@ std::vector<std::string> readonly_manager_list() {
     return result;
 }
 
-int readonly_command(const std::vector<std::string>& args, Shell* shell) {
-    (void)shell;
+int readonly_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(args, {"Usage: readonly [-p] NAME[=VALUE] ...",
                                    "Mark shell variables as readonly and optionally assign values.",
                                    "-p prints readonly variables."})) {

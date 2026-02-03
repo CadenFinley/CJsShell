@@ -299,17 +299,14 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::check_s
         });
 }
 
-std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validate_command_existence(
-    const std::vector<std::string>& lines) {
-    (void)lines;
+std::vector<ShellScriptInterpreter::SyntaxError>
+ShellScriptInterpreter::validate_command_existence() {
     std::vector<SyntaxError> errors;
 
     return errors;
 }
 
-std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::analyze_control_flow(
-    const std::vector<std::string>& lines) {
-    (void)lines;
+std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::analyze_control_flow() {
     std::vector<SyntaxError> errors;
 
     return errors;

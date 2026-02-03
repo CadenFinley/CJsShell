@@ -109,7 +109,7 @@ class SignalHandler {
     static void unobserve_signal(int signum);
     static bool is_signal_observed(int signum);
 
-    static void signal_handler(int signum, siginfo_t* info, void* context);
+    static void signal_handler(int signum);
 
     static sigset_t get_current_mask();
 

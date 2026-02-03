@@ -101,12 +101,11 @@ class ShellScriptInterpreter {
 
     std::vector<SyntaxError> validate_comprehensive_syntax(const std::vector<std::string>& lines,
                                                            bool check_semantics = true,
-                                                           bool check_style = false,
-                                                           bool check_performance = false);
+                                                           bool check_style = false);
 
     std::vector<SyntaxError> validate_variable_usage(const std::vector<std::string>& lines);
 
-    std::vector<SyntaxError> validate_command_existence(const std::vector<std::string>& lines);
+    std::vector<SyntaxError> validate_command_existence();
 
     std::vector<SyntaxError> validate_redirection_syntax(const std::vector<std::string>& lines);
 
@@ -114,7 +113,7 @@ class ShellScriptInterpreter {
 
     std::vector<SyntaxError> validate_parameter_expansions(const std::vector<std::string>& lines);
 
-    std::vector<SyntaxError> analyze_control_flow(const std::vector<std::string>& lines);
+    std::vector<SyntaxError> analyze_control_flow();
 
     std::vector<SyntaxError> check_style_guidelines(const std::vector<std::string>& lines);
 

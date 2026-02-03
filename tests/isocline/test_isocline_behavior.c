@@ -63,7 +63,10 @@ static alloc_t* test_allocator(void) {
 }
 
 static void sample_completion_builder(ic_completion_env_t* cenv, const char* prefix) {
-    (void)prefix;
+    const char* effective_prefix = (prefix == NULL) ? "" : prefix;
+    if (effective_prefix[0] != '\0' && effective_prefix[0] != 'a') {
+        return;
+    }
     (void)ic_add_completion_prim_with_source(cenv, "alpha", "[warn]alpha", "first", "history", 1,
                                              0);
     (void)ic_add_completion_prim_with_source(cenv, "alphabet", NULL, NULL, "history", 1, 0);
@@ -79,8 +82,9 @@ static stringbuf_t* new_stringbuf(void) {
 }
 
 static bool stub_continuation_checker(const char* buffer, void* arg) {
-    (void)buffer;
-    return (arg != NULL);
+    bool arg_valid = (arg != NULL);
+    bool buffer_valid = (buffer != NULL);
+    return arg_valid && (buffer_valid || arg_valid);
 }
 
 static bool test_multiline_toggle(void) {

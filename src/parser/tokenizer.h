@@ -39,7 +39,7 @@ class Tokenizer {
     static std::vector<std::string> merge_redirection_tokens(
         const std::vector<std::string>& tokens);
 
-    std::vector<std::string> split_by_ifs(const std::string& input, Shell* shell);
+    std::vector<std::string> split_by_ifs(const std::string& input);
 
    private:
     static bool looks_like_assignment(const std::string& input);

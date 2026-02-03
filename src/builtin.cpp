@@ -93,8 +93,8 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"echo", [](const std::vector<std::string>& args) { return ::echo_command(args); }},
         {"printf", [](const std::vector<std::string>& args) { return ::printf_command(args); }},
         {"pwd", [](const std::vector<std::string>& args) { return ::pwd_command(args); }},
-        {"true", [](const std::vector<std::string>& args) { return ::true_command(args); }},
-        {"false", [](const std::vector<std::string>& args) { return ::false_command(args); }},
+        {"true", [](const std::vector<std::string>&) { return ::true_command(); }},
+        {"false", [](const std::vector<std::string>&) { return ::false_command(); }},
         {"cd",
          [this](const std::vector<std::string>& args) {
              if (builtin_handle_help(args, {"Usage: cd [DIR]", "Change the current directory.",
@@ -183,8 +183,7 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"wait", [](const std::vector<std::string>& args) { return ::wait_command(args); }},
         {"kill", [](const std::vector<std::string>& args) { return ::kill_command(args); }},
         {"disown", [](const std::vector<std::string>& args) { return ::disown_command(args); }},
-        {"readonly",
-         [this](const std::vector<std::string>& args) { return ::readonly_command(args, shell); }},
+        {"readonly", [](const std::vector<std::string>& args) { return ::readonly_command(args); }},
         {"read",
          [this](const std::vector<std::string>& args) { return ::read_command(args, shell); }},
         {"umask", [](const std::vector<std::string>& args) { return ::umask_command(args); }},
@@ -192,8 +191,7 @@ Built_ins::Built_ins() : shell(nullptr) {
 
         {"getopts",
          [this](const std::vector<std::string>& args) { return ::getopts_command(args, shell); }},
-        {"times",
-         [](const std::vector<std::string>& args) { return ::times_command(args, nullptr); }},
+        {"times", [](const std::vector<std::string>& args) { return ::times_command(args); }},
         {"type",
          [this](const std::vector<std::string>& args) { return ::type_command(args, shell); }},
         {"which",
@@ -252,8 +250,8 @@ Built_ins::Built_ins() : shell(nullptr) {
              return builtin_it->second(forwarded_args);
          }},
         {"cjshopt", [](const std::vector<std::string>& args) { return ::cjshopt_command(args); }},
-        {"true", [](const std::vector<std::string>& args) { return true_command(args); }},
-        {"false", [](const std::vector<std::string>& args) { return false_command(args); }},
+        {"true", [](const std::vector<std::string>&) { return true_command(); }},
+        {"false", [](const std::vector<std::string>&) { return false_command(); }},
     };
 }
 
