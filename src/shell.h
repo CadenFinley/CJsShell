@@ -50,37 +50,24 @@ class Shell {
     Shell();
     ~Shell();
     int execute(const std::string& script, bool skip_validation = false);
-
     int execute_command(std::vector<std::string> args, bool run_in_background = false);
+    int execute_script_file(const std::filesystem::path& path, bool optional = false);
+
     SignalProcessingResult process_pending_signals();
-
-    void set_interactive_mode(bool flag);
-
-    bool get_interactive_mode() const;
-
-    void set_aliases(const std::unordered_map<std::string, std::string>& new_aliases);
-
-    void set_abbreviations(const std::unordered_map<std::string, std::string>& new_abbreviations);
-
-    std::unordered_map<std::string, std::string>& get_aliases();
-
-    std::unordered_map<std::string, std::string>& get_abbreviations();
-
-    void set_shell_option(const std::string& option, bool value);
-    bool get_shell_option(const std::string& option) const;
-    bool is_errexit_enabled() const;
-
-    void set_errexit_severity(const std::string& severity);
-    std::string get_errexit_severity() const;
-    bool should_abort_on_nonzero_exit() const;
-    bool should_abort_on_nonzero_exit(int exit_code) const;
-
     void setup_signal_handlers();
     void setup_interactive_handlers();
     void save_terminal_state();
     void restore_terminal_state();
     void setup_job_control();
     void handle_sigcont();
+    bool is_job_control_enabled() const;
+
+    void set_interactive_mode(bool flag);
+    bool get_interactive_mode() const;
+    void set_abbreviations(const std::unordered_map<std::string, std::string>& new_abbreviations);
+    std::unordered_map<std::string, std::string>& get_abbreviations();
+    void set_aliases(const std::unordered_map<std::string, std::string>& new_aliases);
+    std::unordered_map<std::string, std::string>& get_aliases();
 
     void register_hook(const std::string& hook_type, const std::string& function_name);
     void unregister_hook(const std::string& hook_type, const std::string& function_name);
@@ -88,20 +75,22 @@ class Shell {
     void clear_hooks(const std::string& hook_type);
     void execute_hooks(const std::string& hook_type);
 
-    std::string last_command;
-    std::unique_ptr<Exec> shell_exec;
+    void set_shell_option(const std::string& option, bool value);
+    bool get_shell_option(const std::string& option) const;
+    bool is_errexit_enabled() const;
+    void set_errexit_severity(const std::string& severity);
+    std::string get_errexit_severity() const;
+    bool should_abort_on_nonzero_exit() const;
+    bool should_abort_on_nonzero_exit(int exit_code) const;
 
     std::unordered_set<std::string> get_available_commands() const;
-
     std::string get_previous_directory() const;
-
     Built_ins* get_built_ins();
-    bool is_job_control_enabled() const;
     ShellScriptInterpreter* get_shell_script_interpreter();
-
     Parser* get_parser();
 
-    int execute_script_file(const std::filesystem::path& path, bool optional = false);
+    std::string last_command;
+    std::unique_ptr<Exec> shell_exec;
 
    private:
     bool interactive_mode = false;

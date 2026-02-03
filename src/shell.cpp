@@ -99,105 +99,6 @@ Shell::~Shell() {
     restore_terminal_state();
 }
 
-void Shell::set_abbreviations(
-    const std::unordered_map<std::string, std::string>& new_abbreviations) {
-    abbreviations = new_abbreviations;
-    apply_abbreviations_to_line_editor();
-}
-
-void Shell::set_interactive_mode(bool flag) {
-    if (interactive_mode == flag) {
-        return;
-    }
-
-    interactive_mode = flag;
-
-    if (interactive_mode) {
-        apply_abbreviations_to_line_editor();
-    } else {
-        ic_clear_abbreviations();
-    }
-}
-
-bool Shell::get_interactive_mode() const {
-    return interactive_mode;
-}
-
-void Shell::set_aliases(const std::unordered_map<std::string, std::string>& new_aliases) {
-    aliases = new_aliases;
-    if (shell_parser) {
-        shell_parser->set_aliases(aliases);
-    }
-}
-
-std::unordered_map<std::string, std::string>& Shell::get_aliases() {
-    return aliases;
-}
-
-std::unordered_map<std::string, std::string>& Shell::get_abbreviations() {
-    return abbreviations;
-}
-
-void Shell::apply_abbreviations_to_line_editor() {
-    if (!interactive_mode) {
-        return;
-    }
-
-    ic_clear_abbreviations();
-    for (const auto& [name, expansion] : abbreviations) {
-        (void)ic_add_abbreviation(name.c_str(), expansion.c_str());
-    }
-}
-
-SignalProcessingResult Shell::process_pending_signals() {
-    if (!signal_handler) {
-        return {};
-    }
-
-    if (!SignalHandler::has_pending_signals()) {
-        return {};
-    }
-
-    Exec* exec_ptr = shell_exec ? shell_exec.get() : nullptr;
-    return signal_handler->process_pending_signals(exec_ptr);
-}
-
-int Shell::execute_script_file(const std::filesystem::path& path, bool optional) {
-    if (!shell_script_interpreter) {
-        print_error({ErrorType::RUNTIME_ERROR, "source", "script interpreter not available", {}});
-        return 1;
-    }
-
-    std::filesystem::path normalized = path.lexically_normal();
-    std::string display_path = normalized.string();
-
-    std::error_code abs_ec;
-    auto absolute_path = std::filesystem::absolute(normalized, abs_ec);
-    if (!abs_ec) {
-        normalized = absolute_path.lexically_normal();
-        display_path = normalized.string();
-    }
-
-    std::ifstream file(normalized);
-    if (!file) {
-        if (optional) {
-            return 0;
-        }
-        print_error(
-            {ErrorType::FILE_NOT_FOUND, "source", "cannot open file '" + display_path + "'", {}});
-        return 1;
-    }
-
-    std::stringstream buffer;
-    buffer << file.rdbuf();
-    auto parsed_lines = shell_script_interpreter->parse_into_lines(buffer.str());
-    if (parsed_lines.empty()) {
-        return 0;
-    }
-
-    return shell_script_interpreter->execute_block(parsed_lines);
-}
-
 int Shell::execute(const std::string& script, bool skip_validation) {
     // main execution entry point for cjsh
     if (script.empty()) {
@@ -217,118 +118,6 @@ int Shell::execute(const std::string& script, bool skip_validation) {
     print_error(ErrorInfo{
         ErrorType::RUNTIME_ERROR, "", "No script interpreter available", {"Restart cjsh"}});
     return 1;
-}
-
-int read_exit_code_or(int fallback) {
-    const char* exit_code_str = getenv("EXIT_CODE");
-    if (exit_code_str == nullptr) {
-        return fallback;
-    }
-
-    char* endptr = nullptr;
-    long exit_code_long = std::strtol(exit_code_str, &endptr, 10);
-    if (endptr != exit_code_str && *endptr == '\0') {
-        fallback = static_cast<int>(exit_code_long);
-    }
-    unsetenv("EXIT_CODE");
-    return fallback;
-}
-
-void Shell::setup_signal_handlers() {
-    signal_handler->setup_signal_handlers();
-}
-
-void Shell::setup_interactive_handlers() {
-    signal_handler->setup_interactive_handlers();
-}
-
-void Shell::save_terminal_state() {
-    if (isatty(STDIN_FILENO) != 0) {
-        if (tcgetattr(STDIN_FILENO, &shell_tmodes) == 0) {
-            terminal_state_saved = true;
-        }
-    }
-}
-
-void Shell::restore_terminal_state() {
-    if (terminal_state_saved) {
-        if (tcsetattr(STDIN_FILENO, TCSANOW, &shell_tmodes) != 0) {
-            tcsetattr(STDIN_FILENO, TCSADRAIN, &shell_tmodes);
-        }
-        terminal_state_saved = false;
-    }
-
-    (void)fflush(stdout);
-    (void)fflush(stderr);
-}
-
-void Shell::setup_job_control() {
-    if (isatty(STDIN_FILENO) == 0) {
-        job_control_enabled = false;
-        return;
-    }
-
-    shell_pgid = getpid();
-
-    if (setpgid(shell_pgid, shell_pgid) < 0) {
-        if (errno != EPERM) {
-            const auto error_text = std::system_category().message(errno);
-            print_error({ErrorType::RUNTIME_ERROR,
-                         "setpgid",
-                         "couldn't put the shell in its own process group: " + error_text,
-                         {}});
-        }
-    }
-
-    try {
-        shell_terminal = STDIN_FILENO;
-
-        int tpgrp = tcgetpgrp(shell_terminal);
-        if (tpgrp != -1) {
-            if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
-                const auto error_text = std::system_category().message(errno);
-                print_error({ErrorType::RUNTIME_ERROR,
-                             "tcsetpgrp",
-                             "couldn't grab terminal control: " + error_text,
-                             {}});
-            }
-        }
-        job_control_enabled = true;
-    } catch (const std::exception& e) {
-        print_error(
-            {ErrorType::RUNTIME_ERROR, "", e.what(), {"Check terminal settings", "Restart cjsh"}});
-        job_control_enabled = false;
-    }
-}
-
-void Shell::handle_sigcont() {
-    if (!job_control_enabled) {
-        return;
-    }
-
-    if (isatty(shell_terminal) != 0) {
-        if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
-            const auto error_text = std::system_category().message(errno);
-            print_error({ErrorType::RUNTIME_ERROR,
-                         "tcsetpgrp",
-                         "failed to reclaim terminal after SIGCONT: " + error_text,
-                         {}});
-        }
-
-        if (terminal_state_saved) {
-            if (tcsetattr(shell_terminal, TCSADRAIN, &shell_tmodes) < 0) {
-                const auto error_text = std::system_category().message(errno);
-                print_error({ErrorType::RUNTIME_ERROR,
-                             "tcsetattr",
-                             "failed to restore terminal mode after SIGCONT: " + error_text,
-                             {}});
-            }
-        } else {
-            save_terminal_state();
-        }
-    }
-
-    apply_abbreviations_to_line_editor();
 }
 
 int Shell::execute_command(std::vector<std::string> args, bool run_in_background) {
@@ -502,41 +291,219 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
     return exit_code;
 }
 
-std::unordered_set<std::string> Shell::get_available_commands() const {
-    std::unordered_set<std::string> cmds;
-    if (built_ins) {
-        auto b = built_ins->get_builtin_commands();
-        cmds.insert(b.begin(), b.end());
-    }
-    for (const auto& alias : aliases) {
-        cmds.insert(alias.first);
+int Shell::execute_script_file(const std::filesystem::path& path, bool optional) {
+    if (!shell_script_interpreter) {
+        print_error({ErrorType::RUNTIME_ERROR, "source", "script interpreter not available", {}});
+        return 1;
     }
 
-    if (shell_script_interpreter) {
-        auto function_names = shell_script_interpreter->get_function_names();
-        cmds.insert(function_names.begin(), function_names.end());
+    std::filesystem::path normalized = path.lexically_normal();
+    std::string display_path = normalized.string();
+
+    std::error_code abs_ec;
+    auto absolute_path = std::filesystem::absolute(normalized, abs_ec);
+    if (!abs_ec) {
+        normalized = absolute_path.lexically_normal();
+        display_path = normalized.string();
     }
-    return cmds;
+
+    std::ifstream file(normalized);
+    if (!file) {
+        if (optional) {
+            return 0;
+        }
+        print_error(
+            {ErrorType::FILE_NOT_FOUND, "source", "cannot open file '" + display_path + "'", {}});
+        return 1;
+    }
+
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    auto parsed_lines = shell_script_interpreter->parse_into_lines(buffer.str());
+    if (parsed_lines.empty()) {
+        return 0;
+    }
+
+    return shell_script_interpreter->execute_block(parsed_lines);
 }
 
-std::string Shell::get_previous_directory() const {
-    return built_ins->get_previous_directory();
+int read_exit_code_or(int fallback) {
+    const char* exit_code_str = getenv("EXIT_CODE");
+    if (exit_code_str == nullptr) {
+        return fallback;
+    }
+
+    char* endptr = nullptr;
+    long exit_code_long = std::strtol(exit_code_str, &endptr, 10);
+    if (endptr != exit_code_str && *endptr == '\0') {
+        fallback = static_cast<int>(exit_code_long);
+    }
+    unsetenv("EXIT_CODE");
+    return fallback;
 }
 
-Built_ins* Shell::get_built_ins() {
-    return built_ins.get();
+SignalProcessingResult Shell::process_pending_signals() {
+    if (!signal_handler) {
+        return {};
+    }
+
+    if (!SignalHandler::has_pending_signals()) {
+        return {};
+    }
+
+    Exec* exec_ptr = shell_exec ? shell_exec.get() : nullptr;
+    return signal_handler->process_pending_signals(exec_ptr);
+}
+
+void Shell::setup_signal_handlers() {
+    signal_handler->setup_signal_handlers();
+}
+
+void Shell::setup_interactive_handlers() {
+    signal_handler->setup_interactive_handlers();
+}
+
+void Shell::save_terminal_state() {
+    if (isatty(STDIN_FILENO) != 0) {
+        if (tcgetattr(STDIN_FILENO, &shell_tmodes) == 0) {
+            terminal_state_saved = true;
+        }
+    }
+}
+
+void Shell::restore_terminal_state() {
+    if (terminal_state_saved) {
+        if (tcsetattr(STDIN_FILENO, TCSANOW, &shell_tmodes) != 0) {
+            tcsetattr(STDIN_FILENO, TCSADRAIN, &shell_tmodes);
+        }
+        terminal_state_saved = false;
+    }
+
+    (void)fflush(stdout);
+    (void)fflush(stderr);
+}
+
+void Shell::setup_job_control() {
+    if (isatty(STDIN_FILENO) == 0) {
+        job_control_enabled = false;
+        return;
+    }
+
+    shell_pgid = getpid();
+
+    if (setpgid(shell_pgid, shell_pgid) < 0) {
+        if (errno != EPERM) {
+            const auto error_text = std::system_category().message(errno);
+            print_error({ErrorType::RUNTIME_ERROR,
+                         "setpgid",
+                         "couldn't put the shell in its own process group: " + error_text,
+                         {}});
+        }
+    }
+
+    try {
+        shell_terminal = STDIN_FILENO;
+
+        int tpgrp = tcgetpgrp(shell_terminal);
+        if (tpgrp != -1) {
+            if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
+                const auto error_text = std::system_category().message(errno);
+                print_error({ErrorType::RUNTIME_ERROR,
+                             "tcsetpgrp",
+                             "couldn't grab terminal control: " + error_text,
+                             {}});
+            }
+        }
+        job_control_enabled = true;
+    } catch (const std::exception& e) {
+        print_error(
+            {ErrorType::RUNTIME_ERROR, "", e.what(), {"Check terminal settings", "Restart cjsh"}});
+        job_control_enabled = false;
+    }
+}
+
+void Shell::handle_sigcont() {
+    if (!job_control_enabled) {
+        return;
+    }
+
+    if (isatty(shell_terminal) != 0) {
+        if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
+            const auto error_text = std::system_category().message(errno);
+            print_error({ErrorType::RUNTIME_ERROR,
+                         "tcsetpgrp",
+                         "failed to reclaim terminal after SIGCONT: " + error_text,
+                         {}});
+        }
+
+        if (terminal_state_saved) {
+            if (tcsetattr(shell_terminal, TCSADRAIN, &shell_tmodes) < 0) {
+                const auto error_text = std::system_category().message(errno);
+                print_error({ErrorType::RUNTIME_ERROR,
+                             "tcsetattr",
+                             "failed to restore terminal mode after SIGCONT: " + error_text,
+                             {}});
+            }
+        } else {
+            save_terminal_state();
+        }
+    }
+
+    apply_abbreviations_to_line_editor();
 }
 
 bool Shell::is_job_control_enabled() const {
     return job_control_enabled;
 }
 
-ShellScriptInterpreter* Shell::get_shell_script_interpreter() {
-    return shell_script_interpreter.get();
+void Shell::set_interactive_mode(bool flag) {
+    if (interactive_mode == flag) {
+        return;
+    }
+
+    interactive_mode = flag;
+
+    if (interactive_mode) {
+        apply_abbreviations_to_line_editor();
+    } else {
+        ic_clear_abbreviations();
+    }
 }
 
-Parser* Shell::get_parser() {
-    return shell_parser.get();
+bool Shell::get_interactive_mode() const {
+    return interactive_mode;
+}
+
+void Shell::set_abbreviations(
+    const std::unordered_map<std::string, std::string>& new_abbreviations) {
+    abbreviations = new_abbreviations;
+    apply_abbreviations_to_line_editor();
+}
+
+std::unordered_map<std::string, std::string>& Shell::get_abbreviations() {
+    return abbreviations;
+}
+
+void Shell::set_aliases(const std::unordered_map<std::string, std::string>& new_aliases) {
+    aliases = new_aliases;
+    if (shell_parser) {
+        shell_parser->set_aliases(aliases);
+    }
+}
+
+std::unordered_map<std::string, std::string>& Shell::get_aliases() {
+    return aliases;
+}
+
+void Shell::apply_abbreviations_to_line_editor() {
+    if (!interactive_mode) {
+        return;
+    }
+
+    ic_clear_abbreviations();
+    for (const auto& [name, expansion] : abbreviations) {
+        (void)ic_add_abbreviation(name.c_str(), expansion.c_str());
+    }
 }
 
 void Shell::set_shell_option(const std::string& option, bool value) {
@@ -607,4 +574,37 @@ bool Shell::should_abort_on_nonzero_exit(int exit_code) const {
     }
 
     return error_severity >= threshold_severity;
+}
+
+std::unordered_set<std::string> Shell::get_available_commands() const {
+    std::unordered_set<std::string> cmds;
+    if (built_ins) {
+        auto b = built_ins->get_builtin_commands();
+        cmds.insert(b.begin(), b.end());
+    }
+    for (const auto& alias : aliases) {
+        cmds.insert(alias.first);
+    }
+
+    if (shell_script_interpreter) {
+        auto function_names = shell_script_interpreter->get_function_names();
+        cmds.insert(function_names.begin(), function_names.end());
+    }
+    return cmds;
+}
+
+std::string Shell::get_previous_directory() const {
+    return built_ins->get_previous_directory();
+}
+
+Built_ins* Shell::get_built_ins() {
+    return built_ins.get();
+}
+
+ShellScriptInterpreter* Shell::get_shell_script_interpreter() {
+    return shell_script_interpreter.get();
+}
+
+Parser* Shell::get_parser() {
+    return shell_parser.get();
 }
