@@ -29,10 +29,12 @@
 #pragma once
 
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
 struct passwd;
+class Shell;
 
 namespace config {
 extern bool login_mode;
@@ -66,6 +68,11 @@ void setup_path_variables(const struct passwd* pw);
 std::vector<std::pair<std::string, std::string>> setup_user_system_vars(const struct passwd* pw);
 
 bool update_terminal_dimensions();
+void sync_env_vars_from_system(Shell& shell);
+std::unordered_map<std::string, std::string>& env_vars();
+void replace_env_vars(const std::unordered_map<std::string, std::string>& new_env_vars,
+                      Shell* shell);
+void sync_parser_env_vars(Shell* shell);
 
 bool is_valid_env_name(const std::string& name);
 size_t collect_env_assignments(const std::vector<std::string>& args,
@@ -75,3 +82,5 @@ std::vector<std::string> parse_shell_command(const std::string& command);
 std::vector<char*> build_exec_argv(const std::vector<std::string>& args);
 
 }  // namespace cjsh_env
+
+int handle_non_interactive_mode(const std::string& script_file);

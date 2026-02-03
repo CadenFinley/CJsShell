@@ -38,6 +38,7 @@
 
 #include "cjsh.h"
 #include "error_out.h"
+#include "flags.h"
 #include "shell.h"
 
 namespace {
@@ -311,7 +312,7 @@ int set_command(const std::vector<std::string>& args, Shell* shell) {
     }
 
     if (positional_specified) {
-        shell->set_positional_parameters(positional_params);
+        flags::set_positional_parameters(positional_params);
     }
 
     return 0;
@@ -343,5 +344,5 @@ int shift_command(const std::vector<std::string>& args, Shell* shell) {
         }
     }
 
-    return shell->shift_positional_parameters(shift_count);
+    return flags::shift_positional_parameters(shift_count);
 }

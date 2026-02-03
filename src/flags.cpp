@@ -34,6 +34,7 @@
 #include "cjsh.h"
 #include "error_out.h"
 #include "isocline/isocline.h"
+#include "shell.h"
 #include "shell_env.h"
 #include "usage.h"
 
@@ -52,6 +53,7 @@ std::vector<std::string>& profile_startup_args() {
 namespace {
 
 constexpr int kOptNoCompletionLearning = 256;
+std::vector<std::string> positional_parameters;
 
 void detect_login_mode(char* argv[]) {
     // detect argv[0] being -cjsh
@@ -240,6 +242,33 @@ void apply_profile_startup_flags() {
             config::suppress_sh_warning = true;
         }
     }
+}
+
+void set_positional_parameters(const std::vector<std::string>& params) {
+    positional_parameters = params;
+}
+
+int shift_positional_parameters(int count) {
+    if (count < 0) {
+        return 1;
+    }
+
+    if (static_cast<size_t>(count) >= positional_parameters.size()) {
+        positional_parameters.clear();
+    } else {
+        positional_parameters.erase(positional_parameters.begin(),
+                                    positional_parameters.begin() + count);
+    }
+
+    return 0;
+}
+
+std::vector<std::string> get_positional_parameters() {
+    return positional_parameters;
+}
+
+size_t get_positional_parameter_count() {
+    return positional_parameters.size();
 }
 
 }  // namespace flags

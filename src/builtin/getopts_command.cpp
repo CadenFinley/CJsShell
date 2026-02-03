@@ -33,8 +33,10 @@
 #include <cstdlib>
 #include "cjsh.h"
 #include "error_out.h"
+#include "flags.h"
 #include "interpreter.h"
 #include "shell.h"
+#include "shell_env.h"
 
 namespace {
 
@@ -45,7 +47,7 @@ void set_special_var(Shell* shell, const std::string& key, const std::string& va
         if (interpreter && interpreter->is_local_variable(key)) {
             interpreter->set_local_variable(key, value);
         } else {
-            shell->get_env_vars()[key] = value;
+            cjsh_env::env_vars()[key] = value;
         }
     }
 }
@@ -61,7 +63,7 @@ void unset_special_var(Shell* shell, const std::string& key) {
         if (interpreter && interpreter->is_local_variable(key)) {
             interpreter->unset_local_variable(key);
         } else {
-            shell->get_env_vars().erase(key);
+            cjsh_env::env_vars().erase(key);
         }
     }
 }
@@ -102,7 +104,7 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
             argv_list.push_back(args[i]);
         }
     } else {
-        argv_list = shell->get_positional_parameters();
+        argv_list = flags::get_positional_parameters();
     }
 
     int optind = 1;

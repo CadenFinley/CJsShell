@@ -32,6 +32,7 @@
 #include <cctype>
 
 #include "exec.h"
+#include "flags.h"
 #include "interpreter.h"
 #include "parameter_utils.h"
 #include "parser.h"
@@ -88,14 +89,11 @@ std::string VariableExpander::resolve_parameter_value(const std::string& var_nam
     }
 
     if (var_name == "#") {
-        if (shell != nullptr) {
-            return std::to_string(shell->get_positional_parameter_count());
-        }
-        return "0";
+        return std::to_string(flags::get_positional_parameter_count());
     }
 
     if (var_name == "*" || var_name == "@") {
-        return parameter_utils::join_positional_parameters(shell);
+        return parameter_utils::join_positional_parameters();
     }
 
     if (var_name == "!") {
@@ -135,12 +133,10 @@ std::string VariableExpander::resolve_parameter_value(const std::string& var_nam
             return value;
         }
 
-        if (shell != nullptr) {
-            auto params = shell->get_positional_parameters();
-            int param_num = var_name[0] - '0';
-            if (param_num > 0 && static_cast<size_t>(param_num - 1) < params.size()) {
-                return params[param_num - 1];
-            }
+        auto params = flags::get_positional_parameters();
+        int param_num = var_name[0] - '0';
+        if (param_num > 0 && static_cast<size_t>(param_num - 1) < params.size()) {
+            return params[param_num - 1];
         }
 
         auto it = env_vars.find(var_name);

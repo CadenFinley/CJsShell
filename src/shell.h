@@ -62,18 +62,10 @@ class Shell {
 
     void set_abbreviations(const std::unordered_map<std::string, std::string>& new_abbreviations);
 
-    void set_env_vars(const std::unordered_map<std::string, std::string>& new_env_vars);
-
     std::unordered_map<std::string, std::string>& get_aliases();
 
     std::unordered_map<std::string, std::string>& get_abbreviations();
 
-    std::unordered_map<std::string, std::string>& get_env_vars();
-
-    void set_positional_parameters(const std::vector<std::string>& params);
-    int shift_positional_parameters(int count = 1);
-    std::vector<std::string> get_positional_parameters() const;
-    size_t get_positional_parameter_count() const;
     void set_shell_option(const std::string& option, bool value);
     bool get_shell_option(const std::string& option) const;
     bool is_errexit_enabled() const;
@@ -82,9 +74,6 @@ class Shell {
     std::string get_errexit_severity() const;
     bool should_abort_on_nonzero_exit() const;
     bool should_abort_on_nonzero_exit(int exit_code) const;
-
-    void expand_env_vars(std::string& value);
-    void sync_env_vars_from_system();
 
     void setup_signal_handlers();
     void setup_interactive_handlers();
@@ -130,8 +119,6 @@ class Shell {
 
     std::unordered_map<std::string, std::string> abbreviations;
     std::unordered_map<std::string, std::string> aliases;
-    std::unordered_map<std::string, std::string> env_vars;
-    std::vector<std::string> positional_parameters;
     std::unordered_map<std::string, bool> shell_options;
     std::string errexit_severity_level = "error";
 
@@ -142,4 +129,3 @@ class Shell {
 };
 
 int read_exit_code_or(int fallback);
-int handle_non_interactive_mode(const std::string& script_file);

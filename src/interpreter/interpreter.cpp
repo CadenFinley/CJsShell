@@ -58,6 +58,7 @@
 #include "conditional_evaluator.h"
 #include "error_out.h"
 #include "exec.h"
+#include "flags.h"
 #include "function_evaluator.h"
 #include "interpreter_utils.h"
 #include "job_control.h"
@@ -68,6 +69,7 @@
 #include "parser/tokenizer.h"
 #include "readonly_command.h"
 #include "shell.h"
+#include "shell_env.h"
 #include "signal_handler.h"
 #include "utils/pipeline_status_utils.h"
 
@@ -269,18 +271,13 @@ int ShellScriptInterpreter::execute_subshell(const std::string& subshell_content
 int ShellScriptInterpreter::execute_function_call(const std::vector<std::string>& expanded_args) {
     push_function_scope();
 
-    std::vector<std::string> saved_params;
-    if (g_shell) {
-        saved_params = g_shell->get_positional_parameters();
-    }
+    std::vector<std::string> saved_params = flags::get_positional_parameters();
 
     std::vector<std::string> func_params;
     for (size_t pi = 1; pi < expanded_args.size(); ++pi) {
         func_params.push_back(expanded_args[pi]);
     }
-    if (g_shell) {
-        g_shell->set_positional_parameters(func_params);
-    }
+    flags::set_positional_parameters(func_params);
 
     std::vector<std::string> param_names;
     for (size_t pi = 1; pi < expanded_args.size() && pi <= 9; ++pi) {
@@ -303,9 +300,7 @@ int ShellScriptInterpreter::execute_function_call(const std::vector<std::string>
         }
     }
 
-    if (g_shell) {
-        g_shell->set_positional_parameters(saved_params);
-    }
+    flags::set_positional_parameters(saved_params);
 
     for (const auto& n : param_names)
         unsetenv(n.c_str());
@@ -1264,18 +1259,14 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
 
                             push_function_scope();
 
-                            std::vector<std::string> saved_params;
-                            if (g_shell) {
-                                saved_params = g_shell->get_positional_parameters();
-                            }
+                            std::vector<std::string> saved_params =
+                                flags::get_positional_parameters();
 
                             std::vector<std::string> func_params;
                             for (size_t pi = 1; pi < first_toks.size(); ++pi) {
                                 func_params.push_back(first_toks[pi]);
                             }
-                            if (g_shell) {
-                                g_shell->set_positional_parameters(func_params);
-                            }
+                            flags::set_positional_parameters(func_params);
 
                             std::vector<std::string> param_names;
                             for (size_t pi = 1; pi < first_toks.size() && pi <= 9; ++pi) {
@@ -1298,9 +1289,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                                 }
                             }
 
-                            if (g_shell) {
-                                g_shell->set_positional_parameters(saved_params);
-                            }
+                            flags::set_positional_parameters(saved_params);
 
                             for (const auto& n : param_names)
                                 unsetenv(n.c_str());
@@ -1451,7 +1440,7 @@ long long ShellScriptInterpreter::evaluate_arithmetic_expression(const std::stri
         }
 
         if (g_shell) {
-            g_shell->get_env_vars()[name] = value_str;
+            cjsh_env::env_vars()[name] = value_str;
 
             if (name == "PATH" || name == "PWD" || name == "HOME" || name == "USER" ||
                 name == "SHELL") {
@@ -1459,7 +1448,7 @@ long long ShellScriptInterpreter::evaluate_arithmetic_expression(const std::stri
             }
 
             if (shell_parser) {
-                shell_parser->set_env_vars(g_shell->get_env_vars());
+                shell_parser->set_env_vars(cjsh_env::env_vars());
             }
         }
     };
@@ -1480,7 +1469,7 @@ int ShellScriptInterpreter::set_last_status(int code) {
         },
         []() {
             if (g_shell) {
-                auto& env_map = g_shell->get_env_vars();
+                auto& env_map = cjsh_env::env_vars();
                 env_map.erase("PIPESTATUS");
                 if (auto* parser = g_shell->get_parser()) {
                     parser->set_env_vars(env_map);

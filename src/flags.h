@@ -46,4 +46,9 @@ void save_startup_arguments(int argc, char* argv[]);
 std::vector<std::string>& startup_args();
 std::vector<std::string>& profile_startup_args();
 
+void set_positional_parameters(const std::vector<std::string>& params);
+int shift_positional_parameters(int count = 1);
+std::vector<std::string> get_positional_parameters();
+size_t get_positional_parameter_count();
+
 }  // namespace flags

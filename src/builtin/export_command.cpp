@@ -40,6 +40,7 @@
 #include "interpreter.h"
 #include "readonly_command.h"
 #include "shell.h"
+#include "shell_env.h"
 
 namespace {
 
@@ -79,7 +80,7 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
     }
 
     bool all_successful = true;
-    auto& env_vars = shell->get_env_vars();
+    auto& env_vars = cjsh_env::env_vars();
 
     for (size_t i = 1; i < args.size(); ++i) {
         std::string name;
@@ -93,7 +94,9 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
             }
 
             if (shell != nullptr) {
-                shell->expand_env_vars(value);
+                if (auto* parser = shell->get_parser()) {
+                    parser->expand_env_vars(value);
+                }
             }
 
             env_vars[name] = value;
@@ -142,7 +145,7 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
     }
 
     if (shell != nullptr) {
-        shell->set_env_vars(env_vars);
+        cjsh_env::sync_parser_env_vars(shell);
     }
 
     return all_successful ? 0 : 1;
@@ -159,7 +162,7 @@ int unset_command(const std::vector<std::string>& args, Shell* shell) {
     }
 
     bool success = true;
-    auto& env_vars = shell->get_env_vars();
+    auto& env_vars = cjsh_env::env_vars();
 
     for (size_t i = 1; i < args.size(); ++i) {
         const std::string& name = args[i];
@@ -188,7 +191,7 @@ int unset_command(const std::vector<std::string>& args, Shell* shell) {
     }
 
     if (shell != nullptr) {
-        shell->set_env_vars(env_vars);
+        cjsh_env::sync_parser_env_vars(shell);
     }
 
     return success ? 0 : 1;

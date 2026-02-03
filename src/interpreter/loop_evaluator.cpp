@@ -44,6 +44,7 @@
 #include "interpreter_utils.h"
 #include "parser.h"
 #include "shell.h"
+#include "shell_env.h"
 #include "signal_handler.h"
 
 using shell_script_interpreter::detail::strip_inline_comment;
@@ -582,7 +583,7 @@ int handle_for_block(const std::vector<std::string>& src_lines, size_t& idx,
 
     auto assign_loop_variable = [&](const std::string& value) {
         if (g_shell) {
-            g_shell->get_env_vars()[var] = value;
+            cjsh_env::env_vars()[var] = value;
             if (shell_parser != nullptr) {
                 shell_parser->expand_env_vars(var);
             }

@@ -38,7 +38,6 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <optional>
 #include <sstream>
 #include <system_error>
 
@@ -131,23 +130,12 @@ void Shell::set_aliases(const std::unordered_map<std::string, std::string>& new_
     }
 }
 
-void Shell::set_env_vars(const std::unordered_map<std::string, std::string>& new_env_vars) {
-    env_vars = new_env_vars;
-    if (shell_parser) {
-        shell_parser->set_env_vars(env_vars);
-    }
-}
-
 std::unordered_map<std::string, std::string>& Shell::get_aliases() {
     return aliases;
 }
 
 std::unordered_map<std::string, std::string>& Shell::get_abbreviations() {
     return abbreviations;
-}
-
-std::unordered_map<std::string, std::string>& Shell::get_env_vars() {
-    return env_vars;
 }
 
 void Shell::apply_abbreviations_to_line_editor() {
@@ -241,92 +229,6 @@ int read_exit_code_or(int fallback) {
     }
     unsetenv("EXIT_CODE");
     return fallback;
-}
-
-int handle_non_interactive_mode(const std::string& script_file) {
-    std::string script_content;
-
-    struct ScriptZeroGuard {
-        ScriptZeroGuard(Shell* shell, const std::string& new_value) : shell_(shell) {
-            const char* current = std::getenv("0");
-            if (current != nullptr) {
-                previous_ = current;
-                had_previous_ = true;
-            }
-            setenv("0", new_value.c_str(), 1);
-            sync_env(new_value.c_str());
-            active_ = true;
-        }
-
-        ~ScriptZeroGuard() {
-            if (!active_) {
-                return;
-            }
-            if (had_previous_) {
-                setenv("0", previous_.c_str(), 1);
-                sync_env(previous_.c_str());
-            } else {
-                unsetenv("0");
-                sync_env(nullptr);
-            }
-        }
-
-       private:
-        void sync_env(const char* value) {
-            if (shell_ == nullptr) {
-                return;
-            }
-            auto& env_vars = shell_->get_env_vars();
-            if (value != nullptr) {
-                env_vars["0"] = value;
-            } else {
-                env_vars.erase("0");
-            }
-            if (auto* parser = shell_->get_parser()) {
-                parser->set_env_vars(env_vars);
-            }
-        }
-
-        Shell* shell_;
-        std::string previous_;
-        bool had_previous_{false};
-        bool active_{false};
-    };
-
-    std::optional<ScriptZeroGuard> zero_guard;
-    if (!script_file.empty()) {
-        zero_guard.emplace(g_shell.get(), script_file);
-    }
-
-    if (!script_file.empty()) {
-        auto read_result = cjsh_filesystem::read_file_content(script_file);
-        if (!read_result.is_ok()) {
-            ErrorType error_type = ErrorType::FILE_NOT_FOUND;
-            if (read_result.error().find("Permission denied") != std::string::npos) {
-                error_type = ErrorType::PERMISSION_DENIED;
-            }
-
-            print_error({error_type,
-                         script_file,
-                         read_result.error(),
-                         {"Check file path and permissions"}});
-            return 127;
-        }
-
-        script_content = read_result.value();
-    } else {
-        std::string line;
-        while (std::getline(std::cin, line)) {
-            script_content += line + "\n";
-        }
-    }
-
-    if (!script_content.empty()) {
-        int code = g_shell ? g_shell->execute(script_content) : 1;
-        return read_exit_code_or(code);
-    }
-
-    return 0;
 }
 
 void Shell::setup_signal_handlers() {
@@ -492,7 +394,7 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
                 std::string map_value;
             };
 
-            auto& env_map = get_env_vars();
+            auto& env_map = cjsh_env::env_vars();
             std::vector<SavedEnvState> saved_states;
             saved_states.reserve(env_assignments.size());
 
@@ -630,33 +532,6 @@ Parser* Shell::get_parser() {
     return shell_parser.get();
 }
 
-void Shell::set_positional_parameters(const std::vector<std::string>& params) {
-    positional_parameters = params;
-}
-
-int Shell::shift_positional_parameters(int count) {
-    if (count < 0) {
-        return 1;
-    }
-
-    if (static_cast<size_t>(count) >= positional_parameters.size()) {
-        positional_parameters.clear();
-    } else {
-        positional_parameters.erase(positional_parameters.begin(),
-                                    positional_parameters.begin() + count);
-    }
-
-    return 0;
-}
-
-std::vector<std::string> Shell::get_positional_parameters() const {
-    return positional_parameters;
-}
-
-size_t Shell::get_positional_parameter_count() const {
-    return positional_parameters.size();
-}
-
 void Shell::set_shell_option(const std::string& option, bool value) {
     shell_options[option] = value;
 }
@@ -725,27 +600,4 @@ bool Shell::should_abort_on_nonzero_exit(int exit_code) const {
     }
 
     return error_severity >= threshold_severity;
-}
-
-void Shell::expand_env_vars(std::string& value) {
-    if (shell_parser) {
-        shell_parser->expand_env_vars(value);
-    }
-}
-
-void Shell::sync_env_vars_from_system() {
-    extern char** environ;
-    for (char** env = environ; *env != nullptr; env++) {
-        std::string env_str(*env);
-        size_t eq_pos = env_str.find('=');
-        if (eq_pos != std::string::npos) {
-            std::string name = env_str.substr(0, eq_pos);
-            std::string value = env_str.substr(eq_pos + 1);
-            env_vars[name] = value;
-        }
-    }
-
-    if (shell_parser) {
-        shell_parser->set_env_vars(env_vars);
-    }
 }

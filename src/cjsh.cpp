@@ -160,13 +160,13 @@ int run_cjsh(int argc, char* argv[]) {
 
     // set args for the script file before saving the startup args for cjsh
     if (!script_args.empty()) {
-        g_shell->set_positional_parameters(script_args);
+        flags::set_positional_parameters(script_args);
     }
 
     // set all envvars for cjsh
     cjsh_env::setup_environment_variables(argv[0]);
     flags::save_startup_arguments(argc, argv);
-    g_shell->sync_env_vars_from_system();
+    cjsh_env::sync_env_vars_from_system(*g_shell);
 
     // start login mode items
     if (config::login_mode) {

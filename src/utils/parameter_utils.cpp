@@ -32,17 +32,13 @@
 #include <cstdlib>
 #include <string>
 
+#include "flags.h"
 #include "job_control.h"
-#include "shell.h"
 
 namespace parameter_utils {
 
-std::string join_positional_parameters(const Shell* shell) {
-    if (shell == nullptr) {
-        return "";
-    }
-
-    const auto params = shell->get_positional_parameters();
+std::string join_positional_parameters() {
+    const auto params = flags::get_positional_parameters();
     if (params.empty()) {
         return "";
     }

@@ -91,7 +91,7 @@ void apply_assignments_to_shell_env(
         return;
     }
 
-    auto& env_vars = g_shell->get_env_vars();
+    auto& env_vars = cjsh_env::env_vars();
     for (const auto& env : assignments) {
         env_vars[env.first] = env.second;
 
@@ -101,9 +101,7 @@ void apply_assignments_to_shell_env(
         }
     }
 
-    if (g_shell->get_parser() != nullptr) {
-        g_shell->get_parser()->set_env_vars(env_vars);
-    }
+    cjsh_env::sync_parser_env_vars(g_shell.get());
 }
 
 Job make_single_process_job(pid_t pid, const std::string& command, bool background) {
@@ -266,7 +264,7 @@ class TemporaryEnvAssignmentScope {
             return;
         }
 
-        auto& env_vars = shell_->get_env_vars();
+        auto& env_vars = cjsh_env::env_vars();
         for (const auto& assignment : assignments) {
             const std::string& name = assignment.first;
             const std::string& value = assignment.second;
@@ -294,7 +292,7 @@ class TemporaryEnvAssignmentScope {
             return;
         }
 
-        auto& env_vars = shell_->get_env_vars();
+        auto& env_vars = cjsh_env::env_vars();
         for (auto it = backups_.rbegin(); it != backups_.rend(); ++it) {
             if (it->had_previous) {
                 env_vars[it->name] = it->previous_value;
@@ -324,9 +322,7 @@ class TemporaryEnvAssignmentScope {
         if (!shell_) {
             return;
         }
-        if (auto* parser = shell_->get_parser()) {
-            parser->set_env_vars(shell_->get_env_vars());
-        }
+        cjsh_env::sync_parser_env_vars(shell_);
     }
 
     Shell* shell_ = nullptr;

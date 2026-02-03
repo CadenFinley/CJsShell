@@ -35,6 +35,7 @@
 #include "parser/parser_utils.h"
 #include "parser/quote_info.h"
 #include "shell.h"
+#include "shell_env.h"
 namespace {
 inline bool is_whitespace(char c) {
     return c == ' ' || c == '\t' || c == '\n' || c == '\r';
@@ -448,20 +449,14 @@ std::vector<std::string> Tokenizer::merge_redirection_tokens(
 }
 
 std::vector<std::string> Tokenizer::split_by_ifs(const std::string& input, Shell* shell) {
+    (void)shell;
     std::vector<std::string> result;
 
     std::string ifs = " \t\n";
-    if (shell != nullptr) {
-        const auto& env_vars = shell->get_env_vars();
-        auto it = env_vars.find("IFS");
-        if (it != env_vars.end()) {
-            ifs = it->second;
-        } else {
-            const char* ifs_env = getenv("IFS");
-            if (ifs_env != nullptr) {
-                ifs = ifs_env;
-            }
-        }
+    const auto& env_vars = cjsh_env::env_vars();
+    auto it = env_vars.find("IFS");
+    if (it != env_vars.end()) {
+        ifs = it->second;
     } else {
         const char* ifs_env = getenv("IFS");
         if (ifs_env != nullptr) {

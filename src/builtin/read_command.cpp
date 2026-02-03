@@ -36,6 +36,7 @@
 #include "error_out.h"
 #include "readonly_command.h"
 #include "shell.h"
+#include "shell_env.h"
 
 int read_command(const std::vector<std::string>& args, Shell* shell) {
     auto print_usage = []() {
@@ -213,7 +214,7 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
     }
 
     std::string ifs = " \t\n";
-    const auto& env_vars = shell->get_env_vars();
+    const auto& env_vars = cjsh_env::env_vars();
     auto ifs_it = env_vars.find("IFS");
     if (ifs_it != env_vars.end()) {
         ifs = ifs_it->second;
@@ -309,8 +310,10 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
             return 1;
         }
 
-        shell->get_env_vars()[var_name] = value;
+        cjsh_env::env_vars()[var_name] = value;
     }
+
+    cjsh_env::sync_parser_env_vars(shell);
 
     return 0;
 }

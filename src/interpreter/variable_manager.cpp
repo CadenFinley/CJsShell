@@ -34,9 +34,11 @@
 #include <cstdlib>
 
 #include "cjsh.h"
+#include "flags.h"
 #include "parameter_utils.h"
 #include "readonly_command.h"
 #include "shell.h"
+#include "shell_env.h"
 
 void VariableManager::push_scope() {
     local_variable_stack.emplace_back();
@@ -75,7 +77,7 @@ void VariableManager::set_local_variable(const std::string& name, const std::str
 
 void VariableManager::set_environment_variable(const std::string& name, const std::string& value) {
     if (g_shell) {
-        auto& env_vars = g_shell->get_env_vars();
+        auto& env_vars = cjsh_env::env_vars();
         env_vars[name] = value;
 
         if (name == "PATH" || name == "PWD" || name == "HOME" || name == "USER" ||
@@ -145,7 +147,7 @@ std::string VariableManager::get_variable_value(const std::string& var_name) con
     }
 
     if (g_shell) {
-        const auto& env_vars = g_shell->get_env_vars();
+        const auto& env_vars = cjsh_env::env_vars();
         auto it = env_vars.find(var_name);
         if (it != env_vars.end()) {
             return it->second;
@@ -175,15 +177,15 @@ bool VariableManager::variable_is_set(const std::string& var_name) const {
         }
 
         int param_num = var_name[0] - '0';
-        if (g_shell && param_num > 0) {
-            auto params = g_shell->get_positional_parameters();
+        if (param_num > 0) {
+            auto params = flags::get_positional_parameters();
             return static_cast<size_t>(param_num - 1) < params.size();
         }
         return false;
     }
 
     if (g_shell) {
-        const auto& env_vars = g_shell->get_env_vars();
+        const auto& env_vars = cjsh_env::env_vars();
         if (env_vars.find(var_name) != env_vars.end()) {
             return true;
         }
@@ -201,13 +203,10 @@ std::string VariableManager::get_special_variable(const std::string& var_name) c
         return std::to_string(getpid());
     }
     if (var_name == "#") {
-        if (g_shell) {
-            return std::to_string(g_shell->get_positional_parameter_count());
-        }
-        return "0";
+        return std::to_string(flags::get_positional_parameter_count());
     }
     if (var_name == "*" || var_name == "@") {
-        return parameter_utils::join_positional_parameters(g_shell ? g_shell.get() : nullptr);
+        return parameter_utils::join_positional_parameters();
     }
     if (var_name == "!") {
         return parameter_utils::get_last_background_pid_string();
@@ -223,8 +222,8 @@ std::string VariableManager::get_positional_parameter(const std::string& var_nam
         }
 
         int param_num = var_name[0] - '0';
-        if (g_shell && param_num > 0) {
-            auto params = g_shell->get_positional_parameters();
+        if (param_num > 0) {
+            auto params = flags::get_positional_parameters();
             if (static_cast<size_t>(param_num - 1) < params.size()) {
                 return params[param_num - 1];
             }

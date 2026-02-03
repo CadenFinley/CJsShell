@@ -50,6 +50,7 @@
 #include "delimiter_state.h"
 #include "error_out.h"
 #include "expansion_engine.h"
+#include "flags.h"
 #include "interpreter/history_expansion.h"
 #include "job_control.h"
 #include "parser_utils.h"
@@ -987,8 +988,8 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
     for (std::string& raw_arg : args) {
         QuoteInfo qi(raw_arg);
 
-        if (qi.is_double && qi.value == "$@" && (shell != nullptr)) {
-            auto params = shell->get_positional_parameters();
+        if (qi.is_double && qi.value == "$@") {
+            auto params = flags::get_positional_parameters();
             for (const auto& param : params) {
                 pre_expanded_args.push_back(create_quote_tag(QUOTE_DOUBLE, param));
             }
