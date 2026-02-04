@@ -35,15 +35,27 @@
 #include <cstring>
 #include <iostream>
 #include <unordered_set>
+#include "cjsh.h"
 #include "error_out.h"
+#include "interpreter.h"
+#include "shell.h"
 
 namespace {
 struct ReadonlyState {
     std::unordered_set<std::string> readonly_vars;
 };
 
+struct ReadonlyFunctionState {
+    std::unordered_set<std::string> readonly_functions;
+};
+
 ReadonlyState& readonly_state() {
     static ReadonlyState state;
+    return state;
+}
+
+ReadonlyFunctionState& readonly_function_state() {
+    static ReadonlyFunctionState state;
     return state;
 }
 }  // namespace
@@ -64,10 +76,27 @@ std::vector<std::string> readonly_manager_list() {
     return result;
 }
 
+void readonly_function_manager_set(const std::string& name) {
+    readonly_function_state().readonly_functions.insert(name);
+}
+
+bool readonly_function_manager_is(const std::string& name) {
+    const auto& funcs = readonly_function_state().readonly_functions;
+    return funcs.find(name) != funcs.end();
+}
+
+std::vector<std::string> readonly_function_manager_list() {
+    const auto& funcs = readonly_function_state().readonly_functions;
+    std::vector<std::string> result(funcs.begin(), funcs.end());
+    std::sort(result.begin(), result.end());
+    return result;
+}
+
 int readonly_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(args, {"Usage: readonly [-p] NAME[=VALUE] ...",
                                    "Mark shell variables as readonly and optionally assign values.",
-                                   "-p prints readonly variables."})) {
+                                   "-p prints readonly variables.",
+                                   "-f operates on shell functions instead of variables."})) {
         return 0;
     }
     if (args.size() == 1) {
@@ -104,6 +133,36 @@ int readonly_command(const std::vector<std::string>& args) {
         }
     }
 
+    if (function_mode) {
+        if (print_mode || start_index >= args.size()) {
+            auto readonly_funcs = readonly_function_manager_list();
+            for (const std::string& func : readonly_funcs) {
+                std::cout << "readonly -f " << func << '\n';
+            }
+            return 0;
+        }
+
+        if (!g_shell || !g_shell->get_shell_script_interpreter()) {
+            print_error(
+                {ErrorType::RUNTIME_ERROR, "readonly", "shell interpreter not available", {}});
+            return 1;
+        }
+
+        auto* interpreter = g_shell->get_shell_script_interpreter();
+        for (size_t i = start_index; i < args.size(); ++i) {
+            const std::string& func_name = args[i];
+            if (!interpreter->has_function(func_name)) {
+                print_error({ErrorType::INVALID_ARGUMENT,
+                             "readonly",
+                             func_name + ": function not found",
+                             {}});
+                return 1;
+            }
+            readonly_function_manager_set(func_name);
+        }
+        return 0;
+    }
+
     if (print_mode) {
         auto readonly_vars = readonly_manager_list();
 
@@ -116,11 +175,6 @@ int readonly_command(const std::vector<std::string>& args) {
             }
         }
         return 0;
-    }
-
-    if (function_mode) {
-        print_error({ErrorType::RUNTIME_ERROR, "readonly", "-f option not implemented", {}});
-        return 1;
     }
 
     for (size_t i = start_index; i < args.size(); ++i) {

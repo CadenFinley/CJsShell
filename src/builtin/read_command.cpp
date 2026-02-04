@@ -27,12 +27,15 @@
 */
 
 #include "read_command.h"
+#include <poll.h>
 #include <unistd.h>
 #include <cerrno>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+#include <limits>
 #include "error_out.h"
 #include "readonly_command.h"
 #include "shell.h"
@@ -40,7 +43,8 @@
 
 int read_command(const std::vector<std::string>& args, Shell* shell) {
     auto print_usage = []() {
-        std::cout << "Usage: read [-r] [-p prompt] [-n nchars] [-d delim] [name ...]\n";
+        std::cout
+            << "Usage: read [-r] [-p prompt] [-n nchars] [-d delim] [-t timeout] [name ...]\n";
         std::cout << "Read a line from standard input and split it into fields.\n\n";
         std::cout << "Options:\n";
         std::cout << "  -r            do not allow backslashes to escape any characters\n";
@@ -49,8 +53,7 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
                      "for a newline\n";
         std::cout << "  -d delim      continue until the first character of DELIM is read, rather "
                      "than newline\n";
-        std::cout << "Note: a timeout option (-t) is parsed but not yet implemented and will "
-                     "return an error.\n";
+        std::cout << "  -t timeout    time out after TIMEOUT seconds (fractional allowed)\n";
     };
 
     bool help_requested = false;
@@ -78,6 +81,8 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
     int nchars = -1;
     std::string prompt;
     std::string delim = "\n";
+    bool has_timeout = false;
+    double timeout_seconds = 0.0;
 
     std::vector<std::string> var_names;
 
@@ -118,10 +123,43 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
         } else if (arg.substr(0, 2) == "-d" && arg.length() > 2) {
             delim = arg.substr(2);
         } else if (arg == "-t" && i + 1 < args.size()) {
-            print_error({ErrorType::RUNTIME_ERROR, "read", "timeout option not implemented", {}});
-            return 1;
+            try {
+                timeout_seconds = std::stod(args[i + 1]);
+                if (timeout_seconds < 0.0) {
+                    print_error({ErrorType::INVALID_ARGUMENT,
+                                 "read",
+                                 "invalid timeout: " + args[i + 1],
+                                 {}});
+                    return 1;
+                }
+                has_timeout = true;
+                i++;
+            } catch (const std::exception&) {
+                print_error(
+                    {ErrorType::INVALID_ARGUMENT, "read", "invalid timeout: " + args[i + 1], {}});
+                return 1;
+            }
         } else if (arg.substr(0, 2) == "-t" && arg.length() > 2) {
-            print_error({ErrorType::RUNTIME_ERROR, "read", "timeout option not implemented", {}});
+            try {
+                timeout_seconds = std::stod(arg.substr(2));
+                if (timeout_seconds < 0.0) {
+                    print_error({ErrorType::INVALID_ARGUMENT,
+                                 "read",
+                                 "invalid timeout: " + arg.substr(2),
+                                 {}});
+                    return 1;
+                }
+                has_timeout = true;
+            } catch (const std::exception&) {
+                print_error(
+                    {ErrorType::INVALID_ARGUMENT, "read", "invalid timeout: " + arg.substr(2), {}});
+                return 1;
+            }
+        } else if (arg == "-t") {
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         "read",
+                         "timeout requires a value",
+                         {"Try 'read --help' for more information."}});
             return 1;
         } else if (arg[0] == '-') {
             print_error({ErrorType::INVALID_ARGUMENT,
@@ -142,22 +180,67 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
         std::cout << prompt << std::flush;
     }
 
+    auto deadline = std::chrono::steady_clock::now();
+    if (has_timeout) {
+        deadline += std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+            std::chrono::duration<double>(timeout_seconds));
+    }
+
+    auto wait_for_input = [&]() -> bool {
+        if (!has_timeout) {
+            return true;
+        }
+
+        auto now = std::chrono::steady_clock::now();
+        if (now >= deadline) {
+            return false;
+        }
+
+        auto remaining =
+            std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now).count();
+        if (remaining < 0) {
+            return false;
+        }
+
+        int timeout_ms =
+            static_cast<int>(std::min<long long>(remaining, std::numeric_limits<int>::max()));
+        struct pollfd pfd{STDIN_FILENO, POLLIN, 0};
+        int result = 0;
+        do {
+            result = poll(&pfd, 1, timeout_ms);
+        } while (result < 0 && errno == EINTR);
+        return result > 0;
+    };
+
     std::string input;
     char c = 0;
     int chars_read = 0;
+    bool timed_out = false;
+
+    auto read_char = [&](char& out) -> bool {
+        if (!wait_for_input()) {
+            timed_out = true;
+            return false;
+        }
+        return static_cast<bool>(std::cin.get(out));
+    };
 
     if (nchars > 0) {
-        while (chars_read < nchars && std::cin.get(c)) {
+        while (chars_read < nchars && read_char(c)) {
             input += c;
             chars_read++;
         }
     } else {
-        while (std::cin.get(c)) {
+        while (read_char(c)) {
             if (delim.find(c) != std::string::npos) {
                 break;
             }
             input += c;
         }
+    }
+
+    if (timed_out && input.empty()) {
+        return 1;
     }
 
     if (std::cin.eof() && input.empty()) {

@@ -259,7 +259,9 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                  make_option("+a", "Stop auto-exporting variables"),
                  make_option("-o", "Set option by name"),
                  make_option("+o", "Unset option by name"),
+                 make_option("globstar", "Enable recursive '**' glob expansion"),
                  make_option("huponexit", "Send SIGHUP/SIGTERM to jobs when the shell exits"),
+                 make_option("pipefail", "Return the last non-zero pipeline status"),
                  make_option("--errexit-severity=", "Set errexit sensitivity level"),
                  make_option("--", "Treat remaining arguments as positional parameters")});
 
@@ -339,13 +341,13 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
 
         add_doc("readonly", "Mark variables as read-only",
                 {make_option("-p", "Print current readonly variables"),
-                 make_option("-f", "Operate on functions (not yet implemented)")});
+                 make_option("-f", "Operate on functions")});
 
         add_doc("read", "Read a line from standard input",
                 {make_option("-r", "Disable backslash escapes"),
                  make_option("-n", "Read a specific number of characters"),
                  make_option("-p", "Display a prompt"), make_option("-d", "Use a custom delimiter"),
-                 make_option("-t", "Set a timeout (not yet implemented)")});
+                 make_option("-t", "Set a timeout in seconds")});
 
         add_doc("umask", "Set or display the file mode creation mask",
                 {make_option("-p", "Print in reusable format"),

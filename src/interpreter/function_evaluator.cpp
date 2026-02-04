@@ -31,6 +31,8 @@
 #include <cctype>
 #include <utility>
 
+#include "error_out.h"
+#include "readonly_command.h"
 namespace function_evaluator {
 
 FunctionParseResult parse_and_register_functions(
@@ -140,7 +142,14 @@ FunctionParseResult parse_and_register_functions(
                     if (!body_part.empty())
                         body_lines.push_back(body_part);
 
-                    functions[func_name] = body_lines;
+                    if (readonly_function_manager_is(func_name)) {
+                        print_error({ErrorType::INVALID_ARGUMENT,
+                                     "readonly",
+                                     func_name + ": readonly function",
+                                     {}});
+                    } else {
+                        functions[func_name] = body_lines;
+                    }
 
                     std::string remainder = trim_func(after_body.substr(end_delim + 1));
 
@@ -195,7 +204,14 @@ FunctionParseResult parse_and_register_functions(
                     }
                 }
 
-                functions[func_name] = body_lines;
+                if (readonly_function_manager_is(func_name)) {
+                    print_error({ErrorType::INVALID_ARGUMENT,
+                                 "readonly",
+                                 func_name + ": readonly function",
+                                 {}});
+                } else {
+                    functions[func_name] = body_lines;
+                }
 
                 if (after_closing_delim.empty()) {
                     current_line.clear();

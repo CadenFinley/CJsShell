@@ -51,8 +51,9 @@ struct OptionDescriptor {
 constexpr size_t kOptionNamePadding = 15;
 
 const OptionDescriptor kOptionDescriptors[] = {
-    {'e', "errexit"}, {'C', "noclobber"}, {'u', "nounset"}, {'x', "xtrace"},    {'v', "verbose"},
-    {'n', "noexec"},  {'f', "noglob"},    {0, "globstar"},  {'a', "allexport"}, {0, "huponexit"}};
+    {'e', "errexit"},   {'C', "noclobber"}, {'u', "nounset"}, {'x', "xtrace"},
+    {'v', "verbose"},   {'n', "noexec"},    {'f', "noglob"},  {0, "globstar"},
+    {'a', "allexport"}, {0, "huponexit"},   {0, "pipefail"}};
 
 std::string pad_option_name(const std::string& name) {
     if (name.size() >= kOptionNamePadding) {
@@ -191,29 +192,30 @@ void report_invalid_option(const std::string& context) {
 }  // namespace
 
 int set_command(const std::vector<std::string>& args, Shell* shell) {
-    if (builtin_handle_help(args,
-                            {"Usage: set [-+eCunxvfna] [-o option] [--] [ARG ...]",
-                             "Set or unset shell options and positional parameters.",
-                             "",
-                             "Options:",
-                             "  -e              Exit on error (errexit)",
-                             "  -C              Prevent file overwriting (noclobber)",
-                             "  -u              Treat unset variables as error (nounset)",
-                             "  -x              Print commands before execution (xtrace)",
-                             "  -v              Print input lines as they are read (verbose)",
-                             "  -n              Read but don't execute commands (noexec)",
-                             "  -f              Disable pathname expansion (noglob)",
-                             "  -a              Auto-export modified variables (allexport)",
-                             "  -o option       Set option by name (globstar, huponexit, etc.)",
-                             "                  globstar enables recursive '**' globs",
-                             "  +<option>       Unset the specified option",
-                             "  --              End options; remaining args set $1, $2, etc.",
-                             "",
-                             "With no arguments, print all environment variables.",
-                             "Use 'set -o' to list current option settings.",
-                             "",
-                             "Special options:",
-                             "  --errexit-severity=LEVEL  Set errexit sensitivity level"})) {
+    if (builtin_handle_help(
+            args, {"Usage: set [-+eCunxvfna] [-o option] [--] [ARG ...]",
+                   "Set or unset shell options and positional parameters.",
+                   "",
+                   "Options:",
+                   "  -e              Exit on error (errexit)",
+                   "  -C              Prevent file overwriting (noclobber)",
+                   "  -u              Treat unset variables as error (nounset)",
+                   "  -x              Print commands before execution (xtrace)",
+                   "  -v              Print input lines as they are read (verbose)",
+                   "  -n              Read but don't execute commands (noexec)",
+                   "  -f              Disable pathname expansion (noglob)",
+                   "  -a              Auto-export modified variables (allexport)",
+                   "  -o option       Set option by name (globstar, huponexit, pipefail, etc.)",
+                   "                  globstar enables recursive '**' globs",
+                   "                  pipefail makes pipelines return the last non-zero status",
+                   "  +<option>       Unset the specified option",
+                   "  --              End options; remaining args set $1, $2, etc.",
+                   "",
+                   "With no arguments, print all environment variables.",
+                   "Use 'set -o' to list current option settings.",
+                   "",
+                   "Special options:",
+                   "  --errexit-severity=LEVEL  Set errexit sensitivity level"})) {
         return 0;
     }
     if (shell == nullptr) {

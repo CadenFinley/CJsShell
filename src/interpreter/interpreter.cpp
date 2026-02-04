@@ -1122,8 +1122,17 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                                 std::string body_part = trim(after_brace.substr(0, end_brace));
                                 if (!body_part.empty())
                                     body_lines.push_back(body_part);
-                                functions[func_name] = body_lines;
-                                last_code = 0;
+                                if (readonly_function_manager_is(func_name)) {
+                                    print_error({ErrorType::INVALID_ARGUMENT,
+                                                 "readonly",
+                                                 func_name + ": readonly function",
+                                                 {}});
+                                    last_code = 1;
+                                } else {
+                                    functions[func_name] = body_lines;
+                                    last_code = 0;
+                                }
+                                set_last_status(last_code);
                                 continue;
                             }
                         }

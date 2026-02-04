@@ -39,4 +39,10 @@ bool readonly_manager_is(const std::string& name);
 
 std::vector<std::string> readonly_manager_list();
 
+void readonly_function_manager_set(const std::string& name);
+
+bool readonly_function_manager_is(const std::string& name);
+
+std::vector<std::string> readonly_function_manager_list();
+
 int readonly_command(const std::vector<std::string>& args);

@@ -96,6 +96,20 @@ else
     fail_test "read -d not supported (got '$OUT', expected 'hello')"
 fi
 
+OUT=$(printf "hello\n" | "$CJSH_PATH" -c "read -t 1 VAR; status=\$?; echo \$status:\$VAR" 2>/dev/null)
+if [ "$OUT" = "0:hello" ]; then
+    pass_test "read -t returns before timeout"
+else
+    fail_test "read -t success (got '$OUT', expected '0:hello')"
+fi
+
+OUT=$(sleep 0.2 | "$CJSH_PATH" -c "read -t 0.05 VAR; status=\$?; echo \$status:\$VAR" 2>/dev/null)
+if [ "$OUT" = "1:" ]; then
+    pass_test "read -t times out with no input"
+else
+    fail_test "read -t timeout (got '$OUT', expected '1:')"
+fi
+
 cat > /tmp/test_read_heredoc.sh << 'EOF'
 #!/bin/sh
 read VAR << HEREDOC

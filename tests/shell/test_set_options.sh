@@ -221,6 +221,30 @@ else
     fail_test "set +ohuponexit should disable huponexit, got: '$output'"
 fi
 
+echo "Test set -o pipefail"
+output=$("$CJSH_PATH" -c 'set -o pipefail; false | true; echo $?' 2>/dev/null)
+if [ "$output" = "1" ]; then
+    pass_test "set -o pipefail returns last non-zero status"
+else
+    fail_test "set -o pipefail should return 1, got: '$output'"
+fi
+
+echo "Test set +o pipefail"
+output=$("$CJSH_PATH" -c 'set -o pipefail; set +o pipefail; false | true; echo $?' 2>/dev/null)
+if [ "$output" = "0" ]; then
+    pass_test "set +o pipefail restores last-command status"
+else
+    fail_test "set +o pipefail should return 0, got: '$output'"
+fi
+
+echo "Test pipefail with multi-step pipeline"
+output=$("$CJSH_PATH" -c 'set -o pipefail; true | false | true; echo $?' 2>/dev/null)
+if [ "$output" = "1" ]; then
+    pass_test "pipefail reports failure in middle of pipeline"
+else
+    fail_test "pipefail middle failure expected 1, got: '$output'"
+fi
+
 echo "Test set -o errexit_severity=warning"
 output=$("$CJSH_PATH" -c 'set -o errexit_severity=warning; set -o' 2>/dev/null)
 if echo "$output" | grep -q "errexit_severity" && echo "$output" | grep -q "warning"; then

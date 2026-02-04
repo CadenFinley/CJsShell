@@ -1119,6 +1119,22 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
 int Exec::execute_pipeline(const std::vector<Command>& commands) {
     const bool pipeline_negated = (!commands.empty() && commands[0].negate_pipeline);
 
+    auto apply_pipefail = [&](int exit_code, const std::vector<int>& statuses) -> int {
+        if (!g_shell || !g_shell->get_shell_option("pipefail")) {
+            return exit_code;
+        }
+        if (statuses.empty()) {
+            return exit_code;
+        }
+        int pipefail_exit = 0;
+        for (int status : statuses) {
+            if (status > 0) {
+                pipefail_exit = status;
+            }
+        }
+        return pipefail_exit;
+    };
+
     auto finalize_exit = [&](int exit_code) -> int {
         int effective = exit_code;
         if (pipeline_negated) {
@@ -1711,6 +1727,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 JobManager::instance().remove_job(new_job_id);
                 raw_exit = extract_exit_code(it->second.last_status);
                 set_last_pipeline_statuses(it->second.pipeline_statuses);
+                raw_exit = apply_pipefail(raw_exit, it->second.pipeline_statuses);
             } else {
                 raw_exit = last_exit_code;
             }
