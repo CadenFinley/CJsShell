@@ -1570,13 +1570,36 @@ static bool edit_resize(ic_env_t* env, editor_t* eb) {
     sbuf_insert_at(eb->input, sbuf_string(eb->hint),
                    eb->pos);  // insert used hint
 
-    // render extra (like a completion menu)
+    // render extra (status lines, hint help, completion menu)
     stringbuf_t* extra = NULL;
-    if (sbuf_len(eb->extra) > 0) {
+    const bool menu_active = (sbuf_len(eb->extra) > 0);
+
+    if (!menu_active && sbuf_len(eb->status) > 0) {
         extra = sbuf_new(eb->mem);
         if (extra != NULL) {
-            if (sbuf_len(eb->hint_help) > 0) {
-                bbcode_append(env->bbcode, sbuf_string(eb->hint_help), extra, NULL);
+            bbcode_append(env->bbcode, sbuf_string(eb->status), extra, NULL);
+        }
+    }
+
+    if (sbuf_len(eb->hint_help) > 0) {
+        if (extra == NULL) {
+            extra = sbuf_new(eb->mem);
+        }
+        if (extra != NULL) {
+            if (sbuf_len(extra) > 0 && !sbuf_ends_with_newline(extra)) {
+                bbcode_append(env->bbcode, "\n", extra, NULL);
+            }
+            bbcode_append(env->bbcode, sbuf_string(eb->hint_help), extra, NULL);
+        }
+    }
+
+    if (menu_active) {
+        if (extra == NULL) {
+            extra = sbuf_new(eb->mem);
+        }
+        if (extra != NULL) {
+            if (sbuf_len(extra) > 0 && !sbuf_ends_with_newline(extra)) {
+                bbcode_append(env->bbcode, "\n", extra, NULL);
             }
             bbcode_append(env->bbcode, sbuf_string(eb->extra), extra, NULL);
         }
