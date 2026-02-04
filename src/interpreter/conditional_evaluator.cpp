@@ -58,6 +58,46 @@ bool is_if_token(const std::string& token) {
     return token == "if" || token.rfind("if ", 0) == 0;
 }
 
+bool handle_quote_char(char c, bool& in_quotes, char& quote_char, std::string* output) {
+    if (!in_quotes) {
+        if (c == '"' || c == '\'' || c == '`') {
+            in_quotes = true;
+            quote_char = c;
+            if (output)
+                output->push_back(c);
+            return true;
+        }
+        return false;
+    }
+
+    if (c == quote_char) {
+        in_quotes = false;
+        quote_char = '\0';
+    }
+    if (output)
+        output->push_back(c);
+    return true;
+}
+
+void update_group_depths(char c, int& bracket_depth, int& paren_depth) {
+    if (c == '[') {
+        bracket_depth++;
+    } else if (c == ']') {
+        bracket_depth--;
+    } else if (c == '(') {
+        paren_depth++;
+    } else if (c == ')') {
+        paren_depth--;
+    }
+}
+
+bool is_fi_token_boundary(const std::string& text, size_t pos) {
+    bool is_word_end =
+        (pos + 2 >= text.length()) || (text[pos + 2] == ' ') || (text[pos + 2] == ';');
+    bool is_word_start = (pos == 0) || (text[pos - 1] == ' ') || (text[pos - 1] == ';');
+    return is_word_start && is_word_end;
+}
+
 std::vector<std::string> split_top_level_semicolons(const std::string& text) {
     std::vector<std::string> segments;
     segments.reserve(8);
@@ -374,13 +414,12 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
             while (search_pos < rem.length() && if_depth > 0) {
                 char c = rem[search_pos];
 
-                if (!in_quotes && (c == '"' || c == '\'' || c == '`')) {
-                    in_quotes = true;
-                    quote_char = c;
-                } else if (in_quotes && c == quote_char) {
-                    in_quotes = false;
-                    quote_char = '\0';
-                } else if (!in_quotes) {
+                if (handle_quote_char(c, in_quotes, quote_char, nullptr)) {
+                    search_pos++;
+                    continue;
+                }
+
+                if (!in_quotes) {
                     if (search_pos + 3 < rem.length() && rem.substr(search_pos, 3) == "if ") {
                         if_depth++;
                         search_pos += 2;
@@ -415,13 +454,12 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                 while (check_pos < fi_pos) {
                     char ch = rem[check_pos];
 
-                    if (!check_in_quotes && (ch == '"' || ch == '\'' || ch == '`')) {
-                        check_in_quotes = true;
-                        check_quote = ch;
-                    } else if (check_in_quotes && ch == check_quote) {
-                        check_in_quotes = false;
-                        check_quote = '\0';
-                    } else if (!check_in_quotes) {
+                    if (handle_quote_char(ch, check_in_quotes, check_quote, nullptr)) {
+                        check_pos++;
+                        continue;
+                    }
+
+                    if (!check_in_quotes) {
                         if (check_pos + 3 <= fi_pos && rem.substr(check_pos, 3) == "if ") {
                             nested_depth++;
                             check_pos += 2;
@@ -464,13 +502,12 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                 while (search_else < body.length()) {
                     char c = body[search_else];
 
-                    if (!in_quotes && (c == '"' || c == '\'' || c == '`')) {
-                        in_quotes = true;
-                        quote_char = c;
-                    } else if (in_quotes && c == quote_char) {
-                        in_quotes = false;
-                        quote_char = '\0';
-                    } else if (!in_quotes) {
+                    if (handle_quote_char(c, in_quotes, quote_char, nullptr)) {
+                        search_else++;
+                        continue;
+                    }
+
+                    if (!in_quotes) {
                         if (search_else + 3 < body.length() &&
                             body.substr(search_else, 3) == "if ") {
                             nested_if_depth++;
@@ -632,13 +669,7 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                     if (candidate == std::string::npos)
                         break;
 
-                    bool is_word_end = (candidate + 2 >= remaining.length()) ||
-                                       (remaining[candidate + 2] == ' ') ||
-                                       (remaining[candidate + 2] == ';');
-                    bool is_word_start = (candidate == 0) || (remaining[candidate - 1] == ' ') ||
-                                         (remaining[candidate - 1] == ';');
-
-                    if (is_word_start && is_word_end) {
+                    if (is_fi_token_boundary(remaining, candidate)) {
                         fi_pos = candidate;
                         break;
                     }
@@ -695,14 +726,7 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                                 if (candidate == std::string::npos)
                                     break;
 
-                                bool is_word_end = (candidate + 2 >= remaining.length()) ||
-                                                   (remaining[candidate + 2] == ' ') ||
-                                                   (remaining[candidate + 2] == ';');
-                                bool is_word_start = (candidate == 0) ||
-                                                     (remaining[candidate - 1] == ' ') ||
-                                                     (remaining[candidate - 1] == ';');
-
-                                if (is_word_start && is_word_end) {
+                                if (is_fi_token_boundary(remaining, candidate)) {
                                     next_fi = candidate;
                                     break;
                                 }
@@ -1064,28 +1088,10 @@ int evaluate_logical_condition(const std::string& condition,
             continue;
         }
 
-        if (!in_quotes) {
-            if (c == '"' || c == '\'' || c == '`') {
-                in_quotes = true;
-                quote_char = c;
-                continue;
-            }
-            if (c == '[') {
-                bracket_depth++;
-            } else if (c == ']') {
-                bracket_depth--;
-            } else if (c == '(') {
-                paren_depth++;
-            } else if (c == ')') {
-                paren_depth--;
-            }
-        } else {
-            if (c == quote_char) {
-                in_quotes = false;
-                quote_char = '\0';
-            }
+        if (handle_quote_char(c, in_quotes, quote_char, nullptr)) {
             continue;
         }
+        update_group_depths(c, bracket_depth, paren_depth);
 
         if (!in_quotes && bracket_depth == 0 && paren_depth == 0) {
             if ((cond[i] == '&' && cond[i + 1] == '&') || (cond[i] == '|' && cond[i + 1] == '|')) {
@@ -1122,30 +1128,10 @@ int evaluate_logical_condition(const std::string& condition,
             continue;
         }
 
-        if (!in_quotes) {
-            if (c == '"' || c == '\'' || c == '`') {
-                in_quotes = true;
-                quote_char = c;
-                current_part += c;
-                continue;
-            }
-            if (c == '[') {
-                bracket_depth++;
-            } else if (c == ']') {
-                bracket_depth--;
-            } else if (c == '(') {
-                paren_depth++;
-            } else if (c == ')') {
-                paren_depth--;
-            }
-        } else {
-            if (c == quote_char) {
-                in_quotes = false;
-                quote_char = '\0';
-            }
-            current_part += c;
+        if (handle_quote_char(c, in_quotes, quote_char, &current_part)) {
             continue;
         }
+        update_group_depths(c, bracket_depth, paren_depth);
 
         if (!in_quotes && bracket_depth == 0 && paren_depth == 0 && i + 1 < cond.length()) {
             if (cond[i] == '&' && cond[i + 1] == '&') {
