@@ -47,14 +47,12 @@ WINBASEAPI ULONGLONG WINAPI GetTickCount64(VOID);
 #endif
 #else
 #include <errno.h>
+#include <fcntl.h>
 #include <signal.h>
 #include <sys/ioctl.h>
 #include <sys/select.h>
 #include <termios.h>
 #include <unistd.h>
-#if !defined(FIONREAD)
-#include <fcntl.h>
-#endif
 #endif
 
 #define TTY_PUSH_MAX (32)
@@ -80,9 +78,85 @@ struct tty_s {
 #else
     struct termios orig_ios;
     struct termios raw_ios;
+    int wake_pipe[2];
 #endif
+    bool wake_pipe_initialized;
     bool paste_mode;
 };
+
+#if !defined(_WIN32)
+static bool tty_setup_wakeup_channel(tty_t* tty) {
+    tty->wake_pipe[0] = -1;
+    tty->wake_pipe[1] = -1;
+    if (pipe(tty->wake_pipe) != 0) {
+        return false;
+    }
+    for (int i = 0; i < 2; ++i) {
+        if (fcntl(tty->wake_pipe[i], F_SETFD, FD_CLOEXEC) == -1) {
+            continue;
+        }
+        int flags = fcntl(tty->wake_pipe[i], F_GETFL, 0);
+        if (flags != -1) {
+            (void)fcntl(tty->wake_pipe[i], F_SETFL, flags | O_NONBLOCK);
+        }
+    }
+    tty->wake_pipe_initialized = true;
+    return true;
+}
+
+static void tty_close_wakeup_channel(tty_t* tty) {
+    if (!tty->wake_pipe_initialized) {
+        return;
+    }
+    for (int i = 0; i < 2; ++i) {
+        if (tty->wake_pipe[i] >= 0) {
+            close(tty->wake_pipe[i]);
+            tty->wake_pipe[i] = -1;
+        }
+    }
+    tty->wake_pipe_initialized = false;
+}
+
+static void tty_drain_wakeup_pipe(tty_t* tty) {
+    if (!tty->wake_pipe_initialized) {
+        return;
+    }
+    uint8_t buffer[64];
+    while (read(tty->wake_pipe[0], buffer, sizeof(buffer)) > 0) {
+        // keep draining
+    }
+}
+
+static void tty_wakeup(tty_t* tty) {
+    if (tty == NULL || !tty->wake_pipe_initialized) {
+        return;
+    }
+    uint8_t byte = 1;
+    (void)write(tty->wake_pipe[1], &byte, sizeof(byte));
+}
+#else
+static bool tty_setup_wakeup_channel(tty_t* tty) {
+    ic_unused(tty);
+    if (tty != NULL) {
+        tty->wake_pipe_initialized = false;
+    }
+    return true;
+}
+
+static void tty_close_wakeup_channel(tty_t* tty) {
+    if (tty != NULL) {
+        tty->wake_pipe_initialized = false;
+    }
+}
+
+static void tty_drain_wakeup_pipe(tty_t* tty) {
+    ic_unused(tty);
+}
+
+static void tty_wakeup(tty_t* tty) {
+    ic_unused(tty);
+}
+#endif
 
 //-------------------------------------------------------------
 // Key code helpers
@@ -159,45 +233,50 @@ static code_t tty_read_utf8(tty_t* tty, uint8_t c0) {
 static bool tty_code_pop(tty_t* tty, code_t* code);
 
 ic_private bool tty_read_timeout(tty_t* tty, long timeout_ms, code_t* code) {
-    if (tty_code_pop(tty, code)) {
-        return true;
-    }
-
-    uint8_t c;
-
-    if (!tty_readc_noblock(tty, &c, timeout_ms)) {
-        /* If a blocking read (timeout_ms < 0) returned no data (likely EOF),
-           surface an explicit stop event so the caller can break out instead
-           of spinning on KEY_NONE. For non-blocking reads, keep returning
-           false as before. */
-        if (timeout_ms < 0) {
-            *code = KEY_EVENT_STOP;
+    while (true) {
+        if (tty_code_pop(tty, code)) {
             return true;
         }
-        return false;
+
+        uint8_t c;
+
+        if (!tty_readc_noblock(tty, &c, timeout_ms)) {
+            if (timeout_ms < 0 && tty->push_count > 0) {
+                continue;
+            }
+            /* If a blocking read (timeout_ms < 0) returned no data (likely EOF),
+               surface an explicit stop event so the caller can break out instead
+               of spinning on KEY_NONE. For non-blocking reads, keep returning
+               false as before. */
+            if (timeout_ms < 0) {
+                *code = KEY_EVENT_STOP;
+                return true;
+            }
+            return false;
+        }
+
+        if (c == KEY_ESC) {
+            *code = tty_read_esc(tty, tty->esc_initial_timeout, tty->esc_timeout);
+        } else if (c <= 0x7F) {
+            *code = key_unicode(c);
+        } else if (tty->is_utf8) {
+            *code = tty_read_utf8(tty, c);
+        } else {
+            *code = key_unicode(unicode_from_raw(c));
+        }
+
+        *code = modify_code(*code, tty->paste_mode);
+
+        if (*code == IC_KEY_PASTE_START) {
+            tty->paste_mode = true;
+            debug_msg("tty: entering paste mode\n");
+        } else if (*code == IC_KEY_PASTE_END) {
+            tty->paste_mode = false;
+            debug_msg("tty: exiting paste mode\n");
+        }
+
+        return true;
     }
-
-    if (c == KEY_ESC) {
-        *code = tty_read_esc(tty, tty->esc_initial_timeout, tty->esc_timeout);
-    } else if (c <= 0x7F) {
-        *code = key_unicode(c);
-    } else if (tty->is_utf8) {
-        *code = tty_read_utf8(tty, c);
-    } else {
-        *code = key_unicode(unicode_from_raw(c));
-    }
-
-    *code = modify_code(*code, tty->paste_mode);
-
-    if (*code == IC_KEY_PASTE_START) {
-        tty->paste_mode = true;
-        debug_msg("tty: entering paste mode\n");
-    } else if (*code == IC_KEY_PASTE_END) {
-        tty->paste_mode = false;
-        debug_msg("tty: exiting paste mode\n");
-    }
-
-    return true;
 }
 
 static code_t modify_code(code_t code, bool in_paste_mode) {
@@ -316,6 +395,7 @@ ic_private void tty_code_pushback(tty_t* tty, code_t c) {
         return;
     tty->pushbuf[tty->push_count] = c;
     tty->push_count++;
+    tty_wakeup(tty);
 }
 
 //-------------------------------------------------------------
@@ -431,6 +511,10 @@ ic_private tty_t* tty_new(alloc_t* mem, int fd_in) {
 #endif
     tty->esc_timeout = 10;
     tty->paste_mode = false;
+    tty->wake_pipe_initialized = false;
+    if (!tty_setup_wakeup_channel(tty)) {
+        debug_msg("tty: failed to create wakeup pipe\n");
+    }
     if (!(isatty(tty->fd_in) && tty_init_raw(tty) && tty_init_utf8(tty))) {
         tty_free(tty);
         return NULL;
@@ -443,6 +527,7 @@ ic_private void tty_free(tty_t* tty) {
         return;
     tty_end_raw(tty);
     tty_done_raw(tty);
+    tty_close_wakeup_channel(tty);
     mem_free(tty->mem, tty);
 }
 
@@ -475,10 +560,7 @@ ic_private void tty_set_esc_delay(tty_t* tty, long initial_delay_ms, long follow
 //-------------------------------------------------------------
 #if !defined(_WIN32)
 
-static bool tty_readc_blocking(tty_t* tty, uint8_t* c) {
-    if (tty_cpop(tty, c))
-        return true;
-
+static bool tty_read_from_fd(tty_t* tty, uint8_t* c) {
     for (;;) {
         *c = 0;
         ssize_t nread = read(tty->fd_in, (char*)c, 1);
@@ -492,7 +574,7 @@ static bool tty_readc_blocking(tty_t* tty, uint8_t* c) {
         if (nread < 0) {
             int err = errno;
             if (err == EINTR) {
-                continue;  // interrupted by signal, try again
+                continue;
             }
 #if defined(EAGAIN) && defined(EWOULDBLOCK)
             if (err == EAGAIN || err == EWOULDBLOCK) {
@@ -503,12 +585,70 @@ static bool tty_readc_blocking(tty_t* tty, uint8_t* c) {
                 pid_t pgid = getpgrp();
                 if (tcsetpgrp(tty->fd_in, pgid) == 0) {
                     tty->lost_terminal = false;
-                    continue;  // try the read again now that we're foreground
+                    continue;
                 }
 
                 tty->lost_terminal = true;
             }
             return false;
+        }
+    }
+}
+
+typedef enum {
+    TTY_EVENT_ERROR = -1,
+    TTY_EVENT_INPUT = 1,
+    TTY_EVENT_WAKE = 2,
+} tty_event_t;
+
+static tty_event_t tty_wait_for_tty_event(tty_t* tty) {
+    while (true) {
+        fd_set readset;
+        FD_ZERO(&readset);
+        FD_SET(tty->fd_in, &readset);
+        int maxfd = tty->fd_in;
+        bool have_wakeup = tty->wake_pipe_initialized;
+        if (have_wakeup) {
+            FD_SET(tty->wake_pipe[0], &readset);
+            if (tty->wake_pipe[0] > maxfd) {
+                maxfd = tty->wake_pipe[0];
+            }
+        }
+
+        int ready = select(maxfd + 1, &readset, NULL, NULL, NULL);
+        if (ready < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            return TTY_EVENT_ERROR;
+        }
+
+        if (have_wakeup && FD_ISSET(tty->wake_pipe[0], &readset)) {
+            tty_drain_wakeup_pipe(tty);
+            return TTY_EVENT_WAKE;
+        }
+
+        if (FD_ISSET(tty->fd_in, &readset)) {
+            return TTY_EVENT_INPUT;
+        }
+    }
+}
+
+static bool tty_readc_blocking(tty_t* tty, uint8_t* c) {
+    if (tty_cpop(tty, c))
+        return true;
+
+    while (true) {
+        tty_event_t event = tty_wait_for_tty_event(tty);
+        if (event == TTY_EVENT_ERROR) {
+            return false;
+        }
+        if (event == TTY_EVENT_WAKE) {
+            return false;
+        }
+
+        if (event == TTY_EVENT_INPUT) {
+            return tty_read_from_fd(tty, c);
         }
     }
 }
