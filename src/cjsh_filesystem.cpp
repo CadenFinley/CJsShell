@@ -44,7 +44,7 @@
 
 #include "cjsh.h"
 #include "error_out.h"
-#include "parser/parser.h"
+#include "parser.h"
 #include "shell.h"
 #include "shell_env.h"
 

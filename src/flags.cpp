@@ -32,7 +32,7 @@
 #include <unistd.h>
 
 #include "error_out.h"
-#include "isocline/isocline.h"
+#include "isocline.h"
 #include "shell_env.h"
 #include "usage.h"
 

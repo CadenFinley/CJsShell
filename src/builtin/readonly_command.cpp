@@ -36,7 +36,6 @@
 #include <iostream>
 #include <unordered_set>
 #include "error_out.h"
-#include "shell.h"
 
 namespace {
 struct ReadonlyState {
