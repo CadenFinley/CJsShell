@@ -44,8 +44,7 @@ if(DEFINED ENV{CJSH_STRIP_BINARY} AND "$ENV{CJSH_STRIP_BINARY}" STREQUAL "0")
 endif()
 option(CJSH_STRIP_BINARY "Strip symbols from the cjsh binary in non-Debug builds" ${_CJSH_STRIP_DEFAULT})
 
-option(CJSH_GENERATE_COMPILE_COMMANDS "Emit compile_commands.json during configuration" ON)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ${CJSH_GENERATE_COMPILE_COMMANDS} CACHE BOOL "Export compilation database" FORCE)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE BOOL "Export compilation database" FORCE)
 option(CJSH_ENABLE_UNUSED_WARNINGS "Emit diagnostics for unused code" ON)
 option(CJSH_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 option(CJSH_ENABLE_CLANG_TIDY "Run clang-tidy as part of the build" OFF)
@@ -181,6 +180,13 @@ if(NOT CJSH_SOURCES)
 endif()
 
 add_executable(cjsh ${CJSH_SOURCES})
+
+add_custom_command(TARGET cjsh POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_BINARY_DIR}/compile_commands.json"
+        "${CMAKE_SOURCE_DIR}/compile_commands.json"
+    COMMENT "Copy compile_commands.json to repo root"
+)
 
 target_compile_features(cjsh PRIVATE cxx_std_17)
 
