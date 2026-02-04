@@ -126,8 +126,9 @@ void normalize_line_edit_sequences_into(std::string_view input, std::string& out
         output.reserve(input.size());
     }
 
-    for (unsigned char ch : input) {
-        switch (ch) {
+    for (char ch : input) {
+        unsigned char uchar = static_cast<unsigned char>(ch);
+        switch (uchar) {
             case '\b':
             case 0x7F: {
                 if (!output.empty()) {
@@ -152,7 +153,7 @@ void normalize_line_edit_sequences_into(std::string_view input, std::string& out
                 break;
             }
             default:
-                output.push_back(static_cast<char>(ch));
+                output.push_back(static_cast<char>(uchar));
                 break;
         }
     }

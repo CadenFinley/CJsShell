@@ -34,6 +34,8 @@
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <limits>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -109,26 +111,31 @@ bool is_fc_history_entry(const std::string& entry) {
 
 int find_last_non_fc_index(const std::vector<std::string>& entries) {
     for (int i = static_cast<int>(entries.size()) - 1; i >= 0; --i) {
-        if (!is_fc_history_entry(entries[i])) {
+        if (!is_fc_history_entry(entries[static_cast<size_t>(i)])) {
             return i;
         }
     }
     return -1;
 }
 
-bool parse_history_index(const std::string& arg, int history_size, int& result) {
+bool parse_history_index(const std::string& arg, size_t history_size, int& result) {
     try {
-        int index = std::stoi(arg);
-
-        if (index < 0) {
-            index = history_size + index;
-        }
-
-        if (index < 0 || index >= history_size) {
+        if (history_size > static_cast<size_t>(std::numeric_limits<int>::max())) {
             return false;
         }
 
-        result = index;
+        long long index = std::stoll(arg);
+        long long history_size_ll = static_cast<long long>(history_size);
+
+        if (index < 0) {
+            index = history_size_ll + index;
+        }
+
+        if (index < 0 || index >= history_size_ll) {
+            return false;
+        }
+
+        result = static_cast<int>(index);
         return true;
     } catch (...) {
         return false;
@@ -153,14 +160,14 @@ int list_history(const std::vector<std::string>& entries, int first, int last, b
             if (show_numbers) {
                 std::cout << std::setw(5) << i << "  ";
             }
-            std::cout << entries[i] << '\n';
+            std::cout << entries[static_cast<size_t>(i)] << '\n';
         }
     } else {
         for (int i = first; i <= last; ++i) {
             if (show_numbers) {
                 std::cout << std::setw(5) << i << "  ";
             }
-            std::cout << entries[i] << '\n';
+            std::cout << entries[static_cast<size_t>(i)] << '\n';
         }
     }
 
@@ -255,7 +262,7 @@ int edit_and_execute(const std::vector<std::string>& entries, int first, int las
     }
 
     for (int i = first; i <= last; ++i) {
-        out << entries[i] << '\n';
+        out << entries[static_cast<size_t>(i)] << '\n';
     }
     out.close();
 
@@ -302,7 +309,7 @@ int substitute_and_execute(const std::vector<std::string>& entries, const std::s
     if (!pattern.empty()) {
         target_idx = -1;
         for (int i = static_cast<int>(entries.size()) - 1; i >= 0; --i) {
-            if (entries[i].find(pattern) == 0) {
+            if (entries[static_cast<size_t>(i)].find(pattern) == 0) {
                 target_idx = i;
                 break;
             }
@@ -322,7 +329,7 @@ int substitute_and_execute(const std::vector<std::string>& entries, const std::s
         return 1;
     }
 
-    std::string command = entries[target_idx];
+    std::string command = entries[static_cast<size_t>(target_idx)];
 
     if (!old_str.empty()) {
         size_t pos = command.find(old_str);
@@ -351,8 +358,8 @@ int fc_command(const std::vector<std::string>& args, Shell* shell) {
     std::string new_pattern;
     std::string command_pattern;
     std::string initial_command;
-    int first_idx = -1;
-    int last_idx = -1;
+    std::optional<size_t> first_idx;
+    std::optional<size_t> last_idx;
 
     size_t i = 1;
     while (i < args.size()) {
@@ -442,10 +449,10 @@ int fc_command(const std::vector<std::string>& args, Shell* shell) {
                     return 1;
                 }
             } else {
-                if (first_idx == -1) {
+                if (!first_idx.has_value()) {
                     first_idx = i;
                     ++i;
-                } else if (last_idx == -1) {
+                } else if (!last_idx.has_value()) {
                     last_idx = i;
                     ++i;
                 } else {
@@ -480,11 +487,11 @@ int fc_command(const std::vector<std::string>& args, Shell* shell) {
     int first = -1;
     int last = -1;
 
-    if (first_idx != -1) {
-        if (!parse_history_index(args[first_idx], entries.size(), first)) {
+    if (first_idx.has_value()) {
+        if (!parse_history_index(args[*first_idx], entries.size(), first)) {
             print_error({ErrorType::INVALID_ARGUMENT,
                          "fc",
-                         "Invalid history index: " + args[first_idx],
+                         "Invalid history index: " + args[*first_idx],
                          {}});
             return 1;
         }
@@ -508,15 +515,15 @@ int fc_command(const std::vector<std::string>& args, Shell* shell) {
         }
     }
 
-    if (last_idx != -1) {
-        if (!parse_history_index(args[last_idx], entries.size(), last)) {
+    if (last_idx.has_value()) {
+        if (!parse_history_index(args[*last_idx], entries.size(), last)) {
             print_error({ErrorType::INVALID_ARGUMENT,
                          "fc",
-                         "Invalid history index: " + args[last_idx],
+                         "Invalid history index: " + args[*last_idx],
                          {}});
             return 1;
         }
-    } else if (first_idx != -1) {
+    } else if (first_idx.has_value()) {
         last = first;
     }
 

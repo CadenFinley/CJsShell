@@ -135,7 +135,7 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
         return 1;
     }
 
-    std::string current_arg = argv_list[optind - 1];
+    std::string current_arg = argv_list[static_cast<size_t>(optind - 1)];
 
     if (current_arg.size() < 2 || current_arg[0] != '-') {
         set_special_var(shell, "OPTIND", optind);
@@ -169,7 +169,7 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
         return getopts_command(args, shell);
     }
 
-    char opt = current_arg[char_index];
+    char opt = current_arg[static_cast<size_t>(char_index)];
     char_index++;
 
     size_t opt_pos = optstring.find(opt);
@@ -203,13 +203,13 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
         std::string optarg;
 
         if (char_index < static_cast<int>(current_arg.size())) {
-            optarg = current_arg.substr(char_index);
+            optarg = current_arg.substr(static_cast<size_t>(char_index));
             optind++;
             char_index = 1;
         } else {
             optind++;
             if (optind <= static_cast<int>(argv_list.size())) {
-                optarg = argv_list[optind - 1];
+                optarg = argv_list[static_cast<size_t>(optind - 1)];
                 optind++;
             } else {
                 if (!optstring.empty() && optstring[0] == ':') {

@@ -656,7 +656,7 @@ Result<std::string> read_file_content(const std::string& path) {
     ssize_t bytes_read = 0;
 
     while ((bytes_read = read(fd, buffer, sizeof(buffer))) > 0) {
-        content.append(buffer, bytes_read);
+        content.append(buffer, static_cast<size_t>(bytes_read));
     }
 
     safe_close(fd);

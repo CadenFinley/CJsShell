@@ -490,8 +490,11 @@ void ArithmeticEvaluator::handle_assignment_operators(std::vector<Token>& tokens
 
                     write_variable(var_name, result);
 
+                    using Difference = std::vector<Token>::difference_type;
+
                     tokens[i - 1] = {TokenType::NUMBER, result, "", ""};
-                    tokens.erase(tokens.begin() + i, tokens.begin() + i + 2);
+                    Difference index = static_cast<Difference>(i);
+                    tokens.erase(tokens.begin() + index, tokens.begin() + index + 2);
                     i = i - 1;
                 }
             }
@@ -510,8 +513,11 @@ void ArithmeticEvaluator::handle_increment_operators(std::vector<Token>& tokens)
                     (tokens[i].op == "pre++") ? wrap_add(current_val, 1) : wrap_sub(current_val, 1);
                 write_variable(var_name, new_val);
 
+                using Difference = std::vector<Token>::difference_type;
+
                 tokens[i] = {TokenType::NUMBER, new_val, "", ""};
-                tokens.erase(tokens.begin() + i + 1);
+                Difference index = static_cast<Difference>(i);
+                tokens.erase(tokens.begin() + index + 1);
             }
         }
     }

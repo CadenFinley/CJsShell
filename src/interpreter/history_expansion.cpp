@@ -124,7 +124,7 @@ std::string HistoryExpansion::get_word_from_command(const std::string& command, 
     }
 
     if (word_index >= 0 && word_index < static_cast<int>(words.size())) {
-        return words[word_index];
+        return words[static_cast<size_t>(word_index)];
     }
 
     return "";
@@ -150,7 +150,7 @@ std::string HistoryExpansion::get_words_range(const std::string& command, int st
         if (i > start) {
             result += " ";
         }
-        result += words[i];
+        result += words[static_cast<size_t>(i)];
     }
 
     return result;
@@ -202,13 +202,13 @@ bool HistoryExpansion::expand_history_number(const std::string& command, size_t&
             error = "!" + std::to_string(number) + ": event not found";
             return false;
         }
-        referenced_command = history[index];
+        referenced_command = history[static_cast<size_t>(index)];
     } else {
         if (number >= static_cast<int>(history.size())) {
             error = "!" + std::to_string(number) + ": event not found";
             return false;
         }
-        referenced_command = history[number];
+        referenced_command = history[static_cast<size_t>(number)];
     }
 
     if (pos < command.length() && command[pos] == ':') {

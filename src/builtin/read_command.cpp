@@ -314,8 +314,8 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
         fields.push_back(input);
     } else {
         bool ifs_all_whitespace = true;
-        for (char c : ifs) {
-            if (c != ' ' && c != '\t' && c != '\n') {
+        for (char ifs_char : ifs) {
+            if (ifs_char != ' ' && ifs_char != '\t' && ifs_char != '\n') {
                 ifs_all_whitespace = false;
                 break;
             }

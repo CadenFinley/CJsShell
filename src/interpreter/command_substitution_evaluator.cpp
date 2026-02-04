@@ -72,7 +72,7 @@ std::pair<std::string, int> execute_command_for_substitution(
         char buf[4096];
         ssize_t n = 0;
         while ((n = read(pipefd[0], buf, sizeof(buf))) > 0) {
-            result.append(buf, n);
+            result.append(buf, static_cast<std::string::size_type>(n));
         }
         close(pipefd[0]);
 

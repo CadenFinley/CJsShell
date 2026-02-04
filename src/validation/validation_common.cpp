@@ -593,7 +593,9 @@ void append_function_name_errors(std::vector<SyntaxError>& errors, size_t displa
 
 size_t adjust_display_line(const std::string& text, size_t base_line, size_t offset) {
     size_t limit = std::min(offset, text.size());
-    return base_line + static_cast<size_t>(std::count(text.begin(), text.begin() + limit, '\n'));
+    auto end_it = text.begin();
+    std::advance(end_it, static_cast<std::string::difference_type>(limit));
+    return base_line + static_cast<size_t>(std::count(text.begin(), end_it, '\n'));
 }
 
 ForLoopCheckResult analyze_for_loop_syntax(const std::vector<std::string>& tokens,

@@ -371,8 +371,8 @@ void Parser::set_env_vars(const std::unordered_map<std::string, std::string>& ne
     env_vars = new_env_vars;
 }
 
-void Parser::set_shell(Shell* shell) {
-    this->shell = shell;
+void Parser::set_shell(Shell* new_shell) {
+    shell = new_shell;
     ensure_parsers_initialized();
 }
 

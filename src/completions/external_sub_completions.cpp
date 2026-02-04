@@ -209,10 +209,11 @@ bool is_section_heading(const std::string& trimmed_line) {
         return false;
 
     bool has_alpha = false;
-    for (unsigned char ch : trimmed_line) {
-        if (std::islower(ch) != 0)
+    for (char ch : trimmed_line) {
+        unsigned char uch = static_cast<unsigned char>(ch);
+        if (std::islower(uch) != 0)
             return false;
-        if (std::isalpha(ch) != 0)
+        if (std::isalpha(uch) != 0)
             has_alpha = true;
     }
     return has_alpha;
@@ -238,10 +239,11 @@ bool is_token_allowed_for_combination(const std::string& token) {
         return false;
 
     bool has_alpha = false;
-    for (unsigned char ch : token) {
-        if (std::isalpha(ch) != 0)
+    for (char ch : token) {
+        unsigned char uch = static_cast<unsigned char>(ch);
+        if (std::isalpha(uch) != 0)
             has_alpha = true;
-        if ((std::isalnum(ch) == 0) && ch != '-' && ch != '_')
+        if ((std::isalnum(uch) == 0) && ch != '-' && ch != '_')
             return false;
     }
     return has_alpha;
@@ -491,10 +493,11 @@ std::optional<std::pair<std::string, std::string>> parse_command_line(
                         unsigned char first_char = static_cast<unsigned char>(name[0]);
                         if (std::islower(first_char) == 0 && first_char != '_')
                             return false;
-                        for (unsigned char ch : name) {
-                            if (std::isalpha(ch) != 0 && std::islower(ch) == 0)
+                        for (char ch : name) {
+                            unsigned char uch = static_cast<unsigned char>(ch);
+                            if (std::isalpha(uch) != 0 && std::islower(uch) == 0)
                                 return false;
-                            if (std::isalnum(ch) == 0 && ch != '-' && ch != '_')
+                            if (std::isalnum(uch) == 0 && ch != '-' && ch != '_')
                                 return false;
                         }
                         return has_lowercase(name);
@@ -767,9 +770,10 @@ std::string normalize_key(const std::string& value) {
 std::string sanitize_command_for_cache(const std::string& command) {
     std::string sanitized;
     sanitized.reserve(command.size());
-    for (unsigned char ch : command) {
-        if (std::isalnum(ch) != 0 || ch == '-' || ch == '_') {
-            sanitized.push_back(static_cast<char>(std::tolower(ch)));
+    for (char ch : command) {
+        unsigned char uch = static_cast<unsigned char>(ch);
+        if (std::isalnum(uch) != 0 || ch == '-' || ch == '_') {
+            sanitized.push_back(static_cast<char>(std::tolower(uch)));
         } else {
             sanitized.push_back('_');
         }

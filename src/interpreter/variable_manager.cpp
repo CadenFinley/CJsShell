@@ -209,7 +209,7 @@ std::string VariableManager::get_positional_parameter(const std::string& var_nam
         if (param_num > 0) {
             auto params = flags::get_positional_parameters();
             if (static_cast<size_t>(param_num - 1) < params.size()) {
-                return params[param_num - 1];
+                return params[static_cast<size_t>(param_num - 1)];
             }
         }
     }

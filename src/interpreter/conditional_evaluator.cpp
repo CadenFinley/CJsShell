@@ -613,22 +613,22 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
 
         size_t if_count = 0;
         size_t fi_count = 0;
-        size_t pos = 0;
-        while ((pos = line.find(" if ", pos)) != std::string::npos) {
+        size_t scan_pos = 0;
+        while ((scan_pos = line.find(" if ", scan_pos)) != std::string::npos) {
             if_count++;
-            pos += 4;
+            scan_pos += 4;
         }
         if (line.rfind("if ", 0) == 0)
             if_count++;
-        pos = 0;
-        while ((pos = line.find("fi", pos)) != std::string::npos) {
-            bool is_word =
-                (pos == 0 || std::isalnum(static_cast<unsigned char>(line[pos - 1])) == 0) &&
-                (pos + 2 >= line.length() ||
-                 std::isalnum(static_cast<unsigned char>(line[pos + 2])) == 0);
+        scan_pos = 0;
+        while ((scan_pos = line.find("fi", scan_pos)) != std::string::npos) {
+            bool is_word = (scan_pos == 0 ||
+                            std::isalnum(static_cast<unsigned char>(line[scan_pos - 1])) == 0) &&
+                           (scan_pos + 2 >= line.length() ||
+                            std::isalnum(static_cast<unsigned char>(line[scan_pos + 2])) == 0);
             if (is_word)
                 fi_count++;
-            pos += 2;
+            scan_pos += 2;
         }
         is_simple_single_line = (if_count == 1 && fi_count == 1);
     }
@@ -649,21 +649,21 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
 
             std::vector<std::pair<std::string, std::string>> branches;
 
-            size_t pos = 0;
+            size_t branch_pos = 0;
             bool condition_met = false;
 
-            while (pos < remaining.length()) {
-                size_t elif_pos = remaining.find("; elif ", pos);
+            while (branch_pos < remaining.length()) {
+                size_t elif_pos = remaining.find("; elif ", branch_pos);
                 if (elif_pos == std::string::npos) {
-                    size_t elif_semi = remaining.find("; elif;", pos);
+                    size_t elif_semi = remaining.find("; elif;", branch_pos);
                     if (elif_semi != std::string::npos) {
                         elif_pos = elif_semi;
                     }
                 }
-                size_t else_pos = remaining.find("; else ", pos);
+                size_t else_pos = remaining.find("; else ", branch_pos);
 
                 size_t fi_pos = std::string::npos;
-                size_t search_pos = pos;
+                size_t search_pos = branch_pos;
                 while (search_pos < remaining.length()) {
                     size_t candidate = remaining.find("fi", search_pos);
                     if (candidate == std::string::npos)
@@ -680,10 +680,10 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                 if (next_pos == std::string::npos)
                     break;
 
-                std::string commands = trim(remaining.substr(pos, next_pos - pos));
+                std::string commands = trim(remaining.substr(branch_pos, next_pos - branch_pos));
 
                 if (elif_pos != std::string::npos && next_pos == elif_pos) {
-                    if (pos == 0) {
+                    if (branch_pos == 0) {
                         if (cond_result == 0 && !condition_met) {
                             auto cmds = shell_parser->parse_semicolon_commands(commands);
                             for (const auto& c : cmds) {
@@ -700,13 +700,14 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                         skip_len = 6;
                     }
 
-                    pos = next_pos + skip_len;
-                    size_t elif_then = remaining.find("; then", pos);
+                    branch_pos = next_pos + skip_len;
+                    size_t elif_then = remaining.find("; then", branch_pos);
                     if (elif_then == std::string::npos) {
-                        elif_then = remaining.find(";then", pos);
+                        elif_then = remaining.find(";then", branch_pos);
                     }
                     if (elif_then != std::string::npos) {
-                        std::string elif_cond = trim(remaining.substr(pos, elif_then - pos));
+                        std::string elif_cond =
+                            trim(remaining.substr(branch_pos, elif_then - branch_pos));
 
                         if (elif_cond.empty()) {
                             idx = 0;
@@ -750,14 +751,15 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                                 return 0;
                             }
                         }
-                        pos = elif_then + 6;
+                        branch_pos = elif_then + 6;
                     }
                 } else if (else_pos != std::string::npos && next_pos == else_pos) {
                     if (!condition_met && cond_result != 0) {
-                        pos = next_pos + 7;
-                        size_t fi_end = remaining.find(" fi", pos);
+                        branch_pos = next_pos + 7;
+                        size_t fi_end = remaining.find(" fi", branch_pos);
                         if (fi_end != std::string::npos) {
-                            std::string else_commands = trim(remaining.substr(pos, fi_end - pos));
+                            std::string else_commands =
+                                trim(remaining.substr(branch_pos, fi_end - branch_pos));
                             auto cmds = shell_parser->parse_semicolon_commands(else_commands);
                             for (const auto& c : cmds) {
                                 execute_simple_or_pipeline(c);

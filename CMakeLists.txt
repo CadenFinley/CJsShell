@@ -46,6 +46,7 @@ option(CJSH_STRIP_BINARY "Strip symbols from the cjsh binary in non-Debug builds
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE BOOL "Export compilation database" FORCE)
 option(CJSH_ENABLE_UNUSED_WARNINGS "Emit diagnostics for unused code" ON)
+option(CJSH_STRICT_WARNINGS "Enable stricter compiler diagnostics" OFF)
 option(CJSH_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 option(CJSH_ENABLE_CLANG_TIDY "Run clang-tidy as part of the build" OFF)
 set(CJSH_CLANG_TIDY_BINARY "clang-tidy" CACHE STRING "clang-tidy executable to use when enabled")
@@ -241,6 +242,33 @@ set(_cjsh_common_c_warnings
 if(CJSH_ENABLE_UNUSED_WARNINGS)
     list(APPEND _cjsh_common_cxx_warnings -Wunused -Wunused-parameter -Wunused-variable -Wunused-function)
     list(APPEND _cjsh_common_c_warnings -Wunused -Wunused-parameter -Wunused-variable -Wunused-function)
+endif()
+
+if(CJSH_STRICT_WARNINGS)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+        list(APPEND _cjsh_common_cxx_warnings
+            -Wshadow
+            -Wconversion
+            -Wsign-conversion
+            -Wfloat-equal
+            -Wcast-qual
+            -Wmissing-declarations
+            -Wformat=2
+            -Wundef
+        )
+    endif()
+    if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
+        list(APPEND _cjsh_common_c_warnings
+            -Wshadow
+            -Wconversion
+            -Wsign-conversion
+            -Wfloat-equal
+            -Wcast-qual
+            -Wmissing-declarations
+            -Wformat=2
+            -Wundef
+        )
+    endif()
 endif()
 
 if(CJSH_WARNINGS_AS_ERRORS)

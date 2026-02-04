@@ -308,8 +308,9 @@ std::vector<std::string> ExpansionEngine::expand_braces(const std::string& patte
                 start = 1;
             if (start >= str.length())
                 return false;
-            return std::all_of(str.begin() + start, str.end(),
-                               [](char c) { return std::isdigit(c); });
+            auto start_it = str.begin();
+            std::advance(start_it, static_cast<std::string::difference_type>(start));
+            return std::all_of(start_it, str.end(), [](char c) { return std::isdigit(c); });
         };
 
         bool is_numeric_range = is_numeric(start_str) && is_numeric(end_str);
@@ -317,7 +318,7 @@ std::vector<std::string> ExpansionEngine::expand_braces(const std::string& patte
         if (is_numeric_range) {
             int start_int = std::stoi(start_str);
             int end_int = std::stoi(end_str);
-            size_t range_size = std::abs(end_int - start_int) + 1;
+            size_t range_size = static_cast<size_t>(std::abs(end_int - start_int)) + 1U;
             if (range_size > MAX_EXPANSION_SIZE) {
                 result.push_back(pattern);
                 return result;
@@ -336,7 +337,8 @@ std::vector<std::string> ExpansionEngine::expand_braces(const std::string& patte
             bool both_upper = std::isupper(start_char) && std::isupper(end_char);
 
             if (both_lower || both_upper) {
-                size_t char_range_size = std::abs(end_char - start_char) + 1;
+                int char_diff = end_char - start_char;
+                size_t char_range_size = static_cast<size_t>(std::abs(char_diff)) + 1U;
                 if (char_range_size > MAX_EXPANSION_SIZE) {
                     result.push_back(pattern);
                     return result;

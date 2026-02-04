@@ -134,8 +134,11 @@ std::string VariableExpander::resolve_parameter_value(const std::string& var_nam
 
         auto params = flags::get_positional_parameters();
         int param_num = var_name[0] - '0';
-        if (param_num > 0 && static_cast<size_t>(param_num - 1) < params.size()) {
-            return params[param_num - 1];
+        if (param_num > 0) {
+            size_t param_index = static_cast<size_t>(param_num - 1);
+            if (param_index < params.size()) {
+                return params[param_index];
+            }
         }
 
         auto it = env_vars.find(var_name);
@@ -268,7 +271,7 @@ void VariableExpander::expand_env_vars_selective(std::string& arg) {
     const std::string end_marker = "\x1E__NOENV_END__\x1E";
 
     std::string result;
-    result.reserve(arg.length() * 1.5);
+    result.reserve(arg.length() + arg.length() / 2);
 
     size_t pos = 0;
     while (pos < arg.length()) {
@@ -303,7 +306,7 @@ void VariableExpander::expand_env_vars_selective(std::string& arg) {
 
 void VariableExpander::expand_exported_env_vars_only(std::string& arg) {
     std::string result;
-    result.reserve(arg.length() * 1.5);
+    result.reserve(arg.length() + arg.length() / 2);
     bool in_var = false;
     std::string var_name;
     var_name.reserve(64);

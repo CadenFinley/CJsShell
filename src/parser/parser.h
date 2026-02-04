@@ -111,7 +111,7 @@ class Parser {
 
     void set_env_vars(const std::unordered_map<std::string, std::string>& new_env_vars);
 
-    void set_shell(Shell* shell);
+    void set_shell(Shell* new_shell);
 
    private:
     void ensure_parsers_initialized();

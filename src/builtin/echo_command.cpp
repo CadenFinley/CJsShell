@@ -144,11 +144,11 @@ int echo_command(const std::vector<std::string>& args) {
             size_t i = 0;
 
             while (i < s.length()) {
-                unsigned char c = s[i];
+                unsigned char c = static_cast<unsigned char>(s[i]);
 
                 if (c == '\\' && i + 1 < s.length()) {
                     i++;
-                    c = s[i];
+                    c = static_cast<unsigned char>(s[i]);
 
                     switch (c) {
                         case 'a':
@@ -182,15 +182,15 @@ int echo_command(const std::vector<std::string>& args) {
                         case 'x': {
                             if (i + 1 < s.length() && is_hex_digit(s[i + 1])) {
                                 i++;
-                                unsigned char ch = s[i];
-                                c = hextobin(ch);
+                                unsigned char ch = static_cast<unsigned char>(s[i]);
+                                unsigned int value = static_cast<unsigned int>(hextobin(ch));
 
                                 if (i + 1 < s.length() && is_hex_digit(s[i + 1])) {
                                     i++;
-                                    ch = s[i];
-                                    c = c * 16 + hextobin(ch);
+                                    ch = static_cast<unsigned char>(s[i]);
+                                    value = value * 16u + static_cast<unsigned int>(hextobin(ch));
                                 }
-                                out << static_cast<char>(c);
+                                out << static_cast<char>(static_cast<unsigned char>(value));
                             } else {
                                 out << '\\' << 'x';
                             }
@@ -198,21 +198,22 @@ int echo_command(const std::vector<std::string>& args) {
                         }
                         case '0':
 
-                            c = 0;
+                        {
+                            unsigned int value = 0;
                             if (i + 1 < s.length() && s[i + 1] >= '0' && s[i + 1] <= '7') {
                                 i++;
-                                c = s[i] - '0';
+                                value = static_cast<unsigned int>(s[i] - '0');
                                 if (i + 1 < s.length() && s[i + 1] >= '0' && s[i + 1] <= '7') {
                                     i++;
-                                    c = c * 8 + (s[i] - '0');
+                                    value = value * 8u + static_cast<unsigned int>(s[i] - '0');
                                     if (i + 1 < s.length() && s[i + 1] >= '0' && s[i + 1] <= '7') {
                                         i++;
-                                        c = c * 8 + (s[i] - '0');
+                                        value = value * 8u + static_cast<unsigned int>(s[i] - '0');
                                     }
                                 }
                             }
-                            out << static_cast<char>(c);
-                            break;
+                            out << static_cast<char>(static_cast<unsigned char>(value));
+                        } break;
                         case '1':
                         case '2':
                         case '3':
@@ -220,16 +221,16 @@ int echo_command(const std::vector<std::string>& args) {
                         case '5':
                         case '6':
                         case '7': {
-                            c = c - '0';
+                            unsigned int value = static_cast<unsigned int>(c - '0');
                             if (i + 1 < s.length() && s[i + 1] >= '0' && s[i + 1] <= '7') {
                                 i++;
-                                c = c * 8 + (s[i] - '0');
+                                value = value * 8u + static_cast<unsigned int>(s[i] - '0');
                                 if (i + 1 < s.length() && s[i + 1] >= '0' && s[i + 1] <= '7') {
                                     i++;
-                                    c = c * 8 + (s[i] - '0');
+                                    value = value * 8u + static_cast<unsigned int>(s[i] - '0');
                                 }
                             }
-                            out << static_cast<char>(c);
+                            out << static_cast<char>(static_cast<unsigned char>(value));
                             break;
                         }
                         case '\\':

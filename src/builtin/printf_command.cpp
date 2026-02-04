@@ -30,6 +30,7 @@
 
 #include "builtin_help.h"
 
+#include <cctype>
 #include <cerrno>
 #include <clocale>
 #include <cstdio>
@@ -109,7 +110,7 @@ static intmax_t vstrtoimax(const char* s) {
 
     if ((*s == '"' || *s == '\'') && *(s + 1)) {
         char quote = *s;
-        unsigned char ch = *++s;
+        unsigned char ch = static_cast<unsigned char>(*++s);
         val = ch;
 
         if (MB_CUR_MAX > 1 && *(s + 1) && *(s + 1) != quote) {
@@ -119,7 +120,7 @@ static intmax_t vstrtoimax(const char* s) {
             size_t slen = strlen(s);
             size_t bytes = mbrtowc(&wc, s, slen, &mbstate);
             if (bytes > 0 && bytes != (size_t)-1 && bytes != (size_t)-2) {
-                val = wc;
+                val = static_cast<intmax_t>(wc);
                 s += bytes - 1;
             }
         }
@@ -145,7 +146,7 @@ static uintmax_t vstrtoumax(const char* s) {
 
     if ((*s == '"' || *s == '\'') && *(s + 1)) {
         char quote = *s;
-        unsigned char ch = *++s;
+        unsigned char ch = static_cast<unsigned char>(*++s);
         val = ch;
 
         if (MB_CUR_MAX > 1 && *(s + 1) && *(s + 1) != quote) {
@@ -155,7 +156,7 @@ static uintmax_t vstrtoumax(const char* s) {
             size_t slen = strlen(s);
             size_t bytes = mbrtowc(&wc, s, slen, &mbstate);
             if (bytes > 0 && bytes != (size_t)-1 && bytes != (size_t)-2) {
-                val = wc;
+                val = static_cast<uintmax_t>(wc);
                 s += bytes - 1;
             }
         }
@@ -181,7 +182,7 @@ static long double vstrtold(const char* s) {
 
     if ((*s == '"' || *s == '\'') && *(s + 1)) {
         char quote = *s;
-        unsigned char ch = *++s;
+        unsigned char ch = static_cast<unsigned char>(*++s);
         val = ch;
 
         if (MB_CUR_MAX > 1 && *(s + 1) && *(s + 1) != quote) {
@@ -191,7 +192,7 @@ static long double vstrtold(const char* s) {
             size_t slen = strlen(s);
             size_t bytes = mbrtowc(&wc, s, slen, &mbstate);
             if (bytes > 0 && bytes != (size_t)-1 && bytes != (size_t)-2) {
-                val = wc;
+                val = static_cast<long double>(wc);
                 s += bytes - 1;
             }
         }
@@ -245,19 +246,19 @@ static void print_esc_char(char c) {
 
 static void print_unicode_char(uint32_t code) {
     if (code <= 0x7F) {
-        putchar(code);
+        putchar(static_cast<int>(code));
     } else if (code <= 0x7FF) {
-        putchar(0xC0 | (code >> 6));
-        putchar(0x80 | (code & 0x3F));
+        putchar(static_cast<int>(0xC0 | (code >> 6)));
+        putchar(static_cast<int>(0x80 | (code & 0x3F)));
     } else if (code <= 0xFFFF) {
-        putchar(0xE0 | (code >> 12));
-        putchar(0x80 | ((code >> 6) & 0x3F));
-        putchar(0x80 | (code & 0x3F));
+        putchar(static_cast<int>(0xE0 | (code >> 12)));
+        putchar(static_cast<int>(0x80 | ((code >> 6) & 0x3F)));
+        putchar(static_cast<int>(0x80 | (code & 0x3F)));
     } else if (code <= 0x10FFFF) {
-        putchar(0xF0 | (code >> 18));
-        putchar(0x80 | ((code >> 12) & 0x3F));
-        putchar(0x80 | ((code >> 6) & 0x3F));
-        putchar(0x80 | (code & 0x3F));
+        putchar(static_cast<int>(0xF0 | (code >> 18)));
+        putchar(static_cast<int>(0x80 | ((code >> 12) & 0x3F)));
+        putchar(static_cast<int>(0x80 | ((code >> 6) & 0x3F)));
+        putchar(static_cast<int>(0x80 | (code & 0x3F)));
     }
 }
 
@@ -296,7 +297,7 @@ static int print_esc(const char* escstart, bool octal_0) {
                              {}});
                 exit(1);
             }
-            uni_value = uni_value * 16 + from_hex(*p);
+            uni_value = uni_value * 16 + static_cast<uint32_t>(from_hex(*p));
         }
 
         if (uni_value >= 0xD800 && uni_value <= 0xDFFF) {
@@ -313,7 +314,7 @@ static int print_esc(const char* escstart, bool octal_0) {
             p++;
         }
     }
-    return p - escstart - 1;
+    return static_cast<int>(p - escstart - 1);
 }
 
 static void print_esc_string(const char* str) {
@@ -329,7 +330,8 @@ static std::string shell_escape(const std::string& str) {
     bool needs_quotes = false;
 
     for (char c : str) {
-        if (!isalnum(c) && c != '_' && c != '-' && c != '/' && c != '.' && c != ',') {
+        if (!isalnum(static_cast<unsigned char>(c)) && c != '_' && c != '-' && c != '/' &&
+            c != '.' && c != ',') {
             needs_quotes = true;
             break;
         }
@@ -349,6 +351,23 @@ static std::string shell_escape(const std::string& str) {
     }
     result << "'";
     return result.str();
+}
+
+template <typename T>
+static void printf_value(const std::string& fmt, T value) {
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wformat-nonliteral"
+#elif defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-nonliteral"
+#endif
+    printf(fmt.c_str(), value);
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#elif defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 }
 
 static void print_direc(const char* start, char conversion, bool have_field_width, int field_width,
@@ -413,10 +432,10 @@ static void print_direc(const char* start, char conversion, bool have_field_widt
             fmt << "ll" << conversion;
             if (conversion == 'd' || conversion == 'i') {
                 long long val = argument ? vstrtoimax(argument) : 0;
-                printf(fmt.str().c_str(), val);
+                printf_value(fmt.str(), val);
             } else {
                 unsigned long long val = argument ? vstrtoumax(argument) : 0;
-                printf(fmt.str().c_str(), val);
+                printf_value(fmt.str(), val);
             }
             break;
         }
@@ -430,7 +449,7 @@ static void print_direc(const char* start, char conversion, bool have_field_widt
         case 'G': {
             fmt << "L" << conversion;
             long double val = argument ? vstrtold(argument) : 0.0;
-            printf(fmt.str().c_str(), val);
+            printf_value(fmt.str(), val);
             break;
         }
         case 'c': {
@@ -438,14 +457,14 @@ static void print_direc(const char* start, char conversion, bool have_field_widt
             int val;
             if (argument) {
                 if ((*argument == '"' || *argument == '\'') && *(argument + 1)) {
-                    val = vstrtoimax(argument);
+                    val = static_cast<int>(vstrtoimax(argument));
                 } else {
                     char* end;
                     errno = 0;
                     long num = strtol(argument, &end, 0);
 
                     if (errno == 0 && *end == '\0') {
-                        val = num;
+                        val = static_cast<int>(num);
                     } else {
                         val = (unsigned char)argument[0];
                     }
@@ -453,13 +472,13 @@ static void print_direc(const char* start, char conversion, bool have_field_widt
             } else {
                 val = 0;
             }
-            printf(fmt.str().c_str(), val);
+            printf_value(fmt.str(), val);
             break;
         }
         case 's': {
             fmt << "s";
             const char* val = argument ? argument : "";
-            printf(fmt.str().c_str(), val);
+            printf_value(fmt.str(), val);
             break;
         }
     }
@@ -690,7 +709,7 @@ static int print_formatted(const char* format, int argc, char** argv) {
             while (*ac.f && strchr("hlLjzt", *ac.f))
                 ac.f++;
 
-            unsigned char conversion = *ac.f;
+            unsigned char conversion = static_cast<unsigned char>(*ac.f);
             if (!ok[conversion]) {
                 print_error({ErrorType::INVALID_ARGUMENT,
                              "printf",
@@ -705,8 +724,9 @@ static int print_formatted(const char* format, int argc, char** argv) {
                 return -1;
             }
 
-            print_direc(direc_start, conversion, have_field_width, field_width, have_precision,
-                        precision, ac.curr_arg < argc ? argv[ac.curr_arg] : nullptr);
+            print_direc(direc_start, static_cast<char>(conversion), have_field_width, field_width,
+                        have_precision, precision,
+                        ac.curr_arg < argc ? argv[ac.curr_arg] : nullptr);
 
         } else if (*ac.f == '\\') {
             ac.f += print_esc(ac.f, false);
@@ -772,7 +792,7 @@ int printf_command(const std::vector<std::string>& args) {
         argv_ptrs.push_back(const_cast<char*>(stored_arg.c_str()));
     }
 
-    int argc = argv_ptrs.size();
+    int argc = static_cast<int>(argv_ptrs.size());
     char** argv = argv_ptrs.empty() ? nullptr : argv_ptrs.data();
 
     int args_used;

@@ -94,7 +94,8 @@ std::string CompletionTracker::calculate_final_result(const char* completion_tex
     std::string prefix_str = original_prefix;
 
     if (delete_before > 0 && delete_before <= static_cast<long>(prefix_str.length())) {
-        prefix_str = prefix_str.substr(0, prefix_str.length() - delete_before);
+        const size_t delete_length = static_cast<size_t>(delete_before);
+        prefix_str = prefix_str.substr(0, prefix_str.length() - delete_length);
     }
 
     return prefix_str + completion_text;
