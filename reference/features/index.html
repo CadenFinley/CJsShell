@@ -1117,8 +1117,8 @@ require no third-party plugins.</p>
 <li><strong>POSIX-first semantics</strong> – Roughly 95% POSIX coverage with &gt;1500 standards-focused tests.</li>
 <li><strong>Bourne-compatible surface</strong> – Classic constructs (<code>if</code>, <code>case</code>, <code>for</code>, <code>while</code>, functions,
     redirections, here-documents, command substitution) behave the way portable scripts expect.</li>
-<li><strong>Selective bash extensions</strong> – <code>[[ … ]]</code>, arithmetic contexts, here-strings, and history
-    expansion ship enabled for interactive use but stay out of the way for scripts.</li>
+<li><strong>POSIX+ extensions</strong> – <code>[[ … ]]</code>, arithmetic contexts, brace expansion, here-strings, and
+    process substitution are supported. History expansion stays interactive-only by default.</li>
 <li><strong>Job control</strong> – Background jobs, <code>fg</code>, <code>bg</code>, <code>jobs</code>, <code>wait</code>, <code>disown</code>, and <code>trap</code> integrate with
     the internal process manager so interactive sessions stay responsive. <code>set -o huponexit</code>
     controls whether exiting shells hang up or leave running jobs alone (default: off, so long-lived
@@ -1218,13 +1218,14 @@ for full details.</p>
 <li><code>-i, --interactive</code> – force interactive behavior even if stdin is not a tty</li>
 <li><code>-c, --command=&lt;string&gt;</code> – execute a single command and exit (disables history expansion)</li>
 <li><code>-m, --minimal</code> – disable prompt themes/colors, completions, syntax highlighting, rc sourcing,
-    the title line, history expansion, multiline line numbers, auto-indentation, and the startup
-    time banner</li>
+  smart cd, the title line, history expansion, multiline line numbers, auto-indentation, and the
+  startup time banner</li>
 <li><code>-C, --no-colors</code></li>
 <li><code>-L, --no-titleline</code></li>
 <li><code>-U, --show-startup-time</code></li>
 <li><code>-N, --no-source</code></li>
 <li><code>-O, --no-completions</code></li>
+<li><code>--no-smart-cd</code></li>
 <li><code>--no-completion-learning</code> – keep completions enabled but skip on-demand man-page scraping</li>
 <li><code>-S, --no-syntax-highlighting</code></li>
 <li><code>-H, --no-history-expansion</code></li>

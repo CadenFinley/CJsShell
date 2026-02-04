@@ -793,6 +793,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#posix-scripting-syntax" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POSIX+ Scripting Syntax
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#completion-engine" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1123,6 +1134,17 @@ necessary.</p>
 <li><strong>Fish-style abbreviations</strong> – <code>abbr</code> and <code>unabbr</code> provide inline text expansions, a feature not
   present in POSIX shells.</li>
 </ul>
+<h2 id="posix-scripting-syntax">POSIX+ Scripting Syntax</h2>
+<ul>
+<li><strong>Brace expansion</strong> – Expand comma-separated terms or ranges before globbing.</li>
+<li>Example: <code>echo {alpha,beta}</code> → <code>alpha beta</code></li>
+<li><strong>Here-strings</strong> – Feed a single string into a command's stdin.</li>
+<li>Example: <code>grep foo &lt;&lt;&lt; "foo bar"</code></li>
+<li><strong>Process substitution</strong> – Treat command output/input as a file-like path.</li>
+<li>Example: <code>diff &lt;(sort a.txt) &lt;(sort b.txt)</code></li>
+</ul>
+<p>These syntax extensions are available in both scripts and interactive sessions. History expansion
+remains interactive-only by default; see the History section below.</p>
 <h2 id="completion-engine">Completion Engine</h2>
 <ul>
 <li><strong>Fuzzy matching and spell correction</strong> – Configurable through <code>cjshopt completion-case</code>,
@@ -1159,7 +1181,8 @@ necessary.</p>
 <h2 id="additional-non-posix-behaviours">Additional Non-POSIX Behaviours</h2>
 <ul>
 <li><strong>Startup diagnostics</strong> – <code>--show-startup-time</code> prints the duration spent initializing CJSH.</li>
-<li><strong>Secure mode</strong> – <code>--secure</code> skips all profile/rc/logout sourcing for hardened sessions.</li>
+<li><strong>Secure mode</strong> – <code>--secure</code> skips all profile/rc/logout sourcing for hardened sessions and
+  ignores <code>PROMPT_COMMAND</code>.</li>
 <li><strong>Consistent error output</strong> – Interpreter failures now use the same compact <code>cjsh:</code> error_out
   format as other builtins for predictable logs.</li>
 </ul>

@@ -1098,6 +1098,9 @@ footprint, turn learning off and rely exclusively on whatever is already cached 
   to <code>~/.cjprofile</code>) to start with learning disabled from the first prompt.</li>
 <li>The <code>generate-completions</code> builtin continues to work either way, so you can keep caches warm with a
   one-time run and leave learning off during normal interactive use.</li>
+<li>When <code>CJSH_MAN_PATH</code> is set, cjsh always uses that <code>man</code> binary (even outside secure mode).</li>
+<li>In secure mode (<code>--secure</code>), cjsh only uses <code>CJSH_MAN_PATH</code>. If it is unset or invalid, scraping
+  is skipped and cjsh relies on cached data.</li>
 </ul>
 <p>If a man page cannot be read (missing <code>man</code>, atypical formatting, or sandbox restrictions), cjsh
 creates an empty cache entry. You can delete that file or replace it with a manual definition.</p>
