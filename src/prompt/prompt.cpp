@@ -46,7 +46,9 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <thread>
+#include <unordered_map>
 #include <vector>
 
 #include "cjsh.h"
@@ -78,6 +80,132 @@ struct GitRepositoryContext {
     std::filesystem::path root;
     std::filesystem::path git_dir;
 };
+
+std::string read_git_head(const std::filesystem::path& git_dir);
+
+struct GitStatusSnapshot {
+    std::filesystem::file_time_type index_mtime{};
+    std::filesystem::file_time_type worktree_mtime{};
+
+    bool equals(const GitStatusSnapshot& other) const {
+        return index_mtime == other.index_mtime && worktree_mtime == other.worktree_mtime;
+    }
+};
+
+std::filesystem::file_time_type safe_last_write_time(const std::filesystem::path& path) {
+    std::error_code ec;
+    auto value = std::filesystem::last_write_time(path, ec);
+    if (ec) {
+        return {};
+    }
+    return value;
+}
+
+GitStatusSnapshot capture_git_status_snapshot(const GitRepositoryContext& ctx) {
+    GitStatusSnapshot snapshot;
+    snapshot.index_mtime = safe_last_write_time(ctx.git_dir / "index");
+    snapshot.worktree_mtime = safe_last_write_time(ctx.root);
+    return snapshot;
+}
+
+std::string format_git_branch_segment(const std::string& branch_name) {
+    if (branch_name.empty()) {
+        return {};
+    }
+    std::string segment;
+    segment.reserve(branch_name.size() + 32);
+    segment += "[b color=ansi-blue]git:([/]";
+    segment += "[color=#ff6b6b]";
+    segment += branch_name;
+    segment += "[/]";
+    segment += "[color=ansi-blue])[/]";
+    return segment;
+}
+
+std::string format_git_status_segment(bool dirty) {
+    if (!dirty) {
+        return {};
+    }
+    return " [color=#ffd166]✗[/color]";
+}
+
+constexpr std::chrono::milliseconds kGitStatusCacheTtl(1500);
+
+class GitPromptCache {
+   public:
+    std::string branch_segment(const GitRepositoryContext& ctx) {
+        const std::string key = cache_key(ctx);
+        const auto head_mtime = safe_last_write_time(ctx.git_dir / "HEAD");
+
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            auto& entry = entries_[key];
+            if (entry.branch_valid && entry.head_mtime == head_mtime) {
+                return entry.branch_segment;
+            }
+        }
+
+        std::string branch_name = read_git_head(ctx.git_dir);
+        std::string formatted = format_git_branch_segment(branch_name);
+
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            auto& entry = entries_[key];
+            entry.branch_segment = formatted;
+            entry.head_mtime = head_mtime;
+            entry.branch_valid = true;
+        }
+
+        return formatted;
+    }
+
+    std::optional<std::string> status_segment_if_fresh(const GitRepositoryContext& ctx,
+                                                       const GitStatusSnapshot& snapshot,
+                                                       std::chrono::steady_clock::time_point now) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        auto& entry = entries_[cache_key(ctx)];
+        if (entry.status_valid && entry.status_snapshot.equals(snapshot) &&
+            now - entry.last_status_refresh <= kGitStatusCacheTtl) {
+            return entry.status_segment;
+        }
+        return std::nullopt;
+    }
+
+    void store_status_result(const GitRepositoryContext& ctx, bool dirty,
+                             const GitStatusSnapshot& snapshot,
+                             std::chrono::steady_clock::time_point now) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        auto& entry = entries_[cache_key(ctx)];
+        entry.status_snapshot = snapshot;
+        entry.status_segment = format_git_status_segment(dirty);
+        entry.status_valid = true;
+        entry.last_status_refresh = now;
+    }
+
+   private:
+    struct CacheEntry {
+        std::filesystem::file_time_type head_mtime{};
+        bool branch_valid = false;
+        std::string branch_segment;
+
+        GitStatusSnapshot status_snapshot{};
+        bool status_valid = false;
+        std::chrono::steady_clock::time_point last_status_refresh{};
+        std::string status_segment;
+    };
+
+    static std::string cache_key(const GitRepositoryContext& ctx) {
+        return ctx.root.lexically_normal().string();
+    }
+
+    std::mutex mutex_;
+    std::unordered_map<std::string, CacheEntry> entries_;
+};
+
+GitPromptCache& git_prompt_cache() {
+    static GitPromptCache cache;
+    return cache;
+}
 
 std::string get_env(const char* name, const char* fallback = nullptr) {
     const char* value = std::getenv(name);
@@ -430,19 +558,32 @@ std::optional<GitRepositoryContext> detect_git_context() {
 }
 
 std::string build_git_segment(const GitRepositoryContext& ctx) {
-    std::string branch = read_git_head(ctx.git_dir);
-    if (branch.empty()) {
+    std::string branch_text = git_prompt_cache().branch_segment(ctx);
+    if (branch_text.empty()) {
         return {};
     }
-    std::string segment;
-    segment.reserve(branch.size() + 32);
-    segment += "[b color=ansi-blue]git:([/]";
-    segment += "[color=#ff6b6b]" + branch + "[/]";
-    segment += "[color=ansi-blue])[/]";
-    if (git_has_changes(ctx.workdir)) {
-        segment += " [color=#ffd166]✗[/color]";
-    }
+
+    std::string segment = branch_text;
+    size_t status_insert_offset = segment.size();
     segment.push_back(' ');
+
+    GitStatusSnapshot snapshot = capture_git_status_snapshot(ctx);
+    auto now = std::chrono::steady_clock::now();
+    std::string status_text;
+    if (auto cached = git_prompt_cache().status_segment_if_fresh(ctx, snapshot, now)) {
+        status_text = *cached;
+    } else {
+        bool dirty = git_has_changes(ctx.workdir);
+        GitStatusSnapshot fresh_snapshot = capture_git_status_snapshot(ctx);
+        git_prompt_cache().store_status_result(ctx, dirty, fresh_snapshot,
+                                               std::chrono::steady_clock::now());
+        status_text = format_git_status_segment(dirty);
+    }
+
+    if (!status_text.empty()) {
+        segment.insert(status_insert_offset, status_text);
+    }
+
     return segment;
 }
 
@@ -464,6 +605,7 @@ class AsyncGitPromptManager {
    private:
     void start_worker_locked(size_t request_id, const GitRepositoryContext& context);
     void handle_worker_result(size_t request_id, std::string segment);
+    void reset_async_state_locked();
 
     std::mutex mutex_;
     std::condition_variable cv_;
@@ -520,14 +662,27 @@ void AsyncGitPromptManager::append_segment(std::string& builder) {
     auto context = detect_git_context();
     if (!context) {
         std::lock_guard<std::mutex> lock(mutex_);
-        refresh_pending_ = false;
-        awaiting_async_result_ = false;
-        placeholder_offsets_.clear();
-        pending_prompt_.clear();
-        result_ready_ = false;
-        pending_segment_.clear();
-        prompt_snapshot_ready_ = false;
-        notify_when_snapshot_ready_ = false;
+        reset_async_state_locked();
+        return;
+    }
+
+    std::string branch_text = git_prompt_cache().branch_segment(*context);
+    if (branch_text.empty()) {
+        return;
+    }
+
+    builder += branch_text;
+    size_t status_insert_offset = builder.size();
+    builder.push_back(' ');
+
+    GitStatusSnapshot snapshot = capture_git_status_snapshot(*context);
+    auto now = std::chrono::steady_clock::now();
+    if (auto cached_status = git_prompt_cache().status_segment_if_fresh(*context, snapshot, now)) {
+        if (!cached_status->empty()) {
+            builder.insert(status_insert_offset, *cached_status);
+        }
+        std::lock_guard<std::mutex> lock(mutex_);
+        reset_async_state_locked();
         return;
     }
 
@@ -539,15 +694,18 @@ void AsyncGitPromptManager::append_segment(std::string& builder) {
 
     if (cv_.wait_for(lock, kGitInlineBudget,
                      [&] { return result_ready_ && result_request_id_ == active_request_id_; })) {
-        builder += pending_segment_;
-        refresh_pending_ = false;
-        awaiting_async_result_ = false;
+        std::string status_text = pending_segment_;
+        reset_async_state_locked();
+        lock.unlock();
+        if (!status_text.empty()) {
+            builder.insert(status_insert_offset, status_text);
+        }
         return;
     }
 
     awaiting_async_result_ = true;
     refresh_pending_ = true;
-    placeholder_offsets_.push_back(builder.size());
+    placeholder_offsets_.push_back(status_insert_offset);
 }
 
 void AsyncGitPromptManager::finalize_render(const std::string& prompt_snapshot) {
@@ -584,13 +742,7 @@ std::optional<std::string> AsyncGitPromptManager::consume_ready_prompt() {
         updated.insert(offset + inserted, pending_segment_);
         inserted += pending_segment_.size();
     }
-    refresh_pending_ = false;
-    awaiting_async_result_ = false;
-    prompt_snapshot_ready_ = false;
-    placeholder_offsets_.clear();
-    pending_prompt_.clear();
-    result_ready_ = false;
-    notify_when_snapshot_ready_ = false;
+    reset_async_state_locked();
     lock.unlock();
     return updated;
 }
@@ -600,7 +752,11 @@ void AsyncGitPromptManager::start_worker_locked(size_t request_id,
     worker_running_ = true;
     worker_request_id_ = request_id;
     std::thread worker([this, request_id, context]() {
-        std::string segment = build_git_segment(context);
+        bool dirty = git_has_changes(context.workdir);
+        GitStatusSnapshot snapshot = capture_git_status_snapshot(context);
+        git_prompt_cache().store_status_result(context, dirty, snapshot,
+                                               std::chrono::steady_clock::now());
+        std::string segment = format_git_status_segment(dirty);
         handle_worker_result(request_id, std::move(segment));
     });
     worker.detach();
@@ -629,6 +785,17 @@ void AsyncGitPromptManager::handle_worker_result(size_t request_id, std::string 
     if (should_notify) {
         ic_push_key_event(IC_KEY_EVENT_PROMPT_REFRESH);
     }
+}
+
+void AsyncGitPromptManager::reset_async_state_locked() {
+    refresh_pending_ = false;
+    awaiting_async_result_ = false;
+    prompt_snapshot_ready_ = false;
+    notify_when_snapshot_ready_ = false;
+    result_ready_ = false;
+    placeholder_offsets_.clear();
+    pending_prompt_.clear();
+    pending_segment_.clear();
 }
 
 AsyncGitPromptManager& git_prompt_async_manager() {
