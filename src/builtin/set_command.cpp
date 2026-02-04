@@ -219,7 +219,7 @@ int set_command(const std::vector<std::string>& args, Shell* shell) {
         return 0;
     }
     if (shell == nullptr) {
-        print_error({ErrorType::RUNTIME_ERROR, "set", "shell not available", {}});
+        print_error({ErrorType::FATAL_ERROR, "set", "shell not initialized properly", {}});
         return 1;
     }
 
@@ -326,7 +326,7 @@ int shift_command(const std::vector<std::string>& args, Shell* shell) {
         return 0;
     }
     if (shell == nullptr) {
-        print_error({ErrorType::RUNTIME_ERROR, "shift", "shell not available", {}});
+        print_error({ErrorType::FATAL_ERROR, "shift", "shell not initialized properly", {}});
         return 1;
     }
 

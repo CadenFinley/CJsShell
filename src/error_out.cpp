@@ -197,8 +197,17 @@ void print_error(const ErrorInfo& error) {
     }
 
     if (ErrorType::FATAL_ERROR == error.type) {
+        bool is_interactive = false;
+        if (g_shell) {
+            is_interactive = g_shell->get_interactive_mode();
+        }
+        if (is_interactive) {
+            std::cout << "press enter to exit...";
+            std::cin.get();
+            std::cout << "cjsh exit\n";
+            std::cout.flush();
+        }
         // fatal errors exit
-        g_exit_flag = true;
         _exit(EXIT_FAILURE);
     }
 }

@@ -55,7 +55,7 @@ int eval_command(const std::vector<std::string>& args, Shell* shell) {
         int result = shell->execute(command_to_eval);
         return result;
     } else {
-        print_error({ErrorType::RUNTIME_ERROR, "eval", "shell not initialized", {}});
+        print_error({ErrorType::FATAL_ERROR, "eval", "shell not initialized properly", {}});
         return 1;
     }
 }

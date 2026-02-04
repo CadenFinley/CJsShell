@@ -45,7 +45,7 @@ int abbr_command(const std::vector<std::string>& args, Shell* shell) {
     }
 
     if (shell == nullptr) {
-        print_error({ErrorType::RUNTIME_ERROR, "abbr", "shell unavailable", {}});
+        print_error({ErrorType::FATAL_ERROR, "abbr", "shell not initialized properly", {}});
         return 1;
     }
 
@@ -116,7 +116,7 @@ int unabbr_command(const std::vector<std::string>& args, Shell* shell) {
     }
 
     if (shell == nullptr) {
-        print_error({ErrorType::RUNTIME_ERROR, "unabbr", "shell unavailable", {}});
+        print_error({ErrorType::FATAL_ERROR, "unabbr", "shell not initialized properly", {}});
         return 1;
     }
 

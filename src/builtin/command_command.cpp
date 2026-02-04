@@ -146,7 +146,7 @@ int command_command(const std::vector<std::string>& args, Shell* shell) {
     }
 
     if (shell == nullptr) {
-        print_error({ErrorType::RUNTIME_ERROR, "command", "shell context not available", {}});
+        print_error({ErrorType::FATAL_ERROR, "command", "shell not initialized properly", {}});
         return 2;
     }
 

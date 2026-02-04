@@ -49,7 +49,7 @@ int source_command(const std::vector<std::string>& args) {
     }
 
     if (!g_shell) {
-        print_error({ErrorType::RUNTIME_ERROR, "source", "shell not initialized", {}});
+        print_error({ErrorType::FATAL_ERROR, "source", "shell not initialized properly", {}});
         return 1;
     }
 

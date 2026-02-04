@@ -151,10 +151,10 @@ int run_cjsh(int argc, char* argv[]) {
     // create the shell object
     g_shell = std::make_unique<Shell>();
     if (!g_shell) {
-        print_error({ErrorType::RUNTIME_ERROR,
+        print_error({ErrorType::FATAL_ERROR,
                      "",
-                     "Failed to initialize shell",
-                     {"Insufficient memory or system resources"}});
+                     "Failed to initialize shell: insufficient memory or system resources",
+                     {}});
         return 1;
     }
 

@@ -70,7 +70,7 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
     }
 
     if (shell == nullptr) {
-        print_error({ErrorType::RUNTIME_ERROR, "read", "internal error - no shell context", {}});
+        print_error({ErrorType::FATAL_ERROR, "read", "shell not initialized properly", {}});
         return 1;
     }
 

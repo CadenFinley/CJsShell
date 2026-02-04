@@ -697,10 +697,11 @@ bool initialize_cjsh_directories() {
         bool home_exists = file_exists(g_user_home_path());
 
         if (!home_exists) {
-            print_error({ErrorType::RUNTIME_ERROR,
+            print_error({ErrorType::FATAL_ERROR,
                          "",
                          "User home path not found",
-                         {"Check user account configuration"}});
+                         {"Set $HOME to an existing directory.",
+                          "Create the home directory and try again."}});
             return false;
         }
         std::filesystem::create_directories(g_cjsh_config_path());
@@ -714,16 +715,17 @@ bool initialize_cjsh_directories() {
                 print_error({ErrorType::RUNTIME_ERROR,
                              g_cjsh_history_path().c_str(),
                              write_result.error(),
-                             {"Check file permissions"}});
+                             {}});
                 return false;
             }
         }
 
     } catch (const std::exception& e) {
-        print_error({ErrorType::RUNTIME_ERROR,
+        print_error({ErrorType::FATAL_ERROR,
                      "",
                      "Failed to initialize interactive filesystem",
-                     {"Check file permissions", "Reinstall cjsh"}});
+                     {"Ensure $HOME exists and is writable.",
+                      "Check permissions for ~/.config/cjsh and ~/.cache/cjsh."}});
         return false;
     }
     return true;

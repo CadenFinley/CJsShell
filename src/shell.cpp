@@ -126,8 +126,7 @@ int Shell::execute(const std::string& script, bool skip_validation) {
         last_command = script;
         return exit_code;
     }
-    print_error(ErrorInfo{
-        ErrorType::RUNTIME_ERROR, "", "No script interpreter available", {"Restart cjsh"}});
+    print_error(ErrorInfo{ErrorType::FATAL_ERROR, "", "shell not initialized properly", {}});
     return 1;
 }
 
@@ -137,10 +136,7 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
         return 0;
     }
     if (!shell_exec || !built_ins) {
-        g_exit_flag = true;
-        print_error(
-            {ErrorType::RUNTIME_ERROR, "", "Shell not properly initialized", {"Restart cjsh"}});
-        return 1;
+        print_error({ErrorType::FATAL_ERROR, "", "shell not initialized properly", {}});
     }
 
     // xtrace handling
@@ -304,8 +300,7 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
 
 int Shell::execute_script_file(const std::filesystem::path& path, bool optional) {
     if (!shell_script_interpreter) {
-        print_error({ErrorType::RUNTIME_ERROR, "source", "script interpreter not available", {}});
-        return 1;
+        print_error({ErrorType::FATAL_ERROR, "", "shell not initialized properly", {}});
     }
 
     std::filesystem::path normalized = path.lexically_normal();
@@ -405,10 +400,11 @@ void Shell::setup_job_control() {
     if (setpgid(shell_pgid, shell_pgid) < 0) {
         if (errno != EPERM) {
             const auto error_text = std::system_category().message(errno);
-            print_error({ErrorType::RUNTIME_ERROR,
+            print_error({ErrorType::FATAL_ERROR,
                          "setpgid",
                          "couldn't put the shell in its own process group: " + error_text,
-                         {}});
+                         {"Start a fresh terminal session and try again.",
+                          "Ensure no other process is controlling the terminal."}});
         }
     }
 
@@ -419,17 +415,19 @@ void Shell::setup_job_control() {
         if (tpgrp != -1) {
             if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
                 const auto error_text = std::system_category().message(errno);
-                print_error({ErrorType::RUNTIME_ERROR,
+                print_error({ErrorType::FATAL_ERROR,
                              "tcsetpgrp",
                              "couldn't grab terminal control: " + error_text,
-                             {}});
+                             {"Start a fresh terminal session and try again.",
+                              "Ensure no other process is controlling the terminal."}});
             }
         }
         job_control_enabled = true;
     } catch (const std::exception& e) {
-        print_error(
-            {ErrorType::RUNTIME_ERROR, "", e.what(), {"Check terminal settings", "Restart cjsh"}});
-        job_control_enabled = false;
+        print_error({ErrorType::FATAL_ERROR,
+                     "job control",
+                     e.what(),
+                     {"Start a fresh terminal session and try again."}});
     }
 }
 
@@ -441,19 +439,20 @@ void Shell::handle_sigcont() {
     if (isatty(shell_terminal) != 0) {
         if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
             const auto error_text = std::system_category().message(errno);
-            print_error({ErrorType::RUNTIME_ERROR,
+            print_error({ErrorType::FATAL_ERROR,
                          "tcsetpgrp",
                          "failed to reclaim terminal after SIGCONT: " + error_text,
-                         {}});
+                         {"Start a fresh terminal session and try again.",
+                          "Ensure no other process is controlling the terminal."}});
         }
 
         if (terminal_state_saved) {
             if (tcsetattr(shell_terminal, TCSADRAIN, &shell_tmodes) < 0) {
                 const auto error_text = std::system_category().message(errno);
-                print_error({ErrorType::RUNTIME_ERROR,
+                print_error({ErrorType::FATAL_ERROR,
                              "tcsetattr",
                              "failed to restore terminal mode after SIGCONT: " + error_text,
-                             {}});
+                             {"Restart the terminal to reset its state."}});
             }
         } else {
             save_terminal_state();

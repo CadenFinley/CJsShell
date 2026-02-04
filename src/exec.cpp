@@ -760,9 +760,11 @@ Exec::Exec()
 
     if (shell_is_interactive && (isatty(shell_terminal) != 0)) {
         if (tcgetattr(shell_terminal, &shell_tmodes) < 0) {
-            set_error(ErrorType::RUNTIME_ERROR, "tcgetattr",
-                      "failed to get terminal attributes in constructor: " +
-                          std::string(strerror(errno)));
+            set_error(
+                ErrorType::FATAL_ERROR, "tcgetattr",
+                "failed to get terminal attributes in constructor: " + std::string(strerror(errno)),
+                {"Try running cjsh from a terminal/TTY.",
+                 "Avoid redirecting stdin when using interactive mode."});
         }
     }
 }
@@ -859,7 +861,7 @@ bool Exec::can_execute_in_process(const Command& cmd) const {
 
 int Exec::execute_builtin_with_redirections(Command cmd) {
     if (!g_shell || (g_shell->get_built_ins() == nullptr)) {
-        set_error(ErrorType::RUNTIME_ERROR, "builtin",
+        set_error(ErrorType::FATAL_ERROR, "builtin",
                   "no shell context available for builtin execution");
         last_exit_code = EX_SOFTWARE;
         return EX_SOFTWARE;

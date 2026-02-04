@@ -364,13 +364,13 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
     const bool effective_skip = skip_validation_mode;
 
     if (g_shell == nullptr) {
-        print_error({ErrorType::RUNTIME_ERROR, "", "No shell instance available", {}});
+        print_error({ErrorType::FATAL_ERROR, "", "shell not initialized properly", {}});
     }
 
     if (shell_parser == nullptr) {
         std::vector<std::string> empty_suggestions;
-        ErrorInfo error(ErrorType::RUNTIME_ERROR, ErrorSeverity::CRITICAL, "",
-                        "Script interpreter not properly initialized", empty_suggestions);
+        ErrorInfo error(ErrorType::FATAL_ERROR, ErrorSeverity::CRITICAL, "",
+                        "shell not initialized properly", empty_suggestions);
         print_error(error);
         return 1;
     }

@@ -83,7 +83,7 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
         return 0;
     }
     if (!shell) {
-        print_error({ErrorType::RUNTIME_ERROR, "getopts", "shell not available", {}});
+        print_error({ErrorType::FATAL_ERROR, "getopts", "shell not initialized properly", {}});
         return 1;
     }
 
