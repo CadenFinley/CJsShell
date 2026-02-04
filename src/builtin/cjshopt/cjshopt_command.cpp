@@ -44,7 +44,7 @@ void print_cjshopt_usage() {
         << "  style_def <token_type> <style>   Define or redefine a syntax highlighting style\n";
     std::cout << "  login-startup-arg [--flag-name]  Add a startup flag (config file only)\n";
     std::cout << "  completion-case <on|off|status>  Configure completion case sensitivity "
-                 "(default: enabled)\n";
+                 "(default: disabled)\n";
     std::cout << "  history-search-case <on|off|status>  Configure fuzzy history case sensitivity "
                  "(default: enabled)\n";
     std::cout << "  completion-spell <on|off|status> Configure completion spell correction "
@@ -80,7 +80,7 @@ void print_cjshopt_usage() {
     std::cout << "  status-reporting <on|off|status>  Disable cjsh validation output while keeping "
                  "status-hints (default: enabled)\n";
     std::cout << "  auto-tab <on|off|status>        Configure automatic tab completion (default: "
-                 "enabled)\n";
+                 "disabled)\n";
     std::cout
         << "  prompt-newline <on|off|status>  Add a newline after command execution (default: "
            "disabled)\n";
@@ -173,7 +173,7 @@ int cjshopt_command(const std::vector<std::string>& args) {
                      "keeping status-hints (default: enabled)",
                  std::string(
                      "  auto-tab <on|off|status>        Configure automatic tab completion ") +
-                     "(default: enabled)",
+                     "(default: disabled)",
                  std::string(
                      "  prompt-newline <on|off|status>  Add a newline after command execution ") +
                      "(default: disabled)",

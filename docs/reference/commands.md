@@ -565,9 +565,11 @@ Available subcommands:
 - `completion-case` - Configure completion case sensitivity
 - `history-search-case` - Configure fuzzy history case sensitivity
 - `completion-spell` - Toggle spell correction suggestions in completions
+- `completion-learning` - Toggle automatic completion learning from man pages
 - `line-numbers` - Configure line numbers in multiline input (on/off/relative/absolute)
 - `line-numbers-replace-prompt` - Replace the final prompt line with the line-number gutter
 - `current-line-number-highlight` - Toggle highlighting of the current line number
+- `multiline-start-lines` - Configure how many prompt lines are preallocated in multiline mode
 - `hint-delay` - Set hint display delay in milliseconds
 - `completion-preview` - Configure completion preview
 - `visible-whitespace` - Toggle visible whitespace characters in the editor
@@ -694,6 +696,24 @@ cjshopt completion-spell status   # Display the current state
 
 Persist the choice by placing the command in `~/.cjshrc`.
 
+#### completion-learning
+
+Control whether cjsh scrapes man pages on demand to learn completions for external commands. When disabled, cjsh uses cached completion files and builtin metadata only. The subcommand accepts synonyms such as `enable`, `disable`, `true`, `false`, and `--status`.
+
+```bash
+cjshopt completion-learning <on|off|status>
+```
+
+Examples:
+
+```bash
+cjshopt completion-learning on       # Allow on-demand man-page scraping (default)
+cjshopt completion-learning off      # Disable new man-page lookups
+cjshopt completion-learning status   # Show the current setting
+```
+
+Add the command to `~/.cjshrc` to persist the preference.
+
 #### smart-cd
 
 Enable, disable, or inspect smart cd auto-jumps. When enabled, `cd` will auto-jump to a single
@@ -790,6 +810,24 @@ cjshopt current-line-number-highlight status  # Show the current setting
 Add the command to `~/.cjshrc` to persist the setting across sessions. Accepts synonyms like `enable`, `disable`, `true`, and `false`.
 
 > **Tip:** Customize the current line number style with `cjshopt style_def ic-linenumber-current "bold color=#FFB86C"` to make it stand out from regular line numbers styled with `ic-linenumbers`.
+
+#### multiline-start-lines
+
+Configure how many prompt lines are preallocated when multiline input is enabled. This controls how many rows are shown before you start typing.
+
+```bash
+cjshopt multiline-start-lines <count|status>
+```
+
+Examples:
+
+```bash
+cjshopt multiline-start-lines 3      # Reserve three prompt lines in multiline mode
+cjshopt multiline-start-lines 1      # Restore the default
+cjshopt multiline-start-lines status # Show the current setting
+```
+
+Add the command to `~/.cjshrc` to persist the setting across sessions.
 
 #### hint-delay
 

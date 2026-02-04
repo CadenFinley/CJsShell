@@ -183,7 +183,7 @@ cjshopt keybind set <action> <keys>    # redefine bindings (run from config file
 cjshopt keybind add <action> <keys>    # append bindings (run from config files)
 ```
 
-Use `cjshopt keybind --help` for the full action catalog. For custom widgets, see the `widget` builtin in the reference documentation.
+Use `cjshopt keybind --help` for the full action catalog. For custom widgets, see the `cjsh-widget` builtin in the reference documentation.
 
 ---
 
