@@ -39,6 +39,7 @@
 #include <atomic>
 #include <cctype>
 #include <cerrno>
+#include <chrono>
 #include <csignal>
 #include <cstdint>
 #include <cstring>
@@ -49,6 +50,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string_view>
+#include <thread>
 #include <vector>
 
 #include "builtin.h"
@@ -2259,73 +2261,112 @@ std::map<int, Job> Exec::get_jobs() {
 }
 
 void Exec::terminate_all_child_process() {
-    std::lock_guard<std::mutex> lock(jobs_mutex);
+    struct JobRecord {
+        int id;
+        Job job;
+    };
 
-    bool any_jobs_terminated = false;
-    for (auto& job_pair : jobs) {
-        Job& job = job_pair.second;
-        if (!job.completed) {
-            if (killpg(job.pgid, 0) == 0) {
-                if (killpg(job.pgid, SIGTERM) == 0) {
-                    any_jobs_terminated = true;
-                } else {
-                    if (errno != ESRCH) {
-                        std::cerr << "cjsh: warning: failed to terminate job [" << job_pair.first
-                                  << "] '" << job.command << "': " << strerror(errno) << '\n';
-                    }
-                }
-                std::cerr << "[" << job_pair.first << "] Terminated\t" << job.command << '\n';
-            }
+    std::vector<JobRecord> job_snapshot;
+    {
+        std::lock_guard<std::mutex> lock(jobs_mutex);
+        job_snapshot.reserve(jobs.size());
+        for (const auto& pair : jobs) {
+            job_snapshot.push_back({pair.first, pair.second});
         }
     }
 
-    if (any_jobs_terminated) {
-        usleep(200000);
+    const auto send_group_signal = [](pid_t pgid, int signal) -> bool {
+        if (pgid <= 0) {
+            return false;
+        }
+
+        if (killpg(pgid, signal) == 0) {
+            return true;
+        }
+
+        if (errno != ESRCH) {
+            std::cerr << "cjsh: warning: failed to send signal " << signal << " to pgid " << pgid
+                      << ": " << strerror(errno) << '\n';
+        }
+        return false;
+    };
+
+    bool signaled_any = false;
+    for (const auto& entry : job_snapshot) {
+        const Job& job = entry.job;
+        if (job.completed) {
+            continue;
+        }
+
+#ifdef SIGCONT
+        if (job.stopped && job.pgid > 0) {
+            (void)send_group_signal(job.pgid, SIGCONT);
+        }
+#endif
+
+        if (send_group_signal(job.pgid, SIGTERM)) {
+            signaled_any = true;
+        }
+
+        for (pid_t pid : job.pids) {
+            if (pid > 0) {
+                kill(pid, SIGTERM);
+            }
+        }
+
+        if (job.pgid > 0 || !job.pids.empty()) {
+            std::cerr << "[" << entry.id << "] Terminated\t" << job.command << '\n';
+        }
     }
 
-    for (auto& job_pair : jobs) {
-        Job& job = job_pair.second;
-        if (!job.completed) {
-            if (killpg(job.pgid, 0) == 0) {
-                if (killpg(job.pgid, SIGKILL) == 0) {
-                } else {
-                    if (errno != ESRCH) {
-                        set_error(ErrorType::RUNTIME_ERROR, "killpg",
-                                  "failed to send SIGKILL in "
-                                  "terminate_all_child_process: " +
-                                      std::string(strerror(errno)));
-                    }
-                }
+    if (signaled_any) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    }
 
-                for (pid_t pid : job.pids) {
-                    kill(pid, SIGKILL);
-                }
+    for (const auto& entry : job_snapshot) {
+        const Job& job = entry.job;
+        if (job.completed) {
+            continue;
+        }
+
+        (void)send_group_signal(job.pgid, SIGKILL);
+        for (pid_t pid : job.pids) {
+            if (pid > 0) {
+                kill(pid, SIGKILL);
             }
-
-            job.completed = true;
-            job.stopped = false;
-            job.status = 0;
         }
     }
 
     int status = 0;
     int zombie_count = 0;
-    const int max_terminate_iterations = 50;
+    const int max_terminate_iterations = 100;
     while (zombie_count < max_terminate_iterations) {
         pid_t reap_pid = waitpid(-1, &status, WNOHANG);
         if (reap_pid <= 0) {
             break;
         }
-        zombie_count++;
+        ++zombie_count;
     }
 
     if (zombie_count >= max_terminate_iterations) {
-        std::cerr << "WARNING: terminate_all_child_process hit maximum cleanup "
-                     "iterations"
-                  << '\n';
+        std::cerr << "WARNING: terminate_all_child_process hit maximum cleanup iterations" << '\n';
     }
 
-    set_error(ErrorType::RUNTIME_ERROR, "", "All child processes terminated");
+    {
+        std::lock_guard<std::mutex> lock(jobs_mutex);
+        for (auto& pair : jobs) {
+            pair.second.completed = true;
+            pair.second.stopped = false;
+            pair.second.pids.clear();
+            pair.second.status = 0;
+        }
+    }
+
+    if (!signaled_any) {
+        set_error(ErrorType::RUNTIME_ERROR, "", "No child processes to terminate");
+    } else {
+        set_error(ErrorType::RUNTIME_ERROR, "", "All child processes terminated");
+    }
 }
 
 void Exec::abandon_all_child_processes() {
