@@ -38,6 +38,17 @@
 #include "parser.h"
 #include "shell.h"
 
+namespace {
+
+std::string trim_command_output(std::string value) {
+    while (!value.empty() && (value.back() == '\n' || value.back() == '\r')) {
+        value.pop_back();
+    }
+    return value;
+}
+
+}  // namespace
+
 VariableExpander::VariableExpander(Shell* shell,
                                    const std::unordered_map<std::string, std::string>& env_vars)
     : shell(shell), env_vars(env_vars) {
@@ -78,26 +89,14 @@ std::string VariableExpander::resolve_parameter_value(const std::string& var_nam
         return "";
     }
 
-    if (var_name == "?") {
-        const char* status_env = getenv("?");
-        return (status_env != nullptr) ? status_env : "0";
-    }
-
-    if (var_name == "$") {
+    if (var_name != "-") {
         static const std::string cached_pid = std::to_string(getpid());
-        return cached_pid;
-    }
-
-    if (var_name == "#") {
-        return std::to_string(flags::get_positional_parameter_count());
-    }
-
-    if (var_name == "*" || var_name == "@") {
-        return parameter_utils::join_positional_parameters();
-    }
-
-    if (var_name == "!") {
-        return parameter_utils::get_last_background_pid_string();
+        std::string special_value =
+            parameter_utils::get_special_parameter_value(var_name, cached_pid);
+        if (!special_value.empty() || var_name == "?" || var_name == "$" || var_name == "#" ||
+            var_name == "*" || var_name == "@" || var_name == "!") {
+            return special_value;
+        }
     }
 
     if (var_name == "-") {
@@ -168,22 +167,8 @@ void VariableExpander::expand_env_vars(std::string& arg) {
     var_name.reserve(64);
 
     for (size_t i = 0; i < arg.length(); ++i) {
-        auto [handled, arith_result] = try_expand_arithmetic_expression(
-            arg, i, [this](std::string& s) { expand_env_vars(s); },
-            [this](const std::string& s) {
-                if (shell != nullptr) {
-                    if (auto* interpreter = shell->get_shell_script_interpreter()) {
-                        return interpreter->evaluate_arithmetic_expression(s);
-                    }
-                    if (auto* parser = shell->get_parser()) {
-                        return parser->evaluate_arithmetic(s);
-                    }
-                }
-                return 0LL;
-            });
-
-        if (handled) {
-            result += arith_result;
+        if (try_append_arithmetic_expansion(
+                arg, i, result, [this](std::string& s) { expand_env_vars(s); }, false)) {
             continue;
         }
 
@@ -324,22 +309,9 @@ void VariableExpander::expand_exported_env_vars_only(std::string& arg) {
     var_name.reserve(64);
 
     for (size_t i = 0; i < arg.length(); ++i) {
-        auto [handled, arith_result] = try_expand_arithmetic_expression(
-            arg, i, [this](std::string& s) { expand_exported_env_vars_only(s); },
-            [this](const std::string& s) {
-                if (shell != nullptr) {
-                    if (auto* interpreter = shell->get_shell_script_interpreter()) {
-                        return interpreter->evaluate_arithmetic_expression(s);
-                    }
-                    if (auto* parser = shell->get_parser()) {
-                        return parser->evaluate_arithmetic(s);
-                    }
-                }
-                return 0LL;
-            });
-
-        if (handled) {
-            result += arith_result.empty() ? "0" : arith_result;
+        if (try_append_arithmetic_expansion(
+                arg, i, result, [this](std::string& s) { expand_exported_env_vars_only(s); },
+                true)) {
             continue;
         }
 
@@ -456,11 +428,7 @@ void VariableExpander::expand_command_substitutions_in_string(std::string& text)
                 std::string command = text.substr(i + 2, pos - (i + 2));
                 auto output = exec_utils::execute_command_for_output(command);
                 if (output.success) {
-                    std::string value = output.output;
-                    while (!value.empty() && (value.back() == '\n' || value.back() == '\r')) {
-                        value.pop_back();
-                    }
-                    result += value;
+                    result += trim_command_output(output.output);
                     i = pos + 1;
                     continue;
                 }
@@ -491,11 +459,7 @@ void VariableExpander::expand_command_substitutions_in_string(std::string& text)
                 }
                 auto output = exec_utils::execute_command_for_output(cleaned);
                 if (output.success) {
-                    std::string value = output.output;
-                    while (!value.empty() && (value.back() == '\n' || value.back() == '\r')) {
-                        value.pop_back();
-                    }
-                    result += value;
+                    result += trim_command_output(output.output);
                     i = pos + 1;
                     continue;
                 }
@@ -507,6 +471,34 @@ void VariableExpander::expand_command_substitutions_in_string(std::string& text)
     }
 
     text.swap(result);
+}
+
+bool VariableExpander::try_append_arithmetic_expansion(
+    const std::string& arg, size_t& i, std::string& result,
+    const std::function<void(std::string&)>& expand_func, bool default_zero_on_empty) {
+    auto [handled, arith_result] =
+        try_expand_arithmetic_expression(arg, i, expand_func, [this](const std::string& s) {
+            if (shell != nullptr) {
+                if (auto* interpreter = shell->get_shell_script_interpreter()) {
+                    return interpreter->evaluate_arithmetic_expression(s);
+                }
+                if (auto* parser = shell->get_parser()) {
+                    return parser->evaluate_arithmetic(s);
+                }
+            }
+            return 0LL;
+        });
+
+    if (!handled) {
+        return false;
+    }
+
+    if (default_zero_on_empty && arith_result.empty()) {
+        result += "0";
+    } else {
+        result += arith_result;
+    }
+    return true;
 }
 
 void VariableExpander::expand_command_paths_with_home(Command& cmd, const std::string& home) {

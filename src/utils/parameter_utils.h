@@ -34,5 +34,7 @@ namespace parameter_utils {
 
 std::string join_positional_parameters();
 std::string get_last_background_pid_string();
+std::string get_special_parameter_value(const std::string& var_name,
+                                        const std::string& pid_string = "");
 
 }  // namespace parameter_utils

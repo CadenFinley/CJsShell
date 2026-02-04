@@ -28,6 +28,7 @@
 
 #pragma once
 
+#include <functional>
 #include <string>
 #include <unordered_map>
 
@@ -64,6 +65,9 @@ class VariableExpander {
                                                      GetVarFunc get_var, ExpandFunc expand_func);
 
    private:
+    bool try_append_arithmetic_expansion(const std::string& arg, size_t& i, std::string& result,
+                                         const std::function<void(std::string&)>& expand_func,
+                                         bool default_zero_on_empty);
     Shell* shell;
     const std::unordered_map<std::string, std::string>& env_vars;
     bool use_exported_vars_only = false;

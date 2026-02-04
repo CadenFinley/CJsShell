@@ -76,4 +76,28 @@ std::string get_last_background_pid_string() {
     return "";
 }
 
+std::string get_special_parameter_value(const std::string& var_name,
+                                        const std::string& pid_string) {
+    if (var_name == "?") {
+        const char* status_env = getenv("?");
+        return (status_env != nullptr) ? status_env : "0";
+    }
+    if (var_name == "$") {
+        if (!pid_string.empty()) {
+            return pid_string;
+        }
+        return std::to_string(getpid());
+    }
+    if (var_name == "#") {
+        return std::to_string(flags::get_positional_parameter_count());
+    }
+    if (var_name == "*" || var_name == "@") {
+        return join_positional_parameters();
+    }
+    if (var_name == "!") {
+        return get_last_background_pid_string();
+    }
+    return "";
+}
+
 }  // namespace parameter_utils
