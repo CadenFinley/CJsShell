@@ -49,6 +49,8 @@ void print_cjshopt_usage() {
                  "(default: enabled)\n";
     std::cout << "  completion-spell <on|off|status> Configure completion spell correction "
                  "(default: enabled)\n";
+    std::cout << "  smart-cd <on|off|status>         Configure smart cd auto-jumps "
+                 "(default: enabled)\n";
     std::cout << "  completion-learning <on|off|status> Toggle automatic completion learning "
                  "(default: enabled)\n";
     std::cout << "  line-numbers <on|off|relative|absolute|status>    Configure line numbers in "
@@ -132,6 +134,8 @@ int cjshopt_command(const std::vector<std::string>& args) {
                      "sensitivity (default: enabled)",
                  std::string("  completion-spell <on|off|status> Configure completion spell ") +
                      "correction (default: enabled)",
+                 std::string("  smart-cd <on|off|status>         Configure smart cd auto-jumps ") +
+                     "(default: enabled)",
                  std::string("  completion-learning <on|off|status> Toggle automatic completion ") +
                      "learning (default: enabled)",
                  std::string(
@@ -221,6 +225,9 @@ int cjshopt_command(const std::vector<std::string>& args) {
     }
     if (subcommand == "completion-learning") {
         return completion_learning_command(std::vector<std::string>(args.begin() + 1, args.end()));
+    }
+    if (subcommand == "smart-cd") {
+        return smart_cd_command(std::vector<std::string>(args.begin() + 1, args.end()));
     }
     if (subcommand == "line-numbers") {
         return line_numbers_command(std::vector<std::string>(args.begin() + 1, args.end()));
@@ -320,6 +327,7 @@ int cjshopt_command(const std::vector<std::string>& args) {
          "unknown subcommand '" + subcommand + "'",
          {"Available subcommands: style_def, login-startup-arg, completion-case, "
           "history-search-case, completion-spell, "
+          "smart-cd, "
           "completion-learning, "
           "line-numbers, line-numbers-continuation, line-numbers-replace-prompt, "
           "current-line-number-highlight, multiline-start-lines, hint-delay, "

@@ -56,6 +56,7 @@ constexpr StartupFlagInfo kStartupFlags[] = {
     {"--show-startup-time", "Display shell startup time"},
     {"--no-source", "Skip sourcing configuration files"},
     {"--no-completions", "Disable tab completions"},
+    {"--no-smart-cd", "Disable smart cd auto-jumps"},
     {"--no-syntax-highlighting", "Disable syntax highlighting"},
     {"--no-history-expansion", "Disable history expansion"},
     {"--no-sh-warning", "Suppress the sh invocation warning"},

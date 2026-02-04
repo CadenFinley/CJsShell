@@ -93,13 +93,14 @@ Persistent caches (history, generated completions, etc.) live under `~/.cache/cj
 - `-i, --interactive` – force interactive behavior even if stdin is not a tty
 - `-c, --command=<string>` – execute a single command and exit (disables history expansion)
 - `-m, --minimal` – disable prompt themes/colors, completions, syntax highlighting, rc sourcing,
-    the title line, history expansion, multiline line numbers, auto-indentation, and the startup
-    time banner
+  smart cd, the title line, history expansion, multiline line numbers, auto-indentation, and the
+  startup time banner
 - `-C, --no-colors`
 - `-L, --no-titleline`
 - `-U, --show-startup-time`
 - `-N, --no-source`
 - `-O, --no-completions`
+- `--no-smart-cd`
 - `--no-completion-learning` – keep completions enabled but skip on-demand man-page scraping
 - `-S, --no-syntax-highlighting`
 - `-H, --no-history-expansion`

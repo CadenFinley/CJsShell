@@ -13,7 +13,8 @@ cd [directory]
 
 - Use `cd` without arguments to go to home directory
 - Use `cd -` to switch to the previous directory
-- When a directory is missing, cjsh suggests similar paths
+- Smart CD is enabled by default: if a single fuzzy match exists, cjsh jumps to it
+- Disable smart cd with `cjshopt smart-cd off` or `cjsh --no-smart-cd`
 
 ### pushd
 Push the current directory onto a stack and change directories.
@@ -624,6 +625,7 @@ Supported flags:
 | `--show-startup-time` | Print the time spent initializing cjsh |
 | `--no-source` | Skip sourcing interactive configuration files |
 | `--no-completions` | Skip completion initialization |
+| `--no-smart-cd` | Disable smart cd auto-jumps |
 | `--no-syntax-highlighting` | Disable syntax highlighting in the editor |
 | `--no-history-expansion` | Disable `!!`, `!$`, and related history tokens |
 | `--no-sh-warning` | Suppress the reminder shown when cjsh is invoked via `sh` |
@@ -691,6 +693,26 @@ cjshopt completion-spell status   # Display the current state
 ```
 
 Persist the choice by placing the command in `~/.cjshrc`.
+
+#### smart-cd
+
+Enable, disable, or inspect smart cd auto-jumps. When enabled, `cd` will auto-jump to a single
+fuzzy match (e.g., a nearby directory with a close name). Synonyms such as `enable`, `disable`,
+`true`, `false`, and `--status` are supported.
+
+```bash
+cjshopt smart-cd <on|off|status>
+```
+
+Examples:
+
+```bash
+cjshopt smart-cd on       # Enable smart cd auto-jumps
+cjshopt smart-cd off      # Disable smart cd auto-jumps
+cjshopt smart-cd status   # Show the current setting
+```
+
+Add the command to `~/.cjshrc` to persist the preference.
 
 #### line-numbers
 

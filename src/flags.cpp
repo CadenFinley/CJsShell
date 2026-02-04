@@ -51,6 +51,7 @@ std::vector<std::string>& profile_startup_args() {
 namespace {
 
 constexpr int kOptNoCompletionLearning = 256;
+constexpr int kOptNoSmartCd = 257;
 std::vector<std::string> positional_parameters;
 
 void detect_login_mode(char* argv[]) {
@@ -68,6 +69,7 @@ void apply_minimal_mode() {
     config::source_enabled = false;
     config::completions_enabled = false;
     config::completion_learning_enabled = false;
+    config::smart_cd_enabled = false;
     config::syntax_highlighting_enabled = false;
     config::show_startup_time = false;
     config::show_title_line = false;
@@ -104,6 +106,7 @@ ParseResult parse_arguments(int argc, char* argv[]) {
         {"no-source", no_argument, nullptr, 'N'},
         {"no-completions", no_argument, nullptr, 'O'},
         {"no-completion-learning", no_argument, nullptr, kOptNoCompletionLearning},
+        {"no-smart-cd", no_argument, nullptr, kOptNoSmartCd},
         {"no-syntax-highlighting", no_argument, nullptr, 'S'},
         {"startup-test", no_argument, nullptr, 'X'},
         {"minimal", no_argument, nullptr, 'm'},
@@ -158,6 +161,9 @@ ParseResult parse_arguments(int argc, char* argv[]) {
             case kOptNoCompletionLearning:
                 config::completion_learning_enabled = false;
                 break;
+            case kOptNoSmartCd:
+                config::smart_cd_enabled = false;
+                break;
             case 'S':
                 config::syntax_highlighting_enabled = false;
                 break;
@@ -169,6 +175,7 @@ ParseResult parse_arguments(int argc, char* argv[]) {
                 break;
             case 's':
                 config::secure_mode = true;
+                config::smart_cd_enabled = false;
                 break;
             case 'H':
                 config::history_expansion_enabled = false;
@@ -223,6 +230,8 @@ void apply_profile_startup_flags() {
             config::completions_enabled = false;
         } else if (flag == "--no-completion-learning") {
             config::completion_learning_enabled = false;
+        } else if (flag == "--no-smart-cd") {
+            config::smart_cd_enabled = false;
         } else if (flag == "--no-syntax-highlighting") {
             config::syntax_highlighting_enabled = false;
         } else if (flag == "--startup-test") {
@@ -234,6 +243,7 @@ void apply_profile_startup_flags() {
             apply_minimal_mode();
         } else if (flag == "--secure") {
             config::secure_mode = true;
+            config::smart_cd_enabled = false;
         } else if (flag == "--no-history-expansion") {
             config::history_expansion_enabled = false;
         } else if (flag == "--no-sh-warning") {

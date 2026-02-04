@@ -330,6 +330,27 @@ int completion_learning_command(const std::vector<std::string>& args) {
     return handle_toggle_command(config, args);
 }
 
+int smart_cd_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: smart-cd <on|off|status>",
+        "Examples:", "  smart-cd on      Enable smart cd auto-jumps",
+        "  smart-cd off     Disable smart cd auto-jumps",
+        "  smart-cd status  Show the current setting"};
+
+    static const ToggleCommandConfig config{
+        "smart-cd",
+        usage_lines,
+        []() { return config::smart_cd_enabled; },
+        [](bool enable) { config::smart_cd_enabled = enable; },
+        "Smart cd",
+        false,
+        "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
+        {},
+        {}};
+
+    return handle_toggle_command(config, args);
+}
+
 int line_numbers_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {
         "Usage: line-numbers <on|off|relative|absolute|status>",
