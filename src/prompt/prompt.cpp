@@ -1045,6 +1045,9 @@ void execute_prompt_command() {
     if (!g_shell) {
         return;
     }
+    if (config::secure_mode) {
+        return;
+    }
     std::string command = get_env("PROMPT_COMMAND");
     if (command.empty()) {
         return;

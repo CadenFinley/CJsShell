@@ -216,6 +216,9 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_doc("return", "Exit the current function with an optional status", {});
 
         add_doc("cd", "Change the current directory", {});
+        add_doc("pushd", "Push the current directory onto a stack", {});
+        add_doc("popd", "Pop the top directory from the stack", {});
+        add_doc("dirs", "Display the directory stack", {});
         add_doc("pwd", "Print the current working directory",
                 {make_option("-L", "Use logical path from PWD"),
                  make_option("--logical", "Use logical path from PWD"),

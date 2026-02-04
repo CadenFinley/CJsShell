@@ -869,8 +869,19 @@ void write_cache_entries(const std::filesystem::path& path, const std::string& d
 }
 
 std::string fetch_man_page_text(const std::string& target) {
-    const std::vector<std::vector<std::string>> attempts = {{"man", "-P", "cat", target},
-                                                            {"man", target}};
+    std::vector<std::vector<std::string>> attempts;
+    if (const char* env_path = std::getenv("CJSH_MAN_PATH"); env_path != nullptr) {
+        std::error_code ec;
+        if (!std::filesystem::exists(env_path, ec)) {
+            return {};
+        }
+        std::string man_path = env_path;
+        attempts = {{man_path, "-P", "cat", target}, {man_path, target}};
+    } else if (config::secure_mode) {
+        return {};
+    } else {
+        attempts = {{"man", "-P", "cat", target}, {"man", target}};
+    }
 
     for (const auto& args : attempts) {
         auto output = exec_utils::execute_command_vector_for_output(args);

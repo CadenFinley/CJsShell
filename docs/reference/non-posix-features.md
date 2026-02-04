@@ -33,6 +33,18 @@ See [Prompt Markup and Styling](../themes/thedetails.md) for the full markup ref
 - **Fish-style abbreviations** – `abbr` and `unabbr` provide inline text expansions, a feature not
   present in POSIX shells.
 
+## POSIX+ Scripting Syntax
+
+- **Brace expansion** – Expand comma-separated terms or ranges before globbing.
+  - Example: `echo {alpha,beta}` → `alpha beta`
+- **Here-strings** – Feed a single string into a command's stdin.
+  - Example: `grep foo <<< "foo bar"`
+- **Process substitution** – Treat command output/input as a file-like path.
+  - Example: `diff <(sort a.txt) <(sort b.txt)`
+
+These syntax extensions are available in both scripts and interactive sessions. History expansion
+remains interactive-only by default; see the History section below.
+
 ## Completion Engine
 
 - **Fuzzy matching and spell correction** – Configurable through `cjshopt completion-case`,
@@ -70,7 +82,8 @@ Consult the [Completion Authoring Guide](completions.md) for cache format and cu
 ## Additional Non-POSIX Behaviours
 
 - **Startup diagnostics** – `--show-startup-time` prints the duration spent initializing CJSH.
-- **Secure mode** – `--secure` skips all profile/rc/logout sourcing for hardened sessions.
+- **Secure mode** – `--secure` skips all profile/rc/logout sourcing for hardened sessions and
+  ignores `PROMPT_COMMAND`.
 - **Consistent error output** – Interpreter failures now use the same compact `cjsh:` error_out
   format as other builtins for predictable logs.
 

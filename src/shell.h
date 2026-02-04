@@ -69,6 +69,12 @@ class Shell {
     void set_aliases(const std::unordered_map<std::string, std::string>& new_aliases);
     std::unordered_map<std::string, std::string>& get_aliases();
 
+    std::vector<std::string>& get_directory_stack();
+    const std::vector<std::string>& get_directory_stack() const;
+    void push_directory_stack(const std::string& dir);
+    bool pop_directory_stack(std::string* dir_out);
+    void clear_directory_stack();
+
     void register_hook(const std::string& hook_type, const std::string& function_name);
     void unregister_hook(const std::string& hook_type, const std::string& function_name);
     std::vector<std::string> get_hooks(const std::string& hook_type) const;
@@ -108,6 +114,7 @@ class Shell {
     std::unordered_map<std::string, std::string> abbreviations;
     std::unordered_map<std::string, std::string> aliases;
     std::unordered_map<std::string, bool> shell_options;
+    std::vector<std::string> directory_stack;
     std::string errexit_severity_level = "error";
 
     std::unordered_map<std::string, std::vector<std::string>> hooks;

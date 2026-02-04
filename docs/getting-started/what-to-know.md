@@ -142,7 +142,12 @@ cjshopt login-startup-arg --show-startup-time
 Supported flags: `--login`, `--interactive`, `--no-colors`, `--no-titleline`, `--show-startup-time`, `--no-source`, `--no-completions`, `--no-syntax-highlighting`, `--no-history-expansion`, `--no-sh-warning`, `--minimal`, `--secure`, and `--startup-test`.
 
 ### POSIX & Bash Compatibility
-cjsh targets high POSIX coverage for scripting while providing POSIX+ extensions such as `[[ ... ]]`, brace expansion, here-strings, process substitution, and rich redirection semantics. POSIX+ behavior is opt-in through flags or configuration.
+cjsh targets high POSIX coverage for scripting while providing POSIX+ extensions such as `[[ ... ]]`, brace expansion, here-strings, process substitution, and rich redirection semantics. Syntax extensions are available in scripts and interactive sessions; interactive-only features like history expansion, completions, and prompt styling disable themselves automatically when stdin is not a tty. Use `--minimal` or `--secure` when you want fewer extras in interactive shells.
+
+### Completion Learning Paths
+When cjsh scrapes man pages for completions, it uses `man` from `PATH` by default. Set
+`CJSH_MAN_PATH` to force a specific `man` binary. In secure mode (`--secure`), cjsh only uses
+`CJSH_MAN_PATH` and skips scraping if it is not set or invalid.
 
 When `cjsh` is symlinked or launched as `sh`, interactive sessions print a reminder that cjsh is not a drop-in 100% POSIX shell. Suppress this notice with `cjsh --no-sh-warning` or persist the choice by adding `cjshopt login-startup-arg --no-sh-warning` inside `~/.cjprofile`.
 

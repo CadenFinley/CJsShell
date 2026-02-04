@@ -59,7 +59,10 @@ int help_command() {
 
     const std::vector<BuiltinInfo> builtins = {
         // Navigation and file system
-        {"cd", "Change the current directory (smart cd by default)"},
+        {"cd", "Change the current directory"},
+        {"pushd", "Push the current directory onto a stack"},
+        {"popd", "Pop the top directory from the stack"},
+        {"dirs", "Display the directory stack"},
         {"pwd", "Print the current working directory"},
 
         // Output and formatting

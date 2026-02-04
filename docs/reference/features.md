@@ -9,8 +9,8 @@ require no third-party plugins.
 - **POSIX-first semantics** – Roughly 95% POSIX coverage with >1500 standards-focused tests.
 - **Bourne-compatible surface** – Classic constructs (`if`, `case`, `for`, `while`, functions,
     redirections, here-documents, command substitution) behave the way portable scripts expect.
-- **Selective bash extensions** – `[[ … ]]`, arithmetic contexts, here-strings, and history
-    expansion ship enabled for interactive use but stay out of the way for scripts.
+- **POSIX+ extensions** – `[[ … ]]`, arithmetic contexts, brace expansion, here-strings, and
+    process substitution are supported. History expansion stays interactive-only by default.
 - **Job control** – Background jobs, `fg`, `bg`, `jobs`, `wait`, `disown`, and `trap` integrate with
     the internal process manager so interactive sessions stay responsive. `set -o huponexit`
     controls whether exiting shells hang up or leave running jobs alone (default: off, so long-lived

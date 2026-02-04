@@ -13,7 +13,35 @@ cd [directory]
 
 - Use `cd` without arguments to go to home directory
 - Use `cd -` to switch to the previous directory
-- Smart CD is enabled by default with fuzzy matching
+- When a directory is missing, cjsh suggests similar paths
+
+### pushd
+Push the current directory onto a stack and change directories.
+
+```bash
+pushd [directory]
+```
+
+- With no arguments, swaps the current directory with the top of the stack
+- The stack is shared with `popd` and `dirs`
+
+### popd
+Pop the top directory from the stack and change to it.
+
+```bash
+popd
+```
+
+- Errors if the directory stack is empty
+
+### dirs
+Display the directory stack.
+
+```bash
+dirs
+```
+
+- Prints the current directory followed by stacked entries
 
 ### pwd
 Print the current working directory.

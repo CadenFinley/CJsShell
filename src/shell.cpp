@@ -495,6 +495,33 @@ std::unordered_map<std::string, std::string>& Shell::get_aliases() {
     return aliases;
 }
 
+std::vector<std::string>& Shell::get_directory_stack() {
+    return directory_stack;
+}
+
+const std::vector<std::string>& Shell::get_directory_stack() const {
+    return directory_stack;
+}
+
+void Shell::push_directory_stack(const std::string& dir) {
+    directory_stack.push_back(dir);
+}
+
+bool Shell::pop_directory_stack(std::string* dir_out) {
+    if (directory_stack.empty()) {
+        return false;
+    }
+    if (dir_out) {
+        *dir_out = directory_stack.back();
+    }
+    directory_stack.pop_back();
+    return true;
+}
+
+void Shell::clear_directory_stack() {
+    directory_stack.clear();
+}
+
 void Shell::apply_abbreviations_to_line_editor() {
     if (!interactive_mode) {
         return;

@@ -43,6 +43,7 @@
 #include "cjsh.h"
 #include "cjshopt_command.h"
 #include "command_command.h"
+#include "dirs_command.h"
 #include "disown_command.h"
 #include "double_bracket_command.h"
 #include "echo_command.h"
@@ -68,7 +69,9 @@
 #include "kill_command.h"
 #include "local_command.h"
 #include "loop_control_commands.h"
+#include "popd_command.h"
 #include "printf_command.h"
+#include "pushd_command.h"
 #include "pwd_command.h"
 #include "read_command.h"
 #include "readonly_command.h"
@@ -98,6 +101,18 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"cd",
          [this](const std::vector<std::string>& args) {
              return ::cd_command(args, current_directory, previous_directory, shell);
+         }},
+        {"pushd",
+         [this](const std::vector<std::string>& args) {
+             return ::pushd_command(args, current_directory, previous_directory, shell);
+         }},
+        {"popd",
+         [this](const std::vector<std::string>& args) {
+             return ::popd_command(args, current_directory, previous_directory, shell);
+         }},
+        {"dirs",
+         [this](const std::vector<std::string>& args) {
+             return ::dirs_command(args, current_directory, shell);
          }},
         {"local",
          [this](const std::vector<std::string>& args) { return ::local_command(args, shell); }},
@@ -228,8 +243,6 @@ Built_ins::Built_ins() : shell(nullptr) {
              return builtin_it->second(forwarded_args);
          }},
         {"cjshopt", [](const std::vector<std::string>& args) { return ::cjshopt_command(args); }},
-        {"true", [](const std::vector<std::string>&) { return true_command(); }},
-        {"false", [](const std::vector<std::string>&) { return false_command(); }},
     };
 }
 
