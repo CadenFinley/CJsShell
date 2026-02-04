@@ -27,6 +27,7 @@
 */
 
 #include <unistd.h>
+#include <cstdlib>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -95,6 +96,8 @@ ErrorSeverity ErrorInfo::get_default_severity(ErrorType type) {
             return ErrorSeverity::INFO;
         case ErrorType::RUNTIME_ERROR:
             return ErrorSeverity::ERROR;
+        case ErrorType::FATAL_ERROR:
+            return ErrorSeverity::CRITICAL;
         case ErrorType::UNKNOWN_ERROR:
         default:
             return ErrorSeverity::ERROR;
@@ -138,6 +141,9 @@ void print_error(const ErrorInfo& error) {
         case ErrorType::RUNTIME_ERROR:
             std::cerr << "runtime error";
             break;
+        case ErrorType::FATAL_ERROR:
+            std::cerr << "fatal error";
+            break;
         case ErrorType::UNKNOWN_ERROR:
         default:
             break;
@@ -149,7 +155,7 @@ void print_error(const ErrorInfo& error) {
 
     std::cerr << '\n';
 
-    if (!error.suggestions.empty()) {
+    if (!error.suggestions.empty() && error.type == ErrorType::FATAL_ERROR) {
         std::vector<std::string> commands;
         bool has_command_suggestions = false;
 
@@ -188,5 +194,11 @@ void print_error(const ErrorInfo& error) {
 
     if (colorize_output) {
         std::cerr << color_reset;
+    }
+
+    if (ErrorType::FATAL_ERROR == error.type) {
+        // fatal errors exit
+        g_exit_flag = true;
+        _exit(EXIT_FAILURE);
     }
 }

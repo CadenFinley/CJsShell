@@ -47,7 +47,8 @@ enum class ErrorType : std::uint8_t {
     FILE_NOT_FOUND,
     INVALID_ARGUMENT,
     RUNTIME_ERROR,
-    UNKNOWN_ERROR
+    UNKNOWN_ERROR,
+    FATAL_ERROR
 };
 
 struct ErrorInfo {
