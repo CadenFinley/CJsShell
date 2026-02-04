@@ -129,6 +129,24 @@ bool path_is_directory(const std::filesystem::path& path) {
     return std::filesystem::is_directory(path, ec);
 }
 
+bool try_make_directory_iterator(const std::filesystem::path& path,
+                                 std::filesystem::directory_iterator& dir_it) {
+    std::error_code dir_ec;
+    if (!std::filesystem::is_directory(path, dir_ec)) {
+        return false;
+    }
+
+    std::error_code iter_ec;
+    std::filesystem::directory_iterator iter(
+        path, std::filesystem::directory_options::skip_permission_denied, iter_ec);
+    if (iter_ec) {
+        return false;
+    }
+
+    dir_it = std::move(iter);
+    return true;
+}
+
 void append_match(const std::filesystem::path& path, bool absolute,
                   std::vector<std::string>& matches) {
     std::string formatted = format_match_path(path, absolute);
@@ -158,15 +176,8 @@ void globstar_recurse(const ParsedGlobPattern& pattern, size_t index,
     if (component.is_globstar) {
         globstar_recurse(pattern, index + 1, current_path, matches);
 
-        std::error_code dir_ec;
-        if (!std::filesystem::is_directory(current_path, dir_ec)) {
-            return;
-        }
-
-        std::error_code iter_ec;
-        std::filesystem::directory_iterator dir_it(
-            current_path, std::filesystem::directory_options::skip_permission_denied, iter_ec);
-        if (iter_ec) {
+        std::filesystem::directory_iterator dir_it;
+        if (!try_make_directory_iterator(current_path, dir_it)) {
             return;
         }
 
@@ -209,15 +220,8 @@ void globstar_recurse(const ParsedGlobPattern& pattern, size_t index,
         return;
     }
 
-    std::error_code dir_ec;
-    if (!std::filesystem::is_directory(current_path, dir_ec)) {
-        return;
-    }
-
-    std::error_code iter_ec;
-    std::filesystem::directory_iterator dir_it(
-        current_path, std::filesystem::directory_options::skip_permission_denied, iter_ec);
-    if (iter_ec) {
+    std::filesystem::directory_iterator dir_it;
+    if (!try_make_directory_iterator(current_path, dir_it)) {
         return;
     }
 
@@ -466,44 +470,40 @@ void ExpansionEngine::expand_and_append_results(const std::string& combined,
 template <typename T>
 void ExpansionEngine::expand_range(T start, T end, const std::string& prefix,
                                    const std::string& suffix, std::vector<std::string>& result) {
+    auto append_value = [&](T value) {
+        std::string combined;
+        if constexpr (std::is_same_v<T, int>) {
+            combined.reserve(prefix.size() + 12 + suffix.size());
+            combined = prefix;
+            combined += std::to_string(value);
+            combined += suffix;
+        } else if constexpr (std::is_same_v<T, char>) {
+            combined.reserve(prefix.size() + 1 + suffix.size());
+            combined = prefix;
+            combined.append(1, value);
+            combined.append(suffix);
+        }
+        expand_and_append_results(combined, result);
+    };
+
     if constexpr (std::is_same_v<T, int>) {
         if (start <= end) {
             for (T i = start; i <= end; ++i) {
-                std::string combined;
-                combined.reserve(prefix.size() + 12 + suffix.size());
-                combined = prefix;
-                combined += std::to_string(i);
-                combined += suffix;
-                expand_and_append_results(combined, result);
+                append_value(i);
             }
         } else {
             for (T i = start; i >= end; --i) {
-                std::string combined;
-                combined.reserve(prefix.size() + 12 + suffix.size());
-                combined = prefix;
-                combined += std::to_string(i);
-                combined += suffix;
-                expand_and_append_results(combined, result);
+                append_value(i);
             }
         }
     } else if constexpr (std::is_same_v<T, char>) {
         if (start <= end) {
             for (T c = start; c <= end; ++c) {
-                std::string combined;
-                combined.reserve(prefix.size() + 1 + suffix.size());
-                combined = prefix;
-                combined.append(1, c);
-                combined.append(suffix);
-                expand_and_append_results(combined, result);
+                append_value(c);
             }
         } else {
             for (T c = start; c >= end; --c) {
-                std::string combined;
-                combined.reserve(prefix.size() + 1 + suffix.size());
-                combined = prefix;
-                combined.append(1, c);
-                combined.append(suffix);
-                expand_and_append_results(combined, result);
+                append_value(c);
             }
         }
     }
