@@ -64,7 +64,7 @@
 namespace prompt {
 namespace {
 
-enum class PromptContext {
+enum class PromptContext : uint8_t {
     Primary,
     Right,
     Secondary,
@@ -84,8 +84,8 @@ struct GitRepositoryContext {
 std::string read_git_head(const std::filesystem::path& git_dir);
 
 struct GitStatusSnapshot {
-    std::filesystem::file_time_type index_mtime{};
-    std::filesystem::file_time_type worktree_mtime{};
+    std::filesystem::file_time_type index_mtime;
+    std::filesystem::file_time_type worktree_mtime;
 
     bool equals(const GitStatusSnapshot& other) const {
         return index_mtime == other.index_mtime && worktree_mtime == other.worktree_mtime;
@@ -184,13 +184,13 @@ class GitPromptCache {
 
    private:
     struct CacheEntry {
-        std::filesystem::file_time_type head_mtime{};
+        std::filesystem::file_time_type head_mtime;
         bool branch_valid = false;
         std::string branch_segment;
 
         GitStatusSnapshot status_snapshot{};
         bool status_valid = false;
-        std::chrono::steady_clock::time_point last_status_refresh{};
+        std::chrono::steady_clock::time_point last_status_refresh;
         std::string status_segment;
     };
 
