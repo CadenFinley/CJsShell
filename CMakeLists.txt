@@ -185,7 +185,6 @@ add_custom_command(TARGET cjsh POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_BINARY_DIR}/compile_commands.json"
         "${CMAKE_SOURCE_DIR}/compile_commands.json"
-    COMMENT "Copy compile_commands.json to repo root"
 )
 
 target_compile_features(cjsh PRIVATE cxx_std_17)
