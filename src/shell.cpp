@@ -87,6 +87,7 @@ Shell::Shell() : shell_pgid(0), shell_tmodes() {
 }
 
 Shell::~Shell() {
+    // on shell destruction, handle any remaining child processes
     if (shell_exec) {
         if (get_shell_option("huponexit")) {
             shell_exec->terminate_all_child_process();
@@ -95,8 +96,18 @@ Shell::~Shell() {
         }
     }
 
+    // after terminating or abandoning child processes, clear all get_jobs
     JobManager::instance().clear_all_jobs();
+
+    // restore terminal state on exit to how we found it
+    // again, if we restore it to a broken state, then we probably inherited a broken state
     restore_terminal_state();
+
+    // output a final exit line only in interactive modes
+    if (interactive_mode && !g_startup_active) {
+        std::cout << "cjsh exit\n";
+        std::cout.flush();
+    }
 }
 
 int Shell::execute(const std::string& script, bool skip_validation) {
