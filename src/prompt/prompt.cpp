@@ -62,6 +62,12 @@
 #include "version_command.h"
 
 namespace prompt {
+
+namespace {
+
+std::atomic<bool> g_prompt_refresh_allowed{false};
+
+}  // namespace
 namespace {
 
 enum class PromptContext : uint8_t {
@@ -725,7 +731,7 @@ void AsyncGitPromptManager::finalize_render(const std::string& prompt_snapshot) 
         notify_when_snapshot_ready_ = false;
     }
     lock.unlock();
-    if (should_notify) {
+    if (should_notify && g_prompt_refresh_allowed.load(std::memory_order_acquire)) {
         ic_push_key_event(IC_KEY_EVENT_PROMPT_REFRESH);
     }
 }
@@ -782,7 +788,7 @@ void AsyncGitPromptManager::handle_worker_result(size_t request_id, std::string 
         }
     }
     cv_.notify_all();
-    if (should_notify) {
+    if (should_notify && g_prompt_refresh_allowed.load(std::memory_order_acquire)) {
         ic_push_key_event(IC_KEY_EVENT_PROMPT_REFRESH);
     }
 }
@@ -1112,10 +1118,17 @@ void apply_terminal_window_title() {
 }
 
 bool handle_async_prompt_refresh() {
+    if (!g_prompt_refresh_allowed.load(std::memory_order_acquire)) {
+        return false;
+    }
     auto updated_prompt = git_prompt_async_manager().consume_ready_prompt();
     if (!updated_prompt) {
         return false;
     }
     return ic_current_loop_reset(nullptr, updated_prompt->c_str(), nullptr);
+}
+
+void set_prompt_refresh_allowed(bool allowed) {
+    g_prompt_refresh_allowed.store(allowed, std::memory_order_release);
 }
 }  // namespace prompt

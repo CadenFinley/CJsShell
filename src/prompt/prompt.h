@@ -50,4 +50,6 @@ void apply_terminal_window_title();
 
 bool handle_async_prompt_refresh();
 
+void set_prompt_refresh_allowed(bool allowed);
+
 }  // namespace prompt

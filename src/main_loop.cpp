@@ -303,7 +303,9 @@ std::optional<std::string> get_next_command(bool command_was_available) {
     // read input from isocline and had over everything that we captured and calculated above
     const char* initial_input = sanitized_buffer.empty() ? nullptr : sanitized_buffer.c_str();
     const char* inline_right_ptr = inline_right_text.empty() ? nullptr : inline_right_text.c_str();
+    prompt::set_prompt_refresh_allowed(true);
     char* input = ic_readline(prompt.c_str(), inline_right_ptr, initial_input);
+    prompt::set_prompt_refresh_allowed(false);
     typeahead::clear_input_buffer();
     sanitized_buffer.clear();
 
