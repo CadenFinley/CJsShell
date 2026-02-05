@@ -86,6 +86,50 @@ int kill_command(const std::vector<std::string>& args) {
     auto& job_manager = JobManager::instance();
     job_manager.update_job_status();
 
+    auto is_stop_signal = [](int sig) {
+        switch (sig) {
+#ifdef SIGSTOP
+            case SIGSTOP:
+                return true;
+#endif
+#ifdef SIGTSTP
+            case SIGTSTP:
+                return true;
+#endif
+#ifdef SIGTTIN
+            case SIGTTIN:
+                return true;
+#endif
+#ifdef SIGTTOU
+            case SIGTTOU:
+                return true;
+#endif
+            default:
+                return false;
+        }
+    };
+
+    auto is_continue_signal = [](int sig) {
+#ifdef SIGCONT
+        return sig == SIGCONT;
+#else
+        (void)sig;
+        return false;
+#endif
+    };
+
+    auto update_job_state_after_signal = [&](const std::shared_ptr<JobControlJob>& job) {
+        if (!job) {
+            return;
+        }
+        if (is_stop_signal(signal)) {
+            job->state = JobState::STOPPED;
+        } else if (is_continue_signal(signal)) {
+            job->state = JobState::RUNNING;
+            job->stop_notified = false;
+        }
+    };
+
     bool had_error = false;
 
     auto send_signal_to_job = [&](const std::shared_ptr<JobControlJob>& job) {
@@ -95,7 +139,9 @@ int kill_command(const std::vector<std::string>& args) {
         if (killpg(job->pgid, signal) < 0) {
             perror("kill");
             had_error = true;
+            return;
         }
+        update_job_state_after_signal(job);
     };
 
     auto handle_job_target = [&](const std::string& spec, const std::string& original) -> bool {
@@ -199,6 +245,9 @@ int kill_command(const std::vector<std::string>& args) {
                 if (kill(pid, signal) < 0) {
                     perror("kill");
                     had_error = true;
+                } else {
+                    auto job = job_manager.get_job_by_pid_or_pgid(pid);
+                    update_job_state_after_signal(job);
                 }
                 treated_as_pid = true;
             }
