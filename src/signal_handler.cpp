@@ -40,6 +40,7 @@
 #include "cjsh.h"
 #include "error_out.h"
 #include "exec.h"
+// #include "isocline.h"
 #include "job_control.h"
 #include "shell.h"
 #include "shell_env.h"
@@ -536,6 +537,9 @@ void SignalHandler::signal_handler(int signum) {
 #ifdef SIGWINCH
         case SIGWINCH: {
             s_sigwinch_received = 1;
+            // this is currently disabled as this lets isocline know about terminal resizing, which
+            // is currently broken.
+            // ic_notify_resize();
 
             break;
         }

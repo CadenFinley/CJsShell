@@ -15,3 +15,6 @@
 - C sources must compile as ISO C11 (`CMAKE_C_STANDARD 11`).
 - C++ sources must compile as ISO C++17 (`CMAKE_CXX_STANDARD 17`).
 - Do not introduce extensions that break these guarantees without discussing the change in an issue first.
+
+## Known Issues
+- automattic line reflowing is currently disabled in isocline via signal_handler.cpp, there are some serious issues regarding the way the lines are redrawn. please see signal_handler.cpp for more details. this is a fairly involved issue in isocline and will require more effort than normal to fix, so this would be a great issue for someone to start with if they would really like to contribute.
