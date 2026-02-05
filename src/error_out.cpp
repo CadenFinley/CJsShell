@@ -133,7 +133,7 @@ std::string build_error_log_message(const ErrorInfo& error) {
         }
     }
 
-    if (!error.suggestions.empty() && error.type == ErrorType::FATAL_ERROR) {
+    if (!error.suggestions.empty()) {
         std::vector<std::string> commands;
         bool has_command_suggestions = false;
 
@@ -311,7 +311,7 @@ void print_error(const ErrorInfo& error) {
 
     std::cerr << '\n';
 
-    if (!error.suggestions.empty() && error.type == ErrorType::FATAL_ERROR) {
+    if (!error.suggestions.empty()) {
         std::vector<std::string> commands;
         bool has_command_suggestions = false;
 
