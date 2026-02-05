@@ -2298,24 +2298,42 @@ void Exec::terminate_all_child_process() {
         }
     }
 
-    const auto send_group_signal = [](pid_t pgid, int signal) -> bool {
-        if (pgid <= 0) {
-            return false;
+    const auto send_signal_to_job = [](const Job& job, int signal) -> bool {
+        bool pid_signaled = false;
+
+        for (pid_t pid : job.pids) {
+            if (pid <= 0) {
+                continue;
+            }
+            if (kill(pid, signal) == 0) {
+                pid_signaled = true;
+            }
         }
 
-        if (killpg(pgid, signal) == 0) {
+        if (job.pgid <= 0) {
+            return pid_signaled;
+        }
+
+        if (killpg(job.pgid, signal) == 0) {
             return true;
         }
 
-        if (errno != ESRCH) {
-            print_error({ErrorType::RUNTIME_ERROR,
-                         ErrorSeverity::WARNING,
-                         "killpg",
-                         "failed to send signal " + std::to_string(signal) + " to pgid " +
-                             std::to_string(pgid) + ": " + std::string(strerror(errno)),
-                         {}});
+        const int group_errno = errno;
+        if (group_errno == ESRCH) {
+            return pid_signaled;
         }
-        return false;
+
+        if ((group_errno == EPERM || group_errno == EACCES) && pid_signaled) {
+            return true;
+        }
+
+        print_error({ErrorType::RUNTIME_ERROR,
+                     ErrorSeverity::WARNING,
+                     "killpg",
+                     "failed to send signal " + std::to_string(signal) + " to pgid " +
+                         std::to_string(job.pgid) + ": " + std::string(strerror(group_errno)),
+                     {}});
+        return pid_signaled;
     };
 
     bool signaled_any = false;
@@ -2327,18 +2345,12 @@ void Exec::terminate_all_child_process() {
 
 #ifdef SIGCONT
         if (job.stopped && job.pgid > 0) {
-            (void)send_group_signal(job.pgid, SIGCONT);
+            (void)send_signal_to_job(job, SIGCONT);
         }
 #endif
 
-        if (send_group_signal(job.pgid, SIGTERM)) {
+        if (send_signal_to_job(job, SIGTERM)) {
             signaled_any = true;
-        }
-
-        for (pid_t pid : job.pids) {
-            if (pid > 0) {
-                kill(pid, SIGTERM);
-            }
         }
 
         if (job.pgid > 0 || !job.pids.empty()) {
@@ -2356,12 +2368,7 @@ void Exec::terminate_all_child_process() {
             continue;
         }
 
-        (void)send_group_signal(job.pgid, SIGKILL);
-        for (pid_t pid : job.pids) {
-            if (pid > 0) {
-                kill(pid, SIGKILL);
-            }
-        }
+        (void)send_signal_to_job(job, SIGKILL);
     }
 
     int status = 0;
