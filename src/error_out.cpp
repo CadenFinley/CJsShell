@@ -27,18 +27,173 @@
 */
 
 #include <unistd.h>
+#include <algorithm>
 #include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
 
 #include "cjsh.h"
 #include "error_out.h"
 #include "shell.h"
+#include "shell_env.h"
 
 namespace {
 
 constexpr const char* kResetColor = "\x1b[0m";
+constexpr const char* kErrorLogEnvVar = "CJSH_ERROR_LOG";
+
+std::string expand_log_path(const char* raw_path) {
+    if (!raw_path || raw_path[0] == '\0') {
+        return {};
+    }
+
+    std::string path(raw_path);
+    if (path[0] != '~') {
+        return path;
+    }
+
+    if (path.size() > 1 && path[1] != '/') {
+        return path;
+    }
+
+    const char* home = std::getenv("HOME");
+    if (!home || home[0] == '\0') {
+        return path;
+    }
+
+    return std::string(home) + path.substr(1);
+}
+
+std::string build_error_log_message(const ErrorInfo& error) {
+    std::ostringstream out;
+
+    out << "cjsh: ";
+
+    if (!error.command_used.empty()) {
+        out << error.command_used;
+        if (error.type != ErrorType::UNKNOWN_ERROR) {
+            out << ": ";
+        }
+    }
+
+    switch (error.type) {
+        case ErrorType::COMMAND_NOT_FOUND:
+            out << "command not found";
+            break;
+        case ErrorType::SYNTAX_ERROR:
+            out << "syntax error";
+            break;
+        case ErrorType::PERMISSION_DENIED:
+            out << "permission denied";
+            break;
+        case ErrorType::FILE_NOT_FOUND:
+            out << "file not found";
+            break;
+        case ErrorType::INVALID_ARGUMENT:
+            out << "invalid argument";
+            break;
+        case ErrorType::RUNTIME_ERROR:
+            out << "runtime error";
+            break;
+        case ErrorType::FATAL_ERROR:
+            out << "fatal error";
+            break;
+        case ErrorType::UNKNOWN_ERROR:
+        default:
+            break;
+    }
+
+    if (!error.message.empty()) {
+        out << ": " << error.message;
+    }
+
+    out << ' ';
+
+    if (ErrorType::FATAL_ERROR == error.type) {
+        out << "(fatal error, cjsh will exit)";
+        out << " that was your environment when cjsh exited:\n";
+        const auto& env_vars = cjsh_env::env_vars();
+        if (!env_vars.empty()) {
+            std::vector<std::string> names;
+            names.reserve(env_vars.size());
+            for (const auto& entry : env_vars) {
+                names.push_back(entry.first);
+            }
+            std::sort(names.begin(), names.end());
+            for (const auto& name : names) {
+                auto it = env_vars.find(name);
+                if (it != env_vars.end()) {
+                    out << name << '=' << it->second << '\n';
+                }
+            }
+        }
+    }
+
+    if (!error.suggestions.empty() && error.type == ErrorType::FATAL_ERROR) {
+        std::vector<std::string> commands;
+        bool has_command_suggestions = false;
+
+        for (const auto& suggestion : error.suggestions) {
+            if (suggestion.find("Did you mean '") != std::string::npos) {
+                size_t start = suggestion.find('\'') + 1;
+                size_t end = suggestion.find('\'', start);
+                if (start != std::string::npos && end != std::string::npos && end > start) {
+                    commands.push_back(suggestion.substr(start, end - start));
+                    has_command_suggestions = true;
+                }
+            }
+        }
+
+        if (has_command_suggestions && !commands.empty()) {
+            out << "Did you mean: ";
+            for (size_t i = 0; i < commands.size(); ++i) {
+                out << commands[i];
+                if (i < commands.size() - 1) {
+                    out << ", ";
+                }
+            }
+            out << "?" << '\n';
+
+            for (const auto& suggestion : error.suggestions) {
+                if (suggestion.find("Did you mean '") == std::string::npos) {
+                    out << suggestion << '\n';
+                }
+            }
+        } else {
+            for (const auto& suggestion : error.suggestions) {
+                out << suggestion << '\n';
+            }
+        }
+    }
+
+    return out.str();
+}
+
+void append_error_log(const ErrorInfo& error) {
+    const char* log_env = std::getenv(kErrorLogEnvVar);
+    std::string log_path = expand_log_path(log_env);
+    if (log_path.empty()) {
+        return;
+    }
+
+    std::filesystem::path path(log_path);
+    std::error_code ec;
+    std::filesystem::path parent = path.parent_path();
+    if (!parent.empty()) {
+        std::filesystem::create_directories(parent, ec);
+    }
+
+    std::ofstream log_file(path, std::ios::app);
+    if (!log_file.is_open()) {
+        return;
+    }
+
+    log_file << build_error_log_message(error);
+}
 
 const char* severity_to_color(ErrorSeverity severity) {
     switch (severity) {
@@ -105,6 +260,7 @@ ErrorSeverity ErrorInfo::get_default_severity(ErrorType type) {
 }
 
 void print_error(const ErrorInfo& error) {
+    append_error_log(error);
     const bool colorize_output = should_colorize_output();
     const char* color_prefix = colorize_output ? severity_to_color(error.severity) : "";
     const char* color_reset = colorize_output ? kResetColor : "";
