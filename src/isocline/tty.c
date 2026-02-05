@@ -241,6 +241,11 @@ ic_private bool tty_read_timeout(tty_t* tty, long timeout_ms, code_t* code) {
         uint8_t c;
 
         if (!tty_readc_noblock(tty, &c, timeout_ms)) {
+            if (tty->term_resize_event) {
+                *code = KEY_EVENT_RESIZE;
+                tty->term_resize_event = false;
+                return true;
+            }
             if (timeout_ms < 0 && tty->push_count > 0) {
                 continue;
             }
@@ -817,6 +822,15 @@ static void signals_restore(void) {
 }
 
 #endif
+
+ic_public void ic_notify_resize(void) {
+#if !defined(_WIN32) && defined(SIGWINCH) && defined(SA_RESTART)
+    if (sig_tty != NULL) {
+        sig_tty->term_resize_event = true;
+        tty_wakeup(sig_tty);
+    }
+#endif
+}
 
 ic_private bool tty_start_raw(tty_t* tty) {
     if (tty == NULL)

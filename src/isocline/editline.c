@@ -2523,15 +2523,6 @@ edit_loop_entry:
                 }
             }
 
-            // update terminal in case of a resize (also detect polling changes)
-            bool should_resize = tty_term_resize_event(env->tty);
-            if (!should_resize && term_update_dim(env->term)) {
-                should_resize = true;
-            }
-            if (should_resize) {
-                edit_resize(env, &eb);
-            }
-
             // clear hint only after a potential resize (so resize row calculations
             // are correct)
             const bool had_hint = (sbuf_len(eb.hint) > 0);
@@ -2626,8 +2617,8 @@ edit_loop_entry:
             // Editing Operations
             else
                 switch (c) {
-                    // events
-                    case KEY_EVENT_RESIZE:  // not used
+                        // events
+                    case KEY_EVENT_RESIZE:
                         edit_resize(env, &eb);
                         break;
                     case KEY_EVENT_AUTOTAB:

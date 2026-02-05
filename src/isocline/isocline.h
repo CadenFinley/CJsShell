@@ -112,6 +112,10 @@ char* ic_readline(const char* prompt_text, const char* inline_right_text,
 /// Returns `false` if the readline environment is not yet initialized.
 bool ic_push_key_event(ic_keycode_t key);
 
+/// Notify isocline that the terminal resized.
+/// Safe to call from a signal handler; triggers a wakeup of the input loop.
+void ic_notify_resize(void);
+
 /// Callback function type for unhandled key events.
 /// This callback is invoked when a key is pressed that is not bound to any
 /// isocline action. The callback receives the keycode and can return true
