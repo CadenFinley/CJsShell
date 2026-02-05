@@ -43,7 +43,6 @@
 #include <vector>
 
 #include "builtins_completions_handler.h"
-#include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "completion_tracker.h"
 #include "completion_utils.h"
@@ -1121,7 +1120,7 @@ void handle_external_sub_completions(ic_completion_env_t* cenv, const char* raw_
 
     std::size_t added = 0;
     for (const auto& entry : completions) {
-        if (completion_tracker::completion_limit_hit_with_log("external command"))
+        if (completion_tracker::completion_limit_hit())
             break;
         if (ic_stop_completing(cenv))
             break;

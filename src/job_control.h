@@ -40,7 +40,7 @@
 #include <vector>
 
 #include "error_out.h"
-#include "parser/parser.h"
+#include "parser.h"
 
 class Shell;
 

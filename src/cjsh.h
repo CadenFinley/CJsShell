@@ -30,7 +30,6 @@
 
 #include <cstdint>
 #include <memory>
-#include <string>
 
 class Shell;
 extern std::unique_ptr<Shell> g_shell;

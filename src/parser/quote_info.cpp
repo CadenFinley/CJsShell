@@ -26,7 +26,7 @@
   SOFTWARE.
 */
 
-#include "parser/quote_info.h"
+#include "quote_info.h"
 
 #include <cstdlib>
 

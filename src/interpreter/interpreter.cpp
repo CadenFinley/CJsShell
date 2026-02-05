@@ -54,7 +54,6 @@
 #include "case_evaluator.h"
 #include "cjsh.h"
 #include "command_substitution_evaluator.h"
-#include "completions/suggestion_utils.h"
 #include "conditional_evaluator.h"
 #include "error_out.h"
 #include "exec.h"
@@ -64,14 +63,15 @@
 #include "job_control.h"
 #include "loop_evaluator.h"
 #include "parameter_expansion_evaluator.h"
-#include "parser/parser.h"
-#include "parser/quote_info.h"
-#include "parser/tokenizer.h"
+#include "parser.h"
+#include "pipeline_status_utils.h"
+#include "quote_info.h"
 #include "readonly_command.h"
 #include "shell.h"
 #include "shell_env.h"
 #include "signal_handler.h"
-#include "utils/pipeline_status_utils.h"
+#include "suggestion_utils.h"
+#include "tokenizer.h"
 
 using shell_script_interpreter::detail::contains_token;
 using shell_script_interpreter::detail::is_control_flow_exit_code;

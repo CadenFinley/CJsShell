@@ -32,7 +32,7 @@
 #include <sstream>
 
 #include "cjsh_filesystem.h"
-#include "parser/quote_info.h"
+#include "quote_info.h"
 
 namespace {
 

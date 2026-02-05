@@ -30,7 +30,6 @@
 
 #include <sys/wait.h>
 #include <unistd.h>
-#include <iostream>
 
 #include "builtin_help.h"
 #include "error_out.h"

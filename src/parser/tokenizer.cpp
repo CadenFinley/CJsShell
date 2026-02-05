@@ -26,16 +26,16 @@
   SOFTWARE.
 */
 
-#include "parser/tokenizer.h"
+#include "tokenizer.h"
 
 #include <cctype>
 #include <cstdlib>
 #include <stdexcept>
 
-#include "parser/parser_utils.h"
-#include "parser/quote_info.h"
-#include "shell.h"
+#include "parser_utils.h"
+#include "quote_info.h"
 #include "shell_env.h"
+
 namespace {
 inline bool is_whitespace(char c) {
     return c == ' ' || c == '\t' || c == '\n' || c == '\r';

@@ -38,7 +38,7 @@
 
 #include "cjsh.h"
 #include "error_out.h"
-#include "isocline/isocline.h"
+#include "isocline.h"
 
 std::unordered_map<ic_keycode_t, std::string> g_custom_keybindings;
 

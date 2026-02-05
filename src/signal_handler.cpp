@@ -37,13 +37,13 @@
 #include <cstdio>
 #include <cstring>
 
-#include "builtin/trap_command.h"
 #include "cjsh.h"
 #include "error_out.h"
 #include "exec.h"
 #include "job_control.h"
 #include "shell.h"
 #include "shell_env.h"
+#include "trap_command.h"
 
 SignalMask::SignalMask(int signum) : active(false) {
     sigset_t mask{};

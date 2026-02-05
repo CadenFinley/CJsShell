@@ -35,7 +35,6 @@
 #include <algorithm>
 #include <cctype>
 #include <sstream>
-#include <unordered_set>
 
 using shell_script_interpreter::detail::trim;
 using ErrorCategory = ShellScriptInterpreter::ErrorCategory;

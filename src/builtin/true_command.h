@@ -28,7 +28,4 @@
 
 #pragma once
 
-#include <string>
-#include <vector>
-
 int true_command();

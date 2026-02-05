@@ -26,8 +26,8 @@
   SOFTWARE.
 */
 
-#include "parser/parser_utils.h"
-#include "parser/quote_info.h"
+#include "parser_utils.h"
+#include "quote_info.h"
 
 #include <cctype>
 

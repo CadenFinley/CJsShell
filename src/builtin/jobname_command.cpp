@@ -34,10 +34,8 @@
 #include <string>
 
 #include "builtin_help.h"
-#include "cjsh.h"
 #include "error_out.h"
 #include "job_control.h"
-#include "shell.h"
 
 namespace {
 

@@ -37,11 +37,11 @@
 #include <vector>
 
 #include "cjsh.h"
-#include "completions/suggestion_utils.h"
 #include "error_out.h"
 #include "interpreter.h"
 #include "shell.h"
 #include "shell_env.h"
+#include "suggestion_utils.h"
 #include "validation/command_analysis.h"
 
 namespace status_line {

@@ -32,7 +32,6 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include <cctype>
 #include <chrono>
 #include <cstdlib>
 #include <memory>

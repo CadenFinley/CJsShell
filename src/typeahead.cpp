@@ -35,13 +35,12 @@
 #include <unistd.h>
 #include <algorithm>
 #include <array>
-#include <cctype>
 #include <cerrno>
 #include <cstdint>
 #include <string>
 #include <string_view>
 
-#include "isocline/isocline.h"
+#include "isocline.h"
 #include "job_control.h"
 
 namespace typeahead {

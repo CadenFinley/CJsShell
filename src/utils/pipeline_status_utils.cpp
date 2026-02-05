@@ -26,7 +26,7 @@
   SOFTWARE.
 */
 
-#include "utils/pipeline_status_utils.h"
+#include "pipeline_status_utils.h"
 
 #include <cstdlib>
 #include <sstream>

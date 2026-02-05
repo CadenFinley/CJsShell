@@ -29,7 +29,6 @@
 #include "arithmetic_evaluator.h"
 
 #include <cctype>
-#include <cerrno>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>

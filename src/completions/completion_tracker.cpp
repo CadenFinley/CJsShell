@@ -35,8 +35,6 @@
 #include <utility>
 
 #include "isocline.h"
-#include "isocline/completions.h"
-#include "utils/debug.h"
 
 namespace completion_tracker {
 
@@ -164,16 +162,6 @@ bool safe_add_completion_prim_with_source(ic_completion_env_t* cenv, const char*
 bool completion_limit_hit() {
     return (g_current_completion_tracker != nullptr) &&
            g_current_completion_tracker->has_reached_completion_limit();
-}
-
-bool completion_limit_hit_with_log(const char* label) {
-    if (!completion_limit_hit()) {
-        return false;
-    }
-    if (label != nullptr && label[0] != '\0') {
-        cjsh_debug_msg("Completion limit reached while generating %s completions", label);
-    }
-    return true;
 }
 
 bool set_completion_max_results(long max_results, std::string* error_message) {

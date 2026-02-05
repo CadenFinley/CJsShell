@@ -26,7 +26,7 @@
   SOFTWARE.
 */
 
-#include "parser/delimiter_state.h"
+#include "delimiter_state.h"
 
 bool DelimiterState::update_quote(char c) {
     if (c == '"' || c == '\'') {

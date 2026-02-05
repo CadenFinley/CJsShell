@@ -311,11 +311,11 @@ const char* classify_entry_source(const std::filesystem::directory_entry& entry)
 template <typename Container, typename Extractor>
 void process_command_candidates(
     ic_completion_env_t* cenv, const Container& container, const std::string& prefix,
-    size_t prefix_len, const char* source, const char* debug_label, Extractor extractor,
+    size_t prefix_len, const char* source, Extractor extractor,
     const std::function<bool(const std::string&)>& filter = {},
     const std::function<std::string(const std::string&)>& source_provider = {}) {
     for (const auto& item : container) {
-        if (completion_tracker::completion_limit_hit_with_log(debug_label))
+        if (completion_tracker::completion_limit_hit())
             return;
         if (ic_stop_completing(cenv))
             return;
@@ -356,7 +356,7 @@ bool iterate_directory_entries(
     auto emit_completion_for_entry = [&](const fs::directory_entry& entry) -> bool {
         if (ic_stop_completing(cenv))
             return false;
-        if (completion_tracker::completion_limit_hit_with_log(limit_label.c_str()))
+        if (completion_tracker::completion_limit_hit())
             return false;
 
         long delete_before = match_prefix.empty() ? 0 : static_cast<long>(match_prefix.length());
@@ -380,7 +380,7 @@ bool iterate_directory_entries(
         const auto& entry = *it;
         if (ic_stop_completing(cenv))
             return false;
-        if (completion_tracker::completion_limit_hit_with_log(limit_label.c_str()))
+        if (completion_tracker::completion_limit_hit())
             return false;
 
         if (directories_only) {
@@ -590,7 +590,7 @@ bool add_job_control_argument_completions(ic_completion_env_t* cenv,
         return added;
 
     for (const auto& job : jobs) {
-        if (completion_tracker::completion_limit_hit_with_log("job control"))
+        if (completion_tracker::completion_limit_hit())
             break;
         if (ic_stop_completing(cenv))
             break;
@@ -659,7 +659,7 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
     };
 
     process_command_candidates(
-        cenv, builtin_cmds, prefix_str, prefix_len, "builtin", "builtin commands",
+        cenv, builtin_cmds, prefix_str, prefix_len, "builtin",
         [](const std::string& value) { return value; }, builtin_filter, builtin_summary_provider);
     if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv))
         return;
@@ -667,13 +667,13 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
     const auto& control_structures = control_structure_keywords();
     process_command_candidates(
         cenv, control_structures, prefix_str, prefix_len, "control structure",
-        "control structure keywords", [](const std::string& value) { return value; },
-        std::function<bool(const std::string&)>{}, builtin_summary_provider);
+        [](const std::string& value) { return value; }, std::function<bool(const std::string&)>{},
+        builtin_summary_provider);
     if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv))
         return;
 
     process_command_candidates(cenv, function_names, prefix_str, prefix_len, "function",
-                               "function commands", [](const std::string& value) { return value; });
+                               [](const std::string& value) { return value; });
     if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv))
         return;
 
@@ -687,7 +687,7 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
     };
 
     process_command_candidates(
-        cenv, alias_names, prefix_str, prefix_len, "alias", "aliases",
+        cenv, alias_names, prefix_str, prefix_len, "alias",
         [](const std::string& value) { return value; }, std::function<bool(const std::string&)>{},
         alias_source_provider);
     if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv))
@@ -703,7 +703,7 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
     };
 
     process_command_candidates(
-        cenv, abbreviation_names, prefix_str, prefix_len, "abbreviation", "abbreviations",
+        cenv, abbreviation_names, prefix_str, prefix_len, "abbreviation",
         [](const std::string& value) { return value; }, std::function<bool(const std::string&)>{},
         abbreviation_source_provider);
     if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv))
@@ -722,8 +722,7 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
 
     process_command_candidates(
         cenv, executables_in_path, prefix_str, prefix_len, "system installed command",
-        "executables in PATH", [](const std::string& value) { return value; }, {},
-        system_summary_provider);
+        [](const std::string& value) { return value; }, {}, system_summary_provider);
 
     if (!ic_has_completions(cenv) && g_completion_spell_correction_enabled) {
         std::string normalized_prefix = completion_utils::normalize_for_comparison(prefix_str);
@@ -881,7 +880,7 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
     size_t count = 0;
 
     for (const auto& match : matches) {
-        if (completion_tracker::completion_limit_hit_with_log("history suggestions"))
+        if (completion_tracker::completion_limit_hit())
             return;
 
         const std::string& completion = match.command;

@@ -144,7 +144,7 @@ void add_spell_correction_matches(
     size_t added = 0;
 
     for (const auto& match : ordered_matches) {
-        if (completion_tracker::completion_limit_hit_with_log("spell correction")) {
+        if (completion_tracker::completion_limit_hit()) {
             return;
         }
         long delete_before = static_cast<long>(prefix_length);

@@ -28,8 +28,6 @@
 
 #include "pushd_command.h"
 
-#include <iostream>
-
 #include "builtin_help.h"
 #include "cd_command.h"
 #include "error_out.h"
@@ -73,7 +71,7 @@ int pushd_command(const std::vector<std::string>& args, std::string& current_dir
         return change_directory(target, current_directory, previous_directory, shell);
     }
 
-    std::string target = args[1];
+    const std::string target = args[1];
     stack.push_back(current_directory);
     int status = change_directory(target, current_directory, previous_directory, shell);
     if (status != 0) {

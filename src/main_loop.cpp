@@ -36,7 +36,6 @@
 #include <cctype>
 #include <cerrno>
 #include <chrono>
-#include <csignal>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -65,9 +64,9 @@
 #include "exec.h"
 #include "interpreter.h"
 #include "isocline.h"
-#include "isocline/keycodes.h"
 #include "job_control.h"
-#include "parser/parser.h"
+#include "keycodes.h"
+#include "parser.h"
 #include "pipeline_status_utils.h"
 #include "prompt.h"
 #include "shell.h"

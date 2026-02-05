@@ -31,7 +31,7 @@
 #include <string>
 #include <unordered_set>
 
-#include "isocline/isocline.h"
+#include "isocline.h"
 
 namespace completion_tracker {
 
@@ -62,7 +62,6 @@ bool safe_add_completion_prim_with_source(ic_completion_env_t* cenv, const char*
                                           long delete_before, long delete_after);
 
 bool completion_limit_hit();
-bool completion_limit_hit_with_log(const char* label);
 
 bool set_completion_max_results(long max_results, std::string* error_message = nullptr);
 long get_completion_max_results();

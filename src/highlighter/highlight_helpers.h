@@ -30,7 +30,7 @@
 
 #include <string>
 
-#include "isocline/isocline.h"
+#include "isocline.h"
 
 namespace highlight_helpers {
 

@@ -26,17 +26,17 @@
   SOFTWARE.
 */
 
-#include "validation/command_analysis.h"
+#include "command_analysis.h"
 
 #include <cctype>
 #include <filesystem>
 #include <system_error>
 
 #include "cjsh_filesystem.h"
-#include "highlighter/token_classifier.h"
+#include "quote_state.h"
 #include "shell.h"
 #include "shell_env.h"
-#include "utils/quote_state.h"
+#include "token_classifier.h"
 
 namespace command_analysis {
 

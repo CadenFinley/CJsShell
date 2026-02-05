@@ -34,8 +34,6 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include <cstdlib>
-
 #include "abbr_command.h"
 #include "alias_command.h"
 #include "bg_command.h"

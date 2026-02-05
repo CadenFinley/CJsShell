@@ -35,9 +35,9 @@
 #include <vector>
 
 class Shell;
-#include "parser/expansion_engine.h"
-#include "parser/tokenizer.h"
-#include "parser/variable_expander.h"
+#include "expansion_engine.h"
+#include "tokenizer.h"
+#include "variable_expander.h"
 
 struct Command {
     std::vector<std::string> args;

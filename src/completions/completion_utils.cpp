@@ -33,7 +33,7 @@
 #include <string>
 #include <vector>
 
-#include "utils/quote_state.h"
+#include "quote_state.h"
 
 namespace completion_utils {
 

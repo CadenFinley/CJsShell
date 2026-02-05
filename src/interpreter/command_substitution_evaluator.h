@@ -33,7 +33,8 @@
 #include <string>
 #include <vector>
 
-#include "utils/function_ref.h"
+#include "function_ref.h"
+
 class CommandSubstitutionEvaluator {
    public:
     struct ExpansionResult {

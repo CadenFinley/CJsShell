@@ -34,7 +34,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <cctype>
-#include <cerrno>
 
 #include "cjsh_filesystem.h"
 #include "error_out.h"

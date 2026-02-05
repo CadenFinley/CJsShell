@@ -26,7 +26,7 @@
   SOFTWARE.
 */
 
-#include "utils/parameter_utils.h"
+#include "parameter_utils.h"
 
 #include <unistd.h>
 #include <cstdlib>

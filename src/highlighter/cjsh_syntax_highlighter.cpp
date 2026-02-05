@@ -33,17 +33,16 @@
 #include <filesystem>
 #include <string>
 #include <unordered_set>
-#include <vector>
 
 #include "builtin.h"
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
+#include "command_analysis.h"
 #include "highlight_helpers.h"
 #include "shell.h"
 #include "shell_env.h"
 #include "token_classifier.h"
 #include "token_constants.h"
-#include "validation/command_analysis.h"
 
 namespace {
 
@@ -298,18 +297,17 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
 
     size_t func_name_start = 0;
     size_t func_name_end = 0;
-    std::string input_str = sanitized_input;
-    if (is_function_definition(input_str, func_name_start, func_name_end)) {
+    if (is_function_definition(sanitized_input, func_name_start, func_name_end)) {
         ic_highlight(henv, static_cast<long>(func_name_start),
                      static_cast<long>(func_name_end - func_name_start),
                      "cjsh-function-definition");
 
-        size_t paren_pos = input_str.find("()", func_name_end);
+        size_t paren_pos = sanitized_input.find("()", func_name_end);
         if (paren_pos != std::string::npos && paren_pos < len) {
             ic_highlight(henv, static_cast<long>(paren_pos), 2L, "cjsh-function-definition");
         }
 
-        size_t brace_pos = input_str.find('{');
+        size_t brace_pos = sanitized_input.find('{');
         if (brace_pos != std::string::npos && brace_pos < len) {
             ic_highlight(henv, static_cast<long>(brace_pos), 1L, "cjsh-operator");
         }

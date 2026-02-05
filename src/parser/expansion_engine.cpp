@@ -26,7 +26,7 @@
   SOFTWARE.
 */
 
-#include "parser/expansion_engine.h"
+#include "expansion_engine.h"
 
 #include <fnmatch.h>
 #include <glob.h>

@@ -201,6 +201,7 @@ set(CJSH_INCLUDE_DIRS
     ${CMAKE_SOURCE_DIR}/src/parser
     ${CMAKE_SOURCE_DIR}/src/highlighter
     ${CMAKE_SOURCE_DIR}/src/completions
+	${CMAKE_SOURCE_DIR}/src/validation
 )
 
 target_include_directories(cjsh PRIVATE ${CJSH_INCLUDE_DIRS})

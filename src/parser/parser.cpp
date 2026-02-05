@@ -51,7 +51,7 @@
 #include "error_out.h"
 #include "expansion_engine.h"
 #include "flags.h"
-#include "interpreter/history_expansion.h"
+#include "history_expansion.h"
 #include "job_control.h"
 #include "parser_utils.h"
 #include "quote_info.h"

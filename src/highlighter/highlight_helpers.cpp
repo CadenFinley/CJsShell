@@ -31,8 +31,8 @@
 #include <cctype>
 #include <string>
 
+#include "quote_state.h"
 #include "token_classifier.h"
-#include "utils/quote_state.h"
 
 namespace highlight_helpers {
 

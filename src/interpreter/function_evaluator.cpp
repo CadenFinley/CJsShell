@@ -33,6 +33,7 @@
 
 #include "error_out.h"
 #include "readonly_command.h"
+
 namespace function_evaluator {
 
 FunctionParseResult parse_and_register_functions(

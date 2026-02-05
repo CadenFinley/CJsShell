@@ -47,11 +47,9 @@
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "error_out.h"
-#include "prompt/prompt.h"
+#include "prompt.h"
 #include "shell.h"
 #include "version_command.h"
-
-extern char** environ;
 
 namespace config {
 bool login_mode = false;

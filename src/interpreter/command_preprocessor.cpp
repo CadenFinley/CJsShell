@@ -30,7 +30,7 @@
 
 #include <limits>
 
-#include "parser/parser_utils.h"
+#include "parser_utils.h"
 
 CommandPreprocessor::PreprocessedCommand CommandPreprocessor::preprocess(
     const std::string& command) {
