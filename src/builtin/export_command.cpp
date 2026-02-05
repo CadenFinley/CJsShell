@@ -119,9 +119,8 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
 
                 script_interpreter->mark_local_as_exported(args[i]);
             } else {
-                const char* env_val = getenv(args[i].c_str());
-                if (env_val != nullptr) {
-                    var_value = env_val;
+                if (cjsh_env::shell_variable_is_set(args[i])) {
+                    var_value = cjsh_env::get_shell_variable_value(args[i]);
                     found = true;
                 } else {
                     auto it = env_vars.find(args[i]);

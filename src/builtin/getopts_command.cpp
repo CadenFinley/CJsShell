@@ -112,10 +112,8 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
     if (auto* interpreter = shell->get_shell_script_interpreter()) {
         optind_source = interpreter->get_variable_value("OPTIND");
     }
-    if (optind_source.empty()) {
-        if (const char* optind_env = getenv("OPTIND")) {
-            optind_source = optind_env;
-        }
+    if (optind_source.empty() && cjsh_env::shell_variable_is_set("OPTIND")) {
+        optind_source = cjsh_env::get_shell_variable_value("OPTIND");
     }
     if (!optind_source.empty()) {
         try {
@@ -150,8 +148,8 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
     }
 
     static int char_index = 1;
-    const char* optarg_env = getenv("GETOPTS_POS");
-    if (optarg_env) {
+    if (cjsh_env::shell_variable_is_set("GETOPTS_POS")) {
+        std::string optarg_env = cjsh_env::get_shell_variable_value("GETOPTS_POS");
         try {
             char_index = std::stoi(optarg_env);
         } catch (...) {

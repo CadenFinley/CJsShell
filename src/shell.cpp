@@ -207,9 +207,9 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
                 for (const auto& [name, value] : env_assignments) {
                     SavedEnvState state;
                     state.name = name;
-                    if (const char* existing = std::getenv(name.c_str())) {
+                    if (cjsh_env::shell_variable_is_set(name)) {
                         state.had_env = true;
-                        state.env_value = existing;
+                        state.env_value = cjsh_env::get_shell_variable_value(name);
                     }
                     auto map_it = env_map.find(name);
                     if (map_it != env_map.end()) {
@@ -334,14 +334,14 @@ int Shell::execute_script_file(const std::filesystem::path& path, bool optional)
 }
 
 int read_exit_code_or(int fallback) {
-    const char* exit_code_str = getenv("EXIT_CODE");
-    if (exit_code_str == nullptr) {
+    std::string exit_code_str = cjsh_env::get_shell_variable_value("EXIT_CODE");
+    if (exit_code_str.empty()) {
         return fallback;
     }
 
     char* endptr = nullptr;
-    long exit_code_long = std::strtol(exit_code_str, &endptr, 10);
-    if (endptr != exit_code_str && *endptr == '\0') {
+    long exit_code_long = std::strtol(exit_code_str.c_str(), &endptr, 10);
+    if (endptr != exit_code_str.c_str() && *endptr == '\0') {
         fallback = static_cast<int>(exit_code_long);
     }
     unsetenv("EXIT_CODE");

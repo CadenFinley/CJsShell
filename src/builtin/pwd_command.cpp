@@ -42,6 +42,7 @@
 #include "builtin_help.h"
 #include "cjsh_filesystem.h"
 #include "error_out.h"
+#include "shell_env.h"
 
 namespace {
 
@@ -50,9 +51,14 @@ inline bool same_inode(const struct stat& st1, const struct stat& st2) {
 }
 
 char* logical_getcwd() {
-    const char* wd = std::getenv("PWD");
+    static thread_local std::string cached_pwd;
+    if (!cjsh_env::shell_variable_is_set("PWD")) {
+        return nullptr;
+    }
+    cached_pwd = cjsh_env::get_shell_variable_value("PWD");
+    const char* wd = cached_pwd.c_str();
 
-    if (!wd || wd[0] != '/') {
+    if (wd[0] != '/') {
         return nullptr;
     }
 
@@ -89,7 +95,7 @@ int pwd_command(const std::vector<std::string>& args) {
 
     bool logical = false;
 
-    if (std::getenv("POSIXLY_CORRECT") != nullptr) {
+    if (cjsh_env::shell_variable_is_set("POSIXLY_CORRECT")) {
         logical = true;
     }
 

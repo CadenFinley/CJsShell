@@ -45,6 +45,7 @@
 #include "cjsh_filesystem.h"
 #include "error_out.h"
 #include "shell.h"
+#include "shell_env.h"
 
 namespace {
 
@@ -175,14 +176,14 @@ int list_history(const std::vector<std::string>& entries, int first, int last, b
 }
 
 std::string get_editor() {
-    const char* fcedit = std::getenv("FCEDIT");
-    if (fcedit && fcedit[0] != '\0') {
-        return std::string(fcedit);
+    std::string fcedit = cjsh_env::get_shell_variable_value("FCEDIT");
+    if (!fcedit.empty()) {
+        return fcedit;
     }
 
-    const char* editor = std::getenv("EDITOR");
-    if (editor && editor[0] != '\0') {
-        return std::string(editor);
+    std::string editor = cjsh_env::get_shell_variable_value("EDITOR");
+    if (!editor.empty()) {
+        return editor;
     }
 
     return "nano";

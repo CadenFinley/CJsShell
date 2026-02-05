@@ -28,6 +28,7 @@
 
 #include "echo_command.h"
 #include "builtin_help.h"
+#include "shell_env.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -76,7 +77,7 @@ int echo_command(const std::vector<std::string>& args) {
 
     bool display_return = true;
     bool do_v9 = false;
-    bool posixly_correct = (std::getenv("POSIXLY_CORRECT") != nullptr);
+    bool posixly_correct = cjsh_env::shell_variable_is_set("POSIXLY_CORRECT");
     bool allow_options = !posixly_correct || (args.size() > 1 && args[1] == "-n");
 
     std::vector<std::string> echo_args = args;

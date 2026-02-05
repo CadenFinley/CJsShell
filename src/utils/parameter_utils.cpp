@@ -64,6 +64,7 @@ std::string join_positional_parameters() {
 }
 
 std::string get_last_background_pid_string() {
+    // Raw getenv here: special parameters are tracked in process env.
     const char* last_bg_pid = getenv("!");
     if (last_bg_pid != nullptr) {
         return last_bg_pid;
@@ -79,6 +80,7 @@ std::string get_last_background_pid_string() {
 std::string get_special_parameter_value(const std::string& var_name,
                                         const std::string& pid_string) {
     if (var_name == "?") {
+        // Raw getenv here: special parameters are tracked in process env.
         const char* status_env = getenv("?");
         return (status_env != nullptr) ? status_env : "0";
     }

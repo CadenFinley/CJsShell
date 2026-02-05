@@ -208,8 +208,8 @@ GitPromptCache& git_prompt_cache() {
 }
 
 std::string get_env(const char* name, const char* fallback = nullptr) {
-    const char* value = std::getenv(name);
-    if (value != nullptr && value[0] != '\0') {
+    std::string value = cjsh_env::get_shell_variable_value(name);
+    if (!value.empty()) {
         return value;
     }
     if (fallback != nullptr) {
@@ -268,14 +268,14 @@ bool terminal_supports_color() {
         return false;
     }
 
-    if (std::getenv("NO_COLOR") != nullptr) {
+    if (cjsh_env::shell_variable_is_set("NO_COLOR")) {
         return false;
     }
 
-    const char* colorterm = std::getenv("COLORTERM");
-    if (colorterm != nullptr) {
+    const std::string colorterm = cjsh_env::get_shell_variable_value("COLORTERM");
+    if (!colorterm.empty()) {
         std::string colorterm_lower;
-        for (const char* p = colorterm; *p != '\0'; ++p) {
+        for (const char* p = colorterm.c_str(); *p != '\0'; ++p) {
             colorterm_lower.push_back(
                 static_cast<char>(std::tolower(static_cast<unsigned char>(*p))));
         }
@@ -288,13 +288,13 @@ bool terminal_supports_color() {
         }
     }
 
-    const char* term = std::getenv("TERM");
-    if (term == nullptr) {
+    const std::string term = cjsh_env::get_shell_variable_value("TERM");
+    if (term.empty()) {
         return true;
     }
 
     std::string term_lower;
-    for (const char* p = term; *p != '\0'; ++p) {
+    for (const char* p = term.c_str(); *p != '\0'; ++p) {
         term_lower.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(*p))));
     }
 
@@ -999,9 +999,8 @@ std::string expand_prompt_string(const std::string& templ, PromptContext context
 }
 
 std::string get_ps(const char* name, const std::string& fallback) {
-    const char* value = std::getenv(name);
-    if (value != nullptr) {
-        return value;
+    if (cjsh_env::shell_variable_is_set(name)) {
+        return cjsh_env::get_shell_variable_value(name);
     }
     return fallback;
 }
@@ -1025,7 +1024,8 @@ std::string render_primary_prompt() {
 }
 
 std::string render_right_prompt() {
-    if (const char* rprompt = std::getenv("RPROMPT"); rprompt != nullptr) {
+    if (cjsh_env::shell_variable_is_set("RPROMPT")) {
+        std::string rprompt = cjsh_env::get_shell_variable_value("RPROMPT");
         return expand_prompt_string(rprompt, PromptContext::Right);
     }
 
@@ -1034,8 +1034,11 @@ std::string render_right_prompt() {
 }
 
 std::string render_secondary_prompt() {
-    const char* ps2 = std::getenv("PS2");
-    if (ps2 == nullptr || ps2[0] == '\0') {
+    if (!cjsh_env::shell_variable_is_set("PS2")) {
+        return {};
+    }
+    std::string ps2 = cjsh_env::get_shell_variable_value("PS2");
+    if (ps2.empty()) {
         return {};
     }
     return expand_prompt_string(ps2, PromptContext::Secondary);
@@ -1090,8 +1093,8 @@ void apply_terminal_window_title() {
     }
 
     std::string title;
-    if (const char* twinprompt = std::getenv("TWINPROMPT");
-        twinprompt != nullptr && twinprompt[0] != '\0') {
+    std::string twinprompt = cjsh_env::get_shell_variable_value("TWINPROMPT");
+    if (!twinprompt.empty()) {
         title.assign(twinprompt);
     } else {
         title = build_default_terminal_title();

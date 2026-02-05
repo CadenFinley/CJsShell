@@ -54,6 +54,7 @@ extern "C" char** environ;
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "error_out.h"
+#include "interpreter.h"
 #include "prompt.h"
 #include "shell.h"
 #include "version_command.h"
@@ -114,6 +115,7 @@ void apply_env_vars_to_parser(Shell* shell) {
 void setup_environment_variables(const char* argv0) {
     std::string shell_value = "cjsh";
     std::string existing_shell_value;
+    // Raw getenv here: bootstrap from process env before shell vars exist.
     if (const char* existing_shell_env = getenv("SHELL");
         existing_shell_env != nullptr && existing_shell_env[0] != '\0') {
         existing_shell_value = existing_shell_env;
@@ -185,13 +187,50 @@ void setup_environment_variables(const char* argv0) {
     }
 }
 
+std::string get_shell_variable_value(const std::string& name) {
+    if (g_shell) {
+        if (auto* interpreter = g_shell->get_shell_script_interpreter()) {
+            return interpreter->get_variable_value(name);
+        }
+    }
+    // Raw getenv fallback: interpreter not available yet.
+    const char* value = getenv(name.c_str());
+    return value != nullptr ? value : "";
+}
+
+std::string get_shell_variable_value(const char* name) {
+    if (name == nullptr) {
+        return {};
+    }
+    return get_shell_variable_value(std::string(name));
+}
+
+bool shell_variable_is_set(const std::string& name) {
+    if (g_shell) {
+        if (auto* interpreter = g_shell->get_shell_script_interpreter()) {
+            return interpreter->get_variable_manager().variable_is_set(name);
+        }
+    }
+    // Raw getenv fallback: interpreter not available yet.
+    return getenv(name.c_str()) != nullptr;
+}
+
+bool shell_variable_is_set(const char* name) {
+    if (name == nullptr) {
+        return false;
+    }
+    return shell_variable_is_set(std::string(name));
+}
+
 void setup_path_variables(const struct passwd* pw) {
+    // Raw getenv here: PATH bootstrap before shell vars exist.
     const char* path_env = getenv("PATH");
     if ((path_env == nullptr) || path_env[0] == '\0') {
         setenv("PATH", "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin", 1);
     }
 
 #ifdef __APPLE__
+    // Raw getenv here: HOME bootstrap before shell vars exist.
     if (pw != nullptr && pw->pw_dir != nullptr && getenv("HOME") == nullptr) {
         setenv("HOME", pw->pw_dir, 1);
     }
@@ -234,6 +273,7 @@ void setup_path_variables(const struct passwd* pw) {
             setenv("PATH", new_path.c_str(), 1);
         }
 
+        // Raw getenv here: MANPATH bootstrap before shell vars exist.
         if (getenv("MANPATH") == nullptr) {
             std::vector<std::string> manpaths = {"/usr/local/man", "/usr/local/share/man",
                                                  "/usr/share/man", "/usr/man"};
@@ -262,6 +302,7 @@ std::vector<std::pair<std::string, std::string>> setup_user_system_vars(const st
     env_vars.emplace_back("LOGNAME", std::string(pw->pw_name));
 
     std::string home_value;
+    // Raw getenv here: HOME bootstrap before shell vars exist.
     if (const char* current_home = getenv("HOME");
         current_home != nullptr && current_home[0] != '\0') {
         home_value = current_home;
@@ -281,20 +322,24 @@ std::vector<std::pair<std::string, std::string>> setup_user_system_vars(const st
     setenv("PWD", current_path.c_str(), 1);
     env_vars.emplace_back("IFS", std::string(" \t\n"));
 
+    // Raw getenv here: LANG bootstrap before shell vars exist.
     const char* lang_env = getenv("LANG");
     if ((lang_env == nullptr) || lang_env[0] == '\0') {
         env_vars.emplace_back("LANG", std::string("en_US.UTF-8"));
     }
 
+    // Raw getenv here: PAGER bootstrap before shell vars exist.
     if (getenv("PAGER") == nullptr) {
         env_vars.emplace_back("PAGER", std::string("less"));
     }
 
+    // Raw getenv here: TMPDIR bootstrap before shell vars exist.
     if (getenv("TMPDIR") == nullptr) {
         env_vars.emplace_back("TMPDIR", std::string("/tmp"));
     }
 
     int shlvl = 1;
+    // Raw getenv here: SHLVL bootstrap before shell vars exist.
     if (const char* current_shlvl = getenv("SHLVL")) {
         try {
             shlvl = std::stoi(current_shlvl) + 1;
@@ -311,6 +356,7 @@ std::vector<std::pair<std::string, std::string>> setup_user_system_vars(const st
     auto version_str = get_version();
     env_vars.emplace_back("CJSH_VERSION", version_str);
 
+    // Raw getenv here: PS1 bootstrap before shell vars exist.
     if (getenv("PS1") == nullptr) {
         std::string default_ps1 = prompt::default_primary_prompt_template();
         setenv("PS1", default_ps1.c_str(), 1);
@@ -495,6 +541,7 @@ int handle_non_interactive_mode(const std::string& script_file) {
 
     struct ScriptZeroGuard {
         ScriptZeroGuard(Shell* shell, const std::string& new_value) : shell_(shell) {
+            // Raw getenv here: preserve process env $0 during script guard.
             const char* current = std::getenv("0");
             if (current != nullptr) {
                 previous_ = current;

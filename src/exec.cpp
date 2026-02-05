@@ -1396,7 +1396,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         put_job_in_foreground(job_id, false);
 
         if (!cmd.output_file.empty() || !cmd.append_file.empty() || !cmd.stderr_file.empty()) {
-            if (std::getenv("CJSH_FORCE_SYNC") != nullptr) {
+            if (cjsh_env::shell_variable_is_set("CJSH_FORCE_SYNC")) {
                 sync();
             }
         }

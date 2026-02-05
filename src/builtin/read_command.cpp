@@ -297,15 +297,8 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
     }
 
     std::string ifs = " \t\n";
-    const auto& env_vars = cjsh_env::env_vars();
-    auto ifs_it = env_vars.find("IFS");
-    if (ifs_it != env_vars.end()) {
-        ifs = ifs_it->second;
-    } else {
-        const char* ifs_env = getenv("IFS");
-        if (ifs_env != nullptr) {
-            ifs = ifs_env;
-        }
+    if (cjsh_env::shell_variable_is_set("IFS")) {
+        ifs = cjsh_env::get_shell_variable_value("IFS");
     }
 
     std::vector<std::string> fields;

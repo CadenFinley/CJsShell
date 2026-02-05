@@ -355,17 +355,18 @@ bool handle_runoff_bind(ic_keycode_t key, void*) {
 
             g_shell->execute(command);
 
-            const char* new_buffer_env = getenv("CJSH_LINE");
-            const char* new_point_env = getenv("CJSH_POINT");
-
-            if (new_buffer_env && original_buffer != new_buffer_env) {
-                ic_set_buffer(new_buffer_env);
+            if (cjsh_env::shell_variable_is_set("CJSH_LINE")) {
+                std::string new_buffer_env = cjsh_env::get_shell_variable_value("CJSH_LINE");
+                if (original_buffer != new_buffer_env) {
+                    ic_set_buffer(new_buffer_env.c_str());
+                }
             }
 
-            if (new_point_env) {
+            if (cjsh_env::shell_variable_is_set("CJSH_POINT")) {
+                std::string new_point_env = cjsh_env::get_shell_variable_value("CJSH_POINT");
                 char* endptr;
-                long new_pos = strtol(new_point_env, &endptr, 10);
-                if (endptr != new_point_env && new_pos >= 0) {
+                long new_pos = strtol(new_point_env.c_str(), &endptr, 10);
+                if (endptr != new_point_env.c_str() && new_pos >= 0) {
                     ic_set_cursor_pos((size_t)new_pos);
                 }
             }
@@ -381,12 +382,14 @@ bool handle_runoff_bind(ic_keycode_t key, void*) {
 
 bool should_show_creator_line() {
     // only used during startup for the title line if you want to see the creator line
-    const char* env = std::getenv("CJSH_SHOW_CREATED");
-    if (env == nullptr || env[0] == '\0') {
+    if (!cjsh_env::shell_variable_is_set("CJSH_SHOW_CREATED")) {
         return false;
     }
 
-    std::string value(env);
+    std::string value = cjsh_env::get_shell_variable_value("CJSH_SHOW_CREATED");
+    if (value.empty()) {
+        return false;
+    }
     std::transform(value.begin(), value.end(), value.begin(),
                    [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
 

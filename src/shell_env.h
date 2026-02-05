@@ -68,6 +68,11 @@ void setup_environment_variables(const char* argv0 = nullptr);
 void setup_path_variables(const struct passwd* pw);
 std::vector<std::pair<std::string, std::string>> setup_user_system_vars(const struct passwd* pw);
 
+std::string get_shell_variable_value(const std::string& name);
+std::string get_shell_variable_value(const char* name);
+bool shell_variable_is_set(const std::string& name);
+bool shell_variable_is_set(const char* name);
+
 bool update_terminal_dimensions();
 void sync_env_vars_from_system(Shell& shell);
 std::unordered_map<std::string, std::string>& env_vars();

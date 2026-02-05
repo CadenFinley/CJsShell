@@ -45,11 +45,13 @@ inline FILE* g_log_file = nullptr;
 }  // namespace cjsh_debug_detail
 
 static inline int cjsh_debug_enabled(void) {
+    // Raw getenv here: debug toggles should reflect process env.
     const char* value = getenv("CJSH_DEBUG");
     return value != NULL && value[0] == '1' && value[1] == '\0';
 }
 
 static inline int cjsh_debug_file_enabled(void) {
+    // Raw getenv here: debug toggles should reflect process env.
     const char* value = getenv("CJSH_DEBUG_FILE");
     return value != NULL && value[0] == '1' && value[1] == '\0';
 }

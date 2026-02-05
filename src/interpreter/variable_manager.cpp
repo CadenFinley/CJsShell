@@ -114,6 +114,7 @@ bool VariableManager::unset_local_variable(const std::string& name) {
 
 void VariableManager::mark_local_as_exported(const std::string& name) {
     if (!exported_locals_stack.empty() && !saved_env_stack.empty()) {
+        // Raw getenv here: variable manager mirrors process env.
         const char* old_val = getenv(name.c_str());
         std::string old_value = (old_val != nullptr) ? old_val : "";
 
@@ -154,6 +155,7 @@ std::string VariableManager::get_variable_value(const std::string& var_name) con
         }
     }
 
+    // Raw getenv here: variable manager mirrors process env.
     const char* env_val = getenv(var_name.c_str());
     return (env_val != nullptr) ? env_val : "";
 }
@@ -172,6 +174,7 @@ bool VariableManager::variable_is_set(const std::string& var_name) const {
     }
 
     if (var_name.length() == 1 && isdigit(var_name[0]) != 0) {
+        // Raw getenv here: positional vars stored in process env.
         if (getenv(var_name.c_str()) != nullptr) {
             return true;
         }
@@ -191,6 +194,7 @@ bool VariableManager::variable_is_set(const std::string& var_name) const {
         }
     }
 
+    // Raw getenv here: variable manager mirrors process env.
     return getenv(var_name.c_str()) != nullptr;
 }
 
@@ -200,6 +204,7 @@ std::string VariableManager::get_special_variable(const std::string& var_name) c
 
 std::string VariableManager::get_positional_parameter(const std::string& var_name) const {
     if (var_name.length() == 1 && isdigit(var_name[0]) != 0) {
+        // Raw getenv here: positional vars stored in process env.
         const char* env_val = getenv(var_name.c_str());
         if (env_val != nullptr) {
             return env_val;

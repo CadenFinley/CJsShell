@@ -155,7 +155,8 @@ bool check_loop_interrupt(int& rc) {
 
 int adjust_loop_signal(const char* env_name, int consumed_rc, int propagate_rc) {
     int level = 1;
-    if (const char* level_str = getenv(env_name)) {
+    if (cjsh_env::shell_variable_is_set(env_name)) {
+        std::string level_str = cjsh_env::get_shell_variable_value(env_name);
         try {
             level = std::stoi(level_str);
         } catch (...) {

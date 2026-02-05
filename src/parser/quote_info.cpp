@@ -30,6 +30,8 @@
 
 #include <cstdlib>
 
+#include "shell_env.h"
+
 const char QUOTE_PREFIX = '\x1F';
 const char QUOTE_SINGLE = 'S';
 const char QUOTE_DOUBLE = 'D';
@@ -95,9 +97,8 @@ std::vector<std::string> expand_tilde_tokens(const std::vector<std::string>& tok
     std::vector<std::string> result;
     result.reserve(tokens.size());
 
-    const char* home_dir = std::getenv("HOME");
-    const bool has_home = home_dir != nullptr;
-    const std::string home = has_home ? std::string(home_dir) : std::string();
+    const bool has_home = cjsh_env::shell_variable_is_set("HOME");
+    const std::string home = has_home ? cjsh_env::get_shell_variable_value("HOME") : std::string();
 
     auto contains_tilde = [](const std::string& value) {
         if (value.empty()) {

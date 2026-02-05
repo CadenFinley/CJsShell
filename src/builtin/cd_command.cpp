@@ -132,14 +132,13 @@ int change_directory(const std::string& dir, std::string& current_directory,
     std::string target_dir = dir;
 
     if (target_dir.empty() || target_dir == "~") {
-        const char* home_dir = getenv("HOME");
-        if (!home_dir) {
+        if (!cjsh_env::shell_variable_is_set("HOME")) {
             ErrorInfo error = {
                 ErrorType::RUNTIME_ERROR, "cd", "HOME environment variable is not set", {}};
             print_error(error);
             return 1;
         }
-        target_dir = home_dir;
+        target_dir = cjsh_env::get_shell_variable_value("HOME");
     }
 
     if (target_dir == "-") {
@@ -152,8 +151,7 @@ int change_directory(const std::string& dir, std::string& current_directory,
     }
 
     if (target_dir[0] == '~') {
-        const char* home_dir = getenv("HOME");
-        if (!home_dir) {
+        if (!cjsh_env::shell_variable_is_set("HOME")) {
             ErrorInfo error = {ErrorType::RUNTIME_ERROR,
                                "cd",
                                "Cannot expand '~' - HOME environment variable is not set",
@@ -161,7 +159,7 @@ int change_directory(const std::string& dir, std::string& current_directory,
             print_error(error);
             return 1;
         }
-        target_dir.replace(0, 1, home_dir);
+        target_dir.replace(0, 1, cjsh_env::get_shell_variable_value("HOME"));
     }
 
     std::filesystem::path dir_path;

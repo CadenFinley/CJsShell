@@ -39,6 +39,7 @@
 #include "error_out.h"
 #include "interpreter.h"
 #include "shell.h"
+#include "shell_env.h"
 
 namespace {
 struct ReadonlyState {
@@ -103,9 +104,9 @@ int readonly_command(const std::vector<std::string>& args) {
         auto readonly_vars = readonly_manager_list();
 
         for (const std::string& var : readonly_vars) {
-            const char* value = getenv(var.c_str());
-            if (value != nullptr) {
-                std::cout << "readonly " << var << "=" << value << '\n';
+            if (cjsh_env::shell_variable_is_set(var)) {
+                std::cout << "readonly " << var << "=" << cjsh_env::get_shell_variable_value(var)
+                          << '\n';
             } else {
                 std::cout << "readonly " << var << '\n';
             }
@@ -167,9 +168,9 @@ int readonly_command(const std::vector<std::string>& args) {
         auto readonly_vars = readonly_manager_list();
 
         for (const std::string& var : readonly_vars) {
-            const char* value = getenv(var.c_str());
-            if (value != nullptr) {
-                std::cout << "readonly " << var << "='" << value << "'" << '\n';
+            if (cjsh_env::shell_variable_is_set(var)) {
+                std::cout << "readonly " << var << "='" << cjsh_env::get_shell_variable_value(var)
+                          << "'" << '\n';
             } else {
                 std::cout << "readonly " << var << '\n';
             }
@@ -201,8 +202,7 @@ int readonly_command(const std::vector<std::string>& args) {
 
             readonly_manager_set(name);
         } else {
-            const char* value = getenv(arg.c_str());
-            if (value == nullptr) {
+            if (!cjsh_env::shell_variable_is_set(arg)) {
                 if (setenv(arg.c_str(), "", 1) != 0) {
                     print_error({ErrorType::RUNTIME_ERROR,
                                  "readonly",

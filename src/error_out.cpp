@@ -60,12 +60,12 @@ std::string expand_log_path(const char* raw_path) {
         return path;
     }
 
-    const char* home = std::getenv("HOME");
-    if (!home || home[0] == '\0') {
+    std::string home = cjsh_env::get_shell_variable_value("HOME");
+    if (home.empty()) {
         return path;
     }
 
-    return std::string(home) + path.substr(1);
+    return home + path.substr(1);
 }
 
 std::string build_error_log_message(const ErrorInfo& error) {
@@ -174,8 +174,8 @@ std::string build_error_log_message(const ErrorInfo& error) {
 }
 
 void append_error_log(const ErrorInfo& error) {
-    const char* log_env = std::getenv(kErrorLogEnvVar);
-    std::string log_path = expand_log_path(log_env);
+    std::string log_env = cjsh_env::get_shell_variable_value(kErrorLogEnvVar);
+    std::string log_path = expand_log_path(log_env.c_str());
     if (log_path.empty()) {
         return;
     }

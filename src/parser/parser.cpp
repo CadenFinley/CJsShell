@@ -1491,11 +1491,12 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
         }
         variableExpander->expand_command_redirection_paths(cmd);
 
-        if (const char* home = std::getenv("HOME")) {
+        if (cjsh_env::shell_variable_is_set("HOME")) {
             if (!variableExpander) {
                 variableExpander = std::make_unique<VariableExpander>(shell, env_vars);
             }
-            variableExpander->expand_command_paths_with_home(cmd, std::string(home));
+            variableExpander->expand_command_paths_with_home(
+                cmd, cjsh_env::get_shell_variable_value("HOME"));
         }
 
         commands.push_back(cmd);

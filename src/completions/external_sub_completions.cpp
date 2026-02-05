@@ -873,7 +873,8 @@ void write_cache_entries(const std::filesystem::path& path, const std::string& d
 
 std::string fetch_man_page_text(const std::string& target) {
     std::vector<std::vector<std::string>> attempts;
-    if (const char* env_path = std::getenv("CJSH_MAN_PATH"); env_path != nullptr) {
+    if (cjsh_env::shell_variable_is_set("CJSH_MAN_PATH")) {
+        std::string env_path = cjsh_env::get_shell_variable_value("CJSH_MAN_PATH");
         std::error_code ec;
         if (!std::filesystem::exists(env_path, ec)) {
             return {};

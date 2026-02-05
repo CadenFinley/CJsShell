@@ -37,6 +37,7 @@
 #include "parameter_utils.h"
 #include "parser.h"
 #include "shell.h"
+#include "shell_env.h"
 
 namespace {
 
@@ -60,9 +61,7 @@ std::string VariableExpander::get_variable_value(const std::string& var_name) {
         return result;
     }
 
-    const char* env_val = getenv(var_name.c_str());
-    std::string result = (env_val != nullptr) ? env_val : "";
-    return result;
+    return cjsh_env::get_shell_variable_value(var_name);
 }
 
 std::string VariableExpander::get_exported_variable_value(const std::string& var_name) {
@@ -79,9 +78,7 @@ std::string VariableExpander::get_exported_variable_value(const std::string& var
         }
     }
 
-    const char* env_val = getenv(var_name.c_str());
-    std::string result = (env_val != nullptr) ? env_val : "";
-    return result;
+    return cjsh_env::get_shell_variable_value(var_name);
 }
 
 std::string VariableExpander::resolve_parameter_value(const std::string& var_name) {

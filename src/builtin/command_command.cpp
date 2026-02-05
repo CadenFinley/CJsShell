@@ -37,6 +37,7 @@
 #include "cjsh_filesystem.h"
 #include "error_out.h"
 #include "shell.h"
+#include "shell_env.h"
 
 int command_command(const std::vector<std::string>& args, Shell* shell) {
     if (builtin_handle_help(args, {"Usage: command [-pVv] COMMAND [ARG ...]",
@@ -112,9 +113,8 @@ int command_command(const std::vector<std::string>& args, Shell* shell) {
 
         std::string saved_path;
         if (use_default_path) {
-            const char* current_path = std::getenv("PATH");
-            if (current_path != nullptr) {
-                saved_path = current_path;
+            if (cjsh_env::shell_variable_is_set("PATH")) {
+                saved_path = cjsh_env::get_shell_variable_value("PATH");
             }
 
             setenv("PATH", "/usr/bin:/bin", 1);
@@ -154,9 +154,8 @@ int command_command(const std::vector<std::string>& args, Shell* shell) {
 
     std::string saved_path;
     if (use_default_path) {
-        const char* current_path = std::getenv("PATH");
-        if (current_path != nullptr) {
-            saved_path = current_path;
+        if (cjsh_env::shell_variable_is_set("PATH")) {
+            saved_path = cjsh_env::get_shell_variable_value("PATH");
         }
 
         setenv("PATH", "/usr/bin:/bin", 1);

@@ -452,15 +452,8 @@ std::vector<std::string> Tokenizer::split_by_ifs(const std::string& input) {
     std::vector<std::string> result;
 
     std::string ifs = " \t\n";
-    const auto& env_vars = cjsh_env::env_vars();
-    auto it = env_vars.find("IFS");
-    if (it != env_vars.end()) {
-        ifs = it->second;
-    } else {
-        const char* ifs_env = getenv("IFS");
-        if (ifs_env != nullptr) {
-            ifs = ifs_env;
-        }
+    if (cjsh_env::shell_variable_is_set("IFS")) {
+        ifs = cjsh_env::get_shell_variable_value("IFS");
     }
 
     if (input.empty()) {

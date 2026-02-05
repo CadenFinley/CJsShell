@@ -66,8 +66,8 @@ std::string resolve_command_with_cache(const std::string& name, CacheUsage usage
 
 const std::filesystem::path& g_user_home_path() {
     static const std::filesystem::path path = []() {
-        const char* home = std::getenv("HOME");
-        if (!home || home[0] == '\0') {
+        std::string home = cjsh_env::get_shell_variable_value("HOME");
+        if (home.empty()) {
             print_error({ErrorType::UNKNOWN_ERROR,
                          ErrorSeverity::WARNING,
                          "filesystem",
@@ -269,11 +269,7 @@ void seed_path_hash_locked(const std::string& path_value) {
 }
 
 std::string current_path_env_value() {
-    const char* path_env = std::getenv("PATH");
-    if (!path_env) {
-        return {};
-    }
-    return path_env;
+    return cjsh_env::get_shell_variable_value("PATH");
 }
 
 void ensure_path_snapshot_locked(const std::string& current_path) {
@@ -378,8 +374,11 @@ std::string safe_current_directory() {
         return result;
     }
 
-    if (const char* env_pwd = std::getenv("PWD"); env_pwd != nullptr && env_pwd[0] != '\0') {
-        return env_pwd;
+    if (cjsh_env::shell_variable_is_set("PWD")) {
+        std::string env_pwd = cjsh_env::get_shell_variable_value("PWD");
+        if (!env_pwd.empty()) {
+            return env_pwd;
+        }
     }
 
     const auto& home_path = g_user_home_path();
