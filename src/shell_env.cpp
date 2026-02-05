@@ -32,6 +32,9 @@
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <unistd.h>
+#if defined(__APPLE__)
+#include <crt_externs.h>
+#endif
 
 #include <algorithm>
 #include <cctype>
@@ -80,6 +83,17 @@ bool status_reporting_enabled = true;
 namespace cjsh_env {
 
 namespace {
+
+#if defined(__APPLE__)
+inline char** cjsh_environ() {
+    return *_NSGetEnviron();
+}
+#else
+extern "C" char** environ;
+inline char** cjsh_environ() {
+    return environ;
+}
+#endif
 
 std::unordered_map<std::string, std::string> g_env_vars;
 
@@ -444,7 +458,7 @@ bool update_terminal_dimensions() {
 
 void sync_env_vars_from_system(Shell& shell) {
     auto& env_map = env_vars();
-    for (char** env = environ; *env != nullptr; env++) {
+    for (char** env = cjsh_environ(); *env != nullptr; env++) {
         std::string env_str(*env);
         size_t eq_pos = env_str.find('=');
         if (eq_pos != std::string::npos) {

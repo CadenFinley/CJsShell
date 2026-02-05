@@ -28,6 +28,7 @@
 
 #include "fg_command.h"
 
+#include <signal.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <iostream>
