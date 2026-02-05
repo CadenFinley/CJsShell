@@ -36,6 +36,10 @@
 #include <crt_externs.h>
 #endif
 
+#if !defined(__APPLE__)
+extern "C" char** environ;
+#endif
+
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
@@ -89,9 +93,8 @@ inline char** cjsh_environ() {
     return *_NSGetEnviron();
 }
 #else
-extern "C" char** environ;
 inline char** cjsh_environ() {
-    return environ;
+    return ::environ;
 }
 #endif
 
