@@ -351,8 +351,9 @@ JobManager& JobManager::instance() {
 
 int JobManager::add_job(pid_t pgid, const std::vector<pid_t>& pids, const std::string& command,
                         bool background, bool reads_stdin) {
+    // adds a new job to the manager and returns its job id
     int job_id = next_job_id++;
-    auto job =
+    std::shared_ptr<JobControlJob> job =
         std::make_shared<JobControlJob>(job_id, pgid, pids, command, background, reads_stdin);
     jobs[job_id] = job;
 
@@ -362,6 +363,7 @@ int JobManager::add_job(pid_t pgid, const std::vector<pid_t>& pids, const std::s
 }
 
 void JobManager::remove_job(int job_id) {
+    // removes a job from the manager by its job id
     auto it = jobs.find(job_id);
     if (it != jobs.end()) {
         if (current_job == job_id) {
@@ -426,7 +428,7 @@ std::vector<std::shared_ptr<JobControlJob>> JobManager::get_all_jobs() {
     return result;
 }
 
-void JobManager::update_job_status() {
+void JobManager::update_job_statuses() {
     for (auto& pair : jobs) {
         auto job = pair.second;
 

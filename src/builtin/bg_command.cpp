@@ -43,7 +43,7 @@ int bg_command(const std::vector<std::string>& args) {
     }
 
     auto& job_manager = JobManager::instance();
-    job_manager.update_job_status();
+    job_manager.update_job_statuses();
 
     auto resolved_job = job_control_helpers::resolve_control_job_target(args, job_manager);
     if (!resolved_job) {

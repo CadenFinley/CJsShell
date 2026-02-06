@@ -84,7 +84,7 @@ int kill_command(const std::vector<std::string>& args) {
     }
 
     auto& job_manager = JobManager::instance();
-    job_manager.update_job_status();
+    job_manager.update_job_statuses();
 
     auto is_stop_signal = [](int sig) {
         switch (sig) {

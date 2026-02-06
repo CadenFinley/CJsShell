@@ -42,7 +42,7 @@ int jobs_command(const std::vector<std::string>& args) {
     }
 
     auto& job_manager = JobManager::instance();
-    job_manager.update_job_status();
+    job_manager.update_job_statuses();
 
     bool long_format = false;
     bool pid_only = false;

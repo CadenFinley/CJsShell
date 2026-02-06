@@ -43,7 +43,7 @@ int disown_command(const std::vector<std::string>& args) {
     }
 
     auto& job_manager = JobManager::instance();
-    job_manager.update_job_status();
+    job_manager.update_job_statuses();
 
     bool disown_all = false;
     std::vector<int> targets;

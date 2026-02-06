@@ -103,7 +103,7 @@ int exit_command(const std::vector<std::string>& args) {
 
     if (should_check_jobs) {
         auto& job_manager = JobManager::instance();
-        job_manager.update_job_status();
+        job_manager.update_job_statuses();
 
         const auto jobs = job_manager.get_all_jobs();
         bool has_stopped_jobs = false;

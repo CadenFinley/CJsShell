@@ -108,7 +108,7 @@ class JobManager {
 
     std::vector<std::shared_ptr<JobControlJob>> get_all_jobs();
 
-    void update_job_status();
+    void update_job_statuses();
 
     void set_current_job(int job_id);
 

@@ -75,7 +75,7 @@ int jobname_command(const std::vector<std::string>& args) {
     }
 
     auto& job_manager = JobManager::instance();
-    job_manager.update_job_status();
+    job_manager.update_job_statuses();
 
     std::vector<std::string> resolve_args = {"jobname", args[1]};
     auto resolved = job_control_helpers::resolve_control_job_target(resolve_args, job_manager);

@@ -246,7 +246,7 @@ bool perform_terminal_check() {
 }
 
 void update_job_management() {
-    JobManager::instance().update_job_status();
+    JobManager::instance().update_job_statuses();
     JobManager::instance().cleanup_finished_jobs();
 }
 

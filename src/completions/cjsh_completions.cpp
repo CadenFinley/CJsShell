@@ -496,7 +496,7 @@ bool add_job_control_argument_completions(ic_completion_env_t* cenv,
     }
 
     auto& job_manager = JobManager::instance();
-    job_manager.update_job_status();
+    job_manager.update_job_statuses();
     auto jobs = job_manager.get_all_jobs();
     if (jobs.empty())
         return false;

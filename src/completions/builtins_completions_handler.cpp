@@ -104,7 +104,7 @@ std::string format_job_description(const JobControlJob& job) {
 
 void append_kill_job_pid_entries(std::vector<CompletionEntry>& entries) {
     auto& job_manager = JobManager::instance();
-    job_manager.update_job_status();
+    job_manager.update_job_statuses();
     auto jobs = job_manager.get_all_jobs();
     if (jobs.empty())
         return;
