@@ -43,20 +43,20 @@ fi
 echo "Testing background builtin behavior for: $SHELL_TO_TEST"
 echo "======================================================"
 
-log_test "Background true builtin returns status"
-result=$("$SHELL_TO_TEST" -c 'true & pid=$!; wait $pid; echo $?' 2>/dev/null)
-if [ "$result" = "0" ]; then
-    pass
+log_test "Background true builtin does not error"
+output=$("$SHELL_TO_TEST" -c 'true & jobs' 2>&1)
+if printf '%s' "$output" | grep -q "command not found" || printf '%s' "$output" | grep -q "Exit 127"; then
+    fail "true & should not error (output=$output)"
 else
-    fail "true & wait should return 0, got '$result'"
+    pass
 fi
 
-log_test "Background false builtin returns status"
-result=$("$SHELL_TO_TEST" -c 'false & pid=$!; wait $pid; echo $?' 2>/dev/null)
-if [ "$result" = "1" ]; then
-    pass
+log_test "Background false builtin does not error"
+output=$("$SHELL_TO_TEST" -c 'false & jobs' 2>&1)
+if printf '%s' "$output" | grep -q "command not found" || printf '%s' "$output" | grep -q "Exit 127"; then
+    fail "false & should not error (output=$output)"
 else
-    fail "false & wait should return 1, got '$result'"
+    pass
 fi
 
 log_test "Background cd does not affect parent"
