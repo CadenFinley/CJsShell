@@ -204,6 +204,16 @@ else
     fail "Exit should handle background processes, expected 33, got $exit_code"
 fi
 
+log_test "Exit builtin in background job"
+exit_output=$("$SHELL_TO_TEST" -c "exit & jobs" 2>&1)
+exit_status=$?
+if [ $exit_status -eq 0 ] && ! printf '%s' "$exit_output" | grep -q "command not found" &&
+   ! printf '%s' "$exit_output" | grep -q "Exit 127"; then
+    pass
+else
+    fail "Background exit should not error (status=$exit_status, output=$exit_output)"
+fi
+
 log_test "Exit blocked when stopped jobs exist"
 stopped_pid_file=$(mktemp /tmp/cjsh_stopped_exit.XXXXXX)
 exit_output=$(PID_FILE="$stopped_pid_file" "$SHELL_TO_TEST" <<'EOF' 2>&1

@@ -981,8 +981,13 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
         }
     }
 
+    bool is_builtin = false;
+    if (!cmd_args.empty() && g_shell && (g_shell->get_built_ins() != nullptr)) {
+        is_builtin = g_shell->get_built_ins()->is_builtin_command(cmd_args[0]) != 0;
+    }
+
     std::string cached_exec_path;
-    if (!cmd_args.empty()) {
+    if (!cmd_args.empty() && !is_builtin) {
         cached_exec_path = cjsh_filesystem::resolve_executable_for_execution(cmd_args[0]);
     }
 
@@ -1009,6 +1014,13 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
         }
 
         reset_child_signals();
+
+        if (is_builtin && g_shell && (g_shell->get_built_ins() != nullptr)) {
+            int exit_code = g_shell->get_built_ins()->builtin_command(cmd_args);
+            (void)fflush(stdout);
+            (void)fflush(stderr);
+            _exit(exit_code);
+        }
 
         const char* exec_override = cached_exec_path.empty() ? nullptr : cached_exec_path.c_str();
         exec_external_child(cmd_args, exec_override);
@@ -1075,8 +1087,13 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
     std::vector<std::string> cmd_args(
         std::next(args.begin(), static_cast<std::ptrdiff_t>(cmd_start_idx)), args.end());
 
+    bool is_builtin = false;
+    if (!cmd_args.empty() && g_shell && (g_shell->get_built_ins() != nullptr)) {
+        is_builtin = g_shell->get_built_ins()->is_builtin_command(cmd_args[0]) != 0;
+    }
+
     std::string cached_exec_path;
-    if (!cmd_args.empty()) {
+    if (!cmd_args.empty() && !is_builtin) {
         cached_exec_path = cjsh_filesystem::resolve_executable_for_execution(cmd_args[0]);
     }
 
@@ -1102,6 +1119,13 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
         }
 
         reset_child_signals();
+
+        if (is_builtin && g_shell && (g_shell->get_built_ins() != nullptr)) {
+            int exit_code = g_shell->get_built_ins()->builtin_command(cmd_args);
+            (void)fflush(stdout);
+            (void)fflush(stderr);
+            _exit(exit_code);
+        }
 
         const char* exec_override = cached_exec_path.empty() ? nullptr : cached_exec_path.c_str();
         exec_external_child(cmd_args, exec_override);
