@@ -61,6 +61,7 @@ bool g_exit_flag = false;
 bool g_startup_active = true;
 std::uint64_t g_command_sequence = 0;
 std::unique_ptr<Shell> g_shell = nullptr;
+bool g_force_exit_requested = false;
 
 namespace {
 bool invoked_via_sh(const char* arg0) {
@@ -93,9 +94,11 @@ void cleanup_resources() {
     // reset everything
     if (g_shell) {
         trap_manager_set_shell(g_shell.get());
-        trap_manager_execute_exit_trap();
-        if (config::login_mode) {
-            cjsh_filesystem::process_logout_file();
+        if (!g_force_exit_requested) {
+            trap_manager_execute_exit_trap();
+            if (config::login_mode) {
+                cjsh_filesystem::process_logout_file();
+            }
         }
 
         // this might be the most important part of cjsh shutdown. this is so important as

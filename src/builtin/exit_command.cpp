@@ -159,6 +159,7 @@ int exit_command(const std::vector<std::string>& args) {
     }
 
     if (force_exit) {
+        g_force_exit_requested = true;
         if (forced_by_repeated_exit) {
             print_error({ErrorType::RUNTIME_ERROR,
                          ErrorSeverity::WARNING,
