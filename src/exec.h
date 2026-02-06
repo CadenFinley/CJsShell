@@ -105,7 +105,6 @@ class Exec {
 
     int add_job(const Job& job);
     void remove_job(int job_id);
-    void update_job_status(int job_id, bool completed, bool stopped, int status);
     void put_job_in_foreground(int job_id, bool cont);
     void put_job_in_background(int job_id, bool cont);
     void wait_for_job(int job_id);

@@ -2010,17 +2010,6 @@ void Exec::remove_job(int job_id) {
     }
 }
 
-void Exec::update_job_status(int job_id, bool completed, bool stopped, int status) {
-    std::lock_guard<std::mutex> lock(jobs_mutex);
-
-    auto it = jobs.find(job_id);
-    if (it != jobs.end()) {
-        it->second.completed = completed;
-        it->second.stopped = stopped;
-        it->second.status = status;
-    }
-}
-
 void Exec::put_job_in_foreground(int job_id, bool cont) {
     std::lock_guard<std::mutex> lock(jobs_mutex);
 
