@@ -233,7 +233,7 @@ fi
 log_test "Exit code 130 - SIGINT (Control-C)"
 sleep_script=$(create_temp_file "#!/bin/sh\nsleep 10" 755)
 (
-    timeout 2s "$SHELL_TO_TEST" -c "$sleep_script" &
+    "$SHELL_TO_TEST" -c "$sleep_script" &
     pid=$!
     sleep 0.1
     kill -INT $pid 2>/dev/null
@@ -253,7 +253,7 @@ fi
 log_test "Exit code 143 - SIGTERM"
 sleep_script2=$(create_temp_file "#!/bin/sh\nsleep 10" 755)
 (
-    timeout 2s "$SHELL_TO_TEST" -c "$sleep_script2" &
+    "$SHELL_TO_TEST" -c "$sleep_script2" &
     pid=$!
     sleep 0.1
     kill -TERM $pid 2>/dev/null
@@ -273,7 +273,7 @@ fi
 log_test "Exit code 137 - SIGKILL"
 sleep_script3=$(create_temp_file "#!/bin/sh\nsleep 10" 755)
 (
-    timeout 2s "$SHELL_TO_TEST" -c "$sleep_script3" &
+    "$SHELL_TO_TEST" -c "$sleep_script3" &
     pid=$!
     sleep 0.1
     kill -KILL $pid 2>/dev/null
