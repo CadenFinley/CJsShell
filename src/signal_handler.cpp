@@ -257,7 +257,10 @@ bool SignalHandler::has_pending_signals() {
         return true;
     }
     return s_sigint_received != 0 || s_sigchld_received != 0 || s_sighup_received != 0 ||
-           s_sigterm_received != 0 || s_sigttin_received != 0 || s_sigttou_received != 0;
+           s_sigterm_received != 0 || s_sigttin_received != 0 || s_sigttou_received != 0 ||
+           s_sigquit_received != 0 || s_sigtstp_received != 0 || s_sigusr1_received != 0 ||
+           s_sigusr2_received != 0 || s_sigabrt_received != 0 || s_sigalrm_received != 0 ||
+           s_sigcont_received != 0 || s_sigwinch_received != 0 || s_sigpipe_received != 0;
 }
 
 SignalHandler::~SignalHandler() {
@@ -671,8 +674,13 @@ void SignalHandler::restore_original_handlers() {
 
 SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) {
     bool should_process = s_signal_pending.exchange(false, std::memory_order_acq_rel);
-    if (!should_process && s_sigint_received == 0 && s_sigchld_received == 0 &&
-        s_sighup_received == 0 && s_sigterm_received == 0) {
+    const bool has_direct_signal =
+        s_sigint_received != 0 || s_sigchld_received != 0 || s_sighup_received != 0 ||
+        s_sigterm_received != 0 || s_sigttin_received != 0 || s_sigttou_received != 0 ||
+        s_sigquit_received != 0 || s_sigtstp_received != 0 || s_sigusr1_received != 0 ||
+        s_sigusr2_received != 0 || s_sigabrt_received != 0 || s_sigalrm_received != 0 ||
+        s_sigcont_received != 0 || s_sigwinch_received != 0 || s_sigpipe_received != 0;
+    if (!should_process && !has_direct_signal) {
         return {};
     }
 

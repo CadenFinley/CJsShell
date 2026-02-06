@@ -97,6 +97,9 @@ ShellScriptInterpreter::validate_redirection_syntax(const std::vector<std::strin
                     if (i + 2 < line.length() && line[i + 2] == '<') {
                         redir_op = "<<<";
                         next_index = i + 2;
+                    } else if (i + 2 < line.length() && line[i + 2] == '-') {
+                        redir_op = "<<-";
+                        next_index = i + 2;
                     } else {
                         redir_op = "<<";
                         next_index = i + 1;
@@ -173,7 +176,7 @@ ShellScriptInterpreter::validate_redirection_syntax(const std::vector<std::strin
                                     "File descriptor redirection requires digit or '-'", line,
                                     "Use format like 2>&1 or 2>&-"));
                 }
-            } else if (redir_op == "<<") {
+            } else if (redir_op == "<<" || redir_op == "<<-") {
                 if (target.empty()) {
                     line_errors.push_back(SyntaxError(
                         {display_line, target_start, target_end, 0}, ErrorSeverity::ERROR,
@@ -281,18 +284,42 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
     const std::vector<std::string>& lines) {
     std::vector<SyntaxError> errors;
 
-    std::vector<std::pair<std::string, size_t>> heredoc_stack;
+    struct HeredocFrame {
+        std::string delimiter;
+        bool strip_tabs;
+        size_t line;
+    };
+
+    std::vector<HeredocFrame> heredoc_stack;
+
+    auto normalize_delimiter_line = [](const std::string& value, bool strip_tabs) {
+        (void)strip_tabs;
+        std::string trimmed_line = value;
+        size_t first_non_ws = trimmed_line.find_first_not_of(" \t");
+        if (first_non_ws == std::string::npos) {
+            trimmed_line.clear();
+        } else {
+            trimmed_line.erase(0, first_non_ws);
+        }
+
+        size_t last_non_ws = trimmed_line.find_last_not_of(" \t\r\n");
+        if (last_non_ws == std::string::npos) {
+            trimmed_line.clear();
+        } else {
+            trimmed_line.erase(last_non_ws + 1);
+        }
+        return trimmed_line;
+    };
 
     for (size_t line_num = 0; line_num < lines.size(); ++line_num) {
         const std::string& line = lines[line_num];
         size_t display_line = line_num + 1;
 
         if (!heredoc_stack.empty()) {
-            std::string trimmed_line = line;
-            trimmed_line.erase(0, trimmed_line.find_first_not_of(" \t"));
-            trimmed_line.erase(trimmed_line.find_last_not_of(" \t\r\n") + 1);
+            const auto& active = heredoc_stack.back();
+            std::string trimmed_line = normalize_delimiter_line(line, active.strip_tabs);
 
-            if (trimmed_line == heredoc_stack.back().first) {
+            if (trimmed_line == active.delimiter) {
                 heredoc_stack.pop_back();
                 continue;
             }
@@ -342,8 +369,19 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
 
                 if (arithmetic_depth == 0 && i + 1 < line.length() &&
                     line.compare(i, 2, "<<") == 0) {
+                    if (i + 2 < line.length() && line[i + 2] == '<') {
+                        i += 2;
+                        continue;
+                    }
                     size_t heredoc_pos = i;
-                    size_t delim_start = heredoc_pos + 2;
+                    bool strip_tabs = false;
+                    size_t operator_len = 2;
+                    if (i + 2 < line.length() && line[i + 2] == '-') {
+                        strip_tabs = true;
+                        operator_len = 3;
+                    }
+
+                    size_t delim_start = heredoc_pos + operator_len;
                     while (delim_start < line.length() &&
                            (std::isspace(static_cast<unsigned char>(line[delim_start])) != 0)) {
                         ++delim_start;
@@ -373,10 +411,11 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                                     ErrorSeverity::WARNING, ErrorCategory::SYNTAX, "SYN011",
                                     "Nested heredoc detected - may cause parsing issues", line,
                                     "Consider closing previous heredoc '" +
-                                        heredoc_stack.back().first + "' before starting new one"));
+                                        heredoc_stack.back().delimiter +
+                                        "' before starting new one"));
                             }
 
-                            heredoc_stack.push_back({delimiter, display_line});
+                            heredoc_stack.push_back({delimiter, strip_tabs, display_line});
                         }
                     }
 
@@ -391,10 +430,10 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
 
     while (!heredoc_stack.empty()) {
         auto& unclosed = heredoc_stack.back();
-        errors.push_back(SyntaxError({unclosed.second, 0, 0, 0}, ErrorSeverity::ERROR,
-                                     ErrorCategory::SYNTAX, "SYN010",
-                                     "Unclosed here document - missing '" + unclosed.first + "'",
-                                     "", "Add closing delimiter: " + unclosed.first));
+        errors.push_back(
+            SyntaxError({unclosed.line, 0, 0, 0}, ErrorSeverity::ERROR, ErrorCategory::SYNTAX,
+                        "SYN010", "Unclosed here document - missing '" + unclosed.delimiter + "'",
+                        "", "Add closing delimiter: " + unclosed.delimiter));
         heredoc_stack.pop_back();
     }
 

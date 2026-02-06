@@ -3,6 +3,7 @@
 TOTAL=0
 PASSED=0
 FAILED=0
+NOCLOBBER_SUPPORTED=0
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 DEFAULT_SHELL="$SCRIPT_DIR/../../build/cjsh"
@@ -219,11 +220,26 @@ echo "original" > "/tmp/test_noclobber_$$"
 "$SHELL_TO_TEST" -c "set -C; echo new > /tmp/test_noclobber_$$" 2>/dev/null
 exit_code=$?
 if [ $exit_code -ne 0 ]; then
+    NOCLOBBER_SUPPORTED=1
     pass
 else
     skip "Noclobber (set -C) not supported"
 fi
 rm -f "/tmp/test_noclobber_$$"
+
+log_test "Noclobber with explicit FD redirection (3>)"
+echo "original" > "/tmp/test_noclobber_fd_$$"
+"$SHELL_TO_TEST" -c "set -C; echo fd 3> /tmp/test_noclobber_fd_$$" 2>/dev/null
+exit_code=$?
+content=$(cat "/tmp/test_noclobber_fd_$$" 2>/dev/null)
+if [ $NOCLOBBER_SUPPORTED -eq 0 ]; then
+    skip "Noclobber (set -C) not supported"
+elif [ $exit_code -ne 0 ] && [ "$content" = "original" ]; then
+    pass
+else
+    fail "Noclobber should prevent 3> overwrite"
+fi
+rm -f "/tmp/test_noclobber_fd_$$"
 
 log_test "Force overwrite >|"
 echo "original" > "/tmp/test_force_$$"

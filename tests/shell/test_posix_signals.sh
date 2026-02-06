@@ -9,6 +9,8 @@ NC='\033[0m' # No Color
 TOTAL=0
 PASSED=0
 FAILED=0
+SIGALRM_SUPPORTED=0
+SIGABRT_SUPPORTED=0
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 DEFAULT_SHELL="$SCRIPT_DIR/../../build/cjsh"
@@ -124,6 +126,7 @@ fi
 log_test "Signal trapping with trap (SIGALRM)"
 result=$("$SHELL_TO_TEST" -c "trap 'echo alarm' ALRM; kill -ALRM \$\$; sleep 0.1" 2>/dev/null)
 if echo "$result" | grep -q "alarm"; then
+    SIGALRM_SUPPORTED=1
     pass
 else
     skip "SIGALRM trapping not implemented"
@@ -148,9 +151,38 @@ fi
 log_test "Signal trapping with trap (SIGABRT)"
 result=$("$SHELL_TO_TEST" -c "trap 'echo abrtcaught' ABRT; kill -ABRT \$\$; sleep 0.1" 2>/dev/null)
 if echo "$result" | grep -q "abrtcaught"; then
+    SIGABRT_SUPPORTED=1
     pass
 else
     skip "SIGABRT trapping not implemented"
+fi
+
+log_test "Signal trapping with trap (SIGALRM) without child signals"
+if [ $SIGALRM_SUPPORTED -eq 0 ]; then
+    skip "SIGALRM trapping not implemented"
+else
+    result=$("$SHELL_TO_TEST" -c "trap 'echo alarm' ALRM
+kill -ALRM \$\$
+true" 2>/dev/null)
+    if echo "$result" | grep -q "alarm"; then
+        pass
+    else
+        fail "SIGALRM trap not processed without child signals"
+    fi
+fi
+
+log_test "Signal trapping with trap (SIGABRT) without child signals"
+if [ $SIGABRT_SUPPORTED -eq 0 ]; then
+    skip "SIGABRT trapping not implemented"
+else
+    result=$("$SHELL_TO_TEST" -c "trap 'echo abrtcaught' ABRT
+kill -ABRT \$\$
+true" 2>/dev/null)
+    if echo "$result" | grep -q "abrtcaught"; then
+        pass
+    else
+        fail "SIGABRT trap not processed without child signals"
+    fi
 fi
 
 log_test "SIGPIPE handling in pipeline with early exit"

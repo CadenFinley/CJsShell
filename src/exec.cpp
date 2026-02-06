@@ -523,6 +523,14 @@ bool apply_fd_operations(const Command& cmd, FailureHandler&& on_failure) {
         const std::string& spec = fd_redir.second;
         RedirectSpecInfo info = parse_fd_redirect_spec(fd_num, spec);
 
+        if ((info.flags & O_WRONLY) != 0 && (info.flags & O_TRUNC) != 0) {
+            if (cjsh_filesystem::should_noclobber_prevent_overwrite(info.file)) {
+                on_failure(FdOperationError{FdOperationErrorType::Redirect, fd_num, -1, spec,
+                                            "cannot overwrite existing file (noclobber is set)"});
+                return false;
+            }
+        }
+
         auto redirect_result = cjsh_filesystem::redirect_fd(info.file, fd_num, info.flags);
         if (redirect_result.is_error()) {
             on_failure(FdOperationError{FdOperationErrorType::Redirect, fd_num, -1, spec,

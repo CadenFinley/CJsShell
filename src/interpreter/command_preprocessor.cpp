@@ -56,7 +56,14 @@ std::string CommandPreprocessor::process_here_documents(
         return result;
     }
 
-    size_t delim_start = here_pos + 2;
+    bool strip_tabs = false;
+    size_t operator_len = 2;
+    if (here_pos + 2 < result.size() && result[here_pos + 2] == '-') {
+        strip_tabs = true;
+        operator_len = 3;
+    }
+
+    size_t delim_start = here_pos + operator_len;
     while (delim_start < result.size() && (std::isspace(result[delim_start]) != 0)) {
         delim_start++;
     }
@@ -88,14 +95,68 @@ std::string CommandPreprocessor::process_here_documents(
     }
     content_start++;
 
-    std::string delimiter_pattern = "\n" + delimiter;
-    size_t content_end = result.find(delimiter_pattern, content_start);
+    std::string content;
+    bool first_content_line = true;
+    size_t delimiter_line_start = std::string::npos;
+    size_t delimiter_line_end = std::string::npos;
 
-    if (content_end == std::string::npos) {
-        return result;
+    size_t scan_pos = content_start;
+    while (scan_pos <= result.size()) {
+        size_t line_end = result.find('\n', scan_pos);
+        bool has_newline = (line_end != std::string::npos);
+        size_t line_len = has_newline ? line_end - scan_pos : result.size() - scan_pos;
+
+        std::string line = result.substr(scan_pos, line_len);
+        if (!line.empty() && line.back() == '\r') {
+            line.pop_back();
+        }
+
+        std::string compare_line = line;
+        size_t first_non_ws = compare_line.find_first_not_of(" \t");
+        if (first_non_ws == std::string::npos) {
+            compare_line.clear();
+        } else {
+            compare_line.erase(0, first_non_ws);
+        }
+        size_t last_non_ws = compare_line.find_last_not_of(" \t\r");
+        if (last_non_ws == std::string::npos) {
+            compare_line.clear();
+        } else {
+            compare_line.erase(last_non_ws + 1);
+        }
+
+        if (compare_line == delimiter) {
+            delimiter_line_start = scan_pos;
+            delimiter_line_end = has_newline ? line_end + 1 : result.size();
+            break;
+        }
+
+        std::string line_to_store = line;
+        if (strip_tabs) {
+            size_t first_non_tab = line_to_store.find_first_not_of('\t');
+            if (first_non_tab == std::string::npos) {
+                line_to_store.clear();
+            } else {
+                line_to_store.erase(0, first_non_tab);
+            }
+        }
+
+        if (!first_content_line) {
+            content += '\n';
+        }
+        content += line_to_store;
+        first_content_line = false;
+
+        if (!has_newline) {
+            scan_pos = result.size();
+            break;
+        }
+        scan_pos = line_end + 1;
     }
 
-    std::string content = result.substr(content_start, content_end - content_start);
+    if (delimiter_line_start == std::string::npos) {
+        return result;
+    }
 
     std::string placeholder = "HEREDOC_PLACEHOLDER_" + std::to_string(next_placeholder_id());
 
@@ -108,7 +169,7 @@ std::string CommandPreprocessor::process_here_documents(
     here_docs[placeholder] = stored_content;
 
     std::string before_here = result.substr(0, here_pos);
-    std::string after_delimiter = result.substr(content_end + delimiter.length() + 1);
+    std::string after_delimiter = result.substr(delimiter_line_end);
 
     result = before_here + "< " + placeholder + rest_of_line + after_delimiter;
 
