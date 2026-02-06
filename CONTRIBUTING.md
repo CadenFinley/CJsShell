@@ -4,7 +4,6 @@
 - Every pull request and push to `master` triggers the **CI Build and Test** workflow (`.github/workflows/ci.yml`).
 - CI builds the project with CMake in Release mode on both `ubuntu-latest` and `macos-latest`, using the same commands documented in the `ci.yml` workflow.
 - The workflow runs `tests/run_shell_tests.sh`. Local contributors should run this script before opening a pull request to catch regressions early.
-- macOS GitHub runners occasionally show flaky terminal-related tests. The workflow tolerates this only when the pass rate stays at or above 95%; treat any local failures as bugs unless you can reproduce the known runner quirk.
 
 ## Code Style and clang-format
 - Format C and C++ sources with `clang-format` before submitting patches.
