@@ -39,8 +39,10 @@
 #include <unistd.h>
 #include <algorithm>
 #include <atomic>
+#include <cerrno>
 #include <chrono>
 #include <csignal>
+#include <cstring>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -429,6 +431,7 @@ std::vector<std::shared_ptr<JobControlJob>> JobManager::get_all_jobs() {
 }
 
 void JobManager::update_job_statuses() {
+    // update the status of all jobs by checking if their processes have changed state
     for (auto& pair : jobs) {
         auto job = pair.second;
 
@@ -447,6 +450,15 @@ void JobManager::update_job_statuses() {
                     job->stop_notified = false;
                 }
             } else if (result == -1) {
+                if (errno == EINTR || errno == ECHILD) {
+                    continue;
+                }
+                print_error({ErrorType::RUNTIME_ERROR,
+                             ErrorSeverity::WARNING,
+                             "waitpid",
+                             "failed to poll pid " + std::to_string(pid) + ": " +
+                                 std::string(std::strerror(errno)),
+                             {}});
             }
         }
     }
