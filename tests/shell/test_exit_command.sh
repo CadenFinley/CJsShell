@@ -135,37 +135,29 @@ else
 fi
 
 log_test "SIGTERM signal handling (graceful exit)"
-if command -v timeout >/dev/null 2>&1 || command -v gtimeout >/dev/null 2>&1; then
-    "$SHELL_TO_TEST" -c "sleep 2" &
-    shell_pid=$!
-    sleep 0.1  # Give shell time to start
-    kill -TERM $shell_pid 2>/dev/null
-    wait $shell_pid 2>/dev/null
-    exit_code=$?
-    if [ $exit_code -eq 143 ] || [ $exit_code -eq 0 ]; then
-        pass
-    else
-        fail "SIGTERM should cause graceful exit, got $exit_code"
-    fi
+"$SHELL_TO_TEST" -c "sleep 2" &
+shell_pid=$!
+sleep 0.1  # Give shell time to start
+kill -TERM $shell_pid 2>/dev/null
+wait $shell_pid 2>/dev/null
+exit_code=$?
+if [ $exit_code -eq 143 ] || [ $exit_code -eq 0 ]; then
+    pass
 else
-    skip "timeout command not available"
+    fail "SIGTERM should cause graceful exit, got $exit_code"
 fi
 
 log_test "SIGHUP signal handling (graceful exit)"
-if command -v timeout >/dev/null 2>&1 || command -v gtimeout >/dev/null 2>&1; then
-    "$SHELL_TO_TEST" -c "sleep 2" &
-    shell_pid=$!
-    sleep 0.1  # Give shell time to start
-    kill -HUP $shell_pid 2>/dev/null
-    wait $shell_pid 2>/dev/null
-    exit_code=$?
-    if [ $exit_code -eq 129 ] || [ $exit_code -eq 0 ]; then
-        pass
-    else
-        fail "SIGHUP should cause graceful exit, got $exit_code"
-    fi
+"$SHELL_TO_TEST" -c "sleep 2" &
+shell_pid=$!
+sleep 0.1  # Give shell time to start
+kill -HUP $shell_pid 2>/dev/null
+wait $shell_pid 2>/dev/null
+exit_code=$?
+if [ $exit_code -eq 129 ] || [ $exit_code -eq 0 ]; then
+    pass
 else
-    skip "timeout command not available"
+    fail "SIGHUP should cause graceful exit, got $exit_code"
 fi
 
 log_test "EOF handling (Ctrl+D simulation)"
