@@ -1452,6 +1452,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                 try {
                     variableExpander->expand_env_vars(val);
                 } catch (const std::runtime_error&) {
+                    // Ignore optional env expansion failures; use unexpanded value.
                 }
                 strip_subst_literal_markers(val);
                 auto stripped_pair = strip_noenv_sentinels(val);
