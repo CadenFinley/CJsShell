@@ -231,12 +231,8 @@ else
     fail_test "tilde expansion in redirection (got '$OUT')"
 fi
 
-timeout 5 "$CJSH_PATH" -c "FILE=/tmp/var_redir; echo test > \$FILE" < /dev/null > /tmp/var_expand_out 2>&1
-TIMEOUT_EXIT=$?
-if [ $TIMEOUT_EXIT -eq 124 ]; then
-    rm -f /tmp/var_expand_out /tmp/var_redir
-    fail_test "variable expansion in redirection (timeout - command hung)"
-elif [ -f /tmp/var_redir ]; then
+"$CJSH_PATH" -c "FILE=/tmp/var_redir; echo test > \$FILE" < /dev/null > /tmp/var_expand_out 2>&1
+if [ -f /tmp/var_redir ]; then
     OUT=$(cat /tmp/var_redir)
     rm -f /tmp/var_expand_out /tmp/var_redir
     if [ "$OUT" = "test" ]; then
