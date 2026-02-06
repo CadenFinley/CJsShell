@@ -1024,6 +1024,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
                 reads_stdin = job_utils::pipeline_consumes_terminal_stdin(command_pipeline);
             }
         } catch (const std::exception& e) {
+            // Best-effort parse; keep default reads_stdin on failure.
         }
     }
 

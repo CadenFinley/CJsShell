@@ -952,6 +952,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                     return false;
             }
         } catch (const std::exception&) {
+            // Best-effort completion: ignore filesystem errors.
         }
 
         return true;
@@ -1056,6 +1057,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
                 }
             }
         } catch (const std::exception& e) {
+            // Best-effort completion: ignore filesystem errors.
         }
         return;
     }
@@ -1091,6 +1093,7 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
             }
         }
     } catch (const std::exception&) {
+        // Best-effort completion: ignore filesystem errors.
     }
 }
 

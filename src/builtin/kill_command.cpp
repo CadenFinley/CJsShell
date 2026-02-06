@@ -205,6 +205,7 @@ int kill_command(const std::vector<std::string>& args) {
                 return false;
             }
         } catch (...) {
+            // Not a numeric job spec; fall back to command lookup.
         }
 
         bool ambiguous = false;
@@ -252,6 +253,7 @@ int kill_command(const std::vector<std::string>& args) {
                 treated_as_pid = true;
             }
         } catch (...) {
+            // Not a numeric PID; fall back to job lookup.
         }
 
         if (!treated_as_pid) {

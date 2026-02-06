@@ -591,6 +591,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                                     handled_with_redirections = true;
                                 }
                             } catch (const std::exception&) {
+                                // Best-effort parse; fall back to normal execution.
                             }
                         }
 

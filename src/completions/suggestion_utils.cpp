@@ -359,6 +359,7 @@ std::vector<std::string> find_similar_entries(const std::string& target_name,
         }
 
     } catch (const std::filesystem::filesystem_error&) {
+        // Ignore filesystem errors; return suggestions collected so far.
     }
 
     return suggestions;

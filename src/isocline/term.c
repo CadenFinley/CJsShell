@@ -870,7 +870,7 @@ static void term_write_esc(term_t* term, const char* s, ssize_t len) {
     } else if (s[1] == '8') {
         term_cursor_restore(term);
     } else {
-        // otherwise ignore
+        // Ignore unsupported escape sequences.
     }
 }
 
@@ -912,7 +912,7 @@ static bool term_write_direct(term_t* term, const char* s, ssize_t len) {
                        (s[pos] == '\r' || s[pos] == '\n' || s[pos] == '\t' || s[pos] == '\b')) {
                 term_write_console(term, s + pos, next);
             } else {
-                // ignore
+                // Ignore unsupported control bytes.
             }
             pos += next;
         }
@@ -986,8 +986,7 @@ ic_private bool term_update_dim(term_t* term) {
             }
             term_set_cursor_pos(term, row0, col0);
         } else {
-            // cannot query position
-            // return 0 column
+            // Cannot query position; leave cols/rows at 0.
         }
     }
 

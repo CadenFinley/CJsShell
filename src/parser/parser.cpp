@@ -962,6 +962,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
                     }
                 }
             } catch (const std::exception&) {
+                // Alias expansion is optional; keep original args on failure.
             }
         }
     }
@@ -1420,6 +1421,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                         filtered_args = std::move(new_args);
                     }
                 } catch (const std::exception&) {
+                    // Alias expansion is optional; keep original args on failure.
                 }
             }
         }

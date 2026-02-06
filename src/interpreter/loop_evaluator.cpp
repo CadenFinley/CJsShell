@@ -448,6 +448,7 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
                 control_cmd = loop_cmds[0];
             }
         } catch (const std::exception&) {
+            // Best-effort parse; skip redirection merge on failure.
         }
 
         auto merge_redirections = [&](const Command& source) {
@@ -506,6 +507,7 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
                         merge_redirections(pseudo_cmds[0]);
                     }
                 } catch (const std::exception&) {
+                    // Best-effort parse; ignore redirection extraction on failure.
                 }
             }
         }

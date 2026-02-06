@@ -162,6 +162,7 @@ std::shared_ptr<JobControlJob> resolve_job_argument(const std::vector<std::strin
             }
         }
     } catch (...) {
+        // Not a numeric job spec; fall back to command lookup.
     }
 
     bool ambiguous = false;

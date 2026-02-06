@@ -547,6 +547,7 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                     then_body = trim(body.substr(0, else_pos));
                     else_body = trim(body.substr(else_pos + 6));
                 } else {
+                    // No else clause found; keep else_body empty.
                 }
                 int body_rc = 0;
                 if (cond_rc == 0) {

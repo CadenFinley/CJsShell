@@ -102,6 +102,7 @@ int exec_command(const std::vector<std::string>& args, Shell* shell) {
                         has_fd_operations = true;
                         continue;
                     } catch (const std::exception&) {
+                        // Invalid fd duplication; treat token as a literal argument.
                     }
                 } else if (op.find(">&") == 0 && op.size() > 2) {
                     try {
@@ -115,6 +116,7 @@ int exec_command(const std::vector<std::string>& args, Shell* shell) {
                         has_fd_operations = true;
                         continue;
                     } catch (const std::exception&) {
+                        // Invalid fd duplication; treat token as a literal argument.
                     }
                 }
             }

@@ -939,7 +939,7 @@ ic_private char* sbuf_strdup_from_utf8(stringbuf_t* sbuf) {
                 // allow ascii
                 s[dest++] = (char)uchr;
             } else {
-                // skip unknown unicode characters..
+                // Skip unsupported unicode characters to keep output best-effort.
                 // todo: convert according to locale?
             }
         }

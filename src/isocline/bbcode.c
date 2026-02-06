@@ -225,7 +225,7 @@ static bool bbcode_close(bbcode_t* bb, ssize_t base, const char* name, tag_t* pp
                                 &prev);  // restore the tags and ignore this close tag
                 break;
             } else {
-                // continue until we hit our open tag
+                // Continue popping until we hit the matching open tag.
             }
         }
     }
