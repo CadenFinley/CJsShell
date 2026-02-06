@@ -582,7 +582,7 @@ again:;
         ic_enable_hint(old_hint);
         edit_refresh(env, eb);
 
-        tty_code_pushback(env->tty, KEY_ENTER);
+        eb->request_submit = true;
         return;
     } else if (c == KEY_TAB) {
         sbuf_clear(eb->extra);

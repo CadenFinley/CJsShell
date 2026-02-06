@@ -2496,6 +2496,23 @@ edit_loop_entry:
                 }
             }
 
+            if (eb.request_submit) {
+                // Clear history preview when submitting
+                edit_clear_history_preview(&eb);
+                if (edit_try_expand_abbreviation(env, &eb, false, false)) {
+                    edit_refresh(env, &eb);
+                }
+                bool should_submit = edit_should_submit_current_buffer(env, &eb);
+                if (!should_submit && !env->singleline_only) {
+                    eb.request_submit = false;
+                    has_pending_key = true;
+                    pending_key = KEY_LINEFEED;
+                    continue;
+                }
+                c = KEY_ENTER;
+                break;
+            }
+
             if (has_pending_key) {
                 c = pending_key;
                 has_pending_key = false;
