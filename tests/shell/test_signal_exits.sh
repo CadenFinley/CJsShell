@@ -130,21 +130,38 @@ else
 fi
 
 log_test "SIGINT handling in interactive mode"
-if command -v timeout >/dev/null 2>&1 || command -v gtimeout >/dev/null 2>&1; then
-    if command -v gtimeout >/dev/null 2>&1; then
-        TIMEOUT_CMD="gtimeout"
-    else
-        TIMEOUT_CMD="timeout"
+"$SHELL_TO_TEST" <<'EOF' 2>/dev/null &
+sleep 1
+EOF
+shell_pid=$!
+
+timeout_limit=20
+count=0
+while [ $count -lt $timeout_limit ]; do
+    if ! kill -0 $shell_pid 2>/dev/null; then
+        break
     fi
-    $TIMEOUT_CMD 2s sh -c "echo 'sleep 1' | $SHELL_TO_TEST" 2>/dev/null
-    exit_code=$?
-    if [ $exit_code -eq 0 ] || [ $exit_code -eq 124 ]; then
-        pass
-    else
-        fail "SIGINT handling issue in interactive mode, exit code: $exit_code"
+    sleep 0.1
+    count=$((count + 1))
+done
+
+if kill -0 $shell_pid 2>/dev/null; then
+    kill -TERM $shell_pid 2>/dev/null
+    sleep 0.2
+    if kill -0 $shell_pid 2>/dev/null; then
+        kill -KILL $shell_pid 2>/dev/null
     fi
+    wait $shell_pid 2>/dev/null
+    exit_code=124
 else
-    skip "timeout command not available"
+    wait $shell_pid 2>/dev/null
+    exit_code=$?
+fi
+
+if [ $exit_code -eq 0 ] || [ $exit_code -eq 124 ]; then
+    pass
+else
+    fail "SIGINT handling issue in interactive mode, exit code: $exit_code"
 fi
 
 log_test "Signal handling preserves normal exit codes"
