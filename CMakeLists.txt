@@ -441,9 +441,6 @@ if(APPLE)
         $<$<AND:$<NOT:$<CONFIG:Debug>>,$<BOOL:${CJSH_MINIMAL_BUILD}>>:-Wl,-no_compact_unwind -Wl,-no_function_starts>
     )
 elseif(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        target_link_options(cjsh PRIVATE $<$<NOT:$<CONFIG:Debug>>:-static-libgcc -static-libstdc++>)
-    endif()
     target_link_options(cjsh PRIVATE
         $<$<NOT:$<CONFIG:Debug>>:-Wl,--gc-sections -Wl,--as-needed>
         $<$<AND:$<NOT:$<CONFIG:Debug>>,$<BOOL:${CJSH_MINIMAL_BUILD}>>:-Wl,--strip-all -Wl,--discard-all -Wl,--no-undefined -Wl,--compress-debug-sections=zlib -Wl,-O2 -Wl,--hash-style=gnu>
