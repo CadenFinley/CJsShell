@@ -83,6 +83,7 @@ bool newline_after_execution = false;
 bool suppress_sh_warning = false;
 bool status_line_enabled = true;
 bool status_reporting_enabled = true;
+bool script_extension_interpreter_enabled = true;
 }  // namespace config
 
 namespace cjsh_env {

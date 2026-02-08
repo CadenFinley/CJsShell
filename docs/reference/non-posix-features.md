@@ -84,6 +84,9 @@ Consult the [Completion Authoring Guide](completions.md) for cache format and cu
 - **Startup diagnostics** – `--show-startup-time` prints the duration spent initializing CJSH.
 - **Secure mode** – `--secure` skips all profile/rc/logout sourcing for hardened sessions and
   ignores `PROMPT_COMMAND`.
+- **Extension-based script dispatch** – When executing a script file without a shebang, CJSH can
+  infer the interpreter from the file extension (for example, `.sh` uses `sh`, `.bash` uses `bash`).
+  Disable with `--no-script-extension-interpreter` or `cjshopt script-extension-interpreter off`.
 - **Consistent error output** – Interpreter failures now use the same compact `cjsh:` error_out
   format as other builtins for predictable logs.
 

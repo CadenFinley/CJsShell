@@ -36,6 +36,8 @@
 #include "cjshopt_command.h"
 #include "error_out.h"
 
+int script_extension_interpreter_command(const std::vector<std::string>& args);
+
 namespace {
 void print_cjshopt_usage() {
     std::cout << "Usage: cjshopt <subcommand> [options]\n";
@@ -50,6 +52,9 @@ void print_cjshopt_usage() {
     std::cout << "  completion-spell <on|off|status> Configure completion spell correction "
                  "(default: enabled)\n";
     std::cout << "  smart-cd <on|off|status>         Configure smart cd auto-jumps "
+                 "(default: enabled)\n";
+    std::cout << "  script-extension-interpreter <on|off|status> Configure extension-based script "
+                 "runners "
                  "(default: enabled)\n";
     std::cout << "  completion-learning <on|off|status> Toggle automatic completion learning "
                  "(default: enabled)\n";
@@ -136,6 +141,9 @@ int cjshopt_command(const std::vector<std::string>& args) {
                      "correction (default: enabled)",
                  std::string("  smart-cd <on|off|status>         Configure smart cd auto-jumps ") +
                      "(default: enabled)",
+                 std::string(
+                     "  script-extension-interpreter <on|off|status> Configure extension-based ") +
+                     "script runners (default: enabled)",
                  std::string("  completion-learning <on|off|status> Toggle automatic completion ") +
                      "learning (default: enabled)",
                  std::string(
@@ -228,6 +236,10 @@ int cjshopt_command(const std::vector<std::string>& args) {
     }
     if (subcommand == "smart-cd") {
         return smart_cd_command(std::vector<std::string>(args.begin() + 1, args.end()));
+    }
+    if (subcommand == "script-extension-interpreter") {
+        return script_extension_interpreter_command(
+            std::vector<std::string>(args.begin() + 1, args.end()));
     }
     if (subcommand == "line-numbers") {
         return line_numbers_command(std::vector<std::string>(args.begin() + 1, args.end()));
@@ -327,7 +339,7 @@ int cjshopt_command(const std::vector<std::string>& args) {
          "unknown subcommand '" + subcommand + "'",
          {"Available subcommands: style_def, login-startup-arg, completion-case, "
           "history-search-case, completion-spell, "
-          "smart-cd, "
+          "smart-cd, script-extension-interpreter, "
           "completion-learning, "
           "line-numbers, line-numbers-continuation, line-numbers-replace-prompt, "
           "current-line-number-highlight, multiline-start-lines, hint-delay, "

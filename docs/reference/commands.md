@@ -101,6 +101,10 @@ source filename [arguments...]
 . filename [arguments...]
 ```
 
+When you execute a script file directly (for example, `./script.sh`) CJSH can infer an interpreter
+from the file extension if the file has no shebang. Toggle this with
+`cjshopt script-extension-interpreter` or `--no-script-extension-interpreter`.
+
 ### eval
 Evaluate a string as shell code.
 
@@ -566,6 +570,7 @@ Available subcommands:
 - `history-search-case` - Configure fuzzy history case sensitivity
 - `completion-spell` - Toggle spell correction suggestions in completions
 - `completion-learning` - Toggle automatic completion learning from man pages
+- `script-extension-interpreter` - Toggle extension-based script runners
 - `line-numbers` - Configure line numbers in multiline input (on/off/relative/absolute)
 - `line-numbers-replace-prompt` - Replace the final prompt line with the line-number gutter
 - `current-line-number-highlight` - Toggle highlighting of the current line number
@@ -627,6 +632,7 @@ Supported flags:
 | `--show-startup-time` | Print the time spent initializing cjsh |
 | `--no-source` | Skip sourcing interactive configuration files |
 | `--no-completions` | Skip completion initialization |
+| `--no-script-extension-interpreter` | Disable extension-based script runners |
 | `--no-smart-cd` | Disable smart cd auto-jumps |
 | `--no-syntax-highlighting` | Disable syntax highlighting in the editor |
 | `--no-history-expansion` | Disable `!!`, `!$`, and related history tokens |
@@ -730,6 +736,27 @@ Examples:
 cjshopt smart-cd on       # Enable smart cd auto-jumps
 cjshopt smart-cd off      # Disable smart cd auto-jumps
 cjshopt smart-cd status   # Show the current setting
+```
+
+Add the command to `~/.cjshrc` to persist the preference.
+
+#### script-extension-interpreter
+
+Enable, disable, or inspect extension-based script runners. When enabled, cjsh can infer the
+interpreter from a script's file extension when there is no shebang (for example, `.sh` → `sh`,
+`.bash` → `bash`, `.zsh` → `zsh`, `.ksh` → `ksh`). Synonyms such as `enable`, `disable`, `true`,
+`false`, and `--status` are supported.
+
+```bash
+cjshopt script-extension-interpreter <on|off|status>
+```
+
+Examples:
+
+```bash
+cjshopt script-extension-interpreter on       # Enable extension-based script runners
+cjshopt script-extension-interpreter off      # Disable extension-based script runners
+cjshopt script-extension-interpreter status   # Show the current setting
 ```
 
 Add the command to `~/.cjshrc` to persist the preference.

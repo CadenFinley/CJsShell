@@ -351,6 +351,27 @@ int smart_cd_command(const std::vector<std::string>& args) {
     return handle_toggle_command(config, args);
 }
 
+int script_extension_interpreter_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: script-extension-interpreter <on|off|status>",
+        "Examples:", "  script-extension-interpreter on      Enable extension-based script runners",
+        "  script-extension-interpreter off     Disable extension-based script runners",
+        "  script-extension-interpreter status  Show the current setting"};
+
+    static const ToggleCommandConfig config{
+        "script-extension-interpreter",
+        usage_lines,
+        []() { return config::script_extension_interpreter_enabled; },
+        [](bool enable) { config::script_extension_interpreter_enabled = enable; },
+        "Script extension interpreter",
+        false,
+        "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
+        {},
+        {}};
+
+    return handle_toggle_command(config, args);
+}
+
 int line_numbers_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {
         "Usage: line-numbers <on|off|relative|absolute|status>",

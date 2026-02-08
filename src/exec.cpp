@@ -59,6 +59,7 @@
 #include "interpreter.h"
 #include "job_control.h"
 #include "parser.h"
+#include "script_dispatch.h"
 #include "shell.h"
 #include "shell_env.h"
 #include "signal_handler.h"
@@ -736,6 +737,16 @@ void maybe_set_foreground_terminal(bool enabled, int terminal_fd, pid_t pgid,
 
 [[noreturn]] void exec_external_child(const std::vector<std::string>& args,
                                       const char* cached_path) {
+    if (config::script_extension_interpreter_enabled) {
+        auto interpreter_args =
+            script_dispatch::build_extension_interpreter_args(args, cached_path);
+        if (interpreter_args) {
+            auto c_interp_args = cjsh_env::build_exec_argv(*interpreter_args);
+            execvp((*interpreter_args)[0].c_str(), c_interp_args.data());
+            int saved_errno = errno;
+            report_exec_failure(*interpreter_args, saved_errno);
+        }
+    }
     auto c_args = cjsh_env::build_exec_argv(args);
     if (cached_path != nullptr && cached_path[0] != '\0') {
         execv(cached_path, c_args.data());

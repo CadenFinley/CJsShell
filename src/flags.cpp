@@ -52,6 +52,7 @@ namespace {
 
 constexpr int kOptNoCompletionLearning = 256;
 constexpr int kOptNoSmartCd = 257;
+constexpr int kOptNoScriptExtensionInterpreter = 258;
 std::vector<std::string> positional_parameters;
 
 void detect_login_mode(char* argv[]) {
@@ -107,6 +108,7 @@ ParseResult parse_arguments(int argc, char* argv[]) {
         {"no-completions", no_argument, nullptr, 'O'},
         {"no-completion-learning", no_argument, nullptr, kOptNoCompletionLearning},
         {"no-smart-cd", no_argument, nullptr, kOptNoSmartCd},
+        {"no-script-extension-interpreter", no_argument, nullptr, kOptNoScriptExtensionInterpreter},
         {"no-syntax-highlighting", no_argument, nullptr, 'S'},
         {"startup-test", no_argument, nullptr, 'X'},
         {"minimal", no_argument, nullptr, 'm'},
@@ -163,6 +165,9 @@ ParseResult parse_arguments(int argc, char* argv[]) {
                 break;
             case kOptNoSmartCd:
                 config::smart_cd_enabled = false;
+                break;
+            case kOptNoScriptExtensionInterpreter:
+                config::script_extension_interpreter_enabled = false;
                 break;
             case 'S':
                 config::syntax_highlighting_enabled = false;
@@ -232,6 +237,8 @@ void apply_profile_startup_flags() {
             config::completion_learning_enabled = false;
         } else if (flag == "--no-smart-cd") {
             config::smart_cd_enabled = false;
+        } else if (flag == "--no-script-extension-interpreter") {
+            config::script_extension_interpreter_enabled = false;
         } else if (flag == "--no-syntax-highlighting") {
             config::syntax_highlighting_enabled = false;
         } else if (flag == "--startup-test") {

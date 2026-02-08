@@ -196,6 +196,8 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                  make_option("--no-source", "Skip sourcing ~/.cjshrc"),
                  make_option("-O", "Disable tab completions"),
                  make_option("--no-completions", "Disable tab completions"),
+                 make_option("--no-script-extension-interpreter",
+                             "Disable extension-based script runners"),
                  make_option("--no-smart-cd", "Disable smart cd auto-jumps"),
                  make_option("-S", "Disable syntax highlighting"),
                  make_option("--no-syntax-highlighting", "Disable syntax highlighting"),
@@ -440,6 +442,8 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
              make_subcommand("history-search-case", "Configure fuzzy history case sensitivity"),
              make_subcommand("completion-spell", "Configure completion spell correction"),
              make_subcommand("smart-cd", "Toggle smart cd auto-jumps"),
+             make_subcommand("script-extension-interpreter",
+                             "Toggle extension-based script runners"),
              make_subcommand("line-numbers", "Configure multiline line numbers"),
              make_subcommand("line-numbers-replace-prompt",
                              "Replace the final prompt line with line numbers"),
@@ -565,6 +569,10 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_doc("cjshopt-smart-cd", "",
                 {make_subcommand("on", "Enable smart cd auto-jumps"),
                  make_subcommand("off", "Disable smart cd auto-jumps"),
+                 make_subcommand("status", "Show current setting")});
+        add_doc("cjshopt-script-extension-interpreter", "",
+                {make_subcommand("on", "Enable extension-based script runners"),
+                 make_subcommand("off", "Disable extension-based script runners"),
                  make_subcommand("status", "Show current setting")});
         add_doc("cjshopt-completion-preview", "",
                 {make_subcommand("on", "Enable completion preview"),

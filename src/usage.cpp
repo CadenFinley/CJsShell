@@ -62,6 +62,7 @@ void print_usage(bool print_version, bool print_hook, bool print_footer) {
         << "  -O, --no-completions       Disable tab completions\n"
         << "      --no-completion-learning Disable on-demand completion learning\n"
         << "      --no-smart-cd          Disable smart cd auto-jumps\n"
+        << "      --no-script-extension-interpreter Disable extension-based script runners\n"
         << "  -S, --no-syntax-highlighting Disable syntax highlighting\n"
         << "  -H, --no-history-expansion Disable history expansion (!commands)\n"
         << "  -W, --no-sh-warning       Suppress the sh invocation warning\n"
