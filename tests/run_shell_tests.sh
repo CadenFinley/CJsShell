@@ -24,7 +24,6 @@ ISOCLINE_TEST_BINARY="${ISOCLINE_TEST_BINARY:-$DEFAULT_ISOCLINE_TEST_BINARY}"
 
 if [ -n "$CI" ] || [ -n "$GITHUB_ACTIONS" ] || [ -n "$CONTINUOUS_INTEGRATION" ]; then
     export CJSH_CI_MODE="true"
-    echo "Running in CI mode - signal and TTY tests may be skipped"
 fi
 
 
