@@ -811,47 +811,7 @@ bool create_profile_file(const std::filesystem::path& target_path) {
         "#!/usr/bin/env cjsh\n"
         "# cjsh Configuration File\n"
         "# this file is sourced when the shell starts in login "
-        "mode and is sourced after ~/.profile\n"
-        "# this file supports full shell scripting capabilities\n"
-        "# Use the 'cjshopt login-startup-arg' command to set "
-        "startup flags conditionally\n"
-        "# Note: login-startup-arg can ONLY be used in configuration files (not at runtime)\n"
-        "\n"
-        "# Example: Conditional startup flags based on environment\n"
-        "# if test -n \"$TMUX\"; then\n"
-        "#     echo \"In tmux session, no flags required\"\n"
-        "# else\n"
-        "#     cjshopt login-startup-arg --no-colors\n"
-        "#     cjshopt login-startup-arg --no-titleline\n"
-        "# fi\n"
-        "\n"
-        "# Available startup flags:\n"
-        "# cjshopt login-startup-arg --login               # Set login mode\n"
-        "# cjshopt login-startup-arg --interactive         # Force interactive "
-        "mode\n"
-        "# cjshopt login-startup-arg --minimal             # Disable all "
-        "unique cjsh "
-        "features (colors, completions, syntax "
-        "highlighting, sourcing, startup time display)\n"
-        "# cjshopt login-startup-arg --no-colors           # Disable colors\n"
-        "# cjshopt login-startup-arg --no-titleline        # Disable title "
-        "line\n"
-        "# cjshopt login-startup-arg --show-startup-time   # Display shell "
-        "startup time\n"
-        "# cjshopt login-startup-arg --no-source           # Don't source the "
-        ".cjshrc "
-        "file\n"
-        "# cjshopt login-startup-arg --no-completions      # Disable tab "
-        "completions\n"
-        "# cjshopt login-startup-arg --no-syntax-highlighting # Disable syntax "
-        "highlighting\n"
-        "# cjshopt login-startup-arg --no-history-expansion # Disable history !! shortcuts\n"
-        "# cjshopt login-startup-arg --no-sh-warning      # Suppress the sh invocation reminder\n"
-        "# cjshopt login-startup-arg --secure             # Skip sourcing profile/rc/logout files\n"
-        "# cjshopt login-startup-arg --startup-test        # Enable startup "
-        "test "
-        "mode\n";
-
+        "mode and is sourced after ~/.profile\n";
     return write_configuration_file(target_path, profile_content);
 }
 
@@ -859,49 +819,7 @@ bool create_source_file(const std::filesystem::path& target_path) {
     std::string source_content =
         "#!/usr/bin/env cjsh\n"
         "# cjsh Source File\n"
-        "# this file is sourced when the shell starts in interactive mode\n"
-        "# this is where your aliases and theme setup will be stored by default.\n"
-        "\n"
-        "# Alias examples\n"
-        "alias ll='ls -la'\n"
-        "\n"
-        "# Syntax highlighting customization examples\n"
-        "# Use 'cjshopt style_def' to customize syntax highlighting colors\n"
-        "# cjshopt style_def builtin \"bold color=#FFB86C\"\n"
-        "# cjshopt style_def system \"color=#50FA7B\"\n"
-        "# cjshopt style_def installed \"color=#8BE9FD\"\n"
-        "# cjshopt style_def comment \"italic color=green\"\n"
-        "# cjshopt style_def string \"color=#F1FA8C\"\n"
-        "# Run 'cjshopt style_def' for more information\n"
-        "\n"
-        "# Key binding customization\n"
-        "# Note: Key bindings can ONLY be modified in configuration files (not at runtime)\n"
-        "# Use 'cjshopt keybind list' to view current bindings\n"
-        "# Available keybind subcommands (for use in config files only):\n"
-        "#   set <action> <keys...>    - Replace bindings for an action\n"
-        "#   add <action> <keys...>    - Add bindings without removing existing ones\n"
-        "#   clear <keys...>           - Remove bindings for specific keys\n"
-        "#   clear-action <action>     - Remove all custom bindings for an action\n"
-        "#   reset                     - Clear all custom bindings and restore defaults\n"
-        "#   profile list              - Show available key binding profiles\n"
-        "#   profile set <name>        - Activate a key binding profile\n"
-        "#\n"
-        "# Examples:\n"
-        "# Map Vim-style cursor movement to Alt+H/J/K/L\n"
-        "# cjshopt keybind set cursor-left alt+h\n"
-        "# cjshopt keybind set cursor-down alt+j\n"
-        "# cjshopt keybind set cursor-up alt+k\n"
-        "# cjshopt keybind set cursor-right alt+l\n"
-        "#\n"
-        "# Switch to the built-in Vim key binding profile\n"
-        "# cjshopt keybind profile set vim\n"
-        "#\n"
-        "# Add additional delete word binding\n"
-        "# cjshopt keybind add delete-word-end ctrl+delete\n"
-        "#\n"
-        "# Run 'cjshopt keybind --help' for more information\n"
-        "\n";
-
+        "# this file is sourced when the shell starts in interactive mode\n";
     return write_configuration_file(target_path, source_content);
 }
 
@@ -910,12 +828,7 @@ bool create_logout_file(const std::filesystem::path& target_path) {
         "#!/usr/bin/env cjsh\n"
         "# cjsh Logout File\n"
         "# this file is sourced when the shell exits from a login "
-        "session\n"
-        "# you can place any cleanup commands or messages here\n"
-        "\n"
-        "# Example: Display a goodbye message\n"
-        "# echo \"Thank you for using cjsh! Goodbye!\"\n";
-
+        "session\n";
     return write_configuration_file(target_path, logout_content);
 }
 
