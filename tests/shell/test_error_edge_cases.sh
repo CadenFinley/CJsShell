@@ -13,7 +13,6 @@ NC='\033[0m'
 
 TESTS_PASSED=0
 TESTS_FAILED=0
-TESTS_SKIPPED=0
 
 pass_test() {
     echo "PASS: $1"
@@ -23,11 +22,6 @@ pass_test() {
 fail_test() {
     echo "FAIL: $1"
     TESTS_FAILED=$((TESTS_FAILED + 1))
-}
-
-skip_test() {
-    echo "SKIP: $1"
-    TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
 }
 
 OUT=$("$CJSH_PATH" -c "" 2>/dev/null)
@@ -49,7 +43,7 @@ OUT=$("$CJSH_PATH" -c "$LONG_CMD" 2>/dev/null)
 if [ $? -eq 0 ]; then
     pass_test "very long command line"
 else
-    skip_test "very long command failed (acceptable)"
+    fail_test "very long command failed (acceptable)"
 fi
 
 "$CJSH_PATH" -c "if" 2>/dev/null
@@ -78,7 +72,7 @@ fi
 if [ $? -ne 0 ]; then
     pass_test "permission denied should error"
 else
-    skip_test "permission test may have succeeded unexpectedly"
+    fail_test "permission test may have succeeded unexpectedly"
 fi
 
 OUT1=$("$CJSH_PATH" -c "echo \$(echo test)" 2>/dev/null)
@@ -94,7 +88,7 @@ OUT=$("$CJSH_PATH" -c "TEST_LONG='$LONG_VAR'; echo \${#TEST_LONG}" 2>/dev/null)
 if [ "$OUT" = "1000" ]; then
     pass_test "long environment variable"
 else
-    skip_test "long environment variable test failed (got '$OUT')"
+    fail_test "long environment variable test failed (got '$OUT')"
 fi
 
 OUT=$("$CJSH_PATH" -c "echo '!@#\$%^&*()_+-={}[]|\\:;\"<>?,./'" 2>/dev/null)
@@ -144,7 +138,7 @@ rm -f /tmp/fake_binary
 if [ $EXIT_CODE -ne 0 ]; then
     pass_test "binary file execution attempt should error"
 else
-    skip_test "binary file execution test behavior varies"
+    fail_test "binary file execution test behavior varies"
 fi
 
 OUT=$("$CJSH_PATH" -c "echo -e 'line1\nline2\tword'" 2>/dev/null)
@@ -156,9 +150,9 @@ fi
 
 echo ""
 echo "=== Test Summary ==="
-TOTAL_TESTS=$((TESTS_PASSED + TESTS_FAILED + TESTS_SKIPPED))
+TOTAL_TESTS=$((TESTS_PASSED + TESTS_FAILED))
 
-if [ $TESTS_FAILED -eq 0 ] && [ $TESTS_SKIPPED -eq 0 ]; then
+if [ $TESTS_FAILED -eq 0 ]; then
     printf "${GREEN}All tests passed! ${NC}($TESTS_PASSED/$TOTAL_TESTS)\n"
     exit 0
 elif [ $TESTS_FAILED -eq 0 ]; then
@@ -166,6 +160,6 @@ elif [ $TESTS_FAILED -eq 0 ]; then
     exit 0
 else
     printf "${RED}Some tests failed. ${NC}($TESTS_PASSED/$TOTAL_TESTS)\n"
-    printf "Passed: ${GREEN}$TESTS_PASSED${NC}, Failed: ${RED}$TESTS_FAILED${NC}, Skipped: ${YELLOW}$TESTS_SKIPPED${NC}\n"
+    printf "Passed: ${GREEN}$TESTS_PASSED${NC}, Failed: ${RED}$TESTS_FAILED${NC}\n"
     exit 1
 fi

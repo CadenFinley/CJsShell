@@ -11,7 +11,6 @@ echo "Test: Error severity levels and errexit_severity option..."
 
 TESTS_PASSED=0
 TESTS_FAILED=0
-TESTS_SKIPPED=0
 
 pass_test() {
     echo "PASS: $1"
@@ -21,11 +20,6 @@ pass_test() {
 fail_test() {
     echo "FAIL: $1"
     TESTS_FAILED=$((TESTS_FAILED + 1))
-}
-
-skip_test() {
-    echo "SKIP: $1"
-    TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
 }
 
 # Test 1: Default errexit behavior (no errexit_severity set)
@@ -221,7 +215,7 @@ if echo "$output" | grep -q "continues_after_notfound"; then
     pass_test "Command not found continues with errexit_severity=critical"
 else
     # Command not found might still be ERROR level, which is fine
-    skip_test "Command not found behavior with errexit_severity=critical"
+    fail_test "Command not found behavior with errexit_severity=critical"
 fi
 rm -f /tmp/cjsh_test_notfound_$$.sh
 
@@ -254,7 +248,7 @@ output=$("$CJSH_PATH" /tmp/cjsh_test_case_$$.sh 2>/dev/null)
 if echo "$output" | grep -q "case_insensitive_works"; then
     pass_test "errexit_severity is case insensitive"
 else
-    skip_test "errexit_severity case sensitivity (implementation detail)"
+    fail_test "errexit_severity case sensitivity (implementation detail)"
 fi
 rm -f /tmp/cjsh_test_case_$$.sh
 
@@ -264,7 +258,7 @@ output=$("$CJSH_PATH" -c "set -o" 2>/dev/null | grep errexit_severity || echo "n
 if echo "$output" | grep -q "error"; then
     pass_test "Default errexit_severity is 'error'"
 else
-    skip_test "Default errexit_severity detection (may vary)"
+    fail_test "Default errexit_severity detection (may vary)"
 fi
 
 # Test 17: Subshell inherits errexit_severity
@@ -278,7 +272,7 @@ output=$("$CJSH_PATH" /tmp/cjsh_test_subshell_$$.sh 2>/dev/null)
 if echo "$output" | grep -q "subshell_continues"; then
     pass_test "Subshell inherits errexit_severity"
 else
-    skip_test "Subshell errexit_severity inheritance (complex behavior)"
+    fail_test "Subshell errexit_severity inheritance (complex behavior)"
 fi
 rm -f /tmp/cjsh_test_subshell_$$.sh
 
@@ -337,7 +331,6 @@ echo "================================"
 echo "Error Severity Summary:"
 echo "  PASSED: $TESTS_PASSED"
 echo "  FAILED: $TESTS_FAILED"
-echo "  SKIPPED: $TESTS_SKIPPED"
 echo "================================"
 
 if [ $TESTS_FAILED -gt 0 ]; then

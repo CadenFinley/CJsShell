@@ -5,7 +5,6 @@
 TOTAL=0
 PASSED=0
 FAILED=0
-SKIPPED=0
 
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 DEFAULT_SHELL="$SCRIPT_DIR/../../build/cjsh"
@@ -44,11 +43,6 @@ pass() {
 fail() {
     FAILED=$((FAILED + 1))
     printf "${RED}FAIL${NC} - %s\n" "$1"
-}
-
-skip() {
-    SKIPPED=$((SKIPPED + 1))
-    printf "${YELLOW}SKIP${NC} - %s\n" "$1"
 }
 
 create_temp_file() {
@@ -170,7 +164,7 @@ if [ $exit_code -eq 126 ]; then
     pass
 else
     if [ $exit_code -eq 127 ]; then
-        skip "System returned 127 instead of 126 for non-executable file"
+        fail "System returned 127 instead of 126 for non-executable file"
     else
         fail "Expected exit code 126 for non-executable file, got $exit_code"
     fi
@@ -185,7 +179,7 @@ if [ $exit_code -eq 126 ]; then
     pass
 else
     if [ $exit_code -eq 127 ]; then
-        skip "System returned 127 instead of 126 for directory execution"
+        fail "System returned 127 instead of 126 for directory execution"
     else
         fail "Expected exit code 126 for directory execution, got $exit_code"
     fi
@@ -244,7 +238,7 @@ if [ $exit_code -eq 130 ]; then
     pass
 else
     if [ $exit_code -ge 128 ] && [ $exit_code -le 143 ]; then
-        skip "Got signal-related exit code $exit_code instead of 130"
+        fail "Got signal-related exit code $exit_code instead of 130"
     else
         fail "Expected exit code 130 for SIGINT, got $exit_code"
     fi
@@ -264,7 +258,7 @@ if [ $exit_code -eq 143 ]; then
     pass
 else
     if [ $exit_code -ge 128 ] && [ $exit_code -le 160 ]; then
-        skip "Got signal-related exit code $exit_code instead of 143"
+        fail "Got signal-related exit code $exit_code instead of 143"
     else
         fail "Expected exit code 143 for SIGTERM, got $exit_code"
     fi
@@ -284,7 +278,7 @@ if [ $exit_code -eq 137 ]; then
     pass
 else
     if [ $exit_code -ge 128 ] && [ $exit_code -le 160 ]; then
-        skip "Got signal-related exit code $exit_code instead of 137"
+        fail "Got signal-related exit code $exit_code instead of 137"
     else
         fail "Expected exit code 137 for SIGKILL, got $exit_code"
     fi
@@ -399,8 +393,6 @@ echo "Exit Code Test Results:"
 echo "  Total tests: $TOTAL"
 echo "  Passed:      ${GREEN}$PASSED${NC}"
 echo "  Failed:      ${RED}$FAILED${NC}"
-echo "  Skipped:     ${YELLOW}$SKIPPED${NC}"
-
 if [ $FAILED -eq 0 ]; then
     echo "  ${GREEN}All exit code tests passed!${NC}"
     exit 0

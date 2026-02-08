@@ -227,7 +227,7 @@ global"
 if [ "$result" = "$expected" ]; then
     pass
 else
-    printf "${YELLOW}SKIP${NC} - 'local' is not strictly POSIX\n"
+    fail "'local' is not strictly POSIX"
 fi
 
 log_test "Command grouping with { }"

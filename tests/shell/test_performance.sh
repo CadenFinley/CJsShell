@@ -9,7 +9,6 @@ echo "Test: performance and stress..."
 
 TESTS_PASSED=0
 TESTS_FAILED=0
-TESTS_SKIPPED=0
 
 pass_test() {
     echo "PASS: $1"
@@ -19,11 +18,6 @@ pass_test() {
 fail_test() {
     echo "FAIL: $1"
     TESTS_FAILED=$((TESTS_FAILED + 1))
-}
-
-skip_test() {
-    echo "SKIP: $1"
-    TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
 }
 
 if date +%s%N >/dev/null 2>&1; then

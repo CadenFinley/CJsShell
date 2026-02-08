@@ -37,10 +37,6 @@ fail() {
     printf "${RED}FAIL${NC} - %s\n" "$1"
 }
 
-skip() {
-    printf "${YELLOW}SKIP${NC} - %s\n" "$1"
-}
-
 if [ ! -x "$SHELL_TO_TEST" ]; then
     echo "Error: Shell '$SHELL_TO_TEST' not found or not executable"
     echo "Usage: $0 [path_to_shell]"
@@ -306,7 +302,7 @@ if command -v ps >/dev/null 2>&1; then
         fail "Resource cleanup may have failed (zombies: before=$zombies_before, after=$zombies_after)"
     fi
 else
-    skip "ps command not available for cleanup verification"
+    fail "ps command not available for cleanup verification"
 fi
 
 log_test "Exit with mixed valid/invalid arguments"

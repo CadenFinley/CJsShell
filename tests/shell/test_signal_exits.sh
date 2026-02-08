@@ -37,10 +37,6 @@ fail() {
     printf "${RED}FAIL${NC} - %s\n" "$1"
 }
 
-skip() {
-    printf "${YELLOW}SKIP${NC} - %s\n" "$1"
-}
-
 count_zombies() {
     if command -v ps >/dev/null 2>&1; then
         count=$(ps axo stat 2>/dev/null | grep '^Z' | wc -l 2>/dev/null || echo 0)
@@ -201,7 +197,7 @@ if command -v ps >/dev/null 2>&1; then
         fail "Shell with background process did not start"
     fi
 else
-    skip "ps command not available"
+    fail "ps command not available"
 fi
 
 log_test "Resource cleanup on forced exit"
@@ -231,13 +227,13 @@ if command -v ps >/dev/null 2>&1; then
         if [ $new_zombies -le 0 ]; then
             pass
         else
-            skip "SIGKILL may prevent proper cleanup (baseline: $BASELINE_ZOMBIES, current: $zombies_after, new: $new_zombies)"
+            fail "SIGKILL may prevent proper cleanup (baseline: $BASELINE_ZOMBIES, current: $zombies_after, new: $new_zombies)"
         fi
     else
         fail "Shell process did not start for emergency cleanup test"
     fi
 else
-    skip "ps command not available"
+    fail "ps command not available"
 fi
 
 log_test "Signal handling preserves command execution"

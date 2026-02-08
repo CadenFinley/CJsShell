@@ -9,7 +9,6 @@ echo "Test: times command..."
 
 TESTS_PASSED=0
 TESTS_FAILED=0
-TESTS_SKIPPED=0
 
 pass_test() {
     echo "PASS: $1"
@@ -19,11 +18,6 @@ pass_test() {
 fail_test() {
     echo "FAIL: $1"
     TESTS_FAILED=$((TESTS_FAILED + 1))
-}
-
-skip_test() {
-    echo "SKIP: $1"
-    TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
 }
 
 "$CJSH_PATH" -c "times" >/dev/null 2>&1
@@ -88,7 +82,7 @@ OUT=$("$CJSH_PATH" -c "times")
 if echo "$OUT" | grep -qE "([0-9]+m)?[0-9]+\.[0-9]+s"; then
     pass_test "times output format valid"
 else
-    skip_test "times output format differs from expected"
+    fail_test "times output format differs from expected"
 fi
 
 OUT1=$("$CJSH_PATH" -c "times" | head -1)
@@ -103,7 +97,7 @@ OUT=$("$CJSH_PATH" -c "times --help" 2>&1)
 if echo "$OUT" | grep -qi "usage\|print.*time"; then
     pass_test "times --help provides usage info"
 else
-    skip_test "times --help format differs"
+    fail_test "times --help format differs"
 fi
 
 "$CJSH_PATH" -c "VAR=before; times >/dev/null; echo \$VAR" > /tmp/times_test_var
@@ -119,8 +113,6 @@ echo ""
 echo "Times Command Tests Summary:"
 echo "Passed: $TESTS_PASSED"
 echo "Failed: $TESTS_FAILED"
-echo "Skipped: $TESTS_SKIPPED"
-
 if [ $TESTS_FAILED -eq 0 ]; then
     echo "PASS"
     exit 0

@@ -4,7 +4,6 @@ echo "Test: pipeline with set -eu and read"
 
 TESTS_PASSED=0
 TESTS_FAILED=0
-TESTS_SKIPPED=0
 
 pass_test() {
     echo "PASS: $1"
@@ -47,8 +46,6 @@ echo ""
 echo "Pipeline Nounset Tests Summary:"
 echo "Passed: $TESTS_PASSED"
 echo "Failed: $TESTS_FAILED"
-echo "Skipped: $TESTS_SKIPPED"
-
 if [ $TESTS_FAILED -eq 0 ]; then
     echo "PASS"
     exit 0

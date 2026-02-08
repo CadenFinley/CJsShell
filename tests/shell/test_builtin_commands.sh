@@ -9,7 +9,6 @@ echo "Test: builtin commands comprehensive..."
 
 TESTS_PASSED=0
 TESTS_FAILED=0
-TESTS_SKIPPED=0
 
 pass_test() {
     echo "PASS: $1"
@@ -19,11 +18,6 @@ pass_test() {
 fail_test() {
     echo "FAIL: $1"
     TESTS_FAILED=$((TESTS_FAILED + 1))
-}
-
-skip_test() {
-    echo "SKIP: $1"
-    TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
 }
 
 OUT=$("$CJSH_PATH" -c "echo 'hello world'")
@@ -298,7 +292,7 @@ OUT=$("$CJSH_PATH" -c "alias testwhichalias='echo test'; which testwhichalias" 2
 if echo "$OUT" | grep -q "aliased"; then
     pass_test "which identifies aliases"
 else
-    skip_test "which identifies aliases (aliases may not be available in test context)"
+    fail_test "which identifies aliases (aliases may not be available in test context)"
 fi
 
 OUT=$("$CJSH_PATH" -c "which -a echo" 2>&1)
@@ -338,7 +332,7 @@ if [ -f "$CJSH_PATH" ]; then
     
     rm -f /tmp/cjsh_which_test.sh
 else
-    skip_test "which handles relative paths (cjsh binary not found for test setup)"
+    fail_test "which handles relative paths (cjsh binary not found for test setup)"
 fi
 
 "$CJSH_PATH" -c "jobs" >/dev/null 2>&1
@@ -364,8 +358,6 @@ echo ""
 echo "Builtin Commands Tests Summary:"
 echo "Passed: $TESTS_PASSED"
 echo "Failed: $TESTS_FAILED"
-echo "Skipped: $TESTS_SKIPPED"
-
 if [ $TESTS_FAILED -eq 0 ]; then
     echo "PASS"
     exit 0

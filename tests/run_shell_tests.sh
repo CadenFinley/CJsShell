@@ -36,14 +36,12 @@ NC='\033[0m'
 TOTAL_FILES=0
 FILES_PASS=0
 FILES_FAIL=0
-FILES_SKIP=0
 WARNINGS=0
 
 
 TOTAL_TESTS=0
 TESTS_PASS=0
 TESTS_FAIL=0
-TESTS_SKIP=0
 ISOCLINE_TEST_RESULT=0
 
 
@@ -95,28 +93,18 @@ run_test() {
         
         subtests_passed=$(printf "%s\n" "$clean_output" | awk 'match($0, /(^|[^A-Za-z0-9_])PASS([^A-Za-z0-9_]|$)/) {count++} END {print count+0}')
         subtests_failed=$(printf "%s\n" "$clean_output" | awk 'match($0, /(^|[^A-Za-z0-9_])FAIL([^A-Za-z0-9_]|$)/) {count++} END {print count+0}')
-        subtests_skipped=$(printf "%s\n" "$clean_output" | awk 'match($0, /(^|[^A-Za-z0-9_])SKIP([^A-Za-z0-9_]|$)/) {count++} END {print count+0}')
-        subtests_total=$((subtests_passed + subtests_failed + subtests_skipped))
+        subtests_total=$((subtests_passed + subtests_failed))
         
         
         TOTAL_TESTS=$((TOTAL_TESTS + subtests_total))
         TESTS_PASS=$((TESTS_PASS + subtests_passed))
         TESTS_FAIL=$((TESTS_FAIL + subtests_failed))
-        TESTS_SKIP=$((TESTS_SKIP + subtests_skipped))
         
         if [ $exit_code -eq 0 ]; then
-            if [ $subtests_skipped -gt 0 ]; then
-                echo "${GREEN}PASS${NC} (${subtests_passed}/${subtests_total}, ${subtests_skipped} skipped)"
-            else
-                echo "${GREEN}PASS${NC} (${subtests_passed}/${subtests_total})"
-            fi
+            echo "${GREEN}PASS${NC} (${subtests_passed}/${subtests_total})"
             FILES_PASS=$((FILES_PASS+1))
         else
-            if [ $subtests_skipped -gt 0 ]; then
-                echo "${RED}FAIL${NC} (${subtests_passed}/${subtests_total}, ${subtests_failed} failed, ${subtests_skipped} skipped)"
-            else
-                echo "${RED}FAIL${NC} (${subtests_passed}/${subtests_total}, ${subtests_failed} failed)"
-            fi
+            echo "${RED}FAIL${NC} (${subtests_passed}/${subtests_total}, ${subtests_failed} failed)"
             
             fail_lines=$(printf "%s\n" "$clean_output" | awk 'match($0, /(^|[^A-Za-z0-9_])FAIL([^A-Za-z0-9_]|$)/) {print}')
             if [ -n "$fail_lines" ]; then
@@ -128,23 +116,14 @@ run_test() {
         fi
         
         
-        if [ $subtests_skipped -gt 0 ]; then
-            skip_lines=$(printf "%s\n" "$clean_output" | awk 'match($0, /(^|[^A-Za-z0-9_])SKIP([^A-Za-z0-9_]|$)/) {print}')
-            if [ -n "$skip_lines" ]; then
-                printf "%s\n" "$skip_lines" | while IFS= read -r line; do
-                    echo "    ${YELLOW}$line${NC}"
-                done
-            fi
-        fi
-        
         
         if printf "%s\n" "$clean_output" | grep -q "WARNING"; then
             WARNINGS=$((WARNINGS+1))
             echo "    ${YELLOW}$(printf "%s\n" "$clean_output" | grep "WARNING")${NC}"
         fi
     else
-        echo "${YELLOW}SKIP${NC} (file not found)"
-        FILES_SKIP=$((FILES_SKIP+1))
+        echo "${RED}FAIL${NC} (file not found)"
+        FILES_FAIL=$((FILES_FAIL+1))
     fi
 }
 
@@ -163,9 +142,6 @@ echo "${GREEN}Passed: $TESTS_PASS${NC}"
 if [ $TESTS_FAIL -gt 0 ]; then
     echo "${RED}Failed: $TESTS_FAIL${NC}"
 fi
-if [ $TESTS_SKIP -gt 0 ]; then
-    echo "${YELLOW}Skipped: $TESTS_SKIP${NC}"
-fi
 echo ""
 echo "Test files: $TOTAL_FILES"
 echo "${GREEN}Files passed: $FILES_PASS${NC}"
@@ -176,17 +152,9 @@ fi
 
 
 if [ $TOTAL_TESTS -gt 0 ]; then
-    TESTS_EXECUTED=$((TOTAL_TESTS - TESTS_SKIP))
-    if [ $TESTS_EXECUTED -gt 0 ]; then
-        
-        PASS_PERCENTAGE=$(awk "BEGIN {printf \"%.2f\", ($TESTS_PASS / $TESTS_EXECUTED) * 100}")
-        echo ""
-        echo "Pass rate: ${PASS_PERCENTAGE}% ($TESTS_PASS/$TESTS_EXECUTED executed tests)"
-    else
-        PASS_PERCENTAGE="0"
-    fi
-else
-    PASS_PERCENTAGE="0"
+    PASS_PERCENTAGE=$(awk "BEGIN {printf \"%.2f\", ($TESTS_PASS / $TOTAL_TESTS) * 100}")
+    echo ""
+    echo "Pass rate: ${PASS_PERCENTAGE}% ($TESTS_PASS/$TOTAL_TESTS executed tests)"
 fi
 
 echo ""

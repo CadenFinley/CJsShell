@@ -5,7 +5,6 @@ echo "Test: elif statement handling..."
 
 TESTS_PASSED=0
 TESTS_FAILED=0
-TESTS_SKIPPED=0
 
 pass_test() {
     echo "PASS: $1"
@@ -15,11 +14,6 @@ pass_test() {
 fail_test() {
     echo "FAIL: $1"
     TESTS_FAILED=$((TESTS_FAILED + 1))
-}
-
-skip_test() {
-    echo "SKIP: $1"
-    TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
 }
 
 OUTPUT=$("$CJSH_PATH" -c "if false; then echo first; elif true; then echo second; else echo third; fi")
@@ -117,14 +111,8 @@ echo
 echo "Elif Statement Test Summary:"
 echo "PASSED: $TESTS_PASSED"
 echo "FAILED: $TESTS_FAILED"
-echo "SKIPPED: $TESTS_SKIPPED"
-
 if [ $TESTS_FAILED -eq 0 ]; then
-    if [ $TESTS_SKIPPED -gt 0 ]; then
-        echo "All non-skipped elif tests passed with some skipped cases."
-    else
-        echo "All elif statement tests passed!"
-    fi
+    echo "All elif statement tests passed!"
     exit 0
 else
     echo "Some elif statement tests failed!"

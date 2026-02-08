@@ -25,10 +25,6 @@ fail() {
     printf "${RED}FAIL${NC} - %s\n" "$1"
 }
 
-skip() {
-    printf "${YELLOW}SKIP${NC} - %s\n" "$1"
-}
-
 if [ ! -x "$CJSH_PATH" ]; then
     echo "${RED}Error: Shell '$CJSH_PATH' not found or not executable${NC}"
     echo "Usage: $0 [path_to_shell]"

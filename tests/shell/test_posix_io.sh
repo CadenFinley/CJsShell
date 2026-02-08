@@ -38,10 +38,6 @@ fail() {
     printf "${RED}FAIL${NC} - %s\n" "$1"
 }
 
-skip() {
-    printf "${YELLOW}SKIP${NC} - %s\n" "$1"
-}
-
 if [ ! -x "$SHELL_TO_TEST" ]; then
     echo "Error: Shell '$SHELL_TO_TEST' not found or not executable"
     echo "Usage: $0 [path_to_shell]"
@@ -223,7 +219,7 @@ if [ $exit_code -ne 0 ]; then
     NOCLOBBER_SUPPORTED=1
     pass
 else
-    skip "Noclobber (set -C) not supported"
+    fail "Noclobber (set -C) not supported"
 fi
 rm -f "/tmp/test_noclobber_$$"
 
@@ -233,7 +229,7 @@ echo "original" > "/tmp/test_noclobber_fd_$$"
 exit_code=$?
 content=$(cat "/tmp/test_noclobber_fd_$$" 2>/dev/null)
 if [ $NOCLOBBER_SUPPORTED -eq 0 ]; then
-    skip "Noclobber (set -C) not supported"
+    fail "Noclobber (set -C) not supported"
 elif [ $exit_code -ne 0 ] && [ "$content" = "original" ]; then
     pass
 else
@@ -248,7 +244,7 @@ result=$(cat "/tmp/test_force_$$" 2>/dev/null)
 if [ "$result" = "new" ]; then
     pass
 else
-    skip "Force overwrite (>|) not supported"
+    fail "Force overwrite (>|) not supported"
 fi
 rm -f "/tmp/test_force_$$"
 
@@ -285,7 +281,7 @@ line2"
 if [ "$result" = "$expected" ]; then
     pass
 else
-    skip "Here document tab stripping (<<-) not supported"
+    fail "Here document tab stripping (<<-) not supported"
 fi
 
 log_test "Pipeline with background"

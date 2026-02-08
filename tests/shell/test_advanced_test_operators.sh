@@ -10,7 +10,6 @@ echo "Test: Advanced test operators (POSIX compliance gaps)..."
 
 TESTS_PASSED=0
 TESTS_FAILED=0
-TESTS_SKIPPED=0
 
 pass_test() {
     echo "PASS: $1"
@@ -20,11 +19,6 @@ pass_test() {
 fail_test() {
     echo "FAIL: $1"
     TESTS_FAILED=$((TESTS_FAILED + 1))
-}
-
-skip_test() {
-    echo "SKIP: $1"
-    TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
 }
 
 TEST_DIR="/tmp/cjsh_test_$$"
@@ -45,7 +39,7 @@ if [ -L symlink_file ]; then
         fail_test "test -L (symbolic link detection) - not implemented"
     fi
 else
-    skip_test "test -L (symbolic link) - system doesn't support symlinks"
+    fail_test "test -L (symbolic link) - system doesn't support symlinks"
 fi
 
 echo "Test -p operator for named pipes"
@@ -57,7 +51,7 @@ if [ -p named_pipe ]; then
         fail_test "test -p (named pipe detection) - not implemented"
     fi
 else
-    skip_test "test -p (named pipe) - system doesn't support named pipes"
+    fail_test "test -p (named pipe) - system doesn't support named pipes"
 fi
 
 echo "Test -b operator for block devices"
@@ -92,7 +86,7 @@ if [ -n "$BLOCK_DEV" ]; then
         fail_test "test -b (block device detection) - not implemented"
     fi
 else
-    skip_test "test -b (block device) - no block device found"
+    fail_test "test -b (block device) - no block device found"
 fi
 
 echo "Test -c operator for character devices"
@@ -104,7 +98,7 @@ if [ -c /dev/null ]; then
         fail_test "test -c (character device detection) - not implemented"
     fi
 else
-    skip_test "test -c (character device) - /dev/null not found"
+    fail_test "test -c (character device) - /dev/null not found"
 fi
 
 echo "Test -u operator for setuid bit"
@@ -124,7 +118,7 @@ if [ -n "$SETUID_FILE" ]; then
         fail_test "test -u (setuid bit detection) - not implemented"
     fi
 else
-    skip_test "test -u (setuid bit) - no setuid file found"
+    fail_test "test -u (setuid bit) - no setuid file found"
 fi
 
 echo "Test -k operator for sticky bit"
@@ -139,7 +133,7 @@ if [ -k sticky_dir ]; then
         fail_test "test -k (sticky bit detection) - not implemented"
     fi
 else
-    skip_test "test -k (sticky bit) - cannot set sticky bit on test directory"
+    fail_test "test -k (sticky bit) - cannot set sticky bit on test directory"
 fi
 
 echo "Test -nt operator for file comparison"
@@ -155,7 +149,7 @@ if [ newer_file -nt older_file ]; then
         fail_test "test -nt (newer than comparison) - not implemented"
     fi
 else
-    skip_test "test -nt - file timestamp comparison not working in reference shell"
+    fail_test "test -nt - file timestamp comparison not working in reference shell"
 fi
 
 echo "Test -ot operator for file comparison"
@@ -167,7 +161,7 @@ if [ older_file -ot newer_file ]; then
         fail_test "test -ot (older than comparison) - not implemented"
     fi
 else
-    skip_test "test -ot - file timestamp comparison not working in reference shell"
+    fail_test "test -ot - file timestamp comparison not working in reference shell"
 fi
 
 echo "Test -ef operator for file equality"
@@ -181,7 +175,7 @@ if [ -f hardlink_file ] && [ regular_file -ef hardlink_file ]; then
         fail_test "test -ef (same file comparison) - not implemented"
     fi
 else
-    skip_test "test -ef - hard links not supported or reference shell doesn't support -ef"
+    fail_test "test -ef - hard links not supported or reference shell doesn't support -ef"
 fi
 
 cd /
@@ -192,7 +186,6 @@ echo "================================"
 echo "Advanced Test Operators Summary:"
 echo "  PASSED: $TESTS_PASSED"
 echo "  FAILED: $TESTS_FAILED"
-echo "  SKIPPED: $TESTS_SKIPPED"
 echo "================================"
 
 if [ $TESTS_FAILED -gt 0 ]; then

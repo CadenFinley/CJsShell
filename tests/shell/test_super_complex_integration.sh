@@ -15,7 +15,6 @@ fi
 TOTAL=0
 PASSED=0
 FAILED=0
-SKIPPED=0
 
 pass() {
   PASSED=$((PASSED + 1))
@@ -25,11 +24,6 @@ pass() {
 fail() {
   FAILED=$((FAILED + 1))
   printf "FAIL: %s\n       Expected: [%s]\n       Got: [%s]\n" "$1" "$2" "$3"
-}
-
-skip() {
-  SKIPPED=$((SKIPPED + 1))
-  printf "SKIP: %s -- %s\n" "$1" "$2"
 }
 
 expect_output() {
@@ -1011,8 +1005,6 @@ rm -f "$COMPLEX_SCRIPT"
 printf "Total Tests:    %3d\n" "$TOTAL"
 printf "Passed:         %3d (%.1f%%)\n" "$PASSED" "$((PASSED * 100 / (TOTAL > 0 ? TOTAL : 1)))"
 printf "Failed:         %3d (%.1f%%)\n" "$FAILED" "$((FAILED * 100 / (TOTAL > 0 ? TOTAL : 1)))"
-printf "Skipped:        %3d (%.1f%%)\n" "$SKIPPED" "$((SKIPPED * 100 / (TOTAL > 0 ? TOTAL : 1)))"
-
 if [ "$FAILED" -eq 0 ]; then
     echo "SUCCESS: cjsh passed all tests"
     exit 0

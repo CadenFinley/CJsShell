@@ -4,7 +4,6 @@ echo "Test: nested and chained if statements..."
 
 TESTS_PASSED=0
 TESTS_FAILED=0
-TESTS_SKIPPED=0
 
 pass_test() {
     echo "PASS: $1"
@@ -125,8 +124,6 @@ echo
 echo "Nested and Chained If Test Summary:"
 echo "PASSED: $TESTS_PASSED"
 echo "FAILED: $TESTS_FAILED"
-echo "SKIPPED: $TESTS_SKIPPED"
-
 if [ $TESTS_FAILED -eq 0 ]; then
     echo "All nested if tests passed!"
     exit 0

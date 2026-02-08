@@ -45,10 +45,6 @@ fail() {
     printf "${RED}FAIL${NC} - %s\n" "$1"
 }
 
-skip() {
-    printf "${YELLOW}SKIP${NC} - %s\n" "$1"
-}
-
 if [ ! -x "$SHELL_TO_TEST" ]; then
     echo "Error: Shell '$SHELL_TO_TEST' not found or not executable"
     echo "Usage: $0 [path_to_shell]"
@@ -129,7 +125,7 @@ if echo "$result" | grep -q "alarm"; then
     SIGALRM_SUPPORTED=1
     pass
 else
-    skip "SIGALRM trapping not implemented"
+    fail "SIGALRM trapping not implemented"
 fi
 
 log_test "Signal trapping with trap (SIGINT)"
@@ -154,12 +150,12 @@ if echo "$result" | grep -q "abrtcaught"; then
     SIGABRT_SUPPORTED=1
     pass
 else
-    skip "SIGABRT trapping not implemented"
+    fail "SIGABRT trapping not implemented"
 fi
 
 log_test "Signal trapping with trap (SIGALRM) without child signals"
 if [ $SIGALRM_SUPPORTED -eq 0 ]; then
-    skip "SIGALRM trapping not implemented"
+    fail "SIGALRM trapping not implemented"
 else
     result=$("$SHELL_TO_TEST" -c "trap 'echo alarm' ALRM
 kill -ALRM \$\$
@@ -173,7 +169,7 @@ fi
 
 log_test "Signal trapping with trap (SIGABRT) without child signals"
 if [ $SIGABRT_SUPPORTED -eq 0 ]; then
-    skip "SIGABRT trapping not implemented"
+    fail "SIGABRT trapping not implemented"
 else
     result=$("$SHELL_TO_TEST" -c "trap 'echo abrtcaught' ABRT
 kill -ABRT \$\$
@@ -501,19 +497,19 @@ if command -v ps >/dev/null 2>&1; then
                 fi
             else
                 kill -9 $test_pid 2>/dev/null
-                skip "Could not verify process stopped state"
+                fail "Could not verify process stopped state"
             fi
             kill -9 $shell_pid 2>/dev/null
         else
             kill -9 $shell_pid 2>/dev/null
-            skip "Test process not running"
+            fail "Test process not running"
         fi
     else
-        skip "Could not create test process"
+        fail "Could not create test process"
     fi
     rm -f /tmp/sigcont_pid_$$
 else
-    skip "ps command not available"
+    fail "ps command not available"
 fi
 
 log_test "SIGTSTP handling in background jobs"
@@ -521,7 +517,7 @@ result=$("$SHELL_TO_TEST" -c "trap 'echo tstp' TSTP; kill -TSTP \$\$; sleep 0.1;
 if echo "$result" | grep -q "tstp\|done"; then
     pass
 else
-    skip "SIGTSTP handling complex in non-interactive mode"
+    fail "SIGTSTP handling complex in non-interactive mode"
 fi
 
 log_test "Ctrl+Z stop notification"
@@ -554,11 +550,11 @@ if command -v pgrep >/dev/null 2>&1; then
         fi
     else
         kill -9 "$shell_pid" 2>/dev/null
-        skip "Could not identify child process for Ctrl+Z test"
+        fail "Could not identify child process for Ctrl+Z test"
     fi
     rm -f "$ctrlz_output"
 else
-    skip "pgrep not available for Ctrl+Z test"
+    fail "pgrep not available for Ctrl+Z test"
 fi
 
 log_test "jobs reports stopped state"
@@ -592,7 +588,7 @@ result=$("$SHELL_TO_TEST" -c "trap 'echo ttin' TTIN; kill -TTIN \$\$; sleep 0.1;
 if echo "$result" | grep -q "done"; then
     pass
 else
-    skip "SIGTTIN complex in non-interactive mode"
+    fail "SIGTTIN complex in non-interactive mode"
 fi
 
 log_test "SIGTTOU handling"
@@ -600,7 +596,7 @@ result=$("$SHELL_TO_TEST" -c "trap 'echo ttou' TTOU; kill -TTOU \$\$; sleep 0.1;
 if echo "$result" | grep -q "done"; then
     pass
 else
-    skip "SIGTTOU complex in non-interactive mode"
+    fail "SIGTTOU complex in non-interactive mode"
 fi
 
 log_test "SIGCHLD handling with child termination"

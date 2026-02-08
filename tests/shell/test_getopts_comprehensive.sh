@@ -9,7 +9,6 @@ echo "Test: getopts comprehensive..."
 
 TESTS_PASSED=0
 TESTS_FAILED=0
-TESTS_SKIPPED=0
 
 pass_test() {
     echo "PASS: $1"
@@ -19,11 +18,6 @@ pass_test() {
 fail_test() {
     echo "FAIL: $1"
     TESTS_FAILED=$((TESTS_FAILED + 1))
-}
-
-skip_test() {
-    echo "SKIP: $1"
-    TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
 }
 
 cat > /tmp/test_getopts1.sh << 'EOF'
@@ -160,7 +154,7 @@ OUT=$("$CJSH_PATH" /tmp/test_getopts7.sh -a)
 if echo "$OUT" | grep -q "missing_arg"; then
     pass_test "getopts silent error mode"
 else
-    skip_test "getopts silent error mode (implementation dependent)"
+    fail_test "getopts silent error mode (implementation dependent)"
 fi
 rm -f /tmp/test_getopts7.sh
 
@@ -268,7 +262,7 @@ OUT=$("$CJSH_PATH" /tmp/test_getopts12.sh -1 arg -2)
 EXPECTED="one=arg
 two"
 if [ "$OUT" != "$EXPECTED" ]; then
-    skip_test "getopts numeric options (not all shells support this)"
+    fail_test "getopts numeric options (not all shells support this)"
 else
     pass_test "getopts numeric options"
 fi
@@ -278,8 +272,6 @@ echo ""
 echo "Getopts Comprehensive Tests Summary:"
 echo "Passed: $TESTS_PASSED"
 echo "Failed: $TESTS_FAILED"
-echo "Skipped: $TESTS_SKIPPED"
-
 if [ $TESTS_FAILED -eq 0 ]; then
     echo "PASS"
     exit 0

@@ -9,7 +9,6 @@ echo "Test: performance and resource usage..."
 
 TESTS_PASSED=0
 TESTS_FAILED=0
-TESTS_SKIPPED=0
 
 pass_test() {
     echo "PASS: $1"
@@ -19,11 +18,6 @@ pass_test() {
 fail_test() {
     echo "FAIL: $1"
     TESTS_FAILED=$((TESTS_FAILED + 1))
-}
-
-skip_test() {
-    echo "SKIP: $1"
-    TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
 }
 
 command_exists() {
@@ -39,7 +33,7 @@ startup_time=$((($end_time - $start_time) / 1000000))  # Convert to milliseconds
 if [ $startup_time -lt 1000 ]; then  # Less than 1 second
     pass_test "startup time reasonable (${startup_time}ms)"
 else
-    skip_test "startup time (${startup_time}ms, may be system dependent)"
+    fail_test "startup time (${startup_time}ms, may be system dependent)"
 fi
 
 echo "Testing memory usage..."
@@ -55,13 +49,13 @@ if command_exists ps; then
         if [ -n "$memory_kb" ] && [ "$memory_kb" -lt 50000 ]; then  # Less than 50MB
             pass_test "memory usage reasonable (${memory_kb}KB)"
         else
-            skip_test "memory usage (${memory_kb}KB, may be system dependent)"
+            fail_test "memory usage (${memory_kb}KB, may be system dependent)"
         fi
     else
-        skip_test "memory measurement (process not found)"
+        fail_test "memory measurement (process not found)"
     fi
 else
-    skip_test "memory usage test (ps not available)"
+    fail_test "memory usage test (ps not available)"
 fi
 
 echo "Testing command execution speed..."
@@ -76,7 +70,7 @@ avg_time=$((total_time / 10))
 if [ $avg_time -lt 100 ]; then  # Less than 100ms per command
     pass_test "command execution speed (${avg_time}ms avg)"
 else
-    skip_test "command execution speed (${avg_time}ms avg, may be system dependent)"
+    fail_test "command execution speed (${avg_time}ms avg, may be system dependent)"
 fi
 
 echo "Testing large output handling..."
@@ -148,7 +142,7 @@ if [ $? -eq 0 ]; then
     if [ $process_time -lt 500 ]; then  # Less than 500ms for 5 commands
         pass_test "process creation overhead (${process_time}ms)"
     else
-        skip_test "process creation overhead (${process_time}ms, may be system dependent)"
+        fail_test "process creation overhead (${process_time}ms, may be system dependent)"
     fi
 else
     fail_test "process creation test"
@@ -208,7 +202,7 @@ if [ $? -eq 0 ] && grep -q "1000" /tmp/stress_test.out; then
     if [ $stress_time -lt 5000 ]; then  # Less than 5 seconds
         pass_test "stress test with loops (${stress_time}ms)"
     else
-        skip_test "stress test (${stress_time}ms, may be slow system)"
+        fail_test "stress test (${stress_time}ms, may be slow system)"
     fi
 else
     fail_test "stress test with loops"
@@ -224,7 +218,7 @@ if [ $? -eq 0 ] && grep -q "long running done" /tmp/long_running.out; then
     if [ $long_time -gt 1800 ] && [ $long_time -lt 2500 ]; then
         pass_test "long-running command handling (${long_time}ms)"
     else
-        skip_test "long-running command timing (${long_time}ms)"
+        fail_test "long-running command timing (${long_time}ms)"
     fi
 else
     fail_test "long-running command handling"
@@ -239,8 +233,6 @@ echo ""
 echo "Performance and Resource Usage Tests Summary:"
 echo "Passed: $TESTS_PASSED"
 echo "Failed: $TESTS_FAILED"
-echo "Skipped: $TESTS_SKIPPED"
-
 if [ $TESTS_FAILED -eq 0 ]; then
     echo "PASS"
     exit 0

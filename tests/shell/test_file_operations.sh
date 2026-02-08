@@ -9,7 +9,6 @@ echo "Test: file operations and I/O..."
 
 TESTS_PASSED=0
 TESTS_FAILED=0
-TESTS_SKIPPED=0
 
 pass_test() {
     echo "PASS: $1"
@@ -19,11 +18,6 @@ pass_test() {
 fail_test() {
     echo "FAIL: $1"
     TESTS_FAILED=$((TESTS_FAILED + 1))
-}
-
-skip_test() {
-    echo "SKIP: $1"
-    TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
 }
 
 TEST_DIR=$(mktemp -d)
@@ -103,14 +97,14 @@ if [ -f "dest.txt" ]; then
         fail_test "cp command content"
     fi
 else
-    skip_test "cp command not available"
+    fail_test "cp command not available"
 fi
 
 "$CJSH_PATH" -c "chmod 644 source.txt" 2>/dev/null
 if [ $? -eq 0 ]; then
     pass_test "chmod command"
 else
-    skip_test "chmod command failed (may not be available)"
+    fail_test "chmod command failed (may not be available)"
 fi
 
 OUT=$("$CJSH_PATH" -c "pwd")
@@ -137,9 +131,9 @@ rm -rf "$TEST_DIR"
 
 echo ""
 echo "=== Test Summary ==="
-TOTAL_TESTS=$((TESTS_PASSED + TESTS_FAILED + TESTS_SKIPPED))
+TOTAL_TESTS=$((TESTS_PASSED + TESTS_FAILED))
 
-if [ $TESTS_FAILED -eq 0 ] && [ $TESTS_SKIPPED -eq 0 ]; then
+if [ $TESTS_FAILED -eq 0 ]; then
     printf "${GREEN}All tests passed! ${NC}($TESTS_PASSED/$TOTAL_TESTS)\n"
     exit 0
 elif [ $TESTS_FAILED -eq 0 ]; then
@@ -147,6 +141,6 @@ elif [ $TESTS_FAILED -eq 0 ]; then
     exit 0
 else
     printf "${RED}Some tests failed. ${NC}($TESTS_PASSED/$TOTAL_TESTS)\n"
-    printf "Passed: ${GREEN}$TESTS_PASSED${NC}, Failed: ${RED}$TESTS_FAILED${NC}, Skipped: ${YELLOW}$TESTS_SKIPPED${NC}\n"
+    printf "Passed: ${GREEN}$TESTS_PASSED${NC}, Failed: ${RED}$TESTS_FAILED${NC}\n"
     exit 1
 fi

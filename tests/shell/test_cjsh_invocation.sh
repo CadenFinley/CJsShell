@@ -10,7 +10,6 @@ echo "Test: cjsh invocation behavior..."
 
 TESTS_PASSED=0
 TESTS_FAILED=0
-TESTS_SKIPPED=0
 
 pass_test() {
     echo "PASS: $1"
@@ -71,7 +70,7 @@ fi
 
 echo ""
 echo "=== Test Summary ==="
-TOTAL_TESTS=$((TESTS_PASSED + TESTS_FAILED + TESTS_SKIPPED))
+TOTAL_TESTS=$((TESTS_PASSED + TESTS_FAILED))
 if [ $TESTS_FAILED -eq 0 ]; then
     echo "All tests passed! ($TESTS_PASSED/$TOTAL_TESTS)"
     exit 0

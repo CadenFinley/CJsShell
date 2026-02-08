@@ -9,7 +9,6 @@ echo "Test: which command comprehensive..."
 
 TESTS_PASSED=0
 TESTS_FAILED=0
-TESTS_SKIPPED=0
 
 pass_test() {
     echo "PASS: $1"
@@ -19,11 +18,6 @@ pass_test() {
 fail_test() {
     echo "FAIL: $1"
     TESTS_FAILED=$((TESTS_FAILED + 1))
-}
-
-skip_test() {
-    echo "SKIP: $1"
-    TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
 }
 
 echo "Test 1: Basic which functionality..."
@@ -71,7 +65,7 @@ OUT=$("$CJSH_PATH" -c "which cat" 2>&1)
 if [ $? -eq 0 ] && echo "$OUT" | grep -E "^/" > /dev/null; then
     pass_test "which finds external executables"
 elif echo "$OUT" | grep -q "not found"; then
-    skip_test "which finds external executables (cat not available on system)"
+    fail_test "which finds external executables (cat not available on system)"
 else
     fail_test "which finds external executables (output: '$OUT')"
 fi
@@ -129,8 +123,6 @@ echo ""
 echo "Which Command Tests Summary:"
 echo "Passed: $TESTS_PASSED"
 echo "Failed: $TESTS_FAILED"
-echo "Skipped: $TESTS_SKIPPED"
-
 if [ $TESTS_FAILED -eq 0 ]; then
     echo "PASS"
     exit 0

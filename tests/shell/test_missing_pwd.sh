@@ -10,7 +10,6 @@ echo "Test: resilience when the working directory vanishes"
 
 TESTS_PASSED=0
 TESTS_FAILED=0
-TESTS_SKIPPED=0
 
 pass_test() {
     echo "PASS: $1"
@@ -22,14 +21,9 @@ fail_test() {
     TESTS_FAILED=$((TESTS_FAILED + 1))
 }
 
-skip_test() {
-    echo "SKIP: $1"
-    TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
-}
-
 ensure_cjsh_available() {
     if [ ! -x "$CJSH_PATH" ]; then
-        skip_test "cjsh binary not found at $CJSH_PATH"
+        fail_test "cjsh binary not found at $CJSH_PATH"
         return 1
     fi
     return 0
@@ -114,6 +108,4 @@ fi
 echo ""
 echo "Passed: $TESTS_PASSED"
 echo "Failed: $TESTS_FAILED"
-echo "Skipped: $TESTS_SKIPPED"
-
 exit $TESTS_FAILED

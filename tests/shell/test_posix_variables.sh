@@ -37,10 +37,6 @@ fail() {
     printf "${RED}FAIL${NC} - %s\n" "$1"
 }
 
-skip() {
-    printf "${YELLOW}SKIP${NC} - %s\n" "$1"
-}
-
 if [ ! -x "$SHELL_TO_TEST" ]; then
     echo "Error: Shell '$SHELL_TO_TEST' not found or not executable"
     echo "Usage: $0 [path_to_shell]"

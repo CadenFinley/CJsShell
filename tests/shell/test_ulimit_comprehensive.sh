@@ -9,7 +9,6 @@ echo "Test: ulimit comprehensive..."
 
 TESTS_PASSED=0
 TESTS_FAILED=0
-TESTS_SKIPPED=0
 
 pass_test() {
     echo "PASS: $1"
@@ -19,11 +18,6 @@ pass_test() {
 fail_test() {
     echo "FAIL: $1"
     TESTS_FAILED=$((TESTS_FAILED + 1))
-}
-
-skip_test() {
-    echo "SKIP: $1"
-    TESTS_SKIPPED=$((TESTS_SKIPPED + 1))
 }
 
 is_number() {
@@ -66,7 +60,6 @@ if [ $SOFT_STATUS -ne 0 ] || ! is_valid_limit "$ORIG_SOFT"; then
     echo "Ulimit Comprehensive Tests Summary:"
     echo "Passed: $TESTS_PASSED"
     echo "Failed: $TESTS_FAILED"
-    echo "Skipped: $TESTS_SKIPPED"
     echo "FAIL"
     exit 1
 fi
@@ -145,7 +138,6 @@ choose_test_soft() {
 #     if [ "$NEW_SOFT" = "$TEST_SOFT" ]; then
 #         pass_test "ulimit -Sn sets new soft limit"
 #     else
-#         skip_test "unable to test in non interactive setting: ulimit -Sn did not reflect new soft limit (expected $TEST_SOFT, got $NEW_SOFT)"
 #     fi
 # else
 #     fail_test "ulimit -Sn failed to set new soft limit: $SET_OUT"
@@ -159,7 +151,6 @@ choose_test_soft() {
 #     if [ "$HARD_SOFT" = "$ORIG_HARD" ]; then
 #         pass_test "ulimit -Sn hard matches hard limit"
 #     else
-#         skip_test "unable to test in non interactive setting: ulimit -Sn hard mismatch (expected $ORIG_HARD, got $HARD_SOFT)"
 #     fi
 # else
 #     fail_test "ulimit -Sn hard failed: $HARD_SET_OUT"
@@ -240,8 +231,6 @@ echo ""
 echo "Ulimit Comprehensive Tests Summary:"
 echo "Passed: $TESTS_PASSED"
 echo "Failed: $TESTS_FAILED"
-echo "Skipped: $TESTS_SKIPPED"
-
 if [ $TESTS_FAILED -eq 0 ]; then
     echo "PASS"
     exit 0
