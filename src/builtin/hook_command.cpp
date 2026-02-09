@@ -28,13 +28,37 @@
 
 #include "hook_command.h"
 
+#include <cstdint>
 #include <iostream>
+#include <optional>
 
 #include "builtin_help.h"
 #include "error_out.h"
 #include "shell.h"
 
 namespace {
+enum class HookSubcommand : std::uint8_t {
+    List,
+    Clear,
+    Add,
+    Remove
+};
+
+std::optional<HookSubcommand> parse_hook_subcommand(const std::string& command) {
+    if (command == "list") {
+        return HookSubcommand::List;
+    }
+    if (command == "clear") {
+        return HookSubcommand::Clear;
+    }
+    if (command == "add") {
+        return HookSubcommand::Add;
+    }
+    if (command == "remove") {
+        return HookSubcommand::Remove;
+    }
+    return std::nullopt;
+}
 
 std::optional<HookType> parse_hook_type_arg(const std::string& hook_type) {
     return parse_hook_type(hook_type);
@@ -74,8 +98,17 @@ int hook_command(const std::vector<std::string>& args, Shell* shell) {
     }
 
     const std::string& command = args[1];
+    auto subcommand = parse_hook_subcommand(command);
+    if (!subcommand.has_value()) {
+        ErrorInfo error = {ErrorType::INVALID_ARGUMENT,
+                           "hook",
+                           "unknown command '" + command + "'",
+                           {"Valid commands: add, remove, list, clear"}};
+        print_error(error);
+        return 1;
+    }
 
-    if (command == "list") {
+    if (*subcommand == HookSubcommand::List) {
         if (args.size() == 2) {
             bool found_any = false;
             for (const auto& descriptor : get_hook_type_descriptors()) {
@@ -117,7 +150,7 @@ int hook_command(const std::vector<std::string>& args, Shell* shell) {
         return 0;
     }
 
-    if (command == "clear") {
+    if (*subcommand == HookSubcommand::Clear) {
         if (args.size() < 3) {
             ErrorInfo error = {ErrorType::INVALID_ARGUMENT,
                                "hook",
@@ -142,7 +175,7 @@ int hook_command(const std::vector<std::string>& args, Shell* shell) {
         return 0;
     }
 
-    if (command == "add") {
+    if (*subcommand == HookSubcommand::Add) {
         if (args.size() < 4) {
             ErrorInfo error = {ErrorType::INVALID_ARGUMENT,
                                "hook",
@@ -169,7 +202,7 @@ int hook_command(const std::vector<std::string>& args, Shell* shell) {
         return 0;
     }
 
-    if (command == "remove") {
+    if (*subcommand == HookSubcommand::Remove) {
         if (args.size() < 4) {
             ErrorInfo error = {ErrorType::INVALID_ARGUMENT,
                                "hook",
@@ -195,11 +228,4 @@ int hook_command(const std::vector<std::string>& args, Shell* shell) {
         shell->unregister_hook(*hook_type, function_name);
         return 0;
     }
-
-    ErrorInfo error = {ErrorType::INVALID_ARGUMENT,
-                       "hook",
-                       "unknown command '" + command + "'",
-                       {"Valid commands: add, remove, list, clear"}};
-    print_error(error);
-    return 1;
 }

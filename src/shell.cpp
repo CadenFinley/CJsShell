@@ -71,18 +71,22 @@ constexpr std::array<ShellOptionDescriptor, static_cast<size_t>(ShellOption::Cou
                                 {ShellOption::Huponexit, 0, "huponexit"},
                                 {ShellOption::Pipefail, 0, "pipefail"}}};
 
+struct ErrexitSeverityDescriptor {
+    ErrorSeverity severity;
+    const char* name;
+};
+
+constexpr std::array<ErrexitSeverityDescriptor, 4> kErrexitSeverityDescriptors = {
+    {{ErrorSeverity::INFO, "info"},
+     {ErrorSeverity::WARNING, "warning"},
+     {ErrorSeverity::ERROR, "error"},
+     {ErrorSeverity::CRITICAL, "critical"}}};
+
 std::optional<ErrorSeverity> parse_errexit_severity_value(const std::string& value) {
-    if (value == "info") {
-        return ErrorSeverity::INFO;
-    }
-    if (value == "warning") {
-        return ErrorSeverity::WARNING;
-    }
-    if (value == "error") {
-        return ErrorSeverity::ERROR;
-    }
-    if (value == "critical") {
-        return ErrorSeverity::CRITICAL;
+    for (const auto& descriptor : kErrexitSeverityDescriptors) {
+        if (value == descriptor.name) {
+            return descriptor.severity;
+        }
     }
     return std::nullopt;
 }

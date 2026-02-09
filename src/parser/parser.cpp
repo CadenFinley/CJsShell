@@ -37,9 +37,11 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <map>
+#include <optional>
 #include <stdexcept>
 #include <string_view>
 #include <utility>
@@ -99,6 +101,151 @@ bool Command::has_fd_duplication(int fd) const {
 }
 
 namespace {
+enum class ControlWord : std::uint8_t {
+    If,
+    For,
+    While,
+    Until,
+    Case,
+    Fi,
+    Done,
+    Esac
+};
+
+std::optional<ControlWord> parse_control_word(std::string_view word) {
+    if (word == "if") {
+        return ControlWord::If;
+    }
+    if (word == "for") {
+        return ControlWord::For;
+    }
+    if (word == "while") {
+        return ControlWord::While;
+    }
+    if (word == "until") {
+        return ControlWord::Until;
+    }
+    if (word == "case") {
+        return ControlWord::Case;
+    }
+    if (word == "fi") {
+        return ControlWord::Fi;
+    }
+    if (word == "done") {
+        return ControlWord::Done;
+    }
+    if (word == "esac") {
+        return ControlWord::Esac;
+    }
+    return std::nullopt;
+}
+
+bool is_opening_control_word(ControlWord word) {
+    switch (word) {
+        case ControlWord::If:
+        case ControlWord::For:
+        case ControlWord::While:
+        case ControlWord::Until:
+        case ControlWord::Case:
+            return true;
+        case ControlWord::Fi:
+        case ControlWord::Done:
+        case ControlWord::Esac:
+            return false;
+    }
+    return false;
+}
+
+bool is_closing_control_word(ControlWord word) {
+    switch (word) {
+        case ControlWord::Fi:
+        case ControlWord::Done:
+        case ControlWord::Esac:
+            return true;
+        case ControlWord::If:
+        case ControlWord::For:
+        case ControlWord::While:
+        case ControlWord::Until:
+        case ControlWord::Case:
+            return false;
+    }
+    return false;
+}
+
+enum class RedirectionToken : std::uint8_t {
+    Input,
+    Output,
+    Append,
+    ForceOutput,
+    BothOutput,
+    HereDoc,
+    HereDocStrip,
+    HereString,
+    StderrOutput,
+    StderrAppend,
+    StderrToStdout,
+    StdoutToStderr
+};
+
+std::optional<RedirectionToken> parse_redirection_token(std::string_view token) {
+    if (token == "<") {
+        return RedirectionToken::Input;
+    }
+    if (token == ">") {
+        return RedirectionToken::Output;
+    }
+    if (token == ">>") {
+        return RedirectionToken::Append;
+    }
+    if (token == ">|") {
+        return RedirectionToken::ForceOutput;
+    }
+    if (token == "&>") {
+        return RedirectionToken::BothOutput;
+    }
+    if (token == "<<") {
+        return RedirectionToken::HereDoc;
+    }
+    if (token == "<<-") {
+        return RedirectionToken::HereDocStrip;
+    }
+    if (token == "<<<") {
+        return RedirectionToken::HereString;
+    }
+    if (token == "2>") {
+        return RedirectionToken::StderrOutput;
+    }
+    if (token == "2>>") {
+        return RedirectionToken::StderrAppend;
+    }
+    if (token == "2>&1") {
+        return RedirectionToken::StderrToStdout;
+    }
+    if (token == ">&2") {
+        return RedirectionToken::StdoutToStderr;
+    }
+    return std::nullopt;
+}
+
+bool redirection_requires_value(RedirectionToken token) {
+    switch (token) {
+        case RedirectionToken::Input:
+        case RedirectionToken::Output:
+        case RedirectionToken::Append:
+        case RedirectionToken::ForceOutput:
+        case RedirectionToken::BothOutput:
+        case RedirectionToken::HereDoc:
+        case RedirectionToken::HereDocStrip:
+        case RedirectionToken::HereString:
+        case RedirectionToken::StderrOutput:
+        case RedirectionToken::StderrAppend:
+            return true;
+        case RedirectionToken::StderrToStdout:
+        case RedirectionToken::StdoutToStderr:
+            return false;
+    }
+    return false;
+}
 
 bool is_simple_command_candidate(std::string_view cmdline) {
     bool seen_non_space = false;
@@ -316,10 +463,17 @@ bool Parser::is_control_word_at_position(const std::string& command, size_t i, i
         j++;
     }
 
-    if (word == "if" || word == "for" || word == "while" || word == "until" || word == "case") {
+    auto control_word = parse_control_word(word);
+    if (!control_word.has_value()) {
+        return false;
+    }
+
+    if (is_opening_control_word(*control_word)) {
         control_depth++;
         return true;
-    } else if ((word == "fi" || word == "done" || word == "esac") && control_depth > 0) {
+    }
+
+    if (is_closing_control_word(*control_word) && control_depth > 0) {
         control_depth--;
         return true;
     }
@@ -1269,14 +1423,26 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                         for (size_t i = 0; i < merged_redir.size(); ++i) {
                             QuoteInfo qi_redir(merged_redir[i]);
                             const std::string& tok = qi_redir.value;
-                            if (tok == "2>&1") {
-                                cmd.stderr_to_stdout = true;
-                            } else if (tok == ">&2") {
-                                cmd.stdout_to_stderr = true;
-                            } else if ((tok == "2>" || tok == "2>>") &&
-                                       i + 1 < merged_redir.size()) {
-                                cmd.stderr_file = QuoteInfo(merged_redir[++i]).value;
-                                cmd.stderr_append = (tok == "2>>");
+                            auto redir = parse_redirection_token(tok);
+                            if (redir.has_value()) {
+                                switch (*redir) {
+                                    case RedirectionToken::StderrToStdout:
+                                        cmd.stderr_to_stdout = true;
+                                        break;
+                                    case RedirectionToken::StdoutToStderr:
+                                        cmd.stdout_to_stderr = true;
+                                        break;
+                                    case RedirectionToken::StderrOutput:
+                                    case RedirectionToken::StderrAppend:
+                                        if (i + 1 < merged_redir.size()) {
+                                            cmd.stderr_file = QuoteInfo(merged_redir[++i]).value;
+                                            cmd.stderr_append =
+                                                (*redir == RedirectionToken::StderrAppend);
+                                        }
+                                        break;
+                                    default:
+                                        break;
+                                }
                             }
                         }
                     }
@@ -1339,10 +1505,8 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
 
         for (size_t i = 0; i < tokens.size(); ++i) {
             QuoteInfo qi(tokens[i]);
-            if ((qi.value == "<" || qi.value == ">" || qi.value == ">>" || qi.value == ">|" ||
-                 qi.value == "&>" || qi.value == "<<" || qi.value == "<<-" || qi.value == "<<<" ||
-                 qi.value == "2>" || qi.value == "2>>") &&
-                (i + 1 >= tokens.size())) {
+            auto redir = parse_redirection_token(qi.value);
+            if (redir.has_value() && redirection_requires_value(*redir) && i + 1 >= tokens.size()) {
                 throw std::runtime_error("cjsh: syntax error near unexpected token `newline'");
             }
         }
@@ -1352,29 +1516,45 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
         for (size_t i = 0; i < tokens.size(); ++i) {
             QuoteInfo qi(tokens[i]);
 
-            if (qi.value == "<" && i + 1 < tokens.size()) {
-                cmd.input_file = get_next_token_value(i);
-            } else if (qi.value == ">" && i + 1 < tokens.size()) {
-                cmd.output_file = get_next_token_value(i);
-            } else if (qi.value == ">>" && i + 1 < tokens.size()) {
-                cmd.append_file = get_next_token_value(i);
-            } else if (qi.value == ">|" && i + 1 < tokens.size()) {
-                cmd.output_file = get_next_token_value(i);
-                cmd.force_overwrite = true;
-            } else if (qi.value == "&>" && i + 1 < tokens.size()) {
-                cmd.both_output_file = get_next_token_value(i);
-                cmd.both_output = true;
-            } else if ((qi.value == "<<" || qi.value == "<<-") && i + 1 < tokens.size()) {
-                cmd.here_doc = get_next_token_value(i);
-            } else if (qi.value == "<<<" && i + 1 < tokens.size()) {
-                cmd.here_string = get_next_token_value(i);
-            } else if ((qi.value == "2>" || qi.value == "2>>") && i + 1 < tokens.size()) {
-                cmd.stderr_file = get_next_token_value(i);
-                cmd.stderr_append = (qi.value == "2>>");
-            } else if (qi.value == "2>&1") {
-                cmd.stderr_to_stdout = true;
-            } else if (qi.value == ">&2") {
-                cmd.stdout_to_stderr = true;
+            auto redir = parse_redirection_token(qi.value);
+            if (redir.has_value()) {
+                switch (*redir) {
+                    case RedirectionToken::Input:
+                        cmd.input_file = get_next_token_value(i);
+                        break;
+                    case RedirectionToken::Output:
+                        cmd.output_file = get_next_token_value(i);
+                        break;
+                    case RedirectionToken::Append:
+                        cmd.append_file = get_next_token_value(i);
+                        break;
+                    case RedirectionToken::ForceOutput:
+                        cmd.output_file = get_next_token_value(i);
+                        cmd.force_overwrite = true;
+                        break;
+                    case RedirectionToken::BothOutput:
+                        cmd.both_output_file = get_next_token_value(i);
+                        cmd.both_output = true;
+                        break;
+                    case RedirectionToken::HereDoc:
+                    case RedirectionToken::HereDocStrip:
+                        cmd.here_doc = get_next_token_value(i);
+                        break;
+                    case RedirectionToken::HereString:
+                        cmd.here_string = get_next_token_value(i);
+                        break;
+                    case RedirectionToken::StderrOutput:
+                    case RedirectionToken::StderrAppend:
+                        cmd.stderr_file = get_next_token_value(i);
+                        cmd.stderr_append = (*redir == RedirectionToken::StderrAppend);
+                        break;
+                    case RedirectionToken::StderrToStdout:
+                        cmd.stderr_to_stdout = true;
+                        break;
+                    case RedirectionToken::StdoutToStderr:
+                        cmd.stdout_to_stderr = true;
+                        break;
+                }
             } else if (handle_fd_duplication_token(qi.value)) {
                 continue;
             } else if (handle_fd_redirection(qi.value, i, tokens, cmd, filtered_args)) {

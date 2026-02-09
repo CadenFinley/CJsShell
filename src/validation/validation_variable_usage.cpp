@@ -33,6 +33,7 @@
 #include "validation_common.h"
 
 #include <cctype>
+#include <cstdint>
 #include <cstring>
 #include <map>
 #include <string>
@@ -45,6 +46,87 @@ using shell_script_interpreter::detail::trim;
 using namespace shell_validation::internal;
 
 namespace {
+
+enum class SeparatorToken : std::uint8_t {
+    Semicolon,
+    DoubleSemicolon,
+    Pipe,
+    Or,
+    Amp,
+    And,
+    LParen,
+    RParen,
+    LBrace,
+    RBrace,
+    Do,
+    Then,
+    Elif,
+    Fi,
+    Done
+};
+
+const char* separator_token_text(SeparatorToken token) {
+    switch (token) {
+        case SeparatorToken::Semicolon:
+            return ";";
+        case SeparatorToken::DoubleSemicolon:
+            return ";;";
+        case SeparatorToken::Pipe:
+            return "|";
+        case SeparatorToken::Or:
+            return "||";
+        case SeparatorToken::Amp:
+            return "&";
+        case SeparatorToken::And:
+            return "&&";
+        case SeparatorToken::LParen:
+            return "(";
+        case SeparatorToken::RParen:
+            return ")";
+        case SeparatorToken::LBrace:
+            return "{";
+        case SeparatorToken::RBrace:
+            return "}";
+        case SeparatorToken::Do:
+            return "do";
+        case SeparatorToken::Then:
+            return "then";
+        case SeparatorToken::Elif:
+            return "elif";
+        case SeparatorToken::Fi:
+            return "fi";
+        case SeparatorToken::Done:
+            return "done";
+    }
+    return "";
+}
+
+enum class KeywordToken : std::uint8_t {
+    If,
+    Elif,
+    While,
+    Until,
+    Then,
+    Do
+};
+
+const char* keyword_token_text(KeywordToken token) {
+    switch (token) {
+        case KeywordToken::If:
+            return "if";
+        case KeywordToken::Elif:
+            return "elif";
+        case KeywordToken::While:
+            return "while";
+        case KeywordToken::Until:
+            return "until";
+        case KeywordToken::Then:
+            return "then";
+        case KeywordToken::Do:
+            return "do";
+    }
+    return "";
+}
 
 struct TokenInfo {
     std::string text;
@@ -117,10 +199,17 @@ std::vector<TokenInfo> tokenize_shell_segment(const std::string& text, size_t st
 }
 
 bool is_command_separator_token(const std::string& token) {
-    static const char* const separators[] = {";", ";;", "|",  "||",   "&",    "&&", "(",   ")",
-                                             "{", "}",  "do", "then", "elif", "fi", "done"};
-    for (const char* sep : separators) {
-        if (token == sep) {
+    static const SeparatorToken separators[] = {
+        SeparatorToken::Semicolon, SeparatorToken::DoubleSemicolon,
+        SeparatorToken::Pipe,      SeparatorToken::Or,
+        SeparatorToken::Amp,       SeparatorToken::And,
+        SeparatorToken::LParen,    SeparatorToken::RParen,
+        SeparatorToken::LBrace,    SeparatorToken::RBrace,
+        SeparatorToken::Do,        SeparatorToken::Then,
+        SeparatorToken::Elif,      SeparatorToken::Fi,
+        SeparatorToken::Done};
+    for (const auto sep : separators) {
+        if (token == separator_token_text(sep)) {
             return true;
         }
     }
@@ -235,24 +324,28 @@ void detect_keyword_assignments(const std::string& line_without_comments,
                                 size_t display_line,
                                 std::map<std::string, std::vector<size_t>>& defined_vars) {
     struct KeywordInfo {
-        const char* keyword;
-        const char* terminator;
+        KeywordToken keyword;
+        KeywordToken terminator;
     };
 
-    static const KeywordInfo kKeywordInfos[] = {
-        {"if", "then"}, {"elif", "then"}, {"while", "do"}, {"until", "do"}};
+    static const KeywordInfo kKeywordInfos[] = {{KeywordToken::If, KeywordToken::Then},
+                                                {KeywordToken::Elif, KeywordToken::Then},
+                                                {KeywordToken::While, KeywordToken::Do},
+                                                {KeywordToken::Until, KeywordToken::Do}};
 
     for (const auto& info : kKeywordInfos) {
-        if (!starts_with_keyword_token(trimmed_line, info.keyword)) {
+        const char* keyword_text = keyword_token_text(info.keyword);
+        const char* terminator_text = keyword_token_text(info.terminator);
+        if (!starts_with_keyword_token(trimmed_line, keyword_text)) {
             continue;
         }
 
-        size_t keyword_pos = line_without_comments.find(info.keyword);
+        size_t keyword_pos = line_without_comments.find(keyword_text);
         if (keyword_pos == std::string::npos) {
             continue;
         }
 
-        size_t command_start = keyword_pos + std::strlen(info.keyword);
+        size_t command_start = keyword_pos + std::strlen(keyword_text);
         while (
             command_start < line_without_comments.size() &&
             (std::isspace(static_cast<unsigned char>(line_without_comments[command_start])) != 0)) {
@@ -260,7 +353,7 @@ void detect_keyword_assignments(const std::string& line_without_comments,
         }
 
         size_t command_end =
-            find_unquoted_keyword(line_without_comments, info.terminator, command_start);
+            find_unquoted_keyword(line_without_comments, terminator_text, command_start);
         if (command_end == std::string::npos) {
             command_end = line_without_comments.size();
         }

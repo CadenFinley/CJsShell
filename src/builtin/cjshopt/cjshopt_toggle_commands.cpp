@@ -30,6 +30,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdint>
 #include <functional>
 #include <initializer_list>
 #include <iostream>
@@ -44,6 +45,17 @@
 #include "shell_env.h"
 
 namespace {
+enum class ToggleRequest : std::uint8_t {
+    Enable,
+    Disable,
+    Status
+};
+
+enum class StatusQuery : std::uint8_t {
+    Status,
+    Value
+};
+
 struct ToggleCommandConfig {
     std::string command_name;
     std::vector<std::string> usage_lines;
@@ -68,29 +80,35 @@ bool matches_token(const std::string& value, std::initializer_list<const char*> 
                        [&](const char* token) { return value == token; });
 }
 
-bool parse_toggle_value(const ToggleCommandConfig& config, const std::string& normalized,
-                        bool* enable) {
+std::optional<ToggleRequest> parse_toggle_request(const ToggleCommandConfig& config,
+                                                  const std::string& normalized) {
+    if (matches_token(normalized, {"status", "--status"})) {
+        return ToggleRequest::Status;
+    }
     if (matches_token(normalized, {"on", "enable", "enabled", "true", "1", "--enable"})) {
-        *enable = true;
-        return true;
+        return ToggleRequest::Enable;
     }
     if (matches_token(normalized, {"off", "disable", "disabled", "false", "0", "--disable"})) {
-        *enable = false;
-        return true;
+        return ToggleRequest::Disable;
     }
 
     if (std::any_of(config.true_synonyms.begin(), config.true_synonyms.end(),
                     [&](const std::string& token) { return normalized == token; })) {
-        *enable = true;
-        return true;
+        return ToggleRequest::Enable;
     }
     if (std::any_of(config.false_synonyms.begin(), config.false_synonyms.end(),
                     [&](const std::string& token) { return normalized == token; })) {
-        *enable = false;
-        return true;
+        return ToggleRequest::Disable;
     }
 
-    return false;
+    return std::nullopt;
+}
+
+StatusQuery parse_status_query(const std::string& normalized) {
+    if (matches_token(normalized, {"status", "--status"})) {
+        return StatusQuery::Status;
+    }
+    return StatusQuery::Value;
 }
 
 std::string format_persist_message(const ToggleCommandConfig& config, bool enable) {
@@ -190,7 +208,14 @@ int handle_toggle_command(const ToggleCommandConfig& config, const std::vector<s
     const std::string& option = args[1];
     const std::string normalized = normalize_option(option);
 
-    if (normalized == "status" || normalized == "--status") {
+    auto request = parse_toggle_request(config, normalized);
+    if (!request.has_value()) {
+        print_error({ErrorType::INVALID_ARGUMENT, config.command_name,
+                     "Unknown option '" + option + "'", config.usage_lines});
+        return 1;
+    }
+
+    if (*request == ToggleRequest::Status) {
         if (!g_startup_active) {
             const char* verb = config.status_label_is_plural ? "are" : "is";
             std::cout << config.status_label << ' ' << verb << " currently "
@@ -199,12 +224,7 @@ int handle_toggle_command(const ToggleCommandConfig& config, const std::vector<s
         return 0;
     }
 
-    bool enable = false;
-    if (!parse_toggle_value(config, normalized, &enable)) {
-        print_error({ErrorType::INVALID_ARGUMENT, config.command_name,
-                     "Unknown option '" + option + "'", config.usage_lines});
-        return 1;
-    }
+    bool enable = (*request == ToggleRequest::Enable);
 
     const bool previously_enabled = config.get_current();
     if (previously_enabled == enable) {
@@ -415,7 +435,38 @@ int line_numbers_command(const std::vector<std::string>& args) {
     const std::string& option = args[1];
     const std::string normalized = normalize_option(option);
 
-    if (matches_token(normalized, {"status", "--status"})) {
+    enum class LineNumbersMode : std::uint8_t {
+        Status,
+        Off,
+        Relative,
+        Absolute
+    };
+
+    auto parse_line_numbers_mode = [&](const std::string& value) -> std::optional<LineNumbersMode> {
+        if (matches_token(value, {"status", "--status"})) {
+            return LineNumbersMode::Status;
+        }
+        if (matches_token(value, {"off", "disable", "disabled", "false", "0", "--disable"})) {
+            return LineNumbersMode::Off;
+        }
+        if (matches_token(value, {"relative", "rel", "--relative"})) {
+            return LineNumbersMode::Relative;
+        }
+        if (matches_token(value, {"absolute", "abs", "--absolute"}) ||
+            matches_token(value, {"on", "enable", "enabled", "true", "1", "--enable"})) {
+            return LineNumbersMode::Absolute;
+        }
+        return std::nullopt;
+    };
+
+    auto mode = parse_line_numbers_mode(normalized);
+    if (!mode.has_value()) {
+        print_error({ErrorType::INVALID_ARGUMENT, "line-numbers", "Unknown option '" + option + "'",
+                     usage_lines});
+        return 1;
+    }
+
+    if (*mode == LineNumbersMode::Status) {
         if (!g_startup_active) {
             std::cout << describe_status() << '\n';
         }
@@ -426,21 +477,22 @@ int line_numbers_command(const std::vector<std::string>& args) {
     const bool was_relative = ic_line_numbers_are_relative();
     bool changed = false;
 
-    if (matches_token(normalized, {"off", "disable", "disabled", "false", "0", "--disable"})) {
-        ic_enable_line_numbers(false);
-        changed = (was_enabled || was_relative);
-    } else if (matches_token(normalized, {"relative", "rel", "--relative"})) {
-        ic_enable_relative_line_numbers(true);
-        changed = (!was_enabled || !was_relative);
-    } else if (matches_token(normalized, {"absolute", "abs", "--absolute"}) ||
-               matches_token(normalized, {"on", "enable", "enabled", "true", "1", "--enable"})) {
-        ic_enable_line_numbers(true);
-        ic_enable_relative_line_numbers(false);
-        changed = (!was_enabled || was_relative);
-    } else {
-        print_error({ErrorType::INVALID_ARGUMENT, "line-numbers", "Unknown option '" + option + "'",
-                     usage_lines});
-        return 1;
+    switch (*mode) {
+        case LineNumbersMode::Off:
+            ic_enable_line_numbers(false);
+            changed = (was_enabled || was_relative);
+            break;
+        case LineNumbersMode::Relative:
+            ic_enable_relative_line_numbers(true);
+            changed = (!was_enabled || !was_relative);
+            break;
+        case LineNumbersMode::Absolute:
+            ic_enable_line_numbers(true);
+            ic_enable_relative_line_numbers(false);
+            changed = (!was_enabled || was_relative);
+            break;
+        case LineNumbersMode::Status:
+            break;
     }
 
     if (!g_startup_active && changed) {
@@ -536,7 +588,7 @@ int hint_delay_command(const std::vector<std::string>& args) {
     std::transform(normalized.begin(), normalized.end(), normalized.begin(),
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 
-    if (normalized == "status" || normalized == "--status") {
+    if (parse_status_query(normalized) == StatusQuery::Status) {
         if (!g_startup_active) {
             std::cout << "To check or modify hint delay, use: hint-delay <milliseconds>\n";
         }
@@ -599,7 +651,7 @@ int multiline_start_lines_command(const std::vector<std::string>& args) {
     std::transform(normalized.begin(), normalized.end(), normalized.begin(),
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 
-    if (normalized == "status" || normalized == "--status") {
+    if (parse_status_query(normalized) == StatusQuery::Status) {
         if (!g_startup_active) {
             const size_t current = ic_get_multiline_start_line_count();
             std::cout << "Multiline prompts currently start with " << current << " line"
@@ -829,7 +881,41 @@ int status_hints_command(const std::vector<std::string>& args) {
     const std::string& option = args[1];
     const std::string normalized = normalize_option(option);
 
-    if (matches_token(normalized, {"status", "--status"})) {
+    enum class StatusHintsMode : std::uint8_t {
+        Status,
+        Off,
+        Normal,
+        Transient,
+        Persistent
+    };
+
+    auto parse_status_hints_mode = [&](const std::string& value) -> std::optional<StatusHintsMode> {
+        if (matches_token(value, {"status", "--status"})) {
+            return StatusHintsMode::Status;
+        }
+        if (matches_token(value, {"off", "disable", "disabled", "never", "hidden", "--disable"})) {
+            return StatusHintsMode::Off;
+        }
+        if (matches_token(value, {"normal", "minimal", "empty-only", "default"})) {
+            return StatusHintsMode::Normal;
+        }
+        if (matches_token(value, {"transient", "auto"})) {
+            return StatusHintsMode::Transient;
+        }
+        if (matches_token(value, {"persistent", "always", "always-on", "on"})) {
+            return StatusHintsMode::Persistent;
+        }
+        return std::nullopt;
+    };
+
+    auto mode = parse_status_hints_mode(normalized);
+    if (!mode.has_value()) {
+        print_error({ErrorType::INVALID_ARGUMENT, "status-hints", "Unknown option '" + option + "'",
+                     usage_lines});
+        return 1;
+    }
+
+    if (*mode == StatusHintsMode::Status) {
         if (!g_startup_active) {
             if (config::status_line_enabled) {
                 std::cout << "Status hints are currently "
@@ -844,24 +930,21 @@ int status_hints_command(const std::vector<std::string>& args) {
     }
 
     ic_status_hint_mode_t target = IC_STATUS_HINT_NORMAL;
-    bool recognized = true;
-
-    if (matches_token(normalized, {"off", "disable", "disabled", "never", "hidden", "--disable"})) {
-        target = IC_STATUS_HINT_OFF;
-    } else if (matches_token(normalized, {"normal", "minimal", "empty-only", "default"})) {
-        target = IC_STATUS_HINT_NORMAL;
-    } else if (matches_token(normalized, {"transient", "auto"})) {
-        target = IC_STATUS_HINT_TRANSIENT;
-    } else if (matches_token(normalized, {"persistent", "always", "always-on", "on"})) {
-        target = IC_STATUS_HINT_PERSISTENT;
-    } else {
-        recognized = false;
-    }
-
-    if (!recognized) {
-        print_error({ErrorType::INVALID_ARGUMENT, "status-hints", "Unknown option '" + option + "'",
-                     usage_lines});
-        return 1;
+    switch (*mode) {
+        case StatusHintsMode::Off:
+            target = IC_STATUS_HINT_OFF;
+            break;
+        case StatusHintsMode::Normal:
+            target = IC_STATUS_HINT_NORMAL;
+            break;
+        case StatusHintsMode::Transient:
+            target = IC_STATUS_HINT_TRANSIENT;
+            break;
+        case StatusHintsMode::Persistent:
+            target = IC_STATUS_HINT_PERSISTENT;
+            break;
+        case StatusHintsMode::Status:
+            break;
     }
 
     const bool preference_changed = (g_status_hint_preference != target);

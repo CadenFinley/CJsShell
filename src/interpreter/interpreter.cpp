@@ -36,6 +36,7 @@
 #include <algorithm>
 #include <cctype>
 #include <csignal>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
@@ -82,6 +83,133 @@ using shell_script_interpreter::detail::strip_inline_comment;
 using shell_script_interpreter::detail::trim;
 
 namespace {
+enum class LogicalOperator : std::uint8_t {
+    And,
+    Or
+};
+
+std::optional<LogicalOperator> parse_logical_operator(std::string_view op) {
+    if (op == "&&") {
+        return LogicalOperator::And;
+    }
+    if (op == "||") {
+        return LogicalOperator::Or;
+    }
+    return std::nullopt;
+}
+
+enum class StatementKeyword : std::uint8_t {
+    If,
+    For,
+    While,
+    Until,
+    Case
+};
+
+bool starts_with_keyword(std::string_view text, std::string_view keyword) {
+    if (text == keyword) {
+        return true;
+    }
+    if (text.size() <= keyword.size()) {
+        return false;
+    }
+    if (text.compare(0, keyword.size(), keyword) != 0) {
+        return false;
+    }
+    return std::isspace(static_cast<unsigned char>(text[keyword.size()])) != 0;
+}
+
+std::optional<StatementKeyword> parse_statement_keyword_prefix(std::string_view text) {
+    if (starts_with_keyword(text, "if")) {
+        return StatementKeyword::If;
+    }
+    if (starts_with_keyword(text, "for")) {
+        return StatementKeyword::For;
+    }
+    if (starts_with_keyword(text, "while")) {
+        return StatementKeyword::While;
+    }
+    if (starts_with_keyword(text, "until")) {
+        return StatementKeyword::Until;
+    }
+    if (starts_with_keyword(text, "case")) {
+        return StatementKeyword::Case;
+    }
+    return std::nullopt;
+}
+
+bool is_statement_keyword_prefix(std::string_view text, StatementKeyword keyword) {
+    auto parsed = parse_statement_keyword_prefix(text);
+    return parsed.has_value() && *parsed == keyword;
+}
+
+bool is_loop_keyword(StatementKeyword keyword) {
+    switch (keyword) {
+        case StatementKeyword::For:
+        case StatementKeyword::While:
+        case StatementKeyword::Until:
+            return true;
+        case StatementKeyword::If:
+        case StatementKeyword::Case:
+            return false;
+    }
+    return false;
+}
+
+enum class RedirectOperator : std::uint8_t {
+    Input,
+    Output,
+    Append,
+    ForceOutput,
+    HereDoc,
+    HereDocStrip,
+    HereString,
+    BothOutput,
+    ReadWrite,
+    DupInput,
+    DupOutput
+};
+
+std::optional<RedirectOperator> parse_redirect_operator(std::string_view token) {
+    if (token == "<") {
+        return RedirectOperator::Input;
+    }
+    if (token == ">") {
+        return RedirectOperator::Output;
+    }
+    if (token == ">>") {
+        return RedirectOperator::Append;
+    }
+    if (token == ">|") {
+        return RedirectOperator::ForceOutput;
+    }
+    if (token == "<<") {
+        return RedirectOperator::HereDoc;
+    }
+    if (token == "<<-") {
+        return RedirectOperator::HereDocStrip;
+    }
+    if (token == "<<<") {
+        return RedirectOperator::HereString;
+    }
+    if (token == "&>") {
+        return RedirectOperator::BothOutput;
+    }
+    if (token == "<>") {
+        return RedirectOperator::ReadWrite;
+    }
+    if (token == "<&") {
+        return RedirectOperator::DupInput;
+    }
+    if (token == ">&") {
+        return RedirectOperator::DupOutput;
+    }
+    return std::nullopt;
+}
+
+bool redirect_requires_operand(RedirectOperator) {
+    return true;
+}
 
 int report_error_with_code(ErrorType type, ErrorSeverity severity, const std::string& command,
                            const std::string& message, const std::vector<std::string>& suggestions,
@@ -427,11 +555,15 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                     if (idx > 0) {
                         const std::string& prev_op = logical_cmds[idx - 1].op;
                         bool is_control_flow = is_control_flow_exit_code(logical_status);
-                        if (prev_op == "&&" && logical_status != 0 && !is_control_flow) {
-                            continue;
-                        }
-                        if (prev_op == "||" && logical_status == 0) {
-                            continue;
+                        auto op = parse_logical_operator(prev_op);
+                        if (op.has_value()) {
+                            if (*op == LogicalOperator::And && logical_status != 0 &&
+                                !is_control_flow) {
+                                continue;
+                            }
+                            if (*op == LogicalOperator::Or && logical_status == 0) {
+                                continue;
+                            }
                         }
                         if (is_control_flow) {
                             break;
@@ -473,12 +605,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
             auto raw_tokens = Tokenizer::tokenize_command(text);
             auto merged_tokens = Tokenizer::merge_redirection_tokens(raw_tokens);
             if (!merged_tokens.empty()) {
-                static const std::unordered_set<std::string> kRedirectOperators = {
-                    "<", ">", ">>", ">|", "<<", "<<-", "<<<", "&>", "<>", "<&", ">&"};
-
                 auto requires_operand = [&](const std::string& token) -> bool {
-                    if (kRedirectOperators.count(token) > 0) {
-                        return true;
+                    if (auto redirect = parse_redirect_operator(token)) {
+                        return redirect_requires_operand(*redirect);
                     }
                     size_t digits = 0;
                     while (digits < token.size() &&
@@ -489,11 +618,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                         return false;
                     }
                     std::string suffix = token.substr(digits);
-                    if (kRedirectOperators.count(suffix) > 0) {
-                        return true;
-                    }
-                    if (suffix == ">" || suffix == ">>" || suffix == "<" || suffix == "<<") {
-                        return true;
+                    if (auto redirect = parse_redirect_operator(suffix)) {
+                        return redirect_requires_operand(*redirect);
                     }
                     return false;
                 };
@@ -530,7 +656,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
             if (has_multiple_commands) {
                 bool looks_like_case =
                     !trimmed_text.empty() &&
-                    (trimmed_text.rfind("case ", 0) == 0 || trimmed_text == "case");
+                    is_statement_keyword_prefix(trimmed_text, StatementKeyword::Case);
                 if (looks_like_case) {
                     has_multiple_commands = false;
                     has_redir_or_pipe = false;
@@ -557,10 +683,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                         return execute_block(nested_lines);
                     }
 
-                    if (prog == "if" || prog.rfind("if ", 0) == 0 || prog == "for" ||
-                        prog.rfind("for ", 0) == 0 || prog == "while" ||
-                        prog.rfind("while ", 0) == 0 || prog == "until" ||
-                        prog.rfind("until ", 0) == 0) {
+                    auto stmt_keyword = parse_statement_keyword_prefix(prog);
+                    if (stmt_keyword.has_value() && *stmt_keyword != StatementKeyword::Case) {
                         std::vector<std::string> block_lines;
                         if (shell_parser) {
                             block_lines = shell_parser->parse_into_lines(text);
@@ -607,7 +731,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
             throw;
         }
 
-        if (!has_multiple_commands && (text == "case" || text.rfind("case ", 0) == 0) &&
+        if (!has_multiple_commands && is_statement_keyword_prefix(text, StatementKeyword::Case) &&
             text.find("esac") == std::string::npos) {
             std::string completed_case = text + ";; esac";
             return execute_simple_or_pipeline(completed_case);
@@ -771,7 +895,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
 
     auto handle_case_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
         std::string first = trim(strip_inline_comment(src_lines[idx]));
-        if (first != "case" && first.rfind("case ", 0) != 0)
+        if (!is_statement_keyword_prefix(first, StatementKeyword::Case))
             return 1;
 
         if (auto inline_case_result = try_handle_inline_case(first, true)) {
@@ -811,7 +935,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
 
         std::vector<std::string> expanded_tokens = shell_parser->parse_command(expanded_header);
         size_t tok_idx = 0;
-        if (tok_idx < expanded_tokens.size() && expanded_tokens[tok_idx] == "case")
+        if (tok_idx < expanded_tokens.size() &&
+            is_statement_keyword_prefix(expanded_tokens[tok_idx], StatementKeyword::Case))
             ++tok_idx;
 
         std::string raw_case_value;
@@ -928,11 +1053,11 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
             }
 
             std::string after_pipe = trim(line.substr(pipe_pos + 1));
-            bool is_loop_keyword = after_pipe.rfind("while", 0) == 0 ||
-                                   after_pipe.rfind("until", 0) == 0 ||
-                                   after_pipe.rfind("for", 0) == 0;
+            auto loop_keyword = parse_statement_keyword_prefix(after_pipe);
+            bool is_loop_keyword_prefix =
+                loop_keyword.has_value() && is_loop_keyword(*loop_keyword);
 
-            if (!is_loop_keyword) {
+            if (!is_loop_keyword_prefix) {
                 pipe_search_pos = pipe_pos + 1;
                 continue;
             }
@@ -1016,11 +1141,14 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                 const std::string& prev_op = lcmds[i - 1].op;
 
                 bool is_control_flow = is_control_flow_exit_code(last_code);
-                if (prev_op == "&&" && last_code != 0 && !is_control_flow) {
-                    continue;
-                }
-                if (prev_op == "||" && last_code == 0) {
-                    continue;
+                auto op = parse_logical_operator(prev_op);
+                if (op.has_value()) {
+                    if (*op == LogicalOperator::And && last_code != 0 && !is_control_flow) {
+                        continue;
+                    }
+                    if (*op == LogicalOperator::Or && last_code == 0) {
+                        continue;
+                    }
                 }
 
                 if (is_control_flow) {
@@ -1037,7 +1165,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                 continue;
             }
 
-            if ((trimmed_cmd == "if" || trimmed_cmd.rfind("if ", 0) == 0) &&
+            if (is_statement_keyword_prefix(trimmed_cmd, StatementKeyword::If) &&
                 (trimmed_cmd.find("; then") != std::string::npos) &&
                 (trimmed_cmd.find(" fi") != std::string::npos ||
                  trimmed_cmd.find("; fi") != std::string::npos ||
@@ -1049,7 +1177,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                 continue;
             }
 
-            if ((trimmed_cmd == "case" || trimmed_cmd.rfind("case ", 0) == 0) &&
+            if (is_statement_keyword_prefix(trimmed_cmd, StatementKeyword::Case) &&
                 (trimmed_cmd.find(" in ") != std::string::npos) &&
                 (trimmed_cmd.find("esac") != std::string::npos)) {
                 size_t local_idx = 0;
@@ -1139,7 +1267,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                         }
                     }
 
-                    if ((t.rfind("for ", 0) == 0 || t == "for") &&
+                    if (is_statement_keyword_prefix(t, StatementKeyword::For) &&
                         t.find("; do") != std::string::npos) {
                         size_t local_idx = 0;
                         std::vector<std::string> one{t};
@@ -1147,7 +1275,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                         last_code = code;
                         continue;
                     }
-                    if ((t.rfind("while ", 0) == 0 || t == "while") &&
+                    if (is_statement_keyword_prefix(t, StatementKeyword::While) &&
                         t.find("; do") != std::string::npos) {
                         size_t local_idx = 0;
                         std::vector<std::string> one{t};
@@ -1155,7 +1283,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                         last_code = code;
                         continue;
                     }
-                    if ((t.rfind("until ", 0) == 0 || t == "until") &&
+                    if (is_statement_keyword_prefix(t, StatementKeyword::Until) &&
                         t.find("; do") != std::string::npos) {
                         size_t local_idx = 0;
                         std::vector<std::string> one{t};
@@ -1164,7 +1292,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                         continue;
                     }
 
-                    if ((t.rfind("if ", 0) == 0 || t == "if") &&
+                    if (is_statement_keyword_prefix(t, StatementKeyword::If) &&
                         t.find("; then") != std::string::npos &&
                         t.find(" fi") != std::string::npos) {
                         size_t local_idx = 0;
@@ -1174,14 +1302,14 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                         continue;
                     }
 
-                    if ((t.rfind("for ", 0) == 0 || t == "for")) {
+                    if (is_statement_keyword_prefix(t, StatementKeyword::For)) {
                         if (auto inline_result = loop_evaluator::try_execute_inline_do_block(
                                 t, semis, k, handle_for_block)) {
                             last_code = *inline_result;
                             break;
                         }
                     }
-                    if ((t.rfind("while ", 0) == 0 || t == "while")) {
+                    if (is_statement_keyword_prefix(t, StatementKeyword::While)) {
                         if (auto inline_result = loop_evaluator::try_execute_inline_do_block(
                                 t, semis, k, handle_while_block)) {
                             last_code = *inline_result;
@@ -1189,7 +1317,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                         }
                     }
 
-                    if ((t.rfind("until ", 0) == 0 || t == "until")) {
+                    if (is_statement_keyword_prefix(t, StatementKeyword::Until)) {
                         if (auto inline_result = loop_evaluator::try_execute_inline_do_block(
                                 t, semis, k, handle_until_block)) {
                             last_code = *inline_result;

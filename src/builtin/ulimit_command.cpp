@@ -36,15 +36,22 @@
 #include <algorithm>
 #include <cctype>
 #include <cerrno>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <iomanip>
 #include <iostream>
 #include <limits>
+#include <optional>
 #include <string>
 #include <vector>
 
 namespace {
+enum class LimitKeyword : std::uint8_t {
+    Unlimited,
+    Hard,
+    Soft
+};
 
 struct OptionDescriptor {
     const char* description;
@@ -208,6 +215,19 @@ std::string to_lower(std::string value) {
     return value;
 }
 
+std::optional<LimitKeyword> parse_limit_keyword(const std::string& value) {
+    if (value == "unlimited") {
+        return LimitKeyword::Unlimited;
+    }
+    if (value == "hard") {
+        return LimitKeyword::Hard;
+    }
+    if (value == "soft") {
+        return LimitKeyword::Soft;
+    }
+    return std::nullopt;
+}
+
 bool fetch_limits(const OptionDescriptor& entry, struct rlimit& limits) {
     if (!entry.available) {
         return false;
@@ -352,17 +372,19 @@ bool parse_numeric_limit(const std::string& input, const OptionDescriptor& entry
 bool parse_limit_value(const std::string& value_str, const OptionDescriptor& entry,
                        const struct rlimit& limits, rlim_t& result) {
     std::string lowered = to_lower(value_str);
-    if (lowered == "unlimited") {
-        result = RLIM_INFINITY;
-        return true;
-    }
-    if (lowered == "hard") {
-        result = limits.rlim_max;
-        return true;
-    }
-    if (lowered == "soft") {
-        result = limits.rlim_cur;
-        return true;
+    auto keyword = parse_limit_keyword(lowered);
+    if (keyword.has_value()) {
+        switch (*keyword) {
+            case LimitKeyword::Unlimited:
+                result = RLIM_INFINITY;
+                return true;
+            case LimitKeyword::Hard:
+                result = limits.rlim_max;
+                return true;
+            case LimitKeyword::Soft:
+                result = limits.rlim_cur;
+                return true;
+        }
     }
 
     rlim_t numeric_value{};
