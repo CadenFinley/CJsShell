@@ -40,6 +40,7 @@
 
 #include <termios.h>
 
+#include "error_out.h"
 #include "parser.h"
 #include "signal_handler.h"
 
@@ -161,7 +162,7 @@ class Shell {
     std::unordered_map<std::string, std::string> aliases;
     std::array<bool, static_cast<size_t>(ShellOption::Count)> shell_options{};
     std::vector<std::string> directory_stack;
-    std::string errexit_severity_level = "error";
+    ErrorSeverity errexit_severity_level = ErrorSeverity::ERROR;
 
     std::array<std::vector<std::string>, static_cast<size_t>(HookType::Count)> hooks;
     std::string last_directory;

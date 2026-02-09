@@ -28,7 +28,10 @@
 
 #include "cjshopt_command.h"
 
+#include <array>
+#include <cstdint>
 #include <iostream>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -39,6 +42,113 @@
 int script_extension_interpreter_command(const std::vector<std::string>& args);
 
 namespace {
+
+enum class CjshoptSubcommand : std::uint8_t {
+    StyleDef,
+    LoginStartupArg,
+    CompletionCase,
+    HistorySearchCase,
+    CompletionSpell,
+    CompletionLearning,
+    SmartCd,
+    ScriptExtensionInterpreter,
+    LineNumbers,
+    LineNumbersContinuation,
+    LineNumbersReplacePrompt,
+    CurrentLineNumberHighlight,
+    MultilineStartLines,
+    HintDelay,
+    CompletionPreview,
+    VisibleWhitespace,
+    Hint,
+    MultilineIndent,
+    Multiline,
+    InlineHelp,
+    StatusHints,
+    StatusLine,
+    StatusReporting,
+    AutoTab,
+    PromptNewline,
+    PromptCleanup,
+    PromptCleanupNewline,
+    PromptCleanupEmptyLine,
+    PromptCleanupTruncate,
+    RightPromptFollowCursor,
+    Keybind,
+    GenerateProfile,
+    GenerateRc,
+    GenerateLogout,
+    SetHistoryMax,
+    SetCompletionMax,
+    Count
+};
+
+using SubcommandHandler = int (*)(const std::vector<std::string>& args);
+
+struct CjshoptSubcommandDescriptor {
+    CjshoptSubcommand command;
+    const char* name;
+    SubcommandHandler handler;
+};
+
+constexpr std::array<CjshoptSubcommandDescriptor, static_cast<size_t>(CjshoptSubcommand::Count)>
+    kCjshoptSubcommandDescriptors = {
+        {{CjshoptSubcommand::StyleDef, "style_def", style_def_command},
+         {CjshoptSubcommand::LoginStartupArg, "login-startup-arg", startup_flag_command},
+         {CjshoptSubcommand::CompletionCase, "completion-case", completion_case_command},
+         {CjshoptSubcommand::HistorySearchCase, "history-search-case", history_search_case_command},
+         {CjshoptSubcommand::CompletionSpell, "completion-spell", completion_spell_command},
+         {CjshoptSubcommand::CompletionLearning, "completion-learning",
+          completion_learning_command},
+         {CjshoptSubcommand::SmartCd, "smart-cd", smart_cd_command},
+         {CjshoptSubcommand::ScriptExtensionInterpreter, "script-extension-interpreter",
+          script_extension_interpreter_command},
+         {CjshoptSubcommand::LineNumbers, "line-numbers", line_numbers_command},
+         {CjshoptSubcommand::LineNumbersContinuation, "line-numbers-continuation",
+          line_numbers_continuation_command},
+         {CjshoptSubcommand::LineNumbersReplacePrompt, "line-numbers-replace-prompt",
+          line_numbers_replace_prompt_command},
+         {CjshoptSubcommand::CurrentLineNumberHighlight, "current-line-number-highlight",
+          current_line_number_highlight_command},
+         {CjshoptSubcommand::MultilineStartLines, "multiline-start-lines",
+          multiline_start_lines_command},
+         {CjshoptSubcommand::HintDelay, "hint-delay", hint_delay_command},
+         {CjshoptSubcommand::CompletionPreview, "completion-preview", completion_preview_command},
+         {CjshoptSubcommand::VisibleWhitespace, "visible-whitespace", visible_whitespace_command},
+         {CjshoptSubcommand::Hint, "hint", hint_command},
+         {CjshoptSubcommand::MultilineIndent, "multiline-indent", multiline_indent_command},
+         {CjshoptSubcommand::Multiline, "multiline", multiline_command},
+         {CjshoptSubcommand::InlineHelp, "inline-help", inline_help_command},
+         {CjshoptSubcommand::StatusHints, "status-hints", status_hints_command},
+         {CjshoptSubcommand::StatusLine, "status-line", status_line_command},
+         {CjshoptSubcommand::StatusReporting, "status-reporting", status_reporting_command},
+         {CjshoptSubcommand::AutoTab, "auto-tab", auto_tab_command},
+         {CjshoptSubcommand::PromptNewline, "prompt-newline", prompt_newline_command},
+         {CjshoptSubcommand::PromptCleanup, "prompt-cleanup", prompt_cleanup_command},
+         {CjshoptSubcommand::PromptCleanupNewline, "prompt-cleanup-newline",
+          prompt_cleanup_newline_command},
+         {CjshoptSubcommand::PromptCleanupEmptyLine, "prompt-cleanup-empty-line",
+          prompt_cleanup_empty_line_command},
+         {CjshoptSubcommand::PromptCleanupTruncate, "prompt-cleanup-truncate",
+          prompt_cleanup_truncate_command},
+         {CjshoptSubcommand::RightPromptFollowCursor, "right-prompt-follow-cursor",
+          right_prompt_follow_cursor_command},
+         {CjshoptSubcommand::Keybind, "keybind", keybind_command},
+         {CjshoptSubcommand::GenerateProfile, "generate-profile", generate_profile_command},
+         {CjshoptSubcommand::GenerateRc, "generate-rc", generate_rc_command},
+         {CjshoptSubcommand::GenerateLogout, "generate-logout", generate_logout_command},
+         {CjshoptSubcommand::SetHistoryMax, "set-history-max", set_history_max_command},
+         {CjshoptSubcommand::SetCompletionMax, "set-completion-max", set_completion_max_command}}};
+
+std::optional<CjshoptSubcommandDescriptor> parse_cjshopt_subcommand(const std::string& subcommand) {
+    for (const auto& descriptor : kCjshoptSubcommandDescriptors) {
+        if (subcommand == descriptor.name) {
+            return descriptor;
+        }
+    }
+    return std::nullopt;
+}
+
 void print_cjshopt_usage() {
     std::cout << "Usage: cjshopt <subcommand> [options]\n";
     std::cout << "Available subcommands:\n";
@@ -215,123 +325,9 @@ int cjshopt_command(const std::vector<std::string>& args) {
     }
 
     const std::string& subcommand = args[1];
-
-    if (subcommand == "style_def") {
-        return style_def_command(std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-    if (subcommand == "login-startup-arg") {
-        return startup_flag_command(std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-    if (subcommand == "completion-case") {
-        return completion_case_command(std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-    if (subcommand == "history-search-case") {
-        return history_search_case_command(std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-    if (subcommand == "completion-spell") {
-        return completion_spell_command(std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-    if (subcommand == "completion-learning") {
-        return completion_learning_command(std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-    if (subcommand == "smart-cd") {
-        return smart_cd_command(std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-    if (subcommand == "script-extension-interpreter") {
-        return script_extension_interpreter_command(
-            std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-    if (subcommand == "line-numbers") {
-        return line_numbers_command(std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-    if (subcommand == "line-numbers-continuation") {
-        return line_numbers_continuation_command(
-            std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-    if (subcommand == "line-numbers-replace-prompt") {
-        return line_numbers_replace_prompt_command(
-            std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-    if (subcommand == "current-line-number-highlight") {
-        return current_line_number_highlight_command(
-            std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-    if (subcommand == "multiline-start-lines") {
-        return multiline_start_lines_command(
-            std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-    if (subcommand == "hint-delay") {
-        return hint_delay_command(std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-    if (subcommand == "completion-preview") {
-        return completion_preview_command(std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-    if (subcommand == "visible-whitespace") {
-        return visible_whitespace_command(std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-    if (subcommand == "hint") {
-        return hint_command(std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-    if (subcommand == "multiline-indent") {
-        return multiline_indent_command(std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-    if (subcommand == "multiline") {
-        return multiline_command(std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-    if (subcommand == "inline-help") {
-        return inline_help_command(std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-    if (subcommand == "status-hints") {
-        return status_hints_command(std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-    if (subcommand == "status-line") {
-        return status_line_command(std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-    if (subcommand == "status-reporting") {
-        return status_reporting_command(std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-    if (subcommand == "auto-tab") {
-        return auto_tab_command(std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-    if (subcommand == "prompt-newline") {
-        return prompt_newline_command(std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-    if (subcommand == "prompt-cleanup") {
-        return prompt_cleanup_command(std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-    if (subcommand == "prompt-cleanup-newline") {
-        return prompt_cleanup_newline_command(
-            std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-    if (subcommand == "prompt-cleanup-empty-line") {
-        return prompt_cleanup_empty_line_command(
-            std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-    if (subcommand == "prompt-cleanup-truncate") {
-        return prompt_cleanup_truncate_command(
-            std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-    if (subcommand == "right-prompt-follow-cursor") {
-        return right_prompt_follow_cursor_command(
-            std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-    if (subcommand == "keybind") {
-        return keybind_command(std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-    if (subcommand == "generate-profile") {
-        return generate_profile_command(std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-    if (subcommand == "generate-rc") {
-        return generate_rc_command(std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-    if (subcommand == "generate-logout") {
-        return generate_logout_command(std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-    if (subcommand == "set-history-max") {
-        return set_history_max_command(std::vector<std::string>(args.begin() + 1, args.end()));
-    }
-    if (subcommand == "set-completion-max") {
-        return set_completion_max_command(std::vector<std::string>(args.begin() + 1, args.end()));
+    auto descriptor = parse_cjshopt_subcommand(subcommand);
+    if (descriptor.has_value()) {
+        return descriptor->handler(std::vector<std::string>(args.begin() + 1, args.end()));
     }
     print_error(
         {ErrorType::INVALID_ARGUMENT,

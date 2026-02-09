@@ -71,6 +71,36 @@ constexpr std::array<ShellOptionDescriptor, static_cast<size_t>(ShellOption::Cou
                                 {ShellOption::Huponexit, 0, "huponexit"},
                                 {ShellOption::Pipefail, 0, "pipefail"}}};
 
+std::optional<ErrorSeverity> parse_errexit_severity_value(const std::string& value) {
+    if (value == "info") {
+        return ErrorSeverity::INFO;
+    }
+    if (value == "warning") {
+        return ErrorSeverity::WARNING;
+    }
+    if (value == "error") {
+        return ErrorSeverity::ERROR;
+    }
+    if (value == "critical") {
+        return ErrorSeverity::CRITICAL;
+    }
+    return std::nullopt;
+}
+
+const char* errexit_severity_name(ErrorSeverity severity) {
+    switch (severity) {
+        case ErrorSeverity::INFO:
+            return "info";
+        case ErrorSeverity::WARNING:
+            return "warning";
+        case ErrorSeverity::ERROR:
+            return "error";
+        case ErrorSeverity::CRITICAL:
+            return "critical";
+    }
+    return "error";
+}
+
 }  // namespace
 
 const std::array<ShellOptionDescriptor, static_cast<size_t>(ShellOption::Count)>&
@@ -598,16 +628,12 @@ void Shell::set_errexit_severity(const std::string& severity) {
     std::string lower_severity = severity;
     std::transform(lower_severity.begin(), lower_severity.end(), lower_severity.begin(), ::tolower);
 
-    if (lower_severity == "info" || lower_severity == "warning" || lower_severity == "error" ||
-        lower_severity == "critical") {
-        errexit_severity_level = lower_severity;
-    } else {
-        errexit_severity_level = "error";
-    }
+    auto parsed = parse_errexit_severity_value(lower_severity);
+    errexit_severity_level = parsed.value_or(ErrorSeverity::ERROR);
 }
 
 std::string Shell::get_errexit_severity() const {
-    return errexit_severity_level;
+    return errexit_severity_name(errexit_severity_level);
 }
 
 bool Shell::should_abort_on_nonzero_exit() const {
@@ -615,17 +641,13 @@ bool Shell::should_abort_on_nonzero_exit() const {
         return false;
     }
 
-    std::string threshold = get_errexit_severity();
-
-    return threshold != "critical";
+    return errexit_severity_level != ErrorSeverity::CRITICAL;
 }
 
 bool Shell::should_abort_on_nonzero_exit(int exit_code) const {
     if (!is_errexit_enabled()) {
         return false;
     }
-
-    std::string threshold = get_errexit_severity();
 
     ErrorSeverity error_severity = ErrorSeverity::ERROR;  // default
 
@@ -637,18 +659,7 @@ bool Shell::should_abort_on_nonzero_exit(int exit_code) const {
         error_severity = ErrorInfo::get_default_severity(ErrorType::SYNTAX_ERROR);
     }
 
-    ErrorSeverity threshold_severity = ErrorSeverity::ERROR;
-    if (threshold == "info") {
-        threshold_severity = ErrorSeverity::INFO;
-    } else if (threshold == "warning") {
-        threshold_severity = ErrorSeverity::WARNING;
-    } else if (threshold == "error") {
-        threshold_severity = ErrorSeverity::ERROR;
-    } else if (threshold == "critical") {
-        threshold_severity = ErrorSeverity::CRITICAL;
-    }
-
-    return error_severity >= threshold_severity;
+    return error_severity >= errexit_severity_level;
 }
 
 std::unordered_set<std::string> Shell::get_available_commands() const {
