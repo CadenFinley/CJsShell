@@ -30,52 +30,64 @@
 
 #include <algorithm>
 
-void Shell::register_hook(const std::string& hook_type, const std::string& function_name) {
+namespace {
+
+constexpr size_t to_index(HookType type) {
+    return static_cast<size_t>(type);
+}
+
+constexpr std::array<HookTypeDescriptor, static_cast<size_t>(HookType::Count)>
+    kHookTypeDescriptors = {
+        {{HookType::Precmd, "precmd"}, {HookType::Preexec, "preexec"}, {HookType::Chpwd, "chpwd"}}};
+
+}  // namespace
+
+const std::array<HookTypeDescriptor, static_cast<size_t>(HookType::Count)>&
+get_hook_type_descriptors() {
+    return kHookTypeDescriptors;
+}
+
+std::optional<HookType> parse_hook_type(const std::string& name) {
+    for (const auto& descriptor : kHookTypeDescriptors) {
+        if (name == descriptor.name) {
+            return descriptor.type;
+        }
+    }
+    return std::nullopt;
+}
+
+const char* hook_type_name(HookType type) {
+    return kHookTypeDescriptors[to_index(type)].name;
+}
+
+void Shell::register_hook(HookType hook_type, const std::string& function_name) {
     if (function_name.empty()) {
         return;
     }
 
-    auto& hook_list = hooks[hook_type];
+    auto& hook_list = hooks[to_index(hook_type)];
 
     if (std::find(hook_list.begin(), hook_list.end(), function_name) == hook_list.end()) {
         hook_list.push_back(function_name);
     }
 }
 
-void Shell::unregister_hook(const std::string& hook_type, const std::string& function_name) {
-    auto it = hooks.find(hook_type);
-    if (it == hooks.end()) {
-        return;
-    }
-
-    auto& hook_list = it->second;
+void Shell::unregister_hook(HookType hook_type, const std::string& function_name) {
+    auto& hook_list = hooks[to_index(hook_type)];
     hook_list.erase(std::remove(hook_list.begin(), hook_list.end(), function_name),
                     hook_list.end());
-
-    if (hook_list.empty()) {
-        hooks.erase(it);
-    }
 }
 
-std::vector<std::string> Shell::get_hooks(const std::string& hook_type) const {
-    auto it = hooks.find(hook_type);
-    if (it != hooks.end()) {
-        return it->second;
-    }
-    return {};
+std::vector<std::string> Shell::get_hooks(HookType hook_type) const {
+    return hooks[to_index(hook_type)];
 }
 
-void Shell::clear_hooks(const std::string& hook_type) {
-    hooks.erase(hook_type);
+void Shell::clear_hooks(HookType hook_type) {
+    hooks[to_index(hook_type)].clear();
 }
 
-void Shell::execute_hooks(const std::string& hook_type) {
-    auto it = hooks.find(hook_type);
-    if (it == hooks.end()) {
-        return;
-    }
-
-    const auto& hook_list = it->second;
+void Shell::execute_hooks(HookType hook_type) {
+    const auto& hook_list = hooks[to_index(hook_type)];
     if (hook_list.empty()) {
         return;
     }

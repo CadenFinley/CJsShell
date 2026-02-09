@@ -74,6 +74,23 @@ get_shell_option_descriptors();
 std::optional<ShellOption> parse_shell_option(const std::string& name);
 const char* shell_option_name(ShellOption option);
 
+enum class HookType : std::uint8_t {
+    Precmd,
+    Preexec,
+    Chpwd,
+    Count
+};
+
+struct HookTypeDescriptor {
+    HookType type;
+    const char* name;
+};
+
+const std::array<HookTypeDescriptor, static_cast<size_t>(HookType::Count)>&
+get_hook_type_descriptors();
+std::optional<HookType> parse_hook_type(const std::string& name);
+const char* hook_type_name(HookType type);
+
 class Shell {
    public:
     Shell();
@@ -104,11 +121,11 @@ class Shell {
     bool pop_directory_stack(std::string* dir_out);
     void clear_directory_stack();
 
-    void register_hook(const std::string& hook_type, const std::string& function_name);
-    void unregister_hook(const std::string& hook_type, const std::string& function_name);
-    std::vector<std::string> get_hooks(const std::string& hook_type) const;
-    void clear_hooks(const std::string& hook_type);
-    void execute_hooks(const std::string& hook_type);
+    void register_hook(HookType hook_type, const std::string& function_name);
+    void unregister_hook(HookType hook_type, const std::string& function_name);
+    std::vector<std::string> get_hooks(HookType hook_type) const;
+    void clear_hooks(HookType hook_type);
+    void execute_hooks(HookType hook_type);
 
     void set_shell_option(ShellOption option, bool value);
     bool get_shell_option(ShellOption option) const;
@@ -146,7 +163,7 @@ class Shell {
     std::vector<std::string> directory_stack;
     std::string errexit_severity_level = "error";
 
-    std::unordered_map<std::string, std::vector<std::string>> hooks;
+    std::array<std::vector<std::string>, static_cast<size_t>(HookType::Count)> hooks;
     std::string last_directory;
 
     void apply_abbreviations_to_line_editor();

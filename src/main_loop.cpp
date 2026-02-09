@@ -203,7 +203,7 @@ bool process_command_line(const std::string& command) {
     }
 
     // execute preexec hooks and debug traps
-    g_shell->execute_hooks("preexec");
+    g_shell->execute_hooks(HookType::Preexec);
     trap_manager_execute_debug_trap();
 
     // actually execute the command now
@@ -274,7 +274,7 @@ std::optional<std::string> get_next_command(bool command_was_available) {
     std::string command_to_run;
 
     // handle hooks
-    g_shell->execute_hooks("precmd");
+    g_shell->execute_hooks(HookType::Precmd);
 
     // check terminal size and go ahead and calculate and set the next prompts
     prompt::execute_prompt_command();

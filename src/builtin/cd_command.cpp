@@ -214,7 +214,7 @@ int change_directory(const std::string& dir, std::string& current_directory,
         previous_directory = old_directory;
 
         if (shell != nullptr && old_directory != current_directory) {
-            shell->execute_hooks("chpwd");
+            shell->execute_hooks(HookType::Chpwd);
         }
 
         return 0;
