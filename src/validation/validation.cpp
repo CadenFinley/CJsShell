@@ -719,6 +719,10 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                 }
 
                 else if (!trimmed.empty() && trimmed.back() == '{') {
+                    if (trimmed == "{" && !control_stack.empty() &&
+                        std::get<0>(control_stack.back()) == "function") {
+                        continue;
+                    }
                     control_stack.push_back({"{", "{", display_line});
                 } else if (first_token == "}") {
                     if (require_top({"{", "function"}, "Unmatched closing brace '}'")) {
