@@ -392,7 +392,7 @@ std::vector<std::string> ExpansionEngine::expand_wildcards(const std::string& pa
 
     result.reserve(4);
 
-    if (shell != nullptr && shell->get_shell_option("noglob")) {
+    if (shell != nullptr && shell->get_shell_option(ShellOption::Noglob)) {
         result.push_back(pattern);
         return result;
     }
@@ -432,7 +432,7 @@ std::vector<std::string> ExpansionEngine::expand_wildcards(const std::string& pa
         return result;
     }
 
-    bool globstar_enabled = shell != nullptr && shell->get_shell_option("globstar");
+    bool globstar_enabled = shell != nullptr && shell->get_shell_option(ShellOption::Globstar);
     if (globstar_enabled) {
         ParsedGlobPattern parsed_pattern = parse_glob_pattern(unescaped);
         if (parsed_pattern.contains_globstar) {

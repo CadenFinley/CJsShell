@@ -900,7 +900,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         }
 
         if (should_skip_line(line)) {
-            if (g_shell != nullptr && g_shell->get_shell_option("verbose")) {
+            if (g_shell != nullptr && g_shell->get_shell_option(ShellOption::Verbose)) {
                 std::cerr << line << '\n';
             }
             continue;
@@ -1070,7 +1070,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                 if (segs.empty())
                     segs.push_back(semi);
                 for (const auto& cmd_text : segs) {
-                    if (g_shell != nullptr && g_shell->get_shell_option("verbose")) {
+                    if (g_shell != nullptr && g_shell->get_shell_option(ShellOption::Verbose)) {
                         std::string verbose_text = trim(strip_inline_comment(cmd_text));
                         if (!verbose_text.empty()) {
                             std::cerr << verbose_text << '\n';

@@ -1014,7 +1014,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
                     }
                 } catch (const std::runtime_error& e) {
                     std::string error_msg = e.what();
-                    if (shell != nullptr && shell->get_shell_option("nounset") &&
+                    if (shell != nullptr && shell->get_shell_option(ShellOption::Nounset) &&
                         error_msg.find("parameter not set") != std::string::npos) {
                         print_error({ErrorType::RUNTIME_ERROR,
                                      ErrorSeverity::ERROR,

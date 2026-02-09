@@ -1165,7 +1165,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
     const bool pipeline_negated = (!commands.empty() && commands[0].negate_pipeline);
 
     auto apply_pipefail = [&](int exit_code, const std::vector<int>& statuses) -> int {
-        if (!g_shell || !g_shell->get_shell_option("pipefail")) {
+        if (!g_shell || !g_shell->get_shell_option(ShellOption::Pipefail)) {
             return exit_code;
         }
         if (statuses.empty()) {

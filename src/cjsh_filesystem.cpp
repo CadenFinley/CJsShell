@@ -591,7 +591,7 @@ bool should_noclobber_prevent_overwrite(const std::string& filename, bool force_
         return false;
     }
 
-    if (!g_shell || !g_shell->get_shell_option("noclobber")) {
+    if (!g_shell || !g_shell->get_shell_option(ShellOption::Noclobber)) {
         return false;
     }
 

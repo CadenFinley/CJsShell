@@ -110,14 +110,14 @@ std::string VariableExpander::resolve_parameter_value(const std::string& var_nam
         if (shell != nullptr) {
             append_flag('i', shell->get_interactive_mode());
             append_flag('m', shell->is_job_control_enabled());
-            append_flag('e', shell->get_shell_option("errexit"));
-            append_flag('C', shell->get_shell_option("noclobber"));
-            append_flag('u', shell->get_shell_option("nounset"));
-            append_flag('x', shell->get_shell_option("xtrace"));
-            append_flag('v', shell->get_shell_option("verbose"));
-            append_flag('n', shell->get_shell_option("noexec"));
-            append_flag('f', shell->get_shell_option("noglob"));
-            append_flag('a', shell->get_shell_option("allexport"));
+            append_flag('e', shell->get_shell_option(ShellOption::Errexit));
+            append_flag('C', shell->get_shell_option(ShellOption::Noclobber));
+            append_flag('u', shell->get_shell_option(ShellOption::Nounset));
+            append_flag('x', shell->get_shell_option(ShellOption::Xtrace));
+            append_flag('v', shell->get_shell_option(ShellOption::Verbose));
+            append_flag('n', shell->get_shell_option(ShellOption::Noexec));
+            append_flag('f', shell->get_shell_option(ShellOption::Noglob));
+            append_flag('a', shell->get_shell_option(ShellOption::Allexport));
         }
         return flags;
     }
@@ -150,7 +150,7 @@ std::string VariableExpander::resolve_parameter_value(const std::string& var_nam
         auto it = env_vars.find(var_name);
         if (it != env_vars.end()) {
             value = it->second;
-        } else if (shell != nullptr && shell->get_shell_option("nounset")) {
+        } else if (shell != nullptr && shell->get_shell_option(ShellOption::Nounset)) {
             std::string error_msg = var_name + ": parameter not set";
             throw std::runtime_error(error_msg);
         }

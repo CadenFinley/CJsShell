@@ -43,17 +43,7 @@
 
 namespace {
 
-struct OptionDescriptor {
-    char short_flag;
-    const char* name;
-};
-
 constexpr size_t kOptionNamePadding = 15;
-
-const OptionDescriptor kOptionDescriptors[] = {
-    {'e', "errexit"},   {'C', "noclobber"}, {'u', "nounset"}, {'x', "xtrace"},
-    {'v', "verbose"},   {'n', "noexec"},    {'f', "noglob"},  {0, "globstar"},
-    {'a', "allexport"}, {0, "huponexit"},   {0, "pipefail"}};
 
 std::string pad_option_name(const std::string& name) {
     if (name.size() >= kOptionNamePadding) {
@@ -65,9 +55,9 @@ std::string pad_option_name(const std::string& name) {
 }
 
 void print_option_status(Shell* shell) {
-    for (const auto& opt : kOptionDescriptors) {
+    for (const auto& opt : get_shell_option_descriptors()) {
         std::cout << pad_option_name(opt.name) << '\t'
-                  << (shell->get_shell_option(opt.name) ? "on" : "off") << '\n';
+                  << (shell->get_shell_option(opt.option) ? "on" : "off") << '\n';
     }
     std::cout << pad_option_name("errexit_severity") << '\t' << shell->get_errexit_severity()
               << '\n';
@@ -76,28 +66,28 @@ void print_option_status(Shell* shell) {
 bool apply_short_flag(char flag, bool enable, Shell* shell) {
     switch (flag) {
         case 'e':
-            shell->set_shell_option("errexit", enable);
+            shell->set_shell_option(ShellOption::Errexit, enable);
             return true;
         case 'C':
-            shell->set_shell_option("noclobber", enable);
+            shell->set_shell_option(ShellOption::Noclobber, enable);
             return true;
         case 'u':
-            shell->set_shell_option("nounset", enable);
+            shell->set_shell_option(ShellOption::Nounset, enable);
             return true;
         case 'x':
-            shell->set_shell_option("xtrace", enable);
+            shell->set_shell_option(ShellOption::Xtrace, enable);
             return true;
         case 'v':
-            shell->set_shell_option("verbose", enable);
+            shell->set_shell_option(ShellOption::Verbose, enable);
             return true;
         case 'n':
-            shell->set_shell_option("noexec", enable);
+            shell->set_shell_option(ShellOption::Noexec, enable);
             return true;
         case 'f':
-            shell->set_shell_option("noglob", enable);
+            shell->set_shell_option(ShellOption::Noglob, enable);
             return true;
         case 'a':
-            shell->set_shell_option("allexport", enable);
+            shell->set_shell_option(ShellOption::Allexport, enable);
             return true;
         default:
             return false;
@@ -144,11 +134,10 @@ bool handle_named_option(const std::string& raw_option, bool enable, Shell* shel
         return false;
     }
 
-    for (const auto& opt : kOptionDescriptors) {
-        if (normalized_key == opt.name) {
-            shell->set_shell_option(opt.name, enable);
-            return true;
-        }
+    auto option = parse_shell_option(normalized_key);
+    if (option.has_value()) {
+        shell->set_shell_option(*option, enable);
+        return true;
     }
 
     return false;

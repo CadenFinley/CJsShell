@@ -786,7 +786,7 @@ SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) 
         result.sighup = true;
         g_exit_flag = true;
 
-        bool enforce_hup = !g_shell || g_shell->get_shell_option("huponexit");
+        bool enforce_hup = !g_shell || g_shell->get_shell_option(ShellOption::Huponexit);
 
         auto& job_manager = JobManager::instance();
         auto jobs_snapshot = job_manager.get_all_jobs();

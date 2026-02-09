@@ -28,8 +28,11 @@
 
 #pragma once
 
+#include <array>
+#include <cstdint>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -44,6 +47,32 @@ class Exec;
 class Built_ins;
 class ShellScriptInterpreter;
 struct Command;
+
+enum class ShellOption : std::uint8_t {
+    Errexit,
+    Noclobber,
+    Nounset,
+    Xtrace,
+    Verbose,
+    Noexec,
+    Noglob,
+    Globstar,
+    Allexport,
+    Huponexit,
+    Pipefail,
+    Count
+};
+
+struct ShellOptionDescriptor {
+    ShellOption option;
+    char short_flag;
+    const char* name;
+};
+
+const std::array<ShellOptionDescriptor, static_cast<size_t>(ShellOption::Count)>&
+get_shell_option_descriptors();
+std::optional<ShellOption> parse_shell_option(const std::string& name);
+const char* shell_option_name(ShellOption option);
 
 class Shell {
    public:
@@ -81,8 +110,8 @@ class Shell {
     void clear_hooks(const std::string& hook_type);
     void execute_hooks(const std::string& hook_type);
 
-    void set_shell_option(const std::string& option, bool value);
-    bool get_shell_option(const std::string& option) const;
+    void set_shell_option(ShellOption option, bool value);
+    bool get_shell_option(ShellOption option) const;
     bool is_errexit_enabled() const;
     void set_errexit_severity(const std::string& severity);
     std::string get_errexit_severity() const;
@@ -113,7 +142,7 @@ class Shell {
 
     std::unordered_map<std::string, std::string> abbreviations;
     std::unordered_map<std::string, std::string> aliases;
-    std::unordered_map<std::string, bool> shell_options;
+    std::array<bool, static_cast<size_t>(ShellOption::Count)> shell_options{};
     std::vector<std::string> directory_stack;
     std::string errexit_severity_level = "error";
 

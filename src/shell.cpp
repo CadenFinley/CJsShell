@@ -52,6 +52,45 @@
 #include "shell_env.h"
 #include "trap_command.h"
 
+namespace {
+
+constexpr size_t to_index(ShellOption option) {
+    return static_cast<size_t>(option);
+}
+
+constexpr std::array<ShellOptionDescriptor, static_cast<size_t>(ShellOption::Count)>
+    kShellOptionDescriptors = {{{ShellOption::Errexit, 'e', "errexit"},
+                                {ShellOption::Noclobber, 'C', "noclobber"},
+                                {ShellOption::Nounset, 'u', "nounset"},
+                                {ShellOption::Xtrace, 'x', "xtrace"},
+                                {ShellOption::Verbose, 'v', "verbose"},
+                                {ShellOption::Noexec, 'n', "noexec"},
+                                {ShellOption::Noglob, 'f', "noglob"},
+                                {ShellOption::Globstar, 0, "globstar"},
+                                {ShellOption::Allexport, 'a', "allexport"},
+                                {ShellOption::Huponexit, 0, "huponexit"},
+                                {ShellOption::Pipefail, 0, "pipefail"}}};
+
+}  // namespace
+
+const std::array<ShellOptionDescriptor, static_cast<size_t>(ShellOption::Count)>&
+get_shell_option_descriptors() {
+    return kShellOptionDescriptors;
+}
+
+std::optional<ShellOption> parse_shell_option(const std::string& name) {
+    for (const auto& descriptor : kShellOptionDescriptors) {
+        if (name == descriptor.name) {
+            return descriptor.option;
+        }
+    }
+    return std::nullopt;
+}
+
+const char* shell_option_name(ShellOption option) {
+    return kShellOptionDescriptors[to_index(option)].name;
+}
+
 Shell::Shell() : shell_pgid(0), shell_tmodes() {
     // capture the terminal settings cjsh inherited so we can restore them on exit
     save_terminal_state();
@@ -89,7 +128,7 @@ Shell::Shell() : shell_pgid(0), shell_tmodes() {
 Shell::~Shell() {
     // on shell destruction, handle any remaining child processes
     if (shell_exec) {
-        if (get_shell_option("huponexit")) {
+        if (get_shell_option(ShellOption::Huponexit)) {
             shell_exec->terminate_all_child_process();
         } else {
             shell_exec->abandon_all_child_processes();
@@ -140,7 +179,7 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
     }
 
     // xtrace handling
-    if (get_shell_option("xtrace") && !args.empty()) {
+    if (get_shell_option(ShellOption::Xtrace) && !args.empty()) {
         std::cerr << "+ ";
         for (size_t i = 0; i < args.size(); ++i) {
             if (i > 0) {
@@ -152,7 +191,7 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
     }
 
     // noexec handling
-    if (get_shell_option("noexec")) {
+    if (get_shell_option(ShellOption::Noexec)) {
         return 0;
     }
 
@@ -543,17 +582,16 @@ void Shell::apply_abbreviations_to_line_editor() {
     }
 }
 
-void Shell::set_shell_option(const std::string& option, bool value) {
-    shell_options[option] = value;
+void Shell::set_shell_option(ShellOption option, bool value) {
+    shell_options[to_index(option)] = value;
 }
 
-bool Shell::get_shell_option(const std::string& option) const {
-    auto it = shell_options.find(option);
-    return it != shell_options.end() ? it->second : false;
+bool Shell::get_shell_option(ShellOption option) const {
+    return shell_options[to_index(option)];
 }
 
 bool Shell::is_errexit_enabled() const {
-    return get_shell_option("errexit");
+    return get_shell_option(ShellOption::Errexit);
 }
 
 void Shell::set_errexit_severity(const std::string& severity) {
