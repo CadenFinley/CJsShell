@@ -228,4 +228,6 @@ int hook_command(const std::vector<std::string>& args, Shell* shell) {
         shell->unregister_hook(*hook_type, function_name);
         return 0;
     }
+
+    return 1;
 }
