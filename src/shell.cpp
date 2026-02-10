@@ -616,6 +616,10 @@ void Shell::apply_abbreviations_to_line_editor() {
     }
 }
 
+void Shell::apply_no_exec(bool enabled) {
+    set_shell_option(ShellOption::Noexec, enabled);
+}
+
 void Shell::set_shell_option(ShellOption option, bool value) {
     shell_options[to_index(option)] = value;
 }

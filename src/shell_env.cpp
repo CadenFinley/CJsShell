@@ -65,6 +65,7 @@ bool interactive_mode = true;
 bool force_interactive = false;
 bool execute_command = false;
 std::string cmd_to_execute;
+bool no_exec = false;
 bool colors_enabled = true;
 bool source_enabled = true;
 bool completions_enabled = true;

@@ -128,6 +128,7 @@ class Shell {
     void clear_hooks(HookType hook_type);
     void execute_hooks(HookType hook_type);
 
+    void apply_no_exec(bool enabled);
     void set_shell_option(ShellOption option, bool value);
     bool get_shell_option(ShellOption option) const;
     bool is_errexit_enabled() const;

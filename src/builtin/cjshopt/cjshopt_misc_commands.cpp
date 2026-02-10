@@ -51,6 +51,7 @@ struct StartupFlagInfo {
 constexpr StartupFlagInfo kStartupFlags[] = {
     {"--login", "Set login mode"},
     {"--interactive", "Force interactive mode"},
+    {"--no-exec", "Read commands without executing"},
     {"--no-colors", "Disable colors"},
     {"--no-titleline", "Disable title line"},
     {"--show-startup-time", "Display shell startup time"},

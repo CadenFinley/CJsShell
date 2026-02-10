@@ -68,6 +68,14 @@ else
     fail_test "external command arguments include unexported shell variables (got '$OUT')"
 fi
 
+noexec_marker="$TMP_ROOT/noexec_marker"
+"$CJSH_PATH" --no-exec -c "touch \"$noexec_marker\"" >/dev/null 2>&1
+if [ ! -e "$noexec_marker" ]; then
+    pass_test "--no-exec skips command execution"
+else
+    fail_test "--no-exec should skip command execution"
+fi
+
 echo ""
 echo "=== Test Summary ==="
 TOTAL_TESTS=$((TESTS_PASSED + TESTS_FAILED))

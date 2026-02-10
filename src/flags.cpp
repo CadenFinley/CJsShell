@@ -34,8 +34,10 @@
 #include <cstdint>
 #include <optional>
 
+#include "cjsh.h"
 #include "error_out.h"
 #include "isocline.h"
+#include "shell.h"
 #include "shell_env.h"
 #include "usage.h"
 
@@ -56,6 +58,7 @@ namespace {
 constexpr int kOptNoCompletionLearning = 256;
 constexpr int kOptNoSmartCd = 257;
 constexpr int kOptNoScriptExtensionInterpreter = 258;
+constexpr int kOptNoExec = 259;
 std::vector<std::string> positional_parameters;
 
 void detect_login_mode(char* argv[]) {
@@ -102,6 +105,7 @@ ParseResult parse_arguments(int argc, char* argv[]) {
         {"login", no_argument, nullptr, 'l'},
         {"interactive", no_argument, nullptr, 'i'},
         {"command", required_argument, nullptr, 'c'},
+        {"no-exec", no_argument, nullptr, kOptNoExec},
         {"version", no_argument, nullptr, 'v'},
         {"help", no_argument, nullptr, 'h'},
         {"no-colors", no_argument, nullptr, 'C'},
@@ -139,6 +143,9 @@ ParseResult parse_arguments(int argc, char* argv[]) {
                 config::cmd_to_execute = optarg;
                 config::interactive_mode = false;
                 config::history_expansion_enabled = false;
+                break;
+            case kOptNoExec:
+                config::no_exec = true;
                 break;
             case 'v':
                 config::show_version = true;
@@ -242,6 +249,7 @@ void apply_profile_startup_flags() {
         Secure,
         NoHistoryExpansion,
         NoShWarning,
+        NoExec,
         Count
     };
 
@@ -267,7 +275,8 @@ void apply_profile_startup_flags() {
              {StartupFlag::Minimal, "--minimal"},
              {StartupFlag::Secure, "--secure"},
              {StartupFlag::NoHistoryExpansion, "--no-history-expansion"},
-             {StartupFlag::NoShWarning, "--no-sh-warning"}}};
+             {StartupFlag::NoShWarning, "--no-sh-warning"},
+             {StartupFlag::NoExec, "--no-exec"}}};
 
     auto parse_startup_flag = [&](const std::string& flag) -> std::optional<StartupFlag> {
         for (const auto& descriptor : kStartupFlagDescriptors) {
@@ -332,6 +341,12 @@ void apply_profile_startup_flags() {
                 break;
             case StartupFlag::NoShWarning:
                 config::suppress_sh_warning = true;
+                break;
+            case StartupFlag::NoExec:
+                config::no_exec = true;
+                if (g_shell) {
+                    g_shell->apply_no_exec(true);
+                }
                 break;
             case StartupFlag::Count:
                 break;

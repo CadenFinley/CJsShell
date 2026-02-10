@@ -157,6 +157,8 @@ int run_cjsh(int argc, char* argv[]) {
         return 1;
     }
 
+    g_shell->apply_no_exec(config::no_exec);
+
     // set args for the script file before saving the startup args for cjsh
     if (!script_args.empty()) {
         flags::set_positional_parameters(script_args);

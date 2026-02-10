@@ -50,6 +50,7 @@ void print_usage(bool print_version, bool print_hook, bool print_footer) {
         << "  -i, --interactive          Force interactive mode\n"
         << "  -c, --command=COMMAND      Execute the specified command and exit\n"
         << "                             (disables history expansion)\n"
+        << "      --no-exec             Read commands but do not execute them\n"
         << "\n"
         << "Feature Control Options:\n"
         << "  -m, --minimal              Disable cjsh extras (prompt themes,\n"

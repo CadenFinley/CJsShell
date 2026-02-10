@@ -42,6 +42,7 @@ extern bool interactive_mode;
 extern bool force_interactive;
 extern bool execute_command;
 extern std::string cmd_to_execute;
+extern bool no_exec;
 extern bool colors_enabled;
 extern bool source_enabled;
 extern bool completions_enabled;
