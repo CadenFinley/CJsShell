@@ -1562,7 +1562,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             exec_external_child(cmd.args, exec_override);
         }
 
-        if (g_shell && !g_shell->get_interactive_mode()) {
+        if (!shell_is_interactive && !config::force_interactive) {
             int status = 0;
             pid_t wpid = waitpid(pid, &status, 0);
             while (wpid == -1 && errno == EINTR) {
