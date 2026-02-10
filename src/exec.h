@@ -28,8 +28,10 @@
 
 #pragma once
 
+#include <atomic>
 #include <functional>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <string>
@@ -44,11 +46,17 @@
 
 struct Command;
 
+struct OutputRelayState {
+    int master_fd{-1};
+    std::atomic<bool> forward{true};
+};
+
 struct Job {
     pid_t pgid{0};
     std::string command;
     bool background{false};
     bool auto_background_on_stop{false};
+    bool auto_background_on_stop_silent{false};
     bool completed{false};
     bool stopped{false};
     int status{0};
@@ -57,6 +65,7 @@ struct Job {
     int last_status{0};
     std::vector<pid_t> pid_order;
     std::vector<int> pipeline_statuses;
+    std::shared_ptr<OutputRelayState> output_relay;
 };
 
 class Exec {
@@ -98,7 +107,8 @@ class Exec {
     ~Exec();
 
     int execute_command_sync(const std::vector<std::string>& args,
-                             bool auto_background_on_stop = false);
+                             bool auto_background_on_stop = false,
+                             bool auto_background_on_stop_silent = false);
     int execute_command_async(const std::vector<std::string>& args);
     int execute_pipeline(const std::vector<Command>& commands);
     int run_with_command_redirections(Command cmd, const std::function<int()>& action,
@@ -114,6 +124,7 @@ class Exec {
     std::map<int, Job> get_jobs();
     void terminate_all_child_process();
     void abandon_all_child_processes();
+    void set_job_output_forwarding(pid_t pgid, bool forward);
 
     void set_error(const ErrorInfo& error);
     void set_error(ErrorType type, const std::string& command = "", const std::string& message = "",

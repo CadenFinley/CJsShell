@@ -33,8 +33,11 @@
 #include <iostream>
 
 #include "builtin_help.h"
+#include "cjsh.h"
 #include "error_out.h"
+#include "exec.h"
 #include "job_control.h"
+#include "shell.h"
 
 int bg_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(args,
@@ -59,6 +62,10 @@ int bg_command(const std::vector<std::string>& args) {
                      "not stopped",
                      {"Use 'jobs' to list job states"}});
         return 1;
+    }
+
+    if (g_shell && g_shell->shell_exec) {
+        g_shell->shell_exec->set_job_output_forwarding(job->pgid, false);
     }
 
     if (killpg(job->pgid, SIGCONT) < 0) {

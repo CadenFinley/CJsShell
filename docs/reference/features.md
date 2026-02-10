@@ -13,9 +13,9 @@ require no third-party plugins.
     process substitution are supported. History expansion stays interactive-only by default.
 - **Job control** – Background jobs, `fg`, `bg`, `jobs`, `wait`, `disown`, and `trap` integrate with
     the internal process manager so interactive sessions stay responsive. Append `&^` to a command
-    to auto-background it on `Ctrl+Z`. `set -o huponexit` controls whether exiting shells hang up or
-    leave running jobs alone (default: off, so long-lived helpers keep running until you explicitly
-    stop them).
+    to auto-background it on `Ctrl+Z`, or `&^!` to auto-background and discard stdout/stderr after
+    the suspend. `set -o huponexit` controls whether exiting shells hang up or leave running jobs
+    alone (default: off, so long-lived helpers keep running until you explicitly stop them).
 
 ## Interactive Layer
 

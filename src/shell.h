@@ -98,7 +98,8 @@ class Shell {
     ~Shell();
     int execute(const std::string& script, bool skip_validation = false);
     int execute_command(std::vector<std::string> args, bool run_in_background = false,
-                        bool auto_background_on_stop = false);
+                        bool auto_background_on_stop = false,
+                        bool auto_background_on_stop_silent = false);
     int execute_script_file(const std::filesystem::path& path, bool optional = false);
 
     SignalProcessingResult process_pending_signals();

@@ -204,7 +204,7 @@ int Shell::execute(const std::string& script, bool skip_validation) {
 }
 
 int Shell::execute_command(std::vector<std::string> args, bool run_in_background,
-                           bool auto_background_on_stop) {
+                           bool auto_background_on_stop, bool auto_background_on_stop_silent) {
     // main single command executor that dirives from execute_block in interpreter.cpp
     if (args.empty()) {
         return 0;
@@ -366,7 +366,7 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
     }
 
     // execute the command synchronously
-    shell_exec->execute_command_sync(args, auto_background_on_stop);
+    shell_exec->execute_command_sync(args, auto_background_on_stop, auto_background_on_stop_silent);
     int exit_code = shell_exec->get_exit_code();
     shell_exec->print_error_if_needed(exit_code);
     return exit_code;

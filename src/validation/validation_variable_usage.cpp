@@ -54,6 +54,7 @@ enum class SeparatorToken : std::uint8_t {
     Or,
     Amp,
     AmpCaret,
+    AmpCaretBang,
     And,
     LParen,
     RParen,
@@ -80,6 +81,8 @@ const char* separator_token_text(SeparatorToken token) {
             return "&";
         case SeparatorToken::AmpCaret:
             return "&^";
+        case SeparatorToken::AmpCaretBang:
+            return "&^!";
         case SeparatorToken::And:
             return "&&";
         case SeparatorToken::LParen:
@@ -152,6 +155,15 @@ std::vector<TokenInfo> tokenize_shell_segment(const std::string& text, size_t st
             break;
         }
 
+        if (i + 3 <= end) {
+            const std::string three_chars = text.substr(i, 3);
+            if (three_chars == "&^!") {
+                tokens.push_back({three_chars, i, i + 3});
+                i += 3;
+                continue;
+            }
+        }
+
         if (i + 2 <= end) {
             const std::string two_chars = text.substr(i, 2);
             if (two_chars == "&&" || two_chars == "||" || two_chars == ";;" || two_chars == "&^") {
@@ -203,14 +215,15 @@ std::vector<TokenInfo> tokenize_shell_segment(const std::string& text, size_t st
 
 bool is_command_separator_token(const std::string& token) {
     static const SeparatorToken separators[] = {
-        SeparatorToken::Semicolon, SeparatorToken::DoubleSemicolon,
-        SeparatorToken::Pipe,      SeparatorToken::Or,
-        SeparatorToken::Amp,       SeparatorToken::AmpCaret,
-        SeparatorToken::And,       SeparatorToken::LParen,
-        SeparatorToken::RParen,    SeparatorToken::LBrace,
-        SeparatorToken::RBrace,    SeparatorToken::Do,
-        SeparatorToken::Then,      SeparatorToken::Elif,
-        SeparatorToken::Fi,        SeparatorToken::Done};
+        SeparatorToken::Semicolon,    SeparatorToken::DoubleSemicolon,
+        SeparatorToken::Pipe,         SeparatorToken::Or,
+        SeparatorToken::Amp,          SeparatorToken::AmpCaret,
+        SeparatorToken::AmpCaretBang, SeparatorToken::And,
+        SeparatorToken::LParen,       SeparatorToken::RParen,
+        SeparatorToken::LBrace,       SeparatorToken::RBrace,
+        SeparatorToken::Do,           SeparatorToken::Then,
+        SeparatorToken::Elif,         SeparatorToken::Fi,
+        SeparatorToken::Done};
     for (const auto sep : separators) {
         if (token == separator_token_text(sep)) {
             return true;

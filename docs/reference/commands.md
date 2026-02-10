@@ -307,8 +307,12 @@ bg [job_spec]
 Append `&^` to a command to mark it for automatic backgrounding the first time you press
 `Ctrl+Z`.
 
+Append `&^!` to auto-background on `Ctrl+Z` and discard stdout/stderr after the suspend so the
+prompt stays clean. Output is restored if you bring the job back with `fg`.
+
 ```bash
 long_running_task &^
+long_running_task &^!
 ```
 
 ### wait

@@ -228,6 +228,13 @@ CommandSeparator scan_command_separator(const std::string& analysis, size_t inde
     }
 
     char current = analysis[index];
+    if (index + 2 < len && current == '&' && analysis[index + 1] == '^' &&
+        analysis[index + 2] == '!') {
+        match.length = 3;
+        match.is_operator = true;
+        return match;
+    }
+
     if (index + 1 < len) {
         char next = analysis[index + 1];
         if ((current == '&' && next == '&') || (current == '&' && next == '^') ||

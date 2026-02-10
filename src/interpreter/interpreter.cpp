@@ -786,7 +786,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                     if (expanded_args.size() == 2 && expanded_args[0] == "__ALIAS_PIPELINE__") {
                         std::string pipeline_text = expanded_args[1];
                         if (c.auto_background_on_stop) {
-                            pipeline_text += " &^";
+                            pipeline_text += c.auto_background_on_stop_silent ? " &^!" : " &^";
                         }
                         std::vector<Command> pipeline_cmds =
                             shell_parser->parse_pipeline_with_preprocessing(pipeline_text);
@@ -804,7 +804,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                         return execute_function_call(expanded_args);
                     }
                     int exit_code = g_shell->execute_command(expanded_args, c.background,
-                                                             c.auto_background_on_stop);
+                                                             c.auto_background_on_stop,
+                                                             c.auto_background_on_stop_silent);
                     return set_last_status(exit_code);
                 }
             }

@@ -34,8 +34,11 @@
 #include <iostream>
 
 #include "builtin_help.h"
+#include "cjsh.h"
 #include "error_out.h"
+#include "exec.h"
 #include "job_control.h"
+#include "shell.h"
 
 int fg_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(args, {"Usage: fg [%JOB]", "Bring a job to the foreground."})) {
@@ -66,6 +69,10 @@ int fg_command(const std::vector<std::string>& args) {
                      "job has already completed",
                      {"Use 'jobs' to list available jobs"}});
         return 1;
+    }
+
+    if (g_shell && g_shell->shell_exec) {
+        g_shell->shell_exec->set_job_output_forwarding(job->pgid, true);
     }
 
     if (killpg(job->pgid, SIGCONT) < 0) {
