@@ -303,6 +303,14 @@ Resume a job in the background.
 bg [job_spec]
 ```
 
+### Auto-background on Ctrl+Z
+Append `&^` to a command to mark it for automatic backgrounding the first time you press
+`Ctrl+Z`.
+
+```bash
+long_running_task &^
+```
+
 ### wait
 Wait for jobs or processes to finish.
 
