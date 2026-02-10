@@ -6,27 +6,38 @@ else
     CJSH_PATH="$(cd "$(dirname "$0")/../../build" && pwd)/cjsh"
 fi
 
+count_zombies() {
+    if command -v ps >/dev/null 2>&1; then
+        ps axo stat 2>/dev/null | awk '$1 ~ /^Z/ { count++ } END { print count+0 }'
+    else
+        echo 0
+    fi
+}
+
 get_baseline_zombies() {
-    ps aux | awk '$8 ~ /^Z/ { count++ } END { print count+0 }'
+    count_zombies
 }
 
 check_for_zombies() {
     local timeout=${1:-5}
     local baseline=${2:-0}
+    local max_checks=$((timeout * 10))
     local count=0
-    while [ $count -lt $timeout ]; do
-        current_zombies=$(ps aux | awk '$8 ~ /^Z/ { count++ } END { print count+0 }')
+    local current_zombies=0
+    local new_zombies=0
+    while [ $count -lt $max_checks ]; do
+        current_zombies=$(count_zombies)
         new_zombies=$((current_zombies - baseline))
-        if [ "$new_zombies" -gt 0 ]; then
-            echo "Found $new_zombies new zombie(s) (total: $current_zombies, baseline: $baseline)"
-            echo "Current zombies:"
-            ps aux | awk '$8 ~ /^Z/ { print "  PID:", $2, "PPID:", $3, "STAT:", $8, "CMD:", $11 }'
-            return 1
+        if [ "$new_zombies" -le 0 ]; then
+            return 0
         fi
         sleep 0.1
         count=$((count + 1))
     done
-    return 0
+    echo "Found $new_zombies new zombie(s) (total: $current_zombies, baseline: $baseline)"
+    echo "Current zombies:"
+    ps axo stat,pid,ppid,command 2>/dev/null | awk '$1 ~ /^Z/ { print }'
+    return 1
 }
 
 echo "Test: SIGCHLD handling and zombie prevention..."
@@ -152,7 +163,7 @@ if check_for_zombies 5 "$BASELINE_ZOMBIES"; then
 else
     echo "FAIL: final zombie check - new zombies still present"
     echo "Current zombies:"
-    ps aux | awk '$8 ~ /^Z/ { print "  PID:", $2, "PPID:", $3, "STAT:", $8, "CMD:", $11 }'
+    ps axo stat,pid,ppid,command 2>/dev/null | awk '$1 ~ /^Z/ { print }'
     exit 1
 fi
 

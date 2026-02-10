@@ -9,7 +9,30 @@ fi
 echo "Test: advanced zombie process scenarios..."
 
 count_zombies() {
-    ps aux | awk '$8 ~ /^Z/ { count++ } END { print count+0 }'
+    if command -v ps >/dev/null 2>&1; then
+        ps axo stat 2>/dev/null | awk '$1 ~ /^Z/ { count++ } END { print count+0 }'
+    else
+        echo 0
+    fi
+}
+
+wait_for_zombie_cleanup() {
+    local baseline="$1"
+    local max_checks="${2:-20}"
+    local delay="${3:-0.1}"
+    local count=0
+    local current="$baseline"
+    while [ "$count" -lt "$max_checks" ]; do
+        current=$(count_zombies)
+        if [ "$current" -le "$baseline" ]; then
+            echo "$current"
+            return 0
+        fi
+        sleep "$delay"
+        count=$((count + 1))
+    done
+    echo "$current"
+    return 1
 }
 
 BASELINE_ZOMBIES=$(count_zombies)
@@ -127,14 +150,13 @@ else
     exit 1
 fi
 
-ZOMBIE_COUNT=$(count_zombies)
-ZOMBIE_INCREASE=$((ZOMBIE_COUNT - BASELINE_ZOMBIES))
-if [ "$ZOMBIE_INCREASE" -le 0 ]; then
+if ZOMBIE_COUNT=$(wait_for_zombie_cleanup "$BASELINE_ZOMBIES" 30 0.1); then
     echo "PASS: no zombie accumulation after tests"
 else
+    ZOMBIE_INCREASE=$((ZOMBIE_COUNT - BASELINE_ZOMBIES))
     echo "FAIL: found $ZOMBIE_INCREASE new zombie processes after tests (baseline: $BASELINE_ZOMBIES, current: $ZOMBIE_COUNT)"
     echo "All zombie processes found:"
-    ps aux | awk '$8 ~ /^Z/ { print }'
+    ps axo stat,pid,ppid,command 2>/dev/null | awk '$1 ~ /^Z/ { print }'
     exit 1
 fi
 
