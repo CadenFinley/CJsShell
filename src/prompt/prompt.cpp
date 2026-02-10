@@ -1131,6 +1131,14 @@ bool handle_async_prompt_refresh() {
     if (!updated_prompt) {
         return false;
     }
+    const char* buffer = ic_get_buffer();
+    if (buffer == nullptr || buffer[0] != '\0') {
+        return false;
+    }
+    size_t cursor_pos = 0;
+    if (!ic_get_cursor_pos(&cursor_pos) || cursor_pos != 0) {
+        return false;
+    }
     return ic_current_loop_reset(nullptr, updated_prompt->c_str(), nullptr);
 }
 
