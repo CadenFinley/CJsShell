@@ -1128,8 +1128,8 @@ available, and how to persist your preferred prompt layout.</p>
   oh-my-zsh theme:
   <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nv">PS1</span><span class="o">=</span><span class="s1">'\S  [color=#5fd7ff]\W[/color] \g'</span>
 </span></code></pre></div></li>
-<li>Set <code>RPS1</code> (or <code>RPROMPT</code>) to control the right-aligned prompt. The default shows the current time
-  in <code>[ic-hint]</code> markup via <code>RPS1='[ic-hint]\A[/ic-hint]'</code>.</li>
+<li>Set <code>RPS1</code> (or <code>RPROMPT</code>) to control the right-aligned prompt. It is unset by default, so nothing
+  renders on the right until you export one.</li>
 <li>Use <code>PROMPT_COMMAND</code> for commands that should run before each prompt.</li>
 <li>Apply markup directly inside these variables to style text, add colors, and align sections.</li>
 </ul>
