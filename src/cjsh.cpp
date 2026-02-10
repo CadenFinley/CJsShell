@@ -143,8 +143,8 @@ int run_cjsh(int argc, char* argv[]) {
     if (std::atexit(cleanup_resources) != 0) {
         print_error({ErrorType::RUNTIME_ERROR,
                      "",
-                     "Failed to set exit handler",
-                     {"Resource cleanup may not occur properly"}});
+                     "failed to set exit handler",
+                     {"resource cleanup may not occur properly"}});
         // this is not a fatal error so we continue running cjsh as operating system should clean up
         // resources on exit there just might be some shell errors on exit because of the use of
         // std::unique_ptr
@@ -153,10 +153,7 @@ int run_cjsh(int argc, char* argv[]) {
     // create the shell object
     g_shell = std::make_unique<Shell>();
     if (!g_shell) {
-        print_error({ErrorType::FATAL_ERROR,
-                     "",
-                     "Failed to initialize shell: insufficient memory or system resources",
-                     {}});
+        print_error({ErrorType::FATAL_ERROR, "", "failed to properly initialize shell", {}});
         return 1;
     }
 
