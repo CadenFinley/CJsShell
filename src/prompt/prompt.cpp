@@ -1017,10 +1017,6 @@ std::string default_primary_prompt_template() {
     return "\\S  [color=#5fd7ff]\\W[/color] \\g";
 }
 
-std::string default_right_prompt_template() {
-    return "[ic-hint]\\A[/ic-hint]";
-}
-
 std::string render_primary_prompt() {
     std::string ps1 = get_ps("PS1", default_primary_prompt_template());
     git_prompt_async_manager().begin_render();
@@ -1032,10 +1028,20 @@ std::string render_primary_prompt() {
 std::string render_right_prompt() {
     if (cjsh_env::shell_variable_is_set("RPROMPT")) {
         std::string rprompt = cjsh_env::get_shell_variable_value("RPROMPT");
+        if (rprompt.empty()) {
+            return {};
+        }
         return expand_prompt_string(rprompt, PromptContext::Right);
     }
 
-    std::string rps1 = get_ps("RPS1", default_right_prompt_template());
+    if (!cjsh_env::shell_variable_is_set("RPS1")) {
+        return {};
+    }
+
+    std::string rps1 = cjsh_env::get_shell_variable_value("RPS1");
+    if (rps1.empty()) {
+        return {};
+    }
     return expand_prompt_string(rps1, PromptContext::Right);
 }
 

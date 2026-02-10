@@ -12,8 +12,8 @@ available, and how to persist your preferred prompt layout.
   ```bash
   PS1='\S  [color=#5fd7ff]\W[/color] \g'
   ```
-- Set `RPS1` (or `RPROMPT`) to control the right-aligned prompt. The default shows the current time
-  in `[ic-hint]` markup via `RPS1='[ic-hint]\A[/ic-hint]'`.
+- Set `RPS1` (or `RPROMPT`) to control the right-aligned prompt. It is unset by default, so nothing
+  renders on the right until you export one.
 - Use `PROMPT_COMMAND` for commands that should run before each prompt.
 - Apply markup directly inside these variables to style text, add colors, and align sections.
 
