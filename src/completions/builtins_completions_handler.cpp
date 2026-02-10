@@ -273,7 +273,9 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_alias(".", "source");
 
         add_doc("help", "Display the builtin command reference", {});
-        add_doc("version", "Show cjsh version information", {});
+        add_doc("version", "Show cjsh version information",
+                {make_option("-a", "Show extended build details"),
+                 make_option("--all", "Show extended build details")});
         add_doc("eval", "Evaluate arguments as shell code", {});
         add_doc("if", "Evaluate a conditional block", {});
         add_doc("then", "Start the body of an if or elif branch", {});

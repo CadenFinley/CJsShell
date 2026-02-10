@@ -43,14 +43,23 @@ std::string get_version() {
 }
 
 int version_command(const std::vector<std::string>& args) {
-    if (builtin_handle_help(
-            args, {"Usage: version", "Display cjsh version and build information.", "",
-                   "Output format: cjsh v<VERSION> [<TAGS>] (git <HASH>) (<ARCH>-<PLATFORM>)", "",
-                   "  VERSION  - The semantic version number (e.g., 1.0.0)",
-                   "  TAGS     - Build configuration flags (e.g., (debug) (pre-release))",
-                   "  HASH     - Git commit hash used for the build",
-                   "  ARCH     - Target architecture (e.g., x86_64, arm64)",
-                   "  PLATFORM - Target platform (e.g., darwin, linux, windows)"})) {
+    const std::vector<std::string> help_lines = {
+        "Usage: version [-a]",
+        "Display cjsh version and build information.",
+        "",
+        "  -a, --all  Show extended build details",
+        "",
+        "Output format: cjsh v<VERSION> [<TAGS>] (git <HASH>) (<ARCH>-<PLATFORM>)",
+        "",
+        "  VERSION  - The semantic version number (e.g., 1.0.0)",
+        "  TAGS     - Build configuration flags (e.g., (debug) (pre-release))",
+        "  HASH     - Git commit hash used for the build",
+        "  ARCH     - Target architecture (e.g., x86_64, arm64)",
+        "  PLATFORM - Target platform (e.g., darwin, linux, windows)",
+        "",
+        "Extended details include build time, compiler, C++ standard, and full git hash."};
+
+    if (builtin_handle_help(args, help_lines)) {
         return 0;
     }
 
@@ -65,6 +74,36 @@ int version_command(const std::vector<std::string>& args) {
 #define CJSH_GIT_HASH "unknown"
 #endif
 
+#ifndef CJSH_GIT_HASH_FULL
+#define CJSH_GIT_HASH_FULL "unknown"
+#endif
+
+#ifndef CJSH_BUILD_TIME
+#define CJSH_BUILD_TIME "unknown"
+#endif
+
+#ifndef CJSH_BUILD_COMPILER
+#define CJSH_BUILD_COMPILER "unknown"
+#endif
+
+#ifndef CJSH_CXX_STANDARD
+#define CJSH_CXX_STANDARD "unknown"
+#endif
+
+#ifndef CJSH_BUILD_TYPE
+#define CJSH_BUILD_TYPE "unknown"
+#endif
+
+    bool show_all = false;
+    for (size_t i = 1; i < args.size(); ++i) {
+        const std::string& arg = args[i];
+        if (arg == "-a" || arg == "--all") {
+            show_all = true;
+        } else if (arg == "--") {
+            break;
+        }
+    }
+
     const std::string version = get_version();
 
     std::string build_tags;
@@ -75,5 +114,13 @@ int version_command(const std::vector<std::string>& args) {
     (void)std::fprintf(stdout, "cjsh v%s%s (git %s) (%s-%s)\n", version.c_str(), build_tags.c_str(),
                        CJSH_GIT_HASH, CJSH_BUILD_ARCH, CJSH_BUILD_PLATFORM);
     (void)std::fputs("Copyright (c) 2026 Caden Finley MIT License\n", stdout);
+    if (show_all) {
+        (void)std::fputs("Build details:\n", stdout);
+        (void)std::fprintf(stdout, "  Build time: %s\n", CJSH_BUILD_TIME);
+        (void)std::fprintf(stdout, "  Git hash: %s\n", CJSH_GIT_HASH_FULL);
+        (void)std::fprintf(stdout, "  Compiler: %s\n", CJSH_BUILD_COMPILER);
+        (void)std::fprintf(stdout, "  C++ standard: C++%s\n", CJSH_CXX_STANDARD);
+        (void)std::fprintf(stdout, "  Build type: %s\n", CJSH_BUILD_TYPE);
+    }
     return 0;
 }

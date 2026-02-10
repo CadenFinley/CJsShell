@@ -87,31 +87,49 @@ if(EXISTS "${_git_head_file}")
 endif()
 
 set(CJSH_GIT_HASH "unknown")
+set(CJSH_GIT_HASH_FULL "unknown")
 if(DEFINED ENV{CJSH_GIT_HASH_OVERRIDE} AND NOT "$ENV{CJSH_GIT_HASH_OVERRIDE}" STREQUAL "")
     set(CJSH_GIT_HASH "$ENV{CJSH_GIT_HASH_OVERRIDE}")
+    set(CJSH_GIT_HASH_FULL "$ENV{CJSH_GIT_HASH_OVERRIDE}")
 else()
     find_package(Git QUIET)
     if(GIT_FOUND)
         execute_process(
             COMMAND ${GIT_EXECUTABLE} rev-parse --short HEAD
             WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            OUTPUT_VARIABLE _git_rev
-            RESULT_VARIABLE _git_rev_result
+            OUTPUT_VARIABLE _git_rev_short
+            RESULT_VARIABLE _git_rev_short_result
             OUTPUT_STRIP_TRAILING_WHITESPACE
             ERROR_QUIET
         )
-        if(_git_rev_result EQUAL 0 AND NOT _git_rev STREQUAL "")
-            set(CJSH_GIT_HASH "${_git_rev}")
-            execute_process(
-                COMMAND ${GIT_EXECUTABLE} status --porcelain
-                WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-                OUTPUT_VARIABLE _git_status
-                RESULT_VARIABLE _git_status_result
-                OUTPUT_STRIP_TRAILING_WHITESPACE
-                ERROR_QUIET
-            )
-            if(_git_status_result EQUAL 0 AND NOT _git_status STREQUAL "")
+        execute_process(
+            COMMAND ${GIT_EXECUTABLE} rev-parse HEAD
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            OUTPUT_VARIABLE _git_rev_full
+            RESULT_VARIABLE _git_rev_full_result
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            ERROR_QUIET
+        )
+        if(_git_rev_short_result EQUAL 0 AND NOT _git_rev_short STREQUAL "")
+            set(CJSH_GIT_HASH "${_git_rev_short}")
+        endif()
+        if(_git_rev_full_result EQUAL 0 AND NOT _git_rev_full STREQUAL "")
+            set(CJSH_GIT_HASH_FULL "${_git_rev_full}")
+        endif()
+        execute_process(
+            COMMAND ${GIT_EXECUTABLE} status --porcelain
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            OUTPUT_VARIABLE _git_status
+            RESULT_VARIABLE _git_status_result
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            ERROR_QUIET
+        )
+        if(_git_status_result EQUAL 0 AND NOT _git_status STREQUAL "")
+            if(NOT CJSH_GIT_HASH STREQUAL "unknown")
                 set(CJSH_GIT_HASH "${CJSH_GIT_HASH}-dirty")
+            endif()
+            if(NOT CJSH_GIT_HASH_FULL STREQUAL "unknown")
+                set(CJSH_GIT_HASH_FULL "${CJSH_GIT_HASH_FULL}-dirty")
             endif()
         endif()
     endif()
@@ -143,6 +161,13 @@ elseif(WIN32)
 else()
     set(CJSH_BUILD_PLATFORM "unix")
 endif()
+
+string(TIMESTAMP CJSH_BUILD_TIME "%Y-%m-%dT%H:%M:%SZ" UTC)
+set(CJSH_BUILD_COMPILER "${CMAKE_CXX_COMPILER_ID}")
+if(CMAKE_CXX_COMPILER_VERSION)
+    string(APPEND CJSH_BUILD_COMPILER " ${CMAKE_CXX_COMPILER_VERSION}")
+endif()
+set(CJSH_CXX_STANDARD "${CMAKE_CXX_STANDARD}")
 
 file(GLOB_RECURSE CJSH_CPP_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/*.cpp)
 
@@ -208,8 +233,13 @@ target_include_directories(cjsh PRIVATE ${CJSH_INCLUDE_DIRS})
 
 target_compile_definitions(cjsh PRIVATE
     CJSH_GIT_HASH="${CJSH_GIT_HASH}"
+    CJSH_GIT_HASH_FULL="${CJSH_GIT_HASH_FULL}"
     CJSH_BUILD_ARCH="${CJSH_BUILD_ARCH}"
     CJSH_BUILD_PLATFORM="${CJSH_BUILD_PLATFORM}"
+    CJSH_BUILD_TIME="${CJSH_BUILD_TIME}"
+    CJSH_BUILD_COMPILER="${CJSH_BUILD_COMPILER}"
+    CJSH_CXX_STANDARD="${CJSH_CXX_STANDARD}"
+    CJSH_BUILD_TYPE="$<CONFIG>"
     IC_SEPARATE_OBJS=1
     JSON_NOEXCEPTION=1
     JSON_USE_IMPLICIT_CONVERSIONS=1
@@ -514,8 +544,13 @@ if(BUILD_TESTING)
     target_include_directories(isocline_behavior_tests PRIVATE ${CJSH_INCLUDE_DIRS})
     target_compile_definitions(isocline_behavior_tests PRIVATE
         CJSH_GIT_HASH="${CJSH_GIT_HASH}"
+        CJSH_GIT_HASH_FULL="${CJSH_GIT_HASH_FULL}"
         CJSH_BUILD_ARCH="${CJSH_BUILD_ARCH}"
         CJSH_BUILD_PLATFORM="${CJSH_BUILD_PLATFORM}"
+        CJSH_BUILD_TIME="${CJSH_BUILD_TIME}"
+        CJSH_BUILD_COMPILER="${CJSH_BUILD_COMPILER}"
+        CJSH_CXX_STANDARD="${CJSH_CXX_STANDARD}"
+        CJSH_BUILD_TYPE="$<CONFIG>"
         IC_SEPARATE_OBJS=1
         JSON_NOEXCEPTION=1
         JSON_USE_IMPLICIT_CONVERSIONS=1
