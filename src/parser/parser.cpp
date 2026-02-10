@@ -1338,56 +1338,59 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
             int bracket_depth = 0;
             size_t amp_index = trimmed.size() - 2;
 
-            for (size_t i = 0; i < trimmed.length(); ++i) {
-                if (trimmed[i] == '"' || trimmed[i] == '\'') {
-                    if (!in_quotes) {
-                        in_quotes = true;
-                        quote_char = trimmed[i];
-                    } else if (quote_char == trimmed[i]) {
-                        in_quotes = false;
-                    }
-                } else if (!in_quotes) {
-                    if (i >= 2 && trimmed[i - 2] == '$' && trimmed[i - 1] == '(' &&
-                        trimmed[i] == '(') {
-                        arith_depth++;
-                    }
+            if (!is_char_escaped(trimmed, amp_index)) {
+                for (size_t i = 0; i < trimmed.length(); ++i) {
+                    if ((trimmed[i] == '"' || trimmed[i] == '\'') && !is_char_escaped(trimmed, i)) {
+                        if (!in_quotes) {
+                            in_quotes = true;
+                            quote_char = trimmed[i];
+                        } else if (quote_char == trimmed[i]) {
+                            in_quotes = false;
+                        }
+                    } else if (!in_quotes) {
+                        if (i >= 2 && trimmed[i - 2] == '$' && trimmed[i - 1] == '(' &&
+                            trimmed[i] == '(') {
+                            arith_depth++;
+                        }
 
-                    else if (i + 1 < trimmed.length() && trimmed[i] == ')' &&
-                             trimmed[i + 1] == ')' && arith_depth > 0) {
-                        arith_depth--;
-                        i++;
-                    }
+                        else if (i + 1 < trimmed.length() && trimmed[i] == ')' &&
+                                 trimmed[i + 1] == ')' && arith_depth > 0) {
+                            arith_depth--;
+                            i++;
+                        }
 
-                    else if (i + 1 < trimmed.length() && trimmed[i] == '[' &&
-                             trimmed[i + 1] == '[') {
-                        bracket_depth++;
-                        i++;
-                    }
+                        else if (i + 1 < trimmed.length() && trimmed[i] == '[' &&
+                                 trimmed[i + 1] == '[') {
+                            bracket_depth++;
+                            i++;
+                        }
 
-                    else if (i + 1 < trimmed.length() && trimmed[i] == ']' &&
-                             trimmed[i + 1] == ']' && bracket_depth > 0) {
-                        bracket_depth--;
-                        i++;
-                    }
+                        else if (i + 1 < trimmed.length() && trimmed[i] == ']' &&
+                                 trimmed[i + 1] == ']' && bracket_depth > 0) {
+                            bracket_depth--;
+                            i++;
+                        }
 
-                    else if (i == amp_index && trimmed[i] == '&' && arith_depth > 0) {
-                        inside_arithmetic = true;
-                    }
+                        else if (i == amp_index && trimmed[i] == '&' && arith_depth > 0) {
+                            inside_arithmetic = true;
+                        }
 
-                    else if (i == amp_index && trimmed[i] == '&' && bracket_depth > 0) {
-                        inside_arithmetic = true;
+                        else if (i == amp_index && trimmed[i] == '&' && bracket_depth > 0) {
+                            inside_arithmetic = true;
+                        }
                     }
                 }
-            }
 
-            if (!inside_arithmetic) {
-                auto_background_on_stop = true;
-                cmd_part = trim_trailing_whitespace(trimmed.substr(0, trimmed.size() - 2));
-                trimmed = trim_trailing_whitespace(cmd_part);
+                if (!inside_arithmetic) {
+                    auto_background_on_stop = true;
+                    cmd_part = trim_trailing_whitespace(trimmed.substr(0, trimmed.size() - 2));
+                    trimmed = trim_trailing_whitespace(cmd_part);
+                }
             }
         }
 
-        if (!trimmed.empty() && trimmed.back() == '&') {
+        if (!trimmed.empty() && trimmed.back() == '&' &&
+            !is_char_escaped(trimmed, trimmed.size() - 1)) {
             bool inside_arithmetic = false;
             int arith_depth = 0;
             bool in_quotes = false;

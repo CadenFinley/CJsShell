@@ -19,6 +19,41 @@ cleanup_pid() {
     fi
 }
 
+wait_for_pid_file() {
+    local pid_file="$1"
+    local retries=0
+    local pid=""
+
+    while [ $retries -lt 60 ]; do
+        if [ -s "$pid_file" ]; then
+            pid="$(cat "$pid_file" 2>/dev/null)"
+            if [ -n "$pid" ]; then
+                echo "$pid"
+                return 0
+            fi
+        fi
+        sleep 0.05
+        retries=$((retries + 1))
+    done
+
+    return 1
+}
+
+wait_for_process_exit() {
+    local pid="$1"
+    local retries=0
+
+    while kill -0 "$pid" 2>/dev/null; do
+        if [ $retries -ge 200 ]; then
+            return 1
+        fi
+        sleep 0.05
+        retries=$((retries + 1))
+    done
+
+    return 0
+}
+
 test_background_persists() {
     log "Test: background job survives without huponexit"
     local pid_file
@@ -266,6 +301,289 @@ jobname_rejects_empty_name() {
     return 1
 }
 
+auto_background_on_stop() {
+    log "Test: &^ auto-backgrounds on SIGTSTP"
+    local pid_file output_file
+    pid_file="$(mktemp /tmp/cjsh_autobg_pid.XXXXXX)"
+    output_file="$(mktemp /tmp/cjsh_autobg_out.XXXXXX)"
+
+    "$CJSH_PATH" -i -c "sh -c 'echo \$\$ > $pid_file; sleep 5' &^; jobs; kill -9 %1 2>/dev/null; wait %1 2>/dev/null || true" >"$output_file" 2>&1 &
+    local cjsh_pid=$!
+
+    local target_pid
+    target_pid="$(wait_for_pid_file "$pid_file")"
+
+    if [ -z "$target_pid" ]; then
+        kill "$cjsh_pid" 2>/dev/null || true
+        wait "$cjsh_pid" 2>/dev/null || true
+        rm -f "$pid_file" "$output_file"
+        echo "FAIL: no foreground PID recorded"
+        return 1
+    fi
+
+    kill -TSTP "-$target_pid" 2>/dev/null || kill -TSTP "$target_pid" 2>/dev/null
+
+    if ! wait_for_process_exit "$cjsh_pid"; then
+        kill -CONT "$cjsh_pid" 2>/dev/null || true
+        kill -9 "$cjsh_pid" 2>/dev/null || true
+        wait "$cjsh_pid" 2>/dev/null || true
+        rm -f "$pid_file" "$output_file"
+        echo "FAIL: cjsh did not exit after SIGTSTP"
+        return 1
+    fi
+
+    wait "$cjsh_pid"
+    local exit_code=$?
+    local output
+    output="$(cat "$output_file" 2>/dev/null)"
+
+    rm -f "$pid_file" "$output_file"
+
+    if [ $exit_code -ne 0 ]; then
+        echo "FAIL: cjsh exited with $exit_code: $output"
+        return 1
+    fi
+
+    if echo "$output" | grep -q "Stopped"; then
+        echo "FAIL: job reported stopped instead of running: $output"
+        return 1
+    fi
+
+    if echo "$output" | grep -q "Running"; then
+        echo "PASS"
+        return 0
+    fi
+
+    echo "FAIL: expected Running job output, got: $output"
+    return 1
+}
+
+auto_background_no_caret_command() {
+    log "Test: &^ does not spawn caret command"
+    local output
+    output=$("$CJSH_PATH" -c "sleep 0.05 &^; sleep 0.05 &^ && echo ok" 2>&1)
+    local exit_code=$?
+
+    if [ $exit_code -ne 0 ]; then
+        echo "FAIL: cjsh exited with $exit_code: $output"
+        return 1
+    fi
+
+    if echo "$output" | grep -q "cjsh: \^"; then
+        echo "FAIL: caret command spawned: $output"
+        return 1
+    fi
+
+    if echo "$output" | grep -q "command not found"; then
+        echo "FAIL: unexpected command not found: $output"
+        return 1
+    fi
+
+    if echo "$output" | grep -q "ok"; then
+        echo "PASS"
+        return 0
+    fi
+
+    echo "FAIL: expected ok output, got: $output"
+    return 1
+}
+
+auto_background_literal_amp_caret() {
+    log "Test: quoted &^ stays literal"
+    local output
+    output=$("$CJSH_PATH" -c "echo '&^'; echo \\&^" 2>&1)
+    local exit_code=$?
+
+    if [ $exit_code -ne 0 ]; then
+        echo "FAIL: cjsh exited with $exit_code: $output"
+        return 1
+    fi
+
+    if echo "$output" | grep -q "command not found"; then
+        echo "FAIL: unexpected command not found: $output"
+        return 1
+    fi
+
+    local count
+    count=$(echo "$output" | grep -c "&^")
+    if [ "$count" -ge 2 ]; then
+        echo "PASS"
+        return 0
+    fi
+
+    echo "FAIL: expected literal &^ output, got: $output"
+    return 1
+}
+
+auto_background_ignores_sigstop() {
+    log "Test: &^ does not auto-background on SIGSTOP"
+    local pid_file output_file
+    pid_file="$(mktemp /tmp/cjsh_autobg_pid.XXXXXX)"
+    output_file="$(mktemp /tmp/cjsh_autobg_out.XXXXXX)"
+
+    "$CJSH_PATH" -i -c "sh -c 'echo \$\$ > $pid_file; sleep 5' &^; jobs; kill -9 %1 2>/dev/null; wait %1 2>/dev/null || true" >"$output_file" 2>&1 &
+    local cjsh_pid=$!
+
+    local target_pid
+    target_pid="$(wait_for_pid_file "$pid_file")"
+    if [ -z "$target_pid" ]; then
+        kill "$cjsh_pid" 2>/dev/null || true
+        wait "$cjsh_pid" 2>/dev/null || true
+        rm -f "$pid_file" "$output_file"
+        echo "FAIL: no foreground PID recorded"
+        return 1
+    fi
+
+    kill -STOP "-$target_pid" 2>/dev/null || kill -STOP "$target_pid" 2>/dev/null
+
+    if ! wait_for_process_exit "$cjsh_pid"; then
+        kill -CONT "$cjsh_pid" 2>/dev/null || true
+        kill -9 "$cjsh_pid" 2>/dev/null || true
+        wait "$cjsh_pid" 2>/dev/null || true
+        rm -f "$pid_file" "$output_file"
+        echo "FAIL: cjsh did not exit after SIGSTOP"
+        return 1
+    fi
+
+    wait "$cjsh_pid"
+    local exit_code=$?
+    local output
+    output="$(cat "$output_file" 2>/dev/null)"
+
+    rm -f "$pid_file" "$output_file"
+
+    if [ $exit_code -ne 0 ]; then
+        echo "FAIL: cjsh exited with $exit_code: $output"
+        return 1
+    fi
+
+    if echo "$output" | grep -q "Running"; then
+        echo "FAIL: job reported running after SIGSTOP: $output"
+        return 1
+    fi
+
+    if echo "$output" | grep -q "Stopped"; then
+        echo "PASS"
+        return 0
+    fi
+
+    echo "FAIL: expected Stopped job output, got: $output"
+    return 1
+}
+
+auto_background_pipeline() {
+    log "Test: &^ auto-backgrounds pipeline"
+    local pid_file output_file
+    pid_file="$(mktemp /tmp/cjsh_autobg_pid.XXXXXX)"
+    output_file="$(mktemp /tmp/cjsh_autobg_out.XXXXXX)"
+
+    "$CJSH_PATH" -i -c "sh -c 'echo \$\$ > $pid_file; sleep 5' | cat &^; jobs; kill -9 %1 2>/dev/null; wait %1 2>/dev/null || true" >"$output_file" 2>&1 &
+    local cjsh_pid=$!
+
+    local target_pid
+    target_pid="$(wait_for_pid_file "$pid_file")"
+    if [ -z "$target_pid" ]; then
+        kill "$cjsh_pid" 2>/dev/null || true
+        wait "$cjsh_pid" 2>/dev/null || true
+        rm -f "$pid_file" "$output_file"
+        echo "FAIL: no foreground PID recorded"
+        return 1
+    fi
+
+    kill -TSTP "-$target_pid" 2>/dev/null || kill -TSTP "$target_pid" 2>/dev/null
+
+    if ! wait_for_process_exit "$cjsh_pid"; then
+        kill -CONT "$cjsh_pid" 2>/dev/null || true
+        kill -9 "$cjsh_pid" 2>/dev/null || true
+        wait "$cjsh_pid" 2>/dev/null || true
+        rm -f "$pid_file" "$output_file"
+        echo "FAIL: cjsh did not exit after SIGTSTP"
+        return 1
+    fi
+
+    wait "$cjsh_pid"
+    local exit_code=$?
+    local output
+    output="$(cat "$output_file" 2>/dev/null)"
+
+    rm -f "$pid_file" "$output_file"
+
+    if [ $exit_code -ne 0 ]; then
+        echo "FAIL: cjsh exited with $exit_code: $output"
+        return 1
+    fi
+
+    if echo "$output" | grep -q "Stopped"; then
+        echo "FAIL: job reported stopped instead of running: $output"
+        return 1
+    fi
+
+    if echo "$output" | grep -q "Running"; then
+        echo "PASS"
+        return 0
+    fi
+
+    echo "FAIL: expected Running job output, got: $output"
+    return 1
+}
+
+auto_background_with_redirection() {
+    log "Test: &^ works with redirection"
+    local pid_file output_file redir_file
+    pid_file="$(mktemp /tmp/cjsh_autobg_pid.XXXXXX)"
+    output_file="$(mktemp /tmp/cjsh_autobg_out.XXXXXX)"
+    redir_file="$(mktemp /tmp/cjsh_autobg_redir.XXXXXX)"
+
+    "$CJSH_PATH" -i -c "sh -c 'echo \$\$ > $pid_file; sleep 5' > $redir_file &^; jobs; kill -9 %1 2>/dev/null; wait %1 2>/dev/null || true" >"$output_file" 2>&1 &
+    local cjsh_pid=$!
+
+    local target_pid
+    target_pid="$(wait_for_pid_file "$pid_file")"
+    if [ -z "$target_pid" ]; then
+        kill "$cjsh_pid" 2>/dev/null || true
+        wait "$cjsh_pid" 2>/dev/null || true
+        rm -f "$pid_file" "$output_file" "$redir_file"
+        echo "FAIL: no foreground PID recorded"
+        return 1
+    fi
+
+    kill -TSTP "$target_pid" 2>/dev/null
+
+    if ! wait_for_process_exit "$cjsh_pid"; then
+        kill -CONT "$cjsh_pid" 2>/dev/null || true
+        kill -9 "$cjsh_pid" 2>/dev/null || true
+        wait "$cjsh_pid" 2>/dev/null || true
+        rm -f "$pid_file" "$output_file" "$redir_file"
+        echo "FAIL: cjsh did not exit after SIGTSTP"
+        return 1
+    fi
+
+    wait "$cjsh_pid"
+    local exit_code=$?
+    local output
+    output="$(cat "$output_file" 2>/dev/null)"
+
+    rm -f "$pid_file" "$output_file" "$redir_file"
+
+    if [ $exit_code -ne 0 ]; then
+        echo "FAIL: cjsh exited with $exit_code: $output"
+        return 1
+    fi
+
+    if echo "$output" | grep -q "Stopped"; then
+        echo "FAIL: job reported stopped instead of running: $output"
+        return 1
+    fi
+
+    if echo "$output" | grep -q "Running"; then
+        echo "PASS"
+        return 0
+    fi
+
+    echo "FAIL: expected Running job output, got: $output"
+    return 1
+}
+
 if ! test_background_persists; then
     status=1
 fi
@@ -315,6 +633,30 @@ if ! jobname_affects_command_matching; then
 fi
 
 if ! jobname_rejects_empty_name; then
+    status=1
+fi
+
+if ! auto_background_on_stop; then
+    status=1
+fi
+
+if ! auto_background_no_caret_command; then
+    status=1
+fi
+
+if ! auto_background_literal_amp_caret; then
+    status=1
+fi
+
+if ! auto_background_ignores_sigstop; then
+    status=1
+fi
+
+if ! auto_background_pipeline; then
+    status=1
+fi
+
+if ! auto_background_with_redirection; then
     status=1
 fi
 

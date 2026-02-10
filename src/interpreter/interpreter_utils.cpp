@@ -112,6 +112,10 @@ std::vector<std::string> split_ampersand(const std::string& s) {
             }
             cur += c;
         } else if (!in_quotes) {
+            if (is_char_escaped(s, i)) {
+                cur += c;
+                continue;
+            }
             if (i >= 2 && s[i - 2] == '$' && s[i - 1] == '(' && s[i] == '(') {
                 arith_depth++;
                 cur += c;
