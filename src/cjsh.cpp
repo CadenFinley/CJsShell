@@ -157,6 +157,8 @@ int run_cjsh(int argc, char* argv[]) {
         return 1;
     }
 
+    // explicitly apply no exec here in case it was in flags so that it applies to shell right after
+    // initialization
     g_shell->apply_no_exec(config::no_exec);
 
     // set args for the script file before saving the startup args for cjsh
