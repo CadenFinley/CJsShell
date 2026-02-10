@@ -76,6 +76,15 @@ else
     fail_test "--no-exec should skip command execution"
 fi
 
+noexec_pipeline_marker="$TMP_ROOT/noexec_pipeline_marker"
+"$CJSH_PATH" --no-exec -c "echo hi | /usr/bin/tee \"$noexec_pipeline_marker\" >/dev/null" \
+    >/dev/null 2>&1
+if [ ! -e "$noexec_pipeline_marker" ]; then
+    pass_test "--no-exec skips pipeline execution"
+else
+    fail_test "--no-exec should skip pipeline execution"
+fi
+
 echo ""
 echo "=== Test Summary ==="
 TOTAL_TESTS=$((TESTS_PASSED + TESTS_FAILED))

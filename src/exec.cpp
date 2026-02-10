@@ -1196,6 +1196,14 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         return finalize_exit(EX_USAGE);
     }
 
+    if (g_shell && g_shell->get_shell_option(ShellOption::Noexec)) {
+        const bool is_background = commands.back().background;
+        if (!is_background) {
+            set_last_pipeline_statuses(std::vector<int>(commands.size(), 0));
+        }
+        return finalize_exit(0);
+    }
+
     if (commands.size() == 1) {
         Command cmd = commands[0];
         std::vector<std::pair<std::string, std::string>> env_assignments;
