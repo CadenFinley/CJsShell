@@ -2076,43 +2076,9 @@ static void editor_auto_indent(editor_t* eb, const char* pre, const char* post) 
     }
 }
 
-static bool edit_try_expand_abbreviation(ic_env_t* env, editor_t* eb, bool boundary_char_present,
-                                         bool modification_started) {
-    if (env == NULL || eb == NULL)
-        return false;
-    if (env->abbreviation_count <= 0 || env->abbreviations == NULL)
-        return false;
-
-    ssize_t boundary_offset = (boundary_char_present ? 1 : 0);
-    if (eb->pos <= boundary_offset)
-        return false;
-
-    const char* buffer = sbuf_string(eb->input);
-    if (buffer == NULL)
-        return false;
-
-    if (boundary_char_present) {
-        ssize_t boundary_index = eb->pos - 1;
-        if (boundary_index < 0)
-            return false;
-        if (!ic_char_is_white(buffer + boundary_index, 1))
-            return false;
-    }
-
-    ssize_t word_end = eb->pos - boundary_offset;
-    if (word_end <= 0)
-        return false;
-
-    if (word_end > 0 && ic_char_is_white(buffer + word_end - 1, 1))
-        return false;
-
-    ssize_t word_start = sbuf_find_ws_word_start(eb->input, word_end);
-    if (word_start < 0)
-        word_start = 0;
-
-    if (word_start > 0 && !ic_char_is_white(buffer + word_start - 1, 1))
-        return false;
-
+static bool edit_expand_abbreviation_for_range(ic_env_t* env, editor_t* eb, const char* buffer,
+                                               ssize_t word_start, ssize_t word_end,
+                                               ssize_t cursor_delta, bool modification_started) {
     ssize_t word_len = word_end - word_start;
     if (word_len <= 0)
         return false;
@@ -2125,11 +2091,75 @@ static bool edit_try_expand_abbreviation(ic_env_t* env, editor_t* eb, bool bound
                 editor_start_modify(eb);
             }
             sbuf_delete_at(eb->input, word_start, word_len);
-            eb->pos -= word_len;
+            if (cursor_delta < 0)
+                cursor_delta = 0;
+            eb->pos = word_start + cursor_delta;
             ssize_t new_pos = sbuf_insert_at(eb->input, entry->expansion, word_start);
             ssize_t expansion_len = new_pos - word_start;
             eb->pos += expansion_len;
             return true;
+        }
+    }
+
+    return false;
+}
+
+static bool edit_try_expand_abbreviation(ic_env_t* env, editor_t* eb, bool boundary_char_present,
+                                         bool modification_started) {
+    if (env == NULL || eb == NULL)
+        return false;
+    if (env->abbreviation_count <= 0 || env->abbreviations == NULL)
+        return false;
+
+    const char* buffer = sbuf_string(eb->input);
+    if (buffer == NULL)
+        return false;
+
+    ssize_t boundary_offset = (boundary_char_present ? 1 : 0);
+    if (boundary_char_present && eb->pos <= boundary_offset)
+        return false;
+
+    if (eb->pos > boundary_offset) {
+        if (boundary_char_present) {
+            ssize_t boundary_index = eb->pos - 1;
+            if (boundary_index < 0)
+                return false;
+            if (!ic_char_is_white(buffer + boundary_index, 1))
+                return false;
+        }
+
+        ssize_t word_end = eb->pos - boundary_offset;
+        if (word_end > 0 && !ic_char_is_white(buffer + word_end - 1, 1)) {
+            ssize_t word_start = sbuf_find_ws_word_start(eb->input, word_end);
+            if (word_start < 0)
+                word_start = 0;
+
+            if (word_start == 0 || ic_char_is_white(buffer + word_start - 1, 1)) {
+                ssize_t cursor_delta = eb->pos - word_end;
+                if (edit_expand_abbreviation_for_range(env, eb, buffer, word_start, word_end,
+                                                       cursor_delta, modification_started)) {
+                    return true;
+                }
+            } else if (boundary_char_present) {
+                return false;
+            }
+        } else if (boundary_char_present) {
+            return false;
+        }
+    }
+
+    if (!boundary_char_present) {
+        ssize_t len = sbuf_len(eb->input);
+        if (eb->pos < len && !ic_char_is_white(buffer + eb->pos, 1)) {
+            if (eb->pos == 0 || ic_char_is_white(buffer + eb->pos - 1, 1)) {
+                ssize_t word_end = sbuf_find_ws_word_end(eb->input, eb->pos);
+                if (word_end > eb->pos) {
+                    if (edit_expand_abbreviation_for_range(env, eb, buffer, eb->pos, word_end, 0,
+                                                           modification_started)) {
+                        return true;
+                    }
+                }
+            }
         }
     }
 
