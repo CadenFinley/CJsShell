@@ -48,6 +48,7 @@ struct Job {
     pid_t pgid{0};
     std::string command;
     bool background{false};
+    bool auto_background_on_stop{false};
     bool completed{false};
     bool stopped{false};
     int status{0};
@@ -96,7 +97,8 @@ class Exec {
     Exec();
     ~Exec();
 
-    int execute_command_sync(const std::vector<std::string>& args);
+    int execute_command_sync(const std::vector<std::string>& args,
+                             bool auto_background_on_stop = false);
     int execute_command_async(const std::vector<std::string>& args);
     int execute_pipeline(const std::vector<Command>& commands);
     int run_with_command_redirections(Command cmd, const std::function<int()>& action,

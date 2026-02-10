@@ -107,11 +107,13 @@ void apply_assignments_to_shell_env(
     cjsh_env::sync_parser_env_vars(g_shell.get());
 }
 
-Job make_single_process_job(pid_t pid, const std::string& command, bool background) {
+Job make_single_process_job(pid_t pid, const std::string& command, bool background,
+                            bool auto_background_on_stop) {
     Job job;
     job.pgid = pid;
     job.command = command;
     job.background = background;
+    job.auto_background_on_stop = auto_background_on_stop;
     job.completed = false;
     job.stopped = false;
     job.pids.push_back(pid);
@@ -956,7 +958,7 @@ void Exec::set_last_pipeline_statuses(std::vector<int> statuses) {
     last_pipeline_statuses = std::move(statuses);
 }
 
-int Exec::execute_command_sync(const std::vector<std::string>& args) {
+int Exec::execute_command_sync(const std::vector<std::string>& args, bool auto_background_on_stop) {
     std::vector<std::pair<std::string, std::string>> env_assignments;
     size_t cmd_start_idx = 0;
     auto early_exit = handle_assignments_prefix(args, env_assignments, cmd_start_idx, [&]() {
@@ -1041,7 +1043,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
         warn_parent_setpgid_failure();
     }
 
-    Job job = make_single_process_job(pid, args[0], false);
+    Job job = make_single_process_job(pid, args[0], false, auto_background_on_stop);
 
     int job_id = add_job(job);
 
@@ -1147,7 +1149,7 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
                           std::string(strerror(errno)));
         }
 
-        Job job = make_single_process_job(pid, args[0], true);
+        Job job = make_single_process_job(pid, args[0], true, false);
 
         int job_id = add_job(job);
 
@@ -1438,7 +1440,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         if (setpgid(pid, pid) < 0) {
             warn_parent_setpgid_failure();
         }
-        Job job = make_single_process_job(pid, cmd.args[0], false);
+        Job job = make_single_process_job(pid, cmd.args[0], false, cmd.auto_background_on_stop);
 
         int job_id = add_job(job);
         std::string full_command = join_arguments(cmd.args);
@@ -1737,6 +1739,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
     job.pgid = pgid;
     job.command = commands[0].args[0] + " | ...";
     job.background = commands.back().background;
+    job.auto_background_on_stop = commands.back().auto_background_on_stop;
     job.completed = false;
     job.stopped = false;
     job.pids = pids;
@@ -2141,6 +2144,7 @@ void Exec::wait_for_job(int job_id) {
     bool job_stopped = false;
     bool saw_last = false;
     int last_status = 0;
+    int stop_signal = 0;
 
     while (!remaining_pids.empty()) {
         pid = waitpid(-job_pgid, &status, WUNTRACED);
@@ -2186,6 +2190,7 @@ void Exec::wait_for_job(int job_id) {
 
         if (WIFSTOPPED(status)) {
             job_stopped = true;
+            stop_signal = WSTOPSIG(status);
             break;
         }
     }
@@ -2202,7 +2207,6 @@ void Exec::wait_for_job(int job_id) {
         if (job_stopped) {
             job.stopped = true;
             job.status = status;
-            last_exit_code = 128 + SIGTSTP;
 
             auto job_control = JobManager::instance().get_job_by_pgid(job_pgid);
             if (!job_control) {
@@ -2220,8 +2224,32 @@ void Exec::wait_for_job(int job_id) {
                 }
             }
 
-            if (job_control) {
-                JobManager::instance().notify_job_stopped(job_control);
+            const bool should_auto_background =
+                job.auto_background_on_stop && stop_signal == SIGTSTP && job.pgid > 0;
+
+            if (should_auto_background) {
+                resume_job(job, true, "background job");
+                job.background = true;
+                job.completed = false;
+                last_exit_code = 0;
+
+                if (job_control) {
+                    job_control->state = JobState::RUNNING;
+                    job_control->background = true;
+                    job_control->stop_notified = false;
+                }
+
+                JobManager::instance().set_last_background_pid(job.last_pid);
+
+                const std::string& display_command =
+                    job_control ? job_control->display_command() : job.command;
+                std::cerr << "\n[" << job_id << "]+ " << display_command << " &" << '\n';
+            } else {
+                last_exit_code = 128 + SIGTSTP;
+
+                if (job_control) {
+                    JobManager::instance().notify_job_stopped(job_control);
+                }
             }
         } else {
             job.completed = true;

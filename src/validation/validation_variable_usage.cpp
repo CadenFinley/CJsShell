@@ -53,6 +53,7 @@ enum class SeparatorToken : std::uint8_t {
     Pipe,
     Or,
     Amp,
+    AmpCaret,
     And,
     LParen,
     RParen,
@@ -77,6 +78,8 @@ const char* separator_token_text(SeparatorToken token) {
             return "||";
         case SeparatorToken::Amp:
             return "&";
+        case SeparatorToken::AmpCaret:
+            return "&^";
         case SeparatorToken::And:
             return "&&";
         case SeparatorToken::LParen:
@@ -151,7 +154,7 @@ std::vector<TokenInfo> tokenize_shell_segment(const std::string& text, size_t st
 
         if (i + 2 <= end) {
             const std::string two_chars = text.substr(i, 2);
-            if (two_chars == "&&" || two_chars == "||" || two_chars == ";;") {
+            if (two_chars == "&&" || two_chars == "||" || two_chars == ";;" || two_chars == "&^") {
                 tokens.push_back({two_chars, i, i + 2});
                 i += 2;
                 continue;
@@ -202,12 +205,12 @@ bool is_command_separator_token(const std::string& token) {
     static const SeparatorToken separators[] = {
         SeparatorToken::Semicolon, SeparatorToken::DoubleSemicolon,
         SeparatorToken::Pipe,      SeparatorToken::Or,
-        SeparatorToken::Amp,       SeparatorToken::And,
-        SeparatorToken::LParen,    SeparatorToken::RParen,
-        SeparatorToken::LBrace,    SeparatorToken::RBrace,
-        SeparatorToken::Do,        SeparatorToken::Then,
-        SeparatorToken::Elif,      SeparatorToken::Fi,
-        SeparatorToken::Done};
+        SeparatorToken::Amp,       SeparatorToken::AmpCaret,
+        SeparatorToken::And,       SeparatorToken::LParen,
+        SeparatorToken::RParen,    SeparatorToken::LBrace,
+        SeparatorToken::RBrace,    SeparatorToken::Do,
+        SeparatorToken::Then,      SeparatorToken::Elif,
+        SeparatorToken::Fi,        SeparatorToken::Done};
     for (const auto sep : separators) {
         if (token == separator_token_text(sep)) {
             return true;

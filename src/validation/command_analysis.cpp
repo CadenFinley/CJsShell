@@ -230,9 +230,9 @@ CommandSeparator scan_command_separator(const std::string& analysis, size_t inde
     char current = analysis[index];
     if (index + 1 < len) {
         char next = analysis[index + 1];
-        if ((current == '&' && next == '&') || (current == '|' && next == '|') ||
-            (current == '>' && next == '>') || (current == '<' && next == '<') ||
-            (current == '&' && next == '>')) {
+        if ((current == '&' && next == '&') || (current == '&' && next == '^') ||
+            (current == '|' && next == '|') || (current == '>' && next == '>') ||
+            (current == '<' && next == '<') || (current == '&' && next == '>')) {
             match.length = 2;
             match.is_operator = true;
             return match;

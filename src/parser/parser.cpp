@@ -1305,6 +1305,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
         std::string cmd_part = cmd_str;
 
         bool is_background = false;
+        bool auto_background_on_stop = false;
         std::string trimmed = trim_trailing_whitespace(cmd_part);
 
         if (cmd_idx == 0) {
@@ -1326,6 +1327,63 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                             "cjsh: syntax error near unexpected token `newline'");
                     }
                 }
+            }
+        }
+
+        if (trimmed.size() >= 2 && trimmed.substr(trimmed.size() - 2) == "&^") {
+            bool inside_arithmetic = false;
+            int arith_depth = 0;
+            bool in_quotes = false;
+            char quote_char = '\0';
+            int bracket_depth = 0;
+            size_t amp_index = trimmed.size() - 2;
+
+            for (size_t i = 0; i < trimmed.length(); ++i) {
+                if (trimmed[i] == '"' || trimmed[i] == '\'') {
+                    if (!in_quotes) {
+                        in_quotes = true;
+                        quote_char = trimmed[i];
+                    } else if (quote_char == trimmed[i]) {
+                        in_quotes = false;
+                    }
+                } else if (!in_quotes) {
+                    if (i >= 2 && trimmed[i - 2] == '$' && trimmed[i - 1] == '(' &&
+                        trimmed[i] == '(') {
+                        arith_depth++;
+                    }
+
+                    else if (i + 1 < trimmed.length() && trimmed[i] == ')' &&
+                             trimmed[i + 1] == ')' && arith_depth > 0) {
+                        arith_depth--;
+                        i++;
+                    }
+
+                    else if (i + 1 < trimmed.length() && trimmed[i] == '[' &&
+                             trimmed[i + 1] == '[') {
+                        bracket_depth++;
+                        i++;
+                    }
+
+                    else if (i + 1 < trimmed.length() && trimmed[i] == ']' &&
+                             trimmed[i + 1] == ']' && bracket_depth > 0) {
+                        bracket_depth--;
+                        i++;
+                    }
+
+                    else if (i == amp_index && trimmed[i] == '&' && arith_depth > 0) {
+                        inside_arithmetic = true;
+                    }
+
+                    else if (i == amp_index && trimmed[i] == '&' && bracket_depth > 0) {
+                        inside_arithmetic = true;
+                    }
+                }
+            }
+
+            if (!inside_arithmetic) {
+                auto_background_on_stop = true;
+                cmd_part = trim_trailing_whitespace(trimmed.substr(0, trimmed.size() - 2));
+                trimmed = trim_trailing_whitespace(cmd_part);
             }
         }
 
@@ -1398,6 +1456,10 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
         if (is_background) {
             cmd.background = true;
             cmd_part = trim_trailing_whitespace(trimmed.substr(0, trimmed.length() - 1));
+        }
+
+        if (auto_background_on_stop) {
+            cmd.auto_background_on_stop = true;
         }
 
         cmd.original_text = trim_trailing_whitespace(trim_leading_whitespace(cmd_part));
