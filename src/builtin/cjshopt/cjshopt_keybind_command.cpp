@@ -263,6 +263,21 @@ bool parse_key_specs_to_codes(const std::vector<std::string>& specs,
     return true;
 }
 
+bool parse_default_action_keys(ic_key_action_t action,
+                               std::vector<std::pair<ic_keycode_t, std::string>>* out_codes) {
+    out_codes->clear();
+    const char* spec_string = ic_key_binding_profile_default_specs(action);
+    if (spec_string == nullptr || spec_string[0] == '\0') {
+        return true;
+    }
+    std::vector<std::string> tokens = split_key_spec_string(std::string(spec_string));
+    if (tokens.empty()) {
+        return true;
+    }
+    std::string invalid;
+    return parse_key_specs_to_codes(tokens, out_codes, &invalid);
+}
+
 std::string canonical_action_name(ic_key_action_t action) {
     const KeyBindingDefault* info = find_default(action);
     if (info != nullptr) {
@@ -498,6 +513,24 @@ int keybind_set_or_add_command(const std::vector<std::string>& args, bool replac
         return 1;
     }
 
+    std::unordered_set<ic_keycode_t> new_keys;
+    new_keys.reserve(parsed.size());
+    for (const auto& entry : parsed) {
+        new_keys.insert(entry.first);
+    }
+
+    std::vector<std::pair<ic_keycode_t, std::string>> default_keys;
+    std::vector<std::pair<ic_keycode_t, std::string>> keys_to_suppress;
+    if (replace_existing) {
+        if (parse_default_action_keys(action, &default_keys)) {
+            for (const auto& def : default_keys) {
+                if (new_keys.find(def.first) == new_keys.end()) {
+                    keys_to_suppress.push_back(def);
+                }
+            }
+        }
+    }
+
     std::vector<std::pair<std::string, std::string>> conflicts;
     for (const auto& entry : parsed) {
         ic_key_action_t existing_action;
@@ -535,22 +568,40 @@ int keybind_set_or_add_command(const std::vector<std::string>& args, bool replac
         ic_clear_key_binding(entry.first);
     }
 
+    for (const auto& entry : keys_to_suppress) {
+        ic_clear_key_binding(entry.first);
+    }
+
     std::vector<ic_keycode_t> bound;
     bound.reserve(parsed.size());
-    for (const auto& entry : parsed) {
-        if (!ic_bind_key(entry.first, action)) {
-            for (const auto& key : bound) {
-                ic_clear_key_binding(key);
+    auto bind_or_rollback = [&](ic_keycode_t key, ic_key_action_t target_action,
+                                const std::string& spec_for_error) {
+        if (!ic_bind_key(key, target_action)) {
+            for (const auto& k : bound) {
+                ic_clear_key_binding(k);
             }
             for (const auto& prev : previous) {
                 ic_bind_key(prev.key, prev.action);
             }
             print_error({ErrorType::INVALID_ARGUMENT, "keybind",
-                         "Failed to bind key specification '" + entry.second + "'",
+                         "Failed to bind key specification '" + spec_for_error + "'",
                          keybind_usage_lines()});
+            return false;
+        }
+        bound.push_back(key);
+        return true;
+    };
+
+    for (const auto& entry : keys_to_suppress) {
+        if (!bind_or_rollback(entry.first, IC_KEY_ACTION_NONE, entry.second)) {
             return 1;
         }
-        bound.push_back(entry.first);
+    }
+
+    for (const auto& entry : parsed) {
+        if (!bind_or_rollback(entry.first, action, entry.second)) {
+            return 1;
+        }
     }
 
     if (!g_startup_active) {
@@ -565,6 +616,15 @@ int keybind_set_or_add_command(const std::vector<std::string>& args, bool replac
         std::cout << "Add `cjshopt keybind " << (replace_existing ? "set " : "add ")
                   << action_display << " '" << pipe_join_specs(spec_strings)
                   << "'` to your ~/.cjshrc to persist this change.\n";
+        if (replace_existing && !keys_to_suppress.empty()) {
+            std::vector<std::string> suppressed_specs;
+            suppressed_specs.reserve(keys_to_suppress.size());
+            for (const auto& entry : keys_to_suppress) {
+                suppressed_specs.push_back(entry.second);
+            }
+            std::cout << "Disabled default bindings for " << action_display << ": "
+                      << join_specs(suppressed_specs) << '\n';
+        }
     }
 
     return 0;
@@ -641,6 +701,17 @@ int keybind_clear_action_command(const std::vector<std::string>& args) {
                 removed.emplace_back(buffer);
             }
             ic_clear_key_binding(entry.key);
+        }
+    }
+
+    std::vector<std::pair<ic_keycode_t, std::string>> default_keys;
+    if (parse_default_action_keys(action, &default_keys)) {
+        for (const auto& def : default_keys) {
+            ic_key_action_t existing_action;
+            if (ic_get_key_binding(def.first, &existing_action) &&
+                existing_action == IC_KEY_ACTION_NONE) {
+                ic_clear_key_binding(def.first);
+            }
         }
     }
 
