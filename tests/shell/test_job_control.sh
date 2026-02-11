@@ -186,6 +186,21 @@ fg_command_name_resolves_job() {
     return 0
 }
 
+fg_command_prefix_resolves_job() {
+    log "Test: fg resolves job by command prefix"
+    local output
+    output=$("$CJSH_PATH" -i -c "sleep 0.2 & fg sl" 2>&1)
+    local exit_code=$?
+
+    if [ $exit_code -eq 0 ]; then
+        echo "PASS"
+        return 0
+    fi
+
+    echo "FAIL: fg sl via prefix failed (exit $exit_code): $output"
+    return 1
+}
+
 fg_command_name_requires_disambiguation() {
     log "Test: fg requires job id when command name is ambiguous"
     local output
@@ -198,6 +213,21 @@ fg_command_name_requires_disambiguation() {
     fi
 
     echo "FAIL: fg sleep should require disambiguation (exit $exit_code): $output"
+    return 1
+}
+
+fg_command_prefix_requires_disambiguation() {
+    log "Test: fg requires job id when command prefix is ambiguous"
+    local output
+    output=$("$CJSH_PATH" -i -c "sleep 5 & pid1=\$!; sleep 5 & pid2=\$!; fg sl; fg_status=\$?; kill \$pid1 \$pid2 2>/dev/null; wait \$pid1 \$pid2 2>/dev/null; exit \$fg_status" 2>&1)
+    local exit_code=$?
+
+    if [ $exit_code -eq 1 ] && echo "$output" | grep -q "multiple jobs match command"; then
+        echo "PASS"
+        return 0
+    fi
+
+    echo "FAIL: fg sl should require disambiguation (exit $exit_code): $output"
     return 1
 }
 
@@ -216,6 +246,21 @@ kill_command_name_resolves_job() {
     return 1
 }
 
+kill_command_prefix_resolves_job() {
+    log "Test: kill resolves job by command prefix"
+    local output
+    output=$("$CJSH_PATH" -i -c "sleep 5 & pid=\$!; kill sl; kill_status=\$?; wait \$pid 2>/dev/null; exit \$kill_status" 2>&1)
+    local exit_code=$?
+
+    if [ $exit_code -eq 0 ]; then
+        echo "PASS"
+        return 0
+    fi
+
+    echo "FAIL: kill sl via prefix failed (exit $exit_code): $output"
+    return 1
+}
+
 kill_command_name_requires_disambiguation() {
     log "Test: kill requires job id when command name is ambiguous"
     local output
@@ -228,6 +273,21 @@ kill_command_name_requires_disambiguation() {
     fi
 
     echo "FAIL: kill sleep should require disambiguation (exit $exit_code): $output"
+    return 1
+}
+
+kill_command_prefix_requires_disambiguation() {
+    log "Test: kill requires job id when command prefix is ambiguous"
+    local output
+    output=$("$CJSH_PATH" -i -c "sleep 5 & pid1=\$!; sleep 5 & pid2=\$!; kill sl; kill_status=\$?; kill \$pid1 \$pid2 2>/dev/null; wait \$pid1 \$pid2 2>/dev/null; exit \$kill_status" 2>&1)
+    local exit_code=$?
+
+    if [ $exit_code -eq 1 ] && echo "$output" | grep -q "multiple jobs match command"; then
+        echo "PASS"
+        return 0
+    fi
+
+    echo "FAIL: kill sl should require disambiguation (exit $exit_code): $output"
     return 1
 }
 
@@ -608,7 +668,15 @@ if ! fg_command_name_resolves_job; then
     status=1
 fi
 
+if ! fg_command_prefix_resolves_job; then
+    status=1
+fi
+
 if ! fg_command_name_requires_disambiguation; then
+    status=1
+fi
+
+if ! fg_command_prefix_requires_disambiguation; then
     status=1
 fi
 
@@ -616,7 +684,15 @@ if ! kill_command_name_resolves_job; then
     status=1
 fi
 
+if ! kill_command_prefix_resolves_job; then
+    status=1
+fi
+
 if ! kill_command_name_requires_disambiguation; then
+    status=1
+fi
+
+if ! kill_command_prefix_requires_disambiguation; then
     status=1
 fi
 
