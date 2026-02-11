@@ -109,7 +109,6 @@ void cleanup_resources() {
 }
 
 int run_cjsh(int argc, char* argv[]) {
-    const bool launched_as_sh = invoked_via_sh((argc > 0) ? argv[0] : nullptr);
     // set start time
     startup_begin_time() = std::chrono::steady_clock::now();
 
@@ -120,6 +119,7 @@ int run_cjsh(int argc, char* argv[]) {
     }
 
     // auto-enable posix mode if invoked as sh, equivalent to --posix
+    const bool launched_as_sh = invoked_via_sh((argc > 0) ? argv[0] : nullptr);
     if (launched_as_sh) {
         flags::apply_posix_mode_settings();
     }
