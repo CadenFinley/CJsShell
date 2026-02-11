@@ -741,7 +741,8 @@ SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) 
 
                 if (job) {
                     if (WIFEXITED(status) || WIFSIGNALED(status)) {
-                        job->state = WIFEXITED(status) ? JobState::DONE : JobState::TERMINATED;
+                        job->state.store(WIFEXITED(status) ? JobState::DONE : JobState::TERMINATED,
+                                         std::memory_order_relaxed);
                         job->exit_status =
                             WIFEXITED(status) ? WEXITSTATUS(status) : WTERMSIG(status);
 
@@ -754,7 +755,7 @@ SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) 
                             job->notified = true;
                         }
                     } else if (WIFSTOPPED(status)) {
-                        job->state = JobState::STOPPED;
+                        job->state.store(JobState::STOPPED, std::memory_order_relaxed);
                         JobManager::instance().notify_job_stopped(job);
 #ifdef SIGTTIN
                         if (WSTOPSIG(status) == SIGTTIN) {
@@ -762,8 +763,8 @@ SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) 
                         }
 #endif
                     } else if (WIFCONTINUED(status)) {
-                        job->state = JobState::RUNNING;
-                        job->stop_notified = false;
+                        job->state.store(JobState::RUNNING, std::memory_order_relaxed);
+                        job->stop_notified.store(false, std::memory_order_relaxed);
                         JobManager::instance().clear_stdin_signal(job->pgid);
                     }
                 }
@@ -792,9 +793,10 @@ SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) 
         auto jobs_snapshot = job_manager.get_all_jobs();
 
         for (const auto& job : jobs_snapshot) {
-            if (job->state == JobState::RUNNING || job->state == JobState::STOPPED) {
+            const JobState state = job->state.load(std::memory_order_relaxed);
+            if (state == JobState::RUNNING || state == JobState::STOPPED) {
                 if (fprintf(stderr, "cjsh(debug): hup propagate pgid=%d state=%d\n", job->pgid,
-                            static_cast<int>(job->state)) < 0) {
+                            static_cast<int>(state)) < 0) {
                     (void)0;
                 }
                 if (killpg(job->pgid, SIGHUP) < 0) {
@@ -804,7 +806,7 @@ SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) 
                     }
                 }
 #ifdef SIGCONT
-                if (job->state == JobState::STOPPED) {
+                if (state == JobState::STOPPED) {
                     killpg(job->pgid, SIGCONT);
                 }
 #endif
@@ -828,11 +830,12 @@ SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) 
 
         if (enforce_hup) {
             for (auto& job : jobs_snapshot) {
-                if (job->state == JobState::RUNNING || job->state == JobState::STOPPED) {
+                const JobState state = job->state.load(std::memory_order_relaxed);
+                if (state == JobState::RUNNING || state == JobState::STOPPED) {
                     killpg(job->pgid, SIGTERM);
                     usleep(10000);
                     killpg(job->pgid, SIGKILL);
-                    job->state = JobState::TERMINATED;
+                    job->state.store(JobState::TERMINATED, std::memory_order_relaxed);
                 }
             }
         }
@@ -862,9 +865,10 @@ SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) 
             auto& job_manager = JobManager::instance();
             auto all_jobs = job_manager.get_all_jobs();
             for (auto& job : all_jobs) {
-                if (job->state == JobState::RUNNING || job->state == JobState::STOPPED) {
+                const JobState state = job->state.load(std::memory_order_relaxed);
+                if (state == JobState::RUNNING || state == JobState::STOPPED) {
                     if (killpg(job->pgid, SIGTERM) == 0) {
-                        job->state = JobState::TERMINATED;
+                        job->state.store(JobState::TERMINATED, std::memory_order_relaxed);
                     }
                 }
             }

@@ -49,7 +49,7 @@ int wait_command(const std::vector<std::string>& args) {
         int last_exit_status = 0;
 
         for (const auto& job : jobs) {
-            if (job->state != JobState::RUNNING) {
+            if (job->state.load(std::memory_order_relaxed) != JobState::RUNNING) {
                 continue;
             }
 

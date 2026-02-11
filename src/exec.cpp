@@ -29,11 +29,13 @@
 #include "exec.h"
 
 #include <fcntl.h>
+#include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sysexits.h>
 #include <unistd.h>
 
+#include <stdlib.h>
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -88,6 +90,93 @@ std::string join_arguments(const std::vector<std::string>& args) {
     return result;
 }
 
+struct PtyPair {
+    int master_fd{-1};
+    int slave_fd{-1};
+};
+
+std::optional<PtyPair> create_output_pty(int terminal_fd) {
+    int master_fd = posix_openpt(O_RDWR | O_NOCTTY);
+    if (master_fd < 0) {
+        return std::nullopt;
+    }
+    if (grantpt(master_fd) < 0 || unlockpt(master_fd) < 0) {
+        cjsh_filesystem::safe_close(master_fd);
+        return std::nullopt;
+    }
+    char* slave_name = ptsname(master_fd);
+    if (slave_name == nullptr) {
+        cjsh_filesystem::safe_close(master_fd);
+        return std::nullopt;
+    }
+
+    int slave_fd = open(slave_name, O_RDWR | O_NOCTTY);
+    if (slave_fd < 0) {
+        cjsh_filesystem::safe_close(master_fd);
+        return std::nullopt;
+    }
+
+    struct termios term_state{};
+    if (tcgetattr(terminal_fd, &term_state) == 0) {
+        (void)tcsetattr(slave_fd, TCSANOW, &term_state);
+    }
+
+    struct winsize ws{};
+    if (ioctl(terminal_fd, TIOCGWINSZ, &ws) == 0) {
+        (void)ioctl(slave_fd, TIOCSWINSZ, &ws);
+    }
+
+    (void)cjsh_filesystem::set_close_on_exec(master_fd);
+
+    return PtyPair{master_fd, slave_fd};
+}
+
+std::shared_ptr<OutputRelayState> start_output_relay(int master_fd, bool forward) {
+    auto relay = std::make_shared<OutputRelayState>();
+    relay->master_fd = master_fd;
+    relay->forward.store(forward);
+
+    try {
+        std::thread t([relay]() {
+            char buffer[4096];
+            while (true) {
+                ssize_t bytes_read = read(relay->master_fd, buffer, sizeof(buffer));
+                if (bytes_read == 0) {
+                    break;
+                }
+                if (bytes_read < 0) {
+                    if (errno == EINTR) {
+                        continue;
+                    }
+                    break;
+                }
+                if (relay->forward.load()) {
+                    (void)cjsh_filesystem::write_all(
+                        STDOUT_FILENO, std::string_view(buffer, static_cast<size_t>(bytes_read)));
+                }
+            }
+            cjsh_filesystem::safe_close(relay->master_fd);
+        });
+        t.detach();
+    } catch (...) {
+        cjsh_filesystem::safe_close(relay->master_fd);
+        throw;
+    }
+
+    return relay;
+}
+
+bool command_has_stdout_redirection(const Command& cmd) {
+    return !cmd.output_file.empty() || !cmd.append_file.empty() || cmd.both_output ||
+           cmd.stdout_to_stderr || cmd.has_fd_redirection(STDOUT_FILENO) ||
+           cmd.has_fd_duplication(STDOUT_FILENO);
+}
+
+bool command_has_stderr_redirection(const Command& cmd) {
+    return !cmd.stderr_file.empty() || cmd.stderr_to_stdout || cmd.both_output ||
+           cmd.has_fd_redirection(STDERR_FILENO) || cmd.has_fd_duplication(STDERR_FILENO);
+}
+
 void apply_assignments_to_shell_env(
     const std::vector<std::pair<std::string, std::string>>& assignments) {
     if (!g_shell || assignments.empty()) {
@@ -107,11 +196,14 @@ void apply_assignments_to_shell_env(
     cjsh_env::sync_parser_env_vars(g_shell.get());
 }
 
-Job make_single_process_job(pid_t pid, const std::string& command, bool background) {
+Job make_single_process_job(pid_t pid, const std::string& command, bool background,
+                            bool auto_background_on_stop, bool auto_background_on_stop_silent) {
     Job job;
     job.pgid = pid;
     job.command = command;
     job.background = background;
+    job.auto_background_on_stop = auto_background_on_stop;
+    job.auto_background_on_stop_silent = auto_background_on_stop_silent;
     job.completed = false;
     job.stopped = false;
     job.pids.push_back(pid);
@@ -956,7 +1048,8 @@ void Exec::set_last_pipeline_statuses(std::vector<int> statuses) {
     last_pipeline_statuses = std::move(statuses);
 }
 
-int Exec::execute_command_sync(const std::vector<std::string>& args) {
+int Exec::execute_command_sync(const std::vector<std::string>& args, bool auto_background_on_stop,
+                               bool auto_background_on_stop_silent) {
     std::vector<std::pair<std::string, std::string>> env_assignments;
     size_t cmd_start_idx = 0;
     auto early_exit = handle_assignments_prefix(args, env_assignments, cmd_start_idx, [&]() {
@@ -1002,11 +1095,22 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
         cached_exec_path = cjsh_filesystem::resolve_executable_for_execution(cmd_args[0]);
     }
 
+    std::optional<PtyPair> output_pty;
+    std::shared_ptr<OutputRelayState> output_relay;
+    const bool wants_output_relay = shell_is_interactive && auto_background_on_stop_silent;
+    if (wants_output_relay) {
+        output_pty = create_output_pty(shell_terminal);
+    }
+
     pid_t pid = fork();
 
     if (pid == -1) {
         set_error(ErrorType::RUNTIME_ERROR, cmd_args.empty() ? "unknown" : cmd_args[0],
                   "failed to fork process: " + std::string(strerror(errno)), {});
+        if (output_pty.has_value()) {
+            cjsh_filesystem::safe_close(output_pty->master_fd);
+            cjsh_filesystem::safe_close(output_pty->slave_fd);
+        }
         last_exit_code = EX_OSERR;
         cleanup_process_substitutions(proc_resources, true);
         set_last_pipeline_statuses({EX_OSERR});
@@ -1026,6 +1130,21 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
 
         reset_child_signals();
 
+        if (output_pty.has_value()) {
+            if (dup2(output_pty->slave_fd, STDOUT_FILENO) == -1) {
+                child_exit_with_error(
+                    ErrorType::RUNTIME_ERROR, cmd_args.empty() ? "command" : cmd_args[0],
+                    std::string("dup2: failed to attach output relay stdout: ") + strerror(errno));
+            }
+            if (dup2(output_pty->slave_fd, STDERR_FILENO) == -1) {
+                child_exit_with_error(
+                    ErrorType::RUNTIME_ERROR, cmd_args.empty() ? "command" : cmd_args[0],
+                    std::string("dup2: failed to attach output relay stderr: ") + strerror(errno));
+            }
+            cjsh_filesystem::safe_close(output_pty->master_fd);
+            cjsh_filesystem::safe_close(output_pty->slave_fd);
+        }
+
         if (is_builtin && g_shell && (g_shell->get_built_ins() != nullptr)) {
             int exit_code = g_shell->get_built_ins()->builtin_command(cmd_args);
             (void)fflush(stdout);
@@ -1041,7 +1160,13 @@ int Exec::execute_command_sync(const std::vector<std::string>& args) {
         warn_parent_setpgid_failure();
     }
 
-    Job job = make_single_process_job(pid, args[0], false);
+    Job job = make_single_process_job(pid, args[0], false, auto_background_on_stop,
+                                      auto_background_on_stop_silent);
+    if (output_pty.has_value()) {
+        cjsh_filesystem::safe_close(output_pty->slave_fd);
+        output_relay = start_output_relay(output_pty->master_fd, !job.background);
+        job.output_relay = output_relay;
+    }
 
     int job_id = add_job(job);
 
@@ -1147,7 +1272,7 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
                           std::string(strerror(errno)));
         }
 
-        Job job = make_single_process_job(pid, args[0], true);
+        Job job = make_single_process_job(pid, args[0], true, false, false);
 
         int job_id = add_job(job);
 
@@ -1256,12 +1381,26 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             cached_exec_path = cjsh_filesystem::resolve_executable_for_execution(cmd.args[0]);
         }
 
+        std::optional<PtyPair> output_pty;
+        std::shared_ptr<OutputRelayState> output_relay;
+        const bool wants_output_relay = shell_is_interactive && cmd.auto_background_on_stop_silent;
+        const bool can_capture_output = wants_output_relay &&
+                                        !command_has_stdout_redirection(cmd) &&
+                                        !command_has_stderr_redirection(cmd);
+        if (can_capture_output) {
+            output_pty = create_output_pty(shell_terminal);
+        }
+
         pid_t pid = fork();
 
         if (pid == -1) {
             cleanup_process_substitutions(proc_resources, true);
             set_error(ErrorType::RUNTIME_ERROR, cmd.args.empty() ? "unknown" : cmd.args[0],
                       "failed to fork process: " + std::string(strerror(errno)));
+            if (output_pty.has_value()) {
+                cjsh_filesystem::safe_close(output_pty->master_fd);
+                cjsh_filesystem::safe_close(output_pty->slave_fd);
+            }
             set_last_pipeline_statuses({EX_OSERR});
             return finalize_exit(EX_OSERR);
         }
@@ -1344,6 +1483,23 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 }
             }
 
+            if (output_pty.has_value()) {
+                if (dup2(output_pty->slave_fd, STDOUT_FILENO) == -1) {
+                    child_exit_with_error(
+                        ErrorType::RUNTIME_ERROR, command_name,
+                        std::string("dup2: failed to attach output relay stdout: ") +
+                            strerror(errno));
+                }
+                if (dup2(output_pty->slave_fd, STDERR_FILENO) == -1) {
+                    child_exit_with_error(
+                        ErrorType::RUNTIME_ERROR, command_name,
+                        std::string("dup2: failed to attach output relay stderr: ") +
+                            strerror(errno));
+                }
+                cjsh_filesystem::safe_close(output_pty->master_fd);
+                cjsh_filesystem::safe_close(output_pty->slave_fd);
+            }
+
             if (!cmd.output_file.empty()) {
                 if (cjsh_filesystem::should_noclobber_prevent_overwrite(cmd.output_file,
                                                                         cmd.force_overwrite)) {
@@ -1412,7 +1568,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             exec_external_child(cmd.args, exec_override);
         }
 
-        if (g_shell && !g_shell->get_interactive_mode()) {
+        if (!shell_is_interactive && !config::force_interactive) {
             int status = 0;
             pid_t wpid = waitpid(pid, &status, 0);
             while (wpid == -1 && errno == EINTR) {
@@ -1438,7 +1594,13 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         if (setpgid(pid, pid) < 0) {
             warn_parent_setpgid_failure();
         }
-        Job job = make_single_process_job(pid, cmd.args[0], false);
+        Job job = make_single_process_job(pid, cmd.args[0], false, cmd.auto_background_on_stop,
+                                          cmd.auto_background_on_stop_silent);
+        if (output_pty.has_value()) {
+            cjsh_filesystem::safe_close(output_pty->slave_fd);
+            output_relay = start_output_relay(output_pty->master_fd, !job.background);
+            job.output_relay = output_relay;
+        }
 
         int job_id = add_job(job);
         std::string full_command = join_arguments(cmd.args);
@@ -1479,6 +1641,31 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
     std::vector<std::array<int, 2>> pipes(commands.size() - 1);
 
+    std::optional<PtyPair> output_pty;
+    std::shared_ptr<OutputRelayState> output_relay;
+    auto close_output_pty = [&]() {
+        if (output_pty.has_value()) {
+            cjsh_filesystem::safe_close(output_pty->master_fd);
+            cjsh_filesystem::safe_close(output_pty->slave_fd);
+        }
+    };
+    const bool wants_output_relay =
+        shell_is_interactive && commands.back().auto_background_on_stop_silent;
+    if (wants_output_relay) {
+        bool can_capture_output = !command_has_stdout_redirection(commands.back());
+        if (!can_capture_output) {
+            for (const auto& cmd : commands) {
+                if (!command_has_stderr_redirection(cmd)) {
+                    can_capture_output = true;
+                    break;
+                }
+            }
+        }
+        if (can_capture_output) {
+            output_pty = create_output_pty(shell_terminal);
+        }
+    }
+
     try {
         for (size_t i = 0; i < commands.size() - 1; i++) {
             if (pipe(pipes[i].data()) == -1) {
@@ -1486,6 +1673,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                           "failed to create pipe " + std::to_string(i + 1) +
                               " for pipeline: " + std::string(strerror(errno)));
                 set_last_pipeline_statuses({EX_OSERR});
+                close_output_pty();
                 return finalize_exit(EX_OSERR);
             }
         }
@@ -1514,6 +1702,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 }
 
                 set_last_pipeline_statuses({1});
+                close_output_pty();
                 return finalize_exit(1);
             }
 
@@ -1525,6 +1714,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                           "failed to create process (command " + std::to_string(i + 1) +
                               " in pipeline): " + std::string(strerror(errno)));
                 set_last_pipeline_statuses({EX_OSERR});
+                close_output_pty();
                 return finalize_exit(EX_OSERR);
             }
 
@@ -1611,6 +1801,16 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                     }
                 }
 
+                if (output_pty.has_value() && i == commands.size() - 1 &&
+                    !command_has_stdout_redirection(cmd)) {
+                    if (dup2(output_pty->slave_fd, STDOUT_FILENO) == -1) {
+                        const int saved_errno = errno;
+                        child_error(ErrorType::RUNTIME_ERROR,
+                                    std::string("dup2 output relay stdout failed: ") +
+                                        strerror(saved_errno));
+                    }
+                }
+
                 if (i == commands.size() - 1) {
                     if (!cmd.output_file.empty()) {
                         int fd = open(cmd.output_file.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
@@ -1654,6 +1854,15 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                     }
                 }
 
+                if (output_pty.has_value() && !command_has_stderr_redirection(cmd)) {
+                    if (dup2(output_pty->slave_fd, STDERR_FILENO) == -1) {
+                        const int saved_errno = errno;
+                        child_error(ErrorType::RUNTIME_ERROR,
+                                    std::string("dup2 output relay stderr failed: ") +
+                                        strerror(saved_errno));
+                    }
+                }
+
                 if (!configure_stderr_redirects(cmd, handle_stream_redirect_error_and_exit)) {
                     child_error(ErrorType::RUNTIME_ERROR,
                                 "failed to configure stderr redirections for pipeline child");
@@ -1662,6 +1871,11 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 if (!apply_fd_operations(cmd, handle_fd_operation_error_and_exit)) {
                     child_error(ErrorType::RUNTIME_ERROR,
                                 "failed to apply file descriptor operations for pipeline child");
+                }
+
+                if (output_pty.has_value()) {
+                    cjsh_filesystem::safe_close(output_pty->master_fd);
+                    cjsh_filesystem::safe_close(output_pty->slave_fd);
                 }
 
                 for (size_t j = 0; j < commands.size() - 1; j++) {
@@ -1722,6 +1936,11 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             close(pipes[i][1]);
         }
 
+        if (output_pty.has_value()) {
+            cjsh_filesystem::safe_close(output_pty->slave_fd);
+            output_relay = start_output_relay(output_pty->master_fd, !commands.back().background);
+        }
+
     } catch (const std::exception& e) {
         set_error(ErrorType::RUNTIME_ERROR, "pipeline",
                   "Error executing pipeline: " + std::string(e.what()));
@@ -1730,6 +1949,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             kill(pid, SIGTERM);
         }
         set_last_pipeline_statuses({1});
+        close_output_pty();
         return finalize_exit(1);
     }
 
@@ -1737,12 +1957,15 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
     job.pgid = pgid;
     job.command = commands[0].args[0] + " | ...";
     job.background = commands.back().background;
+    job.auto_background_on_stop = commands.back().auto_background_on_stop;
+    job.auto_background_on_stop_silent = commands.back().auto_background_on_stop_silent;
     job.completed = false;
     job.stopped = false;
     job.pids = pids;
     job.last_pid = pids.empty() ? -1 : pids.back();
     job.pid_order = pids;
     job.pipeline_statuses.assign(pids.size(), -1);
+    job.output_relay = output_relay;
 
     int job_id = add_job(job);
 
@@ -2069,6 +2292,10 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
         return;
     }
 
+    if (job->output_relay) {
+        job->output_relay->forward.store(true);
+    }
+
     bool terminal_control_acquired = false;
     if (shell_is_interactive && (isatty(shell_terminal) != 0)) {
         if (tcsetpgrp(shell_terminal, job->pgid) == 0) {
@@ -2116,7 +2343,24 @@ void Exec::put_job_in_background(int job_id, bool cont) {
         return;
     }
 
+    if (job->output_relay) {
+        job->output_relay->forward.store(false);
+    }
+
     resume_job(*job, cont, "background job");
+}
+
+void Exec::set_job_output_forwarding(pid_t pgid, bool forward) {
+    std::lock_guard<std::mutex> lock(jobs_mutex);
+    for (auto& pair : jobs) {
+        Job& job = pair.second;
+        if (job.pgid == pgid) {
+            if (job.output_relay) {
+                job.output_relay->forward.store(forward);
+            }
+            break;
+        }
+    }
 }
 
 void Exec::wait_for_job(int job_id) {
@@ -2141,6 +2385,7 @@ void Exec::wait_for_job(int job_id) {
     bool job_stopped = false;
     bool saw_last = false;
     int last_status = 0;
+    int stop_signal = 0;
 
     while (!remaining_pids.empty()) {
         pid = waitpid(-job_pgid, &status, WUNTRACED);
@@ -2186,6 +2431,7 @@ void Exec::wait_for_job(int job_id) {
 
         if (WIFSTOPPED(status)) {
             job_stopped = true;
+            stop_signal = WSTOPSIG(status);
             break;
         }
     }
@@ -2202,7 +2448,6 @@ void Exec::wait_for_job(int job_id) {
         if (job_stopped) {
             job.stopped = true;
             job.status = status;
-            last_exit_code = 128 + SIGTSTP;
 
             auto job_control = JobManager::instance().get_job_by_pgid(job_pgid);
             if (!job_control) {
@@ -2220,8 +2465,35 @@ void Exec::wait_for_job(int job_id) {
                 }
             }
 
-            if (job_control) {
-                JobManager::instance().notify_job_stopped(job_control);
+            const bool should_auto_background =
+                job.auto_background_on_stop && stop_signal == SIGTSTP && job.pgid > 0;
+
+            if (should_auto_background) {
+                if (job.auto_background_on_stop_silent && job.output_relay) {
+                    job.output_relay->forward.store(false);
+                }
+                resume_job(job, true, "background job");
+                job.background = true;
+                job.completed = false;
+                last_exit_code = 0;
+
+                if (job_control) {
+                    job_control->state.store(JobState::RUNNING, std::memory_order_relaxed);
+                    job_control->background.store(true, std::memory_order_relaxed);
+                    job_control->stop_notified.store(false, std::memory_order_relaxed);
+                }
+
+                JobManager::instance().set_last_background_pid(job.last_pid);
+
+                const std::string& display_command =
+                    job_control ? job_control->display_command() : job.command;
+                std::cerr << "\n[" << job_id << "]+ " << display_command << " &" << '\n';
+            } else {
+                last_exit_code = 128 + SIGTSTP;
+
+                if (job_control) {
+                    JobManager::instance().notify_job_stopped(job_control);
+                }
             }
         } else {
             job.completed = true;

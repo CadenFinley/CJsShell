@@ -112,6 +112,10 @@ std::vector<std::string> split_ampersand(const std::string& s) {
             }
             cur += c;
         } else if (!in_quotes) {
+            if (is_char_escaped(s, i)) {
+                cur += c;
+                continue;
+            }
             if (i >= 2 && s[i - 2] == '$' && s[i - 1] == '(' && s[i] == '(') {
                 arith_depth++;
                 cur += c;
@@ -143,6 +147,15 @@ std::vector<std::string> split_ampersand(const std::string& s) {
                     cur += c;
                     cur += s[i + 1];
                     ++i;
+                } else if (i + 1 < s.size() && s[i + 1] == '^') {
+                    cur += c;
+                    cur += s[i + 1];
+                    if (i + 2 < s.size() && s[i + 2] == '!') {
+                        cur += s[i + 2];
+                        i += 2;
+                    } else {
+                        ++i;
+                    }
                 } else if (i > 0 && s[i - 1] == '>' && i + 1 < s.size() &&
                            (std::isdigit(static_cast<unsigned char>(s[i + 1])) != 0 ||
                             s[i + 1] == '-')) {

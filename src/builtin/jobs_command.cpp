@@ -88,7 +88,8 @@ int jobs_command(const std::vector<std::string>& args) {
         }
 
         std::string state_str;
-        switch (job->state) {
+        const JobState state = job->state.load(std::memory_order_relaxed);
+        switch (state) {
             case JobState::RUNNING:
                 state_str = "Running";
                 break;

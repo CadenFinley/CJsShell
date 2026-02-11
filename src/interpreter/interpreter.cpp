@@ -771,15 +771,25 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
 
                 } else {
                     std::vector<std::string> expanded_args = std::move(parsed_args);
-                    if (expanded_args.empty() && !c.args.empty()) {
-                        expanded_args = c.args;
+                    const bool is_alias_pipeline =
+                        expanded_args.size() == 2 && expanded_args[0] == "__ALIAS_PIPELINE__";
+                    if (!c.args.empty()) {
+                        if (expanded_args.empty()) {
+                            expanded_args = c.args;
+                        } else if (c.auto_background_on_stop && !is_alias_pipeline) {
+                            expanded_args = c.args;
+                        }
                     }
                     if (expanded_args.empty())
                         return 0;
 
                     if (expanded_args.size() == 2 && expanded_args[0] == "__ALIAS_PIPELINE__") {
+                        std::string pipeline_text = expanded_args[1];
+                        if (c.auto_background_on_stop) {
+                            pipeline_text += c.auto_background_on_stop_silent ? " &^!" : " &^";
+                        }
                         std::vector<Command> pipeline_cmds =
-                            shell_parser->parse_pipeline_with_preprocessing(expanded_args[1]);
+                            shell_parser->parse_pipeline_with_preprocessing(pipeline_text);
                         return run_pipeline(pipeline_cmds);
                     }
 
@@ -793,7 +803,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                     if (!expanded_args.empty() && functions.count(expanded_args[0])) {
                         return execute_function_call(expanded_args);
                     }
-                    int exit_code = g_shell->execute_command(expanded_args, c.background);
+                    int exit_code = g_shell->execute_command(expanded_args, c.background,
+                                                             c.auto_background_on_stop,
+                                                             c.auto_background_on_stop_silent);
                     return set_last_status(exit_code);
                 }
             }

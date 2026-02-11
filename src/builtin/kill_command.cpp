@@ -123,10 +123,10 @@ int kill_command(const std::vector<std::string>& args) {
             return;
         }
         if (is_stop_signal(signal)) {
-            job->state = JobState::STOPPED;
+            job->state.store(JobState::STOPPED, std::memory_order_relaxed);
         } else if (is_continue_signal(signal)) {
-            job->state = JobState::RUNNING;
-            job->stop_notified = false;
+            job->state.store(JobState::RUNNING, std::memory_order_relaxed);
+            job->stop_notified.store(false, std::memory_order_relaxed);
         }
     };
 

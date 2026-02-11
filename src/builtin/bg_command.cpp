@@ -33,8 +33,11 @@
 #include <iostream>
 
 #include "builtin_help.h"
+#include "cjsh.h"
 #include "error_out.h"
+#include "exec.h"
 #include "job_control.h"
+#include "shell.h"
 
 int bg_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(args,
@@ -53,7 +56,8 @@ int bg_command(const std::vector<std::string>& args) {
     auto job = resolved_job->job;
     int job_id = resolved_job->job_id;
 
-    if (job->state != JobState::STOPPED) {
+    const JobState current_state = job->state.load(std::memory_order_relaxed);
+    if (current_state != JobState::STOPPED) {
         print_error({ErrorType::INVALID_ARGUMENT,
                      std::to_string(job_id),
                      "not stopped",
@@ -61,13 +65,17 @@ int bg_command(const std::vector<std::string>& args) {
         return 1;
     }
 
+    if (g_shell && g_shell->shell_exec) {
+        g_shell->shell_exec->set_job_output_forwarding(job->pgid, false);
+    }
+
     if (killpg(job->pgid, SIGCONT) < 0) {
         perror("cjsh: bg: killpg");
         return 1;
     }
 
-    job->state = JobState::RUNNING;
-    job->stop_notified = false;
+    job->state.store(JobState::RUNNING, std::memory_order_relaxed);
+    job->stop_notified.store(false, std::memory_order_relaxed);
     std::cout << "[" << job_id << "]+ " << job->display_command() << " &" << '\n';
 
     return 0;

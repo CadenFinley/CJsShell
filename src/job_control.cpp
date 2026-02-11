@@ -442,13 +442,14 @@ void JobManager::update_job_statuses() {
 
             if (result > 0) {
                 if (WIFEXITED(status) || WIFSIGNALED(status)) {
-                    job->state = WIFEXITED(status) ? JobState::DONE : JobState::TERMINATED;
+                    job->state.store(WIFEXITED(status) ? JobState::DONE : JobState::TERMINATED,
+                                     std::memory_order_relaxed);
                     job->exit_status = WIFEXITED(status) ? WEXITSTATUS(status) : WTERMSIG(status);
                 } else if (WIFSTOPPED(status)) {
-                    job->state = JobState::STOPPED;
+                    job->state.store(JobState::STOPPED, std::memory_order_relaxed);
                 } else if (WIFCONTINUED(status)) {
-                    job->state = JobState::RUNNING;
-                    job->stop_notified = false;
+                    job->state.store(JobState::RUNNING, std::memory_order_relaxed);
+                    job->stop_notified.store(false, std::memory_order_relaxed);
                 }
             } else if (result == -1) {
                 if (errno == EINTR || errno == ECHILD) {
@@ -495,7 +496,7 @@ void JobManager::set_shell(Shell* shell) {
 }
 
 void JobManager::notify_job_stopped(const std::shared_ptr<JobControlJob>& job) const {
-    if (!job || job->stop_notified) {
+    if (!job || job->stop_notified.load(std::memory_order_relaxed)) {
         return;
     }
 
@@ -503,7 +504,7 @@ void JobManager::notify_job_stopped(const std::shared_ptr<JobControlJob>& job) c
         return;
     }
 
-    job->state = JobState::STOPPED;
+    job->state.store(JobState::STOPPED, std::memory_order_relaxed);
 
     char status_char = ' ';
     if (job->job_id == current_job) {
@@ -515,7 +516,7 @@ void JobManager::notify_job_stopped(const std::shared_ptr<JobControlJob>& job) c
     std::cerr << "\n[" << job->job_id << "]" << status_char << "  Stopped\t"
               << job->display_command() << '\n';
 
-    job->stop_notified = true;
+    job->stop_notified.store(true, std::memory_order_relaxed);
 }
 
 void JobManager::update_current_previous(int new_current) {
@@ -530,9 +531,10 @@ void JobManager::cleanup_finished_jobs() {
 
     for (const auto& pair : jobs) {
         auto job = pair.second;
-        if (job->state == JobState::DONE || job->state == JobState::TERMINATED) {
+        const JobState state = job->state.load(std::memory_order_relaxed);
+        if (state == JobState::DONE || state == JobState::TERMINATED) {
             if (!job->notified) {
-                if (job->state == JobState::DONE) {
+                if (state == JobState::DONE) {
                     const char* label = job->exit_status == 0 ? "Done" : "Exit";
                     std::cerr << "\n[" << job->job_id << "] " << label;
                     if (job->exit_status != 0) {
@@ -573,7 +575,7 @@ bool JobManager::foreground_job_reads_stdin() {
     }
 
     const auto& job = it->second;
-    if (job->background || !job->reads_stdin) {
+    if (job->background.load(std::memory_order_relaxed) || !job->reads_stdin) {
         return false;
     }
 
@@ -626,10 +628,10 @@ void JobManager::mark_pid_completed(pid_t pid, int status) {
         job->pids.erase(pid_it);
 
         if (WIFEXITED(status)) {
-            job->state = JobState::DONE;
+            job->state.store(JobState::DONE, std::memory_order_relaxed);
             job->exit_status = WEXITSTATUS(status);
         } else if (WIFSIGNALED(status)) {
-            job->state = JobState::TERMINATED;
+            job->state.store(JobState::TERMINATED, std::memory_order_relaxed);
             job->exit_status = WTERMSIG(status);
         }
 

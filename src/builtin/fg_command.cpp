@@ -34,8 +34,11 @@
 #include <iostream>
 
 #include "builtin_help.h"
+#include "cjsh.h"
 #include "error_out.h"
+#include "exec.h"
 #include "job_control.h"
+#include "shell.h"
 
 int fg_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(args, {"Usage: fg [%JOB]", "Bring a job to the foreground."})) {
@@ -60,7 +63,8 @@ int fg_command(const std::vector<std::string>& args) {
         }
     }
 
-    if (job->state == JobState::DONE || job->state == JobState::TERMINATED) {
+    const JobState current_state = job->state.load(std::memory_order_relaxed);
+    if (current_state == JobState::DONE || current_state == JobState::TERMINATED) {
         print_error({ErrorType::INVALID_ARGUMENT,
                      std::to_string(job_id),
                      "job has already completed",
@@ -68,13 +72,17 @@ int fg_command(const std::vector<std::string>& args) {
         return 1;
     }
 
+    if (g_shell && g_shell->shell_exec) {
+        g_shell->shell_exec->set_job_output_forwarding(job->pgid, true);
+    }
+
     if (killpg(job->pgid, SIGCONT) < 0) {
         perror("fg: killpg");
         return 1;
     }
 
-    job->state = JobState::RUNNING;
-    job->stop_notified = false;
+    job->state.store(JobState::RUNNING, std::memory_order_relaxed);
+    job->stop_notified.store(false, std::memory_order_relaxed);
     job_manager.set_current_job(job_id);
 
     std::cout << job->display_command() << '\n';
@@ -93,7 +101,7 @@ int fg_command(const std::vector<std::string>& args) {
         return WEXITSTATUS(status);
     }
     if (WIFSTOPPED(status)) {
-        job->state = JobState::STOPPED;
+        job->state.store(JobState::STOPPED, std::memory_order_relaxed);
         job_manager.notify_job_stopped(job);
         return 128 + WSTOPSIG(status);
     }
