@@ -121,7 +121,7 @@ int run_cjsh(int argc, char* argv[]) {
 
     // auto-enable posix mode if invoked as sh, equivalent to --posix
     if (launched_as_sh) {
-        config::posix_mode = true;
+        flags::apply_posix_mode_settings();
     }
 
     // handle simple flags for version and help

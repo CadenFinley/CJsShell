@@ -97,6 +97,11 @@ std::vector<std::string> expand_tilde_tokens(const std::vector<std::string>& tok
     std::vector<std::string> result;
     result.reserve(tokens.size());
 
+    if (config::posix_mode) {
+        result.insert(result.end(), tokens.begin(), tokens.end());
+        return result;
+    }
+
     const bool has_home = cjsh_env::shell_variable_is_set("HOME");
     const std::string home = has_home ? cjsh_env::get_shell_variable_value("HOME") : std::string();
 

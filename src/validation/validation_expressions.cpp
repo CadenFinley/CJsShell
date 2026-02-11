@@ -30,6 +30,7 @@
 
 #include "error_out.h"
 #include "parser_utils.h"
+#include "shell_env.h"
 #include "validation_common.h"
 
 #include <string>
@@ -325,6 +326,15 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
             }
 
             if (var_end > 0 && line[var_end - 1] == '=') {
+                if (config::posix_mode) {
+                    line_errors.push_back(SyntaxError(
+                        {display_line, var_end - 1, i + 1, 0}, ErrorSeverity::ERROR,
+                        ErrorCategory::SYNTAX, "POSIX005", "Arrays are disabled in POSIX mode",
+                        line, "Use separate scalar variables or positional parameters"));
+                    next_index = line.length();
+                    return;
+                }
+
                 size_t paren_count = 1;
                 size_t j = i + 1;
                 QuoteState nested_state;

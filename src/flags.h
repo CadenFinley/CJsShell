@@ -42,6 +42,7 @@ struct ParseResult {
 
 ParseResult parse_arguments(int argc, char* argv[]);
 void apply_profile_startup_flags();
+void apply_posix_mode_settings();
 void save_startup_arguments(int argc, char* argv[]);
 std::vector<std::string>& startup_args();
 std::vector<std::string>& profile_startup_args();

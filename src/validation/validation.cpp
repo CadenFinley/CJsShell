@@ -28,6 +28,7 @@
 
 #include "interpreter.h"
 #include "interpreter_utils.h"
+#include "shell_env.h"
 
 #include "validation_common.h"
 
@@ -692,6 +693,91 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                  starts_with_token_keyword(after_semicolon, ControlToken::Else) ||
                  starts_with_token_keyword(after_semicolon, ControlToken::Fi))) {
                 trimmed_for_parsing = std::move(after_semicolon);
+            }
+        }
+
+        if (config::posix_mode) {
+            auto add_posix_error = [&](const std::string& code, size_t start, size_t end,
+                                       const std::string& message, const std::string& suggestion) {
+                errors.push_back(SyntaxError({display_line, start, end, 0}, ErrorSeverity::ERROR,
+                                             ErrorCategory::SYNTAX, code, message, line,
+                                             suggestion));
+            };
+
+            QuoteState posix_state;
+            bool reported_double_bracket = false;
+            bool reported_plus_equal = false;
+            bool reported_pipe_amp = false;
+            bool reported_amp_gt = false;
+
+            for (size_t i = 0; i + 1 < sanitized_line_without_comments.size(); ++i) {
+                char c = sanitized_line_without_comments[i];
+
+                if (!should_process_char(posix_state, c, false, false)) {
+                    continue;
+                }
+
+                if (posix_state.in_quotes) {
+                    continue;
+                }
+
+                if (!reported_double_bracket &&
+                    sanitized_line_without_comments.compare(i, 2, "[[") == 0) {
+                    add_posix_error("POSIX001", i, i + 2,
+                                    "'[[' conditionals are disabled in POSIX mode",
+                                    "Use '[' or 'test' instead");
+                    reported_double_bracket = true;
+                }
+
+                if (!reported_plus_equal &&
+                    sanitized_line_without_comments.compare(i, 2, "+=") == 0) {
+                    add_posix_error("POSIX006", i, i + 2,
+                                    "+= assignments are disabled in POSIX mode",
+                                    "Use explicit value with '=' instead");
+                    reported_plus_equal = true;
+                }
+
+                if (!reported_pipe_amp &&
+                    sanitized_line_without_comments.compare(i, 2, "|&") == 0) {
+                    add_posix_error("POSIX007", i, i + 2,
+                                    "'|&' pipelines are disabled in POSIX mode",
+                                    "Redirect stderr explicitly then pipe: 2>&1 | cmd");
+                    reported_pipe_amp = true;
+                }
+
+                if (!reported_amp_gt && sanitized_line_without_comments[i] == '&' &&
+                    sanitized_line_without_comments[i + 1] == '>') {
+                    size_t end_pos = i + 2;
+                    if (end_pos < sanitized_line_without_comments.size() &&
+                        sanitized_line_without_comments[end_pos] == '>') {
+                        ++end_pos;
+                    }
+                    add_posix_error("POSIX008", i, end_pos,
+                                    "'&>' redirections are disabled in POSIX mode",
+                                    "Redirect stdout and stderr separately (e.g., '>file 2>&1')");
+                    reported_amp_gt = true;
+                }
+            }
+
+            if (starts_with_token_keyword(trimmed_for_parsing, ControlToken::Function)) {
+                add_posix_error("POSIX002", first_non_space,
+                                first_non_space + std::strlen("function"),
+                                "The 'function' keyword is disabled in POSIX mode",
+                                "Define functions as 'name() { ... }'");
+            }
+
+            auto posix_tokens = tokenize_whitespace(trimmed_for_parsing);
+            if (!posix_tokens.empty()) {
+                const std::string& first_tok = posix_tokens.front();
+                if (first_tok == "source") {
+                    add_posix_error("POSIX009", first_non_space, first_non_space + first_tok.size(),
+                                    "'source' is disabled in POSIX mode",
+                                    "Use '.' to read a file in the current shell");
+                } else if (first_tok == "local") {
+                    add_posix_error("POSIX010", first_non_space, first_non_space + first_tok.size(),
+                                    "'local' is disabled in POSIX mode",
+                                    "Use assignment without 'local' or redesign scope");
+                }
             }
         }
 

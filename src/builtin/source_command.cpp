@@ -34,6 +34,7 @@
 
 #include "error_out.h"
 #include "shell.h"
+#include "shell_env.h"
 
 extern std::unique_ptr<Shell> g_shell;
 
@@ -42,6 +43,14 @@ int source_command(const std::vector<std::string>& args) {
                             {"Usage: source FILE",
                              "Execute commands from FILE in the current shell environment."})) {
         return 0;
+    }
+
+    if (config::posix_mode) {
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     "source",
+                     "'source' is disabled in POSIX mode. Use '.' instead.",
+                     {}});
+        return 1;
     }
     if (args.size() < 2) {
         print_error({ErrorType::INVALID_ARGUMENT, "source", "missing file operand", {}});

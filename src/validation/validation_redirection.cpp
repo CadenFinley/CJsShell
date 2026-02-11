@@ -30,6 +30,7 @@
 
 #include "error_out.h"
 #include "parser_utils.h"
+#include "shell_env.h"
 #include "validation_common.h"
 
 #include <cctype>
@@ -109,6 +110,27 @@ ShellScriptInterpreter::validate_redirection_syntax(const std::vector<std::strin
                 }
             } else {
                 redir_op = c;
+            }
+
+            if (config::posix_mode) {
+                if ((redir_op == "<" || redir_op == ">") && i + 1 < line.length() &&
+                    line[i + 1] == '(') {
+                    line_errors.push_back(
+                        SyntaxError({display_line, redir_start, redir_start + 2, 0},
+                                    ErrorSeverity::ERROR, ErrorCategory::SYNTAX, "POSIX003",
+                                    "Process substitution is disabled in POSIX mode", line,
+                                    "Use a pipeline or temporary file instead"));
+                    return;
+                }
+
+                if (redir_op == "<<<") {
+                    line_errors.push_back(
+                        SyntaxError({display_line, redir_start, redir_start + 3, 0},
+                                    ErrorSeverity::ERROR, ErrorCategory::SYNTAX, "POSIX004",
+                                    "Here-strings are disabled in POSIX mode", line,
+                                    "Use a here-document (<<) instead"));
+                    return;
+                }
             }
 
             size_t check_pos = next_index + 1;

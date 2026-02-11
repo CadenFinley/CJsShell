@@ -40,6 +40,7 @@
 
 #include "cjsh.h"
 #include "shell.h"
+#include "shell_env.h"
 
 namespace {
 
@@ -260,6 +261,11 @@ std::vector<std::string> ExpansionEngine::expand_braces(const std::string& patte
 
     result.reserve(8);
 
+    if (config::posix_mode) {
+        result.push_back(pattern);
+        return result;
+    }
+
     size_t open_pos = pattern.find('{');
     if (open_pos == std::string::npos) {
         result.push_back(pattern);
@@ -432,7 +438,8 @@ std::vector<std::string> ExpansionEngine::expand_wildcards(const std::string& pa
         return result;
     }
 
-    bool globstar_enabled = shell != nullptr && shell->get_shell_option(ShellOption::Globstar);
+    bool globstar_enabled =
+        shell != nullptr && shell->get_shell_option(ShellOption::Globstar) && !config::posix_mode;
     if (globstar_enabled) {
         ParsedGlobPattern parsed_pattern = parse_glob_pattern(unescaped);
         if (parsed_pattern.contains_globstar) {

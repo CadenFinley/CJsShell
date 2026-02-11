@@ -32,6 +32,7 @@
 #include <unistd.h>
 #include <array>
 #include <cstdint>
+#include <cstdlib>
 #include <optional>
 
 #include "cjsh.h"
@@ -87,6 +88,12 @@ void apply_minimal_mode() {
 }
 
 }  // namespace
+
+void apply_posix_mode_settings() {
+    config::posix_mode = true;
+    config::history_expansion_enabled = false;
+    setenv("POSIXLY_CORRECT", "1", 1);
+}
 
 void save_startup_arguments(int argc, char* argv[]) {
     // save the startup args so that login-startup-arg in cjshopt can be used
@@ -150,7 +157,7 @@ ParseResult parse_arguments(int argc, char* argv[]) {
                 config::no_exec = true;
                 break;
             case kOptPosix:
-                config::posix_mode = true;
+                apply_posix_mode_settings();
                 break;
             case 'v':
                 config::show_version = true;
@@ -350,7 +357,7 @@ void apply_profile_startup_flags() {
                 config::suppress_sh_warning = true;
                 break;
             case StartupFlag::Posix:
-                config::posix_mode = true;
+                apply_posix_mode_settings();
                 break;
             case StartupFlag::NoExec:
                 config::no_exec = true;

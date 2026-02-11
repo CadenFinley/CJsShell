@@ -34,11 +34,20 @@
 #include "error_out.h"
 #include "interpreter.h"
 #include "shell.h"
+#include "shell_env.h"
 
 int local_command(const std::vector<std::string>& args, Shell* shell) {
     if (builtin_handle_help(args, {"Usage: local NAME[=VALUE] ...",
                                    "Define local variables within a function scope."})) {
         return 0;
+    }
+
+    if (config::posix_mode) {
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     "local",
+                     "'local' is disabled in POSIX mode",
+                     {"Declare variables without 'local'"}});
+        return 1;
     }
 
     auto* script_interpreter = shell->get_shell_script_interpreter();

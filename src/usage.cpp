@@ -51,7 +51,7 @@ void print_usage(bool print_version, bool print_hook, bool print_footer) {
         << "  -c, --command=COMMAND      Execute the specified command and exit\n"
         << "                             (disables history expansion)\n"
         << "      --no-exec             Read commands but do not execute them\n"
-        << "      --posix               Reserved POSIX mode flag (no effect yet)\n"
+        << "      --posix               Enable POSIX mode and reject non-POSIX syntax\n"
         << "\n"
         << "Feature Control Options:\n"
         << "  -m, --minimal              Disable cjsh extras (prompt themes,\n"
