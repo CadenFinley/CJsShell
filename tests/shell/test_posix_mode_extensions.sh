@@ -46,14 +46,14 @@ fi
 echo "Checking interactive behavior without POSIX gating for: $SHELL_TO_TEST"
 echo "======================================================="
 
-log_test "--posix flag rejected"
+log_test "--posix flag accepted"
 output=$("$SHELL_TO_TEST" --posix -c 'echo hi' 2>&1)
 status=$?
-if [ $status -eq 127 ]; then
+if [ $status -eq 0 ] && [ "$output" = "hi" ]; then
     pass
 else
     clean_output=$(printf "%s" "$output" | tr '\n' ' ')
-    fail "Expected exit status 127 for unknown flag (status=$status, output=$clean_output)"
+    fail "Expected status 0 and 'hi' output (status=$status, output=$clean_output)"
 fi
 
 log_test "Brace expansion active"

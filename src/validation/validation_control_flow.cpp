@@ -140,11 +140,17 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                         line, "Close the '[' with ']' or use '[[ ... ]]'"));
                 }
 
-                if (missing_do) {
-                    line_errors.push_back(SyntaxError(
-                        {display_line, 0, 0, 0}, ErrorSeverity::ERROR, ErrorCategory::CONTROL_FLOW,
-                        "SYN002", "'" + first_token + "' statement missing 'do' keyword", line,
-                        "Add 'do' keyword: " + first_token + " condition; do"));
+                if (missing_do || loop_check.inline_body_without_done) {
+                    std::string msg = "'" + first_token + "' statement missing 'do' keyword";
+                    if (loop_check.inline_body_without_done && !missing_do) {
+                        msg = "'" + first_token + "' loop missing 'done' after inline body";
+                    }
+
+                    line_errors.push_back(
+                        SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::ERROR,
+                                    ErrorCategory::CONTROL_FLOW, "SYN002", msg, line,
+                                    "Add 'do' keyword and close with 'done': " + first_token +
+                                        " condition; do ... done"));
                 }
             }
         }
