@@ -113,9 +113,10 @@ int exit_command(const std::vector<std::string>& args) {
             if (!job) {
                 continue;
             }
-            if (job->state == JobState::STOPPED) {
+            const JobState state = job->state.load(std::memory_order_relaxed);
+            if (state == JobState::STOPPED) {
                 has_stopped_jobs = true;
-            } else if (job->state == JobState::RUNNING) {
+            } else if (state == JobState::RUNNING) {
                 has_running_jobs = true;
             }
         }

@@ -547,7 +547,7 @@ auto_background_with_redirection() {
         return 1
     fi
 
-    kill -TSTP "$target_pid" 2>/dev/null
+    kill -TSTP "-$target_pid" 2>/dev/null || kill -TSTP "$target_pid" 2>/dev/null
 
     if ! wait_for_process_exit "$cjsh_pid"; then
         kill -CONT "$cjsh_pid" 2>/dev/null || true

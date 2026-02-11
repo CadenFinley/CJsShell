@@ -30,6 +30,7 @@
 
 #include <sys/types.h>
 
+#include <atomic>
 #include <chrono>
 #include <cstdint>
 #include <memory>
@@ -56,11 +57,11 @@ struct JobControlJob {
     pid_t pgid;
     std::vector<pid_t> pids;
     std::string command;
-    JobState state{};
+    std::atomic<JobState> state{JobState::RUNNING};
     int exit_status{};
     bool notified{false};
-    bool stop_notified{false};
-    bool background{false};
+    std::atomic<bool> stop_notified{false};
+    std::atomic<bool> background{false};
     bool reads_stdin{false};
     bool awaiting_stdin_signal{false};
     std::uint8_t last_stdin_signal{0};

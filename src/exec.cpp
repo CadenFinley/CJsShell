@@ -136,26 +136,32 @@ std::shared_ptr<OutputRelayState> start_output_relay(int master_fd, bool forward
     relay->master_fd = master_fd;
     relay->forward.store(forward);
 
-    std::thread([relay]() {
-        char buffer[4096];
-        while (true) {
-            ssize_t bytes_read = read(relay->master_fd, buffer, sizeof(buffer));
-            if (bytes_read == 0) {
-                break;
-            }
-            if (bytes_read < 0) {
-                if (errno == EINTR) {
-                    continue;
+    try {
+        std::thread t([relay]() {
+            char buffer[4096];
+            while (true) {
+                ssize_t bytes_read = read(relay->master_fd, buffer, sizeof(buffer));
+                if (bytes_read == 0) {
+                    break;
                 }
-                break;
+                if (bytes_read < 0) {
+                    if (errno == EINTR) {
+                        continue;
+                    }
+                    break;
+                }
+                if (relay->forward.load()) {
+                    (void)cjsh_filesystem::write_all(
+                        STDOUT_FILENO, std::string_view(buffer, static_cast<size_t>(bytes_read)));
+                }
             }
-            if (relay->forward.load()) {
-                (void)cjsh_filesystem::write_all(
-                    STDOUT_FILENO, std::string_view(buffer, static_cast<size_t>(bytes_read)));
-            }
-        }
+            cjsh_filesystem::safe_close(relay->master_fd);
+        });
+        t.detach();
+    } catch (...) {
         cjsh_filesystem::safe_close(relay->master_fd);
-    }).detach();
+        throw;
+    }
 
     return relay;
 }
@@ -2472,9 +2478,9 @@ void Exec::wait_for_job(int job_id) {
                 last_exit_code = 0;
 
                 if (job_control) {
-                    job_control->state = JobState::RUNNING;
-                    job_control->background = true;
-                    job_control->stop_notified = false;
+                    job_control->state.store(JobState::RUNNING, std::memory_order_relaxed);
+                    job_control->background.store(true, std::memory_order_relaxed);
+                    job_control->stop_notified.store(false, std::memory_order_relaxed);
                 }
 
                 JobManager::instance().set_last_background_pid(job.last_pid);
