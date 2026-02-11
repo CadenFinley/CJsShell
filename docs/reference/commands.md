@@ -644,6 +644,7 @@ Supported flags:
 | `--show-startup-time` | Print the time spent initializing cjsh |
 | `--no-source` | Skip sourcing interactive configuration files |
 | `--no-completions` | Skip completion initialization |
+| `--no-completion-learning` | Skip on-demand man-page scraping for completions |
 | `--no-script-extension-interpreter` | Disable extension-based script runners |
 | `--no-smart-cd` | Disable smart cd auto-jumps |
 | `--no-syntax-highlighting` | Disable syntax highlighting in the editor |
@@ -651,6 +652,7 @@ Supported flags:
 | `--no-sh-warning` | Suppress the reminder shown when cjsh is invoked via `sh` |
 | `--minimal` | Disable prompt themes/colors, completions, syntax highlighting, rc sourcing, title line, history expansion, multiline line numbers, and auto-indentation |
 | `--secure` | Skip profile/rc/logout sourcing even for login shells |
+| `--posix` | Enable POSIX mode and reject non-POSIX syntax |
 | `--startup-test` | Enable startup test mode |
 
 Add one line per flag in `~/.cjprofile` to persist the desired behavior:
