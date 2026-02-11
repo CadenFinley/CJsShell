@@ -1120,9 +1120,10 @@ require no third-party plugins.</p>
 <li><strong>POSIX+ extensions</strong> – <code>[[ … ]]</code>, arithmetic contexts, brace expansion, here-strings, and
     process substitution are supported. History expansion stays interactive-only by default.</li>
 <li><strong>Job control</strong> – Background jobs, <code>fg</code>, <code>bg</code>, <code>jobs</code>, <code>wait</code>, <code>disown</code>, and <code>trap</code> integrate with
-    the internal process manager so interactive sessions stay responsive. <code>set -o huponexit</code>
-    controls whether exiting shells hang up or leave running jobs alone (default: off, so long-lived
-    helpers keep running until you explicitly stop them).</li>
+    the internal process manager so interactive sessions stay responsive. Append <code>&amp;^</code> to a command
+    to auto-background it on <code>Ctrl+Z</code>, or <code>&amp;^!</code> to auto-background and discard stdout/stderr after
+    the suspend. <code>set -o huponexit</code> controls whether exiting shells hang up or leave running jobs
+    alone (default: off, so long-lived helpers keep running until you explicitly stop them).</li>
 </ul>
 <h2 id="interactive-layer">Interactive Layer</h2>
 <p>Powered by the embedded <a href="https://github.com/cadenfinley/isocline">isocline</a> editor:</p>

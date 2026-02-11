@@ -1183,6 +1183,9 @@ remains interactive-only by default; see the History section below.</p>
 <li><strong>Startup diagnostics</strong> – <code>--show-startup-time</code> prints the duration spent initializing CJSH.</li>
 <li><strong>Secure mode</strong> – <code>--secure</code> skips all profile/rc/logout sourcing for hardened sessions and
   ignores <code>PROMPT_COMMAND</code>.</li>
+<li><strong>Auto-background on suspend</strong> – Append <code>&amp;^</code> to a command to resume it in the background when
+  you press <code>Ctrl+Z</code>. Append <code>&amp;^!</code> to resume it and discard stdout/stderr after the suspend so the
+  prompt stays clean.</li>
 <li><strong>Extension-based script dispatch</strong> – When executing a script file without a shebang, CJSH can
   infer the interpreter from the file extension (for example, <code>.sh</code> uses <code>sh</code>, <code>.bash</code> uses <code>bash</code>).
   Disable with <code>--no-script-extension-interpreter</code> or <code>cjshopt script-extension-interpreter off</code>.</li>
