@@ -63,28 +63,42 @@ std::string_view trim_view(const std::string& value) {
     return std::string_view(value).substr(start, end - start + 1);
 }
 
-bool job_command_matches(const std::shared_ptr<JobControlJob>& job, const std::string& spec) {
+enum class JobMatchKind {
+    None,
+    Exact,
+    Prefix
+};
+
+JobMatchKind job_command_match_kind(const std::shared_ptr<JobControlJob>& job,
+                                    const std::string& spec) {
     if (spec.empty()) {
-        return false;
+        return JobMatchKind::None;
     }
 
     const auto& comparison_source = job->has_custom_name() ? job->custom_name : job->command;
     const auto trimmed_command = trim_view(comparison_source);
     if (trimmed_command.empty()) {
-        return false;
+        return JobMatchKind::None;
     }
 
     const std::string_view spec_view(spec);
     if (trimmed_command == spec_view) {
-        return true;
+        return JobMatchKind::Exact;
     }
 
     const auto first_space = trimmed_command.find_first_of(" \t");
-    if (first_space == std::string::npos) {
-        return false;
+    const std::string_view command_word =
+        first_space == std::string::npos ? trimmed_command : trimmed_command.substr(0, first_space);
+
+    if (command_word == spec_view) {
+        return JobMatchKind::Exact;
     }
 
-    return trimmed_command.substr(0, first_space) == spec_view;
+    if (command_word.rfind(spec_view, 0) == 0) {
+        return JobMatchKind::Prefix;
+    }
+
+    return JobMatchKind::None;
 }
 
 std::shared_ptr<JobControlJob> resolve_job_argument(const std::vector<std::string>& args,
@@ -222,20 +236,40 @@ void trim_in_place(std::string& value) {
 std::shared_ptr<JobControlJob> find_job_by_command(const std::string& spec, JobManager& job_manager,
                                                    bool& ambiguous) {
     ambiguous = false;
-    std::shared_ptr<JobControlJob> match;
+    std::shared_ptr<JobControlJob> exact_match;
+    std::vector<std::shared_ptr<JobControlJob>> prefix_matches;
 
     const auto jobs = job_manager.get_all_jobs();
     for (const auto& job : jobs) {
-        if (job_command_matches(job, spec)) {
-            if (match) {
-                ambiguous = true;
-                return nullptr;
-            }
-            match = job;
+        switch (job_command_match_kind(job, spec)) {
+            case JobMatchKind::Exact:
+                if (exact_match) {
+                    ambiguous = true;
+                    return nullptr;
+                }
+                exact_match = job;
+                break;
+            case JobMatchKind::Prefix:
+                prefix_matches.push_back(job);
+                break;
+            case JobMatchKind::None:
+                break;
         }
     }
 
-    return match;
+    if (exact_match) {
+        return exact_match;
+    }
+
+    if (prefix_matches.size() == 1) {
+        return prefix_matches.front();
+    }
+
+    if (!prefix_matches.empty()) {
+        ambiguous = true;
+    }
+
+    return nullptr;
 }
 
 std::optional<ResolvedJob> resolve_control_job_target(const std::vector<std::string>& args,
