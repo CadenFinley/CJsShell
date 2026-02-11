@@ -58,6 +58,12 @@ int jobs_command(const std::vector<std::string>& args) {
                          "Invalid option",
                          {"Use -l for long format, -p for PIDs only"}});
             return 1;
+        } else {
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         args[i],
+                         "jobs does not take positional arguments",
+                         {"Usage: jobs [-lp]"}});
+            return 1;
         }
     }
 
