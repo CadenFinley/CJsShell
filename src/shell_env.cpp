@@ -78,6 +78,7 @@ bool startup_test = false;
 bool minimal_mode = false;
 bool show_startup_time = false;
 bool secure_mode = false;
+bool posix_mode = false;
 bool show_title_line = true;
 bool history_expansion_enabled = true;
 bool newline_after_execution = false;

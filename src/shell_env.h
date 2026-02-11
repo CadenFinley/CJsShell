@@ -55,6 +55,7 @@ extern bool startup_test;
 extern bool minimal_mode;
 extern bool show_startup_time;
 extern bool secure_mode;
+extern bool posix_mode;
 extern bool show_title_line;
 extern bool history_expansion_enabled;
 extern bool newline_after_execution;

@@ -119,6 +119,11 @@ int run_cjsh(int argc, char* argv[]) {
         return parse_result.exit_code;
     }
 
+    // auto-enable posix mode if invoked as sh, equivalent to --posix
+    if (launched_as_sh) {
+        config::posix_mode = true;
+    }
+
     // handle simple flags for version and help
     if (config::show_version) {
         std::vector<std::string> empty_args;
