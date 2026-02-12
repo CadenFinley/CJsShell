@@ -1,12 +1,18 @@
 #include <cstddef>
 #include <cstdio>
+#include <cstring>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 #include "builtins_completions_handler.h"
 #include "completion_spell.h"
+#include "completion_tracker.h"
 #include "completion_utils.h"
+extern "C" {
+#include "completions.h"
+#include "env.h"
+}
 
 extern bool g_completion_case_sensitive;
 
@@ -33,6 +39,49 @@ static bool expect_streq(const std::string& actual, const std::string& expected,
     std::fprintf(stderr, "  actual:   %s\n", actual.c_str());
     std::fprintf(stderr, "  expected: %s\n", expected.c_str());
     return false;
+}
+
+struct CompletionAction {
+    std::string text;
+    long delete_before;
+    long delete_after;
+    const char* source;
+};
+
+static std::vector<CompletionAction> g_completion_actions;
+static const std::unordered_map<std::string, completion_spell::SpellCorrectionMatch>*
+    g_spell_matches = nullptr;
+static size_t g_spell_prefix_len = 0;
+
+static void completion_action_completer(ic_completion_env_t* cenv, const char* prefix) {
+    completion_tracker::completion_session_begin(cenv, prefix);
+    for (const auto& action : g_completion_actions) {
+        const char* source = action.source == nullptr ? "test" : action.source;
+        completion_tracker::safe_add_completion_prim_with_source(
+            cenv, action.text.c_str(), nullptr, nullptr, source, action.delete_before,
+            action.delete_after);
+    }
+    completion_tracker::completion_session_end();
+}
+
+static void spell_match_completer(ic_completion_env_t* cenv, const char* prefix) {
+    if (g_spell_matches == nullptr) {
+        return;
+    }
+    completion_tracker::completion_session_begin(cenv, prefix);
+    completion_spell::add_spell_correction_matches(cenv, *g_spell_matches, g_spell_prefix_len);
+    completion_tracker::completion_session_end();
+}
+
+static ssize_t run_completion_generation(const char* input, ic_completer_fun_t* completer,
+                                         ssize_t max_results) {
+    ic_env_t* env = ic_get_env();
+    if (env == nullptr || env->completions == nullptr) {
+        return -1;
+    }
+    completions_set_completer(env->completions, completer, nullptr);
+    return completions_generate(env, env->completions, input,
+                                static_cast<ssize_t>(std::strlen(input)), max_results);
 }
 
 static bool test_quote_and_unquote_paths(void) {
@@ -94,6 +143,8 @@ static bool test_find_last_unquoted_space(void) {
     std::string line = "echo \"a b\" c";
     size_t pos = completion_utils::find_last_unquoted_space(line);
     EXPECT_TRUE(pos == 10, test_name, "last unquoted space should be before final token");
+    EXPECT_TRUE(completion_utils::find_last_unquoted_space("\"a b\"") == std::string::npos,
+                test_name, "quoted spaces should be ignored");
     return true;
 }
 
@@ -165,6 +216,78 @@ static bool test_spell_match_ordering(void) {
     return true;
 }
 
+static bool test_spell_match_add_limit(void) {
+    const char* test_name = "spell_match_add_limit";
+    std::unordered_map<std::string, completion_spell::SpellCorrectionMatch> matches;
+    for (int i = 0; i < 20; ++i) {
+        std::string name = "spell" + std::to_string(i);
+        matches[name] = {name, 1, false, 1};
+    }
+
+    g_spell_matches = &matches;
+    g_spell_prefix_len = 4;
+    ssize_t count = run_completion_generation("spel", &spell_match_completer, 64);
+    g_spell_matches = nullptr;
+    g_spell_prefix_len = 0;
+
+    EXPECT_TRUE(count == 10, test_name, "spell match insertion should cap at 10 entries");
+    return true;
+}
+
+static bool test_completion_tracker_deduplication(void) {
+    const char* test_name = "completion_tracker_deduplication";
+    g_completion_actions = {
+        {"d", 1, 0, "test"},
+        {"bd", 2, 0, "test"},
+    };
+    ssize_t count = run_completion_generation("abc", &completion_action_completer, 64);
+    g_completion_actions.clear();
+
+    EXPECT_TRUE(count == 1, test_name, "duplicate final result should only be added once");
+    return true;
+}
+
+static bool test_completion_tracker_trims_trailing_spaces(void) {
+    const char* test_name = "completion_tracker_trims_trailing_spaces";
+    g_completion_actions = {
+        {"arg ", 0, 0, "test"},
+        {"arg", 0, 0, "test"},
+    };
+    ssize_t count = run_completion_generation("cmd ", &completion_action_completer, 64);
+    g_completion_actions.clear();
+
+    EXPECT_TRUE(count == 1, test_name, "canonicalized results should ignore trailing spaces");
+    return true;
+}
+
+static bool test_completion_tracker_max_results(void) {
+    const char* test_name = "completion_tracker_max_results";
+    std::string error;
+    EXPECT_FALSE(completion_tracker::set_completion_max_results(0, &error), test_name,
+                 "setting max results below minimum should fail");
+    EXPECT_TRUE(!error.empty(), test_name, "error message should be populated");
+
+    long default_max = completion_tracker::get_completion_default_max_results();
+    long min_allowed = completion_tracker::get_completion_min_allowed_results();
+    EXPECT_TRUE(completion_tracker::set_completion_max_results(min_allowed, nullptr), test_name,
+                "setting minimum max results should succeed");
+    EXPECT_TRUE(completion_tracker::get_completion_max_results() == min_allowed, test_name,
+                "configured max results should match requested value");
+
+    g_completion_actions = {
+        {"one", 0, 0, "test"},
+        {"two", 0, 0, "test"},
+        {"three", 0, 0, "test"},
+    };
+    ssize_t count = run_completion_generation("", &completion_action_completer, 64);
+    g_completion_actions.clear();
+
+    EXPECT_TRUE(count == min_allowed, test_name, "completion count should honor max results cap");
+
+    completion_tracker::set_completion_max_results(default_max, nullptr);
+    return true;
+}
+
 static bool has_entry(const builtin_completions::CommandDoc* doc, const std::string& text,
                       builtin_completions::EntryKind kind) {
     if (doc == nullptr) {
@@ -205,6 +328,37 @@ static bool test_builtin_docs(void) {
         return false;
     }
 
+    const auto* generate_doc =
+        builtin_completions::lookup_builtin_command_doc("generate-completions");
+    EXPECT_TRUE(generate_doc != nullptr, test_name, "generate-completions doc should exist");
+    EXPECT_TRUE(has_entry(generate_doc, "--no-force", builtin_completions::EntryKind::Option),
+                test_name, "generate-completions should include --no-force");
+    EXPECT_TRUE(has_entry(generate_doc, "--jobs", builtin_completions::EntryKind::Option),
+                test_name, "generate-completions should include --jobs");
+
+    const auto* source_doc = builtin_completions::lookup_builtin_command_doc(".");
+    EXPECT_TRUE(source_doc != nullptr, test_name, "dot alias doc should exist");
+    EXPECT_TRUE(source_doc->summary == "Execute commands from a file in the current shell",
+                test_name, "dot alias should share source summary");
+
+    const auto* cjshopt_doc = builtin_completions::lookup_builtin_command_doc("cjshopt");
+    EXPECT_TRUE(cjshopt_doc != nullptr, test_name, "cjshopt doc should exist");
+    EXPECT_TRUE(
+        has_entry(cjshopt_doc, "completion-case", builtin_completions::EntryKind::Subcommand),
+        test_name, "cjshopt should include completion-case subcommand");
+
+    const auto* completion_max_doc =
+        builtin_completions::lookup_builtin_command_doc("cjshopt-set-completion-max");
+    EXPECT_TRUE(completion_max_doc != nullptr, test_name,
+                "cjshopt-set-completion-max doc should exist");
+    EXPECT_TRUE(has_entry(completion_max_doc, "--status", builtin_completions::EntryKind::Option),
+                test_name, "set-completion-max should include --status option");
+
+    const auto* type_doc = builtin_completions::lookup_builtin_command_doc("type");
+    EXPECT_TRUE(type_doc != nullptr, test_name, "type doc should exist");
+    EXPECT_TRUE(has_entry(type_doc, "-a", builtin_completions::EntryKind::Option), test_name,
+                "type should include -a option");
+
     return true;
 }
 
@@ -223,6 +377,10 @@ static const test_case_t kTests[] = {
     {"sanitize_job_summary", test_sanitize_job_summary},
     {"spell_transposition_and_distance", test_spell_transposition_and_distance},
     {"spell_match_ordering", test_spell_match_ordering},
+    {"spell_match_add_limit", test_spell_match_add_limit},
+    {"completion_tracker_deduplication", test_completion_tracker_deduplication},
+    {"completion_tracker_trims_trailing_spaces", test_completion_tracker_trims_trailing_spaces},
+    {"completion_tracker_max_results", test_completion_tracker_max_results},
     {"builtin_docs", test_builtin_docs},
 };
 
