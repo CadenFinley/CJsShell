@@ -91,12 +91,17 @@ class Exec {
         const std::vector<std::string>& args,
         std::vector<std::pair<std::string, std::string>>& assignments, size_t& cmd_start_idx,
         const std::function<void()>& on_assignments_only);
+    std::optional<std::vector<std::string>> collect_command_args_with_assignments(
+        const std::vector<std::string>& args,
+        std::vector<std::pair<std::string, std::string>>& assignments,
+        const std::function<void()>& on_assignments_only, int& early_exit_code);
     bool requires_fork(const Command& cmd) const;
     bool can_execute_in_process(const Command& cmd) const;
     int execute_builtin_with_redirections(Command cmd);
     void warn_parent_setpgid_failure();
 
     Job* find_job_locked(int job_id);
+    Job* find_job_and_set_output_forwarding_locked(int job_id, bool forward);
     void resume_job(Job& job, bool cont, std::string_view context);
     void report_missing_job(int job_id);
 

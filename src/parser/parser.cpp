@@ -172,6 +172,46 @@ bool is_closing_control_word(ControlWord word) {
     return false;
 }
 
+bool is_ampersand_inside_arithmetic_or_brackets(const std::string& text, size_t amp_index,
+                                                bool respect_quote_escapes) {
+    bool in_quotes = false;
+    char quote_char = '\0';
+    int arith_depth = 0;
+    int bracket_depth = 0;
+    bool inside = false;
+
+    for (size_t i = 0; i < text.length(); ++i) {
+        if ((text[i] == '"' || text[i] == '\'') &&
+            (!respect_quote_escapes || !is_char_escaped(text, i))) {
+            if (!in_quotes) {
+                in_quotes = true;
+                quote_char = text[i];
+            } else if (quote_char == text[i]) {
+                in_quotes = false;
+            }
+        } else if (!in_quotes) {
+            if (i >= 2 && text[i - 2] == '$' && text[i - 1] == '(' && text[i] == '(') {
+                arith_depth++;
+            } else if (i + 1 < text.length() && text[i] == ')' && text[i + 1] == ')' &&
+                       arith_depth > 0) {
+                arith_depth--;
+                i++;
+            } else if (i + 1 < text.length() && text[i] == '[' && text[i + 1] == '[') {
+                bracket_depth++;
+                i++;
+            } else if (i + 1 < text.length() && text[i] == ']' && text[i + 1] == ']' &&
+                       bracket_depth > 0) {
+                bracket_depth--;
+                i++;
+            } else if (i == amp_index && text[i] == '&' && (arith_depth > 0 || bracket_depth > 0)) {
+                inside = true;
+            }
+        }
+    }
+
+    return inside;
+}
+
 enum class RedirectionToken : std::uint8_t {
     Input,
     Output,
@@ -1041,14 +1081,7 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
 
     if (start <= script.size()) {
         std::string_view tail_view{script.data() + start, script.size() - start};
-        if (!tail_view.empty() && !in_quotes && !in_here_doc) {
-            std::string tail{tail_view};
-            if (!tail.empty() && tail.back() == '\r') {
-                tail.pop_back();
-            }
-            lines.push_back(std::move(tail));
-            line_comment_flags.push_back(false);
-        } else if (!tail_view.empty()) {
+        if (!tail_view.empty()) {
             std::string tail{tail_view};
             if (!tail.empty() && tail.back() == '\r') {
                 tail.pop_back();
@@ -1332,55 +1365,11 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
         }
 
         if (trimmed.size() >= 3 && trimmed.substr(trimmed.size() - 3) == "&^!") {
-            bool inside_arithmetic = false;
-            int arith_depth = 0;
-            bool in_quotes = false;
-            char quote_char = '\0';
-            int bracket_depth = 0;
             size_t amp_index = trimmed.size() - 3;
 
             if (!is_char_escaped(trimmed, amp_index)) {
-                for (size_t i = 0; i < trimmed.length(); ++i) {
-                    if ((trimmed[i] == '"' || trimmed[i] == '\'') && !is_char_escaped(trimmed, i)) {
-                        if (!in_quotes) {
-                            in_quotes = true;
-                            quote_char = trimmed[i];
-                        } else if (quote_char == trimmed[i]) {
-                            in_quotes = false;
-                        }
-                    } else if (!in_quotes) {
-                        if (i >= 2 && trimmed[i - 2] == '$' && trimmed[i - 1] == '(' &&
-                            trimmed[i] == '(') {
-                            arith_depth++;
-                        }
-
-                        else if (i + 1 < trimmed.length() && trimmed[i] == ')' &&
-                                 trimmed[i + 1] == ')' && arith_depth > 0) {
-                            arith_depth--;
-                            i++;
-                        }
-
-                        else if (i + 1 < trimmed.length() && trimmed[i] == '[' &&
-                                 trimmed[i + 1] == '[') {
-                            bracket_depth++;
-                            i++;
-                        }
-
-                        else if (i + 1 < trimmed.length() && trimmed[i] == ']' &&
-                                 trimmed[i + 1] == ']' && bracket_depth > 0) {
-                            bracket_depth--;
-                            i++;
-                        }
-
-                        else if (i == amp_index && trimmed[i] == '&' && arith_depth > 0) {
-                            inside_arithmetic = true;
-                        }
-
-                        else if (i == amp_index && trimmed[i] == '&' && bracket_depth > 0) {
-                            inside_arithmetic = true;
-                        }
-                    }
-                }
+                bool inside_arithmetic =
+                    is_ampersand_inside_arithmetic_or_brackets(trimmed, amp_index, true);
 
                 if (!inside_arithmetic) {
                     auto_background_on_stop = true;
@@ -1390,55 +1379,11 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                 }
             }
         } else if (trimmed.size() >= 2 && trimmed.substr(trimmed.size() - 2) == "&^") {
-            bool inside_arithmetic = false;
-            int arith_depth = 0;
-            bool in_quotes = false;
-            char quote_char = '\0';
-            int bracket_depth = 0;
             size_t amp_index = trimmed.size() - 2;
 
             if (!is_char_escaped(trimmed, amp_index)) {
-                for (size_t i = 0; i < trimmed.length(); ++i) {
-                    if ((trimmed[i] == '"' || trimmed[i] == '\'') && !is_char_escaped(trimmed, i)) {
-                        if (!in_quotes) {
-                            in_quotes = true;
-                            quote_char = trimmed[i];
-                        } else if (quote_char == trimmed[i]) {
-                            in_quotes = false;
-                        }
-                    } else if (!in_quotes) {
-                        if (i >= 2 && trimmed[i - 2] == '$' && trimmed[i - 1] == '(' &&
-                            trimmed[i] == '(') {
-                            arith_depth++;
-                        }
-
-                        else if (i + 1 < trimmed.length() && trimmed[i] == ')' &&
-                                 trimmed[i + 1] == ')' && arith_depth > 0) {
-                            arith_depth--;
-                            i++;
-                        }
-
-                        else if (i + 1 < trimmed.length() && trimmed[i] == '[' &&
-                                 trimmed[i + 1] == '[') {
-                            bracket_depth++;
-                            i++;
-                        }
-
-                        else if (i + 1 < trimmed.length() && trimmed[i] == ']' &&
-                                 trimmed[i + 1] == ']' && bracket_depth > 0) {
-                            bracket_depth--;
-                            i++;
-                        }
-
-                        else if (i == amp_index && trimmed[i] == '&' && arith_depth > 0) {
-                            inside_arithmetic = true;
-                        }
-
-                        else if (i == amp_index && trimmed[i] == '&' && bracket_depth > 0) {
-                            inside_arithmetic = true;
-                        }
-                    }
-                }
+                bool inside_arithmetic =
+                    is_ampersand_inside_arithmetic_or_brackets(trimmed, amp_index, true);
 
                 if (!inside_arithmetic) {
                     auto_background_on_stop = true;
@@ -1450,53 +1395,9 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
 
         if (!trimmed.empty() && trimmed.back() == '&' &&
             !is_char_escaped(trimmed, trimmed.size() - 1)) {
-            bool inside_arithmetic = false;
-            int arith_depth = 0;
-            bool in_quotes = false;
-            char quote_char = '\0';
-            int bracket_depth = 0;
-
-            for (size_t i = 0; i < trimmed.length(); ++i) {
-                if (trimmed[i] == '"' || trimmed[i] == '\'') {
-                    if (!in_quotes) {
-                        in_quotes = true;
-                        quote_char = trimmed[i];
-                    } else if (quote_char == trimmed[i]) {
-                        in_quotes = false;
-                    }
-                } else if (!in_quotes) {
-                    if (i >= 2 && trimmed[i - 2] == '$' && trimmed[i - 1] == '(' &&
-                        trimmed[i] == '(') {
-                        arith_depth++;
-                    }
-
-                    else if (i + 1 < trimmed.length() && trimmed[i] == ')' &&
-                             trimmed[i + 1] == ')' && arith_depth > 0) {
-                        arith_depth--;
-                        i++;
-                    }
-
-                    else if (i + 1 < trimmed.length() && trimmed[i] == '[' &&
-                             trimmed[i + 1] == '[') {
-                        bracket_depth++;
-                        i++;
-                    }
-
-                    else if (i + 1 < trimmed.length() && trimmed[i] == ']' &&
-                             trimmed[i + 1] == ']' && bracket_depth > 0) {
-                        bracket_depth--;
-                        i++;
-                    }
-
-                    else if (i == trimmed.length() - 1 && trimmed[i] == '&' && arith_depth > 0) {
-                        inside_arithmetic = true;
-                    }
-
-                    else if (i == trimmed.length() - 1 && trimmed[i] == '&' && bracket_depth > 0) {
-                        inside_arithmetic = true;
-                    }
-                }
-            }
+            size_t amp_index = trimmed.size() - 1;
+            bool inside_arithmetic =
+                is_ampersand_inside_arithmetic_or_brackets(trimmed, amp_index, false);
 
             if (!inside_arithmetic) {
                 size_t amp_pos = cmd_part.rfind('&');

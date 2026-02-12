@@ -307,18 +307,25 @@ std::vector<std::string> Tokenizer::merge_redirection_tokens(
     for (size_t i = 0; i < tokens.size(); ++i) {
         const std::string& token = tokens[i];
 
-        if (token == "2" && i + 1 < tokens.size()) {
-            if (tokens[i + 1] == ">&1") {
+        if (token == "2") {
+            size_t next_index = i + 1;
+            if (next_index >= tokens.size()) {
+                result.push_back(token);
+                continue;
+            }
+            const std::string& next_token = tokens[next_index];
+
+            if (next_token == ">&1") {
                 result.push_back("2>&1");
                 i++;
-            } else if (i + 3 < tokens.size() && tokens[i + 1] == ">" && tokens[i + 2] == "&" &&
+            } else if (i + 3 < tokens.size() && next_token == ">" && tokens[i + 2] == "&" &&
                        tokens[i + 3] == "1") {
                 result.push_back("2>&1");
                 i += 3;
-            } else if (i + 2 < tokens.size() && tokens[i + 1] == ">" && tokens[i + 2] == ">") {
+            } else if (i + 2 < tokens.size() && next_token == ">" && tokens[i + 2] == ">") {
                 result.push_back("2>>");
                 i += 2;
-            } else if (i + 1 < tokens.size() && tokens[i + 1] == ">") {
+            } else if (next_token == ">") {
                 result.push_back("2>");
                 i++;
             } else {

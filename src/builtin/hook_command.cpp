@@ -64,6 +64,18 @@ std::optional<HookType> parse_hook_type_arg(const std::string& hook_type) {
     return parse_hook_type(hook_type);
 }
 
+std::optional<HookType> parse_hook_type_or_error(const std::string& hook_type_arg) {
+    auto hook_type = parse_hook_type_arg(hook_type_arg);
+    if (!hook_type.has_value()) {
+        ErrorInfo error = {ErrorType::INVALID_ARGUMENT,
+                           "hook",
+                           "invalid hook type '" + hook_type_arg + "'",
+                           {"Valid hook types: precmd, preexec, chpwd"}};
+        print_error(error);
+    }
+    return hook_type;
+}
+
 }  // namespace
 
 int hook_command(const std::vector<std::string>& args, Shell* shell) {
@@ -128,13 +140,8 @@ int hook_command(const std::vector<std::string>& args, Shell* shell) {
         }
 
         const std::string& hook_type_arg = args[2];
-        auto hook_type = parse_hook_type_arg(hook_type_arg);
+        auto hook_type = parse_hook_type_or_error(hook_type_arg);
         if (!hook_type.has_value()) {
-            ErrorInfo error = {ErrorType::INVALID_ARGUMENT,
-                               "hook",
-                               "invalid hook type '" + hook_type_arg + "'",
-                               {"Valid hook types: precmd, preexec, chpwd"}};
-            print_error(error);
             return 1;
         }
 
@@ -161,13 +168,8 @@ int hook_command(const std::vector<std::string>& args, Shell* shell) {
         }
 
         const std::string& hook_type_arg = args[2];
-        auto hook_type = parse_hook_type_arg(hook_type_arg);
+        auto hook_type = parse_hook_type_or_error(hook_type_arg);
         if (!hook_type.has_value()) {
-            ErrorInfo error = {ErrorType::INVALID_ARGUMENT,
-                               "hook",
-                               "invalid hook type '" + hook_type_arg + "'",
-                               {"Valid hook types: precmd, preexec, chpwd"}};
-            print_error(error);
             return 1;
         }
 
@@ -187,14 +189,8 @@ int hook_command(const std::vector<std::string>& args, Shell* shell) {
 
         const std::string& hook_type_arg = args[2];
         const std::string& function_name = args[3];
-        auto hook_type = parse_hook_type_arg(hook_type_arg);
-
+        auto hook_type = parse_hook_type_or_error(hook_type_arg);
         if (!hook_type.has_value()) {
-            ErrorInfo error = {ErrorType::INVALID_ARGUMENT,
-                               "hook",
-                               "invalid hook type '" + hook_type_arg + "'",
-                               {"Valid hook types: precmd, preexec, chpwd"}};
-            print_error(error);
             return 1;
         }
 
@@ -214,14 +210,8 @@ int hook_command(const std::vector<std::string>& args, Shell* shell) {
 
         const std::string& hook_type_arg = args[2];
         const std::string& function_name = args[3];
-        auto hook_type = parse_hook_type_arg(hook_type_arg);
-
+        auto hook_type = parse_hook_type_or_error(hook_type_arg);
         if (!hook_type.has_value()) {
-            ErrorInfo error = {ErrorType::INVALID_ARGUMENT,
-                               "hook",
-                               "invalid hook type '" + hook_type_arg + "'",
-                               {"Valid hook types: precmd, preexec, chpwd"}};
-            print_error(error);
             return 1;
         }
 

@@ -90,6 +90,9 @@ std::string join_arguments(const std::vector<std::string>& args) {
     return result;
 }
 
+[[noreturn]] void exec_external_child(const std::vector<std::string>& args,
+                                      const char* cached_path);
+
 struct PtyPair {
     int master_fd{-1};
     int slave_fd{-1};
@@ -164,6 +167,49 @@ std::shared_ptr<OutputRelayState> start_output_relay(int master_fd, bool forward
     }
 
     return relay;
+}
+
+struct CommandExecutionPlan {
+    bool is_builtin{false};
+    std::string cached_exec_path;
+};
+
+CommandExecutionPlan resolve_command_exec_plan(const std::vector<std::string>& cmd_args) {
+    CommandExecutionPlan plan;
+    if (!cmd_args.empty() && g_shell && (g_shell->get_built_ins() != nullptr)) {
+        plan.is_builtin = g_shell->get_built_ins()->is_builtin_command(cmd_args[0]) != 0;
+    }
+
+    if (!cmd_args.empty() && !plan.is_builtin) {
+        plan.cached_exec_path = cjsh_filesystem::resolve_executable_for_execution(cmd_args[0]);
+    }
+
+    return plan;
+}
+
+[[noreturn]] void exec_builtin_or_external_child(const std::vector<std::string>& cmd_args,
+                                                 bool is_builtin,
+                                                 const std::string& cached_exec_path) {
+    if (is_builtin && g_shell && (g_shell->get_built_ins() != nullptr)) {
+        int exit_code = g_shell->get_built_ins()->builtin_command(cmd_args);
+        (void)fflush(stdout);
+        (void)fflush(stderr);
+        _exit(exit_code);
+    }
+
+    const char* exec_override = cached_exec_path.empty() ? nullptr : cached_exec_path.c_str();
+    exec_external_child(cmd_args, exec_override);
+}
+
+void attach_output_relay_to_job(Job& job, const std::optional<PtyPair>& output_pty,
+                                std::shared_ptr<OutputRelayState>& output_relay) {
+    if (!output_pty.has_value()) {
+        return;
+    }
+
+    cjsh_filesystem::safe_close(output_pty->slave_fd);
+    output_relay = start_output_relay(output_pty->master_fd, !job.background);
+    job.output_relay = output_relay;
 }
 
 bool command_has_stdout_redirection(const Command& cmd) {
@@ -949,6 +995,23 @@ std::optional<int> Exec::handle_assignments_prefix(
     return std::nullopt;
 }
 
+std::optional<std::vector<std::string>> Exec::collect_command_args_with_assignments(
+    const std::vector<std::string>& args,
+    std::vector<std::pair<std::string, std::string>>& assignments,
+    const std::function<void()>& on_assignments_only, int& early_exit_code) {
+    size_t cmd_start_idx = 0;
+    auto early_exit =
+        handle_assignments_prefix(args, assignments, cmd_start_idx, on_assignments_only);
+    if (early_exit.has_value()) {
+        early_exit_code = early_exit.value();
+        return std::nullopt;
+    }
+
+    std::vector<std::string> cmd_args(
+        std::next(args.begin(), static_cast<std::ptrdiff_t>(cmd_start_idx)), args.end());
+    return cmd_args;
+}
+
 bool Exec::requires_fork(const Command& cmd) const {
     return !cmd.input_file.empty() || !cmd.output_file.empty() || !cmd.append_file.empty() ||
            cmd.background || !cmd.stderr_file.empty() || cmd.stderr_to_stdout ||
@@ -1025,6 +1088,19 @@ Job* Exec::find_job_locked(int job_id) {
     return &it->second;
 }
 
+Job* Exec::find_job_and_set_output_forwarding_locked(int job_id, bool forward) {
+    Job* job = find_job_locked(job_id);
+    if (job == nullptr) {
+        return nullptr;
+    }
+
+    if (job->output_relay) {
+        job->output_relay->forward.store(forward);
+    }
+
+    return job;
+}
+
 void Exec::report_missing_job(int job_id) {
     set_error(ErrorType::RUNTIME_ERROR, "job", "job [" + std::to_string(job_id) + "] not found");
     print_last_error();
@@ -1051,20 +1127,19 @@ void Exec::set_last_pipeline_statuses(std::vector<int> statuses) {
 int Exec::execute_command_sync(const std::vector<std::string>& args, bool auto_background_on_stop,
                                bool auto_background_on_stop_silent) {
     std::vector<std::pair<std::string, std::string>> env_assignments;
-    size_t cmd_start_idx = 0;
-    auto early_exit = handle_assignments_prefix(args, env_assignments, cmd_start_idx, [&]() {
-        apply_assignments_to_shell_env(env_assignments);
-    });
-    if (early_exit.has_value()) {
-        return early_exit.value();
+    int early_exit_code = 0;
+    auto cmd_args = collect_command_args_with_assignments(
+        args, env_assignments, [&]() { apply_assignments_to_shell_env(env_assignments); },
+        early_exit_code);
+    if (!cmd_args.has_value()) {
+        return early_exit_code;
     }
 
-    std::vector<std::string> cmd_args(
-        std::next(args.begin(), static_cast<std::ptrdiff_t>(cmd_start_idx)), args.end());
+    std::vector<std::string> cmd_args_value = std::move(cmd_args.value());
 
     Command proc_cmd;
-    proc_cmd.args = cmd_args;
-    for (const auto& arg : cmd_args) {
+    proc_cmd.args = cmd_args_value;
+    for (const auto& arg : cmd_args_value) {
         if (arg.size() >= 4 && arg.back() == ')' &&
             (arg.rfind("<(", 0) == 0 || arg.rfind(">(", 0) == 0)) {
             proc_cmd.process_substitutions.push_back(arg);
@@ -1075,25 +1150,19 @@ int Exec::execute_command_sync(const std::vector<std::string>& args, bool auto_b
     if (!proc_cmd.process_substitutions.empty()) {
         try {
             proc_resources = setup_process_substitutions(proc_cmd);
-            cmd_args = proc_cmd.args;
+            cmd_args_value = proc_cmd.args;
         } catch (const std::exception& e) {
-            set_error(ErrorType::RUNTIME_ERROR, cmd_args.empty() ? "command" : cmd_args[0],
-                      e.what(), {});
+            set_error(ErrorType::RUNTIME_ERROR,
+                      cmd_args_value.empty() ? "command" : cmd_args_value[0], e.what(), {});
             last_exit_code = EX_OSERR;
             set_last_pipeline_statuses({EX_OSERR});
             return EX_OSERR;
         }
     }
 
-    bool is_builtin = false;
-    if (!cmd_args.empty() && g_shell && (g_shell->get_built_ins() != nullptr)) {
-        is_builtin = g_shell->get_built_ins()->is_builtin_command(cmd_args[0]) != 0;
-    }
-
-    std::string cached_exec_path;
-    if (!cmd_args.empty() && !is_builtin) {
-        cached_exec_path = cjsh_filesystem::resolve_executable_for_execution(cmd_args[0]);
-    }
+    auto exec_plan = resolve_command_exec_plan(cmd_args_value);
+    bool is_builtin = exec_plan.is_builtin;
+    std::string cached_exec_path = std::move(exec_plan.cached_exec_path);
 
     std::optional<PtyPair> output_pty;
     std::shared_ptr<OutputRelayState> output_relay;
@@ -1105,7 +1174,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args, bool auto_b
     pid_t pid = fork();
 
     if (pid == -1) {
-        set_error(ErrorType::RUNTIME_ERROR, cmd_args.empty() ? "unknown" : cmd_args[0],
+        set_error(ErrorType::RUNTIME_ERROR, cmd_args_value.empty() ? "unknown" : cmd_args_value[0],
                   "failed to fork process: " + std::string(strerror(errno)), {});
         if (output_pty.has_value()) {
             cjsh_filesystem::safe_close(output_pty->master_fd);
@@ -1123,7 +1192,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args, bool auto_b
         pid_t child_pid = getpid();
         if (setpgid(child_pid, child_pid) < 0) {
             child_exit_with_error(
-                ErrorType::RUNTIME_ERROR, cmd_args.empty() ? "command" : cmd_args[0],
+                ErrorType::RUNTIME_ERROR, cmd_args_value.empty() ? "command" : cmd_args_value[0],
                 std::string("setpgid: failed to set process group ID in child: ") +
                     strerror(errno));
         }
@@ -1133,27 +1202,21 @@ int Exec::execute_command_sync(const std::vector<std::string>& args, bool auto_b
         if (output_pty.has_value()) {
             if (dup2(output_pty->slave_fd, STDOUT_FILENO) == -1) {
                 child_exit_with_error(
-                    ErrorType::RUNTIME_ERROR, cmd_args.empty() ? "command" : cmd_args[0],
+                    ErrorType::RUNTIME_ERROR,
+                    cmd_args_value.empty() ? "command" : cmd_args_value[0],
                     std::string("dup2: failed to attach output relay stdout: ") + strerror(errno));
             }
             if (dup2(output_pty->slave_fd, STDERR_FILENO) == -1) {
                 child_exit_with_error(
-                    ErrorType::RUNTIME_ERROR, cmd_args.empty() ? "command" : cmd_args[0],
+                    ErrorType::RUNTIME_ERROR,
+                    cmd_args_value.empty() ? "command" : cmd_args_value[0],
                     std::string("dup2: failed to attach output relay stderr: ") + strerror(errno));
             }
             cjsh_filesystem::safe_close(output_pty->master_fd);
             cjsh_filesystem::safe_close(output_pty->slave_fd);
         }
 
-        if (is_builtin && g_shell && (g_shell->get_built_ins() != nullptr)) {
-            int exit_code = g_shell->get_built_ins()->builtin_command(cmd_args);
-            (void)fflush(stdout);
-            (void)fflush(stderr);
-            _exit(exit_code);
-        }
-
-        const char* exec_override = cached_exec_path.empty() ? nullptr : cached_exec_path.c_str();
-        exec_external_child(cmd_args, exec_override);
+        exec_builtin_or_external_child(cmd_args_value, is_builtin, cached_exec_path);
     }
 
     if (setpgid(pid, pid) < 0) {
@@ -1162,11 +1225,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args, bool auto_b
 
     Job job = make_single_process_job(pid, args[0], false, auto_background_on_stop,
                                       auto_background_on_stop_silent);
-    if (output_pty.has_value()) {
-        cjsh_filesystem::safe_close(output_pty->slave_fd);
-        output_relay = start_output_relay(output_pty->master_fd, !job.background);
-        job.output_relay = output_relay;
-    }
+    attach_output_relay_to_job(job, output_pty, output_relay);
 
     int job_id = add_job(job);
 
@@ -1211,32 +1270,28 @@ int Exec::execute_command_sync(const std::vector<std::string>& args, bool auto_b
 
 int Exec::execute_command_async(const std::vector<std::string>& args) {
     std::vector<std::pair<std::string, std::string>> env_assignments;
-    size_t cmd_start_idx = 0;
-    auto early_exit = handle_assignments_prefix(args, env_assignments, cmd_start_idx, [&]() {
-        cjsh_env::apply_env_assignments(env_assignments);
-        set_error(ErrorType::RUNTIME_ERROR, "", "Environment variables set", {});
-    });
-    if (early_exit.has_value()) {
-        return early_exit.value();
+    int early_exit_code = 0;
+    auto cmd_args = collect_command_args_with_assignments(
+        args, env_assignments,
+        [&]() {
+            cjsh_env::apply_env_assignments(env_assignments);
+            set_error(ErrorType::RUNTIME_ERROR, "", "Environment variables set", {});
+        },
+        early_exit_code);
+    if (!cmd_args.has_value()) {
+        return early_exit_code;
     }
 
-    std::vector<std::string> cmd_args(
-        std::next(args.begin(), static_cast<std::ptrdiff_t>(cmd_start_idx)), args.end());
+    std::vector<std::string> cmd_args_value = std::move(cmd_args.value());
 
-    bool is_builtin = false;
-    if (!cmd_args.empty() && g_shell && (g_shell->get_built_ins() != nullptr)) {
-        is_builtin = g_shell->get_built_ins()->is_builtin_command(cmd_args[0]) != 0;
-    }
-
-    std::string cached_exec_path;
-    if (!cmd_args.empty() && !is_builtin) {
-        cached_exec_path = cjsh_filesystem::resolve_executable_for_execution(cmd_args[0]);
-    }
+    auto exec_plan = resolve_command_exec_plan(cmd_args_value);
+    bool is_builtin = exec_plan.is_builtin;
+    std::string cached_exec_path = std::move(exec_plan.cached_exec_path);
 
     pid_t pid = fork();
 
     if (pid == -1) {
-        std::string cmd_name = cmd_args.empty() ? "unknown" : cmd_args[0];
+        std::string cmd_name = cmd_args_value.empty() ? "unknown" : cmd_args_value[0];
         set_error(ErrorType::RUNTIME_ERROR, cmd_name,
                   "failed to create background process: " + std::string(strerror(errno)), {});
         last_exit_code = EX_OSERR;
@@ -1249,22 +1304,14 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
 
         if (setpgid(0, 0) < 0) {
             child_exit_with_error(
-                ErrorType::RUNTIME_ERROR, cmd_args.empty() ? "command" : cmd_args[0],
+                ErrorType::RUNTIME_ERROR, cmd_args_value.empty() ? "command" : cmd_args_value[0],
                 std::string("setpgid: failed to set process group ID in background child: ") +
                     strerror(errno));
         }
 
         reset_child_signals();
 
-        if (is_builtin && g_shell && (g_shell->get_built_ins() != nullptr)) {
-            int exit_code = g_shell->get_built_ins()->builtin_command(cmd_args);
-            (void)fflush(stdout);
-            (void)fflush(stderr);
-            _exit(exit_code);
-        }
-
-        const char* exec_override = cached_exec_path.empty() ? nullptr : cached_exec_path.c_str();
-        exec_external_child(cmd_args, exec_override);
+        exec_builtin_or_external_child(cmd_args_value, is_builtin, cached_exec_path);
     } else {
         if (setpgid(pid, pid) < 0 && errno != EACCES && errno != EPERM) {
             set_error(ErrorType::RUNTIME_ERROR, "setpgid",
@@ -1596,11 +1643,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
         }
         Job job = make_single_process_job(pid, cmd.args[0], false, cmd.auto_background_on_stop,
                                           cmd.auto_background_on_stop_silent);
-        if (output_pty.has_value()) {
-            cjsh_filesystem::safe_close(output_pty->slave_fd);
-            output_relay = start_output_relay(output_pty->master_fd, !job.background);
-            job.output_relay = output_relay;
-        }
+        attach_output_relay_to_job(job, output_pty, output_relay);
 
         int job_id = add_job(job);
         std::string full_command = join_arguments(cmd.args);
@@ -2287,13 +2330,9 @@ void Exec::remove_job(int job_id) {
 void Exec::put_job_in_foreground(int job_id, bool cont) {
     std::lock_guard<std::mutex> lock(jobs_mutex);
 
-    Job* job = find_job_locked(job_id);
+    Job* job = find_job_and_set_output_forwarding_locked(job_id, true);
     if (job == nullptr) {
         return;
-    }
-
-    if (job->output_relay) {
-        job->output_relay->forward.store(true);
     }
 
     bool terminal_control_acquired = false;
@@ -2338,13 +2377,9 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
 void Exec::put_job_in_background(int job_id, bool cont) {
     std::lock_guard<std::mutex> lock(jobs_mutex);
 
-    Job* job = find_job_locked(job_id);
+    Job* job = find_job_and_set_output_forwarding_locked(job_id, false);
     if (job == nullptr) {
         return;
-    }
-
-    if (job->output_relay) {
-        job->output_relay->forward.store(false);
     }
 
     resume_job(*job, cont, "background job");
