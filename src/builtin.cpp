@@ -75,6 +75,7 @@
 #include "readonly_command.h"
 #include "set_command.h"
 #include "shell.h"
+#include "shell_env.h"
 #include "source_command.h"
 #include "suggestion_utils.h"
 #include "test_command.h"
@@ -286,7 +287,10 @@ int Built_ins::builtin_command(const std::vector<std::string>& args) {
         int status = it->second(args);
         return status;
     }
-    auto suggestions = suggestion_utils::generate_command_suggestions(args[0]);
+    std::vector<std::string> suggestions;
+    if (config::error_suggestions_enabled) {
+        suggestions = suggestion_utils::generate_command_suggestions(args[0]);
+    }
 
     ErrorInfo error = {ErrorType::COMMAND_NOT_FOUND, args[0], "command not found", suggestions};
     print_error(error);

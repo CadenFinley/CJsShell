@@ -244,16 +244,18 @@ std::string build_error_message(const SyntaxError& error) {
 void emit_validation_errors(const std::vector<SyntaxError>& errors) {
     for (const auto& error : errors) {
         std::vector<std::string> suggestions;
-        if (!error.suggestion.empty()) {
-            suggestions.push_back(error.suggestion);
-        }
-        for (const auto& info : error.related_info) {
-            if (!info.empty()) {
-                suggestions.push_back(info);
+        if (config::error_suggestions_enabled) {
+            if (!error.suggestion.empty()) {
+                suggestions.push_back(error.suggestion);
             }
-        }
-        if (!error.documentation_url.empty()) {
-            suggestions.push_back("More info: " + error.documentation_url);
+            for (const auto& info : error.related_info) {
+                if (!info.empty()) {
+                    suggestions.push_back(info);
+                }
+            }
+            if (!error.documentation_url.empty()) {
+                suggestions.push_back("More info: " + error.documentation_url);
+            }
         }
 
         print_error({map_category_to_error_type(error.category), error.severity, "",

@@ -568,14 +568,14 @@ if(BUILD_TESTING)
     set(CJSH_CPP_SOURCES_NO_MAIN ${CJSH_CPP_SOURCES})
     list(REMOVE_ITEM CJSH_CPP_SOURCES_NO_MAIN ${CMAKE_SOURCE_DIR}/src/cjsh.cpp)
 
-    add_executable(cjsh_completion_tests
+    add_executable(completion_tests
         ${CJSH_CPP_SOURCES_NO_MAIN}
         ${CJSH_C_SOURCES}
         ${CMAKE_SOURCE_DIR}/tests/completions/test_completions.cpp
         ${CMAKE_SOURCE_DIR}/tests/completions/test_completion_globals.cpp
     )
-    target_include_directories(cjsh_completion_tests PRIVATE ${CJSH_INCLUDE_DIRS})
-    target_compile_definitions(cjsh_completion_tests PRIVATE
+    target_include_directories(completion_tests PRIVATE ${CJSH_INCLUDE_DIRS})
+    target_compile_definitions(completion_tests PRIVATE
         CJSH_GIT_HASH="${CJSH_GIT_HASH}"
         CJSH_GIT_HASH_FULL="${CJSH_GIT_HASH_FULL}"
         CJSH_BUILD_ARCH="${CJSH_BUILD_ARCH}"
@@ -594,17 +594,17 @@ if(BUILD_TESTING)
         $<$<AND:$<NOT:$<CONFIG:Debug>>,$<NOT:$<BOOL:${CJSH_MINIMAL_BUILD}>>>:_FORTIFY_SOURCE=1>
     )
     foreach(_cjsh_opt -Wall -Wno-error -Wno-unused-function -Wno-unused-variable)
-        target_compile_options(cjsh_completion_tests PRIVATE
+        target_compile_options(completion_tests PRIVATE
             $<$<COMPILE_LANGUAGE:C>:${_cjsh_opt}>
             $<$<COMPILE_LANGUAGE:CXX>:${_cjsh_opt}>
         )
     endforeach()
-    target_link_libraries(cjsh_completion_tests PRIVATE Threads::Threads)
+    target_link_libraries(completion_tests PRIVATE Threads::Threads)
     if(CMAKE_DL_LIBS)
-        target_link_libraries(cjsh_completion_tests PRIVATE ${CMAKE_DL_LIBS})
+        target_link_libraries(completion_tests PRIVATE ${CMAKE_DL_LIBS})
     endif()
     if(NOT CJSH_BUILDS_WITHOUT_LIBATOMIC)
-        target_link_libraries(cjsh_completion_tests PRIVATE atomic)
+        target_link_libraries(completion_tests PRIVATE atomic)
     endif()
-    add_test(NAME completion_tests COMMAND cjsh_completion_tests)
+    add_test(NAME completion_tests COMMAND completion_tests)
 endif()

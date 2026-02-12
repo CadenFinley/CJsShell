@@ -346,7 +346,7 @@ bool replace_first_instance(std::string& target, const std::string& from, const 
         }
 
         std::vector<std::string> suggestions;
-        if (!command_name.empty()) {
+        if (config::error_suggestions_enabled && !command_name.empty()) {
             suggestions = suggestion_utils::generate_command_suggestions(command_name);
         }
         print_error(
@@ -376,7 +376,7 @@ bool replace_first_instance(std::string& target, const std::string& from, const 
                                                : ErrorType::RUNTIME_ERROR;
 
     std::vector<std::string> suggestions;
-    if (!message_detail.empty()) {
+    if (config::error_suggestions_enabled && !message_detail.empty()) {
         suggestions.push_back("Detail: " + message_detail);
     }
 

@@ -233,6 +233,9 @@ std::string sanitize_context(const std::string& text) {
 
 void append_context_hint(std::vector<std::string>& suggestions, const std::string& text,
                          size_t line_number) {
+    if (!config::error_suggestions_enabled) {
+        return;
+    }
     if (text.empty() && line_number == 0) {
         return;
     }
@@ -271,8 +274,10 @@ std::string strip_cjsh_prefix(std::string message) {
 }
 
 std::vector<std::string> build_command_suggestions(const std::string& command_name) {
-    auto suggestions = suggestion_utils::generate_command_suggestions(command_name);
-    return suggestions;
+    if (!config::error_suggestions_enabled) {
+        return {};
+    }
+    return suggestion_utils::generate_command_suggestions(command_name);
 }
 
 int handle_runtime_exception(const std::string& text, const std::runtime_error& e,
@@ -299,7 +304,9 @@ int handle_runtime_exception(const std::string& text, const std::runtime_error& 
     if (message.find("Unclosed quote") != std::string::npos ||
         message.find("missing closing") != std::string::npos ||
         message.find("syntax error near unexpected token") != std::string::npos) {
-        suggestions.push_back("Make sure all quotes and delimiters are balanced.");
+        if (config::error_suggestions_enabled) {
+            suggestions.push_back("Make sure all quotes and delimiters are balanced.");
+        }
         add_context();
         return report_error_with_code(ErrorType::SYNTAX_ERROR, ErrorSeverity::ERROR, "", message,
                                       suggestions, 2);
@@ -308,13 +315,17 @@ int handle_runtime_exception(const std::string& text, const std::runtime_error& 
     if (message.find("Failed to open") != std::string::npos ||
         message.find("Failed to redirect") != std::string::npos ||
         message.find("Failed to write") != std::string::npos) {
-        suggestions.push_back("Check file permissions and paths.");
+        if (config::error_suggestions_enabled) {
+            suggestions.push_back("Check file permissions and paths.");
+        }
         add_context();
         return report_error_with_code(ErrorType::FILE_NOT_FOUND, ErrorSeverity::ERROR, "", message,
                                       suggestions, 2);
     }
 
-    suggestions.push_back("Check command syntax and system resources.");
+    if (config::error_suggestions_enabled) {
+        suggestions.push_back("Check command syntax and system resources.");
+    }
     add_context();
     return report_error_with_code(ErrorType::RUNTIME_ERROR, ErrorSeverity::ERROR, "", message,
                                   suggestions, 2);

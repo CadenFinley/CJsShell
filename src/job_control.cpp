@@ -336,7 +336,9 @@ ExitErrorResult make_exit_error_result(const std::string& command, int exit_code
         if (!cjsh_filesystem::command_exists(command)) {
             result.type = ErrorType::COMMAND_NOT_FOUND;
             result.message.clear();
-            result.suggestions = suggestion_utils::generate_command_suggestions(command);
+            if (config::error_suggestions_enabled) {
+                result.suggestions = suggestion_utils::generate_command_suggestions(command);
+            }
             return result;
         }
     } else if (exit_code == 126) {

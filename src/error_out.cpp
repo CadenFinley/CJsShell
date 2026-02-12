@@ -211,6 +211,10 @@ const char* severity_to_color(ErrorSeverity severity) {
 }
 
 bool should_colorize_output() {
+    if (!config::colors_enabled) {
+        return false;
+    }
+
     if (!g_shell || !g_shell->get_interactive_mode()) {
         return false;
     }
