@@ -452,6 +452,79 @@ bool is_interactive_builtin(const std::string& cmd) {
     return script_only_builtins.find(cmd) == script_only_builtins.end();
 }
 
+std::vector<std::string> collect_map_keys(
+    const std::unordered_map<std::string, std::string>& values) {
+    std::vector<std::string> keys;
+    keys.reserve(values.size());
+    for (const auto& entry : values) {
+        keys.push_back(entry.first);
+    }
+    return keys;
+}
+
+std::function<std::string(const std::string&)> make_map_source_provider(
+    const std::unordered_map<std::string, std::string>* values) {
+    return [values](const std::string& name) -> std::string {
+        if (values == nullptr) {
+            return {};
+        }
+        auto it = values->find(name);
+        if (it == values->end()) {
+            return {};
+        }
+        return it->second;
+    };
+}
+
+std::string builtin_summary_for_command(const std::string& cmd) {
+    return builtin_completions::get_builtin_summary(cmd);
+}
+
+void add_builtin_command_candidates(ic_completion_env_t* cenv,
+                                    const std::vector<std::string>& builtin_cmds,
+                                    const std::string& prefix, size_t prefix_len) {
+    auto builtin_filter = [](const std::string& cmd) { return is_interactive_builtin(cmd); };
+    process_command_candidates(
+        cenv, builtin_cmds, prefix, prefix_len, "builtin",
+        [](const std::string& value) { return value; }, builtin_filter,
+        builtin_summary_for_command);
+}
+
+struct CommandCompletionSources {
+    std::vector<std::string> builtin_cmds;
+    std::vector<std::string> function_names;
+    std::vector<std::string> alias_names;
+    std::vector<std::string> abbreviation_names;
+    std::vector<std::string> executables_in_path;
+    const std::unordered_map<std::string, std::string>* alias_map = nullptr;
+    const std::unordered_map<std::string, std::string>* abbreviation_map = nullptr;
+};
+
+CommandCompletionSources collect_command_completion_sources(bool include_executables) {
+    CommandCompletionSources sources;
+    if (g_shell && (g_shell->get_built_ins() != nullptr)) {
+        sources.builtin_cmds = g_shell->get_built_ins()->get_builtin_commands();
+    }
+
+    if (g_shell && (g_shell->get_shell_script_interpreter() != nullptr)) {
+        sources.function_names = g_shell->get_shell_script_interpreter()->get_function_names();
+    }
+
+    if (g_shell) {
+        sources.alias_map = &g_shell->get_aliases();
+        sources.alias_names = collect_map_keys(*sources.alias_map);
+
+        sources.abbreviation_map = &g_shell->get_abbreviations();
+        sources.abbreviation_names = collect_map_keys(*sources.abbreviation_map);
+    }
+
+    if (include_executables) {
+        sources.executables_in_path = cjsh_filesystem::get_executables_in_path();
+    }
+
+    return sources;
+}
+
 bool is_valid_variable_completion_prefix(const std::string& prefix) {
     for (char ch : prefix) {
         unsigned char uch = static_cast<unsigned char>(ch);
@@ -819,14 +892,7 @@ bool add_builtin_argument_completions(ic_completion_env_t* cenv,
             return false;
         }
         auto builtin_cmds = g_shell->get_built_ins()->get_builtin_commands();
-        auto builtin_filter = [&](const std::string& cmd) { return is_interactive_builtin(cmd); };
-        auto builtin_summary_provider = [](const std::string& cmd) -> std::string {
-            return builtin_completions::get_builtin_summary(cmd);
-        };
-        process_command_candidates(
-            cenv, builtin_cmds, context.current_prefix, prefix_len, "builtin",
-            [](const std::string& value) { return value; }, builtin_filter,
-            builtin_summary_provider);
+        add_builtin_command_candidates(cenv, builtin_cmds, context.current_prefix, prefix_len);
         return ic_has_completions(cenv);
     }
 
@@ -838,18 +904,8 @@ bool add_builtin_argument_completions(ic_completion_env_t* cenv,
             return false;
         }
         const auto& alias_map = g_shell->get_aliases();
-        std::vector<std::string> alias_names;
-        alias_names.reserve(alias_map.size());
-        for (const auto& entry : alias_map) {
-            alias_names.push_back(entry.first);
-        }
-        auto alias_source_provider = [&alias_map](const std::string& name) -> std::string {
-            auto it = alias_map.find(name);
-            if (it == alias_map.end()) {
-                return {};
-            }
-            return it->second;
-        };
+        auto alias_names = collect_map_keys(alias_map);
+        auto alias_source_provider = make_map_source_provider(&alias_map);
         process_command_candidates(
             cenv, alias_names, context.current_prefix, prefix_len, "alias",
             [](const std::string& value) { return value; },
@@ -866,18 +922,8 @@ bool add_builtin_argument_completions(ic_completion_env_t* cenv,
             return false;
         }
         const auto& abbr_map = g_shell->get_abbreviations();
-        std::vector<std::string> abbr_names;
-        abbr_names.reserve(abbr_map.size());
-        for (const auto& entry : abbr_map) {
-            abbr_names.push_back(entry.first);
-        }
-        auto abbr_source_provider = [&abbr_map](const std::string& name) -> std::string {
-            auto it = abbr_map.find(name);
-            if (it == abbr_map.end()) {
-                return {};
-            }
-            return it->second;
-        };
+        auto abbr_names = collect_map_keys(abbr_map);
+        auto abbr_source_provider = make_map_source_provider(&abbr_map);
         process_command_candidates(
             cenv, abbr_names, context.current_prefix, prefix_len, "abbreviation",
             [](const std::string& value) { return value; },
@@ -904,44 +950,10 @@ bool add_builtin_argument_completions(ic_completion_env_t* cenv,
             return false;
         }
 
-        std::vector<std::string> builtin_cmds;
-        std::vector<std::string> function_names;
-        std::vector<std::string> alias_names;
-        std::vector<std::string> abbreviation_names;
-        const std::unordered_map<std::string, std::string>* alias_map = nullptr;
-        const std::unordered_map<std::string, std::string>* abbreviation_map = nullptr;
+        auto sources = collect_command_completion_sources(true);
 
-        if (g_shell && (g_shell->get_built_ins() != nullptr)) {
-            builtin_cmds = g_shell->get_built_ins()->get_builtin_commands();
-        }
-
-        if (g_shell && (g_shell->get_shell_script_interpreter() != nullptr)) {
-            function_names = g_shell->get_shell_script_interpreter()->get_function_names();
-        }
-
-        if (g_shell) {
-            alias_map = &g_shell->get_aliases();
-            alias_names.reserve(alias_map->size());
-            for (const auto& alias : *alias_map) {
-                alias_names.push_back(alias.first);
-            }
-
-            abbreviation_map = &g_shell->get_abbreviations();
-            abbreviation_names.reserve(abbreviation_map->size());
-            for (const auto& entry : *abbreviation_map) {
-                abbreviation_names.push_back(entry.first);
-            }
-        }
-
-        auto builtin_filter = [&](const std::string& cmd) { return is_interactive_builtin(cmd); };
-        auto builtin_summary_provider = [](const std::string& cmd) -> std::string {
-            return builtin_completions::get_builtin_summary(cmd);
-        };
-
-        process_command_candidates(
-            cenv, builtin_cmds, context.current_prefix, prefix_len, "builtin",
-            [](const std::string& value) { return value; }, builtin_filter,
-            builtin_summary_provider);
+        add_builtin_command_candidates(cenv, sources.builtin_cmds, context.current_prefix,
+                                       prefix_len);
         if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv)) {
             return ic_has_completions(cenv);
         }
@@ -956,52 +968,30 @@ bool add_builtin_argument_completions(ic_completion_env_t* cenv,
             }
         }
 
-        process_command_candidates(cenv, function_names, context.current_prefix, prefix_len,
+        process_command_candidates(cenv, sources.function_names, context.current_prefix, prefix_len,
                                    "function", [](const std::string& value) { return value; });
         if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv)) {
             return ic_has_completions(cenv);
         }
 
-        auto alias_source_provider = [alias_map](const std::string& name) -> std::string {
-            if (alias_map == nullptr) {
-                return {};
-            }
-            auto it = alias_map->find(name);
-            if (it == alias_map->end()) {
-                return {};
-            }
-            return it->second;
-        };
-
+        auto alias_source_provider = make_map_source_provider(sources.alias_map);
         process_command_candidates(
-            cenv, alias_names, context.current_prefix, prefix_len, "alias",
+            cenv, sources.alias_names, context.current_prefix, prefix_len, "alias",
             [](const std::string& value) { return value; },
             std::function<bool(const std::string&)>{}, alias_source_provider);
         if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv)) {
             return ic_has_completions(cenv);
         }
 
-        auto abbreviation_source_provider =
-            [abbreviation_map](const std::string& name) -> std::string {
-            if (abbreviation_map == nullptr) {
-                return {};
-            }
-            auto it = abbreviation_map->find(name);
-            if (it == abbreviation_map->end()) {
-                return {};
-            }
-            return it->second;
-        };
-
+        auto abbreviation_source_provider = make_map_source_provider(sources.abbreviation_map);
         process_command_candidates(
-            cenv, abbreviation_names, context.current_prefix, prefix_len, "abbreviation",
+            cenv, sources.abbreviation_names, context.current_prefix, prefix_len, "abbreviation",
             [](const std::string& value) { return value; },
             std::function<bool(const std::string&)>{}, abbreviation_source_provider);
         if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv)) {
             return ic_has_completions(cenv);
         }
 
-        auto executables_in_path = cjsh_filesystem::get_executables_in_path();
         size_t summary_fetch_budget = prefix_len == 0 ? 2 : 5;
         auto system_summary_provider = [&](const std::string& cmd) -> std::string {
             std::string summary = get_command_summary(cmd, false);
@@ -1014,7 +1004,7 @@ bool add_builtin_argument_completions(ic_completion_env_t* cenv,
         };
 
         process_command_candidates(
-            cenv, executables_in_path, context.current_prefix, prefix_len,
+            cenv, sources.executables_in_path, context.current_prefix, prefix_len,
             "system installed command", [](const std::string& value) { return value; },
             std::function<bool(const std::string&)>{}, system_summary_provider);
 
@@ -1086,47 +1076,9 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
     if (!prepare_prefix_state(cenv, prefix, prefix_str, prefix_len))
         return;
 
-    std::vector<std::string> builtin_cmds;
-    std::vector<std::string> function_names;
-    std::vector<std::string> alias_names;
-    std::vector<std::string> abbreviation_names;
-    const std::unordered_map<std::string, std::string>* alias_map = nullptr;
-    const std::unordered_map<std::string, std::string>* abbreviation_map = nullptr;
-    std::vector<std::string> executables_in_path;
+    auto sources = collect_command_completion_sources(true);
 
-    if (g_shell && (g_shell->get_built_ins() != nullptr)) {
-        builtin_cmds = g_shell->get_built_ins()->get_builtin_commands();
-    }
-
-    if (g_shell && (g_shell->get_shell_script_interpreter() != nullptr)) {
-        function_names = g_shell->get_shell_script_interpreter()->get_function_names();
-    }
-
-    if (g_shell) {
-        alias_map = &g_shell->get_aliases();
-        alias_names.reserve(alias_map->size());
-        for (const auto& alias : *alias_map) {
-            alias_names.push_back(alias.first);
-        }
-
-        abbreviation_map = &g_shell->get_abbreviations();
-        abbreviation_names.reserve(abbreviation_map->size());
-        for (const auto& entry : *abbreviation_map) {
-            abbreviation_names.push_back(entry.first);
-        }
-    }
-
-    executables_in_path = cjsh_filesystem::get_executables_in_path();
-
-    auto builtin_filter = [&](const std::string& cmd) { return is_interactive_builtin(cmd); };
-
-    auto builtin_summary_provider = [](const std::string& cmd) -> std::string {
-        return builtin_completions::get_builtin_summary(cmd);
-    };
-
-    process_command_candidates(
-        cenv, builtin_cmds, prefix_str, prefix_len, "builtin",
-        [](const std::string& value) { return value; }, builtin_filter, builtin_summary_provider);
+    add_builtin_command_candidates(cenv, sources.builtin_cmds, prefix_str, prefix_len);
     if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv))
         return;
 
@@ -1134,42 +1086,26 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
     process_command_candidates(
         cenv, control_structures, prefix_str, prefix_len, "control structure",
         [](const std::string& value) { return value; }, std::function<bool(const std::string&)>{},
-        builtin_summary_provider);
+        builtin_summary_for_command);
     if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv))
         return;
 
-    process_command_candidates(cenv, function_names, prefix_str, prefix_len, "function",
+    process_command_candidates(cenv, sources.function_names, prefix_str, prefix_len, "function",
                                [](const std::string& value) { return value; });
     if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv))
         return;
 
-    auto alias_source_provider = [alias_map](const std::string& name) -> std::string {
-        if (alias_map == nullptr)
-            return {};
-        auto it = alias_map->find(name);
-        if (it == alias_map->end())
-            return {};
-        return it->second;
-    };
-
+    auto alias_source_provider = make_map_source_provider(sources.alias_map);
     process_command_candidates(
-        cenv, alias_names, prefix_str, prefix_len, "alias",
+        cenv, sources.alias_names, prefix_str, prefix_len, "alias",
         [](const std::string& value) { return value; }, std::function<bool(const std::string&)>{},
         alias_source_provider);
     if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv))
         return;
 
-    auto abbreviation_source_provider = [abbreviation_map](const std::string& name) -> std::string {
-        if (abbreviation_map == nullptr)
-            return {};
-        auto it = abbreviation_map->find(name);
-        if (it == abbreviation_map->end())
-            return {};
-        return it->second;
-    };
-
+    auto abbreviation_source_provider = make_map_source_provider(sources.abbreviation_map);
     process_command_candidates(
-        cenv, abbreviation_names, prefix_str, prefix_len, "abbreviation",
+        cenv, sources.abbreviation_names, prefix_str, prefix_len, "abbreviation",
         [](const std::string& value) { return value; }, std::function<bool(const std::string&)>{},
         abbreviation_source_provider);
     if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv))
@@ -1187,7 +1123,7 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
     };
 
     process_command_candidates(
-        cenv, executables_in_path, prefix_str, prefix_len, "system installed command",
+        cenv, sources.executables_in_path, prefix_str, prefix_len, "system installed command",
         [](const std::string& value) { return value; }, {}, system_summary_provider);
 
     if (!ic_has_completions(cenv) && g_completion_spell_correction_enabled) {
@@ -1196,23 +1132,24 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
             std::unordered_map<std::string, completion_spell::SpellCorrectionMatch> spell_matches;
 
             completion_spell::collect_spell_correction_candidates(
-                builtin_cmds, [](const std::string& value) { return value; }, builtin_filter,
+                sources.builtin_cmds, [](const std::string& value) { return value; },
+                [](const std::string& cmd) { return is_interactive_builtin(cmd); },
                 normalized_prefix, spell_matches);
 
             completion_spell::collect_spell_correction_candidates(
-                function_names, [](const std::string& value) { return value; },
+                sources.function_names, [](const std::string& value) { return value; },
                 std::function<bool(const std::string&)>{}, normalized_prefix, spell_matches);
 
             completion_spell::collect_spell_correction_candidates(
-                alias_names, [](const std::string& value) { return value; },
+                sources.alias_names, [](const std::string& value) { return value; },
                 std::function<bool(const std::string&)>{}, normalized_prefix, spell_matches);
 
             completion_spell::collect_spell_correction_candidates(
-                abbreviation_names, [](const std::string& value) { return value; },
+                sources.abbreviation_names, [](const std::string& value) { return value; },
                 std::function<bool(const std::string&)>{}, normalized_prefix, spell_matches);
 
             completion_spell::collect_spell_correction_candidates(
-                executables_in_path, [](const std::string& value) { return value; },
+                sources.executables_in_path, [](const std::string& value) { return value; },
                 std::function<bool(const std::string&)>{}, normalized_prefix, spell_matches);
 
             if (!spell_matches.empty()) {
