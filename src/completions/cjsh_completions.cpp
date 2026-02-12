@@ -885,6 +885,142 @@ bool add_builtin_argument_completions(ic_completion_env_t* cenv,
         return ic_has_completions(cenv);
     }
 
+    if (matches_command("type") || matches_command("which")) {
+        if (context.argument_index < 1) {
+            return false;
+        }
+
+        bool options_ended = false;
+        if (context.argument_index > 1) {
+            for (size_t index = 1; index < context.argument_index; ++index) {
+                if (completion_utils::equals_completion_token(tokens[index], "--")) {
+                    options_ended = true;
+                    break;
+                }
+            }
+        }
+
+        if (!options_ended && !context.current_prefix.empty() && context.current_prefix[0] == '-') {
+            return false;
+        }
+
+        std::vector<std::string> builtin_cmds;
+        std::vector<std::string> function_names;
+        std::vector<std::string> alias_names;
+        std::vector<std::string> abbreviation_names;
+        const std::unordered_map<std::string, std::string>* alias_map = nullptr;
+        const std::unordered_map<std::string, std::string>* abbreviation_map = nullptr;
+
+        if (g_shell && (g_shell->get_built_ins() != nullptr)) {
+            builtin_cmds = g_shell->get_built_ins()->get_builtin_commands();
+        }
+
+        if (g_shell && (g_shell->get_shell_script_interpreter() != nullptr)) {
+            function_names = g_shell->get_shell_script_interpreter()->get_function_names();
+        }
+
+        if (g_shell) {
+            alias_map = &g_shell->get_aliases();
+            alias_names.reserve(alias_map->size());
+            for (const auto& alias : *alias_map) {
+                alias_names.push_back(alias.first);
+            }
+
+            abbreviation_map = &g_shell->get_abbreviations();
+            abbreviation_names.reserve(abbreviation_map->size());
+            for (const auto& entry : *abbreviation_map) {
+                abbreviation_names.push_back(entry.first);
+            }
+        }
+
+        auto builtin_filter = [&](const std::string& cmd) { return is_interactive_builtin(cmd); };
+        auto builtin_summary_provider = [](const std::string& cmd) -> std::string {
+            return builtin_completions::get_builtin_summary(cmd);
+        };
+
+        process_command_candidates(
+            cenv, builtin_cmds, context.current_prefix, prefix_len, "builtin",
+            [](const std::string& value) { return value; }, builtin_filter,
+            builtin_summary_provider);
+        if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv)) {
+            return ic_has_completions(cenv);
+        }
+
+        {
+            const auto& control_structures = control_structure_keywords();
+            process_command_candidates(cenv, control_structures, context.current_prefix, prefix_len,
+                                       "control structure",
+                                       [](const std::string& value) { return value; });
+            if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv)) {
+                return ic_has_completions(cenv);
+            }
+        }
+
+        process_command_candidates(cenv, function_names, context.current_prefix, prefix_len,
+                                   "function", [](const std::string& value) { return value; });
+        if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv)) {
+            return ic_has_completions(cenv);
+        }
+
+        auto alias_source_provider = [alias_map](const std::string& name) -> std::string {
+            if (alias_map == nullptr) {
+                return {};
+            }
+            auto it = alias_map->find(name);
+            if (it == alias_map->end()) {
+                return {};
+            }
+            return it->second;
+        };
+
+        process_command_candidates(
+            cenv, alias_names, context.current_prefix, prefix_len, "alias",
+            [](const std::string& value) { return value; },
+            std::function<bool(const std::string&)>{}, alias_source_provider);
+        if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv)) {
+            return ic_has_completions(cenv);
+        }
+
+        auto abbreviation_source_provider =
+            [abbreviation_map](const std::string& name) -> std::string {
+            if (abbreviation_map == nullptr) {
+                return {};
+            }
+            auto it = abbreviation_map->find(name);
+            if (it == abbreviation_map->end()) {
+                return {};
+            }
+            return it->second;
+        };
+
+        process_command_candidates(
+            cenv, abbreviation_names, context.current_prefix, prefix_len, "abbreviation",
+            [](const std::string& value) { return value; },
+            std::function<bool(const std::string&)>{}, abbreviation_source_provider);
+        if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv)) {
+            return ic_has_completions(cenv);
+        }
+
+        auto executables_in_path = cjsh_filesystem::get_executables_in_path();
+        size_t summary_fetch_budget = prefix_len == 0 ? 2 : 5;
+        auto system_summary_provider = [&](const std::string& cmd) -> std::string {
+            std::string summary = get_command_summary(cmd, false);
+            if (!summary.empty())
+                return summary;
+            if (!config::completion_learning_enabled || summary_fetch_budget == 0)
+                return {};
+            --summary_fetch_budget;
+            return get_command_summary(cmd, true);
+        };
+
+        process_command_candidates(
+            cenv, executables_in_path, context.current_prefix, prefix_len,
+            "system installed command", [](const std::string& value) { return value; },
+            std::function<bool(const std::string&)>{}, system_summary_provider);
+
+        return ic_has_completions(cenv);
+    }
+
     if (matches_command("hook")) {
         if (tokens.size() < 2) {
             return false;
