@@ -58,6 +58,7 @@
 #include "quote_state.h"
 #include "shell.h"
 #include "shell_env.h"
+#include "token_constants.h"
 
 bool g_completion_case_sensitive = false;
 bool g_completion_spell_correction_enabled = true;
@@ -748,6 +749,199 @@ bool add_job_control_argument_completions(ic_completion_env_t* cenv,
     return added;
 }
 
+struct ArgumentCompletionContext {
+    std::string current_prefix;
+    size_t argument_index;
+};
+
+bool build_argument_completion_context(const std::vector<std::string>& tokens, bool ends_with_space,
+                                       ArgumentCompletionContext& context) {
+    if (tokens.empty()) {
+        return false;
+    }
+
+    if (ends_with_space) {
+        context.current_prefix.clear();
+        context.argument_index = tokens.size();
+        return true;
+    }
+
+    context.current_prefix = tokens.back();
+    context.argument_index = tokens.size() - 1;
+    return true;
+}
+
+bool add_hook_type_completions(ic_completion_env_t* cenv, const std::string& prefix,
+                               size_t prefix_len) {
+    const auto& descriptors = get_hook_type_descriptors();
+    std::vector<std::string> hook_types;
+    hook_types.reserve(descriptors.size());
+    for (const auto& descriptor : descriptors) {
+        if (descriptor.name != nullptr) {
+            hook_types.emplace_back(descriptor.name);
+        }
+    }
+
+    if (hook_types.empty()) {
+        return false;
+    }
+
+    process_command_candidates(cenv, hook_types, prefix, prefix_len, "hook type",
+                               [](const std::string& value) { return value; });
+    return ic_has_completions(cenv);
+}
+
+bool add_builtin_argument_completions(ic_completion_env_t* cenv,
+                                      const std::vector<std::string>& tokens,
+                                      bool ends_with_space) {
+    if (tokens.empty() || cenv == nullptr) {
+        return false;
+    }
+    if (ic_stop_completing(cenv) || completion_tracker::completion_limit_hit()) {
+        return false;
+    }
+
+    ArgumentCompletionContext context;
+    if (!build_argument_completion_context(tokens, ends_with_space, context)) {
+        return false;
+    }
+
+    const std::string& command = tokens[0];
+    size_t prefix_len = context.current_prefix.size();
+
+    auto matches_command = [&](const char* name) {
+        return completion_utils::equals_completion_token(command, name);
+    };
+
+    if (matches_command("builtin")) {
+        if (context.argument_index != 1 || g_shell == nullptr ||
+            g_shell->get_built_ins() == nullptr) {
+            return false;
+        }
+        auto builtin_cmds = g_shell->get_built_ins()->get_builtin_commands();
+        auto builtin_filter = [&](const std::string& cmd) { return is_interactive_builtin(cmd); };
+        auto builtin_summary_provider = [](const std::string& cmd) -> std::string {
+            return builtin_completions::get_builtin_summary(cmd);
+        };
+        process_command_candidates(
+            cenv, builtin_cmds, context.current_prefix, prefix_len, "builtin",
+            [](const std::string& value) { return value; }, builtin_filter,
+            builtin_summary_provider);
+        return ic_has_completions(cenv);
+    }
+
+    if (matches_command("alias") || matches_command("unalias")) {
+        if (context.argument_index < 1 || g_shell == nullptr) {
+            return false;
+        }
+        if (context.current_prefix.find('=') != std::string::npos) {
+            return false;
+        }
+        const auto& alias_map = g_shell->get_aliases();
+        std::vector<std::string> alias_names;
+        alias_names.reserve(alias_map.size());
+        for (const auto& entry : alias_map) {
+            alias_names.push_back(entry.first);
+        }
+        auto alias_source_provider = [&alias_map](const std::string& name) -> std::string {
+            auto it = alias_map.find(name);
+            if (it == alias_map.end()) {
+                return {};
+            }
+            return it->second;
+        };
+        process_command_candidates(
+            cenv, alias_names, context.current_prefix, prefix_len, "alias",
+            [](const std::string& value) { return value; },
+            std::function<bool(const std::string&)>{}, alias_source_provider);
+        return ic_has_completions(cenv);
+    }
+
+    if (matches_command("abbr") || matches_command("abbreviate") || matches_command("unabbr") ||
+        matches_command("unabbreviate")) {
+        if (context.argument_index < 1 || g_shell == nullptr) {
+            return false;
+        }
+        if (context.current_prefix.find('=') != std::string::npos) {
+            return false;
+        }
+        const auto& abbr_map = g_shell->get_abbreviations();
+        std::vector<std::string> abbr_names;
+        abbr_names.reserve(abbr_map.size());
+        for (const auto& entry : abbr_map) {
+            abbr_names.push_back(entry.first);
+        }
+        auto abbr_source_provider = [&abbr_map](const std::string& name) -> std::string {
+            auto it = abbr_map.find(name);
+            if (it == abbr_map.end()) {
+                return {};
+            }
+            return it->second;
+        };
+        process_command_candidates(
+            cenv, abbr_names, context.current_prefix, prefix_len, "abbreviation",
+            [](const std::string& value) { return value; },
+            std::function<bool(const std::string&)>{}, abbr_source_provider);
+        return ic_has_completions(cenv);
+    }
+
+    if (matches_command("hook")) {
+        if (tokens.size() < 2) {
+            return false;
+        }
+        const std::string& subcommand = tokens[1];
+        bool is_add = completion_utils::equals_completion_token(subcommand, "add");
+        bool is_remove = completion_utils::equals_completion_token(subcommand, "remove");
+        bool is_list = completion_utils::equals_completion_token(subcommand, "list");
+        bool is_clear = completion_utils::equals_completion_token(subcommand, "clear");
+
+        if ((is_add || is_remove || is_list || is_clear) && context.argument_index == 2) {
+            return add_hook_type_completions(cenv, context.current_prefix, prefix_len);
+        }
+
+        if ((is_add || is_remove) && context.argument_index == 3 && g_shell != nullptr) {
+            std::vector<std::string> candidates;
+            if (tokens.size() >= 3) {
+                auto hook_type = parse_hook_type(tokens[2]);
+                if (hook_type.has_value()) {
+                    candidates = g_shell->get_hooks(*hook_type);
+                }
+            }
+
+            if (candidates.empty() && g_shell->get_shell_script_interpreter() != nullptr) {
+                candidates = g_shell->get_shell_script_interpreter()->get_function_names();
+            }
+
+            if (!candidates.empty()) {
+                process_command_candidates(cenv, candidates, context.current_prefix, prefix_len,
+                                           "function",
+                                           [](const std::string& value) { return value; });
+            }
+            return ic_has_completions(cenv);
+        }
+    }
+
+    if (matches_command("cjshopt")) {
+        if (tokens.size() >= 2 &&
+            completion_utils::equals_completion_token(tokens[1], "style_def") &&
+            context.argument_index == 2 &&
+            (context.current_prefix.empty() || context.current_prefix[0] != '-')) {
+            const auto& styles = token_constants::default_styles();
+            std::vector<std::string> style_tokens;
+            style_tokens.reserve(styles.size());
+            for (const auto& entry : styles) {
+                style_tokens.push_back(entry.first);
+            }
+            process_command_candidates(cenv, style_tokens, context.current_prefix, prefix_len,
+                                       "style token",
+                                       [](const std::string& value) { return value; });
+            return ic_has_completions(cenv);
+        }
+    }
+
+    return false;
+}
+
 }  // namespace
 
 void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
@@ -1300,6 +1494,8 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
                 !prefix_str.empty() && std::isspace(static_cast<unsigned char>(prefix_str.back()));
 
             add_job_control_argument_completions(cenv, tokens, ends_with_space);
+
+            add_builtin_argument_completions(cenv, tokens, ends_with_space);
 
             if (!tokens.empty()) {
                 std::vector<std::string> args;

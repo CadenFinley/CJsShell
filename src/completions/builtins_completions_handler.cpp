@@ -57,6 +57,7 @@ CompletionEntry make_subcommand(std::string text, std::string description) {
 }
 
 constexpr const char kKillSummary[] = "Send signals to processes or jobs";
+constexpr const char kTrapSummary[] = "Set or list signal handlers";
 
 std::string strip_sig_prefix(const std::string& value) {
     if (value.size() > 3 && value.rfind("SIG", 0) == 0)
@@ -92,6 +93,36 @@ void append_kill_signal_entries(std::vector<CompletionEntry>& entries) {
     }
 
     add_option_entry("0", "Test for process existence without delivering a signal");
+}
+
+void append_trap_signal_entries(std::vector<CompletionEntry>& entries) {
+    const auto& signals = SignalHandler::available_signals();
+    if (signals.empty())
+        return;
+
+    std::unordered_set<std::string> seen_tokens;
+    seen_tokens.reserve(signals.size() * 3 + 4);
+
+    auto add_signal_entry = [&](const std::string& token, const char* description) {
+        if (token.empty())
+            return;
+        if (seen_tokens.insert(token).second) {
+            entries.push_back(make_option(token, description ? description : ""));
+        }
+    };
+
+    for (const auto& info : signals) {
+        if (info.name == nullptr)
+            continue;
+        std::string full_name(info.name);
+        std::string short_name = strip_sig_prefix(full_name);
+        add_signal_entry(short_name, info.description);
+        add_signal_entry(full_name, info.description);
+        add_signal_entry(std::to_string(info.signal), info.description);
+    }
+
+    add_signal_entry("EXIT", "Run when the shell exits");
+    add_signal_entry("0", "Run when the shell exits");
 }
 
 std::string format_job_description(const JobControlJob& job) {
@@ -145,12 +176,29 @@ CommandDoc make_kill_command_doc() {
     return doc;
 }
 
+CommandDoc make_trap_command_doc() {
+    CommandDoc doc;
+    doc.summary = kTrapSummary;
+    doc.summary_present = true;
+    doc.entries = {make_option("-l", "List available signals"),
+                   make_option("-p", "Show current traps")};
+
+    append_trap_signal_entries(doc.entries);
+    return doc;
+}
+
 const CommandDoc* lookup_dynamic_builtin_doc(const std::string& doc_target) {
-    if (doc_target != "kill")
-        return nullptr;
-    thread_local CommandDoc kill_doc;
-    kill_doc = make_kill_command_doc();
-    return &kill_doc;
+    if (doc_target == "kill") {
+        thread_local CommandDoc kill_doc;
+        kill_doc = make_kill_command_doc();
+        return &kill_doc;
+    }
+    if (doc_target == "trap") {
+        thread_local CommandDoc trap_doc;
+        trap_doc = make_trap_command_doc();
+        return &trap_doc;
+    }
+    return nullptr;
 }
 
 const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
@@ -189,6 +237,7 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                  make_option("-c", "Execute the specified command string and exit"),
                  make_option("--command=", "Execute the specified command string and exit"),
                  make_option("--no-exec", "Read commands without executing"),
+                 make_option("--posix", "Enable POSIX mode and reject non-POSIX syntax"),
                  make_option("-m", "Disable cjsh enhancements"),
                  make_option("--minimal", "Disable cjsh enhancements"),
                  make_option("-C", "Disable color output"),
@@ -197,6 +246,7 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                  make_option("--no-source", "Skip sourcing ~/.cjshrc"),
                  make_option("-O", "Disable tab completions"),
                  make_option("--no-completions", "Disable tab completions"),
+                 make_option("--no-completion-learning", "Disable on-demand completion learning"),
                  make_option("--no-script-extension-interpreter",
                              "Disable extension-based script runners"),
                  make_option("--no-smart-cd", "Disable smart cd auto-jumps"),
@@ -349,6 +399,7 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_doc(
             "jobs", "List background jobs",
             {make_option("-l", "Show PIDs and status"), make_option("-p", "Print job PIDs only")});
+        add_doc("jobname", "Assign a temporary display name to a job", {});
         add_doc("fg", "Bring a job to the foreground", {});
         add_doc("bg", "Resume a job in the background", {});
         add_doc("wait", "Wait for jobs or processes to finish", {});
@@ -455,6 +506,7 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
              make_subcommand("completion-case", "Configure completion case sensitivity"),
              make_subcommand("history-search-case", "Configure fuzzy history case sensitivity"),
              make_subcommand("completion-spell", "Configure completion spell correction"),
+             make_subcommand("completion-learning", "Toggle completion learning"),
              make_subcommand("smart-cd", "Toggle smart cd auto-jumps"),
              make_subcommand("script-extension-interpreter",
                              "Toggle extension-based script runners"),
@@ -498,12 +550,14 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_doc("cjshopt-login-startup-arg", "Add cjsh startup flags",
                 {make_option("--login", "Run cjsh as a login shell"),
                  make_option("--interactive", "Force interactive mode"),
+                 make_option("--posix", "Enable POSIX mode"),
                  make_option("--no-exec", "Read commands without executing"),
                  make_option("--no-colors", "Disable color output"),
                  make_option("--no-titleline", "Disable terminal title updates"),
                  make_option("--show-startup-time", "Display startup timing"),
                  make_option("--no-source", "Skip sourcing configuration files"),
                  make_option("--no-completions", "Disable completion initialization"),
+                 make_option("--no-completion-learning", "Skip on-demand completion scraping"),
                  make_option("--no-smart-cd", "Disable smart cd auto-jumps"),
                  make_option("--no-syntax-highlighting", "Disable syntax highlighting"),
                  make_option("--no-history-expansion", "Disable history expansion"),
@@ -511,6 +565,11 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                  make_option("--minimal", "Disable cjsh enhancements"),
                  make_option("--secure", "Skip profile/rc/logout sourcing"),
                  make_option("--startup-test", "Enable startup test mode")});
+
+        add_doc("cjshopt-completion-learning", "Toggle completion learning",
+                {make_subcommand("on", "Allow on-demand completion scraping"),
+                 make_subcommand("off", "Only use cached completions"),
+                 make_subcommand("status", "Show current setting")});
 
         add_doc("cjshopt-hint-delay", "Adjust inline hint delay",
                 {make_subcommand("status", "Show the current delay in milliseconds"),
