@@ -55,6 +55,7 @@
 #include "interpreter.h"
 #include "isocline.h"
 #include "job_control.h"
+#include "quote_state.h"
 #include "shell.h"
 #include "shell_env.h"
 
@@ -448,6 +449,141 @@ bool is_interactive_builtin(const std::string& cmd) {
                                                                          "login-startup-arg"};
 
     return script_only_builtins.find(cmd) == script_only_builtins.end();
+}
+
+bool is_valid_variable_completion_prefix(const std::string& prefix) {
+    for (char ch : prefix) {
+        unsigned char uch = static_cast<unsigned char>(ch);
+        if (std::isalnum(uch) != 0 || ch == '_' || ch == '?' || ch == '$' || ch == '#' ||
+            ch == '*' || ch == '@' || ch == '!') {
+            continue;
+        }
+        return false;
+    }
+    return true;
+}
+
+bool find_last_expandable_dollar(const std::string& token, bool& braced, size_t& var_start) {
+    utils::QuoteState quote_state;
+    size_t last_dollar = std::string::npos;
+    bool last_braced = false;
+    size_t last_var_start = std::string::npos;
+
+    for (size_t i = 0; i < token.size(); ++i) {
+        char c = token[i];
+        if (quote_state.consume_forward(c) == utils::QuoteAdvanceResult::Continue) {
+            continue;
+        }
+
+        if (c == '$' && !quote_state.in_single_quote) {
+            last_dollar = i;
+            last_braced = (i + 1 < token.size() && token[i + 1] == '{');
+            last_var_start = last_braced ? i + 2 : i + 1;
+        }
+    }
+
+    if (last_dollar == std::string::npos) {
+        return false;
+    }
+
+    braced = last_braced;
+    var_start = last_var_start;
+    return true;
+}
+
+bool add_variable_completions(ic_completion_env_t* cenv, const std::string& prefix) {
+    if (ic_stop_completing(cenv) || completion_tracker::completion_limit_hit()) {
+        return false;
+    }
+
+    size_t last_space = completion_utils::find_last_unquoted_space(prefix);
+    std::string token_prefix =
+        (last_space == std::string::npos) ? prefix : prefix.substr(last_space + 1);
+
+    if (token_prefix.empty()) {
+        return false;
+    }
+
+    bool braced = false;
+    size_t var_start = std::string::npos;
+    if (!find_last_expandable_dollar(token_prefix, braced, var_start)) {
+        return false;
+    }
+
+    if (var_start > token_prefix.size()) {
+        return false;
+    }
+
+    std::string var_prefix = token_prefix.substr(var_start);
+    if (var_prefix.find('}') != std::string::npos) {
+        return false;
+    }
+
+    if (!is_valid_variable_completion_prefix(var_prefix)) {
+        return false;
+    }
+
+    std::unordered_set<std::string> candidates;
+    if (g_shell && g_shell->get_shell_script_interpreter()) {
+        auto names =
+            g_shell->get_shell_script_interpreter()->get_variable_manager().get_variable_names();
+        candidates.insert(names.begin(), names.end());
+    } else {
+        const auto& env_vars = cjsh_env::env_vars();
+        for (const auto& entry : env_vars) {
+            candidates.insert(entry.first);
+        }
+    }
+
+    static const char* kSpecialVars[] = {"?", "$", "#", "*", "@", "!", "0"};
+    for (const char* var_name : kSpecialVars) {
+        candidates.insert(var_name);
+    }
+
+    if (candidates.empty()) {
+        return false;
+    }
+
+    std::vector<std::string> ordered_candidates(candidates.begin(), candidates.end());
+    auto build_sort_key = [](const std::string& value) {
+        return g_completion_case_sensitive ? value
+                                           : completion_utils::normalize_for_comparison(value);
+    };
+    std::sort(ordered_candidates.begin(), ordered_candidates.end(),
+              [&](const std::string& lhs, const std::string& rhs) {
+                  std::string lhs_key = build_sort_key(lhs);
+                  std::string rhs_key = build_sort_key(rhs);
+                  if (lhs_key == rhs_key) {
+                      return lhs < rhs;
+                  }
+                  return lhs_key < rhs_key;
+              });
+
+    long delete_before = static_cast<long>(var_prefix.size());
+    bool added = false;
+
+    for (const auto& name : ordered_candidates) {
+        if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv)) {
+            break;
+        }
+
+        if (!completion_utils::matches_completion_prefix(name, var_prefix)) {
+            continue;
+        }
+
+        std::string completion_text = name;
+        if (braced) {
+            completion_text += "}";
+        }
+
+        if (!completion_tracker::safe_add_completion_prim_with_source(
+                cenv, completion_text.c_str(), nullptr, nullptr, "variable", delete_before, 0)) {
+            break;
+        }
+        added = true;
+    }
+
+    return added;
 }
 
 CompletionContext detect_completion_context(const char* prefix) {
@@ -1115,6 +1251,11 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
 
     switch (context) {
         case CONTEXT_COMMAND:
+            add_variable_completions(cenv, current_line_prefix);
+            if (ic_stop_completing(cenv)) {
+                completion_tracker::completion_session_end();
+                return;
+            }
             cjsh_filename_completer(cenv, current_line_prefix);
             if (ic_has_completions(cenv) && ic_stop_completing(cenv)) {
                 completion_tracker::completion_session_end();
@@ -1136,6 +1277,11 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
             break;
 
         case CONTEXT_PATH:
+            add_variable_completions(cenv, current_line_prefix);
+            if (ic_stop_completing(cenv)) {
+                completion_tracker::completion_session_end();
+                return;
+            }
             cjsh_history_completer(cenv, current_line_prefix);
             cjsh_filename_completer(cenv, current_line_prefix);
             break;
@@ -1143,6 +1289,12 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
         case CONTEXT_ARGUMENT: {
             std::string prefix_str(current_line_prefix);
             std::vector<std::string> tokens = completion_utils::tokenize_command_line(prefix_str);
+
+            add_variable_completions(cenv, prefix_str);
+            if (ic_stop_completing(cenv)) {
+                completion_tracker::completion_session_end();
+                return;
+            }
 
             bool ends_with_space =
                 !prefix_str.empty() && std::isspace(static_cast<unsigned char>(prefix_str.back()));

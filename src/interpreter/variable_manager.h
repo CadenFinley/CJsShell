@@ -57,6 +57,7 @@ class VariableManager {
 
     std::string get_variable_value(const std::string& var_name) const;
     bool variable_is_set(const std::string& var_name) const;
+    std::vector<std::string> get_variable_names() const;
 
    private:
     VariableStack local_variable_stack;

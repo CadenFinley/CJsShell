@@ -32,6 +32,7 @@
 
 #include <cctype>
 #include <cstdlib>
+#include <unordered_set>
 
 #include "cjsh.h"
 #include "flags.h"
@@ -196,6 +197,30 @@ bool VariableManager::variable_is_set(const std::string& var_name) const {
 
     // Raw getenv here: variable manager mirrors process env.
     return getenv(var_name.c_str()) != nullptr;
+}
+
+std::vector<std::string> VariableManager::get_variable_names() const {
+    std::unordered_set<std::string> name_set;
+
+    for (const auto& scope : local_variable_stack) {
+        for (const auto& entry : scope) {
+            name_set.insert(entry.first);
+        }
+    }
+
+    if (g_shell) {
+        const auto& env_vars = cjsh_env::env_vars();
+        for (const auto& entry : env_vars) {
+            name_set.insert(entry.first);
+        }
+    }
+
+    std::vector<std::string> names;
+    names.reserve(name_set.size());
+    for (const auto& name : name_set) {
+        names.push_back(name);
+    }
+    return names;
 }
 
 std::string VariableManager::get_special_variable(const std::string& var_name) const {
