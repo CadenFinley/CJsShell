@@ -648,9 +648,12 @@ Supported flags:
 | `--no-script-extension-interpreter` | Disable extension-based script runners |
 | `--no-smart-cd` | Disable smart cd auto-jumps |
 | `--no-syntax-highlighting` | Disable syntax highlighting in the editor |
+| `--no-error-suggestions` | Disable error suggestions in interactive mode |
+| `--no-prompt-vars` | Ignore PS1/PS2 and use fixed prompts |
 | `--no-history-expansion` | Disable `!!`, `!$`, and related history tokens |
 | `--no-sh-warning` | Suppress the reminder shown when cjsh is invoked via `sh` |
-| `--minimal` | Disable prompt themes/colors, completions, syntax highlighting, rc sourcing, title line, history expansion, multiline line numbers, and auto-indentation |
+| `--no-exec` | Read commands but do not execute them |
+| `--minimal` | Disable prompt themes/colors, completions, syntax highlighting, rc sourcing, title line, history expansion, multiline line numbers, auto-indentation, startup time banner, error suggestions, and prompt vars |
 | `--secure` | Skip profile/rc/logout sourcing even for login shells |
 | `--posix` | Enable POSIX mode and reject non-POSIX syntax |
 | `--startup-test` | Enable startup test mode |

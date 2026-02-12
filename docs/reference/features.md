@@ -93,17 +93,22 @@ Persistent caches (history, generated completions, etc.) live under `~/.cache/cj
 - `-l, --login` – treat the shell as a login shell (source `~/.cjprofile`)
 - `-i, --interactive` – force interactive behavior even if stdin is not a tty
 - `-c, --command=<string>` – execute a single command and exit (disables history expansion)
+- `--no-exec` – read commands but do not execute them
+- `--posix` – enable POSIX mode and reject non-POSIX syntax
 - `-m, --minimal` – disable prompt themes/colors, completions, syntax highlighting, rc sourcing,
-  smart cd, the title line, history expansion, multiline line numbers, auto-indentation, and the
-  startup time banner
+  smart cd, the title line, history expansion, multiline line numbers, auto-indentation, the
+  startup time banner, error suggestions, and prompt vars
 - `-C, --no-colors`
 - `-L, --no-titleline`
 - `-U, --show-startup-time`
 - `-N, --no-source`
 - `-O, --no-completions`
+- `--no-script-extension-interpreter`
 - `--no-smart-cd`
 - `--no-completion-learning` – keep completions enabled but skip on-demand man-page scraping
 - `-S, --no-syntax-highlighting`
+- `--no-error-suggestions`
+- `--no-prompt-vars`
 - `-H, --no-history-expansion`
 - `-W, --no-sh-warning` – suppress the reminder shown when cjsh is invoked via `sh`
 - `-s, --secure` – skip `~/.cjprofile`, `~/.cjshrc`, and `~/.cjsh_logout` entirely

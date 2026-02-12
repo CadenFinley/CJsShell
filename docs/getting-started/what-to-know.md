@@ -7,7 +7,7 @@ Welcome to CJ's Shell (cjsh)! This guide highlights the interactive features tha
 ### Prompt Styling & Themes
 **Status:** Enabled  
 **Configure:** Edit `PS1`, `RPS1`, `PS2`, and `PROMPT_COMMAND` directly in your config using the BBCode-style markup described in [Prompt Markup and Styling](../themes/thedetails.md). Use `cjshopt style_def <token_type> <style>` to redefine highlight palettes that are shared between syntax highlighting and prompt tags.  
-**Disable:** Start cjsh with `--minimal` (turns off prompt themes/colors, completions, syntax highlighting, smart `cd`, rc sourcing, the title line, history expansion, multiline line numbers, and auto-indentation), or disable smart cd directly with `cjsh --no-smart-cd` / `cjshopt smart-cd off`.
+**Disable:** Start cjsh with `--minimal` (turns off prompt themes/colors, completions, syntax highlighting, smart `cd`, rc sourcing, the title line, history expansion, multiline line numbers, auto-indentation, the startup time banner, error suggestions, and prompt vars), or disable smart cd directly with `cjsh --no-smart-cd` / `cjshopt smart-cd off`.
 
 All prompt styling now lives inside your dotfiles—no external theme DSL or bundled theme directory is required. Share a prompt by exporting new variables or sourcing a file that sets them, just like any other shell configuration.
 
@@ -144,7 +144,7 @@ cjshopt login-startup-arg --no-colors
 cjshopt login-startup-arg --show-startup-time
 ```
 
-Supported flags: `--login`, `--interactive`, `--posix`, `--no-colors`, `--no-titleline`, `--show-startup-time`, `--no-source`, `--no-completions`, `--no-completion-learning`, `--no-smart-cd`, `--no-script-extension-interpreter`, `--no-syntax-highlighting`, `--no-history-expansion`, `--no-sh-warning`, `--minimal`, `--secure`, and `--startup-test`.
+Supported flags: `--login`, `--interactive`, `--posix`, `--no-exec`, `--no-colors`, `--no-titleline`, `--show-startup-time`, `--no-source`, `--no-completions`, `--no-completion-learning`, `--no-smart-cd`, `--no-script-extension-interpreter`, `--no-syntax-highlighting`, `--no-error-suggestions`, `--no-prompt-vars`, `--no-history-expansion`, `--no-sh-warning`, `--minimal`, `--secure`, and `--startup-test`.
 
 ### POSIX & Bash Compatibility
 cjsh targets high POSIX coverage for scripting while providing POSIX+ extensions such as `[[ ... ]]`, brace expansion, here-strings, process substitution, and rich redirection semantics. Syntax extensions are available in scripts and interactive sessions; interactive-only features like history expansion, completions, and prompt styling disable themselves automatically when stdin is not a tty. Use `--minimal` or `--secure` when you want fewer extras in interactive shells.
@@ -191,6 +191,7 @@ Use `cjshopt keybind --help` for the full action catalog. For custom widgets, se
 
 - `help` – Overview of built-in commands.
 - `help <builtin>` – Detailed usage for a specific builtin.
+- `cjsh --help` – Command-line usage and startup flags.
 - `cjshopt --help` and `cjshopt <subcommand> --help` – Configuration guidance.
 - Documentation lives under `docs/reference/` for deeper dives into editing, scripting, hooks, and prompt styling.
 

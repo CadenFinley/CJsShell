@@ -704,7 +704,7 @@ cjshopt style_def ic-operator "bold"
 
 ### Minimal Configuration
 
-For a minimal, fast setup (`--minimal` disables prompt themes/colors, completions, syntax highlighting, smart `cd`, rc sourcing, the title line, history expansion, multiline line numbers, and auto-indentation):
+For a minimal, fast setup (`--minimal` disables prompt themes/colors, completions, syntax highlighting, smart `cd`, rc sourcing, the title line, history expansion, multiline line numbers, auto-indentation, the startup time banner, error suggestions, and prompt vars):
 
 ```bash
 # Use the --minimal flag at startup, or configure selectively:
