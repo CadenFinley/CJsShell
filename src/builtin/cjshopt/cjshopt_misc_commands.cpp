@@ -63,6 +63,7 @@ constexpr StartupFlagInfo kStartupFlags[] = {
     {"--no-script-extension-interpreter", "Disable extension-based script runners"},
     {"--no-syntax-highlighting", "Disable syntax highlighting"},
     {"--no-error-suggestions", "Disable error suggestions"},
+    {"--no-prompt-vars", "Ignore PS1/PS2 prompt variables"},
     {"--no-history-expansion", "Disable history expansion"},
     {"--no-sh-warning", "Suppress the sh invocation warning"},
     {"--minimal", "Disable cjsh extras"},

@@ -1024,7 +1024,8 @@ std::string default_primary_prompt_template() {
 }
 
 std::string render_primary_prompt() {
-    std::string ps1 = get_ps("PS1", default_primary_prompt_template());
+    std::string ps1 = config::prompt_vars_enabled ? get_ps("PS1", default_primary_prompt_template())
+                                                  : std::string("cjsh> ");
     git_prompt_async_manager().begin_render();
     std::string prompt_text = expand_prompt_string(ps1, PromptContext::Primary);
     git_prompt_async_manager().finalize_render(prompt_text);
@@ -1052,6 +1053,9 @@ std::string render_right_prompt() {
 }
 
 std::string render_secondary_prompt() {
+    if (!config::prompt_vars_enabled) {
+        return "> ";
+    }
     if (!cjsh_env::shell_variable_is_set("PS2")) {
         return {};
     }
