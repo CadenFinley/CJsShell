@@ -83,6 +83,7 @@ void apply_minimal_mode() {
     config::show_startup_time = false;
     config::show_title_line = false;
     config::history_expansion_enabled = false;
+    config::status_line_enabled = false;
     ic_enable_line_numbers(false);
     ic_enable_multiline_indent(false);
 }

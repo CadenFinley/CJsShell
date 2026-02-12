@@ -1014,6 +1014,9 @@ std::string get_ps(const char* name, const std::string& fallback) {
 }  // namespace
 
 std::string default_primary_prompt_template() {
+    if (config::minimal_mode || config::secure_mode) {
+        return "cjsh> ";
+    }
     return "\\S  [color=#5fd7ff]\\W[/color] \\g";
 }
 
