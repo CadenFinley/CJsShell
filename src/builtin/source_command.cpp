@@ -45,7 +45,10 @@ int source_command(const std::vector<std::string>& args) {
         return 0;
     }
 
-    if (config::posix_mode) {
+    const bool invoked_as_source = !args.empty() && args[0] == "source";
+    std::string command_name = invoked_as_source ? "source" : "source (.)";
+
+    if (config::posix_mode && invoked_as_source) {
         print_error({ErrorType::INVALID_ARGUMENT,
                      "source",
                      "'source' is disabled in POSIX mode. Use '.' instead.",
@@ -53,12 +56,12 @@ int source_command(const std::vector<std::string>& args) {
         return 1;
     }
     if (args.size() < 2) {
-        print_error({ErrorType::INVALID_ARGUMENT, "source", "missing file operand", {}});
+        print_error({ErrorType::INVALID_ARGUMENT, command_name, "missing file operand", {}});
         return 1;
     }
 
     if (!g_shell) {
-        print_error({ErrorType::FATAL_ERROR, "source", "shell not initialized properly", {}});
+        print_error({ErrorType::FATAL_ERROR, command_name, "shell not initialized properly", {}});
         return 1;
     }
 

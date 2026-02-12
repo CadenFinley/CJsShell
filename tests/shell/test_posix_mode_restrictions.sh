@@ -89,6 +89,7 @@ run_expect_fail "here-string disabled" "cat <<< hi" "POSIX004"
 run_expect_fail "process substitution disabled" "cat <(echo hi)" "POSIX003"
 run_expect_fail "source builtin disabled" "source '$tmp_source_file'" "disabled in POSIX mode"
 run_expect_fail "local builtin disabled" "local foo=1" "disabled in POSIX mode"
+run_expect_literal "dot builtin allowed" ". '$tmp_source_file'" "from source"
 
 run_expect_literal "brace expansion stays literal" "echo {1..3}" "{1..3}"
 run_expect_literal "tilde stays literal" "HOME=/tmp/cjsh_posix_home; echo ~" "~"
