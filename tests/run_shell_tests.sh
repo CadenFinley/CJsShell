@@ -20,6 +20,8 @@ export CJSH
 SHELL_TESTS_DIR="$SCRIPT_DIR/shell"
 DEFAULT_ISOCLINE_TEST_BINARY="$SCRIPT_DIR/../build/isocline_behavior_tests"
 ISOCLINE_TEST_BINARY="${ISOCLINE_TEST_BINARY:-$DEFAULT_ISOCLINE_TEST_BINARY}"
+DEFAULT_COMPLETION_TEST_BINARY="$SCRIPT_DIR/../build/cjsh_completion_tests"
+COMPLETION_TEST_BINARY="${COMPLETION_TEST_BINARY:-$DEFAULT_COMPLETION_TEST_BINARY}"
 
 
 if [ -n "$CI" ] || [ -n "$GITHUB_ACTIONS" ] || [ -n "$CONTINUOUS_INTEGRATION" ]; then
@@ -43,6 +45,7 @@ TOTAL_TESTS=0
 TESTS_PASS=0
 TESTS_FAIL=0
 ISOCLINE_TEST_RESULT=0
+COMPLETION_TEST_RESULT=0
 
 
 if [ ! -x "$CJSH" ]; then
@@ -171,6 +174,19 @@ else
     echo "${YELLOW}Skipping isocline behavior tests${NC} (binary not found at $ISOCLINE_TEST_BINARY)"
 fi
 
+if [ -x "$COMPLETION_TEST_BINARY" ]; then
+    echo "Running completion tests: $COMPLETION_TEST_BINARY"
+    "$COMPLETION_TEST_BINARY"
+    COMPLETION_TEST_RESULT=$?
+    if [ $COMPLETION_TEST_RESULT -eq 0 ]; then
+        echo "${GREEN}Completion tests passed${NC}"
+    else
+        echo "${RED}Completion tests failed${NC}"
+    fi
+else
+    echo "${YELLOW}Skipping completion tests${NC} (binary not found at $COMPLETION_TEST_BINARY)"
+fi
+
 OVERALL_STATUS=0
 if [ $FILES_FAIL -ne 0 ]; then
     OVERALL_STATUS=$FILES_FAIL
@@ -180,6 +196,13 @@ if [ $ISOCLINE_TEST_RESULT -ne 0 ]; then
         OVERALL_STATUS=$ISOCLINE_TEST_RESULT
     else
         OVERALL_STATUS=$((OVERALL_STATUS + ISOCLINE_TEST_RESULT))
+    fi
+fi
+if [ $COMPLETION_TEST_RESULT -ne 0 ]; then
+    if [ $OVERALL_STATUS -eq 0 ]; then
+        OVERALL_STATUS=$COMPLETION_TEST_RESULT
+    else
+        OVERALL_STATUS=$((OVERALL_STATUS + COMPLETION_TEST_RESULT))
     fi
 fi
 

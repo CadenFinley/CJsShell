@@ -564,4 +564,47 @@ if(BUILD_TESTING)
         target_compile_options(isocline_behavior_tests PRIVATE $<$<COMPILE_LANGUAGE:C>:${_cjsh_opt}>)
     endforeach()
     add_test(NAME isocline_behavior COMMAND isocline_behavior_tests)
+
+    set(CJSH_CPP_SOURCES_NO_MAIN ${CJSH_CPP_SOURCES})
+    list(REMOVE_ITEM CJSH_CPP_SOURCES_NO_MAIN ${CMAKE_SOURCE_DIR}/src/cjsh.cpp)
+
+    add_executable(cjsh_completion_tests
+        ${CJSH_CPP_SOURCES_NO_MAIN}
+        ${CJSH_C_SOURCES}
+        ${CMAKE_SOURCE_DIR}/tests/completions/test_completions.cpp
+        ${CMAKE_SOURCE_DIR}/tests/completions/test_completion_globals.cpp
+    )
+    target_include_directories(cjsh_completion_tests PRIVATE ${CJSH_INCLUDE_DIRS})
+    target_compile_definitions(cjsh_completion_tests PRIVATE
+        CJSH_GIT_HASH="${CJSH_GIT_HASH}"
+        CJSH_GIT_HASH_FULL="${CJSH_GIT_HASH_FULL}"
+        CJSH_BUILD_ARCH="${CJSH_BUILD_ARCH}"
+        CJSH_BUILD_PLATFORM="${CJSH_BUILD_PLATFORM}"
+        CJSH_BUILD_TIME="${CJSH_BUILD_TIME}"
+        CJSH_BUILD_COMPILER="${CJSH_BUILD_COMPILER}"
+        CJSH_CXX_STANDARD="${CJSH_CXX_STANDARD}"
+        CJSH_BUILD_TYPE="$<CONFIG>"
+        IC_SEPARATE_OBJS=1
+        JSON_NOEXCEPTION=1
+        JSON_USE_IMPLICIT_CONVERSIONS=1
+        $<$<CONFIG:Debug>:DEBUG;CJSH_ENABLE_DEBUG>
+        $<$<NOT:$<CONFIG:Debug>>:IC_NO_DEBUG_MSG=1>
+        $<$<BOOL:${CJSH_MINIMAL_BUILD}>:CJSH_MINIMAL_BUILD=1;CJSH_NO_FANCY_FEATURES=1>
+        $<$<AND:$<NOT:$<CONFIG:Debug>>,$<BOOL:${CJSH_MINIMAL_BUILD}>>:_FORTIFY_SOURCE=1>
+        $<$<AND:$<NOT:$<CONFIG:Debug>>,$<NOT:$<BOOL:${CJSH_MINIMAL_BUILD}>>>:_FORTIFY_SOURCE=1>
+    )
+    foreach(_cjsh_opt -Wall -Wno-error -Wno-unused-function -Wno-unused-variable)
+        target_compile_options(cjsh_completion_tests PRIVATE
+            $<$<COMPILE_LANGUAGE:C>:${_cjsh_opt}>
+            $<$<COMPILE_LANGUAGE:CXX>:${_cjsh_opt}>
+        )
+    endforeach()
+    target_link_libraries(cjsh_completion_tests PRIVATE Threads::Threads)
+    if(CMAKE_DL_LIBS)
+        target_link_libraries(cjsh_completion_tests PRIVATE ${CMAKE_DL_LIBS})
+    endif()
+    if(NOT CJSH_BUILDS_WITHOUT_LIBATOMIC)
+        target_link_libraries(cjsh_completion_tests PRIVATE atomic)
+    endif()
+    add_test(NAME completion_tests COMMAND cjsh_completion_tests)
 endif()
