@@ -141,8 +141,10 @@ std::vector<std::string> extract_candidate_commands(const std::vector<std::strin
 UnknownCommandInfo build_unknown_command_info(const std::string& token) {
     UnknownCommandInfo info;
     info.command = token;
-    auto suggestions = suggestion_utils::generate_command_suggestions(token);
-    info.suggestions = extract_candidate_commands(suggestions);
+    if (config::error_suggestions_enabled) {
+        auto suggestions = suggestion_utils::generate_command_suggestions(token);
+        info.suggestions = extract_candidate_commands(suggestions);
+    }
     return info;
 }
 
@@ -277,7 +279,7 @@ std::string format_unknown_command_message(const UnknownCommandInfo& info) {
     std::string message = "Unknown command: ";
     message.append(sanitized_command);
 
-    if (!info.suggestions.empty()) {
+    if (config::error_suggestions_enabled && !info.suggestions.empty()) {
         std::string suggestion_text = format_suggestion_list(info.suggestions);
         if (!suggestion_text.empty()) {
             message.append(" | Did you mean: ");
@@ -454,7 +456,7 @@ std::string build_validation_status_message(
             }
             detail_text.append(sanitized_text);
         }
-        if (!sanitized_suggestion.empty()) {
+        if (config::error_suggestions_enabled && !sanitized_suggestion.empty()) {
             if (!detail_text.empty()) {
                 detail_text.append(" | ");
             }

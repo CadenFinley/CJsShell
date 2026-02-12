@@ -62,6 +62,7 @@ constexpr StartupFlagInfo kStartupFlags[] = {
     {"--no-smart-cd", "Disable smart cd auto-jumps"},
     {"--no-script-extension-interpreter", "Disable extension-based script runners"},
     {"--no-syntax-highlighting", "Disable syntax highlighting"},
+    {"--no-error-suggestions", "Disable error suggestions"},
     {"--no-history-expansion", "Disable history expansion"},
     {"--no-sh-warning", "Suppress the sh invocation warning"},
     {"--minimal", "Disable cjsh extras"},

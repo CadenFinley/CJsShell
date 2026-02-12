@@ -810,6 +810,9 @@ AsyncGitPromptManager& git_prompt_async_manager() {
 }
 
 void append_git_segment(std::string& builder, PromptContext context) {
+    if (config::minimal_mode || config::secure_mode) {
+        return;
+    }
     if (context == PromptContext::Primary) {
         git_prompt_async_manager().append_segment(builder);
     } else {

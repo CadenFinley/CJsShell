@@ -63,6 +63,7 @@ extern bool suppress_sh_warning;
 extern bool status_line_enabled;
 extern bool status_reporting_enabled;
 extern bool script_extension_interpreter_enabled;
+extern bool error_suggestions_enabled;
 }  // namespace config
 
 namespace cjsh_env {

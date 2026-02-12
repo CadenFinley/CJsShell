@@ -61,6 +61,7 @@ constexpr int kOptNoSmartCd = 257;
 constexpr int kOptNoScriptExtensionInterpreter = 258;
 constexpr int kOptNoExec = 259;
 constexpr int kOptPosix = 260;
+constexpr int kOptNoErrorSuggestions = 261;
 std::vector<std::string> positional_parameters;
 
 void detect_login_mode(char* argv[]) {
@@ -84,6 +85,7 @@ void apply_minimal_mode() {
     config::show_title_line = false;
     config::history_expansion_enabled = false;
     config::status_line_enabled = false;
+    config::error_suggestions_enabled = false;
     ic_enable_line_numbers(false);
     ic_enable_multiline_indent(false);
 }
@@ -127,6 +129,7 @@ ParseResult parse_arguments(int argc, char* argv[]) {
         {"no-smart-cd", no_argument, nullptr, kOptNoSmartCd},
         {"no-script-extension-interpreter", no_argument, nullptr, kOptNoScriptExtensionInterpreter},
         {"no-syntax-highlighting", no_argument, nullptr, 'S'},
+        {"no-error-suggestions", no_argument, nullptr, kOptNoErrorSuggestions},
         {"startup-test", no_argument, nullptr, 'X'},
         {"minimal", no_argument, nullptr, 'm'},
         {"secure", no_argument, nullptr, 's'},
@@ -195,6 +198,9 @@ ParseResult parse_arguments(int argc, char* argv[]) {
             case 'S':
                 config::syntax_highlighting_enabled = false;
                 break;
+            case kOptNoErrorSuggestions:
+                config::error_suggestions_enabled = false;
+                break;
             case 'X':
                 config::startup_test = true;
                 break;
@@ -255,6 +261,7 @@ void apply_profile_startup_flags() {
         NoSmartCd,
         NoScriptExtensionInterpreter,
         NoSyntaxHighlighting,
+        NoErrorSuggestions,
         StartupTest,
         Interactive,
         Login,
@@ -283,6 +290,7 @@ void apply_profile_startup_flags() {
              {StartupFlag::NoSmartCd, "--no-smart-cd"},
              {StartupFlag::NoScriptExtensionInterpreter, "--no-script-extension-interpreter"},
              {StartupFlag::NoSyntaxHighlighting, "--no-syntax-highlighting"},
+             {StartupFlag::NoErrorSuggestions, "--no-error-suggestions"},
              {StartupFlag::StartupTest, "--startup-test"},
              {StartupFlag::Interactive, "--interactive"},
              {StartupFlag::Login, "--login"},
@@ -335,6 +343,9 @@ void apply_profile_startup_flags() {
                 break;
             case StartupFlag::NoSyntaxHighlighting:
                 config::syntax_highlighting_enabled = false;
+                break;
+            case StartupFlag::NoErrorSuggestions:
+                config::error_suggestions_enabled = false;
                 break;
             case StartupFlag::StartupTest:
                 config::startup_test = true;
