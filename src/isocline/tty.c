@@ -542,6 +542,12 @@ ic_private bool tty_is_utf8(const tty_t* tty) {
     return (tty->is_utf8);
 }
 
+ic_private bool tty_is_raw_enabled(const tty_t* tty) {
+    if (tty == NULL)
+        return false;
+    return tty->raw_enabled;
+}
+
 ic_private bool tty_term_resize_event(tty_t* tty) {
     if (tty == NULL)
         return true;

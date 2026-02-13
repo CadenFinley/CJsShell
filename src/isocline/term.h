@@ -88,6 +88,7 @@ ic_private bool term_update_dim(term_t* term);
 ic_private ssize_t term_get_width(term_t* term);
 ic_private ssize_t term_get_height(term_t* term);
 ic_private int term_get_color_bits(term_t* term);
+ic_private bool term_is_cursor_at_line_start(term_t* term);
 
 // Helpers
 ic_private void term_writef(term_t* term, const char* fmt, ...);

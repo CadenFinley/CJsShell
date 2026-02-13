@@ -97,6 +97,7 @@ struct term_s {
 
 static bool term_write_direct(term_t* term, const char* s, ssize_t n);
 static void term_append_buf(term_t* term, const char* s, ssize_t n);
+static bool term_get_cursor_pos(term_t* term, ssize_t* row, ssize_t* col);
 
 //-------------------------------------------------------------
 // Colors
@@ -156,6 +157,18 @@ ic_private ssize_t term_get_width(term_t* term) {
 
 ic_private ssize_t term_get_height(term_t* term) {
     return term->height;
+}
+
+ic_private bool term_is_cursor_at_line_start(term_t* term) {
+    if (term == NULL)
+        return true;
+    if (!term_is_interactive(term))
+        return true;
+    ssize_t row = 0;
+    ssize_t col = 0;
+    if (!term_get_cursor_pos(term, &row, &col))
+        return false;
+    return (col <= 1);
 }
 
 ic_private void term_attr_reset(term_t* term) {
@@ -941,10 +954,15 @@ static bool term_esc_query_raw(term_t* term, const char* query, char* buf, ssize
 }
 
 static bool term_esc_query(term_t* term, const char* query, char* buf, ssize_t buflen) {
-    if (!tty_start_raw(term->tty))
+    if (term == NULL || term->tty == NULL)
+        return false;
+    const bool was_raw = tty_is_raw_enabled(term->tty);
+    if (!was_raw && !tty_start_raw(term->tty))
         return false;
     bool ok = term_esc_query_raw(term, query, buf, buflen);
-    tty_end_raw(term->tty);
+    if (!was_raw) {
+        tty_end_raw(term->tty);
+    }
     return ok;
 }
 
@@ -954,6 +972,10 @@ static bool term_get_cursor_pos(term_t* term, ssize_t* row, ssize_t* col) {
     char buf[128];
     if (!term_esc_query(term, "\x1B[6n", buf, 128))
         return false;
+    char* end = strchr(buf, 'R');
+    if (end != NULL) {
+        *end = '\0';
+    }
     if (!ic_atoz2(buf, row, col))
         return false;
     return true;

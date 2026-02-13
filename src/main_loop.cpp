@@ -251,8 +251,8 @@ void update_job_management() {
 }
 
 std::string generate_prompt(bool command_was_available) {
-    std::printf(" \r");
-    (void)std::fflush(stdout);
+    // std::printf(" \r");
+    // (void)std::fflush(stdout);
     const bool prompt_cleanup_enabled = ic_prompt_cleanup_is_enabled();
     const bool prompt_cleanup_newline = ic_prompt_cleanup_newline_is_enabled();
     const size_t extra_cleanup_lines =

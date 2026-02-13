@@ -2444,9 +2444,13 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
     eb.cur_row = 0;
     eb.modified = false;
 
+    const char* original_prompt = (prompt_text != NULL ? prompt_text : "");
+    if (original_prompt[0] != '\n' && !term_is_cursor_at_line_start(env->term)) {
+        term_writeln(env->term, "");
+    }
+
     // Handle multi-line prompts: print prefix lines and use only the last line
     // as the prompt
-    const char* original_prompt = (prompt_text != NULL ? prompt_text : "");
     eb.prompt_prefix_lines = print_prompt_prefix_lines(env, &eb, original_prompt);
     eb.prompt_begins_with_newline = (original_prompt[0] == '\n');
     char* last_line_prompt = extract_last_prompt_line(env->mem, original_prompt);

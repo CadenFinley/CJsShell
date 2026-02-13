@@ -50,6 +50,7 @@ ic_private tty_t* tty_new(alloc_t* mem, int fd_in);
 ic_private void tty_free(tty_t* tty);
 
 ic_private bool tty_is_utf8(const tty_t* tty);
+ic_private bool tty_is_raw_enabled(const tty_t* tty);
 ic_private bool tty_start_raw(tty_t* tty);
 ic_private void tty_end_raw(tty_t* tty);
 ic_private code_t tty_read(tty_t* tty);
