@@ -286,13 +286,6 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
         highlight_history_expansions(henv, input, len);
     }
 
-    for (const auto& range : comment_ranges) {
-        if (range.end > range.start) {
-            ic_highlight(henv, static_cast<long>(range.start),
-                         static_cast<long>(range.end - range.start), "cjsh-comment");
-        }
-    }
-
     const char* analysis = sanitized_input.c_str();
 
     size_t func_name_start = 0;
@@ -342,6 +335,28 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
             } else {
                 pos += 1;
             }
+        }
+    }
+
+    size_t scan_start = 0;
+    for (const auto& range : comment_ranges) {
+        if (range.start > scan_start) {
+            size_t segment_len = range.start - scan_start;
+            highlight_quotes_and_variables(henv, input, scan_start, segment_len);
+            highlight_compound_redirections(henv, input, scan_start, segment_len);
+        }
+        scan_start = range.end;
+    }
+    if (scan_start < len) {
+        size_t segment_len = len - scan_start;
+        highlight_quotes_and_variables(henv, input, scan_start, segment_len);
+        highlight_compound_redirections(henv, input, scan_start, segment_len);
+    }
+
+    for (const auto& range : comment_ranges) {
+        if (range.end > range.start) {
+            ic_highlight(henv, static_cast<long>(range.start),
+                         static_cast<long>(range.end - range.start), "cjsh-comment");
         }
     }
 }

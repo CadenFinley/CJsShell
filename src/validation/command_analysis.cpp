@@ -228,6 +228,9 @@ CommandSeparator scan_command_separator(const std::string& analysis, size_t inde
     }
 
     char current = analysis[index];
+    if ((current == '>' || current == '<') && index + 1 < len && analysis[index + 1] == '&') {
+        return match;
+    }
     if (index + 2 < len && current == '&' && analysis[index + 1] == '^' &&
         analysis[index + 2] == '!') {
         match.length = 3;
@@ -258,6 +261,9 @@ CommandSeparator scan_command_separator(const std::string& analysis, size_t inde
     }
 
     if (current == '&' && (index == len - 1 || analysis[index + 1] != '&')) {
+        if (index > 0 && (analysis[index - 1] == '>' || analysis[index - 1] == '<')) {
+            return match;
+        }
         match.length = 1;
         match.is_operator = true;
         return match;

@@ -89,7 +89,50 @@ bool is_quoted_string(const std::string& token, char& quote_type) {
 }
 
 bool is_redirection_operator(const std::string& token) {
-    return token_constants::redirection_operators().count(token) > 0;
+    if (token_constants::redirection_operators().count(token) > 0) {
+        return true;
+    }
+
+    if (token.size() < 3) {
+        return false;
+    }
+
+    size_t pos = 0;
+    while (pos < token.size() && (std::isdigit(static_cast<unsigned char>(token[pos])) != 0)) {
+        pos++;
+    }
+
+    if (pos >= token.size()) {
+        return false;
+    }
+
+    if (token[pos] != '>' && token[pos] != '<') {
+        return false;
+    }
+    pos++;
+
+    if (pos >= token.size() || token[pos] != '&') {
+        return false;
+    }
+    pos++;
+
+    if (pos >= token.size()) {
+        return false;
+    }
+
+    if (token[pos] == '-') {
+        return pos + 1 == token.size();
+    }
+
+    if (std::isdigit(static_cast<unsigned char>(token[pos])) == 0) {
+        return false;
+    }
+
+    while (pos < token.size() && (std::isdigit(static_cast<unsigned char>(token[pos])) != 0)) {
+        pos++;
+    }
+
+    return pos == token.size();
 }
 
 bool is_glob_pattern(const std::string& token) {

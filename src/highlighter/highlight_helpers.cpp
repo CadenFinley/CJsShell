@@ -29,6 +29,7 @@
 #include "highlight_helpers.h"
 
 #include <cctype>
+#include <cstring>
 #include <string>
 
 #include "quote_state.h"
@@ -36,41 +37,57 @@
 
 namespace highlight_helpers {
 
+static size_t parse_history_modifier(const char* input, size_t pos, size_t len) {
+    if (pos >= len) {
+        return pos;
+    }
+
+    if (input[pos] == 'h' || input[pos] == 't' || input[pos] == 'r' || input[pos] == 'e' ||
+        input[pos] == 'p' || input[pos] == 'q' || input[pos] == 'x' || input[pos] == 'u' ||
+        input[pos] == 'l') {
+        return pos + 1;
+    }
+
+    if (input[pos] == 's' || (input[pos] == 'g' && pos + 1 < len && input[pos + 1] == 's')) {
+        if (input[pos] == 'g') {
+            pos++;
+        }
+        if (pos < len && input[pos] == 's') {
+            pos++;
+        }
+        if (pos < len && (input[pos] == '/' || input[pos] == ':' || input[pos] == ';')) {
+            char delim = input[pos];
+            pos++;
+            int delim_count = 1;
+            while (pos < len && delim_count < 3) {
+                if (input[pos] == delim) {
+                    delim_count++;
+                }
+                pos++;
+            }
+        }
+    }
+
+    return pos;
+}
+
 static size_t parse_history_modifiers(const char* input, size_t start, size_t len) {
     size_t pos = start;
 
     if (pos < len && input[pos] == ':') {
         pos++;
+        size_t designator_start = pos;
         while (pos < len && (std::isdigit(input[pos]) || input[pos] == '-' || input[pos] == '^' ||
                              input[pos] == '$' || input[pos] == '*')) {
             pos++;
         }
-    }
+        bool has_designator = pos > designator_start;
 
-    if (pos < len && input[pos] == ':') {
-        pos++;
-        if (pos < len) {
-            if (input[pos] == 'h' || input[pos] == 't' || input[pos] == 'r' || input[pos] == 'e' ||
-                input[pos] == 'p' || input[pos] == 'q' || input[pos] == 'x' || input[pos] == 'u' ||
-                input[pos] == 'l') {
-                pos++;
-            } else if (input[pos] == 's' ||
-                       (input[pos] == 'g' && pos + 1 < len && input[pos + 1] == 's')) {
-                if (input[pos] == 'g')
-                    pos++;
-                if (input[pos] == 's')
-                    pos++;
-                if (pos < len && (input[pos] == '/' || input[pos] == ':' || input[pos] == ';')) {
-                    char delim = input[pos];
-                    pos++;
-                    int delim_count = 1;
-                    while (pos < len && delim_count < 3) {
-                        if (input[pos] == delim)
-                            delim_count++;
-                        pos++;
-                    }
-                }
-            }
+        if (pos < len && input[pos] == ':') {
+            pos++;
+            pos = parse_history_modifier(input, pos, len);
+        } else if (!has_designator) {
+            pos = parse_history_modifier(input, pos, len);
         }
     }
 
@@ -176,6 +193,7 @@ void highlight_quotes_and_variables(ic_highlight_env_t* henv, const char* input,
     }
 
     const size_t end = start + length;
+    const size_t input_len = std::strlen(input);
 
     bool in_single_quote = false;
     bool in_double_quote = false;
@@ -271,10 +289,17 @@ void highlight_quotes_and_variables(ic_highlight_env_t* henv, const char* input,
         if (c == '$' && !in_single_quote) {
             size_t var_start = i;
             size_t var_end = i + 1;
+            bool has_param_op = false;
 
             if (var_end < end && input[var_end] == '{') {
                 ++var_end;
                 while (var_end < end && input[var_end] != '}') {
+                    if (input[var_end] == ':' && var_end + 1 < end) {
+                        char op = input[var_end + 1];
+                        if (op == '-' || op == '+' || op == '=' || op == '?') {
+                            has_param_op = true;
+                        }
+                    }
                     ++var_end;
                 }
                 if (var_end < end) {
@@ -294,10 +319,87 @@ void highlight_quotes_and_variables(ic_highlight_env_t* henv, const char* input,
             }
 
             if (var_end > var_start + 1) {
-                ic_highlight(henv, static_cast<long>(var_start),
-                             static_cast<long>(var_end - var_start), "cjsh-variable");
+                size_t highlight_len = var_end - var_start;
+                if (has_param_op && var_end == end && end == input_len) {
+                    highlight_len += 1;
+                }
+                ic_highlight(henv, static_cast<long>(var_start), static_cast<long>(highlight_len),
+                             "cjsh-variable");
                 i = var_end - 1;
             }
+        }
+    }
+}
+
+void highlight_compound_redirections(ic_highlight_env_t* henv, const char* input, size_t start,
+                                     size_t length) {
+    if (length == 0) {
+        return;
+    }
+
+    const size_t end = start + length;
+    utils::QuoteState quote_state;
+
+    for (size_t i = start; i < end; ++i) {
+        char c = input[i];
+        if (quote_state.consume_forward(c) == utils::QuoteAdvanceResult::Continue) {
+            continue;
+        }
+
+        if (quote_state.inside_quotes()) {
+            continue;
+        }
+
+        if (std::isdigit(static_cast<unsigned char>(c)) == 0) {
+            continue;
+        }
+
+        size_t fd_start = i;
+        size_t fd_end = i;
+        while (fd_end < end && (std::isdigit(static_cast<unsigned char>(input[fd_end])) != 0)) {
+            fd_end++;
+        }
+
+        if (fd_end >= end) {
+            i = fd_end - 1;
+            continue;
+        }
+
+        char op = input[fd_end];
+        if (op != '>' && op != '<') {
+            i = fd_end - 1;
+            continue;
+        }
+
+        size_t pos = fd_end + 1;
+        if (pos >= end || input[pos] != '&') {
+            i = fd_end - 1;
+            continue;
+        }
+
+        pos++;
+        if (pos >= end) {
+            i = fd_end - 1;
+            continue;
+        }
+
+        if (input[pos] == '-') {
+            pos++;
+        } else {
+            if (std::isdigit(static_cast<unsigned char>(input[pos])) == 0) {
+                i = fd_end - 1;
+                continue;
+            }
+            while (pos < end && (std::isdigit(static_cast<unsigned char>(input[pos])) != 0)) {
+                pos++;
+            }
+        }
+
+        size_t highlight_len = pos - fd_start;
+        if (highlight_len > 0) {
+            ic_highlight(henv, static_cast<long>(fd_start), static_cast<long>(highlight_len),
+                         "cjsh-operator");
+            i = pos - 1;
         }
     }
 }
