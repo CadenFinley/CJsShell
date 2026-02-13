@@ -642,6 +642,269 @@ static bool test_escaped_quote_string_highlighting(void) {
     return ok;
 }
 
+static bool test_double_quoted_string_highlighting(void) {
+    const char* test_name = "double_quoted_string_highlighting";
+    const std::string input = "echo \"hello world\"";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    size_t start = input.find('"');
+    size_t end = input.rfind('"');
+    if (start == std::string::npos || end == std::string::npos || end <= start) {
+        log_failure(test_name, "failed to locate double-quoted string");
+        attrbuf_free(attrs);
+        return false;
+    }
+    size_t length = end - start + 1;
+
+    bool ok = expect_style_range(attrs, env->bbcode, start, length, "cjsh-string", test_name,
+                                 "double-quoted string should be highlighted");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
+static bool test_single_quoted_string_highlighting(void) {
+    const char* test_name = "single_quoted_string_highlighting";
+    const std::string input = "echo 'literal $HOME'";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    size_t start = input.find('\'');
+    size_t end = input.rfind('\'');
+    if (start == std::string::npos || end == std::string::npos || end <= start) {
+        log_failure(test_name, "failed to locate single-quoted string");
+        attrbuf_free(attrs);
+        return false;
+    }
+    size_t length = end - start + 1;
+
+    bool ok = expect_style_range(attrs, env->bbcode, start, length, "cjsh-string", test_name,
+                                 "single-quoted string should be highlighted");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
+static bool test_nested_quote_string_highlighting(void) {
+    const char* test_name = "nested_quote_string_highlighting";
+    const std::string input = "echo \"she said 'hi'\"";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    size_t start = input.find('"');
+    size_t end = input.rfind('"');
+    if (start == std::string::npos || end == std::string::npos || end <= start) {
+        log_failure(test_name, "failed to locate nested-quote string");
+        attrbuf_free(attrs);
+        return false;
+    }
+    size_t length = end - start + 1;
+
+    bool ok = expect_style_range(attrs, env->bbcode, start, length, "cjsh-string", test_name,
+                                 "nested-quote string should be highlighted");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
+static bool test_bracket_glob_highlighting(void) {
+    const char* test_name = "bracket_glob_highlighting";
+    const std::string input = "echo file[0-9].txt";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    size_t glob_pos = input.find("file[0-9].txt");
+    if (glob_pos == std::string::npos) {
+        log_failure(test_name, "failed to locate bracket glob token");
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    bool ok = expect_style_range(attrs, env->bbcode, glob_pos, 13, "cjsh-glob-pattern", test_name,
+                                 "bracket glob should be highlighted as glob pattern");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
+static bool test_brace_glob_highlighting(void) {
+    const char* test_name = "brace_glob_highlighting";
+    const std::string input = "echo {foo,bar}.txt";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    size_t glob_pos = input.find("{foo,bar}.txt");
+    if (glob_pos == std::string::npos) {
+        log_failure(test_name, "failed to locate brace glob token");
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    bool ok = expect_style_range(attrs, env->bbcode, glob_pos, 13, "cjsh-glob-pattern", test_name,
+                                 "brace glob should be highlighted as glob pattern");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
+static bool test_heredoc_operator_highlighting(void) {
+    const char* test_name = "heredoc_operator_highlighting";
+    const std::string input = "cat << EOF";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    size_t redir_pos = input.find("<<");
+    if (redir_pos == std::string::npos) {
+        log_failure(test_name, "failed to locate heredoc operator");
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    bool ok = expect_style_range(attrs, env->bbcode, redir_pos, 2, "cjsh-operator", test_name,
+                                 "<< should be highlighted as operator");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
+static bool test_nested_arithmetic_substitution_highlighting(void) {
+    const char* test_name = "nested_arithmetic_substitution_highlighting";
+    const std::string input = "echo $((1 + $(echo 2)))";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    size_t start = input.find("$((");
+    size_t end = input.rfind("))");
+    if (start == std::string::npos || end == std::string::npos || end < start) {
+        log_failure(test_name, "failed to locate nested arithmetic substitution");
+        attrbuf_free(attrs);
+        return false;
+    }
+    size_t length = end - start + 2;
+
+    bool ok = expect_style_range(attrs, env->bbcode, start, length, "cjsh-arithmetic", test_name,
+                                 "nested arithmetic substitution should be highlighted");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
+static bool test_command_substitution_with_quotes_highlighting(void) {
+    const char* test_name = "command_substitution_with_quotes_highlighting";
+    const std::string input = "echo $(printf \"(x)\")";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    size_t start = input.find("$(");
+    size_t end = input.rfind(')');
+    if (start == std::string::npos || end == std::string::npos || end < start) {
+        log_failure(test_name, "failed to locate command substitution with quotes");
+        attrbuf_free(attrs);
+        return false;
+    }
+    size_t length = end - start + 1;
+
+    bool ok =
+        expect_style_range(attrs, env->bbcode, start, length, "cjsh-command-substitution",
+                           test_name, "command substitution with quotes should be highlighted");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
+static bool test_braced_variable_index_highlighting(void) {
+    const char* test_name = "braced_variable_index_highlighting";
+    const std::string input = "echo ${arr[0]}";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    size_t var_pos = input.find("${arr[0]}");
+    if (var_pos == std::string::npos) {
+        log_failure(test_name, "failed to locate braced variable index");
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    bool ok = expect_style_range(attrs, env->bbcode, var_pos, 9, "cjsh-variable", test_name,
+                                 "${arr[0]} should be highlighted as variable");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
 typedef bool (*test_fn_t)(void);
 
 typedef struct test_case_s {
@@ -668,6 +931,17 @@ static const test_case_t kTests[] = {
     {"compound_redirection_operator_highlighting", test_compound_redirection_operator_highlighting},
     {"comparison_operator_highlighting", test_comparison_operator_highlighting},
     {"escaped_quote_string_highlighting", test_escaped_quote_string_highlighting},
+    {"double_quoted_string_highlighting", test_double_quoted_string_highlighting},
+    {"single_quoted_string_highlighting", test_single_quoted_string_highlighting},
+    {"nested_quote_string_highlighting", test_nested_quote_string_highlighting},
+    {"bracket_glob_highlighting", test_bracket_glob_highlighting},
+    {"brace_glob_highlighting", test_brace_glob_highlighting},
+    {"heredoc_operator_highlighting", test_heredoc_operator_highlighting},
+    {"nested_arithmetic_substitution_highlighting",
+     test_nested_arithmetic_substitution_highlighting},
+    {"command_substitution_with_quotes_highlighting",
+     test_command_substitution_with_quotes_highlighting},
+    {"braced_variable_index_highlighting", test_braced_variable_index_highlighting},
 };
 
 int main(void) {
