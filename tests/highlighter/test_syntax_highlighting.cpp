@@ -227,6 +227,223 @@ static bool test_function_definition_highlighting(void) {
     return ok;
 }
 
+static bool test_assignment_value_highlighting(void) {
+    const char* test_name = "assignment_value_highlighting";
+    const std::string input = "FOO=bar";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    bool ok = expect_style_range(attrs, env->bbcode, 0, 3, "cjsh-variable", test_name,
+                                 "FOO should be highlighted as variable") &&
+              expect_style_range(attrs, env->bbcode, 3, 1, "cjsh-operator", test_name,
+                                 "= should be highlighted as operator") &&
+              expect_style_range(attrs, env->bbcode, 4, 3, "cjsh-assignment-value", test_name,
+                                 "bar should be highlighted as assignment value");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
+static bool test_arithmetic_substitution_highlighting(void) {
+    const char* test_name = "arithmetic_substitution_highlighting";
+    const std::string input = "echo $((1 + 2))";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    size_t start = input.find("$((");
+    size_t end = input.rfind("))");
+    if (start == std::string::npos || end == std::string::npos || end < start) {
+        log_failure(test_name, "failed to locate arithmetic substitution range");
+        attrbuf_free(attrs);
+        return false;
+    }
+    size_t length = end - start + 2;
+
+    bool ok = expect_style_range(attrs, env->bbcode, start, length, "cjsh-arithmetic", test_name,
+                                 "arithmetic substitution should be highlighted");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
+static bool test_backtick_command_substitution_highlighting(void) {
+    const char* test_name = "backtick_command_substitution_highlighting";
+    const std::string input = "echo `date +%s`";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    size_t start = input.find('`');
+    size_t end = input.rfind('`');
+    if (start == std::string::npos || end == std::string::npos || end <= start) {
+        log_failure(test_name, "failed to locate backtick substitution range");
+        attrbuf_free(attrs);
+        return false;
+    }
+    size_t length = end - start + 1;
+
+    bool ok = expect_style_range(attrs, env->bbcode, start, length, "cjsh-command-substitution",
+                                 test_name, "backtick command substitution should be highlighted");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
+static bool test_history_expansion_highlighting(void) {
+    const char* test_name = "history_expansion_highlighting";
+    const std::string input = "echo !! && echo !$";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    size_t bang_bang = input.find("!!");
+    size_t bang_dollar = input.find("!$");
+    if (bang_bang == std::string::npos || bang_dollar == std::string::npos) {
+        log_failure(test_name, "failed to locate history expansion tokens");
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    bool ok = expect_style_range(attrs, env->bbcode, bang_bang, 2, "cjsh-history-expansion",
+                                 test_name, "!! should be highlighted as history expansion") &&
+              expect_style_range(attrs, env->bbcode, bang_dollar, 2, "cjsh-history-expansion",
+                                 test_name, "!$ should be highlighted as history expansion");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
+static bool test_operator_separator_highlighting(void) {
+    const char* test_name = "operator_separator_highlighting";
+    const std::string input = "echo ok && echo more || echo last";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    size_t and_pos = input.find("&&");
+    size_t or_pos = input.find("||");
+    if (and_pos == std::string::npos || or_pos == std::string::npos) {
+        log_failure(test_name, "failed to locate command separators");
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    bool ok = expect_style_range(attrs, env->bbcode, and_pos, 2, "cjsh-operator", test_name,
+                                 "&& should be highlighted as operator") &&
+              expect_style_range(attrs, env->bbcode, or_pos, 2, "cjsh-operator", test_name,
+                                 "|| should be highlighted as operator");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
+static bool test_option_glob_redirection_highlighting(void) {
+    const char* test_name = "option_glob_redirection_highlighting";
+    const std::string input = "ls -la *.cpp > out.txt";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    size_t option_pos = input.find("-la");
+    size_t glob_pos = input.find("*.cpp");
+    size_t redir_pos = input.find("> ");
+    if (option_pos == std::string::npos || glob_pos == std::string::npos ||
+        redir_pos == std::string::npos) {
+        log_failure(test_name, "failed to locate option/glob/redirection tokens");
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    bool ok = expect_style_range(attrs, env->bbcode, option_pos, 3, "cjsh-option", test_name,
+                                 "-la should be highlighted as option") &&
+              expect_style_range(attrs, env->bbcode, glob_pos, 5, "cjsh-glob-pattern", test_name,
+                                 "*.cpp should be highlighted as glob pattern") &&
+              expect_style_range(attrs, env->bbcode, redir_pos, 1, "cjsh-operator", test_name,
+                                 "> should be highlighted as operator");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
+static bool test_keyword_argument_highlighting(void) {
+    const char* test_name = "keyword_argument_highlighting";
+    const std::string input = "echo if then fi";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    size_t if_pos = input.find("if");
+    size_t then_pos = input.find("then");
+    size_t fi_pos = input.rfind("fi");
+    if (if_pos == std::string::npos || then_pos == std::string::npos ||
+        fi_pos == std::string::npos) {
+        log_failure(test_name, "failed to locate keyword tokens");
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    bool ok = expect_style_range(attrs, env->bbcode, if_pos, 2, "cjsh-keyword", test_name,
+                                 "if should be highlighted as keyword") &&
+              expect_style_range(attrs, env->bbcode, then_pos, 4, "cjsh-keyword", test_name,
+                                 "then should be highlighted as keyword") &&
+              expect_style_range(attrs, env->bbcode, fi_pos, 2, "cjsh-keyword", test_name,
+                                 "fi should be highlighted as keyword");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
 typedef bool (*test_fn_t)(void);
 
 typedef struct test_case_s {
@@ -239,6 +456,13 @@ static const test_case_t kTests[] = {
     {"comment_highlighting", test_comment_highlighting},
     {"command_substitution_and_variable", test_command_substitution_and_variable},
     {"function_definition_highlighting", test_function_definition_highlighting},
+    {"assignment_value_highlighting", test_assignment_value_highlighting},
+    {"arithmetic_substitution_highlighting", test_arithmetic_substitution_highlighting},
+    {"backtick_command_substitution_highlighting", test_backtick_command_substitution_highlighting},
+    {"history_expansion_highlighting", test_history_expansion_highlighting},
+    {"operator_separator_highlighting", test_operator_separator_highlighting},
+    {"option_glob_redirection_highlighting", test_option_glob_redirection_highlighting},
+    {"keyword_argument_highlighting", test_keyword_argument_highlighting},
 };
 
 int main(void) {
