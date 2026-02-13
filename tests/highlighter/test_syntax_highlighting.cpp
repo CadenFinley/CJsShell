@@ -374,6 +374,90 @@ static bool test_operator_separator_highlighting(void) {
     return ok;
 }
 
+static bool test_append_redirection_operator_highlighting(void) {
+    const char* test_name = "append_redirection_operator_highlighting";
+    const std::string input = "echo hi >> out.txt";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    size_t redir_pos = input.find(">>");
+    if (redir_pos == std::string::npos) {
+        log_failure(test_name, "failed to locate append redirection operator");
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    bool ok = expect_style_range(attrs, env->bbcode, redir_pos, 2, "cjsh-operator", test_name,
+                                 ">> should be highlighted as operator");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
+static bool test_here_string_operator_highlighting(void) {
+    const char* test_name = "here_string_operator_highlighting";
+    const std::string input = "cat <<< EOF";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    size_t redir_pos = input.find("<<<");
+    if (redir_pos == std::string::npos) {
+        log_failure(test_name, "failed to locate here-string operator");
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    bool ok = expect_style_range(attrs, env->bbcode, redir_pos, 3, "cjsh-operator", test_name,
+                                 "<<< should be highlighted as operator");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
+static bool test_background_operator_highlighting(void) {
+    const char* test_name = "background_operator_highlighting";
+    const std::string input = "sleep 1 & echo done";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    size_t amp_pos = input.find('&');
+    if (amp_pos == std::string::npos) {
+        log_failure(test_name, "failed to locate background operator");
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    bool ok = expect_style_range(attrs, env->bbcode, amp_pos, 1, "cjsh-operator", test_name,
+                                 "& should be highlighted as operator");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
 static bool test_option_glob_redirection_highlighting(void) {
     const char* test_name = "option_glob_redirection_highlighting";
     const std::string input = "ls -la *.cpp > out.txt";
@@ -553,6 +637,28 @@ static bool test_history_expansion_modifier_highlighting(void) {
 
     bool ok = expect_style_range(attrs, env->bbcode, start, 4, "cjsh-history-expansion", test_name,
                                  "!!:p should be highlighted as history expansion");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
+static bool test_history_expansion_caret_highlighting(void) {
+    const char* test_name = "history_expansion_caret_highlighting";
+    const std::string input = "^old^new^";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    bool ok =
+        expect_style_range(attrs, env->bbcode, 0, input.size(), "cjsh-history-expansion", test_name,
+                           "caret history expansion should be highlighted as history expansion");
 
     attrbuf_free(attrs);
     return ok;
@@ -922,12 +1028,16 @@ static const test_case_t kTests[] = {
     {"backtick_command_substitution_highlighting", test_backtick_command_substitution_highlighting},
     {"history_expansion_highlighting", test_history_expansion_highlighting},
     {"operator_separator_highlighting", test_operator_separator_highlighting},
+    {"append_redirection_operator_highlighting", test_append_redirection_operator_highlighting},
+    {"here_string_operator_highlighting", test_here_string_operator_highlighting},
+    {"background_operator_highlighting", test_background_operator_highlighting},
     {"option_glob_redirection_highlighting", test_option_glob_redirection_highlighting},
     {"keyword_argument_highlighting", test_keyword_argument_highlighting},
     {"braced_variable_highlighting", test_braced_variable_highlighting},
     {"braced_variable_default_highlighting", test_braced_variable_default_highlighting},
     {"nested_command_substitution_highlighting", test_nested_command_substitution_highlighting},
     {"history_expansion_modifier_highlighting", test_history_expansion_modifier_highlighting},
+    {"history_expansion_caret_highlighting", test_history_expansion_caret_highlighting},
     {"compound_redirection_operator_highlighting", test_compound_redirection_operator_highlighting},
     {"comparison_operator_highlighting", test_comparison_operator_highlighting},
     {"escaped_quote_string_highlighting", test_escaped_quote_string_highlighting},

@@ -123,6 +123,25 @@ static bool test_quote_and_unquote_paths(void) {
     return true;
 }
 
+static bool test_quote_path_special_characters(void) {
+    const char* test_name = "quote_path_special_characters";
+    std::string path = "one&two";
+    if (!expect_streq(completion_utils::quote_path_if_needed(path), "\"one&two\"", test_name,
+                      "paths with special characters should be quoted")) {
+        return false;
+    }
+    return true;
+}
+
+static bool test_unquote_path_with_escaped_quote(void) {
+    const char* test_name = "unquote_path_with_escaped_quote";
+    if (!expect_streq(completion_utils::unquote_path("\"a\\\"b\""), "a\"b", test_name,
+                      "escaped quotes should be unescaped")) {
+        return false;
+    }
+    return true;
+}
+
 static bool test_tokenize_command_line(void) {
     const char* test_name = "tokenize_command_line";
     std::string line = "cmd \"arg with space\" 'single quoted' plain\\ space";
@@ -163,6 +182,42 @@ static bool test_case_sensitivity_helpers(void) {
                  "case-sensitive token should reject mismatch");
 
     g_completion_case_sensitive = false;
+    return true;
+}
+
+static bool test_normalize_for_comparison(void) {
+    const char* test_name = "normalize_for_comparison";
+    g_completion_case_sensitive = false;
+    if (!expect_streq(completion_utils::normalize_for_comparison("MiXeD"), "mixed", test_name,
+                      "normalize should lower-case when case-insensitive")) {
+        return false;
+    }
+
+    g_completion_case_sensitive = true;
+    if (!expect_streq(completion_utils::normalize_for_comparison("MiXeD"), "MiXeD", test_name,
+                      "normalize should preserve case when case-sensitive")) {
+        return false;
+    }
+
+    g_completion_case_sensitive = false;
+    return true;
+}
+
+static bool test_starts_with_helpers(void) {
+    const char* test_name = "starts_with_helpers";
+    EXPECT_TRUE(completion_utils::starts_with_case_insensitive("Hello", "he"), test_name,
+                "case-insensitive helper should match");
+    EXPECT_TRUE(completion_utils::starts_with_case_insensitive("Hello", "HE"), test_name,
+                "case-insensitive helper should match uppercase prefix");
+    EXPECT_FALSE(completion_utils::starts_with_case_insensitive("Hello", "hi"), test_name,
+                 "case-insensitive helper should reject mismatched prefix");
+
+    EXPECT_TRUE(completion_utils::starts_with_case_sensitive("Hello", "He"), test_name,
+                "case-sensitive helper should match exact prefix");
+    EXPECT_FALSE(completion_utils::starts_with_case_sensitive("Hello", "he"), test_name,
+                 "case-sensitive helper should reject mismatched case");
+    EXPECT_FALSE(completion_utils::starts_with_case_sensitive("Hello", "HelloWorld"), test_name,
+                 "case-sensitive helper should reject longer prefix");
     return true;
 }
 
@@ -371,9 +426,13 @@ typedef struct test_case_s {
 
 static const test_case_t kTests[] = {
     {"quote_and_unquote_paths", test_quote_and_unquote_paths},
+    {"quote_path_special_characters", test_quote_path_special_characters},
+    {"unquote_path_with_escaped_quote", test_unquote_path_with_escaped_quote},
     {"tokenize_command_line", test_tokenize_command_line},
     {"find_last_unquoted_space", test_find_last_unquoted_space},
     {"case_sensitivity_helpers", test_case_sensitivity_helpers},
+    {"normalize_for_comparison", test_normalize_for_comparison},
+    {"starts_with_helpers", test_starts_with_helpers},
     {"sanitize_job_summary", test_sanitize_job_summary},
     {"spell_transposition_and_distance", test_spell_transposition_and_distance},
     {"spell_match_ordering", test_spell_match_ordering},
