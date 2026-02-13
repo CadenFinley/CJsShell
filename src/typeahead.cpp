@@ -241,10 +241,14 @@ void flush_pending_typeahead() {
     }
 
     if (!g_pending_raw_bytes.empty()) {
-        const auto* data = reinterpret_cast<const uint8_t*>(g_pending_raw_bytes.data());
-        if (ic_push_raw_input(data, g_pending_raw_bytes.size())) {
+        if (g_input_buffer.empty()) {
+            const auto* data = reinterpret_cast<const uint8_t*>(g_pending_raw_bytes.data());
+            if (ic_push_raw_input(data, g_pending_raw_bytes.size())) {
+                g_pending_raw_bytes.clear();
+                g_input_buffer.clear();
+            }
+        } else {
             g_pending_raw_bytes.clear();
-            g_input_buffer.clear();
         }
     }
 }
