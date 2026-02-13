@@ -37,6 +37,13 @@ if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
 endif()
 
 option(CJSH_MINIMAL_BUILD "Enable ultra-small minimal build profile" OFF)
+option(CJSH_BUILD_TESTS "Build test binaries" OFF)
+
+if(CJSH_BUILD_TESTS)
+    set(BUILD_TESTING ON CACHE BOOL "Enable CTest targets" FORCE)
+else()
+    set(BUILD_TESTING OFF CACHE BOOL "Enable CTest targets" FORCE)
+endif()
 
 set(_CJSH_STRIP_DEFAULT ON)
 if(DEFINED ENV{CJSH_STRIP_BINARY} AND "$ENV{CJSH_STRIP_BINARY}" STREQUAL "0")
@@ -536,7 +543,7 @@ endif()
 
 install(TARGETS cjsh RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
-if(BUILD_TESTING)
+if(CJSH_BUILD_TESTS)
     add_executable(isocline_behavior_tests
         ${CJSH_C_SOURCES}
         ${CMAKE_SOURCE_DIR}/tests/isocline/test_isocline_behavior.c
