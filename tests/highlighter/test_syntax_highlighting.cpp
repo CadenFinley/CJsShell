@@ -444,6 +444,204 @@ static bool test_keyword_argument_highlighting(void) {
     return ok;
 }
 
+static bool test_braced_variable_highlighting(void) {
+    const char* test_name = "braced_variable_highlighting";
+    const std::string input = "echo ${HOME}";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    size_t var_pos = input.find("${HOME}");
+    if (var_pos == std::string::npos) {
+        log_failure(test_name, "failed to locate braced variable");
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    bool ok = expect_style_range(attrs, env->bbcode, var_pos, 7, "cjsh-variable", test_name,
+                                 "${HOME} should be highlighted as variable");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
+static bool test_braced_variable_default_highlighting(void) {
+    const char* test_name = "braced_variable_default_highlighting";
+    const std::string input = "echo ${VAR:-default}";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    size_t var_pos = input.find("${VAR:-default}");
+    if (var_pos == std::string::npos) {
+        log_failure(test_name, "failed to locate braced default variable");
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    bool ok = expect_style_range(attrs, env->bbcode, var_pos, 16, "cjsh-variable", test_name,
+                                 "${VAR:-default} should be highlighted as variable");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
+static bool test_nested_command_substitution_highlighting(void) {
+    const char* test_name = "nested_command_substitution_highlighting";
+    const std::string input = "echo $(echo $(date))";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    size_t start = input.find("$(");
+    size_t end = input.rfind(')');
+    if (start == std::string::npos || end == std::string::npos || end < start) {
+        log_failure(test_name, "failed to locate nested command substitution range");
+        attrbuf_free(attrs);
+        return false;
+    }
+    size_t length = end - start + 1;
+
+    bool ok = expect_style_range(attrs, env->bbcode, start, length, "cjsh-command-substitution",
+                                 test_name, "nested command substitution should be highlighted");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
+static bool test_history_expansion_modifier_highlighting(void) {
+    const char* test_name = "history_expansion_modifier_highlighting";
+    const std::string input = "echo !!:p";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    size_t start = input.find("!!:p");
+    if (start == std::string::npos) {
+        log_failure(test_name, "failed to locate history expansion with modifier");
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    bool ok = expect_style_range(attrs, env->bbcode, start, 4, "cjsh-history-expansion", test_name,
+                                 "!!:p should be highlighted as history expansion");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
+static bool test_compound_redirection_operator_highlighting(void) {
+    const char* test_name = "compound_redirection_operator_highlighting";
+    const std::string input = "echo hi 2>&1";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    size_t redir_pos = input.find("2>&1");
+    if (redir_pos == std::string::npos) {
+        log_failure(test_name, "failed to locate compound redirection operator");
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    bool ok = expect_style_range(attrs, env->bbcode, redir_pos, 4, "cjsh-operator", test_name,
+                                 "2>&1 should be highlighted as operator");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
+static bool test_comparison_operator_highlighting(void) {
+    const char* test_name = "comparison_operator_highlighting";
+    const std::string input = "test 1 -eq 1";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    size_t op_pos = input.find("-eq");
+    if (op_pos == std::string::npos) {
+        log_failure(test_name, "failed to locate comparison operator");
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    bool ok = expect_style_range(attrs, env->bbcode, op_pos, 3, "cjsh-operator", test_name,
+                                 "-eq should be highlighted as operator");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
+static bool test_escaped_quote_string_highlighting(void) {
+    const char* test_name = "escaped_quote_string_highlighting";
+    const std::string input = "echo \"a\\\"b\"";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    size_t quote_pos = input.find('"');
+    if (quote_pos == std::string::npos) {
+        log_failure(test_name, "failed to locate quoted string");
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    bool ok = expect_style_range(attrs, env->bbcode, quote_pos, 6, "cjsh-string", test_name,
+                                 "quoted string with escape should be highlighted");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
 typedef bool (*test_fn_t)(void);
 
 typedef struct test_case_s {
@@ -463,6 +661,13 @@ static const test_case_t kTests[] = {
     {"operator_separator_highlighting", test_operator_separator_highlighting},
     {"option_glob_redirection_highlighting", test_option_glob_redirection_highlighting},
     {"keyword_argument_highlighting", test_keyword_argument_highlighting},
+    {"braced_variable_highlighting", test_braced_variable_highlighting},
+    {"braced_variable_default_highlighting", test_braced_variable_default_highlighting},
+    {"nested_command_substitution_highlighting", test_nested_command_substitution_highlighting},
+    {"history_expansion_modifier_highlighting", test_history_expansion_modifier_highlighting},
+    {"compound_redirection_operator_highlighting", test_compound_redirection_operator_highlighting},
+    {"comparison_operator_highlighting", test_comparison_operator_highlighting},
+    {"escaped_quote_string_highlighting", test_escaped_quote_string_highlighting},
 };
 
 int main(void) {
