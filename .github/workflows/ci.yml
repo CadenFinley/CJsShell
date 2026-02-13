@@ -62,7 +62,7 @@ jobs:
 
       - name: Configure CMake
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCJSH_GENERATE_COMPILE_COMMANDS=ON -DBUILD_TESTING=ON
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCJSH_GENERATE_COMPILE_COMMANDS=ON -DCJSH_BUILD_TESTS=ON -DBUILD_TESTING=ON
 
       - name: Build CJsShell
         run: |
@@ -82,10 +82,22 @@ jobs:
             echo "Error: build/isocline_behavior_tests not found"
             exit 1
           fi
+          if [ ! -f "build/completion_tests" ]; then
+            echo "Error: build/completion_tests not found"
+            exit 1
+          fi
+          if [ ! -f "build/syntax_highlighting_tests" ]; then
+            echo "Error: build/syntax_highlighting_tests not found"
+            exit 1
+          fi
           echo "CJsShell binary exists"
           ls -lh build/cjsh
           echo "Isocline behavior tests binary exists"
           ls -lh build/isocline_behavior_tests
+          echo "Completion tests binary exists"
+          ls -lh build/completion_tests
+          echo "Syntax highlighting tests binary exists"
+          ls -lh build/syntax_highlighting_tests
 
       - name: Run tests
         run: |
