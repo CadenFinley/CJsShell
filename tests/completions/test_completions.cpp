@@ -157,6 +157,18 @@ static bool test_tokenize_command_line(void) {
     return true;
 }
 
+static bool test_tokenize_command_line_escaped_quotes(void) {
+    const char* test_name = "tokenize_command_line_escaped_quotes";
+    std::string line = "cmd \"a\\\"b\" tail";
+    auto tokens = completion_utils::tokenize_command_line(line);
+
+    EXPECT_TRUE(tokens.size() == 3, test_name, "expected three tokens");
+    EXPECT_TRUE(tokens[0] == "cmd", test_name, "first token should be command");
+    EXPECT_TRUE(tokens[1] == "a\"b", test_name, "escaped quote should be preserved in token");
+    EXPECT_TRUE(tokens[2] == "tail", test_name, "last token should be preserved");
+    return true;
+}
+
 static bool test_find_last_unquoted_space(void) {
     const char* test_name = "find_last_unquoted_space";
     std::string line = "echo \"a b\" c";
@@ -164,6 +176,14 @@ static bool test_find_last_unquoted_space(void) {
     EXPECT_TRUE(pos == 10, test_name, "last unquoted space should be before final token");
     EXPECT_TRUE(completion_utils::find_last_unquoted_space("\"a b\"") == std::string::npos,
                 test_name, "quoted spaces should be ignored");
+    return true;
+}
+
+static bool test_find_last_unquoted_space_with_tabs(void) {
+    const char* test_name = "find_last_unquoted_space_with_tabs";
+    std::string line = "cmd\targ";
+    size_t pos = completion_utils::find_last_unquoted_space(line);
+    EXPECT_TRUE(pos == 3, test_name, "tab should count as a delimiter");
     return true;
 }
 
@@ -228,6 +248,14 @@ static bool test_sanitize_job_summary(void) {
                       "summary should normalize whitespace and strip control chars")) {
         return false;
     }
+    return true;
+}
+
+static bool test_sanitize_job_summary_truncates(void) {
+    const char* test_name = "sanitize_job_summary_truncates";
+    std::string long_cmd(120, 'a');
+    std::string summary = completion_utils::sanitize_job_command_summary(long_cmd);
+    EXPECT_TRUE(summary.size() == 80, test_name, "summary should truncate to 80 characters");
     return true;
 }
 
@@ -429,11 +457,14 @@ static const test_case_t kTests[] = {
     {"quote_path_special_characters", test_quote_path_special_characters},
     {"unquote_path_with_escaped_quote", test_unquote_path_with_escaped_quote},
     {"tokenize_command_line", test_tokenize_command_line},
+    {"tokenize_command_line_escaped_quotes", test_tokenize_command_line_escaped_quotes},
     {"find_last_unquoted_space", test_find_last_unquoted_space},
+    {"find_last_unquoted_space_with_tabs", test_find_last_unquoted_space_with_tabs},
     {"case_sensitivity_helpers", test_case_sensitivity_helpers},
     {"normalize_for_comparison", test_normalize_for_comparison},
     {"starts_with_helpers", test_starts_with_helpers},
     {"sanitize_job_summary", test_sanitize_job_summary},
+    {"sanitize_job_summary_truncates", test_sanitize_job_summary_truncates},
     {"spell_transposition_and_distance", test_spell_transposition_and_distance},
     {"spell_match_ordering", test_spell_match_ordering},
     {"spell_match_add_limit", test_spell_match_add_limit},

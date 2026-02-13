@@ -1011,6 +1011,117 @@ static bool test_braced_variable_index_highlighting(void) {
     return ok;
 }
 
+static bool test_assignment_value_quoted_string_highlighting(void) {
+    const char* test_name = "assignment_value_quoted_string_highlighting";
+    const std::string input = "FOO=\"bar\"";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    bool ok = expect_style_range(attrs, env->bbcode, 0, 3, "cjsh-variable", test_name,
+                                 "FOO should be highlighted as variable") &&
+              expect_style_range(attrs, env->bbcode, 3, 1, "cjsh-operator", test_name,
+                                 "= should be highlighted as operator") &&
+              expect_style_range(attrs, env->bbcode, 4, 5, "cjsh-string", test_name,
+                                 "quoted assignment value should be highlighted as string");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
+static bool test_parameter_expansion_operator_highlighting(void) {
+    const char* test_name = "parameter_expansion_operator_highlighting";
+    const std::string input = "echo ${VAR:=42}";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    size_t var_pos = input.find("${VAR:=42}");
+    if (var_pos == std::string::npos) {
+        log_failure(test_name, "failed to locate parameter expansion");
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    bool ok = expect_style_range(attrs, env->bbcode, var_pos, 10, "cjsh-variable", test_name,
+                                 "${VAR:=42} should be highlighted as variable");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
+static bool test_compound_redirection_close_highlighting(void) {
+    const char* test_name = "compound_redirection_close_highlighting";
+    const std::string input = "echo hi 2>&-";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    size_t redir_pos = input.find("2>&-");
+    if (redir_pos == std::string::npos) {
+        log_failure(test_name, "failed to locate compound redirection close");
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    bool ok = expect_style_range(attrs, env->bbcode, redir_pos, 4, "cjsh-operator", test_name,
+                                 "2>&- should be highlighted as operator");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
+static bool test_arithmetic_parens_highlighting(void) {
+    const char* test_name = "arithmetic_parens_highlighting";
+    const std::string input = "echo ((1+2))";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    size_t start = input.find("((");
+    size_t end = input.rfind("))");
+    if (start == std::string::npos || end == std::string::npos || end < start) {
+        log_failure(test_name, "failed to locate arithmetic parens range");
+        attrbuf_free(attrs);
+        return false;
+    }
+    size_t length = end - start + 2;
+
+    bool ok = expect_style_range(attrs, env->bbcode, start, length, "cjsh-arithmetic", test_name,
+                                 "((1+2)) should be highlighted as arithmetic");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
 typedef bool (*test_fn_t)(void);
 
 typedef struct test_case_s {
@@ -1052,6 +1163,11 @@ static const test_case_t kTests[] = {
     {"command_substitution_with_quotes_highlighting",
      test_command_substitution_with_quotes_highlighting},
     {"braced_variable_index_highlighting", test_braced_variable_index_highlighting},
+    {"assignment_value_quoted_string_highlighting",
+     test_assignment_value_quoted_string_highlighting},
+    {"parameter_expansion_operator_highlighting", test_parameter_expansion_operator_highlighting},
+    {"compound_redirection_close_highlighting", test_compound_redirection_close_highlighting},
+    {"arithmetic_parens_highlighting", test_arithmetic_parens_highlighting},
 };
 
 int main(void) {

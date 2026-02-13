@@ -127,6 +127,10 @@ static size_t find_matching_parenthesis(const char* input, size_t search_start, 
 
 void highlight_variable_assignment(ic_highlight_env_t* henv, const char* input,
                                    size_t absolute_start, const std::string& token) {
+    if (!token.empty() && token[0] == '$') {
+        highlight_quotes_and_variables(henv, input, absolute_start, token.length());
+        return;
+    }
     size_t eq_pos = token.find('=');
     if (eq_pos == std::string::npos) {
         highlight_quotes_and_variables(henv, input, absolute_start, token.length());
