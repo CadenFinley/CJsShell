@@ -178,7 +178,7 @@ Shell::~Shell() {
 
     // output a final exit line only in interactive modes
     if (interactive_mode && !g_startup_active) {
-        std::cout << "cjsh exit\n";
+        std::cout << "cjsh exit";
         std::cout.flush();
     }
 }
