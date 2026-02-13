@@ -653,4 +653,8 @@ if(CJSH_BUILD_TESTS)
         target_link_libraries(syntax_highlighting_tests PRIVATE atomic)
     endif()
     add_test(NAME syntax_highlighting_tests COMMAND syntax_highlighting_tests)
+
+    add_dependencies(isocline_behavior_tests cjsh)
+    add_dependencies(completion_tests isocline_behavior_tests)
+    add_dependencies(syntax_highlighting_tests completion_tests)
 endif()
