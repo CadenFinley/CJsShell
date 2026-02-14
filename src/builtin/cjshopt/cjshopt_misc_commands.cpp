@@ -94,6 +94,118 @@ std::string resolve_style_registry_name(const std::string& token_type) {
     }
     return "cjsh-" + token_type;
 }
+
+std::string style_preview_sample(const std::string& token_type) {
+    if (token_type == "unknown-command") {
+        return "notarealcmd";
+    }
+    if (token_type == "colon") {
+        return ":";
+    }
+    if (token_type == "path-exists") {
+        return "/usr";
+    }
+    if (token_type == "path-not-exists") {
+        return "/nope";
+    }
+    if (token_type == "glob-pattern") {
+        return "*.cpp";
+    }
+    if (token_type == "operator") {
+        return "&& || | >";
+    }
+    if (token_type == "keyword") {
+        return "if then fi";
+    }
+    if (token_type == "builtin") {
+        return "cd";
+    }
+    if (token_type == "system") {
+        return "ls";
+    }
+    if (token_type == "variable") {
+        return "$HOME";
+    }
+    if (token_type == "assignment-value") {
+        return "FOO=bar";
+    }
+    if (token_type == "string") {
+        return "\"hello\"";
+    }
+    if (token_type == "comment") {
+        return "# comment";
+    }
+    if (token_type == "command-substitution") {
+        return "$(date)";
+    }
+    if (token_type == "arithmetic") {
+        return "$((1+2))";
+    }
+    if (token_type == "option") {
+        return "--help";
+    }
+    if (token_type == "number") {
+        return "42";
+    }
+    if (token_type == "function-definition") {
+        return "myfunc()";
+    }
+    if (token_type == "history-expansion") {
+        return "!!";
+    }
+    if (token_type == "ic-prompt") {
+        return "prompt";
+    }
+    if (token_type == "ic-linenumbers") {
+        return "1";
+    }
+    if (token_type == "ic-linenumber-current") {
+        return "2";
+    }
+    if (token_type == "ic-info") {
+        return "info";
+    }
+    if (token_type == "ic-source") {
+        return "source";
+    }
+    if (token_type == "ic-diminish") {
+        return "dim";
+    }
+    if (token_type == "ic-emphasis") {
+        return "emphasis";
+    }
+    if (token_type == "ic-hint") {
+        return "hint";
+    }
+    if (token_type == "ic-error") {
+        return "error";
+    }
+    if (token_type == "ic-bracematch") {
+        return "{}";
+    }
+    if (token_type == "ic-whitespace-char") {
+        return "space";
+    }
+    return token_type;
+}
+
+void print_style_preview() {
+    std::vector<std::string> token_types;
+    token_types.reserve(token_constants::default_styles().size());
+    for (const auto& pair : token_constants::default_styles()) {
+        token_types.push_back(pair.first);
+    }
+    std::sort(token_types.begin(), token_types.end());
+
+    ic_println("Syntax style preview:");
+    for (const auto& token_type : token_types) {
+        std::string style_name = resolve_style_registry_name(token_type);
+        std::string sample = style_preview_sample(token_type);
+        std::string line = token_type + ": [" + style_name + "]" + sample + "[/]";
+        ic_println(line.c_str());
+    }
+    ic_println("Use: cjshopt style_def <token_type> \"<style>\"");
+}
 }  // namespace
 
 int startup_flag_command(const std::vector<std::string>& args) {
@@ -148,6 +260,14 @@ int style_def_command(const std::vector<std::string>& args) {
             std::cout << "  style_def comment \"italic color=green\"\n";
             std::cout << "  style_def string \"color=#F1FA8C\"\n\n";
             std::cout << "To reset all styles to defaults, use: style_def --reset\n";
+            std::cout << "To preview current styles, use: style_def preview\n";
+        }
+        return 0;
+    }
+
+    if (args.size() == 2 && (args[1] == "preview" || args[1] == "--preview")) {
+        if (!g_startup_active) {
+            print_style_preview();
         }
         return 0;
     }

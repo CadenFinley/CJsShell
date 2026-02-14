@@ -549,7 +549,8 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
              make_subcommand("set-completion-max", "Limit completion suggestions")});
 
         add_doc("cjshopt-style_def", "Define or reset syntax styles",
-                {make_option("--reset", "Reset all highlight styles to defaults")});
+                {make_subcommand("preview", "Show current syntax style preview"),
+                 make_option("--reset", "Reset all highlight styles to defaults")});
 
         add_doc("cjshopt-login-startup-arg", "Add cjsh startup flags",
                 {make_option("--login", "Run cjsh as a login shell"),

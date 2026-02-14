@@ -1054,7 +1054,8 @@ bool add_builtin_argument_completions(ic_completion_env_t* cenv,
             (context.current_prefix.empty() || context.current_prefix[0] != '-')) {
             const auto& styles = token_constants::default_styles();
             std::vector<std::string> style_tokens;
-            style_tokens.reserve(styles.size());
+            style_tokens.reserve(styles.size() + 1);
+            style_tokens.push_back("preview");
             for (const auto& entry : styles) {
                 style_tokens.push_back(entry.first);
             }
