@@ -484,81 +484,55 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
             }
         }
 
-        if (starts_with_keyword_token(trimmed_line, "export")) {
-            size_t pos = 6;
-            while (pos < trimmed_line.size()) {
-                while (pos < trimmed_line.size() &&
-                       (std::isspace(static_cast<unsigned char>(trimmed_line[pos])) != 0)) {
-                    ++pos;
-                }
-                if (pos >= trimmed_line.size()) {
-                    break;
-                }
+        {
+            auto export_tokens =
+                tokenize_shell_segment(line_without_comments, 0, line_without_comments.size());
+            bool command_started = false;
 
-                if (trimmed_line[pos] == '-') {
-                    ++pos;
-                    while (pos < trimmed_line.size() &&
-                           (std::isspace(static_cast<unsigned char>(trimmed_line[pos])) == 0)) {
-                        ++pos;
-                    }
+            for (size_t i = 0; i < export_tokens.size(); ++i) {
+                const auto& token = export_tokens[i];
+                if (token.text.empty()) {
                     continue;
                 }
 
-                size_t name_start = pos;
-                if (!is_valid_identifier_start(trimmed_line[pos])) {
-                    while (pos < trimmed_line.size() &&
-                           (std::isspace(static_cast<unsigned char>(trimmed_line[pos])) == 0)) {
-                        ++pos;
-                    }
+                if (is_command_separator_token(token.text)) {
+                    command_started = false;
                     continue;
                 }
 
-                ++pos;
-                while (pos < trimmed_line.size() && is_valid_identifier_char(trimmed_line[pos])) {
-                    ++pos;
+                if (!command_started && is_assignment_token(token.text)) {
+                    continue;
                 }
 
-                size_t name_end = pos;
-                if (pos < trimmed_line.size() && trimmed_line[pos] == '+' &&
-                    pos + 1 < trimmed_line.size() && trimmed_line[pos + 1] == '=') {
-                    ++pos;
-                }
-
-                if (pos < trimmed_line.size() && trimmed_line[pos] == '=') {
-                    ++pos;
-                    bool in_single = false;
-                    bool in_double = false;
-                    while (pos < trimmed_line.size()) {
-                        char ch = trimmed_line[pos];
-                        if (ch == '\\' && pos + 1 < trimmed_line.size()) {
-                            pos += 2;
+                if (!command_started && token.text == "export") {
+                    for (size_t j = i + 1; j < export_tokens.size(); ++j) {
+                        const auto& arg = export_tokens[j];
+                        if (arg.text.empty()) {
                             continue;
                         }
-                        if (!in_single && ch == '"') {
-                            in_double = !in_double;
-                            ++pos;
-                            continue;
-                        }
-                        if (!in_double && ch == '\'') {
-                            in_single = !in_single;
-                            ++pos;
-                            continue;
-                        }
-                        if (!in_single && !in_double &&
-                            (std::isspace(static_cast<unsigned char>(ch)) != 0)) {
+                        if (is_command_separator_token(arg.text)) {
                             break;
                         }
-                        ++pos;
+                        if (!arg.text.empty() && arg.text[0] == '-') {
+                            continue;
+                        }
+
+                        if (arg.text.find('=') != std::string::npos &&
+                            !is_assignment_token(arg.text)) {
+                            continue;
+                        }
+
+                        std::string exported_name = is_assignment_token(arg.text)
+                                                        ? normalize_assignment_identifier(arg.text)
+                                                        : arg.text;
+                        if (!exported_name.empty() && is_valid_identifier(exported_name)) {
+                            defined_vars[exported_name].push_back(
+                                adjust_display_line(original_line, display_line, arg.start));
+                        }
                     }
                 }
 
-                std::string exported_name = trimmed_line.substr(name_start, name_end - name_start);
-                if (!exported_name.empty() && is_valid_identifier(exported_name)) {
-                    size_t var_pos = line_without_comments.find(exported_name);
-                    size_t offset = (var_pos != std::string::npos) ? var_pos : 0;
-                    defined_vars[exported_name].push_back(
-                        adjust_display_line(original_line, display_line, offset));
-                }
+                command_started = true;
             }
         }
 

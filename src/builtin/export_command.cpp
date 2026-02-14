@@ -38,6 +38,7 @@
 #include "cjsh.h"
 #include "error_out.h"
 #include "interpreter.h"
+#include "parser_utils.h"
 #include "readonly_command.h"
 #include "shell.h"
 #include "shell_env.h"
@@ -58,6 +59,45 @@ bool parse_env_assignment(const std::string& arg, std::string& name, std::string
             (value.front() == '\'' && value.back() == '\'')) {
             value = value.substr(1, value.size() - 2);
         }
+    }
+
+    return true;
+}
+
+bool is_special_parameter_name(const std::string& name) {
+    if (name.size() != 2 || name[0] != '$') {
+        return false;
+    }
+
+    const char param = name[1];
+    if (std::isdigit(static_cast<unsigned char>(param)) != 0) {
+        return true;
+    }
+
+    return param == '?' || param == '$' || param == '#' || param == '*' || param == '@' ||
+           param == '!';
+}
+
+bool validate_export_name(const std::string& name, bool& is_readonly) {
+    is_readonly = false;
+    if (name.empty()) {
+        return false;
+    }
+
+    if (name[0] == '$') {
+        if (is_special_parameter_name(name)) {
+            is_readonly = true;
+        }
+        return false;
+    }
+
+    if (!is_valid_identifier(name)) {
+        return false;
+    }
+
+    if (readonly_manager_is(name)) {
+        is_readonly = true;
+        return false;
     }
 
     return true;
@@ -86,9 +126,15 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
         std::string name;
         std::string value;
         if (parse_env_assignment(args[i], name, value)) {
-            if (readonly_manager_is(name)) {
-                print_error(
-                    {ErrorType::INVALID_ARGUMENT, "export", name + ": readonly variable", {}});
+            bool is_readonly = false;
+            if (!validate_export_name(name, is_readonly)) {
+                if (is_readonly) {
+                    print_error(
+                        {ErrorType::INVALID_ARGUMENT, "export", name + ": readonly variable", {}});
+                } else {
+                    print_error(
+                        {ErrorType::INVALID_ARGUMENT, "export", name + ": invalid identifier", {}});
+                }
                 all_successful = false;
                 continue;
             }
@@ -107,6 +153,23 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
                 shell->get_parser()->set_env_vars(env_vars);
             }
         } else {
+            bool is_readonly = false;
+            if (!validate_export_name(args[i], is_readonly)) {
+                if (is_readonly) {
+                    print_error({ErrorType::INVALID_ARGUMENT,
+                                 "export",
+                                 args[i] + ": readonly variable",
+                                 {}});
+                } else {
+                    print_error({ErrorType::INVALID_ARGUMENT,
+                                 "export",
+                                 args[i] + ": invalid identifier",
+                                 {}});
+                }
+                all_successful = false;
+                continue;
+            }
+
             std::string var_value;
             bool found = false;
             bool is_local = false;

@@ -27,6 +27,23 @@ else
   exit 1
 fi
 
+"$CJSH_PATH" -c "export \$0=blah && echo RUN" >/tmp/export_readonly_test.out 2>&1
+EXPORT_STATUS=$?
+if [ $EXPORT_STATUS -ne 0 ] && ! grep -q "RUN" /tmp/export_readonly_test.out && \
+   grep -q "readonly variable" /tmp/export_readonly_test.out; then
+  pass_test "export rejects special parameter assignment"
+else
+  fail_test "export rejects special parameter assignment"
+fi
+
+"$CJSH_PATH" -c "export \$0" >/tmp/export_readonly_noassign.out 2>&1
+EXPORT_STATUS=$?
+if [ $EXPORT_STATUS -ne 0 ] && grep -q "readonly variable" /tmp/export_readonly_noassign.out; then
+  pass_test "export rejects special parameter name"
+else
+  fail_test "export rejects special parameter name"
+fi
+
 echo ""
 echo "Export Tests Summary:"
 echo "Passed: $TESTS_PASSED"

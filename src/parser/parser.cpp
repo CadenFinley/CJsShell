@@ -1187,11 +1187,26 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
     }
     args = std::move(pre_expanded_args);
 
-    for (auto& raw_arg : args) {
+    const bool is_export_command = (!args.empty() && args[0] == "export");
+    for (size_t arg_index = 0; arg_index < args.size(); ++arg_index) {
+        std::string& raw_arg = args[arg_index];
         QuoteInfo qi(raw_arg);
 
-        if (!qi.is_single) {
-            auto [noenv_stripped, had_noenv] = strip_noenv_sentinels(qi.value);
+        if (qi.is_single) {
+            continue;
+        }
+
+        if (is_export_command && arg_index > 0) {
+            std::string value = qi.value;
+            size_t eq_pos = value.find('=');
+            if (eq_pos == std::string::npos) {
+                raw_arg = qi.is_double ? create_quote_tag(QUOTE_DOUBLE, value) : value;
+                continue;
+            }
+
+            std::string name_part = value.substr(0, eq_pos);
+            std::string value_part = value.substr(eq_pos + 1);
+            auto [noenv_stripped, had_noenv] = strip_noenv_sentinels(value_part);
             if (!had_noenv) {
                 try {
                     if (variableExpander->get_use_exported_vars_only()) {
@@ -1219,7 +1234,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
                 }
                 strip_subst_literal_markers(noenv_stripped);
             } else {
-                std::string value_to_expand = qi.value;
+                std::string value_to_expand = value_part;
                 try {
                     variableExpander->expand_env_vars_selective(value_to_expand);
                 } catch (const std::runtime_error& e) {
@@ -1236,9 +1251,56 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
                 noenv_stripped = std::move(stripped_pair.first);
             }
 
-            raw_arg =
-                qi.is_double ? create_quote_tag(QUOTE_DOUBLE, noenv_stripped) : noenv_stripped;
+            std::string recombined = name_part + "=" + noenv_stripped;
+            raw_arg = qi.is_double ? create_quote_tag(QUOTE_DOUBLE, recombined) : recombined;
+            continue;
         }
+
+        auto [noenv_stripped, had_noenv] = strip_noenv_sentinels(qi.value);
+        if (!had_noenv) {
+            try {
+                if (variableExpander->get_use_exported_vars_only()) {
+                    variableExpander->expand_exported_env_vars_only(noenv_stripped);
+                } else {
+                    variableExpander->expand_env_vars(noenv_stripped);
+                }
+            } catch (const std::runtime_error& e) {
+                std::string error_msg = e.what();
+                if (shell != nullptr && shell->get_shell_option(ShellOption::Nounset) &&
+                    error_msg.find("parameter not set") != std::string::npos) {
+                    print_error({ErrorType::RUNTIME_ERROR,
+                                 ErrorSeverity::ERROR,
+                                 "parser",
+                                 e.what(),
+                                 {"Disable 'set -u' or ensure all parameters are defined "
+                                  "before expansion."}});
+                    throw;
+                }
+                print_error({ErrorType::RUNTIME_ERROR,
+                             ErrorSeverity::WARNING,
+                             "parser",
+                             std::string("Error expanding environment variables: ") + e.what(),
+                             {"Check that referenced variables are set or properly quoted."}});
+            }
+            strip_subst_literal_markers(noenv_stripped);
+        } else {
+            std::string value_to_expand = qi.value;
+            try {
+                variableExpander->expand_env_vars_selective(value_to_expand);
+            } catch (const std::runtime_error& e) {
+                print_error(
+                    {ErrorType::RUNTIME_ERROR,
+                     ErrorSeverity::WARNING,
+                     "parser",
+                     std::string("Error in selective environment variable expansion: ") + e.what(),
+                     {"Check variable names and ensure they are exported when required."}});
+            }
+            strip_subst_literal_markers(value_to_expand);
+            auto stripped_pair = strip_noenv_sentinels(value_to_expand);
+            noenv_stripped = std::move(stripped_pair.first);
+        }
+
+        raw_arg = qi.is_double ? create_quote_tag(QUOTE_DOUBLE, noenv_stripped) : noenv_stripped;
     }
 
     std::vector<std::string> ifs_expanded_args;
