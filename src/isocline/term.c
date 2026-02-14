@@ -70,19 +70,22 @@ typedef enum palette_e {
 
 // The terminal screen
 struct term_s {
-    int fd_out;             // output handle
-    ssize_t width;          // screen column width
-    ssize_t height;         // screen row height
-    ssize_t raw_enabled;    // is raw mode active? counted by start/end pairs
-    bool nocolor;           // show colors?
-    bool silent;            // enable beep?
-    bool is_utf8;           // utf-8 output? determined by the tty
-    attr_t attr;            // current text attributes
-    palette_t palette;      // color support
-    buffer_mode_t bufmode;  // buffer mode
-    stringbuf_t* buf;       // buffer for buffered output
-    tty_t* tty;             // used on posix to get the cursor position
-    alloc_t* mem;           // allocator
+    int fd_out;               // output handle
+    ssize_t width;            // screen column width
+    ssize_t height;           // screen row height
+    ssize_t raw_enabled;      // is raw mode active? counted by start/end pairs
+    bool nocolor;             // show colors?
+    bool silent;              // enable beep?
+    bool is_utf8;             // utf-8 output? determined by the tty
+    attr_t attr;              // current text attributes
+    palette_t palette;        // color support
+    buffer_mode_t bufmode;    // buffer mode
+    stringbuf_t* buf;         // buffer for buffered output
+    bool track_output;        // track visible output for prompt newline detection
+    bool line_state_tracked;  // have we tracked output since last reset?
+    bool line_has_visible;    // visible content since last newline
+    tty_t* tty;               // used on posix to get the cursor position
+    alloc_t* mem;             // allocator
 #ifdef _WIN32
     HANDLE hcon;             // output console handler
     WORD hcon_default_attr;  // default text attributes
@@ -171,6 +174,34 @@ ic_private bool term_is_cursor_at_line_start(term_t* term) {
     if (!term_get_cursor_pos(term, &row, &col))
         return false;
     return (col <= 1);
+}
+
+ic_private bool term_line_has_visible_content(term_t* term) {
+    if (term == NULL)
+        return false;
+    if (term->line_state_tracked) {
+        return term->line_has_visible;
+    }
+    if (!term_is_interactive(term))
+        return false;
+    ssize_t row = 0;
+    ssize_t col = 0;
+    if (!term_get_cursor_pos(term, &row, &col))
+        return false;
+    return (col > 1);
+}
+
+ic_private void term_set_track_output(term_t* term, bool enable) {
+    if (term == NULL)
+        return;
+    term->track_output = enable;
+}
+
+ic_private void term_reset_line_state(term_t* term) {
+    if (term == NULL)
+        return;
+    term->line_state_tracked = false;
+    term->line_has_visible = false;
 }
 
 ic_private void term_attr_reset(term_t* term) {
@@ -413,6 +444,9 @@ ic_private term_t* term_new(alloc_t* mem, tty_t* tty, bool nocolor, bool silent,
     term->buf = sbuf_new(mem);
     term->bufmode = LINEBUFFERED;
     term->attr = attr_default();
+    term->track_output = true;
+    term->line_state_tracked = false;
+    term->line_has_visible = false;
 
     // respect NO_COLOR
     if (getenv("NO_COLOR") != NULL) {
@@ -543,6 +577,10 @@ static void term_append_esc(term_t* term, const char* const s, ssize_t len) {
 static void term_append_buf(term_t* term, const char* s, ssize_t len) {
     ssize_t pos = 0;
     bool newline = false;
+    const bool track_output = (term != NULL && term->track_output);
+    if (track_output && len > 0) {
+        term->line_state_tracked = true;
+    }
     while (pos < len) {
         // handle ascii sequences in bulk
         ssize_t ascii = 0;
@@ -553,6 +591,9 @@ static void term_append_buf(term_t* term, const char* s, ssize_t len) {
         }
         if (ascii > 0) {
             sbuf_append_n(term->buf, s + pos, ascii);
+            if (track_output) {
+                term->line_has_visible = true;
+            }
             pos += ascii;
         }
         if (next <= 0)
@@ -562,6 +603,9 @@ static void term_append_buf(term_t* term, const char* s, ssize_t len) {
         // handle utf-8 sequences: append raw bytes for correct display
         if (c >= 0x80) {
             sbuf_append_n(term->buf, s + pos, next);
+            if (track_output) {
+                term->line_has_visible = true;
+            }
             pos += next;
             continue;
         }
@@ -576,6 +620,13 @@ static void term_append_buf(term_t* term, const char* s, ssize_t len) {
         } else {
             if (c == '\n') {
                 newline = true;
+                if (track_output) {
+                    term->line_has_visible = false;
+                }
+            } else if (c == '\t') {
+                if (track_output) {
+                    term->line_has_visible = true;
+                }
             }
             sbuf_append_n(term->buf, s + pos, next);
         }

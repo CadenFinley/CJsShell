@@ -308,6 +308,8 @@ ic_private char* ic_editline(ic_env_t* env, const char* prompt_text,
     tty_end_raw(env->tty);
     term_writeln(env->term, "");
     term_flush(env->term);
+    term_set_track_output(env->term, true);
+    term_reset_line_state(env->term);
     return line;
 }
 
@@ -2445,15 +2447,17 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
     eb.modified = false;
 
     const char* original_prompt = (prompt_text != NULL ? prompt_text : "");
-    if (original_prompt[0] != '\n' && !term_is_cursor_at_line_start(env->term)) {
+    if (original_prompt[0] != '\n' && term_line_has_visible_content(env->term)) {
         attr_t newline_attr = attr_default();
         newline_attr.x.color = IC_ANSI_BLACK;
         newline_attr.x.bgcolor = IC_ANSI_WHITE;
         term_set_attr(env->term, newline_attr);
-        term_write(env->term, "\\n");
+        term_write(env->term, "%");
         term_attr_reset(env->term);
         term_write_char(env->term, '\n');
     }
+
+    term_set_track_output(env->term, false);
 
     // Handle multi-line prompts: print prefix lines and use only the last line
     // as the prompt
