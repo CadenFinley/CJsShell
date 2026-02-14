@@ -544,10 +544,26 @@ endif()
 install(TARGETS cjsh RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 if(CJSH_BUILD_TESTS)
+    function(cjsh_apply_test_profile target_name)
+        set_property(TARGET ${target_name} PROPERTY INTERPROCEDURAL_OPTIMIZATION OFF)
+        if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+            target_compile_options(${target_name} PRIVATE
+                $<$<COMPILE_LANGUAGE:C>:/Od /Zi>
+                $<$<COMPILE_LANGUAGE:CXX>:/Od /Zi>
+            )
+        else()
+            target_compile_options(${target_name} PRIVATE
+                $<$<COMPILE_LANGUAGE:C>:-O0 -g -fno-omit-frame-pointer>
+                $<$<COMPILE_LANGUAGE:CXX>:-O0 -g -fno-omit-frame-pointer>
+            )
+        endif()
+    endfunction()
+
     add_executable(isocline_behavior_tests
         ${CJSH_C_SOURCES}
         ${CMAKE_SOURCE_DIR}/tests/isocline/test_isocline_behavior.c
     )
+    cjsh_apply_test_profile(isocline_behavior_tests)
     target_include_directories(isocline_behavior_tests PRIVATE ${CJSH_INCLUDE_DIRS})
     target_compile_definitions(isocline_behavior_tests PRIVATE
         CJSH_GIT_HASH="${CJSH_GIT_HASH}"
@@ -581,6 +597,7 @@ if(CJSH_BUILD_TESTS)
         ${CMAKE_SOURCE_DIR}/tests/completions/test_completions.cpp
         ${CMAKE_SOURCE_DIR}/tests/completions/test_completion_globals.cpp
     )
+    cjsh_apply_test_profile(completion_tests)
     target_include_directories(completion_tests PRIVATE ${CJSH_INCLUDE_DIRS})
     target_compile_definitions(completion_tests PRIVATE
         CJSH_GIT_HASH="${CJSH_GIT_HASH}"
@@ -620,6 +637,7 @@ if(CJSH_BUILD_TESTS)
         ${CJSH_C_SOURCES}
         ${CMAKE_SOURCE_DIR}/tests/highlighter/test_syntax_highlighting.cpp
     )
+    cjsh_apply_test_profile(syntax_highlighting_tests)
     target_include_directories(syntax_highlighting_tests PRIVATE ${CJSH_INCLUDE_DIRS})
     target_compile_definitions(syntax_highlighting_tests PRIVATE
         CJSH_GIT_HASH="${CJSH_GIT_HASH}"
