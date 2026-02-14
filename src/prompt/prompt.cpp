@@ -1023,6 +1023,10 @@ std::string default_primary_prompt_template() {
     return "\\S  [color=#5fd7ff]\\W[/color] \\g";
 }
 
+std::string default_secondary_prompt_template() {
+    return "[ic-hint]> [/ic-hint]";
+}
+
 std::string render_primary_prompt() {
     std::string ps1 = config::prompt_vars_enabled ? get_ps("PS1", default_primary_prompt_template())
                                                   : std::string("cjsh> ");

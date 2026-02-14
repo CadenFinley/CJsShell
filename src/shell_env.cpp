@@ -367,6 +367,12 @@ std::vector<std::pair<std::string, std::string>> setup_user_system_vars(const st
         setenv("PS1", default_ps1.c_str(), 1);
     }
 
+    // Raw getenv here: PS2 bootstrap before shell vars exist.
+    if (getenv("PS2") == nullptr) {
+        std::string default_ps2 = prompt::default_secondary_prompt_template();
+        setenv("PS2", default_ps2.c_str(), 1);
+    }
+
     return env_vars;
 }
 
