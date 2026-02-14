@@ -69,7 +69,7 @@ std::string expand_log_path(const char* raw_path) {
 }
 
 void append_error_header(std::ostream& out, const ErrorInfo& error) {
-    out << "cjsh: ";
+    out << (config::login_mode ? "-cjsh: " : "cjsh: ");
 
     if (!error.command_used.empty()) {
         out << error.command_used;

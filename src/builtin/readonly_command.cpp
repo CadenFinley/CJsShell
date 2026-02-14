@@ -31,6 +31,7 @@
 #include "builtin_help.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -50,6 +51,16 @@ struct ReadonlyFunctionState {
     std::unordered_set<std::string> readonly_functions;
 };
 
+bool is_builtin_readonly_var(const std::string& name) {
+    if (name.size() == 1 && std::isdigit(static_cast<unsigned char>(name[0])) != 0) {
+        return true;
+    }
+
+    static const std::unordered_set<std::string> kBuiltinReadonlyVars = {
+        "?", "$", "#", "*", "@", "!", "PIPESTATUS", "CJSH_VERSION", "EXIT_CODE"};
+    return kBuiltinReadonlyVars.find(name) != kBuiltinReadonlyVars.end();
+}
+
 ReadonlyState& readonly_state() {
     static ReadonlyState state;
     return state;
@@ -66,6 +77,9 @@ void readonly_manager_set(const std::string& name) {
 }
 
 bool readonly_manager_is(const std::string& name) {
+    if (is_builtin_readonly_var(name)) {
+        return true;
+    }
     const auto& vars = readonly_state().readonly_vars;
     return vars.find(name) != vars.end();
 }

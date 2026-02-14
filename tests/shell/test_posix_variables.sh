@@ -272,6 +272,39 @@ else
     fail "Readonly not enforced"
 fi
 
+assert_readonly_export() {
+    desc="$1"
+    cmd="$2"
+    "$SHELL_TO_TEST" -c "$cmd" 2>/dev/null
+    if [ $? -ne 0 ]; then
+        pass
+    else
+        fail "$desc"
+    fi
+}
+
+assert_readonly_read() {
+    desc="$1"
+    name="$2"
+    printf "x\n" | "$SHELL_TO_TEST" -c "read '$name'" 2>/dev/null
+    if [ $? -ne 0 ]; then
+        pass
+    else
+        fail "$desc"
+    fi
+}
+
+set -f
+IMMUTABLE_VARS='? $ # * @ ! PIPESTATUS CJSH_VERSION EXIT_CODE 0 1 2 3 4 5 6 7 8 9'
+for var in $IMMUTABLE_VARS; do
+    log_test "Readonly $var via export"
+    assert_readonly_export "export should reject $var" "export '$var=1'"
+
+    log_test "Readonly $var via read"
+    assert_readonly_read "read should reject $var" "$var"
+done
+set +f
+
 log_test "Unsetting variables"
 result=$("$SHELL_TO_TEST" -c "VAR=test; unset VAR; echo \${VAR:-unset}" 2>/dev/null)
 if [ "$result" = "unset" ]; then
