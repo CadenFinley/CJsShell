@@ -204,6 +204,13 @@ ic_private void term_reset_line_state(term_t* term) {
     term->line_has_visible = false;
 }
 
+ic_private void term_mark_line_visible(term_t* term, bool visible) {
+    if (term == NULL)
+        return;
+    term->line_state_tracked = true;
+    term->line_has_visible = visible;
+}
+
 ic_private void term_attr_reset(term_t* term) {
     term_write(term, IC_CSI "m");
 }

@@ -1054,6 +1054,9 @@ void ic_term_reset(void);
 /// (`truecolor`/`24bit`/`direct`)
 int ic_term_get_color_bits(void);
 
+/// Mark whether the current line has visible content.
+void ic_term_mark_line_visible(bool visible);
+
 /// \}
 
 //--------------------------------------------------------------

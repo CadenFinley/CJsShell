@@ -157,6 +157,13 @@ ic_public int ic_term_get_color_bits(void) {
     return term_get_color_bits(env->term);
 }
 
+ic_public void ic_term_mark_line_visible(bool visible) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL || env->term == NULL)
+        return;
+    term_mark_line_visible(env->term, visible);
+}
+
 ic_public void ic_term_bold(bool enable) {
     ic_env_t* env = ic_get_env();
     if (env == NULL || env->term == NULL)

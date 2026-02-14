@@ -92,6 +92,7 @@ ic_private bool term_is_cursor_at_line_start(term_t* term);
 ic_private bool term_line_has_visible_content(term_t* term);
 ic_private void term_set_track_output(term_t* term, bool enable);
 ic_private void term_reset_line_state(term_t* term);
+ic_private void term_mark_line_visible(term_t* term, bool visible);
 
 // Helpers
 ic_private void term_writef(term_t* term, const char* fmt, ...);

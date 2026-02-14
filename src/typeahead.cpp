@@ -237,6 +237,10 @@ void ingest_typeahead_input(const std::string& raw_input) {
                                                [](char ch) { return ch == '\n'; })) {
         g_input_buffer.clear();
     }
+
+    if (!g_input_buffer.empty()) {
+        ic_term_mark_line_visible(true);
+    }
 }
 
 void flush_pending_typeahead() {
