@@ -78,7 +78,7 @@ void append_error_header(std::ostream& out, const ErrorInfo& error) {
             header = "cjsh";
         }
     }
-    if (config::login_mode) {
+    if (config::login_mode && (header.empty() || header.front() != '-')) {
         header.insert(header.begin(), '-');
     }
     out << header << ": ";
