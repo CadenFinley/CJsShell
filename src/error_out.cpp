@@ -68,9 +68,7 @@ std::string expand_log_path(const char* raw_path) {
     return home + path.substr(1);
 }
 
-std::string build_error_log_message(const ErrorInfo& error) {
-    std::ostringstream out;
-
+void append_error_header(std::ostream& out, const ErrorInfo& error) {
     out << "cjsh: ";
 
     if (!error.command_used.empty()) {
@@ -110,66 +108,79 @@ std::string build_error_log_message(const ErrorInfo& error) {
     if (!error.message.empty()) {
         out << ": " << error.message;
     }
+}
 
-    out << ' ';
+void append_fatal_error_context(std::ostream& out, const ErrorInfo& error) {
+    if (ErrorType::FATAL_ERROR != error.type) {
+        return;
+    }
 
-    if (ErrorType::FATAL_ERROR == error.type) {
-        out << "(fatal error, cjsh will exit)";
-        out << " that was your environment when cjsh exited:\n";
-        const auto& env_vars = cjsh_env::env_vars();
-        if (!env_vars.empty()) {
-            std::vector<std::string> names;
-            names.reserve(env_vars.size());
-            for (const auto& entry : env_vars) {
-                names.push_back(entry.first);
+    out << "(fatal error, cjsh will exit)";
+    out << " that was your environment when cjsh exited:\n";
+    const auto& env_vars = cjsh_env::env_vars();
+    if (!env_vars.empty()) {
+        std::vector<std::string> names;
+        names.reserve(env_vars.size());
+        for (const auto& entry : env_vars) {
+            names.push_back(entry.first);
+        }
+        std::sort(names.begin(), names.end());
+        for (const auto& name : names) {
+            auto it = env_vars.find(name);
+            if (it != env_vars.end()) {
+                out << name << '=' << it->second << '\n';
             }
-            std::sort(names.begin(), names.end());
-            for (const auto& name : names) {
-                auto it = env_vars.find(name);
-                if (it != env_vars.end()) {
-                    out << name << '=' << it->second << '\n';
-                }
+        }
+    }
+}
+
+void append_error_suggestions(std::ostream& out, const ErrorInfo& error) {
+    if (!config::error_suggestions_enabled || error.suggestions.empty()) {
+        return;
+    }
+
+    std::vector<std::string> commands;
+    bool has_command_suggestions = false;
+
+    for (const auto& suggestion : error.suggestions) {
+        if (suggestion.find("Did you mean '") != std::string::npos) {
+            size_t start = suggestion.find('\'') + 1;
+            size_t end = suggestion.find('\'', start);
+            if (start != std::string::npos && end != std::string::npos && end > start) {
+                commands.push_back(suggestion.substr(start, end - start));
+                has_command_suggestions = true;
             }
         }
     }
 
-    if (config::error_suggestions_enabled && !error.suggestions.empty()) {
-        std::vector<std::string> commands;
-        bool has_command_suggestions = false;
-
-        for (const auto& suggestion : error.suggestions) {
-            if (suggestion.find("Did you mean '") != std::string::npos) {
-                size_t start = suggestion.find('\'') + 1;
-                size_t end = suggestion.find('\'', start);
-                if (start != std::string::npos && end != std::string::npos && end > start) {
-                    commands.push_back(suggestion.substr(start, end - start));
-                    has_command_suggestions = true;
-                }
+    if (has_command_suggestions && !commands.empty()) {
+        out << "Did you mean: ";
+        for (size_t i = 0; i < commands.size(); ++i) {
+            out << commands[i];
+            if (i < commands.size() - 1) {
+                out << ", ";
             }
         }
+        out << "?" << '\n';
 
-        if (has_command_suggestions && !commands.empty()) {
-            out << "Did you mean: ";
-            for (size_t i = 0; i < commands.size(); ++i) {
-                out << commands[i];
-                if (i < commands.size() - 1) {
-                    out << ", ";
-                }
-            }
-            out << "?" << '\n';
-
-            for (const auto& suggestion : error.suggestions) {
-                if (suggestion.find("Did you mean '") == std::string::npos) {
-                    out << suggestion << '\n';
-                }
-            }
-        } else {
-            for (const auto& suggestion : error.suggestions) {
+        for (const auto& suggestion : error.suggestions) {
+            if (suggestion.find("Did you mean '") == std::string::npos) {
                 out << suggestion << '\n';
             }
         }
+    } else {
+        for (const auto& suggestion : error.suggestions) {
+            out << suggestion << '\n';
+        }
     }
+}
 
+std::string build_error_log_message(const ErrorInfo& error) {
+    std::ostringstream out;
+    append_error_header(out, error);
+    out << ' ';
+    append_fatal_error_context(out, error);
+    append_error_suggestions(out, error);
     return out.str();
 }
 
@@ -273,84 +284,9 @@ void print_error(const ErrorInfo& error) {
         std::cerr << color_prefix;
     }
 
-    std::cerr << "cjsh: ";
-
-    if (!error.command_used.empty()) {
-        std::cerr << error.command_used;
-        if (error.type != ErrorType::UNKNOWN_ERROR) {
-            std::cerr << ": ";
-        }
-    }
-
-    switch (error.type) {
-        case ErrorType::COMMAND_NOT_FOUND:
-            std::cerr << "command not found";
-            break;
-        case ErrorType::SYNTAX_ERROR:
-            std::cerr << "syntax error";
-            break;
-        case ErrorType::PERMISSION_DENIED:
-            std::cerr << "permission denied";
-            break;
-        case ErrorType::FILE_NOT_FOUND:
-            std::cerr << "file not found";
-            break;
-        case ErrorType::INVALID_ARGUMENT:
-            std::cerr << "invalid argument";
-            break;
-        case ErrorType::RUNTIME_ERROR:
-            std::cerr << "runtime error";
-            break;
-        case ErrorType::FATAL_ERROR:
-            std::cerr << "fatal error";
-            break;
-        case ErrorType::UNKNOWN_ERROR:
-        default:
-            break;
-    }
-
-    if (!error.message.empty()) {
-        std::cerr << ": " << error.message;
-    }
-
+    append_error_header(std::cerr, error);
     std::cerr << '\n';
-
-    if (config::error_suggestions_enabled && !error.suggestions.empty()) {
-        std::vector<std::string> commands;
-        bool has_command_suggestions = false;
-
-        for (const auto& suggestion : error.suggestions) {
-            if (suggestion.find("Did you mean '") != std::string::npos) {
-                size_t start = suggestion.find('\'') + 1;
-                size_t end = suggestion.find('\'', start);
-                if (start != std::string::npos && end != std::string::npos && end > start) {
-                    commands.push_back(suggestion.substr(start, end - start));
-                    has_command_suggestions = true;
-                }
-            }
-        }
-
-        if (has_command_suggestions && !commands.empty()) {
-            std::cerr << "Did you mean: ";
-            for (size_t i = 0; i < commands.size(); ++i) {
-                std::cerr << commands[i];
-                if (i < commands.size() - 1) {
-                    std::cerr << ", ";
-                }
-            }
-            std::cerr << "?" << '\n';
-
-            for (const auto& suggestion : error.suggestions) {
-                if (suggestion.find("Did you mean '") == std::string::npos) {
-                    std::cerr << suggestion << '\n';
-                }
-            }
-        } else {
-            for (const auto& suggestion : error.suggestions) {
-                std::cerr << suggestion << '\n';
-            }
-        }
-    }
+    append_error_suggestions(std::cerr, error);
 
     if (colorize_output) {
         std::cerr << color_reset;
