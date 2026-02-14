@@ -164,6 +164,8 @@ ic_private bool term_is_cursor_at_line_start(term_t* term) {
         return true;
     if (!term_is_interactive(term))
         return true;
+    if (tty_input_pending(term->tty))
+        return true;
     ssize_t row = 0;
     ssize_t col = 0;
     if (!term_get_cursor_pos(term, &row, &col))

@@ -241,11 +241,17 @@ void flush_pending_typeahead() {
     }
 
     if (!g_pending_raw_bytes.empty()) {
-        if (g_input_buffer.empty()) {
+        const bool has_control =
+            std::any_of(g_pending_raw_bytes.begin(), g_pending_raw_bytes.end(),
+                        [](unsigned char ch) { return (ch < 0x20) || (ch == 0x7F); });
+
+        if (has_control) {
             const auto* data = reinterpret_cast<const uint8_t*>(g_pending_raw_bytes.data());
             if (ic_push_raw_input(data, g_pending_raw_bytes.size())) {
                 g_pending_raw_bytes.clear();
                 g_input_buffer.clear();
+            } else {
+                g_pending_raw_bytes.clear();
             }
         } else {
             g_pending_raw_bytes.clear();

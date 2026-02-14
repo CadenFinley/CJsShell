@@ -548,6 +548,20 @@ ic_private bool tty_is_raw_enabled(const tty_t* tty) {
     return tty->raw_enabled;
 }
 
+ic_private bool tty_input_pending(const tty_t* tty) {
+    if (tty == NULL)
+        return false;
+    if (tty->push_count > 0 || tty->cpush_count > 0)
+        return true;
+#if defined(FIONREAD)
+    int navail = 0;
+    if (ioctl(tty->fd_in, FIONREAD, &navail) == 0) {
+        return (navail > 0);
+    }
+#endif
+    return false;
+}
+
 ic_private bool tty_term_resize_event(tty_t* tty) {
     if (tty == NULL)
         return true;
