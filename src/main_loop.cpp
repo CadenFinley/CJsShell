@@ -109,6 +109,11 @@ TerminalStatus check_terminal_health(TerminalCheckLevel level = TerminalCheckLev
         return status;
     }
 
+    pid_t parent_pid = getppid();
+    if (parent_pid == 1 || (kill(parent_pid, 0) == -1 && errno == ESRCH)) {
+        status.parent_alive = false;
+    }
+
     if ((isatty(STDIN_FILENO) == 0) || (isatty(STDOUT_FILENO) == 0)) {
         status.terminal_alive = false;
         return status;
@@ -160,11 +165,6 @@ TerminalStatus check_terminal_health(TerminalCheckLevel level = TerminalCheckLev
     if (tty_name == nullptr) {
         status.terminal_alive = false;
         return status;
-    }
-
-    pid_t parent_pid = getppid();
-    if (parent_pid == 1 || (kill(parent_pid, 0) == -1 && errno == ESRCH)) {
-        status.parent_alive = false;
     }
 
     return status;
@@ -238,7 +238,7 @@ bool process_command_line(const std::string& command) {
 
 bool perform_terminal_check() {
     TerminalStatus status = check_terminal_health(TerminalCheckLevel::QUICK);
-    if (!status.terminal_alive) {
+    if (!status.terminal_alive || !status.parent_alive) {
         g_exit_flag = true;
         return false;
     }
