@@ -17,3 +17,4 @@
 
 ## Known Issues
 - automattic line reflowing is currently disabled in isocline via signal_handler.cpp, there are some serious issues regarding the way the lines are redrawn. please see signal_handler.cpp for more details. this is a fairly involved issue in isocline and will require more effort than normal to fix, so this would be a great issue for someone to start with if they would really like to contribute.
+- on rare occasions, cjsh will not exit for shut itself down properly and will enter an infinte input loop as a zombie process. this is a known issue that is being looked into. what is known is that this loop is not strictly within isocline. I beleive that isocline is returning and the loop is actually within the main cjsh loop
