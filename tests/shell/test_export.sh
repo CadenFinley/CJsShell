@@ -27,6 +27,20 @@ else
   exit 1
 fi
 
+OUTPUT=$("$CJSH_PATH" -c "LATE=ready; export LATE; /bin/sh -c 'echo \$LATE'")
+if [ "$OUTPUT" = "ready" ]; then
+  pass_test "export existing variable to child"
+else
+  fail_test "export existing variable to child (got '$OUTPUT')"
+fi
+
+OUTPUT=$("$CJSH_PATH" -c "export ERASE=gone; unset ERASE; /bin/sh -c 'echo \${ERASE:-unset}'")
+if [ "$OUTPUT" = "unset" ]; then
+  pass_test "unset removes exported variable"
+else
+  fail_test "unset removes exported variable (got '$OUTPUT')"
+fi
+
 "$CJSH_PATH" -c "export \$0=blah && echo RUN" >/tmp/export_readonly_test.out 2>&1
 EXPORT_STATUS=$?
 if [ $EXPORT_STATUS -ne 0 ] && ! grep -q "RUN" /tmp/export_readonly_test.out && \

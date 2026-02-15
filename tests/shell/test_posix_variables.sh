@@ -70,6 +70,22 @@ else
     fail "Empty variable assignment failed"
 fi
 
+log_test "Escaped space assignment"
+result=$("$SHELL_TO_TEST" -c "VAR=hello\\ world; echo \"\$VAR\"" 2>/dev/null)
+if [ "$result" = "hello world" ]; then
+    pass
+else
+    fail "Escaped space assignment failed"
+fi
+
+log_test "Quoted assignment preserves whitespace"
+result=$("$SHELL_TO_TEST" -c "VAR=\"  a  b  \"; echo \"[\$VAR]\"" 2>/dev/null)
+if [ "$result" = "[  a  b  ]" ]; then
+    pass
+else
+    fail "Quoted assignment whitespace failed"
+fi
+
 log_test "Parameter expansion \${VAR}"
 result=$("$SHELL_TO_TEST" -c "VAR=test; echo \${VAR}" 2>/dev/null)
 if [ "$result" = "test" ]; then
@@ -84,6 +100,22 @@ if [ "$result" = "default" ]; then
     pass
 else
     fail "Default value expansion failed"
+fi
+
+log_test "Default value only for unset \${VAR-default}"
+result=$("$SHELL_TO_TEST" -c "VAR=; echo \"[\${VAR-default}]\"" 2>/dev/null)
+if [ "$result" = "[]" ]; then
+    pass
+else
+    fail "Unset-only default expansion failed"
+fi
+
+log_test "Default value for null \${VAR:-default}"
+result=$("$SHELL_TO_TEST" -c "VAR=; echo \"[\${VAR:-default}]\"" 2>/dev/null)
+if [ "$result" = "[default]" ]; then
+    pass
+else
+    fail "Null default expansion failed"
 fi
 
 log_test "Assignment \${VAR:=default}"
@@ -254,6 +286,16 @@ else
 fi
 rm -f /tmp/env_test_$$
 
+log_test "Unset in subshell does not leak"
+result=$("$SHELL_TO_TEST" -c "VAR=outer; export VAR; (unset VAR; /bin/sh -c 'echo \${VAR:-unset}'); echo \$VAR" 2>/dev/null)
+expected="unset
+outer"
+if [ "$result" = "$expected" ]; then
+    pass
+else
+    fail "Subshell unset leak failed"
+fi
+
 log_test "Variable scope in subshell"
 result=$("$SHELL_TO_TEST" -c "VAR=outer; (VAR=inner; echo \$VAR); echo \$VAR" 2>/dev/null)
 expected="inner
@@ -327,6 +369,14 @@ if [ "$result" = "helloworld" ]; then
     pass
 else
     fail "Variable concatenation failed"
+fi
+
+log_test "Array assignment unsupported"
+"$SHELL_TO_TEST" -c "arr=(one two)" 2>/dev/null
+if [ $? -ne 0 ]; then
+    pass
+else
+    fail "Array assignment should fail"
 fi
 
 echo "=================================================================="
