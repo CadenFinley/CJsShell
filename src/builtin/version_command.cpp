@@ -33,8 +33,8 @@
 #include <cstdio>
 #include <string>
 
-const bool PRE_RELEASE = false;
-const char* const c_version_base = "1.1.6";
+const bool PRE_RELEASE = true;
+const char* const c_version_base = "1.1.7";
 
 std::string get_version() {
     static std::string cached_version =
