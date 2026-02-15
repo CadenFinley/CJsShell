@@ -2486,6 +2486,8 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
 
     if (env->initial_input != NULL) {
         initial_requests_submit = insert_initial_input(env->initial_input, &eb);
+        // Expand pending abbreviations in pre-seeded buffers (e.g., typeahead with trailing space)
+        edit_expand_abbreviation_if_needed(env, &eb, false);
     } else {
         seeded_multiline_lines = apply_default_multiline_start_lines(env, &eb);
     }
@@ -2545,7 +2547,7 @@ edit_loop_entry:
             if (eb.request_submit) {
                 // Clear history preview when submitting
                 edit_clear_history_preview(&eb);
-                if (edit_try_expand_abbreviation(env, &eb, false, false)) {
+                if (edit_expand_abbreviation_if_needed(env, &eb, false)) {
                     edit_refresh(env, &eb);
                 }
                 bool should_submit = edit_should_submit_current_buffer(env, &eb);
@@ -2656,7 +2658,7 @@ edit_loop_entry:
                     edit_multiline_eol(env, &eb);
                 } else {
                     // otherwise done
-                    if (edit_try_expand_abbreviation(env, &eb, false, false)) {
+                    if (edit_expand_abbreviation_if_needed(env, &eb, false)) {
                         edit_refresh(env, &eb);
                     }
                     request_submit = true;
@@ -2870,12 +2872,18 @@ edit_loop_entry:
             pending_key = KEY_LINEFEED;
             goto edit_loop_entry;
         }
+        edit_expand_abbreviation_if_needed(env, &eb, false);
         c = KEY_ENTER;
     }
 
     // goto end
 
     eb.pos = sbuf_len(eb.input);
+
+    // Final chance to expand pending abbreviations (e.g., buffered typeahead ending in space)
+    if (!ctrl_c_pressed && !ctrl_d_pressed && c != KEY_EVENT_STOP) {
+        edit_expand_abbreviation_if_needed(env, &eb, false);
+    }
 
     if (eb.status != NULL && sbuf_len(eb.status) > 0) {
         // Ensure status lines are cleared before handing control back to the caller
