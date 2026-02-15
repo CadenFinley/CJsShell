@@ -41,15 +41,14 @@
 namespace {
 
 void set_special_var(Shell* shell, const std::string& key, const std::string& value) {
-    setenv(key.c_str(), value.c_str(), 1);
     if (shell) {
         auto* interpreter = shell->get_shell_script_interpreter();
         if (interpreter && interpreter->is_local_variable(key)) {
             interpreter->set_local_variable(key, value);
-        } else {
-            cjsh_env::env_vars()[key] = value;
+            return;
         }
     }
+    cjsh_env::set_shell_variable_value(key, value);
 }
 
 void set_special_var(Shell* shell, const std::string& key, int value) {
@@ -57,20 +56,18 @@ void set_special_var(Shell* shell, const std::string& key, int value) {
 }
 
 void unset_special_var(Shell* shell, const std::string& key) {
-    unsetenv(key.c_str());
     if (shell) {
         auto* interpreter = shell->get_shell_script_interpreter();
         if (interpreter && interpreter->is_local_variable(key)) {
             interpreter->unset_local_variable(key);
-        } else {
-            cjsh_env::env_vars().erase(key);
+            return;
         }
     }
+    cjsh_env::unset_shell_variable_value(key);
 }
 
 void set_getopts_pos(int value) {
-    std::string buffer = std::to_string(value);
-    setenv("GETOPTS_POS", buffer.c_str(), 1);
+    cjsh_env::set_shell_variable_value("GETOPTS_POS", std::to_string(value));
 }
 
 }  // namespace
@@ -129,7 +126,7 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
 
     if (argv_list.empty() || optind > static_cast<int>(argv_list.size())) {
         set_special_var(shell, "OPTIND", optind);
-        setenv("GETOPTS_POS", "1", 1);
+        cjsh_env::set_shell_variable_value("GETOPTS_POS", "1");
         return 1;
     }
 
@@ -137,13 +134,13 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
 
     if (current_arg.size() < 2 || current_arg[0] != '-') {
         set_special_var(shell, "OPTIND", optind);
-        setenv("GETOPTS_POS", "1", 1);
+        cjsh_env::set_shell_variable_value("GETOPTS_POS", "1");
         return 1;
     }
 
     if (current_arg == "--") {
         set_special_var(shell, "OPTIND", optind + 1);
-        setenv("GETOPTS_POS", "1", 1);
+        cjsh_env::set_shell_variable_value("GETOPTS_POS", "1");
         return 1;
     }
 
@@ -163,7 +160,7 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
         optind++;
         char_index = 1;
         set_special_var(shell, "OPTIND", optind);
-        setenv("GETOPTS_POS", "1", 1);
+        cjsh_env::set_shell_variable_value("GETOPTS_POS", "1");
         return getopts_command(args, shell);
     }
 
@@ -222,7 +219,7 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
                     set_special_var(shell, "OPTARG", opt_val);
                 }
                 set_special_var(shell, "OPTIND", optind);
-                setenv("GETOPTS_POS", "1", 1);
+                cjsh_env::set_shell_variable_value("GETOPTS_POS", "1");
                 return 0;
             }
             char_index = 1;

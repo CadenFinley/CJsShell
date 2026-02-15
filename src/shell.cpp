@@ -418,7 +418,7 @@ int read_exit_code_or(int fallback) {
     if (endptr != exit_code_str.c_str() && *endptr == '\0') {
         fallback = static_cast<int>(exit_code_long);
     }
-    unsetenv("EXIT_CODE");
+    cjsh_env::unset_shell_variable_value("EXIT_CODE");
     return fallback;
 }
 

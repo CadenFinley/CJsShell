@@ -227,6 +227,36 @@ bool shell_variable_is_set(const char* name) {
     return shell_variable_is_set(std::string(name));
 }
 
+bool set_shell_variable_value(const std::string& name, const std::string& value) {
+    if (!g_shell) {
+        return false;
+    }
+    auto* interpreter = g_shell->get_shell_script_interpreter();
+    if (!interpreter) {
+        return false;
+    }
+    interpreter->get_variable_manager().set_environment_variable(name, value);
+    return true;
+}
+
+bool unset_shell_variable_value(const std::string& name) {
+    if (!g_shell) {
+        return false;
+    }
+    auto* interpreter = g_shell->get_shell_script_interpreter();
+    if (!interpreter) {
+        return false;
+    }
+    auto& env_map = env_vars();
+    env_map.erase(name);
+    sync_parser_env_vars(g_shell.get());
+
+    if (name == "PATH" || name == "PWD" || name == "HOME" || name == "USER" || name == "SHELL") {
+        unsetenv(name.c_str());
+    }
+    return true;
+}
+
 void setup_path_variables(const struct passwd* pw) {
     // Raw getenv here: PATH bootstrap before shell vars exist.
     const char* path_env = getenv("PATH");

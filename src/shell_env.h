@@ -77,6 +77,8 @@ std::string get_shell_variable_value(const std::string& name);
 std::string get_shell_variable_value(const char* name);
 bool shell_variable_is_set(const std::string& name);
 bool shell_variable_is_set(const char* name);
+bool set_shell_variable_value(const std::string& name, const std::string& value);
+bool unset_shell_variable_value(const std::string& name);
 
 bool update_terminal_dimensions();
 void sync_env_vars_from_system(Shell& shell);

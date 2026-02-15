@@ -80,7 +80,7 @@ int exit_command(const std::vector<std::string>& args) {
                 break;
             } else {
                 g_exit_flag = true;
-                setenv("EXIT_CODE", "128", 1);
+                cjsh_env::set_shell_variable_value("EXIT_CODE", "128");
                 return 0;
             }
         }
@@ -88,7 +88,7 @@ int exit_command(const std::vector<std::string>& args) {
 
     if (non_flag_args > 1) {
         g_exit_flag = true;
-        setenv("EXIT_CODE", "128", 1);
+        cjsh_env::set_shell_variable_value("EXIT_CODE", "128");
         return 0;
     }
 
@@ -176,6 +176,6 @@ int exit_command(const std::vector<std::string>& args) {
     }
 
     g_exit_flag = true;
-    setenv("EXIT_CODE", std::to_string(exit_code).c_str(), 1);
+    cjsh_env::set_shell_variable_value("EXIT_CODE", std::to_string(exit_code));
     return 0;
 }

@@ -352,8 +352,8 @@ bool handle_runoff_bind(ic_keycode_t key, void*) {
 
             std::string original_buffer = buffer ? buffer : "";
 
-            setenv("CJSH_LINE", original_buffer.c_str(), 1);
-            setenv("CJSH_POINT", std::to_string(cursor_pos).c_str(), 1);
+            cjsh_env::set_shell_variable_value("CJSH_LINE", original_buffer);
+            cjsh_env::set_shell_variable_value("CJSH_POINT", std::to_string(cursor_pos));
 
             g_shell->execute(command);
 
@@ -373,8 +373,8 @@ bool handle_runoff_bind(ic_keycode_t key, void*) {
                 }
             }
 
-            unsetenv("CJSH_LINE");
-            unsetenv("CJSH_POINT");
+            cjsh_env::unset_shell_variable_value("CJSH_LINE");
+            cjsh_env::unset_shell_variable_value("CJSH_POINT");
 
             return true;
         }
@@ -395,7 +395,7 @@ bool should_show_creator_line() {
     std::transform(value.begin(), value.end(), value.begin(),
                    [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
 
-    (void)unsetenv("CJSH_SHOW_CREATED");
+    cjsh_env::unset_shell_variable_value("CJSH_SHOW_CREATED");
 
     return value == "1" || value == "true" || value == "yes" || value == "on";
 }

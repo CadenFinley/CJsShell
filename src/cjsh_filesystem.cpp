@@ -690,7 +690,7 @@ bool file_exists(const std::filesystem::path& path) {
 
 bool initialize_cjsh_directories() {
     std::string current_path = safe_current_directory();
-    setenv("PWD", current_path.c_str(), 1);
+    cjsh_env::set_shell_variable_value("PWD", current_path);
 
     try {
         bool home_exists = file_exists(g_user_home_path());

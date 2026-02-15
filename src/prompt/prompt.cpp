@@ -1125,7 +1125,7 @@ void apply_terminal_window_title() {
     } else {
         title = build_default_terminal_title();
         if (!title.empty()) {
-            setenv("TWINPROMPT", title.c_str(), 1);
+            cjsh_env::set_shell_variable_value("TWINPROMPT", title);
         }
     }
 

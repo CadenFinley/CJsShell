@@ -32,6 +32,7 @@
 #include <sstream>
 
 #include "exec.h"
+#include "shell_env.h"
 
 namespace {
 
@@ -54,7 +55,7 @@ void apply_pipeline_status_env(Exec* exec_ptr,
                                const std::function<void(const std::string&)>& on_set_callback,
                                const std::function<void()>& on_unset_callback) {
     if (!exec_ptr) {
-        unsetenv("PIPESTATUS");
+        cjsh_env::unset_shell_variable_value("PIPESTATUS");
         if (on_unset_callback) {
             on_unset_callback();
         }
@@ -63,7 +64,7 @@ void apply_pipeline_status_env(Exec* exec_ptr,
 
     const auto& pipeline_statuses = exec_ptr->get_last_pipeline_statuses();
     if (pipeline_statuses.empty()) {
-        unsetenv("PIPESTATUS");
+        cjsh_env::unset_shell_variable_value("PIPESTATUS");
         if (on_unset_callback) {
             on_unset_callback();
         }
@@ -71,7 +72,7 @@ void apply_pipeline_status_env(Exec* exec_ptr,
     }
 
     const std::string pipe_status_str = build_status_string(pipeline_statuses);
-    setenv("PIPESTATUS", pipe_status_str.c_str(), 1);
+    cjsh_env::set_shell_variable_value("PIPESTATUS", pipe_status_str);
     if (on_set_callback) {
         on_set_callback(pipe_status_str);
     }

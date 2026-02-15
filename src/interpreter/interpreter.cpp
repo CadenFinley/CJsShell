@@ -432,7 +432,7 @@ int ShellScriptInterpreter::execute_function_call(const std::vector<std::string>
             std::string return_code_env = cjsh_env::get_shell_variable_value("CJSH_RETURN_CODE");
             try {
                 exit_code = std::stoi(return_code_env);
-                unsetenv("CJSH_RETURN_CODE");
+                cjsh_env::unset_shell_variable_value("CJSH_RETURN_CODE");
             } catch (const std::exception&) {
                 exit_code = 0;
             }
@@ -1444,7 +1444,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                                         cjsh_env::get_shell_variable_value("CJSH_RETURN_CODE");
                                     try {
                                         code = std::stoi(return_code_env);
-                                        unsetenv("CJSH_RETURN_CODE");
+                                        cjsh_env::unset_shell_variable_value("CJSH_RETURN_CODE");
                                     } catch (const std::exception&) {
                                         code = 0;
                                     }

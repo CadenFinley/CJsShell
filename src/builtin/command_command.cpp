@@ -117,13 +117,13 @@ int command_command(const std::vector<std::string>& args, Shell* shell) {
                 saved_path = cjsh_env::get_shell_variable_value("PATH");
             }
 
-            setenv("PATH", "/usr/bin:/bin", 1);
+            cjsh_env::set_shell_variable_value("PATH", "/usr/bin:/bin");
         }
 
         std::string full_path = cjsh_filesystem::find_executable_in_path(command_name);
 
         if (use_default_path && !saved_path.empty()) {
-            setenv("PATH", saved_path.c_str(), 1);
+            cjsh_env::set_shell_variable_value("PATH", saved_path);
         }
 
         if (!full_path.empty()) {
@@ -158,16 +158,16 @@ int command_command(const std::vector<std::string>& args, Shell* shell) {
             saved_path = cjsh_env::get_shell_variable_value("PATH");
         }
 
-        setenv("PATH", "/usr/bin:/bin", 1);
+        cjsh_env::set_shell_variable_value("PATH", "/usr/bin:/bin");
     }
 
     int exit_code = shell->execute_command(exec_args, false);
 
     if (use_default_path) {
         if (!saved_path.empty()) {
-            setenv("PATH", saved_path.c_str(), 1);
+            cjsh_env::set_shell_variable_value("PATH", saved_path);
         } else {
-            unsetenv("PATH");
+            cjsh_env::unset_shell_variable_value("PATH");
         }
     }
 

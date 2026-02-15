@@ -208,8 +208,8 @@ int change_directory(const std::string& dir, std::string& current_directory,
             return 1;
         }
 
-        setenv("PWD", current_directory.c_str(), 1);
-        setenv("OLDPWD", old_directory.c_str(), 1);
+        cjsh_env::set_shell_variable_value("PWD", current_directory);
+        cjsh_env::set_shell_variable_value("OLDPWD", old_directory);
 
         previous_directory = old_directory;
 

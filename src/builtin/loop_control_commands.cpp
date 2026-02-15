@@ -33,6 +33,7 @@
 #include <string>
 #include <vector>
 #include "error_out.h"
+#include "shell_env.h"
 
 int break_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(
@@ -54,7 +55,7 @@ int break_command(const std::vector<std::string>& args) {
         }
     }
 
-    setenv("CJSH_BREAK_LEVEL", std::to_string(level).c_str(), 1);
+    cjsh_env::set_shell_variable_value("CJSH_BREAK_LEVEL", std::to_string(level));
 
     return 255;
 }
@@ -80,7 +81,7 @@ int continue_command(const std::vector<std::string>& args) {
         }
     }
 
-    setenv("CJSH_CONTINUE_LEVEL", std::to_string(level).c_str(), 1);
+    cjsh_env::set_shell_variable_value("CJSH_CONTINUE_LEVEL", std::to_string(level));
 
     return 254;
 }
@@ -108,7 +109,7 @@ int return_command(const std::vector<std::string>& args) {
         }
     }
 
-    setenv("CJSH_RETURN_CODE", std::to_string(exit_code).c_str(), 1);
+    cjsh_env::set_shell_variable_value("CJSH_RETURN_CODE", std::to_string(exit_code));
 
     return 253;
 }

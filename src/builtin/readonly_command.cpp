@@ -206,22 +206,18 @@ int readonly_command(const std::vector<std::string>& args) {
                 return 1;
             }
 
-            if (setenv(name.c_str(), value.c_str(), 1) != 0) {
-                print_error({ErrorType::RUNTIME_ERROR,
-                             "readonly",
-                             "setenv failed: " + std::string(strerror(errno)),
-                             {}});
+            if (!cjsh_env::set_shell_variable_value(name, value)) {
+                print_error(
+                    {ErrorType::FATAL_ERROR, "readonly", "shell not initialized properly", {}});
                 return 1;
             }
 
             readonly_manager_set(name);
         } else {
             if (!cjsh_env::shell_variable_is_set(arg)) {
-                if (setenv(arg.c_str(), "", 1) != 0) {
-                    print_error({ErrorType::RUNTIME_ERROR,
-                                 "readonly",
-                                 "setenv failed: " + std::string(strerror(errno)),
-                                 {}});
+                if (!cjsh_env::set_shell_variable_value(arg, "")) {
+                    print_error(
+                        {ErrorType::FATAL_ERROR, "readonly", "shell not initialized properly", {}});
                     return 1;
                 }
             }

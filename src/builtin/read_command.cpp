@@ -378,15 +378,10 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
             }
         }
 
-        if (setenv(var_name.c_str(), value.c_str(), 1) != 0) {
-            print_error({ErrorType::RUNTIME_ERROR,
-                         "read",
-                         std::string("failed to set ") + var_name + ": " + std::strerror(errno),
-                         {}});
+        if (!cjsh_env::set_shell_variable_value(var_name, value)) {
+            print_error({ErrorType::FATAL_ERROR, "read", "shell not initialized properly", {}});
             return 1;
         }
-
-        cjsh_env::env_vars()[var_name] = value;
     }
 
     cjsh_env::sync_parser_env_vars(shell);

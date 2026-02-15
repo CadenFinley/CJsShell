@@ -162,11 +162,11 @@ int adjust_loop_signal(const char* env_name, int consumed_rc, int propagate_rc) 
         } catch (...) {
             level = 1;
         }
-        unsetenv(env_name);
+        cjsh_env::unset_shell_variable_value(env_name);
     }
     if (level > 1) {
         std::string next_level = std::to_string(level - 1);
-        setenv(env_name, next_level.c_str(), 1);
+        cjsh_env::set_shell_variable_value(env_name, next_level);
         return propagate_rc;
     }
     return consumed_rc;
@@ -591,7 +591,7 @@ int handle_for_block(const std::vector<std::string>& src_lines, size_t& idx,
                 shell_parser->expand_env_vars(var);
             }
         }
-        setenv(var.c_str(), value.c_str(), 1);
+        cjsh_env::set_shell_variable_value(var, value);
     };
 
     auto parse_header = [&](const std::string& header) -> bool {
