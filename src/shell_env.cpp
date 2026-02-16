@@ -565,12 +565,6 @@ std::unordered_map<std::string, std::string>& env_vars() {
     return g_env_vars;
 }
 
-void replace_env_vars(const std::unordered_map<std::string, std::string>& new_env_vars,
-                      Shell* shell) {
-    g_env_vars = new_env_vars;
-    apply_env_vars_to_parser(shell);
-}
-
 void sync_parser_env_vars(Shell* shell) {
     apply_env_vars_to_parser(shell);
 }

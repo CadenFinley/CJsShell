@@ -401,12 +401,6 @@ void SignalHandler::ignore_signal(int signum) {
     set_signal_disposition(signum, SignalDisposition::IGNORE);
 }
 
-sigset_t SignalHandler::get_current_mask() {
-    sigset_t current_mask{};
-    sigprocmask(SIG_SETMASK, nullptr, &current_mask);
-    return current_mask;
-}
-
 void SignalHandler::install_signal_handler(int signum, struct sigaction* old_action) {
     struct sigaction sa{};
     sa.sa_handler = signal_handler;

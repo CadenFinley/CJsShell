@@ -83,8 +83,6 @@ bool unset_shell_variable_value(const std::string& name);
 bool update_terminal_dimensions();
 void sync_env_vars_from_system(Shell& shell);
 std::unordered_map<std::string, std::string>& env_vars();
-void replace_env_vars(const std::unordered_map<std::string, std::string>& new_env_vars,
-                      Shell* shell);
 void sync_parser_env_vars(Shell* shell);
 
 bool is_valid_env_name(const std::string& name);

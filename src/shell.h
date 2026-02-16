@@ -73,7 +73,6 @@ struct ShellOptionDescriptor {
 const std::array<ShellOptionDescriptor, static_cast<size_t>(ShellOption::Count)>&
 get_shell_option_descriptors();
 std::optional<ShellOption> parse_shell_option(const std::string& name);
-const char* shell_option_name(ShellOption option);
 
 enum class HookType : std::uint8_t {
     Precmd,
@@ -90,7 +89,6 @@ struct HookTypeDescriptor {
 const std::array<HookTypeDescriptor, static_cast<size_t>(HookType::Count)>&
 get_hook_type_descriptors();
 std::optional<HookType> parse_hook_type(const std::string& name);
-const char* hook_type_name(HookType type);
 
 class Shell {
    public:
@@ -108,7 +106,6 @@ class Shell {
     void save_terminal_state();
     void restore_terminal_state();
     void setup_job_control();
-    void handle_sigcont();
     bool is_job_control_enabled() const;
 
     void set_interactive_mode(bool flag);
@@ -120,9 +117,6 @@ class Shell {
 
     std::vector<std::string>& get_directory_stack();
     const std::vector<std::string>& get_directory_stack() const;
-    void push_directory_stack(const std::string& dir);
-    bool pop_directory_stack(std::string* dir_out);
-    void clear_directory_stack();
 
     void register_hook(HookType hook_type, const std::string& function_name);
     void unregister_hook(HookType hook_type, const std::string& function_name);

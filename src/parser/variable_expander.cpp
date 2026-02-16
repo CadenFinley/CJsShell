@@ -548,10 +548,6 @@ void VariableExpander::expand_command_redirection_paths(Command& cmd) {
     }
 }
 
-void VariableExpander::set_use_exported_vars_only(bool value) {
-    use_exported_vars_only = value;
-}
-
 bool VariableExpander::get_use_exported_vars_only() const {
     return use_exported_vars_only;
 }

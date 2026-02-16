@@ -121,10 +121,6 @@ std::optional<ShellOption> parse_shell_option(const std::string& name) {
     return std::nullopt;
 }
 
-const char* shell_option_name(ShellOption option) {
-    return kShellOptionDescriptors[to_index(option)].name;
-}
-
 Shell::Shell() : shell_pgid(0), shell_tmodes() {
     // capture the terminal settings cjsh inherited so we can restore them on exit
     save_terminal_state();
@@ -505,37 +501,6 @@ void Shell::setup_job_control() {
     }
 }
 
-void Shell::handle_sigcont() {
-    if (!job_control_enabled) {
-        return;
-    }
-
-    if (isatty(shell_terminal) != 0) {
-        if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
-            const auto error_text = std::system_category().message(errno);
-            print_error({ErrorType::FATAL_ERROR,
-                         "tcsetpgrp",
-                         "failed to reclaim terminal after SIGCONT: " + error_text,
-                         {"Start a fresh terminal session and try again.",
-                          "Ensure no other process is controlling the terminal."}});
-        }
-
-        if (terminal_state_saved) {
-            if (tcsetattr(shell_terminal, TCSADRAIN, &shell_tmodes) < 0) {
-                const auto error_text = std::system_category().message(errno);
-                print_error({ErrorType::FATAL_ERROR,
-                             "tcsetattr",
-                             "failed to restore terminal mode after SIGCONT: " + error_text,
-                             {"Restart the terminal to reset its state."}});
-            }
-        } else {
-            save_terminal_state();
-        }
-    }
-
-    apply_abbreviations_to_line_editor();
-}
-
 bool Shell::is_job_control_enabled() const {
     return job_control_enabled;
 }
@@ -585,25 +550,6 @@ std::vector<std::string>& Shell::get_directory_stack() {
 
 const std::vector<std::string>& Shell::get_directory_stack() const {
     return directory_stack;
-}
-
-void Shell::push_directory_stack(const std::string& dir) {
-    directory_stack.push_back(dir);
-}
-
-bool Shell::pop_directory_stack(std::string* dir_out) {
-    if (directory_stack.empty()) {
-        return false;
-    }
-    if (dir_out) {
-        *dir_out = directory_stack.back();
-    }
-    directory_stack.pop_back();
-    return true;
-}
-
-void Shell::clear_directory_stack() {
-    directory_stack.clear();
 }
 
 void Shell::apply_abbreviations_to_line_editor() {

@@ -111,8 +111,6 @@ class SignalHandler {
 
     static void signal_handler(int signum);
 
-    static sigset_t get_current_mask();
-
    private:
     static std::atomic<SignalHandler*> s_instance;
 

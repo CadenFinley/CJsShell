@@ -56,10 +56,6 @@ std::optional<HookType> parse_hook_type(const std::string& name) {
     return std::nullopt;
 }
 
-const char* hook_type_name(HookType type) {
-    return kHookTypeDescriptors[to_index(type)].name;
-}
-
 void Shell::register_hook(HookType hook_type, const std::string& function_name) {
     if (function_name.empty()) {
         return;

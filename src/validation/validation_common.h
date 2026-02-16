@@ -242,21 +242,6 @@ std::vector<SyntaxError> create_tokenized_validator(const std::vector<std::strin
     return validate_with_tokenized_line(lines, std::forward<Callback>(callback));
 }
 
-template <typename Callback>
-std::vector<SyntaxError> validate_tokenized_with_first_token(const std::vector<std::string>& lines,
-                                                             Callback&& callback) {
-    return create_tokenized_validator(
-        lines, [callback = std::forward<Callback>(callback)](
-                   std::vector<SyntaxError>& line_errors, const std::string& line,
-                   const std::string& trimmed_line, size_t display_line,
-                   const std::vector<std::string>& tokens, const std::string& first_token) {
-            if (first_token.empty()) {
-                return;
-            }
-            callback(line_errors, line, trimmed_line, display_line, tokens, first_token);
-        });
-}
-
 struct CharIterationContext {
     std::vector<SyntaxError>& line_errors;
     const std::string& line;
