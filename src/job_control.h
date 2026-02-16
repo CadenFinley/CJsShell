@@ -81,10 +81,6 @@ struct JobControlJob {
         custom_name = std::move(name);
     }
 
-    void clear_custom_name() {
-        custom_name.clear();
-    }
-
     const std::string& display_command() const {
         return custom_name.empty() ? command : custom_name;
     }
