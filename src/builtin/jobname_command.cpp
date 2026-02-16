@@ -61,8 +61,9 @@ std::string normalize_name(const std::vector<std::string>& args) {
 }  // namespace
 
 int jobname_command(const std::vector<std::string>& args) {
-    if (builtin_handle_help(args, {"Usage: jobname JOB_SPEC NEW_NAME",
-                                   "Assign a temporary display name to a job."})) {
+    if (builtin_handle_help(args,
+                            {"Usage: jobname JOB_SPEC NEW_NAME", "       jobname JOB_SPEC --clear",
+                             "Assign a temporary display name to a job, or clear it."})) {
         return 0;
     }
 
@@ -70,7 +71,7 @@ int jobname_command(const std::vector<std::string>& args) {
         print_error({ErrorType::INVALID_ARGUMENT,
                      "jobname",
                      "missing job spec or new name",
-                     {"Usage: jobname JOB_SPEC NEW_NAME"}});
+                     {"Usage: jobname JOB_SPEC NEW_NAME", "       jobname JOB_SPEC --clear"}});
         return 1;
     }
 
@@ -92,16 +93,22 @@ int jobname_command(const std::vector<std::string>& args) {
         return 1;
     }
 
-    std::string new_name = normalize_name(args);
-    if (new_name.empty() || is_blank(new_name)) {
-        print_error({ErrorType::INVALID_ARGUMENT,
-                     "jobname",
-                     "new name cannot be empty",
-                     {"Provide the desired display name after the job spec"}});
-        return 1;
-    }
+    const bool clear_name = args.size() == 3 && (args[2] == "--clear" || args[2] == "-c");
 
-    job->set_custom_name(new_name);
+    if (clear_name) {
+        job->set_custom_name({});
+    } else {
+        std::string new_name = normalize_name(args);
+        if (new_name.empty() || is_blank(new_name)) {
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         "jobname",
+                         "new name cannot be empty",
+                         {"Provide the desired display name after the job spec"}});
+            return 1;
+        }
+
+        job->set_custom_name(new_name);
+    }
     std::cout << "[" << job->job_id << "] => " << job->display_command() << '\n';
     return 0;
 }

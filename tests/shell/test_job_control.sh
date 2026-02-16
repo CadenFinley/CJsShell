@@ -361,6 +361,46 @@ jobname_rejects_empty_name() {
     return 1
 }
 
+jobname_clear_restores_original_name() {
+    log "Test: jobname --clear restores original name"
+    local output
+    output=$("$CJSH_PATH" -i -c "sleep 2 & pid=\$!; jobname \$pid custom-name >/dev/null; jobname \$pid --clear >/dev/null; jobs; kill \$pid 2>/dev/null; wait \$pid 2>/dev/null || true" 2>&1)
+    local exit_code=$?
+
+    if [ $exit_code -ne 0 ]; then
+        echo "FAIL: jobname --clear failed (exit $exit_code): $output"
+        return 1
+    fi
+
+    if echo "$output" | grep -q "sleep 2"; then
+        echo "PASS"
+        return 0
+    fi
+
+    echo "FAIL: jobs output missing original command after clear: $output"
+    return 1
+}
+
+jobname_clear_short_flag() {
+    log "Test: jobname -c clears name"
+    local output
+    output=$("$CJSH_PATH" -i -c "sleep 2 & pid=\$!; jobname \$pid renamed >/dev/null; jobname \$pid -c >/dev/null; jobs; kill \$pid 2>/dev/null; wait \$pid 2>/dev/null || true" 2>&1)
+    local exit_code=$?
+
+    if [ $exit_code -ne 0 ]; then
+        echo "FAIL: jobname -c failed (exit $exit_code): $output"
+        return 1
+    fi
+
+    if echo "$output" | grep -q "sleep 2"; then
+        echo "PASS"
+        return 0
+    fi
+
+    echo "FAIL: jobs output missing original command after -c: $output"
+    return 1
+}
+
 auto_background_on_stop() {
     log "Test: &^ auto-backgrounds on SIGTSTP"
     local pid_file output_file
@@ -709,6 +749,14 @@ if ! jobname_affects_command_matching; then
 fi
 
 if ! jobname_rejects_empty_name; then
+    status=1
+fi
+
+if ! jobname_clear_restores_original_name; then
+    status=1
+fi
+
+if ! jobname_clear_short_flag; then
     status=1
 fi
 
