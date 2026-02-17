@@ -92,20 +92,23 @@ void cleanup_resources() {
     cleanup_already_invoked = true;
 
     // reset everything
-    if (g_shell) {
-        trap_manager_set_shell(g_shell.get());
-        if (!g_force_exit_requested) {
-            trap_manager_execute_exit_trap();
-            if (config::login_mode) {
-                cjsh_filesystem::process_logout_file();
-            }
-        }
-
-        // this might be the most important part of cjsh shutdown. this is so important as
-        // std::unique_ptr doesnt always get reset in the same order when there are multiple so
-        // resetting this earlier allows specific ordering of reset and release
-        g_shell.reset();
+    if (!g_shell) {
+        // if the shell was never created then nothing else was so just leave
+        return;
     }
+
+    trap_manager_set_shell(g_shell.get());
+    if (!g_force_exit_requested) {
+        trap_manager_execute_exit_trap();
+        if (config::login_mode) {
+            cjsh_filesystem::process_logout_file();
+        }
+    }
+
+    // this might be the most important part of cjsh shutdown. this is so important as
+    // std::unique_ptr doesnt always get reset in the same order when there are multiple so
+    // resetting this earlier allows specific ordering of reset and release
+    g_shell.reset();
 }
 
 int run_cjsh(int argc, char* argv[]) {
