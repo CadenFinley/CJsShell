@@ -148,11 +148,6 @@ int run_cjsh(int argc, char* argv[]) {
     std::string script_file = parse_result.script_file;
     std::vector<std::string> script_args = parse_result.script_args;
 
-    // make sure JobManager is constructed before registering cleanup so its destructor
-    // runs after cleanup_resources and outlives the cleanup handler
-    // (void)JobManager::instance();
-    trap_manager_initialize();
-
     // register cleanup handler
     if (std::atexit(cleanup_resources) != 0) {
         print_error({ErrorType::RUNTIME_ERROR,

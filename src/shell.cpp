@@ -125,6 +125,8 @@ Shell::Shell() : shell_pgid(0), shell_tmodes() {
     // capture the terminal settings cjsh inherited so we can restore them on exit
     save_terminal_state();
 
+    trap_manager_initialize();
+
     // construct core subsystems before wiring them together
     shell_exec = std::make_unique<Exec>();
     signal_handler = std::make_unique<SignalHandler>();
