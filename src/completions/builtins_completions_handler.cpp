@@ -403,7 +403,9 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_doc(
             "jobs", "List background jobs",
             {make_option("-l", "Show PIDs and status"), make_option("-p", "Print job PIDs only")});
-        add_doc("jobname", "Assign a temporary display name to a job", {});
+        add_doc("jobname", "Assign a temporary display name to a job",
+                {make_option("-c", "Clear any custom job name"),
+                 make_option("--clear", "Clear any custom job name")});
         add_doc("fg", "Bring a job to the foreground", {});
         add_doc("bg", "Resume a job in the background", {});
         add_doc("wait", "Wait for jobs or processes to finish", {});

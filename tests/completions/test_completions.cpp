@@ -442,6 +442,11 @@ static bool test_builtin_docs(void) {
     EXPECT_TRUE(has_entry(type_doc, "-a", builtin_completions::EntryKind::Option), test_name,
                 "type should include -a option");
 
+    const auto* jobname_doc = builtin_completions::lookup_builtin_command_doc("jobname");
+    EXPECT_TRUE(jobname_doc != nullptr, test_name, "jobname doc should exist");
+    EXPECT_TRUE(has_entry(jobname_doc, "--clear", builtin_completions::EntryKind::Option),
+                test_name, "jobname should include --clear option");
+
     return true;
 }
 

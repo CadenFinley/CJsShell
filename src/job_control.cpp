@@ -63,7 +63,7 @@ std::string_view trim_view(const std::string& value) {
     return std::string_view(value).substr(start, end - start + 1);
 }
 
-enum class JobMatchKind {
+enum class JobMatchKind : uint8_t {
     None,
     Exact,
     Prefix

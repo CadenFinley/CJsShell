@@ -150,7 +150,7 @@ int run_cjsh(int argc, char* argv[]) {
 
     // make sure JobManager is constructed before registering cleanup so its destructor
     // runs after cleanup_resources and outlives the cleanup handler
-    (void)JobManager::instance();
+    // (void)JobManager::instance();
     trap_manager_initialize();
 
     // register cleanup handler
