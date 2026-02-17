@@ -215,7 +215,9 @@ bool process_command_line(const std::string& command) {
     std::string status_str = std::to_string(exit_code);
 
     // add to history
-    ic_history_add_with_exit_code(command.c_str(), exit_code);
+    if (config::history_enabled) {
+        ic_history_add_with_exit_code(command.c_str(), exit_code);
+    }
     setenv("?", status_str.c_str(), 1);
 
     // perform memory cleanup

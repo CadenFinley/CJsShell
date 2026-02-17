@@ -57,6 +57,7 @@ extern bool show_startup_time;
 extern bool secure_mode;
 extern bool posix_mode;
 extern bool show_title_line;
+extern bool history_enabled;
 extern bool history_expansion_enabled;
 extern bool newline_after_execution;
 extern bool suppress_sh_warning;

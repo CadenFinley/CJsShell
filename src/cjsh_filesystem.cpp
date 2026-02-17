@@ -724,29 +724,32 @@ bool initialize_cjsh_directories() {
         std::filesystem::create_directories(g_cjsh_config_path());
         std::filesystem::create_directories(g_cjsh_cache_path());
         std::filesystem::create_directories(g_cjsh_generated_completions_path());
-        const auto& history_path = g_cjsh_history_path();
-        const auto history_parent = history_path.parent_path();
+        if (config::history_enabled) {
+            const auto& history_path = g_cjsh_history_path();
+            const auto history_parent = history_path.parent_path();
 
-        if (!history_parent.empty()) {
-            std::error_code history_dir_error;
-            std::filesystem::create_directories(history_parent, history_dir_error);
-            if (history_dir_error) {
-                print_error({ErrorType::RUNTIME_ERROR,
-                             history_parent.string(),
-                             "Failed to prepare history directory: " + history_dir_error.message(),
-                             {"Check CJSH_HISTORY_FILE or adjust permissions"}});
-                return false;
+            if (!history_parent.empty()) {
+                std::error_code history_dir_error;
+                std::filesystem::create_directories(history_parent, history_dir_error);
+                if (history_dir_error) {
+                    print_error(
+                        {ErrorType::RUNTIME_ERROR,
+                         history_parent.string(),
+                         "Failed to prepare history directory: " + history_dir_error.message(),
+                         {"Check CJSH_HISTORY_FILE or adjust permissions"}});
+                    return false;
+                }
             }
-        }
 
-        bool history_exists = file_exists(history_path);
+            bool history_exists = file_exists(history_path);
 
-        if (!history_exists) {
-            auto write_result = write_file_content(history_path.string(), "");
-            if (!write_result.is_ok()) {
-                print_error(
-                    {ErrorType::RUNTIME_ERROR, history_path.c_str(), write_result.error(), {}});
-                return false;
+            if (!history_exists) {
+                auto write_result = write_file_content(history_path.string(), "");
+                if (!write_result.is_ok()) {
+                    print_error(
+                        {ErrorType::RUNTIME_ERROR, history_path.c_str(), write_result.error(), {}});
+                    return false;
+                }
             }
         }
 

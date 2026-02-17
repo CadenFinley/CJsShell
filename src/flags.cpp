@@ -63,6 +63,7 @@ constexpr int kOptNoExec = 259;
 constexpr int kOptPosix = 260;
 constexpr int kOptNoErrorSuggestions = 261;
 constexpr int kOptNoPromptVars = 262;
+constexpr int kOptNoHistory = 263;
 std::vector<std::string> positional_parameters;
 
 void detect_login_mode(char* argv[]) {
@@ -133,6 +134,7 @@ ParseResult parse_arguments(int argc, char* argv[]) {
         {"no-syntax-highlighting", no_argument, nullptr, 'S'},
         {"no-error-suggestions", no_argument, nullptr, kOptNoErrorSuggestions},
         {"no-prompt-vars", no_argument, nullptr, kOptNoPromptVars},
+        {"no-history", no_argument, nullptr, kOptNoHistory},
         {"startup-test", no_argument, nullptr, 'X'},
         {"minimal", no_argument, nullptr, 'm'},
         {"secure", no_argument, nullptr, 's'},
@@ -207,6 +209,10 @@ ParseResult parse_arguments(int argc, char* argv[]) {
             case kOptNoPromptVars:
                 config::prompt_vars_enabled = false;
                 break;
+            case kOptNoHistory:
+                config::history_enabled = false;
+                config::history_expansion_enabled = false;
+                break;
             case 'X':
                 config::startup_test = true;
                 break;
@@ -216,6 +222,8 @@ ParseResult parse_arguments(int argc, char* argv[]) {
             case 's':
                 config::secure_mode = true;
                 config::smart_cd_enabled = false;
+                config::history_enabled = false;
+                config::history_expansion_enabled = false;
                 break;
             case 'H':
                 config::history_expansion_enabled = false;
@@ -274,6 +282,7 @@ void apply_profile_startup_flags() {
         Login,
         Minimal,
         Secure,
+        NoHistory,
         NoHistoryExpansion,
         NoShWarning,
         Posix,
@@ -304,6 +313,7 @@ void apply_profile_startup_flags() {
              {StartupFlag::Login, "--login"},
              {StartupFlag::Minimal, "--minimal"},
              {StartupFlag::Secure, "--secure"},
+             {StartupFlag::NoHistory, "--no-history"},
              {StartupFlag::NoHistoryExpansion, "--no-history-expansion"},
              {StartupFlag::NoShWarning, "--no-sh-warning"},
              {StartupFlag::Posix, "--posix"},
@@ -372,6 +382,12 @@ void apply_profile_startup_flags() {
             case StartupFlag::Secure:
                 config::secure_mode = true;
                 config::smart_cd_enabled = false;
+                config::history_enabled = false;
+                config::history_expansion_enabled = false;
+                break;
+            case StartupFlag::NoHistory:
+                config::history_enabled = false;
+                config::history_expansion_enabled = false;
                 break;
             case StartupFlag::NoHistoryExpansion:
                 config::history_expansion_enabled = false;

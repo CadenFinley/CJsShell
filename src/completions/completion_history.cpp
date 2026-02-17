@@ -37,6 +37,7 @@
 
 #include "cjsh_filesystem.h"
 #include "isocline.h"
+#include "shell_env.h"
 
 namespace completion_history {
 
@@ -152,6 +153,11 @@ bool trim_history_file(long max_entries, std::string* error_message) {
 }  // namespace
 
 bool enforce_history_limit(std::string* error_message) {
+    if (!config::history_enabled) {
+        ic_set_history(nullptr, 0);
+        return true;
+    }
+
     if (g_history_max_entries_value <= 0) {
         ic_set_history(nullptr, 0);
         return trim_history_file(0, error_message);

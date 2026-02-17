@@ -1586,7 +1586,9 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
             if (!tokens.empty() && completion_utils::equals_completion_token(tokens[0], "cd")) {
                 cjsh_filename_completer(cenv, current_line_prefix);
             } else {
-                cjsh_history_completer(cenv, current_line_prefix);
+                if (config::history_enabled) {
+                    cjsh_history_completer(cenv, current_line_prefix);
+                }
                 cjsh_filename_completer(cenv, current_line_prefix);
             }
             break;
