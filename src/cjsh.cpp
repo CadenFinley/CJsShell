@@ -97,12 +97,18 @@ void cleanup_resources() {
         return;
     }
 
+    // if the shell is being force exited then we skip the traps and just reset the shell to clean
+    // up resources as best as possible
+    if (g_force_exit_requested) {
+        g_shell.reset();
+        return;
+    }
+
+    // otherwise we do a full shutdown with traps and everything
     trap_manager_set_shell(g_shell.get());
-    if (!g_force_exit_requested) {
-        trap_manager_execute_exit_trap();
-        if (config::login_mode) {
-            cjsh_filesystem::process_logout_file();
-        }
+    trap_manager_execute_exit_trap();
+    if (config::login_mode) {
+        cjsh_filesystem::process_logout_file();
     }
 
     // this might be the most important part of cjsh shutdown. this is so important as
