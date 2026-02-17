@@ -308,6 +308,35 @@ static void edit_completion_menu_update_hint(ic_env_t* env, editor_t* eb, bool a
     }
 }
 
+static ssize_t edit_completion_collapsed_max_rows(ic_env_t* env, editor_t* eb) {
+    ssize_t promptw = 0;
+    ssize_t cpromptw = 0;
+    edit_get_prompt_width(env, eb, false, &promptw, &cpromptw);
+
+    ssize_t input_len = sbuf_len(eb->input);
+    if (input_len < 0) {
+        input_len = 0;
+    }
+
+    rowcol_t rc_dummy;
+    memset(&rc_dummy, 0, sizeof(rc_dummy));
+    ssize_t input_rows =
+        sbuf_get_rc_at_pos(eb->input, eb->termw, promptw, cpromptw, input_len, &rc_dummy);
+    if (input_rows <= 0) {
+        input_rows = 1;
+    }
+
+    ssize_t term_height = term_get_height(env->term);
+    ssize_t available_rows = term_height - input_rows;
+    if (eb->prompt_prefix_lines > 0) {
+        available_rows -= eb->prompt_prefix_lines;
+    }
+    if (available_rows < 3) {
+        available_rows = 3;
+    }
+    return available_rows;
+}
+
 static bool edit_recompute_completion_list(ic_env_t* env, editor_t* eb, bool expanded_mode,
                                            ssize_t* count, bool* more_available, ssize_t* selected,
                                            ssize_t* scroll_offset, bool allow_inline_hint) {
@@ -396,7 +425,28 @@ again:
         goto read_key;
     }
 
-    count_displayed = (expanded_mode ? count : (count > 9 ? 9 : count));
+    ssize_t collapsed_max_rows = -1;
+    const ssize_t collapsed_max_items = 12;
+    if (!expanded_mode) {
+        collapsed_max_rows = edit_completion_collapsed_max_rows(env, eb);
+        if (collapsed_max_rows > 1 && count > collapsed_max_rows * 3) {
+            collapsed_max_rows -= 1;
+        }
+        if (collapsed_max_rows < 1) {
+            collapsed_max_rows = 1;
+        }
+    }
+
+    count_displayed = (expanded_mode ? count : count);
+    if (!expanded_mode && collapsed_max_rows > 0) {
+        ssize_t max_items = collapsed_max_rows * 3;
+        if (collapsed_max_items > 0 && max_items > collapsed_max_items) {
+            max_items = collapsed_max_items;
+        }
+        if (count_displayed > max_items) {
+            count_displayed = max_items;
+        }
+    }
     if (count_displayed <= 0) {
         count_displayed = count;
     }
@@ -425,6 +475,22 @@ again:
             if (percolumn <= 0) {
                 percolumn = 1;
             }
+            if (collapsed_max_rows > 0 && percolumn > collapsed_max_rows) {
+                percolumn = collapsed_max_rows;
+            }
+            count_displayed = percolumn * 3;
+            if (collapsed_max_items > 0 && count_displayed > collapsed_max_items) {
+                count_displayed = collapsed_max_items;
+            }
+            if (count_displayed > count) {
+                count_displayed = count;
+            }
+            if (count_displayed > 0) {
+                percolumn = (count_displayed + 2) / 3;
+                if (percolumn <= 0) {
+                    percolumn = 1;
+                }
+            }
             grid_layout_active = true;
             grid_columns = 3;
             grid_rows = percolumn;
@@ -440,6 +506,22 @@ again:
             if (percolumn <= 0) {
                 percolumn = 1;
             }
+            if (collapsed_max_rows > 0 && percolumn > collapsed_max_rows) {
+                percolumn = collapsed_max_rows;
+            }
+            count_displayed = percolumn * 2;
+            if (collapsed_max_items > 0 && count_displayed > collapsed_max_items) {
+                count_displayed = collapsed_max_items;
+            }
+            if (count_displayed > count) {
+                count_displayed = count;
+            }
+            if (count_displayed > 0) {
+                percolumn = (count_displayed + 1) / 2;
+                if (percolumn <= 0) {
+                    percolumn = 1;
+                }
+            }
             grid_layout_active = true;
             grid_columns = 2;
             grid_rows = percolumn;
@@ -453,12 +535,23 @@ again:
             grid_layout_active = false;
             grid_columns = 1;
             grid_rows = (count_displayed > 0 ? count_displayed : 1);
+            if (collapsed_max_rows > 0 && grid_rows > collapsed_max_rows) {
+                grid_rows = collapsed_max_rows;
+            }
+            count_displayed = grid_rows;
+            if (collapsed_max_items > 0 && count_displayed > collapsed_max_items) {
+                count_displayed = collapsed_max_items;
+                grid_rows = count_displayed;
+            }
             for (ssize_t i = 0; i < count_displayed; i++) {
                 if (i > 0) {
                     sbuf_append(eb->extra, "\n");
                 }
                 editor_append_completion(env, eb, i, -1, true, (selected == i));
             }
+        }
+        if (selected >= count_displayed) {
+            selected = (count_displayed > 0 ? count_displayed - 1 : -1);
         }
         if (count > count_displayed) {
             sbuf_append(eb->extra,
@@ -866,7 +959,8 @@ read_key:
             }
             goto again;
         }
-    } else if ((c == KEY_PAGEDOWN || c == KEY_LINEFEED) && count > 9) {
+    } else if ((c == KEY_PAGEDOWN || c == KEY_LINEFEED) &&
+               (expanded_mode || more_available || count > 9)) {
         bool triggered_by_ctrl_j = (c == KEY_LINEFEED);
         c = 0;
         if (!expanded_mode) {
@@ -875,7 +969,23 @@ read_key:
         } else if (triggered_by_ctrl_j) {
             expanded_mode = false;
             scroll_offset = 0;
-            ssize_t collapsed_limit = (count > 9 ? 9 : count);
+            ssize_t collapsed_limit = count;
+            if (collapsed_max_items > 0 && collapsed_limit > collapsed_max_items) {
+                collapsed_limit = collapsed_max_items;
+            }
+            ssize_t max_rows = edit_completion_collapsed_max_rows(env, eb);
+            if (max_rows > 1 && count > max_rows * 3) {
+                max_rows -= 1;
+            }
+            if (max_rows > 0) {
+                ssize_t max_items = max_rows * 3;
+                if (collapsed_max_items > 0 && max_items > collapsed_max_items) {
+                    max_items = collapsed_max_items;
+                }
+                if (collapsed_limit > max_items) {
+                    collapsed_limit = max_items;
+                }
+            }
             if (collapsed_limit <= 0) {
                 selected = -1;
             } else if (selected >= collapsed_limit) {
