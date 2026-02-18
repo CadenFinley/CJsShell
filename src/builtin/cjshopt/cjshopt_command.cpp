@@ -39,8 +39,6 @@
 #include "cjshopt_command.h"
 #include "error_out.h"
 
-int script_extension_interpreter_command(const std::vector<std::string>& args);
-
 namespace {
 
 enum class CjshoptSubcommand : std::uint8_t {
