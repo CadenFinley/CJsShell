@@ -163,6 +163,10 @@ void ingest_typeahead_input(const std::string& raw_input) {
         return;
     }
 
+    const bool has_visible_typeahead =
+        std::any_of(raw_input.begin(), raw_input.end(),
+                    [](unsigned char ch) { return ch != '\n' && ch != '\r'; });
+
     g_pending_raw_bytes.append(raw_input);
 
     std::string combined;
@@ -199,6 +203,9 @@ void ingest_typeahead_input(const std::string& raw_input) {
     g_input_buffer.clear();
 
     if (normalized_temp.empty()) {
+        if (has_visible_typeahead) {
+            ic_term_mark_line_visible(true);
+        }
         return;
     }
 
