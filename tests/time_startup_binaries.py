@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Iterable, List, Sequence, Set
 
 DEFAULT_RUNS = 25
-STARTUP_ARGS: Sequence[str] = ["--startup-test", "--show-startup-time", "--no-titleline", "--login", "--no-source"]
+STARTUP_ARGS: Sequence[str] = ["--startup-test", "--show-startup-time", "--no-titleline","--no-source"]
 
 
 def repo_root() -> Path:
