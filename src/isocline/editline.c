@@ -2460,6 +2460,11 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
 
     term_set_track_output(env->term, false);
 
+    if (!env->bracketed_paste_enabled && env->term != NULL && term_is_interactive(env->term)) {
+        term_write(env->term, "\x1b[?2004h");
+        env->bracketed_paste_enabled = true;
+    }
+
     // Handle multi-line prompts: print prefix lines and use only the last line
     // as the prompt
     eb.prompt_prefix_lines = print_prompt_prefix_lines(env, &eb, original_prompt);

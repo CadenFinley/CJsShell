@@ -385,7 +385,7 @@ int test_command(const std::vector<std::string>& args) {
 
     if ((test_args.size() == 1 && (is_unary_op(test_args[0]) || is_binary_op(test_args[0]))) ||
         (test_args.size() == 2 && is_binary_op(test_args[1]))) {
-        print_error({ErrorType::SYNTAX_ERROR, command_name, "syntax error: missing operand", {}});
+        print_error({ErrorType::SYNTAX_ERROR, command_name, "missing operand", {}});
         return 2;
     }
 
@@ -393,7 +393,7 @@ int test_command(const std::vector<std::string>& args) {
     bool result = evaluate_expression(ctx);
 
     if (ctx.has_more()) {
-        print_error({ErrorType::SYNTAX_ERROR, command_name, "syntax error: unexpected token", {}});
+        print_error({ErrorType::SYNTAX_ERROR, command_name, "unexpected token", {}});
         return 2;
     }
 

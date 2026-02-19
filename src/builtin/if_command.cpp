@@ -57,8 +57,7 @@ int if_command(const std::vector<std::string>& args, Shell* shell) {
     size_t fi_pos = full_cmd.rfind("; fi");
 
     if (then_pos == std::string::npos || fi_pos == std::string::npos) {
-        record_error(
-            {ErrorType::SYNTAX_ERROR, "if", "syntax error: expected '; then' and '; fi'", {}});
+        record_error({ErrorType::SYNTAX_ERROR, "if", "expected '; then' and '; fi'", {}});
         return 2;
     }
 

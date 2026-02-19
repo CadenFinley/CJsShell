@@ -74,8 +74,8 @@ std::string extract_loop_keyword(const std::string& segment) {
 
 int report_inline_loop_syntax_error(const std::string& segment, std::string_view missing_token) {
     std::string keyword = extract_loop_keyword(segment);
-    std::string message = "syntax error: expected '" + std::string(missing_token) +
-                          "' to complete the " + keyword + " loop";
+    std::string message =
+        "expected '" + std::string(missing_token) + "' to complete the " + keyword + " loop";
     std::vector<std::string> suggestions = {"Insert '" + std::string(missing_token) +
                                             "' between the loop header and body (e.g. '" + keyword +
                                             " ...; do ...; done')."};

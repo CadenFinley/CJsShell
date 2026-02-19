@@ -1951,7 +1951,7 @@ std::string ShellScriptInterpreter::expand_all_substitutions(
                     try {
                         out += std::to_string(evaluate_arithmetic_expression(expanded_expr));
                     } catch (const std::runtime_error& e) {
-                        throw std::runtime_error(std::string(e.what()) + " while evaluating $(" +
+                        throw std::runtime_error(std::string(e.what()) + " while evaluating $((" +
                                                  expr + "))");
                     }
                     i = j + 1;

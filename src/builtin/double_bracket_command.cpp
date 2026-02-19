@@ -268,7 +268,7 @@ int double_bracket_command(const std::vector<std::string>& args) {
 
     if ((expression_args.size() == 1 && is_binary_op(expression_args[0])) ||
         (expression_args.size() == 2 && is_binary_op(expression_args[1]))) {
-        print_error({ErrorType::SYNTAX_ERROR, "[[", "syntax error: missing operand", {}});
+        print_error({ErrorType::SYNTAX_ERROR, "[[", "missing operand", {}});
         return 2;
     }
 

@@ -40,7 +40,7 @@ printf "#!/bin/sh\n" > "$NOEXEC_FILE"
 printf "echo should-not-run\n" >> "$NOEXEC_FILE"
 chmod 644 "$NOEXEC_FILE"
 
-printf "not-a-binary\n" > "$BADBIN_FILE"
+printf '\x7fELF\x01\x01\x01\x00\x00\x00\x00' > "$BADBIN_FILE"
 chmod 755 "$BADBIN_FILE"
 
 mkdir -p "$NOPERM_DIR"

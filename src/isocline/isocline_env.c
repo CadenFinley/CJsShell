@@ -100,10 +100,7 @@ static ic_env_t* ic_env_create(ic_malloc_fun_t* _malloc, ic_realloc_fun_t* _real
 
     env->tty = tty_new(env->mem, -1);
     env->term = term_new(env->mem, env->tty, false, false, -1);
-    if (env->term != NULL) {
-        // enable bracketed-paste
-        term_write(env->term, "\x1b[?2004h");
-    }
+    // bracketed paste enabled when starting an interactive editor session
     env->history = history_new(env->mem);
     env->completions = completions_new(env->mem);
     env->bbcode = bbcode_new(env->mem, env->term);
@@ -125,6 +122,7 @@ static ic_env_t* ic_env_create(ic_malloc_fun_t* _malloc, ic_realloc_fun_t* _real
     env->multiline_start_line_count = 1;  // preallocated prompt lines when multiline is on
     env->status_hint_mode = IC_STATUS_HINT_NORMAL;    // default to legacy behavior
     env->inline_right_prompt_follows_cursor = false;  // keep right prompt anchored at row 0
+    env->bracketed_paste_enabled = false;
 
     if (env->tty == NULL || env->term == NULL || env->completions == NULL || env->history == NULL ||
         env->bbcode == NULL || !term_is_interactive(env->term)) {
@@ -162,7 +160,7 @@ static ic_env_t* ic_env_create(ic_malloc_fun_t* _malloc, ic_realloc_fun_t* _real
 static void ic_env_free(ic_env_t* env) {
     if (env == NULL)
         return;
-    if (env->term != NULL) {
+    if (env->bracketed_paste_enabled && env->term != NULL && term_is_interactive(env->term)) {
         term_write(env->term, "\x1b[?2004l");
     }
     history_free(env->history);
