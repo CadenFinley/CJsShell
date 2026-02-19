@@ -20,7 +20,7 @@
       
       
       <link rel="icon" href="assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.1">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.2">
     
     
       
@@ -1005,7 +1005,7 @@
 <h1 id="cjs-shell">CJ's Shell</h1>
 <h2 id="introduction">Introduction</h2>
 <p>CJ's Shell (cjsh) pairs POSIX Shell Scripting with modern interactive tooling. Built in are a POSIX shell interpreter with bash extensions, customizable keybindings, syntax highlighting, fuzzy completions, smart directory navigation, advanced history search, multiline editing, spell correction, typeahead, rich prompts, and inline BBCode-style theming handled directly inside <code>PS1</code>/<code>RPS1</code>. Everything ships in one binary with a single vendored dependency, so cjsh works out of the box on all *nix-like systems and Windows via WSL. cjsh delivers a POSIX+ experience, standard scripting semantics with an enhanced interactive layer you can dial up or down as needed.</p>
-<p>The core scripting engine targets roughly 95% POSIX coverage, validated by 1500+ standards-focused tests, while the interactive layer intentionally stretches beyond POSIX through configurable POSIX+ features.</p>
+<p>The core scripting engine targets roughly 95% POSIX coverage, validated by 1700+ standards-focused tests, while the interactive layer intentionally stretches beyond POSIX through configurable POSIX+ features.</p>
 <h2 id="why-did-i-make-cjsh">Why did I make cjsh?</h2>
 <p>Truly it was out of spite and annoyance, like all passion projects. I got so tired of all of these different prompt tools, frameworks, different shells entirely. Many of which were non POSIX compliant which basically made them useless for me. I found that no matter what combination of prompt tools, frameworks with different shells on top of having a bunch of rust rewrites of coreutils that it made the shell I was using so bloated, slow, and SO annoying to configure and setup on new machines or if I wanted to add a new tool all the while I felt like these tools could just be so much better. Which is exactly when I said "I bet I could do this so much better." So I did. I set out to basically make bash + zoxide + eza + starship/ohmyposh/p10k + tab completions + auto completions + spell corrections + themes + custom keybindings + syntax highlighting + full multiline editing suite while keeping the scripting surface familiar. Oh and did I mention cjsh only uses one external library which is baked into cjsh itself. Yep, I did all of that. It has taken me a little over a year of on and off work, but I am super proud of where cjsh stands and I am continuing to make constant improvements and additions. It just works.</p>
 <h2 id="why-posix">Why POSIX?</h2>
