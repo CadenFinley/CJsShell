@@ -184,6 +184,8 @@ ic_private bool term_line_has_visible_content(term_t* term) {
     }
     if (!term_is_interactive(term))
         return false;
+    if (tty_input_pending(term->tty))
+        return false;
     ssize_t row = 0;
     ssize_t col = 0;
     if (!term_get_cursor_pos(term, &row, &col))
