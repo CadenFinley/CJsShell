@@ -6,7 +6,7 @@ require no third-party plugins.
 
 ## Core Shell Engine
 
-- **POSIX-first semantics** – Roughly 95% POSIX coverage with >1500 standards-focused tests.
+- **POSIX-first semantics** – Roughly 95% POSIX coverage with >1700 standards-focused tests.
 - **Bourne-compatible surface** – Classic constructs (`if`, `case`, `for`, `while`, functions,
     redirections, here-documents, command substitution) behave the way portable scripts expect.
 - **POSIX+ extensions** – `[[ … ]]`, arithmetic contexts, brace expansion, here-strings, and

@@ -44,7 +44,7 @@ cmake --build build --config Release -j$(nproc)
    
 # Scripting Compatibility & Testing
 
-CJ's Shell backs its POSIX-based scripting engine with over 1500 targeted tests that validate standards-aligned behavior while covering common bash extensions.
+CJ's Shell backs its POSIX-based scripting engine with over 1700 targeted tests that validate standards-aligned behavior while covering common bash extensions.
 Run the suite from the repository root before switching cjsh to your default login shell.
 
 ```bash
