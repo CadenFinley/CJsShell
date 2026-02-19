@@ -180,7 +180,21 @@ ic_private bool term_line_has_visible_content(term_t* term) {
     if (term == NULL)
         return false;
     if (term->line_state_tracked) {
-        return term->line_has_visible;
+        if (!term->line_has_visible) {
+            return false;
+        }
+        if (!term_is_interactive(term)) {
+            return term->line_has_visible;
+        }
+        if (tty_input_pending(term->tty)) {
+            return term->line_has_visible;
+        }
+        ssize_t row = 0;
+        ssize_t col = 0;
+        if (!term_get_cursor_pos(term, &row, &col)) {
+            return term->line_has_visible;
+        }
+        return (col > 1);
     }
     if (!term_is_interactive(term))
         return false;
