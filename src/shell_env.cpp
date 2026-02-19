@@ -106,6 +106,10 @@ inline char** cjsh_environ() {
 #endif
 
 std::unordered_map<std::string, std::string> g_env_vars;
+bool g_exit_flag = false;
+bool g_startup_active = true;
+std::uint64_t g_command_sequence = 0;
+bool g_force_exit_requested = false;
 
 void apply_env_vars_to_parser(Shell* shell) {
     if (shell == nullptr) {
@@ -568,6 +572,45 @@ std::unordered_map<std::string, std::string>& env_vars() {
 
 void sync_parser_env_vars(Shell* shell) {
     apply_env_vars_to_parser(shell);
+}
+
+bool exit_requested() {
+    return g_exit_flag;
+}
+
+void request_exit() {
+    g_exit_flag = true;
+}
+
+bool startup_active() {
+    return g_startup_active;
+}
+
+void set_startup_active(bool value) {
+    g_startup_active = value;
+}
+
+std::uint64_t command_sequence() {
+    return g_command_sequence;
+}
+
+void increment_command_sequence() {
+    ++g_command_sequence;
+}
+
+bool force_exit_requested() {
+    return g_force_exit_requested;
+}
+
+void request_force_exit() {
+    g_force_exit_requested = true;
+}
+
+void reset_shell_state() {
+    g_exit_flag = false;
+    g_startup_active = true;
+    g_command_sequence = 0;
+    g_force_exit_requested = false;
 }
 
 }  // namespace cjsh_env

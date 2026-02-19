@@ -173,11 +173,11 @@ TerminalStatus check_terminal_health(TerminalCheckLevel level = TerminalCheckLev
 bool process_command_line(const std::string& command) {
     // this condition theoretically should never be hit due to earlier checks, but just in case
     if (command.empty()) {
-        return g_exit_flag;
+        return cjsh_env::exit_requested();
     }
 
     // tracking for exit commands
-    ++g_command_sequence;
+    cjsh_env::increment_command_sequence();
 
     // handle history expansion early before any tokenization or parsing
     std::string expanded_command = command;
@@ -191,7 +191,7 @@ bool process_command_line(const std::string& command) {
                          expansion_result.error_message,
                          {"Review your history expansion syntax or disable '!' expansions."}});
             setenv("?", "1", 1);
-            return g_exit_flag;
+            return cjsh_env::exit_requested();
         }
 
         if (expansion_result.was_expanded) {
@@ -235,13 +235,13 @@ bool process_command_line(const std::string& command) {
         typeahead::ingest_typeahead_input(typeahead_input);
     }
 
-    return g_exit_flag;
+    return cjsh_env::exit_requested();
 }
 
 bool perform_terminal_check() {
     TerminalStatus status = check_terminal_health(TerminalCheckLevel::QUICK);
     if (!status.terminal_alive || !status.parent_alive) {
-        g_exit_flag = true;
+        cjsh_env::request_exit();
         return false;
     }
     return true;
@@ -267,7 +267,7 @@ void handle_null_input() {
     TerminalStatus status = check_terminal_health(TerminalCheckLevel::COMPREHENSIVE);
 
     if (!status.terminal_alive || !status.parent_alive) {
-        g_exit_flag = true;
+        cjsh_env::request_exit();
     }
 }
 
@@ -326,7 +326,7 @@ std::optional<std::string> get_next_command(bool command_was_available) {
 
     // check for control D as that is kill shell
     if (command_to_run == IC_READLINE_TOKEN_CTRL_D) {
-        g_exit_flag = true;
+        cjsh_env::request_exit();
         return std::nullopt;
     }
 
@@ -495,7 +495,7 @@ void main_process_loop() {
         // handle any pending signals before each prompt
         g_shell->process_pending_signals();
 
-        if (g_exit_flag) {
+        if (cjsh_env::exit_requested()) {
             break;
         }
 
@@ -510,7 +510,7 @@ void main_process_loop() {
         // fetch the next command from the user
         std::optional<std::string> next_command = get_next_command(command_available);
 
-        if (g_exit_flag) {
+        if (cjsh_env::exit_requested()) {
             break;
         }
 
@@ -524,7 +524,7 @@ void main_process_loop() {
 
         // handle the command from the user
         bool exit_requested = process_command_line(command_to_run);
-        if (exit_requested || g_exit_flag) {
+        if (exit_requested || cjsh_env::exit_requested()) {
             break;
         }
 
@@ -543,7 +543,7 @@ void main_process_loop() {
 void start_interactive_process() {
     // activate the line editor
     initialize_isocline();
-    g_startup_active = false;
+    cjsh_env::set_startup_active(false);
     bool first_boot = cjsh_filesystem::is_first_boot();
 
     std::chrono::microseconds startup_duration(0);

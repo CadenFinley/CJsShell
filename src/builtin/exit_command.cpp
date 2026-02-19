@@ -79,7 +79,7 @@ int exit_command(const std::vector<std::string>& args) {
 
                 break;
             } else {
-                g_exit_flag = true;
+                cjsh_env::request_exit();
                 cjsh_env::set_shell_variable_value("EXIT_CODE", "128");
                 return 0;
             }
@@ -87,7 +87,7 @@ int exit_command(const std::vector<std::string>& args) {
     }
 
     if (non_flag_args > 1) {
-        g_exit_flag = true;
+        cjsh_env::request_exit();
         cjsh_env::set_shell_variable_value("EXIT_CODE", "128");
         return 0;
     }
@@ -99,7 +99,7 @@ int exit_command(const std::vector<std::string>& args) {
         config::execute_command || !config::cmd_to_execute.empty() || invoked_with_dash_c;
     const bool should_check_jobs = !force_exit && !running_dash_c;
     bool forced_by_repeated_exit = false;
-    const std::uint64_t current_command_sequence = g_command_sequence;
+    const std::uint64_t current_command_sequence = cjsh_env::command_sequence();
 
     if (should_check_jobs) {
         auto& job_manager = JobManager::instance();
@@ -160,7 +160,7 @@ int exit_command(const std::vector<std::string>& args) {
     }
 
     if (force_exit) {
-        g_force_exit_requested = true;
+        cjsh_env::request_force_exit();
         if (forced_by_repeated_exit) {
             print_error({ErrorType::RUNTIME_ERROR,
                          ErrorSeverity::WARNING,
@@ -175,7 +175,7 @@ int exit_command(const std::vector<std::string>& args) {
         std::exit(exit_code);
     }
 
-    g_exit_flag = true;
+    cjsh_env::request_exit();
     cjsh_env::set_shell_variable_value("EXIT_CODE", std::to_string(exit_code));
     return 0;
 }

@@ -38,6 +38,7 @@
 #include "cjsh.h"
 #include "cjshopt_command.h"
 #include "error_out.h"
+#include "shell_env.h"
 
 namespace {
 
@@ -223,7 +224,7 @@ void print_cjshopt_usage() {
 
 int cjshopt_command(const std::vector<std::string>& args) {
     if (args.size() > 1 && (args[1] == "--help" || args[1] == "-h")) {
-        if (!g_startup_active) {
+        if (!cjsh_env::startup_active()) {
             print_cjshopt_usage();
         }
         return 0;

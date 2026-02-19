@@ -33,9 +33,9 @@
 #include <iterator>
 #include <optional>
 
-#include "cjsh.h"
 #include "interpreter_utils.h"
 #include "parser.h"
+#include "shell_env.h"
 
 using shell_script_interpreter::detail::process_line_for_validation;
 using shell_script_interpreter::detail::strip_inline_comment;
@@ -328,13 +328,13 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                                          shell_parser);
 
                 if (!expanded->trailing_commands.empty() && rc != 253 && rc != 254 && rc != 255 &&
-                    !g_exit_flag) {
+                    !cjsh_env::exit_requested()) {
                     auto trailing_cmds =
                         shell_parser->parse_semicolon_commands(expanded->trailing_commands);
                     for (const auto& cmd : trailing_cmds) {
                         int follow_rc = execute_simple_or_pipeline(cmd);
                         rc = follow_rc;
-                        if (follow_rc != 0 || g_exit_flag)
+                        if (follow_rc != 0 || cjsh_env::exit_requested())
                             break;
                     }
                 }
@@ -568,7 +568,8 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                     }
                 }
 
-                if (body_rc != 253 && body_rc != 254 && body_rc != 255 && !g_exit_flag) {
+                if (body_rc != 253 && body_rc != 254 && body_rc != 255 &&
+                    !cjsh_env::exit_requested()) {
                     size_t after_fi_pos = fi_pos + 2;
                     while (after_fi_pos < rem.length() &&
                            std::isspace(static_cast<unsigned char>(rem[after_fi_pos])) != 0) {
@@ -589,7 +590,7 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                             for (const auto& c : after_cmds) {
                                 int rc3 = execute_simple_or_pipeline(c);
                                 body_rc = rc3;
-                                if (rc3 != 0 || g_exit_flag)
+                                if (rc3 != 0 || cjsh_env::exit_requested())
                                     break;
                             }
                         }

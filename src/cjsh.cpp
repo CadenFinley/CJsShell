@@ -57,11 +57,7 @@
 #include "usage.h"
 #include "version_command.h"
 
-bool g_exit_flag = false;
-bool g_startup_active = true;
-std::uint64_t g_command_sequence = 0;
 std::unique_ptr<Shell> g_shell = nullptr;
-bool g_force_exit_requested = false;
 
 namespace {
 bool invoked_via_sh(const char* arg0) {
@@ -99,7 +95,7 @@ void cleanup_resources() {
 
     // if the shell is being force exited then we skip the traps and just reset the shell to clean
     // up resources as best as possible
-    if (g_force_exit_requested) {
+    if (cjsh_env::force_exit_requested()) {
         g_shell.reset();
         return;
     }
@@ -118,6 +114,7 @@ void cleanup_resources() {
 }
 
 int run_cjsh(int argc, char* argv[]) {
+    cjsh_env::reset_shell_state();
     // set start time
     startup_begin_time() = std::chrono::steady_clock::now();
 
@@ -234,7 +231,7 @@ int run_cjsh(int argc, char* argv[]) {
     cjsh_filesystem::process_source_files();
 
     // start interactive cjsh process
-    if (!g_exit_flag && (config::interactive_mode || config::force_interactive)) {
+    if (!cjsh_env::exit_requested() && (config::interactive_mode || config::force_interactive)) {
         start_interactive_process();
     }
 

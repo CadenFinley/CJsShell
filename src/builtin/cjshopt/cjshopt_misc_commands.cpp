@@ -39,6 +39,7 @@
 #include "error_out.h"
 #include "flags.h"
 #include "isocline.h"
+#include "shell_env.h"
 #include "token_constants.h"
 
 namespace {
@@ -210,7 +211,7 @@ void print_style_preview() {
 }  // namespace
 
 int startup_flag_command(const std::vector<std::string>& args) {
-    if (!g_startup_active) {
+    if (!cjsh_env::startup_active()) {
         print_error({ErrorType::RUNTIME_ERROR,
                      "login-startup-arg",
                      "Startup flags can only be set in configuration files (e.g., ~/.cjprofile)",
@@ -245,7 +246,7 @@ int startup_flag_command(const std::vector<std::string>& args) {
 
 int style_def_command(const std::vector<std::string>& args) {
     if (args.size() == 1) {
-        if (!g_startup_active) {
+        if (!cjsh_env::startup_active()) {
             std::cout << "Usage: style_def <token_type> <style>\n\n";
             std::cout << "Define or redefine a syntax highlighting style.\n\n";
             std::cout << "Token types:\n";
@@ -267,7 +268,7 @@ int style_def_command(const std::vector<std::string>& args) {
     }
 
     if (args.size() == 2 && (args[1] == "preview" || args[1] == "--preview")) {
-        if (!g_startup_active) {
+        if (!cjsh_env::startup_active()) {
             print_style_preview();
         }
         return 0;
@@ -277,7 +278,7 @@ int style_def_command(const std::vector<std::string>& args) {
         for (const auto& pair : token_constants::default_styles()) {
             ic_style_def(pair.first.c_str(), pair.second.c_str());
         }
-        if (!g_startup_active) {
+        if (!cjsh_env::startup_active()) {
             std::cout << "All syntax highlighting styles reset to defaults.\n";
         }
         return 0;
@@ -325,7 +326,7 @@ int set_history_max_command(const std::vector<std::string>& args) {
         "Minimum value: " + std::to_string(get_history_min_history_limit()) + " (no upper limit)."};
 
     if (args.size() == 1) {
-        if (!g_startup_active) {
+        if (!cjsh_env::startup_active()) {
             for (const auto& line : usage_lines) {
                 std::cout << line << '\n';
             }
@@ -347,7 +348,7 @@ int set_history_max_command(const std::vector<std::string>& args) {
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 
     if (normalized == "--help" || normalized == "-h") {
-        if (!g_startup_active) {
+        if (!cjsh_env::startup_active()) {
             for (const auto& line : usage_lines) {
                 std::cout << line << '\n';
             }
@@ -356,7 +357,7 @@ int set_history_max_command(const std::vector<std::string>& args) {
     }
 
     if (normalized == "status" || normalized == "--status") {
-        if (!g_startup_active) {
+        if (!cjsh_env::startup_active()) {
             long current_limit = get_history_max_entries();
             if (current_limit <= 0) {
                 std::cout << "History persistence is currently disabled.\n";
@@ -401,7 +402,7 @@ int set_history_max_command(const std::vector<std::string>& args) {
         return 1;
     }
 
-    if (!g_startup_active) {
+    if (!cjsh_env::startup_active()) {
         long applied_limit = get_history_max_entries();
         if (applied_limit <= 0) {
             std::cout << "History persistence disabled.\n";
@@ -425,7 +426,7 @@ int set_completion_max_command(const std::vector<std::string>& args) {
             " (no upper limit)."};
 
     if (args.size() == 1) {
-        if (!g_startup_active) {
+        if (!cjsh_env::startup_active()) {
             for (const auto& line : usage_lines) {
                 std::cout << line << '\n';
             }
@@ -447,7 +448,7 @@ int set_completion_max_command(const std::vector<std::string>& args) {
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 
     if (normalized == "--help" || normalized == "-h") {
-        if (!g_startup_active) {
+        if (!cjsh_env::startup_active()) {
             for (const auto& line : usage_lines) {
                 std::cout << line << '\n';
             }
@@ -456,7 +457,7 @@ int set_completion_max_command(const std::vector<std::string>& args) {
     }
 
     if (normalized == "status" || normalized == "--status") {
-        if (!g_startup_active) {
+        if (!cjsh_env::startup_active()) {
             long current_limit = get_completion_max_results();
             std::cout << "Completion menu currently shows up to " << current_limit << " entries."
                       << '\n';
@@ -498,7 +499,7 @@ int set_completion_max_command(const std::vector<std::string>& args) {
         return 1;
     }
 
-    if (!g_startup_active) {
+    if (!cjsh_env::startup_active()) {
         long applied_limit = get_completion_max_results();
         std::cout << "Completion menu will display up to " << applied_limit << " entries." << '\n';
     }

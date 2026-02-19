@@ -442,7 +442,7 @@ void SignalHandler::signal_handler(int signum) {
 
             if (!is_observed) {
                 if (!config::interactive_mode) {
-                    g_exit_flag = true;
+                    cjsh_env::request_exit();
                     _exit(128 + SIGINT);
                 }
             }
@@ -458,7 +458,7 @@ void SignalHandler::signal_handler(int signum) {
 
         case SIGHUP: {
             s_sighup_received = 1;
-            g_exit_flag = true;
+            cjsh_env::request_exit();
             pid_t bg_pgid = JobManager::get_last_background_pid_atomic();
             if (bg_pgid > 0) {
                 killpg(bg_pgid, SIGHUP);
@@ -469,7 +469,7 @@ void SignalHandler::signal_handler(int signum) {
 
         case SIGTERM: {
             s_sigterm_received = 1;
-            g_exit_flag = true;
+            cjsh_env::request_exit();
 
             if (!is_observed) {
                 _exit(128 + SIGTERM);
@@ -779,7 +779,7 @@ SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) 
     if (s_sighup_received != 0) {
         s_sighup_received = 0;
         result.sighup = true;
-        g_exit_flag = true;
+        cjsh_env::request_exit();
 
         bool enforce_hup = !g_shell || g_shell->get_shell_option(ShellOption::Huponexit);
 
@@ -851,7 +851,7 @@ SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) 
         s_sigterm_received = 0;
         result.sigterm = true;
 
-        g_exit_flag = true;
+        cjsh_env::request_exit();
 
         if (shell_exec != nullptr) {
             shell_exec->terminate_all_child_process();

@@ -175,7 +175,7 @@ Shell::~Shell() {
     restore_terminal_state();
 
     // output a final exit line only in interactive modes
-    if (interactive_mode && !g_startup_active) {
+    if (interactive_mode && !cjsh_env::startup_active()) {
         std::cout << "cjsh exit";
         std::cout.flush();
     }
@@ -340,7 +340,7 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
             candidate, built_ins->get_current_directory());
 
         if (!has_alias && !is_builtin && !is_function && !is_executable && is_directory &&
-            !g_startup_active) {
+            !cjsh_env::startup_active()) {
             std::vector<std::string> cd_args = {"cd", candidate};
             int code = built_ins->builtin_command(cd_args);
             return code;

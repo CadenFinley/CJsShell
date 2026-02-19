@@ -17,10 +17,6 @@ extern "C" {
 #include "token_constants.h"
 
 std::unique_ptr<Shell> g_shell;
-bool g_exit_flag = false;
-bool g_startup_active = false;
-bool g_force_exit_requested = false;
-std::uint64_t g_command_sequence = 0;
 
 extern "C" void syntax_highlight_bridge(ic_highlight_env_t* henv, const char* input, void* arg) {
     SyntaxHighlighter::highlight(henv, input, arg);
@@ -1171,6 +1167,8 @@ static const test_case_t kTests[] = {
 };
 
 int main(void) {
+    cjsh_env::reset_shell_state();
+    cjsh_env::set_startup_active(false);
     g_shell = std::make_unique<Shell>();
     g_shell->set_interactive_mode(false);
     config::history_expansion_enabled = true;

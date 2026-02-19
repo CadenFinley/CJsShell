@@ -37,6 +37,7 @@
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "error_out.h"
+#include "shell_env.h"
 
 namespace {
 int handle_generate_command_common(
@@ -51,7 +52,7 @@ int handle_generate_command_common(
     for (size_t i = 1; i < args.size(); ++i) {
         const std::string& option = args[i];
         if (option == "--help" || option == "-h") {
-            if (!g_startup_active) {
+            if (!cjsh_env::startup_active()) {
                 std::string usage = "Usage: " + command_name + " [--force]";
                 if (alternate_target_path) {
                     usage.append(" [--alt]");
@@ -115,7 +116,7 @@ int handle_generate_command_common(
         return 1;
     }
 
-    if (!g_startup_active) {
+    if (!cjsh_env::startup_active()) {
         std::cout << (file_exists ? "Updated" : "Created") << " " << target_path << '\n';
     }
 

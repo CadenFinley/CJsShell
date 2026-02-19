@@ -42,6 +42,7 @@
 #include "cjsh.h"
 #include "error_out.h"
 #include "isocline.h"
+#include "shell_env.h"
 #include "string_utils.h"
 
 namespace {
@@ -226,7 +227,7 @@ std::vector<std::string> available_action_names() {
 }
 
 void print_keybind_usage() {
-    if (g_startup_active) {
+    if (cjsh_env::startup_active()) {
         return;
     }
     for (const auto& line : keybind_usage_lines()) {
@@ -335,7 +336,7 @@ int keybind_list_command() {
     auto entries = collect_bindings();
     auto grouped = group_bindings_by_action(entries);
 
-    if (g_startup_active) {
+    if (cjsh_env::startup_active()) {
         return 0;
     }
 
@@ -408,7 +409,7 @@ int keybind_list_command() {
 }
 
 int keybind_profile_list_command() {
-    if (g_startup_active) {
+    if (cjsh_env::startup_active()) {
         return 0;
     }
 
@@ -473,7 +474,7 @@ int keybind_profile_set_command(const std::vector<std::string>& args) {
         return 1;
     }
 
-    if (!g_startup_active) {
+    if (!cjsh_env::startup_active()) {
         std::cout << "Key binding profile set to '" << profile_name << "'.\n";
         std::cout << "Add `cjshopt keybind profile set " << profile_name
                   << "` to your ~/.cjshrc to persist this change.\n";
@@ -604,7 +605,7 @@ int keybind_set_or_add_command(const std::vector<std::string>& args, bool replac
         }
     }
 
-    if (!g_startup_active) {
+    if (!cjsh_env::startup_active()) {
         std::vector<std::string> spec_strings;
         spec_strings.reserve(parsed.size());
         for (const auto& entry : parsed) {
@@ -662,7 +663,7 @@ int keybind_clear_keys_command(const std::vector<std::string>& args) {
         }
     }
 
-    if (!g_startup_active) {
+    if (!cjsh_env::startup_active()) {
         if (!removed.empty()) {
             std::cout << "Cleared key binding(s) for: " << join_specs(removed) << '\n';
         }
@@ -715,7 +716,7 @@ int keybind_clear_action_command(const std::vector<std::string>& args) {
         }
     }
 
-    if (!g_startup_active) {
+    if (!cjsh_env::startup_active()) {
         if (!removed.empty()) {
             std::cout << "Cleared custom bindings for " << canonical_action_name(action) << ": "
                       << join_specs(removed) << '\n';
@@ -730,7 +731,7 @@ int keybind_clear_action_command(const std::vector<std::string>& args) {
 
 int keybind_reset_command() {
     ic_reset_key_bindings();
-    if (!g_startup_active) {
+    if (!cjsh_env::startup_active()) {
         std::cout << "All custom key bindings cleared.\n";
     }
     return 0;

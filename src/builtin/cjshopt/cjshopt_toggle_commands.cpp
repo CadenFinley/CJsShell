@@ -190,7 +190,7 @@ int handle_toggle_command(const ToggleCommandConfig& config, const std::vector<s
     }
 
     if (args.size() == 2 && (args[1] == "--help" || args[1] == "-h")) {
-        if (!g_startup_active) {
+        if (!cjsh_env::startup_active()) {
             for (const auto& line : config.usage_lines) {
                 std::cout << line << '\n';
             }
@@ -216,7 +216,7 @@ int handle_toggle_command(const ToggleCommandConfig& config, const std::vector<s
     }
 
     if (*request == ToggleRequest::Status) {
-        if (!g_startup_active) {
+        if (!cjsh_env::startup_active()) {
             const char* verb = config.status_label_is_plural ? "are" : "is";
             std::cout << config.status_label << ' ' << verb << " currently "
                       << (config.get_current() ? "enabled" : "disabled") << ".\n";
@@ -233,7 +233,7 @@ int handle_toggle_command(const ToggleCommandConfig& config, const std::vector<s
 
     config.set_state(enable);
 
-    if (!g_startup_active) {
+    if (!cjsh_env::startup_active()) {
         std::cout << config.status_label << ' ' << (enable ? "enabled" : "disabled") << ".\n";
         const std::string extra = format_persist_message(config, enable);
         if (!extra.empty()) {
@@ -418,7 +418,7 @@ int line_numbers_command(const std::vector<std::string>& args) {
     }
 
     if (args.size() == 2 && (args[1] == "--help" || args[1] == "-h")) {
-        if (!g_startup_active) {
+        if (!cjsh_env::startup_active()) {
             for (const auto& line : usage_lines) {
                 std::cout << line << '\n';
             }
@@ -467,7 +467,7 @@ int line_numbers_command(const std::vector<std::string>& args) {
     }
 
     if (*mode == LineNumbersMode::Status) {
-        if (!g_startup_active) {
+        if (!cjsh_env::startup_active()) {
             std::cout << describe_status() << '\n';
         }
         return 0;
@@ -495,7 +495,7 @@ int line_numbers_command(const std::vector<std::string>& args) {
             break;
     }
 
-    if (!g_startup_active && changed) {
+    if (!cjsh_env::startup_active() && changed) {
         std::cout << describe_status() << '\n';
         std::string persist_token;
         if (!ic_line_numbers_are_enabled()) {
@@ -569,7 +569,7 @@ int hint_delay_command(const std::vector<std::string>& args) {
     }
 
     if (args.size() == 2 && (args[1] == "--help" || args[1] == "-h")) {
-        if (!g_startup_active) {
+        if (!cjsh_env::startup_active()) {
             for (const auto& line : usage_lines) {
                 std::cout << line << '\n';
             }
@@ -589,7 +589,7 @@ int hint_delay_command(const std::vector<std::string>& args) {
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 
     if (parse_status_query(normalized) == StatusQuery::Status) {
-        if (!g_startup_active) {
+        if (!cjsh_env::startup_active()) {
             std::cout << "To check or modify hint delay, use: hint-delay <milliseconds>\n";
         }
         return 0;
@@ -605,7 +605,7 @@ int hint_delay_command(const std::vector<std::string>& args) {
 
         ic_set_hint_delay(delay_ms);
 
-        if (!g_startup_active) {
+        if (!cjsh_env::startup_active()) {
             std::cout << "Hint delay set to " << delay_ms << " milliseconds.\n";
             std::cout << "Add `cjshopt hint-delay " << delay_ms
                       << "` to your ~/.cjshrc to persist this change.\n";
@@ -632,7 +632,7 @@ int multiline_start_lines_command(const std::vector<std::string>& args) {
     }
 
     if (args.size() == 2 && (args[1] == "--help" || args[1] == "-h")) {
-        if (!g_startup_active) {
+        if (!cjsh_env::startup_active()) {
             for (const auto& line : usage_lines) {
                 std::cout << line << '\n';
             }
@@ -652,7 +652,7 @@ int multiline_start_lines_command(const std::vector<std::string>& args) {
                    [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
 
     if (parse_status_query(normalized) == StatusQuery::Status) {
-        if (!g_startup_active) {
+        if (!cjsh_env::startup_active()) {
             const size_t current = ic_get_multiline_start_line_count();
             std::cout << "Multiline prompts currently start with " << current << " line"
                       << (current == 1 ? "" : "s") << ".\n";
@@ -680,7 +680,7 @@ int multiline_start_lines_command(const std::vector<std::string>& args) {
     ic_set_multiline_start_line_count(requested);
     const size_t applied = ic_get_multiline_start_line_count();
 
-    if (!g_startup_active) {
+    if (!cjsh_env::startup_active()) {
         if (applied != requested) {
             std::cout << "Line count exceeds the supported maximum; using " << applied
                       << " instead.\n";
@@ -862,7 +862,7 @@ int status_hints_command(const std::vector<std::string>& args) {
     }
 
     if (args.size() == 2 && (args[1] == "--help" || args[1] == "-h")) {
-        if (!g_startup_active) {
+        if (!cjsh_env::startup_active()) {
             for (const auto& line : usage_lines) {
                 std::cout << line << '\n';
             }
@@ -916,7 +916,7 @@ int status_hints_command(const std::vector<std::string>& args) {
     }
 
     if (*mode == StatusHintsMode::Status) {
-        if (!g_startup_active) {
+        if (!cjsh_env::startup_active()) {
             if (config::status_line_enabled) {
                 std::cout << "Status hints are currently "
                           << describe_status_hint_mode(g_status_hint_preference) << ".\n";
@@ -951,7 +951,7 @@ int status_hints_command(const std::vector<std::string>& args) {
     g_status_hint_preference = target;
 
     if (!preference_changed) {
-        if (!g_startup_active && !config::status_line_enabled) {
+        if (!cjsh_env::startup_active() && !config::status_line_enabled) {
             std::cout << "Status hints stay hidden because the status line toggle is off.\n";
         }
         return 0;
@@ -959,7 +959,7 @@ int status_hints_command(const std::vector<std::string>& args) {
 
     apply_effective_status_hint_mode();
 
-    if (!g_startup_active) {
+    if (!cjsh_env::startup_active()) {
         if (config::status_line_enabled) {
             std::cout << "Status hints set to " << describe_status_hint_mode(target) << ".\n";
             std::cout << "Add `cjshopt status-hints " << canonical_status_hint_token(target)

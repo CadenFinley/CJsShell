@@ -1061,7 +1061,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         if (block_result.handled) {
             last_code = block_result.exit_code;
             line_index = block_result.next_line_index;
-            if (is_control_flow_exit_code(last_code) || g_exit_flag) {
+            if (is_control_flow_exit_code(last_code) || cjsh_env::exit_requested()) {
                 return last_code;
             }
             continue;

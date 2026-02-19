@@ -39,6 +39,7 @@
 #include "cjsh.h"
 #include "error_out.h"
 #include "isocline.h"
+#include "shell_env.h"
 
 std::unordered_map<ic_keycode_t, std::string> g_custom_keybindings;
 
@@ -68,7 +69,7 @@ void clear_all_custom_keybindings() {
 
 namespace {
 int keybind_ext_list_command() {
-    if (g_startup_active) {
+    if (cjsh_env::startup_active()) {
         return 0;
     }
 
@@ -155,7 +156,7 @@ int keybind_ext_set_command(const std::vector<std::string>& args) {
 
     set_custom_keybinding(key_code, command);
 
-    if (!g_startup_active) {
+    if (!cjsh_env::startup_active()) {
         std::cout << "Bound key '" << key_spec << "' to command: " << command << '\n';
         std::cout << "Add `cjshopt keybind ext set '" << key_spec << "' '" << command
                   << "'` to your ~/.cjshrc to persist this change.\n";
@@ -198,7 +199,7 @@ int keybind_ext_clear_command(const std::vector<std::string>& args) {
         }
     }
 
-    if (!g_startup_active) {
+    if (!cjsh_env::startup_active()) {
         if (!cleared.empty()) {
             std::cout << "Cleared custom command binding(s) for: ";
             for (size_t i = 0; i < cleared.size(); ++i) {
@@ -230,7 +231,7 @@ int keybind_ext_reset_command() {
     }
     clear_all_custom_keybindings();
 
-    if (!g_startup_active) {
+    if (!cjsh_env::startup_active()) {
         std::cout << "All custom command keybindings cleared.\n";
     }
 
