@@ -229,6 +229,12 @@ int unset_command(const std::vector<std::string>& args, Shell* shell) {
     for (size_t i = 1; i < args.size(); ++i) {
         const std::string& name = args[i];
 
+        if (!cjsh_env::is_valid_env_name(name)) {
+            print_error({ErrorType::INVALID_ARGUMENT, "unset", "invalid name: " + name, {}});
+            success = false;
+            continue;
+        }
+
         if (readonly_manager_is(name)) {
             print_error({ErrorType::INVALID_ARGUMENT, "unset", name + ": readonly variable", {}});
             success = false;

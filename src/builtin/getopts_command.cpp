@@ -188,7 +188,7 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
 
         print_error(
             {ErrorType::INVALID_ARGUMENT, "getopts", std::string("illegal option -- ") + opt, {}});
-        return 0;
+        return 1;
     }
 
     std::string opt_val(1, opt);

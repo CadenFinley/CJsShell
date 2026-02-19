@@ -335,5 +335,11 @@ int shift_command(const std::vector<std::string>& args, Shell* shell) {
         }
     }
 
+    size_t param_count = flags::get_positional_parameter_count();
+    if (shift_count > static_cast<int>(param_count)) {
+        print_error({ErrorType::INVALID_ARGUMENT, "shift", "shift count out of range", {}});
+        return 1;
+    }
+
     return flags::shift_positional_parameters(shift_count);
 }

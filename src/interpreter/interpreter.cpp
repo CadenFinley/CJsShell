@@ -739,7 +739,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                 }
             }
         } catch (const std::runtime_error& e) {
-            throw;
+            return handle_runtime_exception(text, e, current_line_number);
         }
 
         if (!has_multiple_commands && is_statement_keyword_prefix(text, StatementKeyword::Case) &&
@@ -902,6 +902,20 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
     };
 
     auto execute_block_skip_validation = [&](const std::vector<std::string>& block_lines) -> int {
+        struct LoopScope {
+            ShellScriptInterpreter* self;
+            explicit LoopScope(ShellScriptInterpreter* interpreter) : self(interpreter) {
+                if (self) {
+                    self->push_loop_scope();
+                }
+            }
+            ~LoopScope() {
+                if (self) {
+                    self->pop_loop_scope();
+                }
+            }
+        } scope(this);
+
         return execute_block(block_lines, true);
     };
 
@@ -1481,7 +1495,32 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                     }
 
                     if (!is_function_call && is_control_flow_exit_code(code)) {
-                        goto control_flow_exit;
+                        bool control_flow_error = false;
+                        if (code == 253 && !in_function_scope()) {
+                            print_error({ErrorType::INVALID_ARGUMENT,
+                                         "return",
+                                         "return outside function",
+                                         {}});
+                            control_flow_error = true;
+                        } else if (code == 254 && !in_loop_scope()) {
+                            print_error({ErrorType::INVALID_ARGUMENT,
+                                         "continue",
+                                         "continue outside loop",
+                                         {}});
+                            control_flow_error = true;
+                        } else if (code == 255 && !in_loop_scope()) {
+                            print_error(
+                                {ErrorType::INVALID_ARGUMENT, "break", "break outside loop", {}});
+                            control_flow_error = true;
+                        }
+
+                        if (control_flow_error) {
+                            code = 1;
+                            last_code = code;
+                            set_last_status(last_code);
+                        } else {
+                            goto control_flow_exit;
+                        }
                     }
                 }
             }
@@ -1719,6 +1758,20 @@ void ShellScriptInterpreter::mark_local_as_exported(const std::string& name) {
 
 bool ShellScriptInterpreter::in_function_scope() const {
     return variable_manager.in_function_scope();
+}
+
+void ShellScriptInterpreter::push_loop_scope() {
+    ++loop_depth;
+}
+
+void ShellScriptInterpreter::pop_loop_scope() {
+    if (loop_depth > 0) {
+        --loop_depth;
+    }
+}
+
+bool ShellScriptInterpreter::in_loop_scope() const {
+    return loop_depth > 0;
 }
 
 ShellScriptInterpreter::BlockHandlerResult ShellScriptInterpreter::try_dispatch_block_statement(

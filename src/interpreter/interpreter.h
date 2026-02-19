@@ -200,4 +200,10 @@ class ShellScriptInterpreter {
         cjsh::FunctionRef<int(const std::vector<std::string>&, size_t&)> handle_while_block,
         cjsh::FunctionRef<int(const std::vector<std::string>&, size_t&)> handle_until_block,
         cjsh::FunctionRef<int(const std::vector<std::string>&, size_t&)> handle_case_block);
+
+    void push_loop_scope();
+    void pop_loop_scope();
+    bool in_loop_scope() const;
+
+    int loop_depth = 0;
 };

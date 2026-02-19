@@ -389,6 +389,23 @@ int Shell::execute_script_file(const std::filesystem::path& path, bool optional)
         if (optional) {
             return 0;
         }
+        std::error_code status_ec;
+        bool exists = std::filesystem::exists(normalized, status_ec);
+        bool is_dir = !status_ec && std::filesystem::is_directory(normalized, status_ec);
+        if (is_dir) {
+            print_error(
+                {ErrorType::RUNTIME_ERROR, "source", "is a directory: '" + display_path + "'", {}});
+            return 1;
+        }
+        if (exists) {
+            if (access(display_path.c_str(), R_OK) != 0 && errno == EACCES) {
+                print_error({ErrorType::PERMISSION_DENIED,
+                             "source",
+                             "cannot open file '" + display_path + "'",
+                             {}});
+                return 1;
+            }
+        }
         print_error(
             {ErrorType::FILE_NOT_FOUND, "source", "cannot open file '" + display_path + "'", {}});
         return 1;

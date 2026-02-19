@@ -65,5 +65,13 @@ int source_command(const std::vector<std::string>& args) {
         return 1;
     }
 
+    std::error_code status_ec;
+    const std::filesystem::path target_path(args[1]);
+    if (std::filesystem::exists(target_path, status_ec) &&
+        std::filesystem::is_directory(target_path, status_ec)) {
+        print_error({ErrorType::RUNTIME_ERROR, command_name, "is a directory: " + args[1], {}});
+        return 1;
+    }
+
     return g_shell->execute_script_file(std::filesystem::path(args[1]));
 }

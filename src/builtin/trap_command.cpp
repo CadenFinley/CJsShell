@@ -199,7 +199,10 @@ int signal_name_to_number(const std::string& signal_name) {
         if (num == 0) {
             return 0;
         }
-        return num;
+        if (SignalHandler::is_valid_signal(num)) {
+            return num;
+        }
+        return -1;
     } catch (...) {
         return -1;
     }

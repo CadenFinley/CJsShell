@@ -79,6 +79,10 @@ int exit_command(const std::vector<std::string>& args) {
 
                 break;
             } else {
+                print_error({ErrorType::INVALID_ARGUMENT,
+                             "exit",
+                             "invalid numeric argument: " + val,
+                             {"Use a number between 0 and 255."}});
                 cjsh_env::request_exit();
                 cjsh_env::set_shell_variable_value("EXIT_CODE", "128");
                 return 0;
@@ -87,6 +91,10 @@ int exit_command(const std::vector<std::string>& args) {
     }
 
     if (non_flag_args > 1) {
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     "exit",
+                     "too many arguments",
+                     {"Use at most one exit status argument."}});
         cjsh_env::request_exit();
         cjsh_env::set_shell_variable_value("EXIT_CODE", "128");
         return 0;

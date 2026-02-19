@@ -28,6 +28,7 @@
 
 #include "test_command.h"
 #include "builtin_help.h"
+#include "error_out.h"
 
 #include <sys/stat.h>
 #include <unistd.h>
@@ -358,6 +359,12 @@ int test_command(const std::vector<std::string>& args) {
         return 0;
     }
 
+    const std::string& command_name = args.empty() ? "test" : args[0];
+    if (!args.empty() && args[0] == "[" && (args.size() == 1 || args.back() != "]")) {
+        print_error({ErrorType::SYNTAX_ERROR, command_name, "missing closing ']'", {}});
+        return 2;
+    }
+
     std::vector<std::string> test_args;
 
     if (args[0] == "[") {
@@ -376,8 +383,19 @@ int test_command(const std::vector<std::string>& args) {
         return 1;
     }
 
+    if ((test_args.size() == 1 && (is_unary_op(test_args[0]) || is_binary_op(test_args[0]))) ||
+        (test_args.size() == 2 && is_binary_op(test_args[1]))) {
+        print_error({ErrorType::SYNTAX_ERROR, command_name, "syntax error: missing operand", {}});
+        return 2;
+    }
+
     TestContext ctx(test_args);
     bool result = evaluate_expression(ctx);
+
+    if (ctx.has_more()) {
+        print_error({ErrorType::SYNTAX_ERROR, command_name, "syntax error: unexpected token", {}});
+        return 2;
+    }
 
     return result ? 0 : 1;
 }

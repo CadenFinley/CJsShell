@@ -755,15 +755,27 @@ IfCheckResult analyze_if_syntax(const std::vector<std::string>& tokens,
                                 const std::string& trimmed_line) {
     IfCheckResult result;
 
-    bool has_then_on_line = std::find(tokens.begin(), tokens.end(), "then") != tokens.end();
-    bool has_semicolon = trimmed_line.find(';') != std::string::npos;
+    bool has_then_on_line = false;
+    size_t then_pos = trimmed_line.find("then");
+    while (then_pos != std::string::npos) {
+        if (is_word_boundary(trimmed_line, then_pos, 4)) {
+            has_then_on_line = true;
+            break;
+        }
+        then_pos = trimmed_line.find("then", then_pos + 4);
+    }
 
-    if (!has_then_on_line && !has_semicolon) {
+    if (!has_then_on_line) {
         result.missing_then_keyword = true;
     }
 
-    if (tokens.size() == 1 || (tokens.size() == 2 && tokens[1] == "then")) {
+    if (tokens.size() == 1) {
         result.missing_condition = true;
+    } else if (tokens.size() >= 2) {
+        const std::string& second = tokens[1];
+        if (second == "then" || second.rfind("then", 0) == 0) {
+            result.missing_condition = true;
+        }
     }
 
     return result;

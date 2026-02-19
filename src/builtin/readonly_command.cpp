@@ -200,6 +200,11 @@ int readonly_command(const std::vector<std::string>& args) {
             std::string name = arg.substr(0, eq_pos);
             std::string value = arg.substr(eq_pos + 1);
 
+            if (!cjsh_env::is_valid_env_name(name)) {
+                print_error({ErrorType::INVALID_ARGUMENT, "readonly", "invalid name: " + name, {}});
+                return 1;
+            }
+
             if (readonly_manager_is(name)) {
                 print_error(
                     {ErrorType::RUNTIME_ERROR, "readonly", name + ": readonly variable", {}});
@@ -214,6 +219,10 @@ int readonly_command(const std::vector<std::string>& args) {
 
             readonly_manager_set(name);
         } else {
+            if (!cjsh_env::is_valid_env_name(arg)) {
+                print_error({ErrorType::INVALID_ARGUMENT, "readonly", "invalid name: " + arg, {}});
+                return 1;
+            }
             if (!cjsh_env::shell_variable_is_set(arg)) {
                 if (!cjsh_env::set_shell_variable_value(arg, "")) {
                     print_error(

@@ -29,6 +29,7 @@
 #include "double_bracket_command.h"
 
 #include "builtin_help.h"
+#include "error_out.h"
 
 #include <sys/stat.h>
 #include <unistd.h>
@@ -228,6 +229,12 @@ int evaluate_expression(const std::vector<std::string>& tokens) {
     return 1;
 }
 
+bool is_binary_op(const std::string& op) {
+    return op == "=" || op == "==" || op == "!=" || op == "=~" || op == "-eq" || op == "-ne" ||
+           op == "-lt" || op == "-le" || op == "-gt" || op == "-ge" || op == "-ef" || op == "-nt" ||
+           op == "-ot";
+}
+
 }  // namespace
 
 int double_bracket_command(const std::vector<std::string>& args) {
@@ -241,6 +248,11 @@ int double_bracket_command(const std::vector<std::string>& args) {
         return 1;
     }
 
+    if (args[0] == "[[" && (args.size() == 1 || args.back() != "]]")) {
+        print_error({ErrorType::SYNTAX_ERROR, "[[", "missing closing ']]'", {}});
+        return 2;
+    }
+
     std::vector<std::string> expression_args = args;
 
     if (args[0] == "[[" && args.size() > 1 && args.back() == "]]") {
@@ -252,6 +264,12 @@ int double_bracket_command(const std::vector<std::string>& args) {
 
     if (expression_args.empty()) {
         return 1;
+    }
+
+    if ((expression_args.size() == 1 && is_binary_op(expression_args[0])) ||
+        (expression_args.size() == 2 && is_binary_op(expression_args[1]))) {
+        print_error({ErrorType::SYNTAX_ERROR, "[[", "syntax error: missing operand", {}});
+        return 2;
     }
 
     std::vector<std::vector<std::string>> expressions;
