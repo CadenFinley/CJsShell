@@ -77,6 +77,10 @@ SignalMask::~SignalMask() {
 
 std::atomic<SignalHandler*> SignalHandler::s_instance(nullptr);
 
+SignalHandler* SignalHandler::instance() {
+    return s_instance.load(std::memory_order_acquire);
+}
+
 volatile sig_atomic_t SignalHandler::s_sigint_received = 0;
 volatile sig_atomic_t SignalHandler::s_sigchld_received = 0;
 volatile sig_atomic_t SignalHandler::s_sighup_received = 0;
@@ -201,8 +205,6 @@ const std::vector<SignalInfo>& SignalHandler::signal_table() {
 const std::vector<SignalInfo>& SignalHandler::available_signals() {
     return signal_table();
 }
-
-SignalHandler* g_signal_handler = nullptr;
 
 SignalHandler::SignalHandler()
 

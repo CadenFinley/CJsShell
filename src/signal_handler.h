@@ -93,6 +93,7 @@ class SignalHandler {
 
     SignalProcessingResult process_pending_signals(Exec* shell_exec);
     static bool has_pending_signals();
+    static SignalHandler* instance();
     static const std::vector<SignalInfo>& available_signals();
 
     static int name_to_signal(const std::string& name);
@@ -155,7 +156,5 @@ class SignalHandler {
     static void install_signal_handler(int signum, struct sigaction* old_action);
     static void process_trapped_signal(int signum);
 };
-
-extern SignalHandler* g_signal_handler;
 
 void reset_child_signals();

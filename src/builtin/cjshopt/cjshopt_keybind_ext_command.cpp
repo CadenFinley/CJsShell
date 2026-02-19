@@ -41,7 +41,9 @@
 #include "isocline.h"
 #include "shell_env.h"
 
+namespace {
 std::unordered_map<ic_keycode_t, std::string> g_custom_keybindings;
+}  // namespace
 
 std::string get_custom_keybinding(ic_keycode_t key) {
     auto it = g_custom_keybindings.find(key);

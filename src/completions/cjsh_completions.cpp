@@ -60,8 +60,10 @@
 #include "shell_env.h"
 #include "token_constants.h"
 
+namespace {
 bool g_completion_case_sensitive = false;
 bool g_completion_spell_correction_enabled = true;
+}  // namespace
 
 enum CompletionContext : std::uint8_t {
     CONTEXT_COMMAND,

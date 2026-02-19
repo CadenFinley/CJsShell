@@ -218,9 +218,9 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
         if (allow_shell_processing && shell_ptr != nullptr) {
             pending = shell_ptr->process_pending_signals();
             processed = true;
-        } else if (g_signal_handler != nullptr) {
+        } else if (auto* signal_handler = SignalHandler::instance()) {
             std::lock_guard<std::mutex> lock(signal_poll_mutex);
-            pending = g_signal_handler->process_pending_signals(nullptr);
+            pending = signal_handler->process_pending_signals(nullptr);
             processed = true;
         }
 

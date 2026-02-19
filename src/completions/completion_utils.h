@@ -31,8 +31,6 @@
 #include <string>
 #include <vector>
 
-extern bool g_completion_case_sensitive;
-
 namespace completion_utils {
 
 std::string quote_path_if_needed(const std::string& path);

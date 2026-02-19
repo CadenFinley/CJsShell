@@ -33,7 +33,6 @@
 #include <vector>
 
 using ic_keycode_t = unsigned int;
-extern std::unordered_map<ic_keycode_t, std::string> g_custom_keybindings;
 
 int cjshopt_command(const std::vector<std::string>& args);
 int keybind_ext_command(const std::vector<std::string>& args);

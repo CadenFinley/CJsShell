@@ -33,6 +33,7 @@
 #include <string>
 #include <vector>
 
+#include "cjsh_completions.h"
 #include "quote_state.h"
 
 namespace completion_utils {
@@ -178,7 +179,7 @@ size_t find_last_unquoted_space(const std::string& str) {
 }
 
 std::string normalize_for_comparison(const std::string& value) {
-    if (g_completion_case_sensitive) {
+    if (is_completion_case_sensitive()) {
         return value;
     }
 
@@ -206,7 +207,7 @@ bool starts_with_case_sensitive(const std::string& str, const std::string& prefi
 }
 
 bool matches_completion_prefix(const std::string& str, const std::string& prefix) {
-    if (g_completion_case_sensitive) {
+    if (is_completion_case_sensitive()) {
         return starts_with_case_sensitive(str, prefix);
     }
 
@@ -214,7 +215,7 @@ bool matches_completion_prefix(const std::string& str, const std::string& prefix
 }
 
 bool equals_completion_token(const std::string& value, const std::string& target) {
-    if (g_completion_case_sensitive) {
+    if (is_completion_case_sensitive()) {
         return value == target;
     }
 

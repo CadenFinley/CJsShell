@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "builtins_completions_handler.h"
+#include "cjsh_completions.h"
 #include "completion_spell.h"
 #include "completion_tracker.h"
 #include "completion_utils.h"
@@ -13,8 +14,6 @@ extern "C" {
 #include "completions.h"
 #include "env.h"
 }
-
-extern bool g_completion_case_sensitive;
 
 static void log_failure(const char* test_name, const char* message) {
     std::fprintf(stderr, "[FAIL] %s: %s\n", test_name, message);
@@ -189,37 +188,41 @@ static bool test_find_last_unquoted_space_with_tabs(void) {
 
 static bool test_case_sensitivity_helpers(void) {
     const char* test_name = "case_sensitivity_helpers";
-    g_completion_case_sensitive = false;
+    const bool original_setting = is_completion_case_sensitive();
+    set_completion_case_sensitive(false);
     EXPECT_TRUE(completion_utils::matches_completion_prefix("Hello", "he"), test_name,
                 "case-insensitive prefix should match");
     EXPECT_TRUE(completion_utils::equals_completion_token("FOO", "foo"), test_name,
                 "case-insensitive token should match");
 
-    g_completion_case_sensitive = true;
+    set_completion_case_sensitive(true);
     EXPECT_FALSE(completion_utils::matches_completion_prefix("Hello", "he"), test_name,
                  "case-sensitive prefix should reject mismatch");
     EXPECT_FALSE(completion_utils::equals_completion_token("FOO", "foo"), test_name,
                  "case-sensitive token should reject mismatch");
 
-    g_completion_case_sensitive = false;
+    set_completion_case_sensitive(original_setting);
     return true;
 }
 
 static bool test_normalize_for_comparison(void) {
     const char* test_name = "normalize_for_comparison";
-    g_completion_case_sensitive = false;
+    const bool original_setting = is_completion_case_sensitive();
+    set_completion_case_sensitive(false);
     if (!expect_streq(completion_utils::normalize_for_comparison("MiXeD"), "mixed", test_name,
                       "normalize should lower-case when case-insensitive")) {
+        set_completion_case_sensitive(original_setting);
         return false;
     }
 
-    g_completion_case_sensitive = true;
+    set_completion_case_sensitive(true);
     if (!expect_streq(completion_utils::normalize_for_comparison("MiXeD"), "MiXeD", test_name,
                       "normalize should preserve case when case-sensitive")) {
+        set_completion_case_sensitive(original_setting);
         return false;
     }
 
-    g_completion_case_sensitive = false;
+    set_completion_case_sensitive(original_setting);
     return true;
 }
 

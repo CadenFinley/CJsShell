@@ -151,7 +151,6 @@ Shell::Shell() : shell_pgid(0), shell_tmodes() {
 
     // signal dispatch depends on the prior wiring so register handlers after setup completes
     setup_signal_handlers();
-    g_signal_handler = signal_handler.get();
 
     // enable job control now that handlers and managers are ready
     setup_job_control();
