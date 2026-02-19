@@ -1,5 +1,5 @@
 /*
-  dirs_command.h
+  boolean_commands.cpp
 
   This file is part of cjsh, CJ's Shell
 
@@ -26,12 +26,13 @@
   SOFTWARE.
 */
 
-#pragma once
+#include "false_command.h"
+#include "true_command.h"
 
-#include <string>
-#include <vector>
+int true_command() {
+    return 0;
+}
 
-class Shell;
-
-int dirs_command(const std::vector<std::string>& args, const std::string& current_directory,
-                 Shell* shell = nullptr);
+int false_command() {
+    return 1;
+}

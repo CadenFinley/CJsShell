@@ -1,5 +1,5 @@
 /*
-  alias_command.h
+  alias_abbr_commands.h
 
   This file is part of cjsh, CJ's Shell
 
@@ -35,4 +35,6 @@ class Shell;
 
 int alias_command(const std::vector<std::string>& args, Shell* shell);
 int unalias_command(const std::vector<std::string>& args, Shell* shell);
+int abbr_command(const std::vector<std::string>& args, Shell* shell);
+int unabbr_command(const std::vector<std::string>& args, Shell* shell);
 bool parse_assignment(const std::string& arg, std::string& name, std::string& value);

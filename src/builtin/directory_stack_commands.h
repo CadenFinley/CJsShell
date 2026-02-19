@@ -1,5 +1,5 @@
 /*
-  false_command.cpp
+  directory_stack_commands.h
 
   This file is part of cjsh, CJ's Shell
 
@@ -26,8 +26,16 @@
   SOFTWARE.
 */
 
-#include "false_command.h"
+#pragma once
 
-int false_command() {
-    return 1;
-}
+#include <string>
+#include <vector>
+
+class Shell;
+
+int dirs_command(const std::vector<std::string>& args, const std::string& current_directory,
+                 Shell* shell = nullptr);
+int pushd_command(const std::vector<std::string>& args, std::string& current_directory,
+                  std::string& previous_directory, Shell* shell = nullptr);
+int popd_command(const std::vector<std::string>& args, std::string& current_directory,
+                 std::string& previous_directory, Shell* shell = nullptr);

@@ -1,5 +1,5 @@
 /*
-  abbr_command.h
+  job_control_commands.h
 
   This file is part of cjsh, CJ's Shell
 
@@ -31,7 +31,7 @@
 #include <string>
 #include <vector>
 
-class Shell;
-
-int abbr_command(const std::vector<std::string>& args, Shell* shell);
-int unabbr_command(const std::vector<std::string>& args, Shell* shell);
+int bg_command(const std::vector<std::string>& args);
+int fg_command(const std::vector<std::string>& args);
+int jobs_command(const std::vector<std::string>& args);
+int wait_command(const std::vector<std::string>& args);
