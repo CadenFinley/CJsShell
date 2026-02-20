@@ -118,6 +118,15 @@ run_test() {
                     echo "    ${RED}$line${NC}"
                 done
             fi
+
+            if [ -n "${CJSH_CI_MODE-}" ] || [ -n "${CI-}" ] || [ -n "${GITHUB_ACTIONS-}" ]; then
+                echo "    ${YELLOW}Raw output bytes for $test_name:${NC}"
+                if command -v python3 >/dev/null 2>&1; then
+                    printf '%s' "$output" | python3 -c 'import sys; data=sys.stdin.buffer.read(); print(data); print(list(data))'
+                else
+                    printf '%s' "$output" | od -An -t u1
+                fi
+            fi
             FILES_FAIL=$((FILES_FAIL+1))
         fi
         
