@@ -114,6 +114,9 @@ jobs:
           
           if [ $TEST_EXIT_CODE -ne 0 ]; then
             echo "Tests failed with exit code: $TEST_EXIT_CODE"
+            echo "Debug: cjsh-widget raw output bytes"
+            OUTPUT=$(./build/cjsh -c "cjsh-widget get-buffer" 2>&1 || true)
+            OUTPUT="$OUTPUT" python3 -c 'import os; data=os.environ.get("OUTPUT", "").encode(); print(data); print(list(data))'
             exit $TEST_EXIT_CODE
           fi
 
