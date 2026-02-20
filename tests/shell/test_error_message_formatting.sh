@@ -114,13 +114,6 @@ expect_no_escape_sequences() {
     run_cmd "$cmd"
     if [ -n "$output" ] && printf '%s' "$output" | awk 'BEGIN{esc=sprintf("%c",27)} index($0, esc){found=1} END{exit found}'; then
         fail "Unexpected escape sequence in output; status=$status output='$output'"
-        if [ -n "${CJSH_CI_MODE-}" ] || [ -n "${CI-}" ] || [ -n "${GITHUB_ACTIONS-}" ]; then
-            if command -v python3 >/dev/null 2>&1; then
-                printf '%s' "$output" | python3 -c 'import sys; data=sys.stdin.buffer.read(); print(data); print(list(data))'
-            else
-                printf '%s' "$output" | od -An -t u1
-            fi
-        fi
     else
         pass
     fi
