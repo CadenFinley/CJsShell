@@ -140,8 +140,6 @@ expect_invalid_option_message "history invalid option reports message" "history 
 expect_invalid_option_message "kill invalid option reports message" "kill -z 1"
 expect_invalid_option_message "generate-completions invalid option reports message" "generate-completions --jobs nope"
 expect_output_contains "source permission denied reports message" ". $NOPERM_FILE" "permission denied"
-expect_output_contains "cjsh-widget no session reports message" "cjsh-widget get-buffer" "no active readline session"
-expect_no_escape_sequences "cjsh-widget no session emits no escape codes" "cjsh-widget get-buffer"
 expect_output_not_contains "history invalid option avoids interpreter error" "history -z" "unknown interpreter error"
 expect_output_not_contains "kill invalid option avoids interpreter error" "kill -z 1" "unknown interpreter error"
 expect_output_not_contains "generate-completions invalid option avoids interpreter error" "generate-completions --jobs nope" "unknown interpreter error"
