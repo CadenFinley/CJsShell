@@ -71,6 +71,8 @@ Consult the [Completion Authoring Guide](completions.md) for cache format and cu
 - **History expansion** – Bash-style tokens (`!!`, `!$`, `!^`, `^foo^bar`, etc.) work in interactive
   mode. They automatically disable in script mode, `cjsh -c`, or when stdin is not a tty. Use
   `--no-history-expansion` or `cjshopt login-startup-arg --no-history-expansion` to turn it off.
+- **History recording** – Disable persistence entirely with `--no-history` (also disables history
+  expansion) or `cjshopt login-startup-arg --no-history`.
 - **Persistent exit codes** – Each history entry records the command's exit status to enrich
   completions and prompts.
 - **Fuzzy history case sensitivity** – `cjshopt history-search-case` toggles whether the search menu
@@ -82,8 +84,8 @@ Consult the [Completion Authoring Guide](completions.md) for cache format and cu
 ## Additional Non-POSIX Behaviours
 
 - **Startup diagnostics** – `--show-startup-time` prints the duration spent initializing CJSH.
-- **Secure mode** – `--secure` skips all profile/rc/logout sourcing for hardened sessions and
-  ignores `PROMPT_COMMAND`.
+- **Secure mode** – `--secure` skips all profile/rc/logout sourcing for hardened sessions, disables
+  history persistence, and ignores `PROMPT_COMMAND`.
 - **Auto-background on suspend** – Append `&^` to a command to resume it in the background when
   you press `Ctrl+Z`. Append `&^!` to resume it and discard stdout/stderr after the suspend so the
   prompt stays clean.

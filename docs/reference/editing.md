@@ -1,6 +1,6 @@
 # Interactive Line Editing
 
-CJ's Shell uses the [isocline](https://github.com/daanx/isocline) line editor library to provide a powerful and feature-rich interactive editing experience. This document details all editing features currently available in cjsh.
+CJ's Shell uses the [isocline](https://github.com/cadenfinley/isocline) line editor library to provide a powerful and feature-rich interactive editing experience. This document details all editing features currently available in cjsh.
 
 ## Overview
 
@@ -180,7 +180,7 @@ cjshopt completion-preview on|off|status
 # Auto-tab automatically completes unique prefixes
 cjshopt auto-tab on|off|status
 
-# Configure case sensitivity (enabled by default)
+# Configure case sensitivity (disabled by default; completions are case-insensitive)
 cjshopt completion-case on|off|status
 
 # Enable/disable spell correction (enabled by default)
@@ -704,7 +704,7 @@ cjshopt style_def ic-operator "bold"
 
 ### Minimal Configuration
 
-For a minimal, fast setup (`--minimal` disables prompt themes/colors, completions, syntax highlighting, smart `cd`, rc sourcing, the title line, history expansion, multiline line numbers, auto-indentation, the startup time banner, error suggestions, and prompt vars):
+For a minimal, fast setup (`--minimal` disables prompt themes/colors, completions and completion learning, syntax highlighting, smart `cd`, rc sourcing, the title line, history expansion, the status line, multiline line numbers, the startup time banner, error suggestions, and prompt vars):
 
 ```bash
 # Use the --minimal flag at startup, or configure selectively:

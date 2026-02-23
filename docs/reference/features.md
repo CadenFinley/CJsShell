@@ -95,9 +95,9 @@ Persistent caches (history, generated completions, etc.) live under `~/.cache/cj
 - `-c, --command=<string>` – execute a single command and exit (disables history expansion)
 - `--no-exec` – read commands but do not execute them
 - `--posix` – enable POSIX mode and reject non-POSIX syntax
-- `-m, --minimal` – disable prompt themes/colors, completions, syntax highlighting, rc sourcing,
-  smart cd, the title line, history expansion, multiline line numbers, auto-indentation, the
-  startup time banner, error suggestions, and prompt vars
+- `-m, --minimal` – disable prompt themes/colors, completions and completion learning, syntax
+  highlighting, rc sourcing, smart cd, the title line, history expansion, the status line,
+  multiline line numbers, the startup time banner, error suggestions, and prompt vars
 - `-C, --no-colors`
 - `-L, --no-titleline`
 - `-U, --show-startup-time`
@@ -110,6 +110,7 @@ Persistent caches (history, generated completions, etc.) live under `~/.cache/cj
 - `--no-error-suggestions`
 - `--no-prompt-vars`
 - `-H, --no-history-expansion`
+- `--no-history` – disable history recording (also disables history expansion)
 - `-W, --no-sh-warning` – suppress the reminder shown when cjsh is invoked via `sh`
 - `-s, --secure` – skip `~/.cjprofile`, `~/.cjshrc`, and `~/.cjsh_logout` entirely
 - `-X, --startup-test` – diagnostic mode used by the bundled tests
@@ -127,7 +128,7 @@ Flags affecting feature toggles take effect early in startup and can also be inj
 
 ## Performance Characteristics
 
-- Single statically linked executable (vendored dependencies only).
+- Single executable with vendored dependencies only.
 - Aggressive optimization flags and caching layers (completion caches, prompt helpers, execution
     lookup cache).
 - Prompt markup renders quickly because formatting is handled inside the line editor with minimal

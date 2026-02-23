@@ -582,8 +582,10 @@ Available subcommands:
 - `history-search-case` - Configure fuzzy history case sensitivity
 - `completion-spell` - Toggle spell correction suggestions in completions
 - `completion-learning` - Toggle automatic completion learning from man pages
+- `smart-cd` - Toggle fuzzy auto-jumps for `cd`
 - `script-extension-interpreter` - Toggle extension-based script runners
 - `line-numbers` - Configure line numbers in multiline input (on/off/relative/absolute)
+- `line-numbers-continuation` - Keep line numbers when a continuation prompt is set
 - `line-numbers-replace-prompt` - Replace the final prompt line with the line-number gutter
 - `current-line-number-highlight` - Toggle highlighting of the current line number
 - `multiline-start-lines` - Configure how many prompt lines are preallocated in multiline mode
@@ -594,6 +596,9 @@ Available subcommands:
 - `multiline-indent` - Configure auto-indent in multiline input
 - `multiline` - Configure multiline input mode
 - `inline-help` - Configure inline help messages
+- `status-hints` - Configure the status hint banner visibility
+- `status-line` - Toggle the entire status row beneath the prompt
+- `status-reporting` - Toggle cjsh validation output in the status row
 - `auto-tab` - Configure automatic tab completion
 - `prompt-newline` - Force a blank line after each command
 - `prompt-cleanup` - Enable/disable removal of the previous prompt after execution
@@ -650,6 +655,7 @@ Supported flags:
 | `--no-syntax-highlighting` | Disable syntax highlighting in the editor |
 | `--no-error-suggestions` | Disable error suggestions in interactive mode |
 | `--no-prompt-vars` | Ignore PS1/PS2 and use fixed prompts |
+| `--no-history` | Disable history recording (also disables history expansion) |
 | `--no-history-expansion` | Disable `!!`, `!$`, and related history tokens |
 | `--no-sh-warning` | Suppress the reminder shown when cjsh is invoked via `sh` |
 | `--no-exec` | Read commands but do not execute them |
@@ -686,7 +692,7 @@ Add the command to `~/.cjshrc` if you want the preference remembered across sess
 
 #### history-search-case
 
-Control whether the fuzzy history search menu (`Ctrl+R`/`Ctrl+S` or `cjsh-widget history-search`) treats letter case as significant. When case sensitivity is enabled (the default), `make` and `Make` are treated as different queries. Turning it off allows uppercase queries to match lowercase history entries and vice versa. Synonyms such as `enable`, `disable`, `true`, `false`, and `--status` are supported for convenience, and you can always press `Alt+C` while the menu is open to flip the setting temporarily.
+Control whether the fuzzy history search menu (`Ctrl+R`/`Ctrl+S`) treats letter case as significant. When case sensitivity is enabled (the default), `make` and `Make` are treated as different queries. Turning it off allows uppercase queries to match lowercase history entries and vice versa. Synonyms such as `enable`, `disable`, `true`, `false`, and `--status` are supported for convenience, and you can always press `Alt+C` while the menu is open to flip the setting temporarily.
 
 ```bash
 cjshopt history-search-case <on|off|status>

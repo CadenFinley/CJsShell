@@ -7,7 +7,7 @@ Welcome to CJ's Shell (cjsh)! This guide highlights the interactive features tha
 ### Prompt Styling & Themes
 **Status:** Enabled  
 **Configure:** Edit `PS1`, `RPS1`, `PS2`, and `PROMPT_COMMAND` directly in your config using the BBCode-style markup described in [Prompt Markup and Styling](../themes/thedetails.md). Use `cjshopt style_def <token_type> <style>` to redefine highlight palettes that are shared between syntax highlighting and prompt tags.  
-**Disable:** Start cjsh with `--minimal` (turns off prompt themes/colors, completions, syntax highlighting, smart `cd`, rc sourcing, the title line, history expansion, multiline line numbers, auto-indentation, the startup time banner, error suggestions, and prompt vars), or disable smart cd directly with `cjsh --no-smart-cd` / `cjshopt smart-cd off`.
+**Disable:** Start cjsh with `--minimal` (turns off prompt themes/colors, completions and completion learning, syntax highlighting, smart `cd`, rc sourcing, the title line, history expansion, the status line, multiline line numbers, the startup time banner, error suggestions, and prompt vars), or disable smart cd directly with `cjsh --no-smart-cd` / `cjshopt smart-cd off`.
 
 All prompt styling now lives inside your dotfiles—no external theme DSL or bundled theme directory is required. Share a prompt by exporting new variables or sourcing a file that sets them, just like any other shell configuration.
 
@@ -102,6 +102,8 @@ cjshopt multiline on|off|status
 cjshopt multiline-indent on|off|status
 cjshopt multiline-start-lines <count|status>
 cjshopt line-numbers <absolute|relative|off|status>
+cjshopt line-numbers-continuation on|off|status
+cjshopt line-numbers-replace-prompt on|off|status
 cjshopt current-line-number-highlight on|off|status
 ```
 
@@ -121,6 +123,7 @@ cjsh leaves directory listing behavior up to your configuration. Add an `ls` wra
 ## History Features
 
 - **History expansions:** Enabled in interactive sessions (`!!`, `!$`, etc.). Disable with `cjsh --no-history-expansion` or persist by adding `cjshopt login-startup-arg --no-history-expansion` to `~/.cjprofile`.
+- **History recording:** Disable persistence with `cjsh --no-history` (also disables history expansion) or add `cjshopt login-startup-arg --no-history` to `~/.cjprofile`. Secure mode also disables history persistence.
 - **Reverse search:** Press `Ctrl+R` for the fuzzy history search menu (use `Alt+C` inside it to toggle case sensitivity).
 - **History search case sensitivity:** Matching is case-sensitive by default; adjust with `cjshopt history-search-case on|off|status` to set the default for every session.
 - **Persistence:** History entries are appended to `~/.cache/cjsh/history.txt`; duplicate commands are suppressed by default.
@@ -144,7 +147,7 @@ cjshopt login-startup-arg --no-colors
 cjshopt login-startup-arg --show-startup-time
 ```
 
-Supported flags: `--login`, `--interactive`, `--posix`, `--no-exec`, `--no-colors`, `--no-titleline`, `--show-startup-time`, `--no-source`, `--no-completions`, `--no-completion-learning`, `--no-smart-cd`, `--no-script-extension-interpreter`, `--no-syntax-highlighting`, `--no-error-suggestions`, `--no-prompt-vars`, `--no-history-expansion`, `--no-sh-warning`, `--minimal`, `--secure`, and `--startup-test`.
+Supported flags: `--login`, `--interactive`, `--posix`, `--no-exec`, `--no-colors`, `--no-titleline`, `--show-startup-time`, `--no-source`, `--no-completions`, `--no-completion-learning`, `--no-smart-cd`, `--no-script-extension-interpreter`, `--no-syntax-highlighting`, `--no-error-suggestions`, `--no-prompt-vars`, `--no-history`, `--no-history-expansion`, `--no-sh-warning`, `--minimal`, `--secure`, and `--startup-test`.
 
 ### POSIX & Bash Compatibility
 cjsh targets high POSIX coverage for scripting while providing POSIX+ extensions such as `[[ ... ]]`, brace expansion, here-strings, process substitution, and rich redirection semantics. Syntax extensions are available in scripts and interactive sessions; interactive-only features like history expansion, completions, and prompt styling disable themselves automatically when stdin is not a tty. Use `--minimal` or `--secure` when you want fewer extras in interactive shells.
