@@ -1220,9 +1220,9 @@ for full details.</p>
 <li><code>-c, --command=&lt;string&gt;</code> – execute a single command and exit (disables history expansion)</li>
 <li><code>--no-exec</code> – read commands but do not execute them</li>
 <li><code>--posix</code> – enable POSIX mode and reject non-POSIX syntax</li>
-<li><code>-m, --minimal</code> – disable prompt themes/colors, completions, syntax highlighting, rc sourcing,
-  smart cd, the title line, history expansion, multiline line numbers, auto-indentation, the
-  startup time banner, error suggestions, and prompt vars</li>
+<li><code>-m, --minimal</code> – disable prompt themes/colors, completions and completion learning, syntax
+  highlighting, rc sourcing, smart cd, the title line, history expansion, the status line,
+  multiline line numbers, the startup time banner, error suggestions, and prompt vars</li>
 <li><code>-C, --no-colors</code></li>
 <li><code>-L, --no-titleline</code></li>
 <li><code>-U, --show-startup-time</code></li>
@@ -1235,6 +1235,7 @@ for full details.</p>
 <li><code>--no-error-suggestions</code></li>
 <li><code>--no-prompt-vars</code></li>
 <li><code>-H, --no-history-expansion</code></li>
+<li><code>--no-history</code> – disable history recording (also disables history expansion)</li>
 <li><code>-W, --no-sh-warning</code> – suppress the reminder shown when cjsh is invoked via <code>sh</code></li>
 <li><code>-s, --secure</code> – skip <code>~/.cjprofile</code>, <code>~/.cjshrc</code>, and <code>~/.cjsh_logout</code> entirely</li>
 <li><code>-X, --startup-test</code> – diagnostic mode used by the bundled tests</li>
@@ -1251,7 +1252,7 @@ for full details.</p>
 </ul>
 <h2 id="performance-characteristics">Performance Characteristics</h2>
 <ul>
-<li>Single statically linked executable (vendored dependencies only).</li>
+<li>Single executable with vendored dependencies only.</li>
 <li>Aggressive optimization flags and caching layers (completion caches, prompt helpers, execution
     lookup cache).</li>
 <li>Prompt markup renders quickly because formatting is handled inside the line editor with minimal

@@ -2661,8 +2661,10 @@ register functions and <code>hook list</code> to inspect active hooks. See
 - <code>history-search-case</code> - Configure fuzzy history case sensitivity
 - <code>completion-spell</code> - Toggle spell correction suggestions in completions
 - <code>completion-learning</code> - Toggle automatic completion learning from man pages
+- <code>smart-cd</code> - Toggle fuzzy auto-jumps for <code>cd</code>
 - <code>script-extension-interpreter</code> - Toggle extension-based script runners
 - <code>line-numbers</code> - Configure line numbers in multiline input (on/off/relative/absolute)
+- <code>line-numbers-continuation</code> - Keep line numbers when a continuation prompt is set
 - <code>line-numbers-replace-prompt</code> - Replace the final prompt line with the line-number gutter
 - <code>current-line-number-highlight</code> - Toggle highlighting of the current line number
 - <code>multiline-start-lines</code> - Configure how many prompt lines are preallocated in multiline mode
@@ -2673,6 +2675,9 @@ register functions and <code>hook list</code> to inspect active hooks. See
 - <code>multiline-indent</code> - Configure auto-indent in multiline input
 - <code>multiline</code> - Configure multiline input mode
 - <code>inline-help</code> - Configure inline help messages
+- <code>status-hints</code> - Configure the status hint banner visibility
+- <code>status-line</code> - Toggle the entire status row beneath the prompt
+- <code>status-reporting</code> - Toggle cjsh validation output in the status row
 - <code>auto-tab</code> - Configure automatic tab completion
 - <code>prompt-newline</code> - Force a blank line after each command
 - <code>prompt-cleanup</code> - Enable/disable removal of the previous prompt after execution
@@ -2764,6 +2769,10 @@ editing behaviors.</p>
 <td>Ignore PS1/PS2 and use fixed prompts</td>
 </tr>
 <tr>
+<td><code>--no-history</code></td>
+<td>Disable history recording (also disables history expansion)</td>
+</tr>
+<tr>
 <td><code>--no-history-expansion</code></td>
 <td>Disable <code>!!</code>, <code>!$</code>, and related history tokens</td>
 </tr>
@@ -2809,7 +2818,7 @@ editing behaviors.</p>
 </span></code></pre></div>
 <p>Add the command to <code>~/.cjshrc</code> if you want the preference remembered across sessions.</p>
 <h4 id="history-search-case">history-search-case</h4>
-<p>Control whether the fuzzy history search menu (<code>Ctrl+R</code>/<code>Ctrl+S</code> or <code>cjsh-widget history-search</code>) treats letter case as significant. When case sensitivity is enabled (the default), <code>make</code> and <code>Make</code> are treated as different queries. Turning it off allows uppercase queries to match lowercase history entries and vice versa. Synonyms such as <code>enable</code>, <code>disable</code>, <code>true</code>, <code>false</code>, and <code>--status</code> are supported for convenience, and you can always press <code>Alt+C</code> while the menu is open to flip the setting temporarily.</p>
+<p>Control whether the fuzzy history search menu (<code>Ctrl+R</code>/<code>Ctrl+S</code>) treats letter case as significant. When case sensitivity is enabled (the default), <code>make</code> and <code>Make</code> are treated as different queries. Turning it off allows uppercase queries to match lowercase history entries and vice versa. Synonyms such as <code>enable</code>, <code>disable</code>, <code>true</code>, <code>false</code>, and <code>--status</code> are supported for convenience, and you can always press <code>Alt+C</code> while the menu is open to flip the setting temporarily.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-64-1"><a id="__codelineno-64-1" name="__codelineno-64-1" href="#__codelineno-64-1"></a>cjshopt<span class="w"> </span>history-search-case<span class="w"> </span>&lt;on<span class="p">|</span>off<span class="p">|</span>status&gt;
 </span></code></pre></div>
 <p>Examples:</p>

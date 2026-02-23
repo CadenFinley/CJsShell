@@ -1576,7 +1576,7 @@
 
 
 <h1 id="interactive-line-editing">Interactive Line Editing</h1>
-<p>CJ's Shell uses the <a href="https://github.com/daanx/isocline">isocline</a> line editor library to provide a powerful and feature-rich interactive editing experience. This document details all editing features currently available in cjsh.</p>
+<p>CJ's Shell uses the <a href="https://github.com/cadenfinley/isocline">isocline</a> line editor library to provide a powerful and feature-rich interactive editing experience. This document details all editing features currently available in cjsh.</p>
 <h2 id="overview">Overview</h2>
 <p>Isocline is a modern, pure C line editing library that provides advanced terminal interaction capabilities. CJ's Shell leverages and extends isocline to offer:</p>
 <ul>
@@ -1717,7 +1717,7 @@ The syntax highlighter can be temporarily disabled with the <code>--no-syntax-hi
 </span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="c1"># Auto-tab automatically completes unique prefixes</span>
 </span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>cjshopt<span class="w"> </span>auto-tab<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
 </span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>
-</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="c1"># Configure case sensitivity (enabled by default)</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="c1"># Configure case sensitivity (disabled by default; completions are case-insensitive)</span>
 </span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>cjshopt<span class="w"> </span>completion-case<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
 </span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>
 </span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="c1"># Enable/disable spell correction (enabled by default)</span>
@@ -2128,7 +2128,7 @@ Commands can pre-populate the input buffer (used by <code>fc</code> command for 
 </span><span id="__span-21-32"><a id="__codelineno-21-32" name="__codelineno-21-32" href="#__codelineno-21-32"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>ic-operator<span class="w"> </span><span class="s2">"bold"</span>
 </span></code></pre></div>
 <h3 id="minimal-configuration">Minimal Configuration</h3>
-<p>For a minimal, fast setup (<code>--minimal</code> disables prompt themes/colors, completions, syntax highlighting, smart <code>cd</code>, rc sourcing, the title line, history expansion, multiline line numbers, auto-indentation, the startup time banner, error suggestions, and prompt vars):</p>
+<p>For a minimal, fast setup (<code>--minimal</code> disables prompt themes/colors, completions and completion learning, syntax highlighting, smart <code>cd</code>, rc sourcing, the title line, history expansion, the status line, multiline line numbers, the startup time banner, error suggestions, and prompt vars):</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="c1"># Use the --minimal flag at startup, or configure selectively:</span>
 </span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>cjshopt<span class="w"> </span>multiline<span class="w"> </span>on
 </span><span id="__span-22-3"><a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>cjshopt<span class="w"> </span>line-numbers<span class="w"> </span>off
