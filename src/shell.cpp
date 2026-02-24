@@ -177,10 +177,9 @@ Shell::~Shell() {
     if (interactive_mode && !cjsh_env::startup_active()) {
         if (config::login_mode) {
             std::cout << "cjsh logout";
-            std::cout.flush();
-            return;
+        } else {
+            std::cout << "cjsh exit";
         }
-        std::cout << "cjsh exit";
         std::cout.flush();
     }
 }
