@@ -133,8 +133,7 @@ int run_cjsh(int argc, char* argv[]) {
 
     // handle simple flags for version and help
     if (config::show_version) {
-        std::vector<std::string> empty_args;
-        return version_command(empty_args);
+        return version_command({});
     }
     if (config::show_help) {
         print_usage();
