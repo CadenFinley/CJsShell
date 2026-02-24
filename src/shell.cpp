@@ -121,7 +121,7 @@ std::optional<ShellOption> parse_shell_option(const std::string& name) {
     return std::nullopt;
 }
 
-Shell::Shell() : shell_pgid(0), shell_tmodes() {
+Shell::Shell() {
     // capture the terminal settings cjsh inherited so we can restore them on exit
     save_terminal_state();
 
@@ -175,6 +175,11 @@ Shell::~Shell() {
 
     // output a final exit line only in interactive modes
     if (interactive_mode && !cjsh_env::startup_active()) {
+        if (config::login_mode) {
+            std::cout << "cjsh logout";
+            std::cout.flush();
+            return;
+        }
         std::cout << "cjsh exit";
         std::cout.flush();
     }
