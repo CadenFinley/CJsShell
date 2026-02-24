@@ -27,5 +27,3 @@
 - A lot of test fail paths still say 'not implemented yet' instead of a proper error message. This would be a greate area to contribute to and would not take much effort.
 - A lot of error messages can be a little wordy and could be simplified. Additionaly, suggestions are not provided for all error messages and some could actually use some. This is a great area to contribute to as well and would not take much effort.
 - A great way to contribute is actually just to use the shell for day-to-day use and report any and all bugs you find. This could also be a great path into finding some good first issues to solve.
-- Migrate disown, jobname, and kill builtin files into the main job control commands builtins file with the other job contorl builtins (completed)
-- factor perror into print_error via error_out, maybe add a new error_out functionaly that uses perror to print the error message for the current errno
