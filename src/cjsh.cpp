@@ -107,9 +107,10 @@ void cleanup_resources() {
         cjsh_filesystem::process_logout_file();
     }
 
-    // this might be the most important part of cjsh shutdown. this is so important as
-    // std::unique_ptr doesnt always get reset in the same order when there are multiple so
-    // resetting this earlier allows specific ordering of reset and release
+    // this might be the most important part of cjsh shutdown. this is a manual reset of the main
+    // shell object. this is so important as std::unique_ptr doesnt always get reset in the same
+    // order when there are multiple so resetting this manually before cjsh exits the main()
+    // function scope allows specific ordering of reset and release
     g_shell.reset();
 }
 
