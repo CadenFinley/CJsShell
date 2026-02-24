@@ -28,7 +28,10 @@
 
 #include <unistd.h>
 #include <algorithm>
+#include <cerrno>
+#include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -298,6 +301,45 @@ void print_error(const ErrorInfo& error) {
 
     append_error_header(std::cerr, error);
     std::cerr << '\n';
+    append_error_suggestions(std::cerr, error);
+
+    if (colorize_output) {
+        std::cerr << color_reset;
+    }
+
+    if (ErrorType::FATAL_ERROR == error.type) {
+        // fatal errors exit
+        _exit(EXIT_FAILURE);
+    }
+}
+
+void print_error_errno(const ErrorInfo& error) {
+    int saved_errno = errno;
+    if (saved_errno == 0) {
+        print_error(error);
+        return;
+    }
+
+    ErrorInfo logged_error = error;
+    std::string errno_message = std::strerror(saved_errno);
+    if (!logged_error.message.empty()) {
+        logged_error.message += ": ";
+    }
+    logged_error.message += errno_message;
+    append_error_log(logged_error);
+
+    const bool colorize_output = should_colorize_output();
+    const char* color_prefix = colorize_output ? severity_to_color(error.severity) : "";
+    const char* color_reset = colorize_output ? kResetColor : "";
+
+    if (colorize_output) {
+        std::cerr << color_prefix;
+    }
+
+    std::ostringstream prefix;
+    append_error_header(prefix, error);
+    errno = saved_errno;
+    std::perror(prefix.str().c_str());
     append_error_suggestions(std::cerr, error);
 
     if (colorize_output) {

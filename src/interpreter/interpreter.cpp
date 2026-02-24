@@ -381,7 +381,8 @@ int ShellScriptInterpreter::execute_subshell(const std::string& subshell_content
     pid_t pid = fork();
     if (pid == 0) {
         if (setpgid(0, 0) < 0) {
-            perror("cjsh: setpgid failed in subshell child");
+            print_error_errno(
+                {ErrorType::RUNTIME_ERROR, "subshell", "setpgid failed in subshell child", {}});
         }
 
         int exit_code = g_shell->execute(subshell_content, true);

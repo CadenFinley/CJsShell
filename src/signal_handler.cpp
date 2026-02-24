@@ -694,7 +694,10 @@ SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) 
                 const auto& job = job_pair.second;
                 if (!job.background && !job.completed && !job.stopped) {
                     if (kill(-job.pgid, SIGINT) < 0) {
-                        perror("kill (SIGINT) in process_pending_signals");
+                        print_error_errno({ErrorType::RUNTIME_ERROR,
+                                           "signal",
+                                           "kill SIGINT in process_pending_signals",
+                                           {}});
                     }
                     break;
                 }

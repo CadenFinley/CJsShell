@@ -70,3 +70,4 @@ struct ErrorInfo {
 };
 
 void print_error(const ErrorInfo& error);
+void print_error_errno(const ErrorInfo& error);

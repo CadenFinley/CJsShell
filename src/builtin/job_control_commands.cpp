@@ -76,7 +76,7 @@ int bg_command(const std::vector<std::string>& args) {
     }
 
     if (killpg(job->pgid, SIGCONT) < 0) {
-        perror("cjsh: bg: killpg");
+        print_error_errno({ErrorType::RUNTIME_ERROR, "bg", "killpg", {}});
         return 1;
     }
 
@@ -105,7 +105,7 @@ int fg_command(const std::vector<std::string>& args) {
 
     if (isatty(STDIN_FILENO) != 0) {
         if (tcsetpgrp(STDIN_FILENO, job->pgid) < 0) {
-            perror("fg: tcsetpgrp");
+            print_error_errno({ErrorType::RUNTIME_ERROR, "fg", "tcsetpgrp", {}});
             return 1;
         }
     }
@@ -124,7 +124,7 @@ int fg_command(const std::vector<std::string>& args) {
     }
 
     if (killpg(job->pgid, SIGCONT) < 0) {
-        perror("fg: killpg");
+        print_error_errno({ErrorType::RUNTIME_ERROR, "fg", "killpg", {}});
         return 1;
     }
 
@@ -310,7 +310,7 @@ int wait_command(const std::vector<std::string>& args) {
                 pid_t pid = std::stoi(target);
                 int status = 0;
                 if (waitpid(pid, &status, 0) < 0) {
-                    perror("wait");
+                    print_error_errno({ErrorType::RUNTIME_ERROR, "wait", "waitpid", {}});
                     return 1;
                 }
 
@@ -589,7 +589,7 @@ int kill_command(const std::vector<std::string>& args) {
                 return;
             }
             if (killpg(job->pgid, signal) < 0) {
-                perror("kill");
+                print_error_errno({ErrorType::RUNTIME_ERROR, "kill", "killpg", {}});
                 had_error = true;
                 return;
             }
@@ -696,7 +696,7 @@ int kill_command(const std::vector<std::string>& args) {
                 pid_t pid = std::stoi(target, &consumed);
                 if (consumed == target.size()) {
                     if (kill(pid, signal) < 0) {
-                        perror("kill");
+                        print_error_errno({ErrorType::RUNTIME_ERROR, "kill", "kill", {}});
                         had_error = true;
                     } else {
                         auto job = job_manager.get_job_by_pid_or_pgid(pid);
