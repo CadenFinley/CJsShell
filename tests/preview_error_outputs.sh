@@ -155,5 +155,3 @@ run_case "redirect to directory" "echo hi > $WORK_DIR"
 run_case "redirect missing input" "cat < $WORK_DIR/missing.txt"
 run_case "noclobber redirect" "set -o noclobber; echo hi > $NOCLOBBER_FILE"
 run_case "bad fd duplication" "echo hi 1>&999999"
-
-printf "\nDone.\n"
