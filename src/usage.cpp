@@ -46,7 +46,7 @@ void print_usage(bool print_version, bool print_hook, bool print_footer) {
         << "Options:\n"
         << "  -h, --help                 Display this help message and exit\n"
         << "  -v, --version              Print version information and exit\n"
-        << "  -l, --login                Start as a login shell (load profile)\n"
+        << "  -l, --login                Start as a login shell (load ~/.cjprofile)\n"
         << "  -i, --interactive          Force interactive mode\n"
         << "  -c, --command=COMMAND      Execute the specified command and exit\n"
         << "                             (disables history expansion)\n"

@@ -159,7 +159,7 @@ int help_command() {
 
     heading("Startup and shutdown");
     std::cout << "  Startup sequence:\n";
-    std::cout << "    1. Login shells load ~/.profile (if present) then ~/.cjprofile.\n";
+    std::cout << "    1. Login shells load ~/.cjprofile (if present).\n";
     std::cout << "    2. Stored startup flags from 'cjshopt login-startup-arg' are applied.\n";
     std::cout << "    3. Interactive mode initializes colors, completions, and sources ~/.cjshrc\n"
                  "       unless disabled with --no-source or secure mode.\n";

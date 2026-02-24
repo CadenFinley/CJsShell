@@ -231,7 +231,7 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                  make_option("-v", "Print version information and exit"),
                  make_option("--version", "Print version information and exit"),
                  make_option("-l", "Start as a login shell"),
-                 make_option("--login", "Start as a login shell (load profile)"),
+                 make_option("--login", "Start as a login shell (load ~/.cjprofile)"),
                  make_option("-i", "Force interactive mode"),
                  make_option("--interactive", "Force interactive mode"),
                  make_option("-c", "Execute the specified command string and exit"),
@@ -262,8 +262,8 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                  make_option("--no-titleline", "Disable title line on startup"),
                  make_option("-U", "Display startup time"),
                  make_option("--show-startup-time", "Display startup time"),
-                 make_option("-s", "Secure mode: disable profile and rc files"),
-                 make_option("--secure", "Secure mode: disable profile and rc files"),
+                 make_option("-s", "Secure mode: disable cjprofile and rc files"),
+                 make_option("--secure", "Secure mode: disable cjprofile and rc files"),
                  make_option("-X", "Enable startup test mode"),
                  make_option("--startup-test", "Enable startup test mode (internal)")});
 

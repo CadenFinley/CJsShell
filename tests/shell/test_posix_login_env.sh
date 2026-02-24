@@ -118,13 +118,13 @@ else
     fail "SHLVL not incremented properly"
 fi
 
-log_test "User profile sourcing"
-echo "export PROFILE_SOURCED=yes" > "$TEST_HOME/.profile"
+log_test "cjprofile sourcing"
+echo "export PROFILE_SOURCED=yes" > "$TEST_HOME/.cjprofile"
 result=$("$SHELL_TO_TEST" --login -c "echo \$PROFILE_SOURCED" 2>/dev/null)
 if [ "$result" = "yes" ]; then
     pass
 else
-    fail "User profile not sourced"
+    fail "cjprofile not sourced"
 fi
 
 

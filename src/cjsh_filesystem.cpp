@@ -844,8 +844,7 @@ bool create_profile_file(const std::filesystem::path& target_path) {
     std::string profile_content =
         "#!/usr/bin/env cjsh\n"
         "# cjsh Configuration File\n"
-        "# this file is sourced when the shell starts in login "
-        "mode and is sourced after ~/.profile\n";
+        "# this file is sourced when the shell starts in login mode\n";
     return write_configuration_file(target_path, profile_content);
 }
 
@@ -874,11 +873,6 @@ void process_profile_files() {
     if (config::secure_mode) {
         return;
     }
-    std::filesystem::path user_profile = g_user_home_path() / ".profile";
-    if (std::filesystem::exists(user_profile)) {
-        g_shell->execute_script_file(user_profile, true);
-    }
-
     if (std::filesystem::exists(g_cjsh_profile_path())) {
         g_shell->execute_script_file(g_cjsh_profile_path(), true);
     } else if (std::filesystem::exists(g_cjsh_profile_alt_path())) {

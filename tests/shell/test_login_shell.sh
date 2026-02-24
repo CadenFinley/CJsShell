@@ -31,12 +31,12 @@ else
 fi
 
 
-echo "export TEST_PROFILE_VAR=profile_value" > "$TEST_HOME/.profile"
+echo "export TEST_PROFILE_VAR=profile_value" > "$TEST_HOME/.cjprofile"
 OUT=$("$CJSH_PATH" --login -c "echo \$TEST_PROFILE_VAR" 2>/dev/null)
 if [ "$OUT" = "profile_value" ]; then
-    pass_test "profile file sourced in login mode"
+    pass_test "cjprofile file sourced in login mode"
 else
-    fail_test "profile file not sourced in login mode (got '$OUT', expected 'profile_value')"
+    fail_test "cjprofile file not sourced in login mode (got '$OUT', expected 'profile_value')"
 fi
 
 OUT=$("$CJSH_PATH" -c "echo \$HOME")
