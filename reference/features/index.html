@@ -22,7 +22,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.2">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.3">
     
     
       
@@ -1179,7 +1179,7 @@ for full details.</p>
     replay command-line switches (<code>--minimal</code>, <code>--no-completions</code>, <code>--show-startup-time</code>, etc.) on
     every launch. Flags that are valid on the CLI are respected during profile evaluation.</li>
 <li><strong>Generated config skeletons</strong> – <code>cjshopt generate-profile</code>, <code>cjshopt generate-rc</code>, and
-    <code>cjshopt generate-logout</code> create <code>~/.cjprofile</code>, <code>~/.cjshrc</code>, and <code>~/.cjsh_logout</code> (or alternate
+    <code>cjshopt generate-logout</code> create <code>~/.cjprofile</code>, <code>~/.cjshrc</code>, and <code>~/.cjlogout</code> (or alternate
     locations under <code>~/.config/cjsh/</code>) with sensible defaults.</li>
 </ul>
 <h3 id="startup-files">Startup Files</h3>
@@ -1193,6 +1193,11 @@ for full details.</p>
 </thead>
 <tbody>
 <tr>
+<td><code>~/.cjshenv</code> (or <code>~/.config/cjsh/.cjshenv</code>)</td>
+<td>Every shell start before login/interactive setup</td>
+<td>Export environment vars shared by scripts and interactive sessions</td>
+</tr>
+<tr>
 <td><code>~/.cjprofile</code> (or <code>~/.config/cjsh/.cjprofile</code>)</td>
 <td>Login shells before interactive setup</td>
 <td>Export environment vars, add <code>cjshopt login-startup-arg</code> flags</td>
@@ -1203,12 +1208,14 @@ for full details.</p>
 <td>Prompt definitions, aliases, key bindings, abbreviations</td>
 </tr>
 <tr>
-<td><code>~/.cjsh_logout</code></td>
+<td><code>~/.cjlogout</code></td>
 <td>When a login shell exits</td>
 <td>Cleanup hooks, session summaries</td>
 </tr>
 </tbody>
 </table>
+<p>Set <code>CJSH_ENV</code> to override the <code>~/.cjshenv</code> search paths. If <code>CJSH_ENV</code> is set but empty, cjsh
+falls back to the default search paths.</p>
 <p>Persistent caches (history, generated completions, etc.) live under <code>~/.cache/cjsh/</code>.</p>
 <h2 id="command-line-flags">Command-line Flags</h2>
 <p><code>cjsh</code> accepts these switches (short/long forms shown where available):</p>
@@ -1237,7 +1244,7 @@ for full details.</p>
 <li><code>-H, --no-history-expansion</code></li>
 <li><code>--no-history</code> – disable history recording (also disables history expansion)</li>
 <li><code>-W, --no-sh-warning</code> – suppress the reminder shown when cjsh is invoked via <code>sh</code></li>
-<li><code>-s, --secure</code> – skip <code>~/.cjprofile</code>, <code>~/.cjshrc</code>, and <code>~/.cjsh_logout</code> entirely</li>
+<li><code>-s, --secure</code> – skip <code>~/.cjshenv</code>, <code>~/.cjprofile</code>, <code>~/.cjshrc</code>, and <code>~/.cjlogout</code> entirely</li>
 <li><code>-X, --startup-test</code> – diagnostic mode used by the bundled tests</li>
 </ul>
 <p>Flags affecting feature toggles take effect early in startup and can also be injected via

@@ -22,7 +22,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.2">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.3">
     
     
       
@@ -1507,10 +1507,13 @@ Smart <code>cd</code> adds fuzzy directory matching for quick navigation between
 <h2 id="configuration-compatibility">Configuration &amp; Compatibility</h2>
 <h3 id="startup-files">Startup Files</h3>
 <ul>
+<li><code>~/.cjshenv</code> – Sourced for every shell start (before login/interactive setup).</li>
 <li><code>~/.cjprofile</code> – Executed for login shells before interactive setup.</li>
 <li><code>~/.cjshrc</code> – Interactive configuration (aliases, prompt definitions, hooks, etc.).</li>
-<li><code>~/.cjsh_logout</code> – Optional cleanup script sourced on exit.</li>
+<li><code>~/.cjlogout</code> – Optional cleanup script sourced on exit.</li>
 </ul>
+<p>Set <code>CJSH_ENV</code> to override the <code>~/.cjshenv</code> search paths. If <code>CJSH_ENV</code> is set but empty, cjsh
+falls back to the default search paths.</p>
 <h3 id="persisting-startup-flags">Persisting Startup Flags</h3>
 <p><code>cjshopt login-startup-arg</code> is only valid while configuration files are being sourced. Call it once per flag inside <code>~/.cjprofile</code>:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># ~/.cjprofile</span>
