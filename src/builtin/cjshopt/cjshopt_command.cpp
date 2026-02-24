@@ -215,7 +215,7 @@ void print_cjshopt_usage() {
     std::cout << "    - Use 'keybind ext' for custom command keybindings\n";
     std::cout << "  generate-profile [--force] [--alt]       Create or overwrite ~/.cjprofile\n";
     std::cout << "  generate-rc [--force] [--alt]            Create or overwrite ~/.cjshrc\n";
-    std::cout << "  generate-logout [--force] [--alt]        Create or overwrite ~/.cjsh_logout\n";
+    std::cout << "  generate-logout [--force] [--alt]        Create or overwrite ~/.cjlogout\n";
     std::cout << "  set-history-max <number|default|status> Configure history persistence\n";
     std::cout << "  set-completion-max <number|default|status> Limit completion suggestions\n";
     std::cout << "Use 'cjshopt <subcommand> --help' to see usage for a specific subcommand.\n";
@@ -314,7 +314,7 @@ int cjshopt_command(const std::vector<std::string>& args) {
                  "continuation prompt is active",
                  "  generate-profile [--force] [--alt]       Create or overwrite ~/.cjprofile",
                  "  generate-rc [--force] [--alt]            Create or overwrite ~/.cjshrc",
-                 "  generate-logout [--force] [--alt]        Create or overwrite ~/.cjsh_logout",
+                 "  generate-logout [--force] [--alt]        Create or overwrite ~/.cjlogout",
                  "  set-history-max <number|default|status> Configure history persistence",
                  "  set-completion-max <number|default|status> Limit completion suggestions",
 

@@ -159,19 +159,21 @@ int help_command() {
 
     heading("Startup and shutdown");
     std::cout << "  Startup sequence:\n";
-    std::cout << "    1. Login shells load ~/.cjprofile (if present).\n";
-    std::cout << "    2. Stored startup flags from 'cjshopt login-startup-arg' are applied.\n";
-    std::cout << "    3. Interactive mode initializes colors, completions, and sources ~/.cjshrc\n"
+    std::cout << "    1. ~/.cjshenv is sourced if present (or CJSH_ENV if set).\n";
+    std::cout << "    2. Login shells load ~/.cjprofile (if present).\n";
+    std::cout << "    3. Stored startup flags from 'cjshopt login-startup-arg' are applied.\n";
+    std::cout << "    4. Interactive mode initializes colors, completions, and sources ~/.cjshrc\n"
                  "       unless disabled with --no-source or secure mode.\n";
     std::cout << "  Shutdown sequence:\n";
     std::cout << "    - Registered EXIT traps run before teardown.\n";
-    std::cout << "    - ~/.cjsh_logout is sourced for interactive sessions (when it exists).\n";
+    std::cout << "    - ~/.cjlogout is sourced for interactive sessions (when it exists).\n";
     std::cout << "    - History and themes are flushed before exit.\n";
 
     heading("Primary cjsh directories");
+    std::cout << "  ~/.cjshenv          Optional environment script sourced at startup.\n";
     std::cout << "  ~/.cjprofile        Login configuration and persisted startup flags.\n";
     std::cout << "  ~/.cjshrc           Interactive configuration (aliases, themes).\n";
-    std::cout << "  ~/.cjsh_logout      Optional logout script sourced on exit.\n";
+    std::cout << "  ~/.cjlogout         Optional logout script sourced on exit.\n";
     std::cout << "  ~/.config/cjsh/     Optional alternate config root for generated files.\n";
     std::cout << "  ~/.cache/cjsh/      Cache directory (history.txt, exec cache).\n";
     std::cout << "  ~/.cache/cjsh/.first_boot  Marker used to suppress the first-run banner.\n";

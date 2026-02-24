@@ -262,8 +262,8 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                  make_option("--no-titleline", "Disable title line on startup"),
                  make_option("-U", "Display startup time"),
                  make_option("--show-startup-time", "Display startup time"),
-                 make_option("-s", "Secure mode: disable cjprofile and rc files"),
-                 make_option("--secure", "Secure mode: disable cjprofile and rc files"),
+                 make_option("-s", "Secure mode: disable cjshenv/profile/rc/logout files"),
+                 make_option("--secure", "Secure mode: disable cjshenv/profile/rc/logout files"),
                  make_option("-X", "Enable startup test mode"),
                  make_option("--startup-test", "Enable startup test mode (internal)")});
 
@@ -369,7 +369,7 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                  make_option("--no-history-expansion", "Disable history expansion"),
                  make_option("--no-sh-warning", "Suppress the sh invocation warning"),
                  make_option("--minimal", "Disable cjsh enhancements"),
-                 make_option("--secure", "Skip profile/rc/logout sourcing"),
+                 make_option("--secure", "Skip env/profile/rc/logout sourcing"),
                  make_option("--startup-test", "Enable startup test mode")});
 
         add_doc("history", "Show command history", {});
@@ -546,7 +546,7 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
              make_subcommand("keybind", "Inspect or modify key bindings"),
              make_subcommand("generate-profile", "Generate ~/.cjprofile"),
              make_subcommand("generate-rc", "Generate ~/.cjshrc"),
-             make_subcommand("generate-logout", "Generate ~/.cjsh_logout"),
+             make_subcommand("generate-logout", "Generate ~/.cjlogout"),
              make_subcommand("set-history-max", "Configure history persistence"),
              make_subcommand("set-completion-max", "Limit completion suggestions")});
 
@@ -572,7 +572,7 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                  make_option("--no-history-expansion", "Disable history expansion"),
                  make_option("--no-sh-warning", "Suppress the sh invocation warning"),
                  make_option("--minimal", "Disable cjsh enhancements"),
-                 make_option("--secure", "Skip profile/rc/logout sourcing"),
+                 make_option("--secure", "Skip env/profile/rc/logout sourcing"),
                  make_option("--startup-test", "Enable startup test mode")});
 
         add_doc("cjshopt-completion-learning", "Toggle completion learning",
@@ -630,7 +630,7 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                  make_option("--help", "Show usage information"),
                  make_option("-h", "Show usage information")});
 
-        add_doc("cjshopt-generate-logout", "Generate ~/.cjsh_logout",
+        add_doc("cjshopt-generate-logout", "Generate ~/.cjlogout",
                 {make_option("--force", "Overwrite the existing logout file"),
                  make_option("-f", "Overwrite the existing logout file"),
                  make_option("--alt", "Write to the alternate configuration path"),

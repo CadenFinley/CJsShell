@@ -71,16 +71,20 @@ for full details.
     replay command-line switches (`--minimal`, `--no-completions`, `--show-startup-time`, etc.) on
     every launch. Flags that are valid on the CLI are respected during profile evaluation.
 - **Generated config skeletons** – `cjshopt generate-profile`, `cjshopt generate-rc`, and
-    `cjshopt generate-logout` create `~/.cjprofile`, `~/.cjshrc`, and `~/.cjsh_logout` (or alternate
+    `cjshopt generate-logout` create `~/.cjprofile`, `~/.cjshrc`, and `~/.cjlogout` (or alternate
     locations under `~/.config/cjsh/`) with sensible defaults.
 
 ### Startup Files
 
 | File | When it runs | Typical responsibilities |
 | --- | --- | --- |
+| `~/.cjshenv` (or `~/.config/cjsh/.cjshenv`) | Every shell start before login/interactive setup | Export environment vars shared by scripts and interactive sessions |
 | `~/.cjprofile` (or `~/.config/cjsh/.cjprofile`) | Login shells before interactive setup | Export environment vars, add `cjshopt login-startup-arg` flags |
 | `~/.cjshrc` | Every interactive shell (unless `--no-source`) | Prompt definitions, aliases, key bindings, abbreviations |
-| `~/.cjsh_logout` | When a login shell exits | Cleanup hooks, session summaries |
+| `~/.cjlogout` | When a login shell exits | Cleanup hooks, session summaries |
+
+Set `CJSH_ENV` to override the `~/.cjshenv` search paths. If `CJSH_ENV` is set but empty, cjsh
+falls back to the default search paths.
 
 Persistent caches (history, generated completions, etc.) live under `~/.cache/cjsh/`.
 
@@ -112,7 +116,7 @@ Persistent caches (history, generated completions, etc.) live under `~/.cache/cj
 - `-H, --no-history-expansion`
 - `--no-history` – disable history recording (also disables history expansion)
 - `-W, --no-sh-warning` – suppress the reminder shown when cjsh is invoked via `sh`
-- `-s, --secure` – skip `~/.cjprofile`, `~/.cjshrc`, and `~/.cjsh_logout` entirely
+- `-s, --secure` – skip `~/.cjshenv`, `~/.cjprofile`, `~/.cjshrc`, and `~/.cjlogout` entirely
 - `-X, --startup-test` – diagnostic mode used by the bundled tests
 
 Flags affecting feature toggles take effect early in startup and can also be injected via

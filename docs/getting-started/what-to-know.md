@@ -134,9 +134,13 @@ cjsh leaves directory listing behavior up to your configuration. Add an `ls` wra
 ## Configuration & Compatibility
 
 ### Startup Files
+- `~/.cjshenv` – Sourced for every shell start (before login/interactive setup).
 - `~/.cjprofile` – Executed for login shells before interactive setup.
 - `~/.cjshrc` – Interactive configuration (aliases, prompt definitions, hooks, etc.).
-- `~/.cjsh_logout` – Optional cleanup script sourced on exit.
+- `~/.cjlogout` – Optional cleanup script sourced on exit.
+
+Set `CJSH_ENV` to override the `~/.cjshenv` search paths. If `CJSH_ENV` is set but empty, cjsh
+falls back to the default search paths.
 
 ### Persisting Startup Flags
 `cjshopt login-startup-arg` is only valid while configuration files are being sourced. Call it once per flag inside `~/.cjprofile`:

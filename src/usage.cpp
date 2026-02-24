@@ -79,8 +79,8 @@ void print_usage(bool print_version, bool print_hook, bool print_footer) {
 
         << "\n"
         << "Security and Testing:\n"
-        << "  -s, --secure               Secure mode: skip ~/.cjprofile, ~/.cjshrc,\n"
-        << "                             and ~/.cjsh_logout entirely; disable history persistence\n"
+        << "  -s, --secure               Secure mode: skip ~/.cjshenv, ~/.cjprofile, ~/.cjshrc,\n"
+        << "                             and ~/.cjlogout entirely; disable history persistence\n"
         << "  -X, --startup-test         Enable startup test mode (internal)\n"
         << "\n"
         << "Persisting flags:\n"

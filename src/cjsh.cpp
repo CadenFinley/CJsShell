@@ -177,6 +177,9 @@ int run_cjsh(int argc, char* argv[]) {
     flags::save_startup_arguments(argc, argv);
     cjsh_env::sync_env_vars_from_system(*g_shell);
 
+    // source environment file before other startup scripts
+    cjsh_filesystem::process_env_files();
+
     // start login mode items
     if (config::login_mode) {
         cjsh_filesystem::process_profile_files();

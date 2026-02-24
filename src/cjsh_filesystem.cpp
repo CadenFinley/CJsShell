@@ -95,18 +95,28 @@ const std::filesystem::path& g_cjsh_profile_path() {
     return path;
 }
 
+const std::filesystem::path& g_cjsh_env_path() {
+    static const std::filesystem::path path = g_user_home_path() / ".cjshenv";
+    return path;
+}
+
 const std::filesystem::path& g_cjsh_source_path() {
     static const std::filesystem::path path = g_user_home_path() / ".cjshrc";
     return path;
 }
 
 const std::filesystem::path& g_cjsh_logout_path() {
-    static const std::filesystem::path path = g_user_home_path() / ".cjsh_logout";
+    static const std::filesystem::path path = g_user_home_path() / ".cjlogout";
     return path;
 }
 
 const std::filesystem::path& g_cjsh_profile_alt_path() {
     static const std::filesystem::path path = g_cjsh_config_path() / ".cjprofile";
+    return path;
+}
+
+const std::filesystem::path& g_cjsh_env_alt_path() {
+    static const std::filesystem::path path = g_cjsh_config_path() / ".cjshenv";
     return path;
 }
 
@@ -116,7 +126,7 @@ const std::filesystem::path& g_cjsh_source_alt_path() {
 }
 
 const std::filesystem::path& g_cjsh_logout_alt_path() {
-    static const std::filesystem::path path = g_cjsh_config_path() / ".cjsh_logout";
+    static const std::filesystem::path path = g_cjsh_config_path() / ".cjlogout";
     return path;
 }
 
@@ -880,14 +890,50 @@ void process_profile_files() {
     }
 }
 
+void process_env_files() {
+    if (config::secure_mode) {
+        return;
+    }
+
+    auto is_regular_file = [](const std::filesystem::path& candidate) {
+        std::error_code status_ec;
+        auto status = std::filesystem::status(candidate, status_ec);
+        return !status_ec && std::filesystem::is_regular_file(status);
+    };
+
+    if (cjsh_env::shell_variable_is_set("CJSH_ENV")) {
+        std::string env_override = cjsh_env::get_shell_variable_value("CJSH_ENV");
+        if (!env_override.empty()) {
+            std::filesystem::path override_path(env_override);
+            std::error_code abs_ec;
+            if (!override_path.is_absolute()) {
+                auto absolute_path = std::filesystem::absolute(override_path, abs_ec);
+                if (!abs_ec) {
+                    override_path = absolute_path;
+                }
+            }
+            override_path = override_path.lexically_normal();
+
+            if (is_regular_file(override_path)) {
+                g_shell->execute_script_file(override_path, true);
+            }
+            return;
+        }
+    }
+
+    if (is_regular_file(g_cjsh_env_path())) {
+        g_shell->execute_script_file(g_cjsh_env_path(), true);
+    } else if (is_regular_file(g_cjsh_env_alt_path())) {
+        g_shell->execute_script_file(g_cjsh_env_alt_path(), true);
+    }
+}
+
 void process_logout_file() {
     if (!config::secure_mode && (config::interactive_mode || config::force_interactive)) {
-        const auto& logout_path = g_cjsh_logout_path();
-        std::error_code logout_status_ec;
-        auto logout_status = std::filesystem::status(logout_path, logout_status_ec);
-
-        if (!logout_status_ec && std::filesystem::is_regular_file(logout_status)) {
-            g_shell->execute_script_file(logout_path, true);
+        if (file_exists(g_cjsh_logout_path())) {
+            g_shell->execute_script_file(g_cjsh_logout_path(), true);
+        } else if (file_exists(g_cjsh_logout_alt_path())) {
+            g_shell->execute_script_file(g_cjsh_logout_alt_path(), true);
         }
     }
 }

@@ -147,7 +147,7 @@ int generate_logout_command(const std::vector<std::string>& args) {
     return handle_generate_command_common(
         args, "generate-logout", cjsh_filesystem::g_cjsh_logout_path(),
         std::optional<std::filesystem::path>{cjsh_filesystem::g_cjsh_logout_alt_path()},
-        "Create a default ~/.cjsh_logout file.", [](const std::filesystem::path& target) {
+        "Create a default ~/.cjlogout file.", [](const std::filesystem::path& target) {
             return cjsh_filesystem::create_logout_file(target);
         });
 }

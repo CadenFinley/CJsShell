@@ -175,10 +175,12 @@ const std::filesystem::path& g_cjsh_config_path();
 const std::filesystem::path& g_cjsh_cache_path();
 
 const std::filesystem::path& g_cjsh_profile_path();
+const std::filesystem::path& g_cjsh_env_path();
 const std::filesystem::path& g_cjsh_source_path();
 const std::filesystem::path& g_cjsh_logout_path();
 
 const std::filesystem::path& g_cjsh_profile_alt_path();
+const std::filesystem::path& g_cjsh_env_alt_path();
 const std::filesystem::path& g_cjsh_source_alt_path();
 const std::filesystem::path& g_cjsh_logout_alt_path();
 
@@ -206,6 +208,7 @@ bool create_logout_file(const std::filesystem::path& target_path = g_cjsh_logout
 bool is_first_boot();
 
 void process_profile_files();
+void process_env_files();
 void process_logout_file();
 void process_source_files();
 }  // namespace cjsh_filesystem

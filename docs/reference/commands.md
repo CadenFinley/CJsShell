@@ -609,7 +609,7 @@ Available subcommands:
 - `keybind` - Inspect or modify key bindings (modifications config file only)
 - `generate-profile` - Create or overwrite ~/.cjprofile (use `--alt` for `~/.config/cjsh/.cjprofile`)
 - `generate-rc` - Create or overwrite ~/.cjshrc (use `--alt` for `~/.config/cjsh/.cjshrc`)
-- `generate-logout` - Create or overwrite ~/.cjsh_logout (use `--alt` for `~/.config/cjsh/.cjsh_logout`)
+- `generate-logout` - Create or overwrite ~/.cjlogout (use `--alt` for `~/.config/cjsh/.cjlogout`)
 - `set-history-max` - Configure history persistence limits
 - `set-completion-max` - Limit the maximum number of completion suggestions shown
 
