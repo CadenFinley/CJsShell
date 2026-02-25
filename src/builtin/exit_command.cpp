@@ -176,11 +176,6 @@ int exit_command(const std::vector<std::string>& args) {
                          "Second exit attempt detected. Forcing exit despite active jobs.",
                          {"Use `exit --force` to skip the warning immediately."}});
         }
-        if (g_shell && g_shell->shell_exec) {
-            g_shell->shell_exec->terminate_all_child_process();
-        }
-        JobManager::instance().clear_all_jobs();
-        std::exit(exit_code);
     }
 
     cjsh_env::request_exit();
