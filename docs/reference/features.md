@@ -65,7 +65,7 @@ for full details.
         `cjshopt prompt-cleanup-empty-line`, `cjshopt prompt-cleanup-truncate`
     - `cjshopt keybind …` and `cjshopt keybind ext …` for keymap management
     - `cjshopt set-history-max` to adjust persistent history size (0 or more entries; no upper limit)
-    - `set -o huponexit` mirrors bash's option for sending SIGHUP/SIGTERM to background jobs when the
+    - `set -o huponexit` mirrors bash's option for sending SIGHUP to background jobs when the
         shell exits (off by default so long-running helpers stick around)
 - **Login/startup flags** – Place `cjshopt login-startup-arg <flag>` lines in `~/.cjprofile` to
     replay command-line switches (`--minimal`, `--no-completions`, `--show-startup-time`, etc.) on

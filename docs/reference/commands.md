@@ -157,7 +157,7 @@ set [options] [args...]
 ```
 
 - `set -o huponexit` mirrors bash's hangup behavior toggle; when enabled the shell sends
-  SIGHUP/SIGTERM to managed background jobs as it exits. Leave it off (the default) to keep helpers
+  SIGHUP to managed background jobs as it exits. Leave it off (the default) to keep helpers
   like dev servers alive until you explicitly stop them.
 
 ### shift

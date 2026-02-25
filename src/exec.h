@@ -29,6 +29,7 @@
 #pragma once
 
 #include <atomic>
+#include <csignal>
 #include <functional>
 #include <map>
 #include <memory>
@@ -127,7 +128,7 @@ class Exec {
     void wait_for_job(int job_id);
     void handle_child_signal(pid_t pid, int status);
     std::map<int, Job> get_jobs();
-    void terminate_all_child_process();
+    void terminate_all_child_process(int signal = SIGTERM);
     void abandon_all_child_processes();
     void set_job_output_forwarding(pid_t pgid, bool forward);
 

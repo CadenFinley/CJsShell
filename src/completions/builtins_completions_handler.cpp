@@ -315,7 +315,7 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                  make_option("-o", "Set option by name"),
                  make_option("+o", "Unset option by name"),
                  make_option("globstar", "Enable recursive '**' glob expansion"),
-                 make_option("huponexit", "Send SIGHUP/SIGTERM to jobs when the shell exits"),
+                 make_option("huponexit", "Send SIGHUP to jobs when the shell exits"),
                  make_option("pipefail", "Return the last non-zero pipeline status"),
                  make_option("--errexit-severity=", "Set errexit sensitivity level"),
                  make_option("--", "Treat remaining arguments as positional parameters")});

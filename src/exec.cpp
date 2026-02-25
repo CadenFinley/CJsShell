@@ -2633,7 +2633,7 @@ std::map<int, Job> Exec::get_jobs() {
     return jobs;
 }
 
-void Exec::terminate_all_child_process() {
+void Exec::terminate_all_child_process(int signal) {
     struct JobRecord {
         int id;
         Job job;
@@ -2699,7 +2699,7 @@ void Exec::terminate_all_child_process() {
         }
 #endif
 
-        if (send_signal_to_job(job, SIGTERM)) {
+        if (send_signal_to_job(job, signal)) {
             signaled_any = true;
         }
 
@@ -2708,9 +2708,9 @@ void Exec::terminate_all_child_process() {
         }
     }
 
-    if (signaled_any) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(200));
-    }
+    // if (signaled_any) {
+    // std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    // }
 
     for (const auto& entry : job_snapshot) {
         const Job& job = entry.job;

@@ -33,6 +33,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cerrno>
+#include <csignal>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
@@ -160,7 +161,7 @@ Shell::~Shell() {
     // on shell destruction, handle any remaining child processes
     if (shell_exec) {
         if (get_shell_option(ShellOption::Huponexit)) {
-            shell_exec->terminate_all_child_process();
+            shell_exec->terminate_all_child_process(SIGHUP);
         } else {
             shell_exec->abandon_all_child_processes();
         }

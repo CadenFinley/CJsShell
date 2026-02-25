@@ -716,9 +716,9 @@ SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) 
             int reaped_count = 0;
             const int max_reap_iterations = 100;
 
-            if (s_sigchld_received == 1) {
-                usleep(1000);
-            }
+            // if (s_sigchld_received == 1) {
+            // usleep(1000);
+            // }
 
             while ((pid = waitpid(-1, &status, WNOHANG | WUNTRACED | WCONTINUED)) > 0 &&
                    reaped_count < max_reap_iterations) {
