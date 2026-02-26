@@ -202,6 +202,7 @@ void reset_path_hash();
 std::string safe_current_directory();
 
 bool create_profile_file(const std::filesystem::path& target_path = g_cjsh_profile_path());
+bool create_env_file(const std::filesystem::path& target_path = g_cjsh_env_path());
 bool create_source_file(const std::filesystem::path& target_path = g_cjsh_source_path());
 bool create_logout_file(const std::filesystem::path& target_path = g_cjsh_logout_path());
 

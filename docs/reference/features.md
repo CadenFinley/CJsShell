@@ -70,9 +70,10 @@ for full details.
 - **Login/startup flags** – Place `cjshopt login-startup-arg <flag>` lines in `~/.cjprofile` to
     replay command-line switches (`--minimal`, `--no-completions`, `--show-startup-time`, etc.) on
     every launch. Flags that are valid on the CLI are respected during profile evaluation.
-- **Generated config skeletons** – `cjshopt generate-profile`, `cjshopt generate-rc`, and
-    `cjshopt generate-logout` create `~/.cjprofile`, `~/.cjshrc`, and `~/.cjlogout` (or alternate
-    locations under `~/.config/cjsh/`) with sensible defaults.
+- **Generated config skeletons** – `cjshopt generate-env`, `cjshopt generate-profile`,
+    `cjshopt generate-rc`, and `cjshopt generate-logout` create `~/.cjshenv`, `~/.cjprofile`,
+    `~/.cjshrc`, and `~/.cjlogout` (or alternate locations under `~/.config/cjsh/`) with
+    sensible defaults.
 
 ### Startup Files
 

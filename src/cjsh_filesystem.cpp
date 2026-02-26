@@ -858,6 +858,14 @@ bool create_profile_file(const std::filesystem::path& target_path) {
     return write_configuration_file(target_path, profile_content);
 }
 
+bool create_env_file(const std::filesystem::path& target_path) {
+    std::string env_content =
+        "#!/usr/bin/env cjsh\n"
+        "# cjsh Environment File\n"
+        "# this file is sourced for every shell start before login/interactive setup\n";
+    return write_configuration_file(target_path, env_content);
+}
+
 bool create_source_file(const std::filesystem::path& target_path) {
     std::string source_content =
         "#!/usr/bin/env cjsh\n"

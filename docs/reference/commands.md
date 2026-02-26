@@ -607,6 +607,7 @@ Available subcommands:
 - `prompt-cleanup-truncate` - Collapse multiline prompts when cleanup runs
 - `right-prompt-follow-cursor` - Keep the inline right prompt aligned with the active cursor row
 - `keybind` - Inspect or modify key bindings (modifications config file only)
+- `generate-env` - Create or overwrite ~/.cjshenv (use `--alt` for `~/.config/cjsh/.cjshenv`)
 - `generate-profile` - Create or overwrite ~/.cjprofile (use `--alt` for `~/.config/cjsh/.cjprofile`)
 - `generate-rc` - Create or overwrite ~/.cjshrc (use `--alt` for `~/.config/cjsh/.cjshrc`)
 - `generate-logout` - Create or overwrite ~/.cjlogout (use `--alt` for `~/.config/cjsh/.cjlogout`)

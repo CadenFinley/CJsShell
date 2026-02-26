@@ -134,6 +134,15 @@ int generate_profile_command(const std::vector<std::string>& args) {
         });
 }
 
+int generate_env_command(const std::vector<std::string>& args) {
+    return handle_generate_command_common(
+        args, "generate-env", cjsh_filesystem::g_cjsh_env_path(),
+        std::optional<std::filesystem::path>{cjsh_filesystem::g_cjsh_env_alt_path()},
+        "Create a default ~/.cjshenv configuration file.", [](const std::filesystem::path& target) {
+            return cjsh_filesystem::create_env_file(target);
+        });
+}
+
 int generate_rc_command(const std::vector<std::string>& args) {
     return handle_generate_command_common(
         args, "generate-rc", cjsh_filesystem::g_cjsh_source_path(),

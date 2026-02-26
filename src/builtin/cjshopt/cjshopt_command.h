@@ -68,6 +68,7 @@ int right_prompt_follow_cursor_command(const std::vector<std::string>& args);
 int style_def_command(const std::vector<std::string>& args);
 void apply_custom_style(const std::string& token_type, const std::string& style);
 int generate_profile_command(const std::vector<std::string>& args);
+int generate_env_command(const std::vector<std::string>& args);
 int generate_rc_command(const std::vector<std::string>& args);
 int generate_logout_command(const std::vector<std::string>& args);
 int keybind_command(const std::vector<std::string>& args);

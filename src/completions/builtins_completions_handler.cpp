@@ -545,6 +545,7 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
              make_subcommand("right-prompt-follow-cursor", "Move the right prompt with the cursor"),
              make_subcommand("keybind", "Inspect or modify key bindings"),
              make_subcommand("generate-profile", "Generate ~/.cjprofile"),
+             make_subcommand("generate-env", "Generate ~/.cjshenv"),
              make_subcommand("generate-rc", "Generate ~/.cjshrc"),
              make_subcommand("generate-logout", "Generate ~/.cjlogout"),
              make_subcommand("set-history-max", "Configure history persistence"),
@@ -619,6 +620,13 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_doc("cjshopt-generate-profile", "Generate ~/.cjprofile",
                 {make_option("--force", "Overwrite the existing profile"),
                  make_option("-f", "Overwrite the existing profile"),
+                 make_option("--alt", "Write to the alternate configuration path"),
+                 make_option("--help", "Show usage information"),
+                 make_option("-h", "Show usage information")});
+
+        add_doc("cjshopt-generate-env", "Generate ~/.cjshenv",
+                {make_option("--force", "Overwrite the existing env file"),
+                 make_option("-f", "Overwrite the existing env file"),
                  make_option("--alt", "Write to the alternate configuration path"),
                  make_option("--help", "Show usage information"),
                  make_option("-h", "Show usage information")});

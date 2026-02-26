@@ -75,6 +75,7 @@ enum class CjshoptSubcommand : std::uint8_t {
     RightPromptFollowCursor,
     Keybind,
     GenerateProfile,
+    GenerateEnv,
     GenerateRc,
     GenerateLogout,
     SetHistoryMax,
@@ -134,6 +135,7 @@ constexpr std::array<CjshoptSubcommandDescriptor, static_cast<size_t>(CjshoptSub
           right_prompt_follow_cursor_command},
          {CjshoptSubcommand::Keybind, "keybind", keybind_command},
          {CjshoptSubcommand::GenerateProfile, "generate-profile", generate_profile_command},
+         {CjshoptSubcommand::GenerateEnv, "generate-env", generate_env_command},
          {CjshoptSubcommand::GenerateRc, "generate-rc", generate_rc_command},
          {CjshoptSubcommand::GenerateLogout, "generate-logout", generate_logout_command},
          {CjshoptSubcommand::SetHistoryMax, "set-history-max", set_history_max_command},
@@ -214,6 +216,7 @@ void print_cjshopt_usage() {
                  "in config only)\n";
     std::cout << "    - Use 'keybind ext' for custom command keybindings\n";
     std::cout << "  generate-profile [--force] [--alt]       Create or overwrite ~/.cjprofile\n";
+    std::cout << "  generate-env [--force] [--alt]           Create or overwrite ~/.cjshenv\n";
     std::cout << "  generate-rc [--force] [--alt]            Create or overwrite ~/.cjshrc\n";
     std::cout << "  generate-logout [--force] [--alt]        Create or overwrite ~/.cjlogout\n";
     std::cout << "  set-history-max <number|default|status> Configure history persistence\n";
@@ -313,6 +316,7 @@ int cjshopt_command(const std::vector<std::string>& args) {
                  "  line-numbers-continuation <on|off|status> Control line numbers when a "
                  "continuation prompt is active",
                  "  generate-profile [--force] [--alt]       Create or overwrite ~/.cjprofile",
+                 "  generate-env [--force] [--alt]           Create or overwrite ~/.cjshenv",
                  "  generate-rc [--force] [--alt]            Create or overwrite ~/.cjshrc",
                  "  generate-logout [--force] [--alt]        Create or overwrite ~/.cjlogout",
                  "  set-history-max <number|default|status> Configure history persistence",
@@ -344,7 +348,8 @@ int cjshopt_command(const std::vector<std::string>& args) {
           "prompt-cleanup-newline, "
           "prompt-cleanup-empty-line, prompt-cleanup-truncate, right-prompt-follow-cursor, "
           "keybind, "
-          "generate-rc, generate-logout, set-history-max, set-completion-max"}});
+          "generate-profile, generate-env, generate-rc, generate-logout, set-history-max, "
+          "set-completion-max"}});
 
     return 1;
 }
