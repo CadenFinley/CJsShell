@@ -21,6 +21,15 @@ if [ "${SHELL_TO_TEST#/}" = "$SHELL_TO_TEST" ]; then
     SHELL_TO_TEST="$(pwd)/$SHELL_TO_TEST"
 fi
 
+TEST_HOME=$(mktemp -d "${TMPDIR:-/tmp}/cjsh-posix-mode-extensions.XXXXXX")
+if [ -z "$TEST_HOME" ] || [ ! -d "$TEST_HOME" ]; then
+    echo "Failed to create temporary HOME for tests"
+    exit 1
+fi
+trap 'rm -rf "$TEST_HOME"' EXIT INT TERM
+export HOME="$TEST_HOME"
+unset CJSH_ENV
+
 
 log_test() {
     TOTAL=$((TOTAL + 1))
