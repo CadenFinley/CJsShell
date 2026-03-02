@@ -122,7 +122,7 @@ else
 fi
 
 for MODE_FLAG in --minimal --secure --posix; do
-OUT=$("$CJSH_PATH" "$MODE_FLAG" -c '
+if OUT=$("$CJSH_PATH" "$MODE_FLAG" -c '
 command_not_found_handler() {
     echo handler-should-not-run
     return 42
@@ -130,9 +130,14 @@ command_not_found_handler() {
 
 missing_mode_probe
 echo "status:$?"
-' 2>&1)
+' 2>&1); then
+    MODE_STATUS=0
+else
+    MODE_STATUS=$?
+fi
 
-    if ! echo "$OUT" | grep -q "handler-should-not-run" &&
+    if [ "$MODE_STATUS" -eq 0 ] &&
+       ! echo "$OUT" | grep -q "handler-should-not-run" &&
        echo "$OUT" | grep -q "command not found" &&
        echo "$OUT" | grep -q "status:127"; then
         pass_test "command_not_found_handler ignored in $MODE_FLAG"
@@ -173,15 +178,20 @@ else
 fi
 
 for MODE_FLAG in --minimal --secure --posix; do
-OUT=$("$CJSH_PATH" "$MODE_FLAG" -c '
+if OUT=$("$CJSH_PATH" "$MODE_FLAG" -c '
 cjshexit() {
     echo cjshexit-should-not-run
 }
 
 true
-' 2>&1)
+' 2>&1); then
+    MODE_STATUS=0
+else
+    MODE_STATUS=$?
+fi
 
-    if ! echo "$OUT" | grep -q "cjshexit-should-not-run"; then
+    if [ "$MODE_STATUS" -eq 0 ] &&
+       ! echo "$OUT" | grep -q "cjshexit-should-not-run"; then
         pass_test "cjshexit ignored in $MODE_FLAG"
     else
         fail_test "cjshexit unexpectedly active in $MODE_FLAG (output: $OUT)"
