@@ -46,7 +46,7 @@
 
 #define SPEC_CURSOR_LEFT "left|ctrl+b"
 #define SPEC_CURSOR_RIGHT "right|ctrl+f"
-#define SPEC_CURSOR_UP "up"
+#define SPEC_CURSOR_UP "up|shift+up"
 #define SPEC_CURSOR_DOWN "down"
 #define SPEC_CURSOR_LINE_START "home|ctrl+a"
 #define SPEC_CURSOR_LINE_END "end|ctrl+e"

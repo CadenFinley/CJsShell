@@ -141,6 +141,7 @@ static void edit_show_help(ic_env_t* env, editor_t* eb);
 static void edit_cursor_left(ic_env_t* env, editor_t* eb);
 static void edit_cursor_right(ic_env_t* env, editor_t* eb);
 static void edit_cursor_row_up(ic_env_t* env, editor_t* eb);
+static void edit_cursor_row_up_with_history_spell(ic_env_t* env, editor_t* eb);
 static void edit_cursor_row_down(ic_env_t* env, editor_t* eb);
 static void edit_cursor_line_start(ic_env_t* env, editor_t* eb);
 static void edit_cursor_line_end(ic_env_t* env, editor_t* eb);
@@ -163,7 +164,7 @@ static bool edit_try_expand_abbreviation(ic_env_t* env, editor_t* eb, bool bound
 static void edit_refresh(ic_env_t* env, editor_t* eb);
 static void redraw_prompt_prefix_lines(ic_env_t* env, editor_t* eb);
 
-static bool key_action_execute(ic_env_t* env, editor_t* eb, ic_key_action_t action) {
+static bool key_action_execute(ic_env_t* env, editor_t* eb, ic_key_action_t action, code_t key) {
     switch (action) {
         case IC_KEY_ACTION_NONE:
             return true;
@@ -202,7 +203,11 @@ static bool key_action_execute(ic_env_t* env, editor_t* eb, ic_key_action_t acti
             }
             return true;
         case IC_KEY_ACTION_CURSOR_UP:
-            edit_cursor_row_up(env, eb);
+            if ((KEY_MODS(key) & KEY_MOD_SHIFT) != 0 && KEY_NO_MODS(key) == KEY_UP) {
+                edit_cursor_row_up_with_history_spell(env, eb);
+            } else {
+                edit_cursor_row_up(env, eb);
+            }
             return true;
         case IC_KEY_ACTION_CURSOR_DOWN:
             edit_cursor_row_down(env, eb);
@@ -282,7 +287,7 @@ static bool key_binding_execute(ic_env_t* env, editor_t* eb, code_t key) {
                 }
                 return false;
             }
-            return key_action_execute(env, eb, entry->action);
+            return key_action_execute(env, eb, entry->action, key);
         }
     }
     return false;
@@ -1811,6 +1816,119 @@ static void edit_cursor_row_up(ic_env_t* env, editor_t* eb) {
     }
 }
 
+static void edit_cursor_row_up_with_history_spell(ic_env_t* env, editor_t* eb) {
+    rowcol_t rc;
+    edit_get_rowcol(env, eb, &rc);
+    if (rc.row != 0) {
+        edit_set_pos_at_rowcol(env, eb, rc.row - 1, rc.col);
+        return;
+    }
+
+    ssize_t previous_history_idx = eb->history_idx;
+    char* previous_input = mem_strdup(env->mem, sbuf_string(eb->input));
+    edit_history_prev(env, eb);
+
+    bool history_changed = (eb->history_idx != previous_history_idx);
+    if (!history_changed && previous_input != NULL) {
+        const char* current_input = sbuf_string(eb->input);
+        history_changed = (current_input == NULL || strcmp(previous_input, current_input) != 0);
+    }
+    if (previous_input != NULL) {
+        mem_free(env->mem, previous_input);
+    }
+    if (!history_changed || !env->spell_correct) {
+        return;
+    }
+
+    eb->pos = sbuf_len(eb->input);
+    const char* input = sbuf_string(eb->input);
+    if (input == NULL || eb->pos <= 0) {
+        completions_clear(env->completions);
+        return;
+    }
+
+    ssize_t prev = str_prev_ofs(input, eb->pos, NULL);
+    if (prev <= 0 || ic_char_is_separator(input + eb->pos - prev, (long)prev)) {
+        completions_clear(env->completions);
+        return;
+    }
+
+    ssize_t word_start = edit_find_word_start(input, eb->pos);
+    if (word_start < 0 || word_start >= eb->pos) {
+        completions_clear(env->completions);
+        return;
+    }
+
+    ssize_t word_len = eb->pos - word_start;
+    char* original_word = mem_strndup(env->mem, input + word_start, word_len);
+    if (original_word == NULL) {
+        completions_clear(env->completions);
+        return;
+    }
+
+    ssize_t count = completions_generate(env, env->completions, sbuf_string(eb->input), eb->pos,
+                                         IC_MAX_COMPLETIONS_TO_TRY);
+    if (count <= 0) {
+        completions_clear(env->completions);
+        mem_free(env->mem, original_word);
+        return;
+    }
+
+    if (completions_all_sources_equal(env->completions, "spell")) {
+        edit_complete(env, eb, 0);
+        mem_free(env->mem, original_word);
+        completions_clear(env->completions);
+        return;
+    }
+
+    ssize_t best_spell_idx = -1;
+    ssize_t spell_count = 0;
+    size_t best_distance = SIZE_MAX;
+    long best_length_diff = LONG_MAX;
+    ssize_t original_len = ic_strlen(original_word);
+    for (ssize_t i = 0; i < count; ++i) {
+        const char* source = completions_get_source(env->completions, i);
+        if (source == NULL || strcmp(source, "spell") != 0)
+            continue;
+        spell_count++;
+
+        const char* replacement = completions_get_replacement(env->completions, i);
+        if (replacement == NULL || *replacement == '\0')
+            continue;
+        size_t distance = levenshtein_casefold(env->mem, original_word, replacement);
+        if (distance == SIZE_MAX)
+            continue;
+        ssize_t replacement_len = ic_strlen(replacement);
+        long len_diff = labs((long)replacement_len - (long)original_len);
+        if (distance < best_distance ||
+            (distance == best_distance && len_diff < best_length_diff)) {
+            best_distance = distance;
+            best_length_diff = len_diff;
+            best_spell_idx = i;
+        }
+    }
+
+    if (spell_count <= 0) {
+        completions_clear(env->completions);
+        mem_free(env->mem, original_word);
+        return;
+    }
+
+    if (best_spell_idx >= 0) {
+        const char* best_replacement =
+            completions_get_replacement(env->completions, best_spell_idx);
+        size_t replacement_len =
+            (best_replacement == NULL ? 0 : (size_t)ic_strlen(best_replacement));
+        size_t threshold = edit_spell_threshold((size_t)original_len, replacement_len);
+        if (best_distance <= threshold) {
+            edit_complete(env, eb, best_spell_idx);
+        }
+    }
+
+    mem_free(env->mem, original_word);
+    completions_clear(env->completions);
+}
+
 static void edit_cursor_row_down(ic_env_t* env, editor_t* eb) {
     rowcol_t rc;
     ssize_t rows = edit_get_rowcol(env, eb, &rc);
@@ -2758,6 +2876,9 @@ edit_loop_entry:
                         break;
                     case KEY_UP:
                         edit_cursor_row_up(env, &eb);
+                        break;
+                    case WITH_SHIFT(KEY_UP):
+                        edit_cursor_row_up_with_history_spell(env, &eb);
                         break;
                     case KEY_DOWN:
                         edit_cursor_row_down(env, &eb);
