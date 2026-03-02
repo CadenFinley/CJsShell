@@ -65,6 +65,8 @@ Consult the [Completion Authoring Guide](completions.md) for cache format and cu
 - **`cjsh-widget`** – Exposes the line editor to shell scripts for advanced key-driven workflows.
 - **`generate-completions`** – Pre-warm the completion cache. A convenience command beyond POSIX.
 - **`hook`** – Lightweight precmd/preexec/chpwd hook management similar to zsh's hook system.
+- **Special lifecycle handlers** – `command_not_found_handler` and `cjshexit` function names are
+  recognized automatically for command-miss and shell-exit customization.
 
 ## History & Execution Utilities
 

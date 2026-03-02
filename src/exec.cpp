@@ -40,7 +40,6 @@
 #include <array>
 #include <atomic>
 #include <cerrno>
-#include <chrono>
 #include <csignal>
 #include <cstdint>
 #include <cstring>
@@ -329,6 +328,39 @@ bool replace_first_instance(std::string& target, const std::string& from, const 
     return true;
 }
 
+std::optional<int> maybe_invoke_command_not_found_handler(const std::vector<std::string>& args) {
+    if (args.empty() || !g_shell) {
+        return std::nullopt;
+    }
+
+    ShellScriptInterpreter* interpreter = g_shell->get_shell_script_interpreter();
+    if (interpreter == nullptr || !interpreter->has_function("command_not_found_handler")) {
+        return std::nullopt;
+    }
+
+    static thread_local bool handler_active = false;
+    if (handler_active) {
+        return std::nullopt;
+    }
+
+    std::vector<std::string> handler_args;
+    handler_args.reserve(args.size() + 1);
+    handler_args.emplace_back("command_not_found_handler");
+    handler_args.insert(handler_args.end(), args.begin(), args.end());
+
+    handler_active = true;
+    int handler_exit_code = ShellScriptInterpreter::exit_command_not_found;
+    try {
+        handler_exit_code = interpreter->invoke_function(handler_args);
+    } catch (...) {
+        handler_active = false;
+        return std::nullopt;
+    }
+
+    handler_active = false;
+    return handler_exit_code;
+}
+
 [[noreturn]] void report_exec_failure(const std::vector<std::string>& args, int saved_errno) {
     const std::string command_name = args.empty() ? std::string{} : args[0];
 
@@ -349,6 +381,12 @@ bool replace_first_instance(std::string& target, const std::string& from, const 
         if (config::error_suggestions_enabled && !command_name.empty()) {
             suggestions = suggestion_utils::generate_command_suggestions(command_name);
         }
+
+        auto handler_exit_code = maybe_invoke_command_not_found_handler(args);
+        if (handler_exit_code.has_value()) {
+            _exit(handler_exit_code.value());
+        }
+
         print_error(
             {ErrorType::COMMAND_NOT_FOUND, ErrorSeverity::ERROR, command_name, "", suggestions});
         _exit(ShellScriptInterpreter::exit_command_not_found);
@@ -2707,10 +2745,6 @@ void Exec::terminate_all_child_process(int signal) {
             std::cerr << "[" << entry.id << "] Terminated\t" << job.command << '\n';
         }
     }
-
-    // if (signaled_any) {
-    // std::this_thread::sleep_for(std::chrono::milliseconds(200));
-    // }
 
     for (const auto& entry : job_snapshot) {
         const Job& job = entry.job;

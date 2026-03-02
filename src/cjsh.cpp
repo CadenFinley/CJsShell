@@ -48,6 +48,7 @@
 #include "cjsh_filesystem.h"
 #include "error_out.h"
 #include "flags.h"
+#include "interpreter.h"
 #include "job_control.h"
 #include "main_loop.h"
 #include "prompt.h"
@@ -102,6 +103,12 @@ void cleanup_resources() {
 
     // otherwise we do a full shutdown with traps and everything
     trap_manager_set_shell(g_shell.get());
+
+    if (ShellScriptInterpreter* interpreter = g_shell->get_shell_script_interpreter();
+        interpreter != nullptr && interpreter->has_function("cjshexit")) {
+        interpreter->invoke_function({"cjshexit"});
+    }
+
     trap_manager_execute_exit_trap();
     if (config::login_mode) {
         cjsh_filesystem::process_logout_file();

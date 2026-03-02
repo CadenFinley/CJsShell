@@ -59,6 +59,30 @@ function my_chpwd() {
 hook add chpwd my_chpwd
 ```
 
+## Special Function Handlers
+
+In addition to `hook add`, CJ's Shell recognizes these function names directly:
+
+### `command_not_found_handler`
+Executed when command lookup fails for an external command name (exit `127` path). The missing
+command name and its arguments are passed to the function.
+
+```bash
+function command_not_found_handler() {
+    echo "Unknown command: $1"
+    return 127
+}
+```
+
+### `cjshexit`
+Executed during shell shutdown before `trap ... EXIT` handlers.
+
+```bash
+function cjshexit() {
+    echo "bye from cjsh"
+}
+```
+
 ## Hook Management Commands
 
 ### Register a Hook
