@@ -1770,14 +1770,38 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
         if (!use_job_control) {
             int status = 0;
-            pid_t wpid = waitpid(pid, &status, 0);
+            const int wait_options = cmd.auto_background_on_stop ? WUNTRACED : 0;
+            pid_t wpid = waitpid(pid, &status, wait_options);
             while (wpid == -1 && errno == EINTR) {
                 if (g_shell) {
                     g_shell->process_pending_signals();
                 } else if (auto* signal_handler = SignalHandler::instance()) {
                     signal_handler->process_pending_signals(this);
                 }
-                wpid = waitpid(pid, &status, 0);
+                wpid = waitpid(pid, &status, wait_options);
+            }
+
+            if (wpid > 0 && cmd.auto_background_on_stop && WIFSTOPPED(status) &&
+                WSTOPSIG(status) == SIGTSTP) {
+                if (kill(-pid, SIGCONT) < 0 && errno == ESRCH) {
+                    kill(pid, SIGCONT);
+                }
+
+                Job job =
+                    make_single_process_job(pid, cmd.args[0], true, cmd.auto_background_on_stop,
+                                            cmd.auto_background_on_stop_silent);
+                int job_id = add_job(job);
+
+                std::string full_command = join_arguments(cmd.args);
+                bool reads_stdin = job_utils::command_consumes_terminal_stdin(cmd);
+                JobManager::instance().add_job(pid, {pid}, full_command, true, reads_stdin);
+                JobManager::instance().set_last_background_pid(pid);
+
+                std::cerr << "[" << job_id << "] " << pid << " " << full_command << '\n';
+
+                cleanup_process_substitutions(proc_resources, false);
+                set_last_pipeline_statuses({0});
+                return finalize_exit(0);
             }
 
             int exit_code = (wpid == -1) ? EX_OSERR : extract_exit_code(status);
