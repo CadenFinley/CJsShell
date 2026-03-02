@@ -1342,14 +1342,16 @@
 <h3 id="command_not_found_handler"><code>command_not_found_handler</code></h3>
 <p>Executed when command lookup fails for an external command name (exit <code>127</code> path). The missing
 command name and its arguments are passed to the function. Returning <code>127</code> defers back to cjsh's
-built-in <code>command not found</code> message and exit code; any other return code overrides the default.</p>
+built-in <code>command not found</code> message and exit code; any other return code overrides the default.
+This handler is ignored when cjsh starts with <code>--minimal</code>, <code>--secure</code>, or <code>--posix</code>.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">function</span><span class="w"> </span>command_not_found_handler<span class="o">()</span><span class="w"> </span><span class="o">{</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"Unknown command: </span><span class="nv">$1</span><span class="s2">"</span>
 </span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="m">127</span>
 </span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="o">}</span>
 </span></code></pre></div>
 <h3 id="cjshexit"><code>cjshexit</code></h3>
-<p>Executed during shell shutdown before <code>trap ... EXIT</code> handlers.</p>
+<p>Executed during shell shutdown before <code>trap ... EXIT</code> handlers.
+This handler is ignored when cjsh starts with <code>--minimal</code>, <code>--secure</code>, or <code>--posix</code>.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">function</span><span class="w"> </span>cjshexit<span class="o">()</span><span class="w"> </span><span class="o">{</span>
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"bye from cjsh"</span>
 </span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="o">}</span>

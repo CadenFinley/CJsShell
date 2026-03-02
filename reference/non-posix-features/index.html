@@ -1165,7 +1165,8 @@ remains interactive-only by default; see the History section below.</p>
 <li><strong><code>generate-completions</code></strong> – Pre-warm the completion cache. A convenience command beyond POSIX.</li>
 <li><strong><code>hook</code></strong> – Lightweight precmd/preexec/chpwd hook management similar to zsh's hook system.</li>
 <li><strong>Special lifecycle handlers</strong> – <code>command_not_found_handler</code> and <code>cjshexit</code> function names are
-  recognized automatically for command-miss and shell-exit customization.</li>
+  recognized automatically for command-miss and shell-exit customization. They are ignored in
+  <code>--minimal</code>, <code>--secure</code>, and <code>--posix</code> sessions.</li>
 </ul>
 <h2 id="history-execution-utilities">History &amp; Execution Utilities</h2>
 <ul>
