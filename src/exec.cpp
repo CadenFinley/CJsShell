@@ -328,6 +328,8 @@ bool replace_first_instance(std::string& target, const std::string& from, const 
     return true;
 }
 
+std::atomic<int> g_command_not_found_handler_depth{0};
+
 std::optional<int> maybe_invoke_command_not_found_handler(const std::vector<std::string>& args) {
     if (args.empty() || !g_shell) {
         return std::nullopt;
@@ -349,14 +351,17 @@ std::optional<int> maybe_invoke_command_not_found_handler(const std::vector<std:
     handler_args.insert(handler_args.end(), args.begin(), args.end());
 
     handler_active = true;
+    g_command_not_found_handler_depth.fetch_add(1, std::memory_order_relaxed);
     int handler_exit_code = ShellScriptInterpreter::exit_command_not_found;
     try {
         handler_exit_code = interpreter->invoke_function(handler_args);
     } catch (...) {
+        g_command_not_found_handler_depth.fetch_sub(1, std::memory_order_relaxed);
         handler_active = false;
         return std::nullopt;
     }
 
+    g_command_not_found_handler_depth.fetch_sub(1, std::memory_order_relaxed);
     handler_active = false;
     return handler_exit_code;
 }
@@ -1409,6 +1414,8 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
         }
 
         Job job = make_single_process_job(pid, args[0], true, false, false);
+        job.suppress_notifications =
+            g_command_not_found_handler_depth.load(std::memory_order_relaxed) > 0;
 
         int job_id = add_job(job);
 
@@ -1416,7 +1423,9 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
         JobManager::instance().add_job(pid, {pid}, full_command, true, false);
         JobManager::instance().set_last_background_pid(pid);
 
-        std::cerr << "[" << job_id << "] " << pid << " " << job.command << '\n';
+        if (!job.suppress_notifications) {
+            std::cerr << "[" << job_id << "] " << pid << " " << job.command << '\n';
+        }
         last_exit_code = 0;
         return 0;
     }
@@ -2704,7 +2713,7 @@ void Exec::handle_child_signal(pid_t pid, int status) {
                     job.stopped = false;
                     job.status = status;
 
-                    if (job.background) {
+                    if (job.background && !job.suppress_notifications) {
                         if (WIFSIGNALED(status)) {
                             std::cerr << "\n[" << job_id << "] Terminated\t" << job.command << '\n';
                         } else {

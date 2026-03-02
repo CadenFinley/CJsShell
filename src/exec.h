@@ -58,6 +58,7 @@ struct Job {
     bool background{false};
     bool auto_background_on_stop{false};
     bool auto_background_on_stop_silent{false};
+    bool suppress_notifications{false};
     bool completed{false};
     bool stopped{false};
     int status{0};

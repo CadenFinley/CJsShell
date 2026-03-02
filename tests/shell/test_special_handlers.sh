@@ -73,6 +73,21 @@ fi
 
 OUT=$("$CJSH_PATH" -c '
 function command_not_found_handler() {
+    (sleep 0.01) &
+    return 127
+}
+
+missing_background_probe
+' 2>&1)
+
+if ! echo "$OUT" | grep -q "\[[0-9][0-9]*\]"; then
+    pass_test "command_not_found_handler background work does not emit job notification"
+else
+    fail_test "unexpected job notification from command_not_found_handler background work (output: $OUT)"
+fi
+
+OUT=$("$CJSH_PATH" -c '
+function command_not_found_handler() {
     missing_inside_handler
     return 88
 }
