@@ -67,6 +67,7 @@ In addition to `hook add`, CJ's Shell recognizes these function names directly:
 Executed when command lookup fails for an external command name (exit `127` path). The missing
 command name and its arguments are passed to the function. Returning `127` defers back to cjsh's
 built-in `command not found` message and exit code; any other return code overrides the default.
+This handler is ignored when cjsh starts with `--minimal`, `--secure`, or `--posix`.
 
 ```bash
 function command_not_found_handler() {
@@ -77,6 +78,7 @@ function command_not_found_handler() {
 
 ### `cjshexit`
 Executed during shell shutdown before `trap ... EXIT` handlers.
+This handler is ignored when cjsh starts with `--minimal`, `--secure`, or `--posix`.
 
 ```bash
 function cjshexit() {

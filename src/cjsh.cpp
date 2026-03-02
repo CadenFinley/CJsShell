@@ -105,7 +105,8 @@ void cleanup_resources() {
     trap_manager_set_shell(g_shell.get());
 
     if (ShellScriptInterpreter* interpreter = g_shell->get_shell_script_interpreter();
-        interpreter != nullptr && interpreter->has_function("cjshexit")) {
+        interpreter != nullptr && !config::minimal_mode && !config::secure_mode &&
+        !config::posix_mode && interpreter->has_function("cjshexit")) {
         interpreter->invoke_function({"cjshexit"});
     }
 

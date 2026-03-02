@@ -660,9 +660,9 @@ Supported flags:
 | `--no-history-expansion` | Disable `!!`, `!$`, and related history tokens |
 | `--no-sh-warning` | Suppress the reminder shown when cjsh is invoked via `sh` |
 | `--no-exec` | Read commands but do not execute them |
-| `--minimal` | Disable prompt themes/colors, completions, syntax highlighting, rc sourcing, title line, history expansion, multiline line numbers, auto-indentation, startup time banner, error suggestions, and prompt vars |
-| `--secure` | Skip profile/rc/logout sourcing even for login shells |
-| `--posix` | Enable POSIX mode and reject non-POSIX syntax |
+| `--minimal` | Disable prompt themes/colors, completions, syntax highlighting, rc sourcing, title line, history expansion, multiline line numbers, auto-indentation, startup time banner, error suggestions, prompt vars, and special lifecycle handlers |
+| `--secure` | Skip profile/rc/logout sourcing even for login shells, and ignore special lifecycle handlers |
+| `--posix` | Enable POSIX mode, reject non-POSIX syntax, and ignore special lifecycle handlers |
 | `--startup-test` | Enable startup test mode |
 
 Add one line per flag in `~/.cjprofile` to persist the desired behavior:

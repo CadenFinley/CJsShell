@@ -66,7 +66,8 @@ Consult the [Completion Authoring Guide](completions.md) for cache format and cu
 - **`generate-completions`** – Pre-warm the completion cache. A convenience command beyond POSIX.
 - **`hook`** – Lightweight precmd/preexec/chpwd hook management similar to zsh's hook system.
 - **Special lifecycle handlers** – `command_not_found_handler` and `cjshexit` function names are
-  recognized automatically for command-miss and shell-exit customization.
+  recognized automatically for command-miss and shell-exit customization. They are ignored in
+  `--minimal`, `--secure`, and `--posix` sessions.
 
 ## History & Execution Utilities
 

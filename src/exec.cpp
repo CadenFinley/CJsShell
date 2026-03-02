@@ -330,6 +330,10 @@ bool replace_first_instance(std::string& target, const std::string& from, const 
 
 std::atomic<int> g_command_not_found_handler_depth{0};
 
+bool special_handlers_enabled() {
+    return !config::minimal_mode && !config::secure_mode && !config::posix_mode;
+}
+
 std::vector<std::string> build_command_not_found_suggestions(const std::string& command_name) {
     if (!config::error_suggestions_enabled || command_name.empty()) {
         return {};
@@ -344,7 +348,7 @@ bool handler_defers_to_default_command_not_found_output(
 }
 
 std::optional<int> maybe_invoke_command_not_found_handler(const std::vector<std::string>& args) {
-    if (args.empty() || !g_shell) {
+    if (!special_handlers_enabled() || args.empty() || !g_shell) {
         return std::nullopt;
     }
 
@@ -381,7 +385,7 @@ std::optional<int> maybe_invoke_command_not_found_handler(const std::vector<std:
 
 bool should_try_command_not_found_handler(const std::vector<std::string>& args, bool is_builtin,
                                           const std::string& cached_exec_path) {
-    if (args.empty() || is_builtin || !cached_exec_path.empty()) {
+    if (!special_handlers_enabled() || args.empty() || is_builtin || !cached_exec_path.empty()) {
         return false;
     }
 
