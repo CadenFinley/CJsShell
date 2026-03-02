@@ -50,6 +50,28 @@ else
 fi
 
 OUT=$("$CJSH_PATH" -c '
+echo "shell_pid:$$"
+
+function command_not_found_handler() {
+    echo "handler_pid:$$"
+    return 13
+}
+
+missing_handler_pid_check
+echo "status:$?"
+' 2>&1)
+
+SHELL_PID=$(printf "%s\n" "$OUT" | grep '^shell_pid:' | cut -d: -f2)
+HANDLER_PID=$(printf "%s\n" "$OUT" | grep '^handler_pid:' | cut -d: -f2)
+
+if [ -n "$SHELL_PID" ] && [ -n "$HANDLER_PID" ] && [ "$SHELL_PID" = "$HANDLER_PID" ] &&
+   echo "$OUT" | grep -q "status:13"; then
+    pass_test "command_not_found_handler runs in active shell process"
+else
+    fail_test "command_not_found_handler process context changed unexpectedly (output: $OUT)"
+fi
+
+OUT=$("$CJSH_PATH" -c '
 function command_not_found_handler() {
     missing_inside_handler
     return 88

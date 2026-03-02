@@ -361,6 +361,15 @@ std::optional<int> maybe_invoke_command_not_found_handler(const std::vector<std:
     return handler_exit_code;
 }
 
+bool should_try_command_not_found_handler(const std::vector<std::string>& args, bool is_builtin,
+                                          const std::string& cached_exec_path) {
+    if (args.empty() || is_builtin || !cached_exec_path.empty()) {
+        return false;
+    }
+
+    return args[0].find('/') == std::string::npos;
+}
+
 [[noreturn]] void report_exec_failure(const std::vector<std::string>& args, int saved_errno) {
     const std::string command_name = args.empty() ? std::string{} : args[0];
 
@@ -913,6 +922,19 @@ void maybe_set_foreground_terminal(bool enabled, int terminal_fd, pid_t pgid,
     }
 }
 
+bool can_control_terminal(bool shell_is_interactive, int terminal_fd) {
+    if (!shell_is_interactive || terminal_fd < 0 || isatty(terminal_fd) == 0) {
+        return false;
+    }
+
+    const pid_t foreground_pgid = tcgetpgrp(terminal_fd);
+    if (foreground_pgid < 0) {
+        return false;
+    }
+
+    return foreground_pgid == getpgrp();
+}
+
 [[noreturn]] void exec_external_child(const std::vector<std::string>& args,
                                       const char* cached_path) {
     if (config::script_extension_interpreter_enabled) {
@@ -1206,6 +1228,19 @@ int Exec::execute_command_sync(const std::vector<std::string>& args, bool auto_b
     bool is_builtin = exec_plan.is_builtin;
     std::string cached_exec_path = std::move(exec_plan.cached_exec_path);
 
+    if (should_try_command_not_found_handler(cmd_args_value, is_builtin, cached_exec_path)) {
+        TemporaryEnvAssignmentScope temp_scope(g_shell.get(), env_assignments);
+        auto handler_exit_code = maybe_invoke_command_not_found_handler(cmd_args_value);
+        if (handler_exit_code.has_value()) {
+            cleanup_process_substitutions(proc_resources, true);
+            set_error(ErrorType::COMMAND_NOT_FOUND,
+                      cmd_args_value.empty() ? std::string{} : cmd_args_value[0], "");
+            last_exit_code = handler_exit_code.value();
+            set_last_pipeline_statuses({handler_exit_code.value()});
+            return handler_exit_code.value();
+        }
+    }
+
     std::optional<PtyPair> output_pty;
     std::shared_ptr<OutputRelayState> output_relay;
     const bool wants_output_relay = shell_is_interactive && auto_background_on_stop_silent;
@@ -1330,6 +1365,18 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
     bool is_builtin = exec_plan.is_builtin;
     std::string cached_exec_path = std::move(exec_plan.cached_exec_path);
 
+    if (should_try_command_not_found_handler(cmd_args_value, is_builtin, cached_exec_path)) {
+        TemporaryEnvAssignmentScope temp_scope(g_shell.get(), env_assignments);
+        auto handler_exit_code = maybe_invoke_command_not_found_handler(cmd_args_value);
+        if (handler_exit_code.has_value()) {
+            set_error(ErrorType::COMMAND_NOT_FOUND,
+                      cmd_args_value.empty() ? std::string{} : cmd_args_value[0], "");
+            last_exit_code = handler_exit_code.value();
+            set_last_pipeline_statuses({handler_exit_code.value()});
+            return handler_exit_code.value();
+        }
+    }
+
     pid_t pid = fork();
 
     if (pid == -1) {
@@ -1377,6 +1424,7 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
 
 int Exec::execute_pipeline(const std::vector<Command>& commands) {
     const bool pipeline_negated = (!commands.empty() && commands[0].negate_pipeline);
+    const bool use_job_control = can_control_terminal(shell_is_interactive, shell_terminal);
 
     auto apply_pipefail = [&](int exit_code, const std::vector<int>& statuses) -> int {
         if (!g_shell || !g_shell->get_shell_option(ShellOption::Pipefail)) {
@@ -1470,6 +1518,17 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             cached_exec_path = cjsh_filesystem::resolve_executable_for_execution(cmd.args[0]);
         }
 
+        if (should_try_command_not_found_handler(cmd.args, false, cached_exec_path)) {
+            TemporaryEnvAssignmentScope temp_scope(g_shell.get(), env_assignments);
+            auto handler_exit_code = maybe_invoke_command_not_found_handler(cmd.args);
+            if (handler_exit_code.has_value()) {
+                set_error(ErrorType::COMMAND_NOT_FOUND,
+                          cmd.args.empty() ? std::string{} : cmd.args[0], "");
+                set_last_pipeline_statuses({handler_exit_code.value()});
+                return finalize_exit(handler_exit_code.value());
+            }
+        }
+
         std::optional<PtyPair> output_pty;
         std::shared_ptr<OutputRelayState> output_relay;
         const bool wants_output_relay = shell_is_interactive && cmd.auto_background_on_stop_silent;
@@ -1508,13 +1567,12 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                         strerror(errno));
             }
 
-            maybe_set_foreground_terminal(
-                shell_is_interactive, shell_terminal, child_pid, [&](int err) {
-                    child_exit_with_error(ErrorType::RUNTIME_ERROR, command_name,
-                                          std::string("tcsetpgrp: failed to set terminal "
-                                                      "foreground process group in child: ") +
-                                              strerror(err));
-                });
+            maybe_set_foreground_terminal(use_job_control, shell_terminal, child_pid, [&](int err) {
+                child_exit_with_error(ErrorType::RUNTIME_ERROR, command_name,
+                                      std::string("tcsetpgrp: failed to set terminal "
+                                                  "foreground process group in child: ") +
+                                          strerror(err));
+            });
 
             reset_child_signals();
 
@@ -1657,7 +1715,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             exec_external_child(cmd.args, exec_override);
         }
 
-        if (!shell_is_interactive && !config::force_interactive) {
+        if (!use_job_control) {
             int status = 0;
             pid_t wpid = waitpid(pid, &status, 0);
             while (wpid == -1 && errno == EINTR) {
@@ -1820,7 +1878,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 }
 
                 maybe_set_foreground_terminal(
-                    shell_is_interactive && i == 0, shell_terminal, pgid, [&](int err) {
+                    use_job_control && i == 0, shell_terminal, pgid, [&](int err) {
                         ErrorInfo info{
                             ErrorType::RUNTIME_ERROR,
                             ErrorSeverity::WARNING,
@@ -2826,8 +2884,7 @@ void Exec::print_error_if_needed(int exit_code) {
     }
 
     ErrorInfo error = get_error();
-    bool already_reported =
-        (exit_code == 127 && error.type == ErrorType::COMMAND_NOT_FOUND && error.message.empty());
+    bool already_reported = (error.type == ErrorType::COMMAND_NOT_FOUND && error.message.empty());
     if (!already_reported && exit_code == 126 && error.type == ErrorType::PERMISSION_DENIED &&
         error.message.find("command failed with exit code") != std::string::npos) {
         already_reported = true;
