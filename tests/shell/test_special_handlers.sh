@@ -39,6 +39,25 @@ else
     fail_test "command_not_found_handler did not behave as expected (output: $OUT)"
 fi
 
+OUT=$("$CJSH_PATH" -c '
+function command_not_found_handler() {
+    echo "handler-ran:$1"
+    return 127
+}
+
+missing_command_with_default
+echo "status:$?"
+' 2>&1)
+
+if echo "$OUT" | grep -q "handler-ran:missing_command_with_default" &&
+   echo "$OUT" | grep -q "missing_command_with_default" &&
+   echo "$OUT" | grep -q "command not found" &&
+   echo "$OUT" | grep -q "status:127"; then
+    pass_test "command_not_found_handler can fall back to default output"
+else
+    fail_test "command_not_found_handler default fallback failed (output: $OUT)"
+fi
+
 OUT=$("$CJSH_PATH" -c "missing_command_without_handler" 2>&1)
 STATUS=$?
 if [ "$STATUS" -eq 127 ] &&

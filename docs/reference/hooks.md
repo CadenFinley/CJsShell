@@ -65,7 +65,8 @@ In addition to `hook add`, CJ's Shell recognizes these function names directly:
 
 ### `command_not_found_handler`
 Executed when command lookup fails for an external command name (exit `127` path). The missing
-command name and its arguments are passed to the function.
+command name and its arguments are passed to the function. Returning `127` defers back to cjsh's
+built-in `command not found` message and exit code; any other return code overrides the default.
 
 ```bash
 function command_not_found_handler() {

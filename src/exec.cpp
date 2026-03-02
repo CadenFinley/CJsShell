@@ -330,6 +330,19 @@ bool replace_first_instance(std::string& target, const std::string& from, const 
 
 std::atomic<int> g_command_not_found_handler_depth{0};
 
+std::vector<std::string> build_command_not_found_suggestions(const std::string& command_name) {
+    if (!config::error_suggestions_enabled || command_name.empty()) {
+        return {};
+    }
+    return suggestion_utils::generate_command_suggestions(command_name);
+}
+
+bool handler_defers_to_default_command_not_found_output(
+    const std::optional<int>& handler_exit_code) {
+    return handler_exit_code.has_value() &&
+           handler_exit_code.value() == ShellScriptInterpreter::exit_command_not_found;
+}
+
 std::optional<int> maybe_invoke_command_not_found_handler(const std::vector<std::string>& args) {
     if (args.empty() || !g_shell) {
         return std::nullopt;
@@ -392,12 +405,11 @@ bool should_try_command_not_found_handler(const std::vector<std::string>& args, 
         }
 
         std::vector<std::string> suggestions;
-        if (config::error_suggestions_enabled && !command_name.empty()) {
-            suggestions = suggestion_utils::generate_command_suggestions(command_name);
-        }
+        suggestions = build_command_not_found_suggestions(command_name);
 
         auto handler_exit_code = maybe_invoke_command_not_found_handler(args);
-        if (handler_exit_code.has_value()) {
+        if (handler_exit_code.has_value() &&
+            !handler_defers_to_default_command_not_found_output(handler_exit_code)) {
             _exit(handler_exit_code.value());
         }
 
@@ -1237,12 +1249,23 @@ int Exec::execute_command_sync(const std::vector<std::string>& args, bool auto_b
         TemporaryEnvAssignmentScope temp_scope(g_shell.get(), env_assignments);
         auto handler_exit_code = maybe_invoke_command_not_found_handler(cmd_args_value);
         if (handler_exit_code.has_value()) {
+            std::vector<std::string> suggestions = build_command_not_found_suggestions(
+                cmd_args_value.empty() ? std::string{} : cmd_args_value[0]);
+            if (handler_defers_to_default_command_not_found_output(handler_exit_code)) {
+                print_error({ErrorType::COMMAND_NOT_FOUND, ErrorSeverity::ERROR,
+                             cmd_args_value.empty() ? std::string{} : cmd_args_value[0], "",
+                             suggestions});
+            }
             cleanup_process_substitutions(proc_resources, true);
             set_error(ErrorType::COMMAND_NOT_FOUND,
-                      cmd_args_value.empty() ? std::string{} : cmd_args_value[0], "");
-            last_exit_code = handler_exit_code.value();
-            set_last_pipeline_statuses({handler_exit_code.value()});
-            return handler_exit_code.value();
+                      cmd_args_value.empty() ? std::string{} : cmd_args_value[0], "", suggestions);
+            int final_exit_code =
+                handler_defers_to_default_command_not_found_output(handler_exit_code)
+                    ? ShellScriptInterpreter::exit_command_not_found
+                    : handler_exit_code.value();
+            last_exit_code = final_exit_code;
+            set_last_pipeline_statuses({final_exit_code});
+            return final_exit_code;
         }
     }
 
@@ -1374,11 +1397,22 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
         TemporaryEnvAssignmentScope temp_scope(g_shell.get(), env_assignments);
         auto handler_exit_code = maybe_invoke_command_not_found_handler(cmd_args_value);
         if (handler_exit_code.has_value()) {
+            std::vector<std::string> suggestions = build_command_not_found_suggestions(
+                cmd_args_value.empty() ? std::string{} : cmd_args_value[0]);
+            if (handler_defers_to_default_command_not_found_output(handler_exit_code)) {
+                print_error({ErrorType::COMMAND_NOT_FOUND, ErrorSeverity::ERROR,
+                             cmd_args_value.empty() ? std::string{} : cmd_args_value[0], "",
+                             suggestions});
+            }
             set_error(ErrorType::COMMAND_NOT_FOUND,
-                      cmd_args_value.empty() ? std::string{} : cmd_args_value[0], "");
-            last_exit_code = handler_exit_code.value();
-            set_last_pipeline_statuses({handler_exit_code.value()});
-            return handler_exit_code.value();
+                      cmd_args_value.empty() ? std::string{} : cmd_args_value[0], "", suggestions);
+            int final_exit_code =
+                handler_defers_to_default_command_not_found_output(handler_exit_code)
+                    ? ShellScriptInterpreter::exit_command_not_found
+                    : handler_exit_code.value();
+            last_exit_code = final_exit_code;
+            set_last_pipeline_statuses({final_exit_code});
+            return final_exit_code;
         }
     }
 
@@ -1531,10 +1565,20 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             TemporaryEnvAssignmentScope temp_scope(g_shell.get(), env_assignments);
             auto handler_exit_code = maybe_invoke_command_not_found_handler(cmd.args);
             if (handler_exit_code.has_value()) {
+                std::vector<std::string> suggestions = build_command_not_found_suggestions(
+                    cmd.args.empty() ? std::string{} : cmd.args[0]);
+                if (handler_defers_to_default_command_not_found_output(handler_exit_code)) {
+                    print_error({ErrorType::COMMAND_NOT_FOUND, ErrorSeverity::ERROR,
+                                 cmd.args.empty() ? std::string{} : cmd.args[0], "", suggestions});
+                }
                 set_error(ErrorType::COMMAND_NOT_FOUND,
-                          cmd.args.empty() ? std::string{} : cmd.args[0], "");
-                set_last_pipeline_statuses({handler_exit_code.value()});
-                return finalize_exit(handler_exit_code.value());
+                          cmd.args.empty() ? std::string{} : cmd.args[0], "", suggestions);
+                int final_exit_code =
+                    handler_defers_to_default_command_not_found_output(handler_exit_code)
+                        ? ShellScriptInterpreter::exit_command_not_found
+                        : handler_exit_code.value();
+                set_last_pipeline_statuses({final_exit_code});
+                return finalize_exit(final_exit_code);
             }
         }
 
