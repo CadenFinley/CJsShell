@@ -493,6 +493,13 @@ void SignalHandler::signal_handler(int signum) {
 
         case SIGTSTP: {
             s_sigtstp_received = 1;
+            should_mark_pending = true;
+
+            if (!config::interactive_mode && !is_observed) {
+                // In orphaned process groups (common in CI), default SIGTSTP can be discarded.
+                // Force a real stop to preserve expected shell behavior for non-interactive runs.
+                (void)kill(getpid(), SIGSTOP);
+            }
 
             break;
         }
@@ -585,21 +592,6 @@ void SignalHandler::setup_signal_handlers() {
     sigset_t block_mask{};
     sigfillset(&block_mask);
 
-#ifdef SIGTSTP
-    // Non-interactive parent processes (like CI runners) can inherit SIGTSTP as ignored.
-    // Restore default stop behavior so `kill -TSTP <pid>` reliably suspends the shell.
-    struct sigaction sigtstp_state{};
-    sigaction(SIGTSTP, nullptr, &sigtstp_state);
-    m_old_sigtstp_handler = sigtstp_state;
-    if (!config::interactive_mode && sigtstp_state.sa_handler == SIG_IGN) {
-        struct sigaction dfl_tstp{};
-        sigemptyset(&dfl_tstp.sa_mask);
-        dfl_tstp.sa_handler = SIG_DFL;
-        dfl_tstp.sa_flags = 0;
-        sigaction(SIGTSTP, &dfl_tstp, nullptr);
-    }
-#endif
-
     sa.sa_handler = SIG_IGN;
     sa.sa_flags = 0;
     sa.sa_mask = block_mask;
@@ -614,6 +606,13 @@ void SignalHandler::setup_signal_handlers() {
     install_signal_handler(SIGINT, &m_old_sigint_handler);
     install_signal_handler(SIGHUP, &m_old_sighup_handler);
     install_signal_handler(SIGTERM, &m_old_sigterm_handler);
+
+#ifdef SIGTSTP
+    if (!config::interactive_mode) {
+        install_signal_handler(SIGTSTP, &m_old_sigtstp_handler);
+        s_signal_states[SIGTSTP].disposition = SignalDisposition::SYSTEM;
+    }
+#endif
 
     s_signal_states[SIGCHLD].disposition = SignalDisposition::SYSTEM;
     s_signal_states[SIGHUP].disposition = SignalDisposition::SYSTEM;
