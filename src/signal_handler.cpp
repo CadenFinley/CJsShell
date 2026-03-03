@@ -585,6 +585,21 @@ void SignalHandler::setup_signal_handlers() {
     sigset_t block_mask{};
     sigfillset(&block_mask);
 
+#ifdef SIGTSTP
+    // Non-interactive parent processes (like CI runners) can inherit SIGTSTP as ignored.
+    // Restore default stop behavior so `kill -TSTP <pid>` reliably suspends the shell.
+    struct sigaction sigtstp_state{};
+    sigaction(SIGTSTP, nullptr, &sigtstp_state);
+    m_old_sigtstp_handler = sigtstp_state;
+    if (!config::interactive_mode && sigtstp_state.sa_handler == SIG_IGN) {
+        struct sigaction dfl_tstp{};
+        sigemptyset(&dfl_tstp.sa_mask);
+        dfl_tstp.sa_handler = SIG_DFL;
+        dfl_tstp.sa_flags = 0;
+        sigaction(SIGTSTP, &dfl_tstp, nullptr);
+    }
+#endif
+
     sa.sa_handler = SIG_IGN;
     sa.sa_flags = 0;
     sa.sa_mask = block_mask;
