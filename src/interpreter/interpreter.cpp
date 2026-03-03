@@ -115,16 +115,6 @@ bool is_terminating_signal_exit_code(int exit_code) {
         return true;
     }
 #endif
-#ifdef SIGTERM
-    if (exit_code == 128 + SIGTERM) {
-        return true;
-    }
-#endif
-#ifdef SIGHUP
-    if (exit_code == 128 + SIGHUP) {
-        return true;
-    }
-#endif
     return false;
 }
 
