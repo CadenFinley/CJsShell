@@ -83,6 +83,72 @@ using shell_script_interpreter::detail::strip_inline_comment;
 using shell_script_interpreter::detail::trim;
 
 namespace {
+constexpr std::string_view kSignalExitExceptionPrefix = "__CJSH_SIGNAL_EXIT__:";
+
+std::optional<int> collect_pending_signal_exit_code() {
+    if (!g_shell || !SignalHandler::has_pending_signals()) {
+        return std::nullopt;
+    }
+
+    SignalProcessingResult pending = g_shell->process_pending_signals();
+#ifdef SIGTERM
+    if (pending.sigterm) {
+        return 128 + SIGTERM;
+    }
+#endif
+#ifdef SIGHUP
+    if (pending.sighup) {
+        return 128 + SIGHUP;
+    }
+#endif
+#ifdef SIGINT
+    if (pending.sigint) {
+        return 128 + SIGINT;
+    }
+#endif
+    return std::nullopt;
+}
+
+bool is_terminating_signal_exit_code(int exit_code) {
+#ifdef SIGINT
+    if (exit_code == 128 + SIGINT) {
+        return true;
+    }
+#endif
+#ifdef SIGTERM
+    if (exit_code == 128 + SIGTERM) {
+        return true;
+    }
+#endif
+#ifdef SIGHUP
+    if (exit_code == 128 + SIGHUP) {
+        return true;
+    }
+#endif
+    return false;
+}
+
+std::runtime_error make_signal_exit_exception(int exit_code) {
+    return std::runtime_error(std::string(kSignalExitExceptionPrefix) + std::to_string(exit_code));
+}
+
+std::optional<int> parse_signal_exit_exception(std::string_view message) {
+    if (message.rfind(kSignalExitExceptionPrefix, 0) != 0) {
+        return std::nullopt;
+    }
+
+    std::string code_text(message.substr(kSignalExitExceptionPrefix.size()));
+    if (code_text.empty()) {
+        return std::nullopt;
+    }
+
+    try {
+        return std::stoi(code_text);
+    } catch (const std::exception&) {
+        return std::nullopt;
+    }
+}
+
 enum class LogicalOperator : std::uint8_t {
     And,
     Or
@@ -283,6 +349,11 @@ std::vector<std::string> build_command_suggestions(const std::string& command_na
 int handle_runtime_exception(const std::string& text, const std::runtime_error& e,
                              size_t line_number) {
     const std::string raw_message = e.what() ? std::string(e.what()) : "runtime error";
+
+    if (auto signal_exit = parse_signal_exit_exception(raw_message)) {
+        return *signal_exit;
+    }
+
     std::string message = strip_cjsh_prefix(raw_message);
     std::vector<std::string> suggestions;
     auto add_context = [&]() { append_context_hint(suggestions, text, line_number); };
@@ -584,6 +655,10 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
 
                     logical_status =
                         execute_simple_or_pipeline_impl(logical_cmds[idx].command, true);
+
+                    if (is_terminating_signal_exit_code(logical_status)) {
+                        return logical_status;
+                    }
                 }
                 return logical_status;
             }
@@ -596,6 +671,10 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                 int last_code = 0;
                 for (const auto& part : semicolon_commands) {
                     last_code = execute_simple_or_pipeline_impl(part, false);
+
+                    if (is_terminating_signal_exit_code(last_code)) {
+                        return last_code;
+                    }
 
                     if (g_shell && g_shell->should_abort_on_nonzero_exit(last_code) &&
                         last_code != 0 && !is_control_flow_exit_code(last_code)) {
@@ -873,27 +952,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
     };
 
     auto check_pending_signals = [&]() -> std::optional<int> {
-        if (!g_shell || !SignalHandler::has_pending_signals()) {
-            return std::nullopt;
-        }
-
-        SignalProcessingResult pending = g_shell->process_pending_signals();
-#ifdef SIGTERM
-        if (pending.sigterm) {
-            return 128 + SIGTERM;
-        }
-#endif
-#ifdef SIGHUP
-        if (pending.sighup) {
-            return 128 + SIGHUP;
-        }
-#endif
-#ifdef SIGINT
-        if (pending.sigint) {
-            return 128 + SIGINT;
-        }
-#endif
-        return std::nullopt;
+        return collect_pending_signal_exit_code();
     };
 
     int last_code = 0;
@@ -1076,6 +1135,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         if (block_result.handled) {
             last_code = block_result.exit_code;
             line_index = block_result.next_line_index;
+            if (is_terminating_signal_exit_code(last_code)) {
+                return set_last_status(last_code);
+            }
             if (is_control_flow_exit_code(last_code) || cjsh_env::exit_requested()) {
                 return last_code;
             }
@@ -1484,6 +1546,10 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
 
                     set_last_status(last_code);
 
+                    if (is_terminating_signal_exit_code(code)) {
+                        return set_last_status(code);
+                    }
+
                     if (auto pending_code = check_pending_signals()) {
                         last_code = *pending_code;
                         return set_last_status(last_code);
@@ -1528,6 +1594,10 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         }
 
     control_flow_exit:
+
+        if (is_terminating_signal_exit_code(last_code)) {
+            return set_last_status(last_code);
+        }
 
         if (last_code == exit_command_not_found) {
             if (g_shell && g_shell->should_abort_on_nonzero_exit(last_code)) {
@@ -1837,6 +1907,12 @@ std::string ShellScriptInterpreter::expand_all_substitutions(
     bool escaped = false;
 
     for (size_t i = 0; i < result.size(); ++i) {
+        if ((i & 255U) == 0U) {
+            if (auto signal_exit = collect_pending_signal_exit_code()) {
+                throw make_signal_exit_exception(*signal_exit);
+            }
+        }
+
         char c = result[i];
 
         if (escaped) {
