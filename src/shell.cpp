@@ -340,8 +340,9 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
             shell_script_interpreter && shell_script_interpreter->has_function(candidate);
         bool is_executable =
             cjsh_filesystem::resolves_to_executable(candidate, built_ins->get_current_directory());
-        bool is_directory = cjsh_filesystem::path_is_directory_candidate(
-            candidate, built_ins->get_current_directory());
+        bool is_directory =
+            (candidate == "-") || cjsh_filesystem::path_is_directory_candidate(
+                                      candidate, built_ins->get_current_directory());
 
         if (!has_alias && !is_builtin && !is_function && !is_executable && is_directory &&
             !cjsh_env::startup_active()) {

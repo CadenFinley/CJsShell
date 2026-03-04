@@ -256,6 +256,9 @@ int main(int argc, char* argv[]) {
     // we split off the main cjsh runner to allow atexit() to properly scope cleanup if cjsh has to
     // exit through a non normal path
     int exit_code = run_cjsh(argc, argv);
+
+    // a normal exit path was taken so we can do a final cleanup routed through main instead of
+    // atexit() or exit()
     cleanup_resources();
     return exit_code;
 }
