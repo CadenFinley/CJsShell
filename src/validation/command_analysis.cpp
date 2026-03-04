@@ -32,6 +32,7 @@
 #include <filesystem>
 #include <system_error>
 
+#include "builtin.h"
 #include "cjsh_filesystem.h"
 #include "quote_state.h"
 #include "shell.h"
@@ -144,6 +145,14 @@ bool is_known_command_token(const std::string& token, size_t absolute_cmd_start,
     if (shell != nullptr && shell->get_interactive_mode()) {
         const auto& abbreviations = shell->get_abbreviations();
         if (abbreviations.find(token) != abbreviations.end()) {
+            return true;
+        }
+    }
+
+    if (shell != nullptr && shell->get_built_ins() != nullptr) {
+        const std::string cwd = shell->get_built_ins()->get_current_directory();
+        const std::string previous_directory = shell->get_previous_directory();
+        if (cjsh_filesystem::is_auto_cd_directory_token(token, cwd, previous_directory)) {
             return true;
         }
     }

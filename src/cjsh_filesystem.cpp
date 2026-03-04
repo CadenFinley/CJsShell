@@ -671,6 +671,21 @@ bool path_is_directory_candidate(const std::string& value, const std::string& cw
            std::filesystem::is_directory(candidate, ec) && !ec;
 }
 
+bool is_auto_cd_directory_token(const std::string& value, const std::string& cwd,
+                                const std::string& previous_directory) {
+    (void)previous_directory;
+
+    if (value.empty()) {
+        return false;
+    }
+
+    if (value == "-") {
+        return true;
+    }
+
+    return path_is_directory_candidate(value, cwd);
+}
+
 Result<std::string> read_file_content(const std::string& path) {
     auto open_result = safe_open(path, O_RDONLY);
     if (open_result.is_error()) {

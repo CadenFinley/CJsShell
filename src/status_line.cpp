@@ -36,7 +36,9 @@
 #include <unordered_set>
 #include <vector>
 
+#include "builtin.h"
 #include "cjsh.h"
+#include "cjsh_filesystem.h"
 #include "error_out.h"
 #include "interpreter.h"
 #include "shell.h"
@@ -50,6 +52,11 @@ namespace {
 struct UnknownCommandInfo {
     std::string command;
     std::vector<std::string> suggestions;
+};
+
+struct AutoCdInfo {
+    std::string token;
+    std::string target;
 };
 
 std::string sanitize_for_status(const std::string& text) {
@@ -113,6 +120,13 @@ bool has_exited_token_context(const std::string& input, size_t absolute_token_en
     }
 
     return next_char == '|' || next_char == '&' || next_char == ';';
+}
+
+bool token_ready_for_status(const std::string& input, size_t absolute_token_end) {
+    if (absolute_token_end >= input.size()) {
+        return true;
+    }
+    return has_exited_token_context(input, absolute_token_end);
 }
 
 std::vector<std::string> extract_candidate_commands(const std::vector<std::string>& suggestions) {
@@ -236,6 +250,90 @@ std::optional<UnknownCommandInfo> detect_unknown_command(Shell* shell,
     return std::nullopt;
 }
 
+bool is_auto_cd_token(const std::string& token, Shell* shell) {
+    if (shell == nullptr || token.empty()) {
+        return false;
+    }
+
+    Built_ins* built_ins = shell->get_built_ins();
+    if (built_ins == nullptr) {
+        return false;
+    }
+
+    const std::string cwd = built_ins->get_current_directory();
+    const std::string previous_directory = shell->get_previous_directory();
+    const bool is_directory =
+        cjsh_filesystem::is_auto_cd_directory_token(token, cwd, previous_directory);
+    if (!is_directory) {
+        return false;
+    }
+
+    const auto& aliases = shell->get_aliases();
+    const bool has_alias = aliases.find(token) != aliases.end();
+    const bool is_builtin = built_ins->is_builtin_command(token) != 0;
+    const bool is_function = shell->get_shell_script_interpreter() != nullptr &&
+                             shell->get_shell_script_interpreter()->has_function(token);
+    const bool is_executable = cjsh_filesystem::resolves_to_executable(token, cwd);
+
+    return !has_alias && !is_builtin && !is_function && !is_executable;
+}
+
+std::optional<AutoCdInfo> detect_auto_cd_command(Shell* shell, const std::string& original_input) {
+    if (shell == nullptr || original_input.empty()) {
+        return std::nullopt;
+    }
+
+    std::string analysis = command_analysis::sanitize_input_for_analysis(original_input);
+    if (analysis.empty()) {
+        return std::nullopt;
+    }
+
+    const size_t len = analysis.size();
+    size_t pos = 0;
+    while (pos < len) {
+        size_t cmd_end = command_analysis::find_command_end(analysis, pos);
+
+        size_t cmd_start = pos;
+        while (cmd_start < cmd_end &&
+               (std::isspace(static_cast<unsigned char>(analysis[cmd_start])) != 0)) {
+            cmd_start++;
+        }
+
+        if (cmd_start < cmd_end) {
+            std::string cmd_str = analysis.substr(cmd_start, cmd_end - cmd_start);
+            size_t token_cursor = 0;
+            size_t token_start = 0;
+            size_t token_end = 0;
+            if (command_analysis::extract_next_token(cmd_str, token_cursor, token_start,
+                                                     token_end)) {
+                std::string token = cmd_str.substr(token_start, token_end - token_start);
+                size_t absolute_token_end = cmd_start + token_end;
+                if (token_ready_for_status(original_input, absolute_token_end) &&
+                    is_auto_cd_token(token, shell)) {
+                    AutoCdInfo info;
+                    info.token = token;
+                    if (token == "-") {
+                        info.target = shell->get_previous_directory();
+                    }
+                    return info;
+                }
+            }
+        }
+
+        pos = cmd_end;
+        if (pos < len) {
+            auto separator = command_analysis::scan_command_separator(analysis, pos);
+            if (separator.length > 0) {
+                pos += separator.length;
+            } else {
+                pos += 1;
+            }
+        }
+    }
+
+    return std::nullopt;
+}
+
 std::string format_suggestion_list(const std::vector<std::string>& suggestions) {
     if (suggestions.empty()) {
         return {};
@@ -288,6 +386,24 @@ std::string format_unknown_command_message(const UnknownCommandInfo& info) {
         }
     }
 
+    return message;
+}
+
+std::string format_auto_cd_message(const AutoCdInfo& info) {
+    std::string token = sanitize_for_status(info.token);
+    if (token.empty()) {
+        token = info.token;
+    }
+
+    std::string message = "Auto cd dir: ";
+    message.append(token);
+    if (!info.target.empty()) {
+        std::string target = sanitize_for_status(info.target);
+        if (!target.empty()) {
+            message.append(" -> ");
+            message.append(target);
+        }
+    }
     return message;
 }
 
@@ -551,11 +667,14 @@ const char* create_below_syntax_message(const char* input_buffer, void*) {
         return status_message.c_str();
     }
 
+    std::optional<AutoCdInfo> auto_cd_info = detect_auto_cd_command(shell, current_input);
     std::optional<UnknownCommandInfo> unknown_info = detect_unknown_command(shell, current_input);
     std::string validation_message = build_validation_status_message(errors);
 
     std::string combined_message;
-    if (unknown_info.has_value()) {
+    if (auto_cd_info.has_value()) {
+        combined_message = format_auto_cd_message(*auto_cd_info);
+    } else if (unknown_info.has_value()) {
         combined_message = format_unknown_command_message(*unknown_info);
     }
 

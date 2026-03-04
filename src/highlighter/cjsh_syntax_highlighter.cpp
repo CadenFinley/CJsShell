@@ -113,6 +113,16 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
         handled_first_token = true;
     }
 
+    if (!handled_first_token && g_shell != nullptr && g_shell->get_built_ins() != nullptr) {
+        const std::string cwd = g_shell->get_built_ins()->get_current_directory();
+        const std::string previous_directory = g_shell->get_previous_directory();
+        if (cjsh_filesystem::is_auto_cd_directory_token(token, cwd, previous_directory)) {
+            ic_highlight(henv, static_cast<long>(absolute_token_start),
+                         static_cast<long>(first_token_length), "cjsh-path-exists");
+            handled_first_token = true;
+        }
+    }
+
     if (!handled_first_token) {
         auto cmds = g_shell->get_available_commands();
         if (cmds.find(token) != cmds.end()) {
