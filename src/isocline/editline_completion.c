@@ -938,7 +938,7 @@ read_key:
             goto cleanup;
         }
         goto again;
-    } else if (!code_is_virt_key(c)) {
+    } else if (!code_is_virt_key(c) || c == ' ') {
         bool inserted = false;
         char chr = 0;
         unicode_t uchr = 0;
