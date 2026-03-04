@@ -331,7 +331,7 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
     }
 
     // not a builtin check for other things
-    if (!run_in_background && command_args.size() == 1 && built_ins) {
+    if (interactive_mode && !run_in_background && command_args.size() == 1 && built_ins) {
         const std::string& candidate = command_args[0];
 
         bool has_alias = aliases.find(candidate) != aliases.end();
