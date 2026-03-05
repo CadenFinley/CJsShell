@@ -196,31 +196,35 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
                 ic_highlight(henv, static_cast<long>(absolute_arg_start),
                              static_cast<long>(arg_length), "cjsh-string");
             } else if (is_sudo_command && arg_index == 0) {
-                if (arg.rfind("./", 0) == 0) {
-                    if (!std::filesystem::exists(arg) || !std::filesystem::is_regular_file(arg)) {
-                        ic_highlight(henv, static_cast<long>(absolute_arg_start),
-                                     static_cast<long>(arg_length), "cjsh-unknown-command");
+                if (!command_analysis::token_is_history_expansion(arg, absolute_arg_start)) {
+                    if (arg.rfind("./", 0) == 0) {
+                        if (!std::filesystem::exists(arg) ||
+                            !std::filesystem::is_regular_file(arg)) {
+                            ic_highlight(henv, static_cast<long>(absolute_arg_start),
+                                         static_cast<long>(arg_length), "cjsh-unknown-command");
+                        } else {
+                            ic_highlight(henv, static_cast<long>(absolute_arg_start),
+                                         static_cast<long>(arg_length), "cjsh-system");
+                        }
                     } else {
-                        ic_highlight(henv, static_cast<long>(absolute_arg_start),
-                                     static_cast<long>(arg_length), "cjsh-system");
-                    }
-                } else {
-                    bool is_abbreviation = false;
-                    if (g_shell != nullptr && g_shell->get_interactive_mode()) {
-                        const auto& abbreviations = g_shell->get_abbreviations();
-                        is_abbreviation = abbreviations.find(arg) != abbreviations.end();
-                    }
+                        bool is_abbreviation = false;
+                        if (g_shell != nullptr && g_shell->get_interactive_mode()) {
+                            const auto& abbreviations = g_shell->get_abbreviations();
+                            is_abbreviation = abbreviations.find(arg) != abbreviations.end();
+                        }
 
-                    auto cmds = g_shell->get_available_commands();
-                    if (is_abbreviation || cmds.find(arg) != cmds.end() || is_shell_builtin(arg)) {
-                        ic_highlight(henv, static_cast<long>(absolute_arg_start),
-                                     static_cast<long>(arg_length), "cjsh-builtin");
-                    } else if (is_external_command(arg)) {
-                        ic_highlight(henv, static_cast<long>(absolute_arg_start),
-                                     static_cast<long>(arg_length), "cjsh-system");
-                    } else {
-                        ic_highlight(henv, static_cast<long>(absolute_arg_start),
-                                     static_cast<long>(arg_length), "cjsh-unknown-command");
+                        auto cmds = g_shell->get_available_commands();
+                        if (is_abbreviation || cmds.find(arg) != cmds.end() ||
+                            is_shell_builtin(arg)) {
+                            ic_highlight(henv, static_cast<long>(absolute_arg_start),
+                                         static_cast<long>(arg_length), "cjsh-builtin");
+                        } else if (is_external_command(arg)) {
+                            ic_highlight(henv, static_cast<long>(absolute_arg_start),
+                                         static_cast<long>(arg_length), "cjsh-system");
+                        } else {
+                            ic_highlight(henv, static_cast<long>(absolute_arg_start),
+                                         static_cast<long>(arg_length), "cjsh-unknown-command");
+                        }
                     }
                 }
             } else if (is_cd_command && (arg == "~" || arg == "-")) {
