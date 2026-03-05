@@ -247,7 +247,6 @@ int widget_builtin(const std::vector<std::string>& args) {
                          {"This widget requires an active interactive cjsh session."}});
             return 1;
         }
-        ic_push_key_event(0);
         return 0;
     }
 
