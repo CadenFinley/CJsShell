@@ -24,6 +24,9 @@ DEFAULT_COMPLETION_TEST_BINARY="$SCRIPT_DIR/../build/completion_tests"
 COMPLETION_TEST_BINARY="${COMPLETION_TEST_BINARY:-$DEFAULT_COMPLETION_TEST_BINARY}"
 DEFAULT_SYNTAX_HIGHLIGHTING_TEST_BINARY="$SCRIPT_DIR/../build/syntax_highlighting_tests"
 SYNTAX_HIGHLIGHTING_TEST_BINARY="${SYNTAX_HIGHLIGHTING_TEST_BINARY:-$DEFAULT_SYNTAX_HIGHLIGHTING_TEST_BINARY}"
+DEFAULT_ISOCLINE_PTY_DRIVER_BINARY="$SCRIPT_DIR/../build/isocline_pty_driver"
+ISOCLINE_PTY_DRIVER_BINARY="${ISOCLINE_PTY_DRIVER_BINARY:-$DEFAULT_ISOCLINE_PTY_DRIVER_BINARY}"
+ISOCLINE_PTY_TEST_SCRIPT="$SCRIPT_DIR/isocline/test_isocline_pty.py"
 
 
 if [ -n "$CI" ] || [ -n "$GITHUB_ACTIONS" ] || [ -n "$CONTINUOUS_INTEGRATION" ]; then
@@ -49,6 +52,7 @@ TESTS_FAIL=0
 ISOCLINE_TEST_RESULT=0
 COMPLETION_TEST_RESULT=0
 SYNTAX_HIGHLIGHTING_TEST_RESULT=0
+ISOCLINE_PTY_TEST_RESULT=0
 
 
 if [ ! -x "$CJSH" ]; then
@@ -203,6 +207,23 @@ else
     echo "${YELLOW}Skipping syntax highlighting tests${NC} (binary not found at $SYNTAX_HIGHLIGHTING_TEST_BINARY)"
 fi
 
+if [ -x "$ISOCLINE_PTY_DRIVER_BINARY" ] && [ -f "$ISOCLINE_PTY_TEST_SCRIPT" ]; then
+    if command -v python3 >/dev/null 2>&1; then
+        echo "Running isocline PTY integration tests: $ISOCLINE_PTY_TEST_SCRIPT"
+        python3 "$ISOCLINE_PTY_TEST_SCRIPT" "$ISOCLINE_PTY_DRIVER_BINARY"
+        ISOCLINE_PTY_TEST_RESULT=$?
+        if [ $ISOCLINE_PTY_TEST_RESULT -eq 0 ]; then
+            echo "${GREEN}Isocline PTY integration tests passed${NC}"
+        else
+            echo "${RED}Isocline PTY integration tests failed${NC}"
+        fi
+    else
+        echo "${YELLOW}Skipping isocline PTY integration tests${NC} (python3 not found)"
+    fi
+else
+    echo "${YELLOW}Skipping isocline PTY integration tests${NC} (driver not found at $ISOCLINE_PTY_DRIVER_BINARY)"
+fi
+
 OVERALL_STATUS=0
 if [ $FILES_FAIL -ne 0 ]; then
     OVERALL_STATUS=$FILES_FAIL
@@ -226,6 +247,13 @@ if [ $SYNTAX_HIGHLIGHTING_TEST_RESULT -ne 0 ]; then
         OVERALL_STATUS=$SYNTAX_HIGHLIGHTING_TEST_RESULT
     else
         OVERALL_STATUS=$((OVERALL_STATUS + SYNTAX_HIGHLIGHTING_TEST_RESULT))
+    fi
+fi
+if [ $ISOCLINE_PTY_TEST_RESULT -ne 0 ]; then
+    if [ $OVERALL_STATUS -eq 0 ]; then
+        OVERALL_STATUS=$ISOCLINE_PTY_TEST_RESULT
+    else
+        OVERALL_STATUS=$((OVERALL_STATUS + ISOCLINE_PTY_TEST_RESULT))
     fi
 fi
 

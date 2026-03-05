@@ -544,6 +544,8 @@ endif()
 install(TARGETS cjsh RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 if(CJSH_BUILD_TESTS)
+    find_package(Python3 COMPONENTS Interpreter QUIET)
+
     function(cjsh_apply_test_profile target_name)
         set_property(TARGET ${target_name} PROPERTY INTERPROCEDURAL_OPTIMIZATION OFF)
         if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
@@ -587,6 +589,41 @@ if(CJSH_BUILD_TESTS)
         target_compile_options(isocline_behavior_tests PRIVATE $<$<COMPILE_LANGUAGE:C>:${_cjsh_opt}>)
     endforeach()
     add_test(NAME isocline_behavior COMMAND isocline_behavior_tests)
+
+    add_executable(isocline_pty_driver
+        ${CJSH_C_SOURCES}
+        ${CMAKE_SOURCE_DIR}/tests/isocline/isocline_pty_driver.c
+    )
+    cjsh_apply_test_profile(isocline_pty_driver)
+    target_include_directories(isocline_pty_driver PRIVATE ${CJSH_INCLUDE_DIRS})
+    target_compile_definitions(isocline_pty_driver PRIVATE
+        CJSH_GIT_HASH="${CJSH_GIT_HASH}"
+        CJSH_GIT_HASH_FULL="${CJSH_GIT_HASH_FULL}"
+        CJSH_BUILD_ARCH="${CJSH_BUILD_ARCH}"
+        CJSH_BUILD_PLATFORM="${CJSH_BUILD_PLATFORM}"
+        CJSH_BUILD_TIME="${CJSH_BUILD_TIME}"
+        CJSH_BUILD_COMPILER="${CJSH_BUILD_COMPILER}"
+        CJSH_CXX_STANDARD="${CJSH_CXX_STANDARD}"
+        CJSH_BUILD_TYPE="$<CONFIG>"
+        IC_SEPARATE_OBJS=1
+        JSON_NOEXCEPTION=1
+        JSON_USE_IMPLICIT_CONVERSIONS=1
+        $<$<CONFIG:Debug>:DEBUG;CJSH_ENABLE_DEBUG>
+        $<$<NOT:$<CONFIG:Debug>>:IC_NO_DEBUG_MSG=1>
+        $<$<BOOL:${CJSH_MINIMAL_BUILD}>:CJSH_MINIMAL_BUILD=1;CJSH_NO_FANCY_FEATURES=1>
+        $<$<AND:$<NOT:$<CONFIG:Debug>>,$<BOOL:${CJSH_MINIMAL_BUILD}>>:_FORTIFY_SOURCE=1>
+        $<$<AND:$<NOT:$<CONFIG:Debug>>,$<NOT:$<BOOL:${CJSH_MINIMAL_BUILD}>>>:_FORTIFY_SOURCE=1>
+    )
+    foreach(_cjsh_opt -Wall -Wno-error -Wno-unused-function -Wno-unused-variable)
+        target_compile_options(isocline_pty_driver PRIVATE $<$<COMPILE_LANGUAGE:C>:${_cjsh_opt}>)
+    endforeach()
+
+    if(Python3_Interpreter_FOUND)
+        add_test(NAME isocline_pty
+            COMMAND ${Python3_EXECUTABLE}
+                    ${CMAKE_SOURCE_DIR}/tests/isocline/test_isocline_pty.py
+                    ${CMAKE_BINARY_DIR}/isocline_pty_driver)
+    endif()
 
     set(CJSH_CPP_SOURCES_NO_MAIN ${CJSH_CPP_SOURCES})
     list(REMOVE_ITEM CJSH_CPP_SOURCES_NO_MAIN ${CMAKE_SOURCE_DIR}/src/cjsh.cpp)
@@ -673,6 +710,7 @@ if(CJSH_BUILD_TESTS)
     add_test(NAME syntax_highlighting_tests COMMAND syntax_highlighting_tests)
 
     add_dependencies(isocline_behavior_tests cjsh)
+    add_dependencies(isocline_pty_driver cjsh)
     add_dependencies(completion_tests isocline_behavior_tests)
     add_dependencies(syntax_highlighting_tests completion_tests)
 endif()

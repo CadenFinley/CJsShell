@@ -88,6 +88,10 @@ jobs:
             echo "Error: build/syntax_highlighting_tests not found"
             exit 1
           fi
+          if [ ! -f "build/isocline_pty_driver" ]; then
+            echo "Error: build/isocline_pty_driver not found"
+            exit 1
+          fi
           echo "CJsShell binary exists"
           ls -lh build/cjsh
           echo "Isocline behavior tests binary exists"
@@ -96,6 +100,8 @@ jobs:
           ls -lh build/completion_tests
           echo "Syntax highlighting tests binary exists"
           ls -lh build/syntax_highlighting_tests
+          echo "Isocline PTY driver binary exists"
+          ls -lh build/isocline_pty_driver
 
       - name: Run tests
         run: |
