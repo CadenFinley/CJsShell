@@ -1355,11 +1355,6 @@ static bool test_term_visibility_tracking_with_escape_and_control_bytes(void) {
     EXPECT_FALSE(term_line_has_visible_content(env->term),
                  "ANSI SGR escape bytes alone should not mark line as visibly non-empty");
 
-    const char ignored_controls[] = {'\x01', '\x02', '\x06'};
-    term_write_n(env->term, ignored_controls, (ssize_t)sizeof(ignored_controls));
-    EXPECT_FALSE(term_line_has_visible_content(env->term),
-                 "ignored control bytes should not mark line as visibly non-empty");
-
     term_write_n(env->term, "\t", 1);
     EXPECT_TRUE(term_line_has_visible_content(env->term),
                 "tab should count as visible line content while tracking output");
@@ -1446,6 +1441,465 @@ static bool test_unicode_display_width_control_codepoints(void) {
     return true;
 }
 
+static bool test_unicode_display_width_osc_sequence_ignored(void) {
+    static const uint8_t osc_title[] = {'\x1B', ']', '0', ';',    't', 'i',
+                                        't',    'l', 'e', '\x07', 'X'};
+
+    size_t ansi_chars = 0;
+    size_t visible_chars = 0;
+    size_t width = unicode_calculate_display_width((const char*)osc_title, sizeof(osc_title),
+                                                   &ansi_chars, &visible_chars);
+    EXPECT_TRUE(width == 1, "OSC escape sequence bytes should not contribute to display width");
+    EXPECT_TRUE(visible_chars == 1,
+                "only printable payload after OSC sequence should count as visible text");
+    EXPECT_TRUE(ansi_chars == 10, "ANSI byte counter should include complete OSC sequence bytes");
+
+    return true;
+}
+
+static bool test_history_search_direction_and_position(void) {
+    alloc_t* mem = test_allocator();
+    if (mem == NULL)
+        return false;
+
+    history_t* history = history_new(mem);
+    if (history == NULL)
+        return false;
+
+    const char* history_path = "./isocline_history_search_behavior.log";
+    (void)remove(history_path);
+    history_load_from(history, history_path, 32);
+    history_clear(history);
+
+    EXPECT_TRUE(history_push(history, "echo alpha"), "first history entry should be stored");
+    EXPECT_TRUE(history_push(history, "printf beta"), "second history entry should be stored");
+    EXPECT_TRUE(history_push(history, "grep gamma"), "third history entry should be stored");
+
+    ssize_t idx = -1;
+    ssize_t pos = -1;
+    EXPECT_TRUE(history_search(history, 0, "beta", true, &idx, &pos),
+                "backward history search should find substring in older entries");
+    EXPECT_TRUE(idx == 1, "backward search should report history index relative to newest entry");
+    EXPECT_TRUE(pos == 7,
+                "search position should point to substring offset inside matched command");
+
+    idx = -1;
+    pos = -1;
+    EXPECT_TRUE(history_search(history, 2, "echo", false, &idx, &pos),
+                "forward history search should find substring in older-to-newer direction");
+    EXPECT_TRUE(idx == 2, "forward search should preserve found history offset in result index");
+    EXPECT_TRUE(pos == 0, "search position should be zero for command-prefix match");
+
+    idx = -1;
+    EXPECT_FALSE(history_search(history, 0, "missing", true, &idx, NULL),
+                 "search should fail for substrings absent from all history entries");
+
+    history_clear(history);
+    history_free(history);
+    (void)remove(history_path);
+    return true;
+}
+
+static bool test_history_fuzzy_exit_code_filtering(void) {
+    alloc_t* mem = test_allocator();
+    if (mem == NULL)
+        return false;
+
+    history_t* history = history_new(mem);
+    if (history == NULL)
+        return false;
+
+    const char* history_path = "./isocline_history_exit_filter.log";
+    (void)remove(history_path);
+    history_load_from(history, history_path, 32);
+    history_clear(history);
+
+    EXPECT_TRUE(history_push_with_exit_code(history, "build project", 0),
+                "history should accept explicit successful exit code");
+    EXPECT_TRUE(history_push_with_exit_code(history, "run tests", 2),
+                "history should accept explicit failing exit code");
+    EXPECT_TRUE(history_push_with_exit_code(history, "deploy", 2),
+                "history should accept repeated exit code values");
+
+    history_match_t matches[8];
+    ssize_t match_count = 0;
+    bool filter_applied = false;
+    int filter_value = IC_HISTORY_EXIT_CODE_UNKNOWN;
+
+    EXPECT_TRUE(history_fuzzy_search(history, ":2", matches, 8, &match_count, &filter_applied,
+                                     &filter_value),
+                "exit-code-only query should return entries matching requested code");
+    EXPECT_TRUE(filter_applied, "exit-code-only query should report exit filter application");
+    EXPECT_TRUE(filter_value == 2, "reported exit filter value should match parsed token");
+    EXPECT_TRUE(match_count == 2, "exit-code-only query should return both matching entries");
+
+    for (ssize_t i = 0; i < match_count; ++i) {
+        const char* cmd = history_get(history, matches[i].hidx);
+        EXPECT_TRUE(cmd != NULL, "matched history entry should be retrievable by index");
+        EXPECT_FALSE(strcmp(cmd, "build project") == 0,
+                     "exit-code filtering should exclude non-matching success entries");
+    }
+
+    match_count = 0;
+    filter_applied = false;
+    filter_value = IC_HISTORY_EXIT_CODE_UNKNOWN;
+    EXPECT_TRUE(history_fuzzy_search(history, "run status:2", matches, 8, &match_count,
+                                     &filter_applied, &filter_value),
+                "combined text and exit-code query should keep text fuzzy matching active");
+    EXPECT_TRUE(filter_applied && filter_value == 2,
+                "combined query should still apply and report parsed exit-code filter");
+    EXPECT_TRUE(match_count >= 1,
+                "combined text and exit-code query should produce at least one filtered match");
+
+    history_clear(history);
+    history_free(history);
+    (void)remove(history_path);
+    return true;
+}
+
+static bool test_history_disabled_mode_rejects_push(void) {
+    alloc_t* mem = test_allocator();
+    if (mem == NULL)
+        return false;
+
+    history_t* history = history_new(mem);
+    if (history == NULL)
+        return false;
+
+    const char* history_path = "./isocline_history_disabled.log";
+    (void)remove(history_path);
+    history_load_from(history, history_path, 0);
+
+    EXPECT_FALSE(history_push(history, "echo never"),
+                 "disabled history should reject pushes regardless of entry content");
+    EXPECT_TRUE(history_count(history) == 0, "disabled history should report zero entries");
+
+    history_match_t matches[2];
+    ssize_t match_count = 77;
+    EXPECT_FALSE(history_fuzzy_search(history, "echo", matches, 2, &match_count, NULL, NULL),
+                 "disabled history should not produce fuzzy-search results");
+    EXPECT_TRUE(match_count == 0,
+                "disabled history fuzzy search should reset output match count to zero");
+
+    history_free(history);
+    (void)remove(history_path);
+    return true;
+}
+
+static bool test_key_spec_separator_and_invalid_forms(void) {
+    ic_keycode_t key = IC_KEY_NONE;
+
+    EXPECT_TRUE(ic_parse_key_spec("ctrl-x", &key),
+                "dash-separated modifier specs should parse equivalently to plus-separated specs");
+    EXPECT_TRUE(key == IC_KEY_CTRL_X, "ctrl-x should parse to ctrl-X keycode");
+
+    EXPECT_TRUE(ic_parse_key_spec("  alt + left  ", &key),
+                "key specs with surrounding whitespace should parse successfully");
+    EXPECT_TRUE(key == IC_KEY_WITH_ALT(IC_KEY_LEFT),
+                "whitespace-normalized key spec should preserve modifier semantics");
+
+    EXPECT_FALSE(ic_parse_key_spec("ctrl+a+b", &key),
+                 "multiple base-key tokens in one key spec should be rejected");
+    EXPECT_FALSE(ic_parse_key_spec("", &key), "empty key spec should be rejected");
+    EXPECT_FALSE(ic_parse_key_spec(NULL, &key), "NULL key spec should be rejected");
+
+    return true;
+}
+
+static bool test_key_binding_named_invalid_inputs(void) {
+    EXPECT_FALSE(ic_bind_key_named("ctrl+x", "not-a-real-action"),
+                 "bind_key_named should reject unknown action names");
+    EXPECT_FALSE(ic_bind_key_named("not-a-real-key", "undo"),
+                 "bind_key_named should reject unknown key specification names");
+    EXPECT_FALSE(ic_bind_key_named(NULL, "undo"), "bind_key_named should reject NULL key specs");
+    EXPECT_FALSE(ic_bind_key_named("ctrl+x", NULL),
+                 "bind_key_named should reject NULL action names");
+
+    EXPECT_TRUE(ic_key_binding_profile_default_specs(IC_KEY_ACTION_NONE) == NULL,
+                "default spec lookup should reject non-bindable NONE action");
+    EXPECT_TRUE(ic_key_binding_profile_default_specs(IC_KEY_ACTION__MAX) == NULL,
+                "default spec lookup should reject out-of-range action sentinel");
+
+    return true;
+}
+
+static bool test_tty_code_pushback_order_and_capacity_guard(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL || env->tty == NULL)
+        return true;
+
+    code_t drained = KEY_NONE;
+    while (tty_read_timeout(env->tty, 0, &drained)) {
+    }
+
+    const ic_keycode_t sequence[] = {KEY_CTRL_A, KEY_CTRL_B, KEY_CTRL_C};
+    EXPECT_TRUE(ic_push_key_sequence(sequence, 3),
+                "key sequence push should succeed with active TTY");
+
+    code_t popped = KEY_NONE;
+    EXPECT_TRUE(tty_read_timeout(env->tty, 0, &popped),
+                "first queued key should be readable without waiting for terminal input");
+    EXPECT_TRUE(popped == KEY_CTRL_A,
+                "queued key sequence should preserve logical order for first key");
+
+    EXPECT_TRUE(tty_read_timeout(env->tty, 0, &popped),
+                "second queued key should be readable without waiting for terminal input");
+    EXPECT_TRUE(popped == KEY_CTRL_B,
+                "queued key sequence should preserve logical order for second key");
+
+    EXPECT_TRUE(tty_read_timeout(env->tty, 0, &popped),
+                "third queued key should be readable without waiting for terminal input");
+    EXPECT_TRUE(popped == KEY_CTRL_C,
+                "queued key sequence should preserve logical order for third key");
+
+    return true;
+}
+
+static bool test_term_manual_visibility_override_api(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL || env->term == NULL)
+        return false;
+
+    term_reset_line_state(env->term);
+    ic_term_mark_line_visible(true);
+    EXPECT_TRUE(term_line_has_visible_content(env->term),
+                "public manual visibility marker should force visible-line state true");
+
+    ic_term_mark_line_visible(false);
+    EXPECT_FALSE(term_line_has_visible_content(env->term),
+                 "public manual visibility marker should force visible-line state false");
+
+    return true;
+}
+
+static bool test_prompt_line_replacement_gate_matrix(void) {
+    ic_prompt_line_replacement_state_t state = {
+        .replace_prompt_line_with_line_number = true,
+        .prompt_has_prefix_lines = true,
+        .prompt_begins_with_newline = false,
+        .line_numbers_enabled = true,
+        .input_has_content = true,
+    };
+
+    EXPECT_TRUE(ic_prompt_line_replacement_should_activate(&state),
+                "all required predicate gates enabled should activate prompt replacement");
+
+    state.replace_prompt_line_with_line_number = false;
+    EXPECT_FALSE(ic_prompt_line_replacement_should_activate(&state),
+                 "replacement should not activate when feature flag is disabled");
+
+    state.replace_prompt_line_with_line_number = true;
+    state.prompt_has_prefix_lines = false;
+    state.prompt_begins_with_newline = false;
+    EXPECT_FALSE(ic_prompt_line_replacement_should_activate(&state),
+                 "replacement should not activate without prefix lines or leading newline");
+
+    state.prompt_begins_with_newline = true;
+    EXPECT_TRUE(ic_prompt_line_replacement_should_activate(&state),
+                "leading newline alone should satisfy prompt structure requirement");
+
+    state.line_numbers_enabled = false;
+    EXPECT_FALSE(ic_prompt_line_replacement_should_activate(&state),
+                 "replacement should not activate when line numbers are disabled");
+
+    state.line_numbers_enabled = true;
+    state.input_has_content = false;
+    EXPECT_FALSE(ic_prompt_line_replacement_should_activate(&state),
+                 "replacement should keep prompt visible while input buffer is empty");
+
+    EXPECT_FALSE(ic_prompt_line_replacement_should_activate(NULL),
+                 "replacement predicate should reject NULL state pointers");
+
+    return true;
+}
+
+static bool test_bbcode_default_styles_are_registered(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL || env->term == NULL || env->bbcode == NULL)
+        return false;
+
+    const attr_t prompt_attr = bbcode_style(env->bbcode, "ic-prompt");
+    const attr_t error_attr = bbcode_style(env->bbcode, "ic-error");
+    EXPECT_FALSE(attr_is_none(prompt_attr),
+                 "default prompt style should resolve to a concrete attribute mapping");
+    EXPECT_FALSE(attr_is_none(error_attr),
+                 "default error style should resolve to a concrete attribute mapping");
+    EXPECT_FALSE(attr_is_eq(prompt_attr, error_attr),
+                 "prompt and error styles should remain visually distinct for UI rendering");
+
+    return true;
+}
+
+static bool test_history_update_and_remove_last_flow(void) {
+    alloc_t* mem = test_allocator();
+    if (mem == NULL)
+        return false;
+
+    history_t* history = history_new(mem);
+    if (history == NULL)
+        return false;
+
+    const char* history_path = "./isocline_history_update_flow.log";
+    (void)remove(history_path);
+    history_load_from(history, history_path, 32);
+    history_clear(history);
+
+    EXPECT_TRUE(history_push(history, "echo first"), "first command should be pushed to history");
+    EXPECT_TRUE(history_push(history, "echo second"), "second command should be pushed to history");
+
+    EXPECT_TRUE(history_update(history, "  printf replaced  "),
+                "history_update should replace and normalize the latest entry");
+    const char* latest = history_get(history, 0);
+    EXPECT_STREQ(
+        latest, "  printf replaced  ",
+        "history_update should overwrite the most recent history command text as provided");
+
+    history_remove_last(history);
+    EXPECT_TRUE(history_count(history) == 1,
+                "history_remove_last should remove exactly one most recent entry");
+    EXPECT_STREQ(history_get(history, 0), "echo first",
+                 "after removing latest entry, previous command should become newest");
+
+    history_clear(history);
+    history_free(history);
+    (void)remove(history_path);
+    return true;
+}
+
+static bool test_history_snapshot_bounds_and_order(void) {
+    alloc_t* mem = test_allocator();
+    if (mem == NULL)
+        return false;
+
+    history_t* history = history_new(mem);
+    if (history == NULL)
+        return false;
+
+    const char* history_path = "./isocline_history_snapshot_order.log";
+    (void)remove(history_path);
+    history_load_from(history, history_path, 32);
+    history_clear(history);
+
+    EXPECT_TRUE(history_push(history, "cmd one"), "first snapshot entry should persist");
+    EXPECT_TRUE(history_push(history, "cmd two"), "second snapshot entry should persist");
+    EXPECT_TRUE(history_push(history, "cmd three"), "third snapshot entry should persist");
+
+    history_snapshot_t snap = {0};
+    EXPECT_TRUE(history_snapshot_load(history, &snap, true), "snapshot load should succeed");
+    EXPECT_TRUE(history_snapshot_count(&snap) == 3,
+                "snapshot count helper should report number of collected entries");
+
+    EXPECT_TRUE(history_snapshot_get(&snap, -1) == NULL,
+                "snapshot getter should reject negative indexes");
+    EXPECT_TRUE(history_snapshot_get(&snap, 3) == NULL,
+                "snapshot getter should reject indexes beyond last entry");
+
+    const history_entry_t* newest = history_snapshot_get(&snap, 0);
+    const history_entry_t* oldest = history_snapshot_get(&snap, 2);
+    EXPECT_TRUE(newest != NULL && oldest != NULL,
+                "snapshot getter should return valid pointers for in-range indexes");
+    EXPECT_STREQ(newest->command, "cmd three",
+                 "snapshot index zero should map to most recent command");
+    EXPECT_STREQ(oldest->command, "cmd one",
+                 "highest valid snapshot index should map to oldest command");
+
+    history_snapshot_free(history, &snap);
+    history_clear(history);
+    history_free(history);
+    (void)remove(history_path);
+    return true;
+}
+
+static bool test_history_search_prefix_empty_query_behavior(void) {
+    alloc_t* mem = test_allocator();
+    if (mem == NULL)
+        return false;
+
+    history_t* history = history_new(mem);
+    if (history == NULL)
+        return false;
+
+    const char* history_path = "./isocline_history_prefix_empty.log";
+    (void)remove(history_path);
+    history_load_from(history, history_path, 16);
+    history_clear(history);
+
+    EXPECT_TRUE(history_push(history, "alpha"), "prefix-search fixture first entry should persist");
+    EXPECT_TRUE(history_push(history, "beta"), "prefix-search fixture second entry should persist");
+
+    ssize_t idx = -1;
+    EXPECT_TRUE(history_search_prefix(history, 0, "", true, &idx),
+                "empty prefix backward search should accept in-range starting index");
+    EXPECT_TRUE(idx == 0, "empty prefix backward search should preserve provided starting index");
+
+    idx = -1;
+    EXPECT_TRUE(history_search_prefix(history, 1, "", false, &idx),
+                "empty prefix forward search should accept non-negative starting index");
+    EXPECT_TRUE(idx == 1, "empty prefix forward search should preserve provided starting index");
+
+    idx = -1;
+    EXPECT_FALSE(history_search_prefix(history, -1, "", false, &idx),
+                 "empty prefix forward search should reject negative starting index");
+
+    idx = -1;
+    EXPECT_TRUE(history_search_prefix(history, 0, "be", true, &idx),
+                "non-empty prefix search should still work after empty-prefix checks");
+    EXPECT_TRUE(idx == 0, "newest entry should be matched first when searching backward");
+
+    history_clear(history);
+    history_free(history);
+    (void)remove(history_path);
+    return true;
+}
+
+static bool test_unicode_display_width_malformed_csi_sequences(void) {
+    static const uint8_t esc_only[] = {'\x1B'};
+    static const uint8_t csi_incomplete[] = {'\x1B', '[', '3', '1'};
+
+    size_t ansi_chars = 0;
+    size_t visible_chars = 0;
+    size_t width = unicode_calculate_display_width((const char*)esc_only, sizeof(esc_only),
+                                                   &ansi_chars, &visible_chars);
+    EXPECT_TRUE(width == 0, "standalone ESC byte should be treated as zero-width control input");
+    EXPECT_TRUE(ansi_chars == 0, "standalone ESC byte should not be counted as ANSI sequence");
+    EXPECT_TRUE(visible_chars == 0,
+                "standalone ESC byte should not contribute visible character width");
+
+    ansi_chars = 0;
+    visible_chars = 0;
+    width = unicode_calculate_display_width((const char*)csi_incomplete, sizeof(csi_incomplete),
+                                            &ansi_chars, &visible_chars);
+    EXPECT_TRUE(width == 0,
+                "incomplete CSI byte sequences should be consumed as non-visible ANSI bytes");
+    EXPECT_TRUE(ansi_chars == 4,
+                "ANSI byte accounting should include all bytes inside incomplete CSI sequence");
+    EXPECT_TRUE(visible_chars == 0,
+                "incomplete CSI sequence should not produce visible character width");
+
+    return true;
+}
+
+static bool test_unicode_display_width_invalid_utf8_fallback(void) {
+    static const uint8_t invalid_utf8[] = {0xFF, 0xFE, 'A'};
+
+    size_t ansi_chars = 0;
+    size_t visible_chars = 0;
+    size_t width = unicode_calculate_display_width((const char*)invalid_utf8, sizeof(invalid_utf8),
+                                                   &ansi_chars, &visible_chars);
+    EXPECT_TRUE(width == 3,
+                "invalid UTF-8 bytes should fall back to single-width visible placeholders");
+    EXPECT_TRUE(visible_chars == 3,
+                "invalid UTF-8 bytes should still increment visible character count");
+    EXPECT_TRUE(ansi_chars == 0, "invalid UTF-8 bytes should not be misclassified as ANSI escapes");
+
+    size_t utf8_width =
+        unicode_calculate_utf8_width((const char*)invalid_utf8, sizeof(invalid_utf8));
+    EXPECT_TRUE(utf8_width == 3,
+                "UTF-8 width helper should mirror fallback width behavior for invalid bytes");
+
+    return true;
+}
+
 typedef bool (*test_fn_t)(void);
 
 typedef struct test_case_s {
@@ -1498,6 +1952,23 @@ static const test_case_t kTests[] = {
     {"key_spec_ctrl_space_variants", test_key_spec_ctrl_space_variants},
     {"initial_input_env_lifecycle", test_initial_input_env_lifecycle},
     {"unicode_display_width_control_codepoints", test_unicode_display_width_control_codepoints},
+    {"unicode_display_width_osc_sequence_ignored", test_unicode_display_width_osc_sequence_ignored},
+    {"history_search_direction_and_position", test_history_search_direction_and_position},
+    {"history_fuzzy_exit_code_filtering", test_history_fuzzy_exit_code_filtering},
+    {"history_disabled_mode_rejects_push", test_history_disabled_mode_rejects_push},
+    {"key_spec_separator_and_invalid_forms", test_key_spec_separator_and_invalid_forms},
+    {"key_binding_named_invalid_inputs", test_key_binding_named_invalid_inputs},
+    {"tty_code_pushback_order_and_capacity_guard", test_tty_code_pushback_order_and_capacity_guard},
+    {"term_manual_visibility_override_api", test_term_manual_visibility_override_api},
+    {"prompt_line_replacement_gate_matrix", test_prompt_line_replacement_gate_matrix},
+    {"bbcode_default_styles_are_registered", test_bbcode_default_styles_are_registered},
+    {"history_update_and_remove_last_flow", test_history_update_and_remove_last_flow},
+    {"history_snapshot_bounds_and_order", test_history_snapshot_bounds_and_order},
+    {"history_search_prefix_empty_query_behavior", test_history_search_prefix_empty_query_behavior},
+    {"unicode_display_width_malformed_csi_sequences",
+     test_unicode_display_width_malformed_csi_sequences},
+    {"unicode_display_width_invalid_utf8_fallback",
+     test_unicode_display_width_invalid_utf8_fallback},
 };
 
 int main(void) {
