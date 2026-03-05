@@ -88,6 +88,11 @@ static bool stub_continuation_checker(const char* buffer, void* arg) {
     return arg_valid && (buffer_valid || arg_valid);
 }
 
+static const char* stub_status_message(const char* input_buffer, void* arg) {
+    ic_unused(input_buffer);
+    return (arg != NULL ? "status" : NULL);
+}
+
 static bool test_multiline_toggle(void) {
     ic_env_t* env = ensure_env();
     if (env == NULL)
@@ -1900,6 +1905,225 @@ static bool test_unicode_display_width_invalid_utf8_fallback(void) {
     return true;
 }
 
+static bool test_history_max_entries_pruning(void) {
+    alloc_t* mem = test_allocator();
+    if (mem == NULL)
+        return false;
+
+    history_t* history = history_new(mem);
+    if (history == NULL)
+        return false;
+
+    const char* history_path = "./isocline_history_max_entries.log";
+    (void)remove(history_path);
+    history_load_from(history, history_path, 2);
+    history_clear(history);
+
+    EXPECT_TRUE(history_push(history, "cmd one"), "first history entry should be accepted");
+    EXPECT_TRUE(history_push(history, "cmd two"), "second history entry should be accepted");
+    EXPECT_TRUE(history_push(history, "cmd three"),
+                "third history entry should be accepted and trigger pruning");
+
+    EXPECT_TRUE(history_count(history) == 2,
+                "history should prune oldest entries to configured max size");
+    EXPECT_STREQ(history_get(history, 0), "cmd three",
+                 "newest command should remain available after pruning");
+    EXPECT_STREQ(history_get(history, 1), "cmd two",
+                 "second newest command should remain after pruning oldest entry");
+
+    history_clear(history);
+    history_free(history);
+    (void)remove(history_path);
+    return true;
+}
+
+static bool test_history_snapshot_load_dedup_mode(void) {
+    alloc_t* mem = test_allocator();
+    if (mem == NULL)
+        return false;
+
+    history_t* history = history_new(mem);
+    if (history == NULL)
+        return false;
+
+    const char* history_path = "./isocline_history_snapshot_dedup.log";
+    (void)remove(history_path);
+    history_load_from(history, history_path, 16);
+    history_clear(history);
+
+    history_enable_duplicates(history, true);
+    EXPECT_TRUE(history_push(history, "dup"), "first duplicate entry should be stored");
+    EXPECT_TRUE(history_push(history, "dup"), "second duplicate entry should be stored");
+    EXPECT_TRUE(history_push(history, "unique"), "unique trailing entry should be stored");
+    history_enable_duplicates(history, false);
+
+    history_snapshot_t deduped = {0};
+    EXPECT_TRUE(history_snapshot_load(history, &deduped, true),
+                "snapshot load with dedup=true should succeed");
+    EXPECT_TRUE(deduped.count == 2, "dedup snapshot should collapse duplicate command instances");
+
+    bool saw_dup = false;
+    bool saw_unique = false;
+    for (ssize_t i = 0; i < deduped.count; ++i) {
+        const history_entry_t* entry = history_snapshot_get(&deduped, i);
+        if (entry == NULL || entry->command == NULL)
+            continue;
+        if (strcmp(entry->command, "dup") == 0)
+            saw_dup = true;
+        if (strcmp(entry->command, "unique") == 0)
+            saw_unique = true;
+    }
+    EXPECT_TRUE(saw_dup && saw_unique,
+                "dedup snapshot should retain one duplicate plus unique entries");
+
+    history_snapshot_free(history, &deduped);
+    history_clear(history);
+    history_free(history);
+    (void)remove(history_path);
+    return true;
+}
+
+static bool test_history_remove_last_on_empty_safe(void) {
+    alloc_t* mem = test_allocator();
+    if (mem == NULL)
+        return false;
+
+    history_t* history = history_new(mem);
+    if (history == NULL)
+        return false;
+
+    const char* history_path = "./isocline_history_remove_empty.log";
+    (void)remove(history_path);
+    history_load_from(history, history_path, 8);
+    history_clear(history);
+
+    history_remove_last(history);
+    EXPECT_TRUE(history_count(history) == 0,
+                "removing last entry from empty history should stay a no-op");
+
+    EXPECT_TRUE(history_push(history, "solo"), "single history entry should be storable");
+    history_remove_last(history);
+    EXPECT_TRUE(history_count(history) == 0,
+                "removing last entry from singleton history should leave it empty");
+
+    history_clear(history);
+    history_free(history);
+    (void)remove(history_path);
+    return true;
+}
+
+static bool test_history_fuzzy_max_matches_cap(void) {
+    alloc_t* mem = test_allocator();
+    if (mem == NULL)
+        return false;
+
+    history_t* history = history_new(mem);
+    if (history == NULL)
+        return false;
+
+    const char* history_path = "./isocline_history_fuzzy_cap.log";
+    (void)remove(history_path);
+    history_load_from(history, history_path, 32);
+    history_clear(history);
+
+    EXPECT_TRUE(history_push(history, "build one"), "fuzzy fixture entry should be stored");
+    EXPECT_TRUE(history_push(history, "build two"), "fuzzy fixture entry should be stored");
+    EXPECT_TRUE(history_push(history, "build three"), "fuzzy fixture entry should be stored");
+    EXPECT_TRUE(history_push(history, "build four"), "fuzzy fixture entry should be stored");
+
+    history_match_t matches[2];
+    ssize_t match_count = 0;
+    EXPECT_TRUE(history_fuzzy_search(history, "build", matches, 2, &match_count, NULL, NULL),
+                "fuzzy search should produce matches for common query token");
+    EXPECT_TRUE(match_count == 2,
+                "fuzzy search should cap returned matches to requested max_matches value");
+    EXPECT_TRUE(matches[0].score >= matches[1].score,
+                "fuzzy search results should be sorted in descending score order");
+
+    history_clear(history);
+    history_free(history);
+    (void)remove(history_path);
+    return true;
+}
+
+static bool test_key_spec_alias_and_f24_roundtrip(void) {
+    ic_keycode_t key = IC_KEY_NONE;
+
+    EXPECT_TRUE(ic_parse_key_spec("meta+x", &key), "meta alias should parse as alt modifier");
+    EXPECT_TRUE(key == IC_KEY_WITH_ALT(ic_key_char('x')),
+                "meta alias should produce alt-modified character keycode");
+
+    EXPECT_TRUE(ic_parse_key_spec("option+x", &key), "option alias should parse as alt modifier");
+    EXPECT_TRUE(key == IC_KEY_WITH_ALT(ic_key_char('x')),
+                "option alias should map to same keycode as meta alias");
+
+    EXPECT_TRUE(ic_parse_key_spec("return", &key), "return alias should parse as enter key");
+    EXPECT_TRUE(key == IC_KEY_ENTER, "return alias should map to enter key constant");
+
+    EXPECT_TRUE(ic_parse_key_spec("newline", &key), "newline alias should parse as linefeed key");
+    EXPECT_TRUE(key == IC_KEY_LINEFEED, "newline alias should map to linefeed constant");
+
+    EXPECT_TRUE(ic_parse_key_spec("f24", &key),
+                "f24 key spec should parse for extended function keys");
+    char formatted[64];
+    EXPECT_TRUE(ic_format_key_spec(key, formatted, sizeof(formatted)),
+                "formatted output for f24 keycode should succeed");
+    EXPECT_STREQ(formatted, "f24", "f24 keycode should format to canonical f24 token");
+
+    return true;
+}
+
+static bool test_key_queue_api_noop_inputs(void) {
+    EXPECT_TRUE(ic_push_key_sequence(NULL, 0),
+                "NULL key sequence with zero count should be accepted as a no-op");
+
+    const ic_keycode_t dummy = KEY_ENTER;
+    EXPECT_TRUE(ic_push_key_sequence(&dummy, 0),
+                "non-NULL key pointer with zero count should be accepted as no-op");
+
+    return true;
+}
+
+static bool test_status_message_callback_registration(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    ic_set_status_message_callback(NULL, NULL);
+    EXPECT_TRUE(env->status_message_callback == NULL,
+                "clearing status callback should reset callback pointer");
+    EXPECT_TRUE(env->status_message_arg == NULL,
+                "clearing status callback should reset callback argument");
+
+    ic_set_status_message_callback(stub_status_message, (void*)0xC0DE);
+    EXPECT_TRUE(env->status_message_callback == stub_status_message,
+                "status callback setter should store callback pointer verbatim");
+    EXPECT_TRUE(env->status_message_arg == (void*)0xC0DE,
+                "status callback setter should store callback user argument");
+
+    ic_set_status_message_callback(NULL, NULL);
+    return true;
+}
+
+static bool test_term_color_bits_and_toggle_roundtrip(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    int bits = ic_term_get_color_bits();
+    EXPECT_TRUE(bits == 1 || bits == 3 || bits == 4 || bits == 8 || bits == 24,
+                "reported terminal color depth should be one of supported palette sizes");
+
+    if (env->term != NULL) {
+        bool previous = ic_enable_color(false);
+        bool restored = ic_enable_color(previous);
+        EXPECT_FALSE(restored,
+                     "re-enabling color should report it was disabled by the previous toggle");
+    }
+
+    return true;
+}
+
 typedef bool (*test_fn_t)(void);
 
 typedef struct test_case_s {
@@ -1969,6 +2193,14 @@ static const test_case_t kTests[] = {
      test_unicode_display_width_malformed_csi_sequences},
     {"unicode_display_width_invalid_utf8_fallback",
      test_unicode_display_width_invalid_utf8_fallback},
+    {"history_max_entries_pruning", test_history_max_entries_pruning},
+    {"history_snapshot_load_dedup_mode", test_history_snapshot_load_dedup_mode},
+    {"history_remove_last_on_empty_safe", test_history_remove_last_on_empty_safe},
+    {"history_fuzzy_max_matches_cap", test_history_fuzzy_max_matches_cap},
+    {"key_spec_alias_and_f24_roundtrip", test_key_spec_alias_and_f24_roundtrip},
+    {"key_queue_api_noop_inputs", test_key_queue_api_noop_inputs},
+    {"status_message_callback_registration", test_status_message_callback_registration},
+    {"term_color_bits_and_toggle_roundtrip", test_term_color_bits_and_toggle_roundtrip},
 };
 
 int main(void) {
