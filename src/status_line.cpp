@@ -31,8 +31,10 @@
 #include <algorithm>
 #include <cctype>
 #include <exception>
+#include <filesystem>
 #include <optional>
 #include <string>
+#include <system_error>
 #include <unordered_set>
 #include <vector>
 
@@ -278,6 +280,53 @@ bool is_auto_cd_token(const std::string& token, Shell* shell) {
     return !has_alias && !is_builtin && !is_function && !is_executable;
 }
 
+std::string resolve_auto_cd_target(const std::string& token, Shell* shell) {
+    if (shell == nullptr || shell->get_built_ins() == nullptr || token.empty()) {
+        return {};
+    }
+
+    const std::string cwd = shell->get_built_ins()->get_current_directory();
+    const std::string previous_directory = shell->get_previous_directory();
+
+    std::filesystem::path candidate;
+    if (token == "-") {
+        if (previous_directory.empty()) {
+            return {};
+        }
+        candidate = previous_directory;
+    } else if (token == "~") {
+        candidate = cjsh_filesystem::g_user_home_path();
+    } else if (token.rfind("~/", 0) == 0) {
+        candidate = cjsh_filesystem::g_user_home_path();
+        if (token.size() > 2) {
+            candidate /= token.substr(2);
+        }
+    } else if (token.rfind("-/", 0) == 0) {
+        if (previous_directory.empty()) {
+            return {};
+        }
+        candidate = std::filesystem::path(previous_directory) / token.substr(2);
+    } else {
+        candidate = std::filesystem::path(token);
+        if (!candidate.is_absolute()) {
+            candidate = std::filesystem::path(cwd) / candidate;
+        }
+    }
+
+    std::error_code ec;
+    if (!std::filesystem::exists(candidate, ec) || ec ||
+        !std::filesystem::is_directory(candidate, ec) || ec) {
+        return {};
+    }
+
+    std::filesystem::path canonical = std::filesystem::canonical(candidate, ec);
+    if (!ec && !canonical.empty()) {
+        return canonical.string();
+    }
+
+    return candidate.lexically_normal().string();
+}
+
 std::optional<AutoCdInfo> detect_auto_cd_command(Shell* shell, const std::string& original_input) {
     if (shell == nullptr || original_input.empty()) {
         return std::nullopt;
@@ -312,9 +361,7 @@ std::optional<AutoCdInfo> detect_auto_cd_command(Shell* shell, const std::string
                     is_auto_cd_token(token, shell)) {
                     AutoCdInfo info;
                     info.token = token;
-                    if (token == "-") {
-                        info.target = shell->get_previous_directory();
-                    }
+                    info.target = resolve_auto_cd_target(token, shell);
                     return info;
                 }
             }

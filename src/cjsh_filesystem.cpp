@@ -671,16 +671,44 @@ bool path_is_directory_candidate(const std::string& value, const std::string& cw
            std::filesystem::is_directory(candidate, ec) && !ec;
 }
 
+bool is_directory_path(const std::filesystem::path& path) {
+    std::error_code ec;
+    return std::filesystem::exists(path, ec) && !ec && std::filesystem::is_directory(path, ec) &&
+           !ec;
+}
+
 bool is_auto_cd_directory_token(const std::string& value, const std::string& cwd,
                                 const std::string& previous_directory) {
-    (void)previous_directory;
-
     if (value.empty()) {
         return false;
     }
 
     if (value == "-") {
         return true;
+    }
+
+    if (value == "~") {
+        return is_directory_path(g_user_home_path());
+    }
+
+    if (value.rfind("~/", 0) == 0) {
+        std::filesystem::path candidate = g_user_home_path();
+        if (value.size() > 2) {
+            candidate /= value.substr(2);
+        }
+        return is_directory_path(candidate);
+    }
+
+    if (value.rfind("-/", 0) == 0) {
+        if (previous_directory.empty()) {
+            return false;
+        }
+
+        std::filesystem::path candidate(previous_directory);
+        if (value.size() > 2) {
+            candidate /= value.substr(2);
+        }
+        return is_directory_path(candidate);
     }
 
     return path_is_directory_candidate(value, cwd);
