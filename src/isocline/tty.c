@@ -419,9 +419,8 @@ ic_private bool tty_cpop(tty_t* tty, uint8_t* c) {
 
 static void tty_cpush(tty_t* tty, const char* s) {
     ssize_t len = ic_strlen(s);
-    if (tty->push_count + len > TTY_PUSH_MAX) {
+    if (tty->cpush_count + len > TTY_PUSH_MAX) {
         debug_msg("tty: cpush buffer full! (pushing %s)\n", s);
-        assert(false);
         return;
     }
     for (ssize_t i = 0; i < len; i++) {

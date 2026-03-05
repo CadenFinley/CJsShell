@@ -73,7 +73,7 @@ ic_public bool ic_push_raw_input(const uint8_t* data, size_t length) {
     if (env == NULL || env->tty == NULL)
         return false;
     if (data == NULL)
-        return true;
+        return false;
     for (size_t i = length; i > 0; --i) {
         tty_cpush_char(env->tty, data[i - 1]);
     }
