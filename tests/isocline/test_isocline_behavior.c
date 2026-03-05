@@ -901,6 +901,551 @@ static bool test_push_raw_input_null_pointer_rejected(void) {
     return true;
 }
 
+static bool test_prompt_marker_roundtrip(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    ic_set_prompt_marker("=> ", ".. ");
+    EXPECT_STREQ(ic_get_prompt_marker(), "=> ", "primary prompt marker should round-trip");
+    EXPECT_STREQ(ic_get_continuation_prompt_marker(), ".. ",
+                 "continuation prompt marker should round-trip");
+
+    ic_set_prompt_marker(":: ", NULL);
+    EXPECT_STREQ(ic_get_prompt_marker(), ":: ", "primary marker should update to custom value");
+    EXPECT_STREQ(ic_get_continuation_prompt_marker(),
+                 ":: ", "NULL continuation marker should mirror primary marker");
+
+    ic_set_prompt_marker(NULL, NULL);
+    EXPECT_STREQ(ic_get_prompt_marker(), "> ", "NULL primary marker should restore default marker");
+    EXPECT_STREQ(ic_get_continuation_prompt_marker(), "> ",
+                 "NULL continuation marker should restore default continuation marker");
+
+    return true;
+}
+
+static bool test_hint_delay_clamps(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    env->hint_delay = 250;
+    long previous = ic_set_hint_delay(-1);
+    EXPECT_TRUE(previous == 250, "hint delay setter should return previous value");
+    EXPECT_TRUE(env->hint_delay == 0, "negative hint delay should clamp to zero");
+
+    previous = ic_set_hint_delay(99999);
+    EXPECT_TRUE(previous == 0, "hint delay setter should return prior clamped value");
+    EXPECT_TRUE(env->hint_delay == 5000, "hint delay should clamp to documented maximum");
+
+    previous = ic_set_hint_delay(73);
+    EXPECT_TRUE(previous == 5000, "hint delay setter should return previous maximum clamp");
+    EXPECT_TRUE(env->hint_delay == 73, "hint delay should accept in-range values unchanged");
+
+    return true;
+}
+
+static bool test_status_hint_mode_validation(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    env->status_hint_mode = IC_STATUS_HINT_PERSISTENT;
+    ic_status_hint_mode_t prev = ic_set_status_hint_mode((ic_status_hint_mode_t)99);
+    EXPECT_TRUE(prev == IC_STATUS_HINT_PERSISTENT,
+                "invalid status hint mode should report previous configured mode");
+    EXPECT_TRUE(ic_get_status_hint_mode() == IC_STATUS_HINT_NORMAL,
+                "invalid status hint mode should normalize to NORMAL");
+
+    prev = ic_set_status_hint_mode(IC_STATUS_HINT_OFF);
+    EXPECT_TRUE(prev == IC_STATUS_HINT_NORMAL,
+                "setting OFF should report normalized previous mode");
+    EXPECT_TRUE(ic_get_status_hint_mode() == IC_STATUS_HINT_OFF,
+                "status hint getter should expose OFF mode");
+
+    (void)ic_set_status_hint_mode(IC_STATUS_HINT_NORMAL);
+    return true;
+}
+
+static bool test_option_toggle_consistency(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    env->complete_autotab = false;
+    EXPECT_FALSE(ic_enable_auto_tab(true), "auto-tab should report previously disabled state");
+    EXPECT_TRUE(env->complete_autotab, "auto-tab flag should become enabled");
+
+    env->complete_nopreview = false;
+    EXPECT_TRUE(ic_enable_completion_preview(false),
+                "completion preview disable should report previously enabled state");
+    EXPECT_TRUE(env->complete_nopreview, "preview disable should invert internal flag");
+    EXPECT_FALSE(ic_enable_completion_preview(true),
+                 "completion preview enable should report previously disabled state");
+    EXPECT_FALSE(env->complete_nopreview, "preview enable should clear inverted flag");
+
+    env->no_multiline_indent = false;
+    EXPECT_TRUE(ic_enable_multiline_indent(false),
+                "multiline indent disable should report previously enabled state");
+    EXPECT_TRUE(env->no_multiline_indent, "multiline indent disable should set inverted flag");
+
+    env->no_hint = false;
+    EXPECT_TRUE(ic_enable_hint(false), "hint disable should report previously enabled state");
+    EXPECT_TRUE(env->no_hint, "hint disable should set inverted no_hint flag");
+
+    env->spell_correct = true;
+    EXPECT_TRUE(ic_enable_spell_correct(false),
+                "spell-correct disable should report previously enabled state");
+    EXPECT_FALSE(env->spell_correct, "spell-correct disable should clear flag");
+
+    env->no_highlight = false;
+    EXPECT_TRUE(ic_enable_highlight(false),
+                "highlight disable should report previously enabled state");
+    EXPECT_TRUE(env->no_highlight, "highlight disable should set inverted flag");
+
+    env->no_help = false;
+    EXPECT_TRUE(ic_enable_inline_help(false),
+                "inline help disable should report previously enabled state");
+    EXPECT_TRUE(env->no_help, "inline help disable should set inverted flag");
+
+    env->highlight_current_line_number = true;
+    EXPECT_TRUE(ic_enable_current_line_number_highlight(false),
+                "current line number highlight disable should report previous state");
+    EXPECT_FALSE(ic_current_line_number_highlight_is_enabled(),
+                 "current line number highlight getter should mirror state");
+
+    env->inline_right_prompt_follows_cursor = false;
+    EXPECT_FALSE(ic_enable_inline_right_prompt_cursor_follow(true),
+                 "inline right prompt follow should report previous disabled state");
+    EXPECT_TRUE(ic_inline_right_prompt_follows_cursor(),
+                "inline right prompt follow getter should mirror state");
+
+    env->no_bracematch = false;
+    EXPECT_TRUE(ic_enable_brace_matching(false),
+                "brace matching disable should report previously enabled state");
+    EXPECT_TRUE(env->no_bracematch, "brace matching disable should set inverted flag");
+
+    env->no_autobrace = false;
+    EXPECT_TRUE(ic_enable_brace_insertion(false),
+                "brace insertion disable should report previously enabled state");
+    EXPECT_TRUE(env->no_autobrace, "brace insertion disable should set inverted flag");
+
+    (void)ic_enable_multiline_indent(true);
+    (void)ic_enable_hint(true);
+    (void)ic_enable_spell_correct(true);
+    (void)ic_enable_highlight(true);
+    (void)ic_enable_inline_help(true);
+    (void)ic_enable_current_line_number_highlight(true);
+    (void)ic_enable_inline_right_prompt_cursor_follow(false);
+    (void)ic_enable_brace_matching(true);
+    (void)ic_enable_brace_insertion(true);
+    return true;
+}
+
+static bool test_prompt_cleanup_newline_and_getters(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    env->prompt_cleanup = false;
+    env->prompt_cleanup_extra_lines = 0;
+    env->prompt_cleanup_newline_after_execution = false;
+
+    EXPECT_FALSE(ic_prompt_cleanup_is_enabled(),
+                 "prompt cleanup getter should report disabled state");
+    EXPECT_TRUE(ic_prompt_cleanup_extra_lines() == 0,
+                "prompt cleanup extra lines getter should report current value");
+
+    EXPECT_FALSE(ic_enable_prompt_cleanup(true, 3),
+                 "prompt cleanup enable should report previously disabled state");
+    EXPECT_TRUE(ic_prompt_cleanup_is_enabled(),
+                "prompt cleanup getter should report enabled state");
+    EXPECT_TRUE(ic_prompt_cleanup_extra_lines() == 3,
+                "prompt cleanup extra lines should match configured value");
+
+    EXPECT_FALSE(ic_enable_prompt_cleanup_newline(true),
+                 "prompt cleanup newline enable should report previously disabled state");
+    EXPECT_TRUE(ic_prompt_cleanup_newline_is_enabled(),
+                "prompt cleanup newline getter should mirror enabled state");
+
+    EXPECT_TRUE(ic_enable_prompt_cleanup_newline(false),
+                "prompt cleanup newline disable should report previous enabled state");
+    EXPECT_FALSE(ic_prompt_cleanup_newline_is_enabled(),
+                 "prompt cleanup newline getter should mirror disabled state");
+
+    (void)ic_enable_prompt_cleanup(false, 0);
+    return true;
+}
+
+static bool test_brace_pair_setters_validation(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    ic_set_matching_braces("()<>[]");
+    EXPECT_STREQ(ic_env_get_match_braces(env), "()<>[]",
+                 "even-length matching brace string should be stored as-is");
+
+    ic_set_matching_braces("(");
+    EXPECT_STREQ(ic_env_get_match_braces(env), "()[]{}",
+                 "odd-length matching brace string should fall back to default");
+
+    ic_set_matching_braces(NULL);
+    EXPECT_STREQ(ic_env_get_match_braces(env), "()[]{}",
+                 "NULL matching brace string should fall back to default");
+
+    ic_set_insertion_braces("{}\"\"");
+    EXPECT_STREQ(ic_env_get_auto_braces(env), "{}\"\"",
+                 "even-length insertion brace string should be stored as-is");
+
+    ic_set_insertion_braces("{");
+    EXPECT_STREQ(ic_env_get_auto_braces(env), "()[]{}\"\"''",
+                 "odd-length insertion brace string should fall back to default");
+
+    ic_set_insertion_braces(NULL);
+    EXPECT_STREQ(ic_env_get_auto_braces(env), "()[]{}\"\"''",
+                 "NULL insertion brace string should fall back to default");
+
+    return true;
+}
+
+static bool test_abbreviation_management(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    ic_clear_abbreviations();
+    EXPECT_TRUE(env->abbreviation_count == 0, "clear abbreviations should reset entry count");
+
+    EXPECT_FALSE(ic_add_abbreviation(NULL, "noop"), "NULL trigger should be rejected");
+    EXPECT_FALSE(ic_add_abbreviation("", "noop"), "empty trigger should be rejected");
+    EXPECT_FALSE(ic_add_abbreviation("bad key", "noop"),
+                 "whitespace in trigger should be rejected");
+    EXPECT_FALSE(ic_add_abbreviation("ok", NULL), "NULL expansion should be rejected");
+
+    EXPECT_TRUE(ic_add_abbreviation("gc", "git commit"), "valid abbreviation should be inserted");
+    EXPECT_TRUE(env->abbreviation_count == 1, "abbreviation count should increase after insertion");
+    EXPECT_STREQ(env->abbreviations[0].trigger, "gc", "trigger should be copied into env storage");
+    EXPECT_STREQ(env->abbreviations[0].expansion, "git commit",
+                 "expansion should be copied into env storage");
+
+    EXPECT_TRUE(ic_add_abbreviation("gc", "git commit --verbose"),
+                "adding existing trigger should update expansion in-place");
+    EXPECT_TRUE(env->abbreviation_count == 1,
+                "updating an existing trigger should not duplicate entries");
+    EXPECT_STREQ(env->abbreviations[0].expansion, "git commit --verbose",
+                 "existing expansion should be replaced when trigger already exists");
+
+    EXPECT_FALSE(ic_remove_abbreviation("missing"),
+                 "removing unknown trigger should report failure");
+    EXPECT_TRUE(ic_remove_abbreviation("gc"), "removing existing trigger should succeed");
+    EXPECT_TRUE(env->abbreviation_count == 0,
+                "abbreviation count should decrease after successful removal");
+
+    EXPECT_TRUE(ic_add_abbreviation("ga", "git add"), "should allow adding first abbreviation");
+    EXPECT_TRUE(ic_add_abbreviation("gs", "git status"), "should allow adding second abbreviation");
+    ic_clear_abbreviations();
+    EXPECT_TRUE(env->abbreviation_count == 0 && env->abbreviation_capacity == 0,
+                "clear should reset abbreviation storage metadata");
+    EXPECT_TRUE(env->abbreviations == NULL, "clear should release abbreviation array");
+
+    return true;
+}
+
+static bool test_key_spec_parse_and_format_roundtrip(void) {
+    ic_keycode_t key = IC_KEY_NONE;
+    EXPECT_TRUE(ic_parse_key_spec("ctrl+k", &key), "ctrl+k key spec should parse");
+    EXPECT_TRUE(key == IC_KEY_CTRL_K, "ctrl+k should map to ASCII control keycode");
+
+    EXPECT_TRUE(ic_parse_key_spec("alt+shift+f12", &key),
+                "combined modifier function-key spec should parse");
+    EXPECT_TRUE(key == IC_KEY_WITH_ALT(IC_KEY_WITH_SHIFT(IC_KEY_F12)),
+                "combined modifiers should be encoded in keycode flags");
+
+    EXPECT_TRUE(ic_parse_key_spec("ctrl+@", &key), "ctrl+@ should parse as ctrl-space shortcut");
+    EXPECT_TRUE(key == IC_KEY_CTRL_SPACE, "ctrl+@ should map to ctrl-space keycode");
+
+    EXPECT_FALSE(ic_parse_key_spec("ctrl+alt", &key), "modifier-only key spec should be rejected");
+    EXPECT_FALSE(ic_parse_key_spec("definitely-not-a-key", &key),
+                 "unknown key token should be rejected");
+
+    char formatted[64];
+    EXPECT_TRUE(ic_format_key_spec(IC_KEY_CTRL_K, formatted, sizeof(formatted)),
+                "formatting ctrl-k should succeed");
+    EXPECT_STREQ(formatted, "ctrl+k", "formatted ctrl-k key spec should be canonicalized");
+
+    EXPECT_TRUE(ic_format_key_spec(IC_KEY_WITH_ALT(IC_KEY_F12), formatted, sizeof(formatted)),
+                "formatting alt+f12 should succeed");
+    EXPECT_STREQ(formatted, "alt+f12", "formatted alt+f12 key spec should be canonicalized");
+
+    EXPECT_TRUE(ic_format_key_spec(IC_KEY_NONE, formatted, sizeof(formatted)),
+                "formatting IC_KEY_NONE should succeed");
+    EXPECT_STREQ(formatted, "none", "none keycode should format to literal 'none'");
+
+    char tiny[4];
+    EXPECT_FALSE(ic_format_key_spec(IC_KEY_WITH_ALT(IC_KEY_F12), tiny, sizeof(tiny)),
+                 "format should fail when output buffer is too small");
+
+    return true;
+}
+
+static bool test_key_binding_crud_and_profiles(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    const char* original_profile = ic_get_key_binding_profile();
+    EXPECT_TRUE(ic_set_key_binding_profile("emacs"), "switching to emacs profile should succeed");
+
+    EXPECT_TRUE(ic_bind_key(IC_KEY_F2, IC_KEY_ACTION_CLEAR_SCREEN),
+                "binding explicit key/action should succeed");
+    ic_key_action_t action = IC_KEY_ACTION_NONE;
+    EXPECT_TRUE(ic_get_key_binding(IC_KEY_F2, &action), "new key binding should be queryable");
+    EXPECT_TRUE(action == IC_KEY_ACTION_CLEAR_SCREEN,
+                "queried key binding action should match bound value");
+
+    size_t listed_count = ic_list_key_bindings(NULL, 0);
+    EXPECT_TRUE(listed_count >= 1, "binding list count should reflect at least one binding");
+
+    ic_key_binding_entry_t entries[64];
+    size_t written = ic_list_key_bindings(entries, 64);
+    EXPECT_TRUE(written > 0 && written <= listed_count,
+                "binding listing with buffer should write bounded number of entries");
+
+    EXPECT_TRUE(ic_clear_key_binding(IC_KEY_F2), "clearing existing binding should succeed");
+    EXPECT_FALSE(ic_clear_key_binding(IC_KEY_F2),
+                 "clearing same binding twice should fail on second attempt");
+    EXPECT_FALSE(ic_bind_key(IC_KEY_F3, IC_KEY_ACTION__MAX),
+                 "binding invalid action enum should fail");
+
+    EXPECT_TRUE(ic_bind_key_named("ctrl+x", "undo"),
+                "binding named action should accept known aliases");
+    EXPECT_TRUE(ic_get_key_binding(IC_KEY_CTRL_X, &action),
+                "named binding should resolve to parsed keycode");
+    EXPECT_TRUE(action == IC_KEY_ACTION_UNDO,
+                "named binding should map alias to expected action enum");
+
+    size_t profile_count = ic_list_key_binding_profiles(NULL, 0);
+    EXPECT_TRUE(profile_count >= 2, "at least emacs and vim profiles should be registered");
+
+    ic_key_binding_profile_info_t profiles[8];
+    size_t profile_written = ic_list_key_binding_profiles(profiles, 8);
+    bool saw_emacs = false;
+    bool saw_vim = false;
+    for (size_t i = 0; i < profile_written; ++i) {
+        if (profiles[i].name == NULL)
+            continue;
+        if (strcmp(profiles[i].name, "emacs") == 0)
+            saw_emacs = true;
+        if (strcmp(profiles[i].name, "vim") == 0)
+            saw_vim = true;
+    }
+    EXPECT_TRUE(saw_emacs && saw_vim, "profile listing should expose both emacs and vim profiles");
+
+    EXPECT_TRUE(ic_set_key_binding_profile("vim"), "switching to vim profile should succeed");
+    EXPECT_STREQ(ic_get_key_binding_profile(), "vim",
+                 "getter should report newly selected profile");
+
+    const char* default_specs =
+        ic_key_binding_profile_default_specs(IC_KEY_ACTION_CURSOR_WORD_NEXT_OR_COMPLETE);
+    EXPECT_TRUE(default_specs != NULL && strstr(default_specs, "alt+w") != NULL,
+                "vim profile should override cursor-word-next default specs with alt+w");
+
+    EXPECT_FALSE(ic_set_key_binding_profile("does-not-exist"),
+                 "unknown key binding profile should be rejected");
+
+    EXPECT_TRUE(ic_set_key_binding_profile(original_profile),
+                "restoring original key binding profile should succeed");
+    return true;
+}
+
+static bool test_key_action_name_mappings(void) {
+    EXPECT_TRUE(ic_key_action_from_name("history-up") == IC_KEY_ACTION_HISTORY_PREV,
+                "history-up alias should map to HISTORY_PREV action");
+    EXPECT_TRUE(ic_key_action_from_name("completion") == IC_KEY_ACTION_COMPLETE,
+                "completion alias should map to COMPLETE action");
+    EXPECT_TRUE(ic_key_action_from_name("unhandled") == IC_KEY_ACTION_RUNOFF,
+                "unhandled alias should map to RUNOFF action");
+    EXPECT_TRUE(ic_key_action_from_name("unknown-action") == IC_KEY_ACTION__MAX,
+                "unknown action name should map to sentinel");
+
+    EXPECT_STREQ(ic_key_action_name(IC_KEY_ACTION_CLEAR_SCREEN), "clear-screen",
+                 "action-to-name lookup should return canonical clear-screen label");
+    EXPECT_TRUE(ic_key_action_name(IC_KEY_ACTION__MAX) == NULL,
+                "invalid action enum should not produce a name");
+
+    return true;
+}
+
+static bool test_string_matching_and_token_helpers(void) {
+    EXPECT_TRUE(ic_starts_with("prefix-value", "pre"),
+                "starts_with should match explicit ASCII prefixes");
+    EXPECT_FALSE(ic_starts_with("prefix-value", "Prefix"), "starts_with should be case-sensitive");
+    EXPECT_TRUE(ic_starts_with("anything", NULL), "NULL prefix should be treated as empty prefix");
+    EXPECT_FALSE(ic_starts_with(NULL, "x"),
+                 "NULL source string should never match non-NULL prefix");
+
+    EXPECT_TRUE(ic_istarts_with("Prefix-Value", "pre"),
+                "istarts_with should match ASCII prefixes case-insensitively");
+    EXPECT_FALSE(ic_istarts_with(NULL, "pre"),
+                 "istarts_with should fail when source string is NULL");
+
+    EXPECT_TRUE(ic_char_is_white(" ", 1), "space should classify as whitespace");
+    EXPECT_TRUE(ic_char_is_nonwhite("x", 1), "regular letters should classify as non-whitespace");
+    EXPECT_TRUE(ic_char_is_separator(";", 1), "semicolon should classify as separator");
+    EXPECT_TRUE(ic_char_is_nonseparator("a", 1), "letters should classify as non-separators");
+    EXPECT_TRUE(ic_char_is_digit("9", 1), "digit classification should recognize decimal digits");
+    EXPECT_TRUE(ic_char_is_hexdigit("F", 1),
+                "hexdigit classification should recognize uppercase hexadecimal digits");
+    EXPECT_TRUE(ic_char_is_letter("Z", 1), "letter classification should recognize ASCII letters");
+    EXPECT_TRUE(ic_char_is_idletter("_", 1), "idletter classification should include underscore");
+    EXPECT_TRUE(ic_char_is_filename_letter(".", 1),
+                "filename letter classification should include period character");
+
+    const char* sample = "func test";
+    EXPECT_TRUE(ic_is_token(sample, 0, &ic_char_is_letter) == 4,
+                "token detector should report token length at token boundaries");
+    EXPECT_TRUE(ic_is_token(sample, 1, &ic_char_is_letter) == -1,
+                "token detector should reject offsets inside an existing token");
+    EXPECT_TRUE(ic_match_token(sample, 0, &ic_char_is_letter, "func") == 4,
+                "match_token should return token length on exact match");
+    EXPECT_TRUE(ic_match_token(sample, 0, &ic_char_is_letter, "fun") == 0,
+                "match_token should reject strict prefix matches");
+
+    const char* tokens[] = {"foo", "func", NULL};
+    EXPECT_TRUE(ic_match_any_token(sample, 0, &ic_char_is_letter, tokens) == 4,
+                "match_any_token should return matching token length when any candidate matches");
+    EXPECT_TRUE(ic_match_any_token(sample, 5, &ic_char_is_letter, tokens) == 0,
+                "match_any_token should return zero when no candidate matches");
+
+    return true;
+}
+
+static bool test_prev_next_char_utf8_helpers(void) {
+    const char sample[] = {'a', (char)0xE2, (char)0x82, (char)0xAC, 'b', 0};
+
+    EXPECT_TRUE(ic_next_char(sample, 0) == 1, "next_char should advance one byte over ASCII");
+    EXPECT_TRUE(ic_next_char(sample, 1) == 4,
+                "next_char should advance over complete multi-byte UTF-8 sequence");
+    EXPECT_TRUE(ic_next_char(sample, 4) == 5, "next_char should advance over trailing ASCII");
+
+    EXPECT_TRUE(ic_prev_char(sample, 5) == 4, "prev_char should step back one byte over ASCII");
+    EXPECT_TRUE(ic_prev_char(sample, 4) == 1,
+                "prev_char should step back over complete multi-byte UTF-8 sequence");
+    EXPECT_TRUE(ic_prev_char(sample, 1) == 0, "prev_char should step back to start of buffer");
+
+    EXPECT_TRUE(ic_next_char(sample, 5) == -1, "next_char should fail at end-of-string cursor");
+    EXPECT_TRUE(ic_prev_char(sample, 0) == -1, "prev_char should fail at start-of-string cursor");
+    EXPECT_TRUE(ic_next_char(NULL, 0) == -1, "next_char should reject NULL strings");
+    EXPECT_TRUE(ic_prev_char(NULL, 0) == -1, "prev_char should reject NULL strings");
+
+    return true;
+}
+
+static bool test_term_visibility_tracking_with_escape_and_control_bytes(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL || env->term == NULL)
+        return false;
+
+    term_reset_line_state(env->term);
+    term_set_track_output(env->term, true);
+
+    const char* sgr_only = "\x1B[31m";
+    term_write_n(env->term, sgr_only, (ssize_t)strlen(sgr_only));
+    EXPECT_FALSE(term_line_has_visible_content(env->term),
+                 "ANSI SGR escape bytes alone should not mark line as visibly non-empty");
+
+    const char ignored_controls[] = {'\x01', '\x02', '\x06'};
+    term_write_n(env->term, ignored_controls, (ssize_t)sizeof(ignored_controls));
+    EXPECT_FALSE(term_line_has_visible_content(env->term),
+                 "ignored control bytes should not mark line as visibly non-empty");
+
+    term_write_n(env->term, "\t", 1);
+    EXPECT_TRUE(term_line_has_visible_content(env->term),
+                "tab should count as visible line content while tracking output");
+
+    term_write_n(env->term, "\n", 1);
+    EXPECT_FALSE(term_line_has_visible_content(env->term),
+                 "newline should reset tracked visible-content state for the line");
+
+    term_set_track_output(env->term, false);
+    term_reset_line_state(env->term);
+    return true;
+}
+
+static bool test_key_spec_ctrl_space_variants(void) {
+    ic_keycode_t key = IC_KEY_NONE;
+    EXPECT_TRUE(ic_parse_key_spec("ctrl+space", &key), "ctrl+space key spec should parse");
+    EXPECT_TRUE(key == IC_KEY_CTRL_SPACE,
+                "ctrl+space should map to dedicated ctrl-space keycode constant");
+
+    EXPECT_TRUE(ic_parse_key_spec("ctrl+@", &key), "ctrl+@ key spec should parse");
+    EXPECT_TRUE(key == IC_KEY_CTRL_SPACE, "ctrl+@ should map to the same keycode as ctrl+space");
+
+    char formatted[64];
+    EXPECT_TRUE(ic_format_key_spec(IC_KEY_CTRL_SPACE, formatted, sizeof(formatted)),
+                "formatting ctrl-space keycode should succeed");
+    EXPECT_STREQ(formatted, "ctrl+space",
+                 "ctrl-space keycode should format to canonical ctrl+space name");
+
+    EXPECT_TRUE(ic_parse_key_spec("ctrl+tab", &key), "ctrl+tab key spec should parse");
+    EXPECT_TRUE(ic_format_key_spec(key, formatted, sizeof(formatted)),
+                "formatting ctrl+tab keycode should succeed");
+    EXPECT_STREQ(formatted, "ctrl+tab",
+                 "ctrl+tab should preserve explicit named key in formatted output");
+
+    return true;
+}
+
+static bool test_initial_input_env_lifecycle(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    ic_env_clear_initial_input(env);
+    EXPECT_TRUE(env->initial_input == NULL,
+                "initial input should start cleared for lifecycle test");
+
+    char mutable_seed[] = "echo seeded";
+    ic_env_set_initial_input(env, mutable_seed);
+    EXPECT_TRUE(env->initial_input != NULL, "setting initial input should allocate env storage");
+    EXPECT_STREQ(env->initial_input, "echo seeded",
+                 "initial input setter should preserve original text");
+
+    mutable_seed[0] = 'X';
+    EXPECT_STREQ(env->initial_input, "echo seeded",
+                 "initial input should be copied, not aliased to caller memory");
+
+    ic_env_set_initial_input(env, "printf seeded");
+    EXPECT_STREQ(env->initial_input, "printf seeded",
+                 "setting initial input again should replace previous stored value");
+
+    ic_env_clear_initial_input(env);
+    EXPECT_TRUE(env->initial_input == NULL, "clearing initial input should reset pointer to NULL");
+
+    return true;
+}
+
+static bool test_unicode_display_width_control_codepoints(void) {
+    static const uint8_t control_mix[] = {'A', 0x01, 0x7F, 0x09, 'B'};
+    size_t ansi_chars = 0;
+    size_t visible_chars = 0;
+    size_t display_width = unicode_calculate_display_width(
+        (const char*)control_mix, sizeof(control_mix), &ansi_chars, &visible_chars);
+
+    EXPECT_TRUE(display_width == 2,
+                "control bytes should have zero width while printable bytes keep normal width");
+    EXPECT_TRUE(ansi_chars == 0, "plain control bytes should not be counted as ANSI escape bytes");
+    EXPECT_TRUE(visible_chars == 2,
+                "visible char count should exclude zero-width control codepoints");
+
+    size_t utf8_width = unicode_calculate_utf8_width((const char*)control_mix, sizeof(control_mix));
+    EXPECT_TRUE(utf8_width == 2,
+                "utf8 width helper should also treat C0/C1 controls as zero-width characters");
+
+    return true;
+}
+
 typedef bool (*test_fn_t)(void);
 
 typedef struct test_case_s {
@@ -936,6 +1481,23 @@ static const test_case_t kTests[] = {
     {"push_raw_input_preconditions", test_push_raw_input_preconditions},
     {"tty_character_pushback_capacity_guard", test_tty_character_pushback_capacity_guard},
     {"push_raw_input_null_pointer_rejected", test_push_raw_input_null_pointer_rejected},
+    {"prompt_marker_roundtrip", test_prompt_marker_roundtrip},
+    {"hint_delay_clamps", test_hint_delay_clamps},
+    {"status_hint_mode_validation", test_status_hint_mode_validation},
+    {"option_toggle_consistency", test_option_toggle_consistency},
+    {"prompt_cleanup_newline_and_getters", test_prompt_cleanup_newline_and_getters},
+    {"brace_pair_setters_validation", test_brace_pair_setters_validation},
+    {"abbreviation_management", test_abbreviation_management},
+    {"key_spec_parse_and_format_roundtrip", test_key_spec_parse_and_format_roundtrip},
+    {"key_binding_crud_and_profiles", test_key_binding_crud_and_profiles},
+    {"key_action_name_mappings", test_key_action_name_mappings},
+    {"string_matching_and_token_helpers", test_string_matching_and_token_helpers},
+    {"prev_next_char_utf8_helpers", test_prev_next_char_utf8_helpers},
+    {"term_visibility_tracking_with_escape_and_control_bytes",
+     test_term_visibility_tracking_with_escape_and_control_bytes},
+    {"key_spec_ctrl_space_variants", test_key_spec_ctrl_space_variants},
+    {"initial_input_env_lifecycle", test_initial_input_env_lifecycle},
+    {"unicode_display_width_control_codepoints", test_unicode_display_width_control_codepoints},
 };
 
 int main(void) {
