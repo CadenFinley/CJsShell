@@ -186,6 +186,36 @@ fg_command_name_resolves_job() {
     return 0
 }
 
+fg_without_arg_resolves_only_job() {
+    log "Test: fg without args resolves the only job"
+    local output
+    output=$("$CJSH_PATH" -i -c "sleep 0.2 & fg" 2>&1)
+    local exit_code=$?
+
+    if [ $exit_code -ne 0 ]; then
+        echo "FAIL: fg without args failed with one job (exit $exit_code): $output"
+        return 1
+    fi
+
+    echo "PASS"
+    return 0
+}
+
+bg_without_arg_resolves_only_stopped_job() {
+    log "Test: bg without args resolves the only stopped job"
+    local output
+    output=$("$CJSH_PATH" -i -c "sleep 5 & pid=\$!; kill -STOP \$pid; sleep 0.05; bg; bg_status=\$?; kill \$pid 2>/dev/null; wait \$pid 2>/dev/null || true; exit \$bg_status" 2>&1)
+    local exit_code=$?
+
+    if [ $exit_code -ne 0 ]; then
+        echo "FAIL: bg without args failed with one stopped job (exit $exit_code): $output"
+        return 1
+    fi
+
+    echo "PASS"
+    return 0
+}
+
 fg_command_prefix_resolves_job() {
     log "Test: fg resolves job by command prefix"
     local output
@@ -705,6 +735,14 @@ if ! jobs_p_option_stays_silent_when_empty; then
 fi
 
 if ! fg_command_name_resolves_job; then
+    status=1
+fi
+
+if ! fg_without_arg_resolves_only_job; then
+    status=1
+fi
+
+if ! bg_without_arg_resolves_only_stopped_job; then
     status=1
 fi
 

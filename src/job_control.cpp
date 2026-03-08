@@ -107,13 +107,23 @@ std::shared_ptr<JobControlJob> resolve_job_argument(const std::vector<std::strin
 
     if (args.size() <= 1) {
         auto job = job_manager.get_job(job_id_out);
-        if (!job) {
-            print_error({ErrorType::INVALID_ARGUMENT,
-                         std::to_string(job_id_out),
-                         "no such job",
-                         {"Use 'jobs' to list available jobs"}});
+        if (job) {
+            return job;
         }
-        return job;
+
+        const auto jobs = job_manager.get_all_jobs();
+        if (jobs.empty()) {
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         "",
+                         "no current job",
+                         {"Use 'jobs' to list available jobs"}});
+            return nullptr;
+        }
+
+        auto fallback = jobs.back();
+        job_id_out = fallback->job_id;
+        job_manager.set_current_job(job_id_out);
+        return fallback;
     }
 
     std::string job_spec = args[1];
