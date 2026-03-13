@@ -35,13 +35,13 @@
 #include <sysexits.h>
 #include <unistd.h>
 
-#include <stdlib.h>
 #include <algorithm>
 #include <array>
 #include <atomic>
 #include <cerrno>
 #include <csignal>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <ctime>
 #include <iostream>
@@ -49,6 +49,7 @@
 #include <optional>
 #include <sstream>
 #include <stdexcept>
+#include <string>
 #include <string_view>
 #include <thread>
 #include <vector>

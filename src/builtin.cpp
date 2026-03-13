@@ -31,12 +31,10 @@
 #include "builtin_help.h"
 
 #include <fcntl.h>
-#include <sys/wait.h>
 #include <unistd.h>
 
 #include "alias_abbr_commands.h"
 #include "cd_command.h"
-#include "cjsh.h"
 #include "cjshopt_command.h"
 #include "command_command.h"
 #include "directory_stack_commands.h"
@@ -236,8 +234,7 @@ Built_ins::Built_ins() : shell(nullptr) {
     };
 }
 
-Built_ins::~Built_ins() {
-}
+Built_ins::~Built_ins() = default;
 
 void Built_ins::set_shell(Shell* shell_ptr) {
     shell = shell_ptr;

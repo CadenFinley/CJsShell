@@ -29,7 +29,6 @@
 #include "cjsh.h"
 
 #include <getopt.h>
-#include <sys/wait.h>
 #include <unistd.h>
 
 #include <chrono>
@@ -44,12 +43,10 @@
 #include <malloc.h>
 #endif
 
-#include "builtin.h"
 #include "cjsh_filesystem.h"
 #include "error_out.h"
 #include "flags.h"
 #include "interpreter.h"
-#include "job_control.h"
 #include "main_loop.h"
 #include "prompt.h"
 #include "shell.h"

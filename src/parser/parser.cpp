@@ -29,9 +29,6 @@
 #include "parser.h"
 
 #include <fcntl.h>
-#include <glob.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -42,8 +39,10 @@
 #include <map>
 #include <optional>
 #include <stdexcept>
+#include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 #include "builtin.h"
 #include "cjsh.h"

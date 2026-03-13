@@ -452,8 +452,7 @@ std::vector<std::string> ExpansionEngine::expand_wildcards(const std::string& pa
         }
     }
 
-    glob_t glob_result;
-    memset(&glob_result, 0, sizeof(glob_result));
+    glob_t glob_result{};
 
     int return_value = glob(unescaped.c_str(), GLOB_TILDE | GLOB_MARK, nullptr, &glob_result);
     if (return_value == 0) {

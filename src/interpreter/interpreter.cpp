@@ -29,7 +29,6 @@
 #include "interpreter.h"
 
 #include <sys/ioctl.h>
-#include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -43,11 +42,13 @@
 #include <fstream>
 #include <functional>
 #include <iostream>
+#include <memory>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
+#include <string>
+#include <string_view>
 #include <system_error>
-#include <unordered_set>
 #include <utility>
 
 #include "arithmetic_evaluator.h"
@@ -952,19 +953,10 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
     };
 
     auto execute_block_skip_validation = [&](const std::vector<std::string>& block_lines) -> int {
-        struct LoopScope {
-            ShellScriptInterpreter* self;
-            explicit LoopScope(ShellScriptInterpreter* interpreter) : self(interpreter) {
-                if (self) {
-                    self->push_loop_scope();
-                }
-            }
-            ~LoopScope() {
-                if (self) {
-                    self->pop_loop_scope();
-                }
-            }
-        } scope(this);
+        push_loop_scope();
+        auto loop_scope_cleanup = [this](void*) { pop_loop_scope(); };
+        auto loop_scope =
+            std::unique_ptr<void, decltype(loop_scope_cleanup)>(nullptr, loop_scope_cleanup);
 
         return execute_block(block_lines, true);
     };
@@ -1153,7 +1145,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
             }
 
             size_t gather_index = line_index;
-            int loop_depth = 0;
+            int nested_loop_depth = 0;
             std::vector<std::string> block_lines;
             block_lines.reserve(4);
 
@@ -1164,11 +1156,11 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                 block_lines.push_back(gather_raw);
 
                 if (contains_token(gather_trimmed, "do")) {
-                    loop_depth++;
+                    nested_loop_depth++;
                 }
                 if (contains_token(gather_trimmed, "done")) {
-                    loop_depth--;
-                    if (loop_depth <= 0) {
+                    nested_loop_depth--;
+                    if (nested_loop_depth <= 0) {
                         break;
                     }
                 }
@@ -1176,7 +1168,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                 gather_index++;
             }
 
-            if (loop_depth <= 0 && !block_lines.empty()) {
+            if (nested_loop_depth <= 0 && !block_lines.empty()) {
                 std::string combined;
                 combined.reserve(128);
                 for (size_t idx = 0; idx < block_lines.size(); ++idx) {
