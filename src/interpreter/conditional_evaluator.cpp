@@ -689,7 +689,11 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                         if (cond_result == 0 && !condition_met) {
                             auto cmds = shell_parser->parse_semicolon_commands(commands);
                             for (const auto& c : cmds) {
-                                execute_simple_or_pipeline(c);
+                                int rc = execute_simple_or_pipeline(c);
+                                if (rc == 253 || rc == 254 || rc == 255) {
+                                    idx = 0;
+                                    return rc;
+                                }
                             }
                             idx = 0;
                             return 0;
@@ -764,7 +768,11 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                                 trim(remaining.substr(branch_pos, fi_end - branch_pos));
                             auto cmds = shell_parser->parse_semicolon_commands(else_commands);
                             for (const auto& c : cmds) {
-                                execute_simple_or_pipeline(c);
+                                int rc = execute_simple_or_pipeline(c);
+                                if (rc == 253 || rc == 254 || rc == 255) {
+                                    idx = 0;
+                                    return rc;
+                                }
                             }
                             idx = 0;
                             return 0;
@@ -775,7 +783,11 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                     if (commands.length() > 0) {
                         auto cmds = shell_parser->parse_semicolon_commands(commands);
                         for (const auto& c : cmds) {
-                            execute_simple_or_pipeline(c);
+                            int rc = execute_simple_or_pipeline(c);
+                            if (rc == 253 || rc == 254 || rc == 255) {
+                                idx = 0;
+                                return rc;
+                            }
                         }
                     }
                     break;

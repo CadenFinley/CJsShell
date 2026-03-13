@@ -178,15 +178,6 @@ class ShellScriptInterpreter {
     std::string expand_all_substitutions(const std::string& input,
                                          cjsh::FunctionRef<int(const std::string&)> executor);
 
-    int execute_command_internal(const std::string& cmd_text, bool allow_semicolon_split,
-                                 cjsh::FunctionRef<int(const std::string&)> executor);
-
-    int process_theme_definition_block(const std::vector<std::string>& lines, size_t& line_index);
-
-    int process_function_definition_line(const std::string& line,
-                                         const std::vector<std::string>& lines, size_t& line_index,
-                                         std::string& remaining_line);
-
     struct BlockHandlerResult {
         bool handled;
         int exit_code;

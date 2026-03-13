@@ -52,7 +52,6 @@ class Built_ins {
     int is_builtin_command(const std::string& cmd) const;
 
     std::vector<std::string> get_builtin_commands() const;
-    int do_ai_request(const std::string& prompt);
 
    private:
     std::string current_directory;
