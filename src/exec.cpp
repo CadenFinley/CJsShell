@@ -1359,11 +1359,15 @@ int Exec::execute_command_sync(const std::vector<std::string>& args, bool auto_b
 
     std::lock_guard<std::mutex> lock(jobs_mutex);
     auto it = jobs.find(job_id);
-    int exit_code = 0;
+    int exit_code = last_exit_code;
 
     if (it != jobs.end() && it->second.completed) {
         exit_code = extract_exit_code(it->second.status);
         JobManager::instance().remove_job(new_job_id);
+    } else if (it != jobs.end() && it->second.stopped) {
+        if (WIFSTOPPED(it->second.status)) {
+            exit_code = 128 + WSTOPSIG(it->second.status);
+        }
     }
 
     auto exit_result = job_utils::make_exit_error_result(

@@ -29,6 +29,7 @@
 #include "prompt.h"
 
 #include <pwd.h>
+#include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -831,9 +832,17 @@ int exit_status_value() {
 
 std::string status_symbol() {
     static const char* arrow = u8"\u279C";
-    if (exit_status_value() == 0) {
+    int status = exit_status_value();
+    if (status == 0) {
         return std::string("[b color=#2dd881]") + arrow + "[/]";
     }
+
+    int signal_status = status - 128;
+    if (signal_status == SIGTSTP || signal_status == SIGSTOP || signal_status == SIGTTIN ||
+        signal_status == SIGTTOU) {
+        return std::string("[b color=#ffd166]") + arrow + "[/]";
+    }
+
     return std::string("[b color=#ff6b6b]") + arrow + "[/]";
 }
 
