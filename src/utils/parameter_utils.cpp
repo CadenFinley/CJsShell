@@ -29,6 +29,7 @@
 #include "parameter_utils.h"
 
 #include <unistd.h>
+#include <cctype>
 #include <cstdlib>
 #include <string>
 
@@ -36,6 +37,35 @@
 #include "job_control.h"
 
 namespace parameter_utils {
+
+bool is_special_parameter_char(char c) {
+    return c == '?' || c == '$' || c == '#' || c == '*' || c == '@' || c == '!';
+}
+
+bool is_named_special_parameter_char(char c) {
+    return is_special_parameter_char(c);
+}
+
+bool is_special_parameter_name(const std::string& name) {
+    if (name.size() != 1) {
+        return false;
+    }
+
+    const unsigned char c = static_cast<unsigned char>(name[0]);
+    return (std::isdigit(c) != 0) || is_special_parameter_char(name[0]);
+}
+
+bool is_named_special_parameter_name(const std::string& name) {
+    return name.size() == 1 && is_named_special_parameter_char(name[0]);
+}
+
+bool is_special_parameter_reference(const std::string& name) {
+    if (name.size() != 2 || name[0] != '$') {
+        return false;
+    }
+
+    return is_special_parameter_name(name.substr(1, 1));
+}
 
 std::string join_positional_parameters() {
     const auto params = flags::get_positional_parameters();

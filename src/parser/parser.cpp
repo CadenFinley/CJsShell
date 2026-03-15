@@ -381,19 +381,7 @@ bool line_has_continuation(const std::string& line, bool ended_in_comment) {
         return false;
     }
 
-    size_t end = line.find_last_not_of(" \t");
-    if (end == std::string::npos || line[end] != '\\') {
-        return false;
-    }
-
-    size_t backslash_count = 0;
-    size_t idx = end + 1;
-    while (idx > 0 && line[idx - 1] == '\\') {
-        backslash_count++;
-        idx--;
-    }
-
-    return (backslash_count % 2) == 1;
+    return has_line_continuation_suffix(line);
 }
 
 std::vector<std::string> merge_line_continuations(const std::vector<std::string>& lines,

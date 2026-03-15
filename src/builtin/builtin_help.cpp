@@ -31,15 +31,34 @@
 #include <iostream>
 
 bool builtin_handle_help(const std::vector<std::string>& args,
-                         const std::vector<std::string>& help_lines) {
-    if (args.size() > 1) {
-        const std::string& flag = args[1];
-        if (flag == "--help" || flag == "-h") {
-            for (const auto& line : help_lines) {
-                std::cout << line << '\n';
+                         const std::vector<std::string>& help_lines,
+                         BuiltinHelpScanMode scan_mode) {
+    if (args.size() <= 1) {
+        return false;
+    }
+
+    auto should_print_help = [&](const std::string& flag) {
+        return flag == "--help" || flag == "-h";
+    };
+
+    bool help_requested = false;
+    if (scan_mode == BuiltinHelpScanMode::FirstArgument) {
+        help_requested = should_print_help(args[1]);
+    } else {
+        for (size_t i = 1; i < args.size(); ++i) {
+            if (should_print_help(args[i])) {
+                help_requested = true;
+                break;
             }
-            return true;
         }
     }
-    return false;
+
+    if (!help_requested) {
+        return false;
+    }
+
+    for (const auto& line : help_lines) {
+        std::cout << line << '\n';
+    }
+    return true;
 }

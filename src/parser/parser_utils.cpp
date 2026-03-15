@@ -104,15 +104,14 @@ bool is_valid_identifier(const std::string& name) {
     return true;
 }
 
+bool split_on_first_equals(const std::string& value, std::string& left, std::string& right,
+                           bool require_nonempty_left);
+
 bool parse_assignment(const std::string& arg, std::string& name, std::string& value,
                       bool strip_surrounding_quotes) {
-    size_t equals_pos = arg.find('=');
-    if (equals_pos == std::string::npos || equals_pos == 0) {
+    if (!split_on_first_equals(arg, name, value, true)) {
         return false;
     }
-
-    name = arg.substr(0, equals_pos);
-    value = arg.substr(equals_pos + 1);
 
     if (strip_surrounding_quotes && value.size() >= 2) {
         if ((value.front() == '"' && value.back() == '"') ||
@@ -124,13 +123,29 @@ bool parse_assignment(const std::string& arg, std::string& name, std::string& va
     return true;
 }
 
-bool looks_like_assignment(const std::string& value) {
+bool split_on_first_equals(const std::string& value, std::string& left, std::string& right,
+                           bool require_nonempty_left) {
     size_t equals_pos = value.find('=');
-    if (equals_pos == std::string::npos || equals_pos == 0) {
+    if (equals_pos == std::string::npos) {
+        return false;
+    }
+    if (require_nonempty_left && equals_pos == 0) {
         return false;
     }
 
-    size_t name_end = equals_pos;
+    left = value.substr(0, equals_pos);
+    right = value.substr(equals_pos + 1);
+    return true;
+}
+
+bool looks_like_assignment(const std::string& value) {
+    std::string name;
+    std::string rhs;
+    if (!split_on_first_equals(value, name, rhs, true)) {
+        return false;
+    }
+
+    size_t name_end = name.size();
     if (name_end > 0 && value[name_end - 1] == '+') {
         name_end--;
     }
@@ -139,7 +154,32 @@ bool looks_like_assignment(const std::string& value) {
         return false;
     }
 
-    return is_valid_identifier(value.substr(0, name_end));
+    return is_valid_identifier(name.substr(0, name_end));
+}
+
+bool has_line_continuation_suffix(const std::string& text, bool trim_newlines) {
+    size_t pos = text.size();
+    if (trim_newlines) {
+        while (pos > 0 && (text[pos - 1] == '\n' || text[pos - 1] == '\r')) {
+            --pos;
+        }
+    }
+
+    while (pos > 0 && (text[pos - 1] == ' ' || text[pos - 1] == '\t')) {
+        --pos;
+    }
+
+    if (pos == 0 || text[pos - 1] != '\\') {
+        return false;
+    }
+
+    size_t slash_count = 0;
+    while (pos > 0 && text[pos - 1] == '\\') {
+        ++slash_count;
+        --pos;
+    }
+
+    return (slash_count % 2) == 1;
 }
 
 std::pair<std::string, bool> strip_noenv_sentinels(const std::string& s) {

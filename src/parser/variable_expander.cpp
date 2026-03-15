@@ -36,6 +36,7 @@
 #include "interpreter.h"
 #include "parameter_utils.h"
 #include "parser.h"
+#include "parser_utils.h"
 #include "shell.h"
 #include "shell_env.h"
 
@@ -65,8 +66,7 @@ std::string VariableExpander::get_variable_value(const std::string& var_name) {
 }
 
 std::string VariableExpander::get_exported_variable_value(const std::string& var_name) {
-    if (var_name == "?" || var_name == "$" || var_name == "#" || var_name == "*" ||
-        var_name == "@" || var_name == "!") {
+    if (parameter_utils::is_named_special_parameter_name(var_name)) {
         if ((shell != nullptr) && (shell->get_shell_script_interpreter() != nullptr)) {
             return shell->get_shell_script_interpreter()->get_variable_value(var_name);
         }
@@ -90,8 +90,7 @@ std::string VariableExpander::resolve_parameter_value(const std::string& var_nam
         static const std::string cached_pid = std::to_string(getpid());
         std::string special_value =
             parameter_utils::get_special_parameter_value(var_name, cached_pid);
-        if (!special_value.empty() || var_name == "?" || var_name == "$" || var_name == "#" ||
-            var_name == "*" || var_name == "@" || var_name == "!") {
+        if (!special_value.empty() || parameter_utils::is_named_special_parameter_name(var_name)) {
             return special_value;
         }
     }
@@ -110,14 +109,12 @@ std::string VariableExpander::resolve_parameter_value(const std::string& var_nam
         if (shell != nullptr) {
             append_flag('i', shell->get_interactive_mode());
             append_flag('m', shell->is_job_control_enabled());
-            append_flag('e', shell->get_shell_option(ShellOption::Errexit));
-            append_flag('C', shell->get_shell_option(ShellOption::Noclobber));
-            append_flag('u', shell->get_shell_option(ShellOption::Nounset));
-            append_flag('x', shell->get_shell_option(ShellOption::Xtrace));
-            append_flag('v', shell->get_shell_option(ShellOption::Verbose));
-            append_flag('n', shell->get_shell_option(ShellOption::Noexec));
-            append_flag('f', shell->get_shell_option(ShellOption::Noglob));
-            append_flag('a', shell->get_shell_option(ShellOption::Allexport));
+            for (const auto& descriptor : get_shell_option_descriptors()) {
+                if (descriptor.short_flag == 0) {
+                    continue;
+                }
+                append_flag(descriptor.short_flag, shell->get_shell_option(descriptor.option));
+            }
         }
         return flags;
     }
@@ -226,11 +223,9 @@ void VariableExpander::expand_env_vars(std::string& arg) {
         }
 
         if (in_var) {
-            if ((isalnum(arg[i]) != 0) || arg[i] == '_' ||
-                (var_name.empty() && (isdigit(arg[i]) != 0)) ||
+            if (is_valid_identifier_char(arg[i]) ||
                 (var_name.empty() &&
-                 (arg[i] == '?' || arg[i] == '$' || arg[i] == '#' || arg[i] == '*' ||
-                  arg[i] == '@' || arg[i] == '!' || arg[i] == '-'))) {
+                 (parameter_utils::is_special_parameter_char(arg[i]) || arg[i] == '-'))) {
                 var_name += arg[i];
             } else {
                 in_var = false;
@@ -244,10 +239,9 @@ void VariableExpander::expand_env_vars(std::string& arg) {
                 }
             }
         } else if (arg[i] == '$' && (i + 1 < arg.length()) &&
-                   ((isalpha(arg[i + 1]) != 0) || arg[i + 1] == '_' || (isdigit(arg[i + 1]) != 0) ||
-                    arg[i + 1] == '?' || arg[i + 1] == '$' || arg[i + 1] == '#' ||
-                    arg[i + 1] == '*' || arg[i + 1] == '@' || arg[i + 1] == '!' ||
-                    arg[i + 1] == '-')) {
+                   (is_valid_identifier_start(arg[i + 1]) ||
+                    (std::isdigit(static_cast<unsigned char>(arg[i + 1])) != 0) ||
+                    parameter_utils::is_special_parameter_char(arg[i + 1]) || arg[i + 1] == '-')) {
             in_var = true;
             var_name.clear();
             continue;

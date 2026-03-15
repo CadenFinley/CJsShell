@@ -73,6 +73,7 @@ struct ShellOptionDescriptor {
 const std::array<ShellOptionDescriptor, static_cast<size_t>(ShellOption::Count)>&
 get_shell_option_descriptors();
 std::optional<ShellOption> parse_shell_option(const std::string& name);
+std::optional<ShellOption> parse_shell_option_short(char short_flag);
 
 enum class HookType : std::uint8_t {
     Precmd,

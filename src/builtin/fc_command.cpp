@@ -28,6 +28,8 @@
 
 #include "fc_command.h"
 
+#include "builtin_help.h"
+
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
@@ -44,10 +46,46 @@
 
 #include "cjsh_filesystem.h"
 #include "error_out.h"
+#include "parser_utils.h"
 #include "shell.h"
 #include "shell_env.h"
 
 namespace {
+
+const std::vector<std::string>& fc_help_lines() {
+    static const std::vector<std::string> lines = {
+        "Usage: fc [-e editor] [-lnr] [first [last]]",
+        "       fc -s [old=new] [command]",
+        "       fc -c command_string",
+        "",
+        "Fix Command - Edit and re-execute commands from history.",
+        "",
+        "Options:",
+        "  -e editor   Use specified editor (default: $FCEDIT, $EDITOR, or nano)",
+        "  -l          List commands instead of editing",
+        "  -n          Suppress line numbers when listing",
+        "  -r          Reverse order of commands when listing",
+        "  -s          Re-execute command with optional substitution",
+        "  -c string   Open editor with the provided string",
+        "",
+        "Arguments:",
+        "  first       First command to edit/list (default: previous command)",
+        "  last        Last command to edit/list (default: same as first)",
+        "  old=new     String substitution (for -s option)",
+        "  command     Command pattern to match (for -s option)",
+        "",
+        "Examples:",
+        "  fc              Edit the previous command",
+        "  fc -l           List recent history",
+        "  fc -l 10 20     List commands 10 through 20",
+        "  fc 53           Edit command 53",
+        "  fc -e nano      Edit previous command with nano",
+        "  fc -s           Re-execute the previous command",
+        "  fc -s echo      Re-execute most recent 'echo' command",
+        "  fc -s old=new   Re-execute previous command, replacing 'old' with 'new'",
+        "  fc -c 'echo hello'  Open editor with 'echo hello' as initial content"};
+    return lines;
+}
 
 std::vector<std::string> read_history_entries() {
     cjsh_filesystem::initialize_cjsh_directories();
@@ -349,6 +387,10 @@ int substitute_and_execute(const std::vector<std::string>& entries, const std::s
 }  // namespace
 
 int fc_command(const std::vector<std::string>& args, Shell* shell) {
+    if (builtin_handle_help(args, fc_help_lines(), BuiltinHelpScanMode::AnyArgument)) {
+        return 0;
+    }
+
     bool list_mode = false;
     bool substitute_mode = false;
     bool command_mode = false;
@@ -366,41 +408,7 @@ int fc_command(const std::vector<std::string>& args, Shell* shell) {
     while (i < args.size()) {
         const std::string& arg = args[i];
 
-        if (arg == "-h" || arg == "--help") {
-            std::cout << "Usage: fc [-e editor] [-lnr] [first [last]]\n";
-            std::cout << "       fc -s [old=new] [command]\n";
-            std::cout << "       fc -c command_string\n";
-            std::cout << "\n";
-            std::cout << "Fix Command - Edit and re-execute commands from history.\n";
-            std::cout << "\n";
-            std::cout << "Options:\n";
-            std::cout
-                << "  -e editor   Use specified editor (default: $FCEDIT, $EDITOR, or nano)\n";
-            std::cout << "  -l          List commands instead of editing\n";
-            std::cout << "  -n          Suppress line numbers when listing\n";
-            std::cout << "  -r          Reverse order of commands when listing\n";
-            std::cout << "  -s          Re-execute command with optional substitution\n";
-            std::cout << "  -c string   Open editor with the provided string\n";
-            std::cout << "\n";
-            std::cout << "Arguments:\n";
-            std::cout << "  first       First command to edit/list (default: previous command)\n";
-            std::cout << "  last        Last command to edit/list (default: same as first)\n";
-            std::cout << "  old=new     String substitution (for -s option)\n";
-            std::cout << "  command     Command pattern to match (for -s option)\n";
-            std::cout << "\n";
-            std::cout << "Examples:\n";
-            std::cout << "  fc              Edit the previous command\n";
-            std::cout << "  fc -l           List recent history\n";
-            std::cout << "  fc -l 10 20     List commands 10 through 20\n";
-            std::cout << "  fc 53           Edit command 53\n";
-            std::cout << "  fc -e nano      Edit previous command with nano\n";
-            std::cout << "  fc -s           Re-execute the previous command\n";
-            std::cout << "  fc -s echo      Re-execute most recent 'echo' command\n";
-            std::cout
-                << "  fc -s old=new   Re-execute previous command, replacing 'old' with 'new'\n";
-            std::cout << "  fc -c 'echo hello'  Open editor with 'echo hello' as initial content\n";
-            return 0;
-        } else if (arg == "-l") {
+        if (arg == "-l") {
             list_mode = true;
             ++i;
         } else if (arg == "-n") {
@@ -436,10 +444,7 @@ int fc_command(const std::vector<std::string>& args, Shell* shell) {
             return 1;
         } else {
             if (substitute_mode) {
-                size_t eq_pos = arg.find('=');
-                if (eq_pos != std::string::npos) {
-                    old_pattern = arg.substr(0, eq_pos);
-                    new_pattern = arg.substr(eq_pos + 1);
+                if (split_on_first_equals(arg, old_pattern, new_pattern, false)) {
                     ++i;
                 } else if (command_pattern.empty()) {
                     command_pattern = arg;

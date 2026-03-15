@@ -73,31 +73,19 @@ std::string unquote_path(const std::string& path) {
         return path;
 
     std::string result;
-    bool in_single_quote = false;
-    bool in_double_quote = false;
-    bool escaped = false;
+    utils::QuoteState quote_state;
 
     for (size_t i = 0; i < path.length(); ++i) {
         char c = path[i];
 
-        if (escaped) {
+        bool was_escaped = quote_state.escaped;
+        utils::QuoteAdvanceResult advance_result = quote_state.consume_forward(c);
+        if (was_escaped) {
             result += c;
-            escaped = false;
             continue;
         }
 
-        if (c == '\\' && !in_single_quote) {
-            escaped = true;
-            continue;
-        }
-
-        if (c == '\'' && !in_double_quote) {
-            in_single_quote = !in_single_quote;
-            continue;
-        }
-
-        if (c == '"' && !in_single_quote) {
-            in_double_quote = !in_double_quote;
+        if (advance_result == utils::QuoteAdvanceResult::Continue) {
             continue;
         }
 

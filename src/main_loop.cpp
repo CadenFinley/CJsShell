@@ -67,6 +67,7 @@
 #include "job_control.h"
 #include "keycodes.h"
 #include "parser.h"
+#include "parser_utils.h"
 #include "pipeline_status_utils.h"
 #include "prompt.h"
 #include "shell.h"
@@ -403,29 +404,7 @@ bool should_show_creator_line() {
 }
 
 bool buffer_has_line_continuation_suffix(const std::string& buffer) {
-    if (buffer.empty()) {
-        return false;
-    }
-
-    size_t pos = buffer.size();
-    while (pos > 0 && (buffer[pos - 1] == '\n' || buffer[pos - 1] == '\r')) {
-        --pos;
-    }
-    while (pos > 0 && (buffer[pos - 1] == ' ' || buffer[pos - 1] == '\t')) {
-        --pos;
-    }
-
-    if (pos == 0 || buffer[pos - 1] != '\\') {
-        return false;
-    }
-
-    size_t slash_count = 0;
-    while (pos > 0 && buffer[pos - 1] == '\\') {
-        ++slash_count;
-        --pos;
-    }
-
-    return (slash_count % 2) == 1;
+    return has_line_continuation_suffix(buffer, true);
 }
 
 bool buffer_requires_additional_input(const std::string& buffer) {

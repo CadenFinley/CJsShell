@@ -31,5 +31,11 @@
 #include <string>
 #include <vector>
 
+enum class BuiltinHelpScanMode {
+    FirstArgument,
+    AnyArgument
+};
+
 bool builtin_handle_help(const std::vector<std::string>& args,
-                         const std::vector<std::string>& help_lines);
+                         const std::vector<std::string>& help_lines,
+                         BuiltinHelpScanMode scan_mode = BuiltinHelpScanMode::FirstArgument);

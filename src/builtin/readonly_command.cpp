@@ -39,6 +39,7 @@
 #include "cjsh.h"
 #include "error_out.h"
 #include "interpreter.h"
+#include "parameter_utils.h"
 #include "parser_utils.h"
 #include "shell.h"
 #include "shell_env.h"
@@ -53,12 +54,12 @@ struct ReadonlyFunctionState {
 };
 
 bool is_builtin_readonly_var(const std::string& name) {
-    if (name.size() == 1 && std::isdigit(static_cast<unsigned char>(name[0])) != 0) {
+    if (parameter_utils::is_special_parameter_name(name)) {
         return true;
     }
 
     static const std::unordered_set<std::string> kBuiltinReadonlyVars = {
-        "?", "$", "#", "*", "@", "!", "PIPESTATUS", "CJSH_VERSION", "EXIT_CODE"};
+        "PIPESTATUS", "CJSH_VERSION", "EXIT_CODE"};
     return kBuiltinReadonlyVars.find(name) != kBuiltinReadonlyVars.end();
 }
 

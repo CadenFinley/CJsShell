@@ -199,26 +199,19 @@ void highlight_quotes_and_variables(ic_highlight_env_t* henv, const char* input,
     const size_t end = start + length;
     const size_t input_len = std::strlen(input);
 
-    bool in_single_quote = false;
-    bool in_double_quote = false;
-    bool escaped = false;
+    utils::QuoteState quote_state;
     size_t single_quote_start = 0;
     size_t double_quote_start = 0;
 
     for (size_t i = start; i < end; ++i) {
         char c = input[i];
 
-        if (escaped) {
-            escaped = false;
+        if (quote_state.escaped) {
+            quote_state.consume_forward(c);
             continue;
         }
 
-        if (c == '\\' && !in_single_quote) {
-            escaped = true;
-            continue;
-        }
-
-        if (!in_single_quote && c == '$' && i + 1 < end && input[i + 1] == '(') {
+        if (!quote_state.in_single_quote && c == '$' && i + 1 < end && input[i + 1] == '(') {
             bool is_arithmetic = (i + 2 < end && input[i + 2] == '(');
             size_t match = find_matching_parenthesis(input, i + 2, end, 1);
             if (match != std::string::npos) {
@@ -230,7 +223,7 @@ void highlight_quotes_and_variables(ic_highlight_env_t* henv, const char* input,
             }
         }
 
-        if (!in_single_quote && c == '`') {
+        if (!quote_state.in_single_quote && c == '`') {
             size_t j = i + 1;
             bool inner_escaped = false;
             while (j < end) {
@@ -254,8 +247,8 @@ void highlight_quotes_and_variables(ic_highlight_env_t* henv, const char* input,
             }
         }
 
-        if (!in_single_quote && !in_double_quote && c == '(' && i + 1 < end &&
-            input[i + 1] == '(') {
+        if (!quote_state.in_single_quote && !quote_state.in_double_quote && c == '(' &&
+            i + 1 < end && input[i + 1] == '(') {
             size_t match = find_matching_parenthesis(input, i + 2, end, 2);
             if (match != std::string::npos) {
                 size_t highlight_len = (match + 1) - i;
@@ -266,31 +259,28 @@ void highlight_quotes_and_variables(ic_highlight_env_t* henv, const char* input,
             }
         }
 
-        if (c == '\'' && !in_double_quote) {
-            if (!in_single_quote) {
-                in_single_quote = true;
-                single_quote_start = i;
-            } else {
-                in_single_quote = false;
-                ic_highlight(henv, static_cast<long>(single_quote_start),
-                             static_cast<long>(i - single_quote_start + 1), "cjsh-string");
+        bool was_single_quote = quote_state.in_single_quote;
+        bool was_double_quote = quote_state.in_double_quote;
+        if (quote_state.consume_forward(c) == utils::QuoteAdvanceResult::Continue) {
+            if (c == '\'' && !was_double_quote) {
+                if (!was_single_quote) {
+                    single_quote_start = i;
+                } else {
+                    ic_highlight(henv, static_cast<long>(single_quote_start),
+                                 static_cast<long>(i - single_quote_start + 1), "cjsh-string");
+                }
+            } else if (c == '"' && !was_single_quote) {
+                if (!was_double_quote) {
+                    double_quote_start = i;
+                } else {
+                    ic_highlight(henv, static_cast<long>(double_quote_start),
+                                 static_cast<long>(i - double_quote_start + 1), "cjsh-string");
+                }
             }
             continue;
         }
 
-        if (c == '"' && !in_single_quote) {
-            if (!in_double_quote) {
-                in_double_quote = true;
-                double_quote_start = i;
-            } else {
-                in_double_quote = false;
-                ic_highlight(henv, static_cast<long>(double_quote_start),
-                             static_cast<long>(i - double_quote_start + 1), "cjsh-string");
-            }
-            continue;
-        }
-
-        if (c == '$' && !in_single_quote) {
+        if (c == '$' && !quote_state.in_single_quote) {
             size_t var_start = i;
             size_t var_end = i + 1;
             bool has_param_op = false;

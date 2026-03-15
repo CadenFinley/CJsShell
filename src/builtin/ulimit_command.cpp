@@ -405,17 +405,10 @@ int handle_unsupported_option(const OptionDescriptor& entry) {
     return 1;
 }
 
-int print_help_and_exit() {
-    for (const auto& line : ulimit_help_text()) {
-        std::cout << line << '\n';
-    }
-    return 0;
-}
-
 }  // namespace
 
 int ulimit_command(const std::vector<std::string>& args) {
-    if (builtin_handle_help(args, ulimit_help_text())) {
+    if (builtin_handle_help(args, ulimit_help_text(), BuiltinHelpScanMode::AnyArgument)) {
         return 0;
     }
 
@@ -438,9 +431,6 @@ int ulimit_command(const std::vector<std::string>& args) {
         if (arg == "--") {
             ++idx;
             break;
-        }
-        if (arg == "-h" || arg == "--help") {
-            return print_help_and_exit();
         }
         if (!arg.empty() && arg[0] == '-' && arg.size() > 1) {
             if (arg[1] == '-') {

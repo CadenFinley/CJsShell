@@ -27,6 +27,9 @@
 */
 
 #include "read_command.h"
+
+#include "builtin_help.h"
+
 #include <poll.h>
 #include <unistd.h>
 #include <cerrno>
@@ -42,30 +45,18 @@
 #include "shell_env.h"
 
 int read_command(const std::vector<std::string>& args, Shell* shell) {
-    auto print_usage = []() {
-        std::cout
-            << "Usage: read [-r] [-p prompt] [-n nchars] [-d delim] [-t timeout] [name ...]\n";
-        std::cout << "Read a line from standard input and split it into fields.\n\n";
-        std::cout << "Options:\n";
-        std::cout << "  -r            do not allow backslashes to escape any characters\n";
-        std::cout << "  -p prompt     output PROMPT without a trailing newline before reading\n";
-        std::cout << "  -n nchars     return after reading NCHARS characters rather than waiting "
-                     "for a newline\n";
-        std::cout << "  -d delim      continue until the first character of DELIM is read, rather "
-                     "than newline\n";
-        std::cout << "  -t timeout    time out after TIMEOUT seconds (fractional allowed)\n";
-    };
-
-    bool help_requested = false;
-    for (size_t i = 1; i < args.size(); ++i) {
-        if (args[i] == "--help") {
-            help_requested = true;
-            break;
-        }
-    }
-
-    if (help_requested) {
-        print_usage();
+    if (builtin_handle_help(
+            args,
+            {"Usage: read [-r] [-p prompt] [-n nchars] [-d delim] [-t timeout] [name ...]",
+             "Read a line from standard input and split it into fields.", "",
+             "Options:", "  -r            do not allow backslashes to escape any characters",
+             "  -p prompt     output PROMPT without a trailing newline before reading",
+             "  -n nchars     return after reading NCHARS characters rather than waiting for a "
+             "newline",
+             "  -d delim      continue until the first character of DELIM is read, rather than "
+             "newline",
+             "  -t timeout    time out after TIMEOUT seconds (fractional allowed)"},
+            BuiltinHelpScanMode::AnyArgument)) {
         return 0;
     }
 

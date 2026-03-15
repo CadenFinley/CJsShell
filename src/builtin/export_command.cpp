@@ -38,26 +38,13 @@
 #include "cjsh.h"
 #include "error_out.h"
 #include "interpreter.h"
+#include "parameter_utils.h"
 #include "parser_utils.h"
 #include "readonly_command.h"
 #include "shell.h"
 #include "shell_env.h"
 
 namespace {
-
-bool is_special_parameter_name(const std::string& name) {
-    if (name.size() != 2 || name[0] != '$') {
-        return false;
-    }
-
-    const char param = name[1];
-    if (std::isdigit(static_cast<unsigned char>(param)) != 0) {
-        return true;
-    }
-
-    return param == '?' || param == '$' || param == '#' || param == '*' || param == '@' ||
-           param == '!';
-}
 
 bool validate_export_name(const std::string& name, bool& is_readonly) {
     is_readonly = false;
@@ -66,7 +53,7 @@ bool validate_export_name(const std::string& name, bool& is_readonly) {
     }
 
     if (name[0] == '$') {
-        if (is_special_parameter_name(name)) {
+        if (parameter_utils::is_special_parameter_reference(name)) {
             is_readonly = true;
         }
         return false;
@@ -129,10 +116,6 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
             env_vars[name] = value;
 
             setenv(name.c_str(), value.c_str(), 1);
-
-            if ((shell != nullptr) && (shell->get_parser() != nullptr)) {
-                shell->get_parser()->set_env_vars(env_vars);
-            }
         } else {
             bool is_readonly = false;
             if (!validate_export_name(args[i], is_readonly)) {

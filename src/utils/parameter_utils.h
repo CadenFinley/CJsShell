@@ -32,6 +32,12 @@
 
 namespace parameter_utils {
 
+bool is_special_parameter_char(char c);
+bool is_named_special_parameter_char(char c);
+bool is_special_parameter_name(const std::string& name);
+bool is_named_special_parameter_name(const std::string& name);
+bool is_special_parameter_reference(const std::string& name);
+
 std::string join_positional_parameters();
 std::string get_last_background_pid_string();
 std::string get_special_parameter_value(const std::string& var_name,

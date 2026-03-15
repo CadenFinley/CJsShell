@@ -123,6 +123,15 @@ std::optional<ShellOption> parse_shell_option(const std::string& name) {
     return std::nullopt;
 }
 
+std::optional<ShellOption> parse_shell_option_short(char short_flag) {
+    for (const auto& descriptor : kShellOptionDescriptors) {
+        if (descriptor.short_flag == short_flag && descriptor.short_flag != 0) {
+            return descriptor.option;
+        }
+    }
+    return std::nullopt;
+}
+
 Shell::Shell() {
     // capture the terminal settings cjsh inherited so we can restore them on exit
     save_terminal_state();

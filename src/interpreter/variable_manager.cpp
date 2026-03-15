@@ -138,8 +138,7 @@ std::string VariableManager::get_variable_value(const std::string& var_name) con
     }
 
     std::string special_var = get_special_variable(var_name);
-    if (!special_var.empty() || var_name == "?" || var_name == "$" || var_name == "#" ||
-        var_name == "*" || var_name == "@" || var_name == "!") {
+    if (!special_var.empty() || parameter_utils::is_named_special_parameter_name(var_name)) {
         return special_var;
     }
 
@@ -169,8 +168,7 @@ bool VariableManager::variable_is_set(const std::string& var_name) const {
         }
     }
 
-    if (var_name == "?" || var_name == "$" || var_name == "#" || var_name == "*" ||
-        var_name == "@" || var_name == "!") {
+    if (parameter_utils::is_named_special_parameter_name(var_name)) {
         return true;
     }
 

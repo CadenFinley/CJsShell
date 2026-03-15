@@ -247,13 +247,16 @@ bool is_test_context_token(const std::string& token) {
 }
 
 bool is_assignment_token(const std::string& token) {
-    size_t eq_pos = token.find('=');
-    if (eq_pos == std::string::npos || eq_pos == 0) {
+    std::string lhs;
+    std::string rhs;
+    if (!split_on_first_equals(token, lhs, rhs, true)) {
         return false;
     }
     if (token[0] == '$') {
         return false;
     }
+
+    size_t eq_pos = lhs.size();
     if (eq_pos + 1 < token.size() && (token[eq_pos + 1] == '=' || token[eq_pos + 1] == '~')) {
         return false;
     }
@@ -261,12 +264,12 @@ bool is_assignment_token(const std::string& token) {
 }
 
 std::string normalize_assignment_identifier(const std::string& token) {
-    size_t eq_pos = token.find('=');
-    if (eq_pos == std::string::npos) {
+    std::string lhs;
+    std::string rhs;
+    if (!split_on_first_equals(token, lhs, rhs, true)) {
         return "";
     }
 
-    std::string lhs = token.substr(0, eq_pos);
     if (!lhs.empty() && lhs.back() == '+') {
         lhs.pop_back();
     }
@@ -580,13 +583,10 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                         size_t pos = 0;
                         while (pos < expr.length()) {
                             char ec = expr[pos];
-                            if ((std::isalpha(static_cast<unsigned char>(ec)) != 0) || ec == '_') {
+                            if (is_valid_identifier_start(ec)) {
                                 size_t start_pos = pos;
                                 pos++;
-                                while (
-                                    pos < expr.length() &&
-                                    ((std::isalnum(static_cast<unsigned char>(expr[pos])) != 0) ||
-                                     expr[pos] == '_')) {
+                                while (pos < expr.length() && is_valid_identifier_char(expr[pos])) {
                                     pos++;
                                 }
 
@@ -627,11 +627,9 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                                                      original_line, "Add closing brace '}'"));
                         continue;
                     }
-                } else if ((std::isalpha(line_without_comments[var_start]) != 0) ||
-                           line_without_comments[var_start] == '_') {
+                } else if (is_valid_identifier_start(line_without_comments[var_start])) {
                     while (var_end < line_without_comments.length() &&
-                           ((std::isalnum(line_without_comments[var_end]) != 0) ||
-                            line_without_comments[var_end] == '_')) {
+                           is_valid_identifier_char(line_without_comments[var_end])) {
                         var_end++;
                     }
                     var_name = line_without_comments.substr(var_start, var_end - var_start);

@@ -34,6 +34,7 @@
 #include "builtin.h"
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
+#include "parser_utils.h"
 #include "shell.h"
 #include "token_constants.h"
 
@@ -61,13 +62,8 @@ bool is_variable_reference(const std::string& token) {
     if (token[0] == '$')
         return true;
 
-    size_t eq_pos = token.find('=');
-    if (eq_pos != std::string::npos && eq_pos > 0) {
-        std::string var_name = token.substr(0, eq_pos);
-
-        if (!var_name.empty() && ((std::isalpha(var_name[0]) != 0) || var_name[0] == '_')) {
-            return true;
-        }
+    if (looks_like_assignment(token)) {
+        return true;
     }
 
     return false;

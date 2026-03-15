@@ -65,34 +65,13 @@ void print_option_status(Shell* shell) {
 }
 
 bool apply_short_flag(char flag, bool enable, Shell* shell) {
-    switch (flag) {
-        case 'e':
-            shell->set_shell_option(ShellOption::Errexit, enable);
-            return true;
-        case 'C':
-            shell->set_shell_option(ShellOption::Noclobber, enable);
-            return true;
-        case 'u':
-            shell->set_shell_option(ShellOption::Nounset, enable);
-            return true;
-        case 'x':
-            shell->set_shell_option(ShellOption::Xtrace, enable);
-            return true;
-        case 'v':
-            shell->set_shell_option(ShellOption::Verbose, enable);
-            return true;
-        case 'n':
-            shell->set_shell_option(ShellOption::Noexec, enable);
-            return true;
-        case 'f':
-            shell->set_shell_option(ShellOption::Noglob, enable);
-            return true;
-        case 'a':
-            shell->set_shell_option(ShellOption::Allexport, enable);
-            return true;
-        default:
-            return false;
+    auto option = parse_shell_option_short(flag);
+    if (!option.has_value()) {
+        return false;
     }
+
+    shell->set_shell_option(*option, enable);
+    return true;
 }
 
 std::string normalize_option_key(std::string key) {

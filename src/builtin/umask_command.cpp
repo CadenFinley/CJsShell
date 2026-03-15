@@ -185,7 +185,8 @@ int umask_command(const std::vector<std::string>& args) {
              "MODE can be:", "  Octal:    like 0022 (blocks write for group and others)",
              "  Symbolic: like u=rwx,g=rx,o=rx", "",
              "If MODE is omitted, prints the current mask value.",
-             "The mask specifies which permission bits are NOT set on newly created files."})) {
+             "The mask specifies which permission bits are NOT set on newly created files."},
+            BuiltinHelpScanMode::AnyArgument)) {
         return 0;
     }
 
@@ -205,7 +206,7 @@ int umask_command(const std::vector<std::string>& args) {
         } else if (arg == "-p") {
             posix_output = true;
             mode_index = i + 1;
-        } else if (arg == "--help" || arg == "--version") {
+        } else if (arg == "--version") {
             return 0;
         } else if (arg[0] == '-' && arg != "-") {
             for (size_t j = 1; j < arg.length(); ++j) {
