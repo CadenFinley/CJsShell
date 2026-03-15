@@ -28,23 +28,17 @@
 
 #include "script_dispatch.h"
 
-#include <algorithm>
-#include <cctype>
 #include <filesystem>
 #include <fstream>
+
+#include "string_utils.h"
 
 namespace script_dispatch {
 
 namespace {
 
-std::string lowercase_copy(std::string value) {
-    std::transform(value.begin(), value.end(), value.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    return value;
-}
-
 std::optional<std::string> interpreter_for_script_extension(const std::filesystem::path& path) {
-    std::string extension = lowercase_copy(path.extension().string());
+    std::string extension = string_utils::to_lower_copy(path.extension().string());
     if (extension == ".sh") {
         return std::string("sh");
     }

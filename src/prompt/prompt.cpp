@@ -59,6 +59,7 @@
 #include "keycodes.h"
 #include "shell.h"
 #include "shell_env.h"
+#include "string_utils.h"
 #include "token_constants.h"
 #include "version_command.h"
 
@@ -281,11 +282,7 @@ bool terminal_supports_color() {
 
     const std::string colorterm = cjsh_env::get_shell_variable_value("COLORTERM");
     if (!colorterm.empty()) {
-        std::string colorterm_lower;
-        for (const char* p = colorterm.c_str(); *p != '\0'; ++p) {
-            colorterm_lower.push_back(
-                static_cast<char>(std::tolower(static_cast<unsigned char>(*p))));
-        }
+        std::string colorterm_lower = string_utils::to_lower_copy(colorterm);
         if (colorterm_lower.find("nocolor") != std::string::npos ||
             colorterm_lower.find("monochrome") != std::string::npos) {
             return false;
@@ -300,10 +297,7 @@ bool terminal_supports_color() {
         return true;
     }
 
-    std::string term_lower;
-    for (const char* p = term.c_str(); *p != '\0'; ++p) {
-        term_lower.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(*p))));
-    }
+    std::string term_lower = string_utils::to_lower_copy(term);
 
     const bool unsupported = term_lower.find("dumb") != std::string::npos ||
                              term_lower.find("cons25") != std::string::npos ||
@@ -412,12 +406,7 @@ std::string get_terminal_name() {
 }
 
 std::string trim_copy(const std::string& input) {
-    const auto first = input.find_first_not_of(" \t\r\n");
-    if (first == std::string::npos) {
-        return {};
-    }
-    const auto last = input.find_last_not_of(" \t\r\n");
-    return input.substr(first, (last - first) + 1);
+    return string_utils::trim_ascii_whitespace_copy(input);
 }
 
 std::optional<std::filesystem::path> git_dir_from_worktree_file(

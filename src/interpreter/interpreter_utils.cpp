@@ -42,11 +42,7 @@
 namespace shell_script_interpreter::detail {
 
 std::string trim(const std::string& s) {
-    size_t start = s.find_first_not_of(" \t\n\r");
-    if (start == std::string::npos)
-        return "";
-    size_t end = s.find_last_not_of(" \t\n\r");
-    return s.substr(start, end - start + 1);
+    return string_utils::trim_ascii_whitespace_copy(s);
 }
 
 std::string strip_inline_comment(const std::string& s) {

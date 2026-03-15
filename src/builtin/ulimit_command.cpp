@@ -30,6 +30,7 @@
 
 #include "builtin_help.h"
 #include "error_out.h"
+#include "string_utils.h"
 
 #include <sys/resource.h>
 
@@ -209,12 +210,6 @@ const OptionDescriptor* find_default_descriptor() {
     return nullptr;
 }
 
-std::string to_lower(std::string value) {
-    std::transform(value.begin(), value.end(), value.begin(),
-                   [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
-    return value;
-}
-
 std::optional<LimitKeyword> parse_limit_keyword(const std::string& value) {
     if (value == "unlimited") {
         return LimitKeyword::Unlimited;
@@ -371,7 +366,7 @@ bool parse_numeric_limit(const std::string& input, const OptionDescriptor& entry
 
 bool parse_limit_value(const std::string& value_str, const OptionDescriptor& entry,
                        const struct rlimit& limits, rlim_t& result) {
-    std::string lowered = to_lower(value_str);
+    std::string lowered = string_utils::to_lower_copy(value_str);
     auto keyword = parse_limit_keyword(lowered);
     if (keyword.has_value()) {
         switch (*keyword) {

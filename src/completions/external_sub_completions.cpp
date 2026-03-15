@@ -48,6 +48,7 @@
 #include "completion_utils.h"
 #include "exec.h"
 #include "shell_env.h"
+#include "string_utils.h"
 
 namespace {
 
@@ -89,28 +90,6 @@ std::string make_cache_file_header(const std::string& doc_target) {
     return std::string(kCacheFileHeaderPrefix) + doc_target;
 }
 
-std::string trim_left(const std::string& value) {
-    std::string::size_type pos = 0;
-    while (pos < value.size() && std::isspace(static_cast<unsigned char>(value[pos])) != 0) {
-        ++pos;
-    }
-    return value.substr(pos);
-}
-
-std::string trim_right(const std::string& value) {
-    if (value.empty())
-        return value;
-    std::string::size_type pos = value.size();
-    while (pos > 0 && std::isspace(static_cast<unsigned char>(value[pos - 1])) != 0) {
-        --pos;
-    }
-    return value.substr(0, pos);
-}
-
-std::string trim(const std::string& value) {
-    return trim_left(trim_right(value));
-}
-
 std::optional<std::string> lookup_summary_cache(const std::string& key) {
     std::lock_guard<std::mutex> lock(g_cache_mutex);
     auto it = g_summary_cache.find(key);
@@ -139,7 +118,7 @@ std::string collapse_whitespace(const std::string& text) {
             in_space = false;
         }
     }
-    return trim(result);
+    return string_utils::trim_ascii_whitespace_copy(result);
 }
 
 std::string sanitize_description(const std::string& text) {
@@ -166,20 +145,6 @@ bool has_lowercase(const std::string& value) {
                        [](unsigned char ch) { return std::islower(ch) != 0; });
 }
 
-std::string to_upper_copy(const std::string& value) {
-    std::string upper = value;
-    std::transform(upper.begin(), upper.end(), upper.begin(),
-                   [](unsigned char ch) { return static_cast<char>(std::toupper(ch)); });
-    return upper;
-}
-
-std::string to_lower_copy(const std::string& value) {
-    std::string lower = value;
-    std::transform(lower.begin(), lower.end(), lower.begin(),
-                   [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
-    return lower;
-}
-
 std::string normalize_subcommand_token(const std::string& token) {
     if (!has_lowercase(token))
         return token;
@@ -200,7 +165,7 @@ std::string normalize_subcommand_token(const std::string& token) {
     if (std::isupper(first_char) == 0)
         return token;
 
-    return to_lower_copy(token);
+    return string_utils::to_lower_copy(token);
 }
 
 bool is_section_heading(const std::string& trimmed_line) {
@@ -219,7 +184,7 @@ bool is_section_heading(const std::string& trimmed_line) {
 }
 
 Section section_from_heading(const std::string& heading) {
-    std::string upper = to_upper_copy(heading);
+    std::string upper = string_utils::to_upper_copy(heading);
     if (upper.find("OPTION") != std::string::npos)
         return Section::Options;
     if (upper.find("COMMAND") != std::string::npos || upper.find("SUBCOMMAND") != std::string::npos)
@@ -265,11 +230,12 @@ std::pair<std::string, std::string> split_option_line(const std::string& line) {
     }
 
     if (split_pos == std::string::npos) {
-        return {trim_right(line), std::string{}};
+        return {string_utils::trim_right_ascii_whitespace_copy(line), std::string{}};
     }
 
-    std::string name_part = trim_right(line.substr(0, split_pos));
-    std::string desc_part = trim(line.substr(split_pos));
+    std::string name_part =
+        string_utils::trim_right_ascii_whitespace_copy(line.substr(0, split_pos));
+    std::string desc_part = string_utils::trim_ascii_whitespace_copy(line.substr(split_pos));
     return {name_part, desc_part};
 }
 
@@ -278,7 +244,7 @@ std::vector<std::string> parse_option_names(const std::string& spec) {
     std::string current;
     for (char ch : spec) {
         if (ch == ',') {
-            std::string cleaned = trim(current);
+            std::string cleaned = string_utils::trim_ascii_whitespace_copy(current);
             if (!cleaned.empty())
                 names.push_back(cleaned);
             current.clear();
@@ -287,7 +253,7 @@ std::vector<std::string> parse_option_names(const std::string& spec) {
         }
     }
     if (!current.empty()) {
-        std::string cleaned = trim(current);
+        std::string cleaned = string_utils::trim_ascii_whitespace_copy(current);
         if (!cleaned.empty())
             names.push_back(cleaned);
     }
@@ -404,7 +370,7 @@ std::string strip_known_prefix(const std::string& line, const std::vector<std::s
 
 std::optional<std::pair<std::string, std::string>> parse_command_line(
     const std::vector<std::string>& prefixes, const std::string& original_line) {
-    std::string working = trim(original_line);
+    std::string working = string_utils::trim_ascii_whitespace_copy(original_line);
     if (working.empty())
         return std::nullopt;
 
@@ -434,20 +400,23 @@ std::optional<std::pair<std::string, std::string>> parse_command_line(
     std::string description_part;
 
     if (split_pos != std::string::npos) {
-        name_part = trim(working.substr(0, split_pos));
-        description_part = trim(working.substr(split_pos));
+        name_part = string_utils::trim_ascii_whitespace_copy(working.substr(0, split_pos));
+        description_part = string_utils::trim_ascii_whitespace_copy(working.substr(split_pos));
     } else {
         std::size_t hyphen_pos = working.find(" - ");
         if (hyphen_pos != std::string::npos && hyphen_pos != 0 &&
             first_space != std::string::npos && hyphen_pos == first_space + 1) {
-            name_part = trim(working.substr(0, hyphen_pos));
-            description_part = trim(working.substr(hyphen_pos + 3));
+            name_part = string_utils::trim_ascii_whitespace_copy(working.substr(0, hyphen_pos));
+            description_part =
+                string_utils::trim_ascii_whitespace_copy(working.substr(hyphen_pos + 3));
         } else {
             std::size_t double_colon_pos = working.find("::");
             if (double_colon_pos != std::string::npos && double_colon_pos != 0 &&
                 (first_space == std::string::npos || double_colon_pos < first_space)) {
-                name_part = trim(working.substr(0, double_colon_pos));
-                description_part = trim(working.substr(double_colon_pos + 2));
+                name_part =
+                    string_utils::trim_ascii_whitespace_copy(working.substr(0, double_colon_pos));
+                description_part =
+                    string_utils::trim_ascii_whitespace_copy(working.substr(double_colon_pos + 2));
             } else {
                 std::size_t paren_open = working.find('(');
                 if (paren_open != std::string::npos &&
@@ -468,10 +437,12 @@ std::optional<std::pair<std::string, std::string>> parse_command_line(
                             return std::nullopt;
                     }
 
-                    name_part = trim(working.substr(0, paren_close + 1));
+                    name_part = string_utils::trim_ascii_whitespace_copy(
+                        working.substr(0, paren_close + 1));
                     std::size_t desc_start = working.find_first_not_of(" \t", paren_close + 1);
                     if (desc_start != std::string::npos)
-                        description_part = trim(working.substr(desc_start));
+                        description_part =
+                            string_utils::trim_ascii_whitespace_copy(working.substr(desc_start));
                     else
                         description_part.clear();
                 } else {
@@ -482,8 +453,10 @@ std::optional<std::pair<std::string, std::string>> parse_command_line(
                         candidate_name = working;
                         candidate_description.clear();
                     } else {
-                        candidate_name = trim(working.substr(0, first_space));
-                        candidate_description = trim(working.substr(first_space));
+                        candidate_name = string_utils::trim_ascii_whitespace_copy(
+                            working.substr(0, first_space));
+                        candidate_description =
+                            string_utils::trim_ascii_whitespace_copy(working.substr(first_space));
                     }
 
                     auto is_simple_command_name = [](const std::string& name) {
@@ -589,7 +562,7 @@ std::vector<CompletionEntry> parse_man_text(const std::string& doc_target,
     std::vector<std::string> prefixes = build_prefixes(doc_target);
 
     for (const std::string& raw_line : split_lines(man_text)) {
-        std::string trimmed_line = trim(raw_line);
+        std::string trimmed_line = string_utils::trim_ascii_whitespace_copy(raw_line);
 
         if (trimmed_line.empty()) {
             flush_option_state(option_state, entries, seen);
@@ -604,7 +577,7 @@ std::vector<CompletionEntry> parse_man_text(const std::string& doc_target,
             continue;
         }
 
-        std::string left_trimmed = trim_left(raw_line);
+        std::string left_trimmed = string_utils::trim_left_ascii_whitespace_copy(raw_line);
 
         if (section == Section::Options ||
             (!left_trimmed.empty() && left_trimmed[0] == '-' && section == Section::None)) {
@@ -620,7 +593,7 @@ std::vector<CompletionEntry> parse_man_text(const std::string& doc_target,
                     continue;
                 }
             } else if (option_state.active) {
-                std::string extra = trim(left_trimmed);
+                std::string extra = string_utils::trim_ascii_whitespace_copy(left_trimmed);
                 if (!extra.empty()) {
                     if (!option_state.description.empty())
                         option_state.description += ' ';
@@ -631,7 +604,7 @@ std::vector<CompletionEntry> parse_man_text(const std::string& doc_target,
         }
 
         if (section == Section::Options && option_state.active) {
-            std::string extra = trim(left_trimmed);
+            std::string extra = string_utils::trim_ascii_whitespace_copy(left_trimmed);
             if (!extra.empty()) {
                 if (!option_state.description.empty())
                     option_state.description += ' ';
@@ -649,7 +622,7 @@ std::vector<CompletionEntry> parse_man_text(const std::string& doc_target,
                 command_state.active = true;
                 continue;
             } else if (command_state.active) {
-                std::string extra = trim(left_trimmed);
+                std::string extra = string_utils::trim_ascii_whitespace_copy(left_trimmed);
                 if (!extra.empty()) {
                     if (!command_state.description.empty())
                         command_state.description += ' ';
@@ -674,7 +647,7 @@ std::vector<CompletionEntry> parse_man_text(const std::string& doc_target,
 }
 
 std::string strip_summary_prefix(const std::string& doc_target, const std::string& line) {
-    std::string working = trim(line);
+    std::string working = string_utils::trim_ascii_whitespace_copy(line);
     if (working.empty())
         return working;
 
@@ -694,16 +667,17 @@ std::string strip_summary_prefix(const std::string& doc_target, const std::strin
                                       candidate.front() == '\t')) {
             candidate.erase(candidate.begin());
         }
-        candidate = trim(candidate);
+        candidate = string_utils::trim_ascii_whitespace_copy(candidate);
         if (!candidate.empty())
             return sanitize_description(candidate);
     }
 
     if (!doc_target.empty() && working.rfind(doc_target, 0) == 0) {
-        std::string candidate = trim(working.substr(doc_target.size()));
+        std::string candidate =
+            string_utils::trim_ascii_whitespace_copy(working.substr(doc_target.size()));
         if (!candidate.empty() && candidate.front() == '-') {
             candidate.erase(candidate.begin());
-            candidate = trim(candidate);
+            candidate = string_utils::trim_ascii_whitespace_copy(candidate);
         }
         if (!candidate.empty())
             return sanitize_description(candidate);
@@ -721,12 +695,12 @@ std::string extract_command_summary(const std::string& doc_target, const std::st
     std::string collected_line;
 
     for (const auto& raw_line : lines) {
-        std::string trimmed_line = trim(raw_line);
+        std::string trimmed_line = string_utils::trim_ascii_whitespace_copy(raw_line);
 
         if (!in_name_section) {
             if (trimmed_line.empty())
                 continue;
-            std::string upper = to_upper_copy(trimmed_line);
+            std::string upper = string_utils::to_upper_copy(trimmed_line);
             if (upper == "NAME") {
                 in_name_section = true;
             }
@@ -760,10 +734,7 @@ std::string extract_command_summary(const std::string& doc_target, const std::st
 }
 
 std::string normalize_key(const std::string& value) {
-    std::string key = value;
-    std::transform(key.begin(), key.end(), key.begin(),
-                   [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
-    return key;
+    return string_utils::to_lower_copy(value);
 }
 
 std::string sanitize_command_for_cache(const std::string& command) {

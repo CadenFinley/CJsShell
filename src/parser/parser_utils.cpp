@@ -28,6 +28,7 @@
 
 #include "parser_utils.h"
 #include "quote_info.h"
+#include "string_utils.h"
 
 #include <cctype>
 
@@ -70,22 +71,15 @@ bool is_char_escaped(const std::string& str, size_t pos) {
 }
 
 std::string trim_trailing_whitespace(std::string s) {
-    s.erase(s.find_last_not_of(" \t\n\r") + 1);
-    return s;
+    return string_utils::trim_right_ascii_whitespace_copy(s);
 }
 
 std::string trim_leading_whitespace(const std::string& s) {
-    size_t start = s.find_first_not_of(" \t\n\r");
-    return (start == std::string::npos) ? "" : s.substr(start);
+    return string_utils::trim_left_ascii_whitespace_copy(s);
 }
 
 std::string trim_whitespace(const std::string& s) {
-    size_t start = s.find_first_not_of(" \t\n\r");
-    if (start == std::string::npos) {
-        return "";
-    }
-    size_t end = s.find_last_not_of(" \t\n\r");
-    return s.substr(start, end - start + 1);
+    return string_utils::trim_ascii_whitespace_copy(s);
 }
 
 bool is_valid_identifier_start(char c) {
