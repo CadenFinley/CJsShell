@@ -1,5 +1,5 @@
 /*
-  suggestion_utils.h
+  startup_flags.h
 
   This file is part of cjsh, CJ's Shell
 
@@ -28,33 +28,17 @@
 
 #pragma once
 
-#include <filesystem>
 #include <string>
 #include <vector>
 
-namespace suggestion_utils {
+namespace startup_flags {
 
-struct CdLookupContext {
-    std::filesystem::path current_path;
-    std::filesystem::path target_path;
-    std::filesystem::path base_path;
-    std::filesystem::path search_base;
-    std::string lookup_fragment;
-    std::string base_dir;
+struct Descriptor {
+    const char* name;
+    const char* description;
 };
 
-std::vector<std::string> generate_command_suggestions(const std::string& command);
+const std::vector<Descriptor>& descriptors();
+bool is_supported(const std::string& flag);
 
-std::vector<std::string> generate_cd_suggestions(const std::string& target_dir,
-                                                 const std::string& current_dir);
-
-CdLookupContext build_cd_lookup_context(const std::string& target_dir,
-                                        const std::string& current_dir);
-
-int edit_distance(const std::string& str1, const std::string& str2);
-
-std::vector<std::string> find_similar_entries(const std::string& target_name,
-                                              const std::string& directory,
-                                              int max_suggestions = 5);
-
-}  // namespace suggestion_utils
+}  // namespace startup_flags

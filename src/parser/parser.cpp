@@ -52,6 +52,7 @@
 #include "expansion_engine.h"
 #include "flags.h"
 #include "history_expansion.h"
+#include "interpreter_utils.h"
 #include "job_control.h"
 #include "parser_utils.h"
 #include "quote_info.h"
@@ -569,32 +570,6 @@ void Parser::set_shell(Shell* new_shell) {
 }
 
 std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
-    auto strip_inline_comment = [](std::string_view s) -> std::string {
-        bool in_quotes = false;
-        char quote = '\0';
-        const char* data = s.data();
-        size_t size = s.size();
-
-        for (size_t i = 0; i < size; ++i) {
-            char c = data[i];
-
-            if (c == '"' || c == '\'') {
-                if (!is_char_escaped(data, i)) {
-                    if (!in_quotes) {
-                        in_quotes = true;
-                        quote = c;
-                    } else if (quote == c) {
-                        in_quotes = false;
-                        quote = '\0';
-                    }
-                }
-            } else if (!in_quotes && c == '#') {
-                return std::string(s.substr(0, i));
-            }
-        }
-        return std::string(s);
-    };
-
     std::vector<std::string> lines;
 
     lines.reserve(std::min(script.length() / 30 + 2, size_t(64)));
@@ -940,7 +915,9 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
         if (!in_quotes && c == '\n') {
             std::string_view segment_view{script.data() + start, i - start};
             if (!in_quotes && segment_view.find("<<") != std::string_view::npos) {
-                std::string segment_no_comment = strip_inline_comment(segment_view);
+                std::string segment_no_comment =
+                    shell_script_interpreter::detail::strip_inline_comment(
+                        std::string(segment_view));
 
                 size_t search_from = 0;
                 size_t here_pos = std::string::npos;

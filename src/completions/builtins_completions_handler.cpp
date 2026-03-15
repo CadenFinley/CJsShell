@@ -35,6 +35,7 @@
 #include "completion_utils.h"
 #include "job_control.h"
 #include "signal_handler.h"
+#include "startup_flags.h"
 
 namespace builtin_completions {
 namespace {
@@ -123,6 +124,16 @@ void append_trap_signal_entries(std::vector<CompletionEntry>& entries) {
 
     add_signal_entry("EXIT", "Run when the shell exits");
     add_signal_entry("0", "Run when the shell exits");
+}
+
+std::vector<CompletionEntry> build_startup_flag_completion_entries() {
+    std::vector<CompletionEntry> entries;
+    const auto& descriptors = startup_flags::descriptors();
+    entries.reserve(descriptors.size());
+    for (const auto& descriptor : descriptors) {
+        entries.push_back(make_option(descriptor.name, descriptor.description));
+    }
+    return entries;
 }
 
 std::string format_job_description(const JobControlJob& job) {
@@ -556,25 +567,7 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                  make_option("--reset", "Reset all highlight styles to defaults")});
 
         add_doc("cjshopt-login-startup-arg", "Add cjsh startup flags",
-                {make_option("--login", "Run cjsh as a login shell"),
-                 make_option("--interactive", "Force interactive mode"),
-                 make_option("--posix", "Enable POSIX mode"),
-                 make_option("--no-exec", "Read commands without executing"),
-                 make_option("--no-colors", "Disable color output"),
-                 make_option("--no-titleline", "Disable terminal title updates"),
-                 make_option("--show-startup-time", "Display startup timing"),
-                 make_option("--no-source", "Skip sourcing configuration files"),
-                 make_option("--no-completions", "Disable completion initialization"),
-                 make_option("--no-completion-learning", "Skip on-demand completion scraping"),
-                 make_option("--no-smart-cd", "Disable smart cd auto-jumps"),
-                 make_option("--no-syntax-highlighting", "Disable syntax highlighting"),
-                 make_option("--no-error-suggestions", "Disable error suggestions"),
-                 make_option("--no-prompt-vars", "Ignore PS1/PS2 prompt variables"),
-                 make_option("--no-history-expansion", "Disable history expansion"),
-                 make_option("--no-sh-warning", "Suppress the sh invocation warning"),
-                 make_option("--minimal", "Disable cjsh enhancements"),
-                 make_option("--secure", "Skip env/profile/rc/logout sourcing"),
-                 make_option("--startup-test", "Enable startup test mode")});
+                build_startup_flag_completion_entries());
 
         add_doc("cjshopt-completion-learning", "Toggle completion learning",
                 {make_subcommand("on", "Allow on-demand completion scraping"),

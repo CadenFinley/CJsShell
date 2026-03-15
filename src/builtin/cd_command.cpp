@@ -67,54 +67,18 @@ std::optional<std::filesystem::path> resolve_smart_cd_target(const std::string& 
         return std::nullopt;
     }
 
-    std::filesystem::path current_path(current_dir);
-    std::filesystem::path target_path(target_dir);
-    std::filesystem::path base_path = current_path;
-    std::string lookup_fragment = target_dir;
+    suggestion_utils::CdLookupContext context =
+        suggestion_utils::build_cd_lookup_context(target_dir, current_dir);
 
     std::error_code ec;
 
-    if (target_path.is_absolute()) {
-        base_path = target_path.parent_path();
-        lookup_fragment = target_path.filename().string();
-        if (lookup_fragment.empty()) {
-            lookup_fragment = target_path.string();
-        }
-    } else {
-        std::filesystem::path resolved = current_path / target_path;
-        std::filesystem::path parent = resolved.parent_path();
-        if (parent.empty()) {
-            parent = current_path;
-        }
-
-        if (std::filesystem::exists(parent, ec)) {
-            base_path = parent;
-            lookup_fragment = resolved.filename().string();
-            if (lookup_fragment.empty()) {
-                lookup_fragment = target_path.filename().string();
-                if (lookup_fragment.empty()) {
-                    lookup_fragment = target_dir;
-                }
-            }
-        } else {
-            ec.clear();
-        }
-    }
-
-    if (lookup_fragment.empty()) {
-        lookup_fragment = target_dir;
-    }
-
-    std::string base_dir = base_path.empty() ? current_dir : base_path.string();
-
-    auto raw_similar = suggestion_utils::find_similar_entries(lookup_fragment, base_dir, 2);
+    auto raw_similar =
+        suggestion_utils::find_similar_entries(context.lookup_fragment, context.base_dir, 2);
     if (raw_similar.size() != 1) {
         return std::nullopt;
     }
 
-    std::filesystem::path search_base =
-        base_path.empty() ? std::filesystem::path(base_dir) : base_path;
-    std::filesystem::path candidate_path = search_base / raw_similar.front();
+    std::filesystem::path candidate_path = context.search_base / raw_similar.front();
 
     if (!std::filesystem::exists(candidate_path, ec) ||
         !std::filesystem::is_directory(candidate_path, ec)) {

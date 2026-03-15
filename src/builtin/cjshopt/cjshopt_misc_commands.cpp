@@ -29,6 +29,7 @@
 #include "cjshopt_command.h"
 
 #include <algorithm>
+#include <functional>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -40,55 +41,22 @@
 #include "flags.h"
 #include "isocline.h"
 #include "shell_env.h"
+#include "startup_flags.h"
 #include "string_utils.h"
 #include "token_constants.h"
 
 namespace {
 
-struct StartupFlagInfo {
-    const char* name;
-    const char* description;
-};
-
-constexpr StartupFlagInfo kStartupFlags[] = {
-    {"--login", "Set login mode"},
-    {"--interactive", "Force interactive mode"},
-    {"--posix", "Enable POSIX mode"},
-    {"--no-exec", "Read commands without executing"},
-    {"--no-colors", "Disable colors"},
-    {"--no-titleline", "Disable title line"},
-    {"--show-startup-time", "Display shell startup time"},
-    {"--no-source", "Skip sourcing configuration files"},
-    {"--no-completions", "Disable tab completions"},
-    {"--no-completion-learning", "Skip on-demand completion scraping"},
-    {"--no-smart-cd", "Disable smart cd auto-jumps"},
-    {"--no-script-extension-interpreter", "Disable extension-based script runners"},
-    {"--no-syntax-highlighting", "Disable syntax highlighting"},
-    {"--no-error-suggestions", "Disable error suggestions"},
-    {"--no-prompt-vars", "Ignore PS1/PS2 prompt variables"},
-    {"--no-history", "Disable history recording"},
-    {"--no-history-expansion", "Disable history expansion"},
-    {"--no-sh-warning", "Suppress the sh invocation warning"},
-    {"--minimal", "Disable cjsh extras"},
-    {"--secure", "Enable secure mode"},
-    {"--startup-test", "Enable startup test mode"},
-};
-
 const std::vector<std::string>& startup_flag_help_lines() {
     static const std::vector<std::string> lines = [] {
         std::vector<std::string> help = {"Usage: login-startup-arg [--flag-name]",
                                          "Available flags:"};
-        for (const auto& entry : kStartupFlags) {
+        for (const auto& entry : startup_flags::descriptors()) {
             help.emplace_back("  " + std::string(entry.name) + "  " + entry.description);
         }
         return help;
     }();
     return lines;
-}
-
-bool is_supported_startup_flag(const std::string& flag) {
-    return std::any_of(std::begin(kStartupFlags), std::end(kStartupFlags),
-                       [&](const auto& entry) { return flag == entry.name; });
 }
 
 std::string resolve_style_registry_name(const std::string& token_type) {
@@ -231,7 +199,7 @@ int startup_flag_command(const std::vector<std::string>& args) {
 
     const std::string& flag = args[1];
 
-    if (!is_supported_startup_flag(flag)) {
+    if (!startup_flags::is_supported(flag)) {
         print_error({ErrorType::INVALID_ARGUMENT, "login-startup-arg",
                      "unknown flag '" + flag + "'", help_lines});
         return 1;
@@ -315,16 +283,22 @@ void apply_custom_style(const std::string& token_type, const std::string& style)
     ic_style_def(full_style_name.c_str(), style.c_str());
 }
 
-int set_history_max_command(const std::vector<std::string>& args) {
-    static const std::vector<std::string> usage_lines = {
-        "Usage: set-history-max <number|default|status>",
-        "",
-        "Configure the maximum number of entries written to the history file.",
-        "Use 0 to disable history persistence entirely.",
-        "Use 'default' to restore the built-in limit (" +
-            std::to_string(get_history_default_history_limit()) + " entries).",
-        "Use 'status' to view the current setting.",
-        "Minimum value: " + std::to_string(get_history_min_history_limit()) + " (no upper limit)."};
+namespace {
+
+struct NumericLimitCommandSpec {
+    const char* command_name;
+    const std::vector<std::string>* usage_lines;
+    long default_value;
+    long minimum_value;
+    std::function<long()> get_current;
+    std::function<bool(long, std::string*)> set_value;
+    std::function<void(long)> print_status;
+    std::function<void(long)> print_applied;
+};
+
+int handle_numeric_limit_command(const std::vector<std::string>& args,
+                                 const NumericLimitCommandSpec& spec) {
+    const auto& usage_lines = *spec.usage_lines;
 
     if (args.size() == 1) {
         if (!cjsh_env::startup_active()) {
@@ -333,12 +307,12 @@ int set_history_max_command(const std::vector<std::string>& args) {
             }
         }
         print_error(
-            {ErrorType::INVALID_ARGUMENT, "set-history-max", "expected 1 argument", usage_lines});
+            {ErrorType::INVALID_ARGUMENT, spec.command_name, "expected 1 argument", usage_lines});
         return 1;
     }
 
     if (args.size() > 2) {
-        print_error({ErrorType::INVALID_ARGUMENT, "set-history-max", "too many arguments provided",
+        print_error({ErrorType::INVALID_ARGUMENT, spec.command_name, "too many arguments provided",
                      usage_lines});
         return 1;
     }
@@ -357,60 +331,87 @@ int set_history_max_command(const std::vector<std::string>& args) {
 
     if (normalized == "status" || normalized == "--status") {
         if (!cjsh_env::startup_active()) {
-            long current_limit = get_history_max_entries();
-            if (current_limit <= 0) {
-                std::cout << "History persistence is currently disabled.\n";
-            } else {
-                std::cout << "History file retains up to " << current_limit << " entries." << '\n';
-            }
+            spec.print_status(spec.get_current());
         }
         return 0;
     }
 
     long requested_limit = 0;
     if (normalized == "default" || normalized == "--default") {
-        requested_limit = get_history_default_history_limit();
+        requested_limit = spec.default_value;
     } else {
         try {
             requested_limit = std::stol(option);
         } catch (const std::invalid_argument&) {
-            print_error({ErrorType::INVALID_ARGUMENT, "set-history-max",
+            print_error({ErrorType::INVALID_ARGUMENT, spec.command_name,
                          "invalid number: " + option, usage_lines});
             return 1;
         } catch (const std::out_of_range&) {
-            print_error({ErrorType::INVALID_ARGUMENT, "set-history-max",
+            print_error({ErrorType::INVALID_ARGUMENT, spec.command_name,
                          "number out of range: " + option, usage_lines});
             return 1;
         }
     }
 
-    if (requested_limit < get_history_min_history_limit()) {
-        print_error({ErrorType::INVALID_ARGUMENT, "set-history-max",
-                     "value must be greater than or equal to " +
-                         std::to_string(get_history_min_history_limit()),
+    if (requested_limit < spec.minimum_value) {
+        print_error({ErrorType::INVALID_ARGUMENT, spec.command_name,
+                     "value must be greater than or equal to " + std::to_string(spec.minimum_value),
                      usage_lines});
         return 1;
     }
 
     std::string error_message;
-    if (!set_history_max_entries(requested_limit, &error_message)) {
+    if (!spec.set_value(requested_limit, &error_message)) {
         if (error_message.empty()) {
-            error_message = "Failed to update history limit.";
+            error_message = "Failed to update value.";
         }
-        print_error({ErrorType::RUNTIME_ERROR, "set-history-max", error_message, {}});
+        print_error({ErrorType::RUNTIME_ERROR, spec.command_name, error_message, {}});
         return 1;
     }
 
     if (!cjsh_env::startup_active()) {
-        long applied_limit = get_history_max_entries();
-        if (applied_limit <= 0) {
-            std::cout << "History persistence disabled.\n";
-        } else {
-            std::cout << "History file will retain up to " << applied_limit << " entries." << '\n';
-        }
+        spec.print_applied(spec.get_current());
     }
 
     return 0;
+}
+
+}  // namespace
+
+int set_history_max_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: set-history-max <number|default|status>",
+        "",
+        "Configure the maximum number of entries written to the history file.",
+        "Use 0 to disable history persistence entirely.",
+        "Use 'default' to restore the built-in limit (" +
+            std::to_string(get_history_default_history_limit()) + " entries).",
+        "Use 'status' to view the current setting.",
+        "Minimum value: " + std::to_string(get_history_min_history_limit()) + " (no upper limit)."};
+
+    NumericLimitCommandSpec spec{
+        "set-history-max",
+        &usage_lines,
+        get_history_default_history_limit(),
+        get_history_min_history_limit(),
+        []() { return get_history_max_entries(); },
+        [](long value, std::string* error) { return set_history_max_entries(value, error); },
+        [](long current_limit) {
+            if (current_limit <= 0) {
+                std::cout << "History persistence is currently disabled.\n";
+            } else {
+                std::cout << "History file retains up to " << current_limit << " entries.\n";
+            }
+        },
+        [](long applied_limit) {
+            if (applied_limit <= 0) {
+                std::cout << "History persistence disabled.\n";
+            } else {
+                std::cout << "History file will retain up to " << applied_limit << " entries.\n";
+            }
+        }};
+
+    return handle_numeric_limit_command(args, spec);
 }
 
 int set_completion_max_command(const std::vector<std::string>& args) {
@@ -424,82 +425,19 @@ int set_completion_max_command(const std::vector<std::string>& args) {
         "Minimum value: " + std::to_string(get_completion_min_allowed_results()) +
             " (no upper limit)."};
 
-    if (args.size() == 1) {
-        if (!cjsh_env::startup_active()) {
-            for (const auto& line : usage_lines) {
-                std::cout << line << '\n';
-            }
-        }
-        print_error({ErrorType::INVALID_ARGUMENT, "set-completion-max", "expected 1 argument",
-                     usage_lines});
-        return 1;
-    }
+    NumericLimitCommandSpec spec{
+        "set-completion-max",
+        &usage_lines,
+        get_completion_default_max_results(),
+        get_completion_min_allowed_results(),
+        []() { return get_completion_max_results(); },
+        [](long value, std::string* error) { return set_completion_max_results(value, error); },
+        [](long current_limit) {
+            std::cout << "Completion menu currently shows up to " << current_limit << " entries.\n";
+        },
+        [](long applied_limit) {
+            std::cout << "Completion menu will display up to " << applied_limit << " entries.\n";
+        }};
 
-    if (args.size() > 2) {
-        print_error({ErrorType::INVALID_ARGUMENT, "set-completion-max",
-                     "too many arguments provided", usage_lines});
-        return 1;
-    }
-
-    const std::string& option = args[1];
-    std::string normalized = string_utils::to_lower_copy(option);
-
-    if (normalized == "--help" || normalized == "-h") {
-        if (!cjsh_env::startup_active()) {
-            for (const auto& line : usage_lines) {
-                std::cout << line << '\n';
-            }
-        }
-        return 0;
-    }
-
-    if (normalized == "status" || normalized == "--status") {
-        if (!cjsh_env::startup_active()) {
-            long current_limit = get_completion_max_results();
-            std::cout << "Completion menu currently shows up to " << current_limit << " entries."
-                      << '\n';
-        }
-        return 0;
-    }
-
-    long requested_limit = 0;
-    if (normalized == "default" || normalized == "--default") {
-        requested_limit = get_completion_default_max_results();
-    } else {
-        try {
-            requested_limit = std::stol(option);
-        } catch (const std::invalid_argument&) {
-            print_error({ErrorType::INVALID_ARGUMENT, "set-completion-max",
-                         "invalid number: " + option, usage_lines});
-            return 1;
-        } catch (const std::out_of_range&) {
-            print_error({ErrorType::INVALID_ARGUMENT, "set-completion-max",
-                         "number out of range: " + option, usage_lines});
-            return 1;
-        }
-    }
-
-    if (requested_limit < get_completion_min_allowed_results()) {
-        print_error({ErrorType::INVALID_ARGUMENT, "set-completion-max",
-                     "value must be greater than or equal to " +
-                         std::to_string(get_completion_min_allowed_results()),
-                     usage_lines});
-        return 1;
-    }
-
-    std::string error_message;
-    if (!set_completion_max_results(requested_limit, &error_message)) {
-        if (error_message.empty()) {
-            error_message = "Failed to update completion limit.";
-        }
-        print_error({ErrorType::RUNTIME_ERROR, "set-completion-max", error_message, {}});
-        return 1;
-    }
-
-    if (!cjsh_env::startup_active()) {
-        long applied_limit = get_completion_max_results();
-        std::cout << "Completion menu will display up to " << applied_limit << " entries." << '\n';
-    }
-
-    return 0;
+    return handle_numeric_limit_command(args, spec);
 }

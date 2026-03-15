@@ -48,6 +48,55 @@
 extern std::unique_ptr<Shell> g_shell;
 namespace suggestion_utils {
 
+CdLookupContext build_cd_lookup_context(const std::string& target_dir,
+                                        const std::string& current_dir) {
+    CdLookupContext context;
+    context.current_path = std::filesystem::path(current_dir);
+    context.target_path = std::filesystem::path(target_dir);
+    context.base_path = context.current_path;
+    context.lookup_fragment = target_dir;
+
+    std::error_code ec;
+
+    if (!target_dir.empty()) {
+        if (context.target_path.is_absolute()) {
+            context.base_path = context.target_path.parent_path();
+            context.lookup_fragment = context.target_path.filename().string();
+            if (context.lookup_fragment.empty()) {
+                context.lookup_fragment = context.target_path.string();
+            }
+        } else {
+            std::filesystem::path resolved = context.current_path / context.target_path;
+            std::filesystem::path parent = resolved.parent_path();
+            if (parent.empty()) {
+                parent = context.current_path;
+            }
+
+            if (std::filesystem::exists(parent, ec)) {
+                context.base_path = parent;
+                context.lookup_fragment = resolved.filename().string();
+                if (context.lookup_fragment.empty()) {
+                    context.lookup_fragment = context.target_path.filename().string();
+                    if (context.lookup_fragment.empty()) {
+                        context.lookup_fragment = target_dir;
+                    }
+                }
+            } else {
+                ec.clear();
+            }
+        }
+    }
+
+    if (context.lookup_fragment.empty()) {
+        context.lookup_fragment = target_dir;
+    }
+
+    context.base_dir = context.base_path.empty() ? current_dir : context.base_path.string();
+    context.search_base =
+        context.base_path.empty() ? std::filesystem::path(context.base_dir) : context.base_path;
+    return context;
+}
+
 std::vector<std::string> generate_command_suggestions(const std::string& command) {
     std::vector<std::string> suggestions;
 
@@ -122,58 +171,17 @@ std::vector<std::string> generate_cd_suggestions(const std::string& target_dir,
                                                  const std::string& current_dir) {
     std::vector<std::string> suggestions;
 
-    std::filesystem::path current_path(current_dir);
-    std::filesystem::path target_path(target_dir);
-    std::filesystem::path base_path = current_path;
-    std::string lookup_fragment = target_dir;
+    CdLookupContext context = build_cd_lookup_context(target_dir, current_dir);
 
     std::error_code ec;
 
-    if (!target_dir.empty()) {
-        if (target_path.is_absolute()) {
-            base_path = target_path.parent_path();
-            lookup_fragment = target_path.filename().string();
-            if (lookup_fragment.empty()) {
-                lookup_fragment = target_path.string();
-            }
-        } else {
-            std::filesystem::path resolved = current_path / target_path;
-            std::filesystem::path parent = resolved.parent_path();
-            if (parent.empty()) {
-                parent = current_path;
-            }
-
-            if (std::filesystem::exists(parent, ec)) {
-                base_path = parent;
-                lookup_fragment = resolved.filename().string();
-                if (lookup_fragment.empty()) {
-                    lookup_fragment = target_path.filename().string();
-                    if (lookup_fragment.empty()) {
-                        lookup_fragment = target_dir;
-                    }
-                }
-            } else {
-                ec.clear();
-            }
-        }
-    }
-
-    if (lookup_fragment.empty()) {
-        lookup_fragment = target_dir;
-    }
-
-    std::string base_dir = base_path.empty() ? current_dir : base_path.string();
-
-    auto raw_similar = find_similar_entries(lookup_fragment, base_dir, 5);
-
-    std::filesystem::path search_base =
-        base_path.empty() ? std::filesystem::path(base_dir) : base_path;
+    auto raw_similar = find_similar_entries(context.lookup_fragment, context.base_dir, 5);
 
     std::vector<std::string> similar;
     std::unordered_set<std::string> seen_paths;
 
     for (const auto& candidate : raw_similar) {
-        std::filesystem::path candidate_path = search_base / candidate;
+        std::filesystem::path candidate_path = context.search_base / candidate;
 
         if (!std::filesystem::exists(candidate_path, ec)) {
             ec.clear();
@@ -186,10 +194,11 @@ std::vector<std::string> generate_cd_suggestions(const std::string& target_dir,
         }
 
         std::string display_value;
-        if (target_path.is_absolute()) {
+        if (context.target_path.is_absolute()) {
             display_value = candidate_path.string();
         } else {
-            auto relative_candidate = std::filesystem::relative(candidate_path, current_path, ec);
+            auto relative_candidate =
+                std::filesystem::relative(candidate_path, context.current_path, ec);
             if (!ec && !relative_candidate.empty() && relative_candidate.string() != ".") {
                 display_value = relative_candidate.string();
             } else {

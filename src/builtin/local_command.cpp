@@ -33,6 +33,7 @@
 #include "cjsh.h"
 #include "error_out.h"
 #include "interpreter.h"
+#include "parser_utils.h"
 #include "shell.h"
 #include "shell_env.h"
 
@@ -65,11 +66,9 @@ int local_command(const std::vector<std::string>& args, Shell* shell) {
     for (size_t i = 1; i < args.size(); ++i) {
         const std::string& arg = args[i];
 
-        size_t eq_pos = arg.find('=');
-        if (eq_pos != std::string::npos) {
-            std::string name = arg.substr(0, eq_pos);
-            std::string value = arg.substr(eq_pos + 1);
-
+        std::string name;
+        std::string value;
+        if (parse_assignment(arg, name, value, false)) {
             if (name.empty()) {
                 print_error({ErrorType::INVALID_ARGUMENT, "local", "invalid variable name", {}});
                 all_successful = false;
