@@ -66,27 +66,17 @@ int local_command(const std::vector<std::string>& args, Shell* shell) {
     for (size_t i = 1; i < args.size(); ++i) {
         const std::string& arg = args[i];
 
-        std::string name;
-        std::string value;
-        if (parse_assignment(arg, name, value, false)) {
-            if (name.empty()) {
-                print_error({ErrorType::INVALID_ARGUMENT, "local", "invalid variable name", {}});
-                all_successful = false;
-                continue;
-            }
+        AssignmentOperand operand;
+        parse_assignment_operand(arg, operand, false);
 
-            script_interpreter->set_local_variable(name, value);
-        } else {
-            const std::string& name = arg;
-
-            if (name.empty()) {
-                print_error({ErrorType::INVALID_ARGUMENT, "local", "invalid variable name", {}});
-                all_successful = false;
-                continue;
-            }
-
-            script_interpreter->set_local_variable(name, "");
+        if (operand.name.empty()) {
+            print_error({ErrorType::INVALID_ARGUMENT, "local", "invalid variable name", {}});
+            all_successful = false;
+            continue;
         }
+
+        script_interpreter->set_local_variable(operand.name,
+                                               operand.has_assignment ? operand.value : "");
     }
 
     return all_successful ? 0 : 1;

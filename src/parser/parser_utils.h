@@ -42,6 +42,19 @@ bool is_valid_identifier_char(char c);
 bool is_valid_identifier(const std::string& name);
 bool parse_assignment(const std::string& arg, std::string& name, std::string& value,
                       bool strip_surrounding_quotes = false);
+
+struct AssignmentOperand {
+    std::string name;
+    std::string value;
+    bool has_assignment = false;
+};
+
+bool parse_assignment_operand(const std::string& arg, AssignmentOperand& operand,
+                              bool strip_surrounding_quotes = false);
+size_t find_token_end_with_quotes(const std::string& text, size_t start, size_t end,
+                                  const std::string& delimiter_chars,
+                                  bool stop_on_whitespace = true);
+
 bool split_on_first_equals(const std::string& value, std::string& left, std::string& right,
                            bool require_nonempty_left = true);
 bool looks_like_assignment(const std::string& value);

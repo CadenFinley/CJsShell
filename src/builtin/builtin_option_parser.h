@@ -1,5 +1,5 @@
 /*
-  builtin_help.h
+  builtin_option_parser.h
 
   This file is part of cjsh, CJ's Shell
 
@@ -28,18 +28,11 @@
 
 #pragma once
 
+#include <functional>
 #include <string>
 #include <vector>
 
-enum class BuiltinHelpScanMode {
-    FirstArgument,
-    AnyArgument
-};
-
-bool builtin_handle_help(const std::vector<std::string>& args,
-                         const std::vector<std::string>& help_lines,
-                         BuiltinHelpScanMode scan_mode = BuiltinHelpScanMode::FirstArgument);
-
-bool builtin_handle_help_with_startup_guard(
-    const std::vector<std::string>& args, const std::vector<std::string>& help_lines,
-    BuiltinHelpScanMode scan_mode = BuiltinHelpScanMode::FirstArgument);
+bool builtin_parse_short_options(const std::vector<std::string>& args, size_t& start_index,
+                                 const std::string& command_name,
+                                 const std::function<bool(char)>& handle_option,
+                                 bool require_option_character = true);

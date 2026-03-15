@@ -916,10 +916,6 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
 
                 else if (first_control == ControlToken::For) {
                     auto for_check = analyze_for_loop_syntax(tokens, trimmed_for_parsing);
-                    if (for_check.missing_in_keyword) {
-                        errors.push_back(
-                            {display_line, "'for' statement missing 'in' clause", line});
-                    }
                     control_stack.push_back({ControlToken::For, ControlToken::For, display_line});
                     if (for_check.has_inline_do) {
                         std::get<0>(control_stack.back()) = ControlToken::Do;
@@ -928,11 +924,6 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
 
                 else if (first_control == ControlToken::Case) {
                     auto case_check = analyze_case_syntax(tokens);
-                    if (case_check.missing_in_keyword) {
-                        errors.push_back(
-                            {display_line, "'case' statement missing 'in' clause", line});
-                    }
-
                     bool header_complete = !case_check.incomplete && !case_check.missing_in_keyword;
                     if (!has_inline_terminator(trimmed_for_parsing, "esac")) {
                         control_stack.push_back(

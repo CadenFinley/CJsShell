@@ -1,0 +1,75 @@
+/*
+  command_lookup.cpp
+
+  This file is part of cjsh, CJ's Shell
+
+  MIT License
+
+  Copyright (c) 2026 Caden Finley
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+*/
+
+#include "command_lookup.h"
+
+#include "builtin.h"
+#include "interpreter.h"
+#include "shell.h"
+#include "token_constants.h"
+
+namespace command_lookup {
+
+bool is_shell_keyword(const std::string& token) {
+    if (token_constants::shell_keywords().count(token) > 0) {
+        return true;
+    }
+
+    return token == "{" || token == "}" || token == "[[" || token == "]]" || token == "!";
+}
+
+bool is_shell_builtin(const std::string& token, Shell* shell) {
+    return shell != nullptr && shell->get_built_ins() != nullptr &&
+           shell->get_built_ins()->is_builtin_command(token) != 0;
+}
+
+bool lookup_shell_alias(const std::string& token, Shell* shell, std::string& alias_value) {
+    if (shell == nullptr) {
+        return false;
+    }
+
+    const auto& aliases = shell->get_aliases();
+    auto alias_it = aliases.find(token);
+    if (alias_it == aliases.end()) {
+        return false;
+    }
+
+    alias_value = alias_it->second;
+    return true;
+}
+
+bool has_shell_function(const std::string& token, Shell* shell) {
+    if (shell == nullptr) {
+        return false;
+    }
+
+    const auto* interpreter = shell->get_shell_script_interpreter();
+    return interpreter != nullptr && interpreter->has_function(token);
+}
+
+}  // namespace command_lookup

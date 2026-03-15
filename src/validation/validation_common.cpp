@@ -92,7 +92,7 @@ size_t find_char_skipping_escapes(const std::string& text, size_t start_index, P
     return std::string::npos;
 }
 
-size_t find_matching_backtick_for_validation(const std::string& text, size_t start_index) {
+size_t find_matching_backtick_for_validation_impl(const std::string& text, size_t start_index) {
     return find_char_skipping_escapes(text, start_index, [](char ch) { return ch == '`'; });
 }
 
@@ -135,8 +135,9 @@ void for_each_effective_char_basic(const std::string& text, size_t start_index, 
     }
 }
 
-bool find_matching_command_substitution_end_for_validation(const std::string& text,
-                                                           size_t start_index, size_t& end_out) {
+bool find_matching_command_substitution_end_for_validation_impl(const std::string& text,
+                                                                size_t start_index,
+                                                                size_t& end_out) {
     int depth = 1;
     bool found = false;
 
@@ -180,6 +181,15 @@ size_t find_marker(const std::string& text, size_t start_pos, const char* marker
 }
 
 }  // namespace
+
+size_t find_matching_backtick_for_validation(const std::string& text, size_t start_index) {
+    return find_matching_backtick_for_validation_impl(text, start_index);
+}
+
+bool find_matching_command_substitution_end_for_validation(const std::string& text,
+                                                           size_t start_index, size_t& end_out) {
+    return find_matching_command_substitution_end_for_validation_impl(text, start_index, end_out);
+}
 
 std::string sanitize_command_substitutions_for_validation(const std::string& input) {
     if (input.empty())
@@ -256,7 +266,8 @@ std::string sanitize_command_substitutions_for_validation(const std::string& inp
 
         if (!in_single && c == '$' && i + 1 < input.size() && input[i + 1] == '(') {
             size_t end_index = 0;
-            if (find_matching_command_substitution_end_for_validation(input, i + 2, end_index)) {
+            if (find_matching_command_substitution_end_for_validation_impl(input, i + 2,
+                                                                           end_index)) {
                 output.append("$(");
                 output.append(placeholder);
                 output.push_back(')');
@@ -266,7 +277,7 @@ std::string sanitize_command_substitutions_for_validation(const std::string& inp
         }
 
         if (!in_single && c == '`') {
-            size_t end_index = find_matching_backtick_for_validation(input, i + 1);
+            size_t end_index = find_matching_backtick_for_validation_impl(input, i + 1);
             if (end_index != std::string::npos) {
                 output.push_back('`');
                 output.append(placeholder);

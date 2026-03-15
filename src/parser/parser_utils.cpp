@@ -123,6 +123,60 @@ bool parse_assignment(const std::string& arg, std::string& name, std::string& va
     return true;
 }
 
+bool parse_assignment_operand(const std::string& arg, AssignmentOperand& operand,
+                              bool strip_surrounding_quotes) {
+    std::string parsed_name;
+    std::string parsed_value;
+    if (parse_assignment(arg, parsed_name, parsed_value, strip_surrounding_quotes)) {
+        operand.name = std::move(parsed_name);
+        operand.value = std::move(parsed_value);
+        operand.has_assignment = true;
+        return true;
+    }
+
+    operand.name = arg;
+    operand.value.clear();
+    operand.has_assignment = false;
+    return true;
+}
+
+size_t find_token_end_with_quotes(const std::string& text, size_t start, size_t end,
+                                  const std::string& delimiter_chars, bool stop_on_whitespace) {
+    if (start >= end || start >= text.size()) {
+        return start;
+    }
+
+    bool in_single = false;
+    bool in_double = false;
+    size_t i = start;
+    while (i < end) {
+        char ch = text[i];
+        if (ch == '\\' && !in_single && i + 1 < end) {
+            i += 2;
+            continue;
+        }
+        if (!in_double && ch == '\'') {
+            in_single = !in_single;
+            ++i;
+            continue;
+        }
+        if (!in_single && ch == '"') {
+            in_double = !in_double;
+            ++i;
+            continue;
+        }
+        if (!in_single && !in_double) {
+            if ((stop_on_whitespace && (std::isspace(static_cast<unsigned char>(ch)) != 0)) ||
+                (!delimiter_chars.empty() && delimiter_chars.find(ch) != std::string::npos)) {
+                break;
+            }
+        }
+        ++i;
+    }
+
+    return i;
+}
+
 bool split_on_first_equals(const std::string& value, std::string& left, std::string& right,
                            bool require_nonempty_left) {
     size_t equals_pos = value.find('=');

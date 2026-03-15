@@ -138,34 +138,11 @@ ShellScriptInterpreter::validate_parameter_expansions(const std::vector<std::str
 
         if (c == '$' && i + 1 < line.length() && line[i + 1] == '(') {
             size_t start = i;
-            size_t paren_count = 1;
-            size_t j = i + 2;
-            bool in_single_quote = false;
-            bool in_double_quote = false;
-            bool escaped = false;
+            size_t end = 0;
+            bool closed = find_matching_command_substitution_end_for_validation(line, i + 2, end);
+            size_t j = closed ? end + 1 : line.length();
 
-            while (j < line.length() && paren_count > 0) {
-                char ch = line[j];
-
-                if (escaped) {
-                    escaped = false;
-                } else if (ch == '\\') {
-                    escaped = true;
-                } else if (!in_single_quote && ch == '"') {
-                    in_double_quote = !in_double_quote;
-                } else if (!in_double_quote && ch == '\'') {
-                    in_single_quote = !in_single_quote;
-                } else if (!in_single_quote && !in_double_quote) {
-                    if (ch == '(') {
-                        paren_count++;
-                    } else if (ch == ')') {
-                        paren_count--;
-                    }
-                }
-                j++;
-            }
-
-            if (paren_count > 0) {
+            if (!closed) {
                 line_errors.push_back(SyntaxError({display_line, start, j, 0}, ErrorSeverity::ERROR,
                                                   ErrorCategory::SYNTAX, "SYN005",
                                                   "Unclosed command substitution $() - missing ')'",
@@ -177,19 +154,9 @@ ShellScriptInterpreter::validate_parameter_expansions(const std::vector<std::str
 
         if (c == '`' && !state.in_quotes) {
             size_t start = i;
-            size_t j = i + 1;
-            bool found_closing = false;
-
-            while (j < line.length()) {
-                if (line[j] == '`') {
-                    found_closing = true;
-                    j++;
-                    break;
-                }
-                if (line[j] == '\\')
-                    j++;
-                j++;
-            }
+            size_t closing = find_matching_backtick_for_validation(line, i + 1);
+            bool found_closing = closing != std::string::npos;
+            size_t j = found_closing ? closing + 1 : line.length();
 
             if (!found_closing) {
                 line_errors.push_back(SyntaxError(

@@ -28,6 +28,8 @@
 
 #include "cjshopt_command.h"
 
+#include "builtin_help.h"
+
 #include <algorithm>
 #include <cctype>
 #include <cstdint>
@@ -187,11 +189,8 @@ int handle_toggle_command(const ToggleCommandConfig& config, const std::vector<s
         return 1;
     }
 
-    if (args.size() == 2 && (args[1] == "--help" || args[1] == "-h")) {
+    if (builtin_handle_help_with_startup_guard(args, config.usage_lines)) {
         if (!cjsh_env::startup_active()) {
-            for (const auto& line : config.usage_lines) {
-                std::cout << line << '\n';
-            }
             std::cout << "Current: " << (config.get_current() ? "enabled" : "disabled") << '\n';
         }
         return 0;
@@ -415,12 +414,7 @@ int line_numbers_command(const std::vector<std::string>& args) {
         return 1;
     }
 
-    if (args.size() == 2 && (args[1] == "--help" || args[1] == "-h")) {
-        if (!cjsh_env::startup_active()) {
-            for (const auto& line : usage_lines) {
-                std::cout << line << '\n';
-            }
-        }
+    if (builtin_handle_help_with_startup_guard(args, usage_lines)) {
         return 0;
     }
 
@@ -566,12 +560,7 @@ int hint_delay_command(const std::vector<std::string>& args) {
         return 1;
     }
 
-    if (args.size() == 2 && (args[1] == "--help" || args[1] == "-h")) {
-        if (!cjsh_env::startup_active()) {
-            for (const auto& line : usage_lines) {
-                std::cout << line << '\n';
-            }
-        }
+    if (builtin_handle_help_with_startup_guard(args, usage_lines)) {
         return 0;
     }
 
@@ -627,12 +616,7 @@ int multiline_start_lines_command(const std::vector<std::string>& args) {
         return 1;
     }
 
-    if (args.size() == 2 && (args[1] == "--help" || args[1] == "-h")) {
-        if (!cjsh_env::startup_active()) {
-            for (const auto& line : usage_lines) {
-                std::cout << line << '\n';
-            }
-        }
+    if (builtin_handle_help_with_startup_guard(args, usage_lines)) {
         return 0;
     }
 
@@ -855,11 +839,8 @@ int status_hints_command(const std::vector<std::string>& args) {
         return 1;
     }
 
-    if (args.size() == 2 && (args[1] == "--help" || args[1] == "-h")) {
+    if (builtin_handle_help_with_startup_guard(args, usage_lines)) {
         if (!cjsh_env::startup_active()) {
-            for (const auto& line : usage_lines) {
-                std::cout << line << '\n';
-            }
             std::cout << "Current: " << describe_status_hint_mode(ic_get_status_hint_mode())
                       << '\n';
         }

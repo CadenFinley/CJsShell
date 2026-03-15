@@ -288,29 +288,10 @@ std::string resolve_auto_cd_target(const std::string& token, Shell* shell) {
     const std::string cwd = shell->get_built_ins()->get_current_directory();
     const std::string previous_directory = shell->get_previous_directory();
 
-    std::filesystem::path candidate;
-    if (token == "-") {
-        if (previous_directory.empty()) {
-            return {};
-        }
-        candidate = previous_directory;
-    } else if (token == "~") {
-        candidate = cjsh_filesystem::g_user_home_path();
-    } else if (token.rfind("~/", 0) == 0) {
-        candidate = cjsh_filesystem::g_user_home_path();
-        if (token.size() > 2) {
-            candidate /= token.substr(2);
-        }
-    } else if (token.rfind("-/", 0) == 0) {
-        if (previous_directory.empty()) {
-            return {};
-        }
-        candidate = std::filesystem::path(previous_directory) / token.substr(2);
-    } else {
-        candidate = std::filesystem::path(token);
-        if (!candidate.is_absolute()) {
-            candidate = std::filesystem::path(cwd) / candidate;
-        }
+    std::filesystem::path candidate =
+        cjsh_filesystem::expand_shell_path_token(token, cwd, previous_directory);
+    if (candidate.empty()) {
+        return {};
     }
 
     std::error_code ec;

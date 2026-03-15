@@ -195,43 +195,46 @@ int readonly_command(const std::vector<std::string>& args) {
     }
 
     for (size_t i = start_index; i < args.size(); ++i) {
-        const std::string& arg = args[i];
+        AssignmentOperand operand;
+        parse_assignment_operand(args[i], operand, false);
 
-        std::string name;
-        std::string value;
-        if (parse_assignment(arg, name, value, false)) {
-            if (!cjsh_env::is_valid_env_name(name)) {
-                print_error({ErrorType::INVALID_ARGUMENT, "readonly", "invalid name: " + name, {}});
-                return 1;
-            }
-
-            if (readonly_manager_is(name)) {
+        if (operand.has_assignment) {
+            if (!cjsh_env::is_valid_env_name(operand.name)) {
                 print_error(
-                    {ErrorType::RUNTIME_ERROR, "readonly", name + ": readonly variable", {}});
+                    {ErrorType::INVALID_ARGUMENT, "readonly", "invalid name: " + operand.name, {}});
                 return 1;
             }
 
-            if (!cjsh_env::set_shell_variable_value(name, value)) {
+            if (readonly_manager_is(operand.name)) {
+                print_error({ErrorType::RUNTIME_ERROR,
+                             "readonly",
+                             operand.name + ": readonly variable",
+                             {}});
+                return 1;
+            }
+
+            if (!cjsh_env::set_shell_variable_value(operand.name, operand.value)) {
                 print_error(
                     {ErrorType::FATAL_ERROR, "readonly", "shell not initialized properly", {}});
                 return 1;
             }
 
-            readonly_manager_set(name);
+            readonly_manager_set(operand.name);
         } else {
-            if (!cjsh_env::is_valid_env_name(arg)) {
-                print_error({ErrorType::INVALID_ARGUMENT, "readonly", "invalid name: " + arg, {}});
+            if (!cjsh_env::is_valid_env_name(operand.name)) {
+                print_error(
+                    {ErrorType::INVALID_ARGUMENT, "readonly", "invalid name: " + operand.name, {}});
                 return 1;
             }
-            if (!cjsh_env::shell_variable_is_set(arg)) {
-                if (!cjsh_env::set_shell_variable_value(arg, "")) {
+            if (!cjsh_env::shell_variable_is_set(operand.name)) {
+                if (!cjsh_env::set_shell_variable_value(operand.name, "")) {
                     print_error(
                         {ErrorType::FATAL_ERROR, "readonly", "shell not initialized properly", {}});
                     return 1;
                 }
             }
 
-            readonly_manager_set(arg);
+            readonly_manager_set(operand.name);
         }
     }
 

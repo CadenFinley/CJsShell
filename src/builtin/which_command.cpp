@@ -29,6 +29,7 @@
 #include "which_command.h"
 
 #include "builtin_help.h"
+#include "builtin_option_parser.h"
 
 #include <sys/stat.h>
 #include <unistd.h>
@@ -37,6 +38,7 @@
 #include "builtin.h"
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
+#include "command_lookup.h"
 #include "error_out.h"
 #include "interpreter.h"
 #include "shell.h"
@@ -57,31 +59,21 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
     bool silent = false;
 
     size_t start_index = 1;
-
-    for (size_t i = 1; i < args.size() && args[i][0] == '-'; ++i) {
-        const std::string& option = args[i];
-        if (option == "--") {
-            start_index = i + 1;
-            break;
-        }
-
-        for (size_t j = 1; j < option.length(); ++j) {
-            switch (option[j]) {
+    const bool options_ok =
+        builtin_parse_short_options(args, start_index, "which", [&](char option) {
+            switch (option) {
                 case 'a':
                     show_all = true;
-                    break;
+                    return true;
                 case 's':
                     silent = true;
-                    break;
+                    return true;
                 default:
-                    print_error({ErrorType::INVALID_ARGUMENT,
-                                 "which",
-                                 "invalid option: -" + std::string(1, option[j]),
-                                 {}});
-                    return 1;
+                    return false;
             }
-        }
-        start_index = i + 1;
+        });
+    if (!options_ok) {
+        return 1;
     }
 
     int return_code = 0;
@@ -96,8 +88,7 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
         bool is_cjsh_custom = std::find(cjsh_custom_commands.begin(), cjsh_custom_commands.end(),
                                         name) != cjsh_custom_commands.end();
 
-        if (is_cjsh_custom && (shell != nullptr) &&
-            (shell->get_built_ins()->is_builtin_command(name) != 0)) {
+        if (is_cjsh_custom && command_lookup::is_shell_builtin(name, shell)) {
             if (!silent) {
                 std::cout << name << " is a cjsh builtin (custom implementation)\n";
             }
@@ -143,7 +134,7 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
         }
 
         if (show_all || (!found_executable && !is_cjsh_custom)) {
-            if ((shell != nullptr) && (shell->get_built_ins()->is_builtin_command(name) != 0)) {
+            if (command_lookup::is_shell_builtin(name, shell)) {
                 if (!silent) {
                     std::cout << "which: " << name << " is a shell builtin\n";
                 }
@@ -151,20 +142,18 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
             }
 
             if ((shell != nullptr) && (show_all || !found)) {
-                auto aliases = shell->get_aliases();
-                auto alias_it = aliases.find(name);
-                if (alias_it != aliases.end()) {
+                std::string alias_value;
+                if (command_lookup::lookup_shell_alias(name, shell, alias_value)) {
                     if (!silent) {
-                        std::cout << "which: " << name << " is aliased to `" << alias_it->second
-                                  << "'" << '\n';
+                        std::cout << "which: " << name << " is aliased to `" << alias_value << "'"
+                                  << '\n';
                     }
                     found = true;
                 }
             }
 
             if ((shell != nullptr) && (show_all || !found)) {
-                auto* interpreter = shell->get_shell_script_interpreter();
-                if ((interpreter != nullptr) && interpreter->has_function(name)) {
+                if (command_lookup::has_shell_function(name, shell)) {
                     if (!silent) {
                         std::cout << "which: " << name << " is a function\n";
                     }

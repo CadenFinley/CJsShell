@@ -28,6 +28,8 @@
 
 #include "cjshopt_command.h"
 
+#include "builtin_help.h"
+
 #include <functional>
 #include <iostream>
 #include <optional>
@@ -49,32 +51,26 @@ int handle_generate_command_common(
     bool force = false;
     bool use_alternate = false;
 
+    std::string usage = "Usage: " + command_name + " [--force]";
+    if (alternate_target_path) {
+        usage.append(" [--alt]");
+    }
+
+    std::vector<std::string> help_lines = {
+        usage, description, "Default location: " + default_target_path.string(),
+        "Options:", "  -f, --force   Overwrite the existing file if it exists"};
+    if (alternate_target_path) {
+        help_lines.push_back("Alternate location (--alt): " + alternate_target_path->string());
+        help_lines.push_back("  --alt        Write to the alternate configuration path");
+    }
+
+    if (builtin_handle_help_with_startup_guard(args, help_lines,
+                                               BuiltinHelpScanMode::AnyArgument)) {
+        return 0;
+    }
+
     for (size_t i = 1; i < args.size(); ++i) {
         const std::string& option = args[i];
-        if (option == "--help" || option == "-h") {
-            if (!cjsh_env::startup_active()) {
-                std::string usage = "Usage: " + command_name + " [--force]";
-                if (alternate_target_path) {
-                    usage.append(" [--alt]");
-                }
-                std::cout << usage << '\n';
-                std::cout << description << "\n";
-                std::cout << "Default location: " << default_target_path << '\n';
-                if (alternate_target_path) {
-                    std::cout << "Alternate location (--alt): " << *alternate_target_path << '\n';
-                }
-                std::vector<std::string> usage_lines = {
-                    "Options:", "  -f, --force   Overwrite the existing file if it exists"};
-                if (alternate_target_path) {
-                    usage_lines.emplace_back(
-                        "  --alt        Write to the alternate configuration path");
-                }
-                for (const auto& line : usage_lines) {
-                    std::cout << line << '\n';
-                }
-            }
-            return 0;
-        }
 
         if (option == "--force" || option == "-f") {
             force = true;

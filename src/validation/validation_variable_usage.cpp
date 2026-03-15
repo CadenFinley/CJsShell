@@ -181,32 +181,7 @@ std::vector<TokenInfo> tokenize_shell_segment(const std::string& text, size_t st
         }
 
         size_t token_start = i;
-        bool in_single = false;
-        bool in_double = false;
-        while (i < end) {
-            char ch = text[i];
-            if (ch == '\\' && !in_single && i + 1 < end) {
-                i += 2;
-                continue;
-            }
-            if (!in_double && ch == '\'') {
-                in_single = !in_single;
-                ++i;
-                continue;
-            }
-            if (!in_single && ch == '"') {
-                in_double = !in_double;
-                ++i;
-                continue;
-            }
-            if (!in_single && !in_double) {
-                if ((std::isspace(static_cast<unsigned char>(ch)) != 0) || ch == ';' || ch == '|' ||
-                    ch == '&' || ch == '(' || ch == ')' || ch == '{' || ch == '}') {
-                    break;
-                }
-            }
-            ++i;
-        }
+        i = find_token_end_with_quotes(text, token_start, end, ";|&(){}", true);
         tokens.push_back({text.substr(token_start, i - token_start), token_start, i});
     }
 

@@ -91,9 +91,12 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
     auto& env_vars = cjsh_env::env_vars();
 
     for (size_t i = 1; i < args.size(); ++i) {
-        std::string name;
-        std::string value;
-        if (parse_assignment(args[i], name, value, true)) {
+        AssignmentOperand operand;
+        parse_assignment_operand(args[i], operand, true);
+
+        if (operand.has_assignment) {
+            const std::string& name = operand.name;
+            std::string value = operand.value;
             bool is_readonly = false;
             if (!validate_export_name(name, is_readonly)) {
                 if (is_readonly) {
@@ -117,18 +120,15 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
 
             setenv(name.c_str(), value.c_str(), 1);
         } else {
+            const std::string& name = operand.name;
             bool is_readonly = false;
-            if (!validate_export_name(args[i], is_readonly)) {
+            if (!validate_export_name(name, is_readonly)) {
                 if (is_readonly) {
-                    print_error({ErrorType::INVALID_ARGUMENT,
-                                 "export",
-                                 args[i] + ": readonly variable",
-                                 {}});
+                    print_error(
+                        {ErrorType::INVALID_ARGUMENT, "export", name + ": readonly variable", {}});
                 } else {
-                    print_error({ErrorType::INVALID_ARGUMENT,
-                                 "export",
-                                 args[i] + ": invalid identifier",
-                                 {}});
+                    print_error(
+                        {ErrorType::INVALID_ARGUMENT, "export", name + ": invalid identifier", {}});
                 }
                 all_successful = false;
                 continue;
@@ -139,18 +139,18 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
             bool is_local = false;
 
             auto* script_interpreter = shell->get_shell_script_interpreter();
-            if (script_interpreter != nullptr && script_interpreter->is_local_variable(args[i])) {
-                var_value = script_interpreter->get_variable_value(args[i]);
+            if (script_interpreter != nullptr && script_interpreter->is_local_variable(name)) {
+                var_value = script_interpreter->get_variable_value(name);
                 found = true;
                 is_local = true;
 
-                script_interpreter->mark_local_as_exported(args[i]);
+                script_interpreter->mark_local_as_exported(name);
             } else {
-                if (cjsh_env::shell_variable_is_set(args[i])) {
-                    var_value = cjsh_env::get_shell_variable_value(args[i]);
+                if (cjsh_env::shell_variable_is_set(name)) {
+                    var_value = cjsh_env::get_shell_variable_value(name);
                     found = true;
                 } else {
-                    auto it = env_vars.find(args[i]);
+                    auto it = env_vars.find(name);
                     if (it != env_vars.end()) {
                         var_value = it->second;
                         found = true;
@@ -160,11 +160,11 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
 
             if (found) {
                 if (!is_local) {
-                    env_vars[args[i]] = var_value;
+                    env_vars[name] = var_value;
                 }
-                setenv(args[i].c_str(), var_value.c_str(), 1);
+                setenv(name.c_str(), var_value.c_str(), 1);
             } else {
-                print_error({ErrorType::INVALID_ARGUMENT, "export", args[i] + ": not found", {}});
+                print_error({ErrorType::INVALID_ARGUMENT, "export", name + ": not found", {}});
                 all_successful = false;
             }
         }

@@ -30,6 +30,8 @@
 
 #include <iostream>
 
+#include "shell_env.h"
+
 bool builtin_handle_help(const std::vector<std::string>& args,
                          const std::vector<std::string>& help_lines,
                          BuiltinHelpScanMode scan_mode) {
@@ -60,5 +62,39 @@ bool builtin_handle_help(const std::vector<std::string>& args,
     for (const auto& line : help_lines) {
         std::cout << line << '\n';
     }
+    return true;
+}
+
+bool builtin_handle_help_with_startup_guard(const std::vector<std::string>& args,
+                                            const std::vector<std::string>& help_lines,
+                                            BuiltinHelpScanMode scan_mode) {
+    if (args.size() <= 1) {
+        return false;
+    }
+
+    auto is_help_flag = [](const std::string& flag) { return flag == "--help" || flag == "-h"; };
+
+    bool help_requested = false;
+    if (scan_mode == BuiltinHelpScanMode::FirstArgument) {
+        help_requested = is_help_flag(args[1]);
+    } else {
+        for (size_t i = 1; i < args.size(); ++i) {
+            if (is_help_flag(args[i])) {
+                help_requested = true;
+                break;
+            }
+        }
+    }
+
+    if (!help_requested) {
+        return false;
+    }
+
+    if (!cjsh_env::startup_active()) {
+        for (const auto& line : help_lines) {
+            std::cout << line << '\n';
+        }
+    }
+
     return true;
 }

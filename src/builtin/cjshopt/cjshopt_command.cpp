@@ -28,6 +28,8 @@
 
 #include "cjshopt_command.h"
 
+#include "builtin_help.h"
+
 #include <array>
 #include <cstdint>
 #include <iostream>
@@ -226,7 +228,7 @@ void print_cjshopt_usage() {
 }  // namespace
 
 int cjshopt_command(const std::vector<std::string>& args) {
-    if (args.size() > 1 && (args[1] == "--help" || args[1] == "-h")) {
+    if (builtin_handle_help_with_startup_guard(args, {}, BuiltinHelpScanMode::FirstArgument)) {
         if (!cjsh_env::startup_active()) {
             print_cjshopt_usage();
         }

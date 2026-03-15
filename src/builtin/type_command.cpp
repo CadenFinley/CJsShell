@@ -29,12 +29,14 @@
 #include "type_command.h"
 
 #include "builtin_help.h"
+#include "builtin_option_parser.h"
 
 #include <sys/stat.h>
 #include <unistd.h>
 #include <iostream>
 #include "builtin.h"
 #include "cjsh_filesystem.h"
+#include "command_lookup.h"
 #include "error_out.h"
 #include "interpreter.h"
 #include "shell.h"
@@ -57,40 +59,30 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
     bool no_path_search = false;
 
     size_t start_index = 1;
-
-    for (size_t i = 1; i < args.size() && args[i][0] == '-'; ++i) {
-        const std::string& option = args[i];
-        if (option == "--") {
-            start_index = i + 1;
-            break;
-        }
-
-        for (size_t j = 1; j < option.length(); ++j) {
-            switch (option[j]) {
+    const bool options_ok =
+        builtin_parse_short_options(args, start_index, "type", [&](char option) {
+            switch (option) {
                 case 'a':
                     show_all = true;
-                    break;
+                    return true;
                 case 'f':
                     inhibit_functions = true;
-                    break;
+                    return true;
                 case 'p':
                     force_path = true;
-                    break;
+                    return true;
                 case 't':
                     show_type_only = true;
-                    break;
+                    return true;
                 case 'P':
                     no_path_search = true;
-                    break;
+                    return true;
                 default:
-                    print_error({ErrorType::INVALID_ARGUMENT,
-                                 "type",
-                                 "invalid option: -" + std::string(1, option[j]),
-                                 {}});
-                    return 1;
+                    return false;
             }
-        }
-        start_index = i + 1;
+        });
+    if (!options_ok) {
+        return 1;
     }
 
     int return_code = 0;
@@ -100,28 +92,20 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
         bool found = false;
 
         if (!force_path && !inhibit_functions) {
-            const std::vector<std::string> keywords = {
-                "if",  "then",   "else",  "elif",  "fi",   "case", "esac",
-                "for", "select", "while", "until", "do",   "done", "function",
-                "{",   "}",      "[[",    "]]",    "time", "!",    "in"};
-
-            for (const auto& keyword : keywords) {
-                if (name == keyword) {
-                    if (show_type_only) {
-                        std::cout << "keyword\n";
-                    } else {
-                        std::cout << name << " is a shell keyword\n";
-                    }
-                    found = true;
-                    if (!show_all)
-                        break;
+            if (command_lookup::is_shell_keyword(name)) {
+                if (show_type_only) {
+                    std::cout << "keyword\n";
+                } else {
+                    std::cout << name << " is a shell keyword\n";
                 }
+                found = true;
+                if (!show_all)
+                    continue;
             }
         }
 
         if (!found || show_all) {
-            if (!force_path && (shell != nullptr) &&
-                (shell->get_built_ins()->is_builtin_command(name) != 0)) {
+            if (!force_path && command_lookup::is_shell_builtin(name, shell)) {
                 if (show_type_only) {
                     std::cout << "builtin\n";
                 } else {
@@ -135,13 +119,12 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
 
         if (!found || show_all) {
             if (!force_path && !inhibit_functions && (shell != nullptr)) {
-                auto aliases = shell->get_aliases();
-                auto alias_it = aliases.find(name);
-                if (alias_it != aliases.end()) {
+                std::string alias_value;
+                if (command_lookup::lookup_shell_alias(name, shell, alias_value)) {
                     if (show_type_only) {
                         std::cout << "alias\n";
                     } else {
-                        std::cout << name << " is aliased to `" << alias_it->second << "'" << '\n';
+                        std::cout << name << " is aliased to `" << alias_value << "'" << '\n';
                     }
                     found = true;
                     if (!show_all)
@@ -151,18 +134,16 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
         }
 
         if (!found || show_all) {
-            if (!force_path && !inhibit_functions && (shell != nullptr)) {
-                auto* interpreter = shell->get_shell_script_interpreter();
-                if ((interpreter != nullptr) && interpreter->has_function(name)) {
-                    if (show_type_only) {
-                        std::cout << "function\n";
-                    } else {
-                        std::cout << name << " is a function\n";
-                    }
-                    found = true;
-                    if (!show_all)
-                        continue;
+            if (!force_path && !inhibit_functions &&
+                command_lookup::has_shell_function(name, shell)) {
+                if (show_type_only) {
+                    std::cout << "function\n";
+                } else {
+                    std::cout << name << " is a function\n";
                 }
+                found = true;
+                if (!show_all)
+                    continue;
             }
         }
 

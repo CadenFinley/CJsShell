@@ -34,6 +34,8 @@
 
 #include "builtin.h"
 #include "cjsh_filesystem.h"
+#include "command_lookup.h"
+#include "parser_utils.h"
 #include "quote_state.h"
 #include "shell.h"
 #include "shell_env.h"
@@ -54,17 +56,7 @@ bool extract_next_token(const std::string& cmd, size_t& cursor, size_t& token_st
     }
 
     size_t start = cursor;
-    utils::QuoteState quote_state;
-
-    while (cursor < len) {
-        char ch = cmd[cursor];
-        auto action = quote_state.consume_forward(ch);
-        if (action == utils::QuoteAdvanceResult::Process && !quote_state.inside_quotes() &&
-            (std::isspace(static_cast<unsigned char>(ch)) != 0)) {
-            break;
-        }
-        ++cursor;
-    }
+    cursor = find_token_end_with_quotes(cmd, start, len, "", true);
 
     token_start = start;
     token_end = cursor;
@@ -85,23 +77,14 @@ bool token_has_explicit_path_hint(const std::string& token) {
 }
 
 std::string resolve_token_path(const std::string& token, const Shell* shell) {
-    std::string path_to_check = token;
-
-    if (token.rfind("~/", 0) == 0) {
-        path_to_check = cjsh_filesystem::g_user_home_path().string() + token.substr(1);
-    } else if (token.rfind("-/", 0) == 0) {
-        if (shell != nullptr) {
-            std::string prev_dir = shell->get_previous_directory();
-            if (!prev_dir.empty()) {
-                path_to_check = prev_dir + token.substr(1);
-            }
-        }
-    } else if (token[0] != '/' && token.rfind("./", 0) != 0 && token.rfind("../", 0) != 0 &&
-               token.rfind("~/", 0) != 0 && token.rfind("-/", 0) != 0) {
-        path_to_check = cjsh_filesystem::safe_current_directory() + "/" + token;
+    const std::string previous_directory =
+        (shell != nullptr) ? shell->get_previous_directory() : "";
+    std::filesystem::path resolved = cjsh_filesystem::expand_shell_path_token(
+        token, cjsh_filesystem::safe_current_directory(), previous_directory);
+    if (resolved.empty()) {
+        return token;
     }
-
-    return path_to_check;
+    return resolved.string();
 }
 
 bool token_is_history_expansion(const std::string& token, size_t absolute_cmd_start) {
@@ -157,7 +140,7 @@ bool is_known_command_token(const std::string& token, size_t absolute_cmd_start,
         }
     }
 
-    if (is_shell_keyword(token) || is_shell_builtin(token)) {
+    if (command_lookup::is_shell_keyword(token) || command_lookup::is_shell_builtin(token, shell)) {
         return true;
     }
 

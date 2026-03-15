@@ -58,6 +58,9 @@ std::vector<std::string> sanitize_lines_for_validation(const std::vector<std::st
 bool starts_with_keyword_token(const std::string& line, const std::string& keyword);
 std::string extract_identifier_from_token(const std::string& token);
 bool is_keyword_token(const std::string& token, const std::string& keyword);
+size_t find_matching_backtick_for_validation(const std::string& text, size_t start_index);
+bool find_matching_command_substitution_end_for_validation(const std::string& text,
+                                                           size_t start_index, size_t& end_out);
 bool is_do_token(const std::string& token);
 bool is_done_token(const std::string& token);
 std::string get_last_non_comment_token(const std::vector<std::string>& tokens);

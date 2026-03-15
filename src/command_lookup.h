@@ -1,5 +1,5 @@
 /*
-  builtin_help.h
+  command_lookup.h
 
   This file is part of cjsh, CJ's Shell
 
@@ -29,17 +29,14 @@
 #pragma once
 
 #include <string>
-#include <vector>
 
-enum class BuiltinHelpScanMode {
-    FirstArgument,
-    AnyArgument
-};
+class Shell;
 
-bool builtin_handle_help(const std::vector<std::string>& args,
-                         const std::vector<std::string>& help_lines,
-                         BuiltinHelpScanMode scan_mode = BuiltinHelpScanMode::FirstArgument);
+namespace command_lookup {
 
-bool builtin_handle_help_with_startup_guard(
-    const std::vector<std::string>& args, const std::vector<std::string>& help_lines,
-    BuiltinHelpScanMode scan_mode = BuiltinHelpScanMode::FirstArgument);
+bool is_shell_keyword(const std::string& token);
+bool is_shell_builtin(const std::string& token, Shell* shell);
+bool lookup_shell_alias(const std::string& token, Shell* shell, std::string& alias_value);
+bool has_shell_function(const std::string& token, Shell* shell);
+
+}  // namespace command_lookup

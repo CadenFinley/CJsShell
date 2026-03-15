@@ -29,6 +29,7 @@
 #include "command_command.h"
 
 #include "builtin_help.h"
+#include "builtin_option_parser.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -61,34 +62,24 @@ int command_command(const std::vector<std::string>& args, Shell* shell) {
     bool verbose_description = false;
     size_t start_index = 1;
 
-    for (size_t i = 1; i < args.size() && args[i][0] == '-' && args[i].length() > 1; ++i) {
-        const std::string& option = args[i];
-
-        if (option == "--") {
-            start_index = i + 1;
-            break;
-        }
-
-        for (size_t j = 1; j < option.length(); ++j) {
-            switch (option[j]) {
+    const bool options_ok =
+        builtin_parse_short_options(args, start_index, "command", [&](char option) {
+            switch (option) {
                 case 'p':
                     use_default_path = true;
-                    break;
+                    return true;
                 case 'v':
                     describe_command = true;
-                    break;
+                    return true;
                 case 'V':
                     verbose_description = true;
-                    break;
+                    return true;
                 default:
-                    print_error({ErrorType::INVALID_ARGUMENT,
-                                 "command",
-                                 "invalid option: -" + std::string(1, option[j]),
-                                 {}});
-                    return 2;
+                    return false;
             }
-        }
-        start_index = i + 1;
+        });
+    if (!options_ok) {
+        return 2;
     }
 
     if (start_index >= args.size()) {
