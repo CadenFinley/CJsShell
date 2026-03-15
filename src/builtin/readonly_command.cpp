@@ -29,6 +29,7 @@
 #include "readonly_command.h"
 
 #include "builtin_help.h"
+#include "builtin_option_parser.h"
 
 #include <algorithm>
 #include <cctype>
@@ -134,20 +135,21 @@ int readonly_command(const std::vector<std::string>& args) {
     bool function_mode = false;
     size_t start_index = 1;
 
-    for (size_t i = 1; i < args.size(); ++i) {
-        if (args[i] == "-p") {
-            print_mode = true;
-            start_index = i + 1;
-        } else if (args[i] == "-f") {
-            function_mode = true;
-            start_index = i + 1;
-        } else if (args[i].substr(0, 1) == "-") {
-            print_error(
-                {ErrorType::INVALID_ARGUMENT, "readonly", args[i] + ": invalid option", {}});
-            return 2;
-        } else {
-            break;
-        }
+    const bool options_ok =
+        builtin_parse_short_options(args, start_index, "readonly", [&](char option) {
+            switch (option) {
+                case 'p':
+                    print_mode = true;
+                    return true;
+                case 'f':
+                    function_mode = true;
+                    return true;
+                default:
+                    return false;
+            }
+        });
+    if (!options_ok) {
+        return 2;
     }
 
     if (function_mode) {

@@ -79,8 +79,4 @@ class CommandSubstitutionEvaluator {
                              std::string& output);
 
     CommandExecutor command_executor_;
-    static constexpr const char* SUBST_LITERAL_START = "\x1E__SUBST_LITERAL_START__\x1E";
-    static constexpr const char* SUBST_LITERAL_END = "\x1E__SUBST_LITERAL_END__\x1E";
-    static constexpr const char* NOENV_START = "\x1E__NOENV_START__\x1E";
-    static constexpr const char* NOENV_END = "\x1E__NOENV_END__\x1E";
 };

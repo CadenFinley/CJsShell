@@ -258,8 +258,8 @@ void VariableExpander::expand_env_vars(std::string& arg) {
 }
 
 void VariableExpander::expand_env_vars_selective(std::string& arg) {
-    const std::string start_marker = "\x1E__NOENV_START__\x1E";
-    const std::string end_marker = "\x1E__NOENV_END__\x1E";
+    const std::string& start_marker = noenv_start();
+    const std::string& end_marker = noenv_end();
 
     std::string result;
     result.reserve(arg.length() + arg.length() / 2);
@@ -391,34 +391,8 @@ void VariableExpander::expand_command_substitutions_in_string(std::string& text)
 
     for (size_t i = 0; i < text.size();) {
         if (text[i] == '$' && i + 1 < text.size() && text[i + 1] == '(') {
-            size_t pos = i + 2;
-            int depth = 1;
-            bool in_single = false;
-            bool in_double = false;
-            while (pos < text.size() && depth > 0) {
-                char ch = text[pos];
-                if (ch == '\\') {
-                    pos += 2;
-                    continue;
-                }
-                if (ch == '\'' && !in_double) {
-                    in_single = !in_single;
-                } else if (ch == '"' && !in_single) {
-                    in_double = !in_double;
-                } else if (!in_single) {
-                    if (ch == '(') {
-                        depth++;
-                    } else if (ch == ')') {
-                        depth--;
-                        if (depth == 0) {
-                            break;
-                        }
-                    }
-                }
-                pos++;
-            }
-
-            if (depth == 0 && pos < text.size()) {
+            size_t pos = find_matching_paren(text, i + 1);
+            if (pos != std::string::npos) {
                 std::string command = text.substr(i + 2, pos - (i + 2));
                 auto output = exec_utils::execute_command_for_output(command);
                 if (output.success) {

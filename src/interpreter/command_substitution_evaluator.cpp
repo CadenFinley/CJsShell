@@ -28,6 +28,8 @@
 
 #include "command_substitution_evaluator.h"
 
+#include "parser_utils.h"
+
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -309,13 +311,13 @@ void CommandSubstitutionEvaluator::append_substitution_result(const std::string&
             escaped_content += c;
         }
 
-        output += NOENV_START;
+        output += noenv_start();
         output += escaped_content;
-        output += NOENV_END;
+        output += noenv_end();
     } else {
-        output += SUBST_LITERAL_START;
+        output += subst_literal_start();
         output += content;
-        output += SUBST_LITERAL_END;
+        output += subst_literal_end();
     }
 }
 
@@ -401,15 +403,14 @@ CommandSubstitutionEvaluator::ExpansionResult CommandSubstitutionEvaluator::expa
 
 std::optional<size_t> CommandSubstitutionEvaluator::find_matching_paren(const std::string& text,
                                                                         size_t start_index) {
-    int depth = 1;
-    for (size_t i = start_index; i < text.size(); ++i) {
-        if (text[i] == '(') {
-            depth++;
-        } else if (text[i] == ')') {
-            depth--;
-            if (depth == 0)
-                return i;
-        }
+    if (start_index == 0 || start_index > text.size()) {
+        return std::nullopt;
     }
-    return std::nullopt;
+
+    size_t match = ::find_matching_paren(text, start_index - 1);
+    if (match == std::string::npos) {
+        return std::nullopt;
+    }
+
+    return match;
 }

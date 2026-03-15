@@ -42,6 +42,41 @@ const std::string& subst_literal_end() {
     return kValue;
 }
 
+const std::string& noenv_start() {
+    static const std::string kValue = "\x1E__NOENV_START__\x1E";
+    return kValue;
+}
+
+const std::string& noenv_end() {
+    static const std::string kValue = "\x1E__NOENV_END__\x1E";
+    return kValue;
+}
+
+const std::string& subst_literal_start_plain() {
+    static const std::string kValue = "__SUBST_LITERAL_START__";
+    return kValue;
+}
+
+const std::string& subst_literal_end_plain() {
+    static const std::string kValue = "__SUBST_LITERAL_END__";
+    return kValue;
+}
+
+const std::string& noenv_start_plain() {
+    static const std::string kValue = "__NOENV_START__";
+    return kValue;
+}
+
+const std::string& noenv_end_plain() {
+    static const std::string kValue = "__NOENV_END__";
+    return kValue;
+}
+
+const std::string& substitution_placeholder() {
+    static const std::string kValue = "__CJSH_SUBST__";
+    return kValue;
+}
+
 bool is_hex_digit(char c) {
     return std::isxdigit(static_cast<unsigned char>(c)) != 0;
 }
@@ -237,8 +272,8 @@ bool has_line_continuation_suffix(const std::string& text, bool trim_newlines) {
 }
 
 std::pair<std::string, bool> strip_noenv_sentinels(const std::string& s) {
-    const std::string start = "\x1E__NOENV_START__\x1E";
-    const std::string end = "\x1E__NOENV_END__\x1E";
+    const std::string& start = noenv_start();
+    const std::string& end = noenv_end();
 
     bool changed = false;
     std::string result;

@@ -29,14 +29,24 @@
 #pragma once
 
 #include <string>
-
 class Shell;
 
 namespace command_lookup {
+
+struct CommandResolution {
+    bool is_keyword = false;
+    bool is_builtin = false;
+    bool has_alias = false;
+    std::string alias_value;
+    bool has_function = false;
+    bool has_path = false;
+    std::string path;
+};
 
 bool is_shell_keyword(const std::string& token);
 bool is_shell_builtin(const std::string& token, Shell* shell);
 bool lookup_shell_alias(const std::string& token, Shell* shell, std::string& alias_value);
 bool has_shell_function(const std::string& token, Shell* shell);
+CommandResolution resolve_command(const std::string& token, Shell* shell, bool include_path = true);
 
 }  // namespace command_lookup

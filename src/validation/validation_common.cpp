@@ -43,25 +43,25 @@ namespace shell_validation::internal {
 
 namespace {
 
-constexpr const char* kSubstLiteralStart = "\x1E__SUBST_LITERAL_START__\x1E";
-constexpr const char* kSubstLiteralEnd = "\x1E__SUBST_LITERAL_END__\x1E";
-constexpr const char* kNoEnvStart = "\x1E__NOENV_START__\x1E";
-constexpr const char* kNoEnvEnd = "\x1E__NOENV_END__\x1E";
-constexpr const char* kSubstLiteralStartPlain = "__SUBST_LITERAL_START__";
-constexpr const char* kSubstLiteralEndPlain = "__SUBST_LITERAL_END__";
-constexpr const char* kNoEnvStartPlain = "__NOENV_START__";
-constexpr const char* kNoEnvEndPlain = "__NOENV_END__";
-constexpr const char* kSubstitutionPlaceholder = "__CJSH_SUBST__";
+const std::string& kSubstLiteralStart = subst_literal_start();
+const std::string& kSubstLiteralEnd = subst_literal_end();
+const std::string& kNoEnvStart = noenv_start();
+const std::string& kNoEnvEnd = noenv_end();
+const std::string& kSubstLiteralStartPlain = subst_literal_start_plain();
+const std::string& kSubstLiteralEndPlain = subst_literal_end_plain();
+const std::string& kNoEnvStartPlain = noenv_start_plain();
+const std::string& kNoEnvEndPlain = noenv_end_plain();
+const std::string& kSubstitutionPlaceholder = substitution_placeholder();
 
-constexpr size_t kSubstLiteralStartLen = sizeof("\x1E__SUBST_LITERAL_START__\x1E") - 1;
-constexpr size_t kSubstLiteralEndLen = sizeof("\x1E__SUBST_LITERAL_END__\x1E") - 1;
-constexpr size_t kNoEnvStartLen = sizeof("\x1E__NOENV_START__\x1E") - 1;
-constexpr size_t kNoEnvEndLen = sizeof("\x1E__NOENV_END__\x1E") - 1;
-constexpr size_t kSubstLiteralStartPlainLen = sizeof("__SUBST_LITERAL_START__") - 1;
-constexpr size_t kSubstLiteralEndPlainLen = sizeof("__SUBST_LITERAL_END__") - 1;
-constexpr size_t kNoEnvStartPlainLen = sizeof("__NOENV_START__") - 1;
-constexpr size_t kNoEnvEndPlainLen = sizeof("__NOENV_END__") - 1;
-constexpr size_t kSubstitutionPlaceholderLen = sizeof("__CJSH_SUBST__") - 1;
+const size_t kSubstLiteralStartLen = kSubstLiteralStart.size();
+const size_t kSubstLiteralEndLen = kSubstLiteralEnd.size();
+const size_t kNoEnvStartLen = kNoEnvStart.size();
+const size_t kNoEnvEndLen = kNoEnvEnd.size();
+const size_t kSubstLiteralStartPlainLen = kSubstLiteralStartPlain.size();
+const size_t kSubstLiteralEndPlainLen = kSubstLiteralEndPlain.size();
+const size_t kNoEnvStartPlainLen = kNoEnvStartPlain.size();
+const size_t kNoEnvEndPlainLen = kNoEnvEndPlain.size();
+const size_t kSubstitutionPlaceholderLen = kSubstitutionPlaceholder.size();
 
 bool is_comment_token(const std::string& token) {
     return !token.empty() && token[0] == '#';
@@ -138,29 +138,23 @@ void for_each_effective_char_basic(const std::string& text, size_t start_index, 
 bool find_matching_command_substitution_end_for_validation_impl(const std::string& text,
                                                                 size_t start_index,
                                                                 size_t& end_out) {
-    int depth = 1;
-    bool found = false;
-
-    for_each_effective_char_basic(text, start_index, [&](size_t i, char ch) {
-        if (ch == '(') {
-            depth++;
-        } else if (ch == ')') {
-            depth--;
-            if (depth == 0) {
-                end_out = i;
-                found = true;
-                return true;
-            }
-        }
+    if (start_index == 0 || start_index > text.size()) {
         return false;
-    });
+    }
 
-    return found;
+    size_t match = find_matching_paren(text, start_index - 1);
+    if (match == std::string::npos) {
+        return false;
+    }
+
+    end_out = match;
+    return true;
 }
 
-size_t find_marker(const std::string& text, size_t start_pos, const char* marker_with_control,
-                   size_t marker_with_control_len, const char* marker_plain,
-                   size_t marker_plain_len, size_t& matched_length) {
+size_t find_marker(const std::string& text, size_t start_pos,
+                   const std::string& marker_with_control, size_t marker_with_control_len,
+                   const std::string& marker_plain, size_t marker_plain_len,
+                   size_t& matched_length) {
     size_t pos_with = (marker_with_control_len > 0) ? text.find(marker_with_control, start_pos)
                                                     : std::string::npos;
     size_t pos_plain =
@@ -195,11 +189,11 @@ std::string sanitize_command_substitutions_for_validation(const std::string& inp
     if (input.empty())
         return input;
 
-    const std::string placeholder(kSubstitutionPlaceholder);
-    const std::string literal_start(kSubstLiteralStart);
-    const std::string literal_end(kSubstLiteralEnd);
-    const std::string noenv_start(kNoEnvStart);
-    const std::string noenv_end(kNoEnvEnd);
+    const std::string& placeholder = kSubstitutionPlaceholder;
+    const std::string& literal_start = kSubstLiteralStart;
+    const std::string& literal_end = kSubstLiteralEnd;
+    const std::string& noenv_start = kNoEnvStart;
+    const std::string& noenv_end = kNoEnvEnd;
 
     std::string output;
     output.reserve(input.size());

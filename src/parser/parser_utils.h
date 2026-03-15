@@ -33,6 +33,13 @@
 
 const std::string& subst_literal_start();
 const std::string& subst_literal_end();
+const std::string& noenv_start();
+const std::string& noenv_end();
+const std::string& subst_literal_start_plain();
+const std::string& subst_literal_end_plain();
+const std::string& noenv_start_plain();
+const std::string& noenv_end_plain();
+const std::string& substitution_placeholder();
 
 std::string trim_trailing_whitespace(std::string s);
 std::string trim_leading_whitespace(const std::string& s);

@@ -91,8 +91,10 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
         const std::string& name = args[i];
         bool found = false;
 
+        const auto resolution = command_lookup::resolve_command(name, shell, !no_path_search);
+
         if (!force_path && !inhibit_functions) {
-            if (command_lookup::is_shell_keyword(name)) {
+            if (resolution.is_keyword) {
                 if (show_type_only) {
                     std::cout << "keyword\n";
                 } else {
@@ -105,7 +107,7 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
         }
 
         if (!found || show_all) {
-            if (!force_path && command_lookup::is_shell_builtin(name, shell)) {
+            if (!force_path && resolution.is_builtin) {
                 if (show_type_only) {
                     std::cout << "builtin\n";
                 } else {
@@ -119,12 +121,12 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
 
         if (!found || show_all) {
             if (!force_path && !inhibit_functions && (shell != nullptr)) {
-                std::string alias_value;
-                if (command_lookup::lookup_shell_alias(name, shell, alias_value)) {
+                if (resolution.has_alias) {
                     if (show_type_only) {
                         std::cout << "alias\n";
                     } else {
-                        std::cout << name << " is aliased to `" << alias_value << "'" << '\n';
+                        std::cout << name << " is aliased to `" << resolution.alias_value << "'"
+                                  << '\n';
                     }
                     found = true;
                     if (!show_all)
@@ -134,8 +136,7 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
         }
 
         if (!found || show_all) {
-            if (!force_path && !inhibit_functions &&
-                command_lookup::has_shell_function(name, shell)) {
+            if (!force_path && !inhibit_functions && resolution.has_function) {
                 if (show_type_only) {
                     std::cout << "function\n";
                 } else {
@@ -149,12 +150,11 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
 
         if (!found || show_all || force_path) {
             if (!no_path_search) {
-                std::string path = cjsh_filesystem::find_executable_in_path(name);
-                if (!path.empty()) {
+                if (resolution.has_path) {
                     if (show_type_only) {
                         std::cout << "file\n";
                     } else {
-                        std::cout << name << " is " << path << '\n';
+                        std::cout << name << " is " << resolution.path << '\n';
                     }
                     found = true;
                 }

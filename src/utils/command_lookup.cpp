@@ -29,6 +29,7 @@
 #include "command_lookup.h"
 
 #include "builtin.h"
+#include "cjsh_filesystem.h"
 #include "interpreter.h"
 #include "shell.h"
 #include "token_constants.h"
@@ -70,6 +71,21 @@ bool has_shell_function(const std::string& token, Shell* shell) {
 
     const auto* interpreter = shell->get_shell_script_interpreter();
     return interpreter != nullptr && interpreter->has_function(token);
+}
+
+CommandResolution resolve_command(const std::string& token, Shell* shell, bool include_path) {
+    CommandResolution resolution;
+    resolution.is_keyword = is_shell_keyword(token);
+    resolution.is_builtin = is_shell_builtin(token, shell);
+    resolution.has_alias = lookup_shell_alias(token, shell, resolution.alias_value);
+    resolution.has_function = has_shell_function(token, shell);
+
+    if (include_path) {
+        resolution.path = cjsh_filesystem::find_executable_in_path(token);
+        resolution.has_path = !resolution.path.empty();
+    }
+
+    return resolution;
 }
 
 }  // namespace command_lookup

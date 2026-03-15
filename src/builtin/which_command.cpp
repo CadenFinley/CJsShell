@@ -83,12 +83,14 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
         bool found = false;
         bool found_executable = false;
 
+        const auto resolution = command_lookup::resolve_command(name, shell, true);
+
         const std::vector<std::string> cjsh_custom_commands = {"echo", "printf", "pwd", "cd"};
 
         bool is_cjsh_custom = std::find(cjsh_custom_commands.begin(), cjsh_custom_commands.end(),
                                         name) != cjsh_custom_commands.end();
 
-        if (is_cjsh_custom && command_lookup::is_shell_builtin(name, shell)) {
+        if (is_cjsh_custom && resolution.is_builtin) {
             if (!silent) {
                 std::cout << name << " is a cjsh builtin (custom implementation)\n";
             }
@@ -98,10 +100,9 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
             }
         }
 
-        std::string path = cjsh_filesystem::find_executable_in_path(name);
-        if (!path.empty()) {
+        if (resolution.has_path) {
             if (!silent) {
-                std::cout << path << '\n';
+                std::cout << resolution.path << '\n';
             }
             found = true;
             found_executable = true;
@@ -134,7 +135,7 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
         }
 
         if (show_all || (!found_executable && !is_cjsh_custom)) {
-            if (command_lookup::is_shell_builtin(name, shell)) {
+            if (resolution.is_builtin) {
                 if (!silent) {
                     std::cout << "which: " << name << " is a shell builtin\n";
                 }
@@ -142,18 +143,17 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
             }
 
             if ((shell != nullptr) && (show_all || !found)) {
-                std::string alias_value;
-                if (command_lookup::lookup_shell_alias(name, shell, alias_value)) {
+                if (resolution.has_alias) {
                     if (!silent) {
-                        std::cout << "which: " << name << " is aliased to `" << alias_value << "'"
-                                  << '\n';
+                        std::cout << "which: " << name << " is aliased to `"
+                                  << resolution.alias_value << "'" << '\n';
                     }
                     found = true;
                 }
             }
 
             if ((shell != nullptr) && (show_all || !found)) {
-                if (command_lookup::has_shell_function(name, shell)) {
+                if (resolution.has_function) {
                     if (!silent) {
                         std::cout << "which: " << name << " is a function\n";
                     }
