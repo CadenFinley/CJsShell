@@ -30,6 +30,9 @@
 #include "quote_info.h"
 
 #include <cctype>
+#include <cstddef>
+#include <string>
+#include <utility>
 
 const std::string& subst_literal_start() {
     static const std::string kValue = "\x1E__SUBST_LITERAL_START__\x1E";

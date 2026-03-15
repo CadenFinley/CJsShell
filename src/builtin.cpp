@@ -31,7 +31,10 @@
 #include "builtin_help.h"
 
 #include <fcntl.h>
+#include <sys/syslimits.h>
 #include <unistd.h>
+#include <string>
+#include <vector>
 
 #include "alias_abbr_commands.h"
 #include "cd_command.h"

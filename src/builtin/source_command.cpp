@@ -31,6 +31,10 @@
 #include "builtin_help.h"
 
 #include <filesystem>
+#include <memory>
+#include <string>
+#include <system_error>
+#include <vector>
 
 #include "error_out.h"
 #include "shell.h"

@@ -26,11 +26,14 @@
   SOFTWARE.
 */
 
+#include "error_out.h"
 #include "interpreter.h"
 
 #include "interpreter_utils.h"
 #include "validation_common.h"
 
+#include <algorithm>
+#include <cstddef>
 #include <string>
 #include <vector>
 

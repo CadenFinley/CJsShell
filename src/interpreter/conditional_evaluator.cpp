@@ -30,8 +30,13 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstddef>
+#include <functional>
 #include <iterator>
 #include <optional>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "interpreter_utils.h"
 #include "parser.h"

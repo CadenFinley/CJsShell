@@ -28,7 +28,6 @@
 
 #include "cjsh.h"
 
-#include <getopt.h>
 #include <unistd.h>
 
 #include <chrono>
@@ -38,7 +37,6 @@
 #include <vector>
 
 #ifdef __APPLE__
-#include <malloc/malloc.h>
 #else
 #include <malloc.h>
 #endif

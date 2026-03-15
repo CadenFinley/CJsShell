@@ -28,7 +28,8 @@
 
 #include "command_substitution_evaluator.h"
 
-#include <sys/stat.h>
+#include <sys/_types/_pid_t.h>
+#include <sys/_types/_ssize_t.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -38,6 +39,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include "function_ref.h"
 
 namespace {
 

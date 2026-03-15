@@ -29,12 +29,16 @@
 #include "umask_command.h"
 #include "builtin_help.h"
 
+#include <sys/_types/_mode_t.h>
+#include <sys/_types/_s_ifmt.h>
 #include <sys/stat.h>
 
+#include <cstddef>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include "error_out.h"
 

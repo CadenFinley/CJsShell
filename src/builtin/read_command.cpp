@@ -28,14 +28,19 @@
 
 #include "read_command.h"
 #include <poll.h>
+#include <sys/poll.h>
 #include <unistd.h>
+#include <algorithm>
 #include <cerrno>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <exception>
 #include <iostream>
 #include <limits>
+#include <string>
+#include <vector>
 #include "error_out.h"
 #include "readonly_command.h"
 #include "shell.h"

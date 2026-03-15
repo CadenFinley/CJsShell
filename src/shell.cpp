@@ -28,19 +28,35 @@
 
 #include "shell.h"
 
-#include <sys/types.h>
+#include <_stdlib.h>
+#include <sys/_types/_pid_t.h>
+#include <sys/signal.h>
+#include <sys/unistd.h>
+#include <termios.h>
 #include <unistd.h>
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cerrno>
 #include <csignal>
+#include <cstddef>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <exception>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <iterator>
+#include <memory>
+#include <optional>
 #include <sstream>
+#include <string>
 #include <system_error>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
+#include <vector>
 
 #include "builtin.h"
 #include "cjsh.h"
@@ -50,7 +66,9 @@
 #include "interpreter.h"
 #include "isocline.h"
 #include "job_control.h"
+#include "parser.h"
 #include "shell_env.h"
+#include "signal_handler.h"
 #include "trap_command.h"
 
 namespace {

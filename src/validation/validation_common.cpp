@@ -29,12 +29,18 @@
 #include "validation_common.h"
 
 #include "error_out.h"
+#include "interpreter.h"
 #include "interpreter_utils.h"
 #include "parser_utils.h"
 
 #include <algorithm>
 #include <cctype>
+#include <cstddef>
+#include <iterator>
 #include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
 
 using shell_script_interpreter::detail::trim;
 using ErrorCategory = ShellScriptInterpreter::ErrorCategory;

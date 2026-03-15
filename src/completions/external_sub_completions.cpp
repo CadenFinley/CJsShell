@@ -30,6 +30,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <mutex>
@@ -47,6 +48,7 @@
 #include "completion_tracker.h"
 #include "completion_utils.h"
 #include "exec.h"
+#include "isocline.h"
 #include "shell_env.h"
 
 namespace {

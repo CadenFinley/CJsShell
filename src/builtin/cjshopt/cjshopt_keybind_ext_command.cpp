@@ -29,6 +29,7 @@
 #include "cjshopt_command.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <iomanip>
 #include <iostream>
 #include <string>
@@ -36,9 +37,9 @@
 #include <utility>
 #include <vector>
 
-#include "cjsh.h"
 #include "error_out.h"
 #include "isocline.h"
+#include "keybindings.h"
 #include "shell_env.h"
 
 namespace {

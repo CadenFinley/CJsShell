@@ -35,18 +35,21 @@
 #include "signal_handler.h"
 #include "suggestion_utils.h"
 
+#include <sys/_types/_pid_t.h>
 #include <sys/wait.h>
-#include <unistd.h>
 #include <algorithm>
 #include <atomic>
 #include <cerrno>
 #include <chrono>
 #include <csignal>
+#include <cstdint>
 #include <cstring>
 #include <iostream>
 #include <memory>
 #include <optional>
+#include <string>
 #include <string_view>
+#include <vector>
 
 #include "error_out.h"
 

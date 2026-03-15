@@ -32,6 +32,7 @@
 #include <cstring>
 #include <iostream>
 #include <string>
+#include <vector>
 
 #include "error_out.h"
 #include "isocline.h"

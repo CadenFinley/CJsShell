@@ -29,7 +29,11 @@
 #include "function_evaluator.h"
 
 #include <cctype>
+#include <cstddef>
+#include <functional>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "error_out.h"
 #include "readonly_command.h"

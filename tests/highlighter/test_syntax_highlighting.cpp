@@ -1,6 +1,8 @@
+#include <sys/_types/_ssize_t.h>
 #include <cstdio>
 #include <memory>
 #include <string>
+#include "common.h"
 
 extern "C" {
 #include "attr.h"
@@ -42,7 +44,7 @@ static ic_env_t* ensure_env(const char* test_name) {
     return env;
 }
 
-static void ensure_style_definitions(void) {
+static void ensure_style_definitions() {
     static bool initialized = false;
     if (initialized) {
         return;
@@ -98,7 +100,7 @@ static bool expect_style_range(attrbuf_t* attrs, bbcode_t* bbcode, size_t start,
     return true;
 }
 
-static bool test_variable_assignment_highlighting(void) {
+static bool test_variable_assignment_highlighting() {
     const char* test_name = "variable_assignment_highlighting";
     const std::string input = "FOO=42";
     attrbuf_t* attrs = highlight_input(input, test_name);
@@ -123,7 +125,7 @@ static bool test_variable_assignment_highlighting(void) {
     return ok;
 }
 
-static bool test_comment_highlighting(void) {
+static bool test_comment_highlighting() {
     const char* test_name = "comment_highlighting";
     const std::string input = "echo hi # comment";
     attrbuf_t* attrs = highlight_input(input, test_name);
@@ -151,7 +153,7 @@ static bool test_comment_highlighting(void) {
     return ok;
 }
 
-static bool test_command_substitution_and_variable(void) {
+static bool test_command_substitution_and_variable() {
     const char* test_name = "command_substitution_and_variable";
     const std::string input = "echo $(date) $USER";
     attrbuf_t* attrs = highlight_input(input, test_name);
@@ -192,7 +194,7 @@ static bool test_command_substitution_and_variable(void) {
     return ok;
 }
 
-static bool test_function_definition_highlighting(void) {
+static bool test_function_definition_highlighting() {
     const char* test_name = "function_definition_highlighting";
     const std::string input = "myfunc() { echo hi; }";
     attrbuf_t* attrs = highlight_input(input, test_name);
@@ -223,7 +225,7 @@ static bool test_function_definition_highlighting(void) {
     return ok;
 }
 
-static bool test_assignment_value_highlighting(void) {
+static bool test_assignment_value_highlighting() {
     const char* test_name = "assignment_value_highlighting";
     const std::string input = "FOO=bar";
     attrbuf_t* attrs = highlight_input(input, test_name);
@@ -248,7 +250,7 @@ static bool test_assignment_value_highlighting(void) {
     return ok;
 }
 
-static bool test_arithmetic_substitution_highlighting(void) {
+static bool test_arithmetic_substitution_highlighting() {
     const char* test_name = "arithmetic_substitution_highlighting";
     const std::string input = "echo $((1 + 2))";
     attrbuf_t* attrs = highlight_input(input, test_name);
@@ -278,7 +280,7 @@ static bool test_arithmetic_substitution_highlighting(void) {
     return ok;
 }
 
-static bool test_backtick_command_substitution_highlighting(void) {
+static bool test_backtick_command_substitution_highlighting() {
     const char* test_name = "backtick_command_substitution_highlighting";
     const std::string input = "echo `date +%s`";
     attrbuf_t* attrs = highlight_input(input, test_name);
@@ -308,7 +310,7 @@ static bool test_backtick_command_substitution_highlighting(void) {
     return ok;
 }
 
-static bool test_history_expansion_highlighting(void) {
+static bool test_history_expansion_highlighting() {
     const char* test_name = "history_expansion_highlighting";
     const std::string input = "echo !! && echo !$";
     attrbuf_t* attrs = highlight_input(input, test_name);
@@ -339,7 +341,7 @@ static bool test_history_expansion_highlighting(void) {
     return ok;
 }
 
-static bool test_operator_separator_highlighting(void) {
+static bool test_operator_separator_highlighting() {
     const char* test_name = "operator_separator_highlighting";
     const std::string input = "echo ok && echo more || echo last";
     attrbuf_t* attrs = highlight_input(input, test_name);
@@ -370,7 +372,7 @@ static bool test_operator_separator_highlighting(void) {
     return ok;
 }
 
-static bool test_append_redirection_operator_highlighting(void) {
+static bool test_append_redirection_operator_highlighting() {
     const char* test_name = "append_redirection_operator_highlighting";
     const std::string input = "echo hi >> out.txt";
     attrbuf_t* attrs = highlight_input(input, test_name);
@@ -398,7 +400,7 @@ static bool test_append_redirection_operator_highlighting(void) {
     return ok;
 }
 
-static bool test_here_string_operator_highlighting(void) {
+static bool test_here_string_operator_highlighting() {
     const char* test_name = "here_string_operator_highlighting";
     const std::string input = "cat <<< EOF";
     attrbuf_t* attrs = highlight_input(input, test_name);
@@ -426,7 +428,7 @@ static bool test_here_string_operator_highlighting(void) {
     return ok;
 }
 
-static bool test_background_operator_highlighting(void) {
+static bool test_background_operator_highlighting() {
     const char* test_name = "background_operator_highlighting";
     const std::string input = "sleep 1 & echo done";
     attrbuf_t* attrs = highlight_input(input, test_name);
@@ -454,7 +456,7 @@ static bool test_background_operator_highlighting(void) {
     return ok;
 }
 
-static bool test_option_glob_redirection_highlighting(void) {
+static bool test_option_glob_redirection_highlighting() {
     const char* test_name = "option_glob_redirection_highlighting";
     const std::string input = "ls -la *.cpp > out.txt";
     attrbuf_t* attrs = highlight_input(input, test_name);
@@ -489,7 +491,7 @@ static bool test_option_glob_redirection_highlighting(void) {
     return ok;
 }
 
-static bool test_keyword_argument_highlighting(void) {
+static bool test_keyword_argument_highlighting() {
     const char* test_name = "keyword_argument_highlighting";
     const std::string input = "echo if then fi";
     attrbuf_t* attrs = highlight_input(input, test_name);
@@ -524,7 +526,7 @@ static bool test_keyword_argument_highlighting(void) {
     return ok;
 }
 
-static bool test_braced_variable_highlighting(void) {
+static bool test_braced_variable_highlighting() {
     const char* test_name = "braced_variable_highlighting";
     const std::string input = "echo ${HOME}";
     attrbuf_t* attrs = highlight_input(input, test_name);
@@ -552,7 +554,7 @@ static bool test_braced_variable_highlighting(void) {
     return ok;
 }
 
-static bool test_braced_variable_default_highlighting(void) {
+static bool test_braced_variable_default_highlighting() {
     const char* test_name = "braced_variable_default_highlighting";
     const std::string input = "echo ${VAR:-default}";
     attrbuf_t* attrs = highlight_input(input, test_name);
@@ -580,7 +582,7 @@ static bool test_braced_variable_default_highlighting(void) {
     return ok;
 }
 
-static bool test_nested_command_substitution_highlighting(void) {
+static bool test_nested_command_substitution_highlighting() {
     const char* test_name = "nested_command_substitution_highlighting";
     const std::string input = "echo $(echo $(date))";
     attrbuf_t* attrs = highlight_input(input, test_name);
@@ -610,7 +612,7 @@ static bool test_nested_command_substitution_highlighting(void) {
     return ok;
 }
 
-static bool test_history_expansion_modifier_highlighting(void) {
+static bool test_history_expansion_modifier_highlighting() {
     const char* test_name = "history_expansion_modifier_highlighting";
     const std::string input = "echo !!:p";
     attrbuf_t* attrs = highlight_input(input, test_name);
@@ -638,7 +640,7 @@ static bool test_history_expansion_modifier_highlighting(void) {
     return ok;
 }
 
-static bool test_history_expansion_caret_highlighting(void) {
+static bool test_history_expansion_caret_highlighting() {
     const char* test_name = "history_expansion_caret_highlighting";
     const std::string input = "^old^new^";
     attrbuf_t* attrs = highlight_input(input, test_name);
@@ -660,7 +662,7 @@ static bool test_history_expansion_caret_highlighting(void) {
     return ok;
 }
 
-static bool test_compound_redirection_operator_highlighting(void) {
+static bool test_compound_redirection_operator_highlighting() {
     const char* test_name = "compound_redirection_operator_highlighting";
     const std::string input = "echo hi 2>&1";
     attrbuf_t* attrs = highlight_input(input, test_name);
@@ -688,7 +690,7 @@ static bool test_compound_redirection_operator_highlighting(void) {
     return ok;
 }
 
-static bool test_comparison_operator_highlighting(void) {
+static bool test_comparison_operator_highlighting() {
     const char* test_name = "comparison_operator_highlighting";
     const std::string input = "test 1 -eq 1";
     attrbuf_t* attrs = highlight_input(input, test_name);
@@ -716,7 +718,7 @@ static bool test_comparison_operator_highlighting(void) {
     return ok;
 }
 
-static bool test_escaped_quote_string_highlighting(void) {
+static bool test_escaped_quote_string_highlighting() {
     const char* test_name = "escaped_quote_string_highlighting";
     const std::string input = "echo \"a\\\"b\"";
     attrbuf_t* attrs = highlight_input(input, test_name);
@@ -744,7 +746,7 @@ static bool test_escaped_quote_string_highlighting(void) {
     return ok;
 }
 
-static bool test_double_quoted_string_highlighting(void) {
+static bool test_double_quoted_string_highlighting() {
     const char* test_name = "double_quoted_string_highlighting";
     const std::string input = "echo \"hello world\"";
     attrbuf_t* attrs = highlight_input(input, test_name);
@@ -774,7 +776,7 @@ static bool test_double_quoted_string_highlighting(void) {
     return ok;
 }
 
-static bool test_single_quoted_string_highlighting(void) {
+static bool test_single_quoted_string_highlighting() {
     const char* test_name = "single_quoted_string_highlighting";
     const std::string input = "echo 'literal $HOME'";
     attrbuf_t* attrs = highlight_input(input, test_name);
@@ -804,7 +806,7 @@ static bool test_single_quoted_string_highlighting(void) {
     return ok;
 }
 
-static bool test_nested_quote_string_highlighting(void) {
+static bool test_nested_quote_string_highlighting() {
     const char* test_name = "nested_quote_string_highlighting";
     const std::string input = "echo \"she said 'hi'\"";
     attrbuf_t* attrs = highlight_input(input, test_name);
@@ -834,7 +836,7 @@ static bool test_nested_quote_string_highlighting(void) {
     return ok;
 }
 
-static bool test_bracket_glob_highlighting(void) {
+static bool test_bracket_glob_highlighting() {
     const char* test_name = "bracket_glob_highlighting";
     const std::string input = "echo file[0-9].txt";
     attrbuf_t* attrs = highlight_input(input, test_name);
@@ -862,7 +864,7 @@ static bool test_bracket_glob_highlighting(void) {
     return ok;
 }
 
-static bool test_brace_glob_highlighting(void) {
+static bool test_brace_glob_highlighting() {
     const char* test_name = "brace_glob_highlighting";
     const std::string input = "echo {foo,bar}.txt";
     attrbuf_t* attrs = highlight_input(input, test_name);
@@ -890,7 +892,7 @@ static bool test_brace_glob_highlighting(void) {
     return ok;
 }
 
-static bool test_heredoc_operator_highlighting(void) {
+static bool test_heredoc_operator_highlighting() {
     const char* test_name = "heredoc_operator_highlighting";
     const std::string input = "cat << EOF";
     attrbuf_t* attrs = highlight_input(input, test_name);
@@ -918,7 +920,7 @@ static bool test_heredoc_operator_highlighting(void) {
     return ok;
 }
 
-static bool test_nested_arithmetic_substitution_highlighting(void) {
+static bool test_nested_arithmetic_substitution_highlighting() {
     const char* test_name = "nested_arithmetic_substitution_highlighting";
     const std::string input = "echo $((1 + $(echo 2)))";
     attrbuf_t* attrs = highlight_input(input, test_name);
@@ -948,7 +950,7 @@ static bool test_nested_arithmetic_substitution_highlighting(void) {
     return ok;
 }
 
-static bool test_command_substitution_with_quotes_highlighting(void) {
+static bool test_command_substitution_with_quotes_highlighting() {
     const char* test_name = "command_substitution_with_quotes_highlighting";
     const std::string input = "echo $(printf \"(x)\")";
     attrbuf_t* attrs = highlight_input(input, test_name);
@@ -979,7 +981,7 @@ static bool test_command_substitution_with_quotes_highlighting(void) {
     return ok;
 }
 
-static bool test_braced_variable_index_highlighting(void) {
+static bool test_braced_variable_index_highlighting() {
     const char* test_name = "braced_variable_index_highlighting";
     const std::string input = "echo ${arr[0]}";
     attrbuf_t* attrs = highlight_input(input, test_name);
@@ -1007,7 +1009,7 @@ static bool test_braced_variable_index_highlighting(void) {
     return ok;
 }
 
-static bool test_assignment_value_quoted_string_highlighting(void) {
+static bool test_assignment_value_quoted_string_highlighting() {
     const char* test_name = "assignment_value_quoted_string_highlighting";
     const std::string input = "FOO=\"bar\"";
     attrbuf_t* attrs = highlight_input(input, test_name);
@@ -1032,7 +1034,7 @@ static bool test_assignment_value_quoted_string_highlighting(void) {
     return ok;
 }
 
-static bool test_parameter_expansion_operator_highlighting(void) {
+static bool test_parameter_expansion_operator_highlighting() {
     const char* test_name = "parameter_expansion_operator_highlighting";
     const std::string input = "echo ${VAR:=42}";
     attrbuf_t* attrs = highlight_input(input, test_name);
@@ -1060,7 +1062,7 @@ static bool test_parameter_expansion_operator_highlighting(void) {
     return ok;
 }
 
-static bool test_compound_redirection_close_highlighting(void) {
+static bool test_compound_redirection_close_highlighting() {
     const char* test_name = "compound_redirection_close_highlighting";
     const std::string input = "echo hi 2>&-";
     attrbuf_t* attrs = highlight_input(input, test_name);
@@ -1088,7 +1090,7 @@ static bool test_compound_redirection_close_highlighting(void) {
     return ok;
 }
 
-static bool test_arithmetic_parens_highlighting(void) {
+static bool test_arithmetic_parens_highlighting() {
     const char* test_name = "arithmetic_parens_highlighting";
     const std::string input = "echo ((1+2))";
     attrbuf_t* attrs = highlight_input(input, test_name);
@@ -1118,12 +1120,12 @@ static bool test_arithmetic_parens_highlighting(void) {
     return ok;
 }
 
-typedef bool (*test_fn_t)(void);
+using test_fn_t = bool (*)();
 
-typedef struct test_case_s {
+using test_case_t = struct test_case_s {
     const char* name;
     test_fn_t fn;
-} test_case_t;
+};
 
 static const test_case_t kTests[] = {
     {"variable_assignment_highlighting", test_variable_assignment_highlighting},
@@ -1166,7 +1168,7 @@ static const test_case_t kTests[] = {
     {"arithmetic_parens_highlighting", test_arithmetic_parens_highlighting},
 };
 
-int main(void) {
+int main() {
     cjsh_env::reset_shell_state();
     cjsh_env::set_startup_active(false);
     g_shell = std::make_unique<Shell>();
@@ -1176,9 +1178,9 @@ int main(void) {
     size_t failures = 0;
     const size_t test_count = sizeof(kTests) / sizeof(kTests[0]);
 
-    for (size_t i = 0; i < test_count; ++i) {
-        if (!kTests[i].fn()) {
-            std::fprintf(stderr, "Test '%s' failed\n", kTests[i].name);
+    for (auto kTest : kTests) {
+        if (!kTest.fn()) {
+            std::fprintf(stderr, "Test '%s' failed\n", kTest.name);
             failures += 1;
         }
     }

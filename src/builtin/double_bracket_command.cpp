@@ -32,11 +32,14 @@
 #include "error_out.h"
 
 #include <sys/stat.h>
+#include <sys/unistd.h>
 #include <unistd.h>
 
 #include <cstdlib>
 #include <cstring>
 #include <regex>
+#include <string>
+#include <vector>
 
 namespace {
 

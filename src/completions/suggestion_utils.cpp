@@ -30,11 +30,15 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstddef>
 #include <filesystem>
 #include <functional>
+#include <memory>
+#include <string>
 #include <system_error>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 #include "builtin.h"
 #include "cjsh_filesystem.h"

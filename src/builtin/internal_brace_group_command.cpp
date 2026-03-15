@@ -27,6 +27,8 @@
 */
 
 #include "internal_brace_group_command.h"
+#include <string>
+#include <vector>
 
 #include "shell.h"
 

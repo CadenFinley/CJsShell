@@ -28,8 +28,11 @@
 
 #include "hash_command.h"
 
+#include <cstddef>
 #include <iomanip>
 #include <iostream>
+#include <string>
+#include <vector>
 
 #include "builtin_help.h"
 #include "cjsh_filesystem.h"

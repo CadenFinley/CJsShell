@@ -33,12 +33,14 @@
 #include <filesystem>
 #include <string>
 #include <unordered_set>
+#include <vector>
 
 #include "builtin.h"
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "command_analysis.h"
 #include "highlight_helpers.h"
+#include "isocline.h"
 #include "shell.h"
 #include "shell_env.h"
 #include "token_classifier.h"

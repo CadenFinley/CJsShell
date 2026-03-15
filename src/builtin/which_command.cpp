@@ -30,10 +30,15 @@
 
 #include "builtin_help.h"
 
+#include <sys/_types/_s_ifmt.h>
 #include <sys/stat.h>
+#include <sys/syslimits.h>
 #include <unistd.h>
 #include <algorithm>
+#include <cstddef>
 #include <iostream>
+#include <string>
+#include <vector>
 #include "builtin.h"
 #include "cjsh.h"
 #include "cjsh_filesystem.h"

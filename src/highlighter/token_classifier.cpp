@@ -29,6 +29,7 @@
 #include "token_classifier.h"
 
 #include <cctype>
+#include <cstddef>
 #include <string>
 
 #include "builtin.h"

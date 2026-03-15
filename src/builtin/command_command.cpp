@@ -32,6 +32,8 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <string>
+#include <vector>
 
 #include "builtin.h"
 #include "cjsh_filesystem.h"

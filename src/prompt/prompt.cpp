@@ -29,11 +29,14 @@
 #include "prompt.h"
 
 #include <pwd.h>
-#include <signal.h>
-#include <sys/types.h>
+#include <sys/_types/_pid_t.h>
+#include <sys/_types/_ssize_t.h>
+#include <sys/_types/_uid_t.h>
+#include <sys/signal.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include <atomic>
 #include <cctype>
 #include <chrono>
 #include <condition_variable>
@@ -50,6 +53,7 @@
 #include <system_error>
 #include <thread>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "cjsh.h"

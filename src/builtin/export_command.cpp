@@ -27,12 +27,15 @@
 */
 
 #include "export_command.h"
+#include <_stdlib.h>
 
 #include "builtin_help.h"
 
+#include <cctype>
 #include <cerrno>
 #include <cstring>
 #include <iostream>
+#include <string>
 #include <vector>
 
 #include "cjsh.h"

@@ -28,7 +28,12 @@
 
 #include "command_preprocessor.h"
 
+#include <cctype>
+#include <cstddef>
+#include <cstdint>
 #include <limits>
+#include <map>
+#include <string>
 
 #include "parser_utils.h"
 

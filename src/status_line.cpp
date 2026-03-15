@@ -30,12 +30,14 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstddef>
 #include <exception>
 #include <filesystem>
 #include <optional>
 #include <string>
 #include <system_error>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "builtin.h"

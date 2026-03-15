@@ -28,10 +28,15 @@
 
 #include "shell_env.h"
 
+#include <_stdlib.h>
 #include <pwd.h>
+#include <sys/_types/_uid_t.h>
 #include <sys/ioctl.h>
-#include <sys/types.h>
+#include <sys/ttycom.h>
 #include <unistd.h>
+#include <cstdint>
+#include <unordered_map>
+#include <utility>
 #if defined(__APPLE__)
 #include <crt_externs.h>
 #endif
