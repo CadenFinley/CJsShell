@@ -37,4 +37,3 @@ int alias_command(const std::vector<std::string>& args, Shell* shell);
 int unalias_command(const std::vector<std::string>& args, Shell* shell);
 int abbr_command(const std::vector<std::string>& args, Shell* shell);
 int unabbr_command(const std::vector<std::string>& args, Shell* shell);
-bool parse_assignment(const std::string& arg, std::string& name, std::string& value);

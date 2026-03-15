@@ -40,6 +40,8 @@ std::string trim_whitespace(const std::string& s);
 bool is_valid_identifier_start(char c);
 bool is_valid_identifier_char(char c);
 bool is_valid_identifier(const std::string& name);
+bool parse_assignment(const std::string& arg, std::string& name, std::string& value,
+                      bool strip_surrounding_quotes = false);
 bool looks_like_assignment(const std::string& value);
 std::pair<std::string, bool> strip_noenv_sentinels(const std::string& s);
 bool strip_subst_literal_markers(std::string& value);

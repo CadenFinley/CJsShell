@@ -56,6 +56,7 @@ extern "C" char** environ;
 #include "command_line_utils.h"
 #include "error_out.h"
 #include "interpreter.h"
+#include "parser_utils.h"
 #include "prompt.h"
 #include "shell.h"
 #include "version_command.h"
@@ -413,20 +414,7 @@ std::vector<std::pair<std::string, std::string>> setup_user_system_vars(const st
 }
 
 bool is_valid_env_name(const std::string& name) {
-    if (name.empty()) {
-        return false;
-    }
-    unsigned char first = static_cast<unsigned char>(name[0]);
-    if ((std::isalpha(first) == 0) && first != '_') {
-        return false;
-    }
-    if (!std::all_of(name.begin(), name.end(), [](char c) {
-            unsigned char ch = static_cast<unsigned char>(c);
-            return (std::isalnum(ch) != 0) || ch == '_';
-        })) {
-        return false;
-    }
-    return true;
+    return is_valid_identifier(name);
 }
 
 size_t collect_env_assignments(const std::vector<std::string>& args,
@@ -434,14 +422,12 @@ size_t collect_env_assignments(const std::vector<std::string>& args,
     size_t cmd_start_idx = 0;
     for (size_t i = 0; i < args.size(); ++i) {
         const std::string& token = args[i];
-        size_t pos = token.find('=');
-        if (pos != std::string::npos && pos > 0) {
-            std::string name = token.substr(0, pos);
-            if (is_valid_env_name(name)) {
-                env_assignments.push_back({name, token.substr(pos + 1)});
-                cmd_start_idx = i + 1;
-                continue;
-            }
+        std::string name;
+        std::string value;
+        if (parse_assignment(token, name, value) && is_valid_env_name(name)) {
+            env_assignments.push_back({name, value});
+            cmd_start_idx = i + 1;
+            continue;
         }
         break;
     }

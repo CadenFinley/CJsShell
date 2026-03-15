@@ -35,6 +35,7 @@
 #include "builtin_help.h"
 #include "cjsh.h"
 #include "error_out.h"
+#include "parser_utils.h"
 #include "shell.h"
 
 int alias_command(const std::vector<std::string>& args, Shell* shell) {
@@ -61,7 +62,7 @@ int alias_command(const std::vector<std::string>& args, Shell* shell) {
     for (size_t i = 1; i < args.size(); ++i) {
         std::string name;
         std::string value;
-        if (parse_assignment(args[i], name, value)) {
+        if (parse_assignment(args[i], name, value, true)) {
             aliases[name] = value;
         } else {
             auto it = aliases.find(args[i]);
@@ -113,25 +114,6 @@ int unalias_command(const std::vector<std::string>& args, Shell* shell) {
     return success ? 0 : 1;
 }
 
-bool parse_assignment(const std::string& arg, std::string& name, std::string& value) {
-    size_t equals_pos = arg.find('=');
-    if (equals_pos == std::string::npos || equals_pos == 0) {
-        return false;
-    }
-
-    name = arg.substr(0, equals_pos);
-    value = arg.substr(equals_pos + 1);
-
-    if (value.size() >= 2) {
-        if ((value.front() == '"' && value.back() == '"') ||
-            (value.front() == '\'' && value.back() == '\'')) {
-            value = value.substr(1, value.size() - 2);
-        }
-    }
-
-    return true;
-}
-
 int abbr_command(const std::vector<std::string>& args, Shell* shell) {
     if (builtin_handle_help(
             args, {"Usage: abbr [NAME=EXPANSION ...]", "List or define abbreviations.",
@@ -163,7 +145,7 @@ int abbr_command(const std::vector<std::string>& args, Shell* shell) {
     for (size_t i = 1; i < args.size(); ++i) {
         std::string name;
         std::string value;
-        if (parse_assignment(args[i], name, value)) {
+        if (parse_assignment(args[i], name, value, true)) {
             if (name.empty()) {
                 print_error({ErrorType::INVALID_ARGUMENT, "abbr", "name cannot be empty", {}});
                 all_successful = false;

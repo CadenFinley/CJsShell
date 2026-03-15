@@ -104,6 +104,26 @@ bool is_valid_identifier(const std::string& name) {
     return true;
 }
 
+bool parse_assignment(const std::string& arg, std::string& name, std::string& value,
+                      bool strip_surrounding_quotes) {
+    size_t equals_pos = arg.find('=');
+    if (equals_pos == std::string::npos || equals_pos == 0) {
+        return false;
+    }
+
+    name = arg.substr(0, equals_pos);
+    value = arg.substr(equals_pos + 1);
+
+    if (strip_surrounding_quotes && value.size() >= 2) {
+        if ((value.front() == '"' && value.back() == '"') ||
+            (value.front() == '\'' && value.back() == '\'')) {
+            value = value.substr(1, value.size() - 2);
+        }
+    }
+
+    return true;
+}
+
 bool looks_like_assignment(const std::string& value) {
     size_t equals_pos = value.find('=');
     if (equals_pos == std::string::npos || equals_pos == 0) {

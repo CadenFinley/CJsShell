@@ -45,25 +45,6 @@
 
 namespace {
 
-bool parse_env_assignment(const std::string& arg, std::string& name, std::string& value) {
-    size_t equals_pos = arg.find('=');
-    if (equals_pos == std::string::npos || equals_pos == 0) {
-        return false;
-    }
-
-    name = arg.substr(0, equals_pos);
-    value = arg.substr(equals_pos + 1);
-
-    if (value.size() >= 2) {
-        if ((value.front() == '"' && value.back() == '"') ||
-            (value.front() == '\'' && value.back() == '\'')) {
-            value = value.substr(1, value.size() - 2);
-        }
-    }
-
-    return true;
-}
-
 bool is_special_parameter_name(const std::string& name) {
     if (name.size() != 2 || name[0] != '$') {
         return false;
@@ -125,7 +106,7 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
     for (size_t i = 1; i < args.size(); ++i) {
         std::string name;
         std::string value;
-        if (parse_env_assignment(args[i], name, value)) {
+        if (parse_assignment(args[i], name, value, true)) {
             bool is_readonly = false;
             if (!validate_export_name(name, is_readonly)) {
                 if (is_readonly) {
