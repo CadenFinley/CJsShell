@@ -43,6 +43,7 @@
 #include "error_out.h"
 #include "isocline.h"
 #include "shell_env.h"
+#include "string_utils.h"
 
 namespace {
 enum class ToggleRequest : std::uint8_t {
@@ -69,10 +70,7 @@ struct ToggleCommandConfig {
 };
 
 std::string normalize_option(const std::string& option) {
-    std::string normalized = option;
-    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    return normalized;
+    return string_utils::to_lower_copy(option);
 }
 
 bool matches_token(const std::string& value, std::initializer_list<const char*> tokens) {
@@ -584,9 +582,7 @@ int hint_delay_command(const std::vector<std::string>& args) {
     }
 
     const std::string& option = args[1];
-    std::string normalized = option;
-    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    std::string normalized = normalize_option(option);
 
     if (parse_status_query(normalized) == StatusQuery::Status) {
         if (!cjsh_env::startup_active()) {
@@ -647,9 +643,7 @@ int multiline_start_lines_command(const std::vector<std::string>& args) {
     }
 
     const std::string& option = args[1];
-    std::string normalized = option;
-    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    std::string normalized = normalize_option(option);
 
     if (parse_status_query(normalized) == StatusQuery::Status) {
         if (!cjsh_env::startup_active()) {

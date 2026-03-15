@@ -40,6 +40,7 @@
 #include "flags.h"
 #include "isocline.h"
 #include "shell_env.h"
+#include "string_utils.h"
 #include "token_constants.h"
 
 namespace {
@@ -343,9 +344,7 @@ int set_history_max_command(const std::vector<std::string>& args) {
     }
 
     const std::string& option = args[1];
-    std::string normalized = option;
-    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    std::string normalized = string_utils::to_lower_copy(option);
 
     if (normalized == "--help" || normalized == "-h") {
         if (!cjsh_env::startup_active()) {
@@ -443,9 +442,7 @@ int set_completion_max_command(const std::vector<std::string>& args) {
     }
 
     const std::string& option = args[1];
-    std::string normalized = option;
-    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    std::string normalized = string_utils::to_lower_copy(option);
 
     if (normalized == "--help" || normalized == "-h") {
         if (!cjsh_env::startup_active()) {

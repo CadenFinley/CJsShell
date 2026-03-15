@@ -40,6 +40,7 @@
 #include "error_out.h"
 #include "flags.h"
 #include "shell.h"
+#include "string_utils.h"
 
 namespace {
 
@@ -106,8 +107,7 @@ std::string normalize_option_key(std::string key) {
         key.erase(0, first_non_dash);
     }
 
-    std::transform(key.begin(), key.end(), key.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    key = string_utils::to_lower_copy(key);
     std::replace(key.begin(), key.end(), '-', '_');
     return key;
 }

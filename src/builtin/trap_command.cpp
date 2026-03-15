@@ -37,6 +37,7 @@
 #include "error_out.h"
 #include "shell.h"
 #include "signal_handler.h"
+#include "string_utils.h"
 
 namespace {
 
@@ -168,8 +169,7 @@ void trap_manager_execute_debug_trap() {
 }
 
 int signal_name_to_number(const std::string& signal_name) {
-    std::string upper_name = signal_name;
-    std::transform(upper_name.begin(), upper_name.end(), upper_name.begin(), ::toupper);
+    std::string upper_name = string_utils::to_upper_copy(signal_name);
 
     if (upper_name.substr(0, 3) == "SIG") {
         upper_name = upper_name.substr(3);

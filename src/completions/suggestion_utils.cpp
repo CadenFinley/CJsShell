@@ -43,6 +43,7 @@
 #include "edit_distance_utils.h"
 #include "interpreter.h"
 #include "shell.h"
+#include "string_utils.h"
 
 extern std::unique_ptr<Shell> g_shell;
 namespace suggestion_utils {
@@ -240,9 +241,7 @@ std::vector<std::string> find_similar_entries(const std::string& target_name,
         return suggestions;
     }
 
-    std::string target_lower = target_name;
-    std::transform(target_lower.begin(), target_lower.end(), target_lower.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    std::string target_lower = string_utils::to_lower_copy(target_name);
 
     try {
         std::vector<std::pair<int, std::string>> candidates;
@@ -258,9 +257,7 @@ std::vector<std::string> find_similar_entries(const std::string& target_name,
                 continue;
             }
 
-            std::string name_lower = name;
-            std::transform(name_lower.begin(), name_lower.end(), name_lower.begin(),
-                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            std::string name_lower = string_utils::to_lower_copy(name);
 
             bool substring_match = name_lower.find(target_lower) != std::string::npos;
 
@@ -283,8 +280,7 @@ std::vector<std::string> find_similar_entries(const std::string& target_name,
                     std::max<size_t>(0, name_lower.length() - target_lower.length()));
             }
 
-            if (std::tolower(static_cast<unsigned char>(target_name[0])) ==
-                std::tolower(static_cast<unsigned char>(name[0]))) {
+            if (!target_lower.empty() && !name_lower.empty() && target_lower[0] == name_lower[0]) {
                 score += 50;
             }
 

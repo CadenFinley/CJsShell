@@ -58,6 +58,7 @@
 #include "quote_state.h"
 #include "shell.h"
 #include "shell_env.h"
+#include "string_utils.h"
 #include "token_constants.h"
 
 namespace {
@@ -1181,9 +1182,7 @@ bool looks_like_file_path(const std::string& str) {
             "md",   "html", "css",  "sql",    "tar",  "gz",   "zip",  "pdf", "doc",
             "docx", "xls",  "xlsx", "png",    "jpg",  "jpeg", "gif",  "mp3", "mp4"};
 
-        std::string ext_lower = extension;
-        std::transform(ext_lower.begin(), ext_lower.end(), ext_lower.begin(),
-                       [](unsigned char c) { return std::tolower(c); });
+        std::string ext_lower = string_utils::to_lower_copy(extension);
 
         if (file_extensions.find(ext_lower) != file_extensions.end()) {
             return true;
@@ -1320,9 +1319,7 @@ bool should_complete_directories_only(const std::string& prefix) {
         return directory_only_commands.find(command) != directory_only_commands.end();
     }
 
-    std::string lowered_command = command;
-    std::transform(lowered_command.begin(), lowered_command.end(), lowered_command.begin(),
-                   [](unsigned char c) { return std::tolower(c); });
+    std::string lowered_command = string_utils::to_lower_copy(command);
     return directory_only_commands.find(lowered_command) != directory_only_commands.end();
 }
 

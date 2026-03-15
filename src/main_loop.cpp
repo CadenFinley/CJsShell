@@ -72,6 +72,7 @@
 #include "shell.h"
 #include "shell_env.h"
 #include "status_line.h"
+#include "string_utils.h"
 #include "trap_command.h"
 #include "typeahead.h"
 #include "version_command.h"
@@ -394,8 +395,7 @@ bool should_show_creator_line() {
     if (value.empty()) {
         return false;
     }
-    std::transform(value.begin(), value.end(), value.begin(),
-                   [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+    value = string_utils::to_lower_copy(value);
 
     cjsh_env::unset_shell_variable_value("CJSH_SHOW_CREATED");
 

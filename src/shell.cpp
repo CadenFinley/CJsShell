@@ -51,6 +51,7 @@
 #include "isocline.h"
 #include "job_control.h"
 #include "shell_env.h"
+#include "string_utils.h"
 #include "trap_command.h"
 
 namespace {
@@ -602,8 +603,7 @@ bool Shell::is_errexit_enabled() const {
 }
 
 void Shell::set_errexit_severity(const std::string& severity) {
-    std::string lower_severity = severity;
-    std::transform(lower_severity.begin(), lower_severity.end(), lower_severity.begin(), ::tolower);
+    std::string lower_severity = string_utils::to_lower_copy(severity);
 
     auto parsed = parse_errexit_severity_value(lower_severity);
     errexit_severity_level = parsed.value_or(ErrorSeverity::ERROR);
