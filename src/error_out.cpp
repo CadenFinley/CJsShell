@@ -37,7 +37,6 @@
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <system_error>
 #include <vector>
 
 #include "cjsh.h"

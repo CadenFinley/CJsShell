@@ -27,14 +27,10 @@
 */
 
 #include "builtins_completions_handler.h"
-#include <sys/_types/_pid_t.h>
 
-#include <memory>
-#include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
-#include <vector>
 
 #include "completion_utils.h"
 #include "job_control.h"

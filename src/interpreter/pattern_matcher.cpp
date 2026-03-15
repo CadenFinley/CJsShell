@@ -28,7 +28,6 @@
 
 #include "pattern_matcher.h"
 
-#include <cstddef>
 #include <string>
 
 bool PatternMatcher::matches_pattern(const std::string& text, const std::string& pattern) const {

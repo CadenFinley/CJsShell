@@ -27,13 +27,11 @@
 */
 
 #include "printf_command.h"
-#include <sys/_types/_mbstate_t.h>
 
 #include "builtin_help.h"
 
 #include <cctype>
 #include <cerrno>
-#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>

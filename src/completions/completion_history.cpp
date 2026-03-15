@@ -28,7 +28,6 @@
 
 #include "completion_history.h"
 
-#include <cstddef>
 #include <filesystem>
 #include <fstream>
 #include <sstream>

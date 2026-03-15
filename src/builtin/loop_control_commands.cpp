@@ -30,7 +30,6 @@
 
 #include "builtin_help.h"
 
-#include <exception>
 #include <string>
 #include <vector>
 #include "error_out.h"

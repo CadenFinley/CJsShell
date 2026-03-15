@@ -28,8 +28,6 @@
 
 #include "interpreter.h"
 
-#include <_stdlib.h>
-#include <sys/_types/_pid_t.h>
 #include <sys/ioctl.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -40,13 +38,11 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
-#include <exception>
 #include <filesystem>
 #include <fstream>
 #include <functional>
 #include <iostream>
 #include <memory>
-#include <new>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
@@ -54,7 +50,6 @@
 #include <string_view>
 #include <system_error>
 #include <utility>
-#include <vector>
 
 #include "arithmetic_evaluator.h"
 #include "builtin.h"
@@ -66,7 +61,6 @@
 #include "exec.h"
 #include "flags.h"
 #include "function_evaluator.h"
-#include "function_ref.h"
 #include "interpreter_utils.h"
 #include "job_control.h"
 #include "loop_evaluator.h"
@@ -80,7 +74,6 @@
 #include "signal_handler.h"
 #include "suggestion_utils.h"
 #include "tokenizer.h"
-#include "variable_manager.h"
 
 using shell_script_interpreter::detail::contains_token;
 using shell_script_interpreter::detail::is_control_flow_exit_code;
@@ -791,7 +784,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                                 std::vector<Command> control_cmds =
                                     shell_parser->parse_pipeline_with_preprocessing(text);
                                 if (!control_cmds.empty()) {
-                                    const Command& control_cmd = control_cmds[0];
+                                    Command control_cmd = control_cmds[0];
                                     std::string command_name =
                                         control_cmd.args.empty() ? prog : control_cmd.args[0];
                                     bool action_invoked = false;

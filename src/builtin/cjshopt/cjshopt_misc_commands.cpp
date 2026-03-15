@@ -29,12 +29,12 @@
 #include "cjshopt_command.h"
 
 #include <algorithm>
-#include <cctype>
 #include <iostream>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
+#include "cjsh.h"
 #include "cjsh_completions.h"
 #include "error_out.h"
 #include "flags.h"

@@ -27,26 +27,15 @@
 */
 
 #include "cjsh_filesystem.h"
-#include <sys/_types/_mode_t.h>
-#include <sys/_types/_s_ifmt.h>
-#include <sys/_types/_ssize_t.h>
-#include <sys/fcntl.h>
-#include <sys/stat.h>
-#include <sys/unistd.h>
 
 #include <algorithm>
 #include <cerrno>
 #include <chrono>
-#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <ctime>
-#include <exception>
-#include <filesystem>
 #include <mutex>
 #include <optional>
-#include <string>
 #include <string_view>
 #include <system_error>
 #include <unordered_map>
@@ -65,6 +54,7 @@
 #endif
 
 #ifdef __APPLE__
+#include <mach-o/dyld.h>
 #endif
 
 namespace cjsh_filesystem {

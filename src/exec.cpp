@@ -28,19 +28,11 @@
 
 #include "exec.h"
 
-#include <_stdlib.h>
 #include <fcntl.h>
-#include <signal.h>
-#include <sys/_types/_pid_t.h>
-#include <sys/_types/_ssize_t.h>
-#include <sys/fcntl.h>
 #include <sys/ioctl.h>
-#include <sys/signal.h>
 #include <sys/stat.h>
-#include <sys/ttycom.h>
 #include <sys/wait.h>
 #include <sysexits.h>
-#include <termios.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -48,26 +40,18 @@
 #include <atomic>
 #include <cerrno>
 #include <csignal>
-#include <cstddef>
 #include <cstdint>
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
-#include <exception>
-#include <functional>
 #include <iostream>
-#include <iterator>
-#include <map>
 #include <memory>
-#include <mutex>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
 #include <thread>
-#include <utility>
 #include <vector>
 
 #include "builtin.h"

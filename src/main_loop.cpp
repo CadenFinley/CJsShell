@@ -28,23 +28,14 @@
 
 #include "main_loop.h"
 
-#include <_stdlib.h>
 #include <fcntl.h>
-#include <signal.h>
-#include <sys/_select.h>
-#include <sys/_types/_fd_def.h>
-#include <sys/_types/_fd_isset.h>
-#include <sys/_types/_fd_set.h>
-#include <sys/_types/_fd_zero.h>
-#include <sys/_types/_pid_t.h>
-#include <sys/_types/_ssize_t.h>
-#include <sys/_types/_timeval.h>
+#include <sys/types.h>
+#include <termios.h>
 #include <unistd.h>
 #include <algorithm>
 #include <cctype>
 #include <cerrno>
 #include <chrono>
-#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -52,9 +43,7 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <utility>
 #include <vector>
-#include "keybindings.h"
 
 #ifdef __APPLE__
 #include <AvailabilityMacros.h>
@@ -62,6 +51,9 @@
 #else
 #include <malloc.h>
 #endif
+
+#include <sys/select.h>
+#include <sys/time.h>
 
 #include "cjsh.h"
 #include "cjsh_completions.h"

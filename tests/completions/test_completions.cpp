@@ -1,4 +1,3 @@
-#include <sys/_types/_ssize_t.h>
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
@@ -8,11 +7,9 @@
 
 #include "builtins_completions_handler.h"
 #include "cjsh_completions.h"
-#include "common.h"
 #include "completion_spell.h"
 #include "completion_tracker.h"
 #include "completion_utils.h"
-#include "isocline.h"
 extern "C" {
 #include "completions.h"
 #include "env.h"
@@ -86,7 +83,7 @@ static ssize_t run_completion_generation(const char* input, ic_completer_fun_t* 
                                 static_cast<ssize_t>(std::strlen(input)), max_results);
 }
 
-static bool test_quote_and_unquote_paths() {
+static bool test_quote_and_unquote_paths(void) {
     const char* test_name = "quote_and_unquote_paths";
 
     std::string plain = "simple";
@@ -125,20 +122,26 @@ static bool test_quote_and_unquote_paths() {
     return true;
 }
 
-static bool test_quote_path_special_characters() {
+static bool test_quote_path_special_characters(void) {
     const char* test_name = "quote_path_special_characters";
     std::string path = "one&two";
-    return expect_streq(completion_utils::quote_path_if_needed(path), "\"one&two\"", test_name,
-                        "paths with special characters should be quoted");
+    if (!expect_streq(completion_utils::quote_path_if_needed(path), "\"one&two\"", test_name,
+                      "paths with special characters should be quoted")) {
+        return false;
+    }
+    return true;
 }
 
-static bool test_unquote_path_with_escaped_quote() {
+static bool test_unquote_path_with_escaped_quote(void) {
     const char* test_name = "unquote_path_with_escaped_quote";
-    return expect_streq(completion_utils::unquote_path("\"a\\\"b\""), "a\"b", test_name,
-                        "escaped quotes should be unescaped");
+    if (!expect_streq(completion_utils::unquote_path("\"a\\\"b\""), "a\"b", test_name,
+                      "escaped quotes should be unescaped")) {
+        return false;
+    }
+    return true;
 }
 
-static bool test_tokenize_command_line() {
+static bool test_tokenize_command_line(void) {
     const char* test_name = "tokenize_command_line";
     std::string line = "cmd \"arg with space\" 'single quoted' plain\\ space";
     auto tokens = completion_utils::tokenize_command_line(line);
@@ -153,7 +156,7 @@ static bool test_tokenize_command_line() {
     return true;
 }
 
-static bool test_tokenize_command_line_escaped_quotes() {
+static bool test_tokenize_command_line_escaped_quotes(void) {
     const char* test_name = "tokenize_command_line_escaped_quotes";
     std::string line = "cmd \"a\\\"b\" tail";
     auto tokens = completion_utils::tokenize_command_line(line);
@@ -165,7 +168,7 @@ static bool test_tokenize_command_line_escaped_quotes() {
     return true;
 }
 
-static bool test_find_last_unquoted_space() {
+static bool test_find_last_unquoted_space(void) {
     const char* test_name = "find_last_unquoted_space";
     std::string line = "echo \"a b\" c";
     size_t pos = completion_utils::find_last_unquoted_space(line);
@@ -175,7 +178,7 @@ static bool test_find_last_unquoted_space() {
     return true;
 }
 
-static bool test_find_last_unquoted_space_with_tabs() {
+static bool test_find_last_unquoted_space_with_tabs(void) {
     const char* test_name = "find_last_unquoted_space_with_tabs";
     std::string line = "cmd\targ";
     size_t pos = completion_utils::find_last_unquoted_space(line);
@@ -183,7 +186,7 @@ static bool test_find_last_unquoted_space_with_tabs() {
     return true;
 }
 
-static bool test_case_sensitivity_helpers() {
+static bool test_case_sensitivity_helpers(void) {
     const char* test_name = "case_sensitivity_helpers";
     const bool original_setting = is_completion_case_sensitive();
     set_completion_case_sensitive(false);
@@ -202,7 +205,7 @@ static bool test_case_sensitivity_helpers() {
     return true;
 }
 
-static bool test_normalize_for_comparison() {
+static bool test_normalize_for_comparison(void) {
     const char* test_name = "normalize_for_comparison";
     const bool original_setting = is_completion_case_sensitive();
     set_completion_case_sensitive(false);
@@ -223,7 +226,7 @@ static bool test_normalize_for_comparison() {
     return true;
 }
 
-static bool test_starts_with_helpers() {
+static bool test_starts_with_helpers(void) {
     const char* test_name = "starts_with_helpers";
     EXPECT_TRUE(completion_utils::starts_with_case_insensitive("Hello", "he"), test_name,
                 "case-insensitive helper should match");
@@ -241,14 +244,17 @@ static bool test_starts_with_helpers() {
     return true;
 }
 
-static bool test_sanitize_job_summary() {
+static bool test_sanitize_job_summary(void) {
     const char* test_name = "sanitize_job_summary";
     std::string raw = "  ls\t -la \n \x01";
-    return expect_streq(completion_utils::sanitize_job_command_summary(raw), "ls -la", test_name,
-                        "summary should normalize whitespace and strip control chars");
+    if (!expect_streq(completion_utils::sanitize_job_command_summary(raw), "ls -la", test_name,
+                      "summary should normalize whitespace and strip control chars")) {
+        return false;
+    }
+    return true;
 }
 
-static bool test_sanitize_job_summary_truncates() {
+static bool test_sanitize_job_summary_truncates(void) {
     const char* test_name = "sanitize_job_summary_truncates";
     std::string long_cmd(120, 'a');
     std::string summary = completion_utils::sanitize_job_command_summary(long_cmd);
@@ -256,7 +262,7 @@ static bool test_sanitize_job_summary_truncates() {
     return true;
 }
 
-static bool test_spell_transposition_and_distance() {
+static bool test_spell_transposition_and_distance(void) {
     const char* test_name = "spell_transposition_and_distance";
     EXPECT_TRUE(completion_spell::is_adjacent_transposition("abcd", "abdc"), test_name,
                 "adjacent transposition should be detected");
@@ -275,7 +281,7 @@ static bool test_spell_transposition_and_distance() {
     return true;
 }
 
-static bool test_spell_match_ordering() {
+static bool test_spell_match_ordering(void) {
     const char* test_name = "spell_match_ordering";
     std::unordered_map<std::string, completion_spell::SpellCorrectionMatch> matches;
     matches["alpha"] = {"alpha", 2, false, 2};
@@ -296,7 +302,7 @@ static bool test_spell_match_ordering() {
     return true;
 }
 
-static bool test_spell_match_add_limit() {
+static bool test_spell_match_add_limit(void) {
     const char* test_name = "spell_match_add_limit";
     std::unordered_map<std::string, completion_spell::SpellCorrectionMatch> matches;
     for (int i = 0; i < 20; ++i) {
@@ -314,7 +320,7 @@ static bool test_spell_match_add_limit() {
     return true;
 }
 
-static bool test_completion_tracker_deduplication() {
+static bool test_completion_tracker_deduplication(void) {
     const char* test_name = "completion_tracker_deduplication";
     g_completion_actions = {
         {"d", 1, 0, "test"},
@@ -327,7 +333,7 @@ static bool test_completion_tracker_deduplication() {
     return true;
 }
 
-static bool test_completion_tracker_trims_trailing_spaces() {
+static bool test_completion_tracker_trims_trailing_spaces(void) {
     const char* test_name = "completion_tracker_trims_trailing_spaces";
     g_completion_actions = {
         {"arg ", 0, 0, "test"},
@@ -340,7 +346,7 @@ static bool test_completion_tracker_trims_trailing_spaces() {
     return true;
 }
 
-static bool test_completion_tracker_max_results() {
+static bool test_completion_tracker_max_results(void) {
     const char* test_name = "completion_tracker_max_results";
     std::string error;
     EXPECT_FALSE(completion_tracker::set_completion_max_results(0, &error), test_name,
@@ -381,7 +387,7 @@ static bool has_entry(const builtin_completions::CommandDoc* doc, const std::str
     return false;
 }
 
-static bool test_builtin_docs() {
+static bool test_builtin_docs(void) {
     const char* test_name = "builtin_docs";
 
     const auto* cjsh_doc = builtin_completions::lookup_builtin_command_doc("cjsh");
@@ -447,12 +453,12 @@ static bool test_builtin_docs() {
     return true;
 }
 
-using test_fn_t = bool (*)();
+typedef bool (*test_fn_t)(void);
 
-using test_case_t = struct test_case_s {
+typedef struct test_case_s {
     const char* name;
     test_fn_t fn;
-};
+} test_case_t;
 
 static const test_case_t kTests[] = {
     {"quote_and_unquote_paths", test_quote_and_unquote_paths},
@@ -476,13 +482,13 @@ static const test_case_t kTests[] = {
     {"builtin_docs", test_builtin_docs},
 };
 
-int main() {
+int main(void) {
     size_t failures = 0;
     const size_t test_count = sizeof(kTests) / sizeof(kTests[0]);
 
-    for (auto kTest : kTests) {
-        if (!kTest.fn()) {
-            std::fprintf(stderr, "Test '%s' failed\n", kTest.name);
+    for (size_t i = 0; i < test_count; ++i) {
+        if (!kTests[i].fn()) {
+            std::fprintf(stderr, "Test '%s' failed\n", kTests[i].name);
             failures += 1;
         }
     }

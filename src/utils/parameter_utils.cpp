@@ -28,7 +28,6 @@
 
 #include "parameter_utils.h"
 
-#include <sys/_types/_pid_t.h>
 #include <unistd.h>
 #include <cstdlib>
 #include <string>

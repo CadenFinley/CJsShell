@@ -30,7 +30,6 @@
 
 #include <atomic>
 #include <cctype>
-#include <cstddef>
 #include <limits>
 #include <string>
 #include <utility>

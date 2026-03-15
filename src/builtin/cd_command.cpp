@@ -28,17 +28,12 @@
 
 #include "cd_command.h"
 
+#include <sys/wait.h>
 #include <unistd.h>
 
-#include <cerrno>
 #include <cstdlib>
 #include <cstring>
-#include <exception>
-#include <filesystem>
 #include <optional>
-#include <string>
-#include <system_error>
-#include <vector>
 
 #include "builtin_help.h"
 #include "error_out.h"

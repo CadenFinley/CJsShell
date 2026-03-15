@@ -28,13 +28,7 @@
 
 #include "case_evaluator.h"
 
-#include <cstddef>
-#include <functional>
-#include <optional>
 #include <sstream>
-#include <string>
-#include <utility>
-#include <vector>
 
 #include "interpreter_utils.h"
 #include "parser.h"

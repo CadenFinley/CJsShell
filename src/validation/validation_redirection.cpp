@@ -34,7 +34,6 @@
 #include "validation_common.h"
 
 #include <cctype>
-#include <cstddef>
 #include <string>
 #include <vector>
 

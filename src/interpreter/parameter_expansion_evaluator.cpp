@@ -31,8 +31,6 @@
 #include <cctype>
 #include <cstdlib>
 #include <stdexcept>
-#include <string>
-#include <utility>
 
 ParameterExpansionEvaluator::ParameterExpansionEvaluator(VariableReader var_reader,
                                                          VariableWriter var_writer,

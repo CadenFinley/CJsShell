@@ -30,10 +30,9 @@
 
 #include "builtin_help.h"
 
-#include <cstddef>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <iostream>
-#include <string>
-#include <vector>
 #include "builtin.h"
 #include "cjsh_filesystem.h"
 #include "error_out.h"

@@ -29,10 +29,7 @@
 #include "pipeline_status_utils.h"
 
 #include <cstdlib>
-#include <functional>
 #include <sstream>
-#include <string>
-#include <vector>
 
 #include "exec.h"
 #include "shell_env.h"

@@ -26,7 +26,6 @@
   SOFTWARE.
 */
 
-#include "error_out.h"
 #include "interpreter.h"
 
 #include "interpreter_utils.h"

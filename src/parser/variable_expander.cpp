@@ -30,11 +30,6 @@
 
 #include <unistd.h>
 #include <cctype>
-#include <cstddef>
-#include <functional>
-#include <stdexcept>
-#include <string>
-#include <unordered_map>
 
 #include "exec.h"
 #include "flags.h"

@@ -33,7 +33,6 @@
 #include <cstdlib>
 #include <iostream>
 #include <string>
-#include <vector>
 
 #include "parser_utils.h"
 
@@ -190,7 +189,7 @@ int echo_command(const std::vector<std::string>& args) {
                                 if (i + 1 < s.length() && is_hex_digit(s[i + 1])) {
                                     i++;
                                     ch = static_cast<unsigned char>(s[i]);
-                                    value = value * 16U + static_cast<unsigned int>(hextobin(ch));
+                                    value = value * 16u + static_cast<unsigned int>(hextobin(ch));
                                 }
                                 out << static_cast<char>(static_cast<unsigned char>(value));
                             } else {
@@ -207,10 +206,10 @@ int echo_command(const std::vector<std::string>& args) {
                                 value = static_cast<unsigned int>(s[i] - '0');
                                 if (i + 1 < s.length() && s[i + 1] >= '0' && s[i + 1] <= '7') {
                                     i++;
-                                    value = value * 8U + static_cast<unsigned int>(s[i] - '0');
+                                    value = value * 8u + static_cast<unsigned int>(s[i] - '0');
                                     if (i + 1 < s.length() && s[i + 1] >= '0' && s[i + 1] <= '7') {
                                         i++;
-                                        value = value * 8U + static_cast<unsigned int>(s[i] - '0');
+                                        value = value * 8u + static_cast<unsigned int>(s[i] - '0');
                                     }
                                 }
                             }
@@ -226,10 +225,10 @@ int echo_command(const std::vector<std::string>& args) {
                             unsigned int value = static_cast<unsigned int>(c - '0');
                             if (i + 1 < s.length() && s[i + 1] >= '0' && s[i + 1] <= '7') {
                                 i++;
-                                value = value * 8U + static_cast<unsigned int>(s[i] - '0');
+                                value = value * 8u + static_cast<unsigned int>(s[i] - '0');
                                 if (i + 1 < s.length() && s[i + 1] >= '0' && s[i + 1] <= '7') {
                                     i++;
-                                    value = value * 8U + static_cast<unsigned int>(s[i] - '0');
+                                    value = value * 8u + static_cast<unsigned int>(s[i] - '0');
                                 }
                             }
                             out << static_cast<char>(static_cast<unsigned char>(value));

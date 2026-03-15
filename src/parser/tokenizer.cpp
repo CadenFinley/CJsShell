@@ -28,13 +28,9 @@
 
 #include "tokenizer.h"
 
-#include <algorithm>
 #include <cctype>
 #include <cstdlib>
 #include <stdexcept>
-#include <string>
-#include <utility>
-#include <vector>
 
 #include "parser_utils.h"
 #include "quote_info.h"

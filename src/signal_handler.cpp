@@ -28,24 +28,14 @@
 
 #include "signal_handler.h"
 
-#include <signal.h>
-#include <sys/_types/_pid_t.h>
-#include <sys/_types/_sigset_t.h>
-#include <sys/signal.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <algorithm>
 #include <atomic>
-#include <cctype>
 #include <cerrno>
 #include <csignal>
 #include <cstdio>
-#include <cstdlib>
 #include <cstring>
-#include <exception>
-#include <string>
-#include <unordered_map>
-#include <vector>
 
 #include "cjsh.h"
 #include "error_out.h"

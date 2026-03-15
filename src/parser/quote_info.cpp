@@ -29,8 +29,6 @@
 #include "quote_info.h"
 
 #include <cstdlib>
-#include <string>
-#include <vector>
 
 #include "shell_env.h"
 

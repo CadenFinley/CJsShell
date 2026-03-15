@@ -31,12 +31,9 @@
 #include "builtin_help.h"
 
 #include <fcntl.h>
-#include <sys/fcntl.h>
+#include <sys/types.h>
+#include <unistd.h>
 #include <cctype>
-#include <cstddef>
-#include <exception>
-#include <string>
-#include <vector>
 
 #include "cjsh_filesystem.h"
 #include "error_out.h"

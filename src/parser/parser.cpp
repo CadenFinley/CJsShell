@@ -36,15 +36,11 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
-#include <exception>
-#include <iterator>
 #include <map>
-#include <memory>
 #include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -1371,7 +1367,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                 size_t after_bang = 1;
                 bool has_whitespace_after_bang =
                     (leading_trimmed.size() == 1) ||
-                    (std::isspace(static_cast<unsigned char>(leading_trimmed[after_bang])) != 0);
+                    ((std::isspace(static_cast<unsigned char>(leading_trimmed[after_bang])) != 0));
 
                 if (has_whitespace_after_bang) {
                     pipeline_negated = true;

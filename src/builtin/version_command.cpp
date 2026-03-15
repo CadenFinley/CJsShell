@@ -32,7 +32,6 @@
 
 #include <cstdio>
 #include <string>
-#include <vector>
 
 const bool PRE_RELEASE = true;
 const char* const c_version_base = "1.1.7";

@@ -38,7 +38,6 @@
 #include <memory>
 #include <string>
 #include <system_error>
-#include <vector>
 
 #include "builtin_help.h"
 #include "cjsh_filesystem.h"

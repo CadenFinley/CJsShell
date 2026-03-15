@@ -28,21 +28,15 @@
 
 #include "job_control_commands.h"
 
-#include <signal.h>
-#include <sys/_types/_pid_t.h>
-#include <sys/signal.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <algorithm>
-#include <atomic>
 #include <cctype>
 #include <csignal>
-#include <cstddef>
 #include <iomanip>
 #include <iostream>
 #include <memory>
 #include <string>
-#include <vector>
 
 #include "builtin_help.h"
 #include "cjsh.h"

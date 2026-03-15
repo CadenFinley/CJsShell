@@ -33,7 +33,6 @@
 #include "job_control.h"
 
 #include <algorithm>
-#include <atomic>
 #include <cstdint>
 #include <cstdlib>
 #include <string>

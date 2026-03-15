@@ -30,15 +30,11 @@
 
 #include <algorithm>
 #include <cctype>
-#include <cstdint>
 #include <cstdlib>
 #include <cstring>
-#include <exception>
 #include <filesystem>
 #include <fstream>
 #include <functional>
-#include <ios>
-#include <memory>
 #include <string>
 #include <system_error>
 #include <unordered_map>

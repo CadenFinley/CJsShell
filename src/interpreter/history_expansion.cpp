@@ -29,10 +29,7 @@
 #include "history_expansion.h"
 
 #include <cctype>
-#include <cstddef>
 #include <sstream>
-#include <string>
-#include <vector>
 
 #include "cjsh_filesystem.h"
 #include "quote_info.h"

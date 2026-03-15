@@ -33,16 +33,10 @@
 #include <cctype>
 #include <csignal>
 #include <cstdlib>
-#include <exception>
-#include <functional>
 #include <memory>
-#include <optional>
 #include <sstream>
 #include <string>
-#include <string_view>
 #include <unordered_map>
-#include <utility>
-#include <vector>
 
 #include "cjsh.h"
 #include "error_out.h"

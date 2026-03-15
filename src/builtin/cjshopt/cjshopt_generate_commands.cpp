@@ -28,14 +28,13 @@
 
 #include "cjshopt_command.h"
 
-#include <cstddef>
-#include <filesystem>
 #include <functional>
 #include <iostream>
 #include <optional>
 #include <string>
 #include <vector>
 
+#include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "error_out.h"
 #include "shell_env.h"

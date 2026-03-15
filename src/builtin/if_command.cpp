@@ -27,9 +27,6 @@
 */
 
 #include "if_command.h"
-#include <cstddef>
-#include <string>
-#include <vector>
 
 #include "builtin_help.h"
 

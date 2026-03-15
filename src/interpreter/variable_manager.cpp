@@ -28,13 +28,11 @@
 
 #include "variable_manager.h"
 
-#include <_stdlib.h>
+#include <unistd.h>
 
 #include <cctype>
 #include <cstdlib>
-#include <string>
 #include <unordered_set>
-#include <vector>
 
 #include "cjsh.h"
 #include "flags.h"

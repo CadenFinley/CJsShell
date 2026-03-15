@@ -30,17 +30,12 @@
 
 #include <fcntl.h>
 #include <poll.h>
-#include <sys/_types/_ssize_t.h>
-#include <sys/fcntl.h>
-#include <sys/filio.h>
 #include <sys/ioctl.h>
-#include <sys/poll.h>
 #include <termios.h>
 #include <unistd.h>
 #include <algorithm>
 #include <array>
 #include <cerrno>
-#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <string_view>

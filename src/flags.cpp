@@ -28,15 +28,12 @@
 
 #include "flags.h"
 
-#include <_stdlib.h>
 #include <getopt.h>
 #include <unistd.h>
 #include <array>
 #include <cstdint>
 #include <cstdlib>
 #include <optional>
-#include <string>
-#include <vector>
 
 #include "cjsh.h"
 #include "error_out.h"

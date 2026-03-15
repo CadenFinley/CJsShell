@@ -32,7 +32,6 @@
 #include <cstring>
 #include <string>
 
-#include "isocline.h"
 #include "quote_state.h"
 #include "token_classifier.h"
 
