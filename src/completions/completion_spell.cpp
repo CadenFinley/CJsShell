@@ -29,12 +29,11 @@
 #include "completion_spell.h"
 
 #include <algorithm>
-#include <cmath>
 #include <string>
 #include <unordered_map>
-#include <vector>
 
 #include "completion_tracker.h"
+#include "edit_distance_utils.h"
 #include "isocline.h"
 
 namespace completion_spell {
@@ -69,40 +68,7 @@ bool is_adjacent_transposition(const std::string& a, const std::string& b) {
 
 int compute_edit_distance_with_limit(const std::string& source, const std::string& target,
                                      int max_distance) {
-    const size_t source_length = source.length();
-    const size_t target_length = target.length();
-
-    if (std::abs(static_cast<int>(source_length) - static_cast<int>(target_length)) >
-        max_distance) {
-        return max_distance + 1;
-    }
-
-    std::vector<int> previous_row(target_length + 1);
-    std::vector<int> current_row(target_length + 1);
-
-    for (size_t j = 0; j <= target_length; ++j) {
-        previous_row[j] = static_cast<int>(j);
-    }
-
-    for (size_t i = 1; i <= source_length; ++i) {
-        current_row[0] = static_cast<int>(i);
-        int row_min = current_row[0];
-
-        for (size_t j = 1; j <= target_length; ++j) {
-            int cost = (source[i - 1] == target[j - 1]) ? 0 : 1;
-            current_row[j] =
-                std::min({previous_row[j] + 1, current_row[j - 1] + 1, previous_row[j - 1] + cost});
-            row_min = std::min(row_min, current_row[j]);
-        }
-
-        if (row_min > max_distance) {
-            return max_distance + 1;
-        }
-
-        std::swap(previous_row, current_row);
-    }
-
-    return previous_row[target_length];
+    return edit_distance_utils::levenshtein_distance_with_limit(source, target, max_distance);
 }
 
 bool should_consider_spell_correction(const std::string& normalized_prefix) {

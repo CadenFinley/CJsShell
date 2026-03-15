@@ -34,6 +34,7 @@
 #include <vector>
 
 #include "cjsh_completions.h"
+#include "command_line_utils.h"
 #include "quote_state.h"
 
 namespace completion_utils {
@@ -107,56 +108,7 @@ std::string unquote_path(const std::string& path) {
 }
 
 std::vector<std::string> tokenize_command_line(const std::string& line) {
-    std::vector<std::string> tokens;
-    std::string current_token;
-    bool in_single_quote = false;
-    bool in_double_quote = false;
-    bool escaped = false;
-
-    for (size_t i = 0; i < line.length(); ++i) {
-        char c = line[i];
-
-        if (escaped) {
-            current_token += c;
-            escaped = false;
-            continue;
-        }
-
-        if (c == '\\') {
-            if (in_single_quote) {
-                current_token += c;
-            } else {
-                escaped = true;
-            }
-            continue;
-        }
-
-        if (c == '\'' && !in_double_quote) {
-            in_single_quote = !in_single_quote;
-            continue;
-        }
-
-        if (c == '"' && !in_single_quote) {
-            in_double_quote = !in_double_quote;
-            continue;
-        }
-
-        if ((c == ' ' || c == '\t') && !in_single_quote && !in_double_quote) {
-            if (!current_token.empty()) {
-                tokens.push_back(current_token);
-                current_token.clear();
-            }
-            continue;
-        }
-
-        current_token += c;
-    }
-
-    if (!current_token.empty()) {
-        tokens.push_back(current_token);
-    }
-
-    return tokens;
+    return command_line_utils::tokenize_shell_words(line);
 }
 
 size_t find_last_unquoted_space(const std::string& str) {

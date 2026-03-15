@@ -40,6 +40,7 @@
 #include "cjsh_filesystem.h"
 #include "completion_spell.h"
 #include "completion_utils.h"
+#include "edit_distance_utils.h"
 #include "interpreter.h"
 #include "shell.h"
 
@@ -228,32 +229,7 @@ std::vector<std::string> generate_cd_suggestions(const std::string& target_dir,
 }
 
 int edit_distance(const std::string& str1, const std::string& str2) {
-    const size_t m = str1.length();
-    const size_t n = str2.length();
-
-    if (m == 0)
-        return static_cast<int>(n);
-    if (n == 0)
-        return static_cast<int>(m);
-
-    std::vector<std::vector<int>> dp(m + 1, std::vector<int>(n + 1));
-
-    for (size_t i = 0; i <= m; i++)
-        dp[i][0] = static_cast<int>(i);
-    for (size_t j = 0; j <= n; j++)
-        dp[0][j] = static_cast<int>(j);
-
-    for (size_t i = 1; i <= m; i++) {
-        for (size_t j = 1; j <= n; j++) {
-            if (str1[i - 1] == str2[j - 1]) {
-                dp[i][j] = dp[i - 1][j - 1];
-            } else {
-                dp[i][j] = 1 + std::min({dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]});
-            }
-        }
-    }
-
-    return dp[m][n];
+    return edit_distance_utils::levenshtein_distance(str1, str2);
 }
 
 std::vector<std::string> find_similar_entries(const std::string& target_name,

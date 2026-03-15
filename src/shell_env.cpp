@@ -53,6 +53,7 @@ extern "C" char** environ;
 
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
+#include "command_line_utils.h"
 #include "error_out.h"
 #include "interpreter.h"
 #include "prompt.h"
@@ -455,50 +456,7 @@ void apply_env_assignments(
 }
 
 std::vector<std::string> parse_shell_command(const std::string& command) {
-    std::vector<std::string> args;
-    std::string current;
-    bool in_single_quote = false;
-    bool in_double_quote = false;
-    bool escaped = false;
-
-    for (char c : command) {
-        if (escaped) {
-            current += c;
-            escaped = false;
-            continue;
-        }
-
-        if (c == '\\' && !in_single_quote) {
-            escaped = true;
-            continue;
-        }
-
-        if (c == '\'' && !in_double_quote) {
-            in_single_quote = !in_single_quote;
-            continue;
-        }
-
-        if (c == '"' && !in_single_quote) {
-            in_double_quote = !in_double_quote;
-            continue;
-        }
-
-        if ((c == ' ' || c == '\t') && !in_single_quote && !in_double_quote) {
-            if (!current.empty()) {
-                args.push_back(current);
-                current.clear();
-            }
-            continue;
-        }
-
-        current += c;
-    }
-
-    if (!current.empty()) {
-        args.push_back(current);
-    }
-
-    return args;
+    return command_line_utils::tokenize_shell_words(command);
 }
 
 std::vector<char*> build_exec_argv(const std::vector<std::string>& args) {
