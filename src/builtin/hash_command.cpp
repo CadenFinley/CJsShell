@@ -32,6 +32,7 @@
 #include <iostream>
 
 #include "builtin_help.h"
+#include "builtin_option_parser.h"
 #include "cjsh_filesystem.h"
 #include "error_out.h"
 
@@ -74,28 +75,21 @@ int hash_command(const std::vector<std::string>& args) {
     }
 
     bool reset_cache = false;
-    std::vector<std::string> targets;
-
-    for (size_t i = 1; i < args.size(); ++i) {
-        const std::string& arg = args[i];
-        if (arg == "--") {
-            targets.insert(targets.end(), args.begin() + static_cast<std::ptrdiff_t>(i + 1),
-                           args.end());
-            break;
-        }
-        if (!arg.empty() && arg[0] == '-') {
-            if (arg == "-r") {
+    size_t start_index = 1;
+    const bool options_ok =
+        builtin_parse_short_options(args, start_index, "hash", [&](char option) {
+            if (option == 'r') {
                 reset_cache = true;
-                continue;
+                return true;
             }
-            print_error({ErrorType::INVALID_ARGUMENT,
-                         "hash",
-                         "invalid option: " + arg,
-                         {"Use 'hash -r' or specify command names."}});
-            return 2;
-        }
-        targets.push_back(arg);
+            return false;
+        });
+    if (!options_ok) {
+        return 2;
     }
+
+    std::vector<std::string> targets(args.begin() + static_cast<std::ptrdiff_t>(start_index),
+                                     args.end());
 
     if (reset_cache) {
         cjsh_filesystem::reset_path_hash();

@@ -29,6 +29,7 @@
 #include "version_command.h"
 
 #include "builtin_help.h"
+#include "builtin_option_parser.h"
 
 #include <cstdio>
 #include <string>
@@ -117,13 +118,27 @@ int version_command(const std::vector<std::string>& args) {
     bool show_build_type = false;
     bool show_arch = false;
     bool show_platform = false;
+
+    size_t start_index = 1;
+    const bool options_ok =
+        builtin_parse_short_options(args, start_index, "version", [&](char option) {
+            if (option == 'a') {
+                show_all = true;
+                return true;
+            }
+            return false;
+        });
+    if (!options_ok) {
+        return 1;
+    }
+
     auto enable_field = [&](bool& flag) {
         flag = true;
         show_fields = true;
     };
-    for (size_t i = 1; i < args.size(); ++i) {
+    for (size_t i = start_index; i < args.size(); ++i) {
         const std::string& arg = args[i];
-        if (arg == "-a" || arg == "--all") {
+        if (arg == "--all") {
             show_all = true;
         } else if (arg == "--tag") {
             show_tag = true;

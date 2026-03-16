@@ -159,6 +159,24 @@ bool parse_assignment(const std::string& arg, std::string& name, std::string& va
     return true;
 }
 
+bool parse_env_assignment(const std::string& arg, std::string& name, std::string& value,
+                          bool strip_surrounding_quotes) {
+    std::string parsed_name;
+    std::string parsed_value;
+    if (!parse_assignment(arg, parsed_name, parsed_value, strip_surrounding_quotes)) {
+        return false;
+    }
+
+    parsed_name = trim_whitespace(parsed_name);
+    if (!is_valid_identifier(parsed_name)) {
+        return false;
+    }
+
+    name = std::move(parsed_name);
+    value = std::move(parsed_value);
+    return true;
+}
+
 bool parse_assignment_operand(const std::string& arg, AssignmentOperand& operand,
                               bool strip_surrounding_quotes) {
     std::string parsed_name;

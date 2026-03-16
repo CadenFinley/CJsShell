@@ -458,10 +458,7 @@ std::vector<std::string> Tokenizer::merge_redirection_tokens(
 std::vector<std::string> Tokenizer::split_by_ifs(const std::string& input) {
     std::vector<std::string> result;
 
-    std::string ifs = " \t\n";
-    if (cjsh_env::shell_variable_is_set("IFS")) {
-        ifs = cjsh_env::get_shell_variable_value("IFS");
-    }
+    std::string ifs = cjsh_env::get_ifs_delimiters();
 
     if (input.empty()) {
         return result;

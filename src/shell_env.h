@@ -105,6 +105,7 @@ void request_force_exit();
 void reset_shell_state();
 
 bool is_valid_env_name(const std::string& name);
+std::string get_ifs_delimiters();
 size_t collect_env_assignments(const std::vector<std::string>& args,
                                std::vector<std::pair<std::string, std::string>>& env_assignments);
 void apply_env_assignments(const std::vector<std::pair<std::string, std::string>>& env_assignments);

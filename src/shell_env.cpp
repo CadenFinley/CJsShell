@@ -444,6 +444,13 @@ bool is_valid_env_name(const std::string& name) {
     return is_valid_identifier(name);
 }
 
+std::string get_ifs_delimiters() {
+    if (shell_variable_is_set("IFS")) {
+        return get_shell_variable_value("IFS");
+    }
+    return " \t\n";
+}
+
 size_t collect_env_assignments(const std::vector<std::string>& args,
                                std::vector<std::pair<std::string, std::string>>& env_assignments) {
     size_t cmd_start_idx = 0;
@@ -451,7 +458,7 @@ size_t collect_env_assignments(const std::vector<std::string>& args,
         const std::string& token = args[i];
         std::string name;
         std::string value;
-        if (parse_assignment(token, name, value) && is_valid_env_name(name)) {
+        if (parse_env_assignment(token, name, value)) {
             env_assignments.push_back({name, value});
             cmd_start_idx = i + 1;
             continue;

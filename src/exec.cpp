@@ -66,17 +66,12 @@
 #include "shell_env.h"
 #include "signal_handler.h"
 #include "suggestion_utils.h"
+#include "wait_status_utils.h"
 
 namespace {
 
 int extract_exit_code(int status) {
-    if (WIFEXITED(status)) {
-        return WEXITSTATUS(status);
-    }
-    if (WIFSIGNALED(status)) {
-        return 128 + WTERMSIG(status);
-    }
-    return 1;
+    return wait_status_utils::to_exit_code(status, 1);
 }
 
 std::string join_arguments(const std::vector<std::string>& args) {

@@ -1780,19 +1780,9 @@ std::vector<Command> Parser::parse_pipeline_with_preprocessing(const std::string
 
 bool Parser::is_env_assignment(const std::string& command, std::string& var_name,
                                std::string& var_value) {
-    size_t equals_pos = command.find('=');
-    if (equals_pos == std::string::npos || equals_pos == 0) {
+    if (!parse_env_assignment(command, var_name, var_value, true)) {
         return false;
     }
-
-    std::string name_part = trim_whitespace(command.substr(0, equals_pos));
-
-    if (!is_valid_identifier(name_part)) {
-        return false;
-    }
-
-    var_name = name_part;
-    var_value = command.substr(equals_pos + 1);
 
     if (readonly_manager_is(var_name)) {
         print_error({ErrorType::INVALID_ARGUMENT,
@@ -1803,12 +1793,6 @@ bool Parser::is_env_assignment(const std::string& command, std::string& var_name
         return false;
     }
 
-    if (var_value.size() >= 2) {
-        if ((var_value.front() == '"' && var_value.back() == '"') ||
-            (var_value.front() == '\'' && var_value.back() == '\'')) {
-            var_value = var_value.substr(1, var_value.length() - 2);
-        }
-    }
     return true;
 }
 

@@ -1,5 +1,5 @@
 /*
-  internal_subshell_command.cpp
+  wait_status_utils.h
 
   This file is part of cjsh, CJ's Shell
 
@@ -26,47 +26,13 @@
   SOFTWARE.
 */
 
-#include "internal_subshell_command.h"
+#pragma once
 
-#include <sys/wait.h>
-#include <unistd.h>
+#include <optional>
 
-#include <cerrno>
-#include <cstring>
+namespace wait_status_utils {
 
-#include "error_out.h"
-#include "shell.h"
-#include "wait_status_utils.h"
+int to_exit_code(int status, int fallback = 1);
+std::optional<int> to_exit_code_optional(int status);
 
-int internal_subshell_command(const std::vector<std::string>& args, Shell* shell) {
-    if (args.size() < 2) {
-        return 1;
-    }
-
-    const std::string& subshell_content = args[1];
-
-    pid_t pid = fork();
-    if (pid == -1) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     "subshell",
-                     "fork failed: " + std::string(strerror(errno)),
-                     {}});
-        return 1;
-    }
-
-    if (pid == 0) {
-        int exit_code = shell->execute(subshell_content, true);
-        _exit(exit_code);
-    } else {
-        int status;
-        if (waitpid(pid, &status, 0) == -1) {
-            print_error({ErrorType::RUNTIME_ERROR,
-                         "subshell",
-                         "waitpid failed: " + std::string(strerror(errno)),
-                         {}});
-            return 1;
-        }
-
-        return wait_status_utils::to_exit_code(status, 1);
-    }
-}
+}  // namespace wait_status_utils

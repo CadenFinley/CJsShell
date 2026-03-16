@@ -49,6 +49,8 @@ bool is_valid_identifier_char(char c);
 bool is_valid_identifier(const std::string& name);
 bool parse_assignment(const std::string& arg, std::string& name, std::string& value,
                       bool strip_surrounding_quotes = false);
+bool parse_env_assignment(const std::string& arg, std::string& name, std::string& value,
+                          bool strip_surrounding_quotes = false);
 
 struct AssignmentOperand {
     std::string name;

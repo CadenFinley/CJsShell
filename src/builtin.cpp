@@ -35,6 +35,7 @@
 
 #include "alias_abbr_commands.h"
 #include "cd_command.h"
+#include "cjsh_filesystem.h"
 #include "cjshopt_command.h"
 #include "command_command.h"
 #include "directory_stack_commands.h"
@@ -249,12 +250,7 @@ std::string Built_ins::get_previous_directory() const {
 }
 
 void Built_ins::set_current_directory() {
-    char cwd[PATH_MAX];
-    if (getcwd(cwd, sizeof(cwd)) != nullptr) {
-        current_directory = cwd;
-    } else {
-        current_directory = "/";
-    }
+    current_directory = cjsh_filesystem::safe_current_directory();
 }
 
 std::vector<std::string> Built_ins::get_builtin_commands() const {

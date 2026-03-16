@@ -34,6 +34,7 @@
 #include "shell_env.h"
 #include "signal_handler.h"
 #include "suggestion_utils.h"
+#include "wait_status_utils.h"
 
 #include <sys/wait.h>
 #include <unistd.h>
@@ -293,13 +294,7 @@ std::optional<ResolvedJob> resolve_control_job_target(const std::vector<std::str
 }
 
 std::optional<int> interpret_wait_status(int status) {
-    if (WIFEXITED(status)) {
-        return WEXITSTATUS(status);
-    }
-    if (WIFSIGNALED(status)) {
-        return 128 + WTERMSIG(status);
-    }
-    return std::nullopt;
+    return wait_status_utils::to_exit_code_optional(status);
 }
 
 std::optional<int> wait_for_job_and_remove(const std::shared_ptr<JobControlJob>& job,

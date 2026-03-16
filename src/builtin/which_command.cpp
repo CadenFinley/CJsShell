@@ -116,12 +116,8 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
             if (stat(name.c_str(), &st) == 0 && ((st.st_mode & S_IXUSR) != 0)) {
                 if (!silent) {
                     if (name[0] != '/') {
-                        char cwd[PATH_MAX];
-                        if (getcwd(cwd, sizeof(cwd)) != nullptr) {
-                            std::cout << cwd << "/" << name << '\n';
-                        } else {
-                            std::cout << name << '\n';
-                        }
+                        const std::string cwd = cjsh_filesystem::safe_current_directory();
+                        std::cout << cwd << "/" << name << '\n';
                     } else {
                         std::cout << name << '\n';
                     }

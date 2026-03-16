@@ -30,6 +30,7 @@
 
 #include "parser_utils.h"
 #include "string_utils.h"
+#include "wait_status_utils.h"
 
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -82,14 +83,7 @@ std::pair<std::string, int> execute_command_for_substitution(
         int status = 0;
         waitpid(pid, &status, 0);
 
-        int exit_code = 0;
-        if (WIFEXITED(status)) {
-            exit_code = WEXITSTATUS(status);
-        } else if (WIFSIGNALED(status)) {
-            exit_code = 128 + WTERMSIG(status);
-        } else {
-            exit_code = status;
-        }
+        int exit_code = wait_status_utils::to_exit_code(status, status);
 
         result = string_utils::trim_trailing_line_endings_copy(std::move(result));
 
