@@ -66,6 +66,7 @@
 #include "shell.h"
 #include "shell_env.h"
 #include "signal_handler.h"
+#include "string_utils.h"
 #include "suggestion_utils.h"
 #include "wait_status_utils.h"
 
@@ -76,14 +77,7 @@ int extract_exit_code(int status) {
 }
 
 std::string join_arguments(const std::vector<std::string>& args) {
-    std::string result;
-    for (size_t i = 0; i < args.size(); ++i) {
-        if (i > 0) {
-            result += " ";
-        }
-        result += args[i];
-    }
-    return result;
+    return string_utils::join_strings(args, " ");
 }
 
 [[noreturn]] void exec_external_child(const std::vector<std::string>& args,

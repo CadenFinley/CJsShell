@@ -43,6 +43,7 @@
 #include "exec.h"
 #include "interpreter_utils.h"
 #include "parser.h"
+#include "parser_utils.h"
 #include "shell.h"
 #include "shell_env.h"
 #include "signal_handler.h"
@@ -658,15 +659,24 @@ int handle_for_block(const std::vector<std::string>& src_lines, size_t& idx,
         return !var.empty();
     };
 
-    if (first.find("; do") != std::string::npos && first.find("done") != std::string::npos) {
-        size_t do_pos = first.find("; do");
+    size_t do_pos = parser_find_inline_do_position(first);
+    size_t done_pos_on_line = parser_find_keyword_token(first, "done", 0);
+    if (do_pos != std::string::npos && done_pos_on_line != std::string::npos) {
         std::string header = trim(first.substr(0, do_pos));
         if (!parse_header(header))
             return 1;
         std::string tail = trim(first.substr(do_pos + 4));
-        size_t done_pos = tail.rfind("; done");
-        if (done_pos == std::string::npos)
-            done_pos = tail.rfind("done");
+        size_t done_pos = parser_find_keyword_token(tail, "done", 0);
+        size_t search_from = (done_pos == std::string::npos) ? 0 : done_pos + 4;
+        while (done_pos != std::string::npos) {
+            size_t next = parser_find_keyword_token(tail, "done", search_from);
+            if (next == std::string::npos) {
+                break;
+            }
+            done_pos = next;
+            search_from = done_pos + 4;
+        }
+
         std::string body = done_pos == std::string::npos ? tail : trim(tail.substr(0, done_pos));
 
         if (shell_parser == nullptr) {

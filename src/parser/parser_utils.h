@@ -82,6 +82,11 @@ bool parser_starts_with_keyword_token(std::string_view text, std::string_view ke
                                       bool allow_open_paren_boundary = false);
 
 bool parser_is_word_boundary(const std::string& text, size_t start, size_t length);
+size_t parser_find_keyword_token(const std::string& text, const std::string& keyword,
+                                 size_t search_from = 0);
+size_t parser_find_inline_do_position(const std::string& text, size_t search_from = 0);
+bool parser_find_matching_command_substitution_end(const std::string& text, size_t start_index,
+                                                   size_t& end_out);
 
 size_t find_matching_paren(const std::string& text, size_t start_pos);
 size_t find_matching_brace(const std::string& text, size_t start_pos);

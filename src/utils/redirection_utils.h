@@ -1,5 +1,5 @@
 /*
-  eval_command.cpp
+  redirection_utils.h
 
   This file is part of cjsh, CJ's Shell
 
@@ -26,31 +26,41 @@
   SOFTWARE.
 */
 
-#include "eval_command.h"
+#pragma once
 
-#include "builtin_help.h"
+#include <cstddef>
+#include <optional>
+#include <string>
+#include <string_view>
 
-#include "cjsh.h"
-#include "error_out.h"
-#include "shell.h"
-#include "string_utils.h"
+namespace redirection_utils {
 
-int eval_command(const std::vector<std::string>& args, Shell* shell) {
-    if (builtin_handle_help(
-            args, {"Usage: eval STRING", "Evaluate STRING in the current shell context."})) {
-        return 0;
-    }
-    if (args.size() < 2) {
-        print_error({ErrorType::INVALID_ARGUMENT, "eval", "missing arguments", {}});
-        return 1;
-    }
+enum class RedirectionOperator : unsigned char {
+    Input,
+    Output,
+    Append,
+    ForceOutput,
+    BothOutput,
+    HereDoc,
+    HereDocStrip,
+    HereString,
+    ReadWrite,
+    DupInput,
+    DupOutput,
+    StderrOutput,
+    StderrAppend,
+    StderrToStdout,
+    StdoutToStderr
+};
 
-    std::string command_to_eval = string_utils::join_strings(args, " ", 1);
-    if (shell) {
-        int result = shell->execute(command_to_eval);
-        return result;
-    } else {
-        print_error({ErrorType::FATAL_ERROR, "eval", "shell not initialized properly", {}});
-        return 1;
-    }
-}
+struct ParsedRedirectionOperator {
+    RedirectionOperator op;
+    size_t length;
+};
+
+std::optional<RedirectionOperator> parse_operator_token(std::string_view token);
+std::optional<ParsedRedirectionOperator> parse_operator_at(std::string_view text, size_t start);
+bool requires_operand(RedirectionOperator op);
+const char* operator_spelling(RedirectionOperator op);
+
+}  // namespace redirection_utils

@@ -32,6 +32,20 @@
 
 namespace wait_status_utils {
 
+enum class WaitDisposition : unsigned char {
+    Exited,
+    Signaled,
+    Stopped,
+    Other
+};
+
+struct WaitStatusInfo {
+    WaitDisposition disposition = WaitDisposition::Other;
+    int code = 0;
+};
+
+WaitStatusInfo decode(int status);
+
 int to_exit_code(int status, int fallback = 1);
 std::optional<int> to_exit_code_optional(int status);
 

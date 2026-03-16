@@ -34,6 +34,7 @@
 #include "cjsh_filesystem.h"
 #include "command_line_utils.h"
 #include "quote_info.h"
+#include "string_utils.h"
 
 namespace {
 
@@ -103,15 +104,13 @@ std::string HistoryExpansion::get_words_range(const std::string& command, int st
         return "";
     }
 
-    std::string result;
+    std::vector<std::string> range_words;
+    range_words.reserve(static_cast<size_t>(end - start + 1));
     for (int i = start; i <= end; ++i) {
-        if (i > start) {
-            result += " ";
-        }
-        result += words[static_cast<size_t>(i)];
+        range_words.push_back(words[static_cast<size_t>(i)]);
     }
 
-    return result;
+    return string_utils::join_strings(range_words, " ");
 }
 
 bool HistoryExpansion::expand_double_bang(const std::string& command, size_t& pos,

@@ -88,6 +88,32 @@ bool has_shell_function(const std::string& token, Shell* shell) {
     return interpreter != nullptr && interpreter->has_function(token);
 }
 
+bool should_auto_cd_token(const std::string& token, Shell* shell) {
+    if (shell == nullptr || token.empty()) {
+        return false;
+    }
+
+    Built_ins* built_ins = shell->get_built_ins();
+    if (built_ins == nullptr) {
+        return false;
+    }
+
+    const std::string cwd = built_ins->get_current_directory();
+    const std::string previous_directory = shell->get_previous_directory();
+    const bool is_directory =
+        cjsh_filesystem::is_auto_cd_directory_token(token, cwd, previous_directory);
+    if (!is_directory) {
+        return false;
+    }
+
+    CommandResolution resolution = resolve_command(token, shell, false);
+    if (resolution.has_alias || resolution.is_builtin || resolution.has_function) {
+        return false;
+    }
+
+    return !cjsh_filesystem::resolves_to_executable(token, cwd);
+}
+
 CommandResolution resolve_command(const std::string& token, Shell* shell, bool include_path) {
     CommandResolution resolution;
     resolution.is_keyword = is_shell_keyword(token);

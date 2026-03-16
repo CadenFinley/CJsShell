@@ -119,17 +119,7 @@ void for_each_effective_char_basic(const std::string& text, size_t start_index, 
 bool find_matching_command_substitution_end_for_validation_impl(const std::string& text,
                                                                 size_t start_index,
                                                                 size_t& end_out) {
-    if (start_index == 0 || start_index > text.size()) {
-        return false;
-    }
-
-    size_t match = find_matching_paren(text, start_index - 1);
-    if (match == std::string::npos) {
-        return false;
-    }
-
-    end_out = match;
-    return true;
+    return parser_find_matching_command_substitution_end(text, start_index, end_out);
 }
 
 size_t find_marker(const std::string& text, size_t start_pos,
@@ -479,31 +469,11 @@ bool is_word_boundary(const std::string& text, size_t start, size_t length) {
 }
 
 size_t find_inline_do_position(const std::string& line) {
-    size_t pos = line.find("do");
-    while (pos != std::string::npos) {
-        if (is_word_boundary(line, pos, 2)) {
-            size_t prev = pos;
-            while (prev > 0 && (std::isspace(static_cast<unsigned char>(line[prev - 1])) != 0)) {
-                --prev;
-            }
-            if (prev > 0 && line[prev - 1] == ';') {
-                return pos;
-            }
-        }
-        pos = line.find("do", pos + 2);
-    }
-    return std::string::npos;
+    return parser_find_inline_do_position(line);
 }
 
 size_t find_inline_done_position(const std::string& line, size_t search_from) {
-    size_t pos = line.find("done", search_from);
-    while (pos != std::string::npos) {
-        if (is_word_boundary(line, pos, 4)) {
-            return pos;
-        }
-        pos = line.find("done", pos + 4);
-    }
-    return std::string::npos;
+    return parser_find_keyword_token(line, "done", search_from);
 }
 
 bool check_for_loop_keywords(const std::vector<std::string>& tokens,
@@ -721,15 +691,7 @@ IfCheckResult analyze_if_syntax(const std::vector<std::string>& tokens,
                                 const std::string& trimmed_line) {
     IfCheckResult result;
 
-    bool has_then_on_line = false;
-    size_t then_pos = trimmed_line.find("then");
-    while (then_pos != std::string::npos) {
-        if (is_word_boundary(trimmed_line, then_pos, 4)) {
-            has_then_on_line = true;
-            break;
-        }
-        then_pos = trimmed_line.find("then", then_pos + 4);
-    }
+    bool has_then_on_line = parser_find_keyword_token(trimmed_line, "then") != std::string::npos;
 
     if (!has_then_on_line) {
         result.missing_then_keyword = true;

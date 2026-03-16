@@ -64,6 +64,7 @@ const std::vector<std::string>& shell_control_structure_keywords();
 bool is_shell_builtin(const std::string& token, Shell* shell);
 bool lookup_shell_alias(const std::string& token, Shell* shell, std::string& alias_value);
 bool has_shell_function(const std::string& token, Shell* shell);
+bool should_auto_cd_token(const std::string& token, Shell* shell);
 CommandResolution resolve_command(const std::string& token, Shell* shell, bool include_path = true);
 std::vector<CommandResolutionEntry> list_resolution_entries(const std::string& token, Shell* shell,
                                                             bool include_path = true);

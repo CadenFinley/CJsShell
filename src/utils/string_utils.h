@@ -31,6 +31,8 @@
 #include <algorithm>
 #include <cctype>
 #include <string>
+#include <string_view>
+#include <vector>
 
 namespace string_utils {
 
@@ -71,6 +73,53 @@ inline std::string trim_trailing_line_endings_copy(std::string input) {
         input.pop_back();
     }
     return input;
+}
+
+inline bool equals_case_insensitive(std::string_view left, std::string_view right) {
+    if (left.size() != right.size()) {
+        return false;
+    }
+
+    return std::equal(left.begin(), left.end(), right.begin(), [](char a, char b) {
+        return std::tolower(static_cast<unsigned char>(a)) ==
+               std::tolower(static_cast<unsigned char>(b));
+    });
+}
+
+inline bool starts_with_case_insensitive(std::string_view value, std::string_view prefix) {
+    if (prefix.size() > value.size()) {
+        return false;
+    }
+
+    return std::equal(prefix.begin(), prefix.end(), value.begin(), [](char a, char b) {
+        return std::tolower(static_cast<unsigned char>(a)) ==
+               std::tolower(static_cast<unsigned char>(b));
+    });
+}
+
+inline std::string join_strings(const std::vector<std::string>& values, std::string_view separator,
+                                size_t start_index = 0) {
+    if (start_index >= values.size()) {
+        return {};
+    }
+
+    size_t total_length = 0;
+    for (size_t i = start_index; i < values.size(); ++i) {
+        total_length += values[i].size();
+        if (i + 1 < values.size()) {
+            total_length += separator.size();
+        }
+    }
+
+    std::string result;
+    result.reserve(total_length);
+    for (size_t i = start_index; i < values.size(); ++i) {
+        if (i > start_index) {
+            result.append(separator);
+        }
+        result.append(values[i]);
+    }
+    return result;
 }
 
 }  // namespace string_utils

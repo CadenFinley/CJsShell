@@ -41,6 +41,7 @@
 #include "builtin.h"
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
+#include "command_lookup.h"
 #include "error_out.h"
 #include "interpreter.h"
 #include "shell.h"
@@ -251,31 +252,7 @@ std::optional<UnknownCommandInfo> detect_unknown_command(Shell* shell,
 }
 
 bool is_auto_cd_token(const std::string& token, Shell* shell) {
-    if (shell == nullptr || token.empty()) {
-        return false;
-    }
-
-    Built_ins* built_ins = shell->get_built_ins();
-    if (built_ins == nullptr) {
-        return false;
-    }
-
-    const std::string cwd = built_ins->get_current_directory();
-    const std::string previous_directory = shell->get_previous_directory();
-    const bool is_directory =
-        cjsh_filesystem::is_auto_cd_directory_token(token, cwd, previous_directory);
-    if (!is_directory) {
-        return false;
-    }
-
-    const auto& aliases = shell->get_aliases();
-    const bool has_alias = aliases.find(token) != aliases.end();
-    const bool is_builtin = built_ins->is_builtin_command(token) != 0;
-    const bool is_function = shell->get_shell_script_interpreter() != nullptr &&
-                             shell->get_shell_script_interpreter()->has_function(token);
-    const bool is_executable = cjsh_filesystem::resolves_to_executable(token, cwd);
-
-    return !has_alias && !is_builtin && !is_function && !is_executable;
+    return command_lookup::should_auto_cd_token(token, shell);
 }
 
 std::string resolve_auto_cd_target(const std::string& token, Shell* shell) {

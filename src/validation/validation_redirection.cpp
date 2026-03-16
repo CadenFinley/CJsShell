@@ -30,7 +30,9 @@
 
 #include "error_out.h"
 #include "parser_utils.h"
+#include "redirection_utils.h"
 #include "shell_env.h"
+#include "string_utils.h"
 #include "validation_common.h"
 
 #include <cctype>
@@ -76,138 +78,125 @@ ShellScriptInterpreter::validate_redirection_syntax(const std::vector<std::strin
             return;
         }
 
-        if (c == '<' || c == '>') {
-            size_t redir_start = i;
-            std::string redir_op;
+        if (c == '<' || c == '>' || c == '&' || c == '2') {
+            auto parsed = redirection_utils::parse_operator_at(line, i);
+            if (parsed.has_value()) {
+                size_t redir_start = i;
+                const auto redir_op_kind = parsed->op;
+                const std::string redir_op = redirection_utils::operator_spelling(redir_op_kind);
+                next_index = i + parsed->length - 1;
 
-            if (c == '>' && i + 1 < line.length()) {
-                if (line[i + 1] == '>') {
-                    redir_op = ">>";
-                    next_index = i + 1;
-                } else if (line[i + 1] == '&') {
-                    redir_op = ">&";
-                    next_index = i + 1;
-                } else if (line[i + 1] == '|') {
-                    redir_op = ">|";
-                    next_index = i + 1;
-                } else {
-                    redir_op = ">";
-                }
-            } else if (c == '<' && i + 1 < line.length()) {
-                if (line[i + 1] == '<') {
-                    if (i + 2 < line.length() && line[i + 2] == '<') {
-                        redir_op = "<<<";
-                        next_index = i + 2;
-                    } else if (i + 2 < line.length() && line[i + 2] == '-') {
-                        redir_op = "<<-";
-                        next_index = i + 2;
-                    } else {
-                        redir_op = "<<";
-                        next_index = i + 1;
+                if (config::posix_mode) {
+                    if ((redir_op_kind == redirection_utils::RedirectionOperator::Input ||
+                         redir_op_kind == redirection_utils::RedirectionOperator::Output) &&
+                        next_index + 1 < line.length() && line[next_index + 1] == '(') {
+                        line_errors.push_back(
+                            SyntaxError({display_line, redir_start, redir_start + 2, 0},
+                                        ErrorSeverity::ERROR, ErrorCategory::SYNTAX, "POSIX003",
+                                        "Process substitution is disabled in POSIX mode", line,
+                                        "Use a pipeline or temporary file instead"));
+                        return;
                     }
-                } else {
-                    redir_op = "<";
-                }
-            } else {
-                redir_op = c;
-            }
 
-            if (config::posix_mode) {
-                if ((redir_op == "<" || redir_op == ">") && i + 1 < line.length() &&
-                    line[i + 1] == '(') {
-                    line_errors.push_back(
-                        SyntaxError({display_line, redir_start, redir_start + 2, 0},
-                                    ErrorSeverity::ERROR, ErrorCategory::SYNTAX, "POSIX003",
-                                    "Process substitution is disabled in POSIX mode", line,
-                                    "Use a pipeline or temporary file instead"));
-                    return;
+                    if (redir_op_kind == redirection_utils::RedirectionOperator::HereString) {
+                        line_errors.push_back(
+                            SyntaxError({display_line, redir_start, redir_start + 3, 0},
+                                        ErrorSeverity::ERROR, ErrorCategory::SYNTAX, "POSIX004",
+                                        "Here-strings are disabled in POSIX mode", line,
+                                        "Use a here-document (<<) instead"));
+                        return;
+                    }
                 }
 
-                if (redir_op == "<<<") {
-                    line_errors.push_back(
-                        SyntaxError({display_line, redir_start, redir_start + 3, 0},
-                                    ErrorSeverity::ERROR, ErrorCategory::SYNTAX, "POSIX004",
-                                    "Here-strings are disabled in POSIX mode", line,
-                                    "Use a here-document (<<) instead"));
-                    return;
+                size_t check_pos = next_index + 1;
+                while (check_pos < line.length() &&
+                       (std::isspace(static_cast<unsigned char>(line[check_pos])) != 0)) {
+                    check_pos++;
+                }
+
+                if (check_pos < line.length()) {
+                    char next_char = line[check_pos];
+                    if ((redir_op_kind == redirection_utils::RedirectionOperator::Output &&
+                         next_char == '>') ||
+                        (redir_op_kind == redirection_utils::RedirectionOperator::Input &&
+                         next_char == '<') ||
+                        (redir_op_kind == redirection_utils::RedirectionOperator::Append &&
+                         next_char == '>') ||
+                        (redir_op_kind == redirection_utils::RedirectionOperator::HereDoc &&
+                         next_char == '<')) {
+                        line_errors.push_back(SyntaxError(
+                            {display_line, redir_start, check_pos + 1, 0}, ErrorSeverity::ERROR,
+                            ErrorCategory::REDIRECTION, "RED005",
+                            "Invalid redirection syntax '" + redir_op + " " + next_char + "'", line,
+                            "Use single redirection operator"));
+                        return;
+                    }
+                }
+
+                if (redirection_utils::requires_operand(redir_op_kind)) {
+                    size_t target_start = next_index + 1;
+                    while (target_start < line.length() &&
+                           (std::isspace(static_cast<unsigned char>(line[target_start])) != 0)) {
+                        target_start++;
+                    }
+
+                    if (target_start >= line.length()) {
+                        line_errors.push_back(
+                            SyntaxError({display_line, redir_start, next_index + 1, 0},
+                                        ErrorSeverity::ERROR, ErrorCategory::REDIRECTION, "RED001",
+                                        "Redirection '" + redir_op + "' missing target", line,
+                                        "Add filename or file descriptor after " + redir_op));
+                        return;
+                    }
+
+                    size_t target_end = target_start;
+                    bool in_target_quotes = false;
+                    char target_quote = '\0';
+
+                    while (target_end < line.length()) {
+                        char tc = line[target_end];
+                        if (!in_target_quotes &&
+                            (std::isspace(static_cast<unsigned char>(tc)) != 0)) {
+                            break;
+                        }
+                        if ((tc == '"' || tc == '\'') && !in_target_quotes) {
+                            in_target_quotes = true;
+                            target_quote = tc;
+                        } else if (tc == target_quote && in_target_quotes) {
+                            in_target_quotes = false;
+                            target_quote = '\0';
+                        }
+                        target_end++;
+                    }
+
+                    const std::string target = line.substr(target_start, target_end - target_start);
+
+                    if (redir_op_kind == redirection_utils::RedirectionOperator::DupInput ||
+                        redir_op_kind == redirection_utils::RedirectionOperator::DupOutput) {
+                        if (target.empty() ||
+                            (!std::isdigit(static_cast<unsigned char>(target[0])) &&
+                             target != "-")) {
+                            line_errors.push_back(SyntaxError(
+                                {display_line, target_start, target_end, 0}, ErrorSeverity::ERROR,
+                                ErrorCategory::REDIRECTION, "RED002",
+                                "File descriptor redirection requires digit or '-'", line,
+                                "Use format like 2>&1 or 2>&-"));
+                        }
+                    } else if (redir_op_kind == redirection_utils::RedirectionOperator::HereDoc ||
+                               redir_op_kind ==
+                                   redirection_utils::RedirectionOperator::HereDocStrip) {
+                        if (target.empty()) {
+                            line_errors.push_back(
+                                SyntaxError({display_line, target_start, target_end, 0},
+                                            ErrorSeverity::ERROR, ErrorCategory::REDIRECTION,
+                                            "RED003", "Here document missing delimiter", line,
+                                            "Provide delimiter like: << EOF"));
+                        }
+                    }
+
+                    next_index = target_end - 1;
                 }
             }
-
-            size_t check_pos = next_index + 1;
-            while (check_pos < line.length() && std::isspace(line[check_pos])) {
-                check_pos++;
-            }
-
-            if (check_pos < line.length()) {
-                char next_char = line[check_pos];
-                if ((redir_op == ">" && next_char == '>') ||
-                    (redir_op == "<" && next_char == '<') ||
-                    (redir_op == ">>" && next_char == '>') ||
-                    (redir_op == "<<" && next_char == '<')) {
-                    line_errors.push_back(SyntaxError(
-                        {display_line, redir_start, check_pos + 1, 0}, ErrorSeverity::ERROR,
-                        ErrorCategory::REDIRECTION, "RED005",
-                        "Invalid redirection syntax '" + redir_op + " " + next_char + "'", line,
-                        "Use single redirection operator"));
-                    return;
-                }
-            }
-
-            size_t target_start = next_index + 1;
-            while (target_start < line.length() && std::isspace(line[target_start])) {
-                target_start++;
-            }
-
-            if (target_start >= line.length()) {
-                line_errors.push_back(
-                    SyntaxError({display_line, redir_start, next_index + 1, 0},
-                                ErrorSeverity::ERROR, ErrorCategory::REDIRECTION, "RED001",
-                                "Redirection '" + redir_op + "' missing target", line,
-                                "Add filename or file descriptor after " + redir_op));
-                return;
-            }
-
-            std::string target;
-            size_t target_end = target_start;
-            bool in_target_quotes = false;
-            char target_quote = '\0';
-
-            while (target_end < line.length()) {
-                char tc = line[target_end];
-                if (!in_target_quotes && std::isspace(tc)) {
-                    break;
-                }
-                if ((tc == '"' || tc == '\'') && !in_target_quotes) {
-                    in_target_quotes = true;
-                    target_quote = tc;
-                } else if (tc == target_quote && in_target_quotes) {
-                    in_target_quotes = false;
-                    target_quote = '\0';
-                }
-                target_end++;
-            }
-
-            target = line.substr(target_start, target_end - target_start);
-
-            if (redir_op == ">&" || redir_op == "<&") {
-                if (target.empty() ||
-                    (!std::isdigit(static_cast<unsigned char>(target[0])) && target != "-")) {
-                    line_errors.push_back(
-                        SyntaxError({display_line, target_start, target_end, 0},
-                                    ErrorSeverity::ERROR, ErrorCategory::REDIRECTION, "RED002",
-                                    "File descriptor redirection requires digit or '-'", line,
-                                    "Use format like 2>&1 or 2>&-"));
-                }
-            } else if (redir_op == "<<" || redir_op == "<<-") {
-                if (target.empty()) {
-                    line_errors.push_back(SyntaxError(
-                        {display_line, target_start, target_end, 0}, ErrorSeverity::ERROR,
-                        ErrorCategory::REDIRECTION, "RED003", "Here document missing delimiter",
-                        line, "Provide delimiter like: << EOF"));
-                }
-            }
-
-            next_index = target_end - 1;
         }
 
         if (c == '|' && i + 1 < line.length()) {
@@ -316,21 +305,7 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
 
     auto normalize_delimiter_line = [](const std::string& value, bool strip_tabs) {
         (void)strip_tabs;
-        std::string trimmed_line = value;
-        size_t first_non_ws = trimmed_line.find_first_not_of(" \t");
-        if (first_non_ws == std::string::npos) {
-            trimmed_line.clear();
-        } else {
-            trimmed_line.erase(0, first_non_ws);
-        }
-
-        size_t last_non_ws = trimmed_line.find_last_not_of(" \t\r\n");
-        if (last_non_ws == std::string::npos) {
-            trimmed_line.clear();
-        } else {
-            trimmed_line.erase(last_non_ws + 1);
-        }
-        return trimmed_line;
+        return string_utils::trim_ascii_whitespace_copy(value);
     };
 
     for (size_t line_num = 0; line_num < lines.size(); ++line_num) {

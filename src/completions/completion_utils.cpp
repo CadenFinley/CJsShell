@@ -128,12 +128,7 @@ std::string normalize_for_comparison(const std::string& value) {
 }
 
 bool starts_with_case_insensitive(const std::string& str, const std::string& prefix) {
-    if (prefix.length() > str.length()) {
-        return false;
-    }
-
-    return std::equal(prefix.begin(), prefix.end(), str.begin(),
-                      [](char a, char b) { return std::tolower(a) == std::tolower(b); });
+    return string_utils::starts_with_case_insensitive(str, prefix);
 }
 
 bool starts_with_case_sensitive(const std::string& str, const std::string& prefix) {
@@ -156,13 +151,7 @@ bool equals_completion_token(const std::string& value, const std::string& target
     if (is_completion_case_sensitive()) {
         return value == target;
     }
-
-    if (value.length() != target.length()) {
-        return false;
-    }
-
-    return std::equal(value.begin(), value.end(), target.begin(),
-                      [](char a, char b) { return std::tolower(a) == std::tolower(b); });
+    return string_utils::equals_case_insensitive(value, target);
 }
 
 std::string sanitize_job_command_summary(const std::string& command) {

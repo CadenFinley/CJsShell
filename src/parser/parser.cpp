@@ -57,6 +57,7 @@
 #include "parser_utils.h"
 #include "quote_info.h"
 #include "readonly_command.h"
+#include "redirection_utils.h"
 #include "shell.h"
 #include "shell_env.h"
 #include "tokenizer.h"
@@ -211,79 +212,24 @@ bool is_ampersand_inside_arithmetic_or_brackets(const std::string& text, size_t 
     return inside;
 }
 
-enum class RedirectionToken : std::uint8_t {
-    Input,
-    Output,
-    Append,
-    ForceOutput,
-    BothOutput,
-    HereDoc,
-    HereDocStrip,
-    HereString,
-    StderrOutput,
-    StderrAppend,
-    StderrToStdout,
-    StdoutToStderr
-};
+using RedirectionToken = redirection_utils::RedirectionOperator;
 
 std::optional<RedirectionToken> parse_redirection_token(std::string_view token) {
-    if (token == "<") {
-        return RedirectionToken::Input;
+    auto parsed = redirection_utils::parse_operator_token(token);
+    if (!parsed.has_value()) {
+        return std::nullopt;
     }
-    if (token == ">") {
-        return RedirectionToken::Output;
+
+    if (*parsed == RedirectionToken::ReadWrite || *parsed == RedirectionToken::DupInput ||
+        *parsed == RedirectionToken::DupOutput) {
+        return std::nullopt;
     }
-    if (token == ">>") {
-        return RedirectionToken::Append;
-    }
-    if (token == ">|") {
-        return RedirectionToken::ForceOutput;
-    }
-    if (token == "&>") {
-        return RedirectionToken::BothOutput;
-    }
-    if (token == "<<") {
-        return RedirectionToken::HereDoc;
-    }
-    if (token == "<<-") {
-        return RedirectionToken::HereDocStrip;
-    }
-    if (token == "<<<") {
-        return RedirectionToken::HereString;
-    }
-    if (token == "2>") {
-        return RedirectionToken::StderrOutput;
-    }
-    if (token == "2>>") {
-        return RedirectionToken::StderrAppend;
-    }
-    if (token == "2>&1") {
-        return RedirectionToken::StderrToStdout;
-    }
-    if (token == ">&2") {
-        return RedirectionToken::StdoutToStderr;
-    }
-    return std::nullopt;
+
+    return parsed;
 }
 
 bool redirection_requires_value(RedirectionToken token) {
-    switch (token) {
-        case RedirectionToken::Input:
-        case RedirectionToken::Output:
-        case RedirectionToken::Append:
-        case RedirectionToken::ForceOutput:
-        case RedirectionToken::BothOutput:
-        case RedirectionToken::HereDoc:
-        case RedirectionToken::HereDocStrip:
-        case RedirectionToken::HereString:
-        case RedirectionToken::StderrOutput:
-        case RedirectionToken::StderrAppend:
-            return true;
-        case RedirectionToken::StderrToStdout:
-        case RedirectionToken::StdoutToStderr:
-            return false;
-    }
-    return false;
+    return redirection_utils::requires_operand(token);
 }
 
 bool is_simple_command_candidate(std::string_view cmdline) {
@@ -1535,6 +1481,10 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                         break;
                     case RedirectionToken::HereString:
                         cmd.here_string = get_next_token_value(i);
+                        break;
+                    case RedirectionToken::ReadWrite:
+                    case RedirectionToken::DupInput:
+                    case RedirectionToken::DupOutput:
                         break;
                     case RedirectionToken::StderrOutput:
                     case RedirectionToken::StderrAppend:

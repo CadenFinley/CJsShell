@@ -120,12 +120,8 @@ bool is_known_command_token(const std::string& token, size_t absolute_cmd_start,
         }
     }
 
-    if (shell != nullptr && shell->get_built_ins() != nullptr) {
-        const std::string cwd = shell->get_built_ins()->get_current_directory();
-        const std::string previous_directory = shell->get_previous_directory();
-        if (cjsh_filesystem::is_auto_cd_directory_token(token, cwd, previous_directory)) {
-            return true;
-        }
+    if (command_lookup::should_auto_cd_token(token, shell)) {
+        return true;
     }
 
     if (command_lookup::is_shell_keyword(token) || command_lookup::is_shell_builtin(token, shell)) {

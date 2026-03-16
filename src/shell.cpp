@@ -45,6 +45,7 @@
 #include "builtin.h"
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
+#include "command_lookup.h"
 #include "error_out.h"
 #include "exec.h"
 #include "interpreter.h"
@@ -344,16 +345,7 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
     if (interactive_mode && !run_in_background && command_args.size() == 1 && built_ins) {
         const std::string& candidate = command_args[0];
 
-        bool has_alias = aliases.find(candidate) != aliases.end();
-        bool is_builtin = built_ins->is_builtin_command(candidate) != 0;
-        bool is_function =
-            shell_script_interpreter && shell_script_interpreter->has_function(candidate);
-        bool is_executable =
-            cjsh_filesystem::resolves_to_executable(candidate, built_ins->get_current_directory());
-        bool is_directory = cjsh_filesystem::is_auto_cd_directory_token(
-            candidate, built_ins->get_current_directory(), built_ins->get_previous_directory());
-
-        if (!has_alias && !is_builtin && !is_function && !is_executable && is_directory) {
+        if (command_lookup::should_auto_cd_token(candidate, this)) {
             std::vector<std::string> cd_args = {"cd", candidate};
             int code = built_ins->builtin_command(cd_args);
             return code;

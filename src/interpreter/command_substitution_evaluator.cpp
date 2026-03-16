@@ -362,14 +362,9 @@ CommandSubstitutionEvaluator::ExpansionResult CommandSubstitutionEvaluator::expa
 
 std::optional<size_t> CommandSubstitutionEvaluator::find_matching_paren(const std::string& text,
                                                                         size_t start_index) {
-    if (start_index == 0 || start_index > text.size()) {
+    size_t match = 0;
+    if (!parser_find_matching_command_substitution_end(text, start_index, match)) {
         return std::nullopt;
     }
-
-    size_t match = ::find_matching_paren(text, start_index - 1);
-    if (match == std::string::npos) {
-        return std::nullopt;
-    }
-
     return match;
 }

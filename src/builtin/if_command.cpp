@@ -32,6 +32,7 @@
 
 #include "error_out.h"
 #include "shell.h"
+#include "string_utils.h"
 
 int if_command(const std::vector<std::string>& args, Shell* shell) {
     if (builtin_handle_help(args, {"Usage: if CONDITION; then COMMAND; fi",
@@ -46,12 +47,7 @@ int if_command(const std::vector<std::string>& args, Shell* shell) {
         return 2;
     }
 
-    std::string full_cmd;
-    for (size_t i = 1; i < args.size(); ++i) {
-        if (i > 1)
-            full_cmd += " ";
-        full_cmd += args[i];
-    }
+    std::string full_cmd = string_utils::join_strings(args, " ", 1);
 
     size_t then_pos = full_cmd.find("; then ");
     size_t fi_pos = full_cmd.rfind("; fi");

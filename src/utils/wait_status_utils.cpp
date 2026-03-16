@@ -32,12 +32,26 @@
 
 namespace wait_status_utils {
 
-int to_exit_code(int status, int fallback) {
+WaitStatusInfo decode(int status) {
     if (WIFEXITED(status)) {
-        return WEXITSTATUS(status);
+        return {WaitDisposition::Exited, WEXITSTATUS(status)};
     }
     if (WIFSIGNALED(status)) {
-        return 128 + WTERMSIG(status);
+        return {WaitDisposition::Signaled, WTERMSIG(status)};
+    }
+    if (WIFSTOPPED(status)) {
+        return {WaitDisposition::Stopped, WSTOPSIG(status)};
+    }
+    return {WaitDisposition::Other, 0};
+}
+
+int to_exit_code(int status, int fallback) {
+    WaitStatusInfo info = decode(status);
+    if (info.disposition == WaitDisposition::Exited) {
+        return info.code;
+    }
+    if (info.disposition == WaitDisposition::Signaled) {
+        return 128 + info.code;
     }
     return fallback;
 }

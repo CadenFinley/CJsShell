@@ -70,6 +70,7 @@
 #include "pipeline_status_utils.h"
 #include "quote_info.h"
 #include "readonly_command.h"
+#include "redirection_utils.h"
 #include "shell.h"
 #include "shell_env.h"
 #include "signal_handler.h"
@@ -202,59 +203,14 @@ bool is_loop_keyword(StatementKeyword keyword) {
     return false;
 }
 
-enum class RedirectOperator : std::uint8_t {
-    Input,
-    Output,
-    Append,
-    ForceOutput,
-    HereDoc,
-    HereDocStrip,
-    HereString,
-    BothOutput,
-    ReadWrite,
-    DupInput,
-    DupOutput
-};
+using RedirectOperator = redirection_utils::RedirectionOperator;
 
 std::optional<RedirectOperator> parse_redirect_operator(std::string_view token) {
-    if (token == "<") {
-        return RedirectOperator::Input;
-    }
-    if (token == ">") {
-        return RedirectOperator::Output;
-    }
-    if (token == ">>") {
-        return RedirectOperator::Append;
-    }
-    if (token == ">|") {
-        return RedirectOperator::ForceOutput;
-    }
-    if (token == "<<") {
-        return RedirectOperator::HereDoc;
-    }
-    if (token == "<<-") {
-        return RedirectOperator::HereDocStrip;
-    }
-    if (token == "<<<") {
-        return RedirectOperator::HereString;
-    }
-    if (token == "&>") {
-        return RedirectOperator::BothOutput;
-    }
-    if (token == "<>") {
-        return RedirectOperator::ReadWrite;
-    }
-    if (token == "<&") {
-        return RedirectOperator::DupInput;
-    }
-    if (token == ">&") {
-        return RedirectOperator::DupOutput;
-    }
-    return std::nullopt;
+    return redirection_utils::parse_operator_token(token);
 }
 
-bool redirect_requires_operand(RedirectOperator) {
-    return true;
+bool redirect_requires_operand(RedirectOperator op) {
+    return redirection_utils::requires_operand(op);
 }
 
 int report_error_with_code(ErrorType type, ErrorSeverity severity, const std::string& command,

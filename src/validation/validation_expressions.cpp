@@ -65,10 +65,7 @@ ShellScriptInterpreter::validate_arithmetic_expressions(const std::vector<std::s
                         ErrorCategory::SYNTAX, "ARITH002", "Empty arithmetic expression", line,
                         "Provide expression inside $(( ))"));
                 } else {
-                    std::string trimmed_expr = expr;
-
-                    trimmed_expr.erase(0, trimmed_expr.find_first_not_of(" \t"));
-                    trimmed_expr.erase(trimmed_expr.find_last_not_of(" \t") + 1);
+                    std::string trimmed_expr = trim_whitespace(expr);
 
                     if (!trimmed_expr.empty()) {
                         char last_char = trimmed_expr.back();

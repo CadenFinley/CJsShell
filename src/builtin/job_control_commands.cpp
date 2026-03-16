@@ -145,16 +145,17 @@ int fg_command(const std::vector<std::string>& args) {
         tcsetpgrp(STDIN_FILENO, getpgrp());
     }
 
-    if (WIFEXITED(status)) {
+    const auto wait_info = wait_status_utils::decode(status);
+    if (wait_info.disposition == wait_status_utils::WaitDisposition::Exited) {
         job_manager.remove_job(job_id);
         return wait_status_utils::to_exit_code(status);
     }
-    if (WIFSTOPPED(status)) {
+    if (wait_info.disposition == wait_status_utils::WaitDisposition::Stopped) {
         job->state.store(JobState::STOPPED, std::memory_order_relaxed);
         job_manager.notify_job_stopped(job);
-        return 128 + WSTOPSIG(status);
+        return 128 + wait_info.code;
     }
-    if (WIFSIGNALED(status)) {
+    if (wait_info.disposition == wait_status_utils::WaitDisposition::Signaled) {
         job_manager.remove_job(job_id);
         return wait_status_utils::to_exit_code(status);
     }

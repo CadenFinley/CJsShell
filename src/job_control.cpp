@@ -464,11 +464,14 @@ void JobManager::update_job_statuses() {
             pid_t result = waitpid(pid, &status, WNOHANG | WUNTRACED | WCONTINUED);
 
             if (result > 0) {
-                if (WIFEXITED(status) || WIFSIGNALED(status)) {
-                    job->state.store(WIFEXITED(status) ? JobState::DONE : JobState::TERMINATED,
-                                     std::memory_order_relaxed);
-                    job->exit_status = WIFEXITED(status) ? WEXITSTATUS(status) : WTERMSIG(status);
-                } else if (WIFSTOPPED(status)) {
+                const auto wait_info = wait_status_utils::decode(status);
+                if (wait_info.disposition == wait_status_utils::WaitDisposition::Exited) {
+                    job->state.store(JobState::DONE, std::memory_order_relaxed);
+                    job->exit_status = wait_info.code;
+                } else if (wait_info.disposition == wait_status_utils::WaitDisposition::Signaled) {
+                    job->state.store(JobState::TERMINATED, std::memory_order_relaxed);
+                    job->exit_status = wait_info.code;
+                } else if (wait_info.disposition == wait_status_utils::WaitDisposition::Stopped) {
                     job->state.store(JobState::STOPPED, std::memory_order_relaxed);
                 } else if (WIFCONTINUED(status)) {
                     job->state.store(JobState::RUNNING, std::memory_order_relaxed);
@@ -650,12 +653,13 @@ void JobManager::mark_pid_completed(pid_t pid, int status) {
 
         job->pids.erase(pid_it);
 
-        if (WIFEXITED(status)) {
+        const auto wait_info = wait_status_utils::decode(status);
+        if (wait_info.disposition == wait_status_utils::WaitDisposition::Exited) {
             job->state.store(JobState::DONE, std::memory_order_relaxed);
-            job->exit_status = WEXITSTATUS(status);
-        } else if (WIFSIGNALED(status)) {
+            job->exit_status = wait_info.code;
+        } else if (wait_info.disposition == wait_status_utils::WaitDisposition::Signaled) {
             job->state.store(JobState::TERMINATED, std::memory_order_relaxed);
-            job->exit_status = WTERMSIG(status);
+            job->exit_status = wait_info.code;
         }
 
         if (job->pids.empty()) {

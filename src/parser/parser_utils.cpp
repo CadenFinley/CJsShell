@@ -139,6 +139,53 @@ bool parser_is_word_boundary(const std::string& text, size_t start, size_t lengt
     return start_ok && end_ok;
 }
 
+size_t parser_find_keyword_token(const std::string& text, const std::string& keyword,
+                                 size_t search_from) {
+    if (keyword.empty() || search_from >= text.size()) {
+        return std::string::npos;
+    }
+
+    size_t pos = text.find(keyword, search_from);
+    while (pos != std::string::npos) {
+        if (parser_is_word_boundary(text, pos, keyword.size())) {
+            return pos;
+        }
+        pos = text.find(keyword, pos + keyword.size());
+    }
+
+    return std::string::npos;
+}
+
+size_t parser_find_inline_do_position(const std::string& text, size_t search_from) {
+    size_t pos = parser_find_keyword_token(text, "do", search_from);
+    while (pos != std::string::npos) {
+        size_t prev = pos;
+        while (prev > 0 && (std::isspace(static_cast<unsigned char>(text[prev - 1])) != 0)) {
+            --prev;
+        }
+        if (prev > 0 && text[prev - 1] == ';') {
+            return pos;
+        }
+        pos = parser_find_keyword_token(text, "do", pos + 2);
+    }
+    return std::string::npos;
+}
+
+bool parser_find_matching_command_substitution_end(const std::string& text, size_t start_index,
+                                                   size_t& end_out) {
+    if (start_index == 0 || start_index > text.size()) {
+        return false;
+    }
+
+    size_t match = find_matching_paren(text, start_index - 1);
+    if (match == std::string::npos) {
+        return false;
+    }
+
+    end_out = match;
+    return true;
+}
+
 std::string trim_trailing_whitespace(std::string s) {
     return string_utils::trim_right_ascii_whitespace_copy(s);
 }
