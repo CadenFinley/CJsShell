@@ -290,18 +290,17 @@ again:;
     last_max_scroll = 0;
 
     bool showing_all_due_to_no_matches = false;
-    bool exit_filter_applied = false;
-    int exit_filter_code = IC_HISTORY_EXIT_CODE_UNKNOWN;
+    bool metadata_filter_applied = false;
 
     {
         const char* query = sbuf_string(eb->input);
         history_fuzzy_search_with_case(env->history, query ? query : "", matches, MAX_FUZZY_RESULTS,
-                                       &match_count, &exit_filter_applied, &exit_filter_code,
+                                       &match_count, &metadata_filter_applied,
                                        session_case_sensitive);
 
-        if (match_count == 0 && query != NULL && query[0] != '\0' && !exit_filter_applied) {
+        if (match_count == 0 && query != NULL && query[0] != '\0' && !metadata_filter_applied) {
             history_fuzzy_search_with_case(env->history, "", matches, MAX_FUZZY_RESULTS,
-                                           &match_count, NULL, NULL, session_case_sensitive);
+                                           &match_count, NULL, session_case_sensitive);
             showing_all_due_to_no_matches = true;
         }
     }
@@ -332,9 +331,10 @@ again:;
                          total_history, total_history == 1 ? "y" : "ies",
                          session_case_sensitive ? "sensitive" : "insensitive");
         } else if (is_filtered) {
-            if (exit_filter_applied && exit_filter_code != IC_HISTORY_EXIT_CODE_UNKNOWN) {
-                sbuf_appendf(eb->extra, "[ic-info]%zd match%s found (exit %d) - case %s[/]\n",
-                             match_count, match_count == 1 ? "" : "es", exit_filter_code,
+            if (metadata_filter_applied) {
+                sbuf_appendf(eb->extra,
+                             "[ic-info]%zd match%s found (metadata filter) - case %s[/]\n",
+                             match_count, match_count == 1 ? "" : "es",
                              session_case_sensitive ? "sensitive" : "insensitive");
             } else {
                 sbuf_appendf(eb->extra, "[ic-info]%zd match%s found - case %s[/]\n", match_count,
@@ -395,28 +395,13 @@ again:;
             if (entry == NULL || entry->command == NULL)
                 continue;
 
-            char exit_buf[32] = {0};
-            ssize_t exit_reserved_columns = 0;
-            if (entry->exit_code != IC_HISTORY_EXIT_CODE_UNKNOWN) {
-                int formatted =
-                    snprintf(exit_buf, sizeof(exit_buf), " (exit %d)", entry->exit_code);
-                if (formatted > 0) {
-                    if (formatted >= (int)sizeof(exit_buf))
-                        formatted = (int)sizeof(exit_buf) - 1;
-                    exit_buf[formatted] = '\0';
-                    exit_reserved_columns = formatted;
-                } else {
-                    exit_buf[0] = '\0';
-                }
-            }
-
             const char* display = entry->command;
             const char* line_end = get_first_line_end(display);
             ssize_t entry_len = line_end ? (line_end - display) : (ssize_t)strlen(display);
             bool is_multiline = (line_end && (*line_end == '\n' || *line_end == '\r'));
 
             ssize_t marker_columns = 4;
-            ssize_t max_columns = term_width - marker_columns - exit_reserved_columns;
+            ssize_t max_columns = term_width - marker_columns;
             if (max_columns < 4) {
                 max_columns = 4;
             }
@@ -495,10 +480,6 @@ again:;
 
             sbuf_append(eb->extra, "[/pre]");
 
-            if (exit_buf[0] != '\0') {
-                sbuf_appendf(eb->extra, "[ic-diminish]%s[/]", exit_buf);
-            }
-
             if (match_idx == selected_idx) {
                 sbuf_append(eb->extra, "[/ic-emphasis]");
             } else {
@@ -522,9 +503,10 @@ again:;
         }
     } else {
         scroll_offset = 0;
-        if (exit_filter_applied && exit_filter_code != IC_HISTORY_EXIT_CODE_UNKNOWN) {
-            sbuf_appendf(eb->extra, "[ic-info]No history entries with exit %d - case %s[/]\n",
-                         exit_filter_code, session_case_sensitive ? "sensitive" : "insensitive");
+        if (metadata_filter_applied) {
+            sbuf_appendf(eb->extra,
+                         "[ic-info]No history entries matched metadata filters - case %s[/]\n",
+                         session_case_sensitive ? "sensitive" : "insensitive");
         } else {
             sbuf_appendf(eb->extra, "[ic-info]No matches found - case %s[/]\n",
                          session_case_sensitive ? "sensitive" : "insensitive");

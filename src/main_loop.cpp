@@ -39,6 +39,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -209,7 +210,12 @@ bool process_command_line(const std::string& command) {
     trap_manager_execute_debug_trap();
 
     // actually execute the command now
+    const auto command_start_time = std::chrono::steady_clock::now();
     int exit_code = g_shell->execute(expanded_command);
+    const auto command_end_time = std::chrono::steady_clock::now();
+    const auto elapsed_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(command_end_time - command_start_time)
+            .count();
 
     // handle post command execution tasks
     Exec* exec_ptr = (g_shell && g_shell->shell_exec) ? g_shell->shell_exec.get() : nullptr;
@@ -218,7 +224,16 @@ bool process_command_line(const std::string& command) {
 
     // add to history
     if (config::history_enabled) {
-        ic_history_add_with_exit_code(command.c_str(), exit_code);
+        const std::string timestamp_str =
+            std::to_string(static_cast<long long>(std::time(nullptr)));
+        const std::string exit_code_str = std::to_string(exit_code);
+        const std::string elapsed_ms_str = std::to_string(static_cast<long long>(elapsed_ms));
+        const ic_history_metadata_t metadata[] = {
+            {"timestamp", timestamp_str.c_str()},
+            {"exit_code", exit_code_str.c_str()},
+            {"elapsed_ms", elapsed_ms_str.c_str()},
+        };
+        ic_history_add_with_metadata(command.c_str(), metadata, 3);
     }
     setenv("?", status_str.c_str(), 1);
 

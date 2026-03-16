@@ -35,6 +35,7 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <sstream>
 #include <string>
 #include <system_error>
 #include <unordered_map>
@@ -1227,18 +1228,24 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
                 ++cursor;
 
             if (*cursor != '\0') {
-                char* endptr = nullptr;
-                (void)std::strtoll(cursor, &endptr, 10);
-                cursor = endptr;
-
-                while (*cursor == ' ' || *cursor == '\t')
-                    ++cursor;
-
-                if (*cursor != '\0' && *cursor != '\n' && *cursor != '\r') {
-                    long exit_ll = std::strtol(cursor, &endptr, 10);
-                    if (endptr != cursor) {
-                        last_exit_code = static_cast<int>(exit_ll);
-                        has_last_exit_code = (last_exit_code != IC_HISTORY_EXIT_CODE_UNKNOWN);
+                std::string header(cursor);
+                std::stringstream header_stream(header);
+                std::string token;
+                while (header_stream >> token) {
+                    const size_t equals_pos = token.find('=');
+                    if (equals_pos == std::string::npos || equals_pos == 0 ||
+                        equals_pos + 1 >= token.size()) {
+                        continue;
+                    }
+                    const std::string key = token.substr(0, equals_pos);
+                    const std::string value = token.substr(equals_pos + 1);
+                    if (key == "exit_code") {
+                        char* endptr = nullptr;
+                        long exit_ll = std::strtol(value.c_str(), &endptr, 10);
+                        if (endptr != value.c_str()) {
+                            last_exit_code = static_cast<int>(exit_ll);
+                            has_last_exit_code = true;
+                        }
                     }
                 }
             }
@@ -1285,8 +1292,7 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
         const std::string& completion = match.command;
         long delete_before = static_cast<long>(prefix_len);
 
-        const bool display_exit_code =
-            match.has_exit_code && match.exit_code != IC_HISTORY_EXIT_CODE_UNKNOWN;
+        const bool display_exit_code = match.has_exit_code;
         std::string source_label =
             display_exit_code ? "history: " + std::to_string(match.exit_code) : "history";
         if (!completion_tracker::safe_add_completion_prim_with_source(

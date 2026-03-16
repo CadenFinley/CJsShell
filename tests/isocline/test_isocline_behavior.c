@@ -453,7 +453,11 @@ static bool test_history_dedup_snapshot(void) {
     EXPECT_TRUE(history_push(history, "echo hi"), "duplicate push should rewrite last entry");
 
     history_enable_duplicates(history, true);
-    EXPECT_TRUE(history_push_with_exit_code(history, "echo hi", 7),
+    const ic_history_metadata_t duplicate_meta[] = {
+        {"exit_code", "7"},
+    };
+    EXPECT_TRUE(history_push_with_metadata(history, "echo hi", duplicate_meta,
+                                           sizeof(duplicate_meta) / sizeof(duplicate_meta[0])),
                 "duplicates should be kept once enabled");
     EXPECT_TRUE(history_push(history, "printf bye"), "new unique entry should append");
 
@@ -512,24 +516,23 @@ static bool test_history_fuzzy_case_toggle(void) {
 
     history_match_t matches[4];
     ssize_t match_count = 0;
-    bool exit_filter_applied = false;
-    int exit_filter_code = 0;
+    bool metadata_filter_applied = false;
 
     history_set_fuzzy_case_sensitive(history, true);
-    EXPECT_FALSE(history_fuzzy_search(history, "LS", matches, 4, &match_count, &exit_filter_applied,
-                                      &exit_filter_code),
-                 "case-sensitive search should not match entries with different casing");
+    EXPECT_FALSE(
+        history_fuzzy_search(history, "LS", matches, 4, &match_count, &metadata_filter_applied),
+        "case-sensitive search should not match entries with different casing");
     EXPECT_TRUE(match_count == 0, "case-sensitive mismatch should produce zero matches");
 
     history_set_fuzzy_case_sensitive(history, false);
-    EXPECT_TRUE(history_fuzzy_search(history, "LS", matches, 4, &match_count, &exit_filter_applied,
-                                     &exit_filter_code),
-                "case-insensitive search should find matching entries regardless of case");
+    EXPECT_TRUE(
+        history_fuzzy_search(history, "LS", matches, 4, &match_count, &metadata_filter_applied),
+        "case-insensitive search should find matching entries regardless of case");
     EXPECT_TRUE(match_count > 0, "case-insensitive mode should yield results");
 
     ssize_t reverse_match_count = 0;
     EXPECT_TRUE(
-        history_fuzzy_search(history, "max", matches, 4, &reverse_match_count, NULL, NULL),
+        history_fuzzy_search(history, "max", matches, 4, &reverse_match_count, NULL),
         "case-insensitive search should allow lowercase queries to match uppercase entries");
     EXPECT_TRUE(
         reverse_match_count > 0,
@@ -569,18 +572,18 @@ static bool test_history_fuzzy_case_toggle_via_api(void) {
     ssize_t match_count = 0;
 
     ic_enable_history_fuzzy_case_sensitive(true);
-    EXPECT_FALSE(history_fuzzy_search(temp_history, "LS", matches, 4, &match_count, NULL, NULL),
+    EXPECT_FALSE(history_fuzzy_search(temp_history, "LS", matches, 4, &match_count, NULL),
                  "case-sensitive env history should not match different casing");
     EXPECT_TRUE(match_count == 0, "case-sensitive env history should produce zero matches");
 
     ic_enable_history_fuzzy_case_sensitive(false);
-    EXPECT_TRUE(history_fuzzy_search(temp_history, "LS", matches, 4, &match_count, NULL, NULL),
+    EXPECT_TRUE(history_fuzzy_search(temp_history, "LS", matches, 4, &match_count, NULL),
                 "case-insensitive env history should match irrespective of casing");
     EXPECT_TRUE(match_count > 0, "case-insensitive env history should yield matches");
 
     ssize_t reverse_match_count = 0;
     EXPECT_TRUE(
-        history_fuzzy_search(temp_history, "max", matches, 4, &reverse_match_count, NULL, NULL),
+        history_fuzzy_search(temp_history, "max", matches, 4, &reverse_match_count, NULL),
         "case-insensitive env history should allow lowercase queries to match uppercase entries");
     EXPECT_TRUE(reverse_match_count > 0,
                 "lowercase query should match uppercase entries when toggled globally");
@@ -1533,7 +1536,7 @@ static bool test_history_search_direction_and_position(void) {
     return true;
 }
 
-static bool test_history_fuzzy_exit_code_filtering(void) {
+static bool test_history_fuzzy_metadata_filtering(void) {
     alloc_t* mem = test_allocator();
     if (mem == NULL)
         return false;
@@ -1542,47 +1545,71 @@ static bool test_history_fuzzy_exit_code_filtering(void) {
     if (history == NULL)
         return false;
 
-    const char* history_path = "./isocline_history_exit_filter.log";
+    const char* history_path = "./isocline_history_metadata_filter.log";
     (void)remove(history_path);
     history_load_from(history, history_path, 32);
     history_clear(history);
 
-    EXPECT_TRUE(history_push_with_exit_code(history, "build project", 0),
-                "history should accept explicit successful exit code");
-    EXPECT_TRUE(history_push_with_exit_code(history, "run tests", 2),
-                "history should accept explicit failing exit code");
-    EXPECT_TRUE(history_push_with_exit_code(history, "deploy", 2),
-                "history should accept repeated exit code values");
+    const ic_history_metadata_t build_meta[] = {
+        {"result", "ok"},
+        {"tag", "ci"},
+    };
+    const ic_history_metadata_t run_meta[] = {
+        {"result", "fail"},
+        {"tag", "ci"},
+        {"exit_code", "2"},
+    };
+    const ic_history_metadata_t deploy_meta[] = {
+        {"result", "fail"},
+        {"tag", "release"},
+    };
+
+    EXPECT_TRUE(history_push_with_metadata(history, "build project", build_meta,
+                                           sizeof(build_meta) / sizeof(build_meta[0])),
+                "history should accept metadata for successful entries");
+    EXPECT_TRUE(history_push_with_metadata(history, "run tests", run_meta,
+                                           sizeof(run_meta) / sizeof(run_meta[0])),
+                "history should accept metadata for failed entries");
+    EXPECT_TRUE(history_push_with_metadata(history, "deploy", deploy_meta,
+                                           sizeof(deploy_meta) / sizeof(deploy_meta[0])),
+                "history should accept repeated metadata values");
 
     history_match_t matches[8];
     ssize_t match_count = 0;
-    bool filter_applied = false;
-    int filter_value = IC_HISTORY_EXIT_CODE_UNKNOWN;
+    bool metadata_filter_applied = false;
 
-    EXPECT_TRUE(history_fuzzy_search(history, ":2", matches, 8, &match_count, &filter_applied,
-                                     &filter_value),
-                "exit-code-only query should return entries matching requested code");
-    EXPECT_TRUE(filter_applied, "exit-code-only query should report exit filter application");
-    EXPECT_TRUE(filter_value == 2, "reported exit filter value should match parsed token");
-    EXPECT_TRUE(match_count == 2, "exit-code-only query should return both matching entries");
+    EXPECT_TRUE(history_fuzzy_search(history, "result=fail", matches, 8, &match_count,
+                                     &metadata_filter_applied),
+                "metadata-only query should return entries matching requested key/value");
+    EXPECT_TRUE(metadata_filter_applied,
+                "metadata query should report metadata filter application");
+    EXPECT_TRUE(match_count == 2, "metadata-only query should return both matching entries");
 
     for (ssize_t i = 0; i < match_count; ++i) {
         const char* cmd = history_get(history, matches[i].hidx);
         EXPECT_TRUE(cmd != NULL, "matched history entry should be retrievable by index");
         EXPECT_FALSE(strcmp(cmd, "build project") == 0,
-                     "exit-code filtering should exclude non-matching success entries");
+                     "metadata filtering should exclude non-matching success entries");
     }
 
     match_count = 0;
-    filter_applied = false;
-    filter_value = IC_HISTORY_EXIT_CODE_UNKNOWN;
-    EXPECT_TRUE(history_fuzzy_search(history, "run status:2", matches, 8, &match_count,
-                                     &filter_applied, &filter_value),
-                "combined text and exit-code query should keep text fuzzy matching active");
-    EXPECT_TRUE(filter_applied && filter_value == 2,
-                "combined query should still apply and report parsed exit-code filter");
+    metadata_filter_applied = false;
+    EXPECT_TRUE(history_fuzzy_search(history, "run tag=ci", matches, 8, &match_count,
+                                     &metadata_filter_applied),
+                "combined text and metadata query should keep text fuzzy matching active");
+    EXPECT_TRUE(metadata_filter_applied,
+                "combined query should still apply and report metadata filtering");
     EXPECT_TRUE(match_count >= 1,
-                "combined text and exit-code query should produce at least one filtered match");
+                "combined text and metadata query should produce at least one filtered match");
+
+    history_snapshot_t snap = {0};
+    EXPECT_TRUE(history_snapshot_load(history, &snap, true),
+                "snapshot should load entries with metadata intact");
+    const history_entry_t* newest = history_snapshot_get(&snap, 0);
+    EXPECT_TRUE(newest != NULL, "snapshot should include newest entry");
+    EXPECT_TRUE(history_entry_get_metadata(newest, "timestamp") != NULL,
+                "history entries should always include timestamp metadata");
+    history_snapshot_free(history, &snap);
 
     history_clear(history);
     history_free(history);
@@ -1609,7 +1636,7 @@ static bool test_history_disabled_mode_rejects_push(void) {
 
     history_match_t matches[2];
     ssize_t match_count = 77;
-    EXPECT_FALSE(history_fuzzy_search(history, "echo", matches, 2, &match_count, NULL, NULL),
+    EXPECT_FALSE(history_fuzzy_search(history, "echo", matches, 2, &match_count, NULL),
                  "disabled history should not produce fuzzy-search results");
     EXPECT_TRUE(match_count == 0,
                 "disabled history fuzzy search should reset output match count to zero");
@@ -2061,7 +2088,7 @@ static bool test_history_fuzzy_max_matches_cap(void) {
 
     history_match_t matches[2];
     ssize_t match_count = 0;
-    EXPECT_TRUE(history_fuzzy_search(history, "build", matches, 2, &match_count, NULL, NULL),
+    EXPECT_TRUE(history_fuzzy_search(history, "build", matches, 2, &match_count, NULL),
                 "fuzzy search should produce matches for common query token");
     EXPECT_TRUE(match_count == 2,
                 "fuzzy search should cap returned matches to requested max_matches value");
@@ -2206,7 +2233,7 @@ static const test_case_t kTests[] = {
     {"unicode_display_width_control_codepoints", test_unicode_display_width_control_codepoints},
     {"unicode_display_width_osc_sequence_ignored", test_unicode_display_width_osc_sequence_ignored},
     {"history_search_direction_and_position", test_history_search_direction_and_position},
-    {"history_fuzzy_exit_code_filtering", test_history_fuzzy_exit_code_filtering},
+    {"history_fuzzy_metadata_filtering", test_history_fuzzy_metadata_filtering},
     {"history_disabled_mode_rejects_push", test_history_disabled_mode_rejects_push},
     {"key_spec_separator_and_invalid_forms", test_key_spec_separator_and_invalid_forms},
     {"key_binding_named_invalid_inputs", test_key_binding_named_invalid_inputs},

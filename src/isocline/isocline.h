@@ -49,8 +49,8 @@ extern "C" {
 /// Token returned from ic_readline* when Ctrl+D is pressed with an empty buffer (EOF).
 #define IC_READLINE_TOKEN_CTRL_D "<CTRL+D>"
 
-#ifndef IC_HISTORY_EXIT_CODE_UNKNOWN
-#define IC_HISTORY_EXIT_CODE_UNKNOWN (-1)
+#ifndef IC_HISTORY_METADATA_TIMESTAMP_KEY
+#define IC_HISTORY_METADATA_TIMESTAMP_KEY "timestamp"
 #endif
 
 /*! \mainpage
@@ -315,9 +315,16 @@ void ic_history_remove_last(void);
 /// Clear the history.
 void ic_history_clear(void);
 
-/// Add an entry to the history with an explicit exit code. Use
-/// IC_HISTORY_EXIT_CODE_UNKNOWN when the exit status is not available.
-void ic_history_add_with_exit_code(const char* entry, int exit_code);
+/// Metadata key/value pair attached to a history entry.
+typedef struct ic_history_metadata_s {
+    const char* key;
+    const char* value;
+} ic_history_metadata_t;
+
+/// Add an entry to the history with custom metadata.
+/// Isocline always adds `IC_HISTORY_METADATA_TIMESTAMP_KEY` when it is missing.
+void ic_history_add_with_metadata(const char* entry, const ic_history_metadata_t* metadata,
+                                  size_t metadata_count);
 
 /// Add an entry to the history
 void ic_history_add(const char* entry);

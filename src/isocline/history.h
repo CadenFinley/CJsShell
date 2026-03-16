@@ -43,12 +43,16 @@
 struct history_s;
 typedef struct history_s history_t;
 
-#define IC_HISTORY_EXIT_CODE_UNKNOWN (-1)
+typedef struct history_metadata_s {
+    char* key;
+    char* value;
+} history_metadata_t;
 
 typedef struct history_entry_s {
     char* command;
-    int exit_code;
-    time_t timestamp;
+    history_metadata_t* metadata;
+    ssize_t metadata_count;
+    ssize_t metadata_capacity;
 } history_entry_t;
 
 typedef struct history_snapshot_s {
@@ -70,10 +74,13 @@ ic_private void history_load(history_t* h);
 ic_private void history_save(const history_t* h);
 
 ic_private bool history_push(history_t* h, const char* entry);
-ic_private bool history_push_with_exit_code(history_t* h, const char* entry, int exit_code);
+ic_private bool history_push_with_metadata(history_t* h, const char* entry,
+                                           const ic_history_metadata_t* metadata,
+                                           size_t metadata_count);
 ic_private bool history_update(history_t* h, const char* entry);
 ic_private const char* history_get(const history_t* h, ssize_t n);
 ic_private void history_remove_last(history_t* h);
+ic_private const char* history_entry_get_metadata(const history_entry_t* entry, const char* key);
 
 ic_private bool history_search(const history_t* h, ssize_t from, const char* search, bool backward,
                                ssize_t* hidx, ssize_t* hpos);
@@ -95,12 +102,11 @@ typedef struct history_match_s {
 
 ic_private bool history_fuzzy_search(const history_t* h, const char* query,
                                      history_match_t* matches, ssize_t max_matches,
-                                     ssize_t* match_count, bool* exit_filter_applied,
-                                     int* exit_filter_value);
+                                     ssize_t* match_count, bool* metadata_filter_applied);
 
 ic_private bool history_fuzzy_search_with_case(const history_t* h, const char* query,
                                                history_match_t* matches, ssize_t max_matches,
-                                               ssize_t* match_count, bool* exit_filter_applied,
-                                               int* exit_filter_value, bool case_sensitive);
+                                               ssize_t* match_count, bool* metadata_filter_applied,
+                                               bool case_sensitive);
 
 #endif  // IC_HISTORY_H

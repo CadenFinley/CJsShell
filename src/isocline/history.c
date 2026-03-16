@@ -60,6 +60,147 @@ typedef struct history_list_s {
     ssize_t capacity;
 } history_list_t;
 
+typedef struct history_query_filter_s {
+    char* key;
+    char* value;
+} history_query_filter_t;
+
+static const char* k_history_timestamp_key = IC_HISTORY_METADATA_TIMESTAMP_KEY;
+
+static bool history_metadata_key_valid(const char* key) {
+    if (key == NULL || key[0] == '\0')
+        return false;
+    for (const char* p = key; *p != '\0'; ++p) {
+        unsigned char c = (unsigned char)*p;
+        if (isspace(c) || c == '=') {
+            return false;
+        }
+    }
+    return true;
+}
+
+static void history_entry_clear(history_t* h, history_entry_t* entry) {
+    if (h == NULL || entry == NULL)
+        return;
+    if (entry->command != NULL) {
+        mem_free(h->mem, entry->command);
+        entry->command = NULL;
+    }
+    if (entry->metadata != NULL) {
+        for (ssize_t i = 0; i < entry->metadata_count; ++i) {
+            mem_free(h->mem, entry->metadata[i].key);
+            mem_free(h->mem, entry->metadata[i].value);
+        }
+        mem_free(h->mem, entry->metadata);
+        entry->metadata = NULL;
+    }
+    entry->metadata_count = 0;
+    entry->metadata_capacity = 0;
+}
+
+static bool history_entry_reserve_metadata(history_t* h, history_entry_t* entry, ssize_t needed) {
+    if (entry == NULL || h == NULL)
+        return false;
+    if (needed <= entry->metadata_capacity)
+        return true;
+    ssize_t new_capacity = (entry->metadata_capacity == 0 ? 4 : entry->metadata_capacity);
+    while (new_capacity < needed) {
+        new_capacity *= 2;
+    }
+    history_metadata_t* resized =
+        mem_realloc_tp(h->mem, history_metadata_t, entry->metadata, new_capacity);
+    if (resized == NULL)
+        return false;
+    entry->metadata = resized;
+    entry->metadata_capacity = new_capacity;
+    return true;
+}
+
+static const char* history_entry_metadata_lookup(const history_entry_t* entry, const char* key,
+                                                 ssize_t* idx_out) {
+    if (entry == NULL || key == NULL)
+        return NULL;
+    for (ssize_t i = 0; i < entry->metadata_count; ++i) {
+        const char* existing_key = entry->metadata[i].key;
+        if (existing_key != NULL && ic_stricmp(existing_key, key) == 0) {
+            if (idx_out != NULL)
+                *idx_out = i;
+            return entry->metadata[i].value;
+        }
+    }
+    return NULL;
+}
+
+static bool history_entry_set_metadata_owned(history_t* h, history_entry_t* entry, char* key,
+                                             char* value) {
+    if (h == NULL || entry == NULL || key == NULL)
+        return false;
+    if (!history_metadata_key_valid(key)) {
+        mem_free(h->mem, key);
+        mem_free(h->mem, value);
+        return false;
+    }
+    if (value == NULL) {
+        value = mem_strdup(h->mem, "");
+        if (value == NULL) {
+            mem_free(h->mem, key);
+            return false;
+        }
+    }
+
+    ssize_t existing_idx = -1;
+    history_entry_metadata_lookup(entry, key, &existing_idx);
+    if (existing_idx >= 0 && existing_idx < entry->metadata_count) {
+        mem_free(h->mem, entry->metadata[existing_idx].key);
+        mem_free(h->mem, entry->metadata[existing_idx].value);
+        entry->metadata[existing_idx].key = key;
+        entry->metadata[existing_idx].value = value;
+        return true;
+    }
+
+    if (!history_entry_reserve_metadata(h, entry, entry->metadata_count + 1)) {
+        mem_free(h->mem, key);
+        mem_free(h->mem, value);
+        return false;
+    }
+
+    entry->metadata[entry->metadata_count].key = key;
+    entry->metadata[entry->metadata_count].value = value;
+    entry->metadata_count++;
+    return true;
+}
+
+static bool history_entry_set_metadata(history_t* h, history_entry_t* entry, const char* key,
+                                       const char* value) {
+    if (h == NULL || entry == NULL || key == NULL)
+        return false;
+    char* key_copy = mem_strdup(h->mem, key);
+    char* value_copy = mem_strdup(h->mem, value == NULL ? "" : value);
+    if (key_copy == NULL || value_copy == NULL) {
+        mem_free(h->mem, key_copy);
+        mem_free(h->mem, value_copy);
+        return false;
+    }
+    return history_entry_set_metadata_owned(h, entry, key_copy, value_copy);
+}
+
+static bool history_entry_ensure_timestamp(history_t* h, history_entry_t* entry) {
+    if (h == NULL || entry == NULL)
+        return false;
+    const char* existing = history_entry_metadata_lookup(entry, k_history_timestamp_key, NULL);
+    if (existing != NULL && existing[0] != '\0')
+        return true;
+    char ts_buf[32];
+    int n = snprintf(ts_buf, sizeof(ts_buf), "%lld", (long long)time(NULL));
+    if (n <= 0 || n >= (int)sizeof(ts_buf))
+        return false;
+    return history_entry_set_metadata(h, entry, k_history_timestamp_key, ts_buf);
+}
+
+ic_private const char* history_entry_get_metadata(const history_entry_t* entry, const char* key) {
+    return history_entry_metadata_lookup(entry, key, NULL);
+}
+
 static bool history_is_disabled(const history_t* h) {
     return (h == NULL || h->max_entries == 0);
 }
@@ -74,10 +215,7 @@ static void history_list_free(history_t* h, history_list_t* list) {
     if (list->entries == NULL)
         return;
     for (ssize_t i = 0; i < list->count; i++) {
-        if (list->entries[i].command != NULL) {
-            mem_free(h->mem, list->entries[i].command);
-            list->entries[i].command = NULL;
-        }
+        history_entry_clear(h, &list->entries[i]);
     }
     mem_free(h->mem, list->entries);
     list->entries = NULL;
@@ -105,7 +243,7 @@ static bool history_list_append(history_t* h, history_list_t* list, history_entr
     if (entry.command == NULL)
         return true;
     if (!history_list_reserve(h, list, list->count + 1)) {
-        mem_free(h->mem, entry.command);
+        history_entry_clear(h, &entry);
         return false;
     }
     list->entries[list->count] = entry;
@@ -116,15 +254,16 @@ static bool history_list_append(history_t* h, history_list_t* list, history_entr
 static void history_list_remove_at(history_t* h, history_list_t* list, ssize_t idx) {
     if (idx < 0 || idx >= list->count)
         return;
-    if (list->entries[idx].command != NULL) {
-        mem_free(h->mem, list->entries[idx].command);
-        list->entries[idx].command = NULL;
-    }
+    history_entry_clear(h, &list->entries[idx]);
     if (idx < list->count - 1) {
         memmove(&list->entries[idx], &list->entries[idx + 1],
                 (size_t)(list->count - idx - 1) * sizeof(history_entry_t));
     }
     list->count--;
+    list->entries[list->count].command = NULL;
+    list->entries[list->count].metadata = NULL;
+    list->entries[list->count].metadata_count = 0;
+    list->entries[list->count].metadata_capacity = 0;
 }
 
 static bool history_write_successful(int result) {
@@ -233,10 +372,7 @@ ic_private void history_snapshot_free(history_t* h, history_snapshot_t* snap) {
         return;
     }
     for (ssize_t i = 0; i < snap->count; i++) {
-        if (snap->entries[i].command != NULL) {
-            mem_free(h->mem, snap->entries[i].command);
-            snap->entries[i].command = NULL;
-        }
+        history_entry_clear(h, &snap->entries[i]);
     }
     mem_free(h->mem, snap->entries);
     snap->entries = NULL;
@@ -333,12 +469,10 @@ static char* history_entry_dup_trimmed(alloc_t* mem, const char* entry) {
     return mem_strndup(mem, entry + start, end - start);
 }
 
-static void history_entry_normalize_metadata(history_entry_t* entry) {
-    if (entry == NULL)
+static void history_entry_normalize_metadata(history_t* h, history_entry_t* entry) {
+    if (h == NULL || entry == NULL)
         return;
-    if (entry->timestamp == 0) {
-        entry->timestamp = time(NULL);
-    }
+    (void)history_entry_ensure_timestamp(h, entry);
 }
 
 ic_private history_t* history_new(alloc_t* mem) {
@@ -477,10 +611,12 @@ ic_private bool history_update(history_t* h, const char* entry) {
 }
 
 ic_private bool history_push(history_t* h, const char* entry) {
-    return history_push_with_exit_code(h, entry, IC_HISTORY_EXIT_CODE_UNKNOWN);
+    return history_push_with_metadata(h, entry, NULL, 0);
 }
 
-ic_private bool history_push_with_exit_code(history_t* h, const char* entry, int exit_code) {
+ic_private bool history_push_with_metadata(history_t* h, const char* entry,
+                                           const ic_history_metadata_t* metadata,
+                                           size_t metadata_count) {
     if (h == NULL || entry == NULL || history_is_disabled(h))
         return false;
 
@@ -503,9 +639,26 @@ ic_private bool history_push_with_exit_code(history_t* h, const char* entry, int
 
     history_entry_t new_entry = {
         .command = normalized,
-        .exit_code = exit_code,
-        .timestamp = time(NULL),
+        .metadata = NULL,
+        .metadata_count = 0,
+        .metadata_capacity = 0,
     };
+
+    for (size_t i = 0; i < metadata_count; ++i) {
+        if (metadata == NULL || metadata[i].key == NULL)
+            continue;
+        if (!history_entry_set_metadata(h, &new_entry, metadata[i].key,
+                                        metadata[i].value == NULL ? "" : metadata[i].value)) {
+            history_entry_clear(h, &new_entry);
+            history_list_free(h, &list);
+            return false;
+        }
+    }
+    if (!history_entry_ensure_timestamp(h, &new_entry)) {
+        history_entry_clear(h, &new_entry);
+        history_list_free(h, &list);
+        return false;
+    }
 
     if (!history_list_append(h, &list, new_entry)) {
         history_list_free(h, &list);
@@ -783,57 +936,101 @@ static int compare_matches(const void* a, const void* b) {
     return (int)(mb->hidx - ma->hidx);
 }
 
-static bool history_parse_exit_code_token(const char* token, size_t len, int* exit_code_out) {
-    if (token == NULL || exit_code_out == NULL || len == 0)
-        return false;
+static void history_query_filters_free(history_t* h, history_query_filter_t* filters,
+                                       size_t filter_count) {
+    if (h == NULL || filters == NULL)
+        return;
+    for (size_t i = 0; i < filter_count; ++i) {
+        mem_free(h->mem, filters[i].key);
+        mem_free(h->mem, filters[i].value);
+    }
+    mem_free(h->mem, filters);
+}
 
-    const char* value_ptr = NULL;
-    if (len > 1 && (token[0] == ':' || token[0] == '!')) {
-        value_ptr = token + 1;
-    } else {
-        static const char* prefixes[] = {"exit:", "status:", "code:"};
-        static const size_t prefix_lengths[] = {5U, 7U, 5U};
-        for (size_t i = 0; i < (sizeof(prefixes) / sizeof(prefixes[0])); i++) {
-            size_t prefix_len = prefix_lengths[i];
-            if (len <= prefix_len)
-                continue;
-            if (ic_strnicmp(token, prefixes[i], (ssize_t)prefix_len) == 0) {
-                value_ptr = token + prefix_len;
-                break;
-            }
+static bool history_query_filters_append(history_t* h, history_query_filter_t** filters,
+                                         size_t* count, size_t* capacity, char* key, char* value) {
+    if (h == NULL || filters == NULL || count == NULL || capacity == NULL || key == NULL)
+        return false;
+    if (!history_metadata_key_valid(key)) {
+        mem_free(h->mem, key);
+        mem_free(h->mem, value);
+        return false;
+    }
+    if (value == NULL) {
+        value = mem_strdup(h->mem, "");
+        if (value == NULL) {
+            mem_free(h->mem, key);
+            return false;
         }
     }
+    if (*count >= *capacity) {
+        size_t new_capacity = (*capacity == 0 ? 4 : *capacity * 2);
+        history_query_filter_t* resized =
+            mem_realloc_tp(h->mem, history_query_filter_t, *filters, (ssize_t)new_capacity);
+        if (resized == NULL) {
+            mem_free(h->mem, key);
+            mem_free(h->mem, value);
+            return false;
+        }
+        *filters = resized;
+        *capacity = new_capacity;
+    }
+    (*filters)[*count].key = key;
+    (*filters)[*count].value = value;
+    (*count)++;
+    return true;
+}
 
-    if (value_ptr == NULL || value_ptr >= token + len)
+static bool history_parse_metadata_filter_token(history_t* h, const char* token, size_t len,
+                                                history_query_filter_t** filters,
+                                                size_t* filter_count, size_t* filter_capacity) {
+    if (h == NULL || token == NULL || len == 0)
         return false;
 
-    size_t value_len = (size_t)((token + len) - value_ptr);
-    if (value_len == 0 || value_len >= 64)
+    const char* delim = NULL;
+    for (size_t i = 0; i < len; ++i) {
+        if (token[i] == '=' || token[i] == ':') {
+            delim = token + i;
+            break;
+        }
+    }
+    if (delim == NULL || delim == token || delim >= token + len - 1)
         return false;
 
-    char buffer[64];
-    ic_memcpy(buffer, value_ptr, (ssize_t)value_len);
-    buffer[value_len] = '\0';
-
-    char* endptr = NULL;
-    long parsed = strtol(buffer, &endptr, 10);
-    if (endptr == buffer || *endptr != '\0')
+    ssize_t key_len = (ssize_t)(delim - token);
+    ssize_t value_len = (ssize_t)((token + len) - (delim + 1));
+    char* key = mem_strndup(h->mem, token, key_len);
+    char* value = mem_strndup(h->mem, delim + 1, value_len);
+    if (key == NULL || value == NULL) {
+        mem_free(h->mem, key);
+        mem_free(h->mem, value);
         return false;
-    if (parsed < INT_MIN || parsed > INT_MAX)
-        return false;
+    }
+    return history_query_filters_append(h, filters, filter_count, filter_capacity, key, value);
+}
 
-    *exit_code_out = (int)parsed;
+static bool history_entry_matches_filters(const history_entry_t* entry,
+                                          const history_query_filter_t* filters,
+                                          size_t filter_count) {
+    if (filter_count == 0)
+        return true;
+    if (entry == NULL)
+        return false;
+    for (size_t i = 0; i < filter_count; ++i) {
+        const char* value = history_entry_get_metadata(entry, filters[i].key);
+        if (value == NULL || strcmp(value, filters[i].value) != 0) {
+            return false;
+        }
+    }
     return true;
 }
 
 ic_private bool history_fuzzy_search_with_case(const history_t* h, const char* query,
                                                history_match_t* matches, ssize_t max_matches,
-                                               ssize_t* match_count, bool* exit_filter_applied,
-                                               int* exit_filter_value, bool case_sensitive) {
-    if (exit_filter_applied)
-        *exit_filter_applied = false;
-    if (exit_filter_value)
-        *exit_filter_value = IC_HISTORY_EXIT_CODE_UNKNOWN;
+                                               ssize_t* match_count, bool* metadata_filter_applied,
+                                               bool case_sensitive) {
+    if (metadata_filter_applied)
+        *metadata_filter_applied = false;
 
     if (h == NULL || query == NULL || matches == NULL || max_matches <= 0) {
         if (match_count)
@@ -857,8 +1054,9 @@ ic_private bool history_fuzzy_search_with_case(const history_t* h, const char* q
         return false;
     }
 
-    bool filter_by_exit_code = false;
-    int exit_code_filter = 0;
+    history_query_filter_t* filters = NULL;
+    size_t filter_count = 0;
+    size_t filter_capacity = 0;
     char* sanitized_query = NULL;
     bool sanitized_available = false;
     size_t sanitized_len = 0;
@@ -887,10 +1085,8 @@ ic_private bool history_fuzzy_search_with_case(const history_t* h, const char* q
         if (token_len == 0)
             break;
 
-        int parsed_exit_code = 0;
-        if (history_parse_exit_code_token(token_start, token_len, &parsed_exit_code)) {
-            filter_by_exit_code = true;
-            exit_code_filter = parsed_exit_code;
+        if (history_parse_metadata_filter_token(mutable_h, token_start, token_len, &filters,
+                                                &filter_count, &filter_capacity)) {
             continue;
         }
 
@@ -904,7 +1100,7 @@ ic_private bool history_fuzzy_search_with_case(const history_t* h, const char* q
         }
     }
 
-    if (!sanitized_available && filter_by_exit_code) {
+    if (!sanitized_available && filter_count > 0) {
         sanitized_query = mem_malloc_tp_n(mutable_h->mem, char, 1);
         if (sanitized_query != NULL) {
             sanitized_query[0] = '\0';
@@ -914,7 +1110,7 @@ ic_private bool history_fuzzy_search_with_case(const history_t* h, const char* q
     }
 
     const char* effective_query = query;
-    if (filter_by_exit_code) {
+    if (filter_count > 0) {
         if (sanitized_available && sanitized_query != NULL) {
             sanitized_query[sanitized_len] = '\0';
             effective_query = sanitized_query;
@@ -926,11 +1122,8 @@ ic_private bool history_fuzzy_search_with_case(const history_t* h, const char* q
     if (effective_query == NULL)
         effective_query = "";
 
-    if (filter_by_exit_code) {
-        if (exit_filter_applied)
-            *exit_filter_applied = true;
-        if (exit_filter_value)
-            *exit_filter_value = exit_code_filter;
+    if (filter_count > 0 && metadata_filter_applied != NULL) {
+        *metadata_filter_applied = true;
     }
 
     ssize_t count = 0;
@@ -941,7 +1134,7 @@ ic_private bool history_fuzzy_search_with_case(const history_t* h, const char* q
             const history_entry_t* entry = &list.entries[idx];
             if (entry->command == NULL)
                 continue;
-            if (filter_by_exit_code && entry->exit_code != exit_code_filter)
+            if (!history_entry_matches_filters(entry, filters, filter_count))
                 continue;
 
             matches[count].hidx = offset;
@@ -956,7 +1149,7 @@ ic_private bool history_fuzzy_search_with_case(const history_t* h, const char* q
             const history_entry_t* entry = &list.entries[idx];
             if (entry->command == NULL)
                 continue;
-            if (filter_by_exit_code && entry->exit_code != exit_code_filter)
+            if (!history_entry_matches_filters(entry, filters, filter_count))
                 continue;
 
             ssize_t mpos = 0;
@@ -1003,6 +1196,7 @@ ic_private bool history_fuzzy_search_with_case(const history_t* h, const char* q
 
     if (sanitized_query != NULL)
         mem_free(mutable_h->mem, sanitized_query);
+    history_query_filters_free(mutable_h, filters, filter_count);
     history_list_free(mutable_h, &list);
 
     return count > 0;
@@ -1010,12 +1204,11 @@ ic_private bool history_fuzzy_search_with_case(const history_t* h, const char* q
 
 ic_private bool history_fuzzy_search(const history_t* h, const char* query,
                                      history_match_t* matches, ssize_t max_matches,
-                                     ssize_t* match_count, bool* exit_filter_applied,
-                                     int* exit_filter_value) {
+                                     ssize_t* match_count, bool* metadata_filter_applied) {
     history_t* mutable_h = (history_t*)h;
     const bool case_sensitive = history_is_fuzzy_case_sensitive(mutable_h);
     return history_fuzzy_search_with_case(h, query, matches, max_matches, match_count,
-                                          exit_filter_applied, exit_filter_value, case_sensitive);
+                                          metadata_filter_applied, case_sensitive);
 }
 
 ic_private void history_load_from(history_t* h, const char* fname, long max_entries) {
@@ -1155,24 +1348,147 @@ static bool history_write_entry(const char* entry, FILE* f, stringbuf_t* sbuf) {
     return true;
 }
 
+static bool history_metadata_write_escaped(stringbuf_t* sbuf, const char* value) {
+    if (sbuf == NULL)
+        return false;
+    if (value == NULL)
+        return true;
+    for (const char* p = value; *p != '\0'; ++p) {
+        uint8_t c = (uint8_t)(*p);
+        if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
+            c == '-' || c == '_' || c == '.' || c == '~') {
+            sbuf_append_char(sbuf, (char)c);
+        } else {
+            sbuf_append_char(sbuf, '%');
+            sbuf_append_char(sbuf, to_xdigit((uint8_t)(c / 16)));
+            sbuf_append_char(sbuf, to_xdigit((uint8_t)(c % 16)));
+        }
+    }
+    return true;
+}
+
+static char* history_metadata_decode_escaped(history_t* h, const char* encoded) {
+    if (h == NULL || encoded == NULL)
+        return NULL;
+    ssize_t len = ic_strlen(encoded);
+    char* out = mem_malloc_tp_n(h->mem, char, len + 1);
+    if (out == NULL)
+        return NULL;
+    ssize_t o = 0;
+    for (ssize_t i = 0; i < len; ++i) {
+        char c = encoded[i];
+        if (c == '%' && i + 2 < len && ic_isxdigit(encoded[i + 1]) && ic_isxdigit(encoded[i + 2])) {
+            uint8_t hi = (uint8_t)from_xdigit(encoded[i + 1]);
+            uint8_t lo = (uint8_t)from_xdigit(encoded[i + 2]);
+            out[o++] = (char)(hi * 16 + lo);
+            i += 2;
+        } else {
+            out[o++] = c;
+        }
+    }
+    out[o] = '\0';
+    return out;
+}
+
+static bool history_parse_metadata_header_line(history_t* h, history_entry_t* entry,
+                                               const char* header_line) {
+    if (h == NULL || entry == NULL || header_line == NULL)
+        return false;
+
+    const char* cursor = header_line + 1;
+    while (*cursor == ' ' || *cursor == '\t')
+        cursor++;
+    if (*cursor == '\0' || *cursor == '\n' || *cursor == '\r') {
+        return false;
+    }
+
+    bool has_equals = false;
+    for (const char* p = cursor; *p != '\0'; ++p) {
+        if (*p == '=') {
+            has_equals = true;
+            break;
+        }
+        if (*p == '\n' || *p == '\r')
+            break;
+    }
+
+    if (!has_equals)
+        return false;
+
+    const char* token = cursor;
+    while (*token != '\0' && *token != '\n' && *token != '\r') {
+        while (*token == ' ' || *token == '\t')
+            token++;
+        if (*token == '\0' || *token == '\n' || *token == '\r')
+            break;
+
+        const char* token_end = token;
+        while (*token_end != '\0' && *token_end != '\n' && *token_end != '\r' &&
+               *token_end != ' ' && *token_end != '\t') {
+            token_end++;
+        }
+
+        const char* equals = token;
+        while (equals < token_end && *equals != '=')
+            equals++;
+
+        if (equals > token && equals < token_end) {
+            char* key = mem_strndup(h->mem, token, (ssize_t)(equals - token));
+            char* encoded_value =
+                mem_strndup(h->mem, equals + 1, (ssize_t)(token_end - equals - 1));
+            char* decoded =
+                history_metadata_decode_escaped(h, encoded_value == NULL ? "" : encoded_value);
+            mem_free(h->mem, encoded_value);
+            if (key != NULL && decoded != NULL) {
+                if (!history_entry_set_metadata_owned(h, entry, key, decoded)) {
+                    mem_free(h->mem, key);
+                    mem_free(h->mem, decoded);
+                }
+            } else {
+                mem_free(h->mem, key);
+                mem_free(h->mem, decoded);
+            }
+        }
+
+        token = token_end;
+    }
+    return true;
+}
+
 static bool history_write_record(const history_entry_t* entry, FILE* f, stringbuf_t* sbuf) {
     if (entry == NULL || entry->command == NULL)
         return true;
 
-    history_entry_t temp = *entry;
-    history_entry_normalize_metadata(&temp);
+    sbuf_clear(sbuf);
+    sbuf_append(sbuf, "#");
 
-    char header[64];
-    int written =
-        snprintf(header, sizeof(header), "# %lld %d\n", (long long)temp.timestamp, temp.exit_code);
-    if (written < 0 || written >= (int)sizeof(header))
+    bool has_timestamp = (history_entry_get_metadata(entry, k_history_timestamp_key) != NULL);
+    for (ssize_t i = 0; i < entry->metadata_count; ++i) {
+        const char* key = entry->metadata[i].key;
+        if (!history_metadata_key_valid(key))
+            continue;
+        sbuf_append_char(sbuf, ' ');
+        sbuf_append(sbuf, key);
+        sbuf_append_char(sbuf, '=');
+        history_metadata_write_escaped(
+            sbuf, entry->metadata[i].value == NULL ? "" : entry->metadata[i].value);
+    }
+    if (!has_timestamp) {
+        char ts_buf[32];
+        int n = snprintf(ts_buf, sizeof(ts_buf), "%lld", (long long)time(NULL));
+        if (n <= 0 || n >= (int)sizeof(ts_buf))
+            return false;
+        sbuf_append_char(sbuf, ' ');
+        sbuf_append(sbuf, k_history_timestamp_key);
+        sbuf_append_char(sbuf, '=');
+        sbuf_append(sbuf, ts_buf);
+    }
+    sbuf_append_char(sbuf, '\n');
+
+    if (!history_write_successful(fputs(sbuf_string(sbuf), f)))
         return false;
 
-    size_t to_write = (size_t)written;
-    if (fwrite(header, 1, to_write, f) != to_write)
-        return false;
-
-    return history_write_entry(temp.command, f, sbuf);
+    return history_write_entry(entry->command, f, sbuf);
 }
 
 static bool history_collect_entries(history_t* h, history_list_t* list, bool dedup) {
@@ -1215,8 +1531,9 @@ static bool history_collect_entries(history_t* h, history_list_t* list, bool ded
 
         history_entry_t entry = {
             .command = NULL,
-            .exit_code = IC_HISTORY_EXIT_CODE_UNKNOWN,
-            .timestamp = 0,
+            .metadata = NULL,
+            .metadata_count = 0,
+            .metadata_capacity = 0,
         };
 
         if (c == '#') {
@@ -1231,33 +1548,9 @@ static bool history_collect_entries(history_t* h, history_list_t* list, bool ded
                 break;
             }
 
-            const char* cursor = header_buf + 1;
-            while (*cursor == ' ' || *cursor == '\t')
-                cursor++;
-
-            if (*cursor == '\0') {
-                // Comment line without metadata, skip.
+            if (!history_parse_metadata_header_line(h, &entry, header_buf)) {
+                history_entry_clear(h, &entry);
                 continue;
-            }
-
-            char* endptr = NULL;
-            long long ts = strtoll(cursor, &endptr, 10);
-            if (endptr == cursor) {
-                // Metadata could not be parsed; treat as comment.
-                continue;
-            }
-
-            entry.timestamp = (time_t)ts;
-            cursor = endptr;
-
-            while (*cursor == ' ' || *cursor == '\t')
-                cursor++;
-
-            if (*cursor != '\0' && *cursor != '\n' && *cursor != '\r') {
-                long exit_ll = strtol(cursor, &endptr, 10);
-                if (endptr != cursor) {
-                    entry.exit_code = (int)exit_ll;
-                }
             }
 
             long pos_after_header = ftell(f);
@@ -1298,17 +1591,21 @@ static bool history_collect_entries(history_t* h, history_list_t* list, bool ded
         char* command = history_read_entry(h, f, sbuf);
         if (command == NULL) {
             if (ferror(f)) {
+                history_entry_clear(h, &entry);
                 success = false;
                 break;
             }
-            if (feof(f))
+            if (feof(f)) {
+                history_entry_clear(h, &entry);
                 break;
+            }
             clearerr(f);
+            history_entry_clear(h, &entry);
             continue;
         }
 
         entry.command = command;
-        history_entry_normalize_metadata(&entry);
+        history_entry_normalize_metadata(h, &entry);
 
         if (!history_list_append(h, list, entry)) {
             history_list_free(h, list);

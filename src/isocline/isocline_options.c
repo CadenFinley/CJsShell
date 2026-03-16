@@ -154,15 +154,17 @@ ic_public void ic_history_remove_last(void) {
     history_remove_last(env->history);
 }
 
-ic_public void ic_history_add_with_exit_code(const char* entry, int exit_code) {
+ic_public void ic_history_add_with_metadata(const char* entry,
+                                            const ic_history_metadata_t* metadata,
+                                            size_t metadata_count) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)
         return;
-    history_push_with_exit_code(env->history, entry, exit_code);
+    history_push_with_metadata(env->history, entry, metadata, metadata_count);
 }
 
 ic_public void ic_history_add(const char* entry) {
-    ic_history_add_with_exit_code(entry, IC_HISTORY_EXIT_CODE_UNKNOWN);
+    ic_history_add_with_metadata(entry, NULL, 0);
 }
 
 ic_public void ic_history_clear(void) {
