@@ -26,9 +26,14 @@
   SOFTWARE.
 */
 
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200809L
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #if !defined(_WIN32)
 #include <pthread.h>
@@ -138,7 +143,13 @@ static void* delayed_raw_feed_thread(void* arg) {
     if (feed == NULL) {
         return NULL;
     }
-    usleep(feed->delay_us);
+
+    struct timespec req = {
+        .tv_sec = feed->delay_us / 1000000u,
+        .tv_nsec = (long)((feed->delay_us % 1000000u) * 1000u),
+    };
+    (void)nanosleep(&req, NULL);
+
     (void)ic_push_raw_input(feed->bytes, feed->count);
     return NULL;
 }
