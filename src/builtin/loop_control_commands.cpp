@@ -30,9 +30,11 @@
 
 #include "builtin_help.h"
 
+#include <climits>
 #include <string>
 #include <vector>
 #include "error_out.h"
+#include "numeric_utils.h"
 #include "shell_env.h"
 
 int break_command(const std::vector<std::string>& args) {
@@ -42,14 +44,7 @@ int break_command(const std::vector<std::string>& args) {
     }
     int level = 1;
     if (args.size() > 1) {
-        try {
-            level = std::stoi(args[1]);
-            if (level < 1) {
-                print_error(
-                    {ErrorType::INVALID_ARGUMENT, "break", "invalid level: " + args[1], {}});
-                return 1;
-            }
-        } catch (const std::exception&) {
+        if (!numeric_utils::parse_int_in_range(args[1], 1, INT_MAX, level)) {
             print_error({ErrorType::INVALID_ARGUMENT, "break", "invalid level: " + args[1], {}});
             return 1;
         }
@@ -68,14 +63,7 @@ int continue_command(const std::vector<std::string>& args) {
     }
     int level = 1;
     if (args.size() > 1) {
-        try {
-            level = std::stoi(args[1]);
-            if (level < 1) {
-                print_error(
-                    {ErrorType::INVALID_ARGUMENT, "continue", "invalid level: " + args[1], {}});
-                return 1;
-            }
-        } catch (const std::exception&) {
+        if (!numeric_utils::parse_int_in_range(args[1], 1, INT_MAX, level)) {
             print_error({ErrorType::INVALID_ARGUMENT, "continue", "invalid level: " + args[1], {}});
             return 1;
         }
@@ -94,15 +82,7 @@ int return_command(const std::vector<std::string>& args) {
     }
     int exit_code = 0;
     if (args.size() > 1) {
-        try {
-            exit_code = std::stoi(args[1]);
-
-            if (exit_code < 0 || exit_code > 255) {
-                print_error(
-                    {ErrorType::INVALID_ARGUMENT, "return", "invalid exit code: " + args[1], {}});
-                return 1;
-            }
-        } catch (const std::exception&) {
+        if (!numeric_utils::parse_int_in_range(args[1], 0, 255, exit_code)) {
             print_error(
                 {ErrorType::INVALID_ARGUMENT, "return", "invalid exit code: " + args[1], {}});
             return 1;

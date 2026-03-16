@@ -41,6 +41,7 @@
 #include <iostream>
 #include <limits>
 #include "error_out.h"
+#include "numeric_utils.h"
 #include "readonly_command.h"
 #include "shell.h"
 #include "shell_env.h"
@@ -98,9 +99,7 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
                 raw_mode = true;
                 break;
             case 'n':
-                try {
-                    nchars = std::stoi(option.value.value_or(""));
-                } catch (const std::exception&) {
+                if (!numeric_utils::parse_int_strict(option.value.value_or(""), nchars)) {
                     print_error({ErrorType::INVALID_ARGUMENT,
                                  "read",
                                  "invalid number of characters: " + option.value.value_or(""),

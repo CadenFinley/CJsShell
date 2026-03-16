@@ -33,7 +33,6 @@
 #include <sys/times.h>
 #include <unistd.h>
 #include <cerrno>
-#include <cstring>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -51,10 +50,7 @@ int times_command(const std::vector<std::string>& args) {
     clock_t wall_time = times(&time_buf);
 
     if (wall_time == (clock_t)-1) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     "times",
-                     std::string("system call failed: ") + std::strerror(errno),
-                     {}});
+        print_error_errno({ErrorType::RUNTIME_ERROR, "times", "system call failed", {}});
         return 1;
     }
 

@@ -74,6 +74,7 @@
 #include "shell.h"
 #include "shell_env.h"
 #include "signal_handler.h"
+#include "string_utils.h"
 #include "suggestion_utils.h"
 #include "tokenizer.h"
 #include "wait_status_utils.h"
@@ -251,15 +252,11 @@ std::string strip_cjsh_prefix(std::string message) {
     const std::string prefix = "cjsh:";
     if (message.rfind(prefix, 0) == 0) {
         message.erase(0, prefix.size());
-        while (!message.empty() && std::isspace(static_cast<unsigned char>(message.front()))) {
-            message.erase(message.begin());
-        }
+        message = string_utils::trim_left_ascii_whitespace_copy(message);
     }
     if (message.rfind("cjsh ", 0) == 0) {
         message.erase(0, 5);
-        while (!message.empty() && std::isspace(static_cast<unsigned char>(message.front()))) {
-            message.erase(message.begin());
-        }
+        message = string_utils::trim_left_ascii_whitespace_copy(message);
     }
     return message;
 }

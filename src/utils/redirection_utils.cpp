@@ -28,7 +28,16 @@
 
 #include "redirection_utils.h"
 
+#include <vector>
+
 namespace redirection_utils {
+
+const std::vector<std::string_view>& canonical_operator_spellings() {
+    static const std::vector<std::string_view> kOperators = {"2>&1", "2>>", "<<-", "<<<", ">&2",
+                                                             ">>",   "<<",  ">|",  "&>",  "<>",
+                                                             "<&",   ">&",  "2>",  "<",   ">"};
+    return kOperators;
+}
 
 std::optional<RedirectionOperator> parse_operator_token(std::string_view token) {
     if (token == "2>&1") {
@@ -84,11 +93,7 @@ std::optional<ParsedRedirectionOperator> parse_operator_at(std::string_view text
         return std::nullopt;
     }
 
-    static constexpr std::string_view kOperators[] = {"2>&1", "2>>", "<<-", "<<<", ">&2",
-                                                      ">>",   "<<",  ">|",  "&>",  "<>",
-                                                      "<&",   ">&",  "2>",  "<",   ">"};
-
-    for (std::string_view op : kOperators) {
+    for (std::string_view op : canonical_operator_spellings()) {
         if (start + op.size() <= text.size() && text.compare(start, op.size(), op) == 0) {
             auto parsed = parse_operator_token(op);
             if (parsed.has_value()) {

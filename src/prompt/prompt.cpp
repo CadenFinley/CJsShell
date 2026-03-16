@@ -53,11 +53,13 @@
 #include <vector>
 
 #include "cjsh.h"
+#include "cjsh_filesystem.h"
 #include "exec.h"
 #include "flags.h"
 #include "isocline.h"
 #include "job_control.h"
 #include "keycodes.h"
+#include "numeric_utils.h"
 #include "shell.h"
 #include "shell_env.h"
 #include "string_utils.h"
@@ -355,42 +357,7 @@ std::string format_time(const char* fmt) {
 }
 
 std::string get_cwd(bool abbreviate_home, bool basename_only) {
-    std::error_code ec;
-    std::filesystem::path cwd = std::filesystem::current_path(ec);
-    if (ec) {
-        return {};
-    }
-    std::string path = cwd.string();
-
-    std::string home = get_env("HOME");
-    if (abbreviate_home && !home.empty()) {
-        if (path == home) {
-            path = "~";
-        } else if (path.rfind(home + "/", 0) == 0) {
-            path = "~" + path.substr(home.size());
-        }
-    }
-
-    if (!basename_only) {
-        return path;
-    }
-
-    if (path == "~") {
-        return path;
-    }
-
-    std::filesystem::path path_obj(path);
-    std::string base = path_obj.filename().string();
-    if (base.empty()) {
-        base = path_obj.root_path().string();
-    }
-    if (abbreviate_home && !home.empty() && path.rfind(home + "/", 0) == 0) {
-        if (path == home) {
-            return "~";
-        }
-        base = path.substr(path.find_last_of('/') + 1);
-    }
-    return base;
+    return cjsh_filesystem::formatted_current_directory(abbreviate_home, basename_only);
 }
 
 std::string get_terminal_name() {
@@ -776,11 +743,7 @@ void append_git_segment(std::string& builder, PromptContext context) {
 
 int exit_status_value() {
     std::string status = get_exit_status();
-    try {
-        return std::stoi(status);
-    } catch (...) {
-        return 0;
-    }
+    return numeric_utils::parse_exit_status_or(status, 0, false);
 }
 
 std::string status_symbol() {

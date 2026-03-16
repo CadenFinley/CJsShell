@@ -30,6 +30,7 @@
 
 #include <cstdlib>
 
+#include "cjsh_filesystem.h"
 #include "quote_state.h"
 #include "shell_env.h"
 
@@ -84,35 +85,19 @@ std::vector<std::string> expand_tilde_tokens(const std::vector<std::string>& tok
         return result;
     }
 
-    const bool has_home = cjsh_env::shell_variable_is_set("HOME");
-    const std::string home = has_home ? cjsh_env::get_shell_variable_value("HOME") : std::string();
-
-    auto contains_tilde = [](const std::string& value) {
-        if (value.empty()) {
-            return false;
-        }
-        if (value.front() == '~') {
-            return true;
-        }
-        return value.find('~', 1) != std::string::npos;
-    };
-
-    auto expand_tilde_value = [](const std::string& value, const std::string& home) {
-        if (!value.empty() && value.front() == '~') {
-            std::string result;
-            result.reserve(home.size() + value.size() - 1);
-            result = home;
-            result.append(value, 1, std::string::npos);
-            return result;
-        }
-        return value;
-    };
+    const std::string cwd = cjsh_filesystem::safe_current_directory();
 
     for (const auto& raw : tokens) {
         QuoteInfo qi(raw);
 
-        if (qi.is_unquoted() && has_home && contains_tilde(qi.value)) {
-            result.push_back(expand_tilde_value(qi.value, home));
+        if (qi.is_unquoted() && !qi.value.empty() && qi.value.front() == '~') {
+            std::filesystem::path expanded =
+                cjsh_filesystem::expand_shell_path_token(qi.value, cwd, std::string{});
+            if (!expanded.empty()) {
+                result.push_back(expanded.string());
+            } else {
+                result.push_back(qi.value);
+            }
         } else if (qi.is_unquoted()) {
             result.push_back(qi.value);
         } else if (qi.is_single) {

@@ -32,6 +32,7 @@
 #include "interpreter_utils.h"
 #include "parser_utils.h"
 #include "quote_state.h"
+#include "string_utils.h"
 
 #include <algorithm>
 #include <cctype>
@@ -658,9 +659,7 @@ WhileUntilCheckResult analyze_while_until_syntax(const std::string& first_token,
     if (do_pos != std::string::npos && do_pos == after_kw.size() - 3)
         after_kw = after_kw.substr(0, do_pos);
 
-    std::string cond = after_kw;
-    while (!cond.empty() && (isspace(static_cast<unsigned char>(cond.back())) != 0))
-        cond.pop_back();
+    std::string cond = string_utils::trim_right_ascii_whitespace_copy(after_kw);
 
     if (cond.empty() || immediate_do) {
         result.missing_condition = true;

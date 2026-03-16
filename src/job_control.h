@@ -163,6 +163,8 @@ std::optional<int> wait_for_job_and_remove(const std::shared_ptr<JobControlJob>&
                                            JobManager& job_manager);
 
 std::optional<int> parse_job_specifier(const std::string& target);
+std::optional<int> parse_job_specifier_flexible(const std::string& target);
+std::optional<pid_t> parse_pid_specifier(const std::string& target);
 
 int parse_signal(const std::string& signal_str);
 

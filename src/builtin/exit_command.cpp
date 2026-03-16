@@ -39,6 +39,7 @@
 #include <vector>
 
 #include "flags.h"
+#include "numeric_utils.h"
 #include "shell_env.h"
 
 namespace {
@@ -68,11 +69,9 @@ int exit_command(const std::vector<std::string>& args) {
         const std::string& val = args[i];
         if (val != "-f" && val != "--force") {
             non_flag_args++;
-            char* endptr = nullptr;
-            long code = std::strtol(val.c_str(), &endptr, 10);
-            if (endptr && *endptr == '\0') {
-                exit_code = static_cast<int>(code) & 0xFF;
-
+            int parsed_status = 0;
+            if (numeric_utils::parse_int_strict(val, parsed_status)) {
+                exit_code = numeric_utils::parse_exit_status_or(val, 0, true);
                 break;
             } else {
                 print_error({ErrorType::INVALID_ARGUMENT,

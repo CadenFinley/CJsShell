@@ -51,6 +51,7 @@
 #include "interpreter.h"
 #include "isocline.h"
 #include "job_control.h"
+#include "numeric_utils.h"
 #include "shell_env.h"
 #include "string_utils.h"
 #include "trap_command.h"
@@ -228,14 +229,7 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
 
     // xtrace handling
     if (get_shell_option(ShellOption::Xtrace) && !args.empty()) {
-        std::cerr << "+ ";
-        for (size_t i = 0; i < args.size(); ++i) {
-            if (i > 0) {
-                std::cerr << " ";
-            }
-            std::cerr << args[i];
-        }
-        std::cerr << '\n';
+        std::cerr << "+ " << string_utils::join_strings(args, " ") << '\n';
     }
 
     // noexec handling
@@ -433,11 +427,7 @@ int read_exit_code_or(int fallback) {
         return fallback;
     }
 
-    char* endptr = nullptr;
-    long exit_code_long = std::strtol(exit_code_str.c_str(), &endptr, 10);
-    if (endptr != exit_code_str.c_str() && *endptr == '\0') {
-        fallback = static_cast<int>(exit_code_long);
-    }
+    fallback = numeric_utils::parse_exit_status_or(exit_code_str, fallback, false);
     cjsh_env::unset_shell_variable_value("EXIT_CODE");
     return fallback;
 }

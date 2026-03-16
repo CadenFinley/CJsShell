@@ -209,6 +209,10 @@ std::vector<PathHashEntry> get_path_hash_entries();
 void reset_path_hash();
 
 std::string safe_current_directory();
+std::string abbreviate_home_path(const std::string& path);
+std::string format_path_for_display(const std::string& path, bool abbreviate_home,
+                                    bool basename_only);
+std::string formatted_current_directory(bool abbreviate_home, bool basename_only);
 
 bool create_profile_file(const std::filesystem::path& target_path = g_cjsh_profile_path());
 bool create_env_file(const std::filesystem::path& target_path = g_cjsh_env_path());

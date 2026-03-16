@@ -225,9 +225,7 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
             size_t eq = trimmed_line.find('=');
             if (eq != std::string::npos) {
                 std::string lhs = trimmed_line.substr(0, eq);
-
-                while (!lhs.empty() && isspace(static_cast<unsigned char>(lhs.back())) != 0)
-                    lhs.pop_back();
+                lhs = string_utils::trim_right_ascii_whitespace_copy(lhs);
 
                 size_t lb = lhs.find('[');
                 size_t rb = lhs.rfind(']');

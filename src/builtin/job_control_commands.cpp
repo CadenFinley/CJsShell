@@ -36,6 +36,7 @@
 #include <iomanip>
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <string>
 
 #include "builtin_help.h"
@@ -45,6 +46,7 @@
 #include "exec.h"
 #include "job_control.h"
 #include "shell.h"
+#include "string_utils.h"
 #include "wait_status_utils.h"
 
 int bg_command(const std::vector<std::string>& args) {
@@ -314,27 +316,28 @@ int wait_command(const std::vector<std::string>& args) {
                 last_exit_status = job_exit.value();
             }
         } else {
-            try {
-                pid_t pid = std::stoi(target);
-                int status = 0;
-                if (waitpid(pid, &status, 0) < 0) {
-                    print_error_errno({ErrorType::RUNTIME_ERROR, "wait", "waitpid", {}});
-                    return 1;
-                }
-
-                auto interpreted = job_control_helpers::interpret_wait_status(status);
-                if (interpreted.has_value()) {
-                    last_exit_status = interpreted.value();
-                }
-
-                job_manager.mark_pid_completed(pid, status);
-            } catch (...) {
+            auto parsed_pid = job_control_helpers::parse_pid_specifier(target);
+            if (!parsed_pid.has_value()) {
                 print_error({ErrorType::INVALID_ARGUMENT,
                              target,
                              "Arguments must be process or job IDs",
                              {"Use 'jobs' to list available jobs"}});
                 return 1;
             }
+
+            pid_t pid = *parsed_pid;
+            int status = 0;
+            if (waitpid(pid, &status, 0) < 0) {
+                print_error_errno({ErrorType::RUNTIME_ERROR, "wait", "waitpid", {}});
+                return 1;
+            }
+
+            auto interpreted = job_control_helpers::interpret_wait_status(status);
+            if (interpreted.has_value()) {
+                last_exit_status = interpreted.value();
+            }
+
+            job_manager.mark_pid_completed(pid, status);
         }
     }
 
@@ -360,20 +363,15 @@ int disown_command(const std::vector<std::string>& args) {
             continue;
         }
 
-        std::string job_spec = args[i];
-        if (!job_spec.empty() && job_spec[0] == '%') {
-            job_spec = job_spec.substr(1);
-        }
-
-        try {
-            targets.push_back(std::stoi(job_spec));
-        } catch (...) {
+        auto parsed_job_id = job_control_helpers::parse_job_specifier_flexible(args[i]);
+        if (!parsed_job_id.has_value()) {
             print_error({ErrorType::INVALID_ARGUMENT,
                          args[i],
                          "no such job",
                          {"Use 'jobs' to list available jobs"}});
             return 1;
         }
+        targets.push_back(*parsed_job_id);
     }
 
     if (disown_all) {
@@ -429,14 +427,24 @@ std::string normalize_name(const std::vector<std::string>& args) {
     if (args.size() < 3) {
         return {};
     }
-    std::string name;
-    for (size_t i = 2; i < args.size(); ++i) {
-        if (i > 2) {
-            name.push_back(' ');
+    return string_utils::join_strings(args, " ", 2);
+}
+
+std::string kill_signal_list_text() {
+    std::ostringstream out;
+    const auto& signals = SignalHandler::available_signals();
+    bool first = true;
+    for (const auto& signal : signals) {
+        if (signal.name == nullptr || signal.signal <= 0) {
+            continue;
         }
-        name.append(args[i]);
+        if (!first) {
+            out << ' ';
+        }
+        first = false;
+        out << SignalHandler::signal_to_name(signal.signal, true);
     }
-    return name;
+    return out.str();
 }
 
 }  // namespace
@@ -514,10 +522,7 @@ int kill_command(const std::vector<std::string>& args) {
 
         if (args[1].substr(0, 1) == "-") {
             if (args[1] == "-l") {
-                std::cout << "HUP INT QUIT ILL TRAP ABRT BUS FPE KILL USR1 SEGV USR2 "
-                             "PIPE ALRM TERM CHLD CONT STOP TSTP TTIN TTOU URG XCPU XFSZ "
-                             "VTALRM PROF WINCH IO SYS"
-                          << '\n';
+                std::cout << kill_signal_list_text() << '\n';
                 return 0;
             }
 
@@ -629,22 +634,18 @@ int kill_command(const std::vector<std::string>& args) {
                 continue;
             }
 
-            size_t consumed = 0;
             bool treated_as_pid = false;
-            try {
-                pid_t pid = std::stoi(target, &consumed);
-                if (consumed == target.size()) {
-                    if (kill(pid, signal) < 0) {
-                        print_error_errno({ErrorType::RUNTIME_ERROR, "kill", "kill", {}});
-                        had_error = true;
-                    } else {
-                        auto job = job_manager.get_job_by_pid_or_pgid(pid);
-                        update_job_state_after_signal(job);
-                    }
-                    treated_as_pid = true;
+            auto parsed_pid = job_control_helpers::parse_pid_specifier(target);
+            if (parsed_pid.has_value()) {
+                pid_t pid = *parsed_pid;
+                if (kill(pid, signal) < 0) {
+                    print_error_errno({ErrorType::RUNTIME_ERROR, "kill", "kill", {}});
+                    had_error = true;
+                } else {
+                    auto job = job_manager.get_job_by_pid_or_pgid(pid);
+                    update_job_state_after_signal(job);
                 }
-            } catch (...) {
-                // Not a numeric PID; fall back to job lookup.
+                treated_as_pid = true;
             }
 
             if (!treated_as_pid) {

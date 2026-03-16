@@ -1,5 +1,5 @@
 /*
-  redirection_utils.h
+  numeric_utils.h
 
   This file is part of cjsh, CJ's Shell
 
@@ -28,41 +28,14 @@
 
 #pragma once
 
-#include <cstddef>
-#include <optional>
 #include <string>
 #include <string_view>
-#include <vector>
 
-namespace redirection_utils {
+namespace numeric_utils {
 
-enum class RedirectionOperator : unsigned char {
-    Input,
-    Output,
-    Append,
-    ForceOutput,
-    BothOutput,
-    HereDoc,
-    HereDocStrip,
-    HereString,
-    ReadWrite,
-    DupInput,
-    DupOutput,
-    StderrOutput,
-    StderrAppend,
-    StderrToStdout,
-    StdoutToStderr
-};
+bool parse_long_strict(std::string_view text, long& value_out);
+bool parse_int_strict(std::string_view text, int& value_out);
+bool parse_int_in_range(std::string_view text, int min_value, int max_value, int& value_out);
+int parse_exit_status_or(std::string_view text, int fallback, bool mask_to_byte);
 
-struct ParsedRedirectionOperator {
-    RedirectionOperator op;
-    size_t length;
-};
-
-std::optional<RedirectionOperator> parse_operator_token(std::string_view token);
-std::optional<ParsedRedirectionOperator> parse_operator_at(std::string_view text, size_t start);
-bool requires_operand(RedirectionOperator op);
-const char* operator_spelling(RedirectionOperator op);
-const std::vector<std::string_view>& canonical_operator_spellings();
-
-}  // namespace redirection_utils
+}  // namespace numeric_utils

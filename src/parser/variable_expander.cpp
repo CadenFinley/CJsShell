@@ -30,7 +30,9 @@
 
 #include <unistd.h>
 #include <cctype>
+#include <filesystem>
 
+#include "cjsh_filesystem.h"
 #include "exec.h"
 #include "flags.h"
 #include "interpreter.h"
@@ -468,9 +470,20 @@ bool VariableExpander::try_append_arithmetic_expansion(
 }
 
 void VariableExpander::expand_command_paths_with_home(Command& cmd, const std::string& home) {
+    (void)home;
+    const std::string cwd = cjsh_filesystem::safe_current_directory();
+    const std::string previous_directory =
+        (shell != nullptr) ? shell->get_previous_directory() : std::string{};
+
     auto expand_path = [&](std::string& path) {
-        if (!path.empty() && path.front() == '~') {
-            path = home + path.substr(1);
+        if (path.empty() || path.front() != '~') {
+            return;
+        }
+
+        std::filesystem::path expanded =
+            cjsh_filesystem::expand_shell_path_token(path, cwd, previous_directory);
+        if (!expanded.empty()) {
+            path = expanded.string();
         }
     };
 

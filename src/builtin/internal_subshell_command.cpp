@@ -32,7 +32,6 @@
 #include <unistd.h>
 
 #include <cerrno>
-#include <cstring>
 
 #include "error_out.h"
 #include "shell.h"
@@ -47,10 +46,7 @@ int internal_subshell_command(const std::vector<std::string>& args, Shell* shell
 
     pid_t pid = fork();
     if (pid == -1) {
-        print_error({ErrorType::RUNTIME_ERROR,
-                     "subshell",
-                     "fork failed: " + std::string(strerror(errno)),
-                     {}});
+        print_error_errno({ErrorType::RUNTIME_ERROR, "subshell", "fork failed", {}});
         return 1;
     }
 
@@ -60,10 +56,7 @@ int internal_subshell_command(const std::vector<std::string>& args, Shell* shell
     } else {
         int status;
         if (waitpid(pid, &status, 0) == -1) {
-            print_error({ErrorType::RUNTIME_ERROR,
-                         "subshell",
-                         "waitpid failed: " + std::string(strerror(errno)),
-                         {}});
+            print_error_errno({ErrorType::RUNTIME_ERROR, "subshell", "waitpid failed", {}});
             return 1;
         }
 

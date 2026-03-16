@@ -39,6 +39,7 @@
 #include "cjsh.h"
 #include "error_out.h"
 #include "flags.h"
+#include "numeric_utils.h"
 #include "shell.h"
 #include "string_utils.h"
 
@@ -301,15 +302,13 @@ int shift_command(const std::vector<std::string>& args, Shell* shell) {
     int shift_count = 1;
 
     if (args.size() > 1) {
-        try {
-            shift_count = std::stoi(args[1]);
-            if (shift_count < 0) {
-                print_error({ErrorType::INVALID_ARGUMENT, "shift", "negative shift count", {}});
-                return 1;
-            }
-        } catch (const std::exception&) {
+        if (!numeric_utils::parse_int_strict(args[1], shift_count)) {
             print_error(
                 {ErrorType::INVALID_ARGUMENT, "shift", "invalid shift count: " + args[1], {}});
+            return 1;
+        }
+        if (shift_count < 0) {
+            print_error({ErrorType::INVALID_ARGUMENT, "shift", "negative shift count", {}});
             return 1;
         }
     }

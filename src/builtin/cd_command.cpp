@@ -32,7 +32,6 @@
 #include <unistd.h>
 
 #include <cstdlib>
-#include <cstring>
 #include <optional>
 
 #include "builtin_help.h"
@@ -166,8 +165,7 @@ int change_directory(const std::string& dir, std::string& current_directory,
         current_directory = canonical_path.string();
 
         if (chdir(current_directory.c_str()) != 0) {
-            ErrorInfo error = {ErrorType::RUNTIME_ERROR, "cd", std::string(strerror(errno)), {}};
-            print_error(error);
+            print_error_errno({ErrorType::RUNTIME_ERROR, "cd", "chdir", {}});
             return 1;
         }
 

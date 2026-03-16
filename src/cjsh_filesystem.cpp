@@ -417,6 +417,50 @@ std::string safe_current_directory() {
     return "/";
 }
 
+std::string abbreviate_home_path(const std::string& path) {
+    if (path.empty()) {
+        return path;
+    }
+
+    const std::string home = g_user_home_path().string();
+    if (home.empty()) {
+        return path;
+    }
+
+    if (path == home) {
+        return "~";
+    }
+
+    if (path.rfind(home + "/", 0) == 0) {
+        return "~" + path.substr(home.size());
+    }
+
+    return path;
+}
+
+std::string format_path_for_display(const std::string& path, bool abbreviate_home,
+                                    bool basename_only) {
+    std::string display = abbreviate_home ? abbreviate_home_path(path) : path;
+    if (!basename_only) {
+        return display;
+    }
+
+    if (display == "~") {
+        return display;
+    }
+
+    std::filesystem::path path_obj(display);
+    std::string base = path_obj.filename().string();
+    if (base.empty()) {
+        base = path_obj.root_path().string();
+    }
+    return base;
+}
+
+std::string formatted_current_directory(bool abbreviate_home, bool basename_only) {
+    return format_path_for_display(safe_current_directory(), abbreviate_home, basename_only);
+}
+
 Result<int> safe_open(const std::string& path, int flags, mode_t mode) {
     int fd = ::open(path.c_str(), flags, mode);
     if (fd == -1) {
@@ -959,6 +1003,31 @@ bool write_configuration_file(const std::filesystem::path& target_path,
 
     return true;
 }
+
+bool process_startup_file_with_fallback(const std::filesystem::path& primary,
+                                        const std::filesystem::path& alternate,
+                                        bool require_regular_file, bool optional_mode) {
+    auto exists_and_usable = [&](const std::filesystem::path& candidate) {
+        if (require_regular_file) {
+            std::error_code status_ec;
+            auto status = std::filesystem::status(candidate, status_ec);
+            return !status_ec && std::filesystem::is_regular_file(status);
+        }
+        return file_exists(candidate);
+    };
+
+    if (exists_and_usable(primary)) {
+        g_shell->execute_script_file(primary, optional_mode);
+        return true;
+    }
+
+    if (exists_and_usable(alternate)) {
+        g_shell->execute_script_file(alternate, optional_mode);
+        return true;
+    }
+
+    return false;
+}
 }  // namespace
 
 bool create_profile_file(const std::filesystem::path& target_path) {
@@ -1002,23 +1071,14 @@ void process_profile_files() {
     if (config::secure_mode) {
         return;
     }
-    if (std::filesystem::exists(g_cjsh_profile_path())) {
-        g_shell->execute_script_file(g_cjsh_profile_path(), true);
-    } else if (std::filesystem::exists(g_cjsh_profile_alt_path())) {
-        g_shell->execute_script_file(g_cjsh_profile_alt_path(), true);
-    }
+    process_startup_file_with_fallback(g_cjsh_profile_path(), g_cjsh_profile_alt_path(), false,
+                                       true);
 }
 
 void process_env_files() {
     if (config::secure_mode) {
         return;
     }
-
-    auto is_regular_file = [](const std::filesystem::path& candidate) {
-        std::error_code status_ec;
-        auto status = std::filesystem::status(candidate, status_ec);
-        return !status_ec && std::filesystem::is_regular_file(status);
-    };
 
     if (cjsh_env::shell_variable_is_set("CJSH_ENV")) {
         std::string env_override = cjsh_env::get_shell_variable_value("CJSH_ENV");
@@ -1033,27 +1093,22 @@ void process_env_files() {
             }
             override_path = override_path.lexically_normal();
 
-            if (is_regular_file(override_path)) {
+            std::error_code status_ec;
+            auto status = std::filesystem::status(override_path, status_ec);
+            if (!status_ec && std::filesystem::is_regular_file(status)) {
                 g_shell->execute_script_file(override_path, true);
             }
             return;
         }
     }
 
-    if (is_regular_file(g_cjsh_env_path())) {
-        g_shell->execute_script_file(g_cjsh_env_path(), true);
-    } else if (is_regular_file(g_cjsh_env_alt_path())) {
-        g_shell->execute_script_file(g_cjsh_env_alt_path(), true);
-    }
+    process_startup_file_with_fallback(g_cjsh_env_path(), g_cjsh_env_alt_path(), true, true);
 }
 
 void process_logout_file() {
     if (!config::secure_mode && (config::interactive_mode || config::force_interactive)) {
-        if (file_exists(g_cjsh_logout_path())) {
-            g_shell->execute_script_file(g_cjsh_logout_path(), true);
-        } else if (file_exists(g_cjsh_logout_alt_path())) {
-            g_shell->execute_script_file(g_cjsh_logout_alt_path(), true);
-        }
+        process_startup_file_with_fallback(g_cjsh_logout_path(), g_cjsh_logout_alt_path(), false,
+                                           true);
     }
 }
 
@@ -1062,11 +1117,8 @@ void process_source_files() {
         return;
     }
 
-    if (file_exists(g_cjsh_source_path())) {
-        g_shell->execute_script_file(g_cjsh_source_path());
-    } else if (file_exists(g_cjsh_source_alt_path())) {
-        g_shell->execute_script_file(g_cjsh_source_alt_path());
-    }
+    process_startup_file_with_fallback(g_cjsh_source_path(), g_cjsh_source_alt_path(), false,
+                                       false);
 }
 
 }  // namespace cjsh_filesystem

@@ -1379,38 +1379,23 @@ void cjsh_filename_completer(ic_completion_env_t* cenv, const char* prefix) {
         special_part = prefix_str;
     }
 
-    if (has_tilde && (special_part.length() == 1 || special_part[1] == '/')) {
+    if ((has_tilde && (special_part.length() == 1 || special_part[1] == '/')) ||
+        (has_dash && (special_part.length() == 1 || special_part[1] == '/'))) {
         std::string unquoted_special = completion_utils::unquote_path(special_part);
-        std::string path_after_tilde =
-            unquoted_special.length() > 1 ? unquoted_special.substr(2) : "";
-        std::string dir_to_complete = cjsh_filesystem::g_user_home_path().string();
+        const std::string cwd = cjsh_filesystem::safe_current_directory();
+        const std::string previous_directory = g_shell ? g_shell->get_previous_directory() : "";
 
-        if (unquoted_special.length() > 1) {
-            dir_to_complete += "/" + path_after_tilde;
+        std::filesystem::path expanded =
+            cjsh_filesystem::expand_shell_path_token(unquoted_special, cwd, previous_directory);
+        if (expanded.empty()) {
+            return;
         }
 
         bool treat_as_directory = !unquoted_special.empty() && unquoted_special.back() == '/';
-        if (!complete_special_prefix(dir_to_complete, treat_as_directory, "tilde"))
-            return;
-        return;
-    }
-    if (has_dash && (special_part.length() == 1 || special_part[1] == '/')) {
-        std::string unquoted_special = completion_utils::unquote_path(special_part);
-        std::string path_after_dash =
-            unquoted_special.length() > 1 ? unquoted_special.substr(2) : "";
-        std::string dir_to_complete = g_shell->get_previous_directory();
-
-        if (dir_to_complete.empty()) {
+        if (!complete_special_prefix(expanded.string(), treat_as_directory,
+                                     has_tilde ? "tilde" : "dash")) {
             return;
         }
-
-        if (unquoted_special.length() > 1) {
-            dir_to_complete += "/" + path_after_dash;
-        }
-
-        bool treat_as_directory = !unquoted_special.empty() && unquoted_special.back() == '/';
-        if (!complete_special_prefix(dir_to_complete, treat_as_directory, "dash"))
-            return;
         return;
     }
 

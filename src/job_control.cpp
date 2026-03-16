@@ -30,6 +30,7 @@
 
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
+#include "numeric_utils.h"
 #include "shell.h"
 #include "shell_env.h"
 #include "signal_handler.h"
@@ -302,11 +303,35 @@ std::optional<int> parse_job_specifier(const std::string& target) {
         return std::nullopt;
     }
 
-    try {
-        return std::stoi(target.substr(1));
-    } catch (...) {
+    int parsed_value = 0;
+    if (!numeric_utils::parse_int_strict(target.substr(1), parsed_value)) {
         return std::nullopt;
     }
+    return parsed_value;
+}
+
+std::optional<int> parse_job_specifier_flexible(const std::string& target) {
+    if (target.empty()) {
+        return std::nullopt;
+    }
+
+    if (target[0] == '%') {
+        return parse_job_specifier(target);
+    }
+
+    int parsed_value = 0;
+    if (!numeric_utils::parse_int_strict(target, parsed_value)) {
+        return std::nullopt;
+    }
+    return parsed_value;
+}
+
+std::optional<pid_t> parse_pid_specifier(const std::string& target) {
+    int parsed_value = 0;
+    if (!numeric_utils::parse_int_strict(target, parsed_value)) {
+        return std::nullopt;
+    }
+    return static_cast<pid_t>(parsed_value);
 }
 
 }  // namespace job_control_helpers
