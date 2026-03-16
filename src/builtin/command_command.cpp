@@ -36,6 +36,7 @@
 
 #include "builtin.h"
 #include "cjsh_filesystem.h"
+#include "command_lookup.h"
 #include "error_out.h"
 #include "shell.h"
 #include "shell_env.h"
@@ -93,7 +94,9 @@ int command_command(const std::vector<std::string>& args, Shell* shell) {
     const std::string& command_name = args[start_index];
 
     if (describe_command || verbose_description) {
-        if (shell != nullptr && shell->get_built_ins()->is_builtin_command(command_name) != 0) {
+        const auto resolution = command_lookup::resolve_command(command_name, shell, true);
+
+        if (resolution.is_builtin) {
             if (verbose_description) {
                 std::cout << command_name << " is a shell builtin\n";
             } else {
@@ -111,7 +114,10 @@ int command_command(const std::vector<std::string>& args, Shell* shell) {
             cjsh_env::set_shell_variable_value("PATH", "/usr/bin:/bin");
         }
 
-        std::string full_path = cjsh_filesystem::find_executable_in_path(command_name);
+        std::string full_path = resolution.path;
+        if (use_default_path) {
+            full_path = cjsh_filesystem::find_executable_in_path(command_name);
+        }
 
         if (use_default_path && !saved_path.empty()) {
             cjsh_env::set_shell_variable_value("PATH", saved_path);

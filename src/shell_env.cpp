@@ -264,6 +264,33 @@ bool unset_shell_variable_value(const std::string& name) {
     return true;
 }
 
+bool set_shell_or_local_variable_value(Shell* shell, const std::string& name,
+                                       const std::string& value) {
+    if (shell != nullptr) {
+        if (auto* interpreter = shell->get_shell_script_interpreter()) {
+            if (interpreter->is_local_variable(name)) {
+                interpreter->set_local_variable(name, value);
+                return true;
+            }
+        }
+    }
+
+    return set_shell_variable_value(name, value);
+}
+
+bool unset_shell_or_local_variable_value(Shell* shell, const std::string& name) {
+    if (shell != nullptr) {
+        if (auto* interpreter = shell->get_shell_script_interpreter()) {
+            if (interpreter->is_local_variable(name)) {
+                interpreter->unset_local_variable(name);
+                return true;
+            }
+        }
+    }
+
+    return unset_shell_variable_value(name);
+}
+
 void setup_path_variables(const struct passwd* pw) {
     // Raw getenv here: PATH bootstrap before shell vars exist.
     const char* path_env = getenv("PATH");

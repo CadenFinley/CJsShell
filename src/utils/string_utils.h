@@ -66,4 +66,11 @@ inline std::string trim_ascii_whitespace_copy(const std::string& input) {
     return trim_right_ascii_whitespace_copy(trim_left_ascii_whitespace_copy(input));
 }
 
+inline std::string trim_trailing_line_endings_copy(std::string input) {
+    while (!input.empty() && (input.back() == '\n' || input.back() == '\r')) {
+        input.pop_back();
+    }
+    return input;
+}
+
 }  // namespace string_utils

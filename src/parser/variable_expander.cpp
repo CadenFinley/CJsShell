@@ -39,14 +39,12 @@
 #include "parser_utils.h"
 #include "shell.h"
 #include "shell_env.h"
+#include "string_utils.h"
 
 namespace {
 
 std::string trim_command_output(std::string value) {
-    while (!value.empty() && (value.back() == '\n' || value.back() == '\r')) {
-        value.pop_back();
-    }
-    return value;
+    return string_utils::trim_trailing_line_endings_copy(std::move(value));
 }
 
 }  // namespace

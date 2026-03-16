@@ -41,14 +41,7 @@
 namespace {
 
 void set_special_var(Shell* shell, const std::string& key, const std::string& value) {
-    if (shell) {
-        auto* interpreter = shell->get_shell_script_interpreter();
-        if (interpreter && interpreter->is_local_variable(key)) {
-            interpreter->set_local_variable(key, value);
-            return;
-        }
-    }
-    cjsh_env::set_shell_variable_value(key, value);
+    (void)cjsh_env::set_shell_or_local_variable_value(shell, key, value);
 }
 
 void set_special_var(Shell* shell, const std::string& key, int value) {
@@ -56,14 +49,7 @@ void set_special_var(Shell* shell, const std::string& key, int value) {
 }
 
 void unset_special_var(Shell* shell, const std::string& key) {
-    if (shell) {
-        auto* interpreter = shell->get_shell_script_interpreter();
-        if (interpreter && interpreter->is_local_variable(key)) {
-            interpreter->unset_local_variable(key);
-            return;
-        }
-    }
-    cjsh_env::unset_shell_variable_value(key);
+    (void)cjsh_env::unset_shell_or_local_variable_value(shell, key);
 }
 
 void set_getopts_pos(int value) {

@@ -39,6 +39,7 @@
 #include <string>
 
 #include "builtin_help.h"
+#include "builtin_option_parser.h"
 #include "cjsh.h"
 #include "error_out.h"
 #include "exec.h"
@@ -172,24 +173,29 @@ int jobs_command(const std::vector<std::string>& args) {
     bool long_format = false;
     bool pid_only = false;
 
-    for (size_t i = 1; i < args.size(); ++i) {
-        if (args[i] == "-l") {
-            long_format = true;
-        } else if (args[i] == "-p") {
-            pid_only = true;
-        } else if (args[i].substr(0, 1) == "-") {
-            print_error({ErrorType::INVALID_ARGUMENT,
-                         args[i],
-                         "Invalid option",
-                         {"Use -l for long format, -p for PIDs only"}});
-            return 1;
-        } else {
-            print_error({ErrorType::INVALID_ARGUMENT,
-                         args[i],
-                         "jobs does not take positional arguments",
-                         {"Usage: jobs [-lp]"}});
-            return 1;
-        }
+    size_t start_index = 1;
+    const bool options_ok =
+        builtin_parse_short_options(args, start_index, "jobs", [&](char option) {
+            switch (option) {
+                case 'l':
+                    long_format = true;
+                    return true;
+                case 'p':
+                    pid_only = true;
+                    return true;
+                default:
+                    return false;
+            }
+        });
+    if (!options_ok) {
+        return 1;
+    }
+    if (start_index < args.size()) {
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     args[start_index],
+                     "jobs does not take positional arguments",
+                     {"Usage: jobs [-lp]"}});
+        return 1;
     }
 
     auto jobs = job_manager.get_all_jobs();
@@ -597,89 +603,20 @@ int kill_command(const std::vector<std::string>& args) {
         };
 
         auto handle_job_target = [&](const std::string& spec, const std::string& original) -> bool {
-            std::string job_spec = spec;
-            job_control_helpers::trim_in_place(job_spec);
-            if (job_spec.empty()) {
-                print_error({ErrorType::INVALID_ARGUMENT,
-                             original,
-                             "No such job",
-                             {"Use 'jobs' to list available jobs"}});
+            std::vector<std::string> lookup_args = {"kill", original};
+            if (!spec.empty() && spec[0] != '%' && (original.empty() || original[0] != '%')) {
+                lookup_args[1] = "%" + spec;
+            }
+
+            auto resolved =
+                job_control_helpers::resolve_control_job_target(lookup_args, job_manager);
+            if (!resolved) {
                 had_error = true;
                 return false;
             }
 
-            if (job_spec == "+" || job_spec == "-") {
-                const bool is_current = job_spec[0] == '+';
-                int target_id =
-                    is_current ? job_manager.get_current_job() : job_manager.get_previous_job();
-                if (target_id < 0) {
-                    print_error({ErrorType::INVALID_ARGUMENT,
-                                 original,
-                                 is_current ? "current job not set" : "no previous job",
-                                 {"Use 'jobs' to list available jobs"}});
-                    had_error = true;
-                    return false;
-                }
-
-                auto job = job_manager.get_job(target_id);
-                if (!job) {
-                    print_error({ErrorType::INVALID_ARGUMENT,
-                                 original,
-                                 "No such job",
-                                 {"Use 'jobs' to list available jobs"}});
-                    had_error = true;
-                    return false;
-                }
-
-                send_signal_to_job(job);
-                return true;
-            }
-
-            size_t consumed = 0;
-            try {
-                int parsed_value = std::stoi(job_spec, &consumed);
-                if (consumed == job_spec.size()) {
-                    auto job = job_manager.get_job(parsed_value);
-                    if (!job) {
-                        job = job_manager.get_job_by_pid(static_cast<pid_t>(parsed_value));
-                    }
-
-                    if (job) {
-                        send_signal_to_job(job);
-                        return true;
-                    }
-
-                    print_error({ErrorType::INVALID_ARGUMENT,
-                                 original,
-                                 "No such job",
-                                 {"Use 'jobs' to list available jobs"}});
-                    had_error = true;
-                    return false;
-                }
-            } catch (...) {
-                // Not a numeric job spec; fall back to command lookup.
-            }
-
-            bool ambiguous = false;
-            auto job = job_control_helpers::find_job_by_command(job_spec, job_manager, ambiguous);
-            if (job) {
-                send_signal_to_job(job);
-                return true;
-            }
-
-            had_error = true;
-            if (ambiguous) {
-                print_error({ErrorType::INVALID_ARGUMENT,
-                             original,
-                             "multiple jobs match command",
-                             {"Use job id or PID to disambiguate"}});
-            } else {
-                print_error({ErrorType::INVALID_ARGUMENT,
-                             original,
-                             "No such job",
-                             {"Use 'jobs' to list available jobs"}});
-            }
-            return false;
+            send_signal_to_job(resolved->job);
+            return true;
         };
 
         for (size_t i = start_index; i < args.size(); ++i) {

@@ -28,6 +28,7 @@
 
 #include "parser_utils.h"
 #include "quote_info.h"
+#include "quote_state.h"
 #include "string_utils.h"
 
 #include <cctype>
@@ -181,26 +182,16 @@ size_t find_token_end_with_quotes(const std::string& text, size_t start, size_t 
         return start;
     }
 
-    bool in_single = false;
-    bool in_double = false;
+    utils::QuoteState quote_state;
     size_t i = start;
     while (i < end) {
         char ch = text[i];
-        if (ch == '\\' && !in_single && i + 1 < end) {
+        if (ch == '\\' && !quote_state.in_single_quote && i + 1 < end) {
             i += 2;
             continue;
         }
-        if (!in_double && ch == '\'') {
-            in_single = !in_single;
-            ++i;
-            continue;
-        }
-        if (!in_single && ch == '"') {
-            in_double = !in_double;
-            ++i;
-            continue;
-        }
-        if (!in_single && !in_double) {
+        (void)quote_state.consume_forward(ch);
+        if (!quote_state.inside_quotes()) {
             if ((stop_on_whitespace && (std::isspace(static_cast<unsigned char>(ch)) != 0)) ||
                 (!delimiter_chars.empty() && delimiter_chars.find(ch) != std::string::npos)) {
                 break;

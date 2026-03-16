@@ -29,6 +29,7 @@
 #include "command_substitution_evaluator.h"
 
 #include "parser_utils.h"
+#include "string_utils.h"
 
 #include <sys/stat.h>
 #include <sys/wait.h>
@@ -90,9 +91,7 @@ std::pair<std::string, int> execute_command_for_substitution(
             exit_code = status;
         }
 
-        while (!result.empty() && (result.back() == '\n' || result.back() == '\r')) {
-            result.pop_back();
-        }
+        result = string_utils::trim_trailing_line_endings_copy(std::move(result));
 
         return {result, exit_code};
     }

@@ -28,6 +28,7 @@
 
 #include "umask_command.h"
 #include "builtin_help.h"
+#include "builtin_option_parser.h"
 
 #include <sys/stat.h>
 
@@ -198,35 +199,28 @@ int umask_command(const std::vector<std::string>& args) {
     size_t mode_index = 1;
 
     for (size_t i = 1; i < args.size(); ++i) {
-        const std::string& arg = args[i];
-
-        if (arg == "-S") {
-            symbolic_output = true;
-            mode_index = i + 1;
-        } else if (arg == "-p") {
-            posix_output = true;
-            mode_index = i + 1;
-        } else if (arg == "--version") {
+        if (args[i] == "--version") {
             return 0;
-        } else if (arg[0] == '-' && arg != "-") {
-            for (size_t j = 1; j < arg.length(); ++j) {
-                if (arg[j] == 'S') {
-                    symbolic_output = true;
-                } else if (arg[j] == 'p') {
-                    posix_output = true;
-                } else {
-                    print_error({ErrorType::INVALID_ARGUMENT,
-                                 "umask",
-                                 "invalid option -- '" + std::string(1, arg[j]) + "'",
-                                 {"Try 'umask --help' for more information."}});
-                    return 1;
-                }
-            }
-            mode_index = i + 1;
-        } else {
-            mode_index = i;
-            break;
         }
+    }
+
+    const bool options_ok = builtin_parse_short_options(
+        args, mode_index, "umask",
+        [&](char option) {
+            switch (option) {
+                case 'S':
+                    symbolic_output = true;
+                    return true;
+                case 'p':
+                    posix_output = true;
+                    return true;
+                default:
+                    return false;
+            }
+        },
+        false);
+    if (!options_ok) {
+        return 1;
     }
 
     if (mode_index >= args.size()) {
