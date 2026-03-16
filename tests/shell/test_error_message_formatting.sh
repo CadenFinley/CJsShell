@@ -70,12 +70,27 @@ if [ ! -x "$SHELL_TO_TEST" ]; then
 fi
 
 TMPDIR_BASE=${TMPDIR:-/tmp}
+TMPDIR_BASE=${TMPDIR_BASE%/}
 WORK_DIR=$(mktemp -d "$TMPDIR_BASE/cjsh-error-format.XXXXXX")
 trap 'chmod -R u+rw "$WORK_DIR" >/dev/null 2>&1; rm -rf "$WORK_DIR"' EXIT
 
 NOPERM_FILE="$WORK_DIR/noperm_file"
 printf "secret\n" > "$NOPERM_FILE"
 chmod 000 "$NOPERM_FILE"
+
+NESTED_SOURCE_LEVEL3="$WORK_DIR/nested_source_level3.cjsh"
+NESTED_SOURCE_LEVEL2="$WORK_DIR/nested_source_level2.cjsh"
+NESTED_SOURCE_LEVEL1="$WORK_DIR/nested_source_level1.cjsh"
+cat > "$NESTED_SOURCE_LEVEL3" <<EOF
+if true
+echo nested
+EOF
+cat > "$NESTED_SOURCE_LEVEL2" <<EOF
+source "$NESTED_SOURCE_LEVEL3"
+EOF
+cat > "$NESTED_SOURCE_LEVEL1" <<EOF
+source "$NESTED_SOURCE_LEVEL2"
+EOF
 
 run_cmd() {
     cmd="$1"
@@ -166,6 +181,8 @@ expect_invalid_option_message "history invalid option reports message" "history 
 expect_invalid_option_message "kill invalid option reports message" "kill -z 1"
 expect_invalid_option_message "generate-completions invalid option reports message" "generate-completions --jobs nope"
 expect_output_contains "source permission denied reports message" ". $NOPERM_FILE" "permission denied"
+expect_output_contains "nested source reports deepest source path" "source $NESTED_SOURCE_LEVEL1" "source $NESTED_SOURCE_LEVEL3"
+expect_output_contains "nested source keeps deepest line number" "source $NESTED_SOURCE_LEVEL1" "line 1, source $NESTED_SOURCE_LEVEL3"
 expect_output_not_contains "history invalid option avoids interpreter error" "history -z" "unknown interpreter error"
 expect_output_not_contains "kill invalid option avoids interpreter error" "kill -z 1" "unknown interpreter error"
 expect_output_not_contains "generate-completions invalid option avoids interpreter error" "generate-completions --jobs nope" "unknown interpreter error"

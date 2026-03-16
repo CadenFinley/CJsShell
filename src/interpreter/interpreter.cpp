@@ -332,6 +332,14 @@ void ShellScriptInterpreter::set_parser(Parser* parser) {
     shell_parser = parser;
 }
 
+void ShellScriptInterpreter::set_error_source(const std::string& source) {
+    error_source = source;
+}
+
+const std::string& ShellScriptInterpreter::get_error_source() const {
+    return error_source;
+}
+
 std::vector<std::string> ShellScriptInterpreter::parse_into_lines(const std::string& script) {
     if (!shell_parser) {
         return {};

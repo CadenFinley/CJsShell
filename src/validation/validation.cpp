@@ -216,7 +216,7 @@ ErrorType map_category_to_error_type(ErrorCategory category) {
     }
 }
 
-std::string build_error_message(const SyntaxError& error) {
+std::string build_error_message(const SyntaxError& error, const std::string& source) {
     std::ostringstream builder;
     if (!error.error_code.empty()) {
         builder << "[" << error.error_code << "] ";
@@ -224,6 +224,9 @@ std::string build_error_message(const SyntaxError& error) {
     builder << error.message;
     if (error.position.line_number > 0) {
         builder << " (line " << error.position.line_number;
+        if (!source.empty()) {
+            builder << ", source " << source;
+        }
         if (error.position.column_start > 0) {
             builder << ", column " << error.position.column_start;
         }
@@ -232,7 +235,7 @@ std::string build_error_message(const SyntaxError& error) {
     return builder.str();
 }
 
-void emit_validation_errors(const std::vector<SyntaxError>& errors) {
+void emit_validation_errors(const std::vector<SyntaxError>& errors, const std::string& source) {
     for (const auto& error : errors) {
         std::vector<std::string> suggestions;
         if (config::error_suggestions_enabled) {
@@ -250,7 +253,7 @@ void emit_validation_errors(const std::vector<SyntaxError>& errors) {
         }
 
         print_error({map_category_to_error_type(error.category), error.severity, "",
-                     build_error_message(error), suggestions});
+                     build_error_message(error, source), suggestions});
     }
 }
 
@@ -1062,7 +1065,7 @@ bool ShellScriptInterpreter::has_syntax_errors(const std::vector<std::string>& l
             }
         }
         if (!blocking_errors.empty()) {
-            emit_validation_errors(blocking_errors);
+            emit_validation_errors(blocking_errors, get_error_source());
         }
     }
 

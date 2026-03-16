@@ -56,6 +56,8 @@ class ShellScriptInterpreter {
     ShellScriptInterpreter& operator=(ShellScriptInterpreter&&) = delete;
 
     void set_parser(Parser* parser);
+    void set_error_source(const std::string& source);
+    const std::string& get_error_source() const;
 
     int execute_block(const std::vector<std::string>& lines, bool skip_validation = false);
     std::vector<std::string> parse_into_lines(const std::string& script);
@@ -169,6 +171,7 @@ class ShellScriptInterpreter {
     std::optional<int> pending_assignment_exit_status;
 
     bool skip_validation_mode = false;
+    std::string error_source;
 
     bool should_interpret_as_cjsh_script(const std::string& path) const;
 

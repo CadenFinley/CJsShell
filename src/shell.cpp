@@ -418,7 +418,11 @@ int Shell::execute_script_file(const std::filesystem::path& path, bool optional)
         return 0;
     }
 
-    return shell_script_interpreter->execute_block(parsed_lines);
+    const std::string previous_error_source = shell_script_interpreter->get_error_source();
+    shell_script_interpreter->set_error_source(display_path);
+    int exit_code = shell_script_interpreter->execute_block(parsed_lines);
+    shell_script_interpreter->set_error_source(previous_error_source);
+    return exit_code;
 }
 
 int read_exit_code_or(int fallback) {
