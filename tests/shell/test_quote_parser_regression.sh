@@ -34,7 +34,7 @@ fi
 
 echo "Test: quote parser regression cases..."
 
-MULTILINE_SCRIPT=$(printf 'echo "Say \\\"hello\\\" now"\necho done')
+MULTILINE_SCRIPT=$(printf '%s\n%s' 'echo "Say \"hello\" now"' 'echo done')
 MULTILINE_OUTPUT=$("$CJSH_PATH" -c "$MULTILINE_SCRIPT" 2>&1)
 EXPECTED_MULTILINE_OUTPUT=$(printf 'Say "hello" now\ndone')
 if [ "$MULTILINE_OUTPUT" != "$EXPECTED_MULTILINE_OUTPUT" ]; then

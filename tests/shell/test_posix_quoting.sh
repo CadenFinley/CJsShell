@@ -187,7 +187,7 @@ else
 fi
 
 log_test "Escaped quotes before newline in -c script"
-result=$("$SHELL_TO_TEST" -c "$(printf 'echo \"Say \\\"hello\\\" now\"\necho done')" 2>/dev/null)
+result=$("$SHELL_TO_TEST" -c "$(printf '%s\n%s' 'echo "Say \"hello\" now"' 'echo done')" 2>/dev/null)
 expected=$(printf 'Say "hello" now\ndone')
 if [ "$result" = "$expected" ]; then
     pass
