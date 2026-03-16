@@ -671,6 +671,19 @@ bool path_is_directory_candidate(const std::string& value, const std::string& cw
            std::filesystem::is_directory(candidate, ec) && !ec;
 }
 
+bool token_has_explicit_path_hint(const std::string& value) {
+    if (value.empty()) {
+        return false;
+    }
+
+    if (value[0] == '/') {
+        return true;
+    }
+
+    return value.rfind("./", 0) == 0 || value.rfind("../", 0) == 0 || value.rfind("~/", 0) == 0 ||
+           value.rfind("-/", 0) == 0 || value.find('/') != std::string::npos;
+}
+
 std::filesystem::path expand_shell_path_token(const std::string& value, const std::string& cwd,
                                               const std::string& previous_directory) {
     if (value.empty()) {
@@ -716,10 +729,43 @@ std::filesystem::path expand_shell_path_token(const std::string& value, const st
     return candidate;
 }
 
+std::string resolve_shell_token_path(const std::string& value, const std::string& cwd,
+                                     const std::string& previous_directory) {
+    std::filesystem::path resolved = expand_shell_path_token(value, cwd, previous_directory);
+    if (resolved.empty()) {
+        return value;
+    }
+    return resolved.lexically_normal().string();
+}
+
 bool is_directory_path(const std::filesystem::path& path) {
     std::error_code ec;
     return std::filesystem::exists(path, ec) && !ec && std::filesystem::is_directory(path, ec) &&
            !ec;
+}
+
+std::string resolve_existing_shell_directory_token(const std::string& value, const std::string& cwd,
+                                                   const std::string& previous_directory) {
+    if (value.empty()) {
+        return {};
+    }
+
+    std::filesystem::path candidate = expand_shell_path_token(value, cwd, previous_directory);
+    if (candidate.empty()) {
+        return {};
+    }
+
+    if (!is_directory_path(candidate)) {
+        return {};
+    }
+
+    std::error_code ec;
+    std::filesystem::path canonical = std::filesystem::canonical(candidate, ec);
+    if (!ec && !canonical.empty()) {
+        return canonical.string();
+    }
+
+    return candidate.lexically_normal().string();
 }
 
 bool is_auto_cd_directory_token(const std::string& value, const std::string& cwd,

@@ -151,6 +151,9 @@ struct CommandOutput {
     bool success;
 };
 
+CommandOutput execute_with_stdout_capture(const std::function<int()>& child_executor,
+                                          bool capture_stderr = false, bool suppress_stderr = true);
+
 CommandOutput execute_command_for_output(const std::string& command);
 
 CommandOutput execute_command_vector_for_output(const std::vector<std::string>& args);

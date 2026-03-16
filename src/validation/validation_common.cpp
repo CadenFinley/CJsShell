@@ -31,6 +31,7 @@
 #include "error_out.h"
 #include "interpreter_utils.h"
 #include "parser_utils.h"
+#include "quote_state.h"
 
 #include <algorithm>
 #include <cctype>
@@ -98,36 +99,16 @@ size_t find_matching_backtick_for_validation_impl(const std::string& text, size_
 
 template <typename Func>
 void for_each_effective_char_basic(const std::string& text, size_t start_index, Func&& callback) {
-    struct BasicQuoteState {
-        bool in_single = false;
-        bool in_double = false;
-        bool escaped = false;
-    } state;
+    utils::QuoteState state;
 
     for (size_t i = start_index; i < text.size(); ++i) {
         char ch = text[i];
 
-        if (state.escaped) {
-            state.escaped = false;
+        if (state.consume_forward(ch) == utils::QuoteAdvanceResult::Continue) {
             continue;
         }
 
-        if (ch == '\\') {
-            state.escaped = true;
-            continue;
-        }
-
-        if (!state.in_double && ch == '\'') {
-            state.in_single = !state.in_single;
-            continue;
-        }
-
-        if (!state.in_single && ch == '"') {
-            state.in_double = !state.in_double;
-            continue;
-        }
-
-        if (!state.in_single) {
+        if (!state.in_single_quote) {
             if (callback(i, ch)) {
                 return;
             }
@@ -198,9 +179,7 @@ std::string sanitize_command_substitutions_for_validation(const std::string& inp
     std::string output;
     output.reserve(input.size());
 
-    bool in_single = false;
-    bool in_double = false;
-    bool escaped = false;
+    utils::QuoteState quote_state;
 
     size_t i = 0;
     while (i < input.size()) {
@@ -230,35 +209,36 @@ std::string sanitize_command_substitutions_for_validation(const std::string& inp
 
         char c = input[i];
 
-        if (escaped) {
+        if (quote_state.escaped) {
             output.push_back(c);
-            escaped = false;
+            quote_state.escaped = false;
             ++i;
             continue;
         }
 
-        if (c == '\\') {
-            escaped = true;
-            output.push_back(c);
-            ++i;
-            continue;
-        }
-
-        if (!in_double && c == '\'') {
-            in_single = !in_single;
+        if (c == '\\' && !quote_state.in_single_quote) {
+            quote_state.escaped = true;
             output.push_back(c);
             ++i;
             continue;
         }
 
-        if (!in_single && c == '"') {
-            in_double = !in_double;
+        if (c == '\'' && !quote_state.in_double_quote) {
+            quote_state.in_single_quote = !quote_state.in_single_quote;
             output.push_back(c);
             ++i;
             continue;
         }
 
-        if (!in_single && c == '$' && i + 1 < input.size() && input[i + 1] == '(') {
+        if (c == '"' && !quote_state.in_single_quote) {
+            quote_state.in_double_quote = !quote_state.in_double_quote;
+            output.push_back(c);
+            ++i;
+            continue;
+        }
+
+        if (!quote_state.in_single_quote && c == '$' && i + 1 < input.size() &&
+            input[i + 1] == '(') {
             size_t end_index = 0;
             if (find_matching_command_substitution_end_for_validation_impl(input, i + 2,
                                                                            end_index)) {
@@ -270,7 +250,7 @@ std::string sanitize_command_substitutions_for_validation(const std::string& inp
             }
         }
 
-        if (!in_single && c == '`') {
+        if (!quote_state.in_single_quote && c == '`') {
             size_t end_index = find_matching_backtick_for_validation_impl(input, i + 1);
             if (end_index != std::string::npos) {
                 output.push_back('`');

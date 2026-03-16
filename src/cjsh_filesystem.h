@@ -159,8 +159,13 @@ bool should_noclobber_prevent_overwrite(const std::string& filename, bool force_
 bool command_exists(const std::string& command_path);
 bool resolves_to_executable(const std::string& name, const std::string& cwd);
 bool path_is_directory_candidate(const std::string& value, const std::string& cwd);
+bool token_has_explicit_path_hint(const std::string& value);
 std::filesystem::path expand_shell_path_token(const std::string& value, const std::string& cwd,
                                               const std::string& previous_directory);
+std::string resolve_shell_token_path(const std::string& value, const std::string& cwd,
+                                     const std::string& previous_directory);
+std::string resolve_existing_shell_directory_token(const std::string& value, const std::string& cwd,
+                                                   const std::string& previous_directory);
 bool is_auto_cd_directory_token(const std::string& value, const std::string& cwd,
                                 const std::string& previous_directory);
 

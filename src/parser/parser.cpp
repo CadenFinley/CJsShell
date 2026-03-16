@@ -580,6 +580,26 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
     std::string current_here_doc_line;
     current_here_doc_line.reserve(128);
 
+    auto trim_here_doc_compare_line = [](const std::string& line) {
+        std::string trimmed = line;
+        size_t first_non_ws = trimmed.find_first_not_of(" \t");
+        if (first_non_ws != std::string::npos) {
+            trimmed.erase(0, first_non_ws);
+        } else {
+            trimmed.clear();
+            return trimmed;
+        }
+
+        size_t last_non_ws = trimmed.find_last_not_of(" \t\r");
+        if (last_non_ws != std::string::npos) {
+            trimmed.erase(last_non_ws + 1);
+        } else {
+            trimmed.clear();
+        }
+
+        return trimmed;
+    };
+
     bool line_is_comment = false;
     bool in_parameter_brace = false;
 
@@ -812,10 +832,7 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
 
         if (in_here_doc) {
             if (c == '\n') {
-                std::string trimmed_line = current_here_doc_line;
-
-                trimmed_line.erase(0, trimmed_line.find_first_not_of(" \t"));
-                trimmed_line.erase(trimmed_line.find_last_not_of(" \t\r") + 1);
+                std::string trimmed_line = trim_here_doc_compare_line(current_here_doc_line);
 
                 if (trimmed_line == here_doc_delimiter) {
                     std::string_view segment_view{script.data() + start, i - start};
@@ -855,34 +872,13 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
 
         if (!line_is_comment && !in_quotes && !in_parameter_brace && c == '#' &&
             !is_char_escaped(script, i)) {
-            bool comment_start = false;
-            if (i == start) {
-                comment_start = true;
-            } else {
-                char prev = script[i - 1];
-                if (prev == ' ' || prev == '\t' || prev == '\r' || prev == '\f' || prev == '\v') {
-                    comment_start = true;
-                } else {
-                    size_t j = i;
-                    while (j > start && (script[j - 1] == ' ' || script[j - 1] == '\t' ||
-                                         script[j - 1] == '\r' || script[j - 1] == '\f' ||
-                                         script[j - 1] == '\v')) {
-                        --j;
-                    }
-                    if (j > start) {
-                        char last = script[j - 1];
-                        if (last == ';' || last == '(' || last == ')' || last == '{' ||
-                            last == '}' || last == '[' || last == ']' || last == '|' ||
-                            last == '&') {
-                            comment_start = true;
-                        }
-                    } else {
-                        comment_start = true;
-                    }
-                }
+            size_t line_end = script.find('\n', start);
+            if (line_end == std::string::npos) {
+                line_end = script.size();
             }
-
-            if (comment_start) {
+            size_t comment_start = shell_script_interpreter::detail::find_inline_comment_start(
+                script, start, line_end);
+            if (comment_start == i) {
                 line_is_comment = true;
             }
         }
@@ -995,22 +991,7 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
     }
 
     if (in_here_doc) {
-        std::string trimmed_line = current_here_doc_line;
-        size_t first_non_ws = trimmed_line.find_first_not_of(" \t");
-        if (first_non_ws != std::string::npos) {
-            trimmed_line.erase(0, first_non_ws);
-        } else {
-            trimmed_line.clear();
-        }
-
-        if (!trimmed_line.empty()) {
-            size_t last_non_ws = trimmed_line.find_last_not_of(" \t\r");
-            if (last_non_ws != std::string::npos) {
-                trimmed_line.erase(last_non_ws + 1);
-            } else {
-                trimmed_line.clear();
-            }
-        }
+        std::string trimmed_line = trim_here_doc_compare_line(current_here_doc_line);
 
         if (trimmed_line == here_doc_delimiter) {
             size_t segment_len = script.size() - start;

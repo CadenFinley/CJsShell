@@ -1681,11 +1681,7 @@ long long ShellScriptInterpreter::evaluate_arithmetic_expression(const std::stri
 
         if (g_shell) {
             cjsh_env::env_vars()[name] = value_str;
-
-            if (name == "PATH" || name == "PWD" || name == "HOME" || name == "USER" ||
-                name == "SHELL") {
-                setenv(name.c_str(), value_str.c_str(), 1);
-            }
+            cjsh_env::mirror_set_to_process_env(name, value_str);
 
             if (shell_parser) {
                 shell_parser->set_env_vars(cjsh_env::env_vars());

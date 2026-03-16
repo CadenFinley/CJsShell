@@ -30,6 +30,7 @@
 
 #include <cstdlib>
 
+#include "quote_state.h"
 #include "shell_env.h"
 
 const char QUOTE_PREFIX = '\x1F';
@@ -46,26 +47,7 @@ std::string create_quote_tag(char quote_type, const std::string& content) {
 }
 
 bool is_inside_quotes(const std::string& text, size_t pos) {
-    bool in_single = false;
-    bool in_double = false;
-    bool escaped = false;
-
-    for (size_t i = 0; i < pos && i < text.length(); ++i) {
-        if (escaped) {
-            escaped = false;
-            continue;
-        }
-
-        if (text[i] == '\\') {
-            escaped = true;
-        } else if (text[i] == '\'' && !in_double) {
-            in_single = !in_single;
-        } else if (text[i] == '"' && !in_single) {
-            in_double = !in_double;
-        }
-    }
-
-    return in_single || in_double;
+    return utils::is_inside_quotes_at(text, pos);
 }
 
 QuoteInfo::QuoteInfo(const std::string& token)

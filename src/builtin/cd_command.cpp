@@ -36,6 +36,7 @@
 #include <optional>
 
 #include "builtin_help.h"
+#include "cjsh_filesystem.h"
 #include "error_out.h"
 #include "shell.h"
 #include "shell_env.h"
@@ -94,6 +95,7 @@ std::optional<std::filesystem::path> resolve_smart_cd_target(const std::string& 
 int change_directory(const std::string& dir, std::string& current_directory,
                      std::string& previous_directory, Shell* shell) {
     std::string target_dir = dir;
+    std::string requested_dir = dir;
 
     if (target_dir.empty() || target_dir == "~") {
         if (!cjsh_env::shell_variable_is_set("HOME")) {
@@ -102,7 +104,8 @@ int change_directory(const std::string& dir, std::string& current_directory,
             print_error(error);
             return 1;
         }
-        target_dir = cjsh_env::get_shell_variable_value("HOME");
+        target_dir = "~";
+        requested_dir = "~";
     }
 
     if (target_dir == "-") {
@@ -111,33 +114,29 @@ int change_directory(const std::string& dir, std::string& current_directory,
             print_error(error);
             return 1;
         }
-        target_dir = previous_directory;
     }
 
-    if (target_dir[0] == '~') {
-        if (!cjsh_env::shell_variable_is_set("HOME")) {
-            ErrorInfo error = {ErrorType::RUNTIME_ERROR,
-                               "cd",
-                               "Cannot expand '~' - HOME environment variable is not set",
-                               {}};
-            print_error(error);
-            return 1;
-        }
-        target_dir.replace(0, 1, cjsh_env::get_shell_variable_value("HOME"));
+    if (target_dir.rfind("-/", 0) == 0 && previous_directory.empty()) {
+        ErrorInfo error = {ErrorType::RUNTIME_ERROR, "cd", "No previous directory", {}};
+        print_error(error);
+        return 1;
     }
 
     std::filesystem::path dir_path;
 
     try {
-        if (std::filesystem::path(target_dir).is_absolute()) {
-            dir_path = target_dir;
-        } else {
-            dir_path = std::filesystem::path(current_directory) / target_dir;
+        dir_path = cjsh_filesystem::expand_shell_path_token(target_dir, current_directory,
+                                                            previous_directory);
+        if (dir_path.empty()) {
+            ErrorInfo error = {
+                ErrorType::FILE_NOT_FOUND, "cd", requested_dir + ": no such file or directory", {}};
+            print_error(error);
+            return 1;
         }
 
         if (!std::filesystem::exists(dir_path)) {
             if (config::smart_cd_enabled && !config::minimal_mode && !config::secure_mode) {
-                auto smart_target = resolve_smart_cd_target(target_dir, current_directory);
+                auto smart_target = resolve_smart_cd_target(requested_dir, current_directory);
                 if (smart_target.has_value()) {
                     dir_path = *smart_target;
                     target_dir = dir_path.string();
@@ -146,9 +145,9 @@ int change_directory(const std::string& dir, std::string& current_directory,
 
             if (!std::filesystem::exists(dir_path)) {
                 auto suggestions =
-                    suggestion_utils::generate_cd_suggestions(target_dir, current_directory);
+                    suggestion_utils::generate_cd_suggestions(requested_dir, current_directory);
                 ErrorInfo error = {ErrorType::FILE_NOT_FOUND, "cd",
-                                   target_dir + ": no such file or directory", suggestions};
+                                   requested_dir + ": no such file or directory", suggestions};
                 print_error(error);
                 return 1;
             }
@@ -156,7 +155,7 @@ int change_directory(const std::string& dir, std::string& current_directory,
 
         if (!std::filesystem::is_directory(dir_path)) {
             ErrorInfo error = {
-                ErrorType::INVALID_ARGUMENT, "cd", target_dir + ": not a directory", {}};
+                ErrorType::INVALID_ARGUMENT, "cd", requested_dir + ": not a directory", {}};
             print_error(error);
             return 1;
         }

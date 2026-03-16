@@ -80,11 +80,7 @@ void VariableManager::set_environment_variable(const std::string& name, const st
     if (g_shell) {
         auto& env_vars = cjsh_env::env_vars();
         env_vars[name] = value;
-
-        if (name == "PATH" || name == "PWD" || name == "HOME" || name == "USER" ||
-            name == "SHELL") {
-            setenv(name.c_str(), value.c_str(), 1);
-        }
+        cjsh_env::mirror_set_to_process_env(name, value);
 
         auto* shell_parser = g_shell->get_parser();
         if (shell_parser) {

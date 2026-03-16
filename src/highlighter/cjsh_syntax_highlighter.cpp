@@ -233,23 +233,12 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
             } else if (is_glob_pattern(arg)) {
                 ic_highlight(henv, static_cast<long>(absolute_arg_start),
                              static_cast<long>(arg_length), "cjsh-glob-pattern");
-            } else if (is_cd_command || arg[0] == '/' || arg.rfind("./", 0) == 0 ||
-                       arg.rfind("../", 0) == 0 || arg.rfind("~/", 0) == 0 ||
-                       arg.rfind("-/", 0) == 0 || arg.find('/') != std::string::npos) {
-                std::string path_to_check = arg;
-
-                if (arg.rfind("~/", 0) == 0) {
-                    path_to_check = cjsh_filesystem::g_user_home_path().string() + arg.substr(1);
-                } else if (arg.rfind("-/", 0) == 0) {
-                    std::string prev_dir = g_shell->get_previous_directory();
-                    if (!prev_dir.empty()) {
-                        path_to_check = prev_dir + arg.substr(1);
-                    }
-                } else if (is_cd_command && arg[0] != '/' && arg.rfind("./", 0) != 0 &&
-                           arg.rfind("../", 0) != 0 && arg.rfind("~/", 0) != 0 &&
-                           arg.rfind("-/", 0) != 0) {
-                    path_to_check = cjsh_filesystem::safe_current_directory() + "/" + arg;
-                }
+            } else if (is_cd_command || command_analysis::token_has_explicit_path_hint(arg)) {
+                std::string cwd = cjsh_filesystem::safe_current_directory();
+                std::string previous_directory =
+                    (g_shell != nullptr) ? g_shell->get_previous_directory() : "";
+                std::string path_to_check =
+                    cjsh_filesystem::resolve_shell_token_path(arg, cwd, previous_directory);
 
                 if (std::filesystem::exists(path_to_check)) {
                     ic_highlight(henv, static_cast<long>(absolute_arg_start),

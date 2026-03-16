@@ -28,7 +28,9 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
+#include <string_view>
 
 namespace utils {
 
@@ -70,5 +72,14 @@ struct QuoteState {
         return in_single_quote || in_double_quote;
     }
 };
+
+inline bool is_inside_quotes_at(std::string_view text, size_t pos) {
+    QuoteState state;
+    size_t limit = std::min(pos, text.size());
+    for (size_t i = 0; i < limit; ++i) {
+        state.consume_forward(text[i]);
+    }
+    return state.inside_quotes();
+}
 
 }  // namespace utils

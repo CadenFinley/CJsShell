@@ -65,27 +65,14 @@ bool extract_next_token(const std::string& cmd, size_t& cursor, size_t& token_st
 }
 
 bool token_has_explicit_path_hint(const std::string& token) {
-    if (token.empty()) {
-        return false;
-    }
-
-    if (token[0] == '/') {
-        return true;
-    }
-
-    return token.rfind("./", 0) == 0 || token.rfind("../", 0) == 0 || token.rfind("~/", 0) == 0 ||
-           token.rfind("-/", 0) == 0 || token.find('/') != std::string::npos;
+    return cjsh_filesystem::token_has_explicit_path_hint(token);
 }
 
 std::string resolve_token_path(const std::string& token, const Shell* shell) {
     const std::string previous_directory =
         (shell != nullptr) ? shell->get_previous_directory() : "";
-    std::filesystem::path resolved = cjsh_filesystem::expand_shell_path_token(
+    return cjsh_filesystem::resolve_shell_token_path(
         token, cjsh_filesystem::safe_current_directory(), previous_directory);
-    if (resolved.empty()) {
-        return token;
-    }
-    return resolved.string();
 }
 
 bool token_is_history_expansion(const std::string& token, size_t absolute_cmd_start) {

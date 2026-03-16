@@ -28,13 +28,9 @@
 
 #include "command_substitution_evaluator.h"
 
+#include "exec.h"
 #include "parser_utils.h"
 #include "string_utils.h"
-#include "wait_status_utils.h"
-
-#include <sys/stat.h>
-#include <sys/wait.h>
-#include <unistd.h>
 
 #include <cstdio>
 #include <functional>
@@ -47,52 +43,25 @@ namespace {
 
 std::pair<std::string, int> execute_command_for_substitution(
     const std::string& command, const std::function<int(const std::string&)>& executor) {
-    int pipefd[2];
-    if (pipe(pipefd) != 0) {
+    auto output = exec_utils::execute_with_stdout_capture(
+        [&]() -> int {
+            std::cout.flush();
+            (void)fflush(nullptr);
+
+            int exit_code = executor(command);
+            std::cout.flush();
+            std::cerr.flush();
+            std::clog.flush();
+            (void)fflush(nullptr);
+            return exit_code;
+        },
+        false, false);
+
+    std::string result = string_utils::trim_trailing_line_endings_copy(std::move(output.output));
+    if (output.exit_code < 0) {
         return {"", 1};
     }
-
-    std::cout.flush();
-    (void)fflush(nullptr);
-
-    pid_t pid = fork();
-    if (pid == 0) {
-        close(pipefd[0]);
-        if (dup2(pipefd[1], STDOUT_FILENO) == -1) {
-            close(pipefd[1]);
-            _exit(1);
-        }
-        close(pipefd[1]);
-
-        int exit_code = executor(command);
-        std::cout.flush();
-        std::cerr.flush();
-        std::clog.flush();
-        (void)fflush(nullptr);
-        _exit(exit_code);
-    } else if (pid > 0) {
-        close(pipefd[1]);
-        std::string result;
-        char buf[4096];
-        ssize_t n = 0;
-        while ((n = read(pipefd[0], buf, sizeof(buf))) > 0) {
-            result.append(buf, static_cast<std::string::size_type>(n));
-        }
-        close(pipefd[0]);
-
-        int status = 0;
-        waitpid(pid, &status, 0);
-
-        int exit_code = wait_status_utils::to_exit_code(status, status);
-
-        result = string_utils::trim_trailing_line_endings_copy(std::move(result));
-
-        return {result, exit_code};
-    }
-
-    close(pipefd[0]);
-    close(pipefd[1]);
-    return {"", 1};
+    return {result, output.exit_code};
 }
 
 }  // namespace

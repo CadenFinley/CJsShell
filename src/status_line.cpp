@@ -285,25 +285,7 @@ std::string resolve_auto_cd_target(const std::string& token, Shell* shell) {
 
     const std::string cwd = shell->get_built_ins()->get_current_directory();
     const std::string previous_directory = shell->get_previous_directory();
-
-    std::filesystem::path candidate =
-        cjsh_filesystem::expand_shell_path_token(token, cwd, previous_directory);
-    if (candidate.empty()) {
-        return {};
-    }
-
-    std::error_code ec;
-    if (!std::filesystem::exists(candidate, ec) || ec ||
-        !std::filesystem::is_directory(candidate, ec) || ec) {
-        return {};
-    }
-
-    std::filesystem::path canonical = std::filesystem::canonical(candidate, ec);
-    if (!ec && !canonical.empty()) {
-        return canonical.string();
-    }
-
-    return candidate.lexically_normal().string();
+    return cjsh_filesystem::resolve_existing_shell_directory_token(token, cwd, previous_directory);
 }
 
 std::optional<AutoCdInfo> detect_auto_cd_command(Shell* shell, const std::string& original_input) {

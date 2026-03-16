@@ -89,6 +89,9 @@ bool update_terminal_dimensions();
 void sync_env_vars_from_system(Shell& shell);
 std::unordered_map<std::string, std::string>& env_vars();
 void sync_parser_env_vars(Shell* shell);
+bool should_mirror_to_process_env(const std::string& name);
+void mirror_set_to_process_env(const std::string& name, const std::string& value);
+void mirror_unset_from_process_env(const std::string& name);
 
 bool exit_requested();
 void request_exit();

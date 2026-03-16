@@ -97,6 +97,10 @@ namespace cjsh_env {
 
 namespace {
 
+bool is_process_mirrored_shell_var(const std::string& name) {
+    return name == "PATH" || name == "PWD" || name == "HOME" || name == "USER" || name == "SHELL";
+}
+
 #if defined(__APPLE__)
 inline char** cjsh_environ() {
     return *_NSGetEnviron();
@@ -123,6 +127,10 @@ void apply_env_vars_to_parser(Shell* shell) {
 }
 
 }  // namespace
+
+bool should_mirror_to_process_env(const std::string& name);
+void mirror_set_to_process_env(const std::string& name, const std::string& value);
+void mirror_unset_from_process_env(const std::string& name);
 
 void setup_environment_variables(const char* argv0) {
     std::string shell_value = "cjsh";
@@ -258,10 +266,26 @@ bool unset_shell_variable_value(const std::string& name) {
     env_map.erase(name);
     sync_parser_env_vars(g_shell.get());
 
-    if (name == "PATH" || name == "PWD" || name == "HOME" || name == "USER" || name == "SHELL") {
-        unsetenv(name.c_str());
-    }
+    mirror_unset_from_process_env(name);
     return true;
+}
+
+bool should_mirror_to_process_env(const std::string& name) {
+    return is_process_mirrored_shell_var(name);
+}
+
+void mirror_set_to_process_env(const std::string& name, const std::string& value) {
+    if (!is_process_mirrored_shell_var(name)) {
+        return;
+    }
+    setenv(name.c_str(), value.c_str(), 1);
+}
+
+void mirror_unset_from_process_env(const std::string& name) {
+    if (!is_process_mirrored_shell_var(name)) {
+        return;
+    }
+    unsetenv(name.c_str());
 }
 
 bool set_shell_or_local_variable_value(Shell* shell, const std::string& name,

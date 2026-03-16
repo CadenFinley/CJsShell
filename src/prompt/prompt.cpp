@@ -53,6 +53,7 @@
 #include <vector>
 
 #include "cjsh.h"
+#include "exec.h"
 #include "flags.h"
 #include "isocline.h"
 #include "job_control.h"
@@ -492,44 +493,11 @@ std::string read_git_head(const std::filesystem::path& git_dir) {
 }
 
 bool git_has_changes(const std::filesystem::path& workdir) {
-    int pipefd[2];
-    if (pipe(pipefd) != 0) {
-        return false;
-    }
-
-    std::string workdir_str = workdir.empty() ? std::string(".") : workdir.string();
-    const char* workdir_cstr = workdir_str.c_str();
-
-    pid_t pid = fork();
-    if (pid == -1) {
-        close(pipefd[0]);
-        close(pipefd[1]);
-        return false;
-    }
-
-    if (pid == 0) {
-        // Child: redirect stdout/stderr to the pipe and exec git directly.
-        if (dup2(pipefd[1], STDOUT_FILENO) == -1 || dup2(pipefd[1], STDERR_FILENO) == -1) {
-            _exit(127);
-        }
-        close(pipefd[0]);
-        close(pipefd[1]);
-
-        const char* const argv[] = {"git",    "-C",          workdir_cstr,
-                                    "status", "--porcelain", "--untracked-files=normal",
-                                    nullptr};
-        execvp("git", const_cast<char* const*>(argv));
-        _exit(127);
-    }
-
-    close(pipefd[1]);
-    char ch;
-    ssize_t bytes_read = read(pipefd[0], &ch, 1);
-    close(pipefd[0]);
-
-    int status = 0;
-    waitpid(pid, &status, 0);
-    return bytes_read > 0;
+    std::vector<std::string> args = {
+        "git",    "-C",          workdir.empty() ? "." : workdir.string(),
+        "status", "--porcelain", "--untracked-files=normal"};
+    auto output = exec_utils::execute_command_vector_for_output(args);
+    return !output.output.empty();
 }
 
 std::optional<GitRepositoryContext> detect_git_context() {

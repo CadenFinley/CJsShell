@@ -228,11 +228,7 @@ void apply_assignments_to_shell_env(
     auto& env_vars = cjsh_env::env_vars();
     for (const auto& env : assignments) {
         env_vars[env.first] = env.second;
-
-        if (env.first == "PATH" || env.first == "PWD" || env.first == "HOME" ||
-            env.first == "USER" || env.first == "SHELL") {
-            setenv(env.first.c_str(), env.second.c_str(), 1);
-        }
+        cjsh_env::mirror_set_to_process_env(env.first, env.second);
     }
 
     cjsh_env::sync_parser_env_vars(g_shell.get());
@@ -2983,10 +2979,11 @@ const std::vector<int>& Exec::get_last_pipeline_statuses() const {
 
 namespace exec_utils {
 
-static CommandOutput execute_args_for_output_impl(const std::vector<std::string>& args) {
+CommandOutput execute_with_stdout_capture(const std::function<int()>& child_executor,
+                                          bool capture_stderr, bool suppress_stderr) {
     CommandOutput result{"", -1, false};
 
-    if (args.empty()) {
+    if (!child_executor) {
         return result;
     }
 
@@ -2994,11 +2991,6 @@ static CommandOutput execute_args_for_output_impl(const std::vector<std::string>
     auto pipe_result = cjsh_filesystem::create_pipe_cloexec(pipefd);
     if (pipe_result.is_error()) {
         return result;
-    }
-
-    std::string cached_exec_path;
-    if (!args.empty()) {
-        cached_exec_path = cjsh_filesystem::resolve_executable_for_execution(args[0]);
     }
 
     pid_t pid = fork();
@@ -3015,16 +3007,23 @@ static CommandOutput execute_args_for_output_impl(const std::vector<std::string>
             _exit(127);
         }
 
-        auto devnull_result = cjsh_filesystem::safe_open("/dev/null", O_WRONLY);
-        if (devnull_result.is_ok()) {
-            cjsh_filesystem::safe_dup2(devnull_result.value(), STDERR_FILENO);
-            cjsh_filesystem::safe_close(devnull_result.value());
+        if (capture_stderr) {
+            auto stderr_dup_result = cjsh_filesystem::safe_dup2(pipefd[1], STDERR_FILENO);
+            if (stderr_dup_result.is_error()) {
+                _exit(127);
+            }
+        } else if (suppress_stderr) {
+            auto devnull_result = cjsh_filesystem::safe_open("/dev/null", O_WRONLY);
+            if (devnull_result.is_ok()) {
+                cjsh_filesystem::safe_dup2(devnull_result.value(), STDERR_FILENO);
+                cjsh_filesystem::safe_close(devnull_result.value());
+            }
         }
 
         cjsh_filesystem::safe_close(pipefd[1]);
 
-        const char* exec_override = cached_exec_path.empty() ? nullptr : cached_exec_path.c_str();
-        exec_external_child(args, exec_override);
+        int exit_code = child_executor();
+        _exit(exit_code);
     }
 
     cjsh_filesystem::safe_close(pipefd[1]);
@@ -3046,6 +3045,22 @@ static CommandOutput execute_args_for_output_impl(const std::vector<std::string>
     result.exit_code = extract_exit_code(status);
     result.success = (result.exit_code == 0);
     return result;
+}
+
+static CommandOutput execute_args_for_output_impl(const std::vector<std::string>& args) {
+    if (args.empty()) {
+        return {"", -1, false};
+    }
+
+    std::string cached_exec_path = cjsh_filesystem::resolve_executable_for_execution(args[0]);
+    return execute_with_stdout_capture(
+        [&]() -> int {
+            const char* exec_override =
+                cached_exec_path.empty() ? nullptr : cached_exec_path.c_str();
+            exec_external_child(args, exec_override);
+            return 127;
+        },
+        false, true);
 }
 
 CommandOutput execute_command_for_output(const std::string& command) {

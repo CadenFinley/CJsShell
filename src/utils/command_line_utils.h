@@ -28,6 +28,8 @@
 
 #pragma once
 
+#include "quote_state.h"
+
 #include <string>
 #include <vector>
 
@@ -37,46 +39,36 @@ inline std::vector<std::string> tokenize_shell_words(const std::string& command,
                                                      bool preserve_quotes_and_escapes = false) {
     std::vector<std::string> args;
     std::string current;
-    bool in_single_quote = false;
-    bool in_double_quote = false;
-    bool escaped = false;
+    utils::QuoteState quote_state;
 
     for (char c : command) {
-        if (escaped) {
-            current += c;
-            escaped = false;
-            continue;
-        }
+        const bool was_escaped = quote_state.escaped;
+        const bool was_in_single_quote = quote_state.in_single_quote;
+        const bool was_in_double_quote = quote_state.in_double_quote;
+        auto advance_result = quote_state.consume_forward(c);
 
-        if (c == '\\') {
-            if (in_single_quote) {
+        if (advance_result == utils::QuoteAdvanceResult::Continue) {
+            if (was_escaped) {
                 current += c;
-            } else {
+                continue;
+            }
+
+            if (c == '\\' && !was_in_single_quote) {
                 if (preserve_quotes_and_escapes) {
                     current += c;
                 }
-                escaped = true;
+                continue;
             }
-            continue;
+
+            if ((c == '\'' && !was_in_double_quote) || (c == '"' && !was_in_single_quote)) {
+                if (preserve_quotes_and_escapes) {
+                    current += c;
+                }
+                continue;
+            }
         }
 
-        if (c == '\'' && !in_double_quote) {
-            in_single_quote = !in_single_quote;
-            if (preserve_quotes_and_escapes) {
-                current += c;
-            }
-            continue;
-        }
-
-        if (c == '"' && !in_single_quote) {
-            in_double_quote = !in_double_quote;
-            if (preserve_quotes_and_escapes) {
-                current += c;
-            }
-            continue;
-        }
-
-        if ((c == ' ' || c == '\t') && !in_single_quote && !in_double_quote) {
+        if ((c == ' ' || c == '\t') && !quote_state.inside_quotes()) {
             if (!current.empty()) {
                 args.push_back(current);
                 current.clear();
