@@ -38,8 +38,10 @@
 #include <memory>
 #include <string>
 #include <system_error>
+#include <vector>
 
 #include "builtin_help.h"
+#include "builtin_option_parser.h"
 #include "cjsh_filesystem.h"
 #include "error_out.h"
 #include "shell_env.h"
@@ -99,12 +101,29 @@ int pwd_command(const std::vector<std::string>& args) {
         logical = true;
     }
 
-    for (size_t i = 1; i < args.size(); ++i) {
+    size_t start_index = 1;
+    std::vector<BuiltinParsedShortOption> parsed_options;
+    const bool options_ok = builtin_parse_short_options_ex(
+        args, start_index, "pwd", [](char option) { return option == 'L' || option == 'P'; },
+        [](char) { return false; }, parsed_options, true, true);
+    if (!options_ok) {
+        return 1;
+    }
+
+    for (const auto& option : parsed_options) {
+        if (option.option == 'L') {
+            logical = true;
+        } else if (option.option == 'P') {
+            logical = false;
+        }
+    }
+
+    for (size_t i = start_index; i < args.size(); ++i) {
         const std::string& arg = args[i];
 
-        if (arg == "-L" || arg == "--logical") {
+        if (arg == "--logical") {
             logical = true;
-        } else if (arg == "-P" || arg == "--physical") {
+        } else if (arg == "--physical") {
             logical = false;
         } else if (arg == "--version") {
             std::cout << "pwd (CJsShell coreutils)\n";

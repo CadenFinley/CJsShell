@@ -83,14 +83,27 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
         bool found = false;
         bool found_executable = false;
 
-        const auto resolution = command_lookup::resolve_command(name, shell, true);
+        const auto entries = command_lookup::list_resolution_entries(name, shell, true);
+        auto has_kind = [&](command_lookup::CommandResolutionKind kind) {
+            return std::any_of(entries.begin(), entries.end(),
+                               [&](const command_lookup::CommandResolutionEntry& entry) {
+                                   return entry.kind == kind;
+                               });
+        };
+        auto value_for_kind = [&](command_lookup::CommandResolutionKind kind) {
+            auto it = std::find_if(entries.begin(), entries.end(),
+                                   [&](const command_lookup::CommandResolutionEntry& entry) {
+                                       return entry.kind == kind;
+                                   });
+            return it == entries.end() ? std::string{} : it->value;
+        };
 
         const std::vector<std::string> cjsh_custom_commands = {"echo", "printf", "pwd", "cd"};
 
         bool is_cjsh_custom = std::find(cjsh_custom_commands.begin(), cjsh_custom_commands.end(),
                                         name) != cjsh_custom_commands.end();
 
-        if (is_cjsh_custom && resolution.is_builtin) {
+        if (is_cjsh_custom && has_kind(command_lookup::CommandResolutionKind::Builtin)) {
             if (!silent) {
                 std::cout << name << " is a cjsh builtin (custom implementation)\n";
             }
@@ -100,9 +113,9 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
             }
         }
 
-        if (resolution.has_path) {
+        if (has_kind(command_lookup::CommandResolutionKind::Path)) {
             if (!silent) {
-                std::cout << resolution.path << '\n';
+                std::cout << value_for_kind(command_lookup::CommandResolutionKind::Path) << '\n';
             }
             found = true;
             found_executable = true;
@@ -131,7 +144,7 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
         }
 
         if (show_all || (!found_executable && !is_cjsh_custom)) {
-            if (resolution.is_builtin) {
+            if (has_kind(command_lookup::CommandResolutionKind::Builtin)) {
                 if (!silent) {
                     std::cout << "which: " << name << " is a shell builtin\n";
                 }
@@ -139,17 +152,18 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
             }
 
             if ((shell != nullptr) && (show_all || !found)) {
-                if (resolution.has_alias) {
+                if (has_kind(command_lookup::CommandResolutionKind::Alias)) {
                     if (!silent) {
                         std::cout << "which: " << name << " is aliased to `"
-                                  << resolution.alias_value << "'" << '\n';
+                                  << value_for_kind(command_lookup::CommandResolutionKind::Alias)
+                                  << "'" << '\n';
                     }
                     found = true;
                 }
             }
 
             if ((shell != nullptr) && (show_all || !found)) {
-                if (resolution.has_function) {
+                if (has_kind(command_lookup::CommandResolutionKind::Function)) {
                     if (!silent) {
                         std::cout << "which: " << name << " is a function\n";
                     }

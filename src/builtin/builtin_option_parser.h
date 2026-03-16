@@ -29,8 +29,27 @@
 #pragma once
 
 #include <functional>
+#include <optional>
 #include <string>
 #include <vector>
+
+struct BuiltinShortOptionSpec {
+    char option;
+    bool requires_value;
+};
+
+struct BuiltinParsedShortOption {
+    char option;
+    std::optional<std::string> value;
+};
+
+bool builtin_parse_short_options_ex(const std::vector<std::string>& args, size_t& start_index,
+                                    const std::string& command_name,
+                                    const std::function<bool(char)>& is_valid_option,
+                                    const std::function<bool(char)>& option_requires_value,
+                                    std::vector<BuiltinParsedShortOption>& parsed_options,
+                                    bool require_option_character = true,
+                                    bool passthrough_long_options = false);
 
 bool builtin_parse_short_options(const std::vector<std::string>& args, size_t& start_index,
                                  const std::string& command_name,

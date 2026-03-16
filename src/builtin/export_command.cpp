@@ -199,8 +199,7 @@ int unset_command(const std::vector<std::string>& args, Shell* shell) {
             continue;
         }
 
-        if (readonly_manager_is(name)) {
-            print_error({ErrorType::INVALID_ARGUMENT, "unset", name + ": readonly variable", {}});
+        if (!readonly_manager_can_assign(name, "unset")) {
             success = false;
             continue;
         }

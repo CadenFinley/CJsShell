@@ -91,10 +91,23 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
         const std::string& name = args[i];
         bool found = false;
 
-        const auto resolution = command_lookup::resolve_command(name, shell, !no_path_search);
+        const auto entries = command_lookup::list_resolution_entries(name, shell, !no_path_search);
+        auto has_kind = [&](command_lookup::CommandResolutionKind kind) {
+            return std::any_of(entries.begin(), entries.end(),
+                               [&](const command_lookup::CommandResolutionEntry& entry) {
+                                   return entry.kind == kind;
+                               });
+        };
+        auto value_for_kind = [&](command_lookup::CommandResolutionKind kind) {
+            auto it = std::find_if(entries.begin(), entries.end(),
+                                   [&](const command_lookup::CommandResolutionEntry& entry) {
+                                       return entry.kind == kind;
+                                   });
+            return it == entries.end() ? std::string{} : it->value;
+        };
 
         if (!force_path && !inhibit_functions) {
-            if (resolution.is_keyword) {
+            if (has_kind(command_lookup::CommandResolutionKind::Keyword)) {
                 if (show_type_only) {
                     std::cout << "keyword\n";
                 } else {
@@ -107,7 +120,7 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
         }
 
         if (!found || show_all) {
-            if (!force_path && resolution.is_builtin) {
+            if (!force_path && has_kind(command_lookup::CommandResolutionKind::Builtin)) {
                 if (show_type_only) {
                     std::cout << "builtin\n";
                 } else {
@@ -121,12 +134,13 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
 
         if (!found || show_all) {
             if (!force_path && !inhibit_functions && (shell != nullptr)) {
-                if (resolution.has_alias) {
+                if (has_kind(command_lookup::CommandResolutionKind::Alias)) {
                     if (show_type_only) {
                         std::cout << "alias\n";
                     } else {
-                        std::cout << name << " is aliased to `" << resolution.alias_value << "'"
-                                  << '\n';
+                        std::cout << name << " is aliased to `"
+                                  << value_for_kind(command_lookup::CommandResolutionKind::Alias)
+                                  << "'" << '\n';
                     }
                     found = true;
                     if (!show_all)
@@ -136,7 +150,8 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
         }
 
         if (!found || show_all) {
-            if (!force_path && !inhibit_functions && resolution.has_function) {
+            if (!force_path && !inhibit_functions &&
+                has_kind(command_lookup::CommandResolutionKind::Function)) {
                 if (show_type_only) {
                     std::cout << "function\n";
                 } else {
@@ -150,11 +165,13 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
 
         if (!found || show_all || force_path) {
             if (!no_path_search) {
-                if (resolution.has_path) {
+                if (has_kind(command_lookup::CommandResolutionKind::Path)) {
                     if (show_type_only) {
                         std::cout << "file\n";
                     } else {
-                        std::cout << name << " is " << resolution.path << '\n';
+                        std::cout << name << " is "
+                                  << value_for_kind(command_lookup::CommandResolutionKind::Path)
+                                  << '\n';
                     }
                     found = true;
                 }

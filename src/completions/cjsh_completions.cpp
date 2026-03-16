@@ -46,6 +46,7 @@
 #include "builtins_completions_handler.h"
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
+#include "command_lookup.h"
 #include "completion_history.h"
 #include "completion_spell.h"
 #include "completion_tracker.h"
@@ -75,13 +76,6 @@ enum CompletionContext : std::uint8_t {
 namespace {
 
 const char* classify_entry_source(const std::filesystem::directory_entry& entry);
-
-const std::vector<std::string>& control_structure_keywords() {
-    static const std::vector<std::string> keywords = {"if",    "then", "elif", "else",    "fi",
-                                                      "case",  "esac", "for",  "select",  "while",
-                                                      "until", "do",   "done", "function"};
-    return keywords;
-}
 
 const char* extract_current_line_prefix(const char* prefix) {
     if (prefix == nullptr) {
@@ -962,7 +956,7 @@ bool add_builtin_argument_completions(ic_completion_env_t* cenv,
         }
 
         {
-            const auto& control_structures = control_structure_keywords();
+            const auto& control_structures = command_lookup::shell_control_structure_keywords();
             process_command_candidates(cenv, control_structures, context.current_prefix, prefix_len,
                                        "control structure",
                                        [](const std::string& value) { return value; });
@@ -1086,7 +1080,7 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
     if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv))
         return;
 
-    const auto& control_structures = control_structure_keywords();
+    const auto& control_structures = command_lookup::shell_control_structure_keywords();
     process_command_candidates(
         cenv, control_structures, prefix_str, prefix_len, "control structure",
         [](const std::string& value) { return value; }, std::function<bool(const std::string&)>{},

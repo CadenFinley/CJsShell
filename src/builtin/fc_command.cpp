@@ -29,6 +29,7 @@
 #include "fc_command.h"
 
 #include "builtin_help.h"
+#include "builtin_option_parser.h"
 
 #include <algorithm>
 #include <cctype>
@@ -404,42 +405,61 @@ int fc_command(const std::vector<std::string>& args, Shell* shell) {
     std::optional<size_t> first_idx;
     std::optional<size_t> last_idx;
 
-    size_t i = 1;
+    size_t start_index = 1;
+    std::vector<BuiltinParsedShortOption> parsed_options;
+    const bool options_ok = builtin_parse_short_options_ex(
+        args, start_index, "fc",
+        [](char option) {
+            return option == 'l' || option == 'n' || option == 'r' || option == 'e' ||
+                   option == 's' || option == 'c';
+        },
+        [](char option) { return option == 'e' || option == 'c'; }, parsed_options);
+    if (!options_ok) {
+        return 1;
+    }
+
+    for (const auto& option : parsed_options) {
+        switch (option.option) {
+            case 'l':
+                list_mode = true;
+                break;
+            case 'n':
+                show_numbers = false;
+                break;
+            case 'r':
+                reverse_order = true;
+                break;
+            case 'e':
+                editor = option.value.value_or("");
+                break;
+            case 'c':
+                command_mode = true;
+                initial_command = option.value.value_or("");
+                break;
+            case 's':
+                substitute_mode = true;
+                break;
+            default:
+                break;
+        }
+    }
+
+    size_t i = start_index;
     while (i < args.size()) {
         const std::string& arg = args[i];
 
-        if (arg == "-l") {
-            list_mode = true;
-            ++i;
-        } else if (arg == "-n") {
-            show_numbers = false;
-            ++i;
-        } else if (arg == "-r") {
-            reverse_order = true;
-            ++i;
-        } else if (arg == "-e") {
-            if (i + 1 >= args.size()) {
-                print_error(
-                    {ErrorType::INVALID_ARGUMENT, "fc", "-e requires an editor argument", {}});
-                return 1;
-            }
-            editor = args[i + 1];
-            i += 2;
-        } else if (arg == "-c" || arg == "--command") {
+        if (arg == "--command") {
             if (i + 1 >= args.size()) {
                 print_error({ErrorType::INVALID_ARGUMENT,
                              "fc",
-                             "-c requires a command string argument",
+                             "--command requires a command string argument",
                              {}});
                 return 1;
             }
             command_mode = true;
             initial_command = args[i + 1];
             i += 2;
-        } else if (arg == "-s") {
-            substitute_mode = true;
-            ++i;
-        } else if (arg[0] == '-') {
+        } else if (!arg.empty() && arg[0] == '-') {
             print_error({ErrorType::INVALID_ARGUMENT, "fc", "Unknown option: " + arg, {}});
             return 1;
         } else {

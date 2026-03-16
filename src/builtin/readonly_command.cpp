@@ -87,6 +87,15 @@ bool readonly_manager_is(const std::string& name) {
     return vars.find(name) != vars.end();
 }
 
+bool readonly_manager_can_assign(const std::string& name, const std::string& command_name) {
+    if (!readonly_manager_is(name)) {
+        return true;
+    }
+
+    print_error({ErrorType::INVALID_ARGUMENT, command_name, name + ": readonly variable", {}});
+    return false;
+}
+
 std::vector<std::string> readonly_manager_list() {
     const auto& vars = readonly_state().readonly_vars;
     std::vector<std::string> result(vars.begin(), vars.end());
@@ -207,11 +216,7 @@ int readonly_command(const std::vector<std::string>& args) {
                 return 1;
             }
 
-            if (readonly_manager_is(operand.name)) {
-                print_error({ErrorType::RUNTIME_ERROR,
-                             "readonly",
-                             operand.name + ": readonly variable",
-                             {}});
+            if (!readonly_manager_can_assign(operand.name, "readonly")) {
                 return 1;
             }
 

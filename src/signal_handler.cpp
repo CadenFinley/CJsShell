@@ -300,6 +300,72 @@ int SignalHandler::name_to_signal(const std::string& name) {
     }
 }
 
+int SignalHandler::parse_trap_signal_token(const std::string& token) {
+    std::string search_name = token;
+    for (char& c : search_name) {
+        c = static_cast<char>(toupper(static_cast<unsigned char>(c)));
+    }
+
+    if (search_name == "EXIT" || token == "0") {
+        return 0;
+    }
+    if (search_name == "ERR") {
+        return -2;
+    }
+    if (search_name == "DEBUG") {
+        return -3;
+    }
+    if (search_name == "RETURN") {
+        return -4;
+    }
+
+    int signal = name_to_signal(search_name);
+    if (signal <= 0 && token != "0") {
+        return -1;
+    }
+    if (signal == 0) {
+        return 0;
+    }
+    if (!is_valid_signal(signal)) {
+        return -1;
+    }
+    return signal;
+}
+
+std::string SignalHandler::signal_to_name(int signum, bool strip_sig_prefix) {
+    for (const auto& signal : signal_table()) {
+        if (signal.signal != signum || signal.name == nullptr) {
+            continue;
+        }
+
+        std::string name(signal.name);
+        if (strip_sig_prefix && name.rfind("SIG", 0) == 0) {
+            return name.substr(3);
+        }
+        return name;
+    }
+
+    return std::to_string(signum);
+}
+
+std::vector<std::pair<int, std::string>> SignalHandler::trap_signal_names() {
+    std::vector<std::pair<int, std::string>> names;
+    const auto& table = signal_table();
+    names.reserve(table.size() + 4);
+    for (const auto& signal : table) {
+        if (signal.name == nullptr) {
+            continue;
+        }
+        names.emplace_back(signal.signal, signal_to_name(signal.signal, true));
+    }
+
+    names.emplace_back(0, "EXIT");
+    names.emplace_back(-2, "ERR");
+    names.emplace_back(-3, "DEBUG");
+    names.emplace_back(-4, "RETURN");
+    return names;
+}
+
 bool SignalHandler::is_valid_signal(int signum) {
     if (signum <= 0) {
         return false;

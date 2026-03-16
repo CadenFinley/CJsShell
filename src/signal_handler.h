@@ -34,6 +34,7 @@
 #include <cstdint>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 class Exec;
@@ -97,6 +98,9 @@ class SignalHandler {
     static const std::vector<SignalInfo>& available_signals();
 
     static int name_to_signal(const std::string& name);
+    static int parse_trap_signal_token(const std::string& token);
+    static std::string signal_to_name(int signum, bool strip_sig_prefix = false);
+    static std::vector<std::pair<int, std::string>> trap_signal_names();
     static bool is_valid_signal(int signum);
     static bool can_trap_signal(int signum);
     static bool can_ignore_signal(int signum);

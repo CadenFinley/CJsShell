@@ -33,30 +33,13 @@
 #include <algorithm>
 #include <csignal>
 #include <iostream>
+#include <unordered_map>
 #include "cjsh.h"
 #include "error_out.h"
 #include "shell.h"
 #include "signal_handler.h"
-#include "string_utils.h"
 
 namespace {
-
-const std::unordered_map<std::string, int>& signal_name_map() {
-    static const std::unordered_map<std::string, int> kSignalMap = {
-        {"HUP", SIGHUP},       {"INT", SIGINT},   {"QUIT", SIGQUIT},   {"ILL", SIGILL},
-        {"TRAP", SIGTRAP},     {"ABRT", SIGABRT}, {"BUS", SIGBUS},     {"FPE", SIGFPE},
-        {"KILL", SIGKILL},     {"USR1", SIGUSR1}, {"SEGV", SIGSEGV},   {"USR2", SIGUSR2},
-        {"PIPE", SIGPIPE},     {"ALRM", SIGALRM}, {"TERM", SIGTERM},   {"CHLD", SIGCHLD},
-        {"CONT", SIGCONT},     {"STOP", SIGSTOP}, {"TSTP", SIGTSTP},   {"TTIN", SIGTTIN},
-        {"TTOU", SIGTTOU},     {"URG", SIGURG},   {"XCPU", SIGXCPU},   {"XFSZ", SIGXFSZ},
-        {"VTALRM", SIGVTALRM}, {"PROF", SIGPROF}, {"WINCH", SIGWINCH}, {"IO", SIGIO},
-        {"SYS", SIGSYS},
-
-        {"EXIT", 0},           {"ERR", -2},       {"DEBUG", -3},       {"RETURN", -4}};
-    return kSignalMap;
-}
-
-std::unordered_map<int, std::string> reverse_signal_map;
 
 struct TrapManagerState {
     std::unordered_map<int, std::string> traps;
@@ -69,14 +52,6 @@ struct TrapManagerState {
 TrapManagerState& trap_manager_state() {
     static TrapManagerState* state = new TrapManagerState();
     return *state;
-}
-
-void init_reverse_signal_map() {
-    if (reverse_signal_map.empty()) {
-        for (const auto& pair : signal_name_map()) {
-            reverse_signal_map[pair.second] = pair.first;
-        }
-    }
 }
 
 }  // namespace
@@ -169,43 +144,7 @@ void trap_manager_execute_debug_trap() {
 }
 
 int signal_name_to_number(const std::string& signal_name) {
-    std::string upper_name = string_utils::to_upper_copy(signal_name);
-
-    if (upper_name.substr(0, 3) == "SIG") {
-        upper_name = upper_name.substr(3);
-    }
-
-    if (upper_name == "EXIT" || signal_name == "0") {
-        return 0;
-    }
-    if (upper_name == "ERR") {
-        return -2;
-    }
-    if (upper_name == "DEBUG") {
-        return -3;
-    }
-    if (upper_name == "RETURN") {
-        return -4;
-    }
-
-    auto it = signal_name_map().find(upper_name);
-    if (it != signal_name_map().end()) {
-        return it->second;
-    }
-
-    try {
-        int num = std::stoi(signal_name);
-
-        if (num == 0) {
-            return 0;
-        }
-        if (SignalHandler::is_valid_signal(num)) {
-            return num;
-        }
-        return -1;
-    } catch (...) {
-        return -1;
-    }
+    return SignalHandler::parse_trap_signal_token(signal_name);
 }
 
 std::string signal_number_to_name(int signal_number) {
@@ -222,9 +161,7 @@ std::string signal_number_to_name(int signal_number) {
             break;
     }
 
-    init_reverse_signal_map();
-    auto it = reverse_signal_map.find(signal_number);
-    return it != reverse_signal_map.end() ? it->second : std::to_string(signal_number);
+    return SignalHandler::signal_to_name(signal_number, true);
 }
 
 int trap_command(const std::vector<std::string>& args) {
@@ -248,9 +185,8 @@ int trap_command(const std::vector<std::string>& args) {
     }
 
     if (args.size() >= 2 && args[1] == "-l") {
-        init_reverse_signal_map();
-        for (const auto& pair : signal_name_map()) {
-            std::cout << pair.second << ") SIG" << pair.first << '\n';
+        for (const auto& pair : SignalHandler::trap_signal_names()) {
+            std::cout << pair.first << ") SIG" << pair.second << '\n';
         }
         return 0;
     }

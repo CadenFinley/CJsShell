@@ -57,6 +57,7 @@
 #include "builtin.h"
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
+#include "command_lookup.h"
 #include "error_out.h"
 #include "interpreter.h"
 #include "job_control.h"
@@ -259,9 +260,7 @@ bool is_shell_control_structure(const Command& cmd) {
         return false;
     }
 
-    const std::string& keyword = cmd.args[0];
-    return keyword == "if" || keyword == "for" || keyword == "while" || keyword == "until" ||
-           keyword == "case" || keyword == "select" || keyword == "function";
+    return command_lookup::is_shell_control_structure_leader(cmd.args[0]);
 }
 
 std::string command_text_for_interpretation(const Command& cmd) {

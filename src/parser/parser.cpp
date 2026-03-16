@@ -1784,12 +1784,7 @@ bool Parser::is_env_assignment(const std::string& command, std::string& var_name
         return false;
     }
 
-    if (readonly_manager_is(var_name)) {
-        print_error({ErrorType::INVALID_ARGUMENT,
-                     ErrorSeverity::ERROR,
-                     "parser",
-                     var_name + ": readonly variable",
-                     {"Use 'unset -f' or adjust variable declarations before reassigning."}});
+    if (!readonly_manager_can_assign(var_name, "parser")) {
         return false;
     }
 

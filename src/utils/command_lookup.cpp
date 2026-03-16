@@ -28,6 +28,8 @@
 
 #include "command_lookup.h"
 
+#include <unordered_set>
+
 #include "builtin.h"
 #include "cjsh_filesystem.h"
 #include "interpreter.h"
@@ -35,6 +37,19 @@
 #include "token_constants.h"
 
 namespace command_lookup {
+
+const std::vector<std::string>& shell_control_structure_keywords() {
+    static const std::vector<std::string> keywords = {"if",    "then", "elif", "else",    "fi",
+                                                      "case",  "esac", "for",  "select",  "while",
+                                                      "until", "do",   "done", "function"};
+    return keywords;
+}
+
+bool is_shell_control_structure_leader(const std::string& token) {
+    static const std::unordered_set<std::string> leaders = {"if",   "for",    "while",   "until",
+                                                            "case", "select", "function"};
+    return leaders.find(token) != leaders.end();
+}
 
 bool is_shell_keyword(const std::string& token) {
     if (token_constants::shell_keywords().count(token) > 0) {
@@ -86,6 +101,30 @@ CommandResolution resolve_command(const std::string& token, Shell* shell, bool i
     }
 
     return resolution;
+}
+
+std::vector<CommandResolutionEntry> list_resolution_entries(const std::string& token, Shell* shell,
+                                                            bool include_path) {
+    std::vector<CommandResolutionEntry> entries;
+    const auto resolution = resolve_command(token, shell, include_path);
+
+    if (resolution.is_keyword) {
+        entries.push_back({CommandResolutionKind::Keyword, {}});
+    }
+    if (resolution.is_builtin) {
+        entries.push_back({CommandResolutionKind::Builtin, {}});
+    }
+    if (resolution.has_alias) {
+        entries.push_back({CommandResolutionKind::Alias, resolution.alias_value});
+    }
+    if (resolution.has_function) {
+        entries.push_back({CommandResolutionKind::Function, {}});
+    }
+    if (resolution.has_path) {
+        entries.push_back({CommandResolutionKind::Path, resolution.path});
+    }
+
+    return entries;
 }
 
 }  // namespace command_lookup

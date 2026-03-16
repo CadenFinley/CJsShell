@@ -29,6 +29,7 @@
 #include "read_command.h"
 
 #include "builtin_help.h"
+#include "builtin_option_parser.h"
 
 #include <poll.h>
 #include <unistd.h>
@@ -75,93 +76,69 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
     bool has_timeout = false;
     double timeout_seconds = 0.0;
 
-    std::vector<std::string> var_names;
+    size_t start_index = 1;
+    std::vector<BuiltinParsedShortOption> parsed_options;
+    const bool options_ok = builtin_parse_short_options_ex(
+        args, start_index, "read",
+        [](char option) {
+            return option == 'r' || option == 'n' || option == 'p' || option == 'd' ||
+                   option == 't';
+        },
+        [](char option) {
+            return option == 'n' || option == 'p' || option == 'd' || option == 't';
+        },
+        parsed_options);
+    if (!options_ok) {
+        return 1;
+    }
 
-    for (size_t i = 1; i < args.size(); ++i) {
-        const std::string& arg = args[i];
-
-        if (arg == "-r") {
-            raw_mode = true;
-        } else if (arg == "-n" && i + 1 < args.size()) {
-            try {
-                nchars = std::stoi(args[i + 1]);
-                i++;
-            } catch (const std::exception&) {
-                print_error({ErrorType::INVALID_ARGUMENT,
-                             "read",
-                             "invalid number of characters: " + args[i + 1],
-                             {}});
-                return 1;
-            }
-        } else if (arg.substr(0, 2) == "-n" && arg.length() > 2) {
-            try {
-                nchars = std::stoi(arg.substr(2));
-            } catch (const std::exception&) {
-                print_error({ErrorType::INVALID_ARGUMENT,
-                             "read",
-                             "invalid number of characters: " + arg.substr(2),
-                             {}});
-                return 1;
-            }
-        } else if (arg == "-p" && i + 1 < args.size()) {
-            prompt = args[i + 1];
-            i++;
-        } else if (arg.substr(0, 2) == "-p" && arg.length() > 2) {
-            prompt = arg.substr(2);
-        } else if (arg == "-d" && i + 1 < args.size()) {
-            delim = args[i + 1];
-            i++;
-        } else if (arg.substr(0, 2) == "-d" && arg.length() > 2) {
-            delim = arg.substr(2);
-        } else if (arg == "-t" && i + 1 < args.size()) {
-            try {
-                timeout_seconds = std::stod(args[i + 1]);
+    for (const auto& option : parsed_options) {
+        switch (option.option) {
+            case 'r':
+                raw_mode = true;
+                break;
+            case 'n':
+                try {
+                    nchars = std::stoi(option.value.value_or(""));
+                } catch (const std::exception&) {
+                    print_error({ErrorType::INVALID_ARGUMENT,
+                                 "read",
+                                 "invalid number of characters: " + option.value.value_or(""),
+                                 {}});
+                    return 1;
+                }
+                break;
+            case 'p':
+                prompt = option.value.value_or("");
+                break;
+            case 'd':
+                delim = option.value.value_or("\n");
+                break;
+            case 't':
+                try {
+                    timeout_seconds = std::stod(option.value.value_or(""));
+                } catch (const std::exception&) {
+                    print_error({ErrorType::INVALID_ARGUMENT,
+                                 "read",
+                                 "invalid timeout: " + option.value.value_or(""),
+                                 {}});
+                    return 1;
+                }
                 if (timeout_seconds < 0.0) {
                     print_error({ErrorType::INVALID_ARGUMENT,
                                  "read",
-                                 "invalid timeout: " + args[i + 1],
+                                 "invalid timeout: " + option.value.value_or(""),
                                  {}});
                     return 1;
                 }
                 has_timeout = true;
-                i++;
-            } catch (const std::exception&) {
-                print_error(
-                    {ErrorType::INVALID_ARGUMENT, "read", "invalid timeout: " + args[i + 1], {}});
-                return 1;
-            }
-        } else if (arg.substr(0, 2) == "-t" && arg.length() > 2) {
-            try {
-                timeout_seconds = std::stod(arg.substr(2));
-                if (timeout_seconds < 0.0) {
-                    print_error({ErrorType::INVALID_ARGUMENT,
-                                 "read",
-                                 "invalid timeout: " + arg.substr(2),
-                                 {}});
-                    return 1;
-                }
-                has_timeout = true;
-            } catch (const std::exception&) {
-                print_error(
-                    {ErrorType::INVALID_ARGUMENT, "read", "invalid timeout: " + arg.substr(2), {}});
-                return 1;
-            }
-        } else if (arg == "-t") {
-            print_error({ErrorType::INVALID_ARGUMENT,
-                         "read",
-                         "timeout requires a value",
-                         {"Try 'read --help' for more information."}});
-            return 1;
-        } else if (arg[0] == '-') {
-            print_error({ErrorType::INVALID_ARGUMENT,
-                         "read",
-                         "invalid option -- '" + arg + "'",
-                         {"Try 'read --help' for more information."}});
-            return 1;
-        } else {
-            var_names.push_back(arg);
+                break;
+            default:
+                break;
         }
     }
+
+    std::vector<std::string> var_names(args.begin() + static_cast<long>(start_index), args.end());
 
     if (var_names.empty()) {
         var_names.push_back("REPLY");
@@ -347,9 +324,7 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
     for (size_t i = 0; i < var_names.size(); ++i) {
         const std::string& var_name = var_names[i];
 
-        if (readonly_manager_is(var_name)) {
-            print_error(
-                {ErrorType::INVALID_ARGUMENT, "read", var_name + ": readonly variable", {}});
+        if (!readonly_manager_can_assign(var_name, "read")) {
             return 1;
         }
 

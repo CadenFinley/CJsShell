@@ -29,6 +29,7 @@
 #include "ulimit_command.h"
 
 #include "builtin_help.h"
+#include "builtin_option_parser.h"
 #include "error_out.h"
 #include "string_utils.h"
 
@@ -426,51 +427,68 @@ int ulimit_command(const std::vector<std::string>& args) {
     }
 
     std::size_t idx = 1;
+
+    std::vector<BuiltinParsedShortOption> parsed_options;
+    const bool short_options_ok = builtin_parse_short_options_ex(
+        args, idx, "ulimit",
+        [](char option) {
+            if (option == 'a' || option == 'H' || option == 'S') {
+                return true;
+            }
+            return find_by_short_option(option) != nullptr;
+        },
+        [](char) { return false; }, parsed_options, true, true);
+    if (!short_options_ok) {
+        return 1;
+    }
+
+    for (const auto& option : parsed_options) {
+        if (option.option == 'a') {
+            all_flag = true;
+            continue;
+        }
+        if (option.option == 'H') {
+            hard_flag = true;
+            continue;
+        }
+        if (option.option == 'S') {
+            soft_flag = true;
+            continue;
+        }
+
+        const OptionDescriptor* entry = find_by_short_option(option.option);
+        if (entry == nullptr) {
+            return handle_unknown_option(std::string("-") + option.option);
+        }
+        if (!entry->available) {
+            return handle_unsupported_option(*entry);
+        }
+        selected = entry;
+    }
+
     while (idx < args.size()) {
         const std::string& arg = args[idx];
         if (arg == "--") {
             ++idx;
             break;
         }
-        if (!arg.empty() && arg[0] == '-' && arg.size() > 1) {
-            if (arg[1] == '-') {
-                std::string long_opt = arg.substr(2);
-                if (long_opt == "all") {
-                    all_flag = true;
-                } else if (long_opt == "hard") {
-                    hard_flag = true;
-                } else if (long_opt == "soft") {
-                    soft_flag = true;
-                } else {
-                    const OptionDescriptor* entry = find_by_long_option(long_opt);
-                    if (entry == nullptr) {
-                        return handle_unknown_option("--" + long_opt);
-                    }
-                    if (!entry->available) {
-                        return handle_unsupported_option(*entry);
-                    }
-                    selected = entry;
-                }
+        if (!arg.empty() && arg.rfind("--", 0) == 0 && arg.size() > 2) {
+            std::string long_opt = arg.substr(2);
+            if (long_opt == "all") {
+                all_flag = true;
+            } else if (long_opt == "hard") {
+                hard_flag = true;
+            } else if (long_opt == "soft") {
+                soft_flag = true;
             } else {
-                for (std::size_t j = 1; j < arg.size(); ++j) {
-                    char opt = arg[j];
-                    if (opt == 'a') {
-                        all_flag = true;
-                    } else if (opt == 'H') {
-                        hard_flag = true;
-                    } else if (opt == 'S') {
-                        soft_flag = true;
-                    } else {
-                        const OptionDescriptor* entry = find_by_short_option(opt);
-                        if (entry == nullptr) {
-                            return handle_unknown_option(std::string("-") + opt);
-                        }
-                        if (!entry->available) {
-                            return handle_unsupported_option(*entry);
-                        }
-                        selected = entry;
-                    }
+                const OptionDescriptor* entry = find_by_long_option(long_opt);
+                if (entry == nullptr) {
+                    return handle_unknown_option("--" + long_opt);
                 }
+                if (!entry->available) {
+                    return handle_unsupported_option(*entry);
+                }
+                selected = entry;
             }
             ++idx;
             continue;
