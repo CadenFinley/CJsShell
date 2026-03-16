@@ -73,11 +73,10 @@
 #include "times_command.h"
 #include "trap_command.h"
 #include "true_command.h"
-#include "type_command.h"
+#include "type_which_command.h"
 #include "ulimit_command.h"
 #include "umask_command.h"
 #include "version_command.h"
-#include "which_command.h"
 #include "widget_command.h"
 
 Built_ins::Built_ins() : shell(nullptr) {

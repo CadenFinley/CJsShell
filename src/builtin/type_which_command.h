@@ -1,5 +1,5 @@
 /*
-  type_command.h
+  type_which_command.h
 
   This file is part of cjsh, CJ's Shell
 
@@ -34,3 +34,4 @@
 class Shell;
 
 int type_command(const std::vector<std::string>& args, Shell* shell);
+int which_command(const std::vector<std::string>& args, Shell* shell);
