@@ -35,6 +35,7 @@
 #include "builtin.h"
 #include "cjsh_filesystem.h"
 #include "command_lookup.h"
+#include "interpreter_utils.h"
 #include "parser_utils.h"
 #include "quote_state.h"
 #include "shell.h"
@@ -158,55 +159,34 @@ bool is_known_command_token(const std::string& token, size_t absolute_cmd_start,
 std::string sanitize_input_for_analysis(const std::string& input,
                                         std::vector<CommentRange>* comment_ranges) {
     std::string sanitized = input;
-    size_t len = input.size();
-    bool in_quotes = false;
-    char quote_char = '\0';
-    bool escaped = false;
-
-    size_t i = 0;
-    while (i < len) {
-        char c = input[i];
-
-        if (escaped) {
-            escaped = false;
-            ++i;
-            continue;
+    const size_t len = input.size();
+    size_t line_start = 0;
+    while (line_start < len) {
+        size_t line_end = line_start;
+        while (line_end < len && input[line_end] != '\n' && input[line_end] != '\r') {
+            ++line_end;
         }
 
-        if (c == '\\' && (!in_quotes || quote_char != '\'')) {
-            escaped = true;
-            ++i;
-            continue;
-        }
-
-        if ((c == '"' || c == '\'') && !in_quotes) {
-            in_quotes = true;
-            quote_char = c;
-            ++i;
-            continue;
-        }
-
-        if (c == quote_char && in_quotes) {
-            in_quotes = false;
-            quote_char = '\0';
-            ++i;
-            continue;
-        }
-
-        if (!in_quotes && c == '#') {
-            size_t comment_end = i;
-            while (comment_end < len && input[comment_end] != '\n' && input[comment_end] != '\r') {
-                sanitized[comment_end] = ' ';
-                comment_end++;
+        size_t comment_start = shell_script_interpreter::detail::find_inline_comment_start(
+            input, line_start, line_end);
+        if (comment_start != std::string::npos) {
+            for (size_t i = comment_start; i < line_end; ++i) {
+                sanitized[i] = ' ';
             }
-            if (comment_ranges != nullptr && comment_end > i) {
-                comment_ranges->push_back({i, comment_end});
+            if (comment_ranges != nullptr && line_end > comment_start) {
+                comment_ranges->push_back({comment_start, line_end});
             }
-            i = comment_end;
-            continue;
         }
 
-        ++i;
+        if (line_end >= len) {
+            break;
+        }
+
+        if (input[line_end] == '\r' && line_end + 1 < len && input[line_end + 1] == '\n') {
+            line_start = line_end + 2;
+        } else {
+            line_start = line_end + 1;
+        }
     }
 
     return sanitized;

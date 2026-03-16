@@ -66,6 +66,7 @@
 #include "loop_evaluator.h"
 #include "parameter_expansion_evaluator.h"
 #include "parser.h"
+#include "parser_utils.h"
 #include "pipeline_status_utils.h"
 #include "quote_info.h"
 #include "readonly_command.h"
@@ -164,33 +165,20 @@ enum class StatementKeyword : std::uint8_t {
     Case
 };
 
-bool starts_with_keyword(std::string_view text, std::string_view keyword) {
-    if (text == keyword) {
-        return true;
-    }
-    if (text.size() <= keyword.size()) {
-        return false;
-    }
-    if (text.compare(0, keyword.size(), keyword) != 0) {
-        return false;
-    }
-    return std::isspace(static_cast<unsigned char>(text[keyword.size()])) != 0;
-}
-
 std::optional<StatementKeyword> parse_statement_keyword_prefix(std::string_view text) {
-    if (starts_with_keyword(text, "if")) {
+    if (parser_starts_with_keyword_token(text, "if")) {
         return StatementKeyword::If;
     }
-    if (starts_with_keyword(text, "for")) {
+    if (parser_starts_with_keyword_token(text, "for")) {
         return StatementKeyword::For;
     }
-    if (starts_with_keyword(text, "while")) {
+    if (parser_starts_with_keyword_token(text, "while")) {
         return StatementKeyword::While;
     }
-    if (starts_with_keyword(text, "until")) {
+    if (parser_starts_with_keyword_token(text, "until")) {
         return StatementKeyword::Until;
     }
-    if (starts_with_keyword(text, "case")) {
+    if (parser_starts_with_keyword_token(text, "case")) {
         return StatementKeyword::Case;
     }
     return std::nullopt;

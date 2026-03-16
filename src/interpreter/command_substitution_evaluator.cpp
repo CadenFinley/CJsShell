@@ -184,11 +184,8 @@ bool CommandSubstitutionEvaluator::try_handle_arithmetic_expansion(const std::st
                     inner_result.outputs.push_back(cmd_output);
                     inner_result.exit_codes.push_back(exit_code);
 
-                    std::string trimmed_output = cmd_output;
-                    while (!trimmed_output.empty() &&
-                           (trimmed_output.back() == '\n' || trimmed_output.back() == '\r')) {
-                        trimmed_output.pop_back();
-                    }
+                    std::string trimmed_output =
+                        string_utils::trim_trailing_line_endings_copy(std::move(cmd_output));
                     inner_result.text += trimmed_output;
                     k = cmd_end_pos;
                     handled = true;

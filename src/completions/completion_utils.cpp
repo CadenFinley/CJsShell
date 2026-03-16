@@ -36,6 +36,7 @@
 #include "cjsh_completions.h"
 #include "command_line_utils.h"
 #include "quote_state.h"
+#include "string_utils.h"
 
 namespace completion_utils {
 
@@ -123,10 +124,7 @@ std::string normalize_for_comparison(const std::string& value) {
         return value;
     }
 
-    std::string lower_value = value;
-    std::transform(lower_value.begin(), lower_value.end(), lower_value.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    return lower_value;
+    return string_utils::to_lower_copy(value);
 }
 
 bool starts_with_case_insensitive(const std::string& str, const std::string& prefix) {

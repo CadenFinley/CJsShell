@@ -32,6 +32,7 @@
 #include <sstream>
 
 #include "cjsh_filesystem.h"
+#include "command_line_utils.h"
 #include "quote_info.h"
 
 namespace {
@@ -70,50 +71,7 @@ bool HistoryExpansion::is_word_char(char c) {
 }
 
 std::vector<std::string> HistoryExpansion::split_into_words(const std::string& command) {
-    std::vector<std::string> words;
-    std::string current_word;
-    bool in_quotes = false;
-    char quote_char = '\0';
-    bool escaped = false;
-
-    for (size_t i = 0; i < command.length(); ++i) {
-        char c = command[i];
-
-        if (escaped) {
-            current_word += c;
-            escaped = false;
-            continue;
-        }
-
-        if (c == '\\') {
-            escaped = true;
-            current_word += c;
-            continue;
-        }
-
-        if (!in_quotes && (c == '\'' || c == '"')) {
-            in_quotes = true;
-            quote_char = c;
-            current_word += c;
-        } else if (in_quotes && c == quote_char) {
-            in_quotes = false;
-            quote_char = '\0';
-            current_word += c;
-        } else if (!in_quotes && std::isspace(c)) {
-            if (!current_word.empty()) {
-                words.push_back(current_word);
-                current_word.clear();
-            }
-        } else {
-            current_word += c;
-        }
-    }
-
-    if (!current_word.empty()) {
-        words.push_back(current_word);
-    }
-
-    return words;
+    return command_line_utils::tokenize_shell_words(command, true);
 }
 
 std::string HistoryExpansion::get_word_from_command(const std::string& command, int word_index) {

@@ -35,6 +35,7 @@
 
 #include "interpreter_utils.h"
 #include "parser.h"
+#include "parser_utils.h"
 #include "shell_env.h"
 
 using shell_script_interpreter::detail::process_line_for_validation;
@@ -42,17 +43,6 @@ using shell_script_interpreter::detail::strip_inline_comment;
 using shell_script_interpreter::detail::trim;
 
 namespace {
-
-bool starts_with_keyword(const std::string& text, const std::string& keyword) {
-    if (text.size() < keyword.size())
-        return false;
-    if (text.compare(0, keyword.size(), keyword) != 0)
-        return false;
-    if (text.size() == keyword.size())
-        return true;
-    char next = text[keyword.size()];
-    return std::isspace(static_cast<unsigned char>(next)) != 0;
-}
 
 bool is_if_token(const std::string& token) {
     return token == "if" || token.rfind("if ", 0) == 0;
@@ -92,10 +82,7 @@ void update_group_depths(char c, int& bracket_depth, int& paren_depth) {
 }
 
 bool is_fi_token_boundary(const std::string& text, size_t pos) {
-    bool is_word_end =
-        (pos + 2 >= text.length()) || (text[pos + 2] == ' ') || (text[pos + 2] == ';');
-    bool is_word_start = (pos == 0) || (text[pos - 1] == ' ') || (text[pos - 1] == ';');
-    return is_word_start && is_word_end;
+    return parser_is_word_boundary(text, pos, 2);
 }
 
 std::vector<std::string> split_top_level_semicolons(const std::string& text) {
@@ -186,7 +173,7 @@ void expand_segment(const std::string& segment, std::vector<std::string>& out) {
     if (cleaned.empty())
         return;
 
-    if (starts_with_keyword(cleaned, "then")) {
+    if (parser_starts_with_keyword_token(cleaned, "then")) {
         out.push_back("then");
         std::string remainder = trim(cleaned.substr(4));
         if (!remainder.empty())
@@ -194,7 +181,7 @@ void expand_segment(const std::string& segment, std::vector<std::string>& out) {
         return;
     }
 
-    if (starts_with_keyword(cleaned, "else")) {
+    if (parser_starts_with_keyword_token(cleaned, "else")) {
         out.push_back("else");
         std::string remainder = trim(cleaned.substr(4));
         if (!remainder.empty())
@@ -202,7 +189,7 @@ void expand_segment(const std::string& segment, std::vector<std::string>& out) {
         return;
     }
 
-    if (starts_with_keyword(cleaned, "elif")) {
+    if (parser_starts_with_keyword_token(cleaned, "elif")) {
         out.push_back(cleaned);
         return;
     }

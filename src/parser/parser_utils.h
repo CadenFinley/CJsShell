@@ -29,6 +29,7 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 #include <utility>
 
 const std::string& subst_literal_start();
@@ -76,6 +77,11 @@ bool is_hex_digit(char c);
 bool is_char_escaped(const char* str, size_t pos);
 
 bool is_char_escaped(const std::string& str, size_t pos);
+
+bool parser_starts_with_keyword_token(std::string_view text, std::string_view keyword,
+                                      bool allow_open_paren_boundary = false);
+
+bool parser_is_word_boundary(const std::string& text, size_t start, size_t length);
 
 size_t find_matching_paren(const std::string& text, size_t start_pos);
 size_t find_matching_brace(const std::string& text, size_t start_pos);

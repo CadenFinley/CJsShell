@@ -59,6 +59,7 @@ using validation_internal::analyze_if_syntax;
 using validation_internal::analyze_while_until_syntax;
 using validation_internal::extract_trimmed_line;
 using validation_internal::for_each_effective_char;
+using validation_internal::is_word_boundary;
 using validation_internal::IterationAction;
 using validation_internal::next_effective_line_starts_with_keyword;
 using validation_internal::QuoteState;
@@ -188,17 +189,7 @@ bool starts_with_token_keyword(const std::string& text, ControlToken token) {
     if (keyword == nullptr || *keyword == '\0') {
         return false;
     }
-    const size_t len = std::strlen(keyword);
-    if (text == keyword) {
-        return true;
-    }
-    if (text.size() <= len) {
-        return false;
-    }
-    if (text.compare(0, len, keyword) != 0) {
-        return false;
-    }
-    return std::isspace(static_cast<unsigned char>(text[len])) != 0;
+    return starts_with_keyword_token(text, keyword);
 }
 
 using SyntaxError = ShellScriptInterpreter::SyntaxError;
@@ -309,21 +300,9 @@ bool has_incomplete_construct_errors(const std::vector<SyntaxError>& errors) {
 }
 
 bool has_inline_terminator(const std::string& text, const std::string& terminator) {
-    auto is_boundary = [](char ch) {
-        if (ch == '\0' || ch == ';' || ch == '(' || ch == ')' || ch == '{' || ch == '}' ||
-            ch == '&' || ch == '|') {
-            return true;
-        }
-        return std::isspace(static_cast<unsigned char>(ch)) != 0;
-    };
-
     size_t pos = 0;
     while ((pos = text.find(terminator, pos)) != std::string::npos) {
-        bool valid_start = (pos == 0) || is_boundary(text[pos - 1]);
-        size_t end_pos = pos + terminator.length();
-        bool valid_end = (end_pos >= text.length()) || is_boundary(text[end_pos]);
-
-        if (valid_start && valid_end) {
+        if (is_word_boundary(text, pos, terminator.length())) {
             return true;
         }
         pos++;

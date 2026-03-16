@@ -34,6 +34,8 @@
 namespace shell_script_interpreter::detail {
 
 std::string trim(const std::string& s);
+size_t find_inline_comment_start(const std::string& s, size_t start = 0,
+                                 size_t end = std::string::npos);
 std::string strip_inline_comment(const std::string& s);
 std::string process_line_for_validation(const std::string& line);
 std::vector<std::string> split_ampersand(const std::string& s);

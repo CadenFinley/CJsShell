@@ -1943,19 +1943,7 @@ std::vector<std::string> Parser::parse_semicolon_commands(const std::string& com
             }
 
             if (command[i] == ';' && control_depth == 0) {
-                bool is_escaped = false;
-                if (i > 0 && command[i - 1] == '\\') {
-                    size_t backslash_count = 0;
-                    for (size_t j = i - 1; j < command.length() && command[j] == '\\'; --j) {
-                        backslash_count++;
-                        if (j == 0)
-                            break;
-                    }
-
-                    is_escaped = (backslash_count % 2) == 1;
-                }
-
-                if (!is_escaped) {
+                if (!is_char_escaped(command, i)) {
                     is_semicolon_split_point[i] = true;
                 }
             }

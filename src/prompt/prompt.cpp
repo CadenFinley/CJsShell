@@ -405,10 +405,6 @@ std::string get_terminal_name() {
     return name;
 }
 
-std::string trim_copy(const std::string& input) {
-    return string_utils::trim_ascii_whitespace_copy(input);
-}
-
 std::optional<std::filesystem::path> git_dir_from_worktree_file(
     const std::filesystem::path& candidate, const std::filesystem::path& base) {
     std::ifstream file(candidate);
@@ -417,12 +413,12 @@ std::optional<std::filesystem::path> git_dir_from_worktree_file(
     }
     std::string line;
     std::getline(file, line);
-    line = trim_copy(line);
+    line = string_utils::trim_ascii_whitespace_copy(line);
     constexpr std::string_view kPrefix = "gitdir:";
     if (line.rfind(kPrefix, 0) != 0) {
         return std::nullopt;
     }
-    std::string path_str = trim_copy(line.substr(kPrefix.size()));
+    std::string path_str = string_utils::trim_ascii_whitespace_copy(line.substr(kPrefix.size()));
     if (path_str.empty()) {
         return std::nullopt;
     }
@@ -476,13 +472,13 @@ std::string read_git_head(const std::filesystem::path& git_dir) {
     }
     std::string line;
     std::getline(head_file, line);
-    line = trim_copy(line);
+    line = string_utils::trim_ascii_whitespace_copy(line);
     if (line.empty()) {
         return {};
     }
     constexpr std::string_view kRefPrefix = "ref:";
     if (line.rfind(kRefPrefix, 0) == 0) {
-        std::string ref = trim_copy(line.substr(kRefPrefix.size()));
+        std::string ref = string_utils::trim_ascii_whitespace_copy(line.substr(kRefPrefix.size()));
         auto slash = ref.find_last_of('/');
         if (slash != std::string::npos) {
             return ref.substr(slash + 1);

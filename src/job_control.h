@@ -154,8 +154,6 @@ struct ResolvedJob {
 std::shared_ptr<JobControlJob> find_job_by_command(const std::string& spec, JobManager& job_manager,
                                                    bool& ambiguous);
 
-void trim_in_place(std::string& value);
-
 std::optional<ResolvedJob> resolve_control_job_target(const std::vector<std::string>& args,
                                                       JobManager& job_manager);
 

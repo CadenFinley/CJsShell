@@ -33,7 +33,8 @@
 
 namespace command_line_utils {
 
-inline std::vector<std::string> tokenize_shell_words(const std::string& command) {
+inline std::vector<std::string> tokenize_shell_words(const std::string& command,
+                                                     bool preserve_quotes_and_escapes = false) {
     std::vector<std::string> args;
     std::string current;
     bool in_single_quote = false;
@@ -51,6 +52,9 @@ inline std::vector<std::string> tokenize_shell_words(const std::string& command)
             if (in_single_quote) {
                 current += c;
             } else {
+                if (preserve_quotes_and_escapes) {
+                    current += c;
+                }
                 escaped = true;
             }
             continue;
@@ -58,11 +62,17 @@ inline std::vector<std::string> tokenize_shell_words(const std::string& command)
 
         if (c == '\'' && !in_double_quote) {
             in_single_quote = !in_single_quote;
+            if (preserve_quotes_and_escapes) {
+                current += c;
+            }
             continue;
         }
 
         if (c == '"' && !in_single_quote) {
             in_double_quote = !in_double_quote;
+            if (preserve_quotes_and_escapes) {
+                current += c;
+            }
             continue;
         }
 

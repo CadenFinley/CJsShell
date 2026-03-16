@@ -380,14 +380,7 @@ std::vector<std::string> sanitize_lines_for_validation(const std::vector<std::st
 }
 
 bool starts_with_keyword_token(const std::string& line, const std::string& keyword) {
-    if (line.rfind(keyword, 0) != 0)
-        return false;
-
-    if (line.size() == keyword.size())
-        return true;
-
-    char next = line[keyword.size()];
-    return std::isspace(static_cast<unsigned char>(next)) != 0 || next == '(';
+    return parser_starts_with_keyword_token(line, keyword, true);
 }
 
 std::string extract_identifier_from_token(const std::string& token) {
@@ -502,19 +495,7 @@ std::vector<std::string> tokenize_whitespace(const std::string& input) {
 }
 
 bool is_word_boundary(const std::string& text, size_t start, size_t length) {
-    auto is_boundary_char = [](char c) {
-        return (std::isspace(static_cast<unsigned char>(c)) != 0) || c == ';' || c == '&' ||
-               c == '|' || c == '(' || c == ')' || c == '{' || c == '}';
-    };
-
-    if (start > text.size()) {
-        return false;
-    }
-
-    size_t end = start + length;
-    bool start_ok = (start == 0) || is_boundary_char(text[start - 1]);
-    bool end_ok = (end >= text.size()) || is_boundary_char(text[end]);
-    return start_ok && end_ok;
+    return parser_is_word_boundary(text, start, length);
 }
 
 size_t find_inline_do_position(const std::string& line) {

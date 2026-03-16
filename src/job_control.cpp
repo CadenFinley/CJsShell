@@ -56,10 +56,6 @@ namespace {
 
 std::atomic<pid_t> g_atomic_last_background_pid{-1};
 
-std::string trim_view(const std::string& value) {
-    return string_utils::trim_ascii_whitespace_copy(value);
-}
-
 enum class JobMatchKind : uint8_t {
     None,
     Exact,
@@ -73,7 +69,7 @@ JobMatchKind job_command_match_kind(const std::shared_ptr<JobControlJob>& job,
     }
 
     const auto& comparison_source = job->has_custom_name() ? job->custom_name : job->command;
-    const auto trimmed_command = trim_view(comparison_source);
+    const auto trimmed_command = string_utils::trim_ascii_whitespace_copy(comparison_source);
     if (trimmed_command.empty()) {
         return JobMatchKind::None;
     }
@@ -130,7 +126,7 @@ std::shared_ptr<JobControlJob> resolve_job_argument(const std::vector<std::strin
         job_spec.erase(0, 1);
     }
 
-    job_control_helpers::trim_in_place(job_spec);
+    job_spec = string_utils::trim_ascii_whitespace_copy(job_spec);
 
     if (job_spec.empty()) {
         print_error({ErrorType::INVALID_ARGUMENT,
@@ -230,10 +226,6 @@ int parse_signal(const std::string& signal_str) {
     }
 
     return -1;
-}
-
-void trim_in_place(std::string& value) {
-    value = string_utils::trim_ascii_whitespace_copy(value);
 }
 
 std::shared_ptr<JobControlJob> find_job_by_command(const std::string& spec, JobManager& job_manager,

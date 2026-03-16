@@ -45,21 +45,26 @@ std::string trim(const std::string& s) {
     return string_utils::trim_ascii_whitespace_copy(s);
 }
 
-std::string strip_inline_comment(const std::string& s) {
+size_t find_inline_comment_start(const std::string& s, size_t start, size_t end) {
+    if (start >= s.size()) {
+        return std::string::npos;
+    }
+    end = std::min(end, s.size());
+
     bool in_quotes = false;
     bool in_brace_expansion = false;
     char quote = '\0';
 
-    for (size_t i = 0; i < s.size(); ++i) {
+    for (size_t i = start; i < end; ++i) {
         char c = s[i];
 
-        if (!in_quotes && c == '$' && i + 1 < s.size() && s[i + 1] == '{') {
+        if (!in_quotes && c == '$' && i + 1 < end && s[i + 1] == '{') {
             in_brace_expansion = true;
         } else if (in_brace_expansion && c == '}') {
             in_brace_expansion = false;
         }
 
-        if (!in_quotes && !in_brace_expansion && c == '$' && i + 1 < s.size()) {
+        if (!in_quotes && !in_brace_expansion && c == '$' && i + 1 < end) {
             char next = s[i + 1];
             if (next == '#' || next == '?' || next == '$' || next == '*' || next == '@' ||
                 next == '!' || (std::isdigit(static_cast<unsigned char>(next)) != 0)) {
@@ -79,8 +84,16 @@ std::string strip_inline_comment(const std::string& s) {
                 }
             }
         } else if (!in_quotes && !in_brace_expansion && c == '#') {
-            return s.substr(0, i);
+            return i;
         }
+    }
+    return std::string::npos;
+}
+
+std::string strip_inline_comment(const std::string& s) {
+    size_t comment_start = find_inline_comment_start(s, 0, std::string::npos);
+    if (comment_start != std::string::npos) {
+        return s.substr(0, comment_start);
     }
     return s;
 }

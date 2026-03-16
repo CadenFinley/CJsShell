@@ -106,6 +106,39 @@ bool is_char_escaped(const std::string& str, size_t pos) {
     return is_char_escaped(str.c_str(), pos);
 }
 
+bool parser_starts_with_keyword_token(std::string_view text, std::string_view keyword,
+                                      bool allow_open_paren_boundary) {
+    if (text == keyword) {
+        return true;
+    }
+    if (text.size() <= keyword.size()) {
+        return false;
+    }
+    if (text.compare(0, keyword.size(), keyword) != 0) {
+        return false;
+    }
+
+    char next = text[keyword.size()];
+    return (std::isspace(static_cast<unsigned char>(next)) != 0) ||
+           (allow_open_paren_boundary && next == '(');
+}
+
+bool parser_is_word_boundary(const std::string& text, size_t start, size_t length) {
+    auto is_boundary_char = [](char c) {
+        return (std::isspace(static_cast<unsigned char>(c)) != 0) || c == ';' || c == '&' ||
+               c == '|' || c == '(' || c == ')' || c == '{' || c == '}';
+    };
+
+    if (start > text.size()) {
+        return false;
+    }
+
+    size_t end = start + length;
+    bool start_ok = (start == 0) || is_boundary_char(text[start - 1]);
+    bool end_ok = (end >= text.size()) || is_boundary_char(text[end]);
+    return start_ok && end_ok;
+}
+
 std::string trim_trailing_whitespace(std::string s) {
     return string_utils::trim_right_ascii_whitespace_copy(s);
 }
