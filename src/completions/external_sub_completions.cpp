@@ -32,6 +32,7 @@
 #include <cctype>
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <mutex>
 #include <optional>
 #include <sstream>
@@ -1033,27 +1034,76 @@ std::string get_command_summary(const std::string& command, bool allow_fetch) {
     return summary;
 }
 
-bool regenerate_external_completion_cache(const std::string& command, bool force_refresh) {
+bool regenerate_external_completion_cache(const std::string& command, bool force_refresh,
+                                          bool include_subcommands,
+                                          ::CompletionCacheProgressCallback progress_callback,
+                                          ::CompletionCacheCancelCallback cancel_callback) {
     if (command.empty())
         return false;
 
-    std::string key = normalize_key(command);
-    {
-        std::lock_guard<std::mutex> lock(g_cache_mutex);
-        g_memory_cache.erase(key);
-        g_failed_targets.erase(key);
+    std::vector<std::string> pending_targets = {command};
+    std::unordered_set<std::string> visited_targets;
+    bool root_generated = false;
+
+    while (!pending_targets.empty()) {
+        if (cancel_callback && cancel_callback()) {
+            break;
+        }
+
+        std::string current_target = pending_targets.back();
+        pending_targets.pop_back();
+
+        if (current_target.empty())
+            continue;
+
+        std::string normalized_target = normalize_key(current_target);
+        if (!visited_targets.insert(normalized_target).second)
+            continue;
+
+        {
+            std::lock_guard<std::mutex> lock(g_cache_mutex);
+            g_memory_cache.erase(normalized_target);
+            g_failed_targets.erase(normalized_target);
+        }
+
+        std::filesystem::path cache_path = cjsh_filesystem::g_cjsh_generated_completions_path() /
+                                           (sanitize_command_for_cache(current_target) + ".txt");
+
+        if (force_refresh) {
+            std::error_code remove_error;
+            std::filesystem::remove(cache_path, remove_error);
+        }
+
+        CommandDoc doc = load_entries_for_target(current_target, true, true);
+        bool current_generated = !doc.entries.empty() || !doc.summary.empty();
+        if (current_target == command) {
+            root_generated = current_generated;
+        }
+
+        if (progress_callback) {
+            progress_callback(current_target, current_generated, current_target == command);
+        }
+
+        if (!include_subcommands)
+            continue;
+
+        if (cancel_callback && cancel_callback()) {
+            break;
+        }
+
+        for (const auto& entry : doc.entries) {
+            if (entry.kind != EntryKind::Subcommand)
+                continue;
+
+            std::string subcommand = normalize_subcommand_token(entry.text);
+            if (!is_token_allowed_for_combination(subcommand))
+                continue;
+
+            pending_targets.push_back(current_target + "-" + subcommand);
+        }
     }
 
-    std::filesystem::path cache_path = cjsh_filesystem::g_cjsh_generated_completions_path() /
-                                       (sanitize_command_for_cache(command) + ".txt");
-
-    if (force_refresh) {
-        std::error_code remove_error;
-        std::filesystem::remove(cache_path, remove_error);
-    }
-
-    CommandDoc doc = load_entries_for_target(command, true, true);
-    return !doc.entries.empty() || !doc.summary.empty();
+    return root_generated;
 }
 
 void handle_external_sub_completions(ic_completion_env_t* cenv, const char* raw_path_input) {

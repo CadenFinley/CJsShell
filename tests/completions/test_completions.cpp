@@ -449,6 +449,8 @@ static bool test_builtin_docs(void) {
                 test_name, "generate-completions should include --no-force");
     EXPECT_TRUE(has_entry(generate_doc, "--jobs", builtin_completions::EntryKind::Option),
                 test_name, "generate-completions should include --jobs");
+    EXPECT_TRUE(has_entry(generate_doc, "--subcommands", builtin_completions::EntryKind::Option),
+                test_name, "generate-completions should include --subcommands");
 
     const auto* source_doc = builtin_completions::lookup_builtin_command_doc(".");
     EXPECT_TRUE(source_doc != nullptr, test_name, "dot alias doc should exist");

@@ -19,8 +19,8 @@ in gaps or add custom behaviour.
   completions are chained into `git`.
 - **Bulk generation:** The `generate-completions` builtin pre-populates caches for an entire `PATH`
   or a list of commands. By default it forces regeneration (`--force`); pass `--no-force` to keep
-  existing manual edits. Use `-j/--jobs` to parallelise scraping and `--quiet` to suppress per
-  command status output.
+  existing manual edits. Use `--subcommands` to also pre-generate discovered nested command caches,
+  `-j/--jobs` to parallelise scraping, and `--quiet` to suppress per-command status output.
 
 ### Controlling automatic learning
 

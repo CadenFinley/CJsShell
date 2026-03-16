@@ -59,6 +59,7 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
                        "Options:", "  --quiet, -q       Suppress per-command output",
                        "  --no-force        Reuse existing cache entries when present",
                        "  --force, -f       Force regeneration (default)",
+                       "  --subcommands, -s Also generate caches for discovered subcommands",
                        "  --jobs, -j <N>    Process up to N commands in parallel",
                        "  --                Treat remaining arguments as command names",
                        "IMPORTANT: Please note that this can take signifigant time and",
@@ -76,6 +77,7 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
 
         bool quiet = false;
         bool force_refresh = true;
+        bool include_subcommands = false;
         bool after_separator = false;
         std::size_t requested_jobs = 0;
         std::vector<std::string> targets;
@@ -115,6 +117,10 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
                 }
                 if (arg == "--quiet" || arg == "-q") {
                     quiet = true;
+                    continue;
+                }
+                if (arg == "--subcommands" || arg == "-s") {
+                    include_subcommands = true;
                     continue;
                 }
                 if (arg == "--jobs" || arg == "-j") {
@@ -208,6 +214,11 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
                 return true;
             }
 
+            if (cjsh_env::exit_requested()) {
+                cancel_requested.store(true);
+                return true;
+            }
+
 #ifdef SIGINT
             if (!SignalHandler::has_pending_signals()) {
                 return false;
@@ -225,9 +236,18 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
                 processed = true;
             }
 
-            if (processed && pending.sigint) {
-                cancel_requested.store(true);
-                return true;
+            if (processed) {
+                if (pending.sigint || pending.sigterm || pending.sighup) {
+                    cancel_requested.store(true);
+                    return true;
+                }
+#ifdef SIGTSTP
+                if (std::find(pending.trapped_signals.begin(), pending.trapped_signals.end(),
+                              SIGTSTP) != pending.trapped_signals.end()) {
+                    cancel_requested.store(true);
+                    return true;
+                }
+#endif
             }
 #endif
 
@@ -250,7 +270,8 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
         if (!quiet) {
             std::cout << "generate-completions: processing " << targets.size() << " command"
                       << (targets.size() == 1 ? "" : "s")
-                      << (force_refresh ? " (forcing refresh)" : "") << " using " << job_count
+                      << (force_refresh ? " (forcing refresh)" : "")
+                      << (include_subcommands ? " with subcommands" : "") << " using " << job_count
                       << " job" << (job_count == 1 ? "" : "s") << std::endl;
         }
 
@@ -261,18 +282,37 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
                     break;
                 }
 
-                bool generated = regenerate_external_completion_cache(command, force_refresh);
+                auto report_target_result = [&](const std::string& target_name, bool generated,
+                                                bool is_root_target) {
+                    if (quiet) {
+                        return;
+                    }
+
+                    if (generated) {
+                        std::cout << "  [OK] " << target_name;
+                        if (!is_root_target) {
+                            std::cout << " (subcommand cache)";
+                        }
+                        std::cout << std::endl;
+                    } else {
+                        std::cout << "  [WARN] " << target_name
+                                  << " (no manual entry or unable to generate)";
+                        if (!is_root_target) {
+                            std::cout << " (subcommand cache)";
+                        }
+                        std::cout << std::endl;
+                    }
+                };
+
+                auto should_cancel = [&]() { return check_for_interrupt(true); };
+
+                bool generated = regenerate_external_completion_cache(
+                    command, force_refresh, include_subcommands, report_target_result,
+                    should_cancel);
                 if (generated) {
                     ++success_count;
-                    if (!quiet) {
-                        std::cout << "  [OK] " << command << std::endl;
-                    }
                 } else {
                     failures.push_back(command);
-                    if (!quiet) {
-                        std::cout << "  [WARN] " << command
-                                  << " (no manual entry or unable to generate)" << std::endl;
-                    }
                 }
 
                 if (check_for_interrupt(true)) {
@@ -301,20 +341,38 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
                     }
 
                     const std::string& command = targets[index];
-                    bool generated = regenerate_external_completion_cache(command, force_refresh);
+                    auto report_target_result = [&](const std::string& target_name, bool generated,
+                                                    bool is_root_target) {
+                        if (quiet) {
+                            return;
+                        }
+
+                        std::lock_guard<std::mutex> lock(output_mutex);
+                        if (generated) {
+                            std::cout << "  [OK] " << target_name;
+                            if (!is_root_target) {
+                                std::cout << " (subcommand cache)";
+                            }
+                            std::cout << std::endl;
+                        } else {
+                            std::cout << "  [WARN] " << target_name
+                                      << " (no manual entry or unable to generate)";
+                            if (!is_root_target) {
+                                std::cout << " (subcommand cache)";
+                            }
+                            std::cout << std::endl;
+                        }
+                    };
+
+                    auto should_cancel = [&]() { return check_for_interrupt(false); };
+
+                    bool generated = regenerate_external_completion_cache(
+                        command, force_refresh, include_subcommands, report_target_result,
+                        should_cancel);
                     if (generated) {
                         success_counter.fetch_add(1, std::memory_order_relaxed);
-                        if (!quiet) {
-                            std::lock_guard<std::mutex> lock(output_mutex);
-                            std::cout << "  [OK] " << command << std::endl;
-                        }
                     } else {
                         local_failures.push_back(command);
-                        if (!quiet) {
-                            std::lock_guard<std::mutex> lock(output_mutex);
-                            std::cout << "  [WARN] " << command
-                                      << " (no manual entry or unable to generate)" << std::endl;
-                        }
                     }
                 }
 

@@ -477,6 +477,8 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                  make_option("--force", "Force regeneration even if cached"),
                  make_option("-f", "Force regeneration even if cached"),
                  make_option("--no-force", "Reuse existing cache entries"),
+                 make_option("--subcommands", "Also generate discovered subcommand caches"),
+                 make_option("-s", "Also generate discovered subcommand caches"),
                  make_option("-j", "Set the number of parallel jobs"),
                  make_option("--jobs", "Set the number of parallel jobs"),
                  make_option("--", "Treat remaining arguments as command names")});

@@ -28,10 +28,17 @@
 
 #pragma once
 
+#include <functional>
 #include <string>
 
 #include "isocline.h"
 
 void handle_external_sub_completions(ic_completion_env_t* cenv, const char* raw_path_input);
 std::string get_command_summary(const std::string& command, bool allow_fetch = true);
-bool regenerate_external_completion_cache(const std::string& command, bool force_refresh = true);
+using CompletionCacheProgressCallback =
+    std::function<void(const std::string& target, bool generated, bool is_root_target)>;
+using CompletionCacheCancelCallback = std::function<bool()>;
+bool regenerate_external_completion_cache(
+    const std::string& command, bool force_refresh = true, bool include_subcommands = false,
+    CompletionCacheProgressCallback progress_callback = CompletionCacheProgressCallback{},
+    CompletionCacheCancelCallback cancel_callback = CompletionCacheCancelCallback{});
