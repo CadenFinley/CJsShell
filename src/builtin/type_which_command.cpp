@@ -33,6 +33,7 @@
 
 #include <sys/stat.h>
 #include <algorithm>
+#include <array>
 #include <iostream>
 #include "cjsh_filesystem.h"
 #include "command_lookup.h"
@@ -41,19 +42,53 @@
 
 namespace {
 
-bool has_kind(const std::vector<command_lookup::CommandResolutionEntry>& entries,
-              command_lookup::CommandResolutionKind kind) {
+using ResolutionEntries = std::vector<command_lookup::CommandResolutionEntry>;
+using ResolutionKind = command_lookup::CommandResolutionKind;
+
+constexpr std::array<const char*, 4> kCjshCustomCommands = {"echo", "printf", "pwd", "cd"};
+
+bool has_kind(const ResolutionEntries& entries, ResolutionKind kind) {
     return std::any_of(
         entries.begin(), entries.end(),
         [&](const command_lookup::CommandResolutionEntry& entry) { return entry.kind == kind; });
 }
 
-std::string value_for_kind(const std::vector<command_lookup::CommandResolutionEntry>& entries,
-                           command_lookup::CommandResolutionKind kind) {
+std::string value_for_kind(const ResolutionEntries& entries, ResolutionKind kind) {
     auto it = std::find_if(
         entries.begin(), entries.end(),
         [&](const command_lookup::CommandResolutionEntry& entry) { return entry.kind == kind; });
     return it == entries.end() ? std::string{} : it->value;
+}
+
+bool is_cjsh_custom_command(const std::string& name) {
+    return std::find(kCjshCustomCommands.begin(), kCjshCustomCommands.end(), name) !=
+           kCjshCustomCommands.end();
+}
+
+template <typename FullPrinter>
+bool emit_type_match(const ResolutionEntries& entries, ResolutionKind kind, const char* type_label,
+                     bool show_type_only, FullPrinter&& full_printer) {
+    if (!has_kind(entries, kind)) {
+        return false;
+    }
+    if (show_type_only) {
+        std::cout << type_label << '\n';
+    } else {
+        full_printer(value_for_kind(entries, kind));
+    }
+    return true;
+}
+
+template <typename Printer>
+bool emit_which_match(const ResolutionEntries& entries, ResolutionKind kind, bool silent,
+                      Printer&& printer) {
+    if (!has_kind(entries, kind)) {
+        return false;
+    }
+    if (!silent) {
+        printer(value_for_kind(entries, kind));
+    }
+    return true;
 }
 
 }  // namespace
@@ -111,12 +146,9 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
         const auto entries = command_lookup::list_resolution_entries(name, shell, !no_path_search);
 
         if (!force_path && !inhibit_functions) {
-            if (has_kind(entries, command_lookup::CommandResolutionKind::Keyword)) {
-                if (show_type_only) {
-                    std::cout << "keyword\n";
-                } else {
-                    std::cout << name << " is a shell keyword\n";
-                }
+            if (emit_type_match(
+                    entries, ResolutionKind::Keyword, "keyword", show_type_only,
+                    [&](const std::string&) { std::cout << name << " is a shell keyword\n"; })) {
                 found = true;
                 if (!show_all)
                     continue;
@@ -124,12 +156,10 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
         }
 
         if (!found || show_all) {
-            if (!force_path && has_kind(entries, command_lookup::CommandResolutionKind::Builtin)) {
-                if (show_type_only) {
-                    std::cout << "builtin\n";
-                } else {
-                    std::cout << name << " is a shell builtin\n";
-                }
+            if (!force_path && emit_type_match(entries, ResolutionKind::Builtin, "builtin",
+                                               show_type_only, [&](const std::string&) {
+                                                   std::cout << name << " is a shell builtin\n";
+                                               })) {
                 found = true;
                 if (!show_all && found)
                     continue;
@@ -138,15 +168,10 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
 
         if (!found || show_all) {
             if (!force_path && !inhibit_functions && (shell != nullptr)) {
-                if (has_kind(entries, command_lookup::CommandResolutionKind::Alias)) {
-                    if (show_type_only) {
-                        std::cout << "alias\n";
-                    } else {
-                        std::cout << name << " is aliased to `"
-                                  << value_for_kind(entries,
-                                                    command_lookup::CommandResolutionKind::Alias)
-                                  << "'\n";
-                    }
+                if (emit_type_match(entries, ResolutionKind::Alias, "alias", show_type_only,
+                                    [&](const std::string& value) {
+                                        std::cout << name << " is aliased to `" << value << "'\n";
+                                    })) {
                     found = true;
                     if (!show_all)
                         continue;
@@ -156,12 +181,9 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
 
         if (!found || show_all) {
             if (!force_path && !inhibit_functions &&
-                has_kind(entries, command_lookup::CommandResolutionKind::Function)) {
-                if (show_type_only) {
-                    std::cout << "function\n";
-                } else {
-                    std::cout << name << " is a function\n";
-                }
+                emit_type_match(
+                    entries, ResolutionKind::Function, "function", show_type_only,
+                    [&](const std::string&) { std::cout << name << " is a function\n"; })) {
                 found = true;
                 if (!show_all)
                     continue;
@@ -170,15 +192,10 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
 
         if (!found || show_all || force_path) {
             if (!no_path_search) {
-                if (has_kind(entries, command_lookup::CommandResolutionKind::Path)) {
-                    if (show_type_only) {
-                        std::cout << "file\n";
-                    } else {
-                        std::cout << name << " is "
-                                  << value_for_kind(entries,
-                                                    command_lookup::CommandResolutionKind::Path)
-                                  << '\n';
-                    }
+                if (emit_type_match(entries, ResolutionKind::Path, "file", show_type_only,
+                                    [&](const std::string& value) {
+                                        std::cout << name << " is " << value << '\n';
+                                    })) {
                     found = true;
                 }
             }
@@ -240,26 +257,20 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
         bool found_executable = false;
 
         const auto entries = command_lookup::list_resolution_entries(name, shell, true);
-        const std::vector<std::string> cjsh_custom_commands = {"echo", "printf", "pwd", "cd"};
+        const bool is_cjsh_custom = is_cjsh_custom_command(name);
 
-        bool is_cjsh_custom = std::find(cjsh_custom_commands.begin(), cjsh_custom_commands.end(),
-                                        name) != cjsh_custom_commands.end();
-
-        if (is_cjsh_custom && has_kind(entries, command_lookup::CommandResolutionKind::Builtin)) {
-            if (!silent) {
+        if (is_cjsh_custom &&
+            emit_which_match(entries, ResolutionKind::Builtin, silent, [&](const std::string&) {
                 std::cout << name << " is a cjsh builtin (custom implementation)\n";
-            }
+            })) {
             found = true;
             if (!show_all) {
                 continue;
             }
         }
 
-        if (has_kind(entries, command_lookup::CommandResolutionKind::Path)) {
-            if (!silent) {
-                std::cout << value_for_kind(entries, command_lookup::CommandResolutionKind::Path)
-                          << '\n';
-            }
+        if (emit_which_match(entries, ResolutionKind::Path, silent,
+                             [&](const std::string& value) { std::cout << value << '\n'; })) {
             found = true;
             found_executable = true;
             if (!show_all && !is_cjsh_custom) {
@@ -287,30 +298,26 @@ int which_command(const std::vector<std::string>& args, Shell* shell) {
         }
 
         if (show_all || (!found_executable && !is_cjsh_custom)) {
-            if (has_kind(entries, command_lookup::CommandResolutionKind::Builtin)) {
-                if (!silent) {
+            if (emit_which_match(entries, ResolutionKind::Builtin, silent, [&](const std::string&) {
                     std::cout << "which: " << name << " is a shell builtin\n";
-                }
+                })) {
                 found = true;
             }
 
             if ((shell != nullptr) && (show_all || !found)) {
-                if (has_kind(entries, command_lookup::CommandResolutionKind::Alias)) {
-                    if (!silent) {
-                        std::cout << "which: " << name << " is aliased to `"
-                                  << value_for_kind(entries,
-                                                    command_lookup::CommandResolutionKind::Alias)
-                                  << "'\n";
-                    }
+                if (emit_which_match(
+                        entries, ResolutionKind::Alias, silent, [&](const std::string& value) {
+                            std::cout << "which: " << name << " is aliased to `" << value << "'\n";
+                        })) {
                     found = true;
                 }
             }
 
             if ((shell != nullptr) && (show_all || !found)) {
-                if (has_kind(entries, command_lookup::CommandResolutionKind::Function)) {
-                    if (!silent) {
-                        std::cout << "which: " << name << " is a function\n";
-                    }
+                if (emit_which_match(entries, ResolutionKind::Function, silent,
+                                     [&](const std::string&) {
+                                         std::cout << "which: " << name << " is a function\n";
+                                     })) {
                     found = true;
                 }
             }
