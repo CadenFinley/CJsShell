@@ -1578,7 +1578,7 @@ static bool test_history_fuzzy_metadata_filtering(void) {
     ssize_t match_count = 0;
     bool metadata_filter_applied = false;
 
-    EXPECT_TRUE(history_fuzzy_search(history, "result=fail", matches, 8, &match_count,
+    EXPECT_TRUE(history_fuzzy_search(history, "result::fail", matches, 8, &match_count,
                                      &metadata_filter_applied),
                 "metadata-only query should return entries matching requested key/value");
     EXPECT_TRUE(metadata_filter_applied,
@@ -1594,7 +1594,7 @@ static bool test_history_fuzzy_metadata_filtering(void) {
 
     match_count = 0;
     metadata_filter_applied = false;
-    EXPECT_TRUE(history_fuzzy_search(history, "run tag=ci", matches, 8, &match_count,
+    EXPECT_TRUE(history_fuzzy_search(history, "run tag::ci", matches, 8, &match_count,
                                      &metadata_filter_applied),
                 "combined text and metadata query should keep text fuzzy matching active");
     EXPECT_TRUE(metadata_filter_applied,

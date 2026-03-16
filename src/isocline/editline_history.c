@@ -46,6 +46,92 @@ static void edit_clear_history_preview(editor_t* eb) {
     eb->history_prefix_active = false;
 }
 
+static bool history_search_extract_preview_key(const char* query, char* key_buf,
+                                               size_t key_buf_size) {
+    if (key_buf == NULL || key_buf_size == 0) {
+        return false;
+    }
+    key_buf[0] = '\0';
+    if (query == NULL || query[0] == '\0') {
+        return false;
+    }
+
+    bool found = false;
+    const char* cursor = query;
+    while (*cursor != '\0') {
+        while (*cursor == ' ' || *cursor == '\t') {
+            cursor++;
+        }
+        if (*cursor == '\0')
+            break;
+
+        const char* token_start = cursor;
+        while (*cursor != '\0' && *cursor != ' ' && *cursor != '\t') {
+            cursor++;
+        }
+
+        size_t token_len = (size_t)(cursor - token_start);
+        if (token_len < 3)
+            continue;
+
+        for (size_t i = 1; i + 1 < token_len; ++i) {
+            if (token_start[i] == ':' && token_start[i + 1] == ':' && i + 2 == token_len) {
+                size_t key_len = i;
+                if (key_len >= key_buf_size) {
+                    key_len = key_buf_size - 1;
+                }
+                ic_memcpy(key_buf, token_start, (ssize_t)key_len);
+                key_buf[key_len] = '\0';
+                found = (key_len > 0);
+            }
+        }
+    }
+
+    return found;
+}
+
+static bool history_search_has_valid_metadata_tag(const char* query) {
+    if (query == NULL || query[0] == '\0') {
+        return false;
+    }
+
+    const char* cursor = query;
+    while (*cursor != '\0') {
+        while (*cursor == ' ' || *cursor == '\t') {
+            cursor++;
+        }
+        if (*cursor == '\0')
+            break;
+
+        const char* token_start = cursor;
+        while (*cursor != '\0' && *cursor != ' ' && *cursor != '\t') {
+            cursor++;
+        }
+
+        size_t token_len = (size_t)(cursor - token_start);
+        if (token_len < 3)
+            continue;
+
+        for (size_t i = 1; i + 1 < token_len; ++i) {
+            if (token_start[i] == ':' && token_start[i + 1] == ':') {
+                bool valid_key = true;
+                for (size_t j = 0; j < i; ++j) {
+                    char c = token_start[j];
+                    if (c == ' ' || c == '\t' || c == '=') {
+                        valid_key = false;
+                        break;
+                    }
+                }
+                if (valid_key) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
 static void edit_history_at(ic_env_t* env, editor_t* eb, int ofs) {
     if (ofs == 0) {
         return;
@@ -248,6 +334,8 @@ static void edit_history_fuzzy_search(ic_env_t* env, editor_t* eb, char* initial
     editor_undo_capture(eb);
     eb->disable_undo = true;
     bool old_hint = ic_enable_hint(false);
+    bool old_highlight = ic_enable_highlight(true);
+    ic_enable_highlight(old_highlight);
     const char* prompt_text = eb->prompt_text;
     bool prompt_replacement = eb->replace_prompt_line_with_number;
     bool force_prompt_visibility = eb->force_prompt_text_visible;
@@ -266,6 +354,7 @@ static void edit_history_fuzzy_search(ic_env_t* env, editor_t* eb, char* initial
         eb->force_prompt_text_visible = force_prompt_visibility;
         eb->line_number_column_width = saved_line_number_width;
         ic_enable_hint(old_hint);
+        ic_enable_highlight(old_highlight);
         return;
     }
 
@@ -291,9 +380,15 @@ again:;
 
     bool showing_all_due_to_no_matches = false;
     bool metadata_filter_applied = false;
+    char metadata_preview_key[64];
+    metadata_preview_key[0] = '\0';
 
     {
         const char* query = sbuf_string(eb->input);
+        bool suppress_highlight = history_search_has_valid_metadata_tag(query);
+        (void)ic_enable_highlight(suppress_highlight ? false : old_highlight);
+        (void)history_search_extract_preview_key(query, metadata_preview_key,
+                                                 sizeof(metadata_preview_key));
         history_fuzzy_search_with_case(env->history, query ? query : "", matches, MAX_FUZZY_RESULTS,
                                        &match_count, &metadata_filter_applied,
                                        session_case_sensitive);
@@ -395,13 +490,30 @@ again:;
             if (entry == NULL || entry->command == NULL)
                 continue;
 
+            char metadata_suffix[160];
+            metadata_suffix[0] = '\0';
+            ssize_t metadata_reserved_columns = 0;
+            if (metadata_preview_key[0] != '\0') {
+                const char* meta_value = history_entry_get_metadata(entry, metadata_preview_key);
+                const char* shown_value = (meta_value == NULL ? "-" : meta_value);
+                int suffix_written = snprintf(metadata_suffix, sizeof(metadata_suffix), " [%s=%s]",
+                                              metadata_preview_key, shown_value);
+                if (suffix_written > 0) {
+                    if (suffix_written >= (int)sizeof(metadata_suffix)) {
+                        suffix_written = (int)sizeof(metadata_suffix) - 1;
+                        metadata_suffix[suffix_written] = '\0';
+                    }
+                    metadata_reserved_columns = suffix_written;
+                }
+            }
+
             const char* display = entry->command;
             const char* line_end = get_first_line_end(display);
             ssize_t entry_len = line_end ? (line_end - display) : (ssize_t)strlen(display);
             bool is_multiline = (line_end && (*line_end == '\n' || *line_end == '\r'));
 
             ssize_t marker_columns = 4;
-            ssize_t max_columns = term_width - marker_columns;
+            ssize_t max_columns = term_width - marker_columns - metadata_reserved_columns;
             if (max_columns < 4) {
                 max_columns = 4;
             }
@@ -480,6 +592,10 @@ again:;
 
             sbuf_append(eb->extra, "[/pre]");
 
+            if (metadata_suffix[0] != '\0') {
+                sbuf_appendf(eb->extra, "[ic-diminish]%s[/]", metadata_suffix);
+            }
+
             if (match_idx == selected_idx) {
                 sbuf_append(eb->extra, "[/ic-emphasis]");
             } else {
@@ -538,6 +654,7 @@ again:;
         eb->force_prompt_text_visible = force_prompt_visibility;
         eb->line_number_column_width = saved_line_number_width;
         ic_enable_hint(old_hint);
+        ic_enable_highlight(old_highlight);
         edit_refresh(env, eb);
         return;
     } else if (c == KEY_ENTER) {
@@ -562,6 +679,7 @@ again:;
         eb->force_prompt_text_visible = force_prompt_visibility;
         eb->line_number_column_width = saved_line_number_width;
         ic_enable_hint(old_hint);
+        ic_enable_highlight(old_highlight);
         edit_refresh(env, eb);
 
         eb->request_submit = true;
@@ -588,6 +706,7 @@ again:;
         eb->force_prompt_text_visible = force_prompt_visibility;
         eb->line_number_column_width = saved_line_number_width;
         ic_enable_hint(old_hint);
+        ic_enable_highlight(old_highlight);
         edit_refresh(env, eb);
         return;
     } else if ((KEY_MODS(c) & KEY_MOD_SHIFT) && KEY_NO_MODS(c) == KEY_DOWN) {

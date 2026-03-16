@@ -987,9 +987,35 @@ static bool history_parse_metadata_filter_token(history_t* h, const char* token,
     if (h == NULL || token == NULL || len == 0)
         return false;
 
+    for (size_t i = 0; i + 1 < len; ++i) {
+        if (token[i] == ':' && token[i + 1] == ':') {
+            if (i == 0)
+                return false;
+            ssize_t key_len = (ssize_t)i;
+            const char* value_start = token + i + 2;
+            ssize_t value_len = (ssize_t)((token + len) - value_start);
+
+            if (value_len <= 0) {
+                // Recognized `key::` metadata query prefix; consume the token so it does not
+                // interfere with fuzzy command matching while the user continues typing.
+                return true;
+            }
+
+            char* key = mem_strndup(h->mem, token, key_len);
+            char* value = mem_strndup(h->mem, value_start, value_len);
+            if (key == NULL || value == NULL) {
+                mem_free(h->mem, key);
+                mem_free(h->mem, value);
+                return false;
+            }
+            return history_query_filters_append(h, filters, filter_count, filter_capacity, key,
+                                                value);
+        }
+    }
+
     const char* delim = NULL;
     for (size_t i = 0; i < len; ++i) {
-        if (token[i] == '=' || token[i] == ':') {
+        if (token[i] == '=') {
             delim = token + i;
             break;
         }
