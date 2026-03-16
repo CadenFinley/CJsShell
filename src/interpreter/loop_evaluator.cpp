@@ -596,10 +596,16 @@ int handle_for_block(const std::vector<std::string>& src_lines, size_t& idx,
     };
 
     auto parse_header = [&](const std::string& header) -> bool {
+        std::string normalized_header = trim(header);
+        while (!normalized_header.empty() && normalized_header.back() == ';') {
+            normalized_header.pop_back();
+            normalized_header = trim(normalized_header);
+        }
+
         std::vector<std::string> raw_toks;
 
         try {
-            std::istringstream iss(header);
+            std::istringstream iss(normalized_header);
             std::string token;
             while (iss >> token) {
                 raw_toks.push_back(token);
@@ -642,7 +648,7 @@ int handle_for_block(const std::vector<std::string>& src_lines, size_t& idx,
                 }
             }
 
-            std::vector<std::string> toks = shell_parser->parse_command(header);
+            std::vector<std::string> toks = shell_parser->parse_command(normalized_header);
             i = 0;
             if (i < toks.size() && toks[i] == "for")
                 ++i;
@@ -665,7 +671,7 @@ int handle_for_block(const std::vector<std::string>& src_lines, size_t& idx,
         std::string header = trim(first.substr(0, do_pos));
         if (!parse_header(header))
             return 1;
-        std::string tail = trim(first.substr(do_pos + 4));
+        std::string tail = trim(first.substr(do_pos + 2));
         size_t done_pos = parser_find_keyword_token(tail, "done", 0);
         size_t search_from = (done_pos == std::string::npos) ? 0 : done_pos + 4;
         while (done_pos != std::string::npos) {
