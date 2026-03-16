@@ -980,7 +980,7 @@ std::vector<CompletionEntry> resolve_entries_for_tokens(const std::vector<std::s
     std::string current_doc = tokens[0];
     CommandDoc current_doc_data = load_entries_for_target(current_doc, allow_fetch, true);
     auto current_entries = current_doc_data.entries;
-    append_unique(current_entries);
+    std::size_t resolved_subcommand_depth = 0;
 
     std::size_t max_depth = std::min(stable_count, tokens.size());
     for (std::size_t index = 1; index < max_depth; ++index) {
@@ -1002,9 +1002,12 @@ std::vector<CompletionEntry> resolve_entries_for_tokens(const std::vector<std::s
 
         current_doc_data = load_entries_for_target(current_doc, allow_fetch);
         current_entries = current_doc_data.entries;
-        if (current_entries.empty())
-            continue;
+        ++resolved_subcommand_depth;
+    }
 
+    if (resolved_subcommand_depth == 0) {
+        append_unique(current_doc_data.entries);
+    } else {
         append_unique(current_entries);
     }
 

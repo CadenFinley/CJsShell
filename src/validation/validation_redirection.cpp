@@ -198,19 +198,6 @@ ShellScriptInterpreter::validate_redirection_syntax(const std::vector<std::strin
                 }
             }
         }
-
-        if (c == '|' && i + 1 < line.length()) {
-            if (line[i + 1] == '|') {
-                next_index = i + 1;
-            } else {
-                size_t pipe_pos = i;
-                if (check_pipe_missing_command(line, pipe_pos)) {
-                    line_errors.push_back(create_pipe_error(display_line, pipe_pos, pipe_pos + 1,
-                                                            line, "Pipe missing command after '|'",
-                                                            "Add command after pipe"));
-                }
-            }
-        }
     });
 }
 
