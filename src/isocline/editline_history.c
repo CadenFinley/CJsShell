@@ -132,6 +132,47 @@ static bool history_search_has_valid_metadata_tag(const char* query) {
     return false;
 }
 
+static const char* history_search_pretty_metadata_value(const char* key, const char* value,
+                                                        char* formatted_buf,
+                                                        size_t formatted_buf_size) {
+    if (value == NULL || value[0] == '\0') {
+        return "-";
+    }
+    ic_unused(key);
+
+    char* end = NULL;
+    long long epoch = strtoll(value, &end, 10);
+    if (end == value || end == NULL || *end != '\0' || epoch < 0) {
+        return value;
+    }
+
+    // Only treat values in a plausible unix-seconds range as timestamps.
+    if (epoch < 946684800LL || epoch > 4102444800LL) {
+        return value;
+    }
+
+    time_t ts = (time_t)epoch;
+    if ((long long)ts != epoch) {
+        return value;
+    }
+
+    struct tm local_tm;
+    if (localtime_r(&ts, &local_tm) == NULL) {
+        return value;
+    }
+
+    if (formatted_buf == NULL || formatted_buf_size == 0) {
+        return value;
+    }
+
+    size_t written = strftime(formatted_buf, formatted_buf_size, "%Y-%m-%d %H:%M:%S", &local_tm);
+    if (written == 0) {
+        return value;
+    }
+
+    return formatted_buf;
+}
+
 static void edit_history_at(ic_env_t* env, editor_t* eb, int ofs) {
     if (ofs == 0) {
         return;
@@ -495,9 +536,12 @@ again:;
             ssize_t metadata_reserved_columns = 0;
             if (metadata_preview_key[0] != '\0') {
                 const char* meta_value = history_entry_get_metadata(entry, metadata_preview_key);
-                const char* shown_value = (meta_value == NULL ? "-" : meta_value);
-                int suffix_written = snprintf(metadata_suffix, sizeof(metadata_suffix), " [%s=%s]",
-                                              metadata_preview_key, shown_value);
+                char formatted_meta_value[64];
+                const char* shown_value = history_search_pretty_metadata_value(
+                    metadata_preview_key, meta_value, formatted_meta_value,
+                    sizeof(formatted_meta_value));
+                int suffix_written =
+                    snprintf(metadata_suffix, sizeof(metadata_suffix), " [%s]", shown_value);
                 if (suffix_written > 0) {
                     if (suffix_written >= (int)sizeof(metadata_suffix)) {
                         suffix_written = (int)sizeof(metadata_suffix) - 1;

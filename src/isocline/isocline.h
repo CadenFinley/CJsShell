@@ -49,10 +49,6 @@ extern "C" {
 /// Token returned from ic_readline* when Ctrl+D is pressed with an empty buffer (EOF).
 #define IC_READLINE_TOKEN_CTRL_D "<CTRL+D>"
 
-#ifndef IC_HISTORY_METADATA_TIMESTAMP_KEY
-#define IC_HISTORY_METADATA_TIMESTAMP_KEY "timestamp"
-#endif
-
 /*! \mainpage
 Isocline C API reference.
 
@@ -322,7 +318,7 @@ typedef struct ic_history_metadata_s {
 } ic_history_metadata_t;
 
 /// Add an entry to the history with custom metadata.
-/// Isocline always adds `IC_HISTORY_METADATA_TIMESTAMP_KEY` when it is missing.
+/// Isocline always adds a timestamp metadata entry when it is missing.
 void ic_history_add_with_metadata(const char* entry, const ic_history_metadata_t* metadata,
                                   size_t metadata_count);
 

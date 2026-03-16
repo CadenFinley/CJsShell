@@ -1239,7 +1239,7 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
                     }
                     const std::string key = token.substr(0, equals_pos);
                     const std::string value = token.substr(equals_pos + 1);
-                    if (key == "exit_code") {
+                    if (key == "code" || key == "exit_code") {
                         char* endptr = nullptr;
                         long exit_ll = std::strtol(value.c_str(), &endptr, 10);
                         if (endptr != value.c_str()) {

@@ -65,7 +65,7 @@ typedef struct history_query_filter_s {
     char* value;
 } history_query_filter_t;
 
-static const char* k_history_timestamp_key = IC_HISTORY_METADATA_TIMESTAMP_KEY;
+static const char* k_history_timestamp_key = "timestamp";
 
 static bool history_metadata_key_valid(const char* key) {
     if (key == NULL || key[0] == '\0')
