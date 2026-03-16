@@ -119,6 +119,25 @@ std::vector<std::string> readonly_function_manager_list() {
     return result;
 }
 
+void print_readonly_variables(bool quote_values) {
+    auto readonly_vars = readonly_manager_list();
+
+    for (const std::string& var : readonly_vars) {
+        if (!cjsh_env::shell_variable_is_set(var)) {
+            std::cout << "readonly " << var << '\n';
+            continue;
+        }
+
+        if (quote_values) {
+            std::cout << "readonly " << var << "='" << cjsh_env::get_shell_variable_value(var)
+                      << "'" << '\n';
+        } else {
+            std::cout << "readonly " << var << "=" << cjsh_env::get_shell_variable_value(var)
+                      << '\n';
+        }
+    }
+}
+
 int readonly_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(args, {"Usage: readonly [-p] NAME[=VALUE] ...",
                                    "Mark shell variables as readonly and optionally assign values.",
@@ -127,16 +146,7 @@ int readonly_command(const std::vector<std::string>& args) {
         return 0;
     }
     if (args.size() == 1) {
-        auto readonly_vars = readonly_manager_list();
-
-        for (const std::string& var : readonly_vars) {
-            if (cjsh_env::shell_variable_is_set(var)) {
-                std::cout << "readonly " << var << "=" << cjsh_env::get_shell_variable_value(var)
-                          << '\n';
-            } else {
-                std::cout << "readonly " << var << '\n';
-            }
-        }
+        print_readonly_variables(false);
         return 0;
     }
 
@@ -192,16 +202,7 @@ int readonly_command(const std::vector<std::string>& args) {
     }
 
     if (print_mode) {
-        auto readonly_vars = readonly_manager_list();
-
-        for (const std::string& var : readonly_vars) {
-            if (cjsh_env::shell_variable_is_set(var)) {
-                std::cout << "readonly " << var << "='" << cjsh_env::get_shell_variable_value(var)
-                          << "'" << '\n';
-            } else {
-                std::cout << "readonly " << var << '\n';
-            }
-        }
+        print_readonly_variables(true);
         return 0;
     }
 

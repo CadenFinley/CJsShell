@@ -164,6 +164,13 @@ std::string signal_number_to_name(int signal_number) {
     return SignalHandler::signal_to_name(signal_number, true);
 }
 
+void print_trap_list(const std::vector<std::pair<int, std::string>>& traps) {
+    for (const auto& pair : traps) {
+        std::cout << "trap -- '" << pair.second << "' " << signal_number_to_name(pair.first)
+                  << '\n';
+    }
+}
+
 int trap_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(args, {"Usage: trap [-lp] [ARG] [SIGNAL ...]",
                                    "Set a command to execute when SIGNAL is received.",
@@ -172,15 +179,10 @@ int trap_command(const std::vector<std::string>& args) {
     }
     if (args.size() == 1) {
         auto traps = trap_manager_list_traps();
-
         if (traps.empty()) {
             return 0;
         }
-
-        for (const auto& pair : traps) {
-            std::cout << "trap -- '" << pair.second << "' " << signal_number_to_name(pair.first)
-                      << '\n';
-        }
+        print_trap_list(traps);
         return 0;
     }
 
@@ -193,11 +195,7 @@ int trap_command(const std::vector<std::string>& args) {
 
     if (args.size() >= 2 && args[1] == "-p") {
         auto traps = trap_manager_list_traps();
-
-        for (const auto& pair : traps) {
-            std::cout << "trap -- '" << pair.second << "' " << signal_number_to_name(pair.first)
-                      << '\n';
-        }
+        print_trap_list(traps);
         return 0;
     }
 

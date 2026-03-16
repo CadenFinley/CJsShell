@@ -47,6 +47,7 @@
 
 #include "cjsh_filesystem.h"
 #include "error_out.h"
+#include "history_file_utils.h"
 #include "parser_utils.h"
 #include "shell.h"
 #include "shell_env.h"
@@ -90,31 +91,8 @@ const std::vector<std::string>& fc_help_lines() {
 
 std::vector<std::string> read_history_entries() {
     cjsh_filesystem::initialize_cjsh_directories();
-
-    auto read_result =
-        cjsh_filesystem::read_file_content(cjsh_filesystem::g_cjsh_history_path().string());
-
-    std::vector<std::string> entries;
-    entries.reserve(256);
-
-    if (read_result.is_error()) {
-        return entries;
-    }
-
-    std::stringstream content_stream(read_result.value());
-    std::string line;
-
-    while (std::getline(content_stream, line)) {
-        if (line.empty()) {
-            continue;
-        }
-        if (!line.empty() && line[0] == '#') {
-            continue;
-        }
-        entries.push_back(line);
-    }
-
-    return entries;
+    return history_file_utils::read_history_entries(
+        cjsh_filesystem::g_cjsh_history_path().string());
 }
 
 bool is_fc_history_entry(const std::string& entry) {
@@ -228,8 +206,8 @@ std::string get_editor() {
     return "nano";
 }
 
-int edit_and_execute_string(const std::string& initial_content, const std::string& editor,
-                            Shell* shell) {
+int edit_and_execute_content(const std::string& initial_content, const std::string& editor,
+                             Shell* shell) {
     cjsh_filesystem::initialize_cjsh_directories();
     const auto& temp_dir = cjsh_filesystem::g_cjsh_cache_path();
     auto temp_file = temp_dir / ("fc_edit_" + std::to_string(getpid()) + ".sh");
@@ -240,7 +218,7 @@ int edit_and_execute_string(const std::string& initial_content, const std::strin
         return 1;
     }
 
-    out << initial_content << '\n';
+    out << initial_content;
     out.close();
 
     std::vector<std::string> editor_args = {editor, temp_file.string()};
@@ -278,6 +256,11 @@ int edit_and_execute_string(const std::string& initial_content, const std::strin
     return exit_code;
 }
 
+int edit_and_execute_string(const std::string& initial_content, const std::string& editor,
+                            Shell* shell) {
+    return edit_and_execute_content(initial_content + '\n', editor, shell);
+}
+
 int edit_and_execute(const std::vector<std::string>& entries, int first, int last,
                      const std::string& editor, Shell* shell) {
     if (first < 0 || first >= static_cast<int>(entries.size())) {
@@ -291,54 +274,12 @@ int edit_and_execute(const std::vector<std::string>& entries, int first, int las
         std::swap(first, last);
     }
 
-    cjsh_filesystem::initialize_cjsh_directories();
-    const auto& temp_dir = cjsh_filesystem::g_cjsh_cache_path();
-    auto temp_file = temp_dir / ("fc_edit_" + std::to_string(getpid()) + ".sh");
-
-    std::ofstream out(temp_file);
-    if (!out) {
-        print_error({ErrorType::RUNTIME_ERROR, "fc", "Failed to create temporary file", {}});
-        return 1;
-    }
-
+    std::ostringstream initial_content;
     for (int i = first; i <= last; ++i) {
-        out << entries[static_cast<size_t>(i)] << '\n';
-    }
-    out.close();
-
-    std::vector<std::string> editor_args = {editor, temp_file.string()};
-    int editor_exit_code = shell->execute_command(editor_args, false);
-
-    if (editor_exit_code != 0) {
-        std::filesystem::remove(temp_file);
-        return editor_exit_code;
+        initial_content << entries[static_cast<size_t>(i)] << '\n';
     }
 
-    auto read_result = cjsh_filesystem::read_file_content(temp_file.string());
-    std::filesystem::remove(temp_file);
-
-    if (read_result.is_error()) {
-        print_error({ErrorType::RUNTIME_ERROR, "fc", "Failed to read edited commands", {}});
-        return 1;
-    }
-
-    const std::string& edited_content = read_result.value();
-
-    if (edited_content.empty()) {
-        return 0;
-    }
-
-    std::istringstream iss(edited_content);
-    std::string line;
-    while (std::getline(iss, line)) {
-        if (!line.empty() && line[0] != '#') {
-            std::cout << line << '\n';
-        }
-    }
-
-    int exit_code = shell->execute(edited_content);
-
-    return exit_code;
+    return edit_and_execute_content(initial_content.str(), editor, shell);
 }
 
 int substitute_and_execute(const std::vector<std::string>& entries, const std::string& old_str,

@@ -34,12 +34,13 @@
 #include <cctype>
 #include <iomanip>
 #include <iostream>
-#include <sstream>
 #include <string>
 #include <vector>
 
 #include "cjsh_filesystem.h"
 #include "error_out.h"
+#include "history_file_utils.h"
+#include "numeric_utils.h"
 
 int history_command(const std::vector<std::string>& args) {
     auto run = [&]() -> int {
@@ -71,20 +72,7 @@ int history_command(const std::vector<std::string>& args) {
             content = read_result.value();
         }
 
-        std::stringstream content_stream(content);
-        std::string line;
-        std::vector<std::string> entries;
-        entries.reserve(256);
-
-        while (std::getline(content_stream, line)) {
-            if (line.empty()) {
-                continue;
-            }
-            if (!line.empty() && line[0] == '#') {
-                continue;
-            }
-            entries.push_back(line);
-        }
+        std::vector<std::string> entries = history_file_utils::parse_history_entries(content);
 
         int limit = static_cast<int>(entries.size());
         if (args.size() > 1) {
@@ -94,13 +82,7 @@ int history_command(const std::vector<std::string>& args) {
                     {ErrorType::INVALID_ARGUMENT, "history", "invalid option: " + args[1], {}});
                 return 2;
             }
-            try {
-                limit = std::stoi(args[1]);
-            } catch (const std::invalid_argument&) {
-                print_error(
-                    {ErrorType::INVALID_ARGUMENT, "history", "invalid argument: " + args[1], {}});
-                return 1;
-            } catch (const std::out_of_range&) {
+            if (!numeric_utils::parse_int_strict(args[1], limit)) {
                 print_error(
                     {ErrorType::INVALID_ARGUMENT, "history", "invalid argument: " + args[1], {}});
                 return 1;
