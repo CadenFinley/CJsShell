@@ -28,8 +28,6 @@
 
 #include "command_lookup.h"
 
-#include <unordered_set>
-
 #include "builtin.h"
 #include "cjsh_filesystem.h"
 #include "interpreter.h"
@@ -39,16 +37,12 @@
 namespace command_lookup {
 
 const std::vector<std::string>& shell_control_structure_keywords() {
-    static const std::vector<std::string> keywords = {"if",    "then", "elif", "else",    "fi",
-                                                      "case",  "esac", "for",  "select",  "while",
-                                                      "until", "do",   "done", "function"};
-    return keywords;
+    return token_constants::shell_control_structure_keywords();
 }
 
 bool is_shell_control_structure_leader(const std::string& token) {
-    static const std::unordered_set<std::string> leaders = {"if",   "for",    "while",   "until",
-                                                            "case", "select", "function"};
-    return leaders.find(token) != leaders.end();
+    return token_constants::shell_control_structure_leaders().find(token) !=
+           token_constants::shell_control_structure_leaders().end();
 }
 
 bool is_shell_keyword(const std::string& token) {

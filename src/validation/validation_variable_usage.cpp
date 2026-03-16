@@ -222,16 +222,18 @@ bool is_test_context_token(const std::string& token) {
 }
 
 bool is_assignment_token(const std::string& token) {
-    std::string lhs;
-    std::string rhs;
-    if (!split_on_first_equals(token, lhs, rhs, true)) {
-        return false;
-    }
-    if (token[0] == '$') {
+    if (token.empty() || token[0] == '$') {
         return false;
     }
 
-    size_t eq_pos = lhs.size();
+    if (!looks_like_assignment(token)) {
+        return false;
+    }
+
+    size_t eq_pos = token.find('=');
+    if (eq_pos == std::string::npos) {
+        return false;
+    }
     if (eq_pos + 1 < token.size() && (token[eq_pos + 1] == '=' || token[eq_pos + 1] == '~')) {
         return false;
     }
@@ -241,9 +243,11 @@ bool is_assignment_token(const std::string& token) {
 std::string normalize_assignment_identifier(const std::string& token) {
     std::string lhs;
     std::string rhs;
-    if (!split_on_first_equals(token, lhs, rhs, true)) {
+    if (!parse_assignment(token, lhs, rhs, false)) {
         return "";
     }
+
+    lhs = trim_whitespace(lhs);
 
     if (!lhs.empty() && lhs.back() == '+') {
         lhs.pop_back();

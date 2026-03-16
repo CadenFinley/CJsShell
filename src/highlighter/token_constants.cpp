@@ -44,6 +44,31 @@ const std::unordered_set<std::string>& shell_keywords() {
     return kShellKeywords;
 }
 
+const std::vector<std::string>& shell_control_structure_keywords() {
+    static const std::vector<std::string> kControlStructureKeywords = {
+        "if",  "then",   "elif",  "else",  "fi", "case", "esac",
+        "for", "select", "while", "until", "do", "done", "function"};
+    return kControlStructureKeywords;
+}
+
+const std::unordered_set<std::string>& shell_control_structure_leaders() {
+    static const std::unordered_set<std::string> kControlStructureLeaders = {
+        "if", "for", "while", "until", "case", "select", "function"};
+    return kControlStructureLeaders;
+}
+
+const std::unordered_set<std::string>& inline_command_keywords() {
+    static const std::unordered_set<std::string> kInlineCommandKeywords = {
+        "do", "then", "else", "elif", "if", "while", "until", "time", "coproc"};
+    return kInlineCommandKeywords;
+}
+
+const std::unordered_set<std::string>& loop_keywords() {
+    static const std::unordered_set<std::string> kLoopKeywords = {"for", "while", "until",
+                                                                  "select"};
+    return kLoopKeywords;
+}
+
 const std::unordered_set<std::string>& redirection_operators() {
     static const std::unordered_set<std::string> kRedirectionOperators = {
         ">",  ">>",  "<",  "<<",  "<<<",  "&>",   "&>>", "<&", ">&", "|&",

@@ -68,6 +68,18 @@ size_t find_token_end_with_quotes(const std::string& text, size_t start, size_t 
 bool split_on_first_equals(const std::string& value, std::string& left, std::string& right,
                            bool require_nonempty_left = true);
 bool looks_like_assignment(const std::string& value);
+
+struct HereDocHeader {
+    size_t operator_length = 0;
+    size_t delimiter_start = 0;
+    size_t delimiter_end = 0;
+    bool strip_tabs = false;
+    bool expand = true;
+    std::string delimiter;
+};
+
+bool parse_here_doc_header(std::string_view text, size_t operator_pos, HereDocHeader& header_out);
+std::string trim_here_doc_compare_line(const std::string& line);
 bool has_line_continuation_suffix(const std::string& text, bool trim_newlines = false);
 std::pair<std::string, bool> strip_noenv_sentinels(const std::string& s);
 bool strip_subst_literal_markers(std::string& value);

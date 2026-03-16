@@ -32,11 +32,13 @@
 #include <unistd.h>
 
 #include <cctype>
+#include <csignal>
 #include <sstream>
 #include <utility>
 #include <vector>
 
 #include "parser_utils.h"
+#include "signal_handler.h"
 #include "string_utils.h"
 
 namespace shell_script_interpreter::detail {
@@ -207,6 +209,25 @@ bool is_readable_file(const std::string& path) {
 
 bool is_control_flow_exit_code(int code) {
     return code == 253 || code == 254 || code == 255;
+}
+
+int pending_signal_exit_code(const SignalProcessingResult& result) {
+#ifdef SIGTERM
+    if (result.sigterm) {
+        return 128 + SIGTERM;
+    }
+#endif
+#ifdef SIGHUP
+    if (result.sighup) {
+        return 128 + SIGHUP;
+    }
+#endif
+#ifdef SIGINT
+    if (result.sigint) {
+        return 128 + SIGINT;
+    }
+#endif
+    return -1;
 }
 
 bool should_skip_line(const std::string& line) {

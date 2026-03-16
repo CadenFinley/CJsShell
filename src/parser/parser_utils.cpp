@@ -357,6 +357,57 @@ bool looks_like_assignment(const std::string& value) {
     return is_valid_identifier(name.substr(0, name_end));
 }
 
+bool parse_here_doc_header(std::string_view text, size_t operator_pos, HereDocHeader& header_out) {
+    if (operator_pos >= text.size()) {
+        return false;
+    }
+    if (text.compare(operator_pos, 2, "<<") != 0) {
+        return false;
+    }
+
+    HereDocHeader parsed;
+    parsed.operator_length = 2;
+    if (operator_pos + 2 < text.size() && text[operator_pos + 2] == '-') {
+        parsed.operator_length = 3;
+        parsed.strip_tabs = true;
+    }
+
+    size_t delim_start = operator_pos + parsed.operator_length;
+    while (delim_start < text.size() &&
+           (std::isspace(static_cast<unsigned char>(text[delim_start])) != 0)) {
+        ++delim_start;
+    }
+
+    size_t delim_end = delim_start;
+    while (delim_end < text.size() &&
+           (std::isspace(static_cast<unsigned char>(text[delim_end])) == 0)) {
+        ++delim_end;
+    }
+
+    if (delim_start == delim_end) {
+        return false;
+    }
+
+    parsed.delimiter_start = delim_start;
+    parsed.delimiter_end = delim_end;
+    parsed.delimiter = std::string(text.substr(delim_start, delim_end - delim_start));
+
+    if (parsed.delimiter.size() >= 2 &&
+        ((parsed.delimiter.front() == '"' && parsed.delimiter.back() == '"') ||
+         (parsed.delimiter.front() == '\'' && parsed.delimiter.back() == '\''))) {
+        parsed.expand = false;
+        parsed.delimiter = parsed.delimiter.substr(1, parsed.delimiter.size() - 2);
+    }
+
+    header_out = std::move(parsed);
+    return true;
+}
+
+std::string trim_here_doc_compare_line(const std::string& line) {
+    std::string trimmed = string_utils::trim_left_ascii_whitespace_copy(line);
+    return string_utils::trim_right_ascii_whitespace_copy(trimmed);
+}
+
 bool has_line_continuation_suffix(const std::string& text, bool trim_newlines) {
     size_t pos = text.size();
     if (trim_newlines) {

@@ -134,10 +134,8 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
         }
     }
 
-    static const std::unordered_set<std::string> kInlineCommandKeywords = {
-        "do", "then", "else", "elif", "if", "while", "until", "time", "coproc"};
-
-    if (kInlineCommandKeywords.find(token) != kInlineCommandKeywords.end()) {
+    if (token_constants::inline_command_keywords().find(token) !=
+        token_constants::inline_command_keywords().end()) {
         size_t nested_start = first_token_end;
         while (nested_start < cmd_str.size() &&
                (std::isspace(static_cast<unsigned char>(cmd_str[nested_start])) != 0)) {

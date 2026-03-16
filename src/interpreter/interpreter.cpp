@@ -95,22 +95,11 @@ std::optional<int> collect_pending_signal_exit_code() {
     }
 
     SignalProcessingResult pending = g_shell->process_pending_signals();
-#ifdef SIGTERM
-    if (pending.sigterm) {
-        return 128 + SIGTERM;
+    int exit_code = shell_script_interpreter::detail::pending_signal_exit_code(pending);
+    if (exit_code < 0) {
+        return std::nullopt;
     }
-#endif
-#ifdef SIGHUP
-    if (pending.sighup) {
-        return 128 + SIGHUP;
-    }
-#endif
-#ifdef SIGINT
-    if (pending.sigint) {
-        return 128 + SIGINT;
-    }
-#endif
-    return std::nullopt;
+    return exit_code;
 }
 
 bool is_terminating_signal_exit_code(int exit_code) {

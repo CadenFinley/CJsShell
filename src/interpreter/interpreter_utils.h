@@ -31,6 +31,8 @@
 #include <string>
 #include <vector>
 
+struct SignalProcessingResult;
+
 namespace shell_script_interpreter::detail {
 
 std::string trim(const std::string& s);
@@ -43,6 +45,7 @@ std::string to_lower_copy(std::string value);
 bool is_readable_file(const std::string& path);
 
 bool is_control_flow_exit_code(int code);
+int pending_signal_exit_code(const SignalProcessingResult& result);
 bool should_skip_line(const std::string& line);
 bool contains_token(const std::string& text, const std::string& token);
 

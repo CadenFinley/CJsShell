@@ -35,6 +35,7 @@
 #include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "parser_utils.h"
+#include "redirection_utils.h"
 #include "shell.h"
 #include "token_constants.h"
 
@@ -86,6 +87,20 @@ bool is_quoted_string(const std::string& token, char& quote_type) {
 
 bool is_redirection_operator(const std::string& token) {
     if (token_constants::redirection_operators().count(token) > 0) {
+        return true;
+    }
+
+    if (redirection_utils::parse_operator_token(token).has_value()) {
+        return true;
+    }
+
+    size_t prefix_digits = 0;
+    while (prefix_digits < token.size() &&
+           (std::isdigit(static_cast<unsigned char>(token[prefix_digits])) != 0)) {
+        ++prefix_digits;
+    }
+    if (prefix_digits > 0 && prefix_digits < token.size() &&
+        redirection_utils::parse_operator_token(token.substr(prefix_digits)).has_value()) {
         return true;
     }
 

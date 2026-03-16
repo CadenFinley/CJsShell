@@ -57,38 +57,15 @@ std::string CommandPreprocessor::process_here_documents(
         return result;
     }
 
-    bool strip_tabs = false;
-    size_t operator_len = 2;
-    if (here_pos + 2 < result.size() && result[here_pos + 2] == '-') {
-        strip_tabs = true;
-        operator_len = 3;
-    }
-
-    size_t delim_start = here_pos + operator_len;
-    while (delim_start < result.size() && (std::isspace(result[delim_start]) != 0)) {
-        delim_start++;
-    }
-
-    size_t delim_end = delim_start;
-    while (delim_end < result.size() && (std::isspace(result[delim_end]) == 0)) {
-        delim_end++;
-    }
-
-    if (delim_start >= delim_end) {
+    HereDocHeader header;
+    if (!parse_here_doc_header(result, here_pos, header)) {
         return result;
     }
 
-    std::string delimiter = result.substr(delim_start, delim_end - delim_start);
-
-    bool delimiter_quoted = false;
-    if (delimiter.length() >= 2) {
-        if ((delimiter.front() == '\'' && delimiter.back() == '\'') ||
-            (delimiter.front() == '"' && delimiter.back() == '"')) {
-            delimiter_quoted = true;
-
-            delimiter = delimiter.substr(1, delimiter.length() - 2);
-        }
-    }
+    const bool strip_tabs = header.strip_tabs;
+    const bool delimiter_quoted = !header.expand;
+    const std::string& delimiter = header.delimiter;
+    size_t delim_end = header.delimiter_end;
 
     size_t content_start = result.find('\n', delim_end);
     if (content_start == std::string::npos) {
@@ -112,7 +89,7 @@ std::string CommandPreprocessor::process_here_documents(
             line.pop_back();
         }
 
-        std::string compare_line = string_utils::trim_ascii_whitespace_copy(line);
+        std::string compare_line = trim_here_doc_compare_line(line);
 
         if (compare_line == delimiter) {
             delimiter_line_start = scan_pos;

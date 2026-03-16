@@ -526,26 +526,6 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
     std::string current_here_doc_line;
     current_here_doc_line.reserve(128);
 
-    auto trim_here_doc_compare_line = [](const std::string& line) {
-        std::string trimmed = line;
-        size_t first_non_ws = trimmed.find_first_not_of(" \t");
-        if (first_non_ws != std::string::npos) {
-            trimmed.erase(0, first_non_ws);
-        } else {
-            trimmed.clear();
-            return trimmed;
-        }
-
-        size_t last_non_ws = trimmed.find_last_not_of(" \t\r");
-        if (last_non_ws != std::string::npos) {
-            trimmed.erase(last_non_ws + 1);
-        } else {
-            trimmed.clear();
-        }
-
-        return trimmed;
-    };
-
     bool line_is_comment = false;
     bool in_parameter_brace = false;
 
@@ -659,44 +639,21 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
                                     size_t& delim_end_out) -> bool {
         size_t pos = sv.find("<<");
         while (pos != std::string::npos) {
-            size_t op_len = 2;
-            if (pos + 2 < sv.size() && sv[pos + 2] == '-') {
-                op_len = 3;
+            HereDocHeader header;
+            if (!parse_here_doc_header(sv, pos, header)) {
+                pos = sv.find("<<", pos + 2);
+                continue;
             }
+            size_t op_len = header.operator_length;
 
             if (is_in_arithmetic_context(sv, pos)) {
                 pos = sv.find("<<", pos + op_len);
                 continue;
             }
 
-            size_t delim_start = pos + op_len;
-            while (delim_start < sv.size() &&
-                   (std::isspace(static_cast<unsigned char>(sv[delim_start])) != 0)) {
-                delim_start++;
-            }
-
-            size_t delim_end = delim_start;
-            while (delim_end < sv.size() &&
-                   (std::isspace(static_cast<unsigned char>(sv[delim_end])) == 0)) {
-                delim_end++;
-            }
-
-            if (delim_start == delim_end) {
-                pos = sv.find("<<", pos + op_len);
-                continue;
-            }
-
-            std::string_view candidate = sv.substr(delim_start, delim_end - delim_start);
-            std::string_view unquoted = candidate;
-            if (candidate.size() >= 2 &&
-                ((candidate.front() == '"' && candidate.back() == '"') ||
-                 (candidate.front() == '\'' && candidate.back() == '\''))) {
-                unquoted = candidate.substr(1, candidate.size() - 2);
-            }
-
-            if (unquoted == here_doc_delimiter) {
+            if (header.delimiter == here_doc_delimiter) {
                 pos_out = pos;
-                delim_end_out = delim_end;
+                delim_end_out = header.delimiter_end;
                 return true;
             }
 
@@ -778,7 +735,7 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
 
         if (in_here_doc) {
             if (c == '\n') {
-                std::string trimmed_line = trim_here_doc_compare_line(current_here_doc_line);
+                std::string trimmed_line = ::trim_here_doc_compare_line(current_here_doc_line);
 
                 if (trimmed_line == here_doc_delimiter) {
                     std::string_view segment_view{script.data() + start, i - start};
@@ -854,7 +811,6 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
 
                 size_t search_from = 0;
                 size_t here_pos = std::string::npos;
-                bool is_strip_tabs = false;
 
                 while (search_from < segment_no_comment.size()) {
                     size_t candidate = segment_no_comment.find("<<", search_from);
@@ -862,13 +818,12 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
                         break;
                     }
 
-                    size_t op_len = 2;
-                    bool candidate_strip = false;
-                    if (candidate + 2 < segment_no_comment.size() &&
-                        segment_no_comment[candidate + 2] == '-') {
-                        op_len = 3;
-                        candidate_strip = true;
+                    HereDocHeader header;
+                    if (!parse_here_doc_header(segment_no_comment, candidate, header)) {
+                        search_from = candidate + 2;
+                        continue;
                     }
+                    size_t op_len = header.operator_length;
 
                     if (is_in_arithmetic_context(segment_no_comment, candidate)) {
                         search_from = candidate + op_len;
@@ -876,7 +831,6 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
                     }
 
                     here_pos = candidate;
-                    is_strip_tabs = candidate_strip;
                     break;
                 }
 
@@ -884,45 +838,21 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
                     goto normal_line_processing;
                 }
 
-                size_t operator_len = is_strip_tabs ? 3 : 2;
+                HereDocHeader parsed_header;
+                if (!parse_here_doc_header(segment_no_comment, here_pos, parsed_header)) {
+                    goto normal_line_processing;
+                }
 
                 here_doc_operator_pos = here_pos;
-                here_doc_operator_len = operator_len;
-
-                size_t delim_start = here_pos + operator_len;
-                while (delim_start < segment_no_comment.size() &&
-                       (std::isspace(segment_no_comment[delim_start]) != 0)) {
-                    delim_start++;
-                }
-                size_t delim_end = delim_start;
-                while (delim_end < segment_no_comment.size() &&
-                       (std::isspace(segment_no_comment[delim_end]) == 0)) {
-                    delim_end++;
-                }
-                here_doc_delim_end_pos = delim_end;
-                if (delim_start < delim_end) {
-                    here_doc_delimiter =
-                        segment_no_comment.substr(delim_start, delim_end - delim_start);
-
-                    if (!here_doc_delimiter.empty() &&
-                        ((here_doc_delimiter.front() == '"' && here_doc_delimiter.back() == '"') ||
-                         (here_doc_delimiter.front() == '\'' &&
-                          here_doc_delimiter.back() == '\''))) {
-                        here_doc_expand = false;
-                        if (here_doc_delimiter.size() >= 2) {
-                            here_doc_delimiter =
-                                here_doc_delimiter.substr(1, here_doc_delimiter.size() - 2);
-                        }
-                    } else {
-                        here_doc_expand = true;
-                    }
-
-                    in_here_doc = true;
-                    strip_tabs = is_strip_tabs;
-                    here_doc_content.clear();
-                    current_here_doc_line.clear();
-                    continue;
-                }
+                here_doc_operator_len = parsed_header.operator_length;
+                here_doc_delim_end_pos = parsed_header.delimiter_end;
+                here_doc_delimiter = parsed_header.delimiter;
+                here_doc_expand = parsed_header.expand;
+                in_here_doc = true;
+                strip_tabs = parsed_header.strip_tabs;
+                here_doc_content.clear();
+                current_here_doc_line.clear();
+                continue;
             }
 
         normal_line_processing:
@@ -940,7 +870,7 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
     }
 
     if (in_here_doc) {
-        std::string trimmed_line = trim_here_doc_compare_line(current_here_doc_line);
+        std::string trimmed_line = ::trim_here_doc_compare_line(current_here_doc_line);
 
         if (trimmed_line == here_doc_delimiter) {
             size_t segment_len = script.size() - start;

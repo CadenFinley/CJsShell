@@ -29,7 +29,6 @@
 #include "loop_evaluator.h"
 
 #include <algorithm>
-#include <array>
 #include <cctype>
 #include <csignal>
 #include <cstdlib>
@@ -47,6 +46,7 @@
 #include "shell.h"
 #include "shell_env.h"
 #include "signal_handler.h"
+#include "token_constants.h"
 
 using shell_script_interpreter::detail::strip_inline_comment;
 using shell_script_interpreter::detail::trim;
@@ -117,25 +117,6 @@ const std::shared_ptr<std::vector<std::string>>& get_cached_inline_loop_body(
     return insert_it->second;
 }
 
-int signal_exit_code(const SignalProcessingResult& result) {
-#ifdef SIGTERM
-    if (result.sigterm) {
-        return 128 + SIGTERM;
-    }
-#endif
-#ifdef SIGHUP
-    if (result.sighup) {
-        return 128 + SIGHUP;
-    }
-#endif
-#ifdef SIGINT
-    if (result.sigint) {
-        return 128 + SIGINT;
-    }
-#endif
-    return -1;
-}
-
 bool check_loop_interrupt(int& rc) {
     if (!g_shell) {
         return false;
@@ -146,7 +127,7 @@ bool check_loop_interrupt(int& rc) {
     }
 
     SignalProcessingResult pending = g_shell->process_pending_signals();
-    int exit_code = signal_exit_code(pending);
+    int exit_code = shell_script_interpreter::detail::pending_signal_exit_code(pending);
     if (exit_code >= 0) {
         rc = exit_code;
         return true;
@@ -229,10 +210,8 @@ bool matches_keyword_only(const std::string& text, std::string_view keyword) {
 }
 
 bool starts_with_loop_keyword(const std::string& text) {
-    static constexpr std::array<std::string_view, 4> kLoopKeywords = {"for", "while", "until",
-                                                                      "select"};
-
-    return std::any_of(kLoopKeywords.begin(), kLoopKeywords.end(), [&](std::string_view keyword) {
+    const auto& loop_keywords = token_constants::loop_keywords();
+    return std::any_of(loop_keywords.begin(), loop_keywords.end(), [&](const std::string& keyword) {
         if (text.size() < keyword.size()) {
             return false;
         }
