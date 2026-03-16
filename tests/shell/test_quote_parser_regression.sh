@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 
-# test_quoting_expansions.sh
+# test_quote_parser_regression.sh
 #
 # This file is part of cjsh, CJ's Shell
 #
@@ -26,60 +26,40 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-if [ -n "$CJSH" ]; then CJSH_PATH="$CJSH"; else CJSH_PATH="$(cd "$(dirname "$0")/../../build" && pwd)/cjsh"; fi
-echo "Test: quoting and expansions..."
-VAR_OUTPUT=$("$CJSH_PATH" -c "var=world; printf \"hello \$var\"")
-if [ "$VAR_OUTPUT" != "hello world" ]; then
-  echo "FAIL: variable expansion"
-  exit 1
+if [ -n "$CJSH" ]; then
+  CJSH_PATH="$CJSH"
 else
-  echo "PASS: variable expansion"
+  CJSH_PATH="$(cd "$(dirname "$0")/../../build" && pwd)/cjsh"
 fi
-SINGLE_OUTPUT=$("$CJSH_PATH" -c "var=world; printf 'hello \$var'")
-if [ "$SINGLE_OUTPUT" != "hello \$var" ]; then
-  echo "FAIL: single quotes"
-  exit 1
-else
-  echo "PASS: single quotes"
-fi
-CMD_OUTPUT=$("$CJSH_PATH" -c "printf \$(printf hello)")
-if [ "$CMD_OUTPUT" != "hello" ]; then
-  echo "FAIL: command substitution"
-  exit 1
-else
-  echo "PASS: command substitution"
-fi
-ARITH_OUTPUT=$("$CJSH_PATH" -c "printf \$((1+2))")
-if [ "$ARITH_OUTPUT" != "3" ]; then
-  echo "FAIL: arithmetic expansion"
-  exit 1
-else
-  echo "PASS: arithmetic expansion"
-fi
+
+echo "Test: quote parser regression cases..."
 
 MULTILINE_SCRIPT=$(printf 'echo "Say \\\"hello\\\" now"\necho done')
-MULTILINE_OUTPUT=$("$CJSH_PATH" -c "$MULTILINE_SCRIPT")
+MULTILINE_OUTPUT=$("$CJSH_PATH" -c "$MULTILINE_SCRIPT" 2>&1)
 EXPECTED_MULTILINE_OUTPUT=$(printf 'Say "hello" now\ndone')
 if [ "$MULTILINE_OUTPUT" != "$EXPECTED_MULTILINE_OUTPUT" ]; then
-  echo "FAIL: escaped quotes across lines"
+  echo "FAIL: escaped quotes before newline"
+  echo "      got: $MULTILINE_OUTPUT"
   exit 1
 else
-  echo "PASS: escaped quotes across lines"
+  echo "PASS: escaped quotes before newline"
 fi
 
-NESTED_SUBST_OUTPUT=$("$CJSH_PATH" -c 'value="$(command printf "%s" "$(command printf "%s" "deep")")"; printf "%s" "$value"')
+NESTED_SUBST_OUTPUT=$("$CJSH_PATH" -c 'value="$(command printf "%s" "$(command printf "%s" "deep")")"; printf "%s" "$value"' 2>&1)
 if [ "$NESTED_SUBST_OUTPUT" != "deep" ]; then
-  echo "FAIL: nested command substitutions in double quotes"
+  echo "FAIL: nested substitutions in double quotes"
+  echo "      got: $NESTED_SUBST_OUTPUT"
   exit 1
 else
-  echo "PASS: nested command substitutions in double quotes"
+  echo "PASS: nested substitutions in double quotes"
 fi
 
 PWD_VALUE=$(pwd)
-NESTED_ARGS_OUTPUT=$("$CJSH_PATH" -c 'f() { out="$(command printf "%s|%s" "$(pwd)" "$@")"; printf "%s" "$out"; }; f "arg with space"')
+NESTED_ARGS_OUTPUT=$("$CJSH_PATH" -c 'f() { out="$(command printf "%s|%s" "$(pwd)" "$@")"; printf "%s" "$out"; }; f "arg with space"' 2>&1)
 EXPECTED_NESTED_ARGS_OUTPUT=$(printf '%s|%s' "$PWD_VALUE" 'arg with space')
 if [ "$NESTED_ARGS_OUTPUT" != "$EXPECTED_NESTED_ARGS_OUTPUT" ]; then
   echo "FAIL: nested substitution with quoted positional args"
+  echo "      got: $NESTED_ARGS_OUTPUT"
   exit 1
 else
   echo "PASS: nested substitution with quoted positional args"
@@ -88,13 +68,14 @@ fi
 TMP_SCRIPT=$(mktemp)
 trap 'rm -f "$TMP_SCRIPT"' EXIT HUP INT TERM
 printf '%s\n' 'z() { __CJSH_ZOXIDE_RESULT="$(command printf "%s|%s" "$(pwd)" "$@")"; printf "%s" "$__CJSH_ZOXIDE_RESULT"; }' 'z "ok arg"' >"$TMP_SCRIPT"
-SOURCE_OUTPUT=$("$CJSH_PATH" -c ". \"$TMP_SCRIPT\"")
+SOURCE_OUTPUT=$("$CJSH_PATH" -c ". \"$TMP_SCRIPT\"" 2>&1)
 EXPECTED_SOURCE_OUTPUT=$(printf '%s|%s' "$PWD_VALUE" 'ok arg')
 if [ "$SOURCE_OUTPUT" != "$EXPECTED_SOURCE_OUTPUT" ]; then
-  echo "FAIL: sourced file with zoxide-style assignment"
+  echo "FAIL: sourced zoxide-style assignment"
+  echo "      got: $SOURCE_OUTPUT"
   exit 1
 else
-  echo "PASS: sourced file with zoxide-style assignment"
+  echo "PASS: sourced zoxide-style assignment"
 fi
 
 echo "PASS"

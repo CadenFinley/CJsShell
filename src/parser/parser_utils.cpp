@@ -177,13 +177,35 @@ bool parser_find_matching_command_substitution_end(const std::string& text, size
         return false;
     }
 
-    size_t match = find_matching_paren(text, start_index - 1);
-    if (match == std::string::npos) {
-        return false;
+    int depth = 1;
+    utils::QuoteState quote_state;
+
+    for (size_t i = start_index; i < text.size(); ++i) {
+        char ch = text[i];
+
+        if (quote_state.consume_forward(ch) == utils::QuoteAdvanceResult::Continue) {
+            continue;
+        }
+
+        if (quote_state.inside_quotes()) {
+            continue;
+        }
+
+        if (ch == '(') {
+            ++depth;
+            continue;
+        }
+
+        if (ch == ')') {
+            --depth;
+            if (depth == 0) {
+                end_out = i;
+                return true;
+            }
+        }
     }
 
-    end_out = match;
-    return true;
+    return false;
 }
 
 std::string trim_trailing_whitespace(std::string s) {

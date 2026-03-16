@@ -169,6 +169,32 @@ else
     fail "Expected preserved spaces, got '$result'"
 fi
 
+log_test "Nested command substitution inside double quotes"
+result=$("$SHELL_TO_TEST" -c 'echo "$(printf "%s" "$(printf "%s" deep)")"' 2>/dev/null)
+if [ "$result" = "deep" ]; then
+    pass
+else
+    fail "Expected nested substitution result, got '$result'"
+fi
+
+log_test "Quoted positional args inside nested substitution"
+result=$("$SHELL_TO_TEST" -c 'f() { out="$(printf "%s|%s" "$(pwd)" "$@")"; printf "%s" "$out"; }; f "arg with space"' 2>/dev/null)
+expected=$(printf '%s|%s' "$(pwd)" 'arg with space')
+if [ "$result" = "$expected" ]; then
+    pass
+else
+    fail "Expected '$expected', got '$result'"
+fi
+
+log_test "Escaped quotes before newline in -c script"
+result=$("$SHELL_TO_TEST" -c "$(printf 'echo \"Say \\\"hello\\\" now\"\necho done')" 2>/dev/null)
+expected=$(printf 'Say "hello" now\ndone')
+if [ "$result" = "$expected" ]; then
+    pass
+else
+    fail "Expected multiline escaped quotes output, got '$result'"
+fi
+
 log_test "Mixed quoting"
 result=$("$SHELL_TO_TEST" -c 'VAR=test; echo "hello"world' 2>/dev/null)
 if [ "$result" = "helloworld" ]; then

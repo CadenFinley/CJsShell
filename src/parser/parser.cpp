@@ -830,11 +830,14 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
         }
 
         if (!line_is_comment) {
-            if (!in_quotes && (c == '"' || c == '\'')) {
+            if (!in_quotes && (c == '"' || c == '\'') && !is_char_escaped(script, i)) {
                 in_quotes = true;
                 quote_char = c;
             } else if (in_quotes && c == quote_char) {
-                in_quotes = false;
+                bool escaped_double_quote = (quote_char == '"') && is_char_escaped(script, i);
+                if (!escaped_double_quote) {
+                    in_quotes = false;
+                }
             }
         }
 
