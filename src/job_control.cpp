@@ -33,6 +33,7 @@
 #include "shell.h"
 #include "shell_env.h"
 #include "signal_handler.h"
+#include "string_utils.h"
 #include "suggestion_utils.h"
 #include "wait_status_utils.h"
 
@@ -55,13 +56,8 @@ namespace {
 
 std::atomic<pid_t> g_atomic_last_background_pid{-1};
 
-std::string_view trim_view(const std::string& value) {
-    const auto start = value.find_first_not_of(" \t");
-    if (start == std::string::npos) {
-        return std::string_view{};
-    }
-    const auto end = value.find_last_not_of(" \t");
-    return std::string_view(value).substr(start, end - start + 1);
+std::string trim_view(const std::string& value) {
+    return string_utils::trim_ascii_whitespace_copy(value);
 }
 
 enum class JobMatchKind : uint8_t {
@@ -88,8 +84,10 @@ JobMatchKind job_command_match_kind(const std::shared_ptr<JobControlJob>& job,
     }
 
     const auto first_space = trimmed_command.find_first_of(" \t");
-    const std::string_view command_word =
-        first_space == std::string::npos ? trimmed_command : trimmed_command.substr(0, first_space);
+    std::string_view command_word(trimmed_command);
+    if (first_space != std::string::npos) {
+        command_word = command_word.substr(0, first_space);
+    }
 
     if (command_word == spec_view) {
         return JobMatchKind::Exact;
@@ -235,13 +233,7 @@ int parse_signal(const std::string& signal_str) {
 }
 
 void trim_in_place(std::string& value) {
-    const auto start = value.find_first_not_of(" \t");
-    if (start == std::string::npos) {
-        value.clear();
-        return;
-    }
-    const auto end = value.find_last_not_of(" \t");
-    value = value.substr(start, end - start + 1);
+    value = string_utils::trim_ascii_whitespace_copy(value);
 }
 
 std::shared_ptr<JobControlJob> find_job_by_command(const std::string& spec, JobManager& job_manager,
@@ -341,9 +333,7 @@ ExitErrorResult make_exit_error_result(const std::string& command, int exit_code
         if (!cjsh_filesystem::command_exists(command)) {
             result.type = ErrorType::COMMAND_NOT_FOUND;
             result.message.clear();
-            if (config::error_suggestions_enabled) {
-                result.suggestions = suggestion_utils::generate_command_suggestions(command);
-            }
+            result.suggestions = suggestion_utils::generate_command_suggestions_if_enabled(command);
             return result;
         }
     } else if (exit_code == 126) {

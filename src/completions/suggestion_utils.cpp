@@ -43,6 +43,7 @@
 #include "edit_distance_utils.h"
 #include "interpreter.h"
 #include "shell.h"
+#include "shell_env.h"
 #include "string_utils.h"
 
 extern std::unique_ptr<Shell> g_shell;
@@ -165,6 +166,13 @@ std::vector<std::string> generate_command_suggestions(const std::string& command
     }
 
     return suggestions;
+}
+
+std::vector<std::string> generate_command_suggestions_if_enabled(const std::string& command) {
+    if (!config::error_suggestions_enabled || command.empty()) {
+        return {};
+    }
+    return generate_command_suggestions(command);
 }
 
 std::vector<std::string> generate_cd_suggestions(const std::string& target_dir,

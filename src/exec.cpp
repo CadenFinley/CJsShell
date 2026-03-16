@@ -331,10 +331,7 @@ bool special_handlers_enabled() {
 }
 
 std::vector<std::string> build_command_not_found_suggestions(const std::string& command_name) {
-    if (!config::error_suggestions_enabled || command_name.empty()) {
-        return {};
-    }
-    return suggestion_utils::generate_command_suggestions(command_name);
+    return suggestion_utils::generate_command_suggestions_if_enabled(command_name);
 }
 
 bool handler_defers_to_default_command_not_found_output(
@@ -2722,7 +2719,7 @@ void Exec::wait_for_job(int job_id) {
             job.last_status = final_status;
 
             if (WIFEXITED(final_status)) {
-                int exit_status = WEXITSTATUS(final_status);
+                int exit_status = extract_exit_code(final_status);
                 last_exit_code = exit_status;
                 job.completed = true;
                 auto exit_result = job_utils::make_exit_error_result(
@@ -2789,7 +2786,7 @@ void Exec::handle_child_signal(pid_t pid, int status) {
                         if (WIFSIGNALED(status)) {
                             std::cerr << "\n[" << job_id << "] Terminated\t" << job.command << '\n';
                         } else {
-                            const int exit_code = WIFEXITED(status) ? WEXITSTATUS(status) : 0;
+                            const int exit_code = extract_exit_code(status);
                             if (exit_code == 0) {
                                 std::cerr << "\n[" << job_id << "] Done\t" << job.command << '\n';
                             } else {

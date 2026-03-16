@@ -29,6 +29,7 @@
 #include "test_command.h"
 #include "builtin_help.h"
 #include "error_out.h"
+#include "test_expression_utils.h"
 
 #include <sys/stat.h>
 #include <unistd.h>
@@ -98,24 +99,8 @@ bool evaluate_unary(TestContext& ctx) {
 
     struct stat st;
 
-    if (op == "-z") {
-        return arg.empty();
-    } else if (op == "-n") {
-        return !arg.empty();
-    } else if (op == "-e") {
-        return access(arg.c_str(), F_OK) == 0;
-    } else if (op == "-f") {
-        return stat(arg.c_str(), &st) == 0 && S_ISREG(st.st_mode);
-    } else if (op == "-d") {
-        return stat(arg.c_str(), &st) == 0 && S_ISDIR(st.st_mode);
-    } else if (op == "-r") {
-        return access(arg.c_str(), R_OK) == 0;
-    } else if (op == "-w") {
-        return access(arg.c_str(), W_OK) == 0;
-    } else if (op == "-x") {
-        return access(arg.c_str(), X_OK) == 0;
-    } else if (op == "-s") {
-        return stat(arg.c_str(), &st) == 0 && st.st_size > 0;
+    if (test_expression_utils::is_basic_unary_operator(op)) {
+        return test_expression_utils::evaluate_basic_unary_operator(op, arg);
     } else if (op == "-L" || op == "-h") {
         return is_symlink(arg.c_str());
     } else if (op == "-p") {
@@ -180,28 +165,9 @@ bool evaluate_binary(TestContext& ctx) {
         return left > right;
     }
 
-    try {
-        long long left_val = std::stoll(left);
-        long long right_val = std::stoll(right);
-
-        if (op == "-eq") {
-            return left_val == right_val;
-        } else if (op == "-ne") {
-            return left_val != right_val;
-        } else if (op == "-lt") {
-            return left_val < right_val;
-        } else if (op == "-le") {
-            return left_val <= right_val;
-        } else if (op == "-gt") {
-            return left_val > right_val;
-        } else if (op == "-ge") {
-            return left_val >= right_val;
-        }
-    } catch (...) {
-        if (op == "-eq" || op == "-ne" || op == "-lt" || op == "-le" || op == "-gt" ||
-            op == "-ge") {
-            return false;
-        }
+    auto numeric_result = test_expression_utils::evaluate_numeric_comparison(left, op, right);
+    if (numeric_result.has_value()) {
+        return *numeric_result;
     }
 
     struct stat st1, st2;
@@ -242,11 +208,10 @@ bool is_binary_op(const std::string& s) {
 }
 
 bool is_unary_op(const std::string& s) {
-    return s.length() == 2 && s[0] == '-' &&
-           (s == "-z" || s == "-n" || s == "-e" || s == "-f" || s == "-d" || s == "-r" ||
-            s == "-w" || s == "-x" || s == "-s" || s == "-L" || s == "-h" || s == "-p" ||
-            s == "-b" || s == "-c" || s == "-S" || s == "-u" || s == "-g" || s == "-k" ||
-            s == "-O" || s == "-G" || s == "-N" || s == "-t");
+    return (s.length() == 2 && s[0] == '-' &&
+            (test_expression_utils::is_basic_unary_operator(s) || s == "-L" || s == "-h" ||
+             s == "-p" || s == "-b" || s == "-c" || s == "-S" || s == "-u" || s == "-g" ||
+             s == "-k" || s == "-O" || s == "-G" || s == "-N" || s == "-t"));
 }
 
 bool evaluate_term(TestContext& ctx) {

@@ -157,10 +157,8 @@ std::vector<std::string> extract_candidate_commands(const std::vector<std::strin
 UnknownCommandInfo build_unknown_command_info(const std::string& token) {
     UnknownCommandInfo info;
     info.command = token;
-    if (config::error_suggestions_enabled) {
-        auto suggestions = suggestion_utils::generate_command_suggestions(token);
-        info.suggestions = extract_candidate_commands(suggestions);
-    }
+    auto suggestions = suggestion_utils::generate_command_suggestions_if_enabled(token);
+    info.suggestions = extract_candidate_commands(suggestions);
     return info;
 }
 

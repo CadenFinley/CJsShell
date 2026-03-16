@@ -272,9 +272,7 @@ int Built_ins::builtin_command(const std::vector<std::string>& args) {
         return status;
     }
     std::vector<std::string> suggestions;
-    if (config::error_suggestions_enabled) {
-        suggestions = suggestion_utils::generate_command_suggestions(args[0]);
-    }
+    suggestions = suggestion_utils::generate_command_suggestions_if_enabled(args[0]);
 
     ErrorInfo error = {ErrorType::COMMAND_NOT_FOUND, args[0], "command not found", suggestions};
     print_error(error);

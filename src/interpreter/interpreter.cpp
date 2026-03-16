@@ -74,6 +74,7 @@
 #include "signal_handler.h"
 #include "suggestion_utils.h"
 #include "tokenizer.h"
+#include "wait_status_utils.h"
 
 using shell_script_interpreter::detail::contains_token;
 using shell_script_interpreter::detail::is_control_flow_exit_code;
@@ -331,10 +332,7 @@ std::string strip_cjsh_prefix(std::string message) {
 }
 
 std::vector<std::string> build_command_suggestions(const std::string& command_name) {
-    if (!config::error_suggestions_enabled) {
-        return {};
-    }
-    return suggestion_utils::generate_command_suggestions(command_name);
+    return suggestion_utils::generate_command_suggestions_if_enabled(command_name);
 }
 
 int handle_runtime_exception(const std::string& text, const std::runtime_error& e,
@@ -458,7 +456,7 @@ int ShellScriptInterpreter::execute_subshell(const std::string& subshell_content
     } else if (pid > 0) {
         int status = 0;
         waitpid(pid, &status, 0);
-        int exit_code = WIFEXITED(status) ? WEXITSTATUS(status) : 1;
+        int exit_code = wait_status_utils::to_exit_code(status, 1);
         return set_last_status(exit_code);
     } else {
         print_error({ErrorType::RUNTIME_ERROR,

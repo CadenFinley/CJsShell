@@ -45,6 +45,7 @@
 #include "exec.h"
 #include "job_control.h"
 #include "shell.h"
+#include "wait_status_utils.h"
 
 int bg_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(args,
@@ -146,7 +147,7 @@ int fg_command(const std::vector<std::string>& args) {
 
     if (WIFEXITED(status)) {
         job_manager.remove_job(job_id);
-        return WEXITSTATUS(status);
+        return wait_status_utils::to_exit_code(status);
     }
     if (WIFSTOPPED(status)) {
         job->state.store(JobState::STOPPED, std::memory_order_relaxed);
@@ -155,7 +156,7 @@ int fg_command(const std::vector<std::string>& args) {
     }
     if (WIFSIGNALED(status)) {
         job_manager.remove_job(job_id);
-        return 128 + WTERMSIG(status);
+        return wait_status_utils::to_exit_code(status);
     }
 
     return 0;

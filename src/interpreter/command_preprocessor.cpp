@@ -31,6 +31,7 @@
 #include <limits>
 
 #include "parser_utils.h"
+#include "string_utils.h"
 
 CommandPreprocessor::PreprocessedCommand CommandPreprocessor::preprocess(
     const std::string& command) {
@@ -111,19 +112,7 @@ std::string CommandPreprocessor::process_here_documents(
             line.pop_back();
         }
 
-        std::string compare_line = line;
-        size_t first_non_ws = compare_line.find_first_not_of(" \t");
-        if (first_non_ws == std::string::npos) {
-            compare_line.clear();
-        } else {
-            compare_line.erase(0, first_non_ws);
-        }
-        size_t last_non_ws = compare_line.find_last_not_of(" \t\r");
-        if (last_non_ws == std::string::npos) {
-            compare_line.clear();
-        } else {
-            compare_line.erase(last_non_ws + 1);
-        }
+        std::string compare_line = string_utils::trim_ascii_whitespace_copy(line);
 
         if (compare_line == delimiter) {
             delimiter_line_start = scan_pos;
@@ -205,19 +194,11 @@ std::string CommandPreprocessor::process_subshells(const std::string& command) {
     std::string remaining = result.substr(close_pos + 1);
 
     if (!is_paren_group) {
-        size_t start = subshell_content.find_first_not_of(" \t\n\r");
-        size_t end = subshell_content.find_last_not_of(" \t\n\r");
-        if (start != std::string::npos && end != std::string::npos) {
-            subshell_content = subshell_content.substr(start, end - start + 1);
-        }
+        subshell_content = string_utils::trim_ascii_whitespace_copy(subshell_content);
 
         if (!subshell_content.empty() && subshell_content.back() == ';') {
             subshell_content.pop_back();
-
-            end = subshell_content.find_last_not_of(" \t\n\r");
-            if (end != std::string::npos) {
-                subshell_content = subshell_content.substr(0, end + 1);
-            }
+            subshell_content = string_utils::trim_right_ascii_whitespace_copy(subshell_content);
         }
     }
 

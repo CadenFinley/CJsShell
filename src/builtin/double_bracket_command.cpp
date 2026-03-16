@@ -30,6 +30,8 @@
 
 #include "builtin_help.h"
 #include "error_out.h"
+#include "pattern_matcher.h"
+#include "test_expression_utils.h"
 
 #include <sys/stat.h>
 #include <unistd.h>
@@ -40,74 +42,11 @@
 
 namespace {
 
-bool pattern_match(const std::string& text, const std::string& pattern) {
-    std::string regex_pattern;
-    for (size_t i = 0; i < pattern.size(); ++i) {
-        char c = pattern[i];
-        switch (c) {
-            case '*':
-                regex_pattern += ".*";
-                break;
-            case '?':
-                regex_pattern += ".";
-                break;
-            case '[': {
-                regex_pattern += "[";
-                size_t j = i + 1;
-                while (j < pattern.size() && pattern[j] != ']') {
-                    regex_pattern += pattern[j];
-                    j++;
-                }
-                if (j < pattern.size()) {
-                    regex_pattern += "]";
-                    i = j;
-                } else {
-                    regex_pattern += "\\[";
-                }
-                break;
-            }
-            case '\\':
-                if (i + 1 < pattern.size()) {
-                    regex_pattern += "\\\\";
+PatternMatcher g_pattern_matcher;
 
-                    char next_char = pattern[i + 1];
-                    if (next_char == '.' || next_char == '^' || next_char == '$' ||
-                        next_char == '*' || next_char == '+' || next_char == '?' ||
-                        next_char == '(' || next_char == ')' || next_char == '[' ||
-                        next_char == ']' || next_char == '{' || next_char == '}' ||
-                        next_char == '|' || next_char == '\\') {
-                        regex_pattern += "\\";
-                    }
-                    regex_pattern += next_char;
-                    i++;
-                } else {
-                    regex_pattern += "\\\\";
-                }
-                break;
-            case '.':
-            case '^':
-            case '$':
-            case '+':
-            case '(':
-            case ')':
-            case '{':
-            case '}':
-            case '|':
-                regex_pattern += "\\";
-                regex_pattern += c;
-                break;
-            default:
-                regex_pattern += c;
-                break;
-        }
-    }
-
-    try {
-        std::regex re(regex_pattern);
-        return std::regex_match(text, re);
-    } catch (const std::regex_error&) {
-        return false;
-    }
+bool has_pattern_syntax(const std::string& pattern) {
+    return pattern.find('*') != std::string::npos || pattern.find('?') != std::string::npos ||
+           pattern.find('[') != std::string::npos;
 }
 
 int evaluate_expression(const std::vector<std::string>& tokens) {
@@ -123,27 +62,8 @@ int evaluate_expression(const std::vector<std::string>& tokens) {
         const std::string& op = tokens[0];
         const std::string& arg = tokens[1];
 
-        if (op == "-z") {
-            return arg.empty() ? 0 : 1;
-        } else if (op == "-n") {
-            return arg.empty() ? 1 : 0;
-        } else if (op == "-f") {
-            struct stat st;
-            return (stat(arg.c_str(), &st) == 0 && S_ISREG(st.st_mode)) ? 0 : 1;
-        } else if (op == "-d") {
-            struct stat st;
-            return (stat(arg.c_str(), &st) == 0 && S_ISDIR(st.st_mode)) ? 0 : 1;
-        } else if (op == "-e") {
-            return access(arg.c_str(), F_OK) == 0 ? 0 : 1;
-        } else if (op == "-r") {
-            return access(arg.c_str(), R_OK) == 0 ? 0 : 1;
-        } else if (op == "-w") {
-            return access(arg.c_str(), W_OK) == 0 ? 0 : 1;
-        } else if (op == "-x") {
-            return access(arg.c_str(), X_OK) == 0 ? 0 : 1;
-        } else if (op == "-s") {
-            struct stat st;
-            return (stat(arg.c_str(), &st) == 0 && st.st_size > 0) ? 0 : 1;
+        if (test_expression_utils::is_basic_unary_operator(op)) {
+            return test_expression_utils::evaluate_basic_unary_operator(op, arg) ? 0 : 1;
         } else if (op == "!") {
             return arg.empty() ? 0 : 1;
         }
@@ -160,9 +80,15 @@ int evaluate_expression(const std::vector<std::string>& tokens) {
         const std::string& arg2 = tokens[2];
 
         if (op == "=" || op == "==") {
-            return pattern_match(arg1, arg2) ? 0 : 1;
+            if (!has_pattern_syntax(arg2)) {
+                return arg1 == arg2 ? 0 : 1;
+            }
+            return g_pattern_matcher.matches_pattern(arg1, arg2) ? 0 : 1;
         } else if (op == "!=") {
-            return pattern_match(arg1, arg2) ? 1 : 0;
+            if (!has_pattern_syntax(arg2)) {
+                return arg1 != arg2 ? 0 : 1;
+            }
+            return g_pattern_matcher.matches_pattern(arg1, arg2) ? 1 : 0;
         } else if (op == "=~") {
             try {
                 std::regex re(arg2);
@@ -170,54 +96,11 @@ int evaluate_expression(const std::vector<std::string>& tokens) {
             } catch (const std::regex_error&) {
                 return 1;
             }
-        } else if (op == "-eq") {
-            try {
-                int n1 = std::stoi(arg1);
-                int n2 = std::stoi(arg2);
-                return n1 == n2 ? 0 : 1;
-            } catch (...) {
-                return 1;
-            }
-        } else if (op == "-ne") {
-            try {
-                int n1 = std::stoi(arg1);
-                int n2 = std::stoi(arg2);
-                return n1 != n2 ? 0 : 1;
-            } catch (...) {
-                return 1;
-            }
-        } else if (op == "-lt") {
-            try {
-                int n1 = std::stoi(arg1);
-                int n2 = std::stoi(arg2);
-                return n1 < n2 ? 0 : 1;
-            } catch (...) {
-                return 1;
-            }
-        } else if (op == "-le") {
-            try {
-                int n1 = std::stoi(arg1);
-                int n2 = std::stoi(arg2);
-                return n1 <= n2 ? 0 : 1;
-            } catch (...) {
-                return 1;
-            }
-        } else if (op == "-gt") {
-            try {
-                int n1 = std::stoi(arg1);
-                int n2 = std::stoi(arg2);
-                return n1 > n2 ? 0 : 1;
-            } catch (...) {
-                return 1;
-            }
-        } else if (op == "-ge") {
-            try {
-                int n1 = std::stoi(arg1);
-                int n2 = std::stoi(arg2);
-                return n1 >= n2 ? 0 : 1;
-            } catch (...) {
-                return 1;
-            }
+        }
+
+        auto numeric_result = test_expression_utils::evaluate_numeric_comparison(arg1, op, arg2);
+        if (numeric_result.has_value()) {
+            return *numeric_result ? 0 : 1;
         }
     }
 

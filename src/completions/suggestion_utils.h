@@ -44,6 +44,7 @@ struct CdLookupContext {
 };
 
 std::vector<std::string> generate_command_suggestions(const std::string& command);
+std::vector<std::string> generate_command_suggestions_if_enabled(const std::string& command);
 
 std::vector<std::string> generate_cd_suggestions(const std::string& target_dir,
                                                  const std::string& current_dir);

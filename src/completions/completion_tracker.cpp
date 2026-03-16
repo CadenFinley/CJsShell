@@ -35,6 +35,7 @@
 #include <utility>
 
 #include "isocline.h"
+#include "string_utils.h"
 
 namespace completion_tracker {
 
@@ -66,10 +67,7 @@ size_t tracker_entry_cap() {
 }
 
 std::string canonicalize_final_result(std::string result) {
-    while (!result.empty() && std::isspace(static_cast<unsigned char>(result.back()))) {
-        result.pop_back();
-    }
-    return result;
+    return string_utils::trim_right_ascii_whitespace_copy(result);
 }
 
 }  // namespace
