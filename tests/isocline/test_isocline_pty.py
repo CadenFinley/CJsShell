@@ -36,11 +36,74 @@ import fcntl
 
 
 RESULT_RE = re.compile(r"\[IC_RESULT_BEGIN\](.*?)\[IC_RESULT_END\]", re.S)
+ANSI_CSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+ANSI_OSC_RE = re.compile(r"\x1b\].*?(?:\x07|\x1b\\)", re.S)
+
+
+def normalize_terminal_output(text: str) -> str:
+    normalized = text.replace("\r", "")
+    normalized = ANSI_OSC_RE.sub("", normalized)
+    normalized = ANSI_CSI_RE.sub("", normalized)
+    return normalized
+
+
+def assert_prompt_guard_marker(
+    scenario: str, output_text: str, expect_marker: bool
+) -> None:
+    normalized = normalize_terminal_output(output_text)
+    marker_count = normalized.count("%\npty> ")
+    expected_count = 1 if expect_marker else 0
+    if marker_count != expected_count:
+        raise AssertionError(
+            f"{scenario} expected marker_count={expected_count}, got {marker_count}, "
+            f"normalized_output={normalized!r}"
+        )
+
+
+def assert_case(
+    binary: str, label: str, scenario: str, key_bytes: bytes, expected: str
+) -> None:
+    actual = run_case(binary, scenario, key_bytes)
+    if actual != expected:
+        raise AssertionError(f"{label} expected {expected!r}, got {actual!r}")
+
+
+def assert_timed_case(
+    binary: str,
+    label: str,
+    scenario: str,
+    chunks: list[bytes],
+    expected: str,
+    initial_delay_s: float = 0.08,
+    step_delay_s: float = 0.06,
+    poll_interval_s: float = 0.01,
+) -> None:
+    actual = run_case_timed(
+        binary,
+        scenario,
+        chunks,
+        initial_delay_s=initial_delay_s,
+        step_delay_s=step_delay_s,
+        poll_interval_s=poll_interval_s,
+    )
+    if actual != expected:
+        raise AssertionError(f"{label} expected {expected!r}, got {actual!r}")
+
+
+def assert_prompt_guard_case(binary: str, scenario: str, expect_marker: bool) -> None:
+    result, output_text = run_case(binary, scenario, b"ok\r", capture_output=True)
+    if result != "ok":
+        raise AssertionError(f"{scenario} expected 'ok', got {result!r}")
+    assert_prompt_guard_marker(scenario, output_text, expect_marker)
 
 
 def run_case(
-    binary: str, scenario: str, key_bytes: bytes, timeout_s: float = 5.0
-) -> str:
+    binary: str,
+    scenario: str,
+    key_bytes: bytes,
+    timeout_s: float = 5.0,
+    capture_output: bool = False,
+) -> str | tuple[str, str]:
     pid, fd = pty.fork()
     if pid == 0:
         os.execv(binary, [binary, scenario])
@@ -80,7 +143,10 @@ def run_case(
                     raise AssertionError(
                         f"case {scenario} missing result marker: {text!r}"
                     )
-                return match.group(1).replace("\r", "")
+                result = match.group(1).replace("\r", "")
+                if capture_output:
+                    return result, text
+                return result
 
             time.sleep(0.01)
     finally:
@@ -104,6 +170,7 @@ def run_case_timed(
     timeout_s: float = 8.0,
     initial_delay_s: float = 0.08,
     step_delay_s: float = 0.25,
+    poll_interval_s: float = 0.01,
 ) -> str:
     pid, fd = pty.fork()
     if pid == 0:
@@ -116,11 +183,12 @@ def run_case_timed(
     deadline = time.monotonic() + timeout_s
     next_send_at = time.monotonic() + initial_delay_s
     send_index = 0
+    prompt_seen = False
 
     try:
         while time.monotonic() < deadline:
             now = time.monotonic()
-            if send_index < len(chunks) and now >= next_send_at:
+            if prompt_seen and send_index < len(chunks) and now >= next_send_at:
                 os.write(fd, chunks[send_index])
                 send_index += 1
                 next_send_at = now + step_delay_s
@@ -129,6 +197,8 @@ def run_case_timed(
                 chunk = os.read(fd, 4096)
                 if chunk:
                     output.extend(chunk)
+                    if not prompt_seen and b"pty> " in output:
+                        prompt_seen = True
             except BlockingIOError:
                 pass
             except OSError:
@@ -149,7 +219,7 @@ def run_case_timed(
                     )
                 return match.group(1).replace("\r", "")
 
-            time.sleep(0.01)
+            time.sleep(poll_interval_s)
     finally:
         try:
             os.kill(pid, signal.SIGKILL)
@@ -404,7 +474,212 @@ def main() -> int:
             f"completion_dual_common_prefix expected 'planet', got {comp_common!r}"
         )
 
-    print("All PTY isocline integration tests passed (43 cases)")
+    bp_start = b"\x1b[200~"
+    bp_end = b"\x1b[201~"
+
+    assert_case(
+        binary,
+        "bracketed_paste_plain",
+        "insert_backspace",
+        bp_start + b"hello world" + bp_end + b"\r",
+        "hello world",
+    )
+    assert_case(
+        binary,
+        "bracketed_paste_empty",
+        "insert_backspace",
+        bp_start + bp_end + b"\r",
+        "",
+    )
+    assert_case(
+        binary,
+        "bracketed_paste_wrapped",
+        "insert_backspace",
+        b"pre-" + bp_start + b"MID" + bp_end + b"-post\r",
+        "pre-MID-post",
+    )
+    assert_case(
+        binary,
+        "bracketed_paste_initial_append",
+        "append_to_initial_input",
+        bp_start + b"cd" + bp_end + b"\r",
+        "abcd",
+    )
+    assert_case(
+        binary,
+        "bracketed_paste_midline",
+        "cursor_move_insert",
+        b"\x02" + bp_start + b"Z" + bp_end + b"\r",
+        "aZb",
+    )
+    assert_case(
+        binary,
+        "bracketed_paste_two_blocks",
+        "insert_backspace",
+        bp_start + b"alpha" + bp_end + bp_start + b"beta" + bp_end + b"\r",
+        "alphabeta",
+    )
+    assert_case(
+        binary,
+        "bracketed_paste_end_without_start",
+        "insert_backspace",
+        bp_end + b"tail\r",
+        "tail",
+    )
+    assert_case(
+        binary,
+        "bracketed_paste_singleline_cr",
+        "insert_backspace",
+        bp_start + b"one\rtwo" + bp_end + b"\r",
+        "onetwo",
+    )
+    assert_case(
+        binary,
+        "bracketed_paste_multiline_cr",
+        "multiline_ctrl_j_insert_newline",
+        bp_start + b"one\rtwo" + bp_end + b"\r",
+        "one\ntwo",
+    )
+    assert_case(
+        binary,
+        "bracketed_paste_multiline_multi_cr",
+        "multiline_ctrl_j_insert_newline",
+        bp_start + b"a\rb\rc" + bp_end + b"\r",
+        "a\nb\nc",
+    )
+
+    assert_timed_case(
+        binary,
+        "bracketed_paste_chunked",
+        "insert_backspace",
+        [bp_start, b"chunked", bp_end, b"\r"],
+        "chunked",
+    )
+    assert_timed_case(
+        binary,
+        "bracketed_paste_multiline_chunked",
+        "multiline_ctrl_j_insert_newline",
+        [bp_start, b"row1\r", b"row2", bp_end, b"\r"],
+        "row1\nrow2",
+    )
+    assert_timed_case(
+        binary,
+        "bracketed_paste_chunked_two_blocks",
+        "insert_backspace",
+        [bp_start, b"alpha", bp_end, bp_start, b"beta", bp_end, b"\r"],
+        "alphabeta",
+    )
+
+    assert_case(
+        binary,
+        "bracketed_paste_repeated_start_single_end",
+        "insert_backspace",
+        bp_start + bp_start + b"nested" + bp_end + b"\r",
+        "nested",
+    )
+    assert_case(
+        binary,
+        "bracketed_paste_repeated_start_double_end",
+        "insert_backspace",
+        bp_start + bp_start + b"nested" + bp_end + bp_end + b"\r",
+        "nested",
+    )
+    assert_case(
+        binary,
+        "bracketed_paste_end_then_start",
+        "insert_backspace",
+        bp_end + bp_start + b"abc" + bp_end + b"\r",
+        "abc",
+    )
+    assert_case(
+        binary,
+        "bracketed_paste_double_end_no_start",
+        "insert_backspace",
+        bp_end + bp_end + b"tail\r",
+        "tail",
+    )
+    assert_case(
+        binary,
+        "bracketed_paste_empty_then_payload",
+        "insert_backspace",
+        bp_start + bp_end + bp_start + b"payload" + bp_end + b"\r",
+        "payload",
+    )
+    assert_case(
+        binary,
+        "bracketed_paste_malformed_start_final",
+        "insert_backspace",
+        b"\x1b[200Xabc\r",
+        "abc",
+    )
+    assert_case(
+        binary,
+        "bracketed_paste_malformed_end_final",
+        "insert_backspace",
+        b"\x1b[201Xtail\r",
+        "tail",
+    )
+    assert_case(
+        binary,
+        "bracketed_paste_unknown_vt_code_outside_paste",
+        "insert_backspace",
+        b"\x1b[202~z\r",
+        "z",
+    )
+
+    assert_timed_case(
+        binary,
+        "bracketed_paste_split_start_marker",
+        "insert_backspace",
+        [b"\x1b[200", b"~split", bp_end, b"\r"],
+        "split",
+        step_delay_s=0.003,
+        poll_interval_s=0.001,
+    )
+    assert_timed_case(
+        binary,
+        "bracketed_paste_split_end_marker",
+        "insert_backspace",
+        [bp_start, b"splitend", b"\x1b[201", b"~", b"\r"],
+        "splitend",
+        step_delay_s=0.003,
+        poll_interval_s=0.001,
+    )
+    assert_timed_case(
+        binary,
+        "bracketed_paste_split_both_markers",
+        "insert_backspace",
+        [b"\x1b[200", b"~ab", b"\x1b[201", b"~", b"\r"],
+        "ab",
+        step_delay_s=0.003,
+        poll_interval_s=0.001,
+    )
+
+    prompt_guard_expectations = [
+        ("prompt_guard_visible_text", True),
+        ("prompt_guard_tab_only", True),
+        ("prompt_guard_escape_only", False),
+        ("prompt_guard_osc_only", False),
+        ("prompt_guard_newline_reset", False),
+        ("prompt_guard_escape_then_visible", True),
+        ("prompt_guard_spaces_only", True),
+        ("prompt_guard_controls_only", False),
+        ("prompt_guard_carriage_return_only", False),
+        ("prompt_guard_visible_then_newline", False),
+        ("prompt_guard_newline_then_visible", True),
+        ("prompt_guard_double_newline_reset", False),
+        ("prompt_guard_escape_then_space", True),
+        ("prompt_guard_escape_then_newline_then_visible", True),
+        ("prompt_guard_visible_then_newline_then_escape", False),
+        ("prompt_guard_bracketed_toggle_only", False),
+        ("prompt_guard_bracketed_toggle_then_tab", True),
+        ("prompt_guard_utf8_visible", True),
+        ("prompt_guard_osc_then_space", True),
+    ]
+    for scenario, expect_marker in prompt_guard_expectations:
+        assert_prompt_guard_case(binary, scenario, expect_marker)
+
+    print("All PTY isocline integration tests passed")
     return 0
 
 

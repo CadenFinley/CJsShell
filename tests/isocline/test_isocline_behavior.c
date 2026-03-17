@@ -1404,6 +1404,280 @@ static bool test_term_visibility_tracking_with_escape_and_control_bytes(void) {
     return true;
 }
 
+static bool test_term_visibility_tracking_escape_only_sequences(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL || env->term == NULL)
+        return false;
+
+    term_reset_line_state(env->term);
+    term_set_track_output(env->term, true);
+
+    const char* escape_only_sequences[] = {
+        "\x1B[31m", "\x1B[0m", "\x1B[2K", "\x1B]0;isocline-title\x07", "\x1B[?2004h", "\x1B[?2004l",
+    };
+
+    for (size_t i = 0; i < sizeof(escape_only_sequences) / sizeof(escape_only_sequences[0]); ++i) {
+        term_write_n(env->term, escape_only_sequences[i],
+                     (ssize_t)strlen(escape_only_sequences[i]));
+        EXPECT_FALSE(term_line_has_visible_content(env->term),
+                     "escape sequences without printable bytes should not mark line visible");
+    }
+
+    term_set_track_output(env->term, false);
+    term_reset_line_state(env->term);
+    return true;
+}
+
+static bool test_term_visibility_tracking_control_bytes_only(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL || env->term == NULL)
+        return false;
+
+    term_reset_line_state(env->term);
+    term_set_track_output(env->term, true);
+
+    const char controls[] = {'\a', '\b', '\r', '\v', '\f'};
+    term_write_n(env->term, controls, (ssize_t)sizeof(controls));
+    EXPECT_FALSE(term_line_has_visible_content(env->term),
+                 "bell/backspace/carriage-return/VT/form-feed should not mark line visible");
+
+    term_write_n(env->term, "X", 1);
+    EXPECT_TRUE(term_line_has_visible_content(env->term),
+                "printable bytes after control bytes should mark line visible");
+
+    term_write_n(env->term, "\n", 1);
+    EXPECT_FALSE(term_line_has_visible_content(env->term),
+                 "newline should reset visibility state after printable content");
+
+    term_set_track_output(env->term, false);
+    term_reset_line_state(env->term);
+    return true;
+}
+
+static bool test_term_visibility_tracking_carriage_return_preserves_visible_state(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL || env->term == NULL)
+        return false;
+
+    term_reset_line_state(env->term);
+    term_set_track_output(env->term, true);
+
+    term_write_n(env->term, "abc", 3);
+    EXPECT_TRUE(term_line_has_visible_content(env->term),
+                "printing ASCII text should mark current line as visible");
+
+    term_write_n(env->term, "\r", 1);
+    EXPECT_TRUE(term_line_has_visible_content(env->term),
+                "carriage return alone should not clear previously visible line content");
+
+    term_write_n(env->term, "\n", 1);
+    EXPECT_FALSE(term_line_has_visible_content(env->term),
+                 "newline after carriage return should clear tracked visible state");
+
+    term_set_track_output(env->term, false);
+    term_reset_line_state(env->term);
+    return true;
+}
+
+static bool test_term_visibility_tracking_bracketed_paste_toggle_sequences(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL || env->term == NULL)
+        return false;
+
+    term_reset_line_state(env->term);
+    term_set_track_output(env->term, true);
+
+    const char* enable_paste = "\x1B[?2004h";
+    const char* disable_paste = "\x1B[?2004l";
+    term_write_n(env->term, enable_paste, (ssize_t)strlen(enable_paste));
+    EXPECT_FALSE(term_line_has_visible_content(env->term),
+                 "enabling bracketed paste should not count as visible output");
+
+    term_write_n(env->term, disable_paste, (ssize_t)strlen(disable_paste));
+    EXPECT_FALSE(term_line_has_visible_content(env->term),
+                 "disabling bracketed paste should not count as visible output");
+
+    term_write_n(env->term, "%", 1);
+    EXPECT_TRUE(term_line_has_visible_content(env->term),
+                "printable marker after paste toggles should still mark line visible");
+
+    term_write_n(env->term, "\n", 1);
+    EXPECT_FALSE(term_line_has_visible_content(env->term),
+                 "newline should reset visibility after printable marker");
+
+    term_set_track_output(env->term, false);
+    term_reset_line_state(env->term);
+    return true;
+}
+
+static bool test_term_visibility_tracking_multiline_last_line_only(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL || env->term == NULL)
+        return false;
+
+    term_reset_line_state(env->term);
+    term_set_track_output(env->term, true);
+
+    term_write_n(env->term, "alpha\nbeta\n", 11);
+    EXPECT_FALSE(term_line_has_visible_content(env->term),
+                 "line visibility should reset when output ends with a newline");
+
+    term_write_n(env->term, "gamma", 5);
+    EXPECT_TRUE(term_line_has_visible_content(env->term),
+                "visible bytes on the final line should mark the line as visibly non-empty");
+
+    term_write_n(env->term, "\n", 1);
+    EXPECT_FALSE(term_line_has_visible_content(env->term),
+                 "newline should clear tracked visibility after multiline writes");
+
+    term_set_track_output(env->term, false);
+    term_reset_line_state(env->term);
+    return true;
+}
+
+static bool test_term_visibility_tracking_escape_whitespace_mix(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL || env->term == NULL)
+        return false;
+
+    term_reset_line_state(env->term);
+    term_set_track_output(env->term, true);
+
+    const char* colored_space = "\x1B[31m \x1B[0m";
+    term_write_n(env->term, colored_space, (ssize_t)strlen(colored_space));
+    EXPECT_TRUE(term_line_has_visible_content(env->term),
+                "printable whitespace wrapped in ANSI escapes should still count as visible");
+
+    term_write_n(env->term, "\n", 1);
+    EXPECT_FALSE(term_line_has_visible_content(env->term),
+                 "newline should reset visibility state after escaped whitespace");
+
+    const char* escape_only = "\x1B[35m\x1B[0m";
+    term_write_n(env->term, escape_only, (ssize_t)strlen(escape_only));
+    EXPECT_FALSE(term_line_has_visible_content(env->term),
+                 "escape-only output should remain invisible after prior newline reset");
+
+    term_set_track_output(env->term, false);
+    term_reset_line_state(env->term);
+    return true;
+}
+
+static bool test_tty_bracketed_paste_enter_translation_flow(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL || env->tty == NULL)
+        return true;
+
+    code_t drained = KEY_NONE;
+    while (tty_read_timeout(env->tty, 0, &drained)) {
+    }
+
+    static const uint8_t raw[] = {'\x1B', '[', '2', '0', '0', '~', '\r',
+                                  '\x1B', '[', '2', '0', '1', '~', '\r'};
+    EXPECT_TRUE(ic_push_raw_input(raw, sizeof(raw)),
+                "raw bracketed paste marker sequence should enqueue into active TTY");
+
+    code_t seen[8];
+    size_t seen_count = 0;
+    for (size_t i = 0; i < 32 && seen_count < 4; ++i) {
+        code_t code = KEY_NONE;
+        if (!tty_read_timeout(env->tty, 0, &code))
+            break;
+        if (code == KEY_EVENT_RESIZE)
+            continue;
+        seen[seen_count++] = code;
+    }
+
+    EXPECT_TRUE(seen_count == 4, "expected bracketed paste marker test to yield four key events");
+    EXPECT_TRUE(seen[0] == IC_KEY_PASTE_START,
+                "first decoded key should be bracketed paste start event");
+    EXPECT_TRUE(seen[1] == KEY_LINEFEED,
+                "enter pressed during bracketed paste should decode as linefeed");
+    EXPECT_TRUE(seen[2] == IC_KEY_PASTE_END,
+                "third decoded key should be bracketed paste end event");
+    EXPECT_TRUE(seen[3] == KEY_ENTER,
+                "enter pressed after paste end should decode as regular enter");
+
+    return true;
+}
+
+static bool test_tty_bracketed_paste_repeated_start_without_end(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL || env->tty == NULL)
+        return true;
+
+    code_t drained = KEY_NONE;
+    while (tty_read_timeout(env->tty, 0, &drained)) {
+    }
+
+    static const uint8_t raw[] = {'\x1B', '[', '2', '0',    '0', '~', '\x1B', '[', '2', '0',
+                                  '0',    '~', 'A', '\x1B', '[', '2', '0',    '1', '~', '\r'};
+    EXPECT_TRUE(ic_push_raw_input(raw, sizeof(raw)),
+                "repeated bracketed paste starts should still enqueue successfully");
+
+    code_t seen[10];
+    size_t seen_count = 0;
+    for (size_t i = 0; i < 40 && seen_count < 5; ++i) {
+        code_t code = KEY_NONE;
+        if (!tty_read_timeout(env->tty, 0, &code))
+            break;
+        if (code == KEY_EVENT_RESIZE)
+            continue;
+        seen[seen_count++] = code;
+    }
+
+    EXPECT_TRUE(seen_count == 5,
+                "repeated-start sequence should decode into two starts, text, end, and enter");
+    EXPECT_TRUE(seen[0] == IC_KEY_PASTE_START, "first event should enter bracketed paste mode");
+    EXPECT_TRUE(seen[1] == IC_KEY_PASTE_START,
+                "second start marker should still decode as bracketed paste start event");
+    EXPECT_TRUE(seen[2] == 'A',
+                "printable bytes inside repeated-start paste sequence should remain text input");
+    EXPECT_TRUE(seen[3] == IC_KEY_PASTE_END,
+                "single end marker should decode and exit bracketed paste mode");
+    EXPECT_TRUE(seen[4] == KEY_ENTER, "enter after end marker should decode as regular enter key");
+
+    return true;
+}
+
+static bool test_tty_bracketed_paste_repeated_end_without_start(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL || env->tty == NULL)
+        return true;
+
+    code_t drained = KEY_NONE;
+    while (tty_read_timeout(env->tty, 0, &drained)) {
+    }
+
+    static const uint8_t raw[] = {'\x1B', '[', '2', '0', '1', '~', '\x1B',
+                                  '[',    '2', '0', '1', '~', 'B', '\r'};
+    EXPECT_TRUE(ic_push_raw_input(raw, sizeof(raw)),
+                "repeated end markers should enqueue into active TTY");
+
+    code_t seen[8];
+    size_t seen_count = 0;
+    for (size_t i = 0; i < 32 && seen_count < 4; ++i) {
+        code_t code = KEY_NONE;
+        if (!tty_read_timeout(env->tty, 0, &code))
+            break;
+        if (code == KEY_EVENT_RESIZE)
+            continue;
+        seen[seen_count++] = code;
+    }
+
+    EXPECT_TRUE(seen_count == 4,
+                "repeated end sequence should decode into two ends, text, and trailing enter");
+    EXPECT_TRUE(seen[0] == IC_KEY_PASTE_END,
+                "first marker should decode as bracketed paste end event");
+    EXPECT_TRUE(seen[1] == IC_KEY_PASTE_END,
+                "second marker should also decode as bracketed paste end event");
+    EXPECT_TRUE(seen[2] == 'B',
+                "printable bytes after repeated end markers should decode as normal input");
+    EXPECT_TRUE(seen[3] == KEY_ENTER,
+                "enter after repeated end markers should remain regular enter");
+
+    return true;
+}
+
 static bool test_key_spec_ctrl_space_variants(void) {
     ic_keycode_t key = IC_KEY_NONE;
     EXPECT_TRUE(ic_parse_key_spec("ctrl+space", &key), "ctrl+space key spec should parse");
@@ -2228,6 +2502,23 @@ static const test_case_t kTests[] = {
     {"prev_next_char_utf8_helpers", test_prev_next_char_utf8_helpers},
     {"term_visibility_tracking_with_escape_and_control_bytes",
      test_term_visibility_tracking_with_escape_and_control_bytes},
+    {"term_visibility_tracking_escape_only_sequences",
+     test_term_visibility_tracking_escape_only_sequences},
+    {"term_visibility_tracking_control_bytes_only",
+     test_term_visibility_tracking_control_bytes_only},
+    {"term_visibility_tracking_carriage_return_preserves_visible_state",
+     test_term_visibility_tracking_carriage_return_preserves_visible_state},
+    {"term_visibility_tracking_bracketed_paste_toggle_sequences",
+     test_term_visibility_tracking_bracketed_paste_toggle_sequences},
+    {"term_visibility_tracking_multiline_last_line_only",
+     test_term_visibility_tracking_multiline_last_line_only},
+    {"term_visibility_tracking_escape_whitespace_mix",
+     test_term_visibility_tracking_escape_whitespace_mix},
+    {"tty_bracketed_paste_enter_translation_flow", test_tty_bracketed_paste_enter_translation_flow},
+    {"tty_bracketed_paste_repeated_start_without_end",
+     test_tty_bracketed_paste_repeated_start_without_end},
+    {"tty_bracketed_paste_repeated_end_without_start",
+     test_tty_bracketed_paste_repeated_end_without_start},
     {"key_spec_ctrl_space_variants", test_key_spec_ctrl_space_variants},
     {"initial_input_env_lifecycle", test_initial_input_env_lifecycle},
     {"unicode_display_width_control_codepoints", test_unicode_display_width_control_codepoints},

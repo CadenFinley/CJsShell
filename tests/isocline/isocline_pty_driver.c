@@ -184,6 +184,7 @@ static int run_case(const char* scenario) {
     ic_set_default_completer(NULL, NULL);
 
     const char* initial_input = NULL;
+    const char* pre_prompt_output = NULL;
     bool history_interactive_triplet = false;
     if (strcmp(scenario, "cursor_move_insert") == 0) {
         initial_input = "ab";
@@ -266,8 +267,50 @@ static int run_case(const char* scenario) {
             ic_set_default_completer(pty_completion_dispatcher, NULL);
         }
         // No additional setup needed.
+    } else if (strcmp(scenario, "prompt_guard_visible_text") == 0) {
+        pre_prompt_output = "visible-before-prompt";
+    } else if (strcmp(scenario, "prompt_guard_tab_only") == 0) {
+        pre_prompt_output = "\t";
+    } else if (strcmp(scenario, "prompt_guard_escape_only") == 0) {
+        pre_prompt_output = "\x1B[31m\x1B[0m";
+    } else if (strcmp(scenario, "prompt_guard_osc_only") == 0) {
+        pre_prompt_output = "\x1B]0;isocline-title\x07";
+    } else if (strcmp(scenario, "prompt_guard_newline_reset") == 0) {
+        pre_prompt_output = "prefix line\n";
+    } else if (strcmp(scenario, "prompt_guard_escape_then_visible") == 0) {
+        pre_prompt_output = "\x1B[31mX\x1B[0m";
+    } else if (strcmp(scenario, "prompt_guard_spaces_only") == 0) {
+        pre_prompt_output = "   ";
+    } else if (strcmp(scenario, "prompt_guard_controls_only") == 0) {
+        pre_prompt_output = "\a\b\r\v\f";
+    } else if (strcmp(scenario, "prompt_guard_carriage_return_only") == 0) {
+        pre_prompt_output = "\r";
+    } else if (strcmp(scenario, "prompt_guard_visible_then_newline") == 0) {
+        pre_prompt_output = "abc\n";
+    } else if (strcmp(scenario, "prompt_guard_newline_then_visible") == 0) {
+        pre_prompt_output = "\nabc";
+    } else if (strcmp(scenario, "prompt_guard_double_newline_reset") == 0) {
+        pre_prompt_output = "abc\n\n";
+    } else if (strcmp(scenario, "prompt_guard_escape_then_space") == 0) {
+        pre_prompt_output = "\x1B[31m \x1B[0m";
+    } else if (strcmp(scenario, "prompt_guard_escape_then_newline_then_visible") == 0) {
+        pre_prompt_output = "\x1B[31m\nX\x1B[0m";
+    } else if (strcmp(scenario, "prompt_guard_visible_then_newline_then_escape") == 0) {
+        pre_prompt_output = "abc\n\x1B[31m\x1B[0m";
+    } else if (strcmp(scenario, "prompt_guard_bracketed_toggle_only") == 0) {
+        pre_prompt_output = "\x1B[?2004h\x1B[?2004l";
+    } else if (strcmp(scenario, "prompt_guard_bracketed_toggle_then_tab") == 0) {
+        pre_prompt_output = "\x1B[?2004h\t\x1B[?2004l";
+    } else if (strcmp(scenario, "prompt_guard_utf8_visible") == 0) {
+        pre_prompt_output = "\xE2\x82\xAC";
+    } else if (strcmp(scenario, "prompt_guard_osc_then_space") == 0) {
+        pre_prompt_output = "\x1B]0;x\x07 ";
     } else {
         return 2;
+    }
+
+    if (pre_prompt_output != NULL) {
+        ic_term_write(pre_prompt_output);
     }
 
     char* line = NULL;
@@ -297,25 +340,7 @@ static int run_case(const char* scenario) {
 
 int main(int argc, char** argv) {
     if (argc != 2) {
-        (void)fprintf(stderr,
-                      "usage: %s <insert_backspace|cursor_move_insert|home_insert|end_insert|"
-                      "backspace_at_start_noop|delete_at_end_noop|kill_to_end_at_end_noop|"
-                      "kill_to_start_at_start_noop|left_boundary_insert|right_boundary_insert|"
-                      "append_to_initial_input|ctrl_l_redraw_keeps_buffer|ctrl_a_ctrl_e_append|"
-                      "ctrl_d_at_end_noop|ctrl_k_delete_to_end|ctrl_k_then_type|"
-                      "ctrl_u_delete_to_start|ctrl_u_then_type|ctrl_w_delete_word|"
-                      "ctrl_w_single_word|ctrl_w_then_type|delete_mid_twice|"
-                      "ctrl_d_delete_mid|backspace_twice_typed|ctrl_c|ctrl_d_empty|"
-                      "undo_single_change|undo_redo_roundtrip|undo_after_kill_to_end|"
-                      "redo_cleared_by_new_edit|multiline_ctrl_j_insert_newline|"
-                      "multiline_backslash_continuation|multiline_initial_ctrl_j|"
-                      "history_prev|history_prev_prev|history_next_empty|history_prev_edit|"
-                      "history_probe_latest|history_probe_previous|"
-                      "history_probe_remove_last|history_probe_count|"
-                      "completion_single_tab|completion_single_then_type|"
-                      "completion_midline_single|completion_no_match|"
-                      "completion_dual_common_prefix>\n",
-                      argv[0]);
+        (void)fprintf(stderr, "usage: %s <scenario>\n", argv[0]);
         return 2;
     }
     return run_case(argv[1]);
