@@ -85,6 +85,24 @@ ic_public const char* ic_get_continuation_prompt_marker(void) {
     return env->cprompt_marker;
 }
 
+ic_public void ic_set_prompt_eol_mark(const char* eol_mark) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return;
+    mem_free(env->mem, env->prompt_eol_mark);
+    env->prompt_eol_mark = NULL;
+    if (eol_mark != NULL) {
+        env->prompt_eol_mark = mem_strdup(env->mem, eol_mark);
+    }
+}
+
+ic_public const char* ic_get_prompt_eol_mark(void) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return NULL;
+    return env->prompt_eol_mark;
+}
+
 ic_public void ic_set_prompt_marker(const char* prompt_marker, const char* cprompt_marker) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)

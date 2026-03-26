@@ -67,6 +67,7 @@ struct ic_env_s {
     const char* prompt_marker;        // the prompt marker (defaults to "> ")
     const char* cprompt_marker;       // prompt marker for continuation lines
                                       // (defaults to `prompt_marker`)
+    char* prompt_eol_mark;            // marker shown when preserving partial pre-prompt output
     ic_highlight_fun_t* highlighter;  // highlight callback
     void* highlighter_arg;            // user state for the highlighter.
     ic_unhandled_key_fun_t* unhandled_key_handler;     // callback for unhandled keys

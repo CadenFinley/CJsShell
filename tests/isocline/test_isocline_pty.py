@@ -38,6 +38,7 @@ import fcntl
 RESULT_RE = re.compile(r"\[IC_RESULT_BEGIN\](.*?)\[IC_RESULT_END\]", re.S)
 ANSI_CSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 ANSI_OSC_RE = re.compile(r"\x1b\].*?(?:\x07|\x1b\\)", re.S)
+PROMPT_GUARD_RE = re.compile(r"[%#][ ]+pty> ")
 
 
 def normalize_terminal_output(text: str) -> str:
@@ -51,7 +52,7 @@ def assert_prompt_guard_marker(
     scenario: str, output_text: str, expect_marker: bool
 ) -> None:
     normalized = normalize_terminal_output(output_text)
-    marker_count = normalized.count("%\npty> ")
+    marker_count = len(PROMPT_GUARD_RE.findall(normalized))
     expected_count = 1 if expect_marker else 0
     if marker_count != expected_count:
         raise AssertionError(

@@ -795,6 +795,13 @@ char prompt_dollar() {
     return '$';
 }
 
+char prompt_eol_default_symbol() {
+    if (geteuid() == 0) {
+        return '#';
+    }
+    return '%';
+}
+
 char to_ascii(std::uint8_t value) {
     return static_cast<char>(value);
 }
@@ -959,6 +966,18 @@ std::string render_primary_prompt() {
     std::string prompt_text = expand_prompt_string(ps1, PromptContext::Primary);
     git_prompt_async_manager().finalize_render(prompt_text);
     return prompt_text;
+}
+
+std::string render_prompt_eol_mark() {
+    std::string eol_mark;
+    if (cjsh_env::shell_variable_is_set("PROMPT_EOL_MARK")) {
+        eol_mark = cjsh_env::get_shell_variable_value("PROMPT_EOL_MARK");
+    } else {
+        eol_mark = "[b reverse]";
+        eol_mark.push_back(prompt_eol_default_symbol());
+        eol_mark += "[/]";
+    }
+    return expand_prompt_string(eol_mark, PromptContext::Primary);
 }
 
 std::string render_right_prompt() {

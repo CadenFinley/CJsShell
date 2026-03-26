@@ -546,6 +546,14 @@ const char* ic_get_prompt_marker(void);
 /// Get the current continuation prompt marker.
 const char* ic_get_continuation_prompt_marker(void);
 
+/// Set or clear the marker used when preserving partial pre-prompt output.
+/// Pass NULL to restore the built-in default marker.
+void ic_set_prompt_eol_mark(const char* eol_mark);
+
+/// Get the current partial-line marker override.
+/// Returns NULL when the built-in default marker is active.
+const char* ic_get_prompt_eol_mark(void);
+
 /// Disable or enable multi-line input (enabled by default).
 /// Returns the previous setting.
 bool ic_enable_multiline(bool enable);

@@ -38,6 +38,8 @@ std::string render_right_prompt();
 
 std::string render_secondary_prompt();
 
+std::string render_prompt_eol_mark();
+
 std::string default_primary_prompt_template();
 
 std::string default_secondary_prompt_template();

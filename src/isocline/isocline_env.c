@@ -180,6 +180,7 @@ static void ic_env_free(ic_env_t* env) {
     }
     mem_free(env->mem, env->cprompt_marker);
     mem_free(env->mem, env->prompt_marker);
+    mem_free(env->mem, env->prompt_eol_mark);
     mem_free(env->mem, env->match_braces);
     mem_free(env->mem, env->auto_braces);
     mem_free(env->mem, (void*)env->initial_input);

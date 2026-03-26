@@ -299,8 +299,10 @@ std::optional<std::string> get_next_command(bool command_was_available) {
     prompt::execute_prompt_command();
     prompt::apply_terminal_window_title();
     cjsh_env::update_terminal_dimensions();
-    std::string prompt = generate_prompt(command_was_available);
-    last_prompt_started_with_newline = (!prompt.empty() && prompt.front() == '\n');
+    std::string prompt_text = generate_prompt(command_was_available);
+    std::string prompt_eol_mark = prompt::render_prompt_eol_mark();
+    ic_set_prompt_eol_mark(prompt_eol_mark.c_str());
+    last_prompt_started_with_newline = (!prompt_text.empty() && prompt_text.front() == '\n');
     std::string inline_right_text = prompt::render_right_prompt();
     std::string continuation_prompt = prompt::render_secondary_prompt();
     if (continuation_prompt.empty()) {
@@ -323,7 +325,7 @@ std::optional<std::string> get_next_command(bool command_was_available) {
     const char* initial_input = sanitized_buffer.empty() ? nullptr : sanitized_buffer.c_str();
     const char* inline_right_ptr = inline_right_text.empty() ? nullptr : inline_right_text.c_str();
     prompt::set_prompt_refresh_allowed(true);
-    char* input = ic_readline(prompt.c_str(), inline_right_ptr, initial_input);
+    char* input = ic_readline(prompt_text.c_str(), inline_right_ptr, initial_input);
     prompt::set_prompt_refresh_allowed(false);
     typeahead::clear_input_buffer();
     sanitized_buffer.clear();

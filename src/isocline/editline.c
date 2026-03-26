@@ -39,6 +39,10 @@
 #include <string.h>
 #include <time.h>
 
+#if !defined(_WIN32)
+#include <unistd.h>
+#endif
+
 #include "common.h"
 #include "completions.h"
 #include "env.h"
@@ -2576,14 +2580,51 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
         line_has_content = true;
         cursor_at_line_start = false;
     }
-    if (original_prompt[0] != '\n' && line_has_content && !cursor_at_line_start) {
-        attr_t newline_attr = attr_default();
-        newline_attr.x.color = IC_ANSI_BLACK;
-        newline_attr.x.bgcolor = IC_ANSI_WHITE;
-        term_set_attr(env->term, newline_attr);
-        term_write(env->term, "%");
-        term_attr_reset(env->term);
-        term_write_char(env->term, '\n');
+    if (line_has_content && !cursor_at_line_start) {
+        ssize_t eol_width = 0;
+        const char* eol_mark = env->prompt_eol_mark;
+
+        if (eol_mark != NULL) {
+            if (env->bbcode != NULL) {
+                eol_width = bbcode_column_width(env->bbcode, eol_mark);
+                if (eol_width < 0) {
+                    eol_width = 0;
+                }
+                if (eol_mark[0] != '\0') {
+                    bbcode_print(env->bbcode, eol_mark);
+                }
+            } else {
+                eol_width = ic_strlen(eol_mark);
+                term_write(env->term, eol_mark);
+            }
+        } else {
+            char fallback_mark = '%';
+#if !defined(_WIN32)
+            if (geteuid() == 0) {
+                fallback_mark = '#';
+            }
+#endif
+
+            attr_t eol_attr = attr_default();
+            eol_attr.x.bold = IC_ON;
+            eol_attr.x.reverse = IC_ON;
+            term_set_attr(env->term, eol_attr);
+            term_write_char(env->term, fallback_mark);
+            term_attr_reset(env->term);
+            eol_width = 1;
+        }
+
+        ssize_t termw = term_get_width(env->term);
+        ssize_t pad = termw - eol_width;
+        if (pad < 0) {
+            pad = 0;
+        }
+        if (pad > 0) {
+            term_write_repeat(env->term, " ", pad);
+        }
+        term_write_char(env->term, '\r');
+        term_write_repeat(env->term, " ", eol_width);
+        term_write_char(env->term, '\r');
     }
 
     term_set_track_output(env->term, false);
