@@ -218,6 +218,8 @@ ic_private void term_mark_line_visible(term_t* term, bool visible) {
         return;
     term->line_state_tracked = true;
     term->line_has_visible = visible;
+    term->cursor_state_tracked = true;
+    term->cursor_at_line_start = !visible;
 }
 
 ic_private void term_attr_reset(term_t* term) {

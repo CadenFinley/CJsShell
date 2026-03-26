@@ -2570,9 +2570,12 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
     eb.modified = false;
 
     const char* original_prompt = (prompt_text != NULL ? prompt_text : "");
-    const bool line_has_content = term_line_has_visible_content(env->term);
-    const bool cursor_at_line_start =
-        (!line_has_content || term_is_cursor_at_line_start(env->term));
+    bool line_has_content = term_line_has_visible_content(env->term);
+    bool cursor_at_line_start = (!line_has_content || term_is_cursor_at_line_start(env->term));
+    if (!line_has_content && env->tty != NULL && tty_input_pending(env->tty)) {
+        line_has_content = true;
+        cursor_at_line_start = false;
+    }
     if (original_prompt[0] != '\n' && line_has_content && !cursor_at_line_start) {
         attr_t newline_attr = attr_default();
         newline_attr.x.color = IC_ANSI_BLACK;
