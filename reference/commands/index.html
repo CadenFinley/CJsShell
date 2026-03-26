@@ -22,7 +22,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -2648,8 +2648,13 @@ register functions and <code>hook list</code> to inspect active hooks. See
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-57-1"><a id="__codelineno-57-1" name="__codelineno-57-1" href="#__codelineno-57-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PS1</span><span class="o">=</span><span class="s1">'[b]\u[/b] [color=#87ceeb]\w[/color]\n$ '</span>
 </span><span id="__span-57-2"><a id="__codelineno-57-2" name="__codelineno-57-2" href="#__codelineno-57-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">RPS1</span><span class="o">=</span><span class="s1">'[ic-hint]\A[/ic-hint]'</span>
 </span><span id="__span-57-3"><a id="__codelineno-57-3" name="__codelineno-57-3" href="#__codelineno-57-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PROMPT_COMMAND</span><span class="o">=</span><span class="s1">'__update_git_info'</span>
+</span><span id="__span-57-4"><a id="__codelineno-57-4" name="__codelineno-57-4" href="#__codelineno-57-4"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PROMPT_EOL_MARK</span><span class="o">=</span><span class="s1">'[b reverse][color=ansi-yellow]![/color][/b]'</span>
 </span></code></pre></div>
 <p>Add snippets like these to <code>~/.cjshrc</code> (or any sourced config) to persist them across sessions. See <a href="../../themes/thedetails/">Prompt Markup and Styling</a> for the full markup reference plus additional examples.</p>
+<p><code>PROMPT_EOL_MARK</code> controls the marker shown when command output does not end with a newline and the
+next prompt needs to preserve a partial line. By default cjsh shows a reverse+bold <code>%</code> for normal
+users and <code>#</code> for root, then forces a terminal wrap with padding/carriage returns (zsh-style,
+without printing a literal newline).</p>
 <h3 id="cjshopt">cjshopt</h3>
 <p>Generate config files and adjust cjsh options.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-58-1"><a id="__codelineno-58-1" name="__codelineno-58-1" href="#__codelineno-58-1"></a>cjshopt<span class="w"> </span>&lt;subcommand&gt;<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>

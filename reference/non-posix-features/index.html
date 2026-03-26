@@ -22,7 +22,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -1115,6 +1115,9 @@ necessary.</p>
 <li><strong>Prompt cleanup controls</strong> – <code>cjshopt prompt-cleanup*</code> toggles remove the previous prompt, insert
   spacer lines, or truncate multiline prompts. These behaviors are not part of traditional POSIX
   shells.</li>
+<li><strong>Partial-line guard marker</strong> – if output leaves the cursor mid-line, cjsh preserves that partial
+  line, prints <code>PROMPT_EOL_MARK</code> (<code>%</code> for non-root, <code>#</code> for root by default), and forces terminal
+  wrapping before drawing the next prompt.</li>
 <li><strong>Right-prompt cursor tracking</strong> – <code>cjshopt right-prompt-follow-cursor</code> lets the inline right
   prompt move with the active cursor row, something stock POSIX shells do not support.</li>
 <li><strong>Dynamic title line</strong> – The introductory banner and title-line management (enabled by default)

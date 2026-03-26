@@ -20,7 +20,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
@@ -1001,6 +1001,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#partial-line-guard-marker-prompt_eol_mark" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Partial-Line Guard Marker (PROMPT_EOL_MARK)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#prompt-cleanup-and-layout-options" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1119,9 +1130,9 @@
 
 <h1 id="prompt-markup-and-styling">Prompt Markup and Styling</h1>
 <p>CJ's Shell no longer relies on an external theme DSL. Prompt styling is handled directly through
-the standard shell prompt variables (<code>PS1</code>, <code>RPS1</code>/<code>RPROMPT</code>, and <code>PROMPT_COMMAND</code>) combined with
-inline BBCode-style markup. This page explains how the markup works, which escape sequences are
-available, and how to persist your preferred prompt layout.</p>
+the standard shell prompt variables (<code>PS1</code>, <code>RPS1</code>/<code>RPROMPT</code>, <code>PROMPT_COMMAND</code>, and
+<code>PROMPT_EOL_MARK</code>) combined with inline BBCode-style markup. This page explains how the markup
+works, which escape sequences are available, and how to persist your preferred prompt layout.</p>
 <h2 id="quick-start">Quick Start</h2>
 <ul>
 <li>Set <code>PS1</code> to control the primary prompt. The default template now mirrors the classic Robby Russell
@@ -1131,11 +1142,14 @@ available, and how to persist your preferred prompt layout.</p>
 <li>Set <code>RPS1</code> (or <code>RPROMPT</code>) to control the right-aligned prompt. It is unset by default, so nothing
   renders on the right until you export one.</li>
 <li>Use <code>PROMPT_COMMAND</code> for commands that should run before each prompt.</li>
+<li>Use <code>PROMPT_EOL_MARK</code> to customize the marker shown when output leaves the cursor mid-line right
+  before the next prompt.</li>
 <li>Apply markup directly inside these variables to style text, add colors, and align sections.</li>
 </ul>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PS1</span><span class="o">=</span><span class="s1">'[b hotpink]\u[/b] in [color=#87ceeb]\w[/color]\n$ '</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">RPS1</span><span class="o">=</span><span class="s1">'[dim]\A[/dim]'</span>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PROMPT_COMMAND</span><span class="o">=</span><span class="s1">'__update_git_info'</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PROMPT_EOL_MARK</span><span class="o">=</span><span class="s1">'[b reverse][color=ansi-yellow]![/color][/b]'</span>
 </span></code></pre></div>
 <blockquote>
 <p>Markup is parsed by the isocline line editor. Invalid tags are ignored; run with
@@ -1210,36 +1224,52 @@ tags freely; the parser keeps a stack so <code>[b][color=hotpink]...[/color][/b]
 <li><code>PROMPT_COMMAND</code>, when set, runs before CJ's Shell generates <code>PS1</code>/<code>RPS1</code>. Use it to refresh
   environment variables, collect Git metadata, or update the terminal title.</li>
 </ul>
+<h2 id="partial-line-guard-marker-prompt_eol_mark">Partial-Line Guard Marker (<code>PROMPT_EOL_MARK</code>)</h2>
+<ul>
+<li>If a command prints output without a trailing newline and leaves the cursor mid-line, cjsh
+  preserves that partial line before drawing the next prompt.</li>
+<li>To make the partial line boundary obvious, cjsh prints <code>PROMPT_EOL_MARK</code> and then forces a wrap
+  using terminal padding and carriage returns (zsh-style behavior; not a literal newline write).</li>
+<li>Default marker: reverse+bold <code>%</code> for normal users, reverse+bold <code>#</code> for root.</li>
+<li><code>PROMPT_EOL_MARK</code> supports prompt escapes and BBCode markup, so you can style it like any other
+  prompt fragment.</li>
+</ul>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Use a custom visible marker</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PROMPT_EOL_MARK</span><span class="o">=</span><span class="s1">'[b reverse]![/]'</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># Hide the marker text while still preserving the partial line</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PROMPT_EOL_MARK</span><span class="o">=</span><span class="s1">''</span>
+</span></code></pre></div>
 <h2 id="prompt-cleanup-and-layout-options">Prompt Cleanup and Layout Options</h2>
 <p>Use <code>cjshopt</code> to control how the prompt behaves after command execution:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>cjshopt<span class="w"> </span>prompt-cleanup<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status<span class="w">          </span><span class="c1"># Remove the previous prompt when you press Enter</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>cjshopt<span class="w"> </span>prompt-cleanup-newline<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status<span class="w">  </span><span class="c1"># Insert a blank line before the next prompt</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>cjshopt<span class="w"> </span>prompt-cleanup-empty-line<span class="w"> </span>on<span class="p">|</span>off<span class="w">      </span><span class="c1"># Emit an extra spacer line during cleanup</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>cjshopt<span class="w"> </span>prompt-cleanup-truncate<span class="w"> </span>on<span class="p">|</span>off<span class="w">        </span><span class="c1"># Collapse multiline prompts to a single line</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>cjshopt<span class="w"> </span>prompt-newline<span class="w"> </span>on<span class="p">|</span>off<span class="w">                 </span><span class="c1"># Always print a blank line after commands</span>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>cjshopt<span class="w"> </span>right-prompt-follow-cursor<span class="w"> </span>on<span class="p">|</span>off<span class="w">     </span><span class="c1"># Make the inline right prompt follow the cursor row</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>cjshopt<span class="w"> </span>prompt-cleanup<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status<span class="w">          </span><span class="c1"># Remove the previous prompt when you press Enter</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>cjshopt<span class="w"> </span>prompt-cleanup-newline<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status<span class="w">  </span><span class="c1"># Insert a blank line before the next prompt</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>cjshopt<span class="w"> </span>prompt-cleanup-empty-line<span class="w"> </span>on<span class="p">|</span>off<span class="w">      </span><span class="c1"># Emit an extra spacer line during cleanup</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>cjshopt<span class="w"> </span>prompt-cleanup-truncate<span class="w"> </span>on<span class="p">|</span>off<span class="w">        </span><span class="c1"># Collapse multiline prompts to a single line</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>cjshopt<span class="w"> </span>prompt-newline<span class="w"> </span>on<span class="p">|</span>off<span class="w">                 </span><span class="c1"># Always print a blank line after commands</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>cjshopt<span class="w"> </span>right-prompt-follow-cursor<span class="w"> </span>on<span class="p">|</span>off<span class="w">     </span><span class="c1"># Make the inline right prompt follow the cursor row</span>
 </span></code></pre></div>
 <p>Each toggle prints guidance on how to persist the setting. Add the chosen command to <code>~/.cjshrc</code>
 to make it stick.</p>
 <h2 id="examples">Examples</h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Minimal prompt that still highlights errors</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PS1</span><span class="o">=</span><span class="s1">'[ic-error]\$[/ic-error] '</span>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c1"># Git-aware prompt via PROMPT_COMMAND</span>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>prompt_git_info<span class="o">()</span><span class="w"> </span><span class="o">{</span>
-</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span><span class="k">if</span><span class="w"> </span>git<span class="w"> </span>rev-parse<span class="w"> </span>--is-inside-work-tree<span class="w"> </span>&gt;/dev/null<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
-</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">    </span><span class="nb">local</span><span class="w"> </span>branch
-</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">    </span><span class="nv">branch</span><span class="o">=</span><span class="k">$(</span>git<span class="w"> </span>branch<span class="w"> </span>--show-current<span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="k">)</span>
-</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">    </span><span class="nb">export</span><span class="w"> </span><span class="nv">GIT_SEG</span><span class="o">=</span><span class="s2">"[color=gold](</span><span class="si">${</span><span class="nv">branch</span><span class="k">:-</span><span class="nv">detached</span><span class="si">}</span><span class="s2">)[/color] "</span>
-</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">  </span><span class="k">else</span>
-</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">    </span><span class="nb">unset</span><span class="w"> </span>GIT_SEG
-</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">  </span><span class="k">fi</span>
-</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="o">}</span>
-</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PROMPT_COMMAND</span><span class="o">=</span>prompt_git_info
-</span><span id="__span-4-15"><a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PS1</span><span class="o">=</span><span class="s1">'[b]\u[/b] [color=#6cb6ff]\w[/color] ${GIT_SEG}\$ '</span>
-</span><span id="__span-4-16"><a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a>
-</span><span id="__span-4-17"><a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="c1"># Right prompt that shows the time and exit code when non-zero</span>
-</span><span id="__span-4-18"><a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="nb">export</span><span class="w"> </span><span class="nv">RPS1</span><span class="o">=</span><span class="s1">'[dim]\A[/dim][if $?&gt;0][space][ic-error]✗ $?[ic-error][/if]'</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Minimal prompt that still highlights errors</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PS1</span><span class="o">=</span><span class="s1">'[ic-error]\$[/ic-error] '</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Git-aware prompt via PROMPT_COMMAND</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>prompt_git_info<span class="o">()</span><span class="w"> </span><span class="o">{</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">  </span><span class="k">if</span><span class="w"> </span>git<span class="w"> </span>rev-parse<span class="w"> </span>--is-inside-work-tree<span class="w"> </span>&gt;/dev/null<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">    </span><span class="nb">local</span><span class="w"> </span>branch
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">    </span><span class="nv">branch</span><span class="o">=</span><span class="k">$(</span>git<span class="w"> </span>branch<span class="w"> </span>--show-current<span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="k">)</span>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">    </span><span class="nb">export</span><span class="w"> </span><span class="nv">GIT_SEG</span><span class="o">=</span><span class="s2">"[color=gold](</span><span class="si">${</span><span class="nv">branch</span><span class="k">:-</span><span class="nv">detached</span><span class="si">}</span><span class="s2">)[/color] "</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">  </span><span class="k">else</span>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">    </span><span class="nb">unset</span><span class="w"> </span>GIT_SEG
+</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="w">  </span><span class="k">fi</span>
+</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="o">}</span>
+</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PROMPT_COMMAND</span><span class="o">=</span>prompt_git_info
+</span><span id="__span-5-15"><a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PS1</span><span class="o">=</span><span class="s1">'[b]\u[/b] [color=#6cb6ff]\w[/color] ${GIT_SEG}\$ '</span>
+</span><span id="__span-5-16"><a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>
+</span><span id="__span-5-17"><a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="c1"># Right prompt that shows the time and exit code when non-zero</span>
+</span><span id="__span-5-18"><a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="nb">export</span><span class="w"> </span><span class="nv">RPS1</span><span class="o">=</span><span class="s1">'[dim]\A[/dim][if $?&gt;0][space][ic-error]✗ $?[ic-error][/if]'</span>
 </span></code></pre></div>
 <p>The last example demonstrates mixing markup with shell substitutions. Because prompt evaluation
 occurs inside CJ's Shell, you can use regular shell parameter expansion to build dynamic strings
