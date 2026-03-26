@@ -2571,7 +2571,9 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
 
     const char* original_prompt = (prompt_text != NULL ? prompt_text : "");
     const bool line_has_content = term_line_has_visible_content(env->term);
-    if (original_prompt[0] != '\n' && line_has_content) {
+    const bool cursor_at_line_start =
+        (!line_has_content || term_is_cursor_at_line_start(env->term));
+    if (original_prompt[0] != '\n' && line_has_content && !cursor_at_line_start) {
         attr_t newline_attr = attr_default();
         newline_attr.x.color = IC_ANSI_BLACK;
         newline_attr.x.bgcolor = IC_ANSI_WHITE;

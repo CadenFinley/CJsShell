@@ -285,6 +285,13 @@ static int run_case(const char* scenario) {
         pre_prompt_output = "\a\b\r\v\f";
     } else if (strcmp(scenario, "prompt_guard_carriage_return_only") == 0) {
         pre_prompt_output = "\r";
+    } else if (strcmp(scenario, "prompt_guard_visible_then_carriage_return") == 0) {
+        pre_prompt_output = "abc\r";
+    } else if (strcmp(scenario, "prompt_guard_visible_then_carriage_return_clear") == 0) {
+        pre_prompt_output = "abc\r\x1B[2K";
+    } else if (strcmp(scenario, "prompt_guard_forced_visible_line_start") == 0) {
+        ic_term_mark_line_visible(true);
+        pre_prompt_output = "\r";
     } else if (strcmp(scenario, "prompt_guard_visible_then_newline") == 0) {
         pre_prompt_output = "abc\n";
     } else if (strcmp(scenario, "prompt_guard_newline_then_visible") == 0) {

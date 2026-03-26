@@ -1535,6 +1535,39 @@ static bool test_term_visibility_tracking_multiline_last_line_only(void) {
     return true;
 }
 
+static bool test_term_cursor_start_tracking_transitions(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL || env->term == NULL)
+        return false;
+
+    term_reset_line_state(env->term);
+    term_set_track_output(env->term, true);
+
+    term_write_n(env->term, "\r", 1);
+    EXPECT_TRUE(term_is_cursor_at_line_start(env->term),
+                "carriage return should initialize tracked cursor at line start");
+
+    term_write_n(env->term, "abc", 3);
+    EXPECT_FALSE(term_is_cursor_at_line_start(env->term),
+                 "printing visible text should move tracked cursor away from line start");
+
+    term_write_n(env->term, "\r", 1);
+    EXPECT_TRUE(term_is_cursor_at_line_start(env->term),
+                "carriage return should restore tracked cursor to line start");
+
+    term_write_n(env->term, "\t", 1);
+    EXPECT_FALSE(term_is_cursor_at_line_start(env->term),
+                 "tab should move tracked cursor away from line start");
+
+    term_write_n(env->term, "\n", 1);
+    EXPECT_TRUE(term_is_cursor_at_line_start(env->term),
+                "newline should reset tracked cursor to line start for the next row");
+
+    term_set_track_output(env->term, false);
+    term_reset_line_state(env->term);
+    return true;
+}
+
 static bool test_term_visibility_tracking_escape_whitespace_mix(void) {
     ic_env_t* env = ensure_env();
     if (env == NULL || env->term == NULL)
@@ -2512,6 +2545,7 @@ static const test_case_t kTests[] = {
      test_term_visibility_tracking_bracketed_paste_toggle_sequences},
     {"term_visibility_tracking_multiline_last_line_only",
      test_term_visibility_tracking_multiline_last_line_only},
+    {"term_cursor_start_tracking_transitions", test_term_cursor_start_tracking_transitions},
     {"term_visibility_tracking_escape_whitespace_mix",
      test_term_visibility_tracking_escape_whitespace_mix},
     {"tty_bracketed_paste_enter_translation_flow", test_tty_bracketed_paste_enter_translation_flow},

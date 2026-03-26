@@ -335,19 +335,24 @@ static code_t esc_decode_ss3(uint8_t ss3_code) {
     return KEY_NONE;
 }
 
-static void tty_read_csi_num(tty_t* tty, uint8_t* ppeek, uint32_t* num, long esc_timeout) {
+static bool tty_read_csi_num(tty_t* tty, uint8_t* ppeek, uint32_t* num, long esc_timeout) {
     *num = 1;  // default
     ssize_t count = 0;
     uint32_t i = 0;
     while (*ppeek >= '0' && *ppeek <= '9' && count < 16) {
         uint8_t digit = *ppeek - '0';
-        if (!tty_readc_noblock(tty, ppeek, esc_timeout))
-            break;  // peek is not modified in this case
         count++;
         i = 10 * i + digit;
+        if (!tty_readc_noblock(tty, ppeek, esc_timeout)) {
+            if (count > 0)
+                *num = i;
+            *ppeek = 0;
+            return false;
+        }
     }
     if (count > 0)
         *num = i;
+    return true;
 }
 
 static code_t tty_read_csi(tty_t* tty, uint8_t c1, uint8_t peek, code_t mods0, long esc_timeout) {
@@ -376,11 +381,18 @@ static code_t tty_read_csi(tty_t* tty, uint8_t c1, uint8_t peek, code_t mods0, l
     // up to 2 parameters that default to 1
     uint32_t num1 = 1;
     uint32_t num2 = 1;
-    tty_read_csi_num(tty, &peek, &num1, esc_timeout);
+    const long esc_recovery_timeout = (esc_timeout < 100 ? 100 : esc_timeout);
+    if (!tty_read_csi_num(tty, &peek, &num1, esc_timeout) &&
+        !tty_readc_noblock(tty, &peek, esc_recovery_timeout)) {
+        return KEY_NONE;
+    }
     if (peek == ';') {
         if (!tty_readc_noblock(tty, &peek, esc_timeout))
             return KEY_NONE;
-        tty_read_csi_num(tty, &peek, &num2, esc_timeout);
+        if (!tty_read_csi_num(tty, &peek, &num2, esc_timeout) &&
+            !tty_readc_noblock(tty, &peek, esc_recovery_timeout)) {
+            return KEY_NONE;
+        }
     }
 
     // the final character (we do not allow 'intermediate characters')
