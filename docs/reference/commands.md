@@ -564,9 +564,15 @@ cjsh reads the standard prompt variables, so customizing the look is as simple a
 export PS1='[b]\u[/b] [color=#87ceeb]\w[/color]\n$ '
 export RPS1='[ic-hint]\A[/ic-hint]'
 export PROMPT_COMMAND='__update_git_info'
+export PROMPT_EOL_MARK='[b reverse][color=ansi-yellow]![/color][/b]'
 ```
 
 Add snippets like these to `~/.cjshrc` (or any sourced config) to persist them across sessions. See [Prompt Markup and Styling](../themes/thedetails.md) for the full markup reference plus additional examples.
+
+`PROMPT_EOL_MARK` controls the marker shown when command output does not end with a newline and the
+next prompt needs to preserve a partial line. By default cjsh shows a reverse+bold `%` for normal
+users and `#` for root, then forces a terminal wrap with padding/carriage returns (zsh-style,
+without printing a literal newline).
 
 ### cjshopt
 Generate config files and adjust cjsh options.

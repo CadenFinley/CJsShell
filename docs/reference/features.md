@@ -45,6 +45,8 @@ for full details.
     Tags such as `[b]`, `[color=hotpink]`, `[ic-hint]`, and `[bgcolor=#202020]` let you mix ANSI
     styles with reusable highlight names. The full markup reference lives in
     [Prompt Markup and Styling](../themes/thedetails.md).
+- **Partial-line preservation marker** via `PROMPT_EOL_MARK` controls what appears when command
+    output does not end in a newline before the next prompt.
 - **Prompt cleanup toggles** via `cjshopt prompt-cleanup*` set whether the previous prompt is
     removed, whether blank lines are inserted, and whether multiline prompts are truncated.
 - **Right prompt cursor tracking** – `cjshopt right-prompt-follow-cursor` keeps the inline right

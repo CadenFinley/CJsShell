@@ -1,9 +1,9 @@
 # Prompt Markup and Styling
 
 CJ's Shell no longer relies on an external theme DSL. Prompt styling is handled directly through
-the standard shell prompt variables (`PS1`, `RPS1`/`RPROMPT`, and `PROMPT_COMMAND`) combined with
-inline BBCode-style markup. This page explains how the markup works, which escape sequences are
-available, and how to persist your preferred prompt layout.
+the standard shell prompt variables (`PS1`, `RPS1`/`RPROMPT`, `PROMPT_COMMAND`, and
+`PROMPT_EOL_MARK`) combined with inline BBCode-style markup. This page explains how the markup
+works, which escape sequences are available, and how to persist your preferred prompt layout.
 
 ## Quick Start
 
@@ -15,12 +15,15 @@ available, and how to persist your preferred prompt layout.
 - Set `RPS1` (or `RPROMPT`) to control the right-aligned prompt. It is unset by default, so nothing
   renders on the right until you export one.
 - Use `PROMPT_COMMAND` for commands that should run before each prompt.
+- Use `PROMPT_EOL_MARK` to customize the marker shown when output leaves the cursor mid-line right
+  before the next prompt.
 - Apply markup directly inside these variables to style text, add colors, and align sections.
 
 ```bash
 export PS1='[b hotpink]\u[/b] in [color=#87ceeb]\w[/color]\n$ '
 export RPS1='[dim]\A[/dim]'
 export PROMPT_COMMAND='__update_git_info'
+export PROMPT_EOL_MARK='[b reverse][color=ansi-yellow]![/color][/b]'
 ```
 
 > Markup is parsed by the isocline line editor. Invalid tags are ignored; run with
@@ -106,6 +109,24 @@ All escape processing happens before markup is interpreted.
   custom secondary prompt, e.g. `export PS2='[dim]> [/dim]'`.
 - `PROMPT_COMMAND`, when set, runs before CJ's Shell generates `PS1`/`RPS1`. Use it to refresh
   environment variables, collect Git metadata, or update the terminal title.
+
+## Partial-Line Guard Marker (`PROMPT_EOL_MARK`)
+
+- If a command prints output without a trailing newline and leaves the cursor mid-line, cjsh
+  preserves that partial line before drawing the next prompt.
+- To make the partial line boundary obvious, cjsh prints `PROMPT_EOL_MARK` and then forces a wrap
+  using terminal padding and carriage returns (zsh-style behavior; not a literal newline write).
+- Default marker: reverse+bold `%` for normal users, reverse+bold `#` for root.
+- `PROMPT_EOL_MARK` supports prompt escapes and BBCode markup, so you can style it like any other
+  prompt fragment.
+
+```bash
+# Use a custom visible marker
+export PROMPT_EOL_MARK='[b reverse]![/]'
+
+# Hide the marker text while still preserving the partial line
+export PROMPT_EOL_MARK=''
+```
 
 ## Prompt Cleanup and Layout Options
 
