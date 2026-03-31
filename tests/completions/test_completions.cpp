@@ -35,6 +35,7 @@
 
 #include "builtins_completions_handler.h"
 #include "cjsh_completions.h"
+#include "command_line_utils.h"
 #include "completion_spell.h"
 #include "completion_tracker.h"
 #include "completion_utils.h"
@@ -196,6 +197,22 @@ static bool test_tokenize_command_line_escaped_quotes(void) {
     return true;
 }
 
+static bool test_tokenize_shell_words_preserve_literals(void) {
+    const char* test_name = "tokenize_shell_words_preserve_literals";
+    std::string line = "cmd \"arg with space\" plain\\ space 'single quoted'";
+    auto tokens = command_line_utils::tokenize_shell_words(line, true);
+
+    EXPECT_TRUE(tokens.size() == 4, test_name, "expected four tokens");
+    EXPECT_TRUE(tokens[0] == "cmd", test_name, "first token should be command");
+    EXPECT_TRUE(tokens[1] == "\"arg with space\"", test_name,
+                "double quotes should be preserved when requested");
+    EXPECT_TRUE(tokens[2] == "plain\\ space", test_name,
+                "escaped space should retain the escape sequence");
+    EXPECT_TRUE(tokens[3] == "'single quoted'", test_name,
+                "single quotes should be preserved when requested");
+    return true;
+}
+
 static bool test_find_last_unquoted_space(void) {
     const char* test_name = "find_last_unquoted_space";
     std::string line = "echo \"a b\" c";
@@ -211,6 +228,21 @@ static bool test_find_last_unquoted_space_with_tabs(void) {
     std::string line = "cmd\targ";
     size_t pos = completion_utils::find_last_unquoted_space(line);
     EXPECT_TRUE(pos == 3, test_name, "tab should count as a delimiter");
+    return true;
+}
+
+static bool test_find_last_unquoted_space_with_escaped_space(void) {
+    const char* test_name = "find_last_unquoted_space_with_escaped_space";
+    std::string escaped_only = "escaped\\ space";
+    EXPECT_TRUE(completion_utils::find_last_unquoted_space(escaped_only) == std::string::npos,
+                test_name, "escaped whitespace should not be treated as a delimiter");
+
+    std::string with_tail = "escaped\\ space tail";
+    size_t expected = with_tail.find(" tail");
+    EXPECT_TRUE(expected != std::string::npos, test_name, "expected reference delimiter");
+    size_t pos = completion_utils::find_last_unquoted_space(with_tail);
+    EXPECT_TRUE(pos == expected, test_name,
+                "last unquoted delimiter should ignore escaped whitespace");
     return true;
 }
 
@@ -290,6 +322,16 @@ static bool test_sanitize_job_summary_truncates(void) {
     return true;
 }
 
+static bool test_sanitize_job_summary_whitespace_only(void) {
+    const char* test_name = "sanitize_job_summary_whitespace_only";
+    std::string raw = " \t \n \r\x01\x02";
+    if (!expect_streq(completion_utils::sanitize_job_command_summary(raw), "", test_name,
+                      "all whitespace/control input should sanitize to empty string")) {
+        return false;
+    }
+    return true;
+}
+
 static bool test_spell_transposition_and_distance(void) {
     const char* test_name = "spell_transposition_and_distance";
     EXPECT_TRUE(completion_spell::is_adjacent_transposition("abcd", "abdc"), test_name,
@@ -348,6 +390,46 @@ static bool test_spell_match_add_limit(void) {
     return true;
 }
 
+static bool test_collect_spell_candidates_filter_and_case_normalization(void) {
+    const char* test_name = "collect_spell_candidates_filter_and_case_normalization";
+    const bool original_setting = is_completion_case_sensitive();
+    set_completion_case_sensitive(false);
+
+    std::vector<std::string> candidates = {"Git", "gti", "grep"};
+    std::unordered_map<std::string, completion_spell::SpellCorrectionMatch> matches;
+    completion_spell::collect_spell_correction_candidates(
+        candidates, [](const std::string& value) { return value; },
+        [](const std::string& value) { return value != "grep"; }, "gti", matches);
+
+    bool ok = true;
+    if (matches.size() != 1) {
+        log_failure(test_name, "filtering and exact-match skipping should leave one candidate");
+        ok = false;
+    }
+
+    auto it = matches.find("Git");
+    if (it == matches.end()) {
+        log_failure(test_name, "case-insensitive normalized transposition should be collected");
+        ok = false;
+    } else {
+        if (it->second.distance != 1) {
+            log_failure(test_name, "transposition should use effective distance of 1");
+            ok = false;
+        }
+        if (!it->second.is_transposition) {
+            log_failure(test_name, "candidate should be marked as transposition");
+            ok = false;
+        }
+        if (it->second.shared_prefix_len != 1) {
+            log_failure(test_name, "shared prefix length should be computed on normalized text");
+            ok = false;
+        }
+    }
+
+    set_completion_case_sensitive(original_setting);
+    return ok;
+}
+
 static bool test_completion_tracker_deduplication(void) {
     const char* test_name = "completion_tracker_deduplication";
     g_completion_actions = {
@@ -399,6 +481,29 @@ static bool test_completion_tracker_max_results(void) {
     EXPECT_TRUE(count == min_allowed, test_name, "completion count should honor max results cap");
 
     completion_tracker::set_completion_max_results(default_max, nullptr);
+    return true;
+}
+
+static bool test_completion_tracker_delete_before_bounds(void) {
+    const char* test_name = "completion_tracker_delete_before_bounds";
+    completion_tracker::CompletionTracker tracker(nullptr, "abc");
+
+    if (!expect_streq(tracker.calculate_final_result("z", 2), "az", test_name,
+                      "delete_before within bounds should trim from prefix")) {
+        return false;
+    }
+    if (!expect_streq(tracker.calculate_final_result("z", 5), "abcz", test_name,
+                      "delete_before beyond prefix length should leave prefix unchanged")) {
+        return false;
+    }
+    if (!expect_streq(tracker.calculate_final_result("z", -1), "abcz", test_name,
+                      "negative delete_before should leave prefix unchanged")) {
+        return false;
+    }
+
+    tracker.added_completions.insert("abcz");
+    EXPECT_TRUE(tracker.would_create_duplicate("z", 5), test_name,
+                "out-of-range delete_before should still deduplicate canonical result");
     return true;
 }
 
@@ -480,6 +585,11 @@ static bool test_builtin_docs(void) {
     EXPECT_TRUE(has_entry(jobname_doc, "--clear", builtin_completions::EntryKind::Option),
                 test_name, "jobname should include --clear option");
 
+    const auto* missing_doc =
+        builtin_completions::lookup_builtin_command_doc("definitely-not-a-real-command");
+    EXPECT_TRUE(missing_doc == nullptr, test_name,
+                "lookup should return nullptr for unknown commands");
+
     return true;
 }
 
@@ -496,19 +606,26 @@ static const test_case_t kTests[] = {
     {"unquote_path_with_escaped_quote", test_unquote_path_with_escaped_quote},
     {"tokenize_command_line", test_tokenize_command_line},
     {"tokenize_command_line_escaped_quotes", test_tokenize_command_line_escaped_quotes},
+    {"tokenize_shell_words_preserve_literals", test_tokenize_shell_words_preserve_literals},
     {"find_last_unquoted_space", test_find_last_unquoted_space},
     {"find_last_unquoted_space_with_tabs", test_find_last_unquoted_space_with_tabs},
+    {"find_last_unquoted_space_with_escaped_space",
+     test_find_last_unquoted_space_with_escaped_space},
     {"case_sensitivity_helpers", test_case_sensitivity_helpers},
     {"normalize_for_comparison", test_normalize_for_comparison},
     {"starts_with_helpers", test_starts_with_helpers},
     {"sanitize_job_summary", test_sanitize_job_summary},
     {"sanitize_job_summary_truncates", test_sanitize_job_summary_truncates},
+    {"sanitize_job_summary_whitespace_only", test_sanitize_job_summary_whitespace_only},
     {"spell_transposition_and_distance", test_spell_transposition_and_distance},
     {"spell_match_ordering", test_spell_match_ordering},
     {"spell_match_add_limit", test_spell_match_add_limit},
+    {"collect_spell_candidates_filter_and_case_normalization",
+     test_collect_spell_candidates_filter_and_case_normalization},
     {"completion_tracker_deduplication", test_completion_tracker_deduplication},
     {"completion_tracker_trims_trailing_spaces", test_completion_tracker_trims_trailing_spaces},
     {"completion_tracker_max_results", test_completion_tracker_max_results},
+    {"completion_tracker_delete_before_bounds", test_completion_tracker_delete_before_bounds},
     {"builtin_docs", test_builtin_docs},
 };
 
