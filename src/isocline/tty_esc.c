@@ -335,6 +335,35 @@ static code_t esc_decode_ss3(uint8_t ss3_code) {
     return KEY_NONE;
 }
 
+static code_t esc_decode_mouse_wheel(uint32_t mouse_code, code_t* modifiers) {
+    if (modifiers == NULL) {
+        return KEY_NONE;
+    }
+
+    if (mouse_code & 0x04U) {
+        *modifiers |= KEY_MOD_SHIFT;
+    }
+    if (mouse_code & 0x08U) {
+        *modifiers |= KEY_MOD_ALT;
+    }
+    if (mouse_code & 0x10U) {
+        *modifiers |= KEY_MOD_CTRL;
+    }
+
+    if ((mouse_code & 0x40U) == 0) {
+        return KEY_EVENT_MOUSE_OTHER;
+    }
+
+    switch (mouse_code & 0x03U) {
+        case 0:
+            return KEY_EVENT_MOUSE_WHEEL_UP;
+        case 1:
+            return KEY_EVENT_MOUSE_WHEEL_DOWN;
+        default:
+            return KEY_EVENT_MOUSE_OTHER;
+    }
+}
+
 static bool tty_read_csi_num(tty_t* tty, uint8_t* ppeek, uint32_t* num, long esc_timeout) {
     *num = 1;  // default
     ssize_t count = 0;
@@ -368,6 +397,24 @@ static code_t tty_read_csi(tty_t* tty, uint8_t c1, uint8_t peek, code_t mods0, l
         }
     }
 
+    // Legacy X10 mouse report: ESC [ M Cb Cx Cy
+    if (c1 == '[' && peek == 'M') {
+        uint8_t cb = 0;
+        uint8_t cx = 0;
+        uint8_t cy = 0;
+        if (!tty_readc_noblock(tty, &cb, esc_timeout) ||
+            !tty_readc_noblock(tty, &cx, esc_timeout) ||
+            !tty_readc_noblock(tty, &cy, esc_timeout)) {
+            return KEY_NONE;
+        }
+        ic_unused(cx);
+        ic_unused(cy);
+        code_t modifiers = mods0;
+        uint32_t mouse_code = (cb >= 32 ? (uint32_t)(cb - 32) : (uint32_t)cb);
+        code_t code = esc_decode_mouse_wheel(mouse_code, &modifiers);
+        return (code != KEY_NONE ? (code | modifiers) : KEY_NONE);
+    }
+
     // "special" characters ('?' is used for private sequences)
     uint8_t special = 0;
     if (strchr(":<=>?", (char)peek) != NULL) {
@@ -381,6 +428,7 @@ static code_t tty_read_csi(tty_t* tty, uint8_t c1, uint8_t peek, code_t mods0, l
     // up to 2 parameters that default to 1
     uint32_t num1 = 1;
     uint32_t num2 = 1;
+    uint32_t num3 = 1;
     const long esc_recovery_timeout = (esc_timeout < 100 ? 100 : esc_timeout);
     if (!tty_read_csi_num(tty, &peek, &num1, esc_timeout) &&
         !tty_readc_noblock(tty, &peek, esc_recovery_timeout)) {
@@ -395,12 +443,24 @@ static code_t tty_read_csi(tty_t* tty, uint8_t c1, uint8_t peek, code_t mods0, l
         }
     }
 
+    if (special == '<') {
+        while (peek == ';') {
+            if (!tty_readc_noblock(tty, &peek, esc_timeout)) {
+                return KEY_NONE;
+            }
+            if (!tty_read_csi_num(tty, &peek, &num3, esc_timeout) &&
+                !tty_readc_noblock(tty, &peek, esc_recovery_timeout)) {
+                return KEY_NONE;
+            }
+        }
+    }
+
     // the final character (we do not allow 'intermediate characters')
     uint8_t final = peek;
     code_t modifiers = mods0;
 
-    debug_msg("tty: escape sequence: ESC %c %c %d;%d %c\n", c1, (special == 0 ? '_' : special),
-              num1, num2, final);
+    debug_msg("tty: escape sequence: ESC %c %c %d;%d;%d %c\n", c1, (special == 0 ? '_' : special),
+              num1, num2, num3, final);
 
     // Adjust special cases into standard ones.
     if ((final == '@' || final == '9') && c1 == '[' && num1 == 1) {
@@ -434,7 +494,7 @@ static code_t tty_read_csi(tty_t* tty, uint8_t c1, uint8_t peek, code_t mods0, l
     }
 
     // parameter 2 determines the modifiers
-    if (num2 > 1 && num2 <= 9) {
+    if (special != '<' && num2 > 1 && num2 <= 9) {
         if (num2 == 9)
             num2 = 3;  // iTerm2 in xterm mode
         num2--;
@@ -448,7 +508,11 @@ static code_t tty_read_csi(tty_t* tty, uint8_t c1, uint8_t peek, code_t mods0, l
 
     // and translate
     code_t code = KEY_NONE;
-    if (final == '~') {
+    if (c1 == '[' && special == '<' && (final == 'M' || final == 'm')) {
+        ic_unused(num2);
+        ic_unused(num3);
+        code = esc_decode_mouse_wheel(num1, &modifiers);
+    } else if (final == '~') {
         // vt codes
         code = esc_decode_vt(num1);
     } else if (c1 == '[' && final == 'u') {

@@ -119,6 +119,9 @@ typedef uint32_t ic_keycode_t;
 #define IC_KEY_PASTE_START (IC_KEY_EVENT_BASE + 4)  // Bracketed paste start (ESC[200~)
 #define IC_KEY_PASTE_END (IC_KEY_EVENT_BASE + 5)    // Bracketed paste end (ESC[201~)
 #define IC_KEY_EVENT_PROMPT_REFRESH (IC_KEY_EVENT_BASE + 6)
+#define IC_KEY_EVENT_MOUSE_WHEEL_UP (IC_KEY_EVENT_BASE + 7)
+#define IC_KEY_EVENT_MOUSE_WHEEL_DOWN (IC_KEY_EVENT_BASE + 8)
+#define IC_KEY_EVENT_MOUSE_OTHER (IC_KEY_EVENT_BASE + 9)
 
 // Convenience macros (mirroring legacy names)
 #define IC_KEY_CTRL_UP (IC_KEY_WITH_CTRL(IC_KEY_UP))

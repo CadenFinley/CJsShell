@@ -48,6 +48,7 @@ typedef enum completion_mode_e {
     COMPLETION_MODE_NONE = 0,
     COMPLETION_MODE_SINGLE,
     COMPLETION_MODE_DUAL,
+    COMPLETION_MODE_MANY,
 } completion_mode_t;
 
 static completion_mode_t g_completion_mode = COMPLETION_MODE_NONE;
@@ -61,6 +62,14 @@ static void pty_completion_word_provider(ic_completion_env_t* cenv, const char* 
     if (g_completion_mode == COMPLETION_MODE_DUAL) {
         static const char* dual_words[] = {"planet", "planar", NULL};
         (void)ic_add_completions(cenv, prefix, dual_words);
+        return;
+    }
+    if (g_completion_mode == COMPLETION_MODE_MANY) {
+        static const char* many_words[] = {
+            "s01", "s02", "s03", "s04", "s05", "s06", "s07",
+            "s08", "s09", "s10", "s11", "s12", NULL,
+        };
+        (void)ic_add_completions(cenv, prefix, many_words);
         return;
     }
 }
@@ -226,6 +235,14 @@ static int run_case(const char* scenario) {
         initial_input = "say he";
         g_completion_mode = COMPLETION_MODE_SINGLE;
         ic_set_default_completer(pty_completion_dispatcher, NULL);
+    } else if (strcmp(scenario, "completion_many_menu") == 0) {
+        g_completion_mode = COMPLETION_MODE_MANY;
+        ic_set_default_completer(pty_completion_dispatcher, NULL);
+    } else if (strcmp(scenario, "history_search_scroll") == 0) {
+        initial_input = "history";
+        ic_history_clear();
+        ic_history_add("history alpha");
+        ic_history_add("history beta");
     } else if (strcmp(scenario, "ctrl_k_delete_to_end") == 0) {
         initial_input = "abcdef";
     } else if (strcmp(scenario, "ctrl_k_then_type") == 0) {

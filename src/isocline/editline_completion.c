@@ -382,6 +382,7 @@ static void edit_completion_menu(ic_env_t* env, editor_t* eb, bool more_availabl
         completions_clear(env->completions);
         return;
     }
+    bool menu_mouse_scroll_enabled = false;
     bool completion_applied = false;
     const bool hints_enabled = !env->no_hint;
     char* saved_input = NULL;
@@ -423,6 +424,14 @@ again:
     if (count <= 0) {
         edit_refresh(env, eb);
         goto read_key;
+    }
+
+    bool want_mouse_scroll = expanded_mode;
+    if (want_mouse_scroll && !menu_mouse_scroll_enabled) {
+        menu_mouse_scroll_enabled = edit_enable_menu_mouse_scroll(env);
+    } else if (!want_mouse_scroll && menu_mouse_scroll_enabled) {
+        edit_disable_menu_mouse_scroll(env, true);
+        menu_mouse_scroll_enabled = false;
     }
 
     ssize_t collapsed_max_rows = -1;
@@ -675,8 +684,8 @@ again:
                     "[ic-info]Press PgDn to load more completions; ctrl-j collapses the list[/]");
             } else {
                 sbuf_append(eb->extra,
-                            "[ic-info]Use up/down or tab/shift-tab to move; Shift+Up/Down to page; "
-                            "PgUp/PgDn to scroll[/]");
+                            "[ic-info]Use up/down, tab/shift-tab, or wheel to move; Shift+Up/Down "
+                            "to page; PgUp/PgDn to scroll[/]");
             }
         }
 
@@ -693,11 +702,11 @@ again:
         char header[192];
         const char* hint_suffix = "";
         if (more_available && max_scroll_offset > 0) {
-            hint_suffix = " (more available; PgUp/PgDn to scroll)";
+            hint_suffix = " (more available; PgUp/PgDn or wheel to scroll)";
         } else if (more_available) {
             hint_suffix = " (more available)";
         } else if (max_scroll_offset > 0) {
-            hint_suffix = " (PgUp/PgDn to scroll)";
+            hint_suffix = " (PgUp/PgDn or wheel to scroll)";
         }
 
         if (visible_start > 0 && visible_end >= visible_start) {
@@ -742,6 +751,14 @@ read_key:
     sbuf_clear(eb->extra);
 
     bool grid_mode = (!expanded_mode && grid_layout_active && grid_columns > 1 && grid_rows > 0);
+    code_t key_no_mods = KEY_NO_MODS(c);
+
+    if (!expanded_mode &&
+        (key_no_mods == KEY_EVENT_MOUSE_WHEEL_UP || key_no_mods == KEY_EVENT_MOUSE_WHEEL_DOWN ||
+         key_no_mods == KEY_EVENT_MOUSE_OTHER)) {
+        c = 0;
+        goto again;
+    }
 
     if (c >= '1' && c <= '9') {
         ssize_t i = (c - '1');
@@ -760,8 +777,7 @@ read_key:
 
     bool shift_pressed = ((KEY_MODS(c) & KEY_MOD_SHIFT) != 0);
     if (shift_pressed) {
-        code_t base_key = KEY_NO_MODS(c);
-        if (!expanded_mode && (base_key == KEY_DOWN || base_key == KEY_UP)) {
+        if (!expanded_mode && (key_no_mods == KEY_DOWN || key_no_mods == KEY_UP)) {
             if (count > count_displayed) {
                 expanded_mode = true;
                 scroll_offset = 0;
@@ -773,7 +789,7 @@ read_key:
             if (page < 1) {
                 page = 1;
             }
-            if (base_key == KEY_DOWN) {
+            if (key_no_mods == KEY_DOWN) {
                 if (scroll_offset < last_max_scroll_offset) {
                     scroll_offset += page;
                     if (scroll_offset > last_max_scroll_offset) {
@@ -788,7 +804,7 @@ read_key:
                     term_beep(env->term);
                 }
                 goto again;
-            } else if (base_key == KEY_UP) {
+            } else if (key_no_mods == KEY_UP) {
                 if (scroll_offset > 0) {
                     if (scroll_offset > page) {
                         scroll_offset -= page;
@@ -808,6 +824,11 @@ read_key:
                 goto again;
             }
         }
+    }
+
+    if (expanded_mode && key_no_mods == KEY_EVENT_MOUSE_OTHER) {
+        c = 0;
+        goto again;
     }
 
     if ((c == KEY_RIGHT || c == KEY_LEFT) && grid_mode) {
@@ -837,6 +858,32 @@ read_key:
                     term_beep(env->term);
                 }
             }
+        }
+        goto again;
+    }
+
+    if (expanded_mode &&
+        (key_no_mods == KEY_EVENT_MOUSE_WHEEL_UP || key_no_mods == KEY_EVENT_MOUSE_WHEEL_DOWN)) {
+        if (count_displayed > 0) {
+            if (key_no_mods == KEY_EVENT_MOUSE_WHEEL_DOWN) {
+                if (selected < 0) {
+                    selected = 0;
+                } else if (selected < count_displayed - 1) {
+                    selected++;
+                } else {
+                    term_beep(env->term);
+                }
+            } else {
+                if (selected < 0) {
+                    selected = 0;
+                } else if (selected > 0) {
+                    selected--;
+                } else {
+                    term_beep(env->term);
+                }
+            }
+        } else {
+            term_beep(env->term);
         }
         goto again;
     }
@@ -1024,6 +1071,7 @@ read_key:
     }
 
 cleanup:
+    edit_disable_menu_mouse_scroll(env, menu_mouse_scroll_enabled);
     completions_clear(env->completions);
     if (!completion_applied && hints_enabled) {
         bool input_changed = true;

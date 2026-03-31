@@ -2369,6 +2369,23 @@ static bool edit_format_default_status_hints(ic_env_t* env, char* buffer, size_t
     return true;
 }
 
+static bool edit_enable_menu_mouse_scroll(ic_env_t* env) {
+    if (env == NULL || env->term == NULL || !term_is_interactive(env->term)) {
+        return false;
+    }
+    term_write(env->term, "\x1b[?1000h\x1b[?1006h");
+    term_flush(env->term);
+    return true;
+}
+
+static void edit_disable_menu_mouse_scroll(ic_env_t* env, bool enabled) {
+    if (!enabled || env == NULL || env->term == NULL || !term_is_interactive(env->term)) {
+        return;
+    }
+    term_write(env->term, "\x1b[?1000l\x1b[?1006l");
+    term_flush(env->term);
+}
+
 //-------------------------------------------------------------
 // History
 //-------------------------------------------------------------

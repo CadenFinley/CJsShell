@@ -445,6 +445,18 @@ def main() -> int:
     if hist_count != "2":
         raise AssertionError(f"history_probe_count expected '2', got {hist_count!r}")
 
+    mouse_wheel_down = b"\x1b[<65;1;1M"
+    mouse_wheel_down_shift = b"\x1b[<69;1;1M"
+    mouse_release = b"\x1b[<3;1;1m"
+
+    hist_scroll = run_case(
+        binary, "history_search_scroll", b"\x12" + mouse_wheel_down + b"\r"
+    )
+    if hist_scroll != "history beta":
+        raise AssertionError(
+            f"history_search_scroll expected 'history beta', got {hist_scroll!r}"
+        )
+
     comp_single = run_case(binary, "completion_single_tab", b"hel\t\r")
     if comp_single != "hello":
         raise AssertionError(
@@ -473,6 +485,48 @@ def main() -> int:
     if comp_common != "planet":
         raise AssertionError(
             f"completion_dual_common_prefix expected 'planet', got {comp_common!r}"
+        )
+
+    comp_scroll_collapsed = run_case(
+        binary,
+        "completion_many_menu",
+        b"s\t" + mouse_wheel_down + b"\r\r",
+    )
+    if comp_scroll_collapsed != "s01":
+        raise AssertionError(
+            "completion_many_menu collapsed expected 's01', got "
+            f"{comp_scroll_collapsed!r}"
+        )
+
+    comp_scroll = run_case(
+        binary,
+        "completion_many_menu",
+        b"s\t\x0a" + mouse_wheel_down + b"\r\r",
+    )
+    if comp_scroll != "s02":
+        raise AssertionError(
+            f"completion_many_menu expected 's02', got {comp_scroll!r}"
+        )
+
+    comp_scroll_release = run_case(
+        binary,
+        "completion_many_menu",
+        b"s\t\x0a" + mouse_wheel_down + mouse_release + b"\r\r",
+    )
+    if comp_scroll_release != "s02":
+        raise AssertionError(
+            "completion_many_menu with release expected 's02', got "
+            f"{comp_scroll_release!r}"
+        )
+
+    comp_scroll_shift = run_case(
+        binary,
+        "completion_many_menu",
+        b"s\t\x0a" + mouse_wheel_down_shift + b"\r\r",
+    )
+    if comp_scroll_shift != "s02":
+        raise AssertionError(
+            f"completion_many_menu shift-wheel expected 's02', got {comp_scroll_shift!r}"
         )
 
     bp_start = b"\x1b[200~"

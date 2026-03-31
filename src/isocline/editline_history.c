@@ -414,6 +414,8 @@ static void edit_history_fuzzy_search(ic_env_t* env, editor_t* eb, char* initial
         eb->pos = 0;
     }
 
+    bool menu_mouse_scroll_enabled = edit_enable_menu_mouse_scroll(env);
+
 again:;
 
     last_display_count = 0;
@@ -675,7 +677,7 @@ again:;
 
     if (!env->no_help) {
         sbuf_append(eb->extra,
-                    "[ic-diminish](↑↓:navigate shift+↑/↓:page enter:run tab:edit alt+c:case "
+                    "[ic-diminish](↑↓/wheel:navigate shift+↑/↓:page enter:run tab:edit alt+c:case "
                     "esc:cancel)[/]");
     }
 
@@ -699,6 +701,7 @@ again:;
         eb->line_number_column_width = saved_line_number_width;
         ic_enable_hint(old_hint);
         ic_enable_highlight(old_highlight);
+        edit_disable_menu_mouse_scroll(env, menu_mouse_scroll_enabled);
         edit_refresh(env, eb);
         return;
     } else if (c == KEY_ENTER) {
@@ -724,6 +727,7 @@ again:;
         eb->line_number_column_width = saved_line_number_width;
         ic_enable_hint(old_hint);
         ic_enable_highlight(old_highlight);
+        edit_disable_menu_mouse_scroll(env, menu_mouse_scroll_enabled);
         edit_refresh(env, eb);
 
         eb->request_submit = true;
@@ -751,9 +755,16 @@ again:;
         eb->line_number_column_width = saved_line_number_width;
         ic_enable_hint(old_hint);
         ic_enable_highlight(old_highlight);
+        edit_disable_menu_mouse_scroll(env, menu_mouse_scroll_enabled);
         edit_refresh(env, eb);
         return;
-    } else if ((KEY_MODS(c) & KEY_MOD_SHIFT) && KEY_NO_MODS(c) == KEY_DOWN) {
+    }
+
+    code_t key_no_mods = KEY_NO_MODS(c);
+
+    if (key_no_mods == KEY_EVENT_MOUSE_OTHER) {
+        goto again;
+    } else if ((KEY_MODS(c) & KEY_MOD_SHIFT) && key_no_mods == KEY_DOWN) {
         if (match_count > 0 && last_display_count > 0) {
             if (scroll_offset < last_max_scroll) {
                 scroll_offset += last_display_count;
@@ -771,7 +782,7 @@ again:;
             term_beep(env->term);
         }
         goto again;
-    } else if ((KEY_MODS(c) & KEY_MOD_SHIFT) && KEY_NO_MODS(c) == KEY_UP) {
+    } else if ((KEY_MODS(c) & KEY_MOD_SHIFT) && key_no_mods == KEY_UP) {
         if (match_count > 0 && last_display_count > 0) {
             if (scroll_offset > 0) {
                 if (scroll_offset > last_display_count) {
@@ -787,17 +798,19 @@ again:;
             term_beep(env->term);
         }
         goto again;
-    } else if ((KEY_MODS(c) & KEY_MOD_ALT) && (KEY_NO_MODS(c) == 'c' || KEY_NO_MODS(c) == 'C')) {
+    } else if ((KEY_MODS(c) & KEY_MOD_ALT) && (key_no_mods == 'c' || key_no_mods == 'C')) {
         session_case_sensitive = !session_case_sensitive;
         goto again;
-    } else if (c == KEY_UP || c == KEY_CTRL_P) {
+    } else if (key_no_mods == KEY_UP || c == KEY_CTRL_P ||
+               key_no_mods == KEY_EVENT_MOUSE_WHEEL_UP) {
         if (selected_idx > 0) {
             selected_idx--;
         } else {
             term_beep(env->term);
         }
         goto again;
-    } else if (c == KEY_DOWN || c == KEY_CTRL_N) {
+    } else if (key_no_mods == KEY_DOWN || c == KEY_CTRL_N ||
+               key_no_mods == KEY_EVENT_MOUSE_WHEEL_DOWN) {
         if (selected_idx < match_count - 1) {
             selected_idx++;
         } else {
