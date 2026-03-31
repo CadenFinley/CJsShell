@@ -29,6 +29,7 @@
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
+#include <limits>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -161,10 +162,36 @@ static bool test_quote_path_special_characters(void) {
     return true;
 }
 
+static bool test_quote_path_empty_and_dollar(void) {
+    const char* test_name = "quote_path_empty_and_dollar";
+    if (!expect_streq(completion_utils::quote_path_if_needed(""), "", test_name,
+                      "empty path should remain empty")) {
+        return false;
+    }
+
+    std::string path = "cost$1";
+    if (!expect_streq(completion_utils::quote_path_if_needed(path), "\"cost$1\"", test_name,
+                      "paths containing shell metacharacters should be quoted")) {
+        return false;
+    }
+
+    return true;
+}
+
 static bool test_unquote_path_with_escaped_quote(void) {
     const char* test_name = "unquote_path_with_escaped_quote";
     if (!expect_streq(completion_utils::unquote_path("\"a\\\"b\""), "a\"b", test_name,
                       "escaped quotes should be unescaped")) {
+        return false;
+    }
+    return true;
+}
+
+static bool test_unquote_path_with_mixed_quote_segments(void) {
+    const char* test_name = "unquote_path_with_mixed_quote_segments";
+    if (!expect_streq(completion_utils::unquote_path("'left'\"right\"\\ middle"),
+                      "leftright middle", test_name,
+                      "single quotes, double quotes, and escaped spaces should combine")) {
         return false;
     }
     return true;
@@ -194,6 +221,19 @@ static bool test_tokenize_command_line_escaped_quotes(void) {
     EXPECT_TRUE(tokens[0] == "cmd", test_name, "first token should be command");
     EXPECT_TRUE(tokens[1] == "a\"b", test_name, "escaped quote should be preserved in token");
     EXPECT_TRUE(tokens[2] == "tail", test_name, "last token should be preserved");
+    return true;
+}
+
+static bool test_tokenize_command_line_unterminated_quote(void) {
+    const char* test_name = "tokenize_command_line_unterminated_quote";
+    std::string line = "cmd \"unterminated quote tail";
+    auto tokens = completion_utils::tokenize_command_line(line);
+
+    EXPECT_TRUE(tokens.size() == 2, test_name,
+                "unterminated quoted text should remain a single token");
+    EXPECT_TRUE(tokens[0] == "cmd", test_name, "first token should be command");
+    EXPECT_TRUE(tokens[1] == "unterminated quote tail", test_name,
+                "quoted payload should preserve spaces even when quote is unmatched");
     return true;
 }
 
@@ -243,6 +283,15 @@ static bool test_find_last_unquoted_space_with_escaped_space(void) {
     size_t pos = completion_utils::find_last_unquoted_space(with_tail);
     EXPECT_TRUE(pos == expected, test_name,
                 "last unquoted delimiter should ignore escaped whitespace");
+    return true;
+}
+
+static bool test_find_last_unquoted_space_with_unterminated_quote(void) {
+    const char* test_name = "find_last_unquoted_space_with_unterminated_quote";
+    std::string line = "cmd \"quoted words remain quoted";
+    size_t pos = completion_utils::find_last_unquoted_space(line);
+    EXPECT_TRUE(pos == 3, test_name,
+                "spaces inside an unterminated quote should not count as delimiters");
     return true;
 }
 
@@ -351,6 +400,14 @@ static bool test_spell_transposition_and_distance(void) {
     return true;
 }
 
+static bool test_spell_distance_negative_limit(void) {
+    const char* test_name = "spell_distance_negative_limit";
+    int distance = completion_spell::compute_edit_distance_with_limit("abc", "xyz", -1);
+    EXPECT_TRUE(distance == std::numeric_limits<int>::max(), test_name,
+                "negative max distance should return sentinel max value");
+    return true;
+}
+
 static bool test_spell_match_ordering(void) {
     const char* test_name = "spell_match_ordering";
     std::unordered_map<std::string, completion_spell::SpellCorrectionMatch> matches;
@@ -428,6 +485,44 @@ static bool test_collect_spell_candidates_filter_and_case_normalization(void) {
 
     set_completion_case_sensitive(original_setting);
     return ok;
+}
+
+static bool test_collect_spell_candidates_distance_thresholds(void) {
+    const char* test_name = "collect_spell_candidates_distance_thresholds";
+    std::vector<std::string> candidates = {"abcxxx", "abxxxx", "abxyz"};
+
+    std::unordered_map<std::string, completion_spell::SpellCorrectionMatch> long_prefix_matches;
+    completion_spell::collect_spell_correction_candidates(
+        candidates, [](const std::string& value) { return value; },
+        [](const std::string&) { return true; }, "abcdef", long_prefix_matches);
+
+    EXPECT_TRUE(long_prefix_matches.find("abcxxx") != long_prefix_matches.end(), test_name,
+                "distance-3 candidate should be kept for longer prefixes");
+    EXPECT_TRUE(long_prefix_matches.find("abxxxx") == long_prefix_matches.end(), test_name,
+                "distance-4 candidate should be discarded for longer prefixes");
+
+    std::unordered_map<std::string, completion_spell::SpellCorrectionMatch> short_prefix_matches;
+    completion_spell::collect_spell_correction_candidates(
+        candidates, [](const std::string& value) { return value; },
+        [](const std::string&) { return true; }, "abcde", short_prefix_matches);
+
+    EXPECT_TRUE(short_prefix_matches.find("abxyz") == short_prefix_matches.end(), test_name,
+                "distance-3 candidate should be discarded for short prefixes");
+    return true;
+}
+
+static bool test_collect_spell_candidates_without_filter(void) {
+    const char* test_name = "collect_spell_candidates_without_filter";
+    std::vector<std::string> candidates = {"gti"};
+    std::unordered_map<std::string, completion_spell::SpellCorrectionMatch> matches;
+    const std::function<bool(const std::string&)> no_filter;
+
+    completion_spell::collect_spell_correction_candidates(
+        candidates, [](const std::string& value) { return value; }, no_filter, "git", matches);
+
+    EXPECT_TRUE(matches.find("gti") != matches.end(), test_name,
+                "empty filter should behave as allow-all");
+    return true;
 }
 
 static bool test_completion_tracker_deduplication(void) {
@@ -603,14 +698,19 @@ typedef struct test_case_s {
 static const test_case_t kTests[] = {
     {"quote_and_unquote_paths", test_quote_and_unquote_paths},
     {"quote_path_special_characters", test_quote_path_special_characters},
+    {"quote_path_empty_and_dollar", test_quote_path_empty_and_dollar},
     {"unquote_path_with_escaped_quote", test_unquote_path_with_escaped_quote},
+    {"unquote_path_with_mixed_quote_segments", test_unquote_path_with_mixed_quote_segments},
     {"tokenize_command_line", test_tokenize_command_line},
     {"tokenize_command_line_escaped_quotes", test_tokenize_command_line_escaped_quotes},
+    {"tokenize_command_line_unterminated_quote", test_tokenize_command_line_unterminated_quote},
     {"tokenize_shell_words_preserve_literals", test_tokenize_shell_words_preserve_literals},
     {"find_last_unquoted_space", test_find_last_unquoted_space},
     {"find_last_unquoted_space_with_tabs", test_find_last_unquoted_space_with_tabs},
     {"find_last_unquoted_space_with_escaped_space",
      test_find_last_unquoted_space_with_escaped_space},
+    {"find_last_unquoted_space_with_unterminated_quote",
+     test_find_last_unquoted_space_with_unterminated_quote},
     {"case_sensitivity_helpers", test_case_sensitivity_helpers},
     {"normalize_for_comparison", test_normalize_for_comparison},
     {"starts_with_helpers", test_starts_with_helpers},
@@ -618,10 +718,14 @@ static const test_case_t kTests[] = {
     {"sanitize_job_summary_truncates", test_sanitize_job_summary_truncates},
     {"sanitize_job_summary_whitespace_only", test_sanitize_job_summary_whitespace_only},
     {"spell_transposition_and_distance", test_spell_transposition_and_distance},
+    {"spell_distance_negative_limit", test_spell_distance_negative_limit},
     {"spell_match_ordering", test_spell_match_ordering},
     {"spell_match_add_limit", test_spell_match_add_limit},
     {"collect_spell_candidates_filter_and_case_normalization",
      test_collect_spell_candidates_filter_and_case_normalization},
+    {"collect_spell_candidates_distance_thresholds",
+     test_collect_spell_candidates_distance_thresholds},
+    {"collect_spell_candidates_without_filter", test_collect_spell_candidates_without_filter},
     {"completion_tracker_deduplication", test_completion_tracker_deduplication},
     {"completion_tracker_trims_trailing_spaces", test_completion_tracker_trims_trailing_spaces},
     {"completion_tracker_max_results", test_completion_tracker_max_results},

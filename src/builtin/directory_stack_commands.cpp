@@ -98,7 +98,11 @@ int pushd_command(const std::vector<std::string>& args, std::string& current_dir
 
         std::string target = stack.back();
         stack.back() = current_directory;
-        return change_directory(target, current_directory, previous_directory, shell);
+        int status = change_directory(target, current_directory, previous_directory, shell);
+        if (status != 0) {
+            stack.back() = target;
+        }
+        return status;
     }
 
     const std::string target = args[1];

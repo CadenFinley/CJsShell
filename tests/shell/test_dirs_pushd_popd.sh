@@ -63,11 +63,12 @@ cleanup() {
 }
 trap cleanup EXIT
 
-mkdir -p "$TMPROOT/one" "$TMPROOT/two"
+mkdir -p "$TMPROOT/one" "$TMPROOT/two" "$TMPROOT/space dir"
 
 ROOT_DIR="$(cd "$TMPROOT" && pwd -P)"
 DIR_ONE="$(cd "$TMPROOT/one" && pwd -P)"
 DIR_TWO="$(cd "$TMPROOT/two" && pwd -P)"
+DIR_SPACE="$(cd "$TMPROOT/space dir" && pwd -P)"
 
 OUT=$($CJSH_CMD -c "cd \"$ROOT_DIR\"; dirs")
 if [ "$OUT" = "$ROOT_DIR" ]; then
@@ -125,11 +126,86 @@ else
   fail_test "dirs with too many args should return error"
 fi
 
+OUT=$($CJSH_CMD -c "dirs --help" 2>&1)
+if [ $? -eq 0 ] && echo "$OUT" | grep -q "Usage: dirs"; then
+  pass_test "dirs --help returns usage"
+else
+  fail_test "dirs --help should return usage"
+fi
+
+OUT=$($CJSH_CMD -c "pushd --help" 2>&1)
+if [ $? -eq 0 ] && echo "$OUT" | grep -q "Usage: pushd"; then
+  pass_test "pushd --help returns usage"
+else
+  fail_test "pushd --help should return usage"
+fi
+
+OUT=$($CJSH_CMD -c "popd --help" 2>&1)
+if [ $? -eq 0 ] && echo "$OUT" | grep -q "Usage: popd"; then
+  pass_test "popd --help returns usage"
+else
+  fail_test "popd --help should return usage"
+fi
+
+$CJSH_CMD -c "pushd \"$DIR_ONE\" \"$DIR_TWO\"" >/dev/null 2>&1
+if [ $? -eq 2 ]; then
+  pass_test "pushd with too many args returns error"
+else
+  fail_test "pushd with too many args should return error"
+fi
+
+$CJSH_CMD -c "popd extra" >/dev/null 2>&1
+if [ $? -eq 2 ]; then
+  pass_test "popd with too many args returns error"
+else
+  fail_test "popd with too many args should return error"
+fi
+
+OUT=$($CJSH_CMD -c "cd \"$ROOT_DIR\"; pushd \"$DIR_SPACE\" >/dev/null; dirs")
+if [ "$OUT" = "$DIR_SPACE $ROOT_DIR" ]; then
+  pass_test "pushd supports directories with spaces"
+else
+  fail_test "pushd should support directories with spaces (got '$OUT')"
+fi
+
+OUT=$($CJSH_CMD -c "cd \"$ROOT_DIR\"; pushd \"$DIR_ONE\" >/dev/null; dirs --help >/dev/null; dirs")
+if [ "$OUT" = "$DIR_ONE $ROOT_DIR" ]; then
+  pass_test "dirs help does not mutate directory stack"
+else
+  fail_test "dirs help should not mutate stack (got '$OUT')"
+fi
+
 OUT=$($CJSH_CMD -c "cd \"$ROOT_DIR\"; pushd \"$DIR_ONE\" >/dev/null; pushd \"$ROOT_DIR/nope\" >/dev/null 2>&1; dirs")
 if [ "$OUT" = "$DIR_ONE $ROOT_DIR" ]; then
   pass_test "failed pushd does not alter stack"
 else
   fail_test "failed pushd should not alter stack (got '$OUT')"
+fi
+
+mkdir -p "$TMPROOT/popd-target" "$TMPROOT/popd-holder"
+POPD_TARGET="$(cd "$TMPROOT/popd-target" && pwd -P)"
+POPD_HOLDER="$(cd "$TMPROOT/popd-holder" && pwd -P)"
+
+OUT=$($CJSH_CMD -c "cd \"$ROOT_DIR\"; pushd \"$POPD_TARGET\" >/dev/null; pushd \"$POPD_HOLDER\" >/dev/null; rm -rf \"$POPD_TARGET\"; popd >/dev/null 2>&1; echo \"status:\$?\"; dirs")
+EXPECTED="status:1
+$POPD_HOLDER $POPD_TARGET $ROOT_DIR"
+if [ "$OUT" = "$EXPECTED" ]; then
+  pass_test "failed popd keeps stack unchanged"
+else
+  fail_test "failed popd should keep stack unchanged (got '$OUT')"
+fi
+
+mkdir -p "$TMPROOT/swap-target" "$TMPROOT/swap-holder"
+SWAP_TARGET="$(cd "$TMPROOT/swap-target" && pwd -P)"
+SWAP_HOLDER="$(cd "$TMPROOT/swap-holder" && pwd -P)"
+
+OUT=$($CJSH_CMD -c "cd \"$ROOT_DIR\"; pushd \"$SWAP_TARGET\" >/dev/null; pushd \"$SWAP_HOLDER\" >/dev/null; rm -rf \"$SWAP_TARGET\"; pushd >/dev/null 2>&1; echo \"status:\$?\"; dirs")
+EXPECTED="status:1
+$SWAP_HOLDER $SWAP_TARGET $ROOT_DIR"
+if [ "$OUT" = "$EXPECTED" ]; then
+  pass_test "failed pushd swap keeps stack unchanged"
+else
+  fail_test "failed pushd swap should keep stack unchanged (got '$OUT')"
 fi
 
 echo ""
