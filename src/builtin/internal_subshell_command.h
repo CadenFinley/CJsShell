@@ -34,3 +34,4 @@
 class Shell;
 
 int internal_subshell_command(const std::vector<std::string>& args, Shell* shell);
+int internal_brace_group_command(const std::vector<std::string>& args, Shell* shell);

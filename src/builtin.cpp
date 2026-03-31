@@ -55,7 +55,6 @@
 #include "history_command.h"
 #include "hook_command.h"
 #include "if_command.h"
-#include "internal_brace_group_command.h"
 #include "internal_subshell_command.h"
 #include "job_control_commands.h"
 #include "local_command.h"
