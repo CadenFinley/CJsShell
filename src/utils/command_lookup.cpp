@@ -50,7 +50,8 @@ bool is_shell_keyword(const std::string& token) {
         return true;
     }
 
-    return token == "{" || token == "}" || token == "[[" || token == "]]" || token == "!";
+    return token == "{" || token == "}" || token == "(" || token == ")" || token == "[[" ||
+           token == "]]" || token == "!";
 }
 
 bool is_shell_builtin(const std::string& token, Shell* shell) {

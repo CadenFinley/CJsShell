@@ -46,7 +46,12 @@ bool is_external_command(const std::string& token) {
 }
 
 bool is_shell_keyword(const std::string& token) {
-    return token_constants::shell_keywords().count(token) > 0;
+    if (token_constants::shell_keywords().count(token) > 0) {
+        return true;
+    }
+
+    return token == "{" || token == "}" || token == "(" || token == ")" || token == "[[" ||
+           token == "]]" || token == "!";
 }
 
 bool is_shell_builtin(const std::string& token) {

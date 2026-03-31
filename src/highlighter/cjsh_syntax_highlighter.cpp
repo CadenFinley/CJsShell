@@ -46,6 +46,14 @@
 
 namespace {
 
+bool is_grouping_delimiter_token(const std::string& token) {
+    return token == "(" || token == ")" || token == "{" || token == "}";
+}
+
+bool is_opening_grouping_delimiter_token(const std::string& token) {
+    return token == "(" || token == "{";
+}
+
 void highlight_command_resolution(ic_highlight_env_t* henv, size_t start, size_t length,
                                   bool is_system_command) {
     ic_highlight(henv, static_cast<long>(start), static_cast<long>(length),
@@ -77,6 +85,12 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
     bool handled_first_token = false;
     size_t absolute_token_start = cmd_start + first_token_start;
     size_t first_token_length = first_token_end - first_token_start;
+
+    if (is_grouping_delimiter_token(token)) {
+        ic_highlight(henv, static_cast<long>(absolute_token_start),
+                     static_cast<long>(first_token_length), "cjsh-operator");
+        handled_first_token = true;
+    }
 
     if (is_variable_reference(token)) {
         highlight_variable_assignment(henv, input, absolute_token_start, token);
@@ -134,8 +148,11 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
         }
     }
 
-    if (token_constants::inline_command_keywords().find(token) !=
-        token_constants::inline_command_keywords().end()) {
+    bool recurse_into_nested_command = (token_constants::inline_command_keywords().find(token) !=
+                                        token_constants::inline_command_keywords().end()) ||
+                                       is_opening_grouping_delimiter_token(token);
+
+    if (recurse_into_nested_command) {
         size_t nested_start = first_token_end;
         while (nested_start < cmd_str.size() &&
                (std::isspace(static_cast<unsigned char>(cmd_str[nested_start])) != 0)) {
@@ -166,6 +183,11 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
 
         else if (is_variable_reference(arg)) {
             highlight_variable_assignment(henv, input, absolute_arg_start, arg);
+        }
+
+        else if (is_grouping_delimiter_token(arg)) {
+            ic_highlight(henv, static_cast<long>(absolute_arg_start), static_cast<long>(arg_length),
+                         "cjsh-operator");
         }
 
         else if (arg == "((" || arg == "))") {

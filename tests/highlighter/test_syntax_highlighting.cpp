@@ -29,6 +29,7 @@
 #include <cstdio>
 #include <memory>
 #include <string>
+#include <unordered_set>
 
 extern "C" {
 #include "attr.h"
@@ -40,6 +41,7 @@ extern "C" {
 
 #include "cjsh.h"
 #include "cjsh_syntax_highlighter.h"
+#include "command_analysis.h"
 #include "shell.h"
 #include "shell_env.h"
 #include "token_constants.h"
@@ -1146,6 +1148,61 @@ static bool test_arithmetic_parens_highlighting(void) {
     return ok;
 }
 
+static bool test_subshell_group_highlighting(void) {
+    const char* test_name = "subshell_group_highlighting";
+    const std::string input = "( echo $SHLVL )";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    size_t open_paren = input.find('(');
+    size_t echo_pos = input.find("echo");
+    size_t close_paren = input.rfind(')');
+    if (open_paren == std::string::npos || echo_pos == std::string::npos ||
+        close_paren == std::string::npos) {
+        log_failure(test_name, "failed to locate subshell tokens");
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    bool ok = expect_style_range(attrs, env->bbcode, open_paren, 1, "cjsh-operator", test_name,
+                                 "opening parenthesis should be highlighted as operator") &&
+              expect_style_range(attrs, env->bbcode, echo_pos, 4, "cjsh-builtin", test_name,
+                                 "nested command should be highlighted as builtin") &&
+              expect_style_range(attrs, env->bbcode, close_paren, 1, "cjsh-operator", test_name,
+                                 "closing parenthesis should be highlighted as operator");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
+static bool test_subshell_tokens_known_to_validator(void) {
+    const char* test_name = "subshell_tokens_known_to_validator";
+
+    if (g_shell == nullptr) {
+        log_failure(test_name, "shell instance is not initialized");
+        return false;
+    }
+
+    const std::unordered_set<std::string> available_commands = g_shell->get_available_commands();
+    bool open_paren_known =
+        command_analysis::is_known_command_token("(", 0, g_shell.get(), available_commands);
+    bool close_paren_known =
+        command_analysis::is_known_command_token(")", 0, g_shell.get(), available_commands);
+
+    EXPECT_TRUE(open_paren_known, test_name, "'(' should be treated as a known shell token");
+    EXPECT_TRUE(close_paren_known, test_name, "')' should be treated as a known shell token");
+
+    return true;
+}
+
 typedef bool (*test_fn_t)(void);
 
 typedef struct test_case_s {
@@ -1192,6 +1249,8 @@ static const test_case_t kTests[] = {
     {"parameter_expansion_operator_highlighting", test_parameter_expansion_operator_highlighting},
     {"compound_redirection_close_highlighting", test_compound_redirection_close_highlighting},
     {"arithmetic_parens_highlighting", test_arithmetic_parens_highlighting},
+    {"subshell_group_highlighting", test_subshell_group_highlighting},
+    {"subshell_tokens_known_to_validator", test_subshell_tokens_known_to_validator},
 };
 
 int main(void) {
