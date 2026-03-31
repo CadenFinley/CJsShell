@@ -1,5 +1,5 @@
 /*
-  true_command.h
+  boolean_commands.h
 
   This file is part of cjsh, CJ's Shell
 
@@ -29,3 +29,4 @@
 #pragma once
 
 int true_command();
+int false_command();

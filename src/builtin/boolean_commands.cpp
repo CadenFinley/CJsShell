@@ -26,8 +26,7 @@
   SOFTWARE.
 */
 
-#include "false_command.h"
-#include "true_command.h"
+#include "boolean_commands.h"
 
 int true_command() {
     return 0;

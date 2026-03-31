@@ -34,6 +34,7 @@
 #include <unistd.h>
 
 #include "alias_abbr_commands.h"
+#include "boolean_commands.h"
 #include "cd_command.h"
 #include "cjsh_filesystem.h"
 #include "cjshopt_command.h"
@@ -46,7 +47,6 @@
 #include "exec_command.h"
 #include "exit_command.h"
 #include "export_command.h"
-#include "false_command.h"
 #include "fc_command.h"
 #include "generate_completions_command.h"
 #include "getopts_command.h"
@@ -72,7 +72,6 @@
 #include "test_command.h"
 #include "times_command.h"
 #include "trap_command.h"
-#include "true_command.h"
 #include "type_which_command.h"
 #include "ulimit_command.h"
 #include "umask_command.h"
