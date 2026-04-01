@@ -251,6 +251,46 @@ else
     fail "Expected '$expected', got '$result'"
 fi
 
+log_test "Arithmetic command form updates variable"
+result=$("$SHELL_TO_TEST" -c "a=5; ((a++)); echo \$a" 2>/dev/null)
+if [ "$result" = "6" ]; then
+    pass
+else
+    fail "Expected '6', got '$result'"
+fi
+
+log_test "Arithmetic command form status from zero expression"
+result=$("$SHELL_TO_TEST" -c "((0)); echo \$?" 2>/dev/null)
+if [ "$result" = "1" ]; then
+    pass
+else
+    fail "Expected '1', got '$result'"
+fi
+
+log_test "Negated arithmetic command form"
+result=$("$SHELL_TO_TEST" -c "! ((0)); echo \$?" 2>/dev/null)
+if [ "$result" = "0" ]; then
+    pass
+else
+    fail "Expected '0', got '$result'"
+fi
+
+log_test "C-style for loop accumulation"
+result=$("$SHELL_TO_TEST" -c "sum=0; for ((i=1; i<=4; i++)); do sum=\$((sum+i)); done; echo \$sum" 2>/dev/null)
+if [ "$result" = "10" ]; then
+    pass
+else
+    fail "Expected '10', got '$result'"
+fi
+
+log_test "C-style for loop continue still updates"
+result=$("$SHELL_TO_TEST" -c "sum=0; for ((i=0; i<5; i++)); do if [ \$i -eq 2 ]; then continue; fi; sum=\$((sum+i)); done; echo \$sum" 2>/dev/null)
+if [ "$result" = "8" ]; then
+    pass
+else
+    fail "Expected '8', got '$result'"
+fi
+
 log_test "Ternary operator (?:)"
 result=$("$SHELL_TO_TEST" -c "echo \$((5>3?10:20))" 2>/dev/null)
 if [ "$result" = "10" ]; then

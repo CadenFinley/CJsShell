@@ -453,50 +453,146 @@ std::vector<ArithmeticEvaluator::Token> ArithmeticEvaluator::tokenize(const std:
 }
 
 void ArithmeticEvaluator::handle_assignment_operators(std::vector<Token>& tokens) {
-    for (size_t i = 0; i < tokens.size(); ++i) {
-        if (tokens[i].type == TokenType::OPERATOR &&
-            (tokens[i].op == "+=" || tokens[i].op == "-=" || tokens[i].op == "*=" ||
-             tokens[i].op == "/=" || tokens[i].op == "%=" || tokens[i].op == "=")) {
-            if (i > 0 && tokens[i - 1].type == TokenType::VARIABLE) {
-                std::string var_name = tokens[i - 1].str_value;
+    auto is_assignment_operator = [](const Token& token) {
+        return token.type == TokenType::OPERATOR &&
+               (token.op == "=" || token.op == "+=" || token.op == "-=" || token.op == "*=" ||
+                token.op == "/=" || token.op == "%=");
+    };
 
-                if (i + 1 < tokens.size()) {
-                    long long current_val = read_variable(var_name);
-                    long long assign_val = 0;
+    auto token_to_expression_text = [](const Token& token) -> std::string {
+        switch (token.type) {
+            case TokenType::NUMBER:
+                return std::to_string(token.value);
+            case TokenType::VARIABLE:
+                return token.str_value;
+            case TokenType::LPAREN:
+                return "(";
+            case TokenType::RPAREN:
+                return ")";
+            case TokenType::TERNARY_Q:
+                return "?";
+            case TokenType::TERNARY_COLON:
+                return ":";
+            case TokenType::OPERATOR:
+                if (token.op == "pre++") {
+                    return "++";
+                }
+                if (token.op == "pre--") {
+                    return "--";
+                }
+                if (token.op == "unary+") {
+                    return "+";
+                }
+                if (token.op == "unary-") {
+                    return "-";
+                }
+                return token.op;
+        }
+        return "";
+    };
 
-                    if (tokens[i + 1].type == TokenType::NUMBER) {
-                        assign_val = tokens[i + 1].value;
-                    } else if (tokens[i + 1].type == TokenType::VARIABLE) {
-                        assign_val = read_variable(tokens[i + 1].str_value);
-                    }
+    auto compute_depth_before_index = [&](size_t index) {
+        int depth = 0;
+        for (size_t i = 0; i < index && i < tokens.size(); ++i) {
+            if (tokens[i].type == TokenType::LPAREN) {
+                ++depth;
+            } else if (tokens[i].type == TokenType::RPAREN && depth > 0) {
+                --depth;
+            }
+        }
+        return depth;
+    };
 
-                    long long result = assign_val;
-                    if (tokens[i].op == "+=") {
-                        result = wrap_add(current_val, assign_val);
-                    } else if (tokens[i].op == "-=") {
-                        result = wrap_sub(current_val, assign_val);
-                    } else if (tokens[i].op == "*=") {
-                        result = wrap_mul(current_val, assign_val);
-                    } else if (tokens[i].op == "/=") {
-                        if (assign_val == 0)
-                            throw std::runtime_error("Division by zero");
-                        result = current_val / assign_val;
-                    } else if (tokens[i].op == "%=") {
-                        if (assign_val == 0)
-                            throw std::runtime_error("Division by zero");
-                        result = current_val % assign_val;
-                    }
+    auto find_rhs_end = [&](size_t operator_index) {
+        int assignment_depth = compute_depth_before_index(operator_index);
+        int depth = assignment_depth;
 
-                    write_variable(var_name, result);
+        for (size_t i = operator_index + 1; i < tokens.size(); ++i) {
+            if (tokens[i].type == TokenType::LPAREN) {
+                ++depth;
+                continue;
+            }
 
-                    using Difference = std::vector<Token>::difference_type;
-
-                    tokens[i - 1] = {TokenType::NUMBER, result, "", ""};
-                    Difference index = static_cast<Difference>(i);
-                    tokens.erase(tokens.begin() + index, tokens.begin() + index + 2);
-                    i = i - 1;
+            if (tokens[i].type == TokenType::RPAREN) {
+                if (depth == assignment_depth) {
+                    return i;
+                }
+                if (depth > 0) {
+                    --depth;
                 }
             }
+        }
+
+        return tokens.size();
+    };
+
+    auto evaluate_rhs_expression = [&](size_t rhs_start, size_t rhs_end) {
+        std::string rhs_expression;
+        rhs_expression.reserve((rhs_end > rhs_start ? rhs_end - rhs_start : 0) * 2);
+
+        for (size_t i = rhs_start; i < rhs_end; ++i) {
+            rhs_expression += token_to_expression_text(tokens[i]);
+        }
+
+        return evaluate(rhs_expression);
+    };
+
+    while (true) {
+        bool changed = false;
+
+        for (size_t i = tokens.size(); i-- > 0;) {
+            if (!is_assignment_operator(tokens[i])) {
+                continue;
+            }
+
+            if (i == 0 || tokens[i - 1].type != TokenType::VARIABLE) {
+                continue;
+            }
+
+            size_t rhs_start = i + 1;
+            size_t rhs_end = find_rhs_end(i);
+            if (rhs_start >= rhs_end) {
+                continue;
+            }
+
+            std::string var_name = tokens[i - 1].str_value;
+            long long current_val = read_variable(var_name);
+            long long assign_val = evaluate_rhs_expression(rhs_start, rhs_end);
+
+            long long result = assign_val;
+            if (tokens[i].op == "+=") {
+                result = wrap_add(current_val, assign_val);
+            } else if (tokens[i].op == "-=") {
+                result = wrap_sub(current_val, assign_val);
+            } else if (tokens[i].op == "*=") {
+                result = wrap_mul(current_val, assign_val);
+            } else if (tokens[i].op == "/=") {
+                if (assign_val == 0) {
+                    throw std::runtime_error("Division by zero");
+                }
+                result = current_val / assign_val;
+            } else if (tokens[i].op == "%=") {
+                if (assign_val == 0) {
+                    throw std::runtime_error("Division by zero");
+                }
+                result = current_val % assign_val;
+            }
+
+            write_variable(var_name, result);
+
+            using Difference = std::vector<Token>::difference_type;
+
+            tokens[i - 1] = {TokenType::NUMBER, result, "", "", OperatorType::UNKNOWN};
+            Difference erase_start = static_cast<Difference>(i);
+            Difference erase_end = static_cast<Difference>(rhs_end);
+            tokens.erase(tokens.begin() + erase_start, tokens.begin() + erase_end);
+
+            changed = true;
+            break;
+        }
+
+        if (!changed) {
+            break;
         }
     }
 }

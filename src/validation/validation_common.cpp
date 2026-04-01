@@ -538,6 +538,171 @@ ForLoopCheckResult analyze_for_loop_syntax(const std::vector<std::string>& token
                                            const std::string& trimmed_line) {
     ForLoopCheckResult result;
 
+    auto apply_do_checks = [&](void) {
+        bool has_do = check_for_loop_keywords(tokens, trimmed_line, false);
+        result.has_inline_do = has_do;
+        if (!has_do) {
+            result.missing_do_keyword = true;
+        }
+
+        if (result.has_inline_do) {
+            size_t inline_do_pos = find_inline_do_position(trimmed_line);
+            size_t body_start = std::string::npos;
+            if (inline_do_pos != std::string::npos) {
+                body_start = trimmed_line.find_first_not_of(" \t;", inline_do_pos + 2);
+            }
+
+            bool inline_body_present = body_start != std::string::npos;
+            if (inline_body_present) {
+                size_t done_pos = find_inline_done_position(trimmed_line, body_start);
+                if (done_pos == std::string::npos) {
+                    result.inline_body_without_done = true;
+                }
+            }
+        }
+    };
+
+    auto is_c_style_for_header = [&](void) {
+        if (trimmed_line.rfind("for", 0) != 0) {
+            return false;
+        }
+
+        size_t pos = 3;
+        while (pos < trimmed_line.size() &&
+               (std::isspace(static_cast<unsigned char>(trimmed_line[pos])) != 0)) {
+            ++pos;
+        }
+
+        if (pos + 1 >= trimmed_line.size() || trimmed_line.compare(pos, 2, "((") != 0) {
+            return false;
+        }
+
+        size_t i = pos + 2;
+        int depth = 1;
+        bool in_single = false;
+        bool in_double = false;
+        bool escaped = false;
+        size_t close_pos = std::string::npos;
+
+        while (i < trimmed_line.size()) {
+            char ch = trimmed_line[i];
+
+            if (escaped) {
+                escaped = false;
+                ++i;
+                continue;
+            }
+
+            if (ch == '\\' && !in_single) {
+                escaped = true;
+                ++i;
+                continue;
+            }
+
+            if (!in_double && ch == '\'') {
+                in_single = !in_single;
+                ++i;
+                continue;
+            }
+
+            if (!in_single && ch == '"') {
+                in_double = !in_double;
+                ++i;
+                continue;
+            }
+
+            if (in_single || in_double) {
+                ++i;
+                continue;
+            }
+
+            if (i + 1 < trimmed_line.size() && trimmed_line.compare(i, 2, "((") == 0) {
+                ++depth;
+                i += 2;
+                continue;
+            }
+
+            if (i + 1 < trimmed_line.size() && trimmed_line.compare(i, 2, "))") == 0) {
+                --depth;
+                if (depth == 0) {
+                    close_pos = i;
+                    break;
+                }
+                i += 2;
+                continue;
+            }
+
+            ++i;
+        }
+
+        if (close_pos == std::string::npos || depth != 0) {
+            result.incomplete = true;
+            return true;
+        }
+
+        std::string c_style_expr = trimmed_line.substr(pos + 2, close_pos - (pos + 2));
+        int semicolon_count = 0;
+        int paren_depth = 0;
+        in_single = false;
+        in_double = false;
+        escaped = false;
+
+        for (size_t expr_idx = 0; expr_idx < c_style_expr.size(); ++expr_idx) {
+            char ch = c_style_expr[expr_idx];
+
+            if (escaped) {
+                escaped = false;
+                continue;
+            }
+
+            if (ch == '\\' && !in_single) {
+                escaped = true;
+                continue;
+            }
+
+            if (!in_double && ch == '\'') {
+                in_single = !in_single;
+                continue;
+            }
+
+            if (!in_single && ch == '"') {
+                in_double = !in_double;
+                continue;
+            }
+
+            if (in_single || in_double) {
+                continue;
+            }
+
+            if (ch == '(') {
+                ++paren_depth;
+                continue;
+            }
+
+            if (ch == ')') {
+                if (paren_depth > 0) {
+                    --paren_depth;
+                }
+                continue;
+            }
+
+            if (ch == ';' && paren_depth == 0) {
+                ++semicolon_count;
+            }
+        }
+
+        if (semicolon_count != 2) {
+            result.incomplete = true;
+        }
+
+        return true;
+    };
+
+    if (is_c_style_for_header()) {
+        apply_do_checks();
+        return result;
+    }
+
     if (tokens.size() < 3) {
         result.incomplete = true;
         return result;
@@ -569,27 +734,7 @@ ForLoopCheckResult analyze_for_loop_syntax(const std::vector<std::string>& token
         result.missing_iteration_list = true;
     }
 
-    bool has_do = check_for_loop_keywords(tokens, trimmed_line, false);
-    result.has_inline_do = has_do;
-    if (!has_do) {
-        result.missing_do_keyword = true;
-    }
-
-    if (result.has_inline_do) {
-        size_t inline_do_pos = find_inline_do_position(trimmed_line);
-        size_t body_start = std::string::npos;
-        if (inline_do_pos != std::string::npos) {
-            body_start = trimmed_line.find_first_not_of(" \t;", inline_do_pos + 2);
-        }
-
-        bool inline_body_present = body_start != std::string::npos;
-        if (inline_body_present) {
-            size_t done_pos = find_inline_done_position(trimmed_line, body_start);
-            if (done_pos == std::string::npos) {
-                result.inline_body_without_done = true;
-            }
-        }
-    }
+    apply_do_checks();
 
     return result;
 }

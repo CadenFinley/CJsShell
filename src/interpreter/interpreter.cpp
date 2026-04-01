@@ -148,6 +148,103 @@ std::optional<LogicalOperator> parse_logical_operator(std::string_view op) {
     return std::nullopt;
 }
 
+bool parse_arithmetic_command_form(std::string_view text, bool& negate_status,
+                                   std::string& expression_out) {
+    std::string trimmed = trim(std::string(text));
+    negate_status = false;
+    expression_out.clear();
+
+    if (!trimmed.empty() && trimmed.front() == '!') {
+        size_t after_bang = 1;
+        bool has_whitespace_after_bang =
+            (after_bang >= trimmed.size()) ||
+            (std::isspace(static_cast<unsigned char>(trimmed[after_bang])) != 0);
+        if (has_whitespace_after_bang) {
+            negate_status = true;
+            while (after_bang < trimmed.size() &&
+                   (std::isspace(static_cast<unsigned char>(trimmed[after_bang])) != 0)) {
+                ++after_bang;
+            }
+            trimmed = trimmed.substr(after_bang);
+        }
+    }
+
+    if (trimmed.size() < 4 || trimmed.compare(0, 2, "((") != 0) {
+        return false;
+    }
+
+    int depth = 1;
+    size_t i = 2;
+    size_t expr_end = std::string::npos;
+    bool in_single = false;
+    bool in_double = false;
+    bool escaped = false;
+
+    while (i < trimmed.size()) {
+        char ch = trimmed[i];
+
+        if (escaped) {
+            escaped = false;
+            ++i;
+            continue;
+        }
+
+        if (ch == '\\' && !in_single) {
+            escaped = true;
+            ++i;
+            continue;
+        }
+
+        if (!in_double && ch == '\'') {
+            in_single = !in_single;
+            ++i;
+            continue;
+        }
+
+        if (!in_single && ch == '"') {
+            in_double = !in_double;
+            ++i;
+            continue;
+        }
+
+        if (in_single || in_double) {
+            ++i;
+            continue;
+        }
+
+        if (i + 1 < trimmed.size() && trimmed.compare(i, 2, "((") == 0) {
+            ++depth;
+            i += 2;
+            continue;
+        }
+
+        if (i + 1 < trimmed.size() && trimmed.compare(i, 2, "))") == 0) {
+            --depth;
+            if (depth == 0) {
+                expr_end = i;
+                i += 2;
+                break;
+            }
+            i += 2;
+            continue;
+        }
+
+        ++i;
+    }
+
+    if (depth != 0 || expr_end == std::string::npos) {
+        return false;
+    }
+
+    std::string trailing = trim(trimmed.substr(i));
+    if (!trailing.empty()) {
+        return false;
+    }
+
+    expression_out = trimmed.substr(2, expr_end - 2);
+    return true;
+}
+
 enum class StatementKeyword : std::uint8_t {
     If,
     For,
@@ -617,6 +714,29 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         bool has_redir_or_pipe = false;
         bool has_multiple_commands = false;
         std::string trimmed_text = trim(text);
+
+        bool negate_arithmetic_status = false;
+        std::string arithmetic_command_expression;
+        if (parse_arithmetic_command_form(trimmed_text, negate_arithmetic_status,
+                                          arithmetic_command_expression)) {
+            try {
+                std::string expanded_expression = expand_all_substitutions(
+                    arithmetic_command_expression, execute_simple_or_pipeline);
+                if (shell_parser != nullptr) {
+                    shell_parser->expand_env_vars(expanded_expression);
+                }
+
+                long long result = evaluate_arithmetic_expression(expanded_expression);
+                int arithmetic_status = (result != 0) ? 0 : 1;
+                if (negate_arithmetic_status) {
+                    arithmetic_status = (arithmetic_status == 0) ? 1 : 0;
+                }
+                return set_last_status(arithmetic_status);
+            } catch (const std::runtime_error& e) {
+                return handle_runtime_exception(text, e, current_line_number);
+            }
+        }
+
         try {
             text = expand_all_substitutions(text, execute_simple_or_pipeline);
 
@@ -904,8 +1024,10 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
     };
 
     auto handle_for_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
-        return loop_evaluator::handle_for_block(src_lines, idx, execute_block_skip_validation,
-                                                shell_parser);
+        return loop_evaluator::handle_for_block(
+            src_lines, idx, execute_block_skip_validation,
+            [this](const std::string& expr) { return evaluate_arithmetic_expression(expr); },
+            execute_simple_or_pipeline, shell_parser);
     };
 
     auto handle_case_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {

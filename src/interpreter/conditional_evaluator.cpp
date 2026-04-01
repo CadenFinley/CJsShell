@@ -85,6 +85,140 @@ bool is_fi_token_boundary(const std::string& text, size_t pos) {
     return parser_is_word_boundary(text, pos, 2);
 }
 
+bool is_arithmetic_command_form_condition(const std::string& condition) {
+    std::string text = trim(condition);
+
+    if (!text.empty() && text.front() == '!') {
+        size_t after_bang = 1;
+        bool has_whitespace_after_bang =
+            (after_bang >= text.size()) ||
+            (std::isspace(static_cast<unsigned char>(text[after_bang])) != 0);
+        if (has_whitespace_after_bang) {
+            while (after_bang < text.size() &&
+                   (std::isspace(static_cast<unsigned char>(text[after_bang])) != 0)) {
+                ++after_bang;
+            }
+            text = text.substr(after_bang);
+        }
+    }
+
+    if (text.size() < 4 || text.compare(0, 2, "((") != 0) {
+        return false;
+    }
+
+    size_t i = 2;
+    int depth = 1;
+    bool in_single = false;
+    bool in_double = false;
+    bool escaped = false;
+
+    while (i < text.size()) {
+        char ch = text[i];
+
+        if (escaped) {
+            escaped = false;
+            ++i;
+            continue;
+        }
+
+        if (ch == '\\' && !in_single) {
+            escaped = true;
+            ++i;
+            continue;
+        }
+
+        if (!in_double && ch == '\'') {
+            in_single = !in_single;
+            ++i;
+            continue;
+        }
+
+        if (!in_single && ch == '"') {
+            in_double = !in_double;
+            ++i;
+            continue;
+        }
+
+        if (in_single || in_double) {
+            ++i;
+            continue;
+        }
+
+        if (i + 1 < text.size() && text.compare(i, 2, "((") == 0) {
+            ++depth;
+            i += 2;
+            continue;
+        }
+
+        if (i + 1 < text.size() && text.compare(i, 2, "))") == 0) {
+            --depth;
+            i += 2;
+            if (depth == 0) {
+                break;
+            }
+            continue;
+        }
+
+        ++i;
+    }
+
+    if (depth != 0) {
+        return false;
+    }
+
+    std::string trailing = trim(text.substr(i));
+    return trailing.empty();
+}
+
+bool contains_arithmetic_command_form(const std::string& condition) {
+    bool in_single = false;
+    bool in_double = false;
+    bool in_backtick = false;
+    bool escaped = false;
+
+    for (size_t i = 0; i + 1 < condition.size(); ++i) {
+        char ch = condition[i];
+
+        if (escaped) {
+            escaped = false;
+            continue;
+        }
+
+        if (!in_single && ch == '\\') {
+            escaped = true;
+            continue;
+        }
+
+        if (!in_double && !in_backtick && ch == '\'') {
+            in_single = !in_single;
+            continue;
+        }
+
+        if (!in_single && !in_backtick && ch == '"') {
+            in_double = !in_double;
+            continue;
+        }
+
+        if (!in_single && !in_double && ch == '`') {
+            in_backtick = !in_backtick;
+            continue;
+        }
+
+        if (in_single || in_double || in_backtick) {
+            continue;
+        }
+
+        if (condition.compare(i, 2, "((") == 0) {
+            char previous = (i == 0) ? '\0' : condition[i - 1];
+            if (previous != '$') {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 std::vector<std::string> split_top_level_semicolons(const std::string& text) {
     std::vector<std::string> segments;
     segments.reserve(8);
@@ -1065,11 +1199,17 @@ int evaluate_logical_condition(const std::string& condition,
     if (cond.empty())
         return 1;
 
+    if (is_arithmetic_command_form_condition(cond)) {
+        return executor(cond);
+    }
+
     std::function<int(const std::string&)> self_eval = [&](const std::string& inner) -> int {
         return evaluate_logical_condition(inner, executor);
     };
 
-    cond = simplify_parentheses_in_condition(cond, self_eval);
+    if (!contains_arithmetic_command_form(cond)) {
+        cond = simplify_parentheses_in_condition(cond, self_eval);
+    }
 
     bool has_logical_ops = false;
     bool in_quotes = false;
