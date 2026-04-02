@@ -1203,6 +1203,34 @@ static bool test_subshell_tokens_known_to_validator(void) {
     return true;
 }
 
+static bool test_c_style_for_header_command_boundary(void) {
+    const char* test_name = "c_style_for_header_command_boundary";
+    const std::string inputs[] = {"for ((i=0; i<3; i++)); do echo hi; done",
+                                  "for ((;;)); do echo hi; done"};
+
+    for (const auto& input : inputs) {
+        const std::string sanitized = command_analysis::sanitize_input_for_analysis(input);
+        size_t first_semicolon = input.find(';');
+        size_t expected_end = input.find("; do");
+        if (first_semicolon == std::string::npos || expected_end == std::string::npos) {
+            log_failure(test_name, "failed to locate expected semicolon positions");
+            return false;
+        }
+
+        size_t cmd_end = command_analysis::find_command_end(sanitized, 0);
+        EXPECT_TRUE(cmd_end != first_semicolon, test_name,
+                    "command boundary should ignore semicolons inside ((...))");
+        EXPECT_TRUE(cmd_end == expected_end, test_name,
+                    "command boundary should stop at '; do' in C-style for header");
+
+        auto separator = command_analysis::scan_command_separator(sanitized, cmd_end);
+        EXPECT_TRUE(separator.length == 1 && separator.is_operator, test_name,
+                    "'; do' separator should be recognized as an operator");
+    }
+
+    return true;
+}
+
 typedef bool (*test_fn_t)(void);
 
 typedef struct test_case_s {
@@ -1251,6 +1279,7 @@ static const test_case_t kTests[] = {
     {"arithmetic_parens_highlighting", test_arithmetic_parens_highlighting},
     {"subshell_group_highlighting", test_subshell_group_highlighting},
     {"subshell_tokens_known_to_validator", test_subshell_tokens_known_to_validator},
+    {"c_style_for_header_command_boundary", test_c_style_for_header_command_boundary},
 };
 
 int main(void) {

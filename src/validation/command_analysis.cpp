@@ -237,13 +237,29 @@ size_t find_command_end(const std::string& analysis, size_t start) {
     const size_t len = analysis.size();
     size_t cmd_end = start;
     utils::QuoteState cmd_quote_state;
+    int arithmetic_context_depth = 0;
     while (cmd_end < len) {
         char current = analysis[cmd_end];
         auto action = cmd_quote_state.consume_forward(current);
         if (action == utils::QuoteAdvanceResult::Process && !cmd_quote_state.inside_quotes()) {
-            auto separator = scan_command_separator(analysis, cmd_end);
-            if (separator.length > 0) {
-                break;
+            if (cmd_end + 1 < len && analysis.compare(cmd_end, 2, "((") == 0) {
+                ++arithmetic_context_depth;
+                cmd_end += 2;
+                continue;
+            }
+
+            if (cmd_end + 1 < len && arithmetic_context_depth > 0 &&
+                analysis.compare(cmd_end, 2, "))") == 0) {
+                --arithmetic_context_depth;
+                cmd_end += 2;
+                continue;
+            }
+
+            if (arithmetic_context_depth == 0) {
+                auto separator = scan_command_separator(analysis, cmd_end);
+                if (separator.length > 0) {
+                    break;
+                }
             }
         }
         cmd_end++;
