@@ -705,6 +705,7 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
             bool reported_double_bracket = false;
             bool reported_plus_equal = false;
             bool reported_pipe_amp = false;
+            bool reported_amp_caret = false;
             bool reported_amp_gt = false;
 
             for (size_t i = 0; i + 1 < sanitized_line_without_comments.size(); ++i) {
@@ -740,6 +741,19 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                                     "'|&' pipelines are disabled in POSIX mode",
                                     "Redirect stderr explicitly then pipe: 2>&1 | cmd");
                     reported_pipe_amp = true;
+                }
+
+                if (!reported_amp_caret &&
+                    sanitized_line_without_comments.compare(i, 2, "&^") == 0) {
+                    size_t end_pos = i + 2;
+                    if (end_pos < sanitized_line_without_comments.size() &&
+                        sanitized_line_without_comments[end_pos] == '!') {
+                        ++end_pos;
+                    }
+                    add_posix_error("POSIX012", i, end_pos,
+                                    "'&^' auto-background operators are disabled in POSIX mode",
+                                    "Use '&' for background execution");
+                    reported_amp_caret = true;
                 }
 
                 if (!reported_amp_gt && sanitized_line_without_comments[i] == '&' &&

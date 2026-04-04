@@ -1067,7 +1067,7 @@ bool is_first_boot() {
 }
 
 void process_profile_files() {
-    if (config::secure_mode) {
+    if (config::secure_mode || config::posix_mode) {
         return;
     }
     process_startup_file_with_fallback(g_cjsh_profile_path(), g_cjsh_profile_alt_path(), false,
@@ -1075,7 +1075,7 @@ void process_profile_files() {
 }
 
 void process_env_files() {
-    if (config::secure_mode) {
+    if (config::secure_mode || config::posix_mode) {
         return;
     }
 
@@ -1105,14 +1105,15 @@ void process_env_files() {
 }
 
 void process_logout_file() {
-    if (!config::secure_mode && (config::interactive_mode || config::force_interactive)) {
+    if (!config::secure_mode && !config::posix_mode &&
+        (config::interactive_mode || config::force_interactive)) {
         process_startup_file_with_fallback(g_cjsh_logout_path(), g_cjsh_logout_alt_path(), false,
                                            true);
     }
 }
 
 void process_source_files() {
-    if (!config::source_enabled || config::secure_mode) {
+    if (!config::source_enabled || config::secure_mode || config::posix_mode) {
         return;
     }
 

@@ -40,6 +40,7 @@
 #include "flags.h"
 #include "numeric_utils.h"
 #include "shell.h"
+#include "shell_env.h"
 #include "string_utils.h"
 
 namespace {
@@ -157,6 +158,11 @@ void report_invalid_option(const std::string& context) {
     print_error({ErrorType::INVALID_ARGUMENT, "set", "option '" + context + "' not supported", {}});
 }
 
+bool option_is_non_posix(ShellOption option) {
+    return option == ShellOption::Globstar || option == ShellOption::Huponexit ||
+           option == ShellOption::Pipefail;
+}
+
 }  // namespace
 
 int set_command(const std::vector<std::string>& args, Shell* shell) {
@@ -242,6 +248,19 @@ int set_command(const std::vector<std::string>& args, Shell* shell) {
 
                     std::string normalized_key = normalize_option_key(option_name);
                     bool inline_value = option_name.find('=') != std::string::npos;
+
+                    if (config::posix_mode) {
+                        auto requested_option = parse_shell_option(normalized_key);
+                        if (requested_option.has_value() &&
+                            option_is_non_posix(*requested_option)) {
+                            print_error(
+                                {ErrorType::INVALID_ARGUMENT,
+                                 "set",
+                                 "option '" + option_name + "' is not available in POSIX mode",
+                                 {"Use POSIX options only or run without --posix"}});
+                            return 1;
+                        }
+                    }
 
                     if (normalized_key == "errexit_severity" && !inline_value) {
                         std::string severity_value;

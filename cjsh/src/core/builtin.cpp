@@ -78,6 +78,24 @@
 #include "version_command.h"
 #include "widget_command.h"
 
+namespace {
+
+bool is_posix_restricted_builtin(const std::string& name) {
+    return name == "abbr" || name == "abbreviate" || name == "unabbr" || name == "unabbreviate" ||
+           name == "generate-completions" || name == "hook" || name == "cjsh-widget" ||
+           name == "cjshopt";
+}
+
+int reject_posix_restricted_builtin(const std::string& name) {
+    print_error({ErrorType::INVALID_ARGUMENT,
+                 name,
+                 "'" + name + "' is not available in POSIX mode",
+                 {"Run without --posix to use cjsh-specific builtins"}});
+    return 1;
+}
+
+}  // namespace
+
 Built_ins::Built_ins() : shell(nullptr) {
     builtins = {
         {"echo", [](const std::vector<std::string>& args) { return ::echo_command(args); }},
@@ -213,11 +231,15 @@ Built_ins::Built_ins() : shell(nullptr) {
              const std::string& target_command = args[1];
              if (target_command == "builtin") {
                  ErrorInfo error = {ErrorType::INVALID_ARGUMENT,
-                                    "builtin",
-                                    "cannot invoke builtin recursively",
-                                    {"Usage: builtin <command> [args...]"}};
+                                     "builtin",
+                                     "cannot invoke builtin recursively",
+                                     {"Usage: builtin <command> [args...]"}};
                  print_error(error);
                  return 2;
+             }
+
+             if (config::posix_mode && is_posix_restricted_builtin(target_command)) {
+                 return reject_posix_restricted_builtin(target_command);
              }
 
              auto builtin_it = builtins.find(target_command);
@@ -270,6 +292,9 @@ int Built_ins::builtin_command(const std::vector<std::string>& args) {
 
     auto it = builtins.find(args[0]);
     if (it != builtins.end()) {
+        if (config::posix_mode && is_posix_restricted_builtin(args[0])) {
+            return reject_posix_restricted_builtin(args[0]);
+        }
         int status = it->second(args);
         return status;
     }

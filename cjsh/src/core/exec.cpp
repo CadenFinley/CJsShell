@@ -939,7 +939,7 @@ bool can_control_terminal(bool shell_is_interactive, int terminal_fd) {
 
 [[noreturn]] void exec_external_child(const std::vector<std::string>& args,
                                       const char* cached_path) {
-    if (config::script_extension_interpreter_enabled) {
+    if (config::script_extension_interpreter_enabled && !config::posix_mode) {
         auto interpreter_args =
             script_dispatch::build_extension_interpreter_args(args, cached_path);
         if (interpreter_args) {

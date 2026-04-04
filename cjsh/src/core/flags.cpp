@@ -97,6 +97,11 @@ void apply_minimal_mode() {
 
 void apply_posix_mode_settings() {
     config::posix_mode = true;
+    config::smart_cd_enabled = false;
+    config::script_extension_interpreter_enabled = false;
+    config::source_enabled = false;
+    config::show_title_line = false;
+    config::error_suggestions_enabled = false;
     config::history_expansion_enabled = false;
     setenv("POSIXLY_CORRECT", "1", 1);
 }

@@ -126,6 +126,8 @@ run_expect_posix_code "function keyword disabled" "function foo { :; }; foo" "PO
 run_expect_posix_code "array assignment disabled" "arr=(1 2)" "POSIX005"
 run_expect_posix_code "+= assignment disabled" "x=1; x+=2" "POSIX006"
 run_expect_posix_code "|& pipeline disabled" "echo hi |& cat" "POSIX007"
+run_expect_posix_code "&^ auto-background disabled" "true &^" "POSIX012"
+run_expect_posix_code "&^! auto-background silent disabled" "true &^!" "POSIX012"
 run_expect_posix_code "&> redirection disabled" "echo hi &> '$tmpdir/out.txt'" "POSIX008"
 run_expect_posix_code "&>> redirection disabled" "echo hi &>> '$tmpdir/out.txt'" "POSIX008"
 run_expect_posix_code "here-string disabled" "cat <<< hi" "POSIX004"
@@ -144,6 +146,16 @@ run_expect_fail "declare builtin disabled at runtime" "if true; then declare foo
     "'declare' is disabled in POSIX mode"
 run_expect_fail "typeset builtin disabled at runtime" "if true; then typeset foo=1; fi" \
     "'typeset' is disabled in POSIX mode"
+run_expect_fail "set -o globstar disabled" "set -o globstar" "not available in POSIX mode"
+run_expect_fail "set -o pipefail disabled" "set -o pipefail" "not available in POSIX mode"
+run_expect_fail "set -o huponexit disabled" "set -o huponexit" "not available in POSIX mode"
+run_expect_fail "cjshopt builtin disabled" "cjshopt" "not available in POSIX mode"
+run_expect_fail "hook builtin disabled" "hook" "not available in POSIX mode"
+run_expect_fail "abbr builtin disabled" "abbr" "not available in POSIX mode"
+run_expect_fail "unabbr builtin disabled" "unabbr" "not available in POSIX mode"
+run_expect_fail "generate-completions builtin disabled" "generate-completions" \
+    "not available in POSIX mode"
+run_expect_fail "cjsh-widget builtin disabled" "cjsh-widget" "not available in POSIX mode"
 run_expect_literal "dot builtin allowed" ". '$tmp_source_file'" "from source"
 
 run_expect_literal "brace expansion stays literal" "echo {1..3}" "{1..3}"
@@ -157,12 +169,57 @@ else
     fail "Expected POSIXLY_CORRECT=1, got '$posix_env_output'"
 fi
 
-log_test "globstar remains literal even if enabled"
-glob_output=$("$SHELL_TO_TEST" --posix -c "cd '$tmp_glob_root' && set -o globstar && printf '%s' **/deep.txt" 2>/dev/null)
+log_test "globstar remains literal"
+glob_output=$("$SHELL_TO_TEST" --posix -c "cd '$tmp_glob_root' && printf '%s' **/deep.txt" 2>/dev/null)
 if [ "$glob_output" = "**/deep.txt" ]; then
     pass
 else
     fail "Expected literal '**/deep.txt', got '$glob_output'"
+fi
+
+log_test "smart cd fallback disabled in POSIX mode"
+smart_cd_output=$("$SHELL_TO_TEST" --posix -c "cd '$tmpdir'; mkdir -p exact-directory; cd exact-dir" 2>&1)
+smart_cd_status=$?
+if [ "$smart_cd_status" -ne 0 ] &&
+   printf "%s" "$smart_cd_output" | grep -Fq -- "no such file or directory"; then
+    pass
+else
+    clean_output=$(printf "%s" "$smart_cd_output" | tr '\n' ' ')
+    fail "Expected smart cd fallback to be disabled (status=$smart_cd_status, output=$clean_output)"
+fi
+
+tmp_extension_script="$tmpdir/extension_probe.bash"
+printf 'printf "extension-dispatch-ran\\n"\n' > "$tmp_extension_script"
+chmod +x "$tmp_extension_script"
+mkdir -p "$tmpdir/home"
+
+log_test "extension-based script dispatch disabled"
+extension_output=$(HOME="$tmpdir/home" CJSH_ENV= \
+    "$SHELL_TO_TEST" --posix -c "$tmp_extension_script" 2>&1)
+extension_status=$?
+if [ "$extension_status" -ne 0 ] &&
+   ! printf "%s" "$extension_output" | grep -Fq -- "extension-dispatch-ran"; then
+    pass
+else
+    clean_output=$(printf "%s" "$extension_output" | tr '\n' ' ')
+    fail "Expected extension dispatch to be disabled (status=$extension_status, output=$clean_output)"
+fi
+
+tmp_home="$tmpdir/strict-posix-home"
+mkdir -p "$tmp_home"
+tmp_env_override="$tmpdir/cjsh_env_override.sh"
+printf 'echo from-cjshenv\n' > "$tmp_home/.cjshenv"
+printf 'echo from-cjprofile\n' > "$tmp_home/.cjprofile"
+printf 'echo from-cjsh-env-override\n' > "$tmp_env_override"
+
+log_test "startup files skipped in POSIX mode"
+startup_output=$(HOME="$tmp_home" CJSH_ENV="$tmp_env_override" \
+    "$SHELL_TO_TEST" --posix --login -c 'echo command-ran' 2>&1)
+if [ "$startup_output" = "command-ran" ]; then
+    pass
+else
+    clean_output=$(printf "%s" "$startup_output" | tr '\n' ' ')
+    fail "Expected only command output, got '$clean_output'"
 fi
 
 log_test "command_not_found_handler ignored in POSIX mode"
