@@ -145,6 +145,22 @@ else
     pass_test "version command"
 fi
 
+OUT=$("$CJSH_PATH" -c "version --all" 2>&1)
+if [ $? -eq 0 ] && echo "$OUT" | grep -q "Build details:"; then
+    pass_test "version --all long option"
+else
+    fail_test "version --all long option (got '$OUT')"
+    exit 1
+fi
+
+OUT=$("$CJSH_PATH" -c "fc --command" 2>&1)
+if [ $? -ne 0 ] && echo "$OUT" | grep -q "requires a command string argument"; then
+    pass_test "fc --command long option parsing"
+else
+    fail_test "fc --command long option parsing (got '$OUT')"
+    exit 1
+fi
+
 OUT=$("$CJSH_PATH" -c "help" 2>/dev/null)
 if [ -z "$OUT" ]; then
     fail_test "help command should return help text"

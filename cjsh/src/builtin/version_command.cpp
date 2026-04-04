@@ -120,16 +120,18 @@ int version_command(const std::vector<std::string>& args) {
     bool show_platform = false;
 
     size_t start_index = 1;
-    const bool options_ok =
-        builtin_parse_short_options(args, start_index, "version", [&](char option) {
-            if (option == 'a') {
-                show_all = true;
-                return true;
-            }
-            return false;
-        });
+    std::vector<BuiltinParsedShortOption> parsed_options;
+    const bool options_ok = builtin_parse_short_options_ex(
+        args, start_index, "version", [](char option) { return option == 'a'; },
+        [](char) { return false; }, parsed_options, true, true);
     if (!options_ok) {
         return 1;
+    }
+
+    for (const auto& option : parsed_options) {
+        if (option.option == 'a') {
+            show_all = true;
+        }
     }
 
     auto enable_field = [&](bool& flag) {

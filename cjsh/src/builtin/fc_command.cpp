@@ -354,7 +354,7 @@ int fc_command(const std::vector<std::string>& args, Shell* shell) {
             return option == 'l' || option == 'n' || option == 'r' || option == 'e' ||
                    option == 's' || option == 'c';
         },
-        [](char option) { return option == 'e' || option == 'c'; }, parsed_options);
+        [](char option) { return option == 'e' || option == 'c'; }, parsed_options, true, true);
     if (!options_ok) {
         return 1;
     }
