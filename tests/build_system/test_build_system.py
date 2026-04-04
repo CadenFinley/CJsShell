@@ -486,6 +486,31 @@ class BuildSystemConfigurationTests(unittest.TestCase):
                 f"Metadata key did not propagate to test target: {key}",
             )
 
+    def test_metadata_propagates_to_c_sources(self) -> None:
+        build_dir = self.configure_project(
+            ["-DCMAKE_BUILD_TYPE=Release"],
+            env_overrides={"CJSH_GIT_HASH_OVERRIDE": "c-source-meta-hash"},
+        )
+
+        main_definitions = extract_definitions(load_cpp_compile_arguments(build_dir))
+        isocline_c_args = load_compile_arguments_for_source_suffix(
+            build_dir,
+            "src/isocline/isocline.c",
+        )
+        isocline_c_definitions = extract_definitions(isocline_c_args)
+
+        for key in METADATA_DEFINITION_KEYS:
+            self.assertIn(
+                key,
+                isocline_c_definitions,
+                f"Missing metadata definition for C source: {key}",
+            )
+            self.assertEqual(
+                isocline_c_definitions[key],
+                main_definitions[key],
+                f"Metadata key did not match between C and C++ targets: {key}",
+            )
+
     def test_metadata_fake_git_dirty_status_appends_dirty_suffix(self) -> None:
         fake_full_hash = "1234567890abcdef1234567890abcdef12345678"
         fake_short_hash = fake_full_hash[:10]
@@ -541,6 +566,44 @@ class BuildSystemConfigurationTests(unittest.TestCase):
         )
 
         self.assertEqual(definitions["CJSH_GIT_HASH"], "unknown")
+        self.assertEqual(definitions["CJSH_GIT_HASH_FULL"], "unknown")
+
+    def test_metadata_fake_git_short_hash_failure_keeps_full_hash(self) -> None:
+        fake_full_hash = "1234567890abcdef1234567890abcdef12345678"
+        env = self.fake_git_env(
+            {
+                "CJSH_FAKE_GIT_SHORT": "abcdef0",
+                "CJSH_FAKE_GIT_FULL": fake_full_hash,
+                "CJSH_FAKE_GIT_SHORT_EXIT": "1",
+                "CJSH_FAKE_GIT_STATUS": "",
+            }
+        )
+
+        _build_dir, definitions = self.configure_and_get_definitions(
+            ["-DCMAKE_BUILD_TYPE=Release"],
+            env_overrides=env,
+        )
+
+        self.assertEqual(definitions["CJSH_GIT_HASH"], "unknown")
+        self.assertEqual(definitions["CJSH_GIT_HASH_FULL"], fake_full_hash)
+
+    def test_metadata_fake_git_full_hash_failure_keeps_short_hash(self) -> None:
+        fake_short_hash = "abcdef123"
+        env = self.fake_git_env(
+            {
+                "CJSH_FAKE_GIT_SHORT": fake_short_hash,
+                "CJSH_FAKE_GIT_FULL": "1234567890abcdef1234567890abcdef12345678",
+                "CJSH_FAKE_GIT_FULL_EXIT": "1",
+                "CJSH_FAKE_GIT_STATUS": "",
+            }
+        )
+
+        _build_dir, definitions = self.configure_and_get_definitions(
+            ["-DCMAKE_BUILD_TYPE=Release"],
+            env_overrides=env,
+        )
+
+        self.assertEqual(definitions["CJSH_GIT_HASH"], fake_short_hash)
         self.assertEqual(definitions["CJSH_GIT_HASH_FULL"], "unknown")
 
     def test_metadata_hash_override_takes_priority_over_git_status(self) -> None:
