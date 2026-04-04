@@ -91,9 +91,21 @@ expect_output "Array literal append supports indexed and implicit elements" \
     'arr=(a b); arr+=([5]=x y); echo "${arr[0]}|${arr[1]}|${arr[5]}|${arr[6]}|${#arr[@]}|${!arr[@]}"' \
     "a|b|x|y|4|0 1 5 6"
 
+expect_output "Array append cursor tracks mixed explicit and implicit indexes" \
+    'arr=([2]=c); arr+=(x [5]=y z); echo "${arr[2]}|${arr[3]}|${arr[5]}|${arr[6]}|${#arr[@]}|${!arr[@]}"' \
+    "c|x|y|z|4|2 3 5 6"
+
 expect_output "Scalar-to-array conversion preserves element zero" \
     'v=hello; v[2]=x; echo "$v|${v[0]}|${v[2]}|${#v[@]}|${!v[@]}"' \
     "hello|hello|x|2|0 2"
+
+expect_output "Scalar literal append conversion keeps original element zero" \
+    'v=hello; v+=(x y); echo "${v[0]}|${v[1]}|${v[2]}|${#v[@]}|${!v[@]}"' \
+    "hello|x|y|3|0 1 2"
+
+expect_output "Scalar assignment updates element zero without clearing sparse members" \
+    'arr=(a b c); arr=z; echo "${arr[0]}|${arr[1]}|${arr[2]}|${#arr[@]}|${!arr[@]}|$arr"' \
+    "z|b|c|3|0 1 2|z"
 
 expect_output "Base += appends to element zero for indexed arrays" \
     'arr=(a b); arr+=z; echo "${arr[0]}|${arr[1]}|${#arr[@]}"' \
@@ -109,6 +121,18 @@ expect_output "Empty array literal resets previous indexed values" \
 
 expect_exit "Negative indexes are rejected" \
     'arr[-1]=x' \
+    1
+
+expect_exit "Join indexes are rejected for direct assignment targets" \
+    'arr[@]=x' \
+    1
+
+expect_exit "Join indexes are rejected for direct star targets" \
+    'arr[*]=x' \
+    1
+
+expect_exit "Join indexes are rejected in explicit literal elements" \
+    'arr=([@]=x)' \
     1
 
 expect_output "Indexed assignment preserves substitution exit status" \

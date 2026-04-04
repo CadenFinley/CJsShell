@@ -109,6 +109,18 @@ expect_output "unset arr[*] clears entire indexed array" \
     'arr=(a b); unset arr[*]; echo "${#arr[@]}|${arr[@]}|${!arr[@]}"' \
     "0||"
 
+expect_output "unset scalar[@] removes scalar bindings" \
+    'v=hello; unset v[@]; echo "$?|x${v}x|${#v[@]}|${!v[@]}"' \
+    "0|xx|0|"
+
+expect_output "unset scalar[*] removes scalar bindings" \
+    'v=hello; unset v[*]; echo "$?|x${v}x|${#v[@]}|${!v[@]}"' \
+    "0|xx|0|"
+
+expect_output "unset scalar[0] is a no-op for scalar compatibility" \
+    'v=hello; unset v[0]; echo "$?|x${v}x|${#v[@]}|${!v[@]}"' \
+    "0|xhellox|1|0"
+
 expect_output "unset supports arithmetic index expressions" \
     'arr=(a b c); unset arr[1+1]; echo "${#arr[@]}|${!arr[@]}|${arr[@]}"' \
     "2|0 1|a b"
@@ -119,6 +131,14 @@ expect_output "unset indexed target on missing array is a no-op" \
 
 expect_exit "readonly blocks indexed unset targets" \
     'readonly arr=foo; unset arr[0]' \
+    1
+
+expect_exit "readonly blocks indexed assignment targets" \
+    'readonly arr=foo; arr[0]=bar' \
+    1
+
+expect_exit "readonly blocks array append targets" \
+    'readonly arr=(a b); arr+=(c)' \
     1
 
 expect_script_output "Local indexed arrays shadow globals in function scope" \

@@ -77,6 +77,18 @@ expect_output "Element default operators on non-empty value" \
     'arr[0]=x; echo "${arr[0]:-d}|${arr[0]-d}"' \
     "x|x"
 
+expect_output "Array join default operators on unset array" \
+    'unset arr; echo "${arr[@]:-d}|${arr[@]-d}|${arr[*]:-d}|${arr[*]-d}"' \
+    "d|d|d|d"
+
+expect_output "Array join default operators on empty element arrays" \
+    'arr[2]=""; echo "${arr[@]:-d}|${arr[@]-d}|${arr[*]:-d}|${arr[*]-d}"' \
+    "d||d|"
+
+expect_output "Array join default operators on non-empty arrays" \
+    'arr[2]=x; echo "${arr[@]:-d}|${arr[@]-d}|${arr[*]:-d}|${arr[*]-d}"' \
+    "x|x|x|x"
+
 expect_output "Element plus operators on unset index" \
     'unset arr; echo "x${arr[0]+Y}x|x${arr[0]:+Y}x"' \
     "xx|xx"
