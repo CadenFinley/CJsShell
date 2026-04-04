@@ -57,23 +57,25 @@ cjsh is still in active, rapid development so even the latest release can still 
     # First clone the repo
     git clone https://github.com/CadenFinley/CJsShell && cd CJsShell
 
-    # Configure a Release build (outputs to ./build)
-    cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+    # Configure a Release build (outputs to ./build/release)
+    cmake --preset release
 
     # Compile using all available cores
-    cmake --build build --config Release --parallel
+    cmake --build --preset release --parallel
 ```
 
-After building, the `cjsh` executable will be in the `build/` directory. You can run it directly with `./build/cjsh`
+After building, the `cjsh` executable will be in `build/release/`. You can run it directly with `./build/release/cjsh`
 ## Build info
 
 By default the commands above produce an optimized Release build.
 
-- Pass `-DCMAKE_BUILD_TYPE=Debug` to build with sanitizers and full debug info.
-- Pass `-DCJSH_MINIMAL_BUILD=ON` for the ultra-small binary profile.
-- `cmake --build build --target clean` removes the build artifacts.
+- Use `cmake --preset debug` to build with sanitizers and full debug info.
+- Use `cmake --preset minimal` for the ultra-small binary profile.
+- Additional presets are available: `relwithdebinfo` and `minsizerel`.
+- List all presets with `cmake --list-presets`.
+- `cmake --build --preset release --target clean` removes the build artifacts for the release preset.
 - Disable compile database emission with `-DCJSH_GENERATE_COMPILE_COMMANDS=OFF` if your tooling does not need it.
-- Install the binary anywhere with `cmake --install build --config Release --prefix ~/.local` (adjust the prefix as desired).
+- Install the binary anywhere with `cmake --install build/release --config Release --prefix ~/.local` (adjust the prefix as desired).
 - Export `CJSH_STRIP_BINARY=0` before configuring to keep symbols in non-Debug builds.
 
 As before, git revision information is embedded automatically; use `CJSH_GIT_HASH_OVERRIDE` if you need to pin a custom value.

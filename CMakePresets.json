@@ -1,0 +1,203 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 25,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_C_STANDARD": "11",
+        "CMAKE_CXX_STANDARD": "17",
+        "CJSH_GENERATE_COMPILE_COMMANDS": "ON",
+        "CJSH_BUILD_TESTS": "ON",
+        "BUILD_TESTING": "ON"
+      }
+    },
+    {
+      "name": "release",
+      "displayName": "Release",
+      "description": "Optimized release build with test binaries",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "debug",
+      "displayName": "Debug + ASan",
+      "description": "Debug build with address sanitizer enabled",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "minimal",
+      "displayName": "Minimal",
+      "description": "Small-footprint release profile",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CJSH_MINIMAL_BUILD": "ON"
+      }
+    },
+    {
+      "name": "relwithdebinfo",
+      "displayName": "RelWithDebInfo",
+      "description": "Optimized build with symbols",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+      }
+    },
+    {
+      "name": "minsizerel",
+      "displayName": "MinSizeRel",
+      "description": "Size-focused build using CMake MinSizeRel",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "MinSizeRel"
+      }
+    },
+    {
+      "name": "ci-linux-gcc-release",
+      "inherits": "release",
+      "description": "CI release build on Linux using GCC",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
+      "environment": {
+        "CC": "gcc",
+        "CXX": "g++"
+      }
+    },
+    {
+      "name": "ci-linux-clang-debug",
+      "inherits": "debug",
+      "description": "CI debug build on Linux using Clang",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      },
+      "environment": {
+        "CC": "clang",
+        "CXX": "clang++"
+      }
+    },
+    {
+      "name": "ci-macos-clang-release",
+      "inherits": "release",
+      "description": "CI release build on macOS using Clang",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      },
+      "environment": {
+        "CC": "clang",
+        "CXX": "clang++"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "release",
+      "configurePreset": "release"
+    },
+    {
+      "name": "debug",
+      "configurePreset": "debug"
+    },
+    {
+      "name": "minimal",
+      "configurePreset": "minimal"
+    },
+    {
+      "name": "relwithdebinfo",
+      "configurePreset": "relwithdebinfo"
+    },
+    {
+      "name": "minsizerel",
+      "configurePreset": "minsizerel"
+    },
+    {
+      "name": "ci-linux-gcc-release",
+      "configurePreset": "ci-linux-gcc-release"
+    },
+    {
+      "name": "ci-linux-clang-debug",
+      "configurePreset": "ci-linux-clang-debug"
+    },
+    {
+      "name": "ci-macos-clang-release",
+      "configurePreset": "ci-macos-clang-release"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "release",
+      "configurePreset": "release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "debug",
+      "configurePreset": "debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "minimal",
+      "configurePreset": "minimal",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "relwithdebinfo",
+      "configurePreset": "relwithdebinfo",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "minsizerel",
+      "configurePreset": "minsizerel",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ci-linux-gcc-release",
+      "configurePreset": "ci-linux-gcc-release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ci-linux-clang-debug",
+      "configurePreset": "ci-linux-clang-debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ci-macos-clang-release",
+      "configurePreset": "ci-macos-clang-release",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

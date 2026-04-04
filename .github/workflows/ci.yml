@@ -1,159 +1,66 @@
 name: CI Build and Test
 
-permissions:
-  contents: read
-
 on:
   push:
     branches:
       - master
-    paths-ignore:
-      - 'docs/**'
-      - 'site/**'
-      - '*.md'
-      - 'LICENSE'
-      - 'docs/mkdocs.yml'
   pull_request:
-    branches:
-      - master
-    paths-ignore:
-      - 'docs/**'
-      - 'site/**'
-      - '*.md'
-      - 'LICENSE'
-      - 'docs/mkdocs.yml'
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-and-test:
-    name: Build and Test on ${{ matrix.os }}
+    name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
-    permissions:
-      contents: write
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
         include:
-          - os: ubuntu-latest
-            artifact-name: CJsShell-Linux
-          - os: macos-latest
-            artifact-name: CJsShell-macOS
+          - name: Linux GCC Release
+            os: ubuntu-latest
+            preset: ci-linux-gcc-release
+            test_preset: ci-linux-gcc-release
+            run_shell_suite: true
+          - name: Linux Clang Debug
+            os: ubuntu-latest
+            preset: ci-linux-clang-debug
+            test_preset: ci-linux-clang-debug
+            run_shell_suite: false
+          - name: macOS Clang Release
+            os: macos-latest
+            preset: ci-macos-clang-release
+            test_preset: ci-macos-clang-release
+            run_shell_suite: false
+          - name: Linux Minimal Preset
+            os: ubuntu-latest
+            preset: minimal
+            test_preset: minimal
+            run_shell_suite: false
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          fetch-depth: 5
-
-      - name: Install Linux dependencies
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential
-          sudo apt-get install -y libdl-dev || true
-
-      - name: Install macOS dependencies
-        if: runner.os == 'macOS'
-        run: |
-          echo "No macOS-specific dependencies required"
+          python-version: "3.x"
 
       - name: Configure CMake
-        run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCJSH_GENERATE_COMPILE_COMMANDS=ON -DCJSH_BUILD_TESTS=ON -DBUILD_TESTING=ON
+        run: cmake --preset ${{ matrix.preset }}
 
-      - name: Build CJsShell
-        run: |
-          if [ "${{ runner.os }}" = "macOS" ]; then
-            cmake --build build --config Release
-          else
-            cmake --build build --config Release --parallel
-          fi
+      - name: Build
+        run: cmake --build --preset ${{ matrix.preset }} --parallel
 
-      - name: Verify build output
-        run: |
-          if [ ! -f "build/cjsh" ]; then
-            echo "Error: build/cjsh not found"
-            exit 1
-          fi
-          if [ ! -f "build/isocline_behavior_tests" ]; then
-            echo "Error: build/isocline_behavior_tests not found"
-            exit 1
-          fi
-          if [ ! -f "build/completion_tests" ]; then
-            echo "Error: build/completion_tests not found"
-            exit 1
-          fi
-          if [ ! -f "build/syntax_highlighting_tests" ]; then
-            echo "Error: build/syntax_highlighting_tests not found"
-            exit 1
-          fi
-          if [ ! -f "build/isocline_pty_driver" ]; then
-            echo "Error: build/isocline_pty_driver not found"
-            exit 1
-          fi
-          echo "CJsShell binary exists"
-          ls -lh build/cjsh
-          echo "Isocline behavior tests binary exists"
-          ls -lh build/isocline_behavior_tests
-          echo "Completion tests binary exists"
-          ls -lh build/completion_tests
-          echo "Syntax highlighting tests binary exists"
-          ls -lh build/syntax_highlighting_tests
-          echo "Isocline PTY driver binary exists"
-          ls -lh build/isocline_pty_driver
+      - name: Run CTest
+        run: ctest --preset ${{ matrix.test_preset }}
 
-      - name: Run tests
-        run: |
-          chmod +x tests/run_shell_tests.sh
-          echo "Running test suite..."
-          
-          set +e
-          TEST_OUTPUT=$(./tests/run_shell_tests.sh 2>&1)
-          TEST_EXIT_CODE=$?
-          set -e
-          
-          echo "$TEST_OUTPUT"
-          
-          if [ $TEST_EXIT_CODE -ne 0 ]; then
-            echo "Tests failed with exit code: $TEST_EXIT_CODE"
-            exit $TEST_EXIT_CODE
-          fi
-
-      - name: Create artifact archive
-        run: |
-          cd build
-          tar -czf ${{ matrix.artifact-name }}.tar.gz cjsh
-          echo "Created artifact: ${{ matrix.artifact-name }}.tar.gz"
-          ls -lh ${{ matrix.artifact-name }}.tar.gz
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.artifact-name }}
-          path: build/${{ matrix.artifact-name }}.tar.gz
-          retention-days: 30
-
-      - name: Upload binary for release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
-        with:
-          files: build/${{ matrix.artifact-name }}.tar.gz
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  ci-success:
-    name: CI Success
-    needs: [build-and-test]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    if: always()
-    steps:
-      - name: Check build results
-        run: |
-          if [ "${{ needs.build-and-test.result }}" != "success" ]; then
-            echo "CI failed"
-            exit 1
-          fi
-          echo "All CI checks passed!"
+      - name: Run shell integration suite
+        if: matrix.run_shell_suite
+        run: ./tests/run_shell_tests.sh "build/${{ matrix.preset }}/cjsh"

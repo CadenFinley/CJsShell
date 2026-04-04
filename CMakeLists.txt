@@ -1,88 +1,6 @@
-# CMakeLists.txt
-#
-# This file is part of cjsh, CJ's Shell
-#
-# MIT License
-#
-# Copyright (c) 2026 Caden Finley
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
-
 cmake_minimum_required(VERSION 3.25)
 
 project(cjsh VERSION 1.1.7 LANGUAGES C CXX)
-
-include(CTest)
-include(GNUInstallDirs)
-
-if(APPLE)
-    if(NOT DEFINED CMAKE_OSX_SYSROOT OR CMAKE_OSX_SYSROOT STREQUAL "")
-        set(_cjsh_sdkroot "")
-        if(DEFINED ENV{SDKROOT} AND NOT "$ENV{SDKROOT}" STREQUAL "")
-            set(_cjsh_sdkroot "$ENV{SDKROOT}")
-        else()
-            find_program(_CJSH_XCRUN xcrun)
-            if(_CJSH_XCRUN)
-                execute_process(
-                    COMMAND ${_CJSH_XCRUN} --sdk macosx --show-sdk-path
-                    OUTPUT_VARIABLE _cjsh_detected_sdk
-                    OUTPUT_STRIP_TRAILING_WHITESPACE
-                    ERROR_QUIET
-                )
-                set(_cjsh_sdkroot "${_cjsh_detected_sdk}")
-            endif()
-        endif()
-        if(_cjsh_sdkroot AND EXISTS "${_cjsh_sdkroot}")
-            set(CMAKE_OSX_SYSROOT "${_cjsh_sdkroot}" CACHE PATH "macOS SDK path" FORCE)
-        endif()
-        unset(_cjsh_sdkroot)
-        unset(_cjsh_detected_sdk)
-        unset(_CJSH_XCRUN CACHE)
-    endif()
-endif()
-
-if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
-    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release RelWithDebInfo MinSizeRel)
-endif()
-
-option(CJSH_MINIMAL_BUILD "Enable ultra-small minimal build profile" OFF)
-option(CJSH_BUILD_TESTS "Build test binaries" OFF)
-
-if(CJSH_BUILD_TESTS)
-    set(BUILD_TESTING ON CACHE BOOL "Enable CTest targets" FORCE)
-else()
-    set(BUILD_TESTING OFF CACHE BOOL "Enable CTest targets" FORCE)
-endif()
-
-set(_CJSH_STRIP_DEFAULT ON)
-if(DEFINED ENV{CJSH_STRIP_BINARY} AND "$ENV{CJSH_STRIP_BINARY}" STREQUAL "0")
-    set(_CJSH_STRIP_DEFAULT OFF)
-endif()
-option(CJSH_STRIP_BINARY "Strip symbols from the cjsh binary in non-Debug builds" ${_CJSH_STRIP_DEFAULT})
-
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE BOOL "Export compilation database" FORCE)
-option(CJSH_ENABLE_UNUSED_WARNINGS "Emit diagnostics for unused code" ON)
-option(CJSH_STRICT_WARNINGS "Enable stricter compiler diagnostics" OFF)
-option(CJSH_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
-option(CJSH_ENABLE_CLANG_TIDY "Run clang-tidy as part of the build" OFF)
-set(CJSH_CLANG_TIDY_BINARY "clang-tidy" CACHE STRING "clang-tidy executable to use when enabled")
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -92,651 +10,94 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(CMAKE_C_FLAGS_RELEASE "-DNDEBUG" CACHE STRING "Release C compiler flags" FORCE)
-set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG" CACHE STRING "Release CXX compiler flags" FORCE)
-
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 if(CMAKE_CONFIGURATION_TYPES)
     foreach(_cfg ${CMAKE_CONFIGURATION_TYPES})
-        string(TOUPPER ${_cfg} _cfg_upper)
-        set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_${_cfg_upper} ${CMAKE_BINARY_DIR})
+        string(TOUPPER "${_cfg}" _cfg_upper)
+        set("CMAKE_RUNTIME_OUTPUT_DIRECTORY_${_cfg_upper}" "${CMAKE_BINARY_DIR}")
     endforeach()
 endif()
 
-define_property(DIRECTORY PROPERTY CMAKE_CONFIGURE_DEPENDS
-    BRIEF_DOCS "Files that trigger CMake reconfigure"
-    FULL_DOCS "Files watched to trigger reconfiguration when their timestamps change.")
-set(_git_head_file "${CMAKE_SOURCE_DIR}/.git/HEAD")
-if(EXISTS "${_git_head_file}")
-    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_git_head_file}")
-    file(READ "${_git_head_file}" _git_head_content)
-    string(REGEX MATCH "ref: (.+)" _git_head_match "${_git_head_content}")
-    if(CMAKE_MATCH_1)
-        set(_git_ref "${CMAKE_SOURCE_DIR}/.git/${CMAKE_MATCH_1}")
-        if(EXISTS "${_git_ref}")
-            set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_git_ref}")
-        endif()
-    endif()
-endif()
-
-set(CJSH_GIT_HASH "unknown")
-set(CJSH_GIT_HASH_FULL "unknown")
-if(DEFINED ENV{CJSH_GIT_HASH_OVERRIDE} AND NOT "$ENV{CJSH_GIT_HASH_OVERRIDE}" STREQUAL "")
-    set(CJSH_GIT_HASH "$ENV{CJSH_GIT_HASH_OVERRIDE}")
-    set(CJSH_GIT_HASH_FULL "$ENV{CJSH_GIT_HASH_OVERRIDE}")
-else()
-    find_package(Git QUIET)
-    if(GIT_FOUND)
-        execute_process(
-            COMMAND ${GIT_EXECUTABLE} rev-parse --short HEAD
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            OUTPUT_VARIABLE _git_rev_short
-            RESULT_VARIABLE _git_rev_short_result
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-            ERROR_QUIET
-        )
-        execute_process(
-            COMMAND ${GIT_EXECUTABLE} rev-parse HEAD
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            OUTPUT_VARIABLE _git_rev_full
-            RESULT_VARIABLE _git_rev_full_result
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-            ERROR_QUIET
-        )
-        if(_git_rev_short_result EQUAL 0 AND NOT _git_rev_short STREQUAL "")
-            set(CJSH_GIT_HASH "${_git_rev_short}")
-        endif()
-        if(_git_rev_full_result EQUAL 0 AND NOT _git_rev_full STREQUAL "")
-            set(CJSH_GIT_HASH_FULL "${_git_rev_full}")
-        endif()
-        execute_process(
-            COMMAND ${GIT_EXECUTABLE} status --porcelain
-            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-            OUTPUT_VARIABLE _git_status
-            RESULT_VARIABLE _git_status_result
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-            ERROR_QUIET
-        )
-        if(_git_status_result EQUAL 0 AND NOT _git_status STREQUAL "")
-            if(NOT CJSH_GIT_HASH STREQUAL "unknown")
-                set(CJSH_GIT_HASH "${CJSH_GIT_HASH}-dirty")
-            endif()
-            if(NOT CJSH_GIT_HASH_FULL STREQUAL "unknown")
-                set(CJSH_GIT_HASH_FULL "${CJSH_GIT_HASH_FULL}-dirty")
-            endif()
-        endif()
-    endif()
-endif()
-
-string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" _cjsh_proc)
-if(_cjsh_proc MATCHES "^(aarch64|arm64)$")
-    set(CJSH_BUILD_ARCH "arm64")
-elseif(_cjsh_proc MATCHES "^(x86_64|amd64)$")
-    set(CJSH_BUILD_ARCH "x86_64")
-elseif(_cjsh_proc MATCHES "^(i[3-6]86|x86)$")
-    set(CJSH_BUILD_ARCH "x86")
-elseif(_cjsh_proc MATCHES "(ppc|power)")
-    if(CMAKE_SIZEOF_VOID_P EQUAL 4)
-        set(CJSH_BUILD_ARCH "ppc")
-    else()
-        set(CJSH_BUILD_ARCH "ppc64")
-    endif()
-else()
-    set(CJSH_BUILD_ARCH "unknown")
-endif()
-
-if(${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
-    set(CJSH_BUILD_PLATFORM "apple-darwin")
-elseif(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
-    set(CJSH_BUILD_PLATFORM "linux")
-elseif(WIN32)
-    set(CJSH_BUILD_PLATFORM "windows")
-else()
-    set(CJSH_BUILD_PLATFORM "unix")
-endif()
-
-string(TIMESTAMP CJSH_BUILD_TIME "%Y-%m-%dT%H:%M:%SZ" UTC)
-set(CJSH_BUILD_COMPILER "${CMAKE_CXX_COMPILER_ID}")
-if(CMAKE_CXX_COMPILER_VERSION)
-    string(APPEND CJSH_BUILD_COMPILER " ${CMAKE_CXX_COMPILER_VERSION}")
-endif()
-set(CJSH_CXX_STANDARD "${CMAKE_CXX_STANDARD}")
-
-file(GLOB_RECURSE CJSH_CPP_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/*.cpp)
-
-set(CJSH_C_SOURCES
-    ${CMAKE_SOURCE_DIR}/src/isocline/attr.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/bbcode.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/bbcode_colors.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/common.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/completers.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/completions.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/editline.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/highlight.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/prompt_line_replacement.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/history.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/isocline.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/isocline_env.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/isocline_keybindings.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/isocline_options.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/isocline_print.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/isocline_readline.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/isocline_terminal.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/stringbuf.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/term.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/tty.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/tty_esc.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/undo.c
-    ${CMAKE_SOURCE_DIR}/src/isocline/unicode.c
-)
-
-set(CJSH_SOURCES ${CJSH_CPP_SOURCES} ${CJSH_C_SOURCES})
-list(REMOVE_DUPLICATES CJSH_SOURCES)
-list(SORT CJSH_SOURCES)
-
-if(NOT CJSH_SOURCES)
-    message(FATAL_ERROR "No source files located under src/. Check the source tree.")
-endif()
-
-add_executable(cjsh ${CJSH_SOURCES})
-
-add_custom_command(TARGET cjsh POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${CMAKE_BINARY_DIR}/compile_commands.json"
-        "${CMAKE_SOURCE_DIR}/compile_commands.json"
-)
-
-target_compile_features(cjsh PRIVATE cxx_std_17)
-
-set(CJSH_INCLUDE_DIRS
-    ${CMAKE_SOURCE_DIR}/src
-    ${CMAKE_SOURCE_DIR}/src/isocline
-    ${CMAKE_SOURCE_DIR}/src/builtin
-    ${CMAKE_SOURCE_DIR}/src/builtin/cjshopt
-    ${CMAKE_SOURCE_DIR}/src/utils
-    ${CMAKE_SOURCE_DIR}/src/prompt
-    ${CMAKE_SOURCE_DIR}/src/interpreter
-    ${CMAKE_SOURCE_DIR}/src/parser
-    ${CMAKE_SOURCE_DIR}/src/highlighter
-    ${CMAKE_SOURCE_DIR}/src/completions
-	${CMAKE_SOURCE_DIR}/src/validation
-)
-
-target_include_directories(cjsh PRIVATE ${CJSH_INCLUDE_DIRS})
-
-target_compile_definitions(cjsh PRIVATE
-    CJSH_GIT_HASH="${CJSH_GIT_HASH}"
-    CJSH_GIT_HASH_FULL="${CJSH_GIT_HASH_FULL}"
-    CJSH_BUILD_ARCH="${CJSH_BUILD_ARCH}"
-    CJSH_BUILD_PLATFORM="${CJSH_BUILD_PLATFORM}"
-    CJSH_BUILD_TIME="${CJSH_BUILD_TIME}"
-    CJSH_BUILD_COMPILER="${CJSH_BUILD_COMPILER}"
-    CJSH_CXX_STANDARD="${CJSH_CXX_STANDARD}"
-    CJSH_BUILD_TYPE="$<CONFIG>"
-    IC_SEPARATE_OBJS=1
-    JSON_NOEXCEPTION=1
-    JSON_USE_IMPLICIT_CONVERSIONS=1
-    $<$<CONFIG:Debug>:DEBUG;CJSH_ENABLE_DEBUG>
-    $<$<NOT:$<CONFIG:Debug>>:IC_NO_DEBUG_MSG=1>
-    $<$<BOOL:${CJSH_MINIMAL_BUILD}>:CJSH_MINIMAL_BUILD=1;CJSH_NO_FANCY_FEATURES=1>
-    $<$<AND:$<NOT:$<CONFIG:Debug>>,$<BOOL:${CJSH_MINIMAL_BUILD}>>:_FORTIFY_SOURCE=1>
-    $<$<AND:$<NOT:$<CONFIG:Debug>>,$<NOT:$<BOOL:${CJSH_MINIMAL_BUILD}>>>:_FORTIFY_SOURCE=1>
-)
-
-if(CJSH_ENABLE_CLANG_TIDY)
-    find_program(CJSH_CLANG_TIDY_PATH ${CJSH_CLANG_TIDY_BINARY})
-    if(NOT CJSH_CLANG_TIDY_PATH)
-        message(FATAL_ERROR "CJSH_ENABLE_CLANG_TIDY is ON but ${CJSH_CLANG_TIDY_BINARY} was not found")
-    endif()
-    set(CMAKE_CXX_CLANG_TIDY ${CJSH_CLANG_TIDY_PATH} CACHE STRING "" FORCE)
-    set(CMAKE_C_CLANG_TIDY ${CJSH_CLANG_TIDY_PATH} CACHE STRING "" FORCE)
-endif()
-
-set(_cjsh_common_cxx_warnings
-    -Wall
-    -Wextra
-    -Wpedantic
-)
-set(_cjsh_common_c_warnings
-    -Wall
-    -Wextra
-    -Wpedantic
-)
-
-if(CJSH_ENABLE_UNUSED_WARNINGS)
-    list(APPEND _cjsh_common_cxx_warnings -Wunused -Wunused-parameter -Wunused-variable -Wunused-function)
-    list(APPEND _cjsh_common_c_warnings -Wunused -Wunused-parameter -Wunused-variable -Wunused-function)
-endif()
-
-if(CJSH_STRICT_WARNINGS)
-    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
-        list(APPEND _cjsh_common_cxx_warnings
-            -Wshadow
-            -Wconversion
-            -Wsign-conversion
-            -Wfloat-equal
-            -Wcast-qual
-            -Wmissing-declarations
-            -Wformat=2
-            -Wundef
-        )
-    endif()
-    if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU")
-        list(APPEND _cjsh_common_c_warnings
-            -Wshadow
-            -Wconversion
-            -Wsign-conversion
-            -Wfloat-equal
-            -Wcast-qual
-            -Wmissing-declarations
-            -Wformat=2
-            -Wundef
-        )
-    endif()
-endif()
-
-if(CJSH_WARNINGS_AS_ERRORS)
-    list(APPEND _cjsh_common_cxx_warnings -Werror)
-    list(APPEND _cjsh_common_c_warnings -Werror)
-endif()
-
-if(_cjsh_common_cxx_warnings)
-    target_compile_options(cjsh PRIVATE $<$<COMPILE_LANGUAGE:CXX>:${_cjsh_common_cxx_warnings}>)
-endif()
-if(_cjsh_common_c_warnings)
-    target_compile_options(cjsh PRIVATE $<$<COMPILE_LANGUAGE:C>:${_cjsh_common_c_warnings}>)
-endif()
-
-if(APPLE AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    target_compile_options(cjsh PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-stdlib=libc++>)
-endif()
-
-if(CJSH_MINIMAL_BUILD)
-    message(STATUS "CJSH minimal build profile enabled")
-endif()
-
-if(CJSH_MINIMAL_BUILD AND CMAKE_CONFIGURATION_TYPES AND "Debug" IN_LIST CMAKE_CONFIGURATION_TYPES)
-    message(STATUS "CJSH minimal build flags apply to all non-Debug configurations")
-endif()
-
-set(CJSH_LTO_FLAG "-flto" CACHE STRING "Link-time optimisation flag applied to non-Debug builds")
-set(_cjsh_lto_flag "${CJSH_LTO_FLAG}")
-
-set(_cjsh_release_arch_opts)
-set(_cjsh_minimal_arch_opts)
-if(CJSH_BUILD_ARCH STREQUAL "arm64")
-    set(_cjsh_release_arch_opts -mcpu=apple-a14)
-    set(_cjsh_minimal_arch_opts -mcpu=apple-a14)
-elseif(CJSH_BUILD_ARCH STREQUAL "x86_64")
-    set(_cjsh_release_arch_opts -march=x86-64 -mtune=generic)
-    set(_cjsh_minimal_arch_opts -march=x86-64 -mtune=generic -msse2 -mfpmath=sse)
-elseif(CJSH_BUILD_ARCH STREQUAL "ppc64")
-    set(_cjsh_release_arch_opts -mcpu=native -mtune=native)
-    set(_cjsh_minimal_arch_opts -mcpu=native -mtune=native)
-elseif(CJSH_BUILD_ARCH STREQUAL "ppc")
-    # Usage of -mcpu with 32-bit ppc can produce broken code when cpu is 64-bit-capable
-    set(_cjsh_release_arch_opts -mtune=native)
-    set(_cjsh_minimal_arch_opts -mtune=native)
-endif()
-
-foreach(_cjsh_opt -O0 -g -fno-omit-frame-pointer)
-    target_compile_options(cjsh PRIVATE $<$<CONFIG:Debug>:${_cjsh_opt}>)
-endforeach()
-
-target_compile_options(cjsh PRIVATE
-    $<$<AND:$<CONFIG:Debug>,$<COMPILE_LANGUAGE:CXX>>:-fsanitize=address>
-    $<$<AND:$<CONFIG:Debug>,$<COMPILE_LANGUAGE:C>>:-fsanitize=address>
-)
-
-target_link_options(cjsh PRIVATE $<$<CONFIG:Debug>:-fsanitize=address>)
-
-set(_cjsh_release_cxx_opts
-    -O2
-    -ffunction-sections
-    -fdata-sections
-    ${_cjsh_lto_flag}
-    -fomit-frame-pointer
-    -fmerge-all-constants
-    -fno-rtti
-    -fvisibility=hidden
-    -fvisibility-inlines-hidden
-    -U_FORTIFY_SOURCE
-)
-
-foreach(_cjsh_opt IN LISTS _cjsh_release_cxx_opts)
-    target_compile_options(cjsh PRIVATE
-        $<$<AND:$<NOT:$<CONFIG:Debug>>,$<NOT:$<BOOL:${CJSH_MINIMAL_BUILD}>>,$<COMPILE_LANGUAGE:CXX>>:${_cjsh_opt}>
-    )
-endforeach()
-
-set(_cjsh_release_c_opts
-    -O2
-    -ffunction-sections
-    -fdata-sections
-    ${_cjsh_lto_flag}
-    -fomit-frame-pointer
-    -fmerge-all-constants
-    -fvisibility=hidden
-    -U_FORTIFY_SOURCE
-)
-
-foreach(_cjsh_opt IN LISTS _cjsh_release_c_opts)
-    target_compile_options(cjsh PRIVATE
-        $<$<AND:$<NOT:$<CONFIG:Debug>>,$<NOT:$<BOOL:${CJSH_MINIMAL_BUILD}>>,$<COMPILE_LANGUAGE:C>>:${_cjsh_opt}>
-    )
-endforeach()
-
-if(_cjsh_release_arch_opts)
-    foreach(_cjsh_opt IN LISTS _cjsh_release_arch_opts)
-        target_compile_options(cjsh PRIVATE
-            $<$<AND:$<NOT:$<CONFIG:Debug>>,$<NOT:$<BOOL:${CJSH_MINIMAL_BUILD}>>,$<COMPILE_LANGUAGE:CXX>>:${_cjsh_opt}>
-        )
-        target_compile_options(cjsh PRIVATE
-            $<$<AND:$<NOT:$<CONFIG:Debug>>,$<NOT:$<BOOL:${CJSH_MINIMAL_BUILD}>>,$<COMPILE_LANGUAGE:C>>:${_cjsh_opt}>
-        )
-    endforeach()
-endif()
-
-set(_cjsh_minimal_cxx_opts
-    -Oz
-    -ffunction-sections
-    -fdata-sections
-    ${_cjsh_lto_flag}
-    -fomit-frame-pointer
-    -fmerge-all-constants
-    -fno-rtti
-    -fvisibility=hidden
-    -fvisibility-inlines-hidden
-    -fno-unwind-tables
-    -fno-asynchronous-unwind-tables
-    -ftemplate-depth=64
-    -fno-threadsafe-statics
-    -U_FORTIFY_SOURCE
-)
-
-foreach(_cjsh_opt IN LISTS _cjsh_minimal_cxx_opts)
-    target_compile_options(cjsh PRIVATE
-        $<$<AND:$<NOT:$<CONFIG:Debug>>,$<BOOL:${CJSH_MINIMAL_BUILD}>,$<COMPILE_LANGUAGE:CXX>>:${_cjsh_opt}>
-    )
-endforeach()
-
-set(_cjsh_minimal_c_opts
-    -Oz
-    -ffunction-sections
-    -fdata-sections
-    ${_cjsh_lto_flag}
-    -fomit-frame-pointer
-    -fmerge-all-constants
-    -fvisibility=hidden
-    -fno-unwind-tables
-    -fno-asynchronous-unwind-tables
-    -U_FORTIFY_SOURCE
-)
-
-foreach(_cjsh_opt IN LISTS _cjsh_minimal_c_opts)
-    target_compile_options(cjsh PRIVATE
-        $<$<AND:$<NOT:$<CONFIG:Debug>>,$<BOOL:${CJSH_MINIMAL_BUILD}>,$<COMPILE_LANGUAGE:C>>:${_cjsh_opt}>
-    )
-endforeach()
-
-if(_cjsh_minimal_arch_opts)
-    foreach(_cjsh_opt IN LISTS _cjsh_minimal_arch_opts)
-        target_compile_options(cjsh PRIVATE
-            $<$<AND:$<NOT:$<CONFIG:Debug>>,$<BOOL:${CJSH_MINIMAL_BUILD}>,$<COMPILE_LANGUAGE:CXX>>:${_cjsh_opt}>
-        )
-        target_compile_options(cjsh PRIVATE
-            $<$<AND:$<NOT:$<CONFIG:Debug>>,$<BOOL:${CJSH_MINIMAL_BUILD}>,$<COMPILE_LANGUAGE:C>>:${_cjsh_opt}>
-        )
-    endforeach()
-endif()
-
-target_link_options(cjsh PRIVATE
-    $<$<AND:$<NOT:$<CONFIG:Debug>>,$<BOOL:${CJSH_MINIMAL_BUILD}>>:${_cjsh_lto_flag}>
-    $<$<AND:$<NOT:$<CONFIG:Debug>>,$<NOT:$<BOOL:${CJSH_MINIMAL_BUILD}>>>:${_cjsh_lto_flag}>
-)
-
-if(APPLE)
-    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        target_link_options(cjsh PRIVATE -stdlib=libc++)
-    endif()
-    target_link_options(cjsh PRIVATE
-        $<$<NOT:$<CONFIG:Debug>>:-Wl,-dead_strip -Wl,-dead_strip_dylibs>
-        $<$<AND:$<NOT:$<CONFIG:Debug>>,$<BOOL:${CJSH_MINIMAL_BUILD}>>:-Wl,-no_compact_unwind -Wl,-no_function_starts>
-    )
-elseif(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
-    target_link_options(cjsh PRIVATE
-        $<$<NOT:$<CONFIG:Debug>>:-Wl,--gc-sections -Wl,--as-needed>
-        $<$<AND:$<NOT:$<CONFIG:Debug>>,$<BOOL:${CJSH_MINIMAL_BUILD}>>:-Wl,--strip-all -Wl,--discard-all -Wl,--no-undefined -Wl,--compress-debug-sections=zlib -Wl,-O2 -Wl,--hash-style=gnu>
+if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE
+        Release
+        CACHE STRING "Build type" FORCE
     )
 endif()
+
+set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "RelWithDebInfo" "MinSizeRel")
+
+set(_cjsh_strip_binary_default ON)
+if(DEFINED ENV{CJSH_STRIP_BINARY})
+    string(TOUPPER "$ENV{CJSH_STRIP_BINARY}" _cjsh_strip_binary_env)
+    if(_cjsh_strip_binary_env STREQUAL "0"
+       OR _cjsh_strip_binary_env STREQUAL "OFF"
+       OR _cjsh_strip_binary_env STREQUAL "FALSE"
+       OR _cjsh_strip_binary_env STREQUAL "NO")
+        set(_cjsh_strip_binary_default OFF)
+    endif()
+endif()
+
+option(CJSH_GENERATE_COMPILE_COMMANDS "Generate compile_commands.json" ON)
+option(CJSH_BUILD_TESTS "Build cjsh test binaries" ON)
+option(CJSH_MINIMAL_BUILD "Enable the minimal size-oriented build profile" OFF)
+option(CJSH_STRIP_BINARY "Strip non-Debug binaries" ${_cjsh_strip_binary_default})
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS ${CJSH_GENERATE_COMPILE_COMMANDS})
+
+include(CTest)
+if(CJSH_BUILD_TESTS AND NOT BUILD_TESTING)
+    set(BUILD_TESTING
+        ON
+        CACHE BOOL "Build tests" FORCE
+    )
+endif()
+if(BUILD_TESTING)
+    enable_testing()
+endif()
+
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+include(CJSHBuildMetadata)
+include(CJSHBuildSettings)
 
 find_package(Threads REQUIRED)
-target_link_libraries(cjsh PRIVATE Threads::Threads)
 
-if(CMAKE_DL_LIBS)
-    target_link_libraries(cjsh PRIVATE ${CMAKE_DL_LIBS})
-endif()
+cjsh_compute_build_metadata(
+    OUT_GIT_HASH CJSH_METADATA_GIT_HASH
+    OUT_GIT_HASH_FULL CJSH_METADATA_GIT_HASH_FULL
+    OUT_BUILD_ARCH CJSH_METADATA_BUILD_ARCH
+    OUT_BUILD_PLATFORM CJSH_METADATA_BUILD_PLATFORM
+    OUT_BUILD_TIME CJSH_METADATA_BUILD_TIME
+    OUT_BUILD_COMPILER CJSH_METADATA_BUILD_COMPILER
+    OUT_CXX_STANDARD CJSH_METADATA_CXX_STANDARD
+    OUT_BUILD_TYPE CJSH_METADATA_BUILD_TYPE
+)
 
-include(CheckCXXSourceCompiles)
-check_cxx_source_compiles("
-    #include <atomic>
-    int main() {
-        std::atomic<uint64_t> w{0};
-        return ++w;
-    }
-" CJSH_BUILDS_WITHOUT_LIBATOMIC)
+add_library(cjsh_build_metadata INTERFACE)
+cjsh_apply_metadata_definitions(
+    TARGET cjsh_build_metadata
+    GIT_HASH "${CJSH_METADATA_GIT_HASH}"
+    GIT_HASH_FULL "${CJSH_METADATA_GIT_HASH_FULL}"
+    BUILD_ARCH "${CJSH_METADATA_BUILD_ARCH}"
+    BUILD_PLATFORM "${CJSH_METADATA_BUILD_PLATFORM}"
+    BUILD_TIME "${CJSH_METADATA_BUILD_TIME}"
+    BUILD_COMPILER "${CJSH_METADATA_BUILD_COMPILER}"
+    CXX_STANDARD "${CJSH_METADATA_CXX_STANDARD}"
+    BUILD_TYPE "${CJSH_METADATA_BUILD_TYPE}"
+)
 
-if(NOT CJSH_BUILDS_WITHOUT_LIBATOMIC)
-    target_link_libraries(cjsh PRIVATE atomic)
-endif()
+add_library(cjsh_build_profile INTERFACE)
+cjsh_apply_build_profile(
+    TARGET cjsh_build_profile
+    MINIMAL_BUILD ${CJSH_MINIMAL_BUILD}
+)
 
-if(CJSH_STRIP_BINARY)
-    find_program(CJSH_STRIP_TOOL strip)
-    if(CJSH_STRIP_TOOL)
-        if(APPLE)
-            set(_cjsh_strip_flags -x)
-        elseif(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
-            set(_cjsh_strip_flags --strip-unneeded)
-        else()
-            set(_cjsh_strip_flags)
-        endif()
-        if(CMAKE_CONFIGURATION_TYPES)
-            set(_cjsh_strip_configs)
-            foreach(_cjsh_cfg IN LISTS CMAKE_CONFIGURATION_TYPES)
-                if(NOT _cjsh_cfg STREQUAL "Debug")
-                    list(APPEND _cjsh_strip_configs ${_cjsh_cfg})
-                endif()
-            endforeach()
-            if(_cjsh_strip_configs)
-                add_custom_command(TARGET cjsh POST_BUILD
-                    COMMAND ${CJSH_STRIP_TOOL} ${_cjsh_strip_flags} $<TARGET_FILE:cjsh>
-                    COMMAND_EXPAND_LISTS
-                    COMMENT "Stripping symbols from cjsh"
-                    VERBATIM
-                    CONFIGURATIONS ${_cjsh_strip_configs})
-            endif()
-        elseif(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
-            add_custom_command(TARGET cjsh POST_BUILD
-                COMMAND ${CJSH_STRIP_TOOL} ${_cjsh_strip_flags} $<TARGET_FILE:cjsh>
-                COMMAND_EXPAND_LISTS
-                COMMENT "Stripping symbols from cjsh"
-                VERBATIM)
-        endif()
-    else()
-        message(WARNING "strip tool not found; CJSH_STRIP_BINARY option will be ignored")
-    endif()
-endif()
+add_library(cjsh_build_settings INTERFACE)
+target_link_libraries(cjsh_build_settings INTERFACE cjsh_build_metadata cjsh_build_profile)
 
-install(TARGETS cjsh RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+add_subdirectory(cjsh-isocline "${CMAKE_BINARY_DIR}/modules/cjsh-isocline")
+add_subdirectory(cjsh "${CMAKE_BINARY_DIR}/modules/cjsh")
 
 if(CJSH_BUILD_TESTS)
-    find_package(Python3 COMPONENTS Interpreter QUIET)
-
-    function(cjsh_apply_test_profile target_name)
-        set_property(TARGET ${target_name} PROPERTY INTERPROCEDURAL_OPTIMIZATION OFF)
-        if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-            target_compile_options(${target_name} PRIVATE
-                $<$<COMPILE_LANGUAGE:C>:/Od /Zi>
-                $<$<COMPILE_LANGUAGE:CXX>:/Od /Zi>
-            )
-        else()
-            target_compile_options(${target_name} PRIVATE
-                $<$<COMPILE_LANGUAGE:C>:-O0 -g -fno-omit-frame-pointer>
-                $<$<COMPILE_LANGUAGE:CXX>:-O0 -g -fno-omit-frame-pointer>
-            )
-        endif()
-    endfunction()
-
-    add_executable(isocline_behavior_tests
-        ${CJSH_C_SOURCES}
-        ${CMAKE_SOURCE_DIR}/tests/isocline/test_isocline_behavior.c
-    )
-    cjsh_apply_test_profile(isocline_behavior_tests)
-    target_include_directories(isocline_behavior_tests PRIVATE ${CJSH_INCLUDE_DIRS})
-    target_compile_definitions(isocline_behavior_tests PRIVATE
-        CJSH_GIT_HASH="${CJSH_GIT_HASH}"
-        CJSH_GIT_HASH_FULL="${CJSH_GIT_HASH_FULL}"
-        CJSH_BUILD_ARCH="${CJSH_BUILD_ARCH}"
-        CJSH_BUILD_PLATFORM="${CJSH_BUILD_PLATFORM}"
-        CJSH_BUILD_TIME="${CJSH_BUILD_TIME}"
-        CJSH_BUILD_COMPILER="${CJSH_BUILD_COMPILER}"
-        CJSH_CXX_STANDARD="${CJSH_CXX_STANDARD}"
-        CJSH_BUILD_TYPE="$<CONFIG>"
-        IC_SEPARATE_OBJS=1
-        JSON_NOEXCEPTION=1
-        JSON_USE_IMPLICIT_CONVERSIONS=1
-        $<$<CONFIG:Debug>:DEBUG;CJSH_ENABLE_DEBUG>
-        $<$<NOT:$<CONFIG:Debug>>:IC_NO_DEBUG_MSG=1>
-        $<$<BOOL:${CJSH_MINIMAL_BUILD}>:CJSH_MINIMAL_BUILD=1;CJSH_NO_FANCY_FEATURES=1>
-        $<$<AND:$<NOT:$<CONFIG:Debug>>,$<BOOL:${CJSH_MINIMAL_BUILD}>>:_FORTIFY_SOURCE=1>
-        $<$<AND:$<NOT:$<CONFIG:Debug>>,$<NOT:$<BOOL:${CJSH_MINIMAL_BUILD}>>>:_FORTIFY_SOURCE=1>
-    )
-    foreach(_cjsh_opt -Wall -Wno-error -Wno-unused-function -Wno-unused-variable)
-        target_compile_options(isocline_behavior_tests PRIVATE $<$<COMPILE_LANGUAGE:C>:${_cjsh_opt}>)
-    endforeach()
-    add_test(NAME isocline_behavior COMMAND isocline_behavior_tests)
-
-    add_executable(isocline_pty_driver
-        ${CJSH_C_SOURCES}
-        ${CMAKE_SOURCE_DIR}/tests/isocline/isocline_pty_driver.c
-    )
-    cjsh_apply_test_profile(isocline_pty_driver)
-    target_include_directories(isocline_pty_driver PRIVATE ${CJSH_INCLUDE_DIRS})
-    target_compile_definitions(isocline_pty_driver PRIVATE
-        CJSH_GIT_HASH="${CJSH_GIT_HASH}"
-        CJSH_GIT_HASH_FULL="${CJSH_GIT_HASH_FULL}"
-        CJSH_BUILD_ARCH="${CJSH_BUILD_ARCH}"
-        CJSH_BUILD_PLATFORM="${CJSH_BUILD_PLATFORM}"
-        CJSH_BUILD_TIME="${CJSH_BUILD_TIME}"
-        CJSH_BUILD_COMPILER="${CJSH_BUILD_COMPILER}"
-        CJSH_CXX_STANDARD="${CJSH_CXX_STANDARD}"
-        CJSH_BUILD_TYPE="$<CONFIG>"
-        IC_SEPARATE_OBJS=1
-        JSON_NOEXCEPTION=1
-        JSON_USE_IMPLICIT_CONVERSIONS=1
-        $<$<CONFIG:Debug>:DEBUG;CJSH_ENABLE_DEBUG>
-        $<$<NOT:$<CONFIG:Debug>>:IC_NO_DEBUG_MSG=1>
-        $<$<BOOL:${CJSH_MINIMAL_BUILD}>:CJSH_MINIMAL_BUILD=1;CJSH_NO_FANCY_FEATURES=1>
-        $<$<AND:$<NOT:$<CONFIG:Debug>>,$<BOOL:${CJSH_MINIMAL_BUILD}>>:_FORTIFY_SOURCE=1>
-        $<$<AND:$<NOT:$<CONFIG:Debug>>,$<NOT:$<BOOL:${CJSH_MINIMAL_BUILD}>>>:_FORTIFY_SOURCE=1>
-    )
-    foreach(_cjsh_opt -Wall -Wno-error -Wno-unused-function -Wno-unused-variable)
-        target_compile_options(isocline_pty_driver PRIVATE $<$<COMPILE_LANGUAGE:C>:${_cjsh_opt}>)
-    endforeach()
-
-    if(Python3_Interpreter_FOUND)
-        add_test(NAME isocline_pty
-            COMMAND ${Python3_EXECUTABLE}
-                    ${CMAKE_SOURCE_DIR}/tests/isocline/test_isocline_pty.py
-                    ${CMAKE_BINARY_DIR}/isocline_pty_driver)
-    endif()
-
-    set(CJSH_CPP_SOURCES_NO_MAIN ${CJSH_CPP_SOURCES})
-    list(REMOVE_ITEM CJSH_CPP_SOURCES_NO_MAIN ${CMAKE_SOURCE_DIR}/src/cjsh.cpp)
-
-    add_executable(completion_tests
-        ${CJSH_CPP_SOURCES_NO_MAIN}
-        ${CJSH_C_SOURCES}
-        ${CMAKE_SOURCE_DIR}/tests/completions/test_completions.cpp
-        ${CMAKE_SOURCE_DIR}/tests/completions/test_completion_globals.cpp
-    )
-    cjsh_apply_test_profile(completion_tests)
-    target_include_directories(completion_tests PRIVATE ${CJSH_INCLUDE_DIRS})
-    target_compile_definitions(completion_tests PRIVATE
-        CJSH_GIT_HASH="${CJSH_GIT_HASH}"
-        CJSH_GIT_HASH_FULL="${CJSH_GIT_HASH_FULL}"
-        CJSH_BUILD_ARCH="${CJSH_BUILD_ARCH}"
-        CJSH_BUILD_PLATFORM="${CJSH_BUILD_PLATFORM}"
-        CJSH_BUILD_TIME="${CJSH_BUILD_TIME}"
-        CJSH_BUILD_COMPILER="${CJSH_BUILD_COMPILER}"
-        CJSH_CXX_STANDARD="${CJSH_CXX_STANDARD}"
-        CJSH_BUILD_TYPE="$<CONFIG>"
-        IC_SEPARATE_OBJS=1
-        JSON_NOEXCEPTION=1
-        JSON_USE_IMPLICIT_CONVERSIONS=1
-        $<$<CONFIG:Debug>:DEBUG;CJSH_ENABLE_DEBUG>
-        $<$<NOT:$<CONFIG:Debug>>:IC_NO_DEBUG_MSG=1>
-        $<$<BOOL:${CJSH_MINIMAL_BUILD}>:CJSH_MINIMAL_BUILD=1;CJSH_NO_FANCY_FEATURES=1>
-        $<$<AND:$<NOT:$<CONFIG:Debug>>,$<BOOL:${CJSH_MINIMAL_BUILD}>>:_FORTIFY_SOURCE=1>
-        $<$<AND:$<NOT:$<CONFIG:Debug>>,$<NOT:$<BOOL:${CJSH_MINIMAL_BUILD}>>>:_FORTIFY_SOURCE=1>
-    )
-    foreach(_cjsh_opt -Wall -Wno-error -Wno-unused-function -Wno-unused-variable)
-        target_compile_options(completion_tests PRIVATE
-            $<$<COMPILE_LANGUAGE:C>:${_cjsh_opt}>
-            $<$<COMPILE_LANGUAGE:CXX>:${_cjsh_opt}>
-        )
-    endforeach()
-    target_link_libraries(completion_tests PRIVATE Threads::Threads)
-    if(CMAKE_DL_LIBS)
-        target_link_libraries(completion_tests PRIVATE ${CMAKE_DL_LIBS})
-    endif()
-    if(NOT CJSH_BUILDS_WITHOUT_LIBATOMIC)
-        target_link_libraries(completion_tests PRIVATE atomic)
-    endif()
-    add_test(NAME completion_tests COMMAND completion_tests)
-
-    add_executable(syntax_highlighting_tests
-        ${CJSH_CPP_SOURCES_NO_MAIN}
-        ${CJSH_C_SOURCES}
-        ${CMAKE_SOURCE_DIR}/tests/highlighter/test_syntax_highlighting.cpp
-    )
-    cjsh_apply_test_profile(syntax_highlighting_tests)
-    target_include_directories(syntax_highlighting_tests PRIVATE ${CJSH_INCLUDE_DIRS})
-    target_compile_definitions(syntax_highlighting_tests PRIVATE
-        CJSH_GIT_HASH="${CJSH_GIT_HASH}"
-        CJSH_GIT_HASH_FULL="${CJSH_GIT_HASH_FULL}"
-        CJSH_BUILD_ARCH="${CJSH_BUILD_ARCH}"
-        CJSH_BUILD_PLATFORM="${CJSH_BUILD_PLATFORM}"
-        CJSH_BUILD_TIME="${CJSH_BUILD_TIME}"
-        CJSH_BUILD_COMPILER="${CJSH_BUILD_COMPILER}"
-        CJSH_CXX_STANDARD="${CJSH_CXX_STANDARD}"
-        CJSH_BUILD_TYPE="$<CONFIG>"
-        IC_SEPARATE_OBJS=1
-        JSON_NOEXCEPTION=1
-        JSON_USE_IMPLICIT_CONVERSIONS=1
-        $<$<CONFIG:Debug>:DEBUG;CJSH_ENABLE_DEBUG>
-        $<$<NOT:$<CONFIG:Debug>>:IC_NO_DEBUG_MSG=1>
-        $<$<BOOL:${CJSH_MINIMAL_BUILD}>:CJSH_MINIMAL_BUILD=1;CJSH_NO_FANCY_FEATURES=1>
-        $<$<AND:$<NOT:$<CONFIG:Debug>>,$<BOOL:${CJSH_MINIMAL_BUILD}>>:_FORTIFY_SOURCE=1>
-        $<$<AND:$<NOT:$<CONFIG:Debug>>,$<NOT:$<BOOL:${CJSH_MINIMAL_BUILD}>>>:_FORTIFY_SOURCE=1>
-    )
-    foreach(_cjsh_opt -Wall -Wno-error -Wno-unused-function -Wno-unused-variable)
-        target_compile_options(syntax_highlighting_tests PRIVATE
-            $<$<COMPILE_LANGUAGE:C>:${_cjsh_opt}>
-            $<$<COMPILE_LANGUAGE:CXX>:${_cjsh_opt}>
-        )
-    endforeach()
-    target_link_libraries(syntax_highlighting_tests PRIVATE Threads::Threads)
-    if(CMAKE_DL_LIBS)
-        target_link_libraries(syntax_highlighting_tests PRIVATE ${CMAKE_DL_LIBS})
-    endif()
-    if(NOT CJSH_BUILDS_WITHOUT_LIBATOMIC)
-        target_link_libraries(syntax_highlighting_tests PRIVATE atomic)
-    endif()
-    add_test(NAME syntax_highlighting_tests COMMAND syntax_highlighting_tests)
-
-    add_dependencies(isocline_behavior_tests cjsh)
-    add_dependencies(isocline_pty_driver cjsh)
-    add_dependencies(completion_tests isocline_behavior_tests)
-    add_dependencies(syntax_highlighting_tests completion_tests)
+    add_subdirectory(tests "${CMAKE_BINARY_DIR}/modules/tests")
 endif()
