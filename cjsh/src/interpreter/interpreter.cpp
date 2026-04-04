@@ -1745,7 +1745,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                         return set_last_status(last_code);
                     }
 
-                    if (g_shell && g_shell->should_abort_on_nonzero_exit(code) && code != 0) {
+                    const bool is_nonfinal_logical_command = !lc.op.empty();
+                    if (g_shell && g_shell->should_abort_on_nonzero_exit(code) && code != 0 &&
+                        !is_nonfinal_logical_command) {
                         if (code != 253 && code != 254 && code != 255) {
                             return code;
                         }

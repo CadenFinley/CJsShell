@@ -1,5 +1,6 @@
 set(
     CJSH_ISOCLINE_SOURCES
+    "${CMAKE_SOURCE_DIR}/src/isocline/isocline.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/attr.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/bbcode.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/common.c"
