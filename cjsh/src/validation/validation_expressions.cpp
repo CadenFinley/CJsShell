@@ -236,7 +236,8 @@ ShellScriptInterpreter::validate_parameter_expansions(const std::vector<std::str
                     }
 
                     if (first_word == "export" || first_word == "alias" || first_word == "local" ||
-                        first_word == "declare" || first_word == "readonly") {
+                        first_word == "declare" || first_word == "typeset" ||
+                        first_word == "readonly") {
                         return;
                     }
 

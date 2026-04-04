@@ -304,6 +304,15 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_doc(":", "No-op that always succeeds", {});
 
         add_doc("local", "Declare variables local to the current function", {});
+        add_doc("declare", "Set variable attributes and values",
+                {make_option("-a", "Declare indexed arrays"),
+                 make_option("-f", "Operate on shell functions"),
+                 make_option("-F", "List function names"),
+                 make_option("-g", "Force global scope inside functions"),
+                 make_option("-p", "Print declarations"), make_option("-r", "Mark names readonly"),
+                 make_option("-x", "Mark names exported"),
+                 make_option("+x", "Remove export attribute")});
+        add_alias("typeset", "declare");
         add_doc("export", "Export environment variables", {});
         add_doc("unset", "Remove variables from the environment", {});
         add_doc("set", "Configure shell options or positional parameters",

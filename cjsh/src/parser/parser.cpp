@@ -1056,7 +1056,15 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
         return std::move(stripped_pair.first);
     };
 
-    const bool is_export_command = (!args.empty() && args[0] == "export");
+    std::string command_name;
+    if (!args.empty()) {
+        command_name = QuoteInfo(args[0]).value;
+    }
+
+    const bool is_assignment_builtin = command_name == "export" || command_name == "declare" ||
+                                       command_name == "typeset" || command_name == "local" ||
+                                       command_name == "readonly";
+
     for (size_t arg_index = 0; arg_index < args.size(); ++arg_index) {
         std::string& raw_arg = args[arg_index];
         QuoteInfo qi(raw_arg);
@@ -1065,7 +1073,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
             continue;
         }
 
-        if (is_export_command && arg_index > 0) {
+        if (is_assignment_builtin && arg_index > 0) {
             std::string value = qi.value;
             size_t eq_pos = value.find('=');
             if (eq_pos == std::string::npos) {

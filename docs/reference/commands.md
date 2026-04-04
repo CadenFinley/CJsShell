@@ -142,6 +142,22 @@ Declare local variables inside functions.
 local name[=value] [name[=value]...]
 ```
 
+### declare / typeset
+Set variable attributes and values.
+
+```bash
+declare [-aFfgprx] [name[=value] ...]
+typeset [-aFfgprx] [name[=value] ...]
+```
+
+- `typeset` is an alias for `declare`
+- `-g` forces global scope inside functions
+- `-x` marks variables exported (`+x` removes export)
+- `-r` marks variables readonly
+- `-a` declares indexed arrays
+- `-f`/`-F` operate on shell functions
+- `-p` prints declarations
+
 ### readonly
 Mark variables as read-only.
 

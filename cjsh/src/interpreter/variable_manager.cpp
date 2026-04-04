@@ -131,6 +131,20 @@ bool VariableManager::assign_variable(const std::string& target, const std::stri
     return assign_scalar_value(parsed.name, value, append, local_scope);
 }
 
+bool VariableManager::assign_global_variable(const std::string& target, const std::string& value,
+                                             bool append) {
+    ParsedArrayReference parsed;
+    if (!parse_array_reference(target, parsed)) {
+        return false;
+    }
+
+    if (parsed.has_index) {
+        return assign_array_element_value(parsed.name, parsed.index, value, append, false);
+    }
+
+    return assign_scalar_value(parsed.name, value, append, false);
+}
+
 bool VariableManager::assign_array_literal(const std::string& name,
                                            const std::vector<std::string>& words, bool append) {
     if (!is_valid_identifier(name)) {
@@ -180,6 +194,80 @@ bool VariableManager::assign_array_literal(const std::string& name,
 
     if (target_array == nullptr) {
         return false;
+    }
+
+    long long cursor = 0;
+    if (append && !target_array->empty()) {
+        cursor = target_array->rbegin()->first + 1;
+    }
+
+    for (const std::string& word : words) {
+        bool explicit_element = false;
+        bool element_append = false;
+        std::string index_expr;
+        std::string element_value;
+
+        if (word.size() >= 4 && word.front() == '[') {
+            size_t close_bracket = word.find(']');
+            if (close_bracket != std::string::npos && close_bracket > 1) {
+                if (close_bracket + 1 < word.size() && word[close_bracket + 1] == '=') {
+                    explicit_element = true;
+                    index_expr = word.substr(1, close_bracket - 1);
+                    element_value = word.substr(close_bracket + 2);
+                } else if (close_bracket + 2 < word.size() && word[close_bracket + 1] == '+' &&
+                           word[close_bracket + 2] == '=') {
+                    explicit_element = true;
+                    element_append = true;
+                    index_expr = word.substr(1, close_bracket - 1);
+                    element_value = word.substr(close_bracket + 3);
+                }
+            }
+        }
+
+        if (explicit_element) {
+            if (is_array_join_index(index_expr)) {
+                return false;
+            }
+
+            auto index = evaluate_array_index_expression(index_expr);
+            if (!index.has_value()) {
+                return false;
+            }
+
+            if (element_append) {
+                (*target_array)[*index] += element_value;
+            } else {
+                (*target_array)[*index] = element_value;
+            }
+            cursor = *index + 1;
+            continue;
+        }
+
+        (*target_array)[cursor] = word;
+        cursor++;
+    }
+
+    return true;
+}
+
+bool VariableManager::assign_global_array_literal(const std::string& name,
+                                                  const std::vector<std::string>& words,
+                                                  bool append) {
+    if (!is_valid_identifier(name)) {
+        return false;
+    }
+
+    auto [array_it, inserted] = global_array_variables.emplace(name, IndexedArray{});
+    IndexedArray* target_array = &array_it->second;
+
+    if (append) {
+        if (inserted && has_global_scalar_binding(name)) {
+            target_array->emplace(0, get_global_scalar_value(name));
+            remove_global_scalar_binding(name);
+        }
+    } else {
+        target_array->clear();
+        remove_global_scalar_binding(name);
     }
 
     long long cursor = 0;

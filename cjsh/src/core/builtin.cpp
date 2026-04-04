@@ -39,6 +39,7 @@
 #include "cjsh_filesystem.h"
 #include "cjshopt_command.h"
 #include "command_command.h"
+#include "declare_command.h"
 #include "directory_stack_commands.h"
 #include "double_bracket_command.h"
 #include "echo_command.h"
@@ -102,6 +103,10 @@ Built_ins::Built_ins() : shell(nullptr) {
          }},
         {"local",
          [this](const std::vector<std::string>& args) { return ::local_command(args, shell); }},
+        {"declare",
+         [this](const std::vector<std::string>& args) { return ::declare_command(args, shell); }},
+        {"typeset",
+         [this](const std::vector<std::string>& args) { return ::declare_command(args, shell); }},
         {"alias",
          [this](const std::vector<std::string>& args) { return ::alias_command(args, shell); }},
         {"abbr",

@@ -87,6 +87,7 @@ int help_command() {
         {"export", "Set or display environment variables"},
         {"unset", "Remove environment variables"},
         {"local", "Declare local variables inside functions"},
+        {"declare / typeset", "Set variable attributes and values"},
         {"readonly", "Mark variables as read-only"},
 
         // Input/output

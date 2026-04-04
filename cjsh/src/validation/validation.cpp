@@ -774,6 +774,10 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                     add_posix_error("POSIX010", first_non_space, first_non_space + first_tok.size(),
                                     "'local' is disabled in POSIX mode",
                                     "Use assignment without 'local' or redesign scope");
+                } else if (first_tok == "declare" || first_tok == "typeset") {
+                    add_posix_error("POSIX011", first_non_space, first_non_space + first_tok.size(),
+                                    "'" + first_tok + "' is disabled in POSIX mode",
+                                    "Use assignment, 'export', or 'readonly' as needed");
                 }
             }
         }

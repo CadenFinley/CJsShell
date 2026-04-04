@@ -56,8 +56,12 @@ class VariableManager {
     void set_local_variable(const std::string& name, const std::string& value);
     void set_environment_variable(const std::string& name, const std::string& value);
     bool assign_variable(const std::string& target, const std::string& value, bool append = false);
+    bool assign_global_variable(const std::string& target, const std::string& value,
+                                bool append = false);
     bool assign_array_literal(const std::string& name, const std::vector<std::string>& words,
                               bool append = false);
+    bool assign_global_array_literal(const std::string& name, const std::vector<std::string>& words,
+                                     bool append = false);
     bool is_local_variable(const std::string& name) const;
     bool unset_local_variable(const std::string& name);
     bool unset_variable(const std::string& target);

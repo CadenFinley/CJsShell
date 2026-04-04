@@ -133,11 +133,17 @@ run_expect_posix_code "process substitution input disabled" "cat <(echo hi)" "PO
 run_expect_posix_code "process substitution output disabled" "echo hi > >(cat)" "POSIX003"
 run_expect_posix_code "source builtin syntax disabled" "source '$tmp_source_file'" "POSIX009"
 run_expect_posix_code "local builtin syntax disabled" "local foo=1" "POSIX010"
+run_expect_posix_code "declare builtin syntax disabled" "declare foo=1" "POSIX011"
+run_expect_posix_code "typeset builtin syntax disabled" "typeset foo=1" "POSIX011"
 run_expect_fail "source builtin disabled at runtime" \
     "if true; then source '$tmp_source_file'; fi" \
     "'source' is disabled in POSIX mode"
 run_expect_fail "local builtin disabled at runtime" "f() { local foo=1; }; f" \
     "'local' is disabled in POSIX mode"
+run_expect_fail "declare builtin disabled at runtime" "if true; then declare foo=1; fi" \
+    "'declare' is disabled in POSIX mode"
+run_expect_fail "typeset builtin disabled at runtime" "if true; then typeset foo=1; fi" \
+    "'typeset' is disabled in POSIX mode"
 run_expect_literal "dot builtin allowed" ". '$tmp_source_file'" "from source"
 
 run_expect_literal "brace expansion stays literal" "echo {1..3}" "{1..3}"

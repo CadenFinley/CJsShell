@@ -386,6 +386,118 @@ bool read_option_consumes_argument(const std::string& option) {
     }
 }
 
+bool declaration_option_contains(const std::string& option_token, char target_option) {
+    if (option_token.size() < 2 || (option_token[0] != '-' && option_token[0] != '+')) {
+        return false;
+    }
+    return option_token.find(target_option, 1) != std::string::npos;
+}
+
+bool is_declaration_command(const std::string& command_name) {
+    return command_name == "export" || command_name == "local" || command_name == "declare" ||
+           command_name == "typeset" || command_name == "readonly";
+}
+
+void collect_declaration_definitions(const std::vector<TokenInfo>& tokens,
+                                     const std::string& original_line, size_t display_line,
+                                     std::map<std::string, std::vector<size_t>>& defined_vars) {
+    size_t idx = 0;
+    while (idx < tokens.size()) {
+        const auto& token = tokens[idx];
+        if (token.text.empty()) {
+            ++idx;
+            continue;
+        }
+
+        if (is_command_separator_token(token.text)) {
+            ++idx;
+            continue;
+        }
+
+        if (is_assignment_token(token.text)) {
+            ++idx;
+            continue;
+        }
+
+        if (!is_declaration_command(token.text)) {
+            ++idx;
+            while (idx < tokens.size() && !is_command_separator_token(tokens[idx].text)) {
+                ++idx;
+            }
+            continue;
+        }
+
+        const bool is_export = token.text == "export";
+        bool print_mode = false;
+        bool function_mode = false;
+
+        ++idx;
+        while (idx < tokens.size()) {
+            const std::string& option = tokens[idx].text;
+            if (is_command_separator_token(option)) {
+                break;
+            }
+
+            if (option == "--") {
+                ++idx;
+                break;
+            }
+
+            if (option.size() > 1 && (option[0] == '-' || option[0] == '+')) {
+                if (declaration_option_contains(option, 'p')) {
+                    print_mode = true;
+                }
+                if (declaration_option_contains(option, 'f') ||
+                    declaration_option_contains(option, 'F')) {
+                    function_mode = true;
+                }
+                ++idx;
+                continue;
+            }
+
+            break;
+        }
+
+        while (idx < tokens.size()) {
+            const auto& operand = tokens[idx];
+            if (is_command_separator_token(operand.text)) {
+                break;
+            }
+
+            if (operand.text.empty()) {
+                ++idx;
+                continue;
+            }
+
+            if (is_export && !operand.text.empty() && operand.text[0] == '-') {
+                ++idx;
+                continue;
+            }
+
+            if (print_mode || function_mode) {
+                ++idx;
+                continue;
+            }
+
+            if (operand.text == "(" || operand.text == ")") {
+                ++idx;
+                continue;
+            }
+
+            std::string declared_name = is_assignment_token(operand.text)
+                                            ? normalize_assignment_identifier(operand.text)
+                                            : extract_identifier_from_token(operand.text);
+
+            if (!declared_name.empty() && is_valid_identifier(declared_name)) {
+                defined_vars[declared_name].push_back(
+                    adjust_display_line(original_line, display_line, operand.start));
+            }
+
+            ++idx;
+        }
+    }
+}
+
 void collect_read_variable_definitions(const std::vector<TokenInfo>& tokens,
                                        const std::string& original_line, size_t display_line,
                                        std::map<std::string, std::vector<size_t>>& defined_vars) {
@@ -467,55 +579,10 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
         }
 
         {
-            auto export_tokens =
+            auto declaration_tokens =
                 tokenize_shell_segment(line_without_comments, 0, line_without_comments.size());
-            bool command_started = false;
-
-            for (size_t i = 0; i < export_tokens.size(); ++i) {
-                const auto& token = export_tokens[i];
-                if (token.text.empty()) {
-                    continue;
-                }
-
-                if (is_command_separator_token(token.text)) {
-                    command_started = false;
-                    continue;
-                }
-
-                if (!command_started && is_assignment_token(token.text)) {
-                    continue;
-                }
-
-                if (!command_started && token.text == "export") {
-                    for (size_t j = i + 1; j < export_tokens.size(); ++j) {
-                        const auto& arg = export_tokens[j];
-                        if (arg.text.empty()) {
-                            continue;
-                        }
-                        if (is_command_separator_token(arg.text)) {
-                            break;
-                        }
-                        if (!arg.text.empty() && arg.text[0] == '-') {
-                            continue;
-                        }
-
-                        if (arg.text.find('=') != std::string::npos &&
-                            !is_assignment_token(arg.text)) {
-                            continue;
-                        }
-
-                        std::string exported_name = is_assignment_token(arg.text)
-                                                        ? normalize_assignment_identifier(arg.text)
-                                                        : arg.text;
-                        if (!exported_name.empty() && is_valid_identifier(exported_name)) {
-                            defined_vars[exported_name].push_back(
-                                adjust_display_line(original_line, display_line, arg.start));
-                        }
-                    }
-                }
-
-                command_started = true;
-            }
+            collect_declaration_definitions(declaration_tokens, original_line, display_line,
+                                            defined_vars);
         }
 
         detect_keyword_assignments(line_without_comments, trimmed_line, original_line, display_line,
