@@ -22,6 +22,7 @@
 ## Upcoming Features/ Want to implement Features
 - At the moment history is handled entirely transiently. Reads and writes are done at instance and immeadiatly close the file after. What this allows is history to be transient between all cjsh instances. This is good, but I know people would like to have a way to disable this so that history is read once on shell startup and saved in memory and then written back to the file on shell exit. This would be a pretty involved change, but nonetheless a great one to implement.
 - Full kitty pkeyboard protocol support
+- Temporary command-prefix array assignments are not bash-identical yet (`arr[0]=x cmd` style). Implementing this would bring command-prefix behavior closer to full Bash parity.
 
 ## Good First issues
 - A lot of cjsh needs some heavy refactoring and cleanup. This is a great oportunity to learn the codebase and make some signifigant contributions. Namely the parser and interpreter modules are the main areas on intrest. These are greate areas to test as they are heavily tested and changes would be easy to verify as they would likely cause test failures if not done correctly.
