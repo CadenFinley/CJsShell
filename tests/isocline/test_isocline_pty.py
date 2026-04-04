@@ -39,6 +39,7 @@ RESULT_RE = re.compile(r"\[IC_RESULT_BEGIN\](.*?)\[IC_RESULT_END\]", re.S)
 ANSI_CSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 ANSI_OSC_RE = re.compile(r"\x1b\].*?(?:\x07|\x1b\\)", re.S)
 PROMPT_GUARD_RE = re.compile(r"[%#][ ]+pty> ")
+PTY_CASE_COUNT = 0
 
 
 def normalize_terminal_output(text: str) -> str:
@@ -105,6 +106,9 @@ def run_case(
     timeout_s: float = 5.0,
     capture_output: bool = False,
 ) -> str | tuple[str, str]:
+    global PTY_CASE_COUNT
+    PTY_CASE_COUNT += 1
+
     pid, fd = pty.fork()
     if pid == 0:
         os.execv(binary, [binary, scenario])
@@ -173,6 +177,9 @@ def run_case_timed(
     step_delay_s: float = 0.25,
     poll_interval_s: float = 0.01,
 ) -> str:
+    global PTY_CASE_COUNT
+    PTY_CASE_COUNT += 1
+
     pid, fd = pty.fork()
     if pid == 0:
         os.execv(binary, [binary, scenario])
@@ -737,7 +744,7 @@ def main() -> int:
     for scenario, expect_marker in prompt_guard_expectations:
         assert_prompt_guard_case(binary, scenario, expect_marker)
 
-    print("All PTY isocline integration tests passed")
+    print(f"All {PTY_CASE_COUNT} PTY isocline integration tests passed")
     return 0
 
 
