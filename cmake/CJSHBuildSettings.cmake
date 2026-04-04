@@ -82,12 +82,124 @@ function(cjsh_apply_build_profile)
                 "$<$<CONFIG:Debug>:-fsanitize=address>"
         )
 
+        if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU" AND CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+            set(
+                _cjsh_non_debug_c_opts
+                -ffunction-sections
+                -fdata-sections
+                -fomit-frame-pointer
+                -fmerge-all-constants
+                -fvisibility=hidden
+                -U_FORTIFY_SOURCE
+                -flto
+            )
+            foreach(_cjsh_opt IN LISTS _cjsh_non_debug_c_opts)
+                target_compile_options(
+                    ${CJSH_PROFILE_TARGET}
+                    INTERFACE
+                        "$<$<AND:$<NOT:$<CONFIG:Debug>>,$<COMPILE_LANGUAGE:C>>:${_cjsh_opt}>"
+                )
+            endforeach()
+
+            set(
+                _cjsh_non_debug_cxx_opts
+                -ffunction-sections
+                -fdata-sections
+                -fomit-frame-pointer
+                -fmerge-all-constants
+                -fno-rtti
+                -fvisibility=hidden
+                -fvisibility-inlines-hidden
+                -U_FORTIFY_SOURCE
+                -flto
+            )
+            foreach(_cjsh_opt IN LISTS _cjsh_non_debug_cxx_opts)
+                target_compile_options(
+                    ${CJSH_PROFILE_TARGET}
+                    INTERFACE
+                        "$<$<AND:$<NOT:$<CONFIG:Debug>>,$<COMPILE_LANGUAGE:CXX>>:${_cjsh_opt}>"
+                )
+            endforeach()
+
+            target_link_options(
+                ${CJSH_PROFILE_TARGET}
+                INTERFACE
+                    "$<$<NOT:$<CONFIG:Debug>>:-flto>"
+            )
+
+            if(APPLE)
+                target_link_options(
+                    ${CJSH_PROFILE_TARGET}
+                    INTERFACE
+                        "$<$<NOT:$<CONFIG:Debug>>:-Wl,-dead_strip>"
+                        "$<$<NOT:$<CONFIG:Debug>>:-Wl,-dead_strip_dylibs>"
+                )
+            elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+                target_link_options(
+                    ${CJSH_PROFILE_TARGET}
+                    INTERFACE
+                        "$<$<NOT:$<CONFIG:Debug>>:-Wl,--gc-sections>"
+                        "$<$<NOT:$<CONFIG:Debug>>:-Wl,--as-needed>"
+                )
+            endif()
+        endif()
+
         if(CJSH_PROFILE_MINIMAL_BUILD)
             target_compile_options(
                 ${CJSH_PROFILE_TARGET}
                 INTERFACE
                     "$<$<NOT:$<CONFIG:Debug>>:-Oz>"
             )
+
+            if(CMAKE_C_COMPILER_ID MATCHES "Clang|GNU" AND CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+                set(
+                    _cjsh_minimal_c_opts
+                    -fno-unwind-tables
+                    -fno-asynchronous-unwind-tables
+                )
+                foreach(_cjsh_opt IN LISTS _cjsh_minimal_c_opts)
+                    target_compile_options(
+                        ${CJSH_PROFILE_TARGET}
+                        INTERFACE
+                            "$<$<AND:$<NOT:$<CONFIG:Debug>>,$<COMPILE_LANGUAGE:C>>:${_cjsh_opt}>"
+                    )
+                endforeach()
+
+                set(
+                    _cjsh_minimal_cxx_opts
+                    -fno-unwind-tables
+                    -fno-asynchronous-unwind-tables
+                    -ftemplate-depth=64
+                    -fno-threadsafe-statics
+                )
+                foreach(_cjsh_opt IN LISTS _cjsh_minimal_cxx_opts)
+                    target_compile_options(
+                        ${CJSH_PROFILE_TARGET}
+                        INTERFACE
+                            "$<$<AND:$<NOT:$<CONFIG:Debug>>,$<COMPILE_LANGUAGE:CXX>>:${_cjsh_opt}>"
+                    )
+                endforeach()
+
+                if(APPLE)
+                    target_link_options(
+                        ${CJSH_PROFILE_TARGET}
+                        INTERFACE
+                            "$<$<NOT:$<CONFIG:Debug>>:-Wl,-no_compact_unwind>"
+                            "$<$<NOT:$<CONFIG:Debug>>:-Wl,-no_function_starts>"
+                    )
+                elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+                    target_link_options(
+                        ${CJSH_PROFILE_TARGET}
+                        INTERFACE
+                            "$<$<NOT:$<CONFIG:Debug>>:-Wl,--strip-all>"
+                            "$<$<NOT:$<CONFIG:Debug>>:-Wl,--discard-all>"
+                            "$<$<NOT:$<CONFIG:Debug>>:-Wl,--no-undefined>"
+                            "$<$<NOT:$<CONFIG:Debug>>:-Wl,--compress-debug-sections=zlib>"
+                            "$<$<NOT:$<CONFIG:Debug>>:-Wl,-O2>"
+                            "$<$<NOT:$<CONFIG:Debug>>:-Wl,--hash-style=gnu>"
+                    )
+                endif()
+            endif()
         else()
             target_compile_options(
                 ${CJSH_PROFILE_TARGET}
@@ -109,9 +221,46 @@ function(cjsh_enable_binary_stripping target_name)
         return()
     endif()
 
+    find_program(_cjsh_strip_tool strip)
+    if(NOT _cjsh_strip_tool)
+        message(WARNING "strip tool not found; CJSH_STRIP_BINARY option will be ignored")
+        return()
+    endif()
+
     if(APPLE)
-        target_link_options(${target_name} PRIVATE "$<$<NOT:$<CONFIG:Debug>>:-Wl,-S>")
+        set(_cjsh_strip_flags -x)
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        set(_cjsh_strip_flags --strip-unneeded)
     else()
-        target_link_options(${target_name} PRIVATE "$<$<NOT:$<CONFIG:Debug>>:-s>")
+        set(_cjsh_strip_flags)
+    endif()
+
+    if(CMAKE_CONFIGURATION_TYPES)
+        set(_cjsh_strip_configs)
+        foreach(_cjsh_cfg IN LISTS CMAKE_CONFIGURATION_TYPES)
+            if(NOT _cjsh_cfg STREQUAL "Debug")
+                list(APPEND _cjsh_strip_configs ${_cjsh_cfg})
+            endif()
+        endforeach()
+        if(_cjsh_strip_configs)
+            add_custom_command(
+                TARGET ${target_name}
+                POST_BUILD
+                COMMAND ${_cjsh_strip_tool} ${_cjsh_strip_flags} $<TARGET_FILE:${target_name}>
+                COMMAND_EXPAND_LISTS
+                COMMENT "Stripping symbols from ${target_name}"
+                VERBATIM
+                CONFIGURATIONS ${_cjsh_strip_configs}
+            )
+        endif()
+    elseif(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+        add_custom_command(
+            TARGET ${target_name}
+            POST_BUILD
+            COMMAND ${_cjsh_strip_tool} ${_cjsh_strip_flags} $<TARGET_FILE:${target_name}>
+            COMMAND_EXPAND_LISTS
+            COMMENT "Stripping symbols from ${target_name}"
+            VERBATIM
+        )
     endif()
 endfunction()

@@ -37,4 +37,8 @@ target_link_libraries(cjsh PRIVATE cjsh_core)
 target_include_directories(cjsh PRIVATE ${CJSH_INCLUDE_DIRS})
 set_target_properties(cjsh PROPERTIES OUTPUT_NAME "cjsh")
 
+if(CJSH_STRIP_BINARY)
+    cjsh_enable_binary_stripping(cjsh)
+endif()
+
 install(TARGETS cjsh RUNTIME DESTINATION bin)

@@ -101,7 +101,3 @@ add_subdirectory(cjsh "${CMAKE_BINARY_DIR}/modules/cjsh")
 if(CJSH_BUILD_TESTS)
     add_subdirectory(tests "${CMAKE_BINARY_DIR}/modules/tests")
 endif()
-
-if(CJSH_STRIP_BINARY)
-    cjsh_enable_binary_stripping(cjsh)
-endif()
