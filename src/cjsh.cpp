@@ -101,12 +101,14 @@ void cleanup_resources() {
     // otherwise we do a full shutdown with traps and everything
     trap_manager_set_shell(g_shell.get());
 
+    // execute the cjshexit function if defined and if enabled
     if (ShellScriptInterpreter* interpreter = g_shell->get_shell_script_interpreter();
         interpreter != nullptr && !config::minimal_mode && !config::secure_mode &&
         !config::posix_mode && interpreter->has_function("cjshexit")) {
         interpreter->invoke_function({"cjshexit"});
     }
 
+    // execute exit trap and process logout file in and only if in login mode
     trap_manager_execute_exit_trap();
     if (config::login_mode) {
         cjsh_filesystem::process_logout_file();
