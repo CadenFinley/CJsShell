@@ -129,7 +129,7 @@ def run_case(
             except BlockingIOError:
                 pass
             except OSError:
-                break
+                pass
 
             if not sent and b"pty> " in output:
                 os.write(fd, key_bytes)
@@ -155,6 +155,10 @@ def run_case(
 
             time.sleep(0.01)
     finally:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
         try:
             os.kill(pid, signal.SIGKILL)
         except OSError:
@@ -210,7 +214,7 @@ def run_case_timed(
             except BlockingIOError:
                 pass
             except OSError:
-                break
+                pass
 
             waited_pid, status = os.waitpid(pid, os.WNOHANG)
             if waited_pid == pid:
@@ -229,6 +233,10 @@ def run_case_timed(
 
             time.sleep(poll_interval_s)
     finally:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
         try:
             os.kill(pid, signal.SIGKILL)
         except OSError:
