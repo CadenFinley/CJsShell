@@ -38,9 +38,19 @@ Any non tagged releases or commits do not have the promise of not containing non
 To build from source:
 ```bash
 git clone https://github.com/CadenFinley/CJsShell && cd CJsShell
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --config Release -j$(nproc)
+cmake --preset release
+cmake --build --preset release --parallel
 ```
+
+Available configure presets:
+
+- `release` (optimized default)
+- `debug` (ASan + debug symbols)
+- `minimal` (size-focused profile)
+- `relwithdebinfo`
+- `minsizerel`
+
+You can still use direct CMake configure flags (`-DCMAKE_BUILD_TYPE=...`, `-DCJSH_MINIMAL_BUILD=ON`, etc.) if you prefer a custom build directory.
    
 # Scripting Compatibility & Testing
 

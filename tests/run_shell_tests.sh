@@ -33,7 +33,15 @@ if [ -n "$1" ]; then
     CJSH_CANDIDATE="$1"
     shift
 else
-    CJSH_CANDIDATE="${CJSH:-$SCRIPT_DIR/../build/cjsh}"
+    if [ -n "$CJSH" ]; then
+        CJSH_CANDIDATE="$CJSH"
+    elif [ -x "$SCRIPT_DIR/../build/cjsh" ]; then
+        CJSH_CANDIDATE="$SCRIPT_DIR/../build/cjsh"
+    elif [ -x "$SCRIPT_DIR/../build/release/cjsh" ]; then
+        CJSH_CANDIDATE="$SCRIPT_DIR/../build/release/cjsh"
+    else
+        CJSH_CANDIDATE="$SCRIPT_DIR/../build/cjsh"
+    fi
 fi
 
 if [ "${CJSH_CANDIDATE#/}" = "$CJSH_CANDIDATE" ]; then
@@ -45,13 +53,37 @@ CJSH_BASENAME=$(basename "$CJSH_CANDIDATE")
 CJSH="$CJSH_DIR/$CJSH_BASENAME"
 export CJSH
 SHELL_TESTS_DIR="$SCRIPT_DIR/shell"
-DEFAULT_ISOCLINE_TEST_BINARY="$SCRIPT_DIR/../build/isocline_behavior_tests"
+if [ -x "$CJSH_DIR/isocline_behavior_tests" ]; then
+    DEFAULT_ISOCLINE_TEST_BINARY="$CJSH_DIR/isocline_behavior_tests"
+elif [ -x "$SCRIPT_DIR/../build/isocline_behavior_tests" ]; then
+    DEFAULT_ISOCLINE_TEST_BINARY="$SCRIPT_DIR/../build/isocline_behavior_tests"
+else
+    DEFAULT_ISOCLINE_TEST_BINARY="$SCRIPT_DIR/../build/release/isocline_behavior_tests"
+fi
 ISOCLINE_TEST_BINARY="${ISOCLINE_TEST_BINARY:-$DEFAULT_ISOCLINE_TEST_BINARY}"
-DEFAULT_COMPLETION_TEST_BINARY="$SCRIPT_DIR/../build/completion_tests"
+if [ -x "$CJSH_DIR/completion_tests" ]; then
+    DEFAULT_COMPLETION_TEST_BINARY="$CJSH_DIR/completion_tests"
+elif [ -x "$SCRIPT_DIR/../build/completion_tests" ]; then
+    DEFAULT_COMPLETION_TEST_BINARY="$SCRIPT_DIR/../build/completion_tests"
+else
+    DEFAULT_COMPLETION_TEST_BINARY="$SCRIPT_DIR/../build/release/completion_tests"
+fi
 COMPLETION_TEST_BINARY="${COMPLETION_TEST_BINARY:-$DEFAULT_COMPLETION_TEST_BINARY}"
-DEFAULT_SYNTAX_HIGHLIGHTING_TEST_BINARY="$SCRIPT_DIR/../build/syntax_highlighting_tests"
+if [ -x "$CJSH_DIR/syntax_highlighting_tests" ]; then
+    DEFAULT_SYNTAX_HIGHLIGHTING_TEST_BINARY="$CJSH_DIR/syntax_highlighting_tests"
+elif [ -x "$SCRIPT_DIR/../build/syntax_highlighting_tests" ]; then
+    DEFAULT_SYNTAX_HIGHLIGHTING_TEST_BINARY="$SCRIPT_DIR/../build/syntax_highlighting_tests"
+else
+    DEFAULT_SYNTAX_HIGHLIGHTING_TEST_BINARY="$SCRIPT_DIR/../build/release/syntax_highlighting_tests"
+fi
 SYNTAX_HIGHLIGHTING_TEST_BINARY="${SYNTAX_HIGHLIGHTING_TEST_BINARY:-$DEFAULT_SYNTAX_HIGHLIGHTING_TEST_BINARY}"
-DEFAULT_ISOCLINE_PTY_DRIVER_BINARY="$SCRIPT_DIR/../build/isocline_pty_driver"
+if [ -x "$CJSH_DIR/isocline_pty_driver" ]; then
+    DEFAULT_ISOCLINE_PTY_DRIVER_BINARY="$CJSH_DIR/isocline_pty_driver"
+elif [ -x "$SCRIPT_DIR/../build/isocline_pty_driver" ]; then
+    DEFAULT_ISOCLINE_PTY_DRIVER_BINARY="$SCRIPT_DIR/../build/isocline_pty_driver"
+else
+    DEFAULT_ISOCLINE_PTY_DRIVER_BINARY="$SCRIPT_DIR/../build/release/isocline_pty_driver"
+fi
 ISOCLINE_PTY_DRIVER_BINARY="${ISOCLINE_PTY_DRIVER_BINARY:-$DEFAULT_ISOCLINE_PTY_DRIVER_BINARY}"
 ISOCLINE_PTY_TEST_SCRIPT="$SCRIPT_DIR/isocline/test_isocline_pty.py"
 BUILD_SYSTEM_TEST_SCRIPT="$SCRIPT_DIR/build_system/test_build_system.py"

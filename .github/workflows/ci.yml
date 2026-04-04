@@ -1,0 +1,63 @@
+name: CI Build and Test
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux GCC Release
+            os: ubuntu-latest
+            preset: ci-linux-gcc-release
+            test_preset: ci-linux-gcc-release
+            run_shell_suite: true
+          - name: Linux Clang Debug
+            os: ubuntu-latest
+            preset: ci-linux-clang-debug
+            test_preset: ci-linux-clang-debug
+            run_shell_suite: false
+          - name: macOS Clang Release
+            os: macos-latest
+            preset: ci-macos-clang-release
+            test_preset: ci-macos-clang-release
+            run_shell_suite: false
+          - name: Linux Minimal Preset
+            os: ubuntu-latest
+            preset: minimal
+            test_preset: minimal
+            run_shell_suite: false
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Configure CMake
+        run: cmake --preset ${{ matrix.preset }}
+
+      - name: Build
+        run: cmake --build --preset ${{ matrix.preset }} --parallel
+
+      - name: Run CTest
+        run: ctest --preset ${{ matrix.test_preset }}
+
+      - name: Run shell integration suite
+        if: matrix.run_shell_suite
+        run: ./tests/run_shell_tests.sh "build/${{ matrix.preset }}/cjsh"
