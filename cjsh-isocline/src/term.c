@@ -570,10 +570,12 @@ ic_private bool term_enable_color(term_t* term, bool enable) {
 ic_private void term_free(term_t* term) {
     if (term == NULL)
         return;
+    alloc_t* mem = term->mem;
     term_flush(term);
     term_end_raw(term, true);
     sbuf_free(term->buf);
     term->buf = NULL;
+    mem_free(mem, term);
 }
 
 //-------------------------------------------------------------

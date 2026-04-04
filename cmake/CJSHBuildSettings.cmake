@@ -91,7 +91,6 @@ function(cjsh_apply_build_profile)
                 -fmerge-all-constants
                 -fvisibility=hidden
                 -U_FORTIFY_SOURCE
-                -flto
             )
             foreach(_cjsh_opt IN LISTS _cjsh_non_debug_c_opts)
                 target_compile_options(
@@ -111,7 +110,6 @@ function(cjsh_apply_build_profile)
                 -fvisibility=hidden
                 -fvisibility-inlines-hidden
                 -U_FORTIFY_SOURCE
-                -flto
             )
             foreach(_cjsh_opt IN LISTS _cjsh_non_debug_cxx_opts)
                 target_compile_options(
@@ -120,12 +118,6 @@ function(cjsh_apply_build_profile)
                         "$<$<AND:$<NOT:$<CONFIG:Debug>>,$<COMPILE_LANGUAGE:CXX>>:${_cjsh_opt}>"
                 )
             endforeach()
-
-            target_link_options(
-                ${CJSH_PROFILE_TARGET}
-                INTERFACE
-                    "$<$<NOT:$<CONFIG:Debug>>:-flto>"
-            )
 
             if(APPLE)
                 target_link_options(
