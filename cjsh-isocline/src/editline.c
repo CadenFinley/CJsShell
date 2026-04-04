@@ -154,6 +154,7 @@ static void edit_cursor_row_up_with_history_spell(ic_env_t* env, editor_t* eb);
 static void edit_cursor_row_down(ic_env_t* env, editor_t* eb);
 static void edit_cursor_line_start(ic_env_t* env, editor_t* eb);
 static void edit_cursor_line_end(ic_env_t* env, editor_t* eb);
+static void edit_cursor_ctrl_e(ic_env_t* env, editor_t* eb);
 static void edit_cursor_prev_word(ic_env_t* env, editor_t* eb);
 static void edit_cursor_next_word(ic_env_t* env, editor_t* eb);
 static void edit_cursor_to_start(ic_env_t* env, editor_t* eb);
@@ -225,7 +226,11 @@ static bool key_action_execute(ic_env_t* env, editor_t* eb, ic_key_action_t acti
             edit_cursor_line_start(env, eb);
             return true;
         case IC_KEY_ACTION_CURSOR_LINE_END:
-            edit_cursor_line_end(env, eb);
+            if (key == KEY_CTRL_E) {
+                edit_cursor_ctrl_e(env, eb);
+            } else {
+                edit_cursor_line_end(env, eb);
+            }
             return true;
         case IC_KEY_ACTION_CURSOR_WORD_PREV:
             edit_cursor_prev_word(env, eb);
@@ -1765,6 +1770,29 @@ static void edit_cursor_line_end(ic_env_t* env, editor_t* eb) {
     edit_refresh(env, eb);
 }
 
+static void edit_cursor_ctrl_e(ic_env_t* env, editor_t* eb) {
+    ssize_t end = sbuf_find_line_end(eb->input, eb->pos);
+    if (end < 0)
+        return;
+
+    if (eb->pos != end) {
+        eb->pos = end;
+        edit_refresh(env, eb);
+        return;
+    }
+
+    ssize_t next = sbuf_next(eb->input, end, NULL);
+    if (next <= 0)
+        return;
+
+    ssize_t next_end = sbuf_find_line_end(eb->input, end + next);
+    if (next_end < 0)
+        return;
+
+    eb->pos = next_end;
+    edit_refresh(env, eb);
+}
+
 static void edit_cursor_line_start(ic_env_t* env, editor_t* eb) {
     ssize_t start = sbuf_find_line_start(eb->input, eb->pos);
     if (start < 0)
@@ -2956,8 +2984,10 @@ edit_loop_entry:
                         edit_cursor_line_start(env, &eb);
                         break;
                     case KEY_END:
-                    case KEY_CTRL_E:
                         edit_cursor_line_end(env, &eb);
+                        break;
+                    case KEY_CTRL_E:
+                        edit_cursor_ctrl_e(env, &eb);
                         break;
                     case KEY_CTRL_LEFT:
                     case WITH_SHIFT(KEY_LEFT):
