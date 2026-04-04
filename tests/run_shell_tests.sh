@@ -311,6 +311,81 @@ sanitize_terminal_output() {
     '
 }
 
+report_skipped_suite() {
+    suite_name=$1
+    skip_reason=$2
+    printf "  %-50s ${YELLOW}SKIP${NC} (%s)\n" "$suite_name:" "$skip_reason"
+}
+
+run_external_suite() {
+    suite_name=$1
+    counts_parser=$2
+    zero_count_fallback=$3
+    shift 3
+
+    TOTAL_FILES=$((TOTAL_FILES + 1))
+    printf "  %-50s " "$suite_name:"
+
+    suite_output=$("$@" 2>&1)
+    suite_exit_code=$?
+    suite_output_clean=$(sanitize_terminal_output "$suite_output")
+
+    case "$counts_parser" in
+        cstyle)
+            suite_counts=$(parse_cstyle_test_counts "$suite_output_clean")
+            ;;
+        python)
+            suite_counts=$(parse_python_unittest_counts "$suite_output_clean" "$suite_exit_code")
+            ;;
+        *)
+            suite_counts="0 0 0"
+            ;;
+    esac
+
+    set -- $suite_counts
+    suite_total=$1
+    suite_passed=$2
+    suite_failed=$3
+
+    if [ "$suite_total" -eq 0 ] && [ "$suite_passed" -eq 0 ] && [ "$suite_failed" -eq 0 ] && [ "$zero_count_fallback" = "binary" ]; then
+        suite_total=1
+        if [ "$suite_exit_code" -eq 0 ]; then
+            suite_passed=1
+            suite_failed=0
+        else
+            suite_passed=0
+            suite_failed=1
+        fi
+    fi
+
+    add_individual_counts "$suite_total" "$suite_passed" "$suite_failed"
+
+    if [ "$suite_exit_code" -eq 0 ]; then
+        FILES_PASS=$((FILES_PASS + 1))
+        echo "${GREEN}PASS${NC} (${suite_passed}/${suite_total})"
+    else
+        FILES_FAIL=$((FILES_FAIL + 1))
+        echo "${RED}FAIL${NC} (${suite_passed}/${suite_total}, ${suite_failed} failed)"
+        if [ -n "$suite_output_clean" ]; then
+            printf "%s\n" "$suite_output_clean" | while IFS= read -r line; do
+                echo "    ${RED}$line${NC}"
+            done
+        fi
+    fi
+
+    if printf "%s\n" "$suite_output_clean" | grep -q "WARNING"; then
+        WARNINGS=$((WARNINGS + 1))
+        warning_lines=$(printf "%s\n" "$suite_output_clean" | grep "WARNING")
+        if [ -n "$warning_lines" ]; then
+            printf "%s\n" "$warning_lines" | while IFS= read -r line; do
+                echo "    ${YELLOW}$line${NC}"
+            done
+        fi
+    fi
+
+    return "$suite_exit_code"
+}
+
 run_test() {
     test_name=$1
     test_file="$SHELL_TESTS_DIR/${test_name}.sh"
@@ -367,109 +442,46 @@ done
 
 echo ""
 if [ -x "$ISOCLINE_TEST_BINARY" ]; then
-    echo "Running isocline behavior tests: $ISOCLINE_TEST_BINARY"
-    ISOCLINE_TEST_OUTPUT=$("$ISOCLINE_TEST_BINARY" 2>&1)
+    run_external_suite "test_isocline_behavior" "cstyle" "none" "$ISOCLINE_TEST_BINARY"
     ISOCLINE_TEST_RESULT=$?
-    ISOCLINE_TEST_OUTPUT_CLEAN=$(sanitize_terminal_output "$ISOCLINE_TEST_OUTPUT")
-    printf "%s\n" "$ISOCLINE_TEST_OUTPUT_CLEAN"
-    ISOCLINE_TEST_COUNTS=$(parse_cstyle_test_counts "$ISOCLINE_TEST_OUTPUT_CLEAN")
-    set -- $ISOCLINE_TEST_COUNTS
-    add_individual_counts "$1" "$2" "$3"
-    if [ $ISOCLINE_TEST_RESULT -eq 0 ]; then
-        echo "${GREEN}Isocline behavior tests passed${NC}"
-    else
-        echo "${RED}Isocline behavior tests failed${NC}"
-    fi
 else
-    echo "${YELLOW}Skipping isocline behavior tests${NC} (binary not found at $ISOCLINE_TEST_BINARY)"
+    report_skipped_suite "test_isocline_behavior" "binary not found at $ISOCLINE_TEST_BINARY"
 fi
 
 if [ -x "$COMPLETION_TEST_BINARY" ]; then
-    echo "Running completion tests: $COMPLETION_TEST_BINARY"
-    COMPLETION_TEST_OUTPUT=$("$COMPLETION_TEST_BINARY" 2>&1)
+    run_external_suite "test_completion" "cstyle" "none" "$COMPLETION_TEST_BINARY"
     COMPLETION_TEST_RESULT=$?
-    COMPLETION_TEST_OUTPUT_CLEAN=$(sanitize_terminal_output "$COMPLETION_TEST_OUTPUT")
-    printf "%s\n" "$COMPLETION_TEST_OUTPUT_CLEAN"
-    COMPLETION_TEST_COUNTS=$(parse_cstyle_test_counts "$COMPLETION_TEST_OUTPUT_CLEAN")
-    set -- $COMPLETION_TEST_COUNTS
-    add_individual_counts "$1" "$2" "$3"
-    if [ $COMPLETION_TEST_RESULT -eq 0 ]; then
-        echo "${GREEN}Completion tests passed${NC}"
-    else
-        echo "${RED}Completion tests failed${NC}"
-    fi
 else
-    echo "${YELLOW}Skipping completion tests${NC} (binary not found at $COMPLETION_TEST_BINARY)"
+    report_skipped_suite "test_completion" "binary not found at $COMPLETION_TEST_BINARY"
 fi
 
 if [ -x "$SYNTAX_HIGHLIGHTING_TEST_BINARY" ]; then
-    echo "Running syntax highlighting tests: $SYNTAX_HIGHLIGHTING_TEST_BINARY"
-    SYNTAX_HIGHLIGHTING_TEST_OUTPUT=$("$SYNTAX_HIGHLIGHTING_TEST_BINARY" 2>&1)
+    run_external_suite "test_syntax_highlighting" "cstyle" "none" "$SYNTAX_HIGHLIGHTING_TEST_BINARY"
     SYNTAX_HIGHLIGHTING_TEST_RESULT=$?
-    SYNTAX_HIGHLIGHTING_TEST_OUTPUT_CLEAN=$(sanitize_terminal_output "$SYNTAX_HIGHLIGHTING_TEST_OUTPUT")
-    printf "%s\n" "$SYNTAX_HIGHLIGHTING_TEST_OUTPUT_CLEAN"
-    SYNTAX_HIGHLIGHTING_TEST_COUNTS=$(parse_cstyle_test_counts "$SYNTAX_HIGHLIGHTING_TEST_OUTPUT_CLEAN")
-    set -- $SYNTAX_HIGHLIGHTING_TEST_COUNTS
-    add_individual_counts "$1" "$2" "$3"
-    if [ $SYNTAX_HIGHLIGHTING_TEST_RESULT -eq 0 ]; then
-        echo "${GREEN}Syntax highlighting tests passed${NC}"
-    else
-        echo "${RED}Syntax highlighting tests failed${NC}"
-    fi
 else
-    echo "${YELLOW}Skipping syntax highlighting tests${NC} (binary not found at $SYNTAX_HIGHLIGHTING_TEST_BINARY)"
+    report_skipped_suite "test_syntax_highlighting" "binary not found at $SYNTAX_HIGHLIGHTING_TEST_BINARY"
 fi
 
 if [ -x "$ISOCLINE_PTY_DRIVER_BINARY" ] && [ -f "$ISOCLINE_PTY_TEST_SCRIPT" ]; then
     if command -v python3 >/dev/null 2>&1; then
-        echo "Running isocline PTY integration tests: $ISOCLINE_PTY_TEST_SCRIPT"
-        ISOCLINE_PTY_TEST_OUTPUT=$(python3 "$ISOCLINE_PTY_TEST_SCRIPT" "$ISOCLINE_PTY_DRIVER_BINARY" 2>&1)
+        run_external_suite "test_isocline_pty_integration" "cstyle" "binary" python3 "$ISOCLINE_PTY_TEST_SCRIPT" "$ISOCLINE_PTY_DRIVER_BINARY"
         ISOCLINE_PTY_TEST_RESULT=$?
-        ISOCLINE_PTY_TEST_OUTPUT_CLEAN=$(sanitize_terminal_output "$ISOCLINE_PTY_TEST_OUTPUT")
-        printf "%s\n" "$ISOCLINE_PTY_TEST_OUTPUT_CLEAN"
-        ISOCLINE_PTY_COUNTS=$(parse_cstyle_test_counts "$ISOCLINE_PTY_TEST_OUTPUT_CLEAN")
-        set -- $ISOCLINE_PTY_COUNTS
-        if [ "$1" -eq 0 ] && [ "$2" -eq 0 ] && [ "$3" -eq 0 ]; then
-            if [ $ISOCLINE_PTY_TEST_RESULT -eq 0 ]; then
-                add_individual_counts 1 1 0
-            else
-                add_individual_counts 1 0 1
-            fi
-        else
-            add_individual_counts "$1" "$2" "$3"
-        fi
-        if [ $ISOCLINE_PTY_TEST_RESULT -eq 0 ]; then
-            echo "${GREEN}Isocline PTY integration tests passed${NC}"
-        else
-            echo "${RED}Isocline PTY integration tests failed${NC}"
-        fi
     else
-        echo "${YELLOW}Skipping isocline PTY integration tests${NC} (python3 not found)"
+        report_skipped_suite "test_isocline_pty_integration" "python3 not found"
     fi
 else
-    echo "${YELLOW}Skipping isocline PTY integration tests${NC} (driver not found at $ISOCLINE_PTY_DRIVER_BINARY)"
+    report_skipped_suite "test_isocline_pty_integration" "driver not found at $ISOCLINE_PTY_DRIVER_BINARY"
 fi
 
 if [ -f "$BUILD_SYSTEM_TEST_SCRIPT" ]; then
     if command -v python3 >/dev/null 2>&1 && command -v cmake >/dev/null 2>&1; then
-        echo "Running build system configuration tests: $BUILD_SYSTEM_TEST_SCRIPT"
-        BUILD_SYSTEM_TEST_OUTPUT=$(python3 "$BUILD_SYSTEM_TEST_SCRIPT" "$SCRIPT_DIR/.." 2>&1)
+        run_external_suite "test_build_system_configuration" "python" "none" python3 "$BUILD_SYSTEM_TEST_SCRIPT" "$SCRIPT_DIR/.."
         BUILD_SYSTEM_TEST_RESULT=$?
-        BUILD_SYSTEM_TEST_OUTPUT_CLEAN=$(sanitize_terminal_output "$BUILD_SYSTEM_TEST_OUTPUT")
-        printf "%s\n" "$BUILD_SYSTEM_TEST_OUTPUT_CLEAN"
-        BUILD_SYSTEM_TEST_COUNTS=$(parse_python_unittest_counts "$BUILD_SYSTEM_TEST_OUTPUT_CLEAN" "$BUILD_SYSTEM_TEST_RESULT")
-        set -- $BUILD_SYSTEM_TEST_COUNTS
-        add_individual_counts "$1" "$2" "$3"
-        if [ $BUILD_SYSTEM_TEST_RESULT -eq 0 ]; then
-            echo "${GREEN}Build system configuration tests passed${NC}"
-        else
-            echo "${RED}Build system configuration tests failed${NC}"
-        fi
     else
-        echo "${YELLOW}Skipping build system configuration tests${NC} (python3 or cmake not found)"
+        report_skipped_suite "test_build_system_configuration" "python3 or cmake not found"
     fi
 else
-    echo "${YELLOW}Skipping build system configuration tests${NC} (script not found at $BUILD_SYSTEM_TEST_SCRIPT)"
+    report_skipped_suite "test_build_system_configuration" "script not found at $BUILD_SYSTEM_TEST_SCRIPT"
 fi
 
 OVERALL_STATUS=0
