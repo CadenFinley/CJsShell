@@ -129,24 +129,6 @@ bool path_is_directory(const std::filesystem::path& path) {
     return std::filesystem::is_directory(path, ec);
 }
 
-bool try_make_directory_iterator(const std::filesystem::path& path,
-                                 std::filesystem::directory_iterator& dir_it) {
-    std::error_code dir_ec;
-    if (!std::filesystem::is_directory(path, dir_ec)) {
-        return false;
-    }
-
-    std::error_code iter_ec;
-    std::filesystem::directory_iterator iter(
-        path, std::filesystem::directory_options::skip_permission_denied, iter_ec);
-    if (iter_ec) {
-        return false;
-    }
-
-    dir_it = std::move(iter);
-    return true;
-}
-
 void append_match(const std::filesystem::path& path, bool absolute,
                   std::vector<std::string>& matches) {
     std::string formatted = format_match_path(path, absolute);
@@ -176,8 +158,14 @@ void globstar_recurse(const ParsedGlobPattern& pattern, size_t index,
     if (component.is_globstar) {
         globstar_recurse(pattern, index + 1, current_path, matches);
 
-        std::filesystem::directory_iterator dir_it;
-        if (!try_make_directory_iterator(current_path, dir_it)) {
+        if (!path_is_directory(current_path)) {
+            return;
+        }
+
+        std::error_code iter_ec;
+        std::filesystem::directory_iterator dir_it(
+            current_path, std::filesystem::directory_options::skip_permission_denied, iter_ec);
+        if (iter_ec) {
             return;
         }
 
@@ -220,8 +208,14 @@ void globstar_recurse(const ParsedGlobPattern& pattern, size_t index,
         return;
     }
 
-    std::filesystem::directory_iterator dir_it;
-    if (!try_make_directory_iterator(current_path, dir_it)) {
+    if (!path_is_directory(current_path)) {
+        return;
+    }
+
+    std::error_code iter_ec;
+    std::filesystem::directory_iterator dir_it(
+        current_path, std::filesystem::directory_options::skip_permission_denied, iter_ec);
+    if (iter_ec) {
         return;
     }
 
