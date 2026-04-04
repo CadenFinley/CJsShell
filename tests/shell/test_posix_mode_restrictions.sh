@@ -1,3 +1,4 @@
+#!/usr/bin/env sh
 # test_posix_mode_restrictions.sh
 #
 # This file is part of cjsh, CJ's Shell
@@ -68,11 +69,26 @@ if [ ! -x "$SHELL_TO_TEST" ]; then
     exit 1
 fi
 
-tmp_source_file=$(mktemp)
-echo 'echo from source' > "$tmp_source_file"
+tmpdir=$(mktemp -d)
+if [ -z "$tmpdir" ] || [ ! -d "$tmpdir" ]; then
+    echo "Error: could not create temporary directory"
+    exit 1
+fi
+trap 'rm -rf "$tmpdir"' EXIT INT TERM
+
+tmp_source_file="$tmpdir/source_file.sh"
+printf 'echo from source\n' > "$tmp_source_file"
+
+tmp_glob_root="$tmpdir/glob_root"
+mkdir -p "$tmp_glob_root/a/b"
+: > "$tmp_glob_root/a/b/deep.txt"
 
 echo "Testing POSIX mode restrictions for: $SHELL_TO_TEST"
 echo "==================================================="
+
+run_expect_posix_code() {
+    run_expect_fail "$1" "$2" "$3"
+}
 
 run_expect_fail() {
     local description=$1
@@ -80,10 +96,10 @@ run_expect_fail() {
     local pattern=$3
 
     log_test "$description"
-    output=$($SHELL_TO_TEST --posix -c "$command" 2>&1)
+    output=$("$SHELL_TO_TEST" --posix -c "$command" 2>&1)
     status=$?
 
-    if [ $status -ne 0 ] && printf "%s" "$output" | grep -q "$pattern"; then
+    if [ "$status" -ne 0 ] && printf "%s" "$output" | grep -Fq -- "$pattern"; then
         pass
     else
         clean_output=$(printf "%s" "$output" | tr '\n' ' ')
@@ -97,7 +113,7 @@ run_expect_literal() {
     local expected=$3
 
     log_test "$description"
-    output=$($SHELL_TO_TEST --posix -c "$command" 2>/dev/null)
+    output=$("$SHELL_TO_TEST" --posix -c "$command" 2>/dev/null)
     if [ "$output" = "$expected" ]; then
         pass
     else
@@ -105,30 +121,74 @@ run_expect_literal() {
     fi
 }
 
-run_expect_fail "[[ forbidden" "[[ 1 == 1 ]]" "POSIX001"
-run_expect_fail "function keyword disabled" "function foo { :; }; foo" "POSIX002"
-run_expect_fail "array assignment disabled" "arr=(1 2)" "POSIX005"
-run_expect_fail "+= assignment disabled" "x=1; x+=2" "POSIX006"
-run_expect_fail "|& pipeline disabled" "echo hi |& cat" "POSIX007"
-run_expect_fail "&> redirection disabled" "echo hi &> '$tmpdir/out.txt'" "POSIX008"
-run_expect_fail "here-string disabled" "cat <<< hi" "POSIX004"
-run_expect_fail "process substitution disabled" "cat <(echo hi)" "POSIX003"
-run_expect_fail "source builtin disabled" "source '$tmp_source_file'" "disabled in POSIX mode"
-run_expect_fail "local builtin disabled" "local foo=1" "disabled in POSIX mode"
+run_expect_posix_code "[[ forbidden" "[[ 1 == 1 ]]" "POSIX001"
+run_expect_posix_code "function keyword disabled" "function foo { :; }; foo" "POSIX002"
+run_expect_posix_code "array assignment disabled" "arr=(1 2)" "POSIX005"
+run_expect_posix_code "+= assignment disabled" "x=1; x+=2" "POSIX006"
+run_expect_posix_code "|& pipeline disabled" "echo hi |& cat" "POSIX007"
+run_expect_posix_code "&> redirection disabled" "echo hi &> '$tmpdir/out.txt'" "POSIX008"
+run_expect_posix_code "&>> redirection disabled" "echo hi &>> '$tmpdir/out.txt'" "POSIX008"
+run_expect_posix_code "here-string disabled" "cat <<< hi" "POSIX004"
+run_expect_posix_code "process substitution input disabled" "cat <(echo hi)" "POSIX003"
+run_expect_posix_code "process substitution output disabled" "echo hi > >(cat)" "POSIX003"
+run_expect_posix_code "source builtin syntax disabled" "source '$tmp_source_file'" "POSIX009"
+run_expect_posix_code "local builtin syntax disabled" "local foo=1" "POSIX010"
+run_expect_fail "source builtin disabled at runtime" \
+    "if true; then source '$tmp_source_file'; fi" \
+    "'source' is disabled in POSIX mode"
+run_expect_fail "local builtin disabled at runtime" "f() { local foo=1; }; f" \
+    "'local' is disabled in POSIX mode"
 run_expect_literal "dot builtin allowed" ". '$tmp_source_file'" "from source"
 
 run_expect_literal "brace expansion stays literal" "echo {1..3}" "{1..3}"
 run_expect_literal "tilde stays literal" "HOME=/tmp/cjsh_posix_home; echo ~" "~"
 
-tmpdir=$(mktemp -d)
-trap 'rm -rf "$tmpdir" "$tmp_source_file"' EXIT
-
-log_test "globstar remains literal when disabled"
-glob_output=$($SHELL_TO_TEST --posix -c "cd '$tmpdir' && echo **" 2>/dev/null)
-if [ "$glob_output" = "**" ]; then
+log_test "POSIXLY_CORRECT forced to 1"
+posix_env_output=$(POSIXLY_CORRECT=0 "$SHELL_TO_TEST" --posix -c 'printf "%s" "$POSIXLY_CORRECT"' 2>/dev/null)
+if [ "$posix_env_output" = "1" ]; then
     pass
 else
-    fail "Expected literal '**', got '$glob_output'"
+    fail "Expected POSIXLY_CORRECT=1, got '$posix_env_output'"
+fi
+
+log_test "globstar remains literal even if enabled"
+glob_output=$("$SHELL_TO_TEST" --posix -c "cd '$tmp_glob_root' && set -o globstar && printf '%s' **/deep.txt" 2>/dev/null)
+if [ "$glob_output" = "**/deep.txt" ]; then
+    pass
+else
+    fail "Expected literal '**/deep.txt', got '$glob_output'"
+fi
+
+log_test "command_not_found_handler ignored in POSIX mode"
+handler_output=$("$SHELL_TO_TEST" --posix -c '
+command_not_found_handler() {
+    echo handler-ran
+    return 42
+}
+missing_posix_handler
+echo "status:$?"
+' 2>&1)
+if ! printf "%s" "$handler_output" | grep -Fq -- "handler-ran" &&
+   printf "%s" "$handler_output" | grep -Fq -- "command not found" &&
+   printf "%s" "$handler_output" | grep -Fq -- "status:127"; then
+    pass
+else
+    clean_output=$(printf "%s" "$handler_output" | tr '\n' ' ')
+    fail "Expected default command-not-found behavior, got '$clean_output'"
+fi
+
+log_test "cjshexit ignored in POSIX mode"
+cjshexit_output=$("$SHELL_TO_TEST" --posix -c '
+cjshexit() {
+    echo cjshexit-ran
+}
+true
+' 2>&1)
+if ! printf "%s" "$cjshexit_output" | grep -Fq -- "cjshexit-ran"; then
+    pass
+else
+    clean_output=$(printf "%s" "$cjshexit_output" | tr '\n' ' ')
+    fail "Expected cjshexit to be ignored, got '$clean_output'"
 fi
 
 echo "==================================================="
