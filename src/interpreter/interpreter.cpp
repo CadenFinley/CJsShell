@@ -148,6 +148,112 @@ std::optional<LogicalOperator> parse_logical_operator(std::string_view op) {
     return std::nullopt;
 }
 
+struct ParsedAssignmentToken {
+    std::string lhs;
+    std::string rhs;
+    bool append = false;
+};
+
+bool is_identifier_or_indexed_target(const std::string& lhs) {
+    if (is_valid_identifier(lhs)) {
+        return true;
+    }
+
+    size_t left_bracket = lhs.find('[');
+    if (left_bracket == std::string::npos || lhs.back() != ']') {
+        return false;
+    }
+
+    std::string name = lhs.substr(0, left_bracket);
+    if (!is_valid_identifier(name)) {
+        return false;
+    }
+
+    return (left_bracket + 2) < lhs.size();
+}
+
+bool parse_assignment_token(const std::string& token, ParsedAssignmentToken& parsed) {
+    std::string lhs;
+    std::string rhs;
+    if (!split_on_first_equals(token, lhs, rhs, true)) {
+        return false;
+    }
+
+    lhs = trim_whitespace(lhs);
+    if (lhs.empty()) {
+        return false;
+    }
+
+    bool append = false;
+    if (!lhs.empty() && lhs.back() == '+') {
+        append = true;
+        lhs.pop_back();
+    }
+
+    if (!is_identifier_or_indexed_target(lhs)) {
+        return false;
+    }
+
+    parsed.lhs = std::move(lhs);
+    parsed.rhs = std::move(rhs);
+    parsed.append = append;
+    return true;
+}
+
+std::string assignment_base_name(const std::string& lhs) {
+    size_t left_bracket = lhs.find('[');
+    if (left_bracket == std::string::npos) {
+        return lhs;
+    }
+    return lhs.substr(0, left_bracket);
+}
+
+bool parse_array_literal_assignment(const std::vector<std::string>& args, std::string& name,
+                                    std::vector<std::string>& words, bool& append) {
+    if (args.size() < 3) {
+        return false;
+    }
+
+    ParsedAssignmentToken parsed;
+    if (!parse_assignment_token(args[0], parsed) || !parsed.rhs.empty()) {
+        return false;
+    }
+
+    if (parsed.lhs.find('[') != std::string::npos) {
+        return false;
+    }
+
+    if (args[1] != "(") {
+        return false;
+    }
+
+    int depth = 0;
+    size_t closing_index = std::string::npos;
+    for (size_t i = 1; i < args.size(); ++i) {
+        if (args[i] == "(") {
+            ++depth;
+        } else if (args[i] == ")") {
+            --depth;
+            if (depth == 0) {
+                closing_index = i;
+                break;
+            }
+            if (depth < 0) {
+                return false;
+            }
+        }
+    }
+
+    if (depth != 0 || closing_index == std::string::npos || closing_index != args.size() - 1) {
+        return false;
+    }
+
+    name = parsed.lhs;
+    append = parsed.append;
+    words.assign(args.begin() + 2, args.end() - 1);
+    return true;
+}
+
 bool parse_arithmetic_command_form(std::string_view text, bool& negate_status,
                                    std::string& expression_out) {
     std::string trimmed = trim(std::string(text));
@@ -559,24 +665,70 @@ int ShellScriptInterpreter::invoke_function(const std::vector<std::string>& args
 }
 
 int ShellScriptInterpreter::handle_env_assignment(const std::vector<std::string>& expanded_args) {
-    std::string var_name;
-    std::string var_value;
-    if (shell_parser->is_env_assignment(expanded_args[0], var_name, var_value)) {
-        shell_parser->expand_env_vars(var_value);
+    if (expanded_args.empty()) {
+        return -1;
+    }
 
-        if (variable_manager.is_local_variable(var_name)) {
-            variable_manager.set_local_variable(var_name, var_value);
-        } else {
-            variable_manager.set_environment_variable(var_name, var_value);
-        }
-
+    auto assignment_success_status = [this]() {
         int status =
             pending_assignment_exit_status.value_or(last_substitution_exit_status.value_or(0));
         last_substitution_exit_status.reset();
         pending_assignment_exit_status.reset();
         return status;
+    };
+
+    auto clear_assignment_status = [this]() {
+        last_substitution_exit_status.reset();
+        pending_assignment_exit_status.reset();
+    };
+
+    std::string literal_name;
+    std::vector<std::string> literal_words;
+    bool literal_append = false;
+    if (parse_array_literal_assignment(expanded_args, literal_name, literal_words,
+                                       literal_append)) {
+        if (!readonly_manager_can_assign(literal_name, "assignment")) {
+            clear_assignment_status();
+            return 1;
+        }
+
+        if (!variable_manager.assign_array_literal(literal_name, literal_words, literal_append)) {
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         "assignment",
+                         "invalid array assignment for '" + literal_name + "'",
+                         {}});
+            clear_assignment_status();
+            return 1;
+        }
+
+        return assignment_success_status();
     }
-    return -1;
+
+    if (expanded_args.size() != 1) {
+        return -1;
+    }
+
+    ParsedAssignmentToken parsed;
+    if (!parse_assignment_token(expanded_args[0], parsed)) {
+        return -1;
+    }
+
+    std::string base_name = assignment_base_name(parsed.lhs);
+    if (!readonly_manager_can_assign(base_name, "assignment")) {
+        clear_assignment_status();
+        return 1;
+    }
+
+    if (!variable_manager.assign_variable(parsed.lhs, parsed.rhs, parsed.append)) {
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     "assignment",
+                     "invalid assignment target: " + parsed.lhs,
+                     {}});
+        clear_assignment_status();
+        return 1;
+    }
+
+    return assignment_success_status();
 }
 
 int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
@@ -931,11 +1083,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                         return run_pipeline(pipeline_cmds);
                     }
 
-                    if (expanded_args.size() == 1) {
-                        int env_result = handle_env_assignment(expanded_args);
-                        if (env_result >= 0) {
-                            return env_result;
-                        }
+                    int env_result = handle_env_assignment(expanded_args);
+                    if (env_result >= 0) {
+                        return env_result;
                     }
 
                     if (!expanded_args.empty() && functions.count(expanded_args[0])) {
@@ -1807,7 +1957,7 @@ std::string ShellScriptInterpreter::expand_parameter_expression(const std::strin
             return;
         }
 
-        variable_manager.set_environment_variable(name, value);
+        (void)variable_manager.assign_variable(name, value, false);
     };
 
     auto var_checker = [this](const std::string& name) -> bool {
@@ -1818,7 +1968,16 @@ std::string ShellScriptInterpreter::expand_parameter_expression(const std::strin
         return pattern_matcher.matches_pattern(text, pattern);
     };
 
-    ParameterExpansionEvaluator evaluator(var_reader, var_writer, var_checker, pattern_match_fn);
+    auto array_length_reader = [this](const std::string& name) -> std::optional<size_t> {
+        return variable_manager.get_array_length(name);
+    };
+
+    auto array_keys_reader = [this](const std::string& name) -> std::string {
+        return variable_manager.get_array_keys(name);
+    };
+
+    ParameterExpansionEvaluator evaluator(var_reader, var_writer, var_checker, pattern_match_fn,
+                                          array_length_reader, array_keys_reader);
     return evaluator.expand(param_expr);
 }
 

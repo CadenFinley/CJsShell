@@ -982,8 +982,8 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
     for (std::string& raw_arg : args) {
         QuoteInfo qi(raw_arg);
 
-        if (qi.is_unquoted() && raw_arg.find('{') != std::string::npos &&
-            raw_arg.find('}') != std::string::npos) {
+        if (qi.is_unquoted() && !looks_like_assignment(qi.value) &&
+            raw_arg.find('{') != std::string::npos && raw_arg.find('}') != std::string::npos) {
             auto brace_expansions = expansionEngine->expand_braces(raw_arg);
             expanded_args.insert(expanded_args.end(),
                                  std::make_move_iterator(brace_expansions.begin()),
@@ -1111,7 +1111,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
     for (const auto& raw_arg : tilde_expanded_args) {
         QuoteInfo qi(raw_arg);
 
-        if (qi.is_unquoted() && !is_double_bracket_command) {
+        if (qi.is_unquoted() && !is_double_bracket_command && !looks_like_assignment(qi.value)) {
             auto gw = expansionEngine->expand_wildcards(qi.value);
             final_args.insert(final_args.end(), gw.begin(), gw.end());
         } else {
@@ -1515,8 +1515,8 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                 val = std::move(stripped_pair.first);
             }
 
-            if (qi.is_unquoted() && val.find('{') != std::string::npos &&
-                val.find('}') != std::string::npos) {
+            if (qi.is_unquoted() && !looks_like_assignment(qi.value) &&
+                val.find('{') != std::string::npos && val.find('}') != std::string::npos) {
                 if (!expansionEngine) {
                     expansionEngine = std::make_unique<ExpansionEngine>(shell);
                 }
@@ -1532,6 +1532,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                     }
                 }
             } else if (qi.is_unquoted() && !is_double_bracket_cmd &&
+                       !looks_like_assignment(qi.value) &&
                        val.find_first_of("*?[]") != std::string::npos) {
                 if (!expansionEngine) {
                     expansionEngine = std::make_unique<ExpansionEngine>(shell);

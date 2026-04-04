@@ -71,6 +71,42 @@ bool validate_export_name(const std::string& name, bool& is_readonly) {
     return true;
 }
 
+bool parse_unset_target(const std::string& text, std::string& base_name, bool& has_index) {
+    has_index = false;
+    base_name.clear();
+
+    if (text.empty()) {
+        return false;
+    }
+
+    size_t left_bracket = text.find('[');
+    if (left_bracket == std::string::npos) {
+        if (!is_valid_identifier(text)) {
+            return false;
+        }
+        base_name = text;
+        return true;
+    }
+
+    if (text.back() != ']') {
+        return false;
+    }
+
+    std::string name = text.substr(0, left_bracket);
+    if (!is_valid_identifier(name)) {
+        return false;
+    }
+
+    std::string index = text.substr(left_bracket + 1, text.length() - left_bracket - 2);
+    if (index.empty()) {
+        return false;
+    }
+
+    base_name = std::move(name);
+    has_index = true;
+    return true;
+}
+
 }  // namespace
 
 int export_command(const std::vector<std::string>& args, Shell* shell) {
@@ -189,33 +225,41 @@ int unset_command(const std::vector<std::string>& args, Shell* shell) {
 
     bool success = true;
     auto& env_vars = cjsh_env::env_vars();
+    auto* script_interpreter = shell->get_shell_script_interpreter();
 
     for (size_t i = 1; i < args.size(); ++i) {
         const std::string& name = args[i];
+        std::string base_name;
+        bool has_index = false;
 
-        if (!cjsh_env::is_valid_env_name(name)) {
+        if (!parse_unset_target(name, base_name, has_index)) {
             print_error({ErrorType::INVALID_ARGUMENT, "unset", "invalid name: " + name, {}});
             success = false;
             continue;
         }
 
-        if (!readonly_manager_can_assign(name, "unset")) {
+        if (!readonly_manager_can_assign(base_name, "unset")) {
             success = false;
             continue;
         }
 
-        auto* script_interpreter = shell->get_shell_script_interpreter();
-        if (script_interpreter != nullptr && script_interpreter->is_local_variable(name)) {
-            script_interpreter->unset_local_variable(name);
+        if (script_interpreter != nullptr) {
+            bool removed = script_interpreter->get_variable_manager().unset_variable(name);
+            if (removed || has_index) {
+                continue;
+            }
+        }
+
+        if (has_index) {
             continue;
         }
 
-        env_vars.erase(name);
+        env_vars.erase(base_name);
 
-        if (unsetenv(name.c_str()) != 0) {
+        if (unsetenv(base_name.c_str()) != 0) {
             print_error({ErrorType::RUNTIME_ERROR,
                          "unset",
-                         std::string("error unsetting ") + name + ": " + strerror(errno),
+                         std::string("error unsetting ") + base_name + ": " + strerror(errno),
                          {}});
             success = false;
         }

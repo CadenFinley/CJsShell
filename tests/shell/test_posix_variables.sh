@@ -397,12 +397,12 @@ else
     fail "Variable concatenation failed"
 fi
 
-log_test "Array assignment unsupported"
-"$SHELL_TO_TEST" -c "arr=(one two)" 2>/dev/null
-if [ $? -ne 0 ]; then
+log_test "Indexed array assignment extension"
+result=$("$SHELL_TO_TEST" -c "arr=(one two); echo \"\${arr[0]} \${arr[1]}\"" 2>/dev/null)
+if [ "$result" = "one two" ]; then
     pass
 else
-    fail "Array assignment should fail"
+    fail "Array assignment extension failed (got '$result')"
 fi
 
 echo "=================================================================="

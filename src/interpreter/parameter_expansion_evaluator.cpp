@@ -35,11 +35,15 @@
 ParameterExpansionEvaluator::ParameterExpansionEvaluator(VariableReader var_reader,
                                                          VariableWriter var_writer,
                                                          VariableChecker var_checker,
-                                                         PatternMatcher pattern_matcher)
+                                                         PatternMatcher pattern_matcher,
+                                                         ArrayLengthReader array_length_reader,
+                                                         ArrayKeysReader array_keys_reader)
     : read_variable(std::move(var_reader)),
       write_variable(std::move(var_writer)),
       is_variable_set(std::move(var_checker)),
-      matches_pattern(std::move(pattern_matcher)) {
+      matches_pattern(std::move(pattern_matcher)),
+      read_array_length(std::move(array_length_reader)),
+      read_array_keys(std::move(array_keys_reader)) {
 }
 
 std::string ParameterExpansionEvaluator::expand(const std::string& param_expr) {
@@ -48,6 +52,17 @@ std::string ParameterExpansionEvaluator::expand(const std::string& param_expr) {
     }
 
     if (param_expr[0] == '!') {
+        if (read_array_keys) {
+            std::string array_expr = param_expr.substr(1);
+            size_t lb = array_expr.find('[');
+            if (lb != std::string::npos && !array_expr.empty() && array_expr.back() == ']') {
+                std::string index = array_expr.substr(lb + 1, array_expr.length() - lb - 2);
+                if (index == "@" || index == "*") {
+                    return read_array_keys(array_expr);
+                }
+            }
+        }
+
         std::string var_name = param_expr.substr(1);
         std::string indirect_name = read_variable(var_name);
         return read_variable(indirect_name);
@@ -55,6 +70,12 @@ std::string ParameterExpansionEvaluator::expand(const std::string& param_expr) {
 
     if (param_expr[0] == '#') {
         std::string var_name = param_expr.substr(1);
+        if (read_array_length) {
+            std::optional<size_t> array_length = read_array_length(var_name);
+            if (array_length.has_value()) {
+                return std::to_string(*array_length);
+            }
+        }
         std::string value = read_variable(var_name);
         return std::to_string(value.length());
     }

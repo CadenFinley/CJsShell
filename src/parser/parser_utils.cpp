@@ -338,6 +338,47 @@ bool split_on_first_equals(const std::string& value, std::string& left, std::str
     return true;
 }
 
+namespace {
+
+bool is_assignment_lhs(const std::string& lhs) {
+    if (lhs.empty()) {
+        return false;
+    }
+
+    std::string candidate = lhs;
+    if (!candidate.empty() && candidate.back() == '+') {
+        candidate.pop_back();
+    }
+    if (candidate.empty()) {
+        return false;
+    }
+
+    if (is_valid_identifier(candidate)) {
+        return true;
+    }
+
+    if (candidate.front() == '[') {
+        if (candidate.back() != ']') {
+            return false;
+        }
+        return candidate.size() > 2;
+    }
+
+    size_t left_bracket = candidate.find('[');
+    if (left_bracket == std::string::npos || candidate.back() != ']') {
+        return false;
+    }
+
+    std::string name = candidate.substr(0, left_bracket);
+    if (!is_valid_identifier(name)) {
+        return false;
+    }
+
+    return (left_bracket + 2) < candidate.size();
+}
+
+}  // namespace
+
 bool looks_like_assignment(const std::string& value) {
     std::string name;
     std::string rhs;
@@ -345,16 +386,7 @@ bool looks_like_assignment(const std::string& value) {
         return false;
     }
 
-    size_t name_end = name.size();
-    if (name_end > 0 && value[name_end - 1] == '+') {
-        name_end--;
-    }
-
-    if (name_end == 0) {
-        return false;
-    }
-
-    return is_valid_identifier(name.substr(0, name_end));
+    return is_assignment_lhs(name);
 }
 
 bool parse_here_doc_header(std::string_view text, size_t operator_pos, HereDocHeader& header_out) {
