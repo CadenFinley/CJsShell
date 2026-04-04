@@ -30,7 +30,6 @@
 
 #include "builtin_help.h"
 
-#include "cjsh.h"
 #include "error_out.h"
 #include "interpreter.h"
 #include "parser_utils.h"

@@ -28,7 +28,6 @@
 
 #include "job_control.h"
 
-#include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "numeric_utils.h"
 #include "shell.h"

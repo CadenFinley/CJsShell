@@ -26,8 +26,6 @@
   SOFTWARE.
 */
 
-#include "cjsh.h"
-
 #include <getopt.h>
 #include <unistd.h>
 

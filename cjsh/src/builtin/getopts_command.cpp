@@ -31,7 +31,6 @@
 #include "builtin_help.h"
 
 #include <cstdlib>
-#include "cjsh.h"
 #include "error_out.h"
 #include "flags.h"
 #include "interpreter.h"

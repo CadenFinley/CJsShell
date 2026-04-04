@@ -39,7 +39,6 @@
 #include <vector>
 
 #include "builtin.h"
-#include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "command_lookup.h"
 #include "error_out.h"

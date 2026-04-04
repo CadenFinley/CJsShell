@@ -39,7 +39,6 @@
 #include <unordered_map>
 #include <utility>
 
-#include "cjsh.h"
 #include "error_out.h"
 #include "exec.h"
 #include "interpreter_utils.h"

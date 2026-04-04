@@ -34,7 +34,6 @@
 #include <csignal>
 #include <iostream>
 #include <unordered_map>
-#include "cjsh.h"
 #include "error_out.h"
 #include "shell.h"
 #include "signal_handler.h"

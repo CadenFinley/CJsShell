@@ -36,7 +36,6 @@
 #include <string>
 #include <vector>
 
-#include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "error_out.h"
 #include "shell_env.h"

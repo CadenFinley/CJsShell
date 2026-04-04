@@ -45,7 +45,6 @@
 
 #include "builtin.h"
 #include "builtins_completions_handler.h"
-#include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "command_lookup.h"
 #include "completion_history.h"

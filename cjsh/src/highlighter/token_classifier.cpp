@@ -32,7 +32,6 @@
 #include <string>
 
 #include "builtin.h"
-#include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "parser_utils.h"
 #include "redirection_utils.h"

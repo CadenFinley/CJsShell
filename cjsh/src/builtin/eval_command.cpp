@@ -30,7 +30,6 @@
 
 #include "builtin_help.h"
 
-#include "cjsh.h"
 #include "error_out.h"
 #include "shell.h"
 #include "string_utils.h"

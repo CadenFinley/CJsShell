@@ -36,7 +36,6 @@
 #include <utility>
 #include <vector>
 
-#include "cjsh.h"
 #include "error_out.h"
 #include "isocline.h"
 #include "shell_env.h"

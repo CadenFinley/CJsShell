@@ -37,7 +37,6 @@
 #include <cstdio>
 #include <cstring>
 
-#include "cjsh.h"
 #include "error_out.h"
 #include "exec.h"
 // #include "isocline.h"

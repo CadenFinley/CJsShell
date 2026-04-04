@@ -37,7 +37,6 @@
 #include <string>
 #include <vector>
 
-#include "cjsh.h"
 #include "cjshopt_command.h"
 #include "error_out.h"
 #include "shell_env.h"

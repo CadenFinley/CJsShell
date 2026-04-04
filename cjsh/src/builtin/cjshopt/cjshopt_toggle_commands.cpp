@@ -40,7 +40,6 @@
 #include <string>
 #include <vector>
 
-#include "cjsh.h"
 #include "cjsh_completions.h"
 #include "error_out.h"
 #include "isocline.h"

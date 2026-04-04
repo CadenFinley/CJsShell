@@ -36,7 +36,6 @@
 #include <string>
 #include <vector>
 
-#include "cjsh.h"
 #include "error_out.h"
 #include "flags.h"
 #include "numeric_utils.h"

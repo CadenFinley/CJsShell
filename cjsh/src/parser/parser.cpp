@@ -45,7 +45,6 @@
 #include <vector>
 
 #include "builtin.h"
-#include "cjsh.h"
 #include "command_preprocessor.h"
 #include "delimiter_state.h"
 #include "error_out.h"

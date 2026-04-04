@@ -35,7 +35,6 @@
 #include <unordered_set>
 
 #include "builtin.h"
-#include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "command_analysis.h"
 #include "highlight_helpers.h"

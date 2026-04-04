@@ -35,7 +35,6 @@
 #include <unordered_set>
 
 #include "arithmetic_evaluator.h"
-#include "cjsh.h"
 #include "flags.h"
 #include "parameter_utils.h"
 #include "parser_utils.h"

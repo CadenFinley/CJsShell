@@ -54,7 +54,6 @@
 #include "arithmetic_evaluator.h"
 #include "builtin.h"
 #include "case_evaluator.h"
-#include "cjsh.h"
 #include "command_substitution_evaluator.h"
 #include "conditional_evaluator.h"
 #include "error_out.h"

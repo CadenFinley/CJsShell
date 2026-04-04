@@ -38,7 +38,6 @@
 #include <system_error>
 #include <type_traits>
 
-#include "cjsh.h"
 #include "shell.h"
 #include "shell_env.h"
 

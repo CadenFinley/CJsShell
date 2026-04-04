@@ -52,7 +52,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "exec.h"
 #include "flags.h"

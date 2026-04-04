@@ -168,4 +168,6 @@ class Shell {
     void apply_abbreviations_to_line_editor();
 };
 
+extern std::unique_ptr<Shell> g_shell;
+
 int read_exit_code_or(int fallback);

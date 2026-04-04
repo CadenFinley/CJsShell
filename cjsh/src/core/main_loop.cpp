@@ -56,7 +56,6 @@
 #include <sys/select.h>
 #include <sys/time.h>
 
-#include "cjsh.h"
 #include "cjsh_completions.h"
 #include "cjsh_filesystem.h"
 #include "cjsh_syntax_highlighter.h"

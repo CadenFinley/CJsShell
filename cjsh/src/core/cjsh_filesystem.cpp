@@ -42,7 +42,6 @@
 #include <utility>
 #include <vector>
 
-#include "cjsh.h"
 #include "error_out.h"
 #include "parser.h"
 #include "shell.h"

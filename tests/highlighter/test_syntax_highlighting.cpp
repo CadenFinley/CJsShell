@@ -39,7 +39,6 @@ extern "C" {
 #include "isocline.h"
 }
 
-#include "cjsh.h"
 #include "cjsh_syntax_highlighter.h"
 #include "command_analysis.h"
 #include "shell.h"

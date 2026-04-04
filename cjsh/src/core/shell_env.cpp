@@ -51,7 +51,6 @@ extern "C" char** environ;
 #include <string>
 #include <vector>
 
-#include "cjsh.h"
 #include "cjsh_filesystem.h"
 #include "command_line_utils.h"
 #include "error_out.h"

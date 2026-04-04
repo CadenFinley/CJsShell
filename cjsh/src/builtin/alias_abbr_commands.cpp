@@ -33,7 +33,6 @@
 #include <vector>
 
 #include "builtin_help.h"
-#include "cjsh.h"
 #include "error_out.h"
 #include "parser_utils.h"
 #include "shell.h"

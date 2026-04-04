@@ -41,7 +41,6 @@
 
 #include "builtin_help.h"
 #include "builtin_option_parser.h"
-#include "cjsh.h"
 #include "error_out.h"
 #include "exec.h"
 #include "job_control.h"

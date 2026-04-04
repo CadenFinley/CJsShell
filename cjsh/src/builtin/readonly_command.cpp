@@ -37,7 +37,6 @@
 #include <cstring>
 #include <iostream>
 #include <unordered_set>
-#include "cjsh.h"
 #include "error_out.h"
 #include "interpreter.h"
 #include "parameter_utils.h"

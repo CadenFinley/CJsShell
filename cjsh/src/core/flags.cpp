@@ -35,7 +35,6 @@
 #include <cstdlib>
 #include <optional>
 
-#include "cjsh.h"
 #include "error_out.h"
 #include "isocline.h"
 #include "shell.h"

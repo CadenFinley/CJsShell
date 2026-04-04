@@ -35,7 +35,6 @@
 #include <iostream>
 #include <vector>
 
-#include "cjsh.h"
 #include "error_out.h"
 #include "interpreter.h"
 #include "parameter_utils.h"
