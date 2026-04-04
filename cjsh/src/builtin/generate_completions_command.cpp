@@ -61,8 +61,8 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
                        "  --subcommands, -s Also generate caches for discovered subcommands",
                        "  --jobs, -j <N>    Process up to N commands in parallel",
                        "  --                Treat remaining arguments as command names",
-                       "IMPORTANT: Please note that this can take signifigant time and",
-                       "system resources. Running with with -j $(nproc) is recommended."})) {
+                       "IMPORTANT: This can take significant time and system resources.",
+                       "Tip: Use -j/--jobs to tune parallelism (defaults to CPU count)."})) {
             return 0;
         }
 
