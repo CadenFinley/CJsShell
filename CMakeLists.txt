@@ -99,7 +99,7 @@ add_library(cjsh_build_settings INTERFACE)
 target_link_libraries(cjsh_build_settings INTERFACE cjsh_build_metadata cjsh_build_profile)
 
 add_subdirectory(cjsh-isocline "${CMAKE_BINARY_DIR}/modules/cjsh-isocline")
-add_subdirectory(cjsh "${CMAKE_BINARY_DIR}/modules/cjsh")
+add_subdirectory(cjsh-core "${CMAKE_BINARY_DIR}/modules/cjsh-core")
 
 if(CJSH_BUILD_TESTS)
     add_subdirectory(tests "${CMAKE_BINARY_DIR}/modules/tests")

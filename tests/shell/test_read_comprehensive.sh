@@ -263,8 +263,8 @@ cat > /tmp/test_read_loop_redirection.sh << 'EOF'
 set -eu
 list=$(mktemp)
 printf '%s\n' \
-    "cjsh/src/interpreter/pattern_matcher.cpp" \
-    "cjsh/src/interpreter/pattern_matcher.h" >"$list"
+    "cjsh-core/src/interpreter/pattern_matcher.cpp" \
+    "cjsh-core/src/interpreter/pattern_matcher.h" >"$list"
 total_files_raw=$(wc -l <"$list")
 total_files_trimmed=$(printf "%s" "$total_files_raw" | tr -d '[:space:]')
 processed=0
