@@ -2319,10 +2319,11 @@
 </ul>
 <h3 id="approot">approot</h3>
 <p>Jump to cjsh application directories.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>approot<span class="w"> </span><span class="o">[</span>target<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>approot<span class="w"> </span><span class="o">[</span>-p<span class="p">|</span>--print<span class="o">]</span><span class="w"> </span><span class="o">[</span>target<span class="o">]</span>
 </span></code></pre></div>
 <ul>
 <li>No argument defaults to <code>config</code> (<code>~/.config/cjsh</code>)</li>
+<li><code>-p</code> / <code>--print</code> prints the resolved directory instead of changing to it</li>
 <li><code>cache</code> jumps to <code>~/.cache/cjsh</code></li>
 <li><code>completions</code> jumps to <code>~/.cache/cjsh/generated_completions</code></li>
 <li><code>env</code> / <code>cjshenv</code> jumps to the directory containing <code>~/.cjshenv</code> (usually <code>~</code>)</li>
