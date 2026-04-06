@@ -153,6 +153,7 @@ run_expect_fail "cjshopt builtin disabled" "cjshopt" "not available in POSIX mod
 run_expect_fail "hook builtin disabled" "hook" "not available in POSIX mode"
 run_expect_fail "abbr builtin disabled" "abbr" "not available in POSIX mode"
 run_expect_fail "unabbr builtin disabled" "unabbr" "not available in POSIX mode"
+run_expect_fail "approot builtin disabled" "approot" "not available in POSIX mode"
 run_expect_fail "generate-completions builtin disabled" "generate-completions" \
     "not available in POSIX mode"
 run_expect_fail "cjsh-widget builtin disabled" "cjsh-widget" "not available in POSIX mode"

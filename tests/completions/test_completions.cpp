@@ -657,6 +657,15 @@ static bool test_builtin_docs(void) {
     EXPECT_TRUE(source_doc->summary == "Execute commands from a file in the current shell",
                 test_name, "dot alias should share source summary");
 
+    const auto* approot_doc = builtin_completions::lookup_builtin_command_doc("approot");
+    EXPECT_TRUE(approot_doc != nullptr, test_name, "approot doc should exist");
+    EXPECT_TRUE(has_entry(approot_doc, "config", builtin_completions::EntryKind::Subcommand),
+                test_name, "approot should include config target");
+    EXPECT_TRUE(has_entry(approot_doc, "cjshrc", builtin_completions::EntryKind::Subcommand),
+                test_name, "approot should include cjshrc target");
+    EXPECT_TRUE(has_entry(approot_doc, "cjsh", builtin_completions::EntryKind::Subcommand),
+                test_name, "approot should include cjsh target");
+
     const auto* cjshopt_doc = builtin_completions::lookup_builtin_command_doc("cjshopt");
     EXPECT_TRUE(cjshopt_doc != nullptr, test_name, "cjshopt doc should exist");
     EXPECT_TRUE(

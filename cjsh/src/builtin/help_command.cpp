@@ -60,6 +60,7 @@ int help_command() {
     const std::vector<BuiltinInfo> builtins = {
         // Navigation and file system
         {"cd", "Change the current directory (smart cd by default)"},
+        {"approot", "Jump to cjsh config/cache/completion/executable roots"},
         {"pushd", "Push the current directory onto a stack"},
         {"popd", "Pop the top directory from the stack"},
         {"dirs", "Display the directory stack"},
@@ -178,6 +179,7 @@ int help_command() {
     std::cout << "  ~/.config/cjsh/     Optional alternate config root for generated files.\n";
     std::cout << "  ~/.cache/cjsh/      Cache directory (history.txt, exec cache).\n";
     std::cout << "  ~/.cache/cjsh/.first_boot  Marker used to suppress the first-run banner.\n";
+    std::cout << "  approot [target]    Jump directly to cjsh config/cache/completion/bin dirs.\n";
 
     heading("cjsh invocation and startup flags");
     print_usage(false, false, false);

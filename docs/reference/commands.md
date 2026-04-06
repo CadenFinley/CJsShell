@@ -16,6 +16,23 @@ cd [directory]
 - Smart CD is enabled by default: if a single fuzzy match exists, cjsh jumps to it
 - Disable smart cd with `cjshopt smart-cd off` or `cjsh --no-smart-cd`
 
+### approot
+Jump to cjsh application directories.
+
+```bash
+approot [target]
+```
+
+- No argument defaults to `config` (`~/.config/cjsh`)
+- `cache` jumps to `~/.cache/cjsh`
+- `completions` jumps to `~/.cache/cjsh/generated_completions`
+- `env` / `cjshenv` jumps to the directory containing `~/.cjshenv` (usually `~`)
+- `profile` / `cjprofile` jumps to the directory containing `~/.cjprofile`
+- `rc` / `cjshrc` jumps to the directory containing `~/.cjshrc`
+- `logout` / `cjlogout` jumps to the directory containing `~/.cjlogout`
+- `home` jumps to your home directory
+- `cjsh` jumps to the directory containing the active `cjsh` executable (symlinks are resolved)
+
 ### pushd
 Push the current directory onto a stack and change directories.
 

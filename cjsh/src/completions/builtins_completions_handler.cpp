@@ -283,6 +283,20 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_doc("return", "Exit the current function with an optional status", {});
 
         add_doc("cd", "Change the current directory", {});
+        add_doc("approot", "Change directory to cjsh app roots",
+                {make_subcommand("config", "Go to ~/.config/cjsh (default)"),
+                 make_subcommand("cache", "Go to ~/.cache/cjsh"),
+                 make_subcommand("completions", "Go to generated completion cache"),
+                 make_subcommand("env", "Go to directory containing ~/.cjshenv"),
+                 make_subcommand("cjshenv", "Alias for env"),
+                 make_subcommand("profile", "Go to directory containing ~/.cjprofile"),
+                 make_subcommand("cjprofile", "Alias for profile"),
+                 make_subcommand("rc", "Go to directory containing ~/.cjshrc"),
+                 make_subcommand("cjshrc", "Alias for rc"),
+                 make_subcommand("logout", "Go to directory containing ~/.cjlogout"),
+                 make_subcommand("cjlogout", "Alias for logout"),
+                 make_subcommand("home", "Go to the HOME directory"),
+                 make_subcommand("cjsh", "Go to the current cjsh executable directory")});
         add_doc("pushd", "Push the current directory onto a stack", {});
         add_doc("popd", "Pop the top directory from the stack", {});
         add_doc("dirs", "Display the directory stack", {});

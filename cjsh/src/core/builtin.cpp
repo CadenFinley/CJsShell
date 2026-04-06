@@ -34,6 +34,7 @@
 #include <unistd.h>
 
 #include "alias_abbr_commands.h"
+#include "approot_command.h"
 #include "boolean_commands.h"
 #include "cd_command.h"
 #include "cjsh_filesystem.h"
@@ -81,9 +82,9 @@
 namespace {
 
 bool is_posix_restricted_builtin(const std::string& name) {
-    return name == "abbr" || name == "abbreviate" || name == "unabbr" || name == "unabbreviate" ||
-           name == "generate-completions" || name == "hook" || name == "cjsh-widget" ||
-           name == "cjshopt";
+    return name == "abbr" || name == "abbreviate" || name == "approot" || name == "unabbr" ||
+           name == "unabbreviate" || name == "generate-completions" || name == "hook" ||
+           name == "cjsh-widget" || name == "cjshopt";
 }
 
 int reject_posix_restricted_builtin(const std::string& name) {
@@ -106,6 +107,10 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"cd",
          [this](const std::vector<std::string>& args) {
              return ::cd_command(args, current_directory, previous_directory, shell);
+         }},
+        {"approot",
+         [this](const std::vector<std::string>& args) {
+             return ::approot_command(args, current_directory, previous_directory, shell);
          }},
         {"pushd",
          [this](const std::vector<std::string>& args) {
