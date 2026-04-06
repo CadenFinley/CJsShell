@@ -198,6 +198,7 @@ Use `cjshopt keybind --help` for the full action catalog. For custom widgets, se
 
 - `help` – Overview of built-in commands.
 - `help <builtin>` – Detailed usage for a specific builtin.
+- `restart` – Re-exec the running shell (`restart --no-flags` for a clean relaunch).
 - `cjsh --help` – Command-line usage and startup flags.
 - `cjshopt --help` and `cjshopt <subcommand> --help` – Configuration guidance.
 - Documentation lives under `docs/reference/` for deeper dives into editing, scripting, hooks, and prompt styling.

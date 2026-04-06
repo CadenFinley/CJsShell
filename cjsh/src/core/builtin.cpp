@@ -65,6 +65,7 @@
 #include "pwd_command.h"
 #include "read_command.h"
 #include "readonly_command.h"
+#include "restart_command.h"
 #include "set_command.h"
 #include "shell.h"
 #include "shell_env.h"
@@ -171,6 +172,7 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"fc", [this](const std::vector<std::string>& args) { return ::fc_command(args, shell); }},
         {"exit", [](const std::vector<std::string>& args) { return ::exit_command(args); }},
         {"quit", [](const std::vector<std::string>& args) { return ::exit_command(args); }},
+        {"restart", [](const std::vector<std::string>& args) { return ::restart_command(args); }},
         {"test", [](const std::vector<std::string>& args) { return ::test_command(args); }},
         {"[", [](const std::vector<std::string>& args) { return ::test_command(args); }},
         {"[[", [](const std::vector<std::string>& args) { return ::double_bracket_command(args); }},

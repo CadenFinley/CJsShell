@@ -204,6 +204,10 @@ bool file_exists(const std::filesystem::path& path);
 bool initialize_cjsh_directories();
 std::string find_executable_in_path(const std::string& name);
 std::string resolve_executable_for_execution(const std::string& name);
+std::string resolve_cjsh_executable_path(const std::vector<std::string>& startup_args = {});
+std::string resolve_cjsh_executable_directory(const std::vector<std::string>& startup_args = {});
+std::string resolve_cjsh_argv0(const std::vector<std::string>& startup_args = {},
+                               const std::string& executable_path = {});
 bool hash_executable(const std::string& name, std::string* resolved_path = nullptr);
 std::vector<PathHashEntry> get_path_hash_entries();
 void reset_path_hash();

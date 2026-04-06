@@ -29,6 +29,7 @@
 #include "cjsh_filesystem.h"
 
 #include <algorithm>
+#include <array>
 #include <cerrno>
 #include <chrono>
 #include <cstdio>
@@ -165,6 +166,98 @@ const std::filesystem::path& g_cjsh_generated_completions_path() {
 namespace {
 std::string describe_errno(int err) {
     return std::system_category().message(err);
+}
+
+constexpr const char* kDefaultCjshArgv0 = "cjsh";
+
+std::string strip_login_prefix(std::string token) {
+    if (!token.empty() && token.front() == '-') {
+        token.erase(token.begin());
+    }
+    return token;
+}
+
+std::filesystem::path normalize_path(const std::filesystem::path& raw_path) {
+    if (raw_path.empty()) {
+        return raw_path;
+    }
+
+    std::error_code ec;
+    std::filesystem::path canonical = std::filesystem::canonical(raw_path, ec);
+    if (!ec && !canonical.empty()) {
+        return canonical;
+    }
+
+    ec.clear();
+    std::filesystem::path weakly_canonical_path = std::filesystem::weakly_canonical(raw_path, ec);
+    if (!ec && !weakly_canonical_path.empty()) {
+        return weakly_canonical_path;
+    }
+
+    return raw_path.lexically_normal();
+}
+
+std::optional<std::filesystem::path> resolve_running_executable_path() {
+#if defined(__APPLE__)
+    uint32_t size = 0;
+    (void)_NSGetExecutablePath(nullptr, &size);
+    if (size == 0) {
+        return std::nullopt;
+    }
+
+    std::vector<char> buffer(size);
+    if (_NSGetExecutablePath(buffer.data(), &size) != 0 || buffer.empty()) {
+        return std::nullopt;
+    }
+
+    return std::filesystem::path(buffer.data());
+#elif defined(__linux__)
+    std::array<char, 4096> buffer{};
+    ssize_t bytes_read = ::readlink("/proc/self/exe", buffer.data(), buffer.size() - 1);
+    if (bytes_read <= 0) {
+        return std::nullopt;
+    }
+
+    buffer[static_cast<size_t>(bytes_read)] = '\0';
+    return std::filesystem::path(buffer.data());
+#else
+    return std::nullopt;
+#endif
+}
+
+std::optional<std::filesystem::path> resolve_executable_token(const std::string& token) {
+    std::string cleaned = strip_login_prefix(token);
+    if (cleaned.empty()) {
+        return std::nullopt;
+    }
+
+    std::filesystem::path candidate(cleaned);
+    if (!candidate.is_absolute()) {
+        if (cleaned.find('/') != std::string::npos) {
+            std::error_code ec;
+            std::filesystem::path absolute_candidate = std::filesystem::absolute(candidate, ec);
+            if (!ec) {
+                candidate = absolute_candidate;
+            }
+        } else {
+            std::string resolved = find_executable_in_path(cleaned);
+            if (!resolved.empty()) {
+                candidate = std::filesystem::path(resolved);
+            }
+        }
+    }
+
+    std::error_code exists_ec;
+    if (!std::filesystem::exists(candidate, exists_ec) || exists_ec) {
+        return std::nullopt;
+    }
+
+    std::error_code file_ec;
+    if (std::filesystem::is_directory(candidate, file_ec) || file_ec) {
+        return std::nullopt;
+    }
+
+    return normalize_path(candidate);
 }
 
 bool path_is_executable(const std::filesystem::path& candidate) {
@@ -934,6 +1027,84 @@ std::string find_executable_in_path(const std::string& name) {
 
 std::string resolve_executable_for_execution(const std::string& name) {
     return resolve_command_with_cache(name, CacheUsage::Execution);
+}
+
+std::string resolve_cjsh_executable_path(const std::vector<std::string>& startup_args) {
+    if (auto executable_path = resolve_running_executable_path(); executable_path.has_value()) {
+        std::filesystem::path normalized = normalize_path(*executable_path);
+        if (!normalized.empty()) {
+            return normalized.string();
+        }
+    }
+
+    if (!startup_args.empty()) {
+        if (auto resolved = resolve_executable_token(startup_args.front()); resolved.has_value()) {
+            return resolved->string();
+        }
+    }
+
+    for (const char* variable_name : {"0", "SHELL"}) {
+        std::string value = cjsh_env::get_shell_variable_value(variable_name);
+        if (auto resolved = resolve_executable_token(value); resolved.has_value()) {
+            return resolved->string();
+        }
+    }
+
+    std::string from_path = find_executable_in_path("cjsh");
+    if (!from_path.empty()) {
+        return normalize_path(from_path).string();
+    }
+
+    return {};
+}
+
+std::string resolve_cjsh_executable_directory(const std::vector<std::string>& startup_args) {
+    std::string executable_path = resolve_cjsh_executable_path(startup_args);
+    if (executable_path.empty()) {
+        return safe_current_directory();
+    }
+
+    std::filesystem::path normalized = normalize_path(executable_path);
+    if (!normalized.empty() && !normalized.parent_path().empty()) {
+        return normalized.parent_path().string();
+    }
+
+    std::filesystem::path fallback(executable_path);
+    if (!fallback.parent_path().empty()) {
+        return fallback.parent_path().lexically_normal().string();
+    }
+
+    return safe_current_directory();
+}
+
+std::string resolve_cjsh_argv0(const std::vector<std::string>& startup_args,
+                               const std::string& executable_path) {
+    if (!startup_args.empty()) {
+        std::string cleaned = strip_login_prefix(startup_args.front());
+        if (!cleaned.empty()) {
+            if (cleaned.find('/') != std::string::npos) {
+                std::string filename = std::filesystem::path(cleaned).filename().string();
+                if (!filename.empty()) {
+                    return filename;
+                }
+            }
+            return cleaned;
+        }
+    }
+
+    std::string resolved_executable = executable_path;
+    if (resolved_executable.empty()) {
+        resolved_executable = resolve_cjsh_executable_path(startup_args);
+    }
+
+    if (!resolved_executable.empty()) {
+        std::string filename = std::filesystem::path(resolved_executable).filename().string();
+        if (!filename.empty()) {
+            return filename;
+        }
+    }
+
+    return kDefaultCjshArgv0;
 }
 
 bool hash_executable(const std::string& name, std::string* resolved_path) {

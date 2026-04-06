@@ -108,6 +108,17 @@ Show cjsh version information.
 version
 ```
 
+### restart
+Re-exec the current cjsh process.
+
+```bash
+restart [-n|--no-flags]
+```
+
+- By default, reuses the original startup arguments (for example, `--posix` or `--minimal`)
+- `-n` / `--no-flags` restarts as plain `cjsh` (drops original startup flags and launch arguments)
+- Current working directory and exported environment are preserved across the restart
+
 ## Script Execution
 
 ### source / .

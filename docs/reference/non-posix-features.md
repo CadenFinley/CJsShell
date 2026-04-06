@@ -69,6 +69,8 @@ Consult the [Completion Authoring Guide](completions.md) for cache format and cu
 - **`generate-completions`** – Pre-warm the completion cache. A convenience command beyond POSIX.
 - **`approot`** – Quick directory jump command for cjsh config/cache/completion roots and binary location.
 - **`hook`** – Lightweight precmd/preexec/chpwd hook management similar to zsh's hook system.
+- **`restart`** – Re-exec the current shell process, optionally dropping startup flags with
+  `restart --no-flags`.
 - **Special lifecycle handlers** – `command_not_found_handler` and `cjshexit` function names are
   recognized automatically for command-miss and shell-exit customization. They are ignored in
   `--minimal`, `--secure`, and `--posix` sessions.
@@ -121,8 +123,8 @@ Or persist equivalent flags through `cjshopt login-startup-arg` in `~/.cjprofile
 - Prompt markup, cleanup toggles, and syntax styling provide rich visual customization beyond POSIX.
 - The isocline editor delivers multiline editing, hints, completions, abbreviations, and keymap
   control.
-- Builtins such as `cjshopt`, `approot`, `generate-completions`, `hook`, and `cjsh-widget` extend the shell's
-  capabilities.
+- Builtins such as `cjshopt`, `approot`, `generate-completions`, `hook`, `restart`, and
+  `cjsh-widget` extend the shell's capabilities.
 - History expansion, typeahead buffering, and persistent exit codes streamline interactive work.
 
 Each enhancement is optional and either automatically disabled outside of interactive mode or

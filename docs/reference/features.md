@@ -128,6 +128,7 @@ Flags affecting feature toggles take effect early in startup and can also be inj
 ## Built-in Tooling Highlights
 
 - `approot` – Jump straight to cjsh config/cache/completion roots or the cjsh executable directory.
+- `restart` – Re-exec the current shell process, with an option to drop startup flags.
 - `generate-completions` – Pre-populate completion caches by scraping manual pages in parallel.
 - `hash` – Inspect or reset execution caches.
 - `history` / `fc` – Explore, edit, and replay persistent history (exit codes are stored alongside entries).

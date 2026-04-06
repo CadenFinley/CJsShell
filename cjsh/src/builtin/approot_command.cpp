@@ -30,20 +30,11 @@
 
 #include "builtin_help.h"
 
-#include <array>
 #include <optional>
-#include <vector>
-
-#if defined(__APPLE__)
-#include <mach-o/dyld.h>
-#elif defined(__linux__)
-#include <unistd.h>
-#endif
 
 #include "cd_command.h"
 #include "cjsh_filesystem.h"
 #include "error_out.h"
-#include "shell_env.h"
 
 namespace {
 
@@ -54,114 +45,6 @@ const char* kApprootTargetsSummary =
 const char* kApprootValidTargets =
     "Valid targets: config, cache, completions, env, cjshenv, profile, cjprofile, rc, "
     "cjshrc, logout, cjlogout, home, cjsh";
-
-std::filesystem::path normalize_path(const std::filesystem::path& raw_path) {
-    if (raw_path.empty()) {
-        return raw_path;
-    }
-
-    std::error_code ec;
-    std::filesystem::path canonical = std::filesystem::canonical(raw_path, ec);
-    if (!ec && !canonical.empty()) {
-        return canonical;
-    }
-
-    ec.clear();
-    std::filesystem::path weakly_canonical_path = std::filesystem::weakly_canonical(raw_path, ec);
-    if (!ec && !weakly_canonical_path.empty()) {
-        return weakly_canonical_path;
-    }
-
-    return raw_path.lexically_normal();
-}
-
-std::optional<std::filesystem::path> resolve_running_executable_path() {
-#if defined(__APPLE__)
-    uint32_t size = 0;
-    (void)_NSGetExecutablePath(nullptr, &size);
-    if (size == 0) {
-        return std::nullopt;
-    }
-
-    std::vector<char> buffer(size);
-    if (_NSGetExecutablePath(buffer.data(), &size) != 0 || buffer.empty()) {
-        return std::nullopt;
-    }
-
-    return std::filesystem::path(buffer.data());
-#elif defined(__linux__)
-    std::array<char, 4096> buffer{};
-    ssize_t bytes_read = ::readlink("/proc/self/exe", buffer.data(), buffer.size() - 1);
-    if (bytes_read <= 0) {
-        return std::nullopt;
-    }
-
-    buffer[static_cast<size_t>(bytes_read)] = '\0';
-    return std::filesystem::path(buffer.data());
-#else
-    return std::nullopt;
-#endif
-}
-
-std::optional<std::filesystem::path> resolve_executable_token(const std::string& token) {
-    if (token.empty()) {
-        return std::nullopt;
-    }
-
-    std::filesystem::path candidate(token);
-    if (!candidate.is_absolute()) {
-        std::string resolved = cjsh_filesystem::find_executable_in_path(token);
-        if (!resolved.empty()) {
-            candidate = std::filesystem::path(resolved);
-        } else {
-            std::error_code ec;
-            std::filesystem::path absolute_candidate = std::filesystem::absolute(candidate, ec);
-            if (!ec) {
-                candidate = absolute_candidate;
-            }
-        }
-    }
-
-    std::error_code exists_ec;
-    if (!std::filesystem::exists(candidate, exists_ec) || exists_ec) {
-        return std::nullopt;
-    }
-
-    std::error_code file_ec;
-    if (std::filesystem::is_directory(candidate, file_ec) || file_ec) {
-        return std::nullopt;
-    }
-
-    return normalize_path(candidate);
-}
-
-std::filesystem::path resolve_cjsh_executable_directory() {
-    if (auto executable_path = resolve_running_executable_path(); executable_path.has_value()) {
-        std::filesystem::path normalized = normalize_path(*executable_path);
-        if (!normalized.empty() && !normalized.parent_path().empty()) {
-            return normalized.parent_path();
-        }
-    }
-
-    for (const char* variable_name : {"0", "SHELL"}) {
-        std::string value = cjsh_env::get_shell_variable_value(variable_name);
-        if (auto resolved = resolve_executable_token(value); resolved.has_value()) {
-            if (!resolved->parent_path().empty()) {
-                return resolved->parent_path();
-            }
-        }
-    }
-
-    std::string from_path = cjsh_filesystem::find_executable_in_path("cjsh");
-    if (!from_path.empty()) {
-        std::filesystem::path normalized = normalize_path(from_path);
-        if (!normalized.parent_path().empty()) {
-            return normalized.parent_path();
-        }
-    }
-
-    return std::filesystem::path(cjsh_filesystem::safe_current_directory());
-}
 
 std::optional<std::filesystem::path> resolve_approot_target(const std::string& target) {
     if (target == "config") {
@@ -197,7 +80,7 @@ std::optional<std::filesystem::path> resolve_approot_target(const std::string& t
     }
 
     if (target == "cjsh") {
-        return resolve_cjsh_executable_directory();
+        return std::filesystem::path(cjsh_filesystem::resolve_cjsh_executable_directory());
     }
 
     return std::nullopt;
