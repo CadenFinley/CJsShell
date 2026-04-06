@@ -661,8 +661,16 @@ static bool test_builtin_docs(void) {
     EXPECT_TRUE(approot_doc != nullptr, test_name, "approot doc should exist");
     EXPECT_TRUE(has_entry(approot_doc, "--print", builtin_completions::EntryKind::Option),
                 test_name, "approot should include --print option");
+    EXPECT_TRUE(has_entry(approot_doc, "--file", builtin_completions::EntryKind::Option), test_name,
+                "approot should include --file option");
     EXPECT_TRUE(has_entry(approot_doc, "config", builtin_completions::EntryKind::Subcommand),
                 test_name, "approot should include config target");
+    EXPECT_TRUE(has_entry(approot_doc, "history", builtin_completions::EntryKind::Subcommand),
+                test_name, "approot should include history target");
+    EXPECT_TRUE(has_entry(approot_doc, "firstboot", builtin_completions::EntryKind::Subcommand),
+                test_name, "approot should include firstboot target");
+    EXPECT_TRUE(has_entry(approot_doc, "first_boot", builtin_completions::EntryKind::Subcommand),
+                test_name, "approot should include first_boot target");
     EXPECT_TRUE(has_entry(approot_doc, "cjshrc", builtin_completions::EntryKind::Subcommand),
                 test_name, "approot should include cjshrc target");
     EXPECT_TRUE(has_entry(approot_doc, "cjsh", builtin_completions::EntryKind::Subcommand),

@@ -32,56 +32,108 @@
 
 #include <iostream>
 #include <optional>
+#include <system_error>
 
 #include "cd_command.h"
 #include "cjsh_filesystem.h"
 #include "error_out.h"
+#include "shell_env.h"
 
 namespace {
 
-const char* kApprootUsage = "Usage: approot [-p|--print] [TARGET]";
+const char* kApprootUsage = "Usage: approot [-p|--print] [-f|--file] [TARGET]";
 const char* kApprootTargetsSummary =
-    "Targets: config (default), cache, completions, env/cjshenv, profile/cjprofile, "
-    "rc/cjshrc, logout/cjlogout, home, cjsh.";
+    "Targets: config (default), cache, history, firstboot/first_boot, completions, "
+    "env/cjshenv, profile/cjprofile, rc/cjshrc, logout/cjlogout, home, cjsh.";
 const char* kApprootValidTargets =
-    "Valid targets: config, cache, completions, env, cjshenv, profile, cjprofile, rc, "
-    "cjshrc, logout, cjlogout, home, cjsh";
+    "Valid targets: config, cache, history, firstboot, first_boot, completions, env, "
+    "cjshenv, profile, cjprofile, rc, cjshrc, logout, cjlogout, home, cjsh";
 
-std::optional<std::filesystem::path> resolve_approot_target(const std::string& target) {
+std::filesystem::path parent_directory_or_self(const std::filesystem::path& path) {
+    const auto parent = path.parent_path();
+    return parent.empty() ? path : parent;
+}
+
+std::filesystem::path normalize_target_path(std::filesystem::path path) {
+    std::error_code abs_ec;
+    if (!path.is_absolute()) {
+        auto absolute_path = std::filesystem::absolute(path, abs_ec);
+        if (!abs_ec) {
+            path = absolute_path;
+        }
+    }
+    return path.lexically_normal();
+}
+
+std::filesystem::path resolve_env_target_file_path() {
+    if (cjsh_env::shell_variable_is_set("CJSH_ENV")) {
+        std::string env_override = cjsh_env::get_shell_variable_value("CJSH_ENV");
+        if (!env_override.empty()) {
+            return normalize_target_path(std::filesystem::path(env_override));
+        }
+    }
+
+    return cjsh_filesystem::g_cjsh_env_path();
+}
+
+struct ApprootTargetPath {
+    std::filesystem::path directory_path;
+    std::optional<std::filesystem::path> file_path;
+};
+
+ApprootTargetPath make_dir_target(const std::filesystem::path& directory_path) {
+    return {directory_path, std::nullopt};
+}
+
+ApprootTargetPath make_file_target(const std::filesystem::path& file_path) {
+    return {parent_directory_or_self(file_path), file_path};
+}
+
+std::optional<ApprootTargetPath> resolve_approot_target(const std::string& target) {
     if (target == "config") {
-        return cjsh_filesystem::g_cjsh_config_path();
+        return make_dir_target(cjsh_filesystem::g_cjsh_config_path());
     }
 
     if (target == "cache") {
-        return cjsh_filesystem::g_cjsh_cache_path();
+        return make_dir_target(cjsh_filesystem::g_cjsh_cache_path());
+    }
+
+    if (target == "history") {
+        return make_file_target(cjsh_filesystem::g_cjsh_history_path());
+    }
+
+    if (target == "firstboot" || target == "first_boot") {
+        return make_file_target(cjsh_filesystem::g_cjsh_first_boot_path());
     }
 
     if (target == "completions") {
-        return cjsh_filesystem::g_cjsh_generated_completions_path();
+        return make_dir_target(cjsh_filesystem::g_cjsh_generated_completions_path());
     }
 
     if (target == "env" || target == "cjshenv") {
-        return cjsh_filesystem::g_cjsh_env_path().parent_path();
+        return make_file_target(resolve_env_target_file_path());
     }
 
     if (target == "profile" || target == "cjprofile") {
-        return cjsh_filesystem::g_cjsh_profile_path().parent_path();
+        return make_file_target(cjsh_filesystem::g_cjsh_profile_path());
     }
 
     if (target == "rc" || target == "cjshrc") {
-        return cjsh_filesystem::g_cjsh_source_path().parent_path();
+        return make_file_target(cjsh_filesystem::g_cjsh_source_path());
     }
 
     if (target == "logout" || target == "cjlogout") {
-        return cjsh_filesystem::g_cjsh_logout_path().parent_path();
+        return make_file_target(cjsh_filesystem::g_cjsh_logout_path());
     }
 
     if (target == "home") {
-        return cjsh_filesystem::g_user_home_path();
+        return make_dir_target(cjsh_filesystem::g_user_home_path());
     }
 
     if (target == "cjsh") {
-        return std::filesystem::path(cjsh_filesystem::resolve_cjsh_executable_directory());
+        const std::filesystem::path executable_path =
+            normalize_target_path(cjsh_filesystem::resolve_cjsh_executable_path());
+        return ApprootTargetPath{parent_directory_or_self(executable_path), executable_path};
     }
 
     return std::nullopt;
@@ -94,12 +146,14 @@ int approot_command(const std::vector<std::string>& args, std::string& current_d
     if (builtin_handle_help(args,
                             {kApprootUsage, "Change to a cjsh application directory.",
                              "Use -p/--print to print the resolved directory without changing it.",
+                             "Use -f/--file to print file-backed target paths (implies --print).",
                              "Generated-file targets jump to the directory containing the file.",
                              kApprootTargetsSummary})) {
         return 0;
     }
 
     bool print_only = false;
+    bool file_path_mode = false;
     std::optional<std::string> target;
     bool positional_only = false;
 
@@ -107,6 +161,12 @@ int approot_command(const std::vector<std::string>& args, std::string& current_d
         const std::string& token = args[i];
 
         if (!positional_only && (token == "-p" || token == "--print")) {
+            print_only = true;
+            continue;
+        }
+
+        if (!positional_only && (token == "-f" || token == "--file")) {
+            file_path_mode = true;
             print_only = true;
             continue;
         }
@@ -143,10 +203,15 @@ int approot_command(const std::vector<std::string>& args, std::string& current_d
         return 2;
     }
 
+    std::filesystem::path resolved_path = destination->directory_path;
+    if (file_path_mode && destination->file_path.has_value()) {
+        resolved_path = destination->file_path.value();
+    }
+
     if (print_only) {
-        std::cout << destination->string() << '\n';
+        std::cout << resolved_path.string() << '\n';
         return 0;
     }
 
-    return change_directory(destination->string(), current_directory, previous_directory, shell);
+    return change_directory(resolved_path.string(), current_directory, previous_directory, shell);
 }

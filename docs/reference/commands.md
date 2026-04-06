@@ -20,19 +20,31 @@ cd [directory]
 Jump to cjsh application directories.
 
 ```bash
-approot [-p|--print] [target]
+approot [-p|--print] [-f|--file] [target]
 ```
 
 - No argument defaults to `config` (`~/.config/cjsh`)
 - `-p` / `--print` prints the resolved directory instead of changing to it
+- `-f` / `--file` prints file-backed target paths and implies `--print`
 - `cache` jumps to `~/.cache/cjsh`
+- `history` jumps to the directory containing the history file (defaults to `~/.cache/cjsh`)
+- `firstboot` / `first_boot` jumps to the directory containing the first-boot marker (`~/.cache/cjsh/.first_boot`)
 - `completions` jumps to `~/.cache/cjsh/generated_completions`
-- `env` / `cjshenv` jumps to the directory containing `~/.cjshenv` (usually `~`)
+- `env` / `cjshenv` jumps to the directory containing `~/.cjshenv` (usually `~`), or the directory containing `$CJSH_ENV` when that variable is set and non-empty
 - `profile` / `cjprofile` jumps to the directory containing `~/.cjprofile`
 - `rc` / `cjshrc` jumps to the directory containing `~/.cjshrc`
 - `logout` / `cjlogout` jumps to the directory containing `~/.cjlogout`
 - `home` jumps to your home directory
 - `cjsh` jumps to the directory containing the active `cjsh` executable (symlinks are resolved)
+- With `--file`, file-backed targets print their file paths (for example `history.txt`, `~/.cjshrc`, or the `cjsh` executable path)
+
+Examples:
+
+```bash
+approot history             # cd ~/.cache/cjsh
+approot --file history      # print ~/.cache/cjsh/history.txt
+approot --file rc           # print ~/.cjshrc
+```
 
 ### pushd
 Push the current directory onto a stack and change directories.

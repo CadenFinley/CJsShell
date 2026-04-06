@@ -34,6 +34,9 @@ fi
 
 echo "Test: approot builtin..."
 
+export CJSH_ENV=""
+export CJSH_HISTORY_FILE=""
+
 TESTS_PASSED=0
 TESTS_FAILED=0
 
@@ -70,14 +73,24 @@ mkdir -p "$CONFIG_DIR" "$COMPLETIONS_DIR"
 
 CONFIG_EXPECTED=$(cd "$CONFIG_DIR" && pwd -P)
 CACHE_EXPECTED=$(cd "$CACHE_DIR" && pwd -P)
+FIRST_BOOT_EXPECTED=$(cd "$CACHE_DIR" && pwd -P)
 COMPLETIONS_EXPECTED=$(cd "$COMPLETIONS_DIR" && pwd -P)
 HOME_EXPECTED=$(cd "$HOME" && pwd -P)
 CJSH_EXPECTED=$(cd "$(dirname "$CJSH_PATH")" && pwd -P)
 START_EXPECTED=$(pwd -P)
+HISTORY_FILE_EXPECTED="$CACHE_EXPECTED/history.txt"
+FIRST_BOOT_FILE_EXPECTED="$CACHE_EXPECTED/.first_boot"
+ENV_FILE_EXPECTED="$HOME_EXPECTED/.cjshenv"
+PROFILE_FILE_EXPECTED="$HOME_EXPECTED/.cjprofile"
+RC_FILE_EXPECTED="$HOME_EXPECTED/.cjshrc"
+LOGOUT_FILE_EXPECTED="$HOME_EXPECTED/.cjlogout"
 
 run_path_test "approot defaults to config" "approot; pwd" "$CONFIG_EXPECTED"
 run_path_test "approot config target" "approot config; pwd" "$CONFIG_EXPECTED"
 run_path_test "approot cache target" "approot cache; pwd" "$CACHE_EXPECTED"
+run_path_test "approot history target" "approot history; pwd" "$CACHE_EXPECTED"
+run_path_test "approot firstboot target" "approot firstboot; pwd" "$FIRST_BOOT_EXPECTED"
+run_path_test "approot first_boot target" "approot first_boot; pwd" "$FIRST_BOOT_EXPECTED"
 run_path_test "approot completions target" "approot completions; pwd" "$COMPLETIONS_EXPECTED"
 run_path_test "approot env target" "approot env; pwd" "$HOME_EXPECTED"
 run_path_test "approot cjshenv target" "approot cjshenv; pwd" "$HOME_EXPECTED"
@@ -92,9 +105,42 @@ run_path_test "approot cjsh target" "approot cjsh; pwd" "$CJSH_EXPECTED"
 run_path_test "builtin approot dispatch" "builtin approot cache; pwd" "$CACHE_EXPECTED"
 run_path_test "approot --print default target" "approot --print" "$CONFIG_EXPECTED"
 run_path_test "approot --print cache target" "approot --print cache" "$CACHE_EXPECTED"
+run_path_test "approot --print history target" "approot --print history" "$CACHE_EXPECTED"
+run_path_test "approot --print firstboot target" "approot --print firstboot" "$FIRST_BOOT_EXPECTED"
 run_path_test "approot -p cache target" "approot -p cache" "$CACHE_EXPECTED"
+run_path_test "approot -p history target" "approot -p history" "$CACHE_EXPECTED"
+run_path_test "approot -p firstboot target" "approot -p firstboot" "$FIRST_BOOT_EXPECTED"
+run_path_test "approot --file history path" "approot --file history" "$HISTORY_FILE_EXPECTED"
+run_path_test "approot -f history path" "approot -f history" "$HISTORY_FILE_EXPECTED"
+run_path_test "approot --file firstboot path" "approot --file firstboot" "$FIRST_BOOT_FILE_EXPECTED"
+run_path_test "approot --file env path" "approot --file env" "$ENV_FILE_EXPECTED"
+run_path_test "approot --file profile path" "approot --file profile" "$PROFILE_FILE_EXPECTED"
+run_path_test "approot --file rc path" "approot --file rc" "$RC_FILE_EXPECTED"
+run_path_test "approot --file logout path" "approot --file logout" "$LOGOUT_FILE_EXPECTED"
+run_path_test "approot --file cache stays directory" "approot --file cache" "$CACHE_EXPECTED"
 run_path_test "approot --print keeps cwd unchanged" "approot --print cache >/dev/null; pwd" "$START_EXPECTED"
 run_path_test "approot --print works in command substitution" "cd \"\$(approot --print cache)\"; pwd" "$CACHE_EXPECTED"
+run_path_test "approot --file keeps cwd unchanged" "approot --file history >/dev/null; pwd" "$START_EXPECTED"
+
+ENV_OVERRIDE_DIR=$(mktemp -d 2>/dev/null)
+if [ -n "$ENV_OVERRIDE_DIR" ] && [ -d "$ENV_OVERRIDE_DIR" ]; then
+    ENV_OVERRIDE_FILE="$ENV_OVERRIDE_DIR/cjsh-env.override"
+    ENV_OVERRIDE_EXPECTED=$(cd "$ENV_OVERRIDE_DIR" && pwd -P)
+    ENV_OVERRIDE_FILE_EXPECTED="$ENV_OVERRIDE_FILE"
+
+    run_path_test "approot env honors missing CJSH_ENV file" \
+        "export CJSH_ENV='$ENV_OVERRIDE_FILE'; approot env; pwd" "$ENV_OVERRIDE_EXPECTED"
+    run_path_test "approot cjshenv honors missing CJSH_ENV file" \
+        "export CJSH_ENV='$ENV_OVERRIDE_FILE'; approot cjshenv; pwd" "$ENV_OVERRIDE_EXPECTED"
+    run_path_test "approot --file env honors missing CJSH_ENV file" \
+        "export CJSH_ENV='$ENV_OVERRIDE_FILE'; approot --file env" "$ENV_OVERRIDE_FILE_EXPECTED"
+    run_path_test "approot --file cjshenv honors missing CJSH_ENV file" \
+        "export CJSH_ENV='$ENV_OVERRIDE_FILE'; approot --file cjshenv" "$ENV_OVERRIDE_FILE_EXPECTED"
+
+    rm -rf "$ENV_OVERRIDE_DIR"
+else
+    fail_test "approot env override handling (mktemp unavailable)"
+fi
 
 SYMLINK_DIR=$(mktemp -d 2>/dev/null)
 if [ -n "$SYMLINK_DIR" ] && [ -d "$SYMLINK_DIR" ]; then
@@ -184,7 +230,8 @@ fi
 OUT=$("$CJSH_PATH" -c "approot --help" 2>&1)
 STATUS=$?
 if [ "$STATUS" -eq 0 ] && printf "%s" "$OUT" | grep -q "Usage: approot" &&
-    printf "%s" "$OUT" | grep -q -- "--print"; then
+    printf "%s" "$OUT" | grep -q -- "--print" &&
+    printf "%s" "$OUT" | grep -q -- "--file"; then
     pass_test "approot --help prints usage"
 else
     fail_test "approot --help output (status=$STATUS, out='$OUT')"

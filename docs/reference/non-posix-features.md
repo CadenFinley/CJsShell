@@ -67,7 +67,7 @@ Consult the [Completion Authoring Guide](completions.md) for cache format and cu
   files, and manages key bindings/history limits. None of its subcommands exist in POSIX sh.
 - **`cjsh-widget`** – Exposes the line editor to shell scripts for advanced key-driven workflows.
 - **`generate-completions`** – Pre-warm the completion cache. A convenience command beyond POSIX.
-- **`approot`** – Quick directory jump command for cjsh config/cache/completion roots and binary location.
+- **`approot`** – Quick directory jump command for cjsh config/cache/history/firstboot/completion roots and binary location.
 - **`hook`** – Lightweight precmd/preexec/chpwd hook management similar to zsh's hook system.
 - **`restart`** – Re-exec the current shell process, optionally dropping startup flags with
   `restart --no-flags`.
