@@ -1168,6 +1168,8 @@ remains interactive-only by default; see the History section below.</p>
 <li><strong><code>generate-completions</code></strong> – Pre-warm the completion cache. A convenience command beyond POSIX.</li>
 <li><strong><code>approot</code></strong> – Quick directory jump command for cjsh config/cache/completion roots and binary location.</li>
 <li><strong><code>hook</code></strong> – Lightweight precmd/preexec/chpwd hook management similar to zsh's hook system.</li>
+<li><strong><code>restart</code></strong> – Re-exec the current shell process, optionally dropping startup flags with
+  <code>restart --no-flags</code>.</li>
 <li><strong>Special lifecycle handlers</strong> – <code>command_not_found_handler</code> and <code>cjshexit</code> function names are
   recognized automatically for command-miss and shell-exit customization. They are ignored in
   <code>--minimal</code>, <code>--secure</code>, and <code>--posix</code> sessions.</li>
@@ -1215,8 +1217,8 @@ prompt vars) and add <code>--secure</code> if you also want to skip all login/lo
 <li>Prompt markup, cleanup toggles, and syntax styling provide rich visual customization beyond POSIX.</li>
 <li>The isocline editor delivers multiline editing, hints, completions, abbreviations, and keymap
   control.</li>
-<li>Builtins such as <code>cjshopt</code>, <code>approot</code>, <code>generate-completions</code>, <code>hook</code>, and <code>cjsh-widget</code> extend the shell's
-  capabilities.</li>
+<li>Builtins such as <code>cjshopt</code>, <code>approot</code>, <code>generate-completions</code>, <code>hook</code>, <code>restart</code>, and
+  <code>cjsh-widget</code> extend the shell's capabilities.</li>
 <li>History expansion, typeahead buffering, and persistent exit codes streamline interactive work.</li>
 </ul>
 <p>Each enhancement is optional and either automatically disabled outside of interactive mode or
