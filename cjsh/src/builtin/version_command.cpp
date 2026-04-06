@@ -34,12 +34,17 @@
 #include <cstdio>
 #include <string>
 
-const bool PRE_RELEASE = true;
-const char* const c_version_base = "1.2.1";
+#ifndef CJSH_PRE_RELEASE
+#define CJSH_PRE_RELEASE 0
+#endif
+
+#ifndef CJSH_VERSION_BASE
+#define CJSH_VERSION_BASE "0.0.0"
+#endif
 
 std::string get_version() {
     static std::string cached_version =
-        std::string(c_version_base) + (PRE_RELEASE ? " (pre-release)" : "");
+        std::string(CJSH_VERSION_BASE) + (CJSH_PRE_RELEASE ? " (pre-release)" : "");
     return cached_version;
 }
 
@@ -185,7 +190,7 @@ int version_command(const std::vector<std::string>& args) {
         field_count += show_arch ? 1 : 0;
         field_count += show_platform ? 1 : 0;
 
-        const std::string tag = std::string("v") + c_version_base;
+        const std::string tag = std::string("v") + CJSH_VERSION_BASE;
         if (show_tag && field_count == 1) {
             (void)std::fprintf(stdout, "%s\n", tag.c_str());
             return 0;

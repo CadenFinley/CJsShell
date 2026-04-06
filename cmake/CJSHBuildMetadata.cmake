@@ -158,6 +158,8 @@ function(cjsh_apply_metadata_definitions)
         BUILD_COMPILER
         CXX_STANDARD
         BUILD_TYPE
+        VERSION_BASE
+        PRE_RELEASE
     )
     set(_multi_value_args)
     cmake_parse_arguments(CJSH_META "${_options}" "${_one_value_args}" "${_multi_value_args}" ${ARGN})
@@ -175,6 +177,17 @@ function(cjsh_apply_metadata_definitions)
     cjsh_escape_define_value(_cxx_standard "${CJSH_META_CXX_STANDARD}")
     cjsh_escape_define_value(_build_type "${CJSH_META_BUILD_TYPE}")
 
+    if(CJSH_META_VERSION_BASE STREQUAL "")
+        set(CJSH_META_VERSION_BASE "0.0.0")
+    endif()
+    cjsh_escape_define_value(_version_base "${CJSH_META_VERSION_BASE}")
+
+    if(CJSH_META_PRE_RELEASE)
+        set(_pre_release "1")
+    else()
+        set(_pre_release "0")
+    endif()
+
     target_compile_definitions(
         ${CJSH_META_TARGET}
         INTERFACE
@@ -186,5 +199,7 @@ function(cjsh_apply_metadata_definitions)
             "CJSH_BUILD_COMPILER=\"${_build_compiler}\""
             "CJSH_CXX_STANDARD=\"${_cxx_standard}\""
             "CJSH_BUILD_TYPE=\"${_build_type}\""
+            "CJSH_VERSION_BASE=\"${_version_base}\""
+            "CJSH_PRE_RELEASE=${_pre_release}"
     )
 endfunction()

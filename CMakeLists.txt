@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 project(cjsh VERSION 1.2.1 LANGUAGES C CXX)
+option(CJSH_PRE_RELEASE "Mark builds as pre-release versions" ON)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -84,6 +85,8 @@ cjsh_apply_metadata_definitions(
     BUILD_COMPILER "${CJSH_METADATA_BUILD_COMPILER}"
     CXX_STANDARD "${CJSH_METADATA_CXX_STANDARD}"
     BUILD_TYPE "${CJSH_METADATA_BUILD_TYPE}"
+    VERSION_BASE "${PROJECT_VERSION}"
+    PRE_RELEASE "${CJSH_PRE_RELEASE}"
 )
 
 add_library(cjsh_build_profile INTERFACE)
