@@ -30,6 +30,7 @@
 
 #include "builtin_help.h"
 
+#include <iostream>
 #include <optional>
 
 #include "cd_command.h"
@@ -38,7 +39,7 @@
 
 namespace {
 
-const char* kApprootUsage = "Usage: approot [TARGET]";
+const char* kApprootUsage = "Usage: approot [-p|--print] [TARGET]";
 const char* kApprootTargetsSummary =
     "Targets: config (default), cache, completions, env/cjshenv, profile/cjprofile, "
     "rc/cjshrc, logout/cjlogout, home, cjsh.";
@@ -91,26 +92,60 @@ std::optional<std::filesystem::path> resolve_approot_target(const std::string& t
 int approot_command(const std::vector<std::string>& args, std::string& current_directory,
                     std::string& previous_directory, Shell* shell) {
     if (builtin_handle_help(args,
-                            {"Usage: approot [TARGET]", "Change to a cjsh application directory.",
+                            {kApprootUsage, "Change to a cjsh application directory.",
+                             "Use -p/--print to print the resolved directory without changing it.",
                              "Generated-file targets jump to the directory containing the file.",
                              kApprootTargetsSummary})) {
         return 0;
     }
 
-    if (args.size() > 2) {
-        print_error(
-            {ErrorType::INVALID_ARGUMENT, "approot", "too many arguments", {kApprootUsage}});
-        return 2;
+    bool print_only = false;
+    std::optional<std::string> target;
+    bool positional_only = false;
+
+    for (size_t i = 1; i < args.size(); ++i) {
+        const std::string& token = args[i];
+
+        if (!positional_only && (token == "-p" || token == "--print")) {
+            print_only = true;
+            continue;
+        }
+
+        if (!positional_only && token == "--") {
+            positional_only = true;
+            continue;
+        }
+
+        if (!positional_only && !token.empty() && token.front() == '-') {
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         "approot",
+                         "invalid option: " + token,
+                         {kApprootUsage}});
+            return 2;
+        }
+
+        if (target.has_value()) {
+            print_error(
+                {ErrorType::INVALID_ARGUMENT, "approot", "too many arguments", {kApprootUsage}});
+            return 2;
+        }
+
+        target = token;
     }
 
-    std::string target = args.size() == 2 ? args[1] : "config";
-    auto destination = resolve_approot_target(target);
+    std::string target_name = target.value_or("config");
+    auto destination = resolve_approot_target(target_name);
     if (!destination.has_value()) {
         print_error({ErrorType::INVALID_ARGUMENT,
                      "approot",
-                     "unknown target '" + target + "'",
+                     "unknown target '" + target_name + "'",
                      {kApprootValidTargets, kApprootUsage}});
         return 2;
+    }
+
+    if (print_only) {
+        std::cout << destination->string() << '\n';
+        return 0;
     }
 
     return change_directory(destination->string(), current_directory, previous_directory, shell);

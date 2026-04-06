@@ -73,6 +73,7 @@ CACHE_EXPECTED=$(cd "$CACHE_DIR" && pwd -P)
 COMPLETIONS_EXPECTED=$(cd "$COMPLETIONS_DIR" && pwd -P)
 HOME_EXPECTED=$(cd "$HOME" && pwd -P)
 CJSH_EXPECTED=$(cd "$(dirname "$CJSH_PATH")" && pwd -P)
+START_EXPECTED=$(pwd -P)
 
 run_path_test "approot defaults to config" "approot; pwd" "$CONFIG_EXPECTED"
 run_path_test "approot config target" "approot config; pwd" "$CONFIG_EXPECTED"
@@ -89,6 +90,11 @@ run_path_test "approot cjlogout target" "approot cjlogout; pwd" "$HOME_EXPECTED"
 run_path_test "approot home target" "approot home; pwd" "$HOME_EXPECTED"
 run_path_test "approot cjsh target" "approot cjsh; pwd" "$CJSH_EXPECTED"
 run_path_test "builtin approot dispatch" "builtin approot cache; pwd" "$CACHE_EXPECTED"
+run_path_test "approot --print default target" "approot --print" "$CONFIG_EXPECTED"
+run_path_test "approot --print cache target" "approot --print cache" "$CACHE_EXPECTED"
+run_path_test "approot -p cache target" "approot -p cache" "$CACHE_EXPECTED"
+run_path_test "approot --print keeps cwd unchanged" "approot --print cache >/dev/null; pwd" "$START_EXPECTED"
+run_path_test "approot --print works in command substitution" "cd \"\$(approot --print cache)\"; pwd" "$CACHE_EXPECTED"
 
 SYMLINK_DIR=$(mktemp -d 2>/dev/null)
 if [ -n "$SYMLINK_DIR" ] && [ -d "$SYMLINK_DIR" ]; then
@@ -125,9 +131,60 @@ else
     fail_test "approot too-many-arguments handling (status=$STATUS, out='$OUT')"
 fi
 
+OUT=$("$CJSH_PATH" -c "approot --not-an-option" 2>&1)
+STATUS=$?
+if [ "$STATUS" -eq 2 ] && printf "%s" "$OUT" | grep -q "invalid option"; then
+    pass_test "approot rejects invalid options"
+else
+    fail_test "approot invalid-option handling (status=$STATUS, out='$OUT')"
+fi
+
+REDIRECT_DIR=$(mktemp -d 2>/dev/null)
+if [ -n "$REDIRECT_DIR" ] && [ -d "$REDIRECT_DIR" ]; then
+    STDOUT_FILE="$REDIRECT_DIR/stdout.txt"
+    STDERR_FILE="$REDIRECT_DIR/stderr.txt"
+
+    STATUS=0
+    "$CJSH_PATH" -c "approot --print cache > '$STDOUT_FILE' 2> '$STDERR_FILE'" || STATUS=$?
+    STDOUT_CONTENT=$(tr -d '\n' < "$STDOUT_FILE")
+    STDERR_EMPTY="no"
+    if [ ! -s "$STDERR_FILE" ]; then
+        STDERR_EMPTY="yes"
+    fi
+
+    if [ "$STATUS" -eq 0 ] && [ "$STDOUT_CONTENT" = "$CACHE_EXPECTED" ] &&
+        [ "$STDERR_EMPTY" = "yes" ]; then
+        pass_test "approot --print supports stdout redirection"
+    else
+        STDERR_CONTENT=$(tr -d '\n' < "$STDERR_FILE")
+        fail_test "approot --print stdout redirection (status=$STATUS, out='$STDOUT_CONTENT', err='$STDERR_CONTENT')"
+    fi
+
+    STATUS=0
+    "$CJSH_PATH" -c "approot --print unknown-target > '$STDOUT_FILE' 2> '$STDERR_FILE'" || STATUS=$?
+    STDOUT_EMPTY="no"
+    if [ ! -s "$STDOUT_FILE" ]; then
+        STDOUT_EMPTY="yes"
+    fi
+
+    if [ "$STATUS" -eq 2 ] && [ "$STDOUT_EMPTY" = "yes" ] &&
+        grep -q "unknown target" "$STDERR_FILE"; then
+        pass_test "approot --print supports stderr redirection"
+    else
+        STDOUT_CONTENT=$(tr -d '\n' < "$STDOUT_FILE")
+        STDERR_CONTENT=$(tr -d '\n' < "$STDERR_FILE")
+        fail_test "approot --print stderr redirection (status=$STATUS, out='$STDOUT_CONTENT', err='$STDERR_CONTENT')"
+    fi
+
+    rm -rf "$REDIRECT_DIR"
+else
+    fail_test "approot redirection tests (mktemp unavailable)"
+fi
+
 OUT=$("$CJSH_PATH" -c "approot --help" 2>&1)
 STATUS=$?
-if [ "$STATUS" -eq 0 ] && printf "%s" "$OUT" | grep -q "Usage: approot"; then
+if [ "$STATUS" -eq 0 ] && printf "%s" "$OUT" | grep -q "Usage: approot" &&
+    printf "%s" "$OUT" | grep -q -- "--print"; then
     pass_test "approot --help prints usage"
 else
     fail_test "approot --help output (status=$STATUS, out='$OUT')"

@@ -284,7 +284,9 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
 
         add_doc("cd", "Change the current directory", {});
         add_doc("approot", "Change directory to cjsh app roots",
-                {make_subcommand("config", "Go to ~/.config/cjsh (default)"),
+                {make_option("-p", "Print resolved directory without changing to it"),
+                 make_option("--print", "Print resolved directory without changing to it"),
+                 make_subcommand("config", "Go to ~/.config/cjsh (default)"),
                  make_subcommand("cache", "Go to ~/.cache/cjsh"),
                  make_subcommand("completions", "Go to generated completion cache"),
                  make_subcommand("env", "Go to directory containing ~/.cjshenv"),

@@ -659,6 +659,8 @@ static bool test_builtin_docs(void) {
 
     const auto* approot_doc = builtin_completions::lookup_builtin_command_doc("approot");
     EXPECT_TRUE(approot_doc != nullptr, test_name, "approot doc should exist");
+    EXPECT_TRUE(has_entry(approot_doc, "--print", builtin_completions::EntryKind::Option),
+                test_name, "approot should include --print option");
     EXPECT_TRUE(has_entry(approot_doc, "config", builtin_completions::EntryKind::Subcommand),
                 test_name, "approot should include config target");
     EXPECT_TRUE(has_entry(approot_doc, "cjshrc", builtin_completions::EntryKind::Subcommand),

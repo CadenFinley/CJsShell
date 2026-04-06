@@ -20,10 +20,11 @@ cd [directory]
 Jump to cjsh application directories.
 
 ```bash
-approot [target]
+approot [-p|--print] [target]
 ```
 
 - No argument defaults to `config` (`~/.config/cjsh`)
+- `-p` / `--print` prints the resolved directory instead of changing to it
 - `cache` jumps to `~/.cache/cjsh`
 - `completions` jumps to `~/.cache/cjsh/generated_completions`
 - `env` / `cjshenv` jumps to the directory containing `~/.cjshenv` (usually `~`)
