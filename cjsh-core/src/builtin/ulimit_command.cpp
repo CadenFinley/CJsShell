@@ -104,6 +104,11 @@ static const OptionDescriptor kOptionTable[] = {
 #endif
     CJSH_ULIMIT_SUPPORTED(RLIMIT_NOFILE, 'n', "file-descriptor-count",
                           "Maximum number of open file descriptors", 1),
+#ifdef RLIMIT_PIPE
+    CJSH_ULIMIT_SUPPORTED(RLIMIT_PIPE, 'p', "pipe-size", "Pipe buffer size", 512),
+#else
+    CJSH_ULIMIT_UNSUPPORTED('p', "pipe-size", "Pipe buffer size", 512),
+#endif
 #ifdef RLIMIT_MSGQUEUE
     CJSH_ULIMIT_SUPPORTED(RLIMIT_MSGQUEUE, 'q', "queue-size",
                           "Maximum bytes in POSIX message queues", 1024),
@@ -164,19 +169,45 @@ static const OptionDescriptor kOptionTable[] = {
 #undef CJSH_ULIMIT_UNSUPPORTED
 
 const std::vector<std::string>& ulimit_help_text() {
-    static const std::vector<std::string> kHelpText = {
-        "Usage: ulimit [options] [limit]",
-        "Display or change resource limits for the current shell.",
-        "",
-        "Options:",
-        "  -a, --all          list all current limits",
-        "  -H, --hard         operate on hard limits",
-        "  -S, --soft         operate on soft limits",
-        "  -f, --file-size    select limit for files created by the shell (default)",
-        "  -n, --file-descriptor-count  select the open file descriptor limit",
-        "  --help             display this help and exit",
-        "",
-        "Limits can be numeric values, or the keywords 'unlimited', 'hard', or 'soft'."};
+    static const std::vector<std::string> kHelpText = [] {
+        std::vector<std::string> lines = {
+            "Usage: ulimit [options] [limit]",
+            "Display or change resource limits for the current shell.",
+            "",
+            "Options:",
+            "  -a, --all          list all current limits",
+            "  -H, --hard         operate on hard limits",
+            "  -S, --soft         operate on soft limits",
+            "  --help             display this help and exit",
+            "",
+            "Resource selectors:"};
+
+        for (const auto& entry : kOptionTable) {
+            std::string selector = "  -" + std::string(1, entry.short_opt);
+            if (entry.long_opt != nullptr && entry.long_opt[0] != '\0') {
+                selector += ", --";
+                selector += entry.long_opt;
+            }
+            if (selector.size() < 30) {
+                selector.append(30 - selector.size(), ' ');
+            } else {
+                selector += ' ';
+            }
+
+            std::string line = selector + entry.description;
+            if (!entry.available) {
+                line += " (unsupported on this platform)";
+            }
+            lines.push_back(line);
+        }
+
+        lines.push_back("");
+        lines.push_back(
+            "Limits can be numeric values, or the keywords 'unlimited', 'hard', or 'soft'.");
+        lines.push_back(
+            "When setting a limit without -H or -S, both hard and soft limits are updated.");
+        return lines;
+    }();
     return kHelpText;
 }
 
@@ -258,6 +289,9 @@ std::string unit_for_entry(const OptionDescriptor& entry) {
     if (entry.resource == RLIMIT_CPU) {
         return "seconds";
     }
+    if (entry.short_opt == 'p') {
+        return "512-byte blocks";
+    }
     if (entry.multiplier == 1) {
         return "count";
     }
@@ -307,19 +341,10 @@ bool set_limit(const OptionDescriptor& entry, bool hard_flag, bool soft_flag, rl
 
     if (hard_flag) {
         new_limits.rlim_max = value;
-        if (!soft_flag && value != RLIM_INFINITY && new_limits.rlim_cur > value) {
-            new_limits.rlim_cur = value;
-        }
     }
 
     if (soft_flag) {
-        if (value == RLIM_INFINITY && new_limits.rlim_max != RLIM_INFINITY) {
-            new_limits.rlim_cur = new_limits.rlim_max;
-        } else if (new_limits.rlim_max != RLIM_INFINITY && value > new_limits.rlim_max) {
-            new_limits.rlim_cur = new_limits.rlim_max;
-        } else {
-            new_limits.rlim_cur = value;
-        }
+        new_limits.rlim_cur = value;
     }
 
     if (setrlimit(entry.resource, &new_limits) != 0) {

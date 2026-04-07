@@ -605,11 +605,11 @@ ulimit [-HS] [-a] [-f | -n | -t | ...] [limit]
 ```
 
 - `-a` lists every supported limit along with the active hard/soft values.
-- Use `-H` or `-S` to operate on the hard or soft limit respectively (defaults to soft).
-- Resource selectors mirror the underlying OS (`-f` file size, `-n` open files, `-t` CPU time, `-v` virtual memory, etc.). Unsupported switches print a descriptive error.
+- Use `-H` or `-S` to operate on hard or soft limits respectively. With no selector flags, reads default to soft and writes update both hard and soft limits.
+- Resource selectors mirror the underlying OS (`-f` file size, `-n` open files, `-p` pipe size, `-t` CPU time, `-v` virtual memory, etc.). Unsupported selectors print a descriptive error.
 - Limits accept numeric values, or the keywords `unlimited`, `hard`, or `soft`.
 
-Run `ulimit --help` for the full table of supported options on your platform.
+Run `ulimit --help` for the full selector table, including unsupported entries on your current platform.
 
 ## Theming and Customization
 

@@ -63,12 +63,6 @@ is_valid_limit() {
 
 ORIG_SOFT=""
 
-restore_limits() {
-    if [ -n "$ORIG_SOFT" ]; then
-        "$CJSH_PATH" -c "ulimit -Sn $ORIG_SOFT" >/dev/null 2>&1
-    fi
-}
-
 # Basic sanity: default ulimit output
 DEFAULT_OUT=$("$CJSH_PATH" -c "ulimit" 2>/dev/null)
 DEFAULT_STATUS=$?
@@ -91,7 +85,6 @@ if [ $SOFT_STATUS -ne 0 ] || ! is_valid_limit "$ORIG_SOFT"; then
     exit 1
 fi
 pass_test "ulimit -Sn retrieves current soft limit"
-trap restore_limits EXIT INT TERM
 
 # Capture original hard descriptor limit
 ORIG_HARD=$("$CJSH_PATH" -c "ulimit -Hn" 2>/dev/null)
@@ -128,85 +121,83 @@ else
     fail_test "ulimit --file-descriptor-count mismatch"
 fi
 
-# Determine a safe soft limit to test lowering to
-choose_test_soft() {
-    candidate=""
-    if is_number "$ORIG_SOFT"; then
-        if [ "$ORIG_SOFT" -gt 64 ]; then
-            candidate=$((ORIG_SOFT - 1))
-        elif [ "$ORIG_SOFT" -gt 1 ]; then
-            candidate=$((ORIG_SOFT - 1))
-        else
-            candidate=$ORIG_SOFT
-        fi
-    else
-        candidate=256
-    fi
-
-    if is_number "$ORIG_HARD" && [ "$ORIG_HARD" -gt 0 ]; then
-        if [ "$candidate" -gt "$ORIG_HARD" ]; then
-            candidate=$ORIG_HARD
-        fi
-    fi
-
-    if ! is_number "$candidate" || [ "$candidate" -lt 1 ]; then
-        candidate=1
-    fi
-
-    echo "$candidate"
-}
-
-# TEST_SOFT=$(choose_test_soft)
-
-# SET_OUT=$("$CJSH_PATH" -c "ulimit -Sn $TEST_SOFT" 2>&1)
-# SET_STATUS=$?
-# if [ $SET_STATUS -eq 0 ]; then
-#     NEW_SOFT=$("$CJSH_PATH" -c "ulimit -Sn" 2>/dev/null)
-#     if [ "$NEW_SOFT" = "$TEST_SOFT" ]; then
-#         pass_test "ulimit -Sn sets new soft limit"
-#     else
-#     fi
-# else
-#     fail_test "ulimit -Sn failed to set new soft limit: $SET_OUT"
-# fi
-
-# Set soft limit to hard limit using keyword
-# HARD_SET_OUT=$("$CJSH_PATH" -c "ulimit -Sn hard" 2>&1)
-# HARD_SET_STATUS=$?
-# if [ $HARD_SET_STATUS -eq 0 ]; then
-#     HARD_SOFT=$("$CJSH_PATH" -c "ulimit -Sn" 2>/dev/null)
-#     if [ "$HARD_SOFT" = "$ORIG_HARD" ]; then
-#         pass_test "ulimit -Sn hard matches hard limit"
-#     else
-#     fi
-# else
-#     fail_test "ulimit -Sn hard failed: $HARD_SET_OUT"
-# fi
-
-# Restore original soft limit explicitly
-RESTORE_STATUS=$("$CJSH_PATH" -c "ulimit -Sn $ORIG_SOFT" 2>&1)
-if [ $? -eq 0 ]; then
-    CURRENT_SOFT=$("$CJSH_PATH" -c "ulimit -Sn" 2>/dev/null)
-    if [ "$CURRENT_SOFT" = "$ORIG_SOFT" ]; then
-        pass_test "ulimit restored original soft limit"
-    else
-        fail_test "ulimit restore mismatch (expected $ORIG_SOFT, got $CURRENT_SOFT)"
-    fi
+# Help output should include the full selector table
+HELP_OUT=$("$CJSH_PATH" -c "ulimit --help" 2>/dev/null)
+if echo "$HELP_OUT" | grep -q -- "-p, --pipe-size"; then
+    pass_test "ulimit --help lists pipe-size selector"
 else
-    fail_test "ulimit failed to restore original soft limit: $RESTORE_STATUS"
+    fail_test "ulimit --help missing pipe-size selector"
 fi
 
-# Keyword 'soft' should preserve current soft limit
-SOFT_KEYWORD_OUT=$("$CJSH_PATH" -c "ulimit -Sn soft" 2>&1)
+# Keyword 'soft' should preserve current soft limit (single shell process)
+SOFT_KEYWORD_OUT=$("$CJSH_PATH" -c "orig=\$(ulimit -Sn); ulimit -Sn soft && after=\$(ulimit -Sn); printf '%s %s\n' \"\$orig\" \"\$after\"" 2>&1)
 if [ $? -eq 0 ]; then
-    VERIFY_SOFT=$("$CJSH_PATH" -c "ulimit -Sn" 2>/dev/null)
-    if [ "$VERIFY_SOFT" = "$ORIG_SOFT" ]; then
+    set -- $SOFT_KEYWORD_OUT
+    if [ $# -eq 2 ] && [ "$1" = "$2" ]; then
         pass_test "ulimit -Sn soft retains current value"
     else
-        fail_test "ulimit -Sn soft altered value (expected $ORIG_SOFT, got $VERIFY_SOFT)"
+        fail_test "ulimit -Sn soft altered value (got '$SOFT_KEYWORD_OUT')"
     fi
 else
     fail_test "ulimit -Sn soft keyword rejected: $SOFT_KEYWORD_OUT"
+fi
+
+# Keyword 'hard' should set soft to current hard limit (single shell process)
+HARD_KEYWORD_OUT=$("$CJSH_PATH" -c "hard=\$(ulimit -Hn); ulimit -Sn hard && soft=\$(ulimit -Sn); printf '%s %s\n' \"\$hard\" \"\$soft\"" 2>&1)
+if [ $? -eq 0 ]; then
+    set -- $HARD_KEYWORD_OUT
+    if [ $# -eq 2 ] && [ "$1" = "$2" ]; then
+        pass_test "ulimit -Sn hard matches hard limit"
+    else
+        fail_test "ulimit -Sn hard mismatch (got '$HARD_KEYWORD_OUT')"
+    fi
+else
+    fail_test "ulimit -Sn hard failed: $HARD_KEYWORD_OUT"
+fi
+
+# Setting without -H/-S should update both hard and soft limits
+SET_BOTH_OUT=$("$CJSH_PATH" -c "soft=\$(ulimit -Ss); hard=\$(ulimit -Hs); if [ \"\$soft\" = unlimited ]; then if [ \"\$hard\" = unlimited ]; then target=1024; elif [ \"\$hard\" -gt 1 ]; then target=\$((hard - 1)); else target=1; fi; elif [ \"\$soft\" -gt 1 ]; then target=\$((soft - 1)); else target=1; fi; if [ \"\$hard\" != unlimited ] && [ \"\$target\" -gt \"\$hard\" ]; then target=\$hard; fi; ulimit -s \"\$target\" || exit 90; printf '%s %s %s\n' \"\$target\" \"\$(ulimit -Ss)\" \"\$(ulimit -Hs)\"" 2>&1)
+if [ $? -eq 0 ]; then
+    set -- $SET_BOTH_OUT
+    if [ $# -eq 3 ] && [ "$1" = "$2" ] && [ "$1" = "$3" ]; then
+        pass_test "ulimit -s updates both soft and hard limits"
+    else
+        fail_test "ulimit -s did not update both limits (got '$SET_BOTH_OUT')"
+    fi
+else
+    fail_test "ulimit -s failed to set both limits: $SET_BOTH_OUT"
+fi
+
+# Soft limits above hard should fail instead of clamping
+SOFT_ABOVE_HARD_OUT=$("$CJSH_PATH" -c "orig_soft=\$(ulimit -Ss); hard=\$(ulimit -Hs); if [ \"\$hard\" = unlimited ]; then exit 3; fi; too_high=\$((hard + 1)); if ulimit -Ss \"\$too_high\" >/dev/null 2>&1; then exit 10; fi; after_soft=\$(ulimit -Ss); printf '%s %s\n' \"\$orig_soft\" \"\$after_soft\"" 2>&1)
+SOFT_ABOVE_HARD_STATUS=$?
+if [ $SOFT_ABOVE_HARD_STATUS -eq 0 ]; then
+    set -- $SOFT_ABOVE_HARD_OUT
+    if [ $# -eq 2 ] && [ "$1" = "$2" ]; then
+        pass_test "ulimit -Ss rejects values above the hard limit"
+    else
+        fail_test "ulimit -Ss altered limit after rejected set (got '$SOFT_ABOVE_HARD_OUT')"
+    fi
+elif [ $SOFT_ABOVE_HARD_STATUS -eq 3 ]; then
+    pass_test "ulimit -Ss above-hard check skipped (hard is unlimited)"
+else
+    fail_test "ulimit -Ss above-hard check failed unexpectedly: $SOFT_ABOVE_HARD_OUT"
+fi
+
+# Hard-only updates should not silently lower soft limits
+HARD_ONLY_OUT=$("$CJSH_PATH" -c "orig_soft=\$(ulimit -Ss); orig_hard=\$(ulimit -Hs); if [ \"\$orig_soft\" = unlimited ] || [ \"\$orig_soft\" -le 1 ]; then exit 3; fi; new_hard=\$((orig_soft - 1)); if ulimit -Hs \"\$new_hard\" >/dev/null 2>&1; then exit 10; fi; after_soft=\$(ulimit -Ss); after_hard=\$(ulimit -Hs); printf '%s %s %s %s\n' \"\$orig_soft\" \"\$after_soft\" \"\$orig_hard\" \"\$after_hard\"" 2>&1)
+HARD_ONLY_STATUS=$?
+if [ $HARD_ONLY_STATUS -eq 0 ]; then
+    set -- $HARD_ONLY_OUT
+    if [ $# -eq 4 ] && [ "$1" = "$2" ] && [ "$3" = "$4" ]; then
+        pass_test "ulimit -Hs preserves soft limit when hard-only set is invalid"
+    else
+        fail_test "ulimit -Hs changed limits after rejected hard-only set (got '$HARD_ONLY_OUT')"
+    fi
+elif [ $HARD_ONLY_STATUS -eq 3 ]; then
+    pass_test "ulimit -Hs hard-only invalid-set check skipped"
+else
+    fail_test "ulimit -Hs invalid hard-only set check failed unexpectedly: $HARD_ONLY_OUT"
 fi
 
 # Invalid option handling
@@ -235,6 +226,23 @@ else
     fail_test "ulimit accepted empty limit"
 fi
 rm -f /tmp/cjsh_ulimit_empty_value.log
+
+# Optional resource (pipe size) should either work or provide a clear message
+ULIMIT_P_OUTPUT=$("$CJSH_PATH" -c "ulimit -p" 2>&1)
+ULIMIT_P_STATUS=$?
+if [ $ULIMIT_P_STATUS -eq 0 ]; then
+    if is_valid_limit "$ULIMIT_P_OUTPUT"; then
+        pass_test "ulimit -p reports pipe size limit"
+    else
+        fail_test "ulimit -p returned unexpected output"
+    fi
+else
+    if echo "$ULIMIT_P_OUTPUT" | grep -qi "not available"; then
+        pass_test "ulimit -p gracefully reports unsupported resource"
+    else
+        fail_test "ulimit -p failure without clear message"
+    fi
+fi
 
 # Optional resource (swap) should either work or provide a clear message
 ULIMIT_W_OUTPUT=$("$CJSH_PATH" -c "ulimit -w" 2>&1)

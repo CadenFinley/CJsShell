@@ -471,20 +471,27 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                 {make_option("-p", "Print in reusable format"),
                  make_option("-S", "Display the mask symbolically")});
 
-        add_doc(
-            "ulimit", "Display or set resource limits",
-            {make_option("-a", "Show all current limits"), make_option("-H", "Use hard limits"),
-             make_option("-S", "Use soft limits"), make_option("-c", "Limit core file size"),
-             make_option("-d", "Limit data segment size"), make_option("-f", "Limit file size"),
-             make_option("-l", "Limit locked-in-memory size"),
-             make_option("-m", "Limit resident set size"),
-             make_option("-n", "Limit open file descriptors"),
-             make_option("-q", "Limit POSIX message queue bytes"),
-             make_option("-r", "Limit realtime priority"), make_option("-s", "Limit stack size"),
-             make_option("-t", "Limit CPU time"), make_option("-u", "Limit user processes"),
-             make_option("-v", "Limit virtual memory"), make_option("-w", "Limit swap size"),
-             make_option("--all", "Show all current limits"),
-             make_option("--hard", "Use hard limits"), make_option("--soft", "Use soft limits")});
+        add_doc("ulimit", "Display or set resource limits",
+                {make_option("-a", "Show all current limits"),
+                 make_option("-H", "Use hard limits"),
+                 make_option("-S", "Use soft limits"),
+                 make_option("-c", "Limit core file size"),
+                 make_option("-d", "Limit data segment size"),
+                 make_option("-f", "Limit file size"),
+                 make_option("-l", "Limit locked-in-memory size"),
+                 make_option("-m", "Limit resident set size"),
+                 make_option("-n", "Limit open file descriptors"),
+                 make_option("-p", "Limit pipe buffer size"),
+                 make_option("-q", "Limit POSIX message queue bytes"),
+                 make_option("-r", "Limit realtime priority"),
+                 make_option("-s", "Limit stack size"),
+                 make_option("-t", "Limit CPU time"),
+                 make_option("-u", "Limit user processes"),
+                 make_option("-v", "Limit virtual memory"),
+                 make_option("-w", "Limit swap size"),
+                 make_option("--all", "Show all current limits"),
+                 make_option("--hard", "Use hard limits"),
+                 make_option("--soft", "Use soft limits")});
 
         add_doc("getopts", "Parse positional parameters as options", {});
         add_doc("times", "Display accumulated process times", {});
