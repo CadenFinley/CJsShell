@@ -154,6 +154,7 @@ static void edit_cursor_row_up_with_history_spell(ic_env_t* env, editor_t* eb);
 static void edit_cursor_row_down(ic_env_t* env, editor_t* eb);
 static void edit_cursor_line_start(ic_env_t* env, editor_t* eb);
 static void edit_cursor_line_end(ic_env_t* env, editor_t* eb);
+static void edit_cursor_ctrl_a(ic_env_t* env, editor_t* eb);
 static void edit_cursor_ctrl_e(ic_env_t* env, editor_t* eb);
 static void edit_cursor_prev_word(ic_env_t* env, editor_t* eb);
 static void edit_cursor_next_word(ic_env_t* env, editor_t* eb);
@@ -224,7 +225,11 @@ static bool key_action_execute(ic_env_t* env, editor_t* eb, ic_key_action_t acti
             edit_cursor_row_down(env, eb);
             return true;
         case IC_KEY_ACTION_CURSOR_LINE_START:
-            edit_cursor_line_start(env, eb);
+            if (key == KEY_CTRL_A) {
+                edit_cursor_ctrl_a(env, eb);
+            } else {
+                edit_cursor_line_start(env, eb);
+            }
             return true;
         case IC_KEY_ACTION_CURSOR_LINE_END:
             if (key == KEY_CTRL_E) {
@@ -1794,6 +1799,29 @@ static void edit_cursor_ctrl_e(ic_env_t* env, editor_t* eb) {
     edit_refresh_hint(env, eb);
 }
 
+static void edit_cursor_ctrl_a(ic_env_t* env, editor_t* eb) {
+    ssize_t start = sbuf_find_line_start(eb->input, eb->pos);
+    if (start < 0)
+        return;
+
+    if (eb->pos != start) {
+        eb->pos = start;
+        edit_refresh_hint(env, eb);
+        return;
+    }
+
+    ssize_t prev_pos = sbuf_prev(eb->input, start, NULL);
+    if (prev_pos < 0)
+        return;
+
+    ssize_t prev_start = sbuf_find_line_start(eb->input, prev_pos);
+    if (prev_start < 0)
+        return;
+
+    eb->pos = prev_start;
+    edit_refresh_hint(env, eb);
+}
+
 static void edit_cursor_line_start(ic_env_t* env, editor_t* eb) {
     ssize_t start = sbuf_find_line_start(eb->input, eb->pos);
     if (start < 0)
@@ -3115,8 +3143,10 @@ edit_loop_entry:
                         edit_cursor_row_down(env, &eb);
                         break;
                     case KEY_HOME:
-                    case KEY_CTRL_A:
                         edit_cursor_line_start(env, &eb);
+                        break;
+                    case KEY_CTRL_A:
+                        edit_cursor_ctrl_a(env, &eb);
                         break;
                     case KEY_END:
                         edit_cursor_line_end(env, &eb);

@@ -430,6 +430,13 @@ def main() -> int:
             f"multiline_initial_ctrl_j expected 'ab\\ncd', got {multiline_initial!r}"
         )
 
+    multiline_ctrl_a_chain = run_case(binary, "multiline_ctrl_a_chain", b"\x01\x01X\r")
+    if multiline_ctrl_a_chain != "ab\nXcd\nef":
+        raise AssertionError(
+            "multiline_ctrl_a_chain expected 'ab\\nXcd\\nef', got "
+            f"{multiline_ctrl_a_chain!r}"
+        )
+
     multiline_ctrl_e_chain = run_case(
         binary, "multiline_ctrl_e_chain", b"\x01\x02\x01\x02\x05\x05\x05X\r"
     )
