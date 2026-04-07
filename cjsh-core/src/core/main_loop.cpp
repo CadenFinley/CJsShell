@@ -233,9 +233,9 @@ bool process_command_line(const std::string& command) {
             {"time", timestamp_str.c_str()},
             {"code", exit_code_str.c_str()},
             {"ms", elapsed_ms_str.c_str()},
-            {"frequency", "1"},
         };
-        ic_history_add_with_metadata(command.c_str(), metadata, 4);
+        ic_history_update_last_with_metadata(command.c_str(), metadata,
+                                             sizeof(metadata) / sizeof(metadata[0]));
     }
     setenv("?", status_str.c_str(), 1);
 

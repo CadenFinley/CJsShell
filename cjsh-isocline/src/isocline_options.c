@@ -181,6 +181,15 @@ ic_public void ic_history_add_with_metadata(const char* entry,
     history_push_with_metadata(env->history, entry, metadata, metadata_count);
 }
 
+ic_public void ic_history_update_last_with_metadata(const char* entry,
+                                                    const ic_history_metadata_t* metadata,
+                                                    size_t metadata_count) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return;
+    history_update_last_with_metadata(env->history, entry, metadata, metadata_count);
+}
+
 ic_public void ic_history_add(const char* entry) {
     ic_history_add_with_metadata(entry, NULL, 0);
 }

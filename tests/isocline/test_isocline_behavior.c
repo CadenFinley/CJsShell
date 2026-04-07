@@ -520,6 +520,75 @@ static bool test_history_dedup_snapshot(void) {
     return true;
 }
 
+static bool test_history_metadata_update_preserves_frequency_increment(void) {
+    ic_env_t* env = ensure_env();
+    alloc_t* mem = test_allocator();
+    if (env == NULL || mem == NULL)
+        return false;
+
+    history_t* history = history_new(mem);
+    if (history == NULL)
+        return false;
+
+    const char* history_path = "./isocline_history_metadata_update.log";
+    (void)remove(history_path);
+    history_load_from(history, history_path, 32);
+    history_clear(history);
+    history_enable_duplicates(history, false);
+
+    const ic_history_metadata_t first_meta[] = {
+        {"code", "0"},
+        {"ms", "12"},
+    };
+    EXPECT_TRUE(history_push(history, ""), "editing placeholder should be added");
+    EXPECT_TRUE(history_update(history, "echo hi"),
+                "submitting edited command should update last placeholder entry");
+    EXPECT_TRUE(history_update_last_with_metadata(history, "echo hi", first_meta,
+                                                  sizeof(first_meta) / sizeof(first_meta[0])),
+                "metadata update should attach execution metadata to latest command");
+
+    history_snapshot_t first_snap = {0};
+    EXPECT_TRUE(history_snapshot_load(history, &first_snap, true),
+                "first snapshot should load after metadata update");
+    EXPECT_TRUE(first_snap.count == 1, "first snapshot should contain exactly one command");
+    const history_entry_t* first_entry = history_snapshot_get(&first_snap, 0);
+    EXPECT_TRUE(first_entry != NULL, "first snapshot should expose the updated command");
+    EXPECT_STREQ(history_entry_get_metadata(first_entry, "frequency"), "1",
+                 "metadata update should not double-increment command frequency");
+    EXPECT_STREQ(history_entry_get_metadata(first_entry, "code"), "0",
+                 "metadata update should preserve attached execution metadata");
+    history_snapshot_free(history, &first_snap);
+
+    const ic_history_metadata_t second_meta[] = {
+        {"code", "1"},
+        {"ms", "8"},
+    };
+    EXPECT_TRUE(history_push(history, ""), "second editing placeholder should be added");
+    EXPECT_TRUE(history_update(history, "echo hi"),
+                "second command submission should update placeholder entry");
+    EXPECT_TRUE(history_update_last_with_metadata(history, "echo hi", second_meta,
+                                                  sizeof(second_meta) / sizeof(second_meta[0])),
+                "second metadata update should apply to latest command without extra increment");
+
+    history_snapshot_t second_snap = {0};
+    EXPECT_TRUE(history_snapshot_load(history, &second_snap, true),
+                "second snapshot should load after repeated command submission");
+    EXPECT_TRUE(second_snap.count == 1,
+                "second snapshot should still contain one deduplicated command");
+    const history_entry_t* second_entry = history_snapshot_get(&second_snap, 0);
+    EXPECT_TRUE(second_entry != NULL, "second snapshot should expose deduplicated command entry");
+    EXPECT_STREQ(history_entry_get_metadata(second_entry, "frequency"), "2",
+                 "repeating the command should increment frequency by one per execution");
+    EXPECT_STREQ(history_entry_get_metadata(second_entry, "code"), "1",
+                 "latest execution metadata should overwrite previous metadata values");
+    history_snapshot_free(history, &second_snap);
+
+    history_clear(history);
+    history_free(history);
+    (void)remove(history_path);
+    return true;
+}
+
 static bool test_history_fuzzy_case_toggle(void) {
     ic_env_t* env = ensure_env();
     alloc_t* mem = test_allocator();
@@ -2534,6 +2603,8 @@ static const test_case_t kTests[] = {
     {"continuation_callback_registration", test_continuation_callback_registration},
     {"completion_generation_and_apply", test_completion_generation_and_apply},
     {"history_dedup_snapshot", test_history_dedup_snapshot},
+    {"history_metadata_update_preserves_frequency_increment",
+     test_history_metadata_update_preserves_frequency_increment},
     {"history_fuzzy_case_toggle", test_history_fuzzy_case_toggle},
     {"history_fuzzy_case_toggle_via_api", test_history_fuzzy_case_toggle_via_api},
     {"line_wrapping_calculations", test_line_wrapping_calculations},
