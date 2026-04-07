@@ -2329,10 +2329,10 @@
 <li><code>history</code> jumps to the directory containing the history file (defaults to <code>~/.cache/cjsh</code>)</li>
 <li><code>firstboot</code> / <code>first_boot</code> jumps to the directory containing the first-boot marker (<code>~/.cache/cjsh/.first_boot</code>)</li>
 <li><code>completions</code> jumps to <code>~/.cache/cjsh/generated_completions</code></li>
-<li><code>env</code> / <code>cjshenv</code> jumps to the directory containing <code>~/.cjshenv</code> (usually <code>~</code>), or the directory containing <code>$CJSH_ENV</code> when that variable is set and non-empty</li>
-<li><code>profile</code> / <code>cjprofile</code> jumps to the directory containing <code>~/.cjprofile</code></li>
-<li><code>rc</code> / <code>cjshrc</code> jumps to the directory containing <code>~/.cjshrc</code></li>
-<li><code>logout</code> / <code>cjlogout</code> jumps to the directory containing <code>~/.cjlogout</code></li>
+<li><code>env</code> / <code>cjshenv</code> jumps to the directory containing <code>$CJSH_ENV</code> when that variable is set and non-empty; otherwise it prefers <code>~/.cjshenv</code> and falls back to <code>~/.config/cjsh/.cjshenv</code> when the primary file is missing</li>
+<li><code>profile</code> / <code>cjprofile</code> jumps to the directory containing <code>~/.cjprofile</code>, falling back to <code>~/.config/cjsh/.cjprofile</code> when the primary file is missing</li>
+<li><code>rc</code> / <code>cjshrc</code> jumps to the directory containing <code>~/.cjshrc</code>, falling back to <code>~/.config/cjsh/.cjshrc</code> when the primary file is missing</li>
+<li><code>logout</code> / <code>cjlogout</code> jumps to the directory containing <code>~/.cjlogout</code>, falling back to <code>~/.config/cjsh/.cjlogout</code> when the primary file is missing</li>
 <li><code>home</code> jumps to your home directory</li>
 <li><code>cjsh</code> jumps to the directory containing the active <code>cjsh</code> executable (symlinks are resolved)</li>
 <li>With <code>--file</code>, file-backed targets print their file paths (for example <code>history.txt</code>, <code>~/.cjshrc</code>, or the <code>cjsh</code> executable path)</li>
