@@ -231,6 +231,8 @@ static int run_case(const char* scenario) {
         initial_input = "abcdef";
     } else if (strcmp(scenario, "redo_cleared_by_new_edit") == 0) {
         initial_input = "ab";
+    } else if (strcmp(scenario, "resize_reflow_initial_input") == 0) {
+        initial_input = "abcdefghij";
     } else if (strcmp(scenario, "multiline_initial_ctrl_j") == 0) {
         initial_input = "ab";
     } else if (strcmp(scenario, "multiline_ctrl_a_chain") == 0) {
@@ -274,6 +276,7 @@ static int run_case(const char* scenario) {
                strcmp(scenario, "ctrl_w_delete_word") == 0 ||
                strcmp(scenario, "backspace_twice_typed") == 0 ||
                strcmp(scenario, "ctrl_w_then_type") == 0 ||
+               strcmp(scenario, "resize_reflow_typed_input") == 0 ||
                strcmp(scenario, "multiline_ctrl_j_insert_newline") == 0 ||
                strcmp(scenario, "multiline_backslash_continuation") == 0 ||
                strcmp(scenario, "completion_single_tab") == 0 ||

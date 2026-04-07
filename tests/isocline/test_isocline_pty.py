@@ -30,7 +30,9 @@ import os
 import pty
 import re
 import signal
+import struct
 import sys
+import termios
 import time
 import fcntl
 
@@ -86,6 +88,30 @@ def assert_timed_case(
         chunks,
         initial_delay_s=initial_delay_s,
         step_delay_s=step_delay_s,
+        poll_interval_s=poll_interval_s,
+    )
+    if actual != expected:
+        raise AssertionError(f"{label} expected {expected!r}, got {actual!r}")
+
+
+def assert_resize_case(
+    binary: str,
+    label: str,
+    scenario: str,
+    actions: list[tuple[str, object]],
+    expected: str,
+    initial_rows: int = 24,
+    initial_cols: int = 40,
+    timeout_s: float = 8.0,
+    poll_interval_s: float = 0.01,
+) -> None:
+    actual = run_resize_case(
+        binary,
+        scenario,
+        actions,
+        initial_rows=initial_rows,
+        initial_cols=initial_cols,
+        timeout_s=timeout_s,
         poll_interval_s=poll_interval_s,
     )
     if actual != expected:
@@ -248,6 +274,133 @@ def run_case_timed(
 
     text = output.decode("utf-8", errors="replace")
     raise AssertionError(f"case {scenario} timed out, output={text!r}")
+
+
+def set_pty_window_size(fd: int, rows: int, cols: int) -> None:
+    winsize = struct.pack("HHHH", rows, cols, 0, 0)
+    fcntl.ioctl(fd, termios.TIOCSWINSZ, winsize)
+
+
+def run_resize_case(
+    binary: str,
+    scenario: str,
+    actions: list[tuple[str, object]],
+    initial_rows: int = 24,
+    initial_cols: int = 40,
+    timeout_s: float = 8.0,
+    poll_interval_s: float = 0.01,
+) -> str:
+    global PTY_CASE_COUNT
+    PTY_CASE_COUNT += 1
+
+    pid, fd = pty.fork()
+    if pid == 0:
+        os.execv(binary, [binary, scenario])
+
+    flags = fcntl.fcntl(fd, fcntl.F_GETFL)
+    fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+    set_pty_window_size(fd, initial_rows, initial_cols)
+
+    output = bytearray()
+    deadline = time.monotonic() + timeout_s
+    prompt_seen = False
+    action_index = 0
+    current_rows = initial_rows
+
+    def normalized_output() -> str:
+        text = output.decode("utf-8", errors="replace")
+        return normalize_terminal_output(text)
+
+    try:
+        while time.monotonic() < deadline:
+            try:
+                chunk = os.read(fd, 4096)
+                if chunk:
+                    output.extend(chunk)
+                    if not prompt_seen and b"pty> " in output:
+                        prompt_seen = True
+            except BlockingIOError:
+                pass
+            except OSError:
+                pass
+
+            while prompt_seen and action_index < len(actions):
+                action, value = actions[action_index]
+                if action == "wait":
+                    if value not in normalized_output():
+                        break
+                elif action == "send":
+                    os.write(fd, value)
+                elif action == "resize":
+                    if isinstance(value, tuple):
+                        next_rows, next_cols = value
+                    else:
+                        next_rows, next_cols = current_rows, value
+                    set_pty_window_size(fd, next_rows, next_cols)
+                    try:
+                        os.kill(pid, signal.SIGWINCH)
+                    except OSError:
+                        pass
+                    current_rows = next_rows
+                else:
+                    raise AssertionError(
+                        f"case {scenario} has unknown resize action {action!r}"
+                    )
+                action_index += 1
+
+            waited_pid, status = os.waitpid(pid, os.WNOHANG)
+            if waited_pid == pid:
+                text = output.decode("utf-8", errors="replace")
+                normalized = normalize_terminal_output(text)
+                if not os.WIFEXITED(status) or os.WEXITSTATUS(status) != 0:
+                    raise AssertionError(
+                        f"case {scenario} failed: exit={status}, output={text!r}"
+                    )
+                if action_index != len(actions):
+                    action, value = actions[action_index]
+                    raise AssertionError(
+                        f"case {scenario} exited before completing {action} {value!r}, "
+                        f"normalized_output={normalized!r}"
+                    )
+                match = RESULT_RE.search(text)
+                if match is None:
+                    raise AssertionError(
+                        f"case {scenario} missing result marker: {text!r}"
+                    )
+                return match.group(1).replace("\r", "")
+
+            time.sleep(poll_interval_s)
+    finally:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except OSError:
+            pass
+        try:
+            os.waitpid(pid, 0)
+        except OSError:
+            pass
+
+    normalized = normalized_output()
+    if not prompt_seen:
+        missing = "initial prompt"
+    elif action_index < len(actions):
+        action, value = actions[action_index]
+        if action == "wait":
+            missing = f"fragment {value!r}"
+        elif action == "send":
+            missing = f"send {value!r}"
+        else:
+            missing = f"resize {value!r}"
+    else:
+        missing = "case completion"
+    raise AssertionError(
+        f"case {scenario} timed out while waiting for {missing}, "
+        f"normalized_output={normalized!r}"
+    )
 
 
 def main() -> int:
@@ -739,6 +892,38 @@ def main() -> int:
         "ab",
         step_delay_s=0.003,
         poll_interval_s=0.001,
+    )
+
+    reflow_single_line = "pty> abcdefghij"
+    reflow_wrapped = "pty> abc↵\n   > def↵\n   > ghi↵\n   > j"
+    reflow_wrapped_tail = "↵\n   > j"
+
+    # These regression checks document the current resize/reflow gap in isocline.
+    assert_resize_case(
+        binary,
+        "resize_reflow_initial_input",
+        "resize_reflow_initial_input",
+        [
+            ("wait", reflow_single_line),
+            ("resize", 8),
+            ("wait", reflow_wrapped),
+            ("send", b"\r"),
+        ],
+        "abcdefghij",
+    )
+    assert_resize_case(
+        binary,
+        "resize_reflow_typed_input_expand",
+        "resize_reflow_typed_input",
+        [
+            ("resize", 8),
+            ("send", b"abcdefghij"),
+            ("wait", reflow_wrapped_tail),
+            ("resize", 40),
+            ("wait", reflow_single_line),
+            ("send", b"\r"),
+        ],
+        "abcdefghij",
     )
 
     prompt_guard_expectations = [
