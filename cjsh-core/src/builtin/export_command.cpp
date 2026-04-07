@@ -29,6 +29,7 @@
 #include "export_command.h"
 
 #include "builtin_help.h"
+#include "builtin_option_parser.h"
 
 #include <cerrno>
 #include <cstring>
@@ -114,7 +115,19 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
                                    "Without operands, list exported variables."})) {
         return 0;
     }
-    if (args.size() == 1) {
+    size_t start_index = 1;
+    const bool options_ok =
+        builtin_parse_short_options(args, start_index, "export", [&](char option) {
+            if (option == 'p') {
+                return true;
+            }
+            return false;
+        });
+    if (!options_ok) {
+        return 2;
+    }
+
+    if (start_index >= args.size()) {
         extern char** environ;
         for (char** env = environ; *env != nullptr; ++env) {
             std::cout << "export " << *env << '\n';
@@ -125,7 +138,7 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
     bool all_successful = true;
     auto& env_vars = cjsh_env::env_vars();
 
-    for (size_t i = 1; i < args.size(); ++i) {
+    for (size_t i = start_index; i < args.size(); ++i) {
         AssignmentOperand operand;
         parse_assignment_operand(args[i], operand, true);
 
@@ -170,38 +183,31 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
             }
 
             std::string var_value;
-            bool found = false;
             bool is_local = false;
 
             auto* script_interpreter = shell->get_shell_script_interpreter();
             if (script_interpreter != nullptr && script_interpreter->is_local_variable(name)) {
                 var_value = script_interpreter->get_variable_value(name);
-                found = true;
                 is_local = true;
 
                 script_interpreter->mark_local_as_exported(name);
             } else {
                 if (cjsh_env::shell_variable_is_set(name)) {
                     var_value = cjsh_env::get_shell_variable_value(name);
-                    found = true;
                 } else {
                     auto it = env_vars.find(name);
                     if (it != env_vars.end()) {
                         var_value = it->second;
-                        found = true;
+                    } else {
+                        var_value.clear();
                     }
                 }
             }
 
-            if (found) {
-                if (!is_local) {
-                    env_vars[name] = var_value;
-                }
-                setenv(name.c_str(), var_value.c_str(), 1);
-            } else {
-                print_error({ErrorType::INVALID_ARGUMENT, "export", name + ": not found", {}});
-                all_successful = false;
+            if (!is_local) {
+                env_vars[name] = var_value;
             }
+            setenv(name.c_str(), var_value.c_str(), 1);
         }
     }
 

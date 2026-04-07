@@ -95,11 +95,7 @@ int pwd_command(const std::vector<std::string>& args) {
         return 0;
     }
 
-    bool logical = false;
-
-    if (cjsh_env::shell_variable_is_set("POSIXLY_CORRECT")) {
-        logical = true;
-    }
+    bool logical = true;
 
     size_t start_index = 1;
     std::vector<BuiltinParsedShortOption> parsed_options;

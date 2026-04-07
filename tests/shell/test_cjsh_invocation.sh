@@ -63,7 +63,7 @@ EOF
 chmod +x "$zero_probe"
 
 OUT=$("$CJSH_PATH" "$zero_probe")
-CANON_TMP=$(cd "$TMP_ROOT" && pwd -P)
+CANON_TMP=$(cd "$TMP_ROOT" && pwd)
 SCRIPT_ZERO=${OUT%%|*}
 SCRIPT_DIR=${OUT#*|}
 if [ "$SCRIPT_ZERO" = "$zero_probe" ] && [ "$SCRIPT_DIR" = "$CANON_TMP" ]; then

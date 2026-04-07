@@ -34,10 +34,13 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <cctype>
+#include <cerrno>
+#include <cstring>
 
 #include "cjsh_filesystem.h"
 #include "error_out.h"
 #include "shell.h"
+#include "shell_env.h"
 
 int exec_command(const std::vector<std::string>& args, Shell* shell) {
     if (builtin_handle_help(
@@ -45,6 +48,8 @@ int exec_command(const std::vector<std::string>& args, Shell* shell) {
                    "If COMMAND is omitted, apply redirections to the shell."})) {
         return 0;
     }
+    (void)shell;
+
     if (args.size() <= 1) {
         return 0;
     }
@@ -129,8 +134,23 @@ int exec_command(const std::vector<std::string>& args, Shell* shell) {
         return 0;
     }
 
-    if (!exec_args.empty() && shell) {
-        return shell->execute_command(exec_args, false);
+    if (!exec_args.empty()) {
+        auto c_args = cjsh_env::build_exec_argv(exec_args);
+        execvp(exec_args[0].c_str(), c_args.data());
+
+        int saved_errno = errno;
+        print_error({ErrorType::RUNTIME_ERROR,
+                     "exec",
+                     exec_args[0] + ": " + std::strerror(saved_errno),
+                     {}});
+
+        if (saved_errno == ENOENT) {
+            return 127;
+        }
+        if (saved_errno == EACCES || saved_errno == ENOEXEC || saved_errno == EISDIR) {
+            return 126;
+        }
+        return 1;
     }
 
     return 0;

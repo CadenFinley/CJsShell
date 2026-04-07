@@ -31,6 +31,7 @@
 #include "builtin_help.h"
 
 #include <fcntl.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include "alias_abbr_commands.h"
@@ -281,7 +282,29 @@ std::string Built_ins::get_previous_directory() const {
 }
 
 void Built_ins::set_current_directory() {
-    current_directory = cjsh_filesystem::safe_current_directory();
+    std::string physical_directory = cjsh_filesystem::safe_current_directory();
+    current_directory = physical_directory;
+
+    if (!cjsh_env::shell_variable_is_set("PWD")) {
+        return;
+    }
+
+    std::string logical_directory = cjsh_env::get_shell_variable_value("PWD");
+    if (logical_directory.empty() || logical_directory[0] != '/') {
+        return;
+    }
+
+    struct stat logical_stat{};
+    struct stat physical_stat{};
+    if (stat(logical_directory.c_str(), &logical_stat) != 0 ||
+        stat(physical_directory.c_str(), &physical_stat) != 0) {
+        return;
+    }
+
+    if (logical_stat.st_dev == physical_stat.st_dev &&
+        logical_stat.st_ino == physical_stat.st_ino) {
+        current_directory = logical_directory;
+    }
 }
 
 std::vector<std::string> Built_ins::get_builtin_commands() const {

@@ -37,4 +37,5 @@ int cd_command(const std::vector<std::string>& args, std::string& current_direct
                std::string& previous_directory, Shell* shell = nullptr);
 
 int change_directory(const std::string& dir, std::string& current_directory,
-                     std::string& previous_directory, Shell* shell = nullptr);
+                     std::string& previous_directory, Shell* shell = nullptr,
+                     bool logical_mode = true);

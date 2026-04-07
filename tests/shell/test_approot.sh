@@ -125,7 +125,7 @@ run_path_test "approot --file keeps cwd unchanged" "approot --file history >/dev
 ENV_OVERRIDE_DIR=$(mktemp -d 2>/dev/null)
 if [ -n "$ENV_OVERRIDE_DIR" ] && [ -d "$ENV_OVERRIDE_DIR" ]; then
     ENV_OVERRIDE_FILE="$ENV_OVERRIDE_DIR/cjsh-env.override"
-    ENV_OVERRIDE_EXPECTED=$(cd "$ENV_OVERRIDE_DIR" && pwd -P)
+    ENV_OVERRIDE_EXPECTED=$(cd "$ENV_OVERRIDE_DIR" && pwd)
     ENV_OVERRIDE_FILE_EXPECTED="$ENV_OVERRIDE_FILE"
 
     run_path_test "approot env honors missing CJSH_ENV file" \

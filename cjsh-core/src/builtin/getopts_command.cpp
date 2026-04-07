@@ -69,12 +69,12 @@ int getopts_command(const std::vector<std::string>& args, Shell* shell) {
         return 1;
     }
 
-    if (args.size() < 2) {
+    if (args.size() < 3) {
         print_error({ErrorType::INVALID_ARGUMENT,
                      "getopts",
                      "usage: getopts optstring name [args...]",
                      {}});
-        return 1;
+        return 2;
     }
 
     const std::string& optstring = args[1];

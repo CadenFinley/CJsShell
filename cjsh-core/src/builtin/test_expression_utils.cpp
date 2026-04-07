@@ -34,8 +34,8 @@
 namespace test_expression_utils {
 
 bool is_basic_unary_operator(const std::string& op) {
-    return op == "-z" || op == "-n" || op == "-e" || op == "-f" || op == "-d" || op == "-r" ||
-           op == "-w" || op == "-x" || op == "-s";
+    return op == "-z" || op == "-n" || op == "-e" || op == "-a" || op == "-f" || op == "-d" ||
+           op == "-r" || op == "-w" || op == "-x" || op == "-s";
 }
 
 bool evaluate_basic_unary_operator(const std::string& op, const std::string& arg) {
@@ -46,7 +46,7 @@ bool evaluate_basic_unary_operator(const std::string& op, const std::string& arg
     if (op == "-n") {
         return !arg.empty();
     }
-    if (op == "-e") {
+    if (op == "-e" || op == "-a") {
         return access(arg.c_str(), F_OK) == 0;
     }
     if (op == "-f") {

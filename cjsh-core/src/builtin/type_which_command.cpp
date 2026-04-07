@@ -108,7 +108,6 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
     bool force_path = false;
     bool show_type_only = false;
     bool inhibit_functions = false;
-    bool no_path_search = false;
 
     size_t start_index = 1;
     const bool options_ok =
@@ -127,7 +126,8 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
                     show_type_only = true;
                     return true;
                 case 'P':
-                    no_path_search = true;
+                    force_path = true;
+                    inhibit_functions = true;
                     return true;
                 default:
                     return false;
@@ -143,7 +143,7 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
         const std::string& name = args[i];
         bool found = false;
 
-        const auto entries = command_lookup::list_resolution_entries(name, shell, !no_path_search);
+        const auto entries = command_lookup::list_resolution_entries(name, shell, true);
 
         if (!force_path && !inhibit_functions) {
             if (emit_type_match(
@@ -191,13 +191,15 @@ int type_command(const std::vector<std::string>& args, Shell* shell) {
         }
 
         if (!found || show_all || force_path) {
-            if (!no_path_search) {
-                if (emit_type_match(entries, ResolutionKind::Path, "file", show_type_only,
-                                    [&](const std::string& value) {
+            if (emit_type_match(entries, ResolutionKind::Path, "file", show_type_only,
+                                [&](const std::string& value) {
+                                    if (force_path) {
+                                        std::cout << value << '\n';
+                                    } else {
                                         std::cout << name << " is " << value << '\n';
-                                    })) {
-                    found = true;
-                }
+                                    }
+                                })) {
+                found = true;
             }
         }
 

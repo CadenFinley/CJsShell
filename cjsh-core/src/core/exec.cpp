@@ -1107,19 +1107,9 @@ int Exec::execute_builtin_with_redirections(Command cmd) {
     }
 
     bool persist_fd_changes = (!cmd.args.empty() && cmd.args[0] == "exec" && cmd.args.size() == 1);
-    bool is_exec_builtin = !cmd.args.empty() && cmd.args[0] == "exec";
     std::string command_name = cmd.args.empty() ? "builtin" : cmd.args[0];
 
-    auto action = [&]() -> int {
-        if (is_exec_builtin) {
-            if (cmd.args.size() == 1) {
-                return 0;
-            }
-            std::vector<std::string> exec_args(cmd.args.begin() + 1, cmd.args.end());
-            return g_shell->execute_command(exec_args, false);
-        }
-        return g_shell->get_built_ins()->builtin_command(cmd.args);
-    };
+    auto action = [&]() -> int { return g_shell->get_built_ins()->builtin_command(cmd.args); };
 
     bool action_invoked = false;
     int exit_code = run_with_command_redirections(cmd, action, command_name, persist_fd_changes,

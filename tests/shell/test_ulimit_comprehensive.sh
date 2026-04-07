@@ -169,7 +169,7 @@ else
 fi
 
 # Soft limits above hard should fail instead of clamping
-SOFT_ABOVE_HARD_OUT=$("$CJSH_PATH" -c "orig_soft=\$(ulimit -Ss); hard=\$(ulimit -Hs); if [ \"\$hard\" = unlimited ]; then exit 3; fi; too_high=\$((hard + 1)); if ulimit -Ss \"\$too_high\" >/dev/null 2>&1; then exit 10; fi; after_soft=\$(ulimit -Ss); printf '%s %s\n' \"\$orig_soft\" \"\$after_soft\"" 2>&1)
+SOFT_ABOVE_HARD_OUT=$("$CJSH_PATH" -c "orig_soft=\$(ulimit -Ss); hard=\$(ulimit -Hs); if [ \"\$hard\" = unlimited ]; then exit 3; fi; if ulimit -Ss unlimited >/dev/null 2>&1; then exit 10; fi; after_soft=\$(ulimit -Ss); printf '%s %s\n' \"\$orig_soft\" \"\$after_soft\"; exit 0" 2>&1)
 SOFT_ABOVE_HARD_STATUS=$?
 if [ $SOFT_ABOVE_HARD_STATUS -eq 0 ]; then
     set -- $SOFT_ABOVE_HARD_OUT
@@ -180,6 +180,8 @@ if [ $SOFT_ABOVE_HARD_STATUS -eq 0 ]; then
     fi
 elif [ $SOFT_ABOVE_HARD_STATUS -eq 3 ]; then
     pass_test "ulimit -Ss above-hard check skipped (hard is unlimited)"
+elif [ $SOFT_ABOVE_HARD_STATUS -eq 10 ]; then
+    fail_test "ulimit -Ss accepted unlimited despite a finite hard limit"
 else
     fail_test "ulimit -Ss above-hard check failed unexpectedly: $SOFT_ABOVE_HARD_OUT"
 fi

@@ -43,23 +43,92 @@
 
 int cd_command(const std::vector<std::string>& args, std::string& current_directory,
                std::string& previous_directory, Shell* shell) {
-    if (builtin_handle_help(args, {"Usage: cd [DIR]", "Change the current directory.",
-                                   "Use '-' to switch to the previous directory."})) {
+    if (builtin_handle_help(args, {"Usage: cd [-L|-P] [DIR]", "Change the current directory.",
+                                   "Use '-' to switch to the previous directory.",
+                                   "-L keeps logical paths (default).",
+                                   "-P resolves symbolic links to physical paths."})) {
         return 0;
     }
 
-    if (args.size() > 2) {
-        ErrorInfo error = {
-            ErrorType::INVALID_ARGUMENT, "cd", "too many arguments", {"Usage: cd [directory]"}};
+    bool logical_mode = true;
+    size_t operand_index = 1;
+
+    while (operand_index < args.size()) {
+        const std::string& token = args[operand_index];
+
+        if (token == "--") {
+            ++operand_index;
+            break;
+        }
+
+        if (token == "-") {
+            break;
+        }
+
+        if (token == "-L" || token == "--logical") {
+            logical_mode = true;
+            ++operand_index;
+            continue;
+        }
+
+        if (token == "-P" || token == "--physical") {
+            logical_mode = false;
+            ++operand_index;
+            continue;
+        }
+
+        if (token.size() > 1 && token[0] == '-' && token[1] != '-') {
+            bool valid = true;
+            for (size_t i = 1; i < token.size(); ++i) {
+                if (token[i] == 'L') {
+                    logical_mode = true;
+                } else if (token[i] == 'P') {
+                    logical_mode = false;
+                } else {
+                    valid = false;
+                    break;
+                }
+            }
+
+            if (valid) {
+                ++operand_index;
+                continue;
+            }
+        }
+
+        if (!token.empty() && token[0] == '-') {
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         "cd",
+                         "invalid option: " + token,
+                         {"Usage: cd [-L|-P] [directory]"}});
+            return 2;
+        }
+
+        break;
+    }
+
+    if (args.size() > operand_index + 1) {
+        ErrorInfo error = {ErrorType::INVALID_ARGUMENT,
+                           "cd",
+                           "too many arguments",
+                           {"Usage: cd [-L|-P] [directory]"}};
         print_error(error);
         return 2;
     }
 
-    return change_directory(args.size() > 1 ? args[1] : "", current_directory, previous_directory,
-                            shell);
+    return change_directory(args.size() > operand_index ? args[operand_index] : "",
+                            current_directory, previous_directory, shell, logical_mode);
 }
 
 namespace {
+
+std::string normalize_logical_directory(const std::filesystem::path& path) {
+    std::string normalized = path.lexically_normal().string();
+    while (normalized.size() > 1 && normalized.back() == '/') {
+        normalized.pop_back();
+    }
+    return normalized;
+}
 
 std::optional<std::filesystem::path> resolve_smart_cd_target(const std::string& target_dir,
                                                              const std::string& current_dir) {
@@ -92,7 +161,7 @@ std::optional<std::filesystem::path> resolve_smart_cd_target(const std::string& 
 }  // namespace
 
 int change_directory(const std::string& dir, std::string& current_directory,
-                     std::string& previous_directory, Shell* shell) {
+                     std::string& previous_directory, Shell* shell, bool logical_mode) {
     std::string target_dir = dir;
     std::string requested_dir = dir;
 
@@ -162,13 +231,28 @@ int change_directory(const std::string& dir, std::string& current_directory,
 
         std::string old_directory = current_directory;
 
-        std::filesystem::path canonical_path = std::filesystem::canonical(dir_path);
-        current_directory = canonical_path.string();
-
-        if (chdir(current_directory.c_str()) != 0) {
+        if (chdir(dir_path.c_str()) != 0) {
             print_error_errno({ErrorType::RUNTIME_ERROR, "cd", "chdir", {}});
             return 1;
         }
+
+        std::string next_directory;
+        if (logical_mode) {
+            next_directory = normalize_logical_directory(dir_path);
+        } else {
+            std::error_code canonical_error;
+            std::filesystem::path canonical_path =
+                std::filesystem::canonical(dir_path, canonical_error);
+            if (!canonical_error && !canonical_path.empty()) {
+                next_directory = canonical_path.string();
+            }
+        }
+
+        if (next_directory.empty()) {
+            next_directory = cjsh_filesystem::safe_current_directory();
+        }
+
+        current_directory = next_directory;
 
         cjsh_env::set_shell_variable_value("PWD", current_directory);
         cjsh_env::set_shell_variable_value("OLDPWD", old_directory);

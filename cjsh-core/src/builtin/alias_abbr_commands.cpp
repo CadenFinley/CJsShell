@@ -33,6 +33,7 @@
 #include <vector>
 
 #include "builtin_help.h"
+#include "builtin_option_parser.h"
 #include "error_out.h"
 #include "parser_utils.h"
 #include "shell.h"
@@ -109,14 +110,48 @@ int alias_command(const std::vector<std::string>& args, Shell* shell) {
                                    "NAME=VALUE defines an alias, NAME shows its definition."})) {
         return 0;
     }
-    if (args.size() == 1) {
+    bool print_mode = false;
+    size_t start_index = 1;
+    const bool options_ok =
+        builtin_parse_short_options(args, start_index, "alias", [&](char option) {
+            if (option == 'p') {
+                print_mode = true;
+                return true;
+            }
+            return false;
+        });
+    if (!options_ok) {
+        return 2;
+    }
+
+    if (shell == nullptr) {
+        print_error({ErrorType::FATAL_ERROR, "alias", "shell not initialized properly", {}});
+        return 1;
+    }
+
+    if (start_index >= args.size()) {
         auto& aliases = shell->get_aliases();
         print_named_mapping(aliases, "alias", "No aliases defined.");
         return 0;
     }
 
     auto& aliases = shell->get_aliases();
-    bool all_successful = assign_or_print_named_entries(args, 1, aliases, "alias", {},
+
+    if (print_mode) {
+        bool all_successful = true;
+        for (size_t i = start_index; i < args.size(); ++i) {
+            auto it = aliases.find(args[i]);
+            if (it != aliases.end()) {
+                std::cout << "alias " << it->first << "='" << it->second << "'" << '\n';
+            } else {
+                print_error({ErrorType::COMMAND_NOT_FOUND, "alias", args[i] + ": not found", {}});
+                all_successful = false;
+            }
+        }
+        return all_successful ? 0 : 1;
+    }
+
+    bool all_successful = assign_or_print_named_entries(args, start_index, aliases, "alias", {},
                                                         [](const std::string&) { return true; });
 
     if (shell != nullptr) {
@@ -131,13 +166,47 @@ int unalias_command(const std::vector<std::string>& args, Shell* shell) {
                                    "Use 'alias --help' to learn how to create aliases."})) {
         return 0;
     }
-    if (args.size() < 2) {
+    if (shell == nullptr) {
+        print_error({ErrorType::FATAL_ERROR, "unalias", "shell not initialized properly", {}});
+        return 1;
+    }
+
+    bool remove_all = false;
+    size_t start_index = 1;
+    const bool options_ok =
+        builtin_parse_short_options(args, start_index, "unalias", [&](char option) {
+            if (option == 'a') {
+                remove_all = true;
+                return true;
+            }
+            return false;
+        });
+    if (!options_ok) {
+        return 2;
+    }
+
+    if (remove_all) {
+        if (start_index < args.size()) {
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         "unalias",
+                         "unalias -a does not accept additional operands",
+                         {"Usage: unalias -a"}});
+            return 1;
+        }
+
+        auto& aliases = shell->get_aliases();
+        aliases.clear();
+        shell->set_aliases(aliases);
+        return 0;
+    }
+
+    if (start_index >= args.size()) {
         print_error({ErrorType::INVALID_ARGUMENT, "unalias", "not enough arguments", {}});
         return 1;
     }
 
     auto& aliases = shell->get_aliases();
-    bool success = remove_named_entries(args, 1, aliases, "unalias");
+    bool success = remove_named_entries(args, start_index, aliases, "unalias");
 
     if (shell != nullptr) {
         shell->set_aliases(aliases);
