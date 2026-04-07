@@ -168,20 +168,20 @@ else
     fail_test "ulimit -s failed to set both limits: $SET_BOTH_OUT"
 fi
 
-# Soft limits above hard should fail instead of clamping
-SOFT_ABOVE_HARD_OUT=$("$CJSH_PATH" -c "orig_soft=\$(ulimit -Ss); hard=\$(ulimit -Hs); if [ \"\$hard\" = unlimited ]; then exit 3; fi; if ulimit -Ss unlimited >/dev/null 2>&1; then exit 10; fi; after_soft=\$(ulimit -Ss); printf '%s %s\n' \"\$orig_soft\" \"\$after_soft\"; exit 0" 2>&1)
+# Soft stack limits above hard should fail instead of clamping
+SOFT_ABOVE_HARD_OUT=$("$CJSH_PATH" -c "orig_soft=\$(ulimit -Ss); orig_hard=\$(ulimit -Hs); if [ \"\$orig_soft\" = unlimited ]; then if [ \"\$orig_hard\" = unlimited ]; then target=1024; elif [ \"\$orig_hard\" -gt 2 ]; then target=\$((orig_hard - 1)); else target=1; fi; elif [ \"\$orig_soft\" -gt 2 ]; then target=\$((orig_soft - 1)); else target=1; fi; if [ \"\$orig_hard\" != unlimited ] && [ \"\$target\" -gt \"\$orig_hard\" ]; then target=\$orig_hard; fi; ulimit -s \"\$target\" || exit 90; too_high=\$((target + 1)); if ulimit -Ss \"\$too_high\" >/dev/null 2>&1; then exit 10; fi; after_soft=\$(ulimit -Ss); after_hard=\$(ulimit -Hs); printf '%s %s %s\n' \"\$target\" \"\$after_soft\" \"\$after_hard\"; exit 0" 2>&1)
 SOFT_ABOVE_HARD_STATUS=$?
 if [ $SOFT_ABOVE_HARD_STATUS -eq 0 ]; then
     set -- $SOFT_ABOVE_HARD_OUT
-    if [ $# -eq 2 ] && [ "$1" = "$2" ]; then
+    if [ $# -eq 3 ] && [ "$1" = "$2" ] && [ "$1" = "$3" ]; then
         pass_test "ulimit -Ss rejects values above the hard limit"
     else
-        fail_test "ulimit -Ss altered limit after rejected set (got '$SOFT_ABOVE_HARD_OUT')"
+        fail_test "ulimit -Ss altered limits after rejected set (got '$SOFT_ABOVE_HARD_OUT')"
     fi
-elif [ $SOFT_ABOVE_HARD_STATUS -eq 3 ]; then
-    pass_test "ulimit -Ss above-hard check skipped (hard is unlimited)"
 elif [ $SOFT_ABOVE_HARD_STATUS -eq 10 ]; then
-    fail_test "ulimit -Ss accepted unlimited despite a finite hard limit"
+    fail_test "ulimit -Ss accepted a value above a finite hard limit"
+elif [ $SOFT_ABOVE_HARD_STATUS -eq 90 ]; then
+    pass_test "ulimit -Ss above-hard check skipped (could not establish finite baseline)"
 else
     fail_test "ulimit -Ss above-hard check failed unexpectedly: $SOFT_ABOVE_HARD_OUT"
 fi
