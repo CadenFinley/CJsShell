@@ -2718,11 +2718,11 @@ register functions and <code>hook list</code> to inspect active hooks. See
 </span></code></pre></div>
 <ul>
 <li><code>-a</code> lists every supported limit along with the active hard/soft values.</li>
-<li>Use <code>-H</code> or <code>-S</code> to operate on the hard or soft limit respectively (defaults to soft).</li>
-<li>Resource selectors mirror the underlying OS (<code>-f</code> file size, <code>-n</code> open files, <code>-t</code> CPU time, <code>-v</code> virtual memory, etc.). Unsupported switches print a descriptive error.</li>
+<li>Use <code>-H</code> or <code>-S</code> to operate on hard or soft limits respectively. With no selector flags, reads default to soft and writes update both hard and soft limits.</li>
+<li>Resource selectors mirror the underlying OS (<code>-f</code> file size, <code>-n</code> open files, <code>-p</code> pipe size, <code>-t</code> CPU time, <code>-v</code> virtual memory, etc.). Unsupported selectors print a descriptive error.</li>
 <li>Limits accept numeric values, or the keywords <code>unlimited</code>, <code>hard</code>, or <code>soft</code>.</li>
 </ul>
-<p>Run <code>ulimit --help</code> for the full table of supported options on your platform.</p>
+<p>Run <code>ulimit --help</code> for the full selector table, including unsupported entries on your current platform.</p>
 <h2 id="theming-and-customization">Theming and Customization</h2>
 <h3 id="prompt-styling">Prompt Styling</h3>
 <p>cjsh reads the standard prompt variables, so customizing the look is as simple as exporting new values inside your configuration files:</p>
