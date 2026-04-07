@@ -65,6 +65,39 @@ run_path_test() {
     fi
 }
 
+resolve_startup_path_with_fallback() {
+    primary_path=$1
+    alternate_path=$2
+    require_regular_file=$3
+
+    if [ "$require_regular_file" = "yes" ]; then
+        if [ -f "$primary_path" ]; then
+            printf '%s\n' "$primary_path"
+            return
+        fi
+
+        if [ -f "$alternate_path" ]; then
+            printf '%s\n' "$alternate_path"
+            return
+        fi
+
+        printf '%s\n' "$primary_path"
+        return
+    fi
+
+    if [ -e "$primary_path" ]; then
+        printf '%s\n' "$primary_path"
+        return
+    fi
+
+    if [ -e "$alternate_path" ]; then
+        printf '%s\n' "$alternate_path"
+        return
+    fi
+
+    printf '%s\n' "$primary_path"
+}
+
 CONFIG_DIR="$HOME/.config/cjsh"
 CACHE_DIR="$HOME/.cache/cjsh"
 COMPLETIONS_DIR="$CACHE_DIR/generated_completions"
@@ -80,10 +113,14 @@ CJSH_EXPECTED=$(cd "$(dirname "$CJSH_PATH")" && pwd -P)
 START_EXPECTED=$(pwd -P)
 HISTORY_FILE_EXPECTED="$CACHE_EXPECTED/history.txt"
 FIRST_BOOT_FILE_EXPECTED="$CACHE_EXPECTED/.first_boot"
-ENV_FILE_EXPECTED="$HOME_EXPECTED/.cjshenv"
-PROFILE_FILE_EXPECTED="$HOME_EXPECTED/.cjprofile"
-RC_FILE_EXPECTED="$HOME_EXPECTED/.cjshrc"
-LOGOUT_FILE_EXPECTED="$HOME_EXPECTED/.cjlogout"
+ENV_FILE_EXPECTED=$(resolve_startup_path_with_fallback "$HOME_EXPECTED/.cjshenv" "$CONFIG_EXPECTED/.cjshenv" "yes")
+PROFILE_FILE_EXPECTED=$(resolve_startup_path_with_fallback "$HOME_EXPECTED/.cjprofile" "$CONFIG_EXPECTED/.cjprofile" "no")
+RC_FILE_EXPECTED=$(resolve_startup_path_with_fallback "$HOME_EXPECTED/.cjshrc" "$CONFIG_EXPECTED/.cjshrc" "no")
+LOGOUT_FILE_EXPECTED=$(resolve_startup_path_with_fallback "$HOME_EXPECTED/.cjlogout" "$CONFIG_EXPECTED/.cjlogout" "no")
+ENV_EXPECTED=$(dirname "$ENV_FILE_EXPECTED")
+PROFILE_EXPECTED=$(dirname "$PROFILE_FILE_EXPECTED")
+RC_EXPECTED=$(dirname "$RC_FILE_EXPECTED")
+LOGOUT_EXPECTED=$(dirname "$LOGOUT_FILE_EXPECTED")
 
 run_path_test "approot defaults to config" "approot; pwd" "$CONFIG_EXPECTED"
 run_path_test "approot config target" "approot config; pwd" "$CONFIG_EXPECTED"
@@ -92,14 +129,14 @@ run_path_test "approot history target" "approot history; pwd" "$CACHE_EXPECTED"
 run_path_test "approot firstboot target" "approot firstboot; pwd" "$FIRST_BOOT_EXPECTED"
 run_path_test "approot first_boot target" "approot first_boot; pwd" "$FIRST_BOOT_EXPECTED"
 run_path_test "approot completions target" "approot completions; pwd" "$COMPLETIONS_EXPECTED"
-run_path_test "approot env target" "approot env; pwd" "$HOME_EXPECTED"
-run_path_test "approot cjshenv target" "approot cjshenv; pwd" "$HOME_EXPECTED"
-run_path_test "approot profile target" "approot profile; pwd" "$HOME_EXPECTED"
-run_path_test "approot cjprofile target" "approot cjprofile; pwd" "$HOME_EXPECTED"
-run_path_test "approot rc target" "approot rc; pwd" "$HOME_EXPECTED"
-run_path_test "approot cjshrc target" "approot cjshrc; pwd" "$HOME_EXPECTED"
-run_path_test "approot logout target" "approot logout; pwd" "$HOME_EXPECTED"
-run_path_test "approot cjlogout target" "approot cjlogout; pwd" "$HOME_EXPECTED"
+run_path_test "approot env target" "approot env; pwd" "$ENV_EXPECTED"
+run_path_test "approot cjshenv target" "approot cjshenv; pwd" "$ENV_EXPECTED"
+run_path_test "approot profile target" "approot profile; pwd" "$PROFILE_EXPECTED"
+run_path_test "approot cjprofile target" "approot cjprofile; pwd" "$PROFILE_EXPECTED"
+run_path_test "approot rc target" "approot rc; pwd" "$RC_EXPECTED"
+run_path_test "approot cjshrc target" "approot cjshrc; pwd" "$RC_EXPECTED"
+run_path_test "approot logout target" "approot logout; pwd" "$LOGOUT_EXPECTED"
+run_path_test "approot cjlogout target" "approot cjlogout; pwd" "$LOGOUT_EXPECTED"
 run_path_test "approot home target" "approot home; pwd" "$HOME_EXPECTED"
 run_path_test "approot cjsh target" "approot cjsh; pwd" "$CJSH_EXPECTED"
 run_path_test "builtin approot dispatch" "builtin approot cache; pwd" "$CACHE_EXPECTED"
@@ -121,6 +158,37 @@ run_path_test "approot --file cache stays directory" "approot --file cache" "$CA
 run_path_test "approot --print keeps cwd unchanged" "approot --print cache >/dev/null; pwd" "$START_EXPECTED"
 run_path_test "approot --print works in command substitution" "cd \"\$(approot --print cache)\"; pwd" "$CACHE_EXPECTED"
 run_path_test "approot --file keeps cwd unchanged" "approot --file history >/dev/null; pwd" "$START_EXPECTED"
+
+ALT_PROFILE_HOME=$(mktemp -d 2>/dev/null)
+if [ -n "$ALT_PROFILE_HOME" ] && [ -d "$ALT_PROFILE_HOME" ]; then
+    ALT_CONFIG_DIR="$ALT_PROFILE_HOME/.config/cjsh"
+    ALT_PROFILE_FILE="$ALT_CONFIG_DIR/.cjprofile"
+    ALT_PROFILE_DIR_EXPECTED="$ALT_CONFIG_DIR"
+    ALT_PROFILE_FILE_EXPECTED="$ALT_PROFILE_FILE"
+
+    mkdir -p "$ALT_CONFIG_DIR"
+    : > "$ALT_PROFILE_FILE"
+
+    OUT=$(HOME="$ALT_PROFILE_HOME" "$CJSH_PATH" -c "approot --print profile")
+    STATUS=$?
+    if [ "$STATUS" -eq 0 ] && [ "$OUT" = "$ALT_PROFILE_DIR_EXPECTED" ]; then
+        pass_test "approot profile falls back to config profile path"
+    else
+        fail_test "approot profile fallback path (status=$STATUS, out='$OUT')"
+    fi
+
+    OUT=$(HOME="$ALT_PROFILE_HOME" "$CJSH_PATH" -c "approot --file profile")
+    STATUS=$?
+    if [ "$STATUS" -eq 0 ] && [ "$OUT" = "$ALT_PROFILE_FILE_EXPECTED" ]; then
+        pass_test "approot --file profile falls back to config profile file"
+    else
+        fail_test "approot --file profile fallback path (status=$STATUS, out='$OUT')"
+    fi
+
+    rm -rf "$ALT_PROFILE_HOME"
+else
+    fail_test "approot profile fallback tests (mktemp unavailable)"
+fi
 
 ENV_OVERRIDE_DIR=$(mktemp -d 2>/dev/null)
 if [ -n "$ENV_OVERRIDE_DIR" ] && [ -d "$ENV_OVERRIDE_DIR" ]; then

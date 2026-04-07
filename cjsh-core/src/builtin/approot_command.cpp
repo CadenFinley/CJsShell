@@ -65,6 +65,31 @@ std::filesystem::path normalize_target_path(std::filesystem::path path) {
     return path.lexically_normal();
 }
 
+bool startup_target_exists(const std::filesystem::path& candidate, bool require_regular_file) {
+    if (require_regular_file) {
+        std::error_code status_ec;
+        auto status = std::filesystem::status(candidate, status_ec);
+        return !status_ec && std::filesystem::is_regular_file(status);
+    }
+
+    std::error_code exists_ec;
+    return std::filesystem::exists(candidate, exists_ec) && !exists_ec;
+}
+
+std::filesystem::path resolve_startup_target_file_path(const std::filesystem::path& primary,
+                                                       const std::filesystem::path& alternate,
+                                                       bool require_regular_file) {
+    if (startup_target_exists(primary, require_regular_file)) {
+        return primary;
+    }
+
+    if (startup_target_exists(alternate, require_regular_file)) {
+        return alternate;
+    }
+
+    return primary;
+}
+
 std::filesystem::path resolve_env_target_file_path() {
     if (cjsh_env::shell_variable_is_set("CJSH_ENV")) {
         std::string env_override = cjsh_env::get_shell_variable_value("CJSH_ENV");
@@ -73,7 +98,8 @@ std::filesystem::path resolve_env_target_file_path() {
         }
     }
 
-    return cjsh_filesystem::g_cjsh_env_path();
+    return resolve_startup_target_file_path(cjsh_filesystem::g_cjsh_env_path(),
+                                            cjsh_filesystem::g_cjsh_env_alt_path(), true);
 }
 
 struct ApprootTargetPath {
@@ -115,15 +141,21 @@ std::optional<ApprootTargetPath> resolve_approot_target(const std::string& targe
     }
 
     if (target == "profile" || target == "cjprofile") {
-        return make_file_target(cjsh_filesystem::g_cjsh_profile_path());
+        return make_file_target(
+            resolve_startup_target_file_path(cjsh_filesystem::g_cjsh_profile_path(),
+                                             cjsh_filesystem::g_cjsh_profile_alt_path(), false));
     }
 
     if (target == "rc" || target == "cjshrc") {
-        return make_file_target(cjsh_filesystem::g_cjsh_source_path());
+        return make_file_target(
+            resolve_startup_target_file_path(cjsh_filesystem::g_cjsh_source_path(),
+                                             cjsh_filesystem::g_cjsh_source_alt_path(), false));
     }
 
     if (target == "logout" || target == "cjlogout") {
-        return make_file_target(cjsh_filesystem::g_cjsh_logout_path());
+        return make_file_target(
+            resolve_startup_target_file_path(cjsh_filesystem::g_cjsh_logout_path(),
+                                             cjsh_filesystem::g_cjsh_logout_alt_path(), false));
     }
 
     if (target == "home") {

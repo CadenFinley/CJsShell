@@ -30,10 +30,10 @@ approot [-p|--print] [-f|--file] [target]
 - `history` jumps to the directory containing the history file (defaults to `~/.cache/cjsh`)
 - `firstboot` / `first_boot` jumps to the directory containing the first-boot marker (`~/.cache/cjsh/.first_boot`)
 - `completions` jumps to `~/.cache/cjsh/generated_completions`
-- `env` / `cjshenv` jumps to the directory containing `~/.cjshenv` (usually `~`), or the directory containing `$CJSH_ENV` when that variable is set and non-empty
-- `profile` / `cjprofile` jumps to the directory containing `~/.cjprofile`
-- `rc` / `cjshrc` jumps to the directory containing `~/.cjshrc`
-- `logout` / `cjlogout` jumps to the directory containing `~/.cjlogout`
+- `env` / `cjshenv` jumps to the directory containing `$CJSH_ENV` when that variable is set and non-empty; otherwise it prefers `~/.cjshenv` and falls back to `~/.config/cjsh/.cjshenv` when the primary file is missing
+- `profile` / `cjprofile` jumps to the directory containing `~/.cjprofile`, falling back to `~/.config/cjsh/.cjprofile` when the primary file is missing
+- `rc` / `cjshrc` jumps to the directory containing `~/.cjshrc`, falling back to `~/.config/cjsh/.cjshrc` when the primary file is missing
+- `logout` / `cjlogout` jumps to the directory containing `~/.cjlogout`, falling back to `~/.config/cjsh/.cjlogout` when the primary file is missing
 - `home` jumps to your home directory
 - `cjsh` jumps to the directory containing the active `cjsh` executable (symlinks are resolved)
 - With `--file`, file-backed targets print their file paths (for example `history.txt`, `~/.cjshrc`, or the `cjsh` executable path)
