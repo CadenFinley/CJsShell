@@ -452,6 +452,16 @@ static bool test_history_dedup_snapshot(void) {
     EXPECT_TRUE(history_push(history, "echo hi"), "initial history push should succeed");
     EXPECT_TRUE(history_push(history, "echo hi"), "duplicate push should rewrite last entry");
 
+    history_snapshot_t dedup_snap = {0};
+    EXPECT_TRUE(history_snapshot_load(history, &dedup_snap, true),
+                "dedup snapshot should load after duplicate rewrite");
+    EXPECT_TRUE(dedup_snap.count == 1, "dedup snapshot should collapse duplicate command entries");
+    const history_entry_t* dedup_entry = history_snapshot_get(&dedup_snap, 0);
+    EXPECT_TRUE(dedup_entry != NULL, "dedup snapshot should expose the rewritten entry");
+    EXPECT_STREQ(history_entry_get_metadata(dedup_entry, "frequency"), "2",
+                 "duplicate rewrite should increment frequency metadata to two");
+    history_snapshot_free(history, &dedup_snap);
+
     history_enable_duplicates(history, true);
     const ic_history_metadata_t duplicate_meta[] = {
         {"exit_code", "7"},
@@ -466,17 +476,33 @@ static bool test_history_dedup_snapshot(void) {
     EXPECT_TRUE(snap.count == 3, "snapshot should contain three entries");
 
     bool found_printf = false;
+    bool printf_frequency_defaulted = false;
+    bool printf_has_frequency_key = false;
     ssize_t echo_instances = 0;
     for (ssize_t i = 0; i < snap.count; ++i) {
         const history_entry_t* entry = history_snapshot_get(&snap, i);
         if (entry == NULL)
             continue;
-        if (strcmp(entry->command, "printf bye") == 0)
+        if (strcmp(entry->command, "printf bye") == 0) {
             found_printf = true;
+            const char* frequency = history_entry_get_metadata(entry, "frequency");
+            printf_frequency_defaulted = (frequency != NULL && strcmp(frequency, "1") == 0);
+            for (ssize_t m = 0; m < entry->metadata_count; ++m) {
+                if (entry->metadata[m].key != NULL &&
+                    strcmp(entry->metadata[m].key, "frequency") == 0) {
+                    printf_has_frequency_key = true;
+                    break;
+                }
+            }
+        }
         if (strcmp(entry->command, "echo hi") == 0)
             echo_instances++;
     }
     EXPECT_TRUE(found_printf, "history snapshot should contain the printf entry");
+    EXPECT_TRUE(printf_frequency_defaulted,
+                "entries without explicit frequency metadata should default to one");
+    EXPECT_TRUE(printf_has_frequency_key,
+                "frequency metadata should be written even while duplicates are enabled");
     EXPECT_TRUE(echo_instances >= 2, "history snapshot should retain duplicate echo entries");
 
     ssize_t search_idx = -1;
@@ -1916,6 +1942,8 @@ static bool test_history_fuzzy_metadata_filtering(void) {
     EXPECT_TRUE(newest != NULL, "snapshot should include newest entry");
     EXPECT_TRUE(history_entry_get_metadata(newest, "timestamp") != NULL,
                 "history entries should always include timestamp metadata");
+    EXPECT_STREQ(history_entry_get_metadata(newest, "frequency"), "1",
+                 "deduplicated history entries should default frequency metadata to one");
     history_snapshot_free(history, &snap);
 
     history_clear(history);

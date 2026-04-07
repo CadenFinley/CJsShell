@@ -32,6 +32,7 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -66,6 +67,8 @@ typedef struct history_query_filter_s {
 } history_query_filter_t;
 
 static const char* k_history_timestamp_key = "timestamp";
+static const char* k_history_frequency_key = "frequency";
+static const char* k_history_frequency_default_value = "1";
 
 static bool history_metadata_key_valid(const char* key) {
     if (key == NULL || key[0] == '\0')
@@ -131,6 +134,30 @@ static const char* history_entry_metadata_lookup(const history_entry_t* entry, c
     return NULL;
 }
 
+static long long history_frequency_from_string(const char* value) {
+    if (value == NULL || value[0] == '\0')
+        return 1;
+
+    errno = 0;
+    char* end = NULL;
+    long long parsed = strtoll(value, &end, 10);
+    if (errno != 0 || end == value || end == NULL || *end != '\0' || parsed < 1) {
+        return 1;
+    }
+    return parsed;
+}
+
+static long long history_frequency_saturating_add(long long left, long long right) {
+    if (left >= LLONG_MAX - right)
+        return LLONG_MAX;
+    return left + right;
+}
+
+static long long history_entry_metadata_frequency(const history_entry_t* entry) {
+    const char* value = history_entry_metadata_lookup(entry, k_history_frequency_key, NULL);
+    return history_frequency_from_string(value);
+}
+
 static bool history_entry_set_metadata_owned(history_t* h, history_entry_t* entry, char* key,
                                              char* value) {
     if (h == NULL || entry == NULL || key == NULL)
@@ -184,6 +211,18 @@ static bool history_entry_set_metadata(history_t* h, history_entry_t* entry, con
     return history_entry_set_metadata_owned(h, entry, key_copy, value_copy);
 }
 
+static bool history_entry_set_frequency(history_t* h, history_entry_t* entry, long long frequency) {
+    if (h == NULL || entry == NULL)
+        return false;
+    if (frequency < 1)
+        frequency = 1;
+    char freq_buf[32];
+    int n = snprintf(freq_buf, sizeof(freq_buf), "%lld", frequency);
+    if (n <= 0 || n >= (int)sizeof(freq_buf))
+        return false;
+    return history_entry_set_metadata(h, entry, k_history_frequency_key, freq_buf);
+}
+
 static bool history_entry_ensure_timestamp(history_t* h, history_entry_t* entry) {
     if (h == NULL || entry == NULL)
         return false;
@@ -197,8 +236,21 @@ static bool history_entry_ensure_timestamp(history_t* h, history_entry_t* entry)
     return history_entry_set_metadata(h, entry, k_history_timestamp_key, ts_buf);
 }
 
+static bool history_entry_ensure_frequency(history_t* h, history_entry_t* entry) {
+    if (h == NULL || entry == NULL)
+        return false;
+    long long frequency = history_entry_metadata_frequency(entry);
+    return history_entry_set_frequency(h, entry, frequency);
+}
+
 ic_private const char* history_entry_get_metadata(const history_entry_t* entry, const char* key) {
-    return history_entry_metadata_lookup(entry, key, NULL);
+    const char* value = history_entry_metadata_lookup(entry, key, NULL);
+    if (value != NULL)
+        return value;
+    if (key != NULL && ic_stricmp(key, k_history_frequency_key) == 0) {
+        return k_history_frequency_default_value;
+    }
+    return NULL;
 }
 
 static bool history_is_disabled(const history_t* h) {
@@ -305,12 +357,17 @@ static void history_list_remove_duplicates(history_t* h, history_list_t* list) {
         const char* current = list->entries[i].command;
         if (current == NULL)
             continue;
+        long long combined_frequency = history_entry_metadata_frequency(&list->entries[i]);
         for (ssize_t j = i - 1; j >= 0; j--) {
             if (list->entries[j].command != NULL &&
                 strcmp(current, list->entries[j].command) == 0) {
+                combined_frequency = history_frequency_saturating_add(
+                    combined_frequency, history_entry_metadata_frequency(&list->entries[j]));
                 history_list_remove_at(h, list, j);
+                i--;
             }
         }
+        (void)history_entry_set_frequency(h, &list->entries[i], combined_frequency);
     }
 }
 
@@ -318,16 +375,24 @@ static bool history_collect_entries(history_t* h, history_list_t* list, bool ded
 static bool history_write_all(const history_t* h, const history_list_t* list);
 static bool history_append_entry(const history_t* h, const history_entry_t* entry);
 
-static bool history_list_remove_value(history_t* h, history_list_t* list, const char* value) {
+static bool history_list_remove_value(history_t* h, history_list_t* list, const char* value,
+                                      long long* removed_frequency_out) {
+    if (removed_frequency_out != NULL)
+        *removed_frequency_out = 0;
     if (list == NULL || value == NULL)
         return false;
     bool removed = false;
+    long long removed_frequency = 0;
     for (ssize_t i = list->count - 1; i >= 0; i--) {
         if (list->entries[i].command != NULL && strcmp(list->entries[i].command, value) == 0) {
+            removed_frequency = history_frequency_saturating_add(
+                removed_frequency, history_entry_metadata_frequency(&list->entries[i]));
             history_list_remove_at(h, list, i);
             removed = true;
         }
     }
+    if (removed_frequency_out != NULL)
+        *removed_frequency_out = removed_frequency;
     return removed;
 }
 
@@ -473,6 +538,7 @@ static void history_entry_normalize_metadata(history_t* h, history_entry_t* entr
     if (h == NULL || entry == NULL)
         return;
     (void)history_entry_ensure_timestamp(h, entry);
+    (void)history_entry_ensure_frequency(h, entry);
 }
 
 ic_private history_t* history_new(alloc_t* mem) {
@@ -633,8 +699,9 @@ ic_private bool history_push_with_metadata(history_t* h, const char* entry,
     }
 
     bool removed_existing = false;
+    long long removed_frequency = 0;
     if (!h->allow_duplicates) {
-        removed_existing = history_list_remove_value(h, &list, normalized);
+        removed_existing = history_list_remove_value(h, &list, normalized, &removed_frequency);
     }
 
     history_entry_t new_entry = {
@@ -655,6 +722,15 @@ ic_private bool history_push_with_metadata(history_t* h, const char* entry,
         }
     }
     if (!history_entry_ensure_timestamp(h, &new_entry)) {
+        history_entry_clear(h, &new_entry);
+        history_list_free(h, &list);
+        return false;
+    }
+    long long merged_frequency = history_entry_metadata_frequency(&new_entry);
+    if (!h->allow_duplicates) {
+        merged_frequency = history_frequency_saturating_add(merged_frequency, removed_frequency);
+    }
+    if (!history_entry_set_frequency(h, &new_entry, merged_frequency)) {
         history_entry_clear(h, &new_entry);
         history_list_free(h, &list);
         return false;
