@@ -146,6 +146,16 @@ run_expect_fail "declare builtin disabled at runtime" "if true; then declare foo
     "'declare' is disabled in POSIX mode"
 run_expect_fail "typeset builtin disabled at runtime" "if true; then typeset foo=1; fi" \
     "'typeset' is disabled in POSIX mode"
+run_expect_fail "source disabled through command builtin" "command source '$tmp_source_file'" \
+    "'source' is disabled in POSIX mode"
+run_expect_fail "local disabled through command builtin" "command local foo=1" \
+    "'local' is disabled in POSIX mode"
+run_expect_fail "declare disabled through command builtin" "command declare foo=1" \
+    "'declare' is disabled in POSIX mode"
+run_expect_fail "source disabled through builtin wrapper" "builtin source '$tmp_source_file'" \
+    "'source' is disabled in POSIX mode"
+run_expect_fail "local disabled through builtin wrapper" "builtin local foo=1" \
+    "'local' is disabled in POSIX mode"
 run_expect_fail "set -o globstar disabled" "set -o globstar" "not available in POSIX mode"
 run_expect_fail "set -o pipefail disabled" "set -o pipefail" "not available in POSIX mode"
 run_expect_fail "set -o huponexit disabled" "set -o huponexit" "not available in POSIX mode"
@@ -161,6 +171,12 @@ run_expect_literal "dot builtin allowed" ". '$tmp_source_file'" "from source"
 
 run_expect_literal "brace expansion stays literal" "echo {1..3}" "{1..3}"
 run_expect_literal "tilde stays literal" "HOME=/tmp/cjsh_posix_home; echo ~" "~"
+run_expect_literal "disabled syntax stays literal in single quotes" \
+    "printf '%s' '[[ not-a-conditional ]]'" "[[ not-a-conditional ]]"
+run_expect_literal "disabled syntax stays literal in double quotes" \
+    "printf '%s' \"x+=2\"" "x+=2"
+run_expect_literal "disabled builtin token stays literal in quotes" \
+    "printf '%s' \"source $tmp_source_file\"" "source $tmp_source_file"
 
 log_test "POSIXLY_CORRECT forced to 1"
 posix_env_output=$(POSIXLY_CORRECT=0 "$SHELL_TO_TEST" --posix -c 'printf "%s" "$POSIXLY_CORRECT"' 2>/dev/null)
@@ -168,6 +184,14 @@ if [ "$posix_env_output" = "1" ]; then
     pass
 else
     fail "Expected POSIXLY_CORRECT=1, got '$posix_env_output'"
+fi
+
+log_test "POSIXLY_CORRECT remains unchanged without --posix"
+non_posix_env_output=$(POSIXLY_CORRECT=0 "$SHELL_TO_TEST" -c 'printf "%s" "$POSIXLY_CORRECT"' 2>/dev/null)
+if [ "$non_posix_env_output" = "0" ]; then
+    pass
+else
+    fail "Expected POSIXLY_CORRECT=0 without --posix, got '$non_posix_env_output'"
 fi
 
 log_test "globstar remains literal"
@@ -204,6 +228,18 @@ if [ "$extension_status" -ne 0 ] &&
 else
     clean_output=$(printf "%s" "$extension_output" | tr '\n' ' ')
     fail "Expected extension dispatch to be disabled (status=$extension_status, output=$clean_output)"
+fi
+
+log_test "extension-based script dispatch enabled without --posix"
+extension_non_posix_output=$(HOME="$tmpdir/home" CJSH_ENV= \
+    "$SHELL_TO_TEST" -c "$tmp_extension_script" 2>&1)
+extension_non_posix_status=$?
+if [ "$extension_non_posix_status" -eq 0 ] &&
+   [ "$extension_non_posix_output" = "extension-dispatch-ran" ]; then
+    pass
+else
+    clean_output=$(printf "%s" "$extension_non_posix_output" | tr '\n' ' ')
+    fail "Expected extension dispatch in default mode (status=$extension_non_posix_status, output=$clean_output)"
 fi
 
 tmp_home="$tmpdir/strict-posix-home"

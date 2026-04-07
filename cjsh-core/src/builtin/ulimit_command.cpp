@@ -331,6 +331,16 @@ bool print_all_limits(bool hard_flag) {
     return success;
 }
 
+bool limit_exceeds(rlim_t candidate, rlim_t ceiling) {
+    if (ceiling == RLIM_INFINITY) {
+        return false;
+    }
+    if (candidate == RLIM_INFINITY) {
+        return true;
+    }
+    return candidate > ceiling;
+}
+
 bool set_limit(const OptionDescriptor& entry, bool hard_flag, bool soft_flag, rlim_t value) {
     struct rlimit limits{};
     if (!fetch_limits(entry, limits)) {
@@ -345,6 +355,12 @@ bool set_limit(const OptionDescriptor& entry, bool hard_flag, bool soft_flag, rl
 
     if (soft_flag) {
         new_limits.rlim_cur = value;
+    }
+
+    if (limit_exceeds(new_limits.rlim_cur, new_limits.rlim_max)) {
+        print_error(
+            {ErrorType::RUNTIME_ERROR, "ulimit", "soft limit cannot exceed hard limit", {}});
+        return false;
     }
 
     if (setrlimit(entry.resource, &new_limits) != 0) {

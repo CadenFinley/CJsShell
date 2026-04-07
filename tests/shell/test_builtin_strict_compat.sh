@@ -87,6 +87,15 @@ else
     fail_test "pwd default logical output (expected '$EXPECTED', got '$ACTUAL')"
 fi
 
+echo "Check: pwd -P output matches bash physical mode"
+EXPECTED=$(LINK_DIR="$LINK_DIR" bash -lc 'cd "$LINK_DIR"; pwd -P' 2>/dev/null)
+ACTUAL=$(LINK_DIR="$LINK_DIR" "$CJSH_PATH" -c 'cd "$LINK_DIR"; pwd -P' 2>/dev/null)
+if [ "$ACTUAL" = "$EXPECTED" ]; then
+    pass_test "pwd -P physical output"
+else
+    fail_test "pwd -P physical output (expected '$EXPECTED', got '$ACTUAL')"
+fi
+
 echo "Check: type -P resolves executable path"
 EXPECTED=$(bash -lc 'type -P ls' 2>/dev/null)
 ACTUAL=$("$CJSH_PATH" -c 'type -P ls' 2>/dev/null)
@@ -95,6 +104,78 @@ if [ $STATUS -eq 0 ] && [ "$ACTUAL" = "$EXPECTED" ]; then
     pass_test "type -P executable resolution"
 else
     fail_test "type -P executable resolution (status=$STATUS, expected '$EXPECTED', got '$ACTUAL')"
+fi
+
+echo "Check: command -v builtin output matches bash"
+EXPECTED=$(bash -lc 'command -v cd' 2>/dev/null)
+ACTUAL=$("$CJSH_PATH" -c 'command -v cd' 2>/dev/null)
+if [ "$ACTUAL" = "$EXPECTED" ]; then
+    pass_test "command -v builtin output"
+else
+    fail_test "command -v builtin output (expected '$EXPECTED', got '$ACTUAL')"
+fi
+
+echo "Check: command -v external output matches bash"
+EXPECTED=$(bash -lc 'command -v ls' 2>/dev/null)
+ACTUAL=$("$CJSH_PATH" -c 'command -v ls' 2>/dev/null)
+if [ "$ACTUAL" = "$EXPECTED" ]; then
+    pass_test "command -v external output"
+else
+    fail_test "command -v external output (expected '$EXPECTED', got '$ACTUAL')"
+fi
+
+echo "Check: command -v missing status matches bash"
+EXPECTED_STATUS=$(bash -lc 'command -v __cjsh_missing_builtin_strict__ >/dev/null 2>&1; printf "%s" "$?"' 2>/dev/null)
+ACTUAL_STATUS=$("$CJSH_PATH" -c 'command -v __cjsh_missing_builtin_strict__ >/dev/null 2>&1; printf "%s" "$?"' 2>/dev/null)
+if [ "$ACTUAL_STATUS" = "$EXPECTED_STATUS" ]; then
+    pass_test "command -v missing status"
+else
+    fail_test "command -v missing status (expected '$EXPECTED_STATUS', got '$ACTUAL_STATUS')"
+fi
+
+echo "Check: command -V builtin output matches bash"
+EXPECTED=$(bash -lc 'command -V cd' 2>/dev/null)
+ACTUAL=$("$CJSH_PATH" -c 'command -V cd' 2>/dev/null)
+if [ "$ACTUAL" = "$EXPECTED" ]; then
+    pass_test "command -V builtin output"
+else
+    fail_test "command -V builtin output (expected '$EXPECTED', got '$ACTUAL')"
+fi
+
+echo "Check: command -V external output matches bash"
+EXPECTED=$(bash -lc 'command -V ls' 2>/dev/null)
+ACTUAL=$("$CJSH_PATH" -c 'command -V ls' 2>/dev/null)
+if [ "$ACTUAL" = "$EXPECTED" ]; then
+    pass_test "command -V external output"
+else
+    fail_test "command -V external output (expected '$EXPECTED', got '$ACTUAL')"
+fi
+
+echo "Check: type -t classification matches bash"
+EXPECTED=$(bash -lc 'compat_func(){ :; }; type -t compat_func; type -t cd; type -t ls' 2>/dev/null)
+ACTUAL=$("$CJSH_PATH" -c 'compat_func(){ :; }; type -t compat_func; type -t cd; type -t ls' 2>/dev/null)
+if [ "$ACTUAL" = "$EXPECTED" ]; then
+    pass_test "type -t classification"
+else
+    fail_test "type -t classification (expected '$EXPECTED', got '$ACTUAL')"
+fi
+
+echo "Check: command -p fallback and PATH restore match bash"
+EXPECTED=$(bash -lc 'PATH=/tmp; command -p ls >/dev/null 2>&1; printf "%s|%s" "$?" "$PATH"' 2>/dev/null)
+ACTUAL=$("$CJSH_PATH" -c 'PATH=/tmp; command -p ls >/dev/null 2>&1; printf "%s|%s" "$?" "$PATH"' 2>/dev/null)
+if [ "$ACTUAL" = "$EXPECTED" ]; then
+    pass_test "command -p fallback and PATH restore"
+else
+    fail_test "command -p fallback and PATH restore (expected '$EXPECTED', got '$ACTUAL')"
+fi
+
+echo "Check: umask -p output matches bash"
+EXPECTED=$(bash -lc 'umask 022; umask -p' 2>/dev/null)
+ACTUAL=$("$CJSH_PATH" -c 'umask 022; umask -p' 2>/dev/null)
+if [ "$ACTUAL" = "$EXPECTED" ]; then
+    pass_test "umask -p output"
+else
+    fail_test "umask -p output (expected '$EXPECTED', got '$ACTUAL')"
 fi
 
 echo "Check: export -p succeeds"
