@@ -289,6 +289,7 @@ def run_resize_case(
     initial_cols: int = 40,
     timeout_s: float = 8.0,
     poll_interval_s: float = 0.01,
+    return_after_actions: bool = False,
 ) -> str:
     global PTY_CASE_COUNT
     PTY_CASE_COUNT += 1
@@ -306,6 +307,7 @@ def run_resize_case(
     prompt_seen = False
     action_index = 0
     current_rows = initial_rows
+    last_output_at = time.monotonic()
 
     def normalized_output() -> str:
         text = output.decode("utf-8", errors="replace")
@@ -317,6 +319,7 @@ def run_resize_case(
                 chunk = os.read(fd, 4096)
                 if chunk:
                     output.extend(chunk)
+                    last_output_at = time.monotonic()
                     if not prompt_seen and b"pty> " in output:
                         prompt_seen = True
             except BlockingIOError:
@@ -328,6 +331,9 @@ def run_resize_case(
                 action, value = actions[action_index]
                 if action == "wait":
                     if value not in normalized_output():
+                        break
+                elif action == "idle":
+                    if time.monotonic() - last_output_at < float(value):
                         break
                 elif action == "send":
                     os.write(fd, value)
@@ -347,6 +353,9 @@ def run_resize_case(
                         f"case {scenario} has unknown resize action {action!r}"
                     )
                 action_index += 1
+
+            if return_after_actions and prompt_seen and action_index == len(actions):
+                return output.decode("utf-8", errors="replace")
 
             waited_pid, status = os.waitpid(pid, os.WNOHANG)
             if waited_pid == pid:
@@ -391,6 +400,8 @@ def run_resize_case(
         action, value = actions[action_index]
         if action == "wait":
             missing = f"fragment {value!r}"
+        elif action == "idle":
+            missing = f"idle {value!r}"
         elif action == "send":
             missing = f"send {value!r}"
         else:
@@ -400,6 +411,27 @@ def run_resize_case(
     raise AssertionError(
         f"case {scenario} timed out while waiting for {missing}, "
         f"normalized_output={normalized!r}"
+    )
+
+
+def observe_resize_case(
+    binary: str,
+    scenario: str,
+    actions: list[tuple[str, object]],
+    initial_rows: int = 24,
+    initial_cols: int = 40,
+    timeout_s: float = 8.0,
+    poll_interval_s: float = 0.01,
+) -> str:
+    return run_resize_case(
+        binary,
+        scenario,
+        actions,
+        initial_rows=initial_rows,
+        initial_cols=initial_cols,
+        timeout_s=timeout_s,
+        poll_interval_s=poll_interval_s,
+        return_after_actions=True,
     )
 
 
@@ -927,7 +959,58 @@ def main() -> int:
         "abc",
     )
 
-    # These regression checks document the current resize/reflow gap in isocline.
+    # These regression checks verify resize-driven reflow, including idle redraws
+    # while the editor is blocked waiting for input.
+    assert_resize_case(
+        binary,
+        "resize_reflow_while_waiting_for_input",
+        "resize_reflow_initial_input",
+        [
+            ("wait", reflow_single_line),
+            ("idle", 0.05),
+            ("resize", 8),
+            ("wait", reflow_wrapped),
+            ("send", b"\r"),
+        ],
+        "abcdefghij",
+        poll_interval_s=0.001,
+    )
+
+    resize_observation = observe_resize_case(
+        binary,
+        "resize_reflow_initial_input",
+        [
+            ("wait", reflow_single_line),
+            ("resize", 8),
+            ("wait", reflow_wrapped),
+        ],
+        poll_interval_s=0.001,
+    )
+    if re.search(r"\x1b\[[1-9][0-9]*A", resize_observation):
+        raise AssertionError(
+            "resize_reflow_initial_input unexpectedly moved the cursor above the "
+            f"existing prompt origin: output={resize_observation!r}"
+        )
+
+    height_resize_observation = observe_resize_case(
+        binary,
+        "resize_reflow_initial_input",
+        [
+            ("wait", reflow_wrapped),
+            ("resize", (3, 8)),
+            ("idle", 0.05),
+        ],
+        initial_rows=6,
+        initial_cols=8,
+        poll_interval_s=0.001,
+    )
+    height_resize_ups = re.findall(r"\x1b\[(\d+)A", height_resize_observation)
+    if not height_resize_ups or int(height_resize_ups[-1]) != 4:
+        raise AssertionError(
+            "height-only resize should walk back using the previous visible cursor row "
+            f"before redrawing, output={height_resize_observation!r}"
+        )
+
     assert_resize_case(
         binary,
         "resize_reflow_initial_input",
