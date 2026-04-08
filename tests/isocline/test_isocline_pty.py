@@ -895,8 +895,37 @@ def main() -> int:
     )
 
     reflow_single_line = "pty> abcdefghij"
-    reflow_wrapped = "pty> abc↵\n   > def↵\n   > ghi↵\n   > j"
-    reflow_wrapped_tail = "↵\n   > j"
+    reflow_cursor_boundary = "pty> abc\n   > "
+    shell_prompt_boundary = (
+        "pty> CJsShell git:(master) x abc\n                           > "
+    )
+    reflow_wrapped = "pty> ab↵\n   > cd↵\n   > ef↵\n   > gh↵\n   > ij"
+    reflow_wrapped_tail = "↵\n   > ij"
+
+    assert_resize_case(
+        binary,
+        "typed_wrap_cursor_boundary",
+        "insert_backspace",
+        [
+            ("resize", 8),
+            ("send", b"abc"),
+            ("wait", reflow_cursor_boundary),
+            ("send", b"\r"),
+        ],
+        "abc",
+    )
+    assert_resize_case(
+        binary,
+        "shell_prompt_wrap_boundary",
+        "shell_prompt_wrap_boundary",
+        [
+            ("resize", 32),
+            ("send", b"abc"),
+            ("wait", shell_prompt_boundary),
+            ("send", b"\r"),
+        ],
+        "abc",
+    )
 
     # These regression checks document the current resize/reflow gap in isocline.
     assert_resize_case(

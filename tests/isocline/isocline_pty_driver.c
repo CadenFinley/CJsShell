@@ -196,6 +196,9 @@ static int run_case(const char* scenario) {
 
     const char* initial_input = NULL;
     const char* pre_prompt_output = NULL;
+    const char* prompt_text = "pty";
+    const char* prompt_marker = NULL;
+    const char* continuation_prompt_marker = NULL;
     bool history_interactive_triplet = false;
     if (strcmp(scenario, "cursor_move_insert") == 0) {
         initial_input = "ab";
@@ -233,6 +236,10 @@ static int run_case(const char* scenario) {
         initial_input = "ab";
     } else if (strcmp(scenario, "resize_reflow_initial_input") == 0) {
         initial_input = "abcdefghij";
+    } else if (strcmp(scenario, "shell_prompt_wrap_boundary") == 0) {
+        prompt_text = "pty> CJsShell git:(master) x ";
+        prompt_marker = "";
+        continuation_prompt_marker = "> ";
     } else if (strcmp(scenario, "multiline_initial_ctrl_j") == 0) {
         initial_input = "ab";
     } else if (strcmp(scenario, "multiline_ctrl_a_chain") == 0) {
@@ -346,21 +353,26 @@ static int run_case(const char* scenario) {
         ic_term_write(pre_prompt_output);
     }
 
+    if (prompt_marker != NULL || continuation_prompt_marker != NULL) {
+        ic_set_prompt_marker((prompt_marker != NULL ? prompt_marker : "> "),
+                             continuation_prompt_marker);
+    }
+
     char* line = NULL;
     if (history_interactive_triplet) {
-        char* first = ic_readline("pty", NULL, NULL);
+        char* first = ic_readline(prompt_text, NULL, NULL);
         if (first == NULL)
             return 4;
         ic_free(first);
 
-        char* second = ic_readline("pty", NULL, NULL);
+        char* second = ic_readline(prompt_text, NULL, NULL);
         if (second == NULL)
             return 4;
         ic_free(second);
 
-        line = ic_readline("pty", NULL, NULL);
+        line = ic_readline(prompt_text, NULL, NULL);
     } else {
-        line = ic_readline("pty", NULL, initial_input);
+        line = ic_readline(prompt_text, NULL, initial_input);
     }
     if (line == NULL) {
         return 3;
