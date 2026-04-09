@@ -762,62 +762,6 @@ ic_private bool history_push_with_metadata(history_t* h, const char* entry,
     return ok;
 }
 
-ic_private bool history_update_last_with_metadata(history_t* h, const char* entry,
-                                                  const ic_history_metadata_t* metadata,
-                                                  size_t metadata_count) {
-    if (h == NULL || entry == NULL || history_is_disabled(h))
-        return false;
-
-    char* normalized = history_entry_dup_trimmed(h->mem, entry);
-    if (normalized == NULL)
-        return false;
-
-    history_list_t list;
-    history_list_init(&list);
-    if (!history_collect_entries(h, &list, false)) {
-        history_list_free(h, &list);
-        mem_free(h->mem, normalized);
-        return false;
-    }
-
-    bool updated_existing = false;
-    bool ok = false;
-
-    if (list.count > 0) {
-        history_entry_t* last = &list.entries[list.count - 1];
-        if (last->command != NULL && strcmp(last->command, normalized) == 0) {
-            updated_existing = true;
-            ok = true;
-
-            for (size_t i = 0; i < metadata_count; ++i) {
-                if (metadata == NULL || metadata[i].key == NULL)
-                    continue;
-                if (!history_entry_set_metadata(
-                        h, last, metadata[i].key,
-                        metadata[i].value == NULL ? "" : metadata[i].value)) {
-                    ok = false;
-                    break;
-                }
-            }
-
-            if (ok)
-                ok = history_entry_ensure_timestamp(h, last);
-            if (ok)
-                ok = history_entry_ensure_frequency(h, last);
-            if (ok)
-                ok = history_update_file(h, &list);
-        }
-    }
-
-    history_list_free(h, &list);
-    mem_free(h->mem, normalized);
-
-    if (updated_existing)
-        return ok;
-
-    return history_push_with_metadata(h, entry, metadata, metadata_count);
-}
-
 ic_private void history_remove_last(history_t* h) {
     if (history_is_disabled(h))
         return;

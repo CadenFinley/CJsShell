@@ -324,11 +324,6 @@ typedef struct ic_history_metadata_s {
 void ic_history_add_with_metadata(const char* entry, const ic_history_metadata_t* metadata,
                                   size_t metadata_count);
 
-/// Update metadata on the most recent history entry when it matches `entry`.
-/// If the latest entry differs, a new entry is added with metadata.
-void ic_history_update_last_with_metadata(const char* entry, const ic_history_metadata_t* metadata,
-                                          size_t metadata_count);
-
 /// Add an entry to the history
 void ic_history_add(const char* entry);
 /// Force save in-memory history to the history file.

@@ -77,9 +77,6 @@ ic_private bool history_push(history_t* h, const char* entry);
 ic_private bool history_push_with_metadata(history_t* h, const char* entry,
                                            const ic_history_metadata_t* metadata,
                                            size_t metadata_count);
-ic_private bool history_update_last_with_metadata(history_t* h, const char* entry,
-                                                  const ic_history_metadata_t* metadata,
-                                                  size_t metadata_count);
 ic_private bool history_update(history_t* h, const char* entry);
 ic_private const char* history_get(const history_t* h, ssize_t n);
 ic_private void history_remove_last(history_t* h);
