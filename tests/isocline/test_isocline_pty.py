@@ -125,6 +125,25 @@ def assert_prompt_guard_case(binary: str, scenario: str, expect_marker: bool) ->
     assert_prompt_guard_marker(scenario, output_text, expect_marker)
 
 
+def assert_last_prompt_suffix(
+    scenario: str, output_text: str, expected_suffix: str
+) -> None:
+    pre_result = output_text.split("[IC_RESULT_BEGIN]", 1)[0]
+    normalized = normalize_terminal_output(pre_result).rstrip("\n")
+    prompt = "pty> "
+    prompt_index = normalized.rfind(prompt)
+    if prompt_index < 0:
+        raise AssertionError(
+            f"{scenario} missing final prompt in output: normalized_output={normalized!r}"
+        )
+    actual_suffix = normalized[prompt_index + len(prompt) :]
+    if actual_suffix != expected_suffix:
+        raise AssertionError(
+            f"{scenario} expected final prompt suffix {expected_suffix!r}, got "
+            f"{actual_suffix!r}, normalized_output={normalized!r}"
+        )
+
+
 def run_case(
     binary: str,
     scenario: str,
@@ -690,6 +709,16 @@ def main() -> int:
         raise AssertionError(
             f"completion_midline_single expected 'say hello', got {comp_midline!r}"
         )
+
+    empty_hint_result, empty_hint_output = run_case(
+        binary, "hint_clears_on_empty_line", b" \x7f\r", capture_output=True
+    )
+    if empty_hint_result != "":
+        raise AssertionError(
+            "hint_clears_on_empty_line expected empty string, got "
+            f"{empty_hint_result!r}"
+        )
+    assert_last_prompt_suffix("hint_clears_on_empty_line", empty_hint_output, "")
 
     comp_nomatch = run_case(binary, "completion_no_match", b"xyz\t\r")
     if comp_nomatch != "xyz":

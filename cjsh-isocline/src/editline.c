@@ -1169,6 +1169,20 @@ static ssize_t logical_line_at_pos(stringbuf_t* sbuf, ssize_t pos) {
     return line;
 }
 
+static bool edit_current_line_is_empty(editor_t* eb) {
+    if (eb == NULL || eb->input == NULL) {
+        return true;
+    }
+
+    ssize_t start = sbuf_find_line_start(eb->input, eb->pos);
+    ssize_t end = sbuf_find_line_end(eb->input, eb->pos);
+    if (start < 0 || end < 0) {
+        return (sbuf_len(eb->input) <= 0);
+    }
+
+    return (end <= start);
+}
+
 static void edit_refresh(ic_env_t* env, editor_t* eb) {
     eb->replace_prompt_line_with_number = prompt_line_should_use_line_numbers(env, eb);
     // calculate the new cursor row and total rows needed
@@ -1682,11 +1696,19 @@ static void edit_refresh_hint(ic_env_t* env, editor_t* eb) {
 
     eb->refresh_pending = false;
 
-    if (env->no_hint || env->hint_delay > 0) {
+    // Hints are recomputed on every edit; clear any previous inline state first
+    // so stale suggestions are never redrawn when the new buffer has no hint.
+    sbuf_clear(eb->hint);
+    sbuf_clear(eb->hint_help);
+
+    if (env->no_hint || edit_current_line_is_empty(eb)) {
+        edit_refresh(env, eb);
+        return;
+    }
+
+    if (env->hint_delay > 0) {
         // refresh without hint first
         edit_refresh(env, eb);
-        if (env->no_hint)
-            return;
     }
 
     // and see if we can construct a hint (displayed after a delay)
@@ -1694,7 +1716,7 @@ static void edit_refresh_hint(ic_env_t* env, editor_t* eb) {
     if (count >= 1) {
         const char* help = NULL;
         const char* hint = completions_get_hint(env->completions, 0, &help);
-        if (hint != NULL) {
+        if (hint != NULL && *hint != '\0') {
             sbuf_replace(eb->hint, hint);
             editor_append_hint_help(eb, help);
             // do auto-tabbing?

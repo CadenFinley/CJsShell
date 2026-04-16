@@ -250,6 +250,11 @@ static int run_case(const char* scenario) {
         initial_input = "say he";
         g_completion_mode = COMPLETION_MODE_SINGLE;
         ic_set_default_completer(pty_completion_dispatcher, NULL);
+    } else if (strcmp(scenario, "hint_clears_on_empty_line") == 0) {
+        g_completion_mode = COMPLETION_MODE_SINGLE;
+        ic_enable_hint(true);
+        (void)ic_set_hint_delay(0);
+        ic_set_default_completer(pty_completion_dispatcher, NULL);
     } else if (strcmp(scenario, "completion_many_menu") == 0) {
         g_completion_mode = COMPLETION_MODE_MANY;
         ic_set_default_completer(pty_completion_dispatcher, NULL);

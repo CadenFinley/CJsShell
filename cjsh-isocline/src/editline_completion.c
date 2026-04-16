@@ -285,11 +285,11 @@ static ssize_t edit_completions_max_width(ic_env_t* env, ssize_t count, ssize_t 
 }
 
 static void edit_completion_menu_update_hint(ic_env_t* env, editor_t* eb, bool allow_inline_hint) {
-    if (env->no_hint)
-        return;
-
     sbuf_clear(eb->hint);
     sbuf_clear(eb->hint_help);
+
+    if (env->no_hint || edit_current_line_is_empty(eb))
+        return;
 
     ssize_t hint_count = completions_count(env->completions);
     if (hint_count <= 0)
