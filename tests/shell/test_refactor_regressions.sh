@@ -68,6 +68,49 @@ else
     fail_test "history filtering regression (got '$OUT')"
 fi
 
+TILDE_HISTORY_HOME="$TMP_DIR/home"
+mkdir -p "$TILDE_HISTORY_HOME"
+TILDE_HISTORY_FILE="$TILDE_HISTORY_HOME/tilde-history.txt"
+cat >"$TILDE_HISTORY_FILE" <<'EOF'
+echo tilde history
+EOF
+
+OUT=$(cd "$TMP_DIR" && HOME="$TILDE_HISTORY_HOME" CJSH_HISTORY_FILE='~/tilde-history.txt' "$CJSH_PATH" -c 'history' 2>/dev/null)
+if echo "$OUT" | grep -q "echo tilde history"; then
+    pass_test "history expands leading tilde in CJSH_HISTORY_FILE"
+else
+    fail_test "history tilde expansion regression (got '$OUT')"
+fi
+
+MAN_HOME="$TMP_DIR/man_home"
+MAN_BIN_DIR="$MAN_HOME/bin"
+MAN_SCRIPT="$MAN_BIN_DIR/fake-man"
+MAN_CACHE_FILE="$MAN_HOME/.cache/cjsh/generated_completions/samplecmd.txt"
+mkdir -p "$MAN_BIN_DIR"
+cat >"$MAN_SCRIPT" <<'EOF'
+#!/usr/bin/env sh
+
+while [ $# -gt 0 ]; do
+    if [ "$1" = "-P" ]; then
+        shift 2
+        continue
+    fi
+    target=$1
+    break
+done
+
+printf 'NAME\n  %s - tilde summary\n' "$target"
+EOF
+chmod +x "$MAN_SCRIPT"
+
+STATUS=0
+OUT=$(cd "$TMP_DIR" && HOME="$MAN_HOME" CJSH_MAN_PATH='~/bin/fake-man' "$CJSH_PATH" -c 'generate-completions --quiet samplecmd' 2>/dev/null) || STATUS=$?
+if [ "$STATUS" = "0" ] && [ -f "$MAN_CACHE_FILE" ] && grep -q "summary: tilde summary" "$MAN_CACHE_FILE"; then
+    pass_test "generate-completions expands leading tilde in CJSH_MAN_PATH"
+else
+    fail_test "CJSH_MAN_PATH tilde expansion regression (status=$STATUS, out='$OUT')"
+fi
+
 OUT=$(CJSH_HISTORY_FILE="$HISTORY_FILE" "$CJSH_PATH" -c 'history nope' >/dev/null 2>&1; echo $?)
 if [ "$OUT" = "1" ]; then
     pass_test "history rejects invalid count"

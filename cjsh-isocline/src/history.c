@@ -32,6 +32,7 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -66,6 +67,7 @@ typedef struct history_query_filter_s {
 } history_query_filter_t;
 
 static const char* k_history_timestamp_key = "timestamp";
+static const char* k_history_frequency_key = "frequency";
 
 static bool history_metadata_key_valid(const char* key) {
     if (key == NULL || key[0] == '\0')
@@ -129,6 +131,49 @@ static const char* history_entry_metadata_lookup(const history_entry_t* entry, c
         }
     }
     return NULL;
+}
+
+static bool history_entry_set_metadata(history_t* h, history_entry_t* entry, const char* key,
+                                       const char* value);
+
+static bool history_metadata_read_frequency(const char* value, long long* frequency_out) {
+    if (frequency_out != NULL)
+        *frequency_out = 0;
+    if (value == NULL || value[0] == '\0')
+        return false;
+
+    errno = 0;
+    char* end = NULL;
+    long long parsed = strtoll(value, &end, 10);
+    if (errno != 0 || end == value || *end != '\0' || parsed < 1)
+        return false;
+
+    if (frequency_out != NULL)
+        *frequency_out = parsed;
+    return true;
+}
+
+static long long history_entry_frequency(const history_entry_t* entry) {
+    long long frequency = 0;
+    if (history_metadata_read_frequency(
+            history_entry_metadata_lookup(entry, k_history_frequency_key, NULL), &frequency)) {
+        return frequency;
+    }
+    return 1;
+}
+
+static bool history_entry_set_frequency(history_t* h, history_entry_t* entry, long long frequency) {
+    if (h == NULL || entry == NULL)
+        return false;
+    if (frequency < 1)
+        frequency = 1;
+
+    char freq_buf[32];
+    int n = snprintf(freq_buf, sizeof(freq_buf), "%lld", frequency);
+    if (n <= 0 || n >= (int)sizeof(freq_buf))
+        return false;
+
+    return history_entry_set_metadata(h, entry, k_history_frequency_key, freq_buf);
 }
 
 static bool history_entry_set_metadata_owned(history_t* h, history_entry_t* entry, char* key,
@@ -331,6 +376,17 @@ static bool history_list_remove_value(history_t* h, history_list_t* list, const 
     return removed;
 }
 
+static const history_entry_t* history_list_find_last_value(const history_list_t* list,
+                                                           const char* value) {
+    if (list == NULL || value == NULL)
+        return NULL;
+    for (ssize_t i = list->count - 1; i >= 0; --i) {
+        if (list->entries[i].command != NULL && strcmp(list->entries[i].command, value) == 0)
+            return &list->entries[i];
+    }
+    return NULL;
+}
+
 ic_private bool history_snapshot_load(history_t* h, history_snapshot_t* snap, bool dedup) {
     if (snap == NULL)
         return false;
@@ -469,10 +525,12 @@ static char* history_entry_dup_trimmed(alloc_t* mem, const char* entry) {
     return mem_strndup(mem, entry + start, end - start);
 }
 
-static void history_entry_normalize_metadata(history_t* h, history_entry_t* entry) {
+static bool history_entry_normalize_metadata(history_t* h, history_entry_t* entry) {
     if (h == NULL || entry == NULL)
-        return;
-    (void)history_entry_ensure_timestamp(h, entry);
+        return false;
+    if (!history_entry_ensure_timestamp(h, entry))
+        return false;
+    return history_entry_set_frequency(h, entry, history_entry_frequency(entry));
 }
 
 ic_private history_t* history_new(alloc_t* mem) {
@@ -602,7 +660,6 @@ ic_private bool history_update(history_t* h, const char* entry) {
     mem_free(h->mem, last->command);
     last->command = normalized;
 
-    history_list_remove_duplicates(h, &list);
     history_list_prune_to_max(h, &list);
 
     bool ok = history_update_file(h, &list);
@@ -632,6 +689,15 @@ ic_private bool history_push_with_metadata(history_t* h, const char* entry,
         return false;
     }
 
+    long long next_frequency = 1;
+    if (!h->allow_duplicates) {
+        const history_entry_t* last_entry = history_list_find_last_value(&list, normalized);
+        if (last_entry != NULL) {
+            long long previous_frequency = history_entry_frequency(last_entry);
+            next_frequency = (previous_frequency >= LLONG_MAX ? LLONG_MAX : previous_frequency + 1);
+        }
+    }
+
     bool removed_existing = false;
     if (!h->allow_duplicates) {
         removed_existing = history_list_remove_value(h, &list, normalized);
@@ -654,7 +720,8 @@ ic_private bool history_push_with_metadata(history_t* h, const char* entry,
             return false;
         }
     }
-    if (!history_entry_ensure_timestamp(h, &new_entry)) {
+    if (!history_entry_normalize_metadata(h, &new_entry) ||
+        !history_entry_set_frequency(h, &new_entry, next_frequency)) {
         history_entry_clear(h, &new_entry);
         history_list_free(h, &list);
         return false;
@@ -691,7 +758,13 @@ ic_private void history_remove_last(history_t* h) {
         return;
     history_list_t list;
     history_list_init(&list);
-    if (!history_collect_entries(h, &list, false)) {
+    const bool previous_allow_duplicates = h->allow_duplicates;
+    h->allow_duplicates = true;
+    // Keep earlier duplicates intact while removing the transient current-line entry;
+    // collapsing first would discard the accumulated frequency of older commands.
+    const bool collected = history_collect_entries(h, &list, false);
+    h->allow_duplicates = previous_allow_duplicates;
+    if (!collected) {
         history_list_free(h, &list);
         return;
     }
@@ -1489,15 +1562,27 @@ static bool history_write_record(const history_entry_t* entry, FILE* f, stringbu
     sbuf_append(sbuf, "#");
 
     bool has_timestamp = (history_entry_get_metadata(entry, k_history_timestamp_key) != NULL);
+    bool has_frequency = history_metadata_read_frequency(
+        history_entry_get_metadata(entry, k_history_frequency_key), NULL);
     for (ssize_t i = 0; i < entry->metadata_count; ++i) {
         const char* key = entry->metadata[i].key;
         if (!history_metadata_key_valid(key))
             continue;
+        if (ic_stricmp(key, k_history_frequency_key) == 0 &&
+            !history_metadata_read_frequency(entry->metadata[i].value, NULL)) {
+            continue;
+        }
         sbuf_append_char(sbuf, ' ');
         sbuf_append(sbuf, key);
         sbuf_append_char(sbuf, '=');
         history_metadata_write_escaped(
             sbuf, entry->metadata[i].value == NULL ? "" : entry->metadata[i].value);
+    }
+    if (!has_frequency) {
+        sbuf_append_char(sbuf, ' ');
+        sbuf_append(sbuf, k_history_frequency_key);
+        sbuf_append_char(sbuf, '=');
+        sbuf_append(sbuf, "1");
     }
     if (!has_timestamp) {
         char ts_buf[32];
@@ -1631,7 +1716,13 @@ static bool history_collect_entries(history_t* h, history_list_t* list, bool ded
         }
 
         entry.command = command;
-        history_entry_normalize_metadata(h, &entry);
+        if (!history_entry_normalize_metadata(h, &entry)) {
+            history_entry_clear(h, &entry);
+            history_list_free(h, list);
+            sbuf_free(sbuf);
+            history_close_stream(f);
+            return false;
+        }
 
         if (!history_list_append(h, list, entry)) {
             history_list_free(h, list);

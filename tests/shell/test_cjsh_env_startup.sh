@@ -86,6 +86,16 @@ else
     fail_test "CJSH_ENV overrides default search paths (got '$OUT')"
 fi
 
+tilde_override_env="$TEST_HOME/tilde_override_env.cjsh"
+echo "export CJSH_ENV_MARK=env_tilde_override" > "$tilde_override_env"
+export CJSH_ENV='~/tilde_override_env.cjsh'
+OUT=$("$CJSH_PATH" -c "echo \$CJSH_ENV_MARK" 2>/dev/null)
+if [ "$OUT" = "env_tilde_override" ]; then
+    pass_test "CJSH_ENV expands leading tilde"
+else
+    fail_test "CJSH_ENV expands leading tilde (got '$OUT')"
+fi
+
 export CJSH_ENV="$TEST_HOME/does_not_exist.cjsh"
 unset CJSH_ENV_MARK
 OUT=$("$CJSH_PATH" -c "echo \$CJSH_ENV_MARK" 2>/dev/null)

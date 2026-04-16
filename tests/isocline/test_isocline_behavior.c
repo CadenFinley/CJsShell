@@ -494,6 +494,124 @@ static bool test_history_dedup_snapshot(void) {
     return true;
 }
 
+static bool test_history_frequency_metadata_tracking(void) {
+    alloc_t* mem = test_allocator();
+    if (mem == NULL)
+        return false;
+
+    history_t* history = history_new(mem);
+    if (history == NULL)
+        return false;
+
+    const char* history_path = "./isocline_history_frequency.log";
+    (void)remove(history_path);
+    history_load_from(history, history_path, 16);
+    history_clear(history);
+
+    EXPECT_TRUE(history_push(history, "echo hi"),
+                "first history entry should be stored with frequency metadata");
+
+    history_snapshot_t snap = {0};
+    EXPECT_TRUE(history_snapshot_load(history, &snap, false),
+                "snapshot should load the initial frequency-tracked history entry");
+    EXPECT_TRUE(history_snapshot_count(&snap) == 1,
+                "first push should produce exactly one stored history entry");
+
+    const history_entry_t* newest = history_snapshot_get(&snap, 0);
+    EXPECT_TRUE(newest != NULL, "snapshot should expose the stored history entry");
+    EXPECT_STREQ(history_entry_get_metadata(newest, "frequency"), "1",
+                 "new history entries should start with a frequency of one");
+    history_snapshot_free(history, &snap);
+
+    EXPECT_TRUE(history_push(history, "echo hi"),
+                "duplicate push should still succeed when duplicates are disabled");
+    EXPECT_TRUE(history_snapshot_load(history, &snap, false),
+                "snapshot should reload rewritten duplicate-suppressed history entry");
+    EXPECT_TRUE(history_snapshot_count(&snap) == 1,
+                "duplicate suppression should keep only one stored command entry");
+
+    newest = history_snapshot_get(&snap, 0);
+    EXPECT_TRUE(newest != NULL, "rewritten duplicate entry should remain readable");
+    EXPECT_STREQ(history_entry_get_metadata(newest, "frequency"), "2",
+                 "duplicate-suppressed pushes should increment the stored frequency");
+    EXPECT_STREQ(history_get(history, 0), "echo hi",
+                 "history_get should still return the latest duplicate-suppressed command");
+    history_snapshot_free(history, &snap);
+
+    const ic_history_metadata_t latest_meta[] = {
+        {"code", "7"},
+    };
+    EXPECT_TRUE(history_push_with_metadata(history, "echo hi", latest_meta,
+                                           sizeof(latest_meta) / sizeof(latest_meta[0])),
+                "duplicate rewrite with metadata should still succeed");
+    EXPECT_TRUE(history_snapshot_load(history, &snap, false),
+                "snapshot should load duplicate-suppressed entry after metadata update");
+
+    newest = history_snapshot_get(&snap, 0);
+    EXPECT_TRUE(newest != NULL, "latest duplicate-suppressed entry should be available");
+    EXPECT_STREQ(history_entry_get_metadata(newest, "frequency"), "3",
+                 "rewriting a duplicate entry should preserve and increment its frequency");
+    EXPECT_STREQ(history_entry_get_metadata(newest, "code"), "7",
+                 "new metadata should still be attached to the rewritten history entry");
+    history_snapshot_free(history, &snap);
+
+    history_clear(history);
+    history_free(history);
+    (void)remove(history_path);
+    return true;
+}
+
+static bool test_history_frequency_metadata_interactive_flow(void) {
+    alloc_t* mem = test_allocator();
+    if (mem == NULL)
+        return false;
+
+    history_t* history = history_new(mem);
+    if (history == NULL)
+        return false;
+
+    const char* history_path = "./isocline_history_frequency_interactive.log";
+    (void)remove(history_path);
+    history_load_from(history, history_path, 16);
+    history_clear(history);
+
+    const ic_history_metadata_t metadata[] = {
+        {"code", "0"},
+    };
+
+    for (int expected_frequency = 1; expected_frequency <= 3; ++expected_frequency) {
+        EXPECT_TRUE(history_push(history, ""),
+                    "interactive input should stage a temporary history entry");
+        EXPECT_TRUE(history_update(history, "ls"),
+                    "accepting interactive input should rewrite the staged entry");
+
+        history_remove_last(history);
+        EXPECT_TRUE(history_push_with_metadata(history, "ls", metadata,
+                                               sizeof(metadata) / sizeof(metadata[0])),
+                    "executed interactive command should be stored with metadata");
+
+        history_snapshot_t snap = {0};
+        EXPECT_TRUE(history_snapshot_load(history, &snap, false),
+                    "interactive execution snapshot should load from history");
+        EXPECT_TRUE(history_snapshot_count(&snap) == 1,
+                    "interactive duplicate suppression should keep one ls entry");
+
+        const history_entry_t* newest = history_snapshot_get(&snap, 0);
+        EXPECT_TRUE(newest != NULL, "interactive flow should keep the latest history entry");
+
+        char expected_buf[16];
+        (void)snprintf(expected_buf, sizeof(expected_buf), "%d", expected_frequency);
+        EXPECT_STREQ(history_entry_get_metadata(newest, "frequency"), expected_buf,
+                     "interactive staging and execution should increment frequency once per run");
+        history_snapshot_free(history, &snap);
+    }
+
+    history_clear(history);
+    history_free(history);
+    (void)remove(history_path);
+    return true;
+}
+
 static bool test_history_fuzzy_case_toggle(void) {
     ic_env_t* env = ensure_env();
     alloc_t* mem = test_allocator();
@@ -2559,6 +2677,9 @@ static const test_case_t kTests[] = {
     {"unicode_display_width_osc_sequence_ignored", test_unicode_display_width_osc_sequence_ignored},
     {"history_search_direction_and_position", test_history_search_direction_and_position},
     {"history_fuzzy_metadata_filtering", test_history_fuzzy_metadata_filtering},
+    {"history_frequency_metadata_tracking", test_history_frequency_metadata_tracking},
+    {"history_frequency_metadata_interactive_flow",
+     test_history_frequency_metadata_interactive_flow},
     {"history_disabled_mode_rejects_push", test_history_disabled_mode_rejects_push},
     {"key_spec_separator_and_invalid_forms", test_key_spec_separator_and_invalid_forms},
     {"key_binding_named_invalid_inputs", test_key_binding_named_invalid_inputs},

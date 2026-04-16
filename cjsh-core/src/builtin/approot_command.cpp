@@ -94,7 +94,7 @@ std::filesystem::path resolve_env_target_file_path() {
     if (cjsh_env::shell_variable_is_set("CJSH_ENV")) {
         std::string env_override = cjsh_env::get_shell_variable_value("CJSH_ENV");
         if (!env_override.empty()) {
-            return normalize_target_path(std::filesystem::path(env_override));
+            return cjsh_filesystem::normalize_override_path(env_override);
         }
     }
 

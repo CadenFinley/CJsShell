@@ -847,12 +847,13 @@ std::string fetch_man_page_text(const std::string& target) {
     std::vector<std::vector<std::string>> attempts;
     if (cjsh_env::shell_variable_is_set("CJSH_MAN_PATH")) {
         std::string env_path = cjsh_env::get_shell_variable_value("CJSH_MAN_PATH");
+        std::filesystem::path man_path = cjsh_filesystem::normalize_override_path(env_path);
         std::error_code ec;
-        if (!std::filesystem::exists(env_path, ec)) {
+        if (man_path.empty() || !std::filesystem::exists(man_path, ec)) {
             return {};
         }
-        std::string man_path = env_path;
-        attempts = {{man_path, "-P", "cat", target}, {man_path, target}};
+        std::string man_path_string = man_path.string();
+        attempts = {{man_path_string, "-P", "cat", target}, {man_path_string, target}};
     } else if (config::secure_mode) {
         return {};
     } else {

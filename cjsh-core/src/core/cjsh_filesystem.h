@@ -168,6 +168,7 @@ std::string resolve_existing_shell_directory_token(const std::string& value, con
                                                    const std::string& previous_directory);
 bool is_auto_cd_directory_token(const std::string& value, const std::string& cwd,
                                 const std::string& previous_directory);
+std::filesystem::path normalize_override_path(std::string_view raw_value);
 
 struct PathHashEntry {
     std::string command;

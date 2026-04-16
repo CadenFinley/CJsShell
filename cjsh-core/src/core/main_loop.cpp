@@ -225,6 +225,11 @@ bool process_command_line(const std::string& command) {
 
     // add to history
     if (config::history_enabled) {
+        // Interactive readline already staged the submitted line in history.
+        // Replace that staging entry with the executed record so frequency tracks runs once.
+        if (command.size() > 1) {
+            ic_history_remove_last();
+        }
         const std::string timestamp_str =
             std::to_string(static_cast<long long>(std::time(nullptr)));
         const std::string exit_code_str = std::to_string(exit_code);

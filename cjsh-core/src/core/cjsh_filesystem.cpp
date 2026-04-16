@@ -80,6 +80,43 @@ const std::filesystem::path& g_user_home_path() {
     return path;
 }
 
+namespace {
+std::filesystem::path expand_leading_tilde_path(std::string_view raw_value) {
+    std::filesystem::path candidate;
+
+    if (raw_value == "~") {
+        candidate = g_user_home_path();
+    } else if (raw_value.rfind("~/", 0) == 0) {
+        candidate = g_user_home_path();
+        if (raw_value.size() > 2) {
+            candidate /= std::string(raw_value.substr(2));
+        }
+    } else {
+        candidate = std::filesystem::path(raw_value);
+    }
+
+    return candidate;
+}
+}  // namespace
+
+std::filesystem::path normalize_override_path(std::string_view raw_value) {
+    if (raw_value.empty()) {
+        return {};
+    }
+
+    std::filesystem::path candidate = expand_leading_tilde_path(raw_value);
+
+    std::error_code abs_ec;
+    if (!candidate.is_absolute()) {
+        auto absolute_candidate = std::filesystem::absolute(candidate, abs_ec);
+        if (!abs_ec) {
+            candidate = absolute_candidate;
+        }
+    }
+
+    return candidate.lexically_normal();
+}
+
 const std::filesystem::path& g_cjsh_config_path() {
     static const std::filesystem::path path = g_user_home_path() / ".config" / "cjsh";
     return path;
@@ -135,17 +172,7 @@ const std::filesystem::path& g_cjsh_history_path() {
         std::string custom_history = cjsh_env::get_shell_variable_value("CJSH_HISTORY_FILE");
 
         if (!custom_history.empty()) {
-            std::filesystem::path candidate(custom_history);
-
-            std::error_code abs_ec;
-            if (!candidate.is_absolute()) {
-                auto absolute_candidate = std::filesystem::absolute(candidate, abs_ec);
-                if (!abs_ec) {
-                    candidate = absolute_candidate;
-                }
-            }
-
-            return candidate.lexically_normal();
+            return normalize_override_path(custom_history);
         }
 
         return g_cjsh_cache_path() / "history.txt";
@@ -1253,15 +1280,7 @@ void process_env_files() {
     if (cjsh_env::shell_variable_is_set("CJSH_ENV")) {
         std::string env_override = cjsh_env::get_shell_variable_value("CJSH_ENV");
         if (!env_override.empty()) {
-            std::filesystem::path override_path(env_override);
-            std::error_code abs_ec;
-            if (!override_path.is_absolute()) {
-                auto absolute_path = std::filesystem::absolute(override_path, abs_ec);
-                if (!abs_ec) {
-                    override_path = absolute_path;
-                }
-            }
-            override_path = override_path.lexically_normal();
+            std::filesystem::path override_path = normalize_override_path(env_override);
 
             std::error_code status_ec;
             auto status = std::filesystem::status(override_path, status_ec);

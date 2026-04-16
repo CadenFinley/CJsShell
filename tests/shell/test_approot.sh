@@ -195,6 +195,12 @@ if [ -n "$ENV_OVERRIDE_DIR" ] && [ -d "$ENV_OVERRIDE_DIR" ]; then
     ENV_OVERRIDE_FILE="$ENV_OVERRIDE_DIR/cjsh-env.override"
     ENV_OVERRIDE_EXPECTED=$(cd "$ENV_OVERRIDE_DIR" && pwd)
     ENV_OVERRIDE_FILE_EXPECTED="$ENV_OVERRIDE_FILE"
+    TILDE_ENV_OVERRIDE_FILE="$HOME/cjsh_tilde_env_override.$$"
+    TILDE_ENV_OVERRIDE_BASENAME=$(basename "$TILDE_ENV_OVERRIDE_FILE")
+    TILDE_ENV_OVERRIDE_EXPECTED="$HOME_EXPECTED"
+    TILDE_ENV_OVERRIDE_FILE_EXPECTED="$TILDE_ENV_OVERRIDE_FILE"
+
+    : > "$TILDE_ENV_OVERRIDE_FILE"
 
     run_path_test "approot env honors missing CJSH_ENV file" \
         "export CJSH_ENV='$ENV_OVERRIDE_FILE'; approot env; pwd" "$ENV_OVERRIDE_EXPECTED"
@@ -204,7 +210,12 @@ if [ -n "$ENV_OVERRIDE_DIR" ] && [ -d "$ENV_OVERRIDE_DIR" ]; then
         "export CJSH_ENV='$ENV_OVERRIDE_FILE'; approot --file env" "$ENV_OVERRIDE_FILE_EXPECTED"
     run_path_test "approot --file cjshenv honors missing CJSH_ENV file" \
         "export CJSH_ENV='$ENV_OVERRIDE_FILE'; approot --file cjshenv" "$ENV_OVERRIDE_FILE_EXPECTED"
+    run_path_test "approot env expands leading tilde in CJSH_ENV" \
+        "export CJSH_ENV='~/$TILDE_ENV_OVERRIDE_BASENAME'; approot env; pwd" "$TILDE_ENV_OVERRIDE_EXPECTED"
+    run_path_test "approot --file env expands leading tilde in CJSH_ENV" \
+        "export CJSH_ENV='~/$TILDE_ENV_OVERRIDE_BASENAME'; approot --file env" "$TILDE_ENV_OVERRIDE_FILE_EXPECTED"
 
+    rm -f "$TILDE_ENV_OVERRIDE_FILE"
     rm -rf "$ENV_OVERRIDE_DIR"
 else
     fail_test "approot env override handling (mktemp unavailable)"
