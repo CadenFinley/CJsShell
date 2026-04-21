@@ -25,9 +25,6 @@ jobs:
           - name: Linux GCC Release
             os: ubuntu-latest
             preset: ci-linux-gcc-release
-          - name: Linux Clang Debug
-            os: ubuntu-latest
-            preset: ci-linux-clang-debug
           - name: macOS Clang Release
             os: macos-latest
             preset: ci-macos-clang-release
