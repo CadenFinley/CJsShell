@@ -3,7 +3,7 @@
 ## Testing and GitHub Workflows
 - Every pull request and push to `master` triggers the **CI Build and Test** workflow (`.github/workflows/ci.yml`).
 - CI runs a matrix across Linux and macOS, including Release, Debug+ASan, and Minimal presets.
-- The Linux GCC Release leg runs `tests/run_shell_tests.sh` as the full integration pass. Local contributors should run this script before opening a pull request to catch regressions early.
+- Every CI matrix leg runs `tests/run_shell_tests.sh` as the full integration pass. Local contributors should run this script before opening a pull request to catch regressions early.
 
 ## Code Style and clang-format
 - Format C and C++ sources with `clang-format` before submitting patches.

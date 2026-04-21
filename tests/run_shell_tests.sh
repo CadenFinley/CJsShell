@@ -77,6 +77,14 @@ else
     DEFAULT_SYNTAX_HIGHLIGHTING_TEST_BINARY="$SCRIPT_DIR/../build/release/syntax_highlighting_tests"
 fi
 SYNTAX_HIGHLIGHTING_TEST_BINARY="${SYNTAX_HIGHLIGHTING_TEST_BINARY:-$DEFAULT_SYNTAX_HIGHLIGHTING_TEST_BINARY}"
+if [ -x "$CJSH_DIR/history_expansion_tests" ]; then
+    DEFAULT_HISTORY_EXPANSION_TEST_BINARY="$CJSH_DIR/history_expansion_tests"
+elif [ -x "$SCRIPT_DIR/../build/history_expansion_tests" ]; then
+    DEFAULT_HISTORY_EXPANSION_TEST_BINARY="$SCRIPT_DIR/../build/history_expansion_tests"
+else
+    DEFAULT_HISTORY_EXPANSION_TEST_BINARY="$SCRIPT_DIR/../build/release/history_expansion_tests"
+fi
+HISTORY_EXPANSION_TEST_BINARY="${HISTORY_EXPANSION_TEST_BINARY:-$DEFAULT_HISTORY_EXPANSION_TEST_BINARY}"
 if [ -x "$CJSH_DIR/isocline_pty_driver" ]; then
     DEFAULT_ISOCLINE_PTY_DRIVER_BINARY="$CJSH_DIR/isocline_pty_driver"
 elif [ -x "$SCRIPT_DIR/../build/isocline_pty_driver" ]; then
@@ -112,6 +120,7 @@ TESTS_FAIL=0
 ISOCLINE_TEST_RESULT=0
 COMPLETION_TEST_RESULT=0
 SYNTAX_HIGHLIGHTING_TEST_RESULT=0
+HISTORY_EXPANSION_TEST_RESULT=0
 ISOCLINE_PTY_TEST_RESULT=0
 BUILD_SYSTEM_TEST_RESULT=0
 
@@ -462,6 +471,13 @@ else
     report_skipped_suite "test_syntax_highlighting" "binary not found at $SYNTAX_HIGHLIGHTING_TEST_BINARY"
 fi
 
+if [ -x "$HISTORY_EXPANSION_TEST_BINARY" ]; then
+    run_external_suite "test_history_expansion" "cstyle" "none" "$HISTORY_EXPANSION_TEST_BINARY"
+    HISTORY_EXPANSION_TEST_RESULT=$?
+else
+    report_skipped_suite "test_history_expansion" "binary not found at $HISTORY_EXPANSION_TEST_BINARY"
+fi
+
 if [ -x "$ISOCLINE_PTY_DRIVER_BINARY" ] && [ -f "$ISOCLINE_PTY_TEST_SCRIPT" ]; then
     if command -v python3 >/dev/null 2>&1; then
         run_external_suite "test_isocline_pty_integration" "cstyle" "binary" python3 "$ISOCLINE_PTY_TEST_SCRIPT" "$ISOCLINE_PTY_DRIVER_BINARY"
@@ -507,6 +523,13 @@ if [ $SYNTAX_HIGHLIGHTING_TEST_RESULT -ne 0 ]; then
         OVERALL_STATUS=$SYNTAX_HIGHLIGHTING_TEST_RESULT
     else
         OVERALL_STATUS=$((OVERALL_STATUS + SYNTAX_HIGHLIGHTING_TEST_RESULT))
+    fi
+fi
+if [ $HISTORY_EXPANSION_TEST_RESULT -ne 0 ]; then
+    if [ $OVERALL_STATUS -eq 0 ]; then
+        OVERALL_STATUS=$HISTORY_EXPANSION_TEST_RESULT
+    else
+        OVERALL_STATUS=$((OVERALL_STATUS + HISTORY_EXPANSION_TEST_RESULT))
     fi
 fi
 if [ $ISOCLINE_PTY_TEST_RESULT -ne 0 ]; then

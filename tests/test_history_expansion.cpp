@@ -125,17 +125,21 @@ int main(void) {
         {"previous_command_word_designators_expand", test_previous_command_word_designators_expand},
     };
 
+    const std::size_t test_count = sizeof(tests) / sizeof(tests[0]);
+    std::size_t failures = 0;
     bool all_passed = true;
     for (const auto& test : tests) {
         if (!test.func()) {
             all_passed = false;
+            ++failures;
         }
     }
 
     if (!all_passed) {
+        std::fprintf(stderr, "%zu/%zu history expansion tests failed\n", failures, test_count);
         return 1;
     }
 
-    std::printf("history expansion tests passed\n");
+    std::printf("All %zu history expansion tests passed\n", test_count);
     return 0;
 }

@@ -25,23 +25,15 @@ jobs:
           - name: Linux GCC Release
             os: ubuntu-latest
             preset: ci-linux-gcc-release
-            test_preset: ci-linux-gcc-release
-            run_shell_suite: true
           - name: Linux Clang Debug
             os: ubuntu-latest
             preset: ci-linux-clang-debug
-            test_preset: ci-linux-clang-debug
-            run_shell_suite: false
           - name: macOS Clang Release
             os: macos-latest
             preset: ci-macos-clang-release
-            test_preset: ci-macos-clang-release
-            run_shell_suite: false
           - name: Linux Minimal Preset
             os: ubuntu-latest
             preset: minimal
-            test_preset: minimal
-            run_shell_suite: false
 
     steps:
       - name: Checkout repository
@@ -58,9 +50,5 @@ jobs:
       - name: Build
         run: cmake --build --preset ${{ matrix.preset }} --parallel
 
-      - name: Run CTest
-        run: ctest --preset ${{ matrix.test_preset }}
-
-      - name: Run shell integration suite
-        if: matrix.run_shell_suite
+      - name: Run full shell integration suite
         run: ./tests/run_shell_tests.sh "build/${{ matrix.preset }}/cjsh"
