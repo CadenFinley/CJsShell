@@ -1,3 +1,5 @@
+include(CheckCXXSourceCompiles)
+
 function(cjsh_collect_include_dirs)
     set(_options)
     set(_one_value_args ROOT_DIR OUT_VAR)
@@ -26,6 +28,50 @@ function(cjsh_collect_include_dirs)
     list(REMOVE_DUPLICATES _include_dirs)
 
     set(${CJSH_DIRS_OUT_VAR} "${_include_dirs}" PARENT_SCOPE)
+endfunction()
+
+function(cjsh_link_libatomic_if_needed target_name)
+    if(NOT TARGET ${target_name})
+        message(FATAL_ERROR "cjsh_link_libatomic_if_needed expected an existing target")
+    endif()
+
+    set(
+        _cjsh_atomic_test_source
+        "#include <atomic>
+
+int main() {
+    std::atomic<unsigned long long> counter{0};
+    return static_cast<int>(counter.fetch_add(1, std::memory_order_relaxed));
+}
+"
+    )
+
+    check_cxx_source_compiles(
+        "${_cjsh_atomic_test_source}"
+        CJSH_HAVE_64BIT_ATOMICS_WITHOUT_LIBATOMIC
+    )
+    if(CJSH_HAVE_64BIT_ATOMICS_WITHOUT_LIBATOMIC)
+        return()
+    endif()
+
+    set(_cjsh_saved_required_libraries "${CMAKE_REQUIRED_LIBRARIES}")
+    set(CMAKE_REQUIRED_LIBRARIES atomic)
+    check_cxx_source_compiles(
+        "${_cjsh_atomic_test_source}"
+        CJSH_HAVE_64BIT_ATOMICS_WITH_LIBATOMIC
+    )
+    set(CMAKE_REQUIRED_LIBRARIES "${_cjsh_saved_required_libraries}")
+
+    if(CJSH_HAVE_64BIT_ATOMICS_WITH_LIBATOMIC)
+        target_link_libraries(${target_name} PUBLIC atomic)
+        return()
+    endif()
+
+    message(
+        FATAL_ERROR
+            "The selected C++ toolchain cannot link required 64-bit atomic operations. "
+            "Install libatomic or use a toolchain with built-in support."
+    )
 endfunction()
 
 function(cjsh_apply_build_profile)
