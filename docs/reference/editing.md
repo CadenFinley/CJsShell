@@ -345,6 +345,25 @@ recorded (for example, when entries are injected programmatically).
 **Duplicate Handling:**
 By default, duplicate entries are not stored in history to keep it clean and relevant.
 
+### History Expansion
+
+History expansion runs in interactive sessions before the command line is parsed.
+
+```bash
+!!            # rerun the previous command
+!git          # most recent command that starts with "git"
+!?status?     # most recent command that contains "status"
+!$            # last argument from the previous command
+!^            # first argument from the previous command
+!*            # all arguments from the previous command
+^old^new      # replace the first "old" in the previous command with "new"
+```
+
+`!?` by itself is not a complete expansion; use `!?text?` (or `!?text`) with a search string.
+
+`Alt+.` and `Alt+_` are not built-in readline-style bindings in cjsh today. If you want the last
+argument from the previous command, use `!$` or the fuzzy history search menu (`Ctrl+R`).
+
 ### History Search
 
 **Incremental Search (Ctrl+R):**

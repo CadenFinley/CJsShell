@@ -77,9 +77,10 @@ Consult the [Completion Authoring Guide](completions.md) for cache format and cu
 
 ## History & Execution Utilities
 
-- **History expansion** – Bash-style tokens (`!!`, `!$`, `!^`, `^foo^bar`, etc.) work in interactive
-  mode. They automatically disable in script mode, `cjsh -c`, or when stdin is not a tty. Use
-  `--no-history-expansion` or `cjshopt login-startup-arg --no-history-expansion` to turn it off.
+- **History expansion** – Interactive history expansion supports `!!`, `!prefix`, `!?text?`, `!$`,
+  `!^`, `!*`, and `^foo^bar`. It automatically disables in script mode, `cjsh -c`, or when stdin
+  is not a tty. Use `--no-history-expansion` or `cjshopt login-startup-arg --no-history-expansion`
+  to turn it off.
 - **History recording** – Disable persistence entirely with `--no-history` (also disables history
   expansion) or `cjshopt login-startup-arg --no-history`.
 - **Persistent exit codes** – Each history entry records the command's exit status to enrich

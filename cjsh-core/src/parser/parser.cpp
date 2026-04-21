@@ -388,7 +388,7 @@ Parser::HistoryExpansionResult Parser::perform_history_expansion(const std::stri
     }
 
     auto history_entries = HistoryExpansion::read_history_entries();
-    auto expansion = HistoryExpansion::expand(command, history_entries);
+    auto expansion = HistoryExpansion::expand(command, history_entries, true);
 
     if (expansion.has_error) {
         result.has_error = true;

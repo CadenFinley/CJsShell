@@ -120,12 +120,12 @@ bool HistoryExpansion::expand_double_bang(const std::string& command, size_t& po
         return false;
     }
 
-    if (history.size() < 2) {
+    if (history.empty()) {
         error = "!!: event not found";
         return false;
     }
 
-    const std::string& last_command = history[history.size() - 2];
+    const std::string& last_command = history.back();
     pos += 2;
 
     if (pos < command.length() && command[pos] == ':') {
@@ -226,6 +226,61 @@ bool HistoryExpansion::expand_history_search(const std::string& command, size_t&
 
     error = "!" + pattern + ": event not found";
     return false;
+}
+
+bool HistoryExpansion::expand_previous_command_designator(const std::string& command, size_t& pos,
+                                                          const std::vector<std::string>& history,
+                                                          std::string& result, std::string& error) {
+    if (pos + 1 >= command.length() || command[pos] != '!') {
+        return false;
+    }
+
+    const char next = command[pos + 1];
+    if (next != ':' && next != '^' && next != '$' && next != '*') {
+        return false;
+    }
+
+    if (history.empty()) {
+        error =
+            (next == ':') ? "!: event not found" : std::string("!") + next + ": event not found";
+        return false;
+    }
+
+    const std::string& last_command = history.back();
+    if (next == ':') {
+        pos++;
+        return expand_word_designator(command, pos, last_command, result, error);
+    }
+
+    pos += 2;
+
+    if (next == '^') {
+        std::string word = get_word_from_command(last_command, 1);
+        if (word.empty()) {
+            error = "!^: bad word specifier";
+            return false;
+        }
+        result += word;
+        return true;
+    }
+
+    if (next == '$') {
+        std::string word = get_word_from_command(last_command, -1);
+        if (word.empty()) {
+            error = "!$: bad word specifier";
+            return false;
+        }
+        result += word;
+        return true;
+    }
+
+    std::string words = get_words_range(last_command, 1, -1);
+    if (words.empty()) {
+        error = "!*: bad word specifier";
+        return false;
+    }
+    result += words;
+    return true;
 }
 
 bool HistoryExpansion::expand_quick_substitution(const std::string& command,
@@ -372,8 +427,8 @@ bool HistoryExpansion::contains_history_expansion(const std::string& command) {
             if (i + 1 < command.length()) {
                 char next = command[i + 1];
 
-                if (next == '!' || std::isdigit(next) || next == '-' || std::isalpha(next) ||
-                    next == '?') {
+                if (next == '!' || next == '$' || next == '^' || next == '*' || next == ':' ||
+                    std::isdigit(next) || next == '-' || std::isalpha(next) || next == '?') {
                     return true;
                 }
             }
@@ -384,7 +439,8 @@ bool HistoryExpansion::contains_history_expansion(const std::string& command) {
 }
 
 HistoryExpansion::ExpansionResult HistoryExpansion::expand(
-    const std::string& command, const std::vector<std::string>& history_entries) {
+    const std::string& command, const std::vector<std::string>& history_entries,
+    bool history_includes_current_command) {
     ExpansionResult expansion_result;
     expansion_result.expanded_command = command;
     expansion_result.was_expanded = false;
@@ -395,10 +451,19 @@ HistoryExpansion::ExpansionResult HistoryExpansion::expand(
         return expansion_result;
     }
 
+    const std::vector<std::string>* expansion_history = &history_entries;
+    std::vector<std::string> committed_history;
+    if (history_includes_current_command && !history_entries.empty()) {
+        // Interactive submit stages the current buffer as the newest history entry.
+        committed_history = history_entries;
+        committed_history.pop_back();
+        expansion_history = &committed_history;
+    }
+
     if (command[0] == '^') {
         std::string result;
         std::string error;
-        if (expand_quick_substitution(command, history_entries, result, error)) {
+        if (expand_quick_substitution(command, *expansion_history, result, error)) {
             expansion_result.expanded_command = result;
             expansion_result.was_expanded = true;
             return expansion_result;
@@ -430,19 +495,27 @@ HistoryExpansion::ExpansionResult HistoryExpansion::expand(
             size_t saved_pos = i;
 
             if (!expanded && i + 1 < command.length() && command[i + 1] == '!') {
-                expanded = expand_double_bang(command, i, history_entries, result, error);
+                expanded = expand_double_bang(command, i, *expansion_history, result, error);
+            }
+
+            if (!expanded && i + 1 < command.length() &&
+                (command[i + 1] == ':' || command[i + 1] == '$' || command[i + 1] == '^' ||
+                 command[i + 1] == '*')) {
+                i = saved_pos;
+                expanded = expand_previous_command_designator(command, i, *expansion_history,
+                                                              result, error);
             }
 
             if (!expanded && i + 1 < command.length() &&
                 (std::isdigit(command[i + 1]) || command[i + 1] == '-')) {
                 i = saved_pos;
-                expanded = expand_history_number(command, i, history_entries, result, error);
+                expanded = expand_history_number(command, i, *expansion_history, result, error);
             }
 
             if (!expanded && i + 1 < command.length() &&
                 (std::isalpha(command[i + 1]) || command[i + 1] == '?')) {
                 i = saved_pos;
-                expanded = expand_history_search(command, i, history_entries, result, error);
+                expanded = expand_history_search(command, i, *expansion_history, result, error);
             }
 
             if (expanded) {

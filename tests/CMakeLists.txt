@@ -23,9 +23,16 @@ add_executable(
 )
 target_link_libraries(syntax_highlighting_tests PRIVATE cjsh_core cjsh_isocline)
 
+add_executable(
+    history_expansion_tests
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_history_expansion.cpp"
+)
+target_link_libraries(history_expansion_tests PRIVATE cjsh_core cjsh_isocline)
+
 add_test(NAME isocline_behavior_tests COMMAND isocline_behavior_tests)
 add_test(NAME completion_tests COMMAND completion_tests)
 add_test(NAME syntax_highlighting_tests COMMAND syntax_highlighting_tests)
+add_test(NAME history_expansion_tests COMMAND history_expansion_tests)
 
 if(Python3_Interpreter_FOUND)
     add_test(

@@ -42,7 +42,8 @@ class HistoryExpansion {
     };
 
     static ExpansionResult expand(const std::string& command,
-                                  const std::vector<std::string>& history_entries);
+                                  const std::vector<std::string>& history_entries,
+                                  bool history_includes_current_command = false);
     static bool contains_history_expansion(const std::string& command);
     static std::string get_history_file_path();
     static std::vector<std::string> read_history_entries();
@@ -59,6 +60,10 @@ class HistoryExpansion {
     static bool expand_history_search(const std::string& command, size_t& pos,
                                       const std::vector<std::string>& history, std::string& result,
                                       std::string& error);
+
+    static bool expand_previous_command_designator(const std::string& command, size_t& pos,
+                                                   const std::vector<std::string>& history,
+                                                   std::string& result, std::string& error);
 
     static bool expand_quick_substitution(const std::string& command,
                                           const std::vector<std::string>& history,
