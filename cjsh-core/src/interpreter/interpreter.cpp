@@ -1219,29 +1219,36 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
             expanded_header = expand_all_substitutions(header_accum, execute_simple_or_pipeline);
         }
 
-        std::vector<std::string> expanded_tokens = shell_parser->parse_command(expanded_header);
-        size_t tok_idx = 0;
-        if (tok_idx < expanded_tokens.size() &&
-            is_statement_keyword_prefix(expanded_tokens[tok_idx], StatementKeyword::Case))
-            ++tok_idx;
+        size_t in_pos = expanded_header.find(" in ");
+        if (in_pos == std::string::npos && expanded_header.length() >= 3 &&
+            expanded_header.compare(expanded_header.length() - 3, 3, " in") == 0) {
+            in_pos = expanded_header.length() - 3;
+        }
+        if (in_pos == std::string::npos) {
+            idx = j;
+            return 1;
+        }
 
+        std::string case_part = expanded_header.substr(0, in_pos);
         std::string raw_case_value;
-        if (tok_idx < expanded_tokens.size())
-            raw_case_value = expanded_tokens[tok_idx++];
+        size_t case_space_pos = case_part.find(' ');
+        if (case_space_pos != std::string::npos &&
+            is_statement_keyword_prefix(case_part.substr(0, case_space_pos),
+                                        StatementKeyword::Case)) {
+            raw_case_value = trim(case_part.substr(case_space_pos + 1));
+        }
 
-        if (std::find(expanded_tokens.begin(), expanded_tokens.end(), "in") ==
-                expanded_tokens.end() ||
-            raw_case_value.empty()) {
+        if (raw_case_value.empty()) {
             idx = j;
             return 1;
         }
 
         std::string case_value = case_evaluator::normalize_case_value(raw_case_value, shell_parser);
 
-        size_t in_pos = expanded_header.find(" in ");
         std::string inline_segment;
-        if (in_pos != std::string::npos)
+        if (expanded_header.length() >= in_pos + 4) {
             inline_segment = trim(expanded_header.substr(in_pos + 4));
+        }
 
         size_t esac_index = j;
         bool inline_has_esac = false;

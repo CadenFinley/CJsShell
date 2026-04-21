@@ -97,19 +97,9 @@ std::string normalize_case_pattern(std::string pattern, Parser* parser) {
             pattern = pattern.substr(1, pattern.length() - 2);
         }
     }
-    std::string processed;
-    processed.reserve(pattern.length());
-    for (size_t i = 0; i < pattern.length(); ++i) {
-        if (pattern[i] == '\\' && i + 1 < pattern.length()) {
-            processed += pattern[i + 1];
-            ++i;
-        } else {
-            processed += pattern[i];
-        }
-    }
     if (parser != nullptr)
-        parser->expand_env_vars(processed);
-    return processed;
+        parser->expand_env_vars(pattern);
+    return pattern;
 }
 
 std::string normalize_case_value(std::string value, Parser* parser) {

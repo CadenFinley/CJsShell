@@ -227,11 +227,29 @@ else
 fi
 
 log_test "Case with escaped characters"
-result=$("$SHELL_TO_TEST" -c 'var="*"; case $var in \\*) echo escaped_star;; *) echo literal_star;; esac' 2>/dev/null)
+result=$("$SHELL_TO_TEST" -c 'var="*"; case $var in \*) echo escaped_star;; *) echo literal_star;; esac' 2>/dev/null)
 if [ "$result" = "escaped_star" ]; then
     pass
 else
     fail "Expected 'escaped_star', got '$result'"
+fi
+
+log_test "Multiline case with escaped question mark"
+cat > /tmp/test_posix_case_escaped_question.sh << 'EOF'
+#!/bin/sh
+var="?"
+case $var in
+    \?) echo escaped_question;;
+    *) echo literal_question;;
+esac
+EOF
+chmod +x /tmp/test_posix_case_escaped_question.sh
+result=$("$SHELL_TO_TEST" /tmp/test_posix_case_escaped_question.sh 2>/dev/null)
+rm -f /tmp/test_posix_case_escaped_question.sh
+if [ "$result" = "escaped_question" ]; then
+    pass
+else
+    fail "Expected 'escaped_question', got '$result'"
 fi
 
 echo
