@@ -27,10 +27,14 @@
 */
 
 #include <cstdio>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "history_expansion.h"
+#include "shell.h"
+
+std::unique_ptr<Shell> g_shell;
 
 static void log_failure(const char* test_name, const char* message) {
     std::fprintf(stderr, "[FAIL] %s: %s\n", test_name, message);
