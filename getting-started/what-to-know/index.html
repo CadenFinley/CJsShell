@@ -1496,7 +1496,7 @@ Smart <code>cd</code> adds fuzzy directory matching for quick navigation between
 <hr>
 <h2 id="history-features">History Features</h2>
 <ul>
-<li><strong>History expansions:</strong> Enabled in interactive sessions (<code>!!</code>, <code>!$</code>, etc.). Disable with <code>cjsh --no-history-expansion</code> or persist by adding <code>cjshopt login-startup-arg --no-history-expansion</code> to <code>~/.cjprofile</code>.</li>
+<li><strong>History expansions:</strong> Enabled in interactive sessions (<code>!!</code>, <code>!git</code>, <code>!?text?</code>, <code>!$</code>, <code>!^</code>, <code>!*</code>, <code>^old^new</code>). <code>!?</code> by itself is not valid; include a search string. Disable with <code>cjsh --no-history-expansion</code> or persist by adding <code>cjshopt login-startup-arg --no-history-expansion</code> to <code>~/.cjprofile</code>.</li>
 <li><strong>History recording:</strong> Disable persistence with <code>cjsh --no-history</code> (also disables history expansion) or add <code>cjshopt login-startup-arg --no-history</code> to <code>~/.cjprofile</code>. Secure mode also disables history persistence.</li>
 <li><strong>Reverse search:</strong> Press <code>Ctrl+R</code> for the fuzzy history search menu (use <code>Alt+C</code> inside it to toggle case sensitivity).</li>
 <li><strong>History search case sensitivity:</strong> Matching is case-sensitive by default; adjust with <code>cjshopt history-search-case on|off|status</code> to set the default for every session.</li>

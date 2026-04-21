@@ -1176,9 +1176,10 @@ remains interactive-only by default; see the History section below.</p>
 </ul>
 <h2 id="history-execution-utilities">History &amp; Execution Utilities</h2>
 <ul>
-<li><strong>History expansion</strong> – Bash-style tokens (<code>!!</code>, <code>!$</code>, <code>!^</code>, <code>^foo^bar</code>, etc.) work in interactive
-  mode. They automatically disable in script mode, <code>cjsh -c</code>, or when stdin is not a tty. Use
-  <code>--no-history-expansion</code> or <code>cjshopt login-startup-arg --no-history-expansion</code> to turn it off.</li>
+<li><strong>History expansion</strong> – Interactive history expansion supports <code>!!</code>, <code>!prefix</code>, <code>!?text?</code>, <code>!$</code>,
+  <code>!^</code>, <code>!*</code>, and <code>^foo^bar</code>. It automatically disables in script mode, <code>cjsh -c</code>, or when stdin
+  is not a tty. Use <code>--no-history-expansion</code> or <code>cjshopt login-startup-arg --no-history-expansion</code>
+  to turn it off.</li>
 <li><strong>History recording</strong> – Disable persistence entirely with <code>--no-history</code> (also disables history
   expansion) or <code>cjshopt login-startup-arg --no-history</code>.</li>
 <li><strong>Persistent exit codes</strong> – Each history entry records the command's exit status to enrich
