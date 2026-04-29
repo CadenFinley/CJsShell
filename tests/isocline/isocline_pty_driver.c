@@ -176,8 +176,8 @@ static int run_case(const char* scenario) {
     bool multiline_mode = (strcmp(scenario, "multiline_ctrl_j_insert_newline") == 0 ||
                            strcmp(scenario, "multiline_backslash_continuation") == 0 ||
                            strcmp(scenario, "multiline_initial_ctrl_j") == 0 ||
-                           strcmp(scenario, "multiline_ctrl_a_chain") == 0 ||
-                           strcmp(scenario, "multiline_ctrl_e_chain") == 0);
+                           strcmp(scenario, "multiline_ctrl_a_stays_on_line") == 0 ||
+                           strcmp(scenario, "multiline_ctrl_e_stays_on_line") == 0);
     ic_enable_multiline(multiline_mode);
     ic_enable_hint(false);
     ic_enable_inline_help(false);
@@ -242,9 +242,9 @@ static int run_case(const char* scenario) {
         continuation_prompt_marker = "> ";
     } else if (strcmp(scenario, "multiline_initial_ctrl_j") == 0) {
         initial_input = "ab";
-    } else if (strcmp(scenario, "multiline_ctrl_a_chain") == 0) {
+    } else if (strcmp(scenario, "multiline_ctrl_a_stays_on_line") == 0) {
         initial_input = "ab\ncd\nef";
-    } else if (strcmp(scenario, "multiline_ctrl_e_chain") == 0) {
+    } else if (strcmp(scenario, "multiline_ctrl_e_stays_on_line") == 0) {
         initial_input = "ab\ncd\nef";
     } else if (strcmp(scenario, "completion_midline_single") == 0) {
         initial_input = "say he";

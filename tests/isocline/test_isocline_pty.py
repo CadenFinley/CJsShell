@@ -634,20 +634,24 @@ def main() -> int:
             f"multiline_initial_ctrl_j expected 'ab\\ncd', got {multiline_initial!r}"
         )
 
-    multiline_ctrl_a_chain = run_case(binary, "multiline_ctrl_a_chain", b"\x01\x01X\r")
-    if multiline_ctrl_a_chain != "ab\nXcd\nef":
+    multiline_ctrl_a_stays_on_line = run_case(
+        binary, "multiline_ctrl_a_stays_on_line", b"\x01\x01X\r"
+    )
+    if multiline_ctrl_a_stays_on_line != "ab\ncd\nXef":
         raise AssertionError(
-            "multiline_ctrl_a_chain expected 'ab\\nXcd\\nef', got "
-            f"{multiline_ctrl_a_chain!r}"
+            "multiline_ctrl_a_stays_on_line expected 'ab\\ncd\\nXef', got "
+            f"{multiline_ctrl_a_stays_on_line!r}"
         )
 
-    multiline_ctrl_e_chain = run_case(
-        binary, "multiline_ctrl_e_chain", b"\x01\x02\x01\x02\x05\x05\x05X\r"
+    multiline_ctrl_e_stays_on_line = run_case(
+        binary,
+        "multiline_ctrl_e_stays_on_line",
+        b"\x01\x02\x01\x02\x05\x05\x05X\r",
     )
-    if multiline_ctrl_e_chain != "ab\ncd\nefX":
+    if multiline_ctrl_e_stays_on_line != "abX\ncd\nef":
         raise AssertionError(
-            "multiline_ctrl_e_chain expected 'ab\\ncd\\nefX', got "
-            f"{multiline_ctrl_e_chain!r}"
+            "multiline_ctrl_e_stays_on_line expected 'abX\\ncd\\nef', got "
+            f"{multiline_ctrl_e_stays_on_line!r}"
         )
 
     ctrl_c = run_case(binary, "ctrl_c", b"\x03")

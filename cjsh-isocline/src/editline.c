@@ -1857,49 +1857,11 @@ static void edit_cursor_line_end(ic_env_t* env, editor_t* eb) {
 }
 
 static void edit_cursor_ctrl_e(ic_env_t* env, editor_t* eb) {
-    ssize_t end = sbuf_find_line_end(eb->input, eb->pos);
-    if (end < 0)
-        return;
-
-    if (eb->pos != end) {
-        eb->pos = end;
-        edit_refresh_hint(env, eb);
-        return;
-    }
-
-    ssize_t next = sbuf_next(eb->input, end, NULL);
-    if (next <= 0)
-        return;
-
-    ssize_t next_end = sbuf_find_line_end(eb->input, end + next);
-    if (next_end < 0)
-        return;
-
-    eb->pos = next_end;
-    edit_refresh_hint(env, eb);
+    edit_cursor_line_end(env, eb);
 }
 
 static void edit_cursor_ctrl_a(ic_env_t* env, editor_t* eb) {
-    ssize_t start = sbuf_find_line_start(eb->input, eb->pos);
-    if (start < 0)
-        return;
-
-    if (eb->pos != start) {
-        eb->pos = start;
-        edit_refresh_hint(env, eb);
-        return;
-    }
-
-    ssize_t prev_pos = sbuf_prev(eb->input, start, NULL);
-    if (prev_pos < 0)
-        return;
-
-    ssize_t prev_start = sbuf_find_line_start(eb->input, prev_pos);
-    if (prev_start < 0)
-        return;
-
-    eb->pos = prev_start;
-    edit_refresh_hint(env, eb);
+    edit_cursor_line_start(env, eb);
 }
 
 static void edit_cursor_line_start(ic_env_t* env, editor_t* eb) {
