@@ -298,15 +298,25 @@ def run_case_timed(
     next_send_at = time.monotonic() + initial_delay_s
     send_index = 0
     prompt_seen = False
-    required_prompt_count = 1
+    last_output_at = time.monotonic()
+    reprompt_output_start: int | None = None
+    reprompt_idle_s = max(poll_interval_s * 3, 0.05)
 
     try:
         while time.monotonic() < deadline:
             now = time.monotonic()
+
+            if read_pending_output(fd, output):
+                last_output_at = now
+            if not prompt_seen and b"pty> " in output:
+                prompt_seen = True
+
             ready_to_send = prompt_seen and send_index < len(chunks) and now >= next_send_at
-            if ready_to_send and wait_for_reprompt and send_index > 0:
-                prompt_count = count_prompt_lines(output.decode("utf-8", errors="replace"))
-                ready_to_send = prompt_count >= required_prompt_count
+            if ready_to_send and reprompt_output_start is not None:
+                new_output = output[reprompt_output_start:]
+                ready_to_send = (
+                    b"pty> " in new_output and (now - last_output_at) >= reprompt_idle_s
+                )
             if ready_to_send:
                 chunk_to_send = chunks[send_index]
                 os.write(fd, chunk_to_send)
@@ -316,12 +326,12 @@ def run_case_timed(
                     and send_index < len(chunks)
                     and chunk_to_send.endswith((b"\r", b"\n"))
                 ):
-                    required_prompt_count += 1
+                    # Prompt redraws can repeat within a single readline call.
+                    # Only continue once a fresh prompt appears after this submit.
+                    reprompt_output_start = len(output)
+                else:
+                    reprompt_output_start = None
                 next_send_at = now + step_delay_s
-
-            read_pending_output(fd, output)
-            if not prompt_seen and b"pty> " in output:
-                prompt_seen = True
 
             waited_pid, status = os.waitpid(pid, os.WNOHANG)
             if waited_pid == pid:
