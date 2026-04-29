@@ -169,6 +169,11 @@ static int run_case(const char* scenario) {
         return 2;
     }
 
+    const bool use_vim_profile = (strncmp(scenario, "vim_", 4) == 0);
+    if (use_vim_profile) {
+        scenario += 4;
+    }
+
     if (strncmp(scenario, "history_probe_", 14) == 0) {
         return run_history_probe_case(scenario);
     }
@@ -184,6 +189,9 @@ static int run_case(const char* scenario) {
     ic_enable_completion_preview(false);
     ic_enable_auto_tab(false);
     ic_enable_prompt_cleanup(false, 0);
+    if (!ic_set_key_binding_profile(use_vim_profile ? "vim" : "emacs")) {
+        return 5;
+    }
 #if defined(_WIN32)
     const char* history_path = "cjsh_isocline_pty_history.tmp";
 #else

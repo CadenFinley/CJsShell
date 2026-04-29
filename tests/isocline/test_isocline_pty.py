@@ -27,6 +27,7 @@
 # SOFTWARE.
 
 import os
+import platform
 import pty
 import re
 import signal
@@ -42,6 +43,29 @@ ANSI_CSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 ANSI_OSC_RE = re.compile(r"\x1b\].*?(?:\x07|\x1b\\)", re.S)
 PROMPT_GUARD_RE = re.compile(r"[%#][ ]+pty> ")
 PTY_CASE_COUNT = 0
+IS_DARWIN = platform.system() == "Darwin"
+
+LEFT = b"\x1b[D"
+RIGHT = b"\x1b[C"
+UP = b"\x1b[A"
+DOWN = b"\x1b[B"
+HOME = b"\x1b[H"
+END = b"\x1b[F"
+PAGEUP = b"\x1b[5~"
+PAGEDOWN = b"\x1b[6~"
+CTRL_HOME = b"\x1b[1;5H"
+CTRL_END = b"\x1b[1;5F"
+SHIFT_HOME = b"\x1b[1;2H"
+SHIFT_END = b"\x1b[1;2F"
+SHIFT_UP = b"\x1b[1;2A"
+SHIFT_TAB = b"\x1b[Z"
+F1 = b"\x1bOP"
+ALT_LT = b"\x1b<"
+ALT_GT = b"\x1b>"
+ALT_DELETE = b"\x1b[3;3~"
+CTRL_ENTER = b"\x1b[13;5u"
+WORD_PREV = b"\x1b[1;2D" if IS_DARWIN else b"\x1b[1;5D"
+WORD_NEXT = b"\x1b[1;2C" if IS_DARWIN else b"\x1b[1;5C"
 
 
 def normalize_terminal_output(text: str) -> str:
@@ -480,6 +504,40 @@ def main() -> int:
     if end_insert != "abc":
         raise AssertionError(f"end_insert expected 'abc', got {end_insert!r}")
 
+    alias_navigation_cases = [
+        ("left_arrow_insert", "insert_backspace", b"ab" + LEFT + b"Z\r", "aZb"),
+        (
+            "right_arrow_insert",
+            "insert_backspace",
+            b"ab" + LEFT + RIGHT + b"Z\r",
+            "abZ",
+        ),
+        ("home_key_insert", "insert_backspace", b"bc" + HOME + b"a\r", "abc"),
+        (
+            "end_key_insert",
+            "insert_backspace",
+            b"ab" + HOME + END + b"c\r",
+            "abc",
+        ),
+        ("ctrl_h_backspace", "insert_backspace", b"ab\x08cd\r", "acd"),
+        (
+            "ctrl_f_cursor_right_midline",
+            "insert_backspace",
+            b"ab\x01\x06X\r",
+            "aXb",
+        ),
+        (
+            "delete_key_midline",
+            "insert_backspace",
+            b"abc" + LEFT + b"\x1b[3~\r",
+            "ab",
+        ),
+        ("ctrl_h_at_start", "backspace_at_start_noop", b"\x01\x08\r", "ab"),
+        ("delete_key_at_end", "delete_at_end_noop", b"\x05\x1b[3~\r", "ab"),
+    ]
+    for label, scenario, key_bytes, expected in alias_navigation_cases:
+        assert_case(binary, label, scenario, key_bytes, expected)
+
     backspace_start = run_case(binary, "backspace_at_start_noop", b"\x01\x7f\r")
     if backspace_start != "ab":
         raise AssertionError(
@@ -594,9 +652,62 @@ def main() -> int:
             f"ctrl_w_then_type expected 'alpha gamma', got {ctrl_w_then_type!r}"
         )
 
+    word_and_edit_alias_cases = [
+        (
+            "alt_backspace_delete_word_start",
+            "insert_backspace",
+            b"alpha beta\x1b\x7f\r",
+            "alpha",
+        ),
+        (
+            "alt_delete_delete_word_start",
+            "insert_backspace",
+            b"alpha beta" + ALT_DELETE + b"\r",
+            "alpha",
+        ),
+        (
+            "alt_d_delete_word_end",
+            "insert_backspace",
+            b"alpha beta" + LEFT * 4 + b"\x1bd\r",
+            "alpha ",
+        ),
+        (
+            "alt_b_prev_word",
+            "insert_backspace",
+            b"alpha beta\x1bbX\r",
+            "alphaX beta",
+        ),
+        (
+            "alt_f_next_word",
+            "insert_backspace",
+            b"alpha beta\x01\x1bfX\r",
+            "alpha Xbeta",
+        ),
+        (
+            "platform_word_prev_alias",
+            "insert_backspace",
+            b"alpha beta" + WORD_PREV + b"X\r",
+            "alphaX beta",
+        ),
+        (
+            "platform_word_next_alias",
+            "insert_backspace",
+            b"alpha beta\x01" + WORD_NEXT + b"X\r",
+            "alpha Xbeta",
+        ),
+        ("match_brace_alt_m", "insert_backspace", b"(ab)\x1bmX\r", "(Xab)"),
+        ("transpose_ctrl_t", "insert_backspace", b"ab" + LEFT + b"\x14\r", "ba"),
+    ]
+    for label, scenario, key_bytes, expected in word_and_edit_alias_cases:
+        assert_case(binary, label, scenario, key_bytes, expected)
+
     undo_single = run_case(binary, "undo_single_change", b"c\x1a\r")
     if undo_single != "ab":
         raise AssertionError(f"undo_single_change expected 'ab', got {undo_single!r}")
+
+    undo_alias = run_case(binary, "undo_single_change", b"c\x1f\r")
+    if undo_alias != "ab":
+        raise AssertionError(f"undo_single_change ctrl+_ expected 'ab', got {undo_alias!r}")
 
     undo_redo = run_case(binary, "undo_redo_roundtrip", b"c\x1a\x19\r")
     if undo_redo != "abc":
@@ -654,6 +765,96 @@ def main() -> int:
             f"{multiline_ctrl_e_stays_on_line!r}"
         )
 
+    multiline_navigation_cases = [
+        (
+            "pageup_input_start",
+            b"ab\x0acd\x0aef" + PAGEUP + b"X\r",
+            "Xab\ncd\nef",
+        ),
+        (
+            "ctrl_home_input_start",
+            b"ab\x0acd\x0aef" + CTRL_HOME + b"X\r",
+            "Xab\ncd\nef",
+        ),
+        (
+            "shift_home_input_start",
+            b"ab\x0acd\x0aef" + SHIFT_HOME + b"X\r",
+            "Xab\ncd\nef",
+        ),
+        (
+            "alt_lt_input_start",
+            b"ab\x0acd\x0aef" + ALT_LT + b"X\r",
+            "Xab\ncd\nef",
+        ),
+        (
+            "pagedown_input_end",
+            b"ab\x0acd\x0aef" + PAGEUP + PAGEDOWN + b"X\r",
+            "ab\ncd\nefX",
+        ),
+        (
+            "ctrl_end_input_end",
+            b"ab\x0acd\x0aef" + PAGEUP + CTRL_END + b"X\r",
+            "ab\ncd\nefX",
+        ),
+        (
+            "shift_end_input_end",
+            b"ab\x0acd\x0aef" + PAGEUP + SHIFT_END + b"X\r",
+            "ab\ncd\nefX",
+        ),
+        (
+            "alt_gt_input_end",
+            b"ab\x0acd\x0aef" + PAGEUP + ALT_GT + b"X\r",
+            "ab\ncd\nefX",
+        ),
+    ]
+    for label, key_bytes, expected in multiline_navigation_cases:
+        assert_case(
+            binary,
+            label,
+            "multiline_ctrl_j_insert_newline",
+            key_bytes,
+            expected,
+        )
+
+    multiline_row_navigation_cases = [
+        ("up_row_navigation", b"ab\x0acd\x0aef" + UP + b"X\r", "ab\ncdX\nef"),
+        (
+            "shift_up_row_navigation",
+            b"ab\x0acd\x0aef" + SHIFT_UP + b"X\r",
+            "ab\ncdX\nef",
+        ),
+        (
+            "down_row_navigation",
+            b"ab\x0acd\x0aef" + PAGEUP + DOWN + b"X\r",
+            "ab\nXcd\nef",
+        ),
+    ]
+    for label, key_bytes, expected in multiline_row_navigation_cases:
+        assert_case(
+            binary,
+            label,
+            "multiline_ctrl_j_insert_newline",
+            key_bytes,
+            expected,
+        )
+
+    if IS_DARWIN:
+        shift_tab_newline = run_case(
+            binary, "multiline_ctrl_j_insert_newline", b"a" + SHIFT_TAB + b"b\r"
+        )
+        if shift_tab_newline != "a\nb":
+            raise AssertionError(
+                f"multiline shift+tab expected 'a\\nb', got {shift_tab_newline!r}"
+            )
+    else:
+        ctrl_enter_newline = run_case(
+            binary, "multiline_ctrl_j_insert_newline", b"a" + CTRL_ENTER + b"b\r"
+        )
+        if ctrl_enter_newline != "a\nb":
+            raise AssertionError(
+                f"multiline ctrl+enter expected 'a\\nb', got {ctrl_enter_newline!r}"
+            )
+
     ctrl_c = run_case(binary, "ctrl_c", b"\x03")
     if ctrl_c != "<CTRL+C>":
         raise AssertionError(f"ctrl_c expected '<CTRL+C>', got {ctrl_c!r}")
@@ -661,6 +862,78 @@ def main() -> int:
     ctrl_d = run_case(binary, "ctrl_d_empty", b"\x04")
     if ctrl_d != "<CTRL+D>":
         raise AssertionError(f"ctrl_d_empty expected '<CTRL+D>', got {ctrl_d!r}")
+
+    ctrl_o_submit = run_case(binary, "insert_backspace", b"abc\x0f")
+    if ctrl_o_submit != "abc":
+        raise AssertionError(f"ctrl_o_submit expected 'abc', got {ctrl_o_submit!r}")
+
+    ctrl_g_cancel = run_case(binary, "insert_backspace", b"abc\x07")
+    if ctrl_g_cancel != "":
+        raise AssertionError(f"ctrl_g_cancel expected empty string, got {ctrl_g_cancel!r}")
+
+    assert_timed_case(
+        binary,
+        "esc_clear_then_enter",
+        "insert_backspace",
+        [b"abc", b"\x1b", b"\r"],
+        "",
+        initial_delay_s=0.12,
+        step_delay_s=0.5,
+    )
+    assert_timed_case(
+        binary,
+        "esc_empty_continues",
+        "insert_backspace",
+        [b"\x1b", b"ok\r"],
+        "ok",
+        initial_delay_s=0.12,
+        step_delay_s=0.5,
+    )
+
+    timed_history_cases = [
+        ("history_prev_ctrl_p", "history_prev", [b"one\r", b"two\r", b"\x10\r"], "two"),
+        ("history_prev_up", "history_prev", [b"one\r", b"two\r", UP + b"\r"], "two"),
+        (
+            "history_prev_shift_up",
+            "history_prev",
+            [b"one\r", b"two\r", SHIFT_UP + b"\r"],
+            "two",
+        ),
+        (
+            "history_prev_prev_ctrl_p",
+            "history_prev_prev",
+            [b"one\r", b"two\r", b"\x10\x10\r"],
+            "one",
+        ),
+        (
+            "history_next_ctrl_n",
+            "history_next_empty",
+            [b"one\r", b"two\r", b"\x10\x0e\r"],
+            "",
+        ),
+        (
+            "history_next_down",
+            "history_next_empty",
+            [b"one\r", b"two\r", b"\x10" + DOWN + b"\r"],
+            "",
+        ),
+        (
+            "history_prev_prefix_filter",
+            "history_prev_edit",
+            [b"alpha\r", b"alpine\r", b"al\x10\r"],
+            "alpine",
+        ),
+    ]
+    for label, scenario, chunks, expected in timed_history_cases:
+        assert_timed_case(
+            binary,
+            label,
+            scenario,
+            chunks,
+            expected,
+            initial_delay_s=0.12,
+            step_delay_s=0.5,
+        )
 
     hist_latest = run_case(binary, "history_probe_latest", b"")
     if hist_latest != "echo two":
@@ -703,6 +976,29 @@ def main() -> int:
             f"yank_last_arg_repeat expected 'open beta.txt', got {yank_repeat!r}"
         )
 
+    yank_repeat_underscore = run_case(binary, "yank_last_arg_repeat", b"\x1b_\x1b_\r")
+    if yank_repeat_underscore != "open beta.txt":
+        raise AssertionError(
+            "yank_last_arg_repeat alt+_ expected 'open beta.txt', got "
+            f"{yank_repeat_underscore!r}"
+        )
+
+    yank_repeat_mixed = run_case(binary, "yank_last_arg_repeat", b"\x1b.\x1b_\r")
+    if yank_repeat_mixed != "open beta.txt":
+        raise AssertionError(
+            "yank_last_arg_repeat mixed meta-. / meta-_ expected 'open beta.txt', got "
+            f"{yank_repeat_mixed!r}"
+        )
+
+    yank_repeat_mixed_reverse = run_case(
+        binary, "yank_last_arg_repeat", b"\x1b_\x1b.\r"
+    )
+    if yank_repeat_mixed_reverse != "open beta.txt":
+        raise AssertionError(
+            "yank_last_arg_repeat mixed meta-_ / meta-. expected 'open beta.txt', got "
+            f"{yank_repeat_mixed_reverse!r}"
+        )
+
     mouse_wheel_down = b"\x1b[<65;1;1M"
     mouse_wheel_down_shift = b"\x1b[<69;1;1M"
     mouse_release = b"\x1b[<3;1;1m"
@@ -713,6 +1009,12 @@ def main() -> int:
     if hist_scroll != "history beta":
         raise AssertionError(
             f"history_search_scroll expected 'history beta', got {hist_scroll!r}"
+        )
+
+    hist_search_ctrl_s = run_case(binary, "history_search_scroll", b"\x13\r")
+    if hist_search_ctrl_s != "history alpha":
+        raise AssertionError(
+            f"history_search_scroll ctrl+s expected 'history alpha', got {hist_search_ctrl_s!r}"
         )
 
     comp_single = run_case(binary, "completion_single_tab", b"hel\t\r")
@@ -732,6 +1034,25 @@ def main() -> int:
         raise AssertionError(
             f"completion_midline_single expected 'say hello', got {comp_midline!r}"
         )
+
+    completion_alias_cases = [
+        ("completion_ctrl_f_at_eol", b"hel\x06\r", "hello"),
+        ("completion_right_arrow_at_eol", b"hel" + RIGHT + b"\r", "hello"),
+        ("completion_word_next_at_eol", b"hel" + WORD_NEXT + b"\r", "hello"),
+        ("completion_alt_f_at_eol", b"hel\x1bf\r", "hello"),
+    ]
+    for label, key_bytes, expected in completion_alias_cases:
+        assert_case(binary, label, "completion_single_tab", key_bytes, expected)
+
+    assert_timed_case(
+        binary,
+        "completion_alt_question",
+        "completion_single_tab",
+        [b"hel", b"\x1b?", b"\r"],
+        "hello",
+        initial_delay_s=0.12,
+        step_delay_s=0.2,
+    )
 
     empty_hint_result, empty_hint_output = run_case(
         binary, "hint_clears_on_empty_line", b" \x7f\r", capture_output=True
@@ -796,6 +1117,70 @@ def main() -> int:
         raise AssertionError(
             f"completion_many_menu shift-wheel expected 's02', got {comp_scroll_shift!r}"
         )
+
+    help_result, help_output = run_case(
+        binary, "insert_backspace", b"ab" + F1 + b"c\r", capture_output=True
+    )
+    if help_result != "abc":
+        raise AssertionError(f"show_help expected 'abc', got {help_result!r}")
+    normalized_help_output = normalize_terminal_output(help_output)
+    if "Navigation:" not in normalized_help_output or "Editing:" not in normalized_help_output:
+        raise AssertionError(
+            "show_help expected rendered help headings, got "
+            f"normalized_output={normalized_help_output!r}"
+        )
+
+    vim_cases = [
+        ("vim_alt_h_left", "vim_insert_backspace", b"ab\x1bhX\r", "aXb"),
+        ("vim_alt_l_midline", "vim_insert_backspace", b"ab\x01\x1blX\r", "aXb"),
+        ("vim_alt_l_complete", "vim_completion_single_tab", b"hel\x1bl\r", "hello"),
+        (
+            "vim_alt_w_word_next",
+            "vim_insert_backspace",
+            b"alpha beta\x01\x1bwX\r",
+            "alpha Xbeta",
+        ),
+        ("vim_alt_w_complete", "vim_completion_single_tab", b"hel\x1bw\r", "hello"),
+    ]
+    for label, scenario, key_bytes, expected in vim_cases:
+        assert_case(binary, label, scenario, key_bytes, expected)
+
+    vim_timed_cases = [
+        ("vim_alt_k_history_prev", "vim_history_prev", [b"one\r", b"two\r", b"\x1bk\r"], "two"),
+        (
+            "vim_alt_j_history_next",
+            "vim_history_next_empty",
+            [b"one\r", b"two\r", b"\x1bk\x1bj\r"],
+            "",
+        ),
+    ]
+    for label, scenario, chunks, expected in vim_timed_cases:
+        assert_timed_case(
+            binary,
+            label,
+            scenario,
+            chunks,
+            expected,
+            initial_delay_s=0.12,
+            step_delay_s=0.5,
+        )
+
+    vim_multiline_cases = [
+        (
+            "vim_alt_k_row_up",
+            "vim_multiline_ctrl_j_insert_newline",
+            b"ab\x0acd\x0aef\x1bkX\r",
+            "ab\ncdX\nef",
+        ),
+        (
+            "vim_alt_j_row_down",
+            "vim_multiline_ctrl_j_insert_newline",
+            b"ab\x0acd\x0aef" + PAGEUP + b"\x1bjX\r",
+            "ab\nXcd\nef",
+        ),
+    ]
+    for label, scenario, key_bytes, expected in vim_multiline_cases:
+        assert_case(binary, label, scenario, key_bytes, expected)
 
     bp_start = b"\x1b[200~"
     bp_end = b"\x1b[201~"

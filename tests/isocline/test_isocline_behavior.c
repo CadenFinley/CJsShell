@@ -1432,6 +1432,236 @@ static bool test_key_binding_crud_and_profiles(void) {
     return true;
 }
 
+static bool profile_specs_contain_token(const char* specs, const char* expected_token) {
+    if (specs == NULL || expected_token == NULL) {
+        return false;
+    }
+
+    const char* p = specs;
+    while (*p != '\0') {
+        while (*p == ' ' || *p == '\t' || *p == '|') {
+            p++;
+        }
+        if (*p == '\0') {
+            break;
+        }
+
+        const char* start = p;
+        while (*p != '\0' && *p != '|') {
+            p++;
+        }
+        const char* end = p;
+        while (start < end && (end[-1] == ' ' || end[-1] == '\t')) {
+            end--;
+        }
+        while (start < end && (*start == ' ' || *start == '\t')) {
+            start++;
+        }
+        if (start >= end) {
+            continue;
+        }
+
+        size_t len = (size_t)(end - start);
+        if (strlen(expected_token) == len && strncmp(start, expected_token, len) == 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool expect_profile_spec_tokens_roundtrip(const char* profile_name, ic_key_action_t action,
+                                                 const char* specs, size_t* token_count_out) {
+    if (token_count_out != NULL) {
+        *token_count_out = 0;
+    }
+    if (profile_name == NULL || specs == NULL) {
+        return false;
+    }
+
+    const char* action_name = ic_key_action_name(action);
+    if (action_name == NULL) {
+        action_name = "(unknown)";
+    }
+
+    size_t token_count = 0;
+    const char* p = specs;
+    while (*p != '\0') {
+        while (*p == ' ' || *p == '\t' || *p == '|') {
+            p++;
+        }
+        if (*p == '\0') {
+            break;
+        }
+
+        const char* start = p;
+        while (*p != '\0' && *p != '|') {
+            p++;
+        }
+        const char* end = p;
+        while (start < end && (end[-1] == ' ' || end[-1] == '\t')) {
+            end--;
+        }
+        while (start < end && (*start == ' ' || *start == '\t')) {
+            start++;
+        }
+        if (start >= end) {
+            continue;
+        }
+
+        size_t len = (size_t)(end - start);
+        char token[64];
+        if (len >= sizeof(token)) {
+            expect_safe_log("Profile '%s' action '%s' contains oversized key spec token\n",
+                            profile_name, action_name);
+            return false;
+        }
+
+        memcpy(token, start, len);
+        token[len] = '\0';
+
+        ic_keycode_t key = IC_KEY_NONE;
+        if (!ic_parse_key_spec(token, &key)) {
+            expect_safe_log("Profile '%s' action '%s' failed to parse key spec '%s'\n",
+                            profile_name, action_name, token);
+            return false;
+        }
+
+        char formatted[64];
+        if (!ic_format_key_spec(key, formatted, sizeof(formatted))) {
+            expect_safe_log("Profile '%s' action '%s' failed to format key spec '%s'\n",
+                            profile_name, action_name, token);
+            return false;
+        }
+
+        token_count++;
+    }
+
+    if (token_count == 0) {
+        expect_safe_log("Profile '%s' action '%s' did not expose any key spec tokens\n",
+                        profile_name, action_name);
+        return false;
+    }
+
+    if (token_count_out != NULL) {
+        *token_count_out = token_count;
+    }
+    return true;
+}
+
+typedef struct explicit_profile_binding_s {
+    const char* profile_name;
+    const char* key_spec;
+    ic_key_action_t action;
+} explicit_profile_binding_t;
+
+static bool expect_explicit_profile_binding(const explicit_profile_binding_t* binding) {
+    if (binding == NULL) {
+        return false;
+    }
+
+    ic_keycode_t key = IC_KEY_NONE;
+    if (!ic_parse_key_spec(binding->key_spec, &key)) {
+        expect_safe_log("explicit profile binding '%s' failed to parse\n", binding->key_spec);
+        return false;
+    }
+
+    ic_key_action_t bound_action = IC_KEY_ACTION_NONE;
+    if (!ic_get_key_binding(key, &bound_action)) {
+        expect_safe_log("profile '%s' did not register explicit binding '%s'\n",
+                        binding->profile_name, binding->key_spec);
+        return false;
+    }
+
+    if (bound_action != binding->action) {
+        expect_safe_log("profile '%s' binding '%s' resolved to '%s' instead of '%s'\n",
+                        binding->profile_name, binding->key_spec,
+                        (ic_key_action_name(bound_action) != NULL ? ic_key_action_name(bound_action)
+                                                                  : "(unknown)"),
+                        (ic_key_action_name(binding->action) != NULL
+                             ? ic_key_action_name(binding->action)
+                             : "(unknown)"));
+        return false;
+    }
+
+    const char* specs = ic_key_binding_profile_default_specs(binding->action);
+    if (!profile_specs_contain_token(specs, binding->key_spec)) {
+        expect_safe_log("profile '%s' binding '%s' missing from documented specs\n",
+                        binding->profile_name, binding->key_spec);
+        return false;
+    }
+
+    return true;
+}
+
+static bool test_key_binding_profile_specs_register_all_bindings(void) {
+    const char* original_profile = ic_get_key_binding_profile();
+    static const char* const profiles[] = {"emacs", "vim"};
+    static const explicit_profile_binding_t explicit_bindings[] = {
+        {"vim", "alt+h", IC_KEY_ACTION_CURSOR_LEFT},
+        {"vim", "alt+j", IC_KEY_ACTION_CURSOR_DOWN},
+        {"vim", "alt+k", IC_KEY_ACTION_CURSOR_UP},
+        {"vim", "alt+l", IC_KEY_ACTION_CURSOR_RIGHT_OR_COMPLETE},
+        {"vim", "alt+w", IC_KEY_ACTION_CURSOR_WORD_NEXT_OR_COMPLETE},
+    };
+
+    for (size_t i = 0; i < sizeof(profiles) / sizeof(profiles[0]); ++i) {
+        const char* profile_name = profiles[i];
+        if (!ic_set_key_binding_profile(profile_name)) {
+            expect_safe_log("failed to activate key binding profile '%s'\n", profile_name);
+            return false;
+        }
+
+        size_t expected_binding_count = 0;
+        size_t action_count = 0;
+        for (int action = IC_KEY_ACTION_NONE + 1; action < IC_KEY_ACTION__MAX; ++action) {
+            const char* specs = ic_key_binding_profile_default_specs((ic_key_action_t)action);
+            if (specs == NULL || specs[0] == '\0') {
+                continue;
+            }
+
+            size_t token_count = 0;
+            if (!expect_profile_spec_tokens_roundtrip(profile_name, (ic_key_action_t)action, specs,
+                                                      &token_count)) {
+                return false;
+            }
+            expected_binding_count += token_count;
+            action_count++;
+        }
+
+        if (action_count == 0) {
+            expect_safe_log("profile '%s' exposed no default key binding specs\n", profile_name);
+            return false;
+        }
+
+        size_t expected_explicit_binding_count = 0;
+        for (size_t binding_idx = 0;
+             binding_idx < sizeof(explicit_bindings) / sizeof(explicit_bindings[0]); ++binding_idx) {
+            if (strcmp(explicit_bindings[binding_idx].profile_name, profile_name) == 0) {
+                expected_explicit_binding_count++;
+                if (!expect_explicit_profile_binding(&explicit_bindings[binding_idx])) {
+                    return false;
+                }
+            }
+        }
+
+        size_t listed_count = ic_list_key_bindings(NULL, 0);
+        if (listed_count != expected_explicit_binding_count) {
+            expect_safe_log("profile '%s' documented %zu spec tokens but registered %zu explicit bindings "
+                            "instead of %zu\n",
+                            profile_name, expected_binding_count, listed_count,
+                            expected_explicit_binding_count);
+            return false;
+        }
+    }
+
+    if (!ic_set_key_binding_profile(original_profile)) {
+        expect_safe_log("failed to restore original key binding profile '%s'\n", original_profile);
+        return false;
+    }
+    return true;
+}
+
 static bool test_key_action_name_mappings(void) {
     EXPECT_TRUE(ic_key_action_from_name("history-up") == IC_KEY_ACTION_HISTORY_PREV,
                 "history-up alias should map to HISTORY_PREV action");
@@ -2671,6 +2901,8 @@ static const test_case_t kTests[] = {
     {"abbreviation_management", test_abbreviation_management},
     {"key_spec_parse_and_format_roundtrip", test_key_spec_parse_and_format_roundtrip},
     {"key_binding_crud_and_profiles", test_key_binding_crud_and_profiles},
+    {"key_binding_profile_specs_register_all_bindings",
+     test_key_binding_profile_specs_register_all_bindings},
     {"key_action_name_mappings", test_key_action_name_mappings},
     {"string_matching_and_token_helpers", test_string_matching_and_token_helpers},
     {"prev_next_char_utf8_helpers", test_prev_next_char_utf8_helpers},
