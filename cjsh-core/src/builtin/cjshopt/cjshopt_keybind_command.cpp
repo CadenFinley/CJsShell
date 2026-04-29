@@ -84,6 +84,8 @@ const std::vector<KeyBindingDefault>& key_binding_defaults() {
         {IC_KEY_ACTION_DELETE_LINE_END, "delete-line-end", "delete to the end of the current line"},
         {IC_KEY_ACTION_TRANSPOSE_CHARS, "transpose-chars",
          "swap with previous character (move character backward)"},
+        {IC_KEY_ACTION_YANK_LAST_ARG, "yank-last-arg",
+         "insert the last argument from the previous command"},
         {IC_KEY_ACTION_CLEAR_SCREEN, "clear-screen", "clear screen"},
         {IC_KEY_ACTION_UNDO, "undo", "undo"},
         {IC_KEY_ACTION_REDO, "redo", "redo"},

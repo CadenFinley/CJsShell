@@ -1379,6 +1379,20 @@ static bool test_key_binding_crud_and_profiles(void) {
     EXPECT_TRUE(action == IC_KEY_ACTION_UNDO,
                 "named binding should map alias to expected action enum");
 
+    EXPECT_TRUE(ic_bind_key_named("alt+.", "yank-last-arg"),
+                "binding alt+. to yank-last-arg should succeed");
+    EXPECT_TRUE(ic_get_key_binding(IC_KEY_WITH_ALT(ic_key_char('.')), &action),
+                "explicit alt+. yank-last-arg binding should be queryable");
+    EXPECT_TRUE(action == IC_KEY_ACTION_YANK_LAST_ARG,
+                "alt+. should resolve to the yank-last-arg action");
+
+    EXPECT_TRUE(ic_bind_key_named("alt+_", "insert-last-argument"),
+                "binding alt+_ to insert-last-argument should succeed");
+    EXPECT_TRUE(ic_get_key_binding(IC_KEY_WITH_ALT(ic_key_char('_')), &action),
+                "explicit alt+_ yank-last-arg binding should be queryable");
+    EXPECT_TRUE(action == IC_KEY_ACTION_YANK_LAST_ARG,
+                "alt+_ should resolve to the yank-last-arg action");
+
     size_t profile_count = ic_list_key_binding_profiles(NULL, 0);
     EXPECT_TRUE(profile_count >= 2, "at least emacs and vim profiles should be registered");
 
@@ -1405,6 +1419,11 @@ static bool test_key_binding_crud_and_profiles(void) {
     EXPECT_TRUE(default_specs != NULL && strstr(default_specs, "alt+w") != NULL,
                 "vim profile should override cursor-word-next default specs with alt+w");
 
+    const char* yank_specs = ic_key_binding_profile_default_specs(IC_KEY_ACTION_YANK_LAST_ARG);
+    EXPECT_TRUE(yank_specs != NULL && strstr(yank_specs, "alt+.") != NULL &&
+                    strstr(yank_specs, "alt+_") != NULL,
+                "default yank-last-arg specs should expose both readline-style Meta-. and Meta-_");
+
     EXPECT_FALSE(ic_set_key_binding_profile("does-not-exist"),
                  "unknown key binding profile should be rejected");
 
@@ -1418,11 +1437,15 @@ static bool test_key_action_name_mappings(void) {
                 "history-up alias should map to HISTORY_PREV action");
     EXPECT_TRUE(ic_key_action_from_name("completion") == IC_KEY_ACTION_COMPLETE,
                 "completion alias should map to COMPLETE action");
+    EXPECT_TRUE(ic_key_action_from_name("insert-last-argument") == IC_KEY_ACTION_YANK_LAST_ARG,
+                "insert-last-argument alias should map to YANK_LAST_ARG action");
     EXPECT_TRUE(ic_key_action_from_name("unhandled") == IC_KEY_ACTION_RUNOFF,
                 "unhandled alias should map to RUNOFF action");
     EXPECT_TRUE(ic_key_action_from_name("unknown-action") == IC_KEY_ACTION__MAX,
                 "unknown action name should map to sentinel");
 
+    EXPECT_STREQ(ic_key_action_name(IC_KEY_ACTION_YANK_LAST_ARG), "yank-last-arg",
+                 "action-to-name lookup should return canonical yank-last-arg label");
     EXPECT_STREQ(ic_key_action_name(IC_KEY_ACTION_CLEAR_SCREEN), "clear-screen",
                  "action-to-name lookup should return canonical clear-screen label");
     EXPECT_TRUE(ic_key_action_name(IC_KEY_ACTION__MAX) == NULL,

@@ -296,6 +296,180 @@ static void edit_history_next(ic_env_t* env, editor_t* eb) {
     edit_history_at(env, eb, -1);
 }
 
+static bool history_is_word_separator(char ch) {
+    switch (ch) {
+        case '|':
+        case '&':
+        case ';':
+        case '(':
+        case ')':
+        case '<':
+        case '>':
+            return true;
+        default:
+            return (isspace((unsigned char)ch) != 0);
+    }
+}
+
+static bool history_find_last_word_bounds(const char* command, ssize_t* start_out,
+                                          ssize_t* end_out) {
+    if (command == NULL || start_out == NULL || end_out == NULL) {
+        return false;
+    }
+
+    const ssize_t len = ic_strlen(command);
+    ssize_t pos = 0;
+    ssize_t last_start = -1;
+    ssize_t last_end = -1;
+
+    // Track raw token ranges so quoted history arguments are reinserted verbatim.
+    while (pos < len) {
+        while (pos < len && history_is_word_separator(command[pos])) {
+            pos++;
+        }
+        if (pos >= len) {
+            break;
+        }
+
+        ssize_t token_start = pos;
+        char quote = 0;
+        while (pos < len) {
+            char ch = command[pos];
+            if (quote != 0) {
+                if (quote == '"' && ch == '\\' && pos + 1 < len) {
+                    pos += 2;
+                    continue;
+                }
+                pos++;
+                if (ch == quote) {
+                    quote = 0;
+                }
+                continue;
+            }
+            if (ch == '\\') {
+                pos += (pos + 1 < len ? 2 : 1);
+                continue;
+            }
+            if (ch == '\'' || ch == '"') {
+                quote = ch;
+                pos++;
+                continue;
+            }
+            if (history_is_word_separator(ch)) {
+                break;
+            }
+            pos++;
+        }
+
+        if (pos > token_start) {
+            last_start = token_start;
+            last_end = pos;
+        }
+    }
+
+    if (last_start < 0 || last_end <= last_start) {
+        return false;
+    }
+
+    *start_out = last_start;
+    *end_out = last_end;
+    return true;
+}
+
+static char* history_dup_last_word(alloc_t* mem, const char* command) {
+    ssize_t start = 0;
+    ssize_t end = 0;
+    if (!history_find_last_word_bounds(command, &start, &end)) {
+        return NULL;
+    }
+    return mem_strndup(mem, command + start, end - start);
+}
+
+static void edit_yank_last_arg(ic_env_t* env, editor_t* eb) {
+    if (env == NULL || eb == NULL || env->history == NULL || eb->input == NULL) {
+        return;
+    }
+
+    history_snapshot_t snap = {0};
+    if (!history_snapshot_load(env->history, &snap, false)) {
+        term_beep(env->term);
+        return;
+    }
+
+    ssize_t start_history_idx = 1;
+    if (eb->last_arg_yank_active) {
+        start_history_idx = eb->last_arg_yank_history_idx + 1;
+    } else if (!eb->modified && eb->history_idx > 0) {
+        start_history_idx = eb->history_idx + 1;
+    }
+
+    char* last_word = NULL;
+    ssize_t found_history_idx = -1;
+    const ssize_t total_history = history_snapshot_count(&snap);
+    for (ssize_t idx = start_history_idx; idx < total_history; ++idx) {
+        const history_entry_t* entry = history_snapshot_get(&snap, idx);
+        if (entry == NULL || entry->command == NULL || entry->command[0] == '\0') {
+            continue;
+        }
+        last_word = history_dup_last_word(env->mem, entry->command);
+        if (last_word != NULL && last_word[0] != '\0') {
+            found_history_idx = idx;
+            break;
+        }
+        mem_free(env->mem, last_word);
+        last_word = NULL;
+    }
+    history_snapshot_free(env->history, &snap);
+
+    if (last_word == NULL || found_history_idx < 0) {
+        mem_free(env->mem, last_word);
+        term_beep(env->term);
+        return;
+    }
+
+    ssize_t replace_start = eb->pos;
+    ssize_t replace_end = eb->pos;
+    if (eb->last_arg_yank_active) {
+        replace_start = eb->last_arg_yank_start;
+        replace_end = eb->last_arg_yank_end;
+    }
+
+    ssize_t input_len = sbuf_len(eb->input);
+    if (replace_start < 0) {
+        replace_start = 0;
+    }
+    if (replace_start > input_len) {
+        replace_start = input_len;
+    }
+    if (replace_end < replace_start) {
+        replace_end = replace_start;
+    }
+    if (replace_end > input_len) {
+        replace_end = input_len;
+    }
+
+    editor_start_modify_preserve_last_arg(eb);
+    const ssize_t replaced_len = replace_end - replace_start;
+    ssize_t inserted_end = sbuf_insert_at(eb->input, last_word, replace_start);
+    if (last_word[0] != '\0' && inserted_end == replace_start) {
+        mem_free(env->mem, last_word);
+        term_beep(env->term);
+        return;
+    }
+    if (replaced_len > 0) {
+        sbuf_delete_from_to(eb->input, inserted_end, inserted_end + replaced_len);
+    }
+
+    eb->pos = inserted_end;
+    eb->last_arg_yank_active = true;
+    eb->last_arg_yank_history_idx = found_history_idx;
+    eb->last_arg_yank_start = replace_start;
+    eb->last_arg_yank_end = inserted_end;
+
+    mem_free(env->mem, last_word);
+    edit_refresh_hint(env, eb);
+}
+
 static ssize_t history_visible_prefix(const char* s, ssize_t len, ssize_t max_columns,
                                       ssize_t* width_out) {
     if (s == NULL || len <= 0 || max_columns <= 0) {

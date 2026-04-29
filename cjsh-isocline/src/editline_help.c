@@ -103,6 +103,8 @@ static const help_line_t help_lines[] = {
     {HELP_LINE_BINDING, NULL, "clear screen", IC_KEY_ACTION_CLEAR_SCREEN, NULL},
     {HELP_LINE_BINDING, NULL, "swap with previous character (move character backward)",
      IC_KEY_ACTION_TRANSPOSE_CHARS, NULL},
+    {HELP_LINE_BINDING, NULL, "insert the last argument from the previous command",
+     IC_KEY_ACTION_YANK_LAST_ARG, NULL},
     {HELP_LINE_BINDING, NULL, "undo", IC_KEY_ACTION_UNDO, NULL},
     {HELP_LINE_BINDING, NULL, "redo", IC_KEY_ACTION_REDO, NULL},
     {HELP_LINE_BINDING, NULL, "try to complete the current input", IC_KEY_ACTION_COMPLETE, NULL},

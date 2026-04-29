@@ -283,6 +283,16 @@ static int run_case(const char* scenario) {
                strcmp(scenario, "history_prev_edit") == 0) {
         ic_history_clear();
         history_interactive_triplet = true;
+    } else if (strcmp(scenario, "yank_last_arg_meta_dot") == 0 ||
+               strcmp(scenario, "yank_last_arg_meta_underscore") == 0) {
+        initial_input = "mv ";
+        ic_history_clear();
+        ic_history_add("cp source.txt \"dest dir\"");
+    } else if (strcmp(scenario, "yank_last_arg_repeat") == 0) {
+        initial_input = "open ";
+        ic_history_clear();
+        ic_history_add("cp alpha.txt beta.txt");
+        ic_history_add("mv gamma.txt \"delta dir\"");
     } else if (strcmp(scenario, "insert_backspace") == 0 || strcmp(scenario, "ctrl_c") == 0 ||
                strcmp(scenario, "ctrl_d_empty") == 0 ||
                strcmp(scenario, "ctrl_w_delete_word") == 0 ||

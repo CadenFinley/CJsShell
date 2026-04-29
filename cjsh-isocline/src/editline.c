@@ -74,18 +74,22 @@ typedef struct editor_s {
     ssize_t cur_row;              // current row that has the cursor (0 based, relative to
                                   // the prompt)
     ssize_t termw;
-    bool modified;                   // has a modification happened? (used for history navigation
-                                     // for example)
-    bool disable_undo;               // temporarily disable auto undo (for history search)
-    bool refresh_suppressed;         // batch screen updates during high-volume input
-    bool refresh_pending;            // remember to refresh when suppression lifts
-    bool history_prefix_active;      // whether prefix-prioritized history is active
-    bool request_submit;             // request submission of current line
-    bool force_linear_line_numbers;  // final render should drop relative numbering styling
-    ssize_t history_idx;             // current index in the history
-    editstate_t* undo;               // undo buffer
-    editstate_t* redo;               // redo buffer
-    const char* prompt_text;         // text of the prompt before the prompt marker
+    bool modified;                      // has a modification happened? (used for history navigation
+                                        // for example)
+    bool disable_undo;                  // temporarily disable auto undo (for history search)
+    bool refresh_suppressed;            // batch screen updates during high-volume input
+    bool refresh_pending;               // remember to refresh when suppression lifts
+    bool history_prefix_active;         // whether prefix-prioritized history is active
+    bool request_submit;                // request submission of current line
+    bool force_linear_line_numbers;     // final render should drop relative numbering styling
+    ssize_t history_idx;                // current index in the history
+    bool last_arg_yank_active;          // whether yank-last-arg is cycling through history
+    ssize_t last_arg_yank_history_idx;  // history index currently used for yank-last-arg
+    ssize_t last_arg_yank_start;        // insertion start for yank-last-arg replacement
+    ssize_t last_arg_yank_end;          // insertion end for yank-last-arg replacement
+    editstate_t* undo;                  // undo buffer
+    editstate_t* redo;                  // redo buffer
+    const char* prompt_text;            // text of the prompt before the prompt marker
     char* prompt_prefix_text;     // cached multi-line prompt prefix (everything before last line)
     ssize_t prompt_prefix_lines;  // number of prefix lines emitted for prompt
     bool prompt_begins_with_newline;       // prompt started with a leading newline
@@ -141,6 +145,7 @@ static void edit_generate_completions(ic_env_t* env, editor_t* eb, bool autotab)
 static void edit_history_search_with_current_word(ic_env_t* env, editor_t* eb);
 static void edit_history_prev(ic_env_t* env, editor_t* eb);
 static void edit_history_next(ic_env_t* env, editor_t* eb);
+static void edit_yank_last_arg(ic_env_t* env, editor_t* eb);
 static void edit_clear_history_preview(editor_t* eb);
 static void edit_clear(ic_env_t* env, editor_t* eb);
 static void edit_clear_screen(ic_env_t* env, editor_t* eb);
@@ -175,6 +180,16 @@ static bool edit_try_expand_abbreviation(ic_env_t* env, editor_t* eb, bool bound
 static void edit_refresh(ic_env_t* env, editor_t* eb);
 static void edit_refresh_hint(ic_env_t* env, editor_t* eb);
 static void redraw_prompt_prefix_lines(ic_env_t* env, editor_t* eb);
+
+static void edit_reset_last_arg_state(editor_t* eb) {
+    if (eb == NULL) {
+        return;
+    }
+    eb->last_arg_yank_active = false;
+    eb->last_arg_yank_history_idx = 0;
+    eb->last_arg_yank_start = 0;
+    eb->last_arg_yank_end = 0;
+}
 
 static bool key_action_execute(ic_env_t* env, editor_t* eb, ic_key_action_t action, code_t key) {
     switch (action) {
@@ -281,6 +296,9 @@ static bool key_action_execute(ic_env_t* env, editor_t* eb, ic_key_action_t acti
         case IC_KEY_ACTION_TRANSPOSE_CHARS:
             edit_swap_char(env, eb);
             return true;
+        case IC_KEY_ACTION_YANK_LAST_ARG:
+            edit_yank_last_arg(env, eb);
+            return true;
         case IC_KEY_ACTION_INSERT_NEWLINE:
             if (!env->singleline_only) {
                 edit_insert_char(env, eb, '\n');
@@ -292,23 +310,52 @@ static bool key_action_execute(ic_env_t* env, editor_t* eb, ic_key_action_t acti
     return false;
 }
 
+static bool key_binding_lookup_action(const ic_env_t* env, code_t key,
+                                      ic_key_action_t* action_out) {
+    if (env == NULL || env->key_binding_count <= 0 || env->key_bindings == NULL) {
+        return false;
+    }
+    for (ssize_t i = 0; i < env->key_binding_count; ++i) {
+        const ic_key_binding_entry_t* entry = &env->key_bindings[i];
+        if (entry->key == key) {
+            if (action_out != NULL) {
+                *action_out = entry->action;
+            }
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool edit_key_resets_last_arg_state(const ic_env_t* env, code_t key) {
+    if (key == KEY_NONE || key >= KEY_EVENT_BASE) {
+        return false;
+    }
+    ic_key_action_t action = IC_KEY_ACTION__MAX;
+    if (key_binding_lookup_action(env, key, &action)) {
+        return (action != IC_KEY_ACTION_YANK_LAST_ARG);
+    }
+    if (key == WITH_ALT('.') || key == WITH_ALT('_')) {
+        return false;
+    }
+    return true;
+}
+
 static bool key_binding_execute(ic_env_t* env, editor_t* eb, code_t key) {
     if (env == NULL || env->key_binding_count <= 0)
         return false;
-    for (ssize_t i = 0; i < env->key_binding_count; ++i) {
-        ic_key_binding_entry_t* entry = &env->key_bindings[i];
-        if (entry->key == key) {
-            if (entry->action == IC_KEY_ACTION_NONE)
-                return true;
-            if (entry->action == IC_KEY_ACTION_RUNOFF) {
-                // Call the unhandled key handler directly
-                if (env->unhandled_key_handler != NULL) {
-                    return env->unhandled_key_handler(key, env->unhandled_key_arg);
-                }
-                return false;
+    ic_key_action_t action = IC_KEY_ACTION__MAX;
+    if (key_binding_lookup_action(env, key, &action)) {
+        if (action == IC_KEY_ACTION_NONE)
+            return true;
+        if (action == IC_KEY_ACTION_RUNOFF) {
+            // Call the unhandled key handler directly
+            if (env->unhandled_key_handler != NULL) {
+                return env->unhandled_key_handler(key, env->unhandled_key_arg);
             }
-            return key_action_execute(env, eb, entry->action, key);
+            return false;
         }
+        return key_action_execute(env, eb, action, key);
     }
     return false;
 }
@@ -387,12 +434,23 @@ static void editor_redo_restore(editor_t* eb) {
     eb->modified = false;
 }
 
-static void editor_start_modify(editor_t* eb) {
+static void editor_start_modify_internal(editor_t* eb, bool preserve_last_arg_state) {
     editor_undo_capture(eb);
     editstate_done(eb->mem, &eb->redo);  // clear redo
     eb->modified = true;
     // Clear history preview when user starts modifying input
     edit_clear_history_preview(eb);
+    if (!preserve_last_arg_state) {
+        edit_reset_last_arg_state(eb);
+    }
+}
+
+static void editor_start_modify(editor_t* eb) {
+    editor_start_modify_internal(eb, false);
+}
+
+static void editor_start_modify_preserve_last_arg(editor_t* eb) {
+    editor_start_modify_internal(eb, true);
 }
 
 static bool editor_pos_is_at_end(editor_t* eb) {
@@ -3013,6 +3071,10 @@ edit_loop_entry:
                 c = KEY_ENTER;
             }
 
+            if (edit_key_resets_last_arg_state(env, c)) {
+                edit_reset_last_arg_state(&eb);
+            }
+
             // if the user tries to move into a hint with right-cursor or end, either
             // materialize it or fall back to completion logic
             if ((c == KEY_RIGHT || c == KEY_END) && had_hint) {
@@ -3231,6 +3293,10 @@ edit_loop_entry:
                         break;
                     case KEY_CTRL_T:
                         edit_swap_char(env, &eb);
+                        break;
+                    case WITH_ALT('.'):
+                    case WITH_ALT('_'):
+                        edit_yank_last_arg(env, &eb);
                         break;
 
                     // Editing

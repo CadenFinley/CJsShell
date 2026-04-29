@@ -680,6 +680,25 @@ def main() -> int:
     if hist_count != "2":
         raise AssertionError(f"history_probe_count expected '2', got {hist_count!r}")
 
+    yank_meta_dot = run_case(binary, "yank_last_arg_meta_dot", b"\x1b.\r")
+    if yank_meta_dot != 'mv "dest dir"':
+        raise AssertionError(
+            f"yank_last_arg_meta_dot expected 'mv \"dest dir\"', got {yank_meta_dot!r}"
+        )
+
+    yank_meta_underscore = run_case(binary, "yank_last_arg_meta_underscore", b"\x1b_\r")
+    if yank_meta_underscore != 'mv "dest dir"':
+        raise AssertionError(
+            "yank_last_arg_meta_underscore expected 'mv \"dest dir\"', got "
+            f"{yank_meta_underscore!r}"
+        )
+
+    yank_repeat = run_case(binary, "yank_last_arg_repeat", b"\x1b.\x1b.\r")
+    if yank_repeat != "open beta.txt":
+        raise AssertionError(
+            f"yank_last_arg_repeat expected 'open beta.txt', got {yank_repeat!r}"
+        )
+
     mouse_wheel_down = b"\x1b[<65;1;1M"
     mouse_wheel_down_shift = b"\x1b[<69;1;1M"
     mouse_release = b"\x1b[<3;1;1m"

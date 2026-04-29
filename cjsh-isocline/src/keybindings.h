@@ -82,6 +82,7 @@ typedef enum ic_key_action_e
     IC_KEY_ACTION_DELETE_LINE_START,
     IC_KEY_ACTION_DELETE_LINE_END,
     IC_KEY_ACTION_TRANSPOSE_CHARS,
+    IC_KEY_ACTION_YANK_LAST_ARG,
     IC_KEY_ACTION_INSERT_NEWLINE,
     IC_KEY_ACTION_RUNOFF,  // Pass key to unhandled key handler (runoff handler)
     IC_KEY_ACTION__MAX
