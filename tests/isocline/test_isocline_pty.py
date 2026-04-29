@@ -42,6 +42,7 @@ RESULT_RE = re.compile(r"\[IC_RESULT_BEGIN\](.*?)\[IC_RESULT_END\]", re.S)
 ANSI_CSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 ANSI_OSC_RE = re.compile(r"\x1b\].*?(?:\x07|\x1b\\)", re.S)
 PROMPT_GUARD_RE = re.compile(r"[%#][ ]+pty> ")
+PROMPT_LINE_RE = re.compile(r"(?m)^pty> ")
 PTY_CASE_COUNT = 0
 IS_DARWIN = platform.system() == "Darwin"
 
@@ -75,6 +76,41 @@ def normalize_terminal_output(text: str) -> str:
     return normalized
 
 
+def count_prompt_lines(output_text: str) -> int:
+    return len(PROMPT_LINE_RE.findall(normalize_terminal_output(output_text)))
+
+
+def read_pending_output(fd: int, output: bytearray) -> bool:
+    received = False
+    while True:
+        try:
+            chunk = os.read(fd, 4096)
+            if not chunk:
+                break
+            output.extend(chunk)
+            received = True
+        except BlockingIOError:
+            break
+        except OSError:
+            break
+    return received
+
+
+def drain_remaining_output(
+    fd: int,
+    output: bytearray,
+    idle_timeout_s: float = 0.1,
+    poll_interval_s: float = 0.01,
+) -> None:
+    # PTYs can still have unread output queued after the child has exited.
+    idle_deadline = time.monotonic() + idle_timeout_s
+    while time.monotonic() < idle_deadline:
+        if read_pending_output(fd, output):
+            idle_deadline = time.monotonic() + idle_timeout_s
+            continue
+        time.sleep(poll_interval_s)
+
+
 def assert_prompt_guard_marker(
     scenario: str, output_text: str, expect_marker: bool
 ) -> None:
@@ -105,6 +141,7 @@ def assert_timed_case(
     initial_delay_s: float = 0.08,
     step_delay_s: float = 0.06,
     poll_interval_s: float = 0.01,
+    wait_for_reprompt: bool = False,
 ) -> None:
     actual = run_case_timed(
         binary,
@@ -113,6 +150,7 @@ def assert_timed_case(
         initial_delay_s=initial_delay_s,
         step_delay_s=step_delay_s,
         poll_interval_s=poll_interval_s,
+        wait_for_reprompt=wait_for_reprompt,
     )
     if actual != expected:
         raise AssertionError(f"{label} expected {expected!r}, got {actual!r}")
@@ -191,14 +229,7 @@ def run_case(
 
     try:
         while time.monotonic() < deadline:
-            try:
-                chunk = os.read(fd, 4096)
-                if chunk:
-                    output.extend(chunk)
-            except BlockingIOError:
-                pass
-            except OSError:
-                pass
+            read_pending_output(fd, output)
 
             if not sent and b"pty> " in output:
                 os.write(fd, key_bytes)
@@ -211,6 +242,7 @@ def run_case(
                     raise AssertionError(
                         f"case {scenario} failed: exit={status}, output={text!r}"
                     )
+                drain_remaining_output(fd, output)
                 text = output.decode("utf-8", errors="replace")
                 match = RESULT_RE.search(text)
                 if match is None:
@@ -249,6 +281,7 @@ def run_case_timed(
     initial_delay_s: float = 0.08,
     step_delay_s: float = 0.25,
     poll_interval_s: float = 0.01,
+    wait_for_reprompt: bool = False,
 ) -> str:
     global PTY_CASE_COUNT
     PTY_CASE_COUNT += 1
@@ -265,25 +298,30 @@ def run_case_timed(
     next_send_at = time.monotonic() + initial_delay_s
     send_index = 0
     prompt_seen = False
+    required_prompt_count = 1
 
     try:
         while time.monotonic() < deadline:
             now = time.monotonic()
-            if prompt_seen and send_index < len(chunks) and now >= next_send_at:
-                os.write(fd, chunks[send_index])
+            ready_to_send = prompt_seen and send_index < len(chunks) and now >= next_send_at
+            if ready_to_send and wait_for_reprompt and send_index > 0:
+                prompt_count = count_prompt_lines(output.decode("utf-8", errors="replace"))
+                ready_to_send = prompt_count >= required_prompt_count
+            if ready_to_send:
+                chunk_to_send = chunks[send_index]
+                os.write(fd, chunk_to_send)
                 send_index += 1
+                if (
+                    wait_for_reprompt
+                    and send_index < len(chunks)
+                    and chunk_to_send.endswith((b"\r", b"\n"))
+                ):
+                    required_prompt_count += 1
                 next_send_at = now + step_delay_s
 
-            try:
-                chunk = os.read(fd, 4096)
-                if chunk:
-                    output.extend(chunk)
-                    if not prompt_seen and b"pty> " in output:
-                        prompt_seen = True
-            except BlockingIOError:
-                pass
-            except OSError:
-                pass
+            read_pending_output(fd, output)
+            if not prompt_seen and b"pty> " in output:
+                prompt_seen = True
 
             waited_pid, status = os.waitpid(pid, os.WNOHANG)
             if waited_pid == pid:
@@ -292,6 +330,7 @@ def run_case_timed(
                     raise AssertionError(
                         f"case {scenario} failed: exit={status}, output={text!r}"
                     )
+                drain_remaining_output(fd, output, poll_interval_s=poll_interval_s)
                 text = output.decode("utf-8", errors="replace")
                 match = RESULT_RE.search(text)
                 if match is None:
@@ -358,17 +397,10 @@ def run_resize_case(
 
     try:
         while time.monotonic() < deadline:
-            try:
-                chunk = os.read(fd, 4096)
-                if chunk:
-                    output.extend(chunk)
-                    last_output_at = time.monotonic()
-                    if not prompt_seen and b"pty> " in output:
-                        prompt_seen = True
-            except BlockingIOError:
-                pass
-            except OSError:
-                pass
+            if read_pending_output(fd, output):
+                last_output_at = time.monotonic()
+                if not prompt_seen and b"pty> " in output:
+                    prompt_seen = True
 
             while prompt_seen and action_index < len(actions):
                 action, value = actions[action_index]
@@ -402,6 +434,7 @@ def run_resize_case(
 
             waited_pid, status = os.waitpid(pid, os.WNOHANG)
             if waited_pid == pid:
+                drain_remaining_output(fd, output, poll_interval_s=poll_interval_s)
                 text = output.decode("utf-8", errors="replace")
                 normalized = normalize_terminal_output(text)
                 if not os.WIFEXITED(status) or os.WEXITSTATUS(status) != 0:
@@ -933,6 +966,7 @@ def main() -> int:
             expected,
             initial_delay_s=0.12,
             step_delay_s=0.5,
+            wait_for_reprompt=True,
         )
 
     hist_latest = run_case(binary, "history_probe_latest", b"")
@@ -1163,6 +1197,7 @@ def main() -> int:
             expected,
             initial_delay_s=0.12,
             step_delay_s=0.5,
+            wait_for_reprompt=True,
         )
 
     vim_multiline_cases = [
