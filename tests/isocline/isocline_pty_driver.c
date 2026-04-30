@@ -88,6 +88,11 @@ static void emit_result(const char* line) {
     (void)fflush(stdout);
 }
 
+static void emit_readline_step_done(void) {
+    (void)printf("\n[IC_READLINE_STEP_DONE]\n");
+    (void)fflush(stdout);
+}
+
 static int run_history_probe_case(const char* scenario) {
 #if defined(_WIN32)
     const char* history_path = "cjsh_isocline_pty_history.tmp";
@@ -387,11 +392,13 @@ static int run_case(const char* scenario) {
         if (first == NULL)
             return 4;
         ic_free(first);
+        emit_readline_step_done();
 
         char* second = ic_readline(prompt_text, NULL, NULL);
         if (second == NULL)
             return 4;
         ic_free(second);
+        emit_readline_step_done();
 
         line = ic_readline(prompt_text, NULL, NULL);
     } else {

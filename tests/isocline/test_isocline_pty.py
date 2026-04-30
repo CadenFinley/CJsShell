@@ -45,6 +45,7 @@ PROMPT_GUARD_RE = re.compile(r"[%#][ ]+pty> ")
 PROMPT_LINE_RE = re.compile(r"(?m)^pty> ")
 PTY_CASE_COUNT = 0
 IS_DARWIN = platform.system() == "Darwin"
+READLINE_STEP_MARKER = b"[IC_READLINE_STEP_DONE]"
 
 LEFT = b"\x1b[D"
 RIGHT = b"\x1b[C"
@@ -315,7 +316,8 @@ def run_case_timed(
             if ready_to_send and reprompt_output_start is not None:
                 new_output = output[reprompt_output_start:]
                 ready_to_send = (
-                    b"pty> " in new_output and (now - last_output_at) >= reprompt_idle_s
+                    READLINE_STEP_MARKER in new_output
+                    and (now - last_output_at) >= reprompt_idle_s
                 )
             if ready_to_send:
                 chunk_to_send = chunks[send_index]
@@ -326,8 +328,8 @@ def run_case_timed(
                     and send_index < len(chunks)
                     and chunk_to_send.endswith((b"\r", b"\n"))
                 ):
-                    # Prompt redraws can repeat within a single readline call.
-                    # Only continue once a fresh prompt appears after this submit.
+                    # History triplet cases emit a marker after each hidden readline
+                    # returns so the next chunk never races the previous submit.
                     reprompt_output_start = len(output)
                 else:
                     reprompt_output_start = None
