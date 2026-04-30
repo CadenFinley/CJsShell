@@ -315,10 +315,12 @@ def run_case_timed(
             ready_to_send = prompt_seen and send_index < len(chunks) and now >= next_send_at
             if ready_to_send and reprompt_output_start is not None:
                 new_output = output[reprompt_output_start:]
-                ready_to_send = (
-                    READLINE_STEP_MARKER in new_output
-                    and (now - last_output_at) >= reprompt_idle_s
+                marker_idx = new_output.find(READLINE_STEP_MARKER)
+                prompt_after_marker = (
+                    marker_idx >= 0
+                    and new_output.find(b"pty> ", marker_idx + len(READLINE_STEP_MARKER)) >= 0
                 )
+                ready_to_send = prompt_after_marker and (now - last_output_at) >= reprompt_idle_s
             if ready_to_send:
                 chunk_to_send = chunks[send_index]
                 os.write(fd, chunk_to_send)
@@ -328,8 +330,8 @@ def run_case_timed(
                     and send_index < len(chunks)
                     and chunk_to_send.endswith((b"\r", b"\n"))
                 ):
-                    # History triplet cases emit a marker after each hidden readline
-                    # returns so the next chunk never races the previous submit.
+                    # History triplet cases emit a marker after each hidden readline.
+                    # Wait for the marker and the following fresh prompt.
                     reprompt_output_start = len(output)
                 else:
                     reprompt_output_start = None
