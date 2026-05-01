@@ -844,10 +844,16 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                 const std::string& first_token = tokens[0];
                 auto first_control = parse_control_token(first_token);
 
+                auto add_unmatched_control_error = [&](const std::string& message) {
+                    errors.push_back(SyntaxError({display_line, 0, 0, 0}, ErrorSeverity::CRITICAL,
+                                                 ErrorCategory::CONTROL_FLOW, "SYN001", message,
+                                                 line));
+                };
+
                 auto require_top = [&](std::initializer_list<ControlToken> allowed,
                                        const std::string& message) {
                     if (control_stack.empty()) {
-                        errors.push_back({display_line, message, line});
+                        add_unmatched_control_error(message);
                         return false;
                     }
                     const ControlToken top = std::get<0>(control_stack.back());
@@ -856,7 +862,7 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                             return true;
                         }
                     }
-                    errors.push_back({display_line, message, line});
+                    add_unmatched_control_error(message);
                     return false;
                 };
 

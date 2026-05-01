@@ -47,6 +47,25 @@ fail_test() {
     TESTS_FAILED=$((TESTS_FAILED + 1))
 }
 
+assert_unmatched_closer_blocks_execution() {
+    closer_token=$1
+    expected_message=$2
+    multiline_script=$(printf '%s\n%s' 'echo hello' "$closer_token")
+    command_output=$("$CJSH_PATH" -c "$multiline_script" 2>&1)
+    command_exit=$?
+    printf '%s\n' "$command_output" | grep -q "$expected_message"
+    has_expected_message=$?
+    printf '%s\n' "$command_output" | grep -q '^hello$'
+    has_hello_output=$?
+
+    if [ $command_exit -ne 0 ] && [ $has_expected_message -eq 0 ] && [ $has_hello_output -ne 0 ]; then
+        pass_test "unmatched $closer_token blocks execution"
+    else
+        fail_test "unmatched $closer_token should stop earlier commands in the same submission"
+        printf '%s\n' "$command_output"
+    fi
+}
+
 echo "Testing empty command handling..."
 "$CJSH_PATH" -c "" >/tmp/empty_cmd_test.out 2>&1
 if [ $? -eq 0 ]; then
@@ -91,6 +110,15 @@ if [ $? -ne 0 ]; then
 else
     fail_test "syntax error should be detected"
 fi
+
+echo "Testing unmatched loop terminator..."
+assert_unmatched_closer_blocks_execution "done" "without matching 'do'"
+
+echo "Testing unmatched conditional terminator..."
+assert_unmatched_closer_blocks_execution "fi" "without matching 'if'"
+
+echo "Testing unmatched case terminator..."
+assert_unmatched_closer_blocks_execution "esac" "without matching 'case'"
 
 echo "Testing nested quotes..."
 "$CJSH_PATH" -c "echo \"hello 'world' test\"" >/tmp/nested_quotes_test.out 2>&1
