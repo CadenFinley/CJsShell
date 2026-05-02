@@ -191,6 +191,13 @@ int run_cjsh(int argc, char* argv[]) {
         flags::apply_profile_startup_flags();
     }
 
+    if (config::execute_command && !script_file.empty()) {
+        setenv("0", script_file.c_str(), 1);
+        auto& env_map = cjsh_env::env_vars();
+        env_map["0"] = script_file;
+        cjsh_env::sync_parser_env_vars(g_shell.get());
+    }
+
     // execute command passed with -c
     if (config::execute_command) {
         const int code = g_shell ? g_shell->execute(config::cmd_to_execute) : 1;

@@ -94,6 +94,35 @@ else
     fail_test "external command arguments include unexported shell variables (got '$OUT')"
 fi
 
+args_probe="$TMP_ROOT/args_probe.sh"
+cat <<'EOF' > "$args_probe"
+#!/usr/bin/env sh
+printf "%s|%s|%s|%s\n" "$0" "$#" "$1" "$2"
+EOF
+chmod +x "$args_probe"
+
+OUT=$("$CJSH_PATH" "$args_probe" alpha beta)
+if [ "$OUT" = "$args_probe|2|alpha|beta" ]; then
+    pass_test "script invoked via cjsh preserves positional parameters"
+else
+    fail_test "script positional parameters mismatch (got '$OUT')"
+fi
+
+OUT=$("$CJSH_PATH" -c 'printf "%s|%s|%s|%s\n" "$0" "$#" "$1" "$2"' command-zero first second)
+if [ "$OUT" = "command-zero|2|first|second" ]; then
+    pass_test "-c preserves command name and positional parameters"
+else
+    fail_test "-c command name/argument handling mismatch (got '$OUT')"
+fi
+
+OUT=$(printf 'echo piped-interactive\n' | "$CJSH_PATH" -i 2>/dev/null)
+STATUS=$?
+if [ $STATUS -eq 0 ] && [ "$OUT" = "piped-interactive" ]; then
+    pass_test "-i with piped stdin falls back to script execution"
+else
+    fail_test "-i with piped stdin fallback failed (status=$STATUS, out='$OUT')"
+fi
+
 noexec_marker="$TMP_ROOT/noexec_marker"
 "$CJSH_PATH" --no-exec -c "touch \"$noexec_marker\"" >/dev/null 2>&1
 if [ ! -e "$noexec_marker" ]; then

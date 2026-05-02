@@ -674,15 +674,28 @@ int handle_non_interactive_mode(const std::string& script_file) {
         auto read_result = cjsh_filesystem::read_file_content(script_file);
         if (!read_result.is_ok()) {
             ErrorType error_type = ErrorType::FILE_NOT_FOUND;
-            if (read_result.error().find("Permission denied") != std::string::npos) {
+            int exit_code = 127;
+
+            std::error_code status_ec;
+            auto status = std::filesystem::status(script_file, status_ec);
+            const bool is_directory = !status_ec && std::filesystem::is_directory(status);
+            const bool permission_denied =
+                read_result.error().find("Permission denied") != std::string::npos;
+
+            if (permission_denied) {
                 error_type = ErrorType::PERMISSION_DENIED;
+                exit_code = 126;
+            } else if (is_directory ||
+                       read_result.error().find("Is a directory") != std::string::npos) {
+                error_type = ErrorType::RUNTIME_ERROR;
+                exit_code = 126;
             }
 
             print_error({error_type,
                          script_file,
                          read_result.error(),
                          {"Check file path and permissions"}});
-            return 127;
+            return exit_code;
         }
 
         script_content = read_result.value();

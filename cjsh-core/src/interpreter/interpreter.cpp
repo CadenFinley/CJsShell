@@ -1816,14 +1816,16 @@ bool ShellScriptInterpreter::should_interpret_as_cjsh_script(const std::string& 
         return false;
 
     std::filesystem::path candidate(path);
+    if (string_utils::to_lower_copy(candidate.extension().string()) == ".cjsh") {
+        return true;
+    }
+
     std::ifstream f(path);
     if (!f)
         return false;
     std::string first_line;
     std::getline(f, first_line);
     if (first_line.rfind("#!", 0) == 0 && first_line.find("cjsh") != std::string::npos)
-        return true;
-    if (first_line.find("cjsh") != std::string::npos)
         return true;
     return false;
 }

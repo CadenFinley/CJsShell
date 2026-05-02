@@ -59,6 +59,20 @@ else
     echo "PASS: .sh without shebang uses sh"
 fi
 
+SCRIPT_SH_UPPER="$TMP_DIR/test_no_shebang.SH"
+cat <<'EOF' > "$SCRIPT_SH_UPPER"
+echo "upper sh extension ok"
+EOF
+chmod +x "$SCRIPT_SH_UPPER"
+
+OUT=$("$CJSH_PATH" -c "\"$SCRIPT_SH_UPPER\"")
+if [ "$OUT" != "upper sh extension ok" ]; then
+    echo "FAIL: uppercase .SH without shebang uses sh (got '$OUT')"
+    exit 1
+else
+    echo "PASS: uppercase .SH without shebang uses sh"
+fi
+
 OUT=$("$CJSH_PATH" --no-script-extension-interpreter -c "\"$SCRIPT_SH_NOEXEC\"" 2>&1)
 EXIT_CODE=$?
 if [ $EXIT_CODE -ne 126 ]; then
@@ -66,6 +80,23 @@ if [ $EXIT_CODE -ne 126 ]; then
     exit 1
 else
     echo "PASS: extension dispatch can be disabled"
+fi
+
+PATH_BIN="$TMP_DIR/pathbin"
+PATH_HOME="$TMP_DIR/path_home"
+mkdir -p "$PATH_BIN" "$PATH_HOME"
+PATH_SCRIPT="$PATH_BIN/path_dispatch.SH"
+cat <<'EOF' > "$PATH_SCRIPT"
+echo "path dispatch ok"
+EOF
+chmod +x "$PATH_SCRIPT"
+
+OUT=$(HOME="$PATH_HOME" CJSH_ENV= PATH="$PATH_BIN:$PATH" "$CJSH_PATH" -c "path_dispatch.SH")
+if [ "$OUT" != "path dispatch ok" ]; then
+    echo "FAIL: PATH lookup uses extension dispatch (got '$OUT')"
+    exit 1
+else
+    echo "PASS: PATH lookup uses extension dispatch"
 fi
 
 if command -v bash >/dev/null 2>&1; then
@@ -103,6 +134,44 @@ EOF
     fi
 else
     echo "SKIP: bash not found"
+fi
+
+if command -v zsh >/dev/null 2>&1; then
+    SCRIPT_ZSH="$TMP_DIR/test_no_shebang.zsh"
+    cat <<'EOF' > "$SCRIPT_ZSH"
+print -r -- "zsh extension ok"
+EOF
+    chmod +x "$SCRIPT_ZSH"
+
+    OUT=$("$CJSH_PATH" -c "\"$SCRIPT_ZSH\"")
+    if [ "$OUT" != "zsh extension ok" ]; then
+        echo "FAIL: .zsh without shebang uses zsh (got '$OUT')"
+        exit 1
+    else
+        echo "PASS: .zsh without shebang uses zsh"
+    fi
+else
+    echo "SKIP: zsh not found"
+fi
+
+if command -v ksh >/dev/null 2>&1 && { ksh -c 'printf "%s\n" ok' >/dev/null 2>&1; } 2>/dev/null; then
+    SCRIPT_KSH="$TMP_DIR/test_no_shebang.ksh"
+    cat <<'EOF' > "$SCRIPT_KSH"
+if [[ 1 -eq 1 ]]; then
+    printf "%s\n" "ksh extension ok"
+fi
+EOF
+    chmod +x "$SCRIPT_KSH"
+
+    OUT=$("$CJSH_PATH" -c "\"$SCRIPT_KSH\"")
+    if [ "$OUT" != "ksh extension ok" ]; then
+        echo "FAIL: .ksh without shebang uses ksh (got '$OUT')"
+        exit 1
+    else
+        echo "PASS: .ksh without shebang uses ksh"
+    fi
+else
+    echo "SKIP: ksh not found or unusable"
 fi
 
 echo "PASS"

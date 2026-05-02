@@ -542,7 +542,6 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
             syn_err.suggestion = "Add '" + close_name + "' to close the '" +
                                  std::string(control_token_name(opening_statement)) +
                                  "' that started on line " + std::to_string(opening_line);
-            // include plain "missing 'done'" phrasing to satisfy tests
             if (close_name == "done") {
                 syn_err.message =
                     "Unclosed '" + std::string(control_token_name(opening_statement)) +

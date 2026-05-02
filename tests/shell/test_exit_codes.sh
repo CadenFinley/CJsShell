@@ -211,6 +211,36 @@ else
     fi
 fi
 
+direct_permission_denied_script=$(create_temp_file "echo 'direct script'" 000)
+
+log_test "Exit code 126 - Direct script permission denied"
+"$SHELL_TO_TEST" "$direct_permission_denied_script" 2>/dev/null
+exit_code=$?
+if [ $exit_code -eq 126 ]; then
+    pass
+else
+    if [ $exit_code -eq 127 ]; then
+        fail "System returned 127 instead of 126 for direct unreadable script"
+    else
+        fail "Expected exit code 126 for direct unreadable script, got $exit_code"
+    fi
+fi
+
+direct_script_dir=$(mktemp -d /tmp/cjsh_direct_script_dir_XXXXXX)
+
+log_test "Exit code 126 - Direct script path is directory"
+"$SHELL_TO_TEST" "$direct_script_dir" 2>/dev/null
+exit_code=$?
+if [ $exit_code -eq 126 ]; then
+    pass
+else
+    if [ $exit_code -eq 127 ]; then
+        fail "System returned 127 instead of 126 for direct script directory"
+    else
+        fail "Expected exit code 126 for direct script directory, got $exit_code"
+    fi
+fi
+
 
 log_test "Exit code 127 - Command not found (nonexistent command)"
 "$SHELL_TO_TEST" -c "nonexistent_command_12345" 2>/dev/null
@@ -408,9 +438,13 @@ fi
 
 
 cleanup_temp_files "$non_executable_script" "$sleep_script" "$sleep_script2" "$sleep_script3" \
-                  "$script_exit_0" "$script_exit_42" "$script_syntax_error"
+                  "$script_exit_0" "$script_exit_42" "$script_syntax_error" \
+                  "$direct_permission_denied_script"
 if [ -d "$test_dir" ]; then
     rmdir "$test_dir" 2>/dev/null
+fi
+if [ -d "$direct_script_dir" ]; then
+    rmdir "$direct_script_dir" 2>/dev/null
 fi
 
 echo ""

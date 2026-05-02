@@ -62,5 +62,67 @@ else
     echo "PASS: executing .cjsh script directly"
 fi
 
+SOURCE_PARAMS_PATH="$TMP_DIR/source_params.cjsh"
+cat <<'EOF' > "$SOURCE_PARAMS_PATH"
+printf "%s|%s|%s|%s\n" "$0" "$#" "$1" "$2"
+EOF
+
+OUT=$("$CJSH_PATH" -c "set -- one two; source \"$SOURCE_PARAMS_PATH\"")
+if [ "$OUT" != "$CJSH_PATH|2|one|two" ]; then
+    echo "FAIL: source preserves caller parameters (got '$OUT')"
+    exit 1
+else
+    echo "PASS: source preserves caller parameters"
+fi
+
+OUT=$("$CJSH_PATH" -c "set -- one two; . \"$SOURCE_PARAMS_PATH\"")
+if [ "$OUT" != "$CJSH_PATH|2|one|two" ]; then
+    echo "FAIL: dot preserves caller parameters (got '$OUT')"
+    exit 1
+else
+    echo "PASS: dot preserves caller parameters"
+fi
+
+COMMAND_SCRIPT_PATH="$TMP_DIR/command_dispatch.cjsh"
+cat <<'EOF' > "$COMMAND_SCRIPT_PATH"
+echo "command dispatch ok"
+EOF
+
+OUT=$("$CJSH_PATH" -c "\"$COMMAND_SCRIPT_PATH\"" 2>&1)
+if [ "$OUT" != "command dispatch ok" ]; then
+    echo "FAIL: executing .cjsh command inside cjsh (got '$OUT')"
+    exit 1
+else
+    echo "PASS: executing .cjsh command inside cjsh"
+fi
+
+SHEBANG_SCRIPT_PATH="$TMP_DIR/shebang_dispatch"
+cat <<'EOF' > "$SHEBANG_SCRIPT_PATH"
+#!/usr/bin/env cjsh
+echo "shebang dispatch ok"
+EOF
+
+OUT=$("$CJSH_PATH" -c "\"$SHEBANG_SCRIPT_PATH\"" 2>&1)
+if [ "$OUT" != "shebang dispatch ok" ]; then
+    echo "FAIL: cjsh shebang dispatch inside cjsh (got '$OUT')"
+    exit 1
+else
+    echo "PASS: cjsh shebang dispatch inside cjsh"
+fi
+
+FALSE_POSITIVE_PATH="$TMP_DIR/not_really_cjsh.txt"
+cat <<'EOF' > "$FALSE_POSITIVE_PATH"
+echo "false positive cjsh marker"
+EOF
+
+OUT=$("$CJSH_PATH" -c "\"$FALSE_POSITIVE_PATH\"" 2>&1)
+STATUS=$?
+if [ $STATUS -eq 126 ] && [ "$OUT" != "false positive cjsh marker" ]; then
+    echo "PASS: plain files mentioning cjsh are not misdetected as cjsh scripts"
+else
+    echo "FAIL: plain files mentioning cjsh should not run internally (status=$STATUS, got '$OUT')"
+    exit 1
+fi
+
 echo "PASS"
 exit 0

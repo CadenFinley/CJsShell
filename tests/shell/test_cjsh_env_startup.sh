@@ -96,6 +96,28 @@ else
     fail_test "CJSH_ENV expands leading tilde (got '$OUT')"
 fi
 
+echo "export CJSH_ENV_MARK=env_empty_override" > "$TEST_HOME/.cjshenv"
+export CJSH_ENV=""
+OUT=$("$CJSH_PATH" -c "echo \$CJSH_ENV_MARK" 2>/dev/null)
+if [ "$OUT" = "env_empty_override" ]; then
+    pass_test "Empty CJSH_ENV falls back to default search paths"
+else
+    fail_test "Empty CJSH_ENV fallback (got '$OUT')"
+fi
+
+unreadable_override="$TEST_HOME/unreadable_env.cjsh"
+echo "export CJSH_ENV_MARK=env_unreadable_override" > "$unreadable_override"
+chmod 000 "$unreadable_override"
+export CJSH_ENV="$unreadable_override"
+OUT=$("$CJSH_PATH" -c "echo \$CJSH_ENV_MARK" 2>/dev/null)
+STATUS=$?
+chmod 600 "$unreadable_override"
+if [ $STATUS -eq 0 ] && [ -z "$OUT" ]; then
+    pass_test "Unreadable CJSH_ENV override is ignored"
+else
+    fail_test "Unreadable CJSH_ENV override handling (status=$STATUS, got '$OUT')"
+fi
+
 export CJSH_ENV="$TEST_HOME/does_not_exist.cjsh"
 unset CJSH_ENV_MARK
 OUT=$("$CJSH_PATH" -c "echo \$CJSH_ENV_MARK" 2>/dev/null)
@@ -113,6 +135,30 @@ if [ "$OUT" = "env-profile" ]; then
     pass_test "cjshenv sourced before cjprofile"
 else
     fail_test "cjshenv sourced before cjprofile (got '$OUT')"
+fi
+
+LOGIN_HOME="$TEST_HOME/login_home"
+mkdir -p "$LOGIN_HOME"
+echo "echo logout-ran" > "$LOGIN_HOME/.cjlogout"
+OUT=$(HOME="$LOGIN_HOME" CJSH_ENV= "$CJSH_PATH" --login -i -c "echo command-ran" 2>/dev/null)
+EXPECTED="command-ran
+logout-ran"
+if [ "$OUT" = "$EXPECTED" ]; then
+    pass_test ".cjlogout runs for login shell shutdown"
+else
+    fail_test ".cjlogout execution/order (got '$OUT')"
+fi
+
+SECURE_HOME="$TEST_HOME/secure_home"
+mkdir -p "$SECURE_HOME"
+echo "echo env-ran" > "$SECURE_HOME/.cjshenv"
+echo "echo profile-ran" > "$SECURE_HOME/.cjprofile"
+echo "echo logout-ran" > "$SECURE_HOME/.cjlogout"
+OUT=$(HOME="$SECURE_HOME" CJSH_ENV= "$CJSH_PATH" --secure --login -i -c "echo command-ran" 2>/dev/null)
+if [ "$OUT" = "command-ran" ]; then
+    pass_test "--secure skips env profile and logout files"
+else
+    fail_test "--secure startup file skipping (got '$OUT')"
 fi
 
 echo ""
