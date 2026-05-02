@@ -869,7 +869,8 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                 if (first_control == ControlToken::If) {
                     control_stack.push_back({ControlToken::If, ControlToken::If, display_line});
                 } else if (first_control == ControlToken::Then) {
-                    if (require_top({ControlToken::If}, "'then' without matching 'if'")) {
+                    if (require_top({ControlToken::If, ControlToken::Elif},
+                                    "'then' without matching 'if'")) {
                         std::get<0>(control_stack.back()) = ControlToken::Then;
                     }
                 } else if (first_control == ControlToken::Elif) {
