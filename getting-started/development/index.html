@@ -87,7 +87,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#want-to-help" class="md-skip">
+        <a href="#development" class="md-skip">
           Skip to content
         </a>
       
@@ -584,10 +584,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
       
         <li class="md-nav__item">
-  <a href="#testing" class="md-nav__link">
+  <a href="#requirements" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Testing
+        Requirements
       
     </span>
   </a>
@@ -595,10 +595,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#themes" class="md-nav__link">
+  <a href="#build" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Themes
+        Build
       
     </span>
   </a>
@@ -606,10 +606,32 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#documentation" class="md-nav__link">
+  <a href="#test" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Documentation
+        Test
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#work-on-docs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Work On Docs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#themes-and-prompt-styling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Themes And Prompt Styling
       
     </span>
   </a>
@@ -1062,24 +1084,47 @@
   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
   SOFTWARE.
---><h1 id="want-to-help">Want to help?</h1>
-<p>cjsh is in active development and pull requests and issue posts are always appreciated!</p>
-<p>To get started follow the steps in quick start to clone the master branch! Thanks!</p>
-<p>Please refer to CONTRIBUTING.md in the root of the repo for more in depth details about code format, style, and verification.</p>
-<h2 id="testing">Testing</h2>
-<p>cjsh has a very strict test suite, when going through it you will be able to see that each test script complies to a strict standard. When writing new tests for features you are implementing, please follow this format. </p>
-<p>The main test harness can be run like this:
-</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="w">    </span>./tests/run_shell_tests.sh
-</span></code></pre></div><p></p>
-<p>Please be sure to have a freshly compiled cjsh in the build directory before running. Also the test suite cannot be run inside or with another cjsh instance running on the same machine.</p>
-<p>To produce a clean build of cjsh run:
-</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="w">    </span>cmake<span class="w"> </span>-S<span class="w"> </span>.<span class="w"> </span>-B<span class="w"> </span>build<span class="w"> </span>-DCMAKE_BUILD_TYPE<span class="o">=</span>Release
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span>cmake<span class="w"> </span>--build<span class="w"> </span>build<span class="w"> </span>--config<span class="w"> </span>Release<span class="w"> </span>--parallel<span class="w"> </span>--clean-first
-</span></code></pre></div><p></p>
-<h2 id="themes">Themes</h2>
-<p>I love prompt experiments, the more the merrier! If you have a BBCode-marked prompt, <code>PS1</code>/<code>RPS1</code> template, or <code>cjshopt style_def</code> palette you would like to share, please do so by opening a PR that adds it to the documentation or sample configs. There is no external theme DSL anymore, so everything lives in plain shell script—see the <a href="../../themes/thedetails/">Prompt Markup and Styling</a> guide for the knobs you can use.</p>
-<h2 id="documentation">Documentation</h2>
-<p>Please. Anything helps.</p>
+--><h1 id="development">Development</h1>
+<p>Want to help with <code>cjsh</code>? This page is the quickest path from clone to a tested local build. For the full contributor workflow, see the repository's <a href="https://github.com/CadenFinley/CJsShell/blob/master/CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>
+<h2 id="requirements">Requirements</h2>
+<ul>
+<li>C compiler</li>
+<li>C++ compiler</li>
+<li>CMake 3.25 or newer</li>
+<li>Ninja</li>
+<li>Python 3 for parts of the test suite</li>
+</ul>
+<h2 id="build">Build</h2>
+<p>From the repository root:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/CadenFinley/CJsShell<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>CJsShell
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>cmake<span class="w"> </span>--preset<span class="w"> </span>release
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>cmake<span class="w"> </span>--build<span class="w"> </span>--preset<span class="w"> </span>release<span class="w"> </span>--parallel
+</span></code></pre></div>
+<p>Run the shell with:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>./build/release/cjsh
+</span></code></pre></div>
+<p>Useful presets:</p>
+<ul>
+<li><code>release</code>: optimized default build</li>
+<li><code>debug</code>: debug build with AddressSanitizer enabled</li>
+<li><code>minimal</code>: size-focused release profile</li>
+</ul>
+<h2 id="test">Test</h2>
+<p>Run the focused CTest suites:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>ctest<span class="w"> </span>--preset<span class="w"> </span>release
+</span></code></pre></div>
+<p>Run the full shell and integration harness:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>./tests/run_shell_tests.sh<span class="w"> </span><span class="s2">"build/release/cjsh"</span>
+</span></code></pre></div>
+<p>If you are changing parser behavior, runtime execution, job control, or interactive input handling, also build and test the <code>debug</code> preset.</p>
+<h2 id="work-on-docs">Work On Docs</h2>
+<p>Documentation contributions are always useful, especially when they clarify behavior, explain configuration, or document new builtins and options.</p>
+<p>To preview the docs locally:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>python3<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>docs/requirements.txt
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>mkdocs<span class="w"> </span>serve<span class="w"> </span>--config-file<span class="w"> </span>docs/mkdocs.yml
+</span></code></pre></div>
+<h2 id="themes-and-prompt-styling">Themes And Prompt Styling</h2>
+<p>Prompt, theme, and styling contributions are welcome. If you have a <code>PS1</code>, <code>RPS1</code>, or <code>cjshopt style_def</code> setup worth sharing, open a pull request that adds it to the docs or examples. The <a href="../../themes/thedetails/">Prompt Markup and Styling</a> guide covers the available knobs.</p>
 
 
 
