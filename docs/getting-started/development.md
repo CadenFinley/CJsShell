@@ -26,35 +26,67 @@
   SOFTWARE.
 -->
 
-# Want to help?
+# Development
 
-cjsh is in active development and pull requests and issue posts are always appreciated!
+Want to help with `cjsh`? This page is the quickest path from clone to a tested local build. For the full contributor workflow, see the repository's [CONTRIBUTING.md](https://github.com/CadenFinley/CJsShell/blob/master/CONTRIBUTING.md).
 
-To get started follow the steps in quick start to clone the master branch! Thanks!
+## Requirements
 
-Please refer to CONTRIBUTING.md in the root of the repo for more in depth details about code format, style, and verification.
+- C compiler
+- C++ compiler
+- CMake 3.25 or newer
+- Ninja
+- Python 3 for parts of the test suite
 
-## Testing
+## Build
 
-cjsh has a very strict test suite, when going through it you will be able to see that each test script complies to a strict standard. When writing new tests for features you are implementing, please follow this format. 
+From the repository root:
 
-The main test harness can be run like this:
 ```bash
-    ./tests/run_shell_tests.sh
+git clone https://github.com/CadenFinley/CJsShell && cd CJsShell
+cmake --preset release
+cmake --build --preset release --parallel
 ```
 
-Please be sure to have a freshly compiled cjsh in the build directory before running. Also the test suite cannot be run inside or with another cjsh instance running on the same machine.
+Run the shell with:
 
-To produce a clean build of cjsh run:
 ```bash
-    cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-    cmake --build build --config Release --parallel --clean-first
+./build/release/cjsh
 ```
 
-## Themes
+Useful presets:
 
-I love prompt experiments, the more the merrier! If you have a BBCode-marked prompt, `PS1`/`RPS1` template, or `cjshopt style_def` palette you would like to share, please do so by opening a PR that adds it to the documentation or sample configs. There is no external theme DSL anymore, so everything lives in plain shell script—see the [Prompt Markup and Styling](../themes/thedetails.md) guide for the knobs you can use.
+- `release`: optimized default build
+- `debug`: debug build with AddressSanitizer enabled
+- `minimal`: size-focused release profile
 
-## Documentation 
+## Test
 
-Please. Anything helps.
+Run the focused CTest suites:
+
+```bash
+ctest --preset release
+```
+
+Run the full shell and integration harness:
+
+```bash
+./tests/run_shell_tests.sh "build/release/cjsh"
+```
+
+If you are changing parser behavior, runtime execution, job control, or interactive input handling, also build and test the `debug` preset.
+
+## Work On Docs
+
+Documentation contributions are always useful, especially when they clarify behavior, explain configuration, or document new builtins and options.
+
+To preview the docs locally:
+
+```bash
+python3 -m pip install -r docs/requirements.txt
+mkdocs serve --config-file docs/mkdocs.yml
+```
+
+## Themes And Prompt Styling
+
+Prompt, theme, and styling contributions are welcome. If you have a `PS1`, `RPS1`, or `cjshopt style_def` setup worth sharing, open a pull request that adds it to the docs or examples. The [Prompt Markup and Styling](../themes/thedetails.md) guide covers the available knobs.

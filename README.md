@@ -28,19 +28,18 @@
 
 # CJ's Shell (cjsh) <a href="https://github.com/CadenFinley/CJsShell/actions/workflows/ci.yml"><img src="https://github.com/CadenFinley/CJsShell/actions/workflows/ci.yml/badge.svg" alt="CI"></a> <a href="https://app.codacy.com/gh/CadenFinley/CJsShell/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade"><img src="https://app.codacy.com/project/badge/Grade/4e33a26accb6450da43c91c7b8e872e7" alt="Codacy Badge"></a> <a href="https://cadenfinley.github.io/CJsShell/"><img src="https://img.shields.io/badge/docs-GitHub%20Pages-blue" alt="Documentation"></a> <img src="https://img.shields.io/github/repo-size/CadenFinley/CJsShell" alt="Repo Size">
 
-<p align="center"><strong>POSIX Shell Scripting meets Modern Shell Features</strong></p>
-<img align="center" src="docs/cjsh_recording.svg"/>
-<p align="left">We're gonna need a longer svg to show all of the features cjsh has ;)</p>
+<p align="center"><strong>POSIX-first scripting with a modern interactive shell experience</strong></p>
+<p align="center"><img src="docs/cjsh_recording.svg" alt="Terminal recording showing CJ's Shell features"></p>
 
-Built in is a POSIX shell interpreter with bash extensions, customizable keybindings, customizable syntax highlighting, advanced learning completions, advanced history search, native multiline editing, spell corrections, typeahead, and good, out-of-the-box prompts. Everything ships in one binary with a single vendored dependency, so cjsh works out of the box on all *nix-like systems and Windows via WSL. cjsh delivers a POSIX+ experience, standard scripting semantics with an enhanced interactive layer you can dial up or down as needed.
+`cjsh` is a POSIX-first shell with an enhanced interactive layer. It combines standards-oriented scripting behavior with modern shell features such as rich completions, customizable keybindings, syntax highlighting, multiline editing, prompt styling, spell correction, and history search.
 
-The scripting core targets roughly 95% POSIX coverage so existing shell scripts work as expected, while POSIX+ enhancements amplify the interactive experience without requiring external plugins.
+The project builds into a single `cjsh` binary and vendors its line-editing dependency, so the shell works out of the box without an external plugin stack or framework.
 
-> **WARNING** cjsh is still in active development. for the most stable versions, stick to tagged releases or releases through package managers.
+> `cjsh` is under active development. For the most stable experience, prefer tagged releases or package-manager builds.
 
-## Quick Install (Recommended)
+## Install
 
-The easiest way to get started with CJ's Shell is through a package manager. For detailed installation instructions and getting started guides, visit the **[Getting Started](https://cadenfinley.github.io/CJsShell/getting-started/quick-start/)** page.
+Detailed install and onboarding guides are available in the [documentation site](https://cadenfinley.github.io/CJsShell/getting-started/quick-start/).
 
 ### Homebrew (macOS/Linux)
 ```bash
@@ -53,48 +52,83 @@ brew install cjsh
 # Using yay
 yay -S cjsh
 
-# or
-
 # Using paru
 paru -S cjsh
 ```
 
-## Building from source
+## Build From Source
 
-Any non tagged releases or commits do not have the promise of not containing non breaking changes or working builds. For maximum build safety and usability, stick to tagged releases or through package manager installs of released builds.
+### Requirements
 
-To build from source:
+- C compiler
+- C++ compiler
+- CMake 3.25 or newer
+- Ninja
+- Python 3 for parts of the test suite
+
+### Build
+
 ```bash
 git clone https://github.com/CadenFinley/CJsShell && cd CJsShell
 cmake --preset release
 cmake --build --preset release --parallel
 ```
 
-Available configure presets:
-
-- `release` (optimized default)
-- `debug` (ASan + debug symbols)
-- `minimal` (size-focused profile)
-- `relwithdebinfo`
-- `minsizerel`
-
-You can still use direct CMake configure flags (`-DCMAKE_BUILD_TYPE=...`, `-DCJSH_MINIMAL_BUILD=ON`, etc.) if you prefer a custom build directory.
-   
-# Scripting Compatibility & Testing
-
-CJ's Shell backs its POSIX-based scripting engine with over 1700 targeted tests that validate standards-aligned behavior while covering common bash extensions.
-Run the suite from the repository root before switching cjsh to your default login shell.
+Run the shell with:
 
 ```bash
-./tests/run_shell_tests.sh
+./build/release/cjsh
 ```
 
-# License
+Install it under a prefix with:
 
-This project is licensed under the MIT License.
+```bash
+cmake --install build/release --prefix ~/.local
+```
 
-**Caden Finley** @ Abilene Christian University
-© 2026
+### Available Presets
 
-- Website: [cadenfinley.com](https://cadenfinley.com)
-- Email: [caden@cadenfinley.com](mailto:caden@cadenfinley.com)
+- `release`: optimized default build
+- `debug`: debug build with AddressSanitizer enabled
+- `minimal`: size-focused release profile
+- `relwithdebinfo`: optimized build with debug symbols
+- `minsizerel`: CMake `MinSizeRel` profile
+
+List all configured presets with `cmake --list-presets`.
+
+## Testing
+
+The repository includes both focused CTest coverage and a larger shell integration harness.
+
+Run the registered CTest suites:
+
+```bash
+ctest --preset release
+```
+
+Run the full shell and integration harness from the repository root:
+
+```bash
+./tests/run_shell_tests.sh "build/release/cjsh"
+```
+
+If you are working on parser, runtime, job-control, or memory-sensitive changes, also build and test the `debug` preset.
+
+## Documentation
+
+Project documentation is published at [cadenfinley.github.io/CJsShell](https://cadenfinley.github.io/CJsShell/).
+
+To preview the docs locally:
+
+```bash
+python3 -m pip install -r docs/requirements.txt
+mkdocs serve --config-file docs/mkdocs.yml
+```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, formatting, testing, and pull request expectations.
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE).

@@ -26,34 +26,108 @@
   SOFTWARE.
 -->
 
-# Contributing to CJsShell
+# Contributing to CJ's Shell
 
-## Testing and GitHub Workflows
-- Every pull request and push to `master` triggers the **CI Build and Test** workflow (`.github/workflows/ci.yml`).
-- CI runs a matrix across Linux and macOS, including Release, Debug+ASan, and Minimal presets.
-- Every CI matrix leg runs `tests/run_shell_tests.sh` as the full integration pass. Local contributors should run this script before opening a pull request to catch regressions early.
+Thanks for contributing to `cjsh`. The most useful pull requests are focused, tested locally, and accompanied by the documentation updates needed to explain behavior changes.
 
-## Code Style and clang-format
-- Format C and C++ sources with `clang-format` before submitting patches.
-- The repository ships a project-specific configuration at `.clang-format` (Google base style, 4 space indentation, 100 character column limit, C++17 standard).
-- Use `clang-format` 15 or newer to ensure full compatibility with the options in the configuration file.
+## Before You Start
 
-## Language Standards
-- C sources must compile as ISO C11 (`CMAKE_C_STANDARD 11`).
-- C++ sources must compile as ISO C++17 (`CMAKE_CXX_STANDARD 17`).
-- Do not introduce extensions that break these guarantees without discussing the change in an issue first.
+- Search existing issues and pull requests before starting duplicate work.
+- Open an issue before large behavioral changes, wide refactors, or compatibility-impacting work.
+- Keep feature work, refactors, and formatting-only changes in separate pull requests when possible.
+- Base pull requests on `master`.
 
-## Known Issues
-- automattic line reflowing is currently disabled in isocline via signal_handler.cpp, there are some serious issues regarding the way the lines are redrawn. please see signal_handler.cpp for more details. this is a fairly involved issue in isocline and will require more effort than normal to fix, so this would be a great issue for someone to start with if they would really like to contribute.
-- on rare occasions, cjsh will not exit for shut itself down properly and will enter an infinte input loop as a zombie process. this is a known issue that is being looked into. what is known is that this loop is not strictly within isocline. I beleive that isocline is returning and the loop is actually within the main cjsh loop
+## Tooling
 
-## Upcoming Features/ Want to implement Features
-- At the moment history is handled entirely transiently. Reads and writes are done at instance and immeadiatly close the file after. What this allows is history to be transient between all cjsh instances. This is good, but I know people would like to have a way to disable this so that history is read once on shell startup and saved in memory and then written back to the file on shell exit. This would be a pretty involved change, but nonetheless a great one to implement.
-- Full kitty pkeyboard protocol support
-- Temporary command-prefix array assignments are not bash-identical yet (`arr[0]=x cmd` style). Implementing this would bring command-prefix behavior closer to full Bash parity.
+You will need:
 
-## Good First issues
-- A lot of cjsh needs some heavy refactoring and cleanup. This is a great oportunity to learn the codebase and make some signifigant contributions. Namely the parser and interpreter modules are the main areas on intrest. These are greate areas to test as they are heavily tested and changes would be easy to verify as they would likely cause test failures if not done correctly.
-- A lot of test fail paths still say 'not implemented yet' instead of a proper error message. This would be a greate area to contribute to and would not take much effort.
-- A lot of error messages can be a little wordy and could be simplified. Additionaly, suggestions are not provided for all error messages and some could actually use some. This is a great area to contribute to as well and would not take much effort.
-- A great way to contribute is actually just to use the shell for day-to-day use and report any and all bugs you find. This could also be a great path into finding some good first issues to solve.
+- C compiler
+- C++ compiler
+- CMake 3.25 or newer
+- Ninja
+- Python 3 for parts of the test suite
+- `clang-format` 15 or newer for formatting C and C++ sources
+
+## Build
+
+From the repository root:
+
+```bash
+git clone https://github.com/CadenFinley/CJsShell && cd CJsShell
+cmake --preset release
+cmake --build --preset release --parallel
+```
+
+Useful presets:
+
+- `release`: optimized default build
+- `debug`: debug build with AddressSanitizer enabled
+- `minimal`: size-focused release profile
+- `relwithdebinfo`: optimized build with symbols
+- `minsizerel`: CMake `MinSizeRel` profile
+
+List presets with `cmake --list-presets`.
+
+## Local Verification
+
+Before opening a pull request, run the checks that match the scope of your change. For most code changes, that means:
+
+```bash
+ctest --preset release
+./tests/run_shell_tests.sh "build/release/cjsh"
+```
+
+If you touch parser, interpreter, job control, interactive input, or other memory-sensitive runtime code, also test the debug preset:
+
+```bash
+cmake --preset debug
+cmake --build --preset debug --parallel
+ctest --preset debug
+./tests/run_shell_tests.sh "build/debug/cjsh"
+```
+
+The shell test harness is the broadest local regression check and is the best default verification step before opening a pull request.
+
+## Code Style
+
+- C sources must remain compatible with ISO C11.
+- C++ sources must remain compatible with ISO C++17.
+- Format touched C and C++ files with `clang-format` using the repository's `.clang-format` file.
+- Follow the existing naming, file layout, and style conventions in the area you are modifying.
+- Keep changes as small as practical. Small, well-scoped patches are easier to review and safer to merge.
+
+## Tests
+
+Add or update tests when you change behavior.
+
+- Use `tests/shell/` for end-to-end shell behavior and scripting regressions.
+- Use the focused C, C++, and Python tests under `tests/` for subsystem-specific coverage.
+- If you fix a bug, add a regression test whenever practical.
+
+## Documentation
+
+Update the docs when you change user-visible behavior, builtins, flags, completion behavior, or interactive features.
+
+To preview the docs locally:
+
+```bash
+python3 -m pip install -r docs/requirements.txt
+mkdocs serve --config-file docs/mkdocs.yml
+```
+
+## Pull Requests
+
+When opening a pull request:
+
+- Explain the user-visible change and why it is needed.
+- List the commands you ran locally.
+- Note any platform-specific testing you performed.
+- Include screenshots or terminal recordings for prompt, editing, highlighting, or other UI-facing changes when helpful.
+
+## Continuous Integration
+
+Pull requests and pushes to `master` run the GitHub Actions workflows in `.github/workflows/`. Keep local verification aligned with the parts of CI your change is expected to affect.
+
+## License
+
+By contributing to this repository, you agree that your contributions will be licensed under the project's MIT License.
