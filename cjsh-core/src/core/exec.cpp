@@ -1335,6 +1335,7 @@ int Exec::execute_command_sync(const std::vector<std::string>& args, bool auto_b
     if (it != jobs.end() && it->second.completed) {
         exit_code = extract_exit_code(it->second.status);
         JobManager::instance().remove_job(new_job_id);
+        jobs.erase(it);
     } else if (it != jobs.end() && it->second.stopped) {
         if (WIFSTOPPED(it->second.status)) {
             exit_code = 128 + WSTOPSIG(it->second.status);
@@ -1814,14 +1815,6 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             }
         }
 
-        {
-            std::lock_guard<std::mutex> lock(jobs_mutex);
-            auto it = jobs.find(job_id);
-            if (it != jobs.end() && it->second.completed) {
-                JobManager::instance().remove_job(managed_job_id);
-            }
-        }
-
         int raw_exit = last_exit_code;
         cleanup_process_substitutions(proc_resources, false);
         {
@@ -1829,6 +1822,10 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             auto it = jobs.find(job_id);
             if (it != jobs.end()) {
                 set_last_pipeline_statuses(it->second.pipeline_statuses);
+                if (it->second.completed) {
+                    JobManager::instance().remove_job(managed_job_id);
+                    jobs.erase(it);
+                }
             } else {
                 set_last_pipeline_statuses({raw_exit});
             }
@@ -2203,6 +2200,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                 raw_exit = extract_exit_code(it->second.last_status);
                 set_last_pipeline_statuses(it->second.pipeline_statuses);
                 raw_exit = apply_pipefail(raw_exit, it->second.pipeline_statuses);
+                jobs.erase(it);
             } else {
                 raw_exit = last_exit_code;
             }

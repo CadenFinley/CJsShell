@@ -151,7 +151,7 @@ int help_command() {
     for (const auto& item : builtins) {
         std::cout << "  " << std::setw(column_width) << item.name << item.description << "\n";
     }
-    std::cout << "\n  Note: Use '<command> --help' to see detailed usage for most commands.\n";
+    std::cout << "\n  Note: Use '<command> --help' to see detailed usage.\n";
 
     heading("Shell scripting features");
     std::cout << "  - POSIX-style functions with local variables and return codes.\n";
@@ -170,7 +170,7 @@ int help_command() {
                  "       unless disabled with --no-source or secure mode.\n";
     std::cout << "  Shutdown sequence:\n";
     std::cout << "    - Registered EXIT traps run before teardown.\n";
-    std::cout << "    - ~/.cjlogout is sourced for interactive sessions (when it exists).\n";
+    std::cout << "    - ~/.cjlogout is sourced for login shells (when it exists).\n";
     std::cout << "    - History and themes are flushed before exit.\n";
 
     heading("Primary cjsh directories");

@@ -151,78 +151,90 @@ std::optional<CjshoptSubcommandDescriptor> parse_cjshopt_subcommand(const std::s
     return std::nullopt;
 }
 
+const std::vector<std::string>& cjshopt_usage_lines() {
+    static const std::vector<std::string> kUsage = {
+        "Usage: cjshopt <subcommand> [options]",
+        "Available subcommands:",
+        "  style_def <token_type> <style>   Define or redefine a syntax highlighting style",
+        "  style_def preview|--reset        Preview current styles or reset defaults",
+        "  login-startup-arg <flag>         Add a startup flag (startup files only)",
+        std::string("  completion-case <on|off|status>  Configure completion case sensitivity ") +
+            "(default: disabled)",
+        std::string(
+            "  history-search-case <on|off|status>  Configure fuzzy history case sensitivity ") +
+            "(default: enabled)",
+        std::string("  completion-spell <on|off|status> Configure completion spell correction ") +
+            "(default: enabled)",
+        std::string("  smart-cd <on|off|status>         Configure smart cd auto-jumps ") +
+            "(default: enabled)",
+        std::string(
+            "  script-extension-interpreter <on|off|status> Configure extension-based ") +
+            "script runners (default: enabled)",
+        std::string("  completion-learning <on|off|status> Toggle automatic completion learning ") +
+            "(default: enabled)",
+        std::string(
+            "  line-numbers <on|off|relative|absolute|status>    Configure line numbers ") +
+            "in multiline input (default: enabled)",
+        "  line-numbers-continuation <on|off|status> Control line numbers when a continuation prompt is active",
+        std::string(
+            "  line-numbers-replace-prompt <on|off|status>       Replace the final prompt line ") +
+            "with line numbers (default: disabled)",
+        std::string(
+            "  current-line-number-highlight <on|off|status>    Configure current line number ") +
+            "highlighting (default: enabled)",
+        std::string("  multiline-start-lines <count|status> Configure default multiline prompt ") +
+            "height (default: 1)",
+        "  hint-delay <milliseconds>        Set hint display delay in milliseconds",
+        std::string("  completion-preview <on|off|status> Configure completion preview ") +
+            "(default: enabled)",
+        std::string("  visible-whitespace <on|off|status> Configure visible whitespace ") +
+            "characters (default: disabled)",
+        "  hint <on|off|status>            Configure inline hints (default: enabled)",
+        std::string("  multiline-indent <on|off|status> Configure auto-indent in multiline ") +
+            "(default: enabled)",
+        "  multiline <on|off|status>       Configure multiline input (default: enabled)",
+        std::string("  inline-help <on|off|status>     Configure inline help messages ") +
+            "(default: enabled)",
+        std::string(
+            "  status-hints <off|normal|transient|persistent|status>  Control the default ") +
+            "status hint banner (default: normal)",
+        std::string("  status-line <on|off|status>    Hide or show the status area below the ") +
+            "prompt (default: enabled)",
+        std::string(
+            "  status-reporting <on|off|status>  Disable cjsh validation output while ") +
+            "keeping status-hints (default: enabled)",
+        std::string("  auto-tab <on|off|status>        Configure automatic tab completion ") +
+            "(default: disabled)",
+        std::string("  prompt-newline <on|off|status>  Add a newline after command execution ") +
+            "(default: disabled)",
+        std::string("  prompt-cleanup <on|off|status>  Toggle prompt cleanup behavior ") +
+            "(default: disabled)",
+        std::string("  prompt-cleanup-newline <on|off|status>  Control cleanup newline behavior ") +
+            "(default: disabled)",
+        std::string("  prompt-cleanup-empty-line <on|off|status>  Control cleanup empty line ") +
+            "insertion (default: disabled)",
+        std::string("  prompt-cleanup-truncate <on|off|status>  Control cleanup multiline ") +
+            "truncation (default: disabled)",
+        std::string("  right-prompt-follow-cursor <on|off|status>  Re-anchor the inline right ") +
+            "prompt to the cursor row (default: disabled)",
+        "  keybind <subcommand> [...]       Inspect or modify key bindings",
+        "    - Changes apply immediately; add the same command to ~/.cjshrc to persist",
+        "    - Use 'cjshopt keybind ext' for custom command keybindings",
+        "  generate-profile [--force] [--alt]       Create or overwrite ~/.cjprofile",
+        "  generate-env [--force] [--alt]           Create or overwrite ~/.cjshenv",
+        "  generate-rc [--force] [--alt]            Create or overwrite ~/.cjshrc",
+        "  generate-logout [--force] [--alt]        Create or overwrite ~/.cjlogout",
+        "  set-history-max <number|default|status> Configure history persistence",
+        "  set-completion-max <number|default|status> Limit completion suggestions",
+        "Use 'cjshopt <subcommand> --help' to see usage for a specific subcommand.",
+    };
+    return kUsage;
+}
+
 void print_cjshopt_usage() {
-    std::cout << "Usage: cjshopt <subcommand> [options]\n";
-    std::cout << "Available subcommands:\n";
-    std::cout
-        << "  style_def <token_type> <style>   Define or redefine a syntax highlighting style\n";
-    std::cout << "  login-startup-arg [--flag-name]  Add a startup flag (config file only)\n";
-    std::cout << "  completion-case <on|off|status>  Configure completion case sensitivity "
-                 "(default: disabled)\n";
-    std::cout << "  history-search-case <on|off|status>  Configure fuzzy history case sensitivity "
-                 "(default: enabled)\n";
-    std::cout << "  completion-spell <on|off|status> Configure completion spell correction "
-                 "(default: enabled)\n";
-    std::cout << "  smart-cd <on|off|status>         Configure smart cd auto-jumps "
-                 "(default: enabled)\n";
-    std::cout << "  script-extension-interpreter <on|off|status> Configure extension-based script "
-                 "runners "
-                 "(default: enabled)\n";
-    std::cout << "  completion-learning <on|off|status> Toggle automatic completion learning "
-                 "(default: enabled)\n";
-    std::cout << "  line-numbers <on|off|relative|absolute|status>    Configure line numbers in "
-                 "multiline input (default: enabled)\n";
-    std::cout
-        << "  line-numbers-replace-prompt <on|off|status>       Replace the final prompt line "
-           "with line numbers (default: disabled)\n";
-    std::cout << "  current-line-number-highlight <on|off|status>    Configure current line number "
-                 "highlighting (default: enabled)\n";
-    std::cout << "  multiline-start-lines <count|status> Configure default multiline prompt "
-                 "height (default: 1)\n";
-    std::cout << "  hint-delay <milliseconds>        Set hint display delay in milliseconds\n";
-    std::cout
-        << "  completion-preview <on|off|status> Configure completion preview (default: enabled)\n";
-    std::cout << "  visible-whitespace <on|off|status> Configure visible whitespace characters "
-                 "(default: disabled)\n";
-    std::cout << "  hint <on|off|status>            Configure inline hints (default: enabled)\n";
-    std::cout << "  multiline-indent <on|off|status> Configure auto-indent in multiline (default: "
-                 "enabled)\n";
-    std::cout << "  multiline <on|off|status>       Configure multiline input (default: enabled)\n";
-    std::cout
-        << "  inline-help <on|off|status>     Configure inline help messages (default: enabled)\n";
-    std::cout << "  status-hints <off|normal|transient|persistent|status>  Control the default "
-                 "status hint banner (default: normal)\n";
-    std::cout << "  status-line <on|off|status>    Hide or show the status area below the prompt "
-                 "(default: enabled)\n";
-    std::cout << "  status-reporting <on|off|status>  Disable cjsh validation output while keeping "
-                 "status-hints (default: enabled)\n";
-    std::cout << "  auto-tab <on|off|status>        Configure automatic tab completion (default: "
-                 "disabled)\n";
-    std::cout
-        << "  prompt-newline <on|off|status>  Add a newline after command execution (default: "
-           "disabled)\n";
-    std::cout
-        << "  prompt-cleanup <on|off|status>  Toggle prompt cleanup behavior (default: disabled)\n";
-    std::cout
-        << "  prompt-cleanup-newline <on|off|status>  Control cleanup newline behavior (default: "
-           "disabled)\n";
-    std::cout
-        << "  prompt-cleanup-empty-line <on|off|status>  Control cleanup empty line insertion "
-           "(default: disabled)\n";
-    std::cout << "  prompt-cleanup-truncate <on|off|status>  Control cleanup multiline truncation "
-                 "(default: disabled)\n";
-    std::cout << "  right-prompt-follow-cursor <on|off|status>  Re-anchor the inline right prompt "
-                 "to the cursor row (default: disabled)\n";
-    std::cout << "  keybind <subcommand> [...]       Inspect or modify key bindings (modifications "
-                 "in config only)\n";
-    std::cout << "    - Use 'keybind ext' for custom command keybindings\n";
-    std::cout << "  generate-profile [--force] [--alt]       Create or overwrite ~/.cjprofile\n";
-    std::cout << "  generate-env [--force] [--alt]           Create or overwrite ~/.cjshenv\n";
-    std::cout << "  generate-rc [--force] [--alt]            Create or overwrite ~/.cjshrc\n";
-    std::cout << "  generate-logout [--force] [--alt]        Create or overwrite ~/.cjlogout\n";
-    std::cout << "  set-history-max <number|default|status> Configure history persistence\n";
-    std::cout << "  set-completion-max <number|default|status> Limit completion suggestions\n";
-    std::cout << "Use 'cjshopt <subcommand> --help' to see usage for a specific subcommand.\n";
+    for (const auto& line : cjshopt_usage_lines()) {
+        std::cout << line << '\n';
+    }
 }
 }  // namespace
 
@@ -235,95 +247,10 @@ int cjshopt_command(const std::vector<std::string>& args) {
     }
 
     if (args.size() < 2) {
-        print_error(
-            {ErrorType::INVALID_ARGUMENT,
-             "cjshopt",
-             "Missing subcommand argument",
-             {
-                 "Usage: cjshopt <subcommand> [options]",
-                 "Available subcommands:",
-                 std::string("  style_def <token_type> <style>   Define or redefine a syntax ") +
-                     "highlighting style",
-                 "  login-startup-arg [--flag-name]  Add a startup flag (config file only)",
-                 std::string("  completion-case <on|off|status>  Configure completion case ") +
-                     "sensitivity (default: disabled)",
-                 std::string(
-                     "  history-search-case <on|off|status>  Configure fuzzy history case ") +
-                     "sensitivity (default: enabled)",
-                 std::string("  completion-spell <on|off|status> Configure completion spell ") +
-                     "correction (default: enabled)",
-                 std::string("  smart-cd <on|off|status>         Configure smart cd auto-jumps ") +
-                     "(default: enabled)",
-                 std::string(
-                     "  script-extension-interpreter <on|off|status> Configure extension-based ") +
-                     "script runners (default: enabled)",
-                 std::string("  completion-learning <on|off|status> Toggle automatic completion ") +
-                     "learning (default: enabled)",
-                 std::string(
-                     "  line-numbers <on|off|relative|absolute|status>    Configure line ") +
-                     "numbers in multiline input (default: enabled)",
-                 std::string(
-                     "  line-numbers-replace-prompt <on|off|status>       Replace the final ") +
-                     "prompt line with line numbers (default: disabled)",
-                 std::string(
-                     "  current-line-number-highlight <on|off|status>    Configure current ") +
-                     "line number highlighting (default: enabled)",
-                 std::string(
-                     "  multiline-start-lines <count|status> Configure default multiline ") +
-                     "prompt height (default: 1)",
-                 "  hint-delay <milliseconds>        Set hint display delay in milliseconds",
-                 std::string("  completion-preview <on|off|status> Configure completion preview ") +
-                     "(default: enabled)",
-                 std::string("  visible-whitespace <on|off|status> Configure visible whitespace ") +
-                     "characters (default: disabled)",
-                 "  hint <on|off|status>            Configure inline hints (default: enabled)",
-                 std::string(
-                     "  multiline-indent <on|off|status> Configure auto-indent in multiline ") +
-                     "(default: enabled)",
-                 "  multiline <on|off|status>       Configure multiline input (default: enabled)",
-                 std::string("  inline-help <on|off|status>     Configure inline help messages ") +
-                     "(default: enabled)",
-                 std::string(
-                     "  status-hints <off|normal|transient|persistent|status>  Control the ") +
-                     "default status hint banner (default: normal)",
-                 std::string(
-                     "  status-line <on|off|status>    Hide or show the status area below ") +
-                     "the prompt (default: enabled)",
-                 std::string(
-                     "  status-reporting <on|off|status>  Disable cjsh validation output while ") +
-                     "keeping status-hints (default: enabled)",
-                 std::string(
-                     "  auto-tab <on|off|status>        Configure automatic tab completion ") +
-                     "(default: disabled)",
-                 std::string(
-                     "  prompt-newline <on|off|status>  Add a newline after command execution ") +
-                     "(default: disabled)",
-                 std::string("  prompt-cleanup <on|off|status>  Toggle prompt cleanup behavior ") +
-                     "(default: disabled)",
-                 std::string("  prompt-cleanup-newline <on|off|status>  Control cleanup newline "
-                             "behavior ") +
-                     "(default: disabled)",
-                 std::string("  prompt-cleanup-empty-line <on|off|status>  Control cleanup empty "
-                             "line insertion ") +
-                     "(default: disabled)",
-                 std::string("  prompt-cleanup-truncate <on|off|status>  Control cleanup multiline "
-                             "truncation ") +
-                     "(default: disabled)",
-                 std::string("  right-prompt-follow-cursor <on|off|status>  Move the inline right "
-                             "prompt with the cursor ") +
-                     "(default: disabled)",
-                 std::string("  keybind <subcommand> [...]       Inspect or modify key bindings ") +
-                     "(modifications in config only)",
-                 "  line-numbers-continuation <on|off|status> Control line numbers when a "
-                 "continuation prompt is active",
-                 "  generate-profile [--force] [--alt]       Create or overwrite ~/.cjprofile",
-                 "  generate-env [--force] [--alt]           Create or overwrite ~/.cjshenv",
-                 "  generate-rc [--force] [--alt]            Create or overwrite ~/.cjshrc",
-                 "  generate-logout [--force] [--alt]        Create or overwrite ~/.cjlogout",
-                 "  set-history-max <number|default|status> Configure history persistence",
-                 "  set-completion-max <number|default|status> Limit completion suggestions",
-
-             }});
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     "cjshopt",
+                     "Missing subcommand argument",
+                     cjshopt_usage_lines()});
 
         return 1;
     }
@@ -345,7 +272,7 @@ int cjshopt_command(const std::vector<std::string>& args) {
           "current-line-number-highlight, multiline-start-lines, hint-delay, "
 
           "completion-preview, visible-whitespace, hint, multiline-indent, multiline, inline-help, "
-          "status-hints, status-line, auto-tab, prompt-newline, prompt-cleanup, "
+          "status-hints, status-line, status-reporting, auto-tab, prompt-newline, prompt-cleanup, "
           "prompt-cleanup-newline, "
           "prompt-cleanup-empty-line, prompt-cleanup-truncate, right-prompt-follow-cursor, "
           "keybind, "

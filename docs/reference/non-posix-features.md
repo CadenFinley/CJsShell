@@ -137,9 +137,10 @@ Consult the [Completion Authoring Guide](completions.md) for cache format and cu
 
 CJSH keeps POSIX-focused scripting predictable by disabling most POSIX+ features automatically in
 non-interactive contexts. When you need a strictly standard shell interactively, start with
-`--minimal` (disables colors, completions, syntax highlighting, rc sourcing, the title line, history
-expansion, multiline line numbers, auto-indentation, the startup time banner, error suggestions, and
-prompt vars) and add `--secure` if you also want to skip all login/logout dotfiles:
+`--minimal` (disables colors, completions, completion learning, syntax highlighting, smart cd, rc
+sourcing, the title line, history expansion, the status line, multiline line numbers, the startup
+time banner, error suggestions, and prompt vars) and add `--secure` if you also want to skip all
+login/logout dotfiles:
 
 ```bash
 cjsh --minimal --secure

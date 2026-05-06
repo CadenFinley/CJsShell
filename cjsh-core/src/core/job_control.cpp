@@ -483,34 +483,50 @@ void JobManager::update_job_statuses() {
     for (auto& pair : jobs) {
         auto job = pair.second;
 
-        int status = 0;
         for (pid_t pid : job->pids) {
-            pid_t result = waitpid(pid, &status, WNOHANG | WUNTRACED | WCONTINUED);
+            int status = 0;
+            int status_updates = 0;
+            const int max_status_updates = 16;
 
-            if (result > 0) {
+            while (status_updates < max_status_updates) {
+                pid_t result = waitpid(pid, &status, WNOHANG | WUNTRACED | WCONTINUED);
+
+                if (result == 0) {
+                    break;
+                }
+
+                if (result == -1) {
+                    if (errno == EINTR) {
+                        continue;
+                    }
+                    if (errno == ECHILD) {
+                        break;
+                    }
+                    print_error({ErrorType::RUNTIME_ERROR,
+                                 ErrorSeverity::WARNING,
+                                 "waitpid",
+                                 "failed to poll pid " + std::to_string(pid) + ": " +
+                                     std::string(std::strerror(errno)),
+                                 {}});
+                    break;
+                }
+
+                ++status_updates;
                 const auto wait_info = wait_status_utils::decode(status);
                 if (wait_info.disposition == wait_status_utils::WaitDisposition::Exited) {
                     job->state.store(JobState::DONE, std::memory_order_relaxed);
                     job->exit_status = wait_info.code;
+                    break;
                 } else if (wait_info.disposition == wait_status_utils::WaitDisposition::Signaled) {
                     job->state.store(JobState::TERMINATED, std::memory_order_relaxed);
                     job->exit_status = wait_info.code;
+                    break;
                 } else if (wait_info.disposition == wait_status_utils::WaitDisposition::Stopped) {
                     job->state.store(JobState::STOPPED, std::memory_order_relaxed);
                 } else if (WIFCONTINUED(status)) {
                     job->state.store(JobState::RUNNING, std::memory_order_relaxed);
                     job->stop_notified.store(false, std::memory_order_relaxed);
                 }
-            } else if (result == -1) {
-                if (errno == EINTR || errno == ECHILD) {
-                    continue;
-                }
-                print_error({ErrorType::RUNTIME_ERROR,
-                             ErrorSeverity::WARNING,
-                             "waitpid",
-                             "failed to poll pid " + std::to_string(pid) + ": " +
-                                 std::string(std::strerror(errno)),
-                             {}});
             }
         }
     }

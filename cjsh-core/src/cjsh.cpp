@@ -200,6 +200,7 @@ int run_cjsh(int argc, char* argv[]) {
 
     // execute command passed with -c
     if (config::execute_command) {
+        cjsh_env::set_startup_active(false);
         const int code = g_shell ? g_shell->execute(config::cmd_to_execute) : 1;
         return read_exit_code_or(code);
     }
@@ -207,12 +208,14 @@ int run_cjsh(int argc, char* argv[]) {
     // at this point everything else with the startup args has been handled so now we handle the
     // passed script
     if (!config::interactive_mode && !config::force_interactive) {
+        cjsh_env::set_startup_active(false);
         return handle_non_interactive_mode(script_file);
     }
 
     // handle the case where stdin is not a terminal
     const bool stdin_is_piped = (isatty(STDIN_FILENO) == 0);
     if (config::force_interactive && stdin_is_piped && !config::execute_command) {
+        cjsh_env::set_startup_active(false);
         return handle_non_interactive_mode(script_file);
     }
 

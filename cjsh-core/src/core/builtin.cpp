@@ -105,7 +105,24 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"printf", [](const std::vector<std::string>& args) { return ::printf_command(args); }},
         {"pwd", [](const std::vector<std::string>& args) { return ::pwd_command(args); }},
         {"true", [](const std::vector<std::string>&) { return ::true_command(); }},
-        {"false", [](const std::vector<std::string>&) { return ::false_command(); }},
+        {"true",
+         [](const std::vector<std::string>& args) {
+             if (builtin_handle_help(args, {"Usage: true",
+                                           "Return a successful status (exit code 0).",
+                                           "Any additional arguments are ignored."})) {
+                 return 0;
+             }
+             return ::true_command();
+         }},
+        {"false",
+         [](const std::vector<std::string>& args) {
+             if (builtin_handle_help(args, {"Usage: false",
+                                           "Return a failing status (exit code 1).",
+                                           "Any additional arguments are ignored."})) {
+                 return 0;
+             }
+             return ::false_command();
+         }},
         {"cd",
          [this](const std::vector<std::string>& args) {
              return ::cd_command(args, current_directory, previous_directory, shell);
@@ -179,7 +196,15 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"[[", [](const std::vector<std::string>& args) { return ::double_bracket_command(args); }},
         {"exec",
          [this](const std::vector<std::string>& args) { return ::exec_command(args, shell); }},
-        {":", [](const std::vector<std::string>&) { return 0; }},
+        {":",
+         [](const std::vector<std::string>& args) {
+             if (builtin_handle_help(args, {"Usage: :",
+                                           "Null command that does nothing and succeeds.",
+                                           "Any additional arguments are ignored."})) {
+                 return 0;
+             }
+             return 0;
+         }},
         {"if", [this](const std::vector<std::string>& args) { return ::if_command(args, shell); }},
         {"__INTERNAL_SUBSHELL__",
          [this](const std::vector<std::string>& args) {

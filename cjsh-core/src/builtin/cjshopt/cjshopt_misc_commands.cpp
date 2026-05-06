@@ -35,6 +35,7 @@
 #include <string>
 #include <vector>
 
+#include "builtin_help.h"
 #include "cjsh_completions.h"
 #include "error_out.h"
 #include "flags.h"
@@ -46,9 +47,13 @@
 
 namespace {
 
+bool is_help_flag(const std::string& option) {
+    return option == "--help" || option == "-h";
+}
+
 const std::vector<std::string>& startup_flag_help_lines() {
     static const std::vector<std::string> lines = [] {
-        std::vector<std::string> help = {"Usage: login-startup-arg [--flag-name]",
+        std::vector<std::string> help = {"Usage: login-startup-arg <flag>",
                                          "Available flags:"};
         for (const auto& entry : startup_flags::descriptors()) {
             help.emplace_back("  " + std::string(entry.name) + "  " + entry.description);
@@ -176,9 +181,46 @@ void print_style_preview() {
     }
     ic_println("Use: cjshopt style_def <token_type> \"<style>\"");
 }
+
+void print_style_def_usage() {
+    std::cout << "Usage: style_def <token_type> <style>\n";
+    std::cout << "       style_def preview\n";
+    std::cout << "       style_def --reset\n\n";
+    std::cout << "Define, preview, or reset syntax highlighting styles.\n\n";
+    std::cout << "Token types:\n";
+
+    std::vector<std::string> token_types;
+    token_types.reserve(token_constants::default_styles().size());
+    for (const auto& pair : token_constants::default_styles()) {
+        token_types.push_back(pair.first);
+    }
+    std::sort(token_types.begin(), token_types.end());
+
+    for (const auto& token_type : token_types) {
+        std::cout << "  " << token_type << " (default: "
+                  << token_constants::default_styles().at(token_type) << ")\n";
+    }
+
+    std::cout << "\nStyle format: [bold] [italic] [underline] color=#RRGGBB|color=name\n";
+    std::cout << "Color names: red, green, blue, yellow, magenta, cyan, white, black\n";
+    std::cout << "ANSI colors: ansi-black, ansi-red, ansi-green, ansi-yellow, etc.\n\n";
+    std::cout << "Examples:\n";
+    std::cout << "  style_def builtin \"bold color=#FFB86C\"\n";
+    std::cout << "  style_def system \"color=#50FA7B\"\n";
+    std::cout << "  style_def comment \"italic color=green\"\n";
+    std::cout << "  style_def string \"color=#F1FA8C\"\n\n";
+    std::cout << "To reset all styles to defaults, use: style_def --reset\n";
+    std::cout << "To preview current styles, use: style_def preview\n";
+}
 }  // namespace
 
 int startup_flag_command(const std::vector<std::string>& args) {
+    const auto& help_lines = startup_flag_help_lines();
+
+    if (builtin_handle_help_with_startup_guard(args, help_lines, BuiltinHelpScanMode::AnyArgument)) {
+        return 0;
+    }
+
     if (!cjsh_env::startup_active()) {
         print_error({ErrorType::RUNTIME_ERROR,
                      "login-startup-arg",
@@ -187,8 +229,6 @@ int startup_flag_command(const std::vector<std::string>& args) {
                       "~/.cjprofile file."}});
         return 1;
     }
-
-    const auto& help_lines = startup_flag_help_lines();
 
     if (args.size() < 2) {
         print_error({ErrorType::INVALID_ARGUMENT, "login-startup-arg", "Missing flag argument",
@@ -213,24 +253,9 @@ int startup_flag_command(const std::vector<std::string>& args) {
 }
 
 int style_def_command(const std::vector<std::string>& args) {
-    if (args.size() == 1) {
+    if (args.size() == 1 || (args.size() == 2 && is_help_flag(args[1]))) {
         if (!cjsh_env::startup_active()) {
-            std::cout << "Usage: style_def <token_type> <style>\n\n";
-            std::cout << "Define or redefine a syntax highlighting style.\n\n";
-            std::cout << "Token types:\n";
-            for (const auto& pair : token_constants::default_styles()) {
-                std::cout << "  " << pair.first << " (default: " << pair.second << ")\n";
-            }
-            std::cout << "\nStyle format: [bold] [italic] [underline] color=#RRGGBB|color=name\n";
-            std::cout << "Color names: red, green, blue, yellow, magenta, cyan, white, black\n";
-            std::cout << "ANSI colors: ansi-black, ansi-red, ansi-green, ansi-yellow, etc.\n\n";
-            std::cout << "Examples:\n";
-            std::cout << "  style_def builtin \"bold color=#FFB86C\"\n";
-            std::cout << "  style_def system \"color=#50FA7B\"\n";
-            std::cout << "  style_def comment \"italic color=green\"\n";
-            std::cout << "  style_def string \"color=#F1FA8C\"\n\n";
-            std::cout << "To reset all styles to defaults, use: style_def --reset\n";
-            std::cout << "To preview current styles, use: style_def preview\n";
+            print_style_def_usage();
         }
         return 0;
     }
@@ -256,7 +281,7 @@ int style_def_command(const std::vector<std::string>& args) {
         print_error({ErrorType::INVALID_ARGUMENT,
                      "style_def",
                      "expected 2 arguments: <token_type> <style>",
-                     {"Use 'style_def' to see available token types"}});
+                     {"Use 'cjshopt style_def --help' to see available token types"}});
         return 1;
     }
 
@@ -268,7 +293,7 @@ int style_def_command(const std::vector<std::string>& args) {
         print_error({ErrorType::INVALID_ARGUMENT,
                      "style_def",
                      "unknown token type: " + token_type,
-                     {"Use 'style_def' to see available token types"}});
+                     {"Use 'cjshopt style_def --help' to see available token types"}});
         return 1;
     }
 

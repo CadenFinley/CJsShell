@@ -697,7 +697,7 @@ Available subcommands:
 - `prompt-cleanup-empty-line` - Insert an empty spacer line during cleanup
 - `prompt-cleanup-truncate` - Collapse multiline prompts when cleanup runs
 - `right-prompt-follow-cursor` - Keep the inline right prompt aligned with the active cursor row
-- `keybind` - Inspect or modify key bindings (modifications config file only)
+- `keybind` - Inspect or modify key bindings (changes apply immediately; add to `~/.cjshrc` to persist)
 - `generate-env` - Create or overwrite ~/.cjshenv (use `--alt` for `~/.config/cjsh/.cjshenv`)
 - `generate-profile` - Create or overwrite ~/.cjprofile (use `--alt` for `~/.config/cjsh/.cjprofile`)
 - `generate-rc` - Create or overwrite ~/.cjshrc (use `--alt` for `~/.config/cjsh/.cjshrc`)
@@ -751,7 +751,7 @@ Supported flags:
 | `--no-history-expansion` | Disable `!!`, `!$`, and related history tokens |
 | `--no-sh-warning` | Suppress the reminder shown when cjsh is invoked via `sh` |
 | `--no-exec` | Read commands but do not execute them |
-| `--minimal` | Disable prompt themes/colors, completions, syntax highlighting, rc sourcing, title line, history expansion, multiline line numbers, auto-indentation, startup time banner, error suggestions, prompt vars, and special lifecycle handlers |
+| `--minimal` | Disable prompt themes/colors, completions and completion learning, syntax highlighting, smart cd, rc sourcing, title line, history expansion, the status line, multiline line numbers, startup time banner, error suggestions, prompt vars, and special lifecycle handlers |
 | `--secure` | Skip profile/rc/logout sourcing even for login shells, and ignore special lifecycle handlers |
 | `--posix` | Enable POSIX mode, reject non-POSIX syntax, and ignore special lifecycle handlers |
 | `--startup-test` | Enable startup test mode |
@@ -1185,7 +1185,7 @@ Accepts synonyms including `enable`, `disable`, `true`, and `false`. Place in `~
 
 #### keybind
 
-Inspect or customize isocline key bindings. Modifying bindings requires running the command from a configuration file (`~/.cjshrc`); runtime changes are only supported for inspection.
+Inspect or customize isocline key bindings. Changes apply immediately in the current shell, and you can add the same command to `~/.cjshrc` to persist them for future sessions.
 
 ```bash
 cjshopt keybind <subcommand> [...]
@@ -1193,14 +1193,14 @@ cjshopt keybind <subcommand> [...]
 
 Key subcommands include:
 
-- `list` - Show the active profile plus default vs. custom bindings (runtime safe)
+- `list` - Show the active profile plus default vs. custom bindings
 - `set <action> <keys...>` - Replace bindings for an action
 - `add <action> <keys...>` - Add additional bindings for an action
 - `clear <keys...>` - Remove the provided key specifications
 - `clear-action <action>` - Remove all custom bindings for an action
 - `reset` - Drop every custom binding and restore defaults
-- `profile list` - List available key binding profiles (runtime safe)
-- `profile set <name>` - Persist the named profile
+- `profile list` - List available key binding profiles
+- `profile set <name>` - Activate the named profile
 
 Key specifications accept pipe (`|`) separated alternatives, so `Ctrl+K|Ctrl+X` is a single argument covering both sequences. Place commands like `cjshopt keybind set cursor-left "Ctrl+H"` in `~/.cjshrc` to keep them between sessions.
 

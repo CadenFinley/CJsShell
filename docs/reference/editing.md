@@ -482,19 +482,19 @@ cjshopt keybind profile list
 # Activate a key binding profile (add to ~/.cjshrc to persist)
 cjshopt keybind profile set vi
 
-# Replace bindings for an action (config file only)
+# Replace bindings for an action (changes apply immediately; add to ~/.cjshrc to persist)
 cjshopt keybind set cursor-left ctrl-h|left
 
-# Add bindings without removing existing ones (config file only)
+# Add bindings without removing existing ones (changes apply immediately; add to ~/.cjshrc to persist)
 cjshopt keybind add delete-word-end alt-d
 
-# Remove specific key bindings (config file only)
+# Remove specific key bindings (changes apply immediately; add to ~/.cjshrc to persist)
 cjshopt keybind clear ctrl-h ctrl-b
 
-# Remove all custom bindings for an action (config file only)
+# Remove all custom bindings for an action (changes apply immediately; add to ~/.cjshrc to persist)
 cjshopt keybind clear-action delete-word-end
 
-# Restore default bindings (config file only)
+# Restore default bindings (changes apply immediately; add to ~/.cjshrc to persist)
 cjshopt keybind reset
 ```
 

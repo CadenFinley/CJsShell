@@ -165,7 +165,7 @@ cjsh leaves directory listing behavior up to your configuration. Add an `ls` wra
 - `~/.cjshenv` – Sourced for every shell start (before login/interactive setup).
 - `~/.cjprofile` – Executed for login shells before interactive setup.
 - `~/.cjshrc` – Interactive configuration (aliases, prompt definitions, hooks, etc.).
-- `~/.cjlogout` – Optional cleanup script sourced on exit.
+- `~/.cjlogout` – Optional cleanup script sourced when a login shell exits.
 
 Set `CJSH_ENV` to override the `~/.cjshenv` search paths. If `CJSH_ENV` is set but empty, cjsh
 falls back to the default search paths.

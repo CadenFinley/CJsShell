@@ -69,6 +69,35 @@ void clear_all_custom_keybindings() {
 }
 
 namespace {
+const std::vector<std::string>& keybind_ext_usage_lines() {
+    static const std::vector<std::string> kUsage = {
+        "Usage: keybind ext <subcommand> [...]",
+        "",
+        "Subcommands:",
+        "  list              Show all custom command keybindings",
+        "  set <key> <cmd>   Bind a key to execute a command",
+        "  clear <key>...    Remove custom command bindings for specified key(s)",
+        "  reset             Clear all custom command keybindings",
+        "",
+        "Examples:",
+        "  keybind ext set 'ctrl-g' 'echo Hello!'",
+        "  keybind ext set 'F5' 'clear'",
+        "  keybind ext list",
+        "  keybind ext clear 'ctrl-g'",
+        "  keybind ext reset",
+    };
+    return kUsage;
+}
+
+void print_keybind_ext_usage() {
+    if (cjsh_env::startup_active()) {
+        return;
+    }
+    for (const auto& line : keybind_ext_usage_lines()) {
+        std::cout << line << '\n';
+    }
+}
+
 int keybind_ext_list_command() {
     if (cjsh_env::startup_active()) {
         return 0;
@@ -141,7 +170,7 @@ int keybind_ext_set_command(const std::vector<std::string>& args) {
                          "keybind ext",
                          "Key '" + key_spec + "' is already bound to '" + bound_name +
                              "' and will be overridden.",
-                         {"Use 'keybind ext list' to review custom bindings."}});
+                         {"Use 'cjshopt keybind ext list' to review custom bindings."}});
 
             ic_clear_key_binding(key_code);
         }
@@ -241,18 +270,14 @@ int keybind_ext_reset_command() {
 }  // namespace
 
 int keybind_ext_command(const std::vector<std::string>& args) {
+    if (args.size() >= 3 && (args[2] == "--help" || args[2] == "-h")) {
+        print_keybind_ext_usage();
+        return 0;
+    }
+
     if (args.size() < 3) {
-        print_error({ErrorType::INVALID_ARGUMENT,
-                     "keybind ext",
-                     "Missing subcommand",
-                     {"Usage: keybind ext <subcommand> [...]", "",
-                      "Subcommands:", "  list              Show all custom command keybindings",
-                      "  set <key> <cmd>   Bind a key to execute a command",
-                      "  clear <key>...    Remove custom command bindings for specified key(s)",
-                      "  reset             Clear all custom command keybindings", "",
-                      "Examples:", "  keybind ext set 'ctrl-g' 'echo Hello!'",
-                      "  keybind ext set 'F5' 'clear'", "  keybind ext list",
-                      "  keybind ext clear 'ctrl-g'", "  keybind ext reset"}});
+        print_error({ErrorType::INVALID_ARGUMENT, "keybind ext", "Missing subcommand",
+                     keybind_ext_usage_lines()});
         return 1;
     }
 

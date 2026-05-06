@@ -99,26 +99,20 @@ const std::vector<std::string>& keybind_usage_lines() {
     static const std::vector<std::string> kUsage = {
         "Usage: keybind <subcommand> [...]",
         "",
-        "Note: Key binding modifications can ONLY be made in configuration files (e.g., "
-        "~/.cjshrc).",
-        "      They cannot be changed at runtime.",
+        "Changes apply immediately in the current shell.",
+        "Add the same command to ~/.cjshrc to persist it for future sessions.",
         "",
         "Subcommands:",
-        "  list                            Show current default and custom key bindings (works at ",
-        "runtime)",
-        "  set <action> <keys...>          Replace bindings for an action (config file only)",
-        "  add <action> <keys...>          Add key bindings for an action (config file only)",
-        "  clear <keys...>                 Remove bindings for the specified key(s) (config file "
-        "only)",
-        "  clear-action <action>           Remove all custom bindings for an action (config file "
-        "only)",
-        "  reset                           Clear all custom key bindings and restore defaults "
-        "(config ",
-        "file only)",
-        "  profile list                    List available key binding profiles (runtime)",
-        "  profile set <name>              Activate a key binding profile (config file only)",
+        "  list                            Show current default and custom key bindings",
+        "  set <action> <keys...>          Replace bindings for an action",
+        "  add <action> <keys...>          Add key bindings for an action",
+        "  clear <keys...>                 Remove bindings for the specified key(s)",
+        "  clear-action <action>           Remove all custom bindings for an action",
+        "  reset                           Clear all custom key bindings and restore defaults",
+        "  profile list                    List available key binding profiles",
+        "  profile set <name>              Activate a key binding profile",
         "",
-        "Use 'keybind --help' for detailed guidance.",
+        "Use 'cjshopt keybind --help' for detailed guidance.",
     };
     return kUsage;
 }
@@ -551,7 +545,7 @@ int keybind_set_or_add_command(const std::vector<std::string>& args, bool replac
                          "keybind",
                          "Key '" + conflict.first + "' was already bound to '" + conflict.second +
                              "' and will be overridden.",
-                         {"Use 'keybind list' to inspect current bindings."}});
+                         {"Use 'cjshopt keybind list' to inspect current bindings."}});
         }
     }
 

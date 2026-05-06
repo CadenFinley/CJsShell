@@ -265,6 +265,7 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                  make_option("--no-syntax-highlighting", "Disable syntax highlighting"),
                  make_option("--no-error-suggestions", "Disable error suggestions"),
                  make_option("--no-prompt-vars", "Ignore PS1/PS2 prompt variables"),
+                 make_option("--no-history", "Disable history recording and history expansion"),
                  make_option("-H", "Disable history expansion"),
                  make_option("--no-history-expansion", "Disable history expansion (!commands)"),
                  make_option("-W", "Suppress the sh invocation warning"),
