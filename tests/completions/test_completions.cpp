@@ -102,15 +102,49 @@ static void spell_match_completer(ic_completion_env_t* cenv, const char* prefix)
     completion_tracker::completion_session_end();
 }
 
-static ssize_t run_completion_generation(const char* input, ic_completer_fun_t* completer,
-                                         ssize_t max_results) {
+static ssize_t run_completion_generation_at(const char* input, ssize_t cursor,
+                                            ic_completer_fun_t* completer,
+                                            ssize_t max_results) {
     ic_env_t* env = ic_get_env();
     if (env == nullptr || env->completions == nullptr) {
         return -1;
     }
     completions_set_completer(env->completions, completer, nullptr);
-    return completions_generate(env, env->completions, input,
-                                static_cast<ssize_t>(std::strlen(input)), max_results);
+    return completions_generate(env, env->completions, input, cursor, max_results);
+}
+
+static ssize_t run_completion_generation(const char* input, ic_completer_fun_t* completer,
+                                         ssize_t max_results) {
+    return run_completion_generation_at(input, static_cast<ssize_t>(std::strlen(input)), completer,
+                                        max_results);
+}
+
+static bool apply_single_generated_completion(const char* input, ssize_t cursor,
+                                              const CompletionAction& action, std::string& result,
+                                              ssize_t& new_pos) {
+    g_completion_actions = {action};
+    ssize_t count = run_completion_generation_at(input, cursor, &completion_action_completer, 64);
+    g_completion_actions.clear();
+    if (count != 1) {
+        return false;
+    }
+
+    ic_env_t* env = ic_get_env();
+    if (env == nullptr || env->completions == nullptr) {
+        return false;
+    }
+
+    stringbuf_t* buffer = sbuf_new(env->mem);
+    if (buffer == nullptr) {
+        return false;
+    }
+
+    sbuf_replace(buffer, input);
+    new_pos = completions_apply(env->completions, 0, buffer, cursor);
+    result = sbuf_string(buffer);
+    sbuf_free(buffer);
+    completions_clear(env->completions);
+    return new_pos >= 0;
 }
 
 static bool test_quote_and_unquote_paths(void) {
@@ -602,6 +636,95 @@ static bool test_completion_tracker_delete_before_bounds(void) {
     return true;
 }
 
+static bool test_completion_apply_consumes_quoted_suffix(void) {
+    const char* test_name = "completion_apply_consumes_quoted_suffix";
+    const char* input = "tectonic \"reversi_rl_agent_paper.tex\"";
+    ssize_t cursor = static_cast<ssize_t>(std::strlen("tectonic \"re"));
+    CompletionAction action = {"\"reversi_rl_agent_paper.tex\"", 3, 0, "test"};
+    std::string result;
+    ssize_t new_pos = -1;
+
+    EXPECT_TRUE(apply_single_generated_completion(input, cursor, action, result, new_pos),
+                test_name, "completion should apply successfully");
+    if (!expect_streq(result, input, test_name,
+                      "completion should not duplicate the filename suffix after the cursor")) {
+        return false;
+    }
+    EXPECT_TRUE(new_pos == static_cast<ssize_t>(std::strlen(input)), test_name,
+                "cursor should move past the completed filename");
+    return true;
+}
+
+static bool test_completion_apply_moves_over_existing_suffix(void) {
+    const char* test_name = "completion_apply_moves_over_existing_suffix";
+    const char* input = "cmd foobar";
+    ssize_t cursor = static_cast<ssize_t>(std::strlen("cmd foo"));
+    CompletionAction action = {"foobar", 3, 0, "test"};
+    std::string result;
+    ssize_t new_pos = -1;
+
+    EXPECT_TRUE(apply_single_generated_completion(input, cursor, action, result, new_pos),
+                test_name, "completion should apply successfully");
+    if (!expect_streq(result, input, test_name,
+                      "accepting an existing completion should not change the buffer text")) {
+        return false;
+    }
+    EXPECT_TRUE(new_pos == static_cast<ssize_t>(std::strlen(input)), test_name,
+                "cursor should advance over the suffix that was already present");
+    return true;
+}
+
+static bool test_completion_hint_suppresses_existing_multiline_suffix(void) {
+    const char* test_name = "completion_hint_suppresses_existing_multiline_suffix";
+    std::string first_line = "tectonic \"reversi_rl_agent_paper.tex\"";
+    std::string second_line =
+        "pdftotext \"reversi_rl_agent_paper.pdf\" \"reversi_rl_agent_paper_plain.txt\"";
+    std::string input = first_line + "\n" + second_line;
+
+    g_completion_actions = {
+        {input, static_cast<long>(first_line.length()), 0, "history"},
+    };
+    ssize_t count = run_completion_generation_at(
+        input.c_str(), static_cast<ssize_t>(first_line.length()), &completion_action_completer, 64);
+    g_completion_actions.clear();
+
+    EXPECT_TRUE(count == 1, test_name, "expected one generated completion");
+
+    ic_env_t* env = ic_get_env();
+    EXPECT_TRUE(env != nullptr && env->completions != nullptr, test_name,
+                "completion environment should be available");
+    const char* help = nullptr;
+    const char* hint = completions_get_hint(env->completions, 0, &help);
+    completions_clear(env->completions);
+
+    EXPECT_TRUE(hint == nullptr, test_name,
+                "inline hint should not duplicate multiline text that already follows cursor");
+    return true;
+}
+
+static bool test_completion_apply_consumes_existing_multiline_suffix(void) {
+    const char* test_name = "completion_apply_consumes_existing_multiline_suffix";
+    std::string first_line = "tectonic \"reversi_rl_agent_paper.tex\"";
+    std::string second_line =
+        "pdftotext \"reversi_rl_agent_paper.pdf\" \"reversi_rl_agent_paper_plain.txt\"";
+    std::string input = first_line + "\n" + second_line;
+    CompletionAction action = {input, static_cast<long>(first_line.length()), 0, "history"};
+    std::string result;
+    ssize_t new_pos = -1;
+
+    EXPECT_TRUE(apply_single_generated_completion(input.c_str(),
+                                                  static_cast<ssize_t>(first_line.length()), action,
+                                                  result, new_pos),
+                test_name, "completion should apply successfully");
+    if (!expect_streq(result, input, test_name,
+                      "completion should not duplicate an existing following line")) {
+        return false;
+    }
+    EXPECT_TRUE(new_pos == static_cast<ssize_t>(input.length()), test_name,
+                "cursor should move past the existing multiline suffix");
+    return true;
+}
+
 static bool has_entry(const builtin_completions::CommandDoc* doc, const std::string& text,
                       builtin_completions::EntryKind kind) {
     if (doc == nullptr) {
@@ -751,6 +874,13 @@ static const test_case_t kTests[] = {
     {"completion_tracker_trims_trailing_spaces", test_completion_tracker_trims_trailing_spaces},
     {"completion_tracker_max_results", test_completion_tracker_max_results},
     {"completion_tracker_delete_before_bounds", test_completion_tracker_delete_before_bounds},
+    {"completion_apply_consumes_quoted_suffix", test_completion_apply_consumes_quoted_suffix},
+    {"completion_apply_moves_over_existing_suffix",
+     test_completion_apply_moves_over_existing_suffix},
+    {"completion_hint_suppresses_existing_multiline_suffix",
+     test_completion_hint_suppresses_existing_multiline_suffix},
+    {"completion_apply_consumes_existing_multiline_suffix",
+     test_completion_apply_consumes_existing_multiline_suffix},
     {"builtin_docs", test_builtin_docs},
 };
 

@@ -61,6 +61,8 @@ struct completions_s {
     ssize_t len;
     completion_t* elems;
     alloc_t* mem;
+    char* input;
+    ssize_t input_pos;
 };
 
 static void default_filename_completer(ic_completion_env_t* cenv, const char* prefix);
@@ -139,6 +141,9 @@ ic_private void completions_clear(completions_t* cms) {
         memset(cm, 0, sizeof(*cm));
         cms->count--;
     }
+    mem_free(cms->mem, cms->input);
+    cms->input = NULL;
+    cms->input_pos = 0;
 }
 
 static bool completions_set_entry(completions_t* cms, completion_t* cm, const char* replacement,
@@ -289,11 +294,7 @@ ic_private bool completions_all_sources_equal(completions_t* cms, const char* so
     return true;
 }
 
-ic_private const char* completions_get_hint(completions_t* cms, ssize_t index, const char** help) {
-    if (help != NULL) {
-        *help = NULL;
-    }
-    completion_t* cm = completions_get(cms, index);
+static const char* completion_get_hint_text(completion_t* cm) {
     if (cm == NULL)
         return NULL;
     ssize_t len = ic_strlen(cm->replacement);
@@ -302,6 +303,43 @@ ic_private const char* completions_get_hint(completions_t* cms, ssize_t index, c
     const char* hint = (cm->replacement + cm->delete_before);
     if (*hint == 0 || utf8_is_cont((uint8_t)(*hint)))
         return NULL;  // utf8 boundary?
+    return hint;
+}
+
+static ssize_t completion_matching_hint_after_cursor(const char* hint, const char* input,
+                                                     ssize_t pos) {
+    if (hint == NULL || input == NULL || pos < 0)
+        return 0;
+
+    ssize_t input_len = ic_strlen(input);
+    if (pos > input_len)
+        return 0;
+
+    ssize_t hint_len = ic_strlen(hint);
+    ssize_t after_len = input_len - pos;
+    if (hint_len <= 0 || after_len <= 0)
+        return 0;
+
+    ssize_t max_overlap = hint_len < after_len ? hint_len : after_len;
+    const char* after = input + pos;
+    for (ssize_t overlap = max_overlap; overlap > 0; overlap--) {
+        if (strncmp(hint, after, to_size_t(overlap)) == 0) {
+            return overlap;
+        }
+    }
+    return 0;
+}
+
+ic_private const char* completions_get_hint(completions_t* cms, ssize_t index, const char** help) {
+    if (help != NULL) {
+        *help = NULL;
+    }
+    completion_t* cm = completions_get(cms, index);
+    const char* hint = completion_get_hint_text(cm);
+    if (hint == NULL)
+        return NULL;
+    if (completion_matching_hint_after_cursor(hint, cms->input, cms->input_pos) > 0)
+        return NULL;
     if (help != NULL) {
         *help = cm->help;
     }
@@ -339,13 +377,18 @@ static ssize_t completion_apply(completion_t* cm, stringbuf_t* sbuf, ssize_t pos
     ssize_t start = pos - cm->delete_before;
     if (start < 0)
         start = 0;
-    ssize_t n = cm->delete_before + cm->delete_after;
+    ssize_t delete_after = cm->delete_after;
+    if (delete_after == 0) {
+        delete_after = completion_matching_hint_after_cursor(completion_get_hint_text(cm),
+                                                            sbuf_string(sbuf), pos);
+    }
+    ssize_t n = cm->delete_before + delete_after;
     if (ic_strlen(cm->replacement) == n &&
         strncmp(sbuf_string_at(sbuf, start), cm->replacement, to_size_t(n)) == 0) {
-        // no changes
-        return -1;
+        // Text is already complete; still move over any matching suffix after the cursor.
+        return (delete_after > 0 ? start + n : -1);
     } else {
-        sbuf_delete_from_to(sbuf, start, pos + cm->delete_after);
+        sbuf_delete_from_to(sbuf, start, pos + delete_after);
         return sbuf_insert_at(sbuf, cm->replacement, start);
     }
 }
@@ -588,6 +631,8 @@ ic_private ssize_t completions_generate(struct ic_env_s* env, completions_t* cms
         prefix = "";
     }
     cms->completer_max = max;
+    cms->input = mem_strdup(cms->mem, input);
+    cms->input_pos = pos;
 
     // and complete
     cms->completer(&cenv, prefix);

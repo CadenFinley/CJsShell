@@ -104,7 +104,6 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"echo", [](const std::vector<std::string>& args) { return ::echo_command(args); }},
         {"printf", [](const std::vector<std::string>& args) { return ::printf_command(args); }},
         {"pwd", [](const std::vector<std::string>& args) { return ::pwd_command(args); }},
-        {"true", [](const std::vector<std::string>&) { return ::true_command(); }},
         {"true",
          [](const std::vector<std::string>& args) {
              if (builtin_handle_help(args, {"Usage: true",
