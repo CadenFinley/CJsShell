@@ -2797,7 +2797,7 @@ without printing a literal newline).</p>
 - <code>prompt-cleanup-empty-line</code> - Insert an empty spacer line during cleanup
 - <code>prompt-cleanup-truncate</code> - Collapse multiline prompts when cleanup runs
 - <code>right-prompt-follow-cursor</code> - Keep the inline right prompt aligned with the active cursor row
-- <code>keybind</code> - Inspect or modify key bindings (modifications config file only)
+- <code>keybind</code> - Inspect or modify key bindings (changes apply immediately; add to <code>~/.cjshrc</code> to persist)
 - <code>generate-env</code> - Create or overwrite ~/.cjshenv (use <code>--alt</code> for <code>~/.config/cjsh/.cjshenv</code>)
 - <code>generate-profile</code> - Create or overwrite ~/.cjprofile (use <code>--alt</code> for <code>~/.config/cjsh/.cjprofile</code>)
 - <code>generate-rc</code> - Create or overwrite ~/.cjshrc (use <code>--alt</code> for <code>~/.config/cjsh/.cjshrc</code>)
@@ -2899,7 +2899,7 @@ editing behaviors.</p>
 </tr>
 <tr>
 <td><code>--minimal</code></td>
-<td>Disable prompt themes/colors, completions, syntax highlighting, rc sourcing, title line, history expansion, multiline line numbers, auto-indentation, startup time banner, error suggestions, prompt vars, and special lifecycle handlers</td>
+<td>Disable prompt themes/colors, completions and completion learning, syntax highlighting, smart cd, rc sourcing, title line, history expansion, the status line, multiline line numbers, startup time banner, error suggestions, prompt vars, and special lifecycle handlers</td>
 </tr>
 <tr>
 <td><code>--secure</code></td>
@@ -3170,19 +3170,19 @@ interpreter from a script's file extension when there is no shebang (for example
 </span></code></pre></div>
 <p>Accepts synonyms including <code>enable</code>, <code>disable</code>, <code>true</code>, and <code>false</code>. Place in <code>~/.cjshrc</code> to persist the preference across sessions.</p>
 <h4 id="keybind">keybind</h4>
-<p>Inspect or customize isocline key bindings. Modifying bindings requires running the command from a configuration file (<code>~/.cjshrc</code>); runtime changes are only supported for inspection.</p>
+<p>Inspect or customize isocline key bindings. Changes apply immediately in the current shell, and you can add the same command to <code>~/.cjshrc</code> to persist them for future sessions.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-110-1"><a id="__codelineno-110-1" name="__codelineno-110-1" href="#__codelineno-110-1"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>&lt;subcommand&gt;<span class="w"> </span><span class="o">[</span>...<span class="o">]</span>
 </span></code></pre></div>
 <p>Key subcommands include:</p>
 <ul>
-<li><code>list</code> - Show the active profile plus default vs. custom bindings (runtime safe)</li>
+<li><code>list</code> - Show the active profile plus default vs. custom bindings</li>
 <li><code>set &lt;action&gt; &lt;keys...&gt;</code> - Replace bindings for an action</li>
 <li><code>add &lt;action&gt; &lt;keys...&gt;</code> - Add additional bindings for an action</li>
 <li><code>clear &lt;keys...&gt;</code> - Remove the provided key specifications</li>
 <li><code>clear-action &lt;action&gt;</code> - Remove all custom bindings for an action</li>
 <li><code>reset</code> - Drop every custom binding and restore defaults</li>
-<li><code>profile list</code> - List available key binding profiles (runtime safe)</li>
-<li><code>profile set &lt;name&gt;</code> - Persist the named profile</li>
+<li><code>profile list</code> - List available key binding profiles</li>
+<li><code>profile set &lt;name&gt;</code> - Activate the named profile</li>
 </ul>
 <p>Key specifications accept pipe (<code>|</code>) separated alternatives, so <code>Ctrl+K|Ctrl+X</code> is a single argument covering both sequences. Place commands like <code>cjshopt keybind set cursor-left "Ctrl+H"</code> in <code>~/.cjshrc</code> to keep them between sessions.</p>
 <h4 id="set-history-max">set-history-max</h4>

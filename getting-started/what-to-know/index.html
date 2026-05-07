@@ -1536,7 +1536,7 @@ Smart <code>cd</code> adds fuzzy directory matching for quick navigation between
 <li><code>~/.cjshenv</code> – Sourced for every shell start (before login/interactive setup).</li>
 <li><code>~/.cjprofile</code> – Executed for login shells before interactive setup.</li>
 <li><code>~/.cjshrc</code> – Interactive configuration (aliases, prompt definitions, hooks, etc.).</li>
-<li><code>~/.cjlogout</code> – Optional cleanup script sourced on exit.</li>
+<li><code>~/.cjlogout</code> – Optional cleanup script sourced when a login shell exits.</li>
 </ul>
 <p>Set <code>CJSH_ENV</code> to override the <code>~/.cjshenv</code> search paths. If <code>CJSH_ENV</code> is set but empty, cjsh
 falls back to the default search paths.</p>
