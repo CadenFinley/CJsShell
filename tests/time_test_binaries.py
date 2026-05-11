@@ -203,7 +203,7 @@ def test_command(command_spec: Dict[str, str]) -> None:
 
     for binary_type in CJSH_BINARY_TYPES:
         shell_name = f"./cjsh{binary_type}"
-        shell_path = f"./build/cjsh{binary_type}"
+        shell_path = f"./build/release/cjsh{binary_type}"
         command = get_shell_command(shell_name, command_key)
 
         if command is None:
@@ -283,7 +283,7 @@ def test_command(command_spec: Dict[str, str]) -> None:
 def get_cjsh_version() -> str:
     try:
         result = subprocess.run(
-            "./build/cjsh --version",
+            "./build/release/cjsh --version",
             shell=True,
             capture_output=True,
             text=True,
@@ -331,7 +331,7 @@ def check_binaries_exist() -> bool:
     missing_binaries = []
 
     for binary_type in CJSH_BINARY_TYPES:
-        binary_path = f"./build/cjsh{binary_type}"
+        binary_path = f"./build/release/cjsh{binary_type}"
         if not os.path.isfile(binary_path):
             missing_binaries.append(binary_path)
         elif not os.access(binary_path, os.X_OK):
