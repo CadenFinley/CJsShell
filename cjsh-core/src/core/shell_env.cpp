@@ -58,6 +58,7 @@ extern "C" char** environ;
 #include "parser_utils.h"
 #include "prompt.h"
 #include "shell.h"
+#include "pipeline_status_utils.h"
 #include "version_command.h"
 
 namespace config {
@@ -442,8 +443,7 @@ std::vector<std::pair<std::string, std::string>> setup_user_system_vars(const st
     std::string shlvl_str = std::to_string(shlvl);
     setenv("SHLVL", shlvl_str.c_str(), 1);
 
-    std::string status_str = std::to_string(0);
-    setenv("?", status_str.c_str(), 1);
+    pipeline_status_utils::set_last_status_env(0);
 
     auto version_str = get_version();
     env_vars.emplace_back("CJSH_VERSION", version_str);

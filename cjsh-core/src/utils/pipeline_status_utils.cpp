@@ -51,6 +51,19 @@ std::string build_status_string(const std::vector<int>& statuses) {
 
 namespace pipeline_status_utils {
 
+void set_last_status_env(int status_code) {
+    const std::string status_string = std::to_string(status_code);
+    setenv("?", status_string.c_str(), 1);
+}
+
+void apply_execution_status_env(
+    int status_code, Exec* exec_ptr,
+    const std::function<void(const std::string&)>& on_pipe_set_callback,
+    const std::function<void()>& on_pipe_unset_callback) {
+    set_last_status_env(status_code);
+    apply_pipeline_status_env(exec_ptr, on_pipe_set_callback, on_pipe_unset_callback);
+}
+
 void apply_pipeline_status_env(Exec* exec_ptr,
                                const std::function<void(const std::string&)>& on_set_callback,
                                const std::function<void()>& on_unset_callback) {

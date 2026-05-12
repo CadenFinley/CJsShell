@@ -100,79 +100,8 @@ bool Command::has_fd_duplication(int fd) const {
 }
 
 namespace {
-enum class ControlWord : std::uint8_t {
-    If,
-    For,
-    While,
-    Until,
-    Case,
-    Fi,
-    Done,
-    Esac
-};
-
-std::optional<ControlWord> parse_control_word(std::string_view word) {
-    if (word == "if") {
-        return ControlWord::If;
-    }
-    if (word == "for") {
-        return ControlWord::For;
-    }
-    if (word == "while") {
-        return ControlWord::While;
-    }
-    if (word == "until") {
-        return ControlWord::Until;
-    }
-    if (word == "case") {
-        return ControlWord::Case;
-    }
-    if (word == "fi") {
-        return ControlWord::Fi;
-    }
-    if (word == "done") {
-        return ControlWord::Done;
-    }
-    if (word == "esac") {
-        return ControlWord::Esac;
-    }
-    return std::nullopt;
-}
-
-bool is_opening_control_word(ControlWord word) {
-    switch (word) {
-        case ControlWord::If:
-        case ControlWord::For:
-        case ControlWord::While:
-        case ControlWord::Until:
-        case ControlWord::Case:
-            return true;
-        case ControlWord::Fi:
-        case ControlWord::Done:
-        case ControlWord::Esac:
-            return false;
-    }
-    return false;
-}
-
-bool is_closing_control_word(ControlWord word) {
-    switch (word) {
-        case ControlWord::Fi:
-        case ControlWord::Done:
-        case ControlWord::Esac:
-            return true;
-        case ControlWord::If:
-        case ControlWord::For:
-        case ControlWord::While:
-        case ControlWord::Until:
-        case ControlWord::Case:
-            return false;
-    }
-    return false;
-}
-
 bool is_ampersand_inside_arithmetic_or_brackets(const std::string& text, size_t amp_index,
-                                                bool respect_quote_escapes) {
+                                                 bool respect_quote_escapes) {
     bool in_quotes = false;
     char quote_char = '\0';
     int arith_depth = 0;
@@ -435,17 +364,17 @@ bool Parser::is_control_word_at_position(const std::string& command, size_t i, i
         j++;
     }
 
-    auto control_word = parse_control_word(word);
+    auto control_word = parse_parser_control_token(word);
     if (!control_word.has_value()) {
         return false;
     }
 
-    if (is_opening_control_word(*control_word)) {
+    if (parser_control_token_is_opening(*control_word)) {
         control_depth++;
         return true;
     }
 
-    if (is_closing_control_word(*control_word) && control_depth > 0) {
+    if (parser_control_token_is_closing(*control_word) && control_depth > 0) {
         control_depth--;
         return true;
     }

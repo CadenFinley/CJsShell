@@ -409,7 +409,7 @@ int report_error_with_code(ErrorType type, ErrorSeverity severity, const std::st
                            const std::string& message, const std::vector<std::string>& suggestions,
                            int code) {
     print_error({type, severity, command, message, suggestions});
-    setenv("?", std::to_string(code).c_str(), 1);
+    pipeline_status_utils::set_last_status_env(code);
     return code;
 }
 
@@ -1926,12 +1926,9 @@ long long ShellScriptInterpreter::evaluate_arithmetic_expression(const std::stri
 }
 
 int ShellScriptInterpreter::set_last_status(int code) {
-    std::string value = std::to_string(code);
-    setenv("?", value.c_str(), 1);
-
     Exec* exec_ptr = (g_shell && g_shell->shell_exec) ? g_shell->shell_exec.get() : nullptr;
-    pipeline_status_utils::apply_pipeline_status_env(
-        exec_ptr,
+    pipeline_status_utils::apply_execution_status_env(
+        code, exec_ptr,
         [this](const std::string& value) {
             variable_manager.set_environment_variable("PIPESTATUS", value);
         },

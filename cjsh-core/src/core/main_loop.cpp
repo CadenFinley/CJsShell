@@ -112,7 +112,7 @@ bool process_command_line(const std::string& command) {
                          "history-expansion",
                          expansion_result.error_message,
                          {"Review your history expansion syntax or disable '!' expansions."}});
-            setenv("?", "1", 1);
+            pipeline_status_utils::set_last_status_env(1);
             return cjsh_env::exit_requested();
         }
 
@@ -140,8 +140,7 @@ bool process_command_line(const std::string& command) {
 
     // handle post command execution tasks
     Exec* exec_ptr = (g_shell && g_shell->shell_exec) ? g_shell->shell_exec.get() : nullptr;
-    pipeline_status_utils::apply_pipeline_status_env(exec_ptr);
-    std::string status_str = std::to_string(exit_code);
+    pipeline_status_utils::apply_execution_status_env(exit_code, exec_ptr);
 
     // add to history
     if (config::history_enabled) {
@@ -161,8 +160,6 @@ bool process_command_line(const std::string& command) {
         };
         ic_history_add_with_metadata(command.c_str(), metadata, 3);
     }
-    setenv("?", status_str.c_str(), 1);
-
     // perform memory cleanup
 #if defined(__APPLE__) && MAC_OS_X_VERSION_MAX_ALLOWED >= 1070
     (void)malloc_zone_pressure_relief(nullptr, 0);

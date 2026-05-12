@@ -28,9 +28,34 @@
 
 #pragma once
 
+#include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
+
+enum class ParserControlToken : std::uint8_t {
+    If,
+    Then,
+    Elif,
+    Else,
+    Fi,
+    While,
+    Until,
+    For,
+    Do,
+    Done,
+    Case,
+    In,
+    Esac,
+    Function,
+    BraceOpen,
+    BraceClose,
+};
+
+std::optional<ParserControlToken> parse_parser_control_token(std::string_view token);
+bool parser_control_token_is_opening(ParserControlToken token);
+bool parser_control_token_is_closing(ParserControlToken token);
 
 const std::string& subst_literal_start();
 const std::string& subst_literal_end();

@@ -78,6 +78,109 @@ const std::string& substitution_placeholder() {
     return kValue;
 }
 
+std::optional<ParserControlToken> parse_parser_control_token(std::string_view token) {
+    if (token == "if") {
+        return ParserControlToken::If;
+    }
+    if (token == "then") {
+        return ParserControlToken::Then;
+    }
+    if (token == "elif") {
+        return ParserControlToken::Elif;
+    }
+    if (token == "else") {
+        return ParserControlToken::Else;
+    }
+    if (token == "fi") {
+        return ParserControlToken::Fi;
+    }
+    if (token == "while") {
+        return ParserControlToken::While;
+    }
+    if (token == "until") {
+        return ParserControlToken::Until;
+    }
+    if (token == "for") {
+        return ParserControlToken::For;
+    }
+    if (token == "do") {
+        return ParserControlToken::Do;
+    }
+    if (token == "done") {
+        return ParserControlToken::Done;
+    }
+    if (token == "case") {
+        return ParserControlToken::Case;
+    }
+    if (token == "in") {
+        return ParserControlToken::In;
+    }
+    if (token == "esac") {
+        return ParserControlToken::Esac;
+    }
+    if (token == "function") {
+        return ParserControlToken::Function;
+    }
+    if (token == "{") {
+        return ParserControlToken::BraceOpen;
+    }
+    if (token == "}") {
+        return ParserControlToken::BraceClose;
+    }
+
+    return std::nullopt;
+}
+
+bool parser_control_token_is_opening(ParserControlToken token) {
+    switch (token) {
+        case ParserControlToken::If:
+        case ParserControlToken::For:
+        case ParserControlToken::While:
+        case ParserControlToken::Until:
+        case ParserControlToken::Case:
+            return true;
+        case ParserControlToken::Then:
+        case ParserControlToken::Elif:
+        case ParserControlToken::Else:
+        case ParserControlToken::Fi:
+        case ParserControlToken::Do:
+        case ParserControlToken::Done:
+        case ParserControlToken::In:
+        case ParserControlToken::Esac:
+        case ParserControlToken::Function:
+        case ParserControlToken::BraceOpen:
+        case ParserControlToken::BraceClose:
+            return false;
+    }
+
+    return false;
+}
+
+bool parser_control_token_is_closing(ParserControlToken token) {
+    switch (token) {
+        case ParserControlToken::Fi:
+        case ParserControlToken::Done:
+        case ParserControlToken::Esac:
+            return true;
+        case ParserControlToken::If:
+        case ParserControlToken::Then:
+        case ParserControlToken::Elif:
+        case ParserControlToken::Else:
+        case ParserControlToken::While:
+        case ParserControlToken::Until:
+        case ParserControlToken::For:
+        case ParserControlToken::Do:
+        case ParserControlToken::Case:
+        case ParserControlToken::In:
+        case ParserControlToken::Function:
+        case ParserControlToken::BraceOpen:
+        case ParserControlToken::BraceClose:
+            return false;
+    }
+
+    return false;
+}
+
 bool is_hex_digit(char c) {
     return std::isxdigit(static_cast<unsigned char>(c)) != 0;
 }
