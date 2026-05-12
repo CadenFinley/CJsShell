@@ -93,6 +93,47 @@ static void emit_readline_step_done(void) {
     (void)fflush(stdout);
 }
 
+static int run_readline_status_case(const char* scenario) {
+    if (scenario == NULL) {
+        return 2;
+    }
+
+    ic_enable_multiline(false);
+    ic_enable_hint(false);
+    ic_enable_inline_help(false);
+    ic_enable_completion_preview(false);
+    ic_enable_auto_tab(false);
+    ic_enable_prompt_cleanup(false, 0);
+    if (!ic_set_key_binding_profile("emacs")) {
+        return 5;
+    }
+
+    if (strcmp(scenario, "stop_event") == 0) {
+        if (!ic_push_key_event(IC_KEY_EVENT_STOP)) {
+            emit_result("ERR:queue-stop-event");
+            return 0;
+        }
+    } else if (strcmp(scenario, "text") != 0 && strcmp(scenario, "ctrl_c") != 0 &&
+               strcmp(scenario, "ctrl_d") != 0) {
+        return 2;
+    }
+
+    ic_readline_result_t result = ic_readline_with_status("pty", NULL, NULL);
+
+    const char* line = (result.input == NULL ? "" : result.input);
+    char payload[512];
+    (void)snprintf(payload, sizeof(payload), "%s|%s|tty=%d|lost=%d",
+                   ic_readline_disposition_name(result.disposition), line,
+                   (result.tty_active ? 1 : 0), (result.tty_lost ? 1 : 0));
+    emit_result(payload);
+
+    if (result.input != NULL) {
+        ic_free(result.input);
+    }
+
+    return 0;
+}
+
 static int run_history_probe_case(const char* scenario) {
 #if defined(_WIN32)
     const char* history_path = "cjsh_isocline_pty_history.tmp";
@@ -172,6 +213,10 @@ static void* delayed_raw_feed_thread(void* arg) {
 static int run_case(const char* scenario) {
     if (scenario == NULL) {
         return 2;
+    }
+
+    if (strncmp(scenario, "status_", 7) == 0) {
+        return run_readline_status_case(scenario + 7);
     }
 
     const bool use_vim_profile = (strncmp(scenario, "vim_", 4) == 0);

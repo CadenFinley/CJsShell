@@ -2807,6 +2807,8 @@ static void edit_release_editor(ic_env_t* env, editor_t* eb) {
 }
 
 static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inline_right_text) {
+    env->last_readline_disposition = IC_READLINE_DISPOSITION_ERROR;
+
     // set up an edit buffer
     editor_t eb;
     memset(&eb, 0, sizeof(eb));
@@ -2955,6 +2957,7 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
     code_t pending_key = KEY_NONE;
     bool ctrl_c_pressed = false;
     bool ctrl_d_pressed = false;
+    bool stop_event_received = false;
 
 edit_loop_entry:
     if (!initial_requests_submit) {
@@ -3099,6 +3102,9 @@ edit_loop_entry:
             } else if (c == KEY_CTRL_C || c == KEY_EVENT_STOP) {
                 // Clear history preview when cancelling
                 edit_clear_history_preview(&eb);
+                if (c == KEY_EVENT_STOP) {
+                    stop_event_received = true;
+                }
                 ctrl_c_pressed = true;
                 break;  // ctrl+C or STOP event quits with CTRL+C token
             } else if (c == KEY_ESC) {
@@ -3351,6 +3357,19 @@ edit_loop_entry:
         res = sbuf_strdup_from_utf8(eb.input);
     } else {
         res = sbuf_strdup(eb.input);
+    }
+
+    if (ctrl_d_pressed || (c == KEY_CTRL_D && sbuf_len(eb.input) == 0)) {
+        env->last_readline_disposition = IC_READLINE_DISPOSITION_EOF;
+    } else if (ctrl_c_pressed || c == KEY_CTRL_C) {
+        env->last_readline_disposition =
+            (stop_event_received ? IC_READLINE_DISPOSITION_STOP : IC_READLINE_DISPOSITION_INTERRUPT);
+    } else if (c == KEY_EVENT_STOP) {
+        env->last_readline_disposition = IC_READLINE_DISPOSITION_STOP;
+    } else if (res == NULL) {
+        env->last_readline_disposition = IC_READLINE_DISPOSITION_ERROR;
+    } else {
+        env->last_readline_disposition = IC_READLINE_DISPOSITION_SUBMIT;
     }
 
     if (env->prompt_cleanup && res != NULL && c == KEY_ENTER) {

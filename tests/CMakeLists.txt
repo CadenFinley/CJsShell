@@ -72,4 +72,10 @@ if(Python3_Interpreter_FOUND)
         COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/build_system/test_build_system.py"
                 "${CMAKE_SOURCE_DIR}"
     )
+
+    add_test(
+        NAME interactive_shutdown_hangup_tests
+        COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/core/test_interactive_shutdown.py"
+                $<TARGET_FILE:cjsh>
+    )
 endif()

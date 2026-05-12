@@ -207,6 +207,22 @@ def assert_last_prompt_suffix(
         )
 
 
+def parse_readline_status_payload(payload: str) -> tuple[str, str, bool, bool]:
+    parts = payload.split("|")
+    if len(parts) != 4:
+        raise AssertionError(f"invalid status payload format: {payload!r}")
+
+    disposition, line, tty_part, lost_part = parts
+    if not tty_part.startswith("tty="):
+        raise AssertionError(f"invalid tty marker in payload: {payload!r}")
+    if not lost_part.startswith("lost="):
+        raise AssertionError(f"invalid lost marker in payload: {payload!r}")
+
+    tty_active = tty_part.split("=", 1)[1] == "1"
+    tty_lost = lost_part.split("=", 1)[1] == "1"
+    return disposition, line, tty_active, tty_lost
+
+
 def run_case(
     binary: str,
     scenario: str,
@@ -909,6 +925,58 @@ def main() -> int:
     ctrl_d = run_case(binary, "ctrl_d_empty", b"\x04")
     if ctrl_d != "<CTRL+D>":
         raise AssertionError(f"ctrl_d_empty expected '<CTRL+D>', got {ctrl_d!r}")
+
+    status_submit = run_case(binary, "status_text", b"ok\r")
+    disposition, line, tty_active, tty_lost = parse_readline_status_payload(status_submit)
+    if disposition != "submit" or line != "ok":
+        raise AssertionError(
+            "status_text expected submit with line 'ok', "
+            f"got disposition={disposition!r}, line={line!r}"
+        )
+    if not tty_active or tty_lost:
+        raise AssertionError(
+            f"status_text expected tty_active=1/lost=0, got tty_active={tty_active}, "
+            f"tty_lost={tty_lost}"
+        )
+
+    status_interrupt = run_case(binary, "status_ctrl_c", b"\x03")
+    disposition, line, tty_active, tty_lost = parse_readline_status_payload(status_interrupt)
+    if disposition != "interrupt" or line != "<CTRL+C>":
+        raise AssertionError(
+            "status_ctrl_c expected interrupt with <CTRL+C>, "
+            f"got disposition={disposition!r}, line={line!r}"
+        )
+    if not tty_active or tty_lost:
+        raise AssertionError(
+            f"status_ctrl_c expected tty_active=1/lost=0, got tty_active={tty_active}, "
+            f"tty_lost={tty_lost}"
+        )
+
+    status_eof = run_case(binary, "status_ctrl_d", b"\x04")
+    disposition, line, tty_active, tty_lost = parse_readline_status_payload(status_eof)
+    if disposition != "eof" or line != "<CTRL+D>":
+        raise AssertionError(
+            "status_ctrl_d expected eof with <CTRL+D>, "
+            f"got disposition={disposition!r}, line={line!r}"
+        )
+    if not tty_active or tty_lost:
+        raise AssertionError(
+            f"status_ctrl_d expected tty_active=1/lost=0, got tty_active={tty_active}, "
+            f"tty_lost={tty_lost}"
+        )
+
+    status_stop = run_case(binary, "status_stop_event", b"")
+    disposition, line, tty_active, tty_lost = parse_readline_status_payload(status_stop)
+    if disposition != "stop" or line != "<CTRL+C>":
+        raise AssertionError(
+            "status_stop_event expected stop with compatibility token <CTRL+C>, "
+            f"got disposition={disposition!r}, line={line!r}"
+        )
+    if not tty_active or tty_lost:
+        raise AssertionError(
+            "status_stop_event expected tty_active=1/lost=0 for synthetic stop event, "
+            f"got tty_active={tty_active}, tty_lost={tty_lost}"
+        )
 
     ctrl_o_submit = run_case(binary, "insert_backspace", b"abc\x0f")
     if ctrl_o_submit != "abc":

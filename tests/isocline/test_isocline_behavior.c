@@ -121,6 +121,22 @@ static const char* stub_status_message(const char* input_buffer, void* arg) {
     return (arg != NULL ? "status" : NULL);
 }
 
+static bool test_readline_disposition_name_mappings(void) {
+    EXPECT_STREQ(ic_readline_disposition_name(IC_READLINE_DISPOSITION_SUBMIT), "submit",
+                 "submit disposition name mismatch");
+    EXPECT_STREQ(ic_readline_disposition_name(IC_READLINE_DISPOSITION_INTERRUPT), "interrupt",
+                 "interrupt disposition name mismatch");
+    EXPECT_STREQ(ic_readline_disposition_name(IC_READLINE_DISPOSITION_EOF), "eof",
+                 "eof disposition name mismatch");
+    EXPECT_STREQ(ic_readline_disposition_name(IC_READLINE_DISPOSITION_STOP), "stop",
+                 "stop disposition name mismatch");
+    EXPECT_STREQ(ic_readline_disposition_name(IC_READLINE_DISPOSITION_ERROR), "error",
+                 "error disposition name mismatch");
+    EXPECT_STREQ(ic_readline_disposition_name((ic_readline_disposition_t)999), "error",
+                 "unknown disposition should map to error");
+    return true;
+}
+
 static bool test_multiline_toggle(void) {
     ic_env_t* env = ensure_env();
     if (env == NULL)
@@ -2865,6 +2881,7 @@ typedef struct test_case_s {
 } test_case_t;
 
 static const test_case_t kTests[] = {
+    {"readline_disposition_name_mappings", test_readline_disposition_name_mappings},
     {"multiline_toggle", test_multiline_toggle},
     {"line_number_modes", test_line_number_modes},
     {"line_number_continuation_prompt_toggle", test_line_number_continuation_prompt_toggle},

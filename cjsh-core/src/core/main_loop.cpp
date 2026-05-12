@@ -28,9 +28,8 @@
 
 #include "main_loop.h"
 
-#include <fcntl.h>
+#include <signal.h>
 #include <sys/types.h>
-#include <termios.h>
 #include <unistd.h>
 #include <algorithm>
 #include <cctype>
@@ -52,9 +51,6 @@
 #else
 #include <malloc.h>
 #endif
-
-#include <sys/select.h>
-#include <sys/time.h>
 
 #include "cjsh_completions.h"
 #include "cjsh_filesystem.h"
@@ -85,91 +81,15 @@ std::chrono::steady_clock::time_point& startup_begin_time() {
 
 namespace {
 
-struct CommandInfo {
-    std::string command;
-    std::string history_entry;
-    bool available = false;
-};
-
-struct TerminalStatus {
-    bool terminal_alive;
-    bool parent_alive;
-};
-
-enum class TerminalCheckLevel : std::uint8_t {
-    QUICK,
-    RESPONSIVE,
-    COMPREHENSIVE
-};
-
 bool last_prompt_started_with_newline = false;
 
-TerminalStatus check_terminal_health(TerminalCheckLevel level = TerminalCheckLevel::COMPREHENSIVE) {
-    TerminalStatus status{true, true};
-
+bool parent_process_alive() {
     if (!config::interactive_mode) {
-        return status;
+        return true;
     }
 
-    pid_t parent_pid = getppid();
-    if (parent_pid == 1 || (kill(parent_pid, 0) == -1 && errno == ESRCH)) {
-        status.parent_alive = false;
-    }
-
-    if ((isatty(STDIN_FILENO) == 0) || (isatty(STDOUT_FILENO) == 0)) {
-        status.terminal_alive = false;
-        return status;
-    }
-
-    if (level == TerminalCheckLevel::QUICK) {
-        return status;
-    }
-
-    fd_set readfds;
-    struct timeval timeout{};
-    FD_ZERO(&readfds);
-    FD_SET(STDIN_FILENO, &readfds);
-    timeout.tv_sec = 0;
-    timeout.tv_usec = 0;
-
-    int result = select(STDIN_FILENO + 1, &readfds, nullptr, nullptr, &timeout);
-    if (result > 0 && FD_ISSET(STDIN_FILENO, &readfds)) {
-        char test_buf = 0;
-        ssize_t bytes = read(STDIN_FILENO, &test_buf, 0);
-        if (bytes == 0) {
-            status.terminal_alive = false;
-            return status;
-        }
-        if (bytes < 0 && (errno == ECONNRESET || errno == EIO || errno == ENXIO)) {
-            status.terminal_alive = false;
-            return status;
-        }
-    }
-
-    if (level == TerminalCheckLevel::RESPONSIVE) {
-        return status;
-    }
-
-    if (isatty(STDERR_FILENO) == 0) {
-        status.terminal_alive = false;
-        return status;
-    }
-
-    pid_t tpgrp = tcgetpgrp(STDIN_FILENO);
-    if (tpgrp == -1) {
-        if (errno == ENOTTY || errno == ENXIO || errno == EIO) {
-            status.terminal_alive = false;
-            return status;
-        }
-    }
-
-    char* tty_name = ttyname(STDIN_FILENO);
-    if (tty_name == nullptr) {
-        status.terminal_alive = false;
-        return status;
-    }
-
-    return status;
+    const pid_t parent_pid = getppid();
+    return !(parent_pid == 1 || (kill(parent_pid, 0) == -1 && errno == ESRCH));
 }
 
 bool process_command_line(const std::string& command) {
@@ -261,15 +181,6 @@ bool process_command_line(const std::string& command) {
     return cjsh_env::exit_requested();
 }
 
-bool perform_terminal_check() {
-    TerminalStatus status = check_terminal_health(TerminalCheckLevel::QUICK);
-    if (!status.terminal_alive || !status.parent_alive) {
-        cjsh_env::request_exit();
-        return false;
-    }
-    return true;
-}
-
 void update_job_management() {
     JobManager::instance().update_job_statuses();
     JobManager::instance().cleanup_finished_jobs();
@@ -284,14 +195,6 @@ std::string generate_prompt(bool command_was_available) {
         (prompt_cleanup_enabled && prompt_cleanup_newline && command_was_available) ? 1 : 0;
     ic_enable_prompt_cleanup(prompt_cleanup_enabled, extra_cleanup_lines);
     return prompt::render_primary_prompt();
-}
-
-void handle_null_input() {
-    TerminalStatus status = check_terminal_health(TerminalCheckLevel::COMPREHENSIVE);
-
-    if (!status.terminal_alive || !status.parent_alive) {
-        cjsh_env::request_exit();
-    }
 }
 
 std::optional<std::string> get_next_command(bool command_was_available) {
@@ -323,6 +226,7 @@ std::optional<std::string> get_next_command(bool command_was_available) {
 
     // handle typeahead input from the buffer
     thread_local static std::string sanitized_buffer;
+    thread_local static size_t consecutive_readline_errors = 0;
     sanitized_buffer.clear();
     typeahead::flush_pending_typeahead();
     const std::string& pending_buffer = typeahead::get_input_buffer();
@@ -335,32 +239,52 @@ std::optional<std::string> get_next_command(bool command_was_available) {
     const char* initial_input = sanitized_buffer.empty() ? nullptr : sanitized_buffer.c_str();
     const char* inline_right_ptr = inline_right_text.empty() ? nullptr : inline_right_text.c_str();
     prompt::set_prompt_refresh_allowed(true);
-    char* input = ic_readline(prompt_text.c_str(), inline_right_ptr, initial_input);
+    ic_readline_result_t readline_result =
+        ic_readline_with_status(prompt_text.c_str(), inline_right_ptr, initial_input);
     prompt::set_prompt_refresh_allowed(false);
     typeahead::clear_input_buffer();
     sanitized_buffer.clear();
 
-    // handle empty buffer and exit early
-    if (input == nullptr) {
-        // we have to check if terminal is still alive on null input as this could mean eof or
-        // terminal closed
-        handle_null_input();
+    char* input = readline_result.input;
+
+    if (readline_result.disposition == IC_READLINE_DISPOSITION_STOP ||
+        (readline_result.disposition == IC_READLINE_DISPOSITION_ERROR && readline_result.tty_lost)) {
+        consecutive_readline_errors = 0;
+        if (input != nullptr) {
+            ic_free(input);
+        }
+        cjsh_env::request_exit();
         return std::nullopt;
     }
+
+    // handle empty buffer and exit early
+    if (input == nullptr) {
+        if (readline_result.disposition == IC_READLINE_DISPOSITION_ERROR) {
+            consecutive_readline_errors += 1;
+        } else {
+            consecutive_readline_errors = 0;
+        }
+
+        if (consecutive_readline_errors >= 2) {
+            cjsh_env::request_exit();
+        }
+
+        return std::nullopt;
+    }
+
+    consecutive_readline_errors = 0;
 
     // there was actual input, assign it to command to run
     command_to_run.assign(input);
     ic_free(input);
     input = nullptr;
 
-    // check for control D as that is kill shell
-    if (command_to_run == IC_READLINE_TOKEN_CTRL_D) {
+    if (readline_result.disposition == IC_READLINE_DISPOSITION_EOF) {
         cjsh_env::request_exit();
         return std::nullopt;
     }
 
-    // check for control C as that is cancel input
-    if (command_to_run == IC_READLINE_TOKEN_CTRL_C) {
+    if (readline_result.disposition == IC_READLINE_DISPOSITION_INTERRUPT) {
         return std::nullopt;
     }
 
@@ -505,8 +429,9 @@ void main_process_loop() {
             break;
         }
 
-        // check if tty is still healthy and parent process is alive
-        if (!perform_terminal_check()) {
+        // if our parent is gone, exit cleanly
+        if (!parent_process_alive()) {
+            cjsh_env::request_exit();
             break;
         }
 

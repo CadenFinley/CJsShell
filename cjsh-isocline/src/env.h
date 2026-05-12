@@ -81,6 +81,7 @@ struct ic_env_s {
     const char* match_braces;                // matching braces, e.g "()[]{}"
     const char* auto_braces;                 // auto insertion braces, e.g "()[]{}\"\"''"
     const char* initial_input;               // initial input text to insert into editor
+    ic_readline_disposition_t last_readline_disposition;  // disposition from most recent read
     char multiline_eol;                      // character used for multiline input ("\") (set to 0
                                              // to disable)
     bool initialized;                        // are we initialized?

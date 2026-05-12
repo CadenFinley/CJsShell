@@ -120,6 +120,7 @@ static ic_env_t* ic_env_create(ic_malloc_fun_t* _malloc, ic_realloc_fun_t* _real
     env->no_multiline_indent = false;     // multiline indent (inverted: false = enabled)
     env->singleline_only = false;         // multiline (inverted: false = enabled)
     env->multiline_start_line_count = 1;  // preallocated prompt lines when multiline is on
+    env->last_readline_disposition = IC_READLINE_DISPOSITION_ERROR;
     env->status_hint_mode = IC_STATUS_HINT_NORMAL;    // default to legacy behavior
     env->inline_right_prompt_follows_cursor = false;  // keep right prompt anchored at row 0
     env->bracketed_paste_enabled = false;

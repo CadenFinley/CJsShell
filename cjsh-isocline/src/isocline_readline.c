@@ -94,25 +94,49 @@ static char* ic_getline(alloc_t* mem) {
     return sbuf_free_dup(sb);
 }
 
-//-------------------------------------------------------------
-// Public API
-//-------------------------------------------------------------
+static ic_readline_disposition_t classify_disposition_with_fallback(const char* input) {
+    if (input == NULL) {
+        return IC_READLINE_DISPOSITION_ERROR;
+    }
+    if (strcmp(input, IC_READLINE_TOKEN_CTRL_D) == 0) {
+        return IC_READLINE_DISPOSITION_EOF;
+    }
+    if (strcmp(input, IC_READLINE_TOKEN_CTRL_C) == 0) {
+        return IC_READLINE_DISPOSITION_INTERRUPT;
+    }
+    return IC_READLINE_DISPOSITION_SUBMIT;
+}
 
-ic_public char* ic_readline(const char* prompt_text, const char* inline_right_text,
-                            const char* initial_input) {
+static ic_readline_result_t ic_readline_with_status_impl(const char* prompt_text,
+                                                         const char* inline_right_text,
+                                                         const char* initial_input) {
+    ic_readline_result_t result = {
+        .input = NULL,
+        .disposition = IC_READLINE_DISPOSITION_ERROR,
+        .tty_active = false,
+        .tty_lost = false,
+    };
+
     ic_env_t* env = ic_get_env();
     if (env == NULL) {
-        return NULL;
+        return result;
     }
+
+    env->last_readline_disposition = IC_READLINE_DISPOSITION_ERROR;
+    result.tty_active = (env->tty != NULL);
+    result.tty_lost = (env->tty != NULL && tty_lost_terminal(env->tty));
 
     if (!env->noedit) {
         if (initial_input != NULL) {
             ic_env_set_initial_input(env, initial_input);
         }
 
-        char* result = ic_editline(env, prompt_text, inline_right_text);
+        result.input = ic_editline(env, prompt_text, inline_right_text);
 
         ic_env_clear_initial_input(env);
+
+        result.disposition = env->last_readline_disposition;
+        result.tty_lost = (env->tty != NULL && tty_lost_terminal(env->tty));
         return result;
     }
 
@@ -125,7 +149,44 @@ ic_public char* ic_readline(const char* prompt_text, const char* inline_right_te
         term_end_raw(env->term, false);
     }
 
-    return ic_getline(env->mem);
+    result.input = ic_getline(env->mem);
+    result.disposition = classify_disposition_with_fallback(result.input);
+    env->last_readline_disposition = result.disposition;
+    result.tty_lost = (env->tty != NULL && tty_lost_terminal(env->tty));
+    return result;
+}
+
+//-------------------------------------------------------------
+// Public API
+//-------------------------------------------------------------
+
+ic_public const char* ic_readline_disposition_name(ic_readline_disposition_t disposition) {
+    switch (disposition) {
+        case IC_READLINE_DISPOSITION_SUBMIT:
+            return "submit";
+        case IC_READLINE_DISPOSITION_INTERRUPT:
+            return "interrupt";
+        case IC_READLINE_DISPOSITION_EOF:
+            return "eof";
+        case IC_READLINE_DISPOSITION_STOP:
+            return "stop";
+        case IC_READLINE_DISPOSITION_ERROR:
+        default:
+            return "error";
+    }
+}
+
+ic_public ic_readline_result_t ic_readline_with_status(const char* prompt_text,
+                                                       const char* inline_right_text,
+                                                       const char* initial_input) {
+    return ic_readline_with_status_impl(prompt_text, inline_right_text, initial_input);
+}
+
+ic_public char* ic_readline(const char* prompt_text, const char* inline_right_text,
+                            const char* initial_input) {
+    ic_readline_result_t result =
+        ic_readline_with_status_impl(prompt_text, inline_right_text, initial_input);
+    return result.input;
 }
 
 ic_public bool ic_async_stop(void) {

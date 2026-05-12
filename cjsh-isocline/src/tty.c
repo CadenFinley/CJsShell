@@ -561,6 +561,13 @@ ic_private bool tty_input_pending(const tty_t* tty) {
     return false;
 }
 
+ic_private bool tty_lost_terminal(const tty_t* tty) {
+    if (tty == NULL) {
+        return false;
+    }
+    return tty->lost_terminal;
+}
+
 ic_private bool tty_term_resize_event(tty_t* tty) {
     if (tty == NULL)
         return true;
@@ -593,6 +600,7 @@ static bool tty_read_from_fd(tty_t* tty, uint8_t* c) {
             return true;
         }
         if (nread == 0) {
+            tty->lost_terminal = true;
             return false;
         }
         if (nread < 0) {
@@ -665,6 +673,7 @@ static bool tty_readc_blocking(tty_t* tty, uint8_t* c) {
     while (true) {
         tty_event_t event = tty_wait_for_tty_event(tty);
         if (event == TTY_EVENT_ERROR) {
+            tty->lost_terminal = true;
             return false;
         }
         if (event == TTY_EVENT_WAKE) {
