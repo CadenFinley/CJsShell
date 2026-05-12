@@ -163,11 +163,27 @@ struct CommandExecutionPlan {
     std::string cached_exec_path;
 };
 
+int execute_builtin_or_special_command(const std::vector<std::string>& cmd_args) {
+    Built_ins* built_ins = g_shell ? g_shell->get_built_ins() : nullptr;
+    if (built_ins != nullptr) {
+        return built_ins->builtin_or_runtime_command(cmd_args);
+    }
+
+    return 1;
+}
+
+bool is_builtin_or_special_command(const std::vector<std::string>& cmd_args) {
+    if (cmd_args.empty() || !g_shell) {
+        return false;
+    }
+
+    Built_ins* built_ins = g_shell->get_built_ins();
+    return built_ins != nullptr && (built_ins->is_builtin_or_runtime_command(cmd_args[0]) != 0);
+}
+
 CommandExecutionPlan resolve_command_exec_plan(const std::vector<std::string>& cmd_args) {
     CommandExecutionPlan plan;
-    if (!cmd_args.empty() && g_shell && (g_shell->get_built_ins() != nullptr)) {
-        plan.is_builtin = g_shell->get_built_ins()->is_builtin_command(cmd_args[0]) != 0;
-    }
+    plan.is_builtin = is_builtin_or_special_command(cmd_args);
 
     if (!cmd_args.empty() && !plan.is_builtin) {
         plan.cached_exec_path = cjsh_filesystem::resolve_executable_for_execution(cmd_args[0]);
@@ -179,8 +195,8 @@ CommandExecutionPlan resolve_command_exec_plan(const std::vector<std::string>& c
 [[noreturn]] void exec_builtin_or_external_child(const std::vector<std::string>& cmd_args,
                                                  bool is_builtin,
                                                  const std::string& cached_exec_path) {
-    if (is_builtin && g_shell && (g_shell->get_built_ins() != nullptr)) {
-        int exit_code = g_shell->get_built_ins()->builtin_command(cmd_args);
+    if (is_builtin) {
+        int exit_code = execute_builtin_or_special_command(cmd_args);
         (void)fflush(stdout);
         (void)fflush(stderr);
         _exit(exit_code);
@@ -1090,8 +1106,7 @@ bool Exec::can_execute_in_process(const Command& cmd) const {
     if (cmd.args.empty())
         return false;
 
-    if (g_shell && (g_shell->get_built_ins() != nullptr) &&
-        (g_shell->get_built_ins()->is_builtin_command(cmd.args[0]) != 0)) {
+    if (is_builtin_or_special_command(cmd.args)) {
         return !requires_fork(cmd);
     }
 
@@ -1109,7 +1124,7 @@ int Exec::execute_builtin_with_redirections(Command cmd) {
     bool persist_fd_changes = (!cmd.args.empty() && cmd.args[0] == "exec" && cmd.args.size() == 1);
     std::string command_name = cmd.args.empty() ? "builtin" : cmd.args[0];
 
-    auto action = [&]() -> int { return g_shell->get_built_ins()->builtin_command(cmd.args); };
+    auto action = [&]() -> int { return execute_builtin_or_special_command(cmd.args); };
 
     bool action_invoked = false;
     int exit_code = run_with_command_redirections(cmd, action, command_name, persist_fd_changes,
@@ -1465,7 +1480,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
         if (can_execute_in_process(cmd)) {
             TemporaryEnvAssignmentScope temp_scope(g_shell.get(), env_assignments);
-            int exit_code = g_shell->get_built_ins()->builtin_command(cmd.args);
+            int exit_code = execute_builtin_or_special_command(cmd.args);
             set_last_pipeline_statuses({exit_code});
             return finalize_exit(exit_code);
         }
@@ -1477,8 +1492,7 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             }
             return finalize_exit(async_result);
         }
-        if (!cmd.args.empty() && g_shell && (g_shell->get_built_ins() != nullptr) &&
-            (g_shell->get_built_ins()->is_builtin_command(cmd.args[0]) != 0)) {
+        if (is_builtin_or_special_command(cmd.args)) {
             TemporaryEnvAssignmentScope temp_scope(g_shell.get(), env_assignments);
             int builtin_exit = execute_builtin_with_redirections(cmd);
             set_last_pipeline_statuses({builtin_exit});
@@ -2056,9 +2070,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                     (void)fflush(stderr);
 
                     _exit(exit_code);
-                } else if (g_shell && (g_shell->get_built_ins() != nullptr) &&
-                           (g_shell->get_built_ins()->is_builtin_command(cmd.args[0]) != 0)) {
-                    int exit_code = g_shell->get_built_ins()->builtin_command(cmd.args);
+                } else if (is_builtin_or_special_command(cmd.args)) {
+                    int exit_code = execute_builtin_or_special_command(cmd.args);
 
                     (void)fflush(stdout);
                     (void)fflush(stderr);

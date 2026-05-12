@@ -43,7 +43,6 @@
 #include "command_command.h"
 #include "declare_command.h"
 #include "directory_stack_commands.h"
-#include "double_bracket_command.h"
 #include "echo_command.h"
 #include "error_out.h"
 #include "eval_command.h"
@@ -57,8 +56,6 @@
 #include "help_command.h"
 #include "history_command.h"
 #include "hook_command.h"
-#include "if_command.h"
-#include "internal_subshell_command.h"
 #include "job_control_commands.h"
 #include "local_command.h"
 #include "loop_control_commands.h"
@@ -67,6 +64,7 @@
 #include "read_command.h"
 #include "readonly_command.h"
 #include "restart_command.h"
+#include "runtime_commands.h"
 #include "set_command.h"
 #include "shell.h"
 #include "shell_env.h"
@@ -192,26 +190,16 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"restart", [](const std::vector<std::string>& args) { return ::restart_command(args); }},
         {"test", [](const std::vector<std::string>& args) { return ::test_command(args); }},
         {"[", [](const std::vector<std::string>& args) { return ::test_command(args); }},
-        {"[[", [](const std::vector<std::string>& args) { return ::double_bracket_command(args); }},
         {"exec",
          [this](const std::vector<std::string>& args) { return ::exec_command(args, shell); }},
         {":",
          [](const std::vector<std::string>& args) {
              if (builtin_handle_help(args, {"Usage: :",
                                            "Null command that does nothing and succeeds.",
-                                           "Any additional arguments are ignored."})) {
+                                            "Any additional arguments are ignored."})) {
                  return 0;
              }
              return 0;
-         }},
-        {"if", [this](const std::vector<std::string>& args) { return ::if_command(args, shell); }},
-        {"__INTERNAL_SUBSHELL__",
-         [this](const std::vector<std::string>& args) {
-             return internal_subshell_command(args, shell);
-         }},
-        {"__INTERNAL_BRACE_GROUP__",
-         [this](const std::vector<std::string>& args) {
-             return internal_brace_group_command(args, shell);
          }},
         {"trap", [](const std::vector<std::string>& args) { return ::trap_command(args); }},
         {"jobs", [](const std::vector<std::string>& args) { return ::jobs_command(args); }},
@@ -366,4 +354,20 @@ int Built_ins::is_builtin_command(const std::string& cmd) const {
     }
 
     return builtins.find(cmd) != builtins.end();
+}
+
+int Built_ins::builtin_or_runtime_command(const std::vector<std::string>& args) {
+    if (!args.empty() && runtime_commands::is_runtime_command_name(args[0])) {
+        return runtime_commands::execute_runtime_command(args, shell);
+    }
+
+    return builtin_command(args);
+}
+
+int Built_ins::is_builtin_or_runtime_command(const std::string& cmd) const {
+    if (is_builtin_command(cmd) != 0) {
+        return 1;
+    }
+
+    return runtime_commands::is_runtime_command_name(cmd) ? 1 : 0;
 }

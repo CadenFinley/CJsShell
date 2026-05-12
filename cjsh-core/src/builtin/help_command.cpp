@@ -135,8 +135,6 @@ int help_command() {
 
         // Testing and conditionals
         {"test / [", "Evaluate POSIX test expressions"},
-        {"[[", "Evaluate extended test expressions"},
-        {"if", "Run conditional blocks in scripts"},
         {":", "No-op command that always succeeds"},
         {"true", "Return success (exit code 0)"},
         {"false", "Return failure (exit code 1)"},

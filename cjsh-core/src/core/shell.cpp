@@ -266,8 +266,11 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
     }
     const bool has_temporary_env = !env_assignments.empty() && !command_args.empty();
 
-    // check for built-in command execution
-    if (!command_args.empty() && (built_ins->is_builtin_command(command_args[0]) != 0)) {
+    const bool is_direct_command =
+        !command_args.empty() && (built_ins->is_builtin_or_runtime_command(command_args[0]) != 0);
+
+    // check for built-in and keyword-runtime command execution
+    if (is_direct_command) {
         int code = 0;
 
         if (has_temporary_env) {
@@ -326,10 +329,10 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
             };
 
             apply_assignments();
-            code = built_ins->builtin_command(command_args);
+            code = built_ins->builtin_or_runtime_command(command_args);
             restore_assignments();
         } else {
-            code = built_ins->builtin_command(command_args);
+            code = built_ins->builtin_or_runtime_command(command_args);
         }
         return code;
     }

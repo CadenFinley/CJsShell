@@ -1,5 +1,5 @@
 /*
-  builtin.h
+  runtime_commands.h
 
   This file is part of cjsh, CJ's Shell
 
@@ -28,38 +28,15 @@
 
 #pragma once
 
-#include <limits.h>
-#include <unistd.h>
-
-#include <functional>
 #include <string>
-#include <unordered_map>
+#include <string_view>
 #include <vector>
 
 class Shell;
 
-class Built_ins {
-   public:
-    Built_ins();
-    ~Built_ins();
+namespace runtime_commands {
 
-    void set_shell(Shell* shell_ptr);
-    std::string get_current_directory() const;
-    std::string get_previous_directory() const;
-    void set_current_directory();
+bool is_runtime_command_name(std::string_view command_name);
+int execute_runtime_command(const std::vector<std::string>& command_args, Shell* shell);
 
-    int builtin_command(const std::vector<std::string>& args);
-    int is_builtin_command(const std::string& cmd) const;
-    int builtin_or_runtime_command(const std::vector<std::string>& args);
-    int is_builtin_or_runtime_command(const std::string& cmd) const;
-
-    std::vector<std::string> get_builtin_commands() const;
-
-   private:
-    std::string current_directory;
-    std::string previous_directory;
-    std::unordered_map<std::string, std::function<int(const std::vector<std::string>&)>> builtins;
-    Shell* shell;
-    std::unordered_map<std::string, std::string> aliases;
-    std::unordered_map<std::string, std::string> env_vars;
-};
+}  // namespace runtime_commands

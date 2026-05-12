@@ -79,6 +79,30 @@ else
     fail_test "builtin external command rejection (status=$STATUS, out='$OUT')"
 fi
 
+OUT=$("$CJSH_PATH" -c "builtin if" 2>&1)
+STATUS=$?
+if [ $STATUS -eq 1 ] && echo "$OUT" | grep -q "'if' is not a builtin command"; then
+    pass_test "builtin rejects control-flow keywords"
+else
+    fail_test "builtin control-flow keyword rejection (status=$STATUS, out='$OUT')"
+fi
+
+OUT=$("$CJSH_PATH" -c "builtin [[ 1 -eq 1 ]]" 2>&1)
+STATUS=$?
+if [ $STATUS -eq 1 ] && echo "$OUT" | grep -q "'\[\[' is not a builtin command"; then
+    pass_test "builtin rejects keyword conditionals"
+else
+    fail_test "builtin keyword conditional rejection (status=$STATUS, out='$OUT')"
+fi
+
+OUT=$("$CJSH_PATH" -c "builtin __INTERNAL_SUBSHELL__ :" 2>&1)
+STATUS=$?
+if [ $STATUS -eq 1 ] && echo "$OUT" | grep -q "'__INTERNAL_SUBSHELL__' is not a builtin command"; then
+    pass_test "builtin rejects internal runtime markers"
+else
+    fail_test "builtin internal marker rejection (status=$STATUS, out='$OUT')"
+fi
+
 OUT=$("$CJSH_PATH" -c "echo() { printf 'function\\n'; }; builtin echo dispatched")
 STATUS=$?
 if [ $STATUS -eq 0 ] && [ "$OUT" = "dispatched" ]; then

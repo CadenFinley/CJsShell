@@ -1,5 +1,5 @@
 /*
-  if_command.h
+  runtime_commands.cpp
 
   This file is part of cjsh, CJ's Shell
 
@@ -26,11 +26,40 @@
   SOFTWARE.
 */
 
-#pragma once
+#include "runtime_commands.h"
 
-#include <string>
-#include <vector>
+#include "double_bracket_command.h"
+#include "internal_subshell_command.h"
 
-class Shell;
+namespace runtime_commands {
 
-int if_command(const std::vector<std::string>& args, Shell* shell);
+bool is_runtime_command_name(std::string_view command_name) {
+    return command_name == "[[" || command_name == "__INTERNAL_SUBSHELL__" ||
+           command_name == "__INTERNAL_BRACE_GROUP__";
+}
+
+int execute_runtime_command(const std::vector<std::string>& command_args, Shell* shell) {
+    if (command_args.empty()) {
+        return 1;
+    }
+
+    const std::string& command_name = command_args[0];
+    if (command_name == "[[") {
+        return double_bracket_command(command_args);
+    }
+
+    if (shell == nullptr) {
+        return 1;
+    }
+
+    if (command_name == "__INTERNAL_SUBSHELL__") {
+        return internal_subshell_command(command_args, shell);
+    }
+    if (command_name == "__INTERNAL_BRACE_GROUP__") {
+        return internal_brace_group_command(command_args, shell);
+    }
+
+    return 1;
+}
+
+}  // namespace runtime_commands
