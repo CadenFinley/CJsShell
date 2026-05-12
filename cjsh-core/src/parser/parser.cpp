@@ -432,6 +432,8 @@ void Parser::set_shell(Shell* new_shell) {
 }
 
 std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
+    // shared script splitter used by shell::execute and interactive continuation checks
+    // control-flow blocks like if/then/fi depend on this producing stable logical line chunks
     std::vector<std::string> lines;
 
     lines.reserve(std::min(script.length() / 30 + 2, size_t(64)));
@@ -843,6 +845,7 @@ std::vector<std::string> Parser::parse_into_lines(const std::string& script) {
     }
 
     if (lines.size() == line_comment_flags.size()) {
+        // preserve multiline continuation semantics so partial if headers can span input lines
         return merge_line_continuations(lines, line_comment_flags);
     }
 
@@ -1739,6 +1742,7 @@ std::vector<std::string> Parser::parse_semicolon_commands(const std::string& com
             }
 
             if (command[i] == ';' && control_depth == 0) {
+                // only split at top level so semicolons inside if/then/fi headers stay intact
                 if (!is_char_escaped(command, i)) {
                     is_semicolon_split_point[i] = true;
                 }

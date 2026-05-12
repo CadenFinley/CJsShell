@@ -295,6 +295,7 @@ bool syntax_error_indicates_incomplete(const SyntaxError& error) {
 
 bool has_incomplete_construct_errors(const std::vector<SyntaxError>& errors) {
     for (const auto& error : errors) {
+        // only continuation-worthy errors should keep readline in multiline mode
         if (syntax_error_indicates_incomplete(error)) {
             return true;
         }
@@ -1097,18 +1098,22 @@ bool ShellScriptInterpreter::has_syntax_errors(const std::vector<std::string>& l
 }
 
 bool ShellScriptInterpreter::needs_additional_input(const std::vector<std::string>& lines) {
+    // this runs before execution to decide if readline should keep the continuation prompt open
     if (lines.empty()) {
         return false;
     }
 
+    // parser-level incompletes like unclosed quote or dangling delimiter
     if (has_incomplete_construct_errors(validate_script_syntax(lines))) {
         return true;
     }
 
+    // loop headers that have not reached do/done yet
     if (has_incomplete_construct_errors(validate_loop_syntax(lines))) {
         return true;
     }
 
+    // incomplete if/then/fi structures are caught here while the user is still typing
     if (has_incomplete_construct_errors(validate_conditional_syntax(lines))) {
         return true;
     }

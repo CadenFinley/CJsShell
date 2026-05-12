@@ -781,11 +781,13 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
     };
 
     evaluate_logical_condition = [&](const std::string& condition) -> int {
+        // conditions from if and elif headers are normalized through this shared path
         return evaluate_logical_condition_internal(condition, execute_simple_or_pipeline);
     };
 
     execute_simple_or_pipeline_impl = [&](const std::string& cmd_text,
                                           bool allow_semicolon_split) -> int {
+        // single-command executor used by if conditions and by branch body commands
         std::string text = process_line_for_validation(cmd_text);
         if (text.empty())
             return 0;
@@ -1166,6 +1168,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         return execute_block(block_lines, true);
     };
 
+    // central if evaluator used by both multiline script flow and one-line inline conditionals
     auto handle_if_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
         return conditional_evaluator::handle_if_block(src_lines, idx, execute_block_wrapper,
                                                       execute_simple_or_pipeline,
@@ -1324,6 +1327,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
             continue;
         }
 
+        // first dispatch pass for control-flow blocks. if statements go through handle_if_block
+        // before any generic command parsing or pipeline execution
         auto block_result =
             try_dispatch_block_statement(lines, line_index, line, handle_if_block, handle_for_block,
                                          handle_while_block, handle_until_block, handle_case_block);
@@ -1466,6 +1471,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                 (trimmed_cmd.find(" fi") != std::string::npos ||
                  trimmed_cmd.find("; fi") != std::string::npos ||
                  trimmed_cmd.rfind("fi") == trimmed_cmd.length() - 2)) {
+                // fast path for one-line if forms inside logical command chains
                 size_t local_idx = 0;
                 std::vector<std::string> one{trimmed_cmd};
                 int code = handle_if_block(one, local_idx);
@@ -1591,6 +1597,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                     if (is_statement_keyword_prefix(t, StatementKeyword::If) &&
                         t.find("; then") != std::string::npos &&
                         t.find(" fi") != std::string::npos) {
+                        // same one-line if handoff while iterating semicolon-split command segments
                         size_t local_idx = 0;
                         std::vector<std::string> one{t};
                         int code = handle_if_block(one, local_idx);
@@ -1832,10 +1839,13 @@ bool ShellScriptInterpreter::should_interpret_as_cjsh_script(const std::string& 
 
 int ShellScriptInterpreter::evaluate_logical_condition_internal(
     const std::string& condition, cjsh::FunctionRef<int(const std::string&)> executor) {
+    // this is the interpreter-side condition pipeline used by if and elif before branch selection
     std::string cond = trim(condition);
     if (cond.empty())
         return 1;
 
+    // resolve arithmetic command substitutions first so the lower condition evaluator receives
+    // final text with numeric results in place
     std::string processed_cond = cond;
     size_t pos = 0;
     while ((pos = processed_cond.find("$((", pos)) != std::string::npos) {
@@ -1883,6 +1893,7 @@ int ShellScriptInterpreter::evaluate_logical_condition_internal(
             pos++;
         }
     }
+    // final pass does logical tokenization and short-circuit execution over && and ||
     int condition_status =
         conditional_evaluator::evaluate_logical_condition(processed_cond, executor);
 
@@ -2053,6 +2064,7 @@ ShellScriptInterpreter::BlockHandlerResult ShellScriptInterpreter::try_dispatch_
     cjsh::FunctionRef<int(const std::vector<std::string>&, size_t&)> handle_while_block,
     cjsh::FunctionRef<int(const std::vector<std::string>&, size_t&)> handle_until_block,
     cjsh::FunctionRef<int(const std::vector<std::string>&, size_t&)> handle_case_block) {
+    // detect and route if blocks early so nested branches are handled as structured control flow
     if (line == "if" || line.rfind("if ", 0) == 0) {
         size_t idx = line_index;
         int rc = handle_if_block(lines, idx);

@@ -418,7 +418,9 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                     const std::function<int(const std::string&)>& execute_simple_or_pipeline,
                     const std::function<int(const std::string&)>& evaluate_logical_condition,
                     Parser* shell_parser) {
+    // main if dispatcher called from interpreter when a line begins with if
     if (src_lines.size() == 1 && shell_parser != nullptr) {
+        // normalize dense one-line forms into an if-only block plus optional trailing commands
         const std::string& line = src_lines[idx];
         bool has_elif =
             (line.find(" elif ") != std::string::npos || line.find(";elif ") != std::string::npos ||
@@ -444,12 +446,15 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
         if (has_elif || has_trailing_commands) {
             if (auto expanded = expand_single_line_if(src_lines[idx])) {
                 size_t local_idx = 0;
+                // recurse through the same evaluator so one-line if forms share the same branch
+                // behavior as multiline blocks
                 int rc = handle_if_block(expanded->lines, local_idx, execute_block,
                                          execute_simple_or_pipeline, evaluate_logical_condition,
                                          shell_parser);
 
                 if (!expanded->trailing_commands.empty() && rc != 253 && rc != 254 && rc != 255 &&
                     !cjsh_env::exit_requested()) {
+                    // execute any commands that came after fi in the original one-line text
                     auto trailing_cmds =
                         shell_parser->parse_semicolon_commands(expanded->trailing_commands);
                     for (const auto& cmd : trailing_cmds) {
@@ -466,6 +471,7 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
         }
     }
 
+    // gather condition text from the if header until the then boundary is found
     std::string first = process_line_for_validation(src_lines[idx]);
 
     std::string cond_accum;
@@ -513,16 +519,19 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
     }
 
     if (!then_found) {
+        // malformed or incomplete if header, caller will surface this through syntax handling
         idx = j;
         return 1;
     }
 
+    // evaluate the final condition string with logical short-circuit support
     int cond_rc = 1;
     if (!cond_accum.empty()) {
         cond_rc = evaluate_logical_condition(cond_accum);
     }
 
     if (pos != std::string::npos) {
+        // handle compact if blocks that keep then/body/fi on the same physical line
         std::string rem = trim(first.substr(pos + 6));
 
         if (!rem.empty()) {
@@ -609,6 +618,7 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
             }
 
             if (fi_pos != std::string::npos && !has_top_level_elif) {
+                // split inline then/else bodies while respecting nested if depth
                 std::string body = trim(rem.substr(0, fi_pos));
 
                 std::string then_body = body;
@@ -672,6 +682,7 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                 }
                 int body_rc = 0;
                 if (cond_rc == 0) {
+                    // condition succeeded so execute then body commands left to right
                     auto cmds = shell_parser->parse_semicolon_commands(then_body);
                     for (const auto& c : cmds) {
                         int rc2 = execute_simple_or_pipeline(c);
@@ -680,6 +691,7 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                             break;
                     }
                 } else if (!else_body.empty()) {
+                    // primary condition failed so run else body when present
                     auto cmds = shell_parser->parse_semicolon_commands(else_body);
                     for (const auto& c : cmds) {
                         int rc2 = execute_simple_or_pipeline(c);
@@ -723,6 +735,7 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
         }
     }
 
+    // multiline path: collect then/elif/else bodies while tracking nested if depth
     size_t k = j + 1;
     int depth = 1;
     bool in_else = false;
@@ -1031,10 +1044,12 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
     }
 
     if (depth != 0) {
+        // unmatched if/fi while scanning source lines
         idx = k;
         return 1;
     }
 
+    // execute exactly one branch: then, first matching elif, otherwise else
     int body_rc = 0;
     if (cond_rc == 0) {
         body_rc = execute_block(then_lines);
@@ -1066,6 +1081,7 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
         }
     }
 
+    // move caller index to fi so execute_block continues after the full conditional block
     idx = k;
     return body_rc;
 }
@@ -1195,6 +1211,7 @@ std::string simplify_parentheses_in_condition(
 
 int evaluate_logical_condition(const std::string& condition,
                                const std::function<int(const std::string&)>& executor) {
+    // condition evaluator used by if and elif headers
     std::string cond = trim(condition);
     if (cond.empty())
         return 1;
@@ -1245,9 +1262,11 @@ int evaluate_logical_condition(const std::string& condition,
     }
 
     if (!has_logical_ops) {
+        // simple condition with no top-level && or ||
         return executor(cond);
     }
 
+    // split top-level && and || segments while preserving quoted and nested group content
     std::vector<std::pair<std::string, std::string>> parts;
     std::string current_part;
     in_quotes = false;
@@ -1303,6 +1322,7 @@ int evaluate_logical_condition(const std::string& condition,
 
     int result = executor(parts[0].first);
 
+    // apply shell short-circuit semantics between condition segments
     for (size_t i = 1; i < parts.size(); ++i) {
         const std::string& op = parts[i - 1].second;
         const std::string& cond_part = parts[i].first;

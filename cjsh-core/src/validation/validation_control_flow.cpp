@@ -159,6 +159,7 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
 
 std::vector<ShellScriptInterpreter::SyntaxError>
 ShellScriptInterpreter::validate_conditional_syntax(const std::vector<std::string>& lines) {
+    // conditional validator feeds both syntax reporting and interactive continuation checks
     return validate_tokenized_with_first_token_context(lines, [](TokenizedLineContext& ctx) {
         auto& line_errors = ctx.line_errors;
         const std::string& line = ctx.line;
@@ -168,6 +169,7 @@ ShellScriptInterpreter::validate_conditional_syntax(const std::vector<std::strin
         const std::string& first_token = ctx.first_token;
 
         if (first_token == "if") {
+            // validate if headers so incomplete if statements are detected before execution
             auto if_check = analyze_if_syntax(tokens, trimmed_line);
             const bool missing_then = if_check.missing_then_keyword;
             const bool missing_condition = if_check.missing_condition;
