@@ -2683,13 +2683,17 @@ register functions and <code>hook list</code> to inspect active hooks. See
 </ul>
 <h3 id="fc">fc</h3>
 <p>Fix Command - edit and re-execute commands from history (POSIX-compliant).</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-55-1"><a id="__codelineno-55-1" name="__codelineno-55-1" href="#__codelineno-55-1"></a><span class="nb">fc</span><span class="w"> </span><span class="o">[</span>-e<span class="w"> </span>editor<span class="o">]</span><span class="w"> </span><span class="o">[</span>-ln<span class="o">]</span><span class="w"> </span><span class="o">[</span>first<span class="w"> </span><span class="o">[</span>last<span class="o">]]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-55-1"><a id="__codelineno-55-1" name="__codelineno-55-1" href="#__codelineno-55-1"></a><span class="nb">fc</span><span class="w"> </span><span class="o">[</span>-e<span class="w"> </span>editor<span class="o">]</span><span class="w"> </span><span class="o">[</span>-lnr<span class="o">]</span><span class="w"> </span><span class="o">[</span>first<span class="w"> </span><span class="o">[</span>last<span class="o">]]</span>
+</span><span id="__span-55-2"><a id="__codelineno-55-2" name="__codelineno-55-2" href="#__codelineno-55-2"></a><span class="nb">fc</span><span class="w"> </span>-s<span class="w"> </span><span class="o">[</span><span class="nv">old</span><span class="o">=</span>new<span class="o">]</span><span class="w"> </span><span class="o">[</span>command<span class="o">]</span>
+</span><span id="__span-55-3"><a id="__codelineno-55-3" name="__codelineno-55-3" href="#__codelineno-55-3"></a><span class="nb">fc</span><span class="w"> </span>-c<span class="w"> </span>command_string
 </span></code></pre></div>
 <p><strong>Options:</strong>
-- <code>-e editor</code> - Use specified editor (default: <code>$FCEDIT</code>, <code>$EDITOR</code>, or <code>vi</code>)
+- <code>-e editor</code> - Use specified editor (default: <code>$FCEDIT</code>, <code>$EDITOR</code>, or <code>nano</code>)
 - <code>-l</code> - List commands instead of editing
 - <code>-n</code> - Suppress line numbers when listing
-- <code>-r</code> - Reverse order of commands when listing</p>
+- <code>-r</code> - Reverse order of commands when listing
+- <code>-s</code> - Re-execute a matching command, with optional <code>old=new</code> substitution
+- <code>-c string</code> - Open the editor with <code>string</code> as initial content</p>
 <p><strong>Arguments:</strong>
 - <code>first</code> - First command to edit/list (default: previous command)
 - <code>last</code> - Last command to edit/list (default: same as first)</p>
@@ -2724,7 +2728,7 @@ register functions and <code>hook list</code> to inspect active hooks. See
 <p><strong>Environment Variables:</strong>
 - <code>FCEDIT</code> - Preferred editor for <code>fc</code> (checked first)
 - <code>EDITOR</code> - Fallback editor if <code>FCEDIT</code> is not set
-- Default is <code>ed</code> if neither variable is set (POSIX requirement)</p>
+- Default is <code>nano</code> if neither variable is set</p>
 <p><strong>Tip:</strong> For a better editing experience, set your preferred editor:
 </p><div class="language-bash highlight"><pre><span></span><code><span id="__span-57-1"><a id="__codelineno-57-1" name="__codelineno-57-1" href="#__codelineno-57-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">FCEDIT</span><span class="o">=</span>vi<span class="w">     </span><span class="c1"># or nano, emacs, etc.</span>
 </span><span id="__span-57-2"><a id="__codelineno-57-2" name="__codelineno-57-2" href="#__codelineno-57-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">EDITOR</span><span class="o">=</span>vi<span class="w">     </span><span class="c1"># fallback for other tools too</span>
@@ -3043,16 +3047,17 @@ interpreter from a script's file extension when there is no shebang (for example
 <p>Add the command to <code>~/.cjshrc</code> to persist the setting across sessions.</p>
 <h4 id="hint-delay">hint-delay</h4>
 <p>Configure the delay (in milliseconds) before inline hints are displayed. This controls how quickly the shell shows suggestions and hints as you type.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-88-1"><a id="__codelineno-88-1" name="__codelineno-88-1" href="#__codelineno-88-1"></a>cjshopt<span class="w"> </span>hint-delay<span class="w"> </span>&lt;milliseconds&gt;
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-88-1"><a id="__codelineno-88-1" name="__codelineno-88-1" href="#__codelineno-88-1"></a>cjshopt<span class="w"> </span>hint-delay<span class="w"> </span>&lt;milliseconds<span class="p">|</span>status&gt;
 </span></code></pre></div>
 <p>Examples:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-89-1"><a id="__codelineno-89-1" name="__codelineno-89-1" href="#__codelineno-89-1"></a>cjshopt<span class="w"> </span>hint-delay<span class="w"> </span><span class="m">100</span><span class="w">     </span><span class="c1"># Set hint delay to 100 milliseconds</span>
 </span><span id="__span-89-2"><a id="__codelineno-89-2" name="__codelineno-89-2" href="#__codelineno-89-2"></a>cjshopt<span class="w"> </span>hint-delay<span class="w"> </span><span class="m">0</span><span class="w">       </span><span class="c1"># Show hints immediately</span>
-</span><span id="__span-89-3"><a id="__codelineno-89-3" name="__codelineno-89-3" href="#__codelineno-89-3"></a>cjshopt<span class="w"> </span>hint-delay<span class="w"> </span>status<span class="w">  </span><span class="c1"># Show the current delay setting</span>
+</span><span id="__span-89-3"><a id="__codelineno-89-3" name="__codelineno-89-3" href="#__codelineno-89-3"></a>cjshopt<span class="w"> </span>hint-delay<span class="w"> </span>status<span class="w">  </span><span class="c1"># Prints hint-delay command guidance</span>
 </span></code></pre></div>
 <ul>
-<li>Valid range: <strong>0 and above</strong> (0 shows hints immediately)</li>
-<li>Default: Varies based on system configuration</li>
+<li>Accepted input: any non-negative integer</li>
+<li>Effective editor range: <strong>0-5000 ms</strong> (values above 5000 are clamped)</li>
+<li>Default: <strong>0 ms</strong> (hints can appear immediately)</li>
 </ul>
 <p>Place the command in <code>~/.cjshrc</code> to keep the delay setting between sessions.</p>
 <h4 id="completion-preview">completion-preview</h4>
