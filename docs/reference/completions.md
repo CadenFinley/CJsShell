@@ -131,4 +131,4 @@ This is useful after upgrading a tool with new options.
   (any value >= 1).
 
 With these tools you can match or exceed the curated completion sets provided by fish, bash, or zsh
-while keeping cjsh's zero-dependency footprint.
+while keeping cjsh's minimal-runtime-dependency footprint.

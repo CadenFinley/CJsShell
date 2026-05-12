@@ -32,14 +32,11 @@ This guide gets you running cjsh, a POSIX-based interactive shell with integrate
 
 ## Prerequisites
 
-A standard C/C++ Compiler:
+- A C compiler and C++ compiler (for example GCC or clang)
+- CMake 3.25 or newer
+- Ninja (the configured CMake presets use the Ninja generator)
 
- - GCC
- - clang
-
-And CMake 3.25 or newer.
-
-And that is it! cjsh has no external dependencies and was designed like this for pure simplicity. To just work where ever.
+cjsh vendors its line editor dependency (`cjsh-isocline`) in this repository, so you do not need to install a separate shell framework or plugin stack.
 
 ## Installation
 

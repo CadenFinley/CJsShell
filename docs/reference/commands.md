@@ -553,14 +553,18 @@ history [n]
 Fix Command - edit and re-execute commands from history (POSIX-compliant).
 
 ```bash
-fc [-e editor] [-ln] [first [last]]
+fc [-e editor] [-lnr] [first [last]]
+fc -s [old=new] [command]
+fc -c command_string
 ```
 
 **Options:**
-- `-e editor` - Use specified editor (default: `$FCEDIT`, `$EDITOR`, or `vi`)
+- `-e editor` - Use specified editor (default: `$FCEDIT`, `$EDITOR`, or `nano`)
 - `-l` - List commands instead of editing
 - `-n` - Suppress line numbers when listing
 - `-r` - Reverse order of commands when listing
+- `-s` - Re-execute a matching command, with optional `old=new` substitution
+- `-c string` - Open the editor with `string` as initial content
 
 **Arguments:**
 - `first` - First command to edit/list (default: previous command)
@@ -601,7 +605,7 @@ fc  # Will use nano as the editor
 **Environment Variables:**
 - `FCEDIT` - Preferred editor for `fc` (checked first)
 - `EDITOR` - Fallback editor if `FCEDIT` is not set
-- Default is `ed` if neither variable is set (POSIX requirement)
+- Default is `nano` if neither variable is set
 
 **Tip:** For a better editing experience, set your preferred editor:
 ```bash
@@ -976,7 +980,7 @@ Add the command to `~/.cjshrc` to persist the setting across sessions.
 Configure the delay (in milliseconds) before inline hints are displayed. This controls how quickly the shell shows suggestions and hints as you type.
 
 ```bash
-cjshopt hint-delay <milliseconds>
+cjshopt hint-delay <milliseconds|status>
 ```
 
 Examples:
@@ -984,11 +988,12 @@ Examples:
 ```bash
 cjshopt hint-delay 100     # Set hint delay to 100 milliseconds
 cjshopt hint-delay 0       # Show hints immediately
-cjshopt hint-delay status  # Show the current delay setting
+cjshopt hint-delay status  # Prints hint-delay command guidance
 ```
 
-- Valid range: **0 and above** (0 shows hints immediately)
-- Default: Varies based on system configuration
+- Accepted input: any non-negative integer
+- Effective editor range: **0-5000 ms** (values above 5000 are clamped)
+- Default: **0 ms** (hints can appear immediately)
 
 Place the command in `~/.cjshrc` to keep the delay setting between sessions.
 

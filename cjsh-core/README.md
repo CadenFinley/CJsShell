@@ -50,7 +50,7 @@ cmake --build --preset release --parallel
 ## Core layout
 
 - `src/cjsh.cpp` - entrypoint and startup/shutdown flow
-- `src/parser` - command language parsing and AST building
+- `src/parser` - command language tokenization, expansion, and parsing into lightweight command structures
 - `src/interpreter` - execution engine and runtime evaluation
 - `src/builtin` - shell builtins and builtin option handling
 - `src/completions` / `src/highlighter` - interactive UX helpers

@@ -165,16 +165,12 @@ cjshopt style_def <token_type> <style>
 ```
 
 **Available Style Names:**
-- `ic-keyword`: Shell keywords
-- `ic-command`: Valid commands
-- `ic-error`: Invalid commands or syntax errors
-- `ic-string`: String literals
-- `ic-comment`: Comments
-- `ic-operator`: Operators
-- `ic-variable`: Variables
-- `ic-number`: Numeric literals
-- `ic-bracket`: Brackets and braces
-- `ic-bracket-match`: Matching bracket pairs
+- `keyword`, `builtin`, `system`, `unknown-command`
+- `string`, `comment`, `variable`, `number`, `operator`
+- `path-exists`, `path-not-exists`, `glob-pattern`, `assignment-value`
+- `command-substitution`, `arithmetic`, `option`, `function-definition`, `history-expansion`
+- `ic-prompt`, `ic-hint`, `ic-error`, `ic-info`, `ic-source`, `ic-diminish`, `ic-emphasis`
+- `ic-linenumbers`, `ic-linenumber-current`, `ic-bracematch`, `ic-whitespace-char`
 
 **Syntax Highlighting Control:**
 The syntax highlighter can be temporarily disabled with the `--no-syntax-highlighting` startup flag.
@@ -546,10 +542,10 @@ Tune cleanup behavior with the `cjshopt prompt-cleanup`, `prompt-cleanup-newline
 The prompt system uses markers to indicate different states:
 
 **Primary Prompt Marker:**
-Displayed at the end of the main prompt (default: `"> "`).
+Displayed as part of `PS1`. The default primary template is `\S  [color=#5fd7ff]\W[/color] \g` (or `cjsh> ` when running with `--minimal` or `--secure`).
 
 **Continuation Prompt Marker:**
-Displayed for continuation lines in multiline input.
+Displayed for continuation lines in multiline input. The default `PS2` template is `[ic-hint]> [/ic-hint]`.
 
 **Customization:**
 Define these markers directly inside `PS1`, `PS2`, and any helper functions you call from `PROMPT_COMMAND`.
@@ -661,22 +657,23 @@ All visual aspects of the editor can be customized through style definitions.
 - `ic-linenumber-current`: Current line number highlight
 
 **Syntax Highlighting Styles:**
-- `ic-keyword`: Shell keywords
-- `ic-command`: Valid commands
-- `ic-error`: Errors and invalid commands
-- `ic-string`: String literals
-- `ic-comment`: Comments
-- `ic-operator`: Operators
-- `ic-variable`: Variables
-- `ic-number`: Numbers
-- `ic-bracket`: Brackets
-- `ic-bracket-match`: Matching brackets
+- `keyword`: Shell keywords
+- `builtin`: Builtin commands
+- `system`: External commands resolved from PATH
+- `unknown-command`: Unresolved command names
+- `string`, `comment`, `variable`, `number`, `operator`
+- `path-exists`, `path-not-exists`, `glob-pattern`, `assignment-value`
+- `command-substitution`, `arithmetic`, `option`, `function-definition`, `history-expansion`
 
-**Editor Styles:**
+**Interactive UI Styles:**
 - `ic-hint`: Inline hints
-- `ic-selection`: Selected text
-- `ic-completion`: Completion menu
-- `ic-completion-selected`: Selected completion
+- `ic-info`: Informational status text
+- `ic-source`: Completion/history source labels
+- `ic-diminish`: De-emphasized helper text
+- `ic-emphasis`: Emphasized helper text
+- `ic-error`: Editor/runtime error text
+- `ic-bracematch`: Bracket match highlighting
+- `ic-whitespace-char`: Visible whitespace markers
 
 ### Style Syntax
 
@@ -690,13 +687,13 @@ cjshopt style_def <style-name> "<bbcode-style>"
 cjshopt style_def ic-error "bold red"
 
 # Use custom RGB color for commands
-cjshopt style_def ic-command "#00ff00"
+cjshopt style_def system "#00ff00"
 
 # Style keywords with italic blue
-cjshopt style_def ic-keyword "italic blue"
+cjshopt style_def keyword "italic blue"
 
 # Combine multiple attributes
-cjshopt style_def ic-string "italic #ffaa00"
+cjshopt style_def string "italic #ffaa00"
 ```
 
 **Style Attributes:**
@@ -741,12 +738,12 @@ cjshopt set-history-max 10000
 cjshopt keybind profile set emacs
 
 # Syntax highlighting styles
-cjshopt style_def ic-keyword "bold blue"
-cjshopt style_def ic-command "green"
+cjshopt style_def keyword "bold blue"
+cjshopt style_def system "green"
 cjshopt style_def ic-error "bold red"
-cjshopt style_def ic-string "#ffaa00"
-cjshopt style_def ic-comment "italic #888888"
-cjshopt style_def ic-operator "bold"
+cjshopt style_def string "#ffaa00"
+cjshopt style_def comment "italic #888888"
+cjshopt style_def operator "bold"
 ```
 
 ### Minimal Configuration
