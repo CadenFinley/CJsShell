@@ -198,7 +198,7 @@ def main(argv: List[str]) -> int:
 
     root = repo_root()
     os.chdir(root)
-    binaries = find_cjsh_binaries(root / "build")
+    binaries = find_cjsh_binaries(root / "build/release")
 
     if not binaries:
         print("No executable cjsh binaries found under build/. Run the build first.", file=sys.stderr)

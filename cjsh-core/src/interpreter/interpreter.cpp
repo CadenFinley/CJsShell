@@ -792,6 +792,52 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         if (text.empty())
             return 0;
 
+        auto has_control_operators = [](const std::string& input) {
+            return input.find_first_of("|&;<>!(){}`") != std::string::npos;
+        };
+
+        auto try_execute_quick_command =
+            [&](const std::string& command_text) -> std::optional<int> {
+            if (!shell_parser || has_control_operators(command_text)) {
+                return std::nullopt;
+            }
+
+            std::vector<std::string> quick_args = shell_parser->parse_command(command_text);
+            if (quick_args.empty()) {
+                return 0;
+            }
+
+            const std::string& program = quick_args[0];
+            if (should_interpret_as_cjsh_script(program)) {
+                std::ifstream f(program);
+                if (!f) {
+                    print_error(
+                        {ErrorType::RUNTIME_ERROR, "", "Failed to open script file: " + program, {}});
+                    return 1;
+                }
+                std::stringstream buffer;
+                buffer << f.rdbuf();
+                auto nested_lines = shell_parser->parse_into_lines(buffer.str());
+                return execute_block(nested_lines);
+            }
+
+            int env_result = handle_env_assignment(quick_args);
+            if (env_result >= 0) {
+                return env_result;
+            }
+
+            if (functions.count(program) != 0U) {
+                return execute_function_call(quick_args);
+            }
+
+            int exit_code = g_shell->execute_command(quick_args, false, false, false);
+            return set_last_status(exit_code);
+        };
+
+        if (auto quick_result = try_execute_quick_command(text)) {
+            return *quick_result;
+        }
+
         auto command_has_redirection = [](const Command& command) {
             return command.stderr_to_stdout || command.stdout_to_stderr ||
                    !command.input_file.empty() || !command.output_file.empty() ||
@@ -799,7 +845,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                    !command.here_doc.empty();
         };
 
-        if (shell_parser) {
+        if (shell_parser &&
+            (text.find("&&") != std::string::npos || text.find("||") != std::string::npos)) {
             std::vector<LogicalCommand> logical_cmds = shell_parser->parse_logical_commands(text);
             bool has_logical_op = false;
             for (const auto& lc : logical_cmds) {
@@ -893,6 +940,10 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         try {
             text = expand_all_substitutions(text, execute_simple_or_pipeline);
 
+            if (auto quick_result = try_execute_quick_command(text)) {
+                return *quick_result;
+            }
+
             auto raw_tokens = Tokenizer::tokenize_command(text);
             auto merged_tokens = Tokenizer::merge_redirection_tokens(raw_tokens);
             if (!merged_tokens.empty()) {
@@ -957,6 +1008,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
 
             if (!has_multiple_commands) {
                 parsed_args = shell_parser->parse_command(text);
+
                 if (!parsed_args.empty()) {
                     const std::string& prog = parsed_args[0];
                     if (should_interpret_as_cjsh_script(prog)) {
@@ -1160,6 +1212,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
     };
 
     auto execute_block_skip_validation = [&](const std::vector<std::string>& block_lines) -> int {
+        // loop bodies re-enter execute_block through this wrapper so continue and break validity
+        // checks can use loop scope while skipping redundant parent-level syntax validation
         push_loop_scope();
         auto loop_scope_cleanup = [this](void*) { pop_loop_scope(); };
         auto loop_scope =
@@ -1176,6 +1230,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
     };
 
     auto handle_for_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
+        // for blocks route to loop_evaluator where header parsing and per-iteration body execution
+        // are handled for list range and c-style forms
         return loop_evaluator::handle_for_block(
             src_lines, idx, execute_block_skip_validation,
             [this](const std::string& expr) { return evaluate_arithmetic_expression(expr); },
@@ -1294,17 +1350,20 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
     };
 
     auto handle_while_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
+        // while blocks use the shared condition loop evaluator
         return loop_evaluator::handle_condition_loop_block(
             loop_evaluator::LoopCondition::WHILE, src_lines, idx, execute_block_skip_validation,
             execute_simple_or_pipeline, shell_parser);
     };
 
     auto handle_until_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
+        // until blocks use the same evaluator with inverted continuation condition
         return loop_evaluator::handle_condition_loop_block(
             loop_evaluator::LoopCondition::UNTIL, src_lines, idx, execute_block_skip_validation,
             execute_simple_or_pipeline, shell_parser);
     };
 
+    // runtime execution trace starts here after parser and validation stages have completed
     for (size_t line_index = 0; line_index < lines.size(); ++line_index) {
         current_line_number = line_index + 1;
 
@@ -1327,8 +1386,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
             continue;
         }
 
-        // first dispatch pass for control-flow blocks. if statements go through handle_if_block
-        // before any generic command parsing or pipeline execution
+        // first dispatch pass for structured control-flow blocks.
+        // if for while until and case are routed before generic command parsing.
         auto block_result =
             try_dispatch_block_statement(lines, line_index, line, handle_if_block, handle_for_block,
                                          handle_while_block, handle_until_block, handle_case_block);
@@ -1345,6 +1404,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
             continue;
         }
 
+        // detect loop keywords on the right side of a pipeline and execute the full loop block
+        // as a single combined command so done matching stays intact
         bool handled_pipeline_loop = false;
         size_t pipe_search_pos = 0;
         while (pipe_search_pos < line.size()) {
@@ -1571,6 +1632,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
 
                     if (is_statement_keyword_prefix(t, StatementKeyword::For) &&
                         t.find("; do") != std::string::npos) {
+                        // one-line for loop with explicit do terminator in the same segment
                         size_t local_idx = 0;
                         std::vector<std::string> one{t};
                         int code = handle_for_block(one, local_idx);
@@ -1579,6 +1641,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                     }
                     if (is_statement_keyword_prefix(t, StatementKeyword::While) &&
                         t.find("; do") != std::string::npos) {
+                        // one-line while loop with explicit do terminator in the same segment
                         size_t local_idx = 0;
                         std::vector<std::string> one{t};
                         int code = handle_while_block(one, local_idx);
@@ -1587,6 +1650,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                     }
                     if (is_statement_keyword_prefix(t, StatementKeyword::Until) &&
                         t.find("; do") != std::string::npos) {
+                        // one-line until loop with explicit do terminator in the same segment
                         size_t local_idx = 0;
                         std::vector<std::string> one{t};
                         int code = handle_until_block(one, local_idx);
@@ -1606,6 +1670,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                     }
 
                     if (is_statement_keyword_prefix(t, StatementKeyword::For)) {
+                        // multiline inline-do form split by semicolons is reconstructed here
                         if (auto inline_result = loop_evaluator::try_execute_inline_do_block(
                                 t, semis, k, handle_for_block)) {
                             last_code = *inline_result;
@@ -1613,6 +1678,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                         }
                     }
                     if (is_statement_keyword_prefix(t, StatementKeyword::While)) {
+                        // same reconstruction path for while loops missing inline ; do in this piece
                         if (auto inline_result = loop_evaluator::try_execute_inline_do_block(
                                 t, semis, k, handle_while_block)) {
                             last_code = *inline_result;
@@ -1621,6 +1687,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                     }
 
                     if (is_statement_keyword_prefix(t, StatementKeyword::Until)) {
+                        // same reconstruction path for until loops missing inline ; do in this piece
                         if (auto inline_result = loop_evaluator::try_execute_inline_do_block(
                                 t, semis, k, handle_until_block)) {
                             last_code = *inline_result;
@@ -1819,11 +1886,22 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
 }
 
 bool ShellScriptInterpreter::should_interpret_as_cjsh_script(const std::string& path) const {
+    if (path.empty()) {
+        return false;
+    }
+
+    const bool has_explicit_path = path.find('/') != std::string::npos;
+    std::filesystem::path candidate(path);
+    const std::string extension = string_utils::to_lower_copy(candidate.extension().string());
+
+    if (!has_explicit_path && extension != ".cjsh") {
+        return false;
+    }
+
     if (!is_readable_file(path))
         return false;
 
-    std::filesystem::path candidate(path);
-    if (string_utils::to_lower_copy(candidate.extension().string()) == ".cjsh") {
+    if (extension == ".cjsh") {
         return true;
     }
 
@@ -1904,14 +1982,17 @@ int ShellScriptInterpreter::evaluate_logical_condition_internal(
 long long ShellScriptInterpreter::evaluate_arithmetic_expression(const std::string& expr) {
     auto var_reader = [this](const std::string& name) -> long long {
         std::string var_value = variable_manager.get_variable_value(name);
-        if (!var_value.empty() || variable_manager.variable_is_set(name)) {
-            try {
-                return std::stoll(var_value);
-            } catch (...) {
-                return 0;
-            }
+        if (var_value.empty()) {
+            return 0;
         }
-        return 0;
+
+        char* end = nullptr;
+        long long parsed_value = std::strtoll(var_value.c_str(), &end, 0);
+        if (end == var_value.c_str()) {
+            return 0;
+        }
+
+        return parsed_value;
     };
 
     auto var_writer = [this](const std::string& name, long long value) {
@@ -1922,14 +2003,7 @@ long long ShellScriptInterpreter::evaluate_arithmetic_expression(const std::stri
             return;
         }
 
-        if (g_shell) {
-            cjsh_env::env_vars()[name] = value_str;
-            cjsh_env::mirror_set_to_process_env(name, value_str);
-
-            if (shell_parser) {
-                shell_parser->set_env_vars(cjsh_env::env_vars());
-            }
-        }
+        variable_manager.set_environment_variable(name, value_str);
     };
 
     ArithmeticEvaluator evaluator(var_reader, var_writer);
@@ -1938,20 +2012,7 @@ long long ShellScriptInterpreter::evaluate_arithmetic_expression(const std::stri
 
 int ShellScriptInterpreter::set_last_status(int code) {
     Exec* exec_ptr = (g_shell && g_shell->shell_exec) ? g_shell->shell_exec.get() : nullptr;
-    pipeline_status_utils::apply_execution_status_env(
-        code, exec_ptr,
-        [this](const std::string& value) {
-            variable_manager.set_environment_variable("PIPESTATUS", value);
-        },
-        []() {
-            if (g_shell) {
-                auto& env_map = cjsh_env::env_vars();
-                env_map.erase("PIPESTATUS");
-                if (auto* parser = g_shell->get_parser()) {
-                    parser->set_env_vars(env_map);
-                }
-            }
-        });
+    pipeline_status_utils::apply_execution_status_env(code, exec_ptr);
 
     return code;
 }
@@ -2072,18 +2133,21 @@ ShellScriptInterpreter::BlockHandlerResult ShellScriptInterpreter::try_dispatch_
     }
 
     if (line == "for" || line.rfind("for ", 0) == 0) {
+        // route for headers to loop_evaluator for header parsing and body collection through done
         size_t idx = line_index;
         int rc = handle_for_block(lines, idx);
         return {true, rc, idx};
     }
 
     if (line == "while" || line.rfind("while ", 0) == 0) {
+        // route while headers to the shared condition-loop path
         size_t idx = line_index;
         int rc = handle_while_block(lines, idx);
         return {true, rc, idx};
     }
 
     if (line == "until" || line.rfind("until ", 0) == 0) {
+        // route until headers to the same condition-loop path with inverted continuation
         size_t idx = line_index;
         int rc = handle_until_block(lines, idx);
         return {true, rc, idx};

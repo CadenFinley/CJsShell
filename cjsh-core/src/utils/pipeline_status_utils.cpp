@@ -52,6 +52,16 @@ std::string build_status_string(const std::vector<int>& statuses) {
 namespace pipeline_status_utils {
 
 void set_last_status_env(int status_code) {
+    static thread_local bool cached = false;
+    static thread_local int cached_status = 0;
+
+    if (cached && cached_status == status_code) {
+        return;
+    }
+
+    cached = true;
+    cached_status = status_code;
+
     const std::string status_string = std::to_string(status_code);
     setenv("?", status_string.c_str(), 1);
 }

@@ -34,6 +34,8 @@
 #include <cstring>
 #include <limits>
 #include <stdexcept>
+#include <string_view>
+#include <unordered_map>
 #include <vector>
 
 namespace {
@@ -138,6 +140,34 @@ inline bool valid_shift_amount(long long amount) {
     return amount >= 0 && amount < 64;
 }
 
+bool expression_is_cacheable(std::string_view expression) {
+    if (expression.empty() || expression.size() > 128) {
+        return false;
+    }
+
+    if (expression.find("++") != std::string_view::npos ||
+        expression.find("--") != std::string_view::npos ||
+        expression.find('?') != std::string_view::npos ||
+        expression.find(':') != std::string_view::npos) {
+        return false;
+    }
+
+    for (size_t i = 0; i < expression.size(); ++i) {
+        if (expression[i] != '=') {
+            continue;
+        }
+
+        char previous = (i > 0) ? expression[i - 1] : '\0';
+        char next = (i + 1 < expression.size()) ? expression[i + 1] : '\0';
+        bool is_comparison = previous == '<' || previous == '>' || previous == '!' || next == '=';
+        if (!is_comparison) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 }  // namespace
 
 ArithmeticEvaluator::ArithmeticEvaluator(VariableReader var_reader, VariableWriter var_writer)
@@ -145,10 +175,30 @@ ArithmeticEvaluator::ArithmeticEvaluator(VariableReader var_reader, VariableWrit
 }
 
 long long ArithmeticEvaluator::evaluate(const std::string& expr) {
+    static constexpr size_t kCacheLimit = 256;
+    using PostfixCache = std::unordered_map<std::string, std::vector<Token>>;
+    static thread_local PostfixCache postfix_cache;
+
+    bool cacheable = expression_is_cacheable(expr);
+    if (cacheable) {
+        auto cache_it = postfix_cache.find(expr);
+        if (cache_it != postfix_cache.end()) {
+            return evaluate_postfix(cache_it->second);
+        }
+    }
+
     auto tokens = tokenize(expr);
     handle_assignment_operators(tokens);
     handle_increment_operators(tokens);
     auto postfix = infix_to_postfix(tokens);
+
+    if (cacheable) {
+        if (postfix_cache.size() >= kCacheLimit) {
+            postfix_cache.clear();
+        }
+        postfix_cache.emplace(expr, postfix);
+    }
+
     return evaluate_postfix(postfix);
 }
 
@@ -363,8 +413,7 @@ std::vector<ArithmeticEvaluator::Token> ArithmeticEvaluator::tokenize(const std:
                 continue;
             }
 
-            tokens.push_back(
-                {TokenType::VARIABLE, read_variable(name), name, "", OperatorType::UNKNOWN});
+            tokens.push_back({TokenType::VARIABLE, 0, name, "", OperatorType::UNKNOWN});
             i = j;
             expect_number = false;
             continue;

@@ -112,6 +112,8 @@ class Parser {
     void set_aliases(const std::unordered_map<std::string, std::string>& new_aliases);
 
     void set_env_vars(const std::unordered_map<std::string, std::string>& new_env_vars);
+    void set_env_var(const std::string& name, const std::string& value);
+    void unset_env_var(const std::string& name);
 
     void set_shell(Shell* new_shell);
 

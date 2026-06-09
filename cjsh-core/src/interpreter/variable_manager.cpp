@@ -109,9 +109,8 @@ void VariableManager::set_environment_variable(const std::string& name, const st
 
         global_array_variables.erase(name);
 
-        auto* shell_parser = g_shell->get_parser();
-        if (shell_parser) {
-            shell_parser->set_env_vars(env_vars);
+        if (auto* parser = g_shell->get_parser()) {
+            parser->set_env_var(name, value);
         }
     }
 }
@@ -1040,8 +1039,9 @@ void VariableManager::remove_global_scalar_binding(const std::string& name) {
     if (g_shell) {
         auto& env_vars = cjsh_env::env_vars();
         env_vars.erase(name);
+
         if (auto* parser = g_shell->get_parser()) {
-            parser->set_env_vars(env_vars);
+            parser->unset_env_var(name);
         }
     }
 

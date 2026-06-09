@@ -144,10 +144,18 @@ std::string VariableExpander::resolve_parameter_value(const std::string& var_nam
 
     std::string value = get_variable_value(var_name);
     if (value.empty()) {
+        bool is_set_in_interpreter = false;
+        if ((shell != nullptr) && (shell->get_shell_script_interpreter() != nullptr)) {
+            is_set_in_interpreter =
+                shell->get_shell_script_interpreter()->get_variable_manager().variable_is_set(
+                    var_name);
+        }
+
         auto it = env_vars.find(var_name);
         if (it != env_vars.end()) {
             value = it->second;
-        } else if (shell != nullptr && shell->get_shell_option(ShellOption::Nounset)) {
+        } else if (!is_set_in_interpreter && shell != nullptr &&
+                   shell->get_shell_option(ShellOption::Nounset)) {
             std::string error_msg = var_name + ": parameter not set";
             throw std::runtime_error(error_msg);
         }

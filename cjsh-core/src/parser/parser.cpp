@@ -177,6 +177,96 @@ bool is_simple_command_candidate(std::string_view cmdline) {
     return seen_non_space;
 }
 
+bool contains_tilde_character(std::string_view token) {
+    return token.find('~') != std::string_view::npos;
+}
+
+bool requires_glob_expansion_or_unescape(std::string_view token) {
+    return token.find_first_of("*?[") != std::string_view::npos ||
+           token.find('\x1F') != std::string_view::npos;
+}
+
+bool parse_simple_dollar_parameter(std::string_view token, std::string& parameter_name_out) {
+    parameter_name_out.clear();
+
+    if (token.size() < 2 || token.front() != '$') {
+        return false;
+    }
+
+    if (token[1] == '{' || token[1] == '(') {
+        return false;
+    }
+
+    unsigned char first = static_cast<unsigned char>(token[1]);
+    if ((std::isdigit(first)) != 0) {
+        if (token.size() == 2) {
+            parameter_name_out.assign(1, token[1]);
+            return true;
+        }
+        return false;
+    }
+
+    if (!is_valid_identifier_start(token[1])) {
+        return false;
+    }
+
+    for (size_t i = 2; i < token.size(); ++i) {
+        if (!is_valid_identifier_char(token[i])) {
+            return false;
+        }
+    }
+
+    parameter_name_out.assign(token.substr(1));
+    return true;
+}
+
+bool is_simple_arithmetic_assignment_candidate(std::string_view command_text) {
+    if (command_text.empty()) {
+        return false;
+    }
+
+    if (command_text.find_first_of(" \t\r\n\"'`|&;<>[]{}#!*?") != std::string_view::npos) {
+        return false;
+    }
+
+    size_t equals_pos = command_text.find('=');
+    if (equals_pos == std::string_view::npos || equals_pos == 0) {
+        return false;
+    }
+
+    if (!is_valid_identifier_start(command_text.front())) {
+        return false;
+    }
+
+    for (size_t i = 1; i < equals_pos; ++i) {
+        if (!is_valid_identifier_char(command_text[i])) {
+            return false;
+        }
+    }
+
+    std::string_view rhs = command_text.substr(equals_pos + 1);
+    if (rhs.size() < 5) {
+        return false;
+    }
+
+    if (rhs.rfind("$((", 0) != 0 || rhs.substr(rhs.size() - 2) != "))") {
+        return false;
+    }
+
+    return true;
+}
+
+bool contains_internal_substitution_markers(std::string_view text) {
+    if (text.find('\x1E') != std::string_view::npos) {
+        return true;
+    }
+
+    return text.find(subst_literal_start_plain()) != std::string_view::npos ||
+           text.find(subst_literal_end_plain()) != std::string_view::npos ||
+           text.find(noenv_start_plain()) != std::string_view::npos ||
+           text.find(noenv_end_plain()) != std::string_view::npos;
+}
+
 std::vector<std::string> fast_split_on_whitespace(std::string_view cmdline) {
     std::vector<std::string> result;
     result.reserve(8);
@@ -424,6 +514,14 @@ void Parser::set_aliases(const std::unordered_map<std::string, std::string>& new
 
 void Parser::set_env_vars(const std::unordered_map<std::string, std::string>& new_env_vars) {
     env_vars = new_env_vars;
+}
+
+void Parser::set_env_var(const std::string& name, const std::string& value) {
+    env_vars[name] = value;
+}
+
+void Parser::unset_env_var(const std::string& name) {
+    env_vars.erase(name);
 }
 
 void Parser::set_shell(Shell* new_shell) {
@@ -856,9 +954,14 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
     ensure_parsers_initialized();
 
     std::vector<std::string> args;
+    const bool simple_candidate = is_simple_command_candidate(cmdline);
+    const bool arithmetic_assignment_candidate =
+        !simple_candidate && is_simple_arithmetic_assignment_candidate(cmdline);
 
-    if (is_simple_command_candidate(cmdline)) {
+    if (simple_candidate) {
         args = fast_split_on_whitespace(cmdline);
+    } else if (arithmetic_assignment_candidate) {
+        args.emplace_back(cmdline);
     } else {
         args.reserve(16);
         try {
@@ -866,6 +969,38 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
             args = Tokenizer::merge_redirection_tokens(raw_args);
         } catch (const std::exception&) {
             return args;
+        }
+    }
+
+    if (simple_candidate && !args.empty()) {
+        auto alias_it = aliases.find(args[0]);
+        if (alias_it == aliases.end()) {
+            bool has_tilde = std::any_of(args.begin(), args.end(), [](const std::string& token) {
+                return contains_tilde_character(token);
+            });
+
+            bool needs_custom_ifs_split = false;
+            auto ifs_it = env_vars.find("IFS");
+            if (ifs_it != env_vars.end()) {
+                const std::string& ifs_value = ifs_it->second;
+                for (char delimiter : ifs_value) {
+                    if (delimiter == ' ' || delimiter == '\t' || delimiter == '\n') {
+                        continue;
+                    }
+                    needs_custom_ifs_split = std::any_of(
+                        args.begin(), args.end(), [delimiter](const std::string& token) {
+                            return token.find(delimiter) != std::string::npos;
+                        });
+                    if (needs_custom_ifs_split) {
+                        break;
+                    }
+                }
+            }
+
+            if (!has_tilde && !contains_internal_substitution_markers(cmdline) &&
+                !needs_custom_ifs_split) {
+                return args;
+            }
         }
     }
 
@@ -944,6 +1079,32 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
     auto expand_env_value = [&](const std::string& value) -> std::string {
         auto [noenv_stripped, had_noenv] = strip_noenv_sentinels(value);
         if (!had_noenv) {
+            std::string parameter_name;
+            if (parse_simple_dollar_parameter(noenv_stripped, parameter_name)) {
+                try {
+                    noenv_stripped = variableExpander->resolve_parameter_value(parameter_name);
+                } catch (const std::runtime_error& e) {
+                    std::string error_msg = e.what();
+                    if (shell != nullptr && shell->get_shell_option(ShellOption::Nounset) &&
+                        error_msg.find("parameter not set") != std::string::npos) {
+                        print_error({ErrorType::RUNTIME_ERROR,
+                                     ErrorSeverity::ERROR,
+                                     "parser",
+                                     e.what(),
+                                     {"Disable 'set -u' or ensure all parameters are defined "
+                                      "before expansion."}});
+                        throw;
+                    }
+                    print_error({ErrorType::RUNTIME_ERROR,
+                                 ErrorSeverity::WARNING,
+                                 "parser",
+                                 std::string("Error expanding environment variables: ") + e.what(),
+                                 {"Check that referenced variables are set or properly quoted."}});
+                }
+                strip_subst_literal_markers(noenv_stripped);
+                return noenv_stripped;
+            }
+
             try {
                 if (variableExpander->get_use_exported_vars_only()) {
                     variableExpander->expand_exported_env_vars_only(noenv_stripped);
@@ -1050,7 +1211,8 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
     for (const auto& raw_arg : tilde_expanded_args) {
         QuoteInfo qi(raw_arg);
 
-        if (qi.is_unquoted() && !is_double_bracket_command && !looks_like_assignment(qi.value)) {
+        if (qi.is_unquoted() && !is_double_bracket_command && !looks_like_assignment(qi.value) &&
+            requires_glob_expansion_or_unescape(qi.value)) {
             auto gw = expansionEngine->expand_wildcards(qi.value);
             final_args.insert(final_args.end(), gw.begin(), gw.end());
         } else {

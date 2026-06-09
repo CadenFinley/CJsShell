@@ -597,11 +597,13 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
                       const std::function<int(const std::vector<std::string>&)>& execute_block,
                       const std::function<int(const std::string&)>& execute_simple_or_pipeline,
                       Parser* shell_parser) {
+    // shared while/until evaluator used by interpreter loop dispatch
     size_t loop_start_idx = idx;
     std::string first = trim(strip_inline_comment(src_lines[idx]));
     if (first != keyword && first.rfind(keyword + " ", 0) != 0)
         return 1;
 
+    // parse the loop header and detect inline do/body placement
     auto parse_cond_from = [&](const std::string& s, std::string& cond, bool& inline_do,
                                std::string& body_inline) {
         inline_do = false;
@@ -639,6 +641,7 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
     parse_cond_from(first, cond, inline_do, body_inline);
     size_t j = idx;
     if (!inline_do) {
+        // gather multiline condition text until do is reached
         while (++j < src_lines.size()) {
             const std::string& cur_raw = src_lines[j];
             std::string cur = trim(strip_inline_comment(cur_raw));
@@ -663,10 +666,12 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
         }
     }
     if (!inline_do) {
+        // header was incomplete and never reached do
         idx = j;
         return 1;
     }
 
+    // collect body commands through matching done while supporting nested loop depth
     std::vector<std::string> body_lines;
     if (!body_inline.empty()) {
         std::string bi = body_inline;
@@ -685,6 +690,7 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
     }
 
     auto run_loop_logic = [&]() -> int {
+        // evaluate condition then execute body per iteration until loop termination criteria hit
         int rc = 0;
         while (true) {
             if (check_loop_interrupt(rc)) {
@@ -706,6 +712,7 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
             if (!continue_loop)
                 break;
 
+            // execute the collected loop body in interpreter context
             rc = execute_block(body_lines);
             auto outcome = handle_loop_command_result(rc, 0, 255, 0, 254, true);
             rc = outcome.code;
@@ -849,6 +856,7 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
 LoopCommandOutcome handle_loop_command_result(int rc, int break_consumed_rc, int break_propagate_rc,
                                               int continue_consumed_rc, int continue_propagate_rc,
                                               bool allow_error_continue) {
+    // normalize break continue and terminating signals into a loop flow decision
     if (rc == 255) {
         int adjusted =
             adjust_loop_signal("CJSH_BREAK_LEVEL", break_consumed_rc, break_propagate_rc);
@@ -891,6 +899,7 @@ int handle_for_block(
     const std::function<long long(const std::string&)>& evaluate_arithmetic_expression,
     const std::function<int(const std::string&)>& execute_simple_or_pipeline,
     Parser* shell_parser) {
+    // main for evaluator called after interpreter classifies a block as for
     std::string first = trim(strip_inline_comment(src_lines[idx]));
     if (first != "for" && first.rfind("for ", 0) != 0)
         return 1;
@@ -927,15 +936,15 @@ int handle_for_block(
     };
 
     auto assign_loop_variable = [&](const std::string& value) {
-        if (g_shell) {
-            cjsh_env::env_vars()[var] = value;
-            if (shell_parser != nullptr) {
-                shell_parser->expand_env_vars(var);
-            }
+        if (g_shell != nullptr &&
+            cjsh_env::set_shell_or_local_variable_value(g_shell.get(), var, value)) {
+            return;
         }
-        cjsh_env::set_shell_variable_value(var, value);
+
+        (void)cjsh_env::set_shell_variable_value(var, value);
     };
 
+    // parse header into c-style range or item-list form and capture loop variable metadata
     auto parse_header = [&](const std::string& header) -> bool {
         std::string normalized_header = trim(header);
         while (!normalized_header.empty() && normalized_header.back() == ';') {
@@ -1015,6 +1024,7 @@ int handle_for_block(
     size_t do_pos = parser_find_inline_do_position(first);
     size_t done_pos_on_line = parser_find_keyword_token(first, "done", 0);
     if (do_pos != std::string::npos && done_pos_on_line != std::string::npos) {
+        // fast path for one-line for loops where do and done are on the same line
         std::string header = trim(first.substr(0, do_pos));
         if (!parse_header(header))
             return 1;
@@ -1049,6 +1059,7 @@ int handle_for_block(
         }
 
         auto run_cached_body = [&, body_lines_ptr]() -> LoopCommandOutcome {
+            // execute one iteration body then translate result into loop flow semantics
             return handle_loop_command_result(execute_block(*body_lines_ptr), 0, 255, 0, 254, true);
         };
 
@@ -1083,6 +1094,7 @@ int handle_for_block(
         };
 
         if (c_style_header.is_c_style) {
+            // c-style for: init; condition; update
             if (!c_style_header.init_expression.empty()) {
                 long long ignored_result = 0;
                 if (!evaluate_arithmetic_or_fail(c_style_header.init_expression, ignored_result)) {
@@ -1125,6 +1137,7 @@ int handle_for_block(
                 }
             }
         } else if (range_info.is_range) {
+            // numeric brace range for i in {start..end}
             rc = iterate_numeric_range(range_info.start, range_info.end, range_info.is_ascending,
                                        [&](int value) -> LoopCommandOutcome {
                                            std::string val_str = std::to_string(value);
@@ -1132,6 +1145,7 @@ int handle_for_block(
                                            return run_cached_body();
                                        });
         } else {
+            // standard for-in item iteration
             for (const auto& it : items) {
                 int signal_rc = 0;
                 if (check_loop_interrupt(signal_rc)) {
@@ -1150,6 +1164,7 @@ int handle_for_block(
         return finalize_with_trailing_commands(rc, trailing_commands);
     }
 
+    // multiline for path: accumulate header until do and collect body through matching done
     std::string header_accum = first;
     size_t j = idx;
     bool have_do = false;
@@ -1255,6 +1270,7 @@ int handle_for_block(
     int rc = 0;
 
     auto run_body_and_handle_result = [&]() -> LoopCommandOutcome {
+        // execute one iteration body and map break continue behavior
         return handle_loop_command_result(execute_block(body_lines), 0, 255, 0, 254, true);
     };
 
@@ -1287,6 +1303,7 @@ int handle_for_block(
     };
 
     if (c_style_header.is_c_style) {
+        // c-style for: init; condition; update
         if (!c_style_header.init_expression.empty()) {
             long long ignored_result = 0;
             if (!evaluate_arithmetic_or_fail(c_style_header.init_expression, ignored_result)) {
@@ -1332,6 +1349,7 @@ int handle_for_block(
             }
         }
     } else if (range_info.is_range) {
+        // numeric brace range for i in {start..end}
         rc = iterate_numeric_range(range_info.start, range_info.end, range_info.is_ascending,
                                    [&](int value) -> LoopCommandOutcome {
                                        std::string val_str = std::to_string(value);
@@ -1339,6 +1357,7 @@ int handle_for_block(
                                        return run_body_and_handle_result();
                                    });
     } else {
+        // standard for-in item iteration
         for (const auto& it : items) {
             int signal_rc = 0;
             if (check_loop_interrupt(signal_rc)) {
@@ -1362,6 +1381,7 @@ int handle_condition_loop_block(
     const std::function<int(const std::vector<std::string>&)>& execute_block,
     const std::function<int(const std::string&)>& execute_simple_or_pipeline,
     Parser* shell_parser) {
+    // thin dispatcher that maps while/until into the shared loop-block implementation
     const char* keyword = condition == LoopCondition::WHILE ? "while" : "until";
     bool is_until = condition == LoopCondition::UNTIL;
     return handle_loop_block(src_lines, idx, keyword, is_until, execute_block,
@@ -1372,6 +1392,7 @@ std::optional<int> try_execute_inline_do_block(
     const std::string& first_segment, const std::vector<std::string>& segments,
     size_t& segment_index,
     const std::function<int(const std::vector<std::string>&, size_t&)>& handler) {
+    // reconstruct split loop fragments into one executable inline block for a single handler call
     if (first_segment.find("; do") != std::string::npos)
         return std::nullopt;
 

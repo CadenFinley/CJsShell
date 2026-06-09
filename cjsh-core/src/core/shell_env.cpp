@@ -263,8 +263,14 @@ bool unset_shell_variable_value(const std::string& name) {
         return false;
     }
     auto& env_map = env_vars();
-    env_map.erase(name);
-    sync_parser_env_vars(g_shell.get());
+    size_t erased = env_map.erase(name);
+    if (erased == 0 && !should_mirror_to_process_env(name)) {
+        return true;
+    }
+
+    if (auto* parser = g_shell->get_parser()) {
+        parser->unset_env_var(name);
+    }
 
     mirror_unset_from_process_env(name);
     return true;

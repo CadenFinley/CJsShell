@@ -398,6 +398,23 @@ std::vector<std::string> ExpansionEngine::expand_wildcards(const std::string& pa
 
     bool has_wildcards = false;
 
+    auto has_bracket_wildcard = [&](size_t open_index) {
+        for (size_t i = open_index + 1; i < pattern.length(); ++i) {
+            char c = pattern[i];
+            if (c == '\x1F' && i + 1 < pattern.length()) {
+                ++i;
+                continue;
+            }
+            if (c == ']') {
+                return i > open_index + 1;
+            }
+            if (c == '/') {
+                return false;
+            }
+        }
+        return false;
+    };
+
     for (size_t i = 0; i < pattern.length(); ++i) {
         char c = pattern[i];
 
@@ -406,7 +423,7 @@ std::vector<std::string> ExpansionEngine::expand_wildcards(const std::string& pa
             continue;
         }
 
-        if (c == '*' || c == '?' || c == '[') {
+        if (c == '*' || c == '?' || (c == '[' && has_bracket_wildcard(i))) {
             has_wildcards = true;
             break;
         }
