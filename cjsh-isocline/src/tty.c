@@ -82,6 +82,7 @@ struct tty_s {
 #endif
     bool wake_pipe_initialized;
     bool paste_mode;
+    tty_mouse_event_t last_mouse_event;
 };
 
 #if !defined(_WIN32)
@@ -192,6 +193,32 @@ ic_private bool code_is_virt_key(code_t c) {
 
 static code_t modify_code(code_t code, bool in_paste_mode);
 
+ic_private void tty_set_last_mouse_event(tty_t* tty, const tty_mouse_event_t* event) {
+    if (tty == NULL)
+        return;
+
+    if (event == NULL) {
+        memset(&tty->last_mouse_event, 0, sizeof(tty->last_mouse_event));
+        tty->last_mouse_event.action = TTY_MOUSE_ACTION_NONE;
+        return;
+    }
+
+    tty->last_mouse_event = *event;
+}
+
+ic_private void tty_clear_last_mouse_event(tty_t* tty) {
+    tty_set_last_mouse_event(tty, NULL);
+}
+
+ic_private bool tty_get_last_mouse_event(const tty_t* tty, tty_mouse_event_t* event) {
+    if (tty == NULL || event == NULL) {
+        return false;
+    }
+
+    *event = tty->last_mouse_event;
+    return (tty->last_mouse_event.action != TTY_MOUSE_ACTION_NONE);
+}
+
 static code_t tty_read_utf8(tty_t* tty, uint8_t c0) {
     uint8_t buf[5];
     memset(buf, 0, 5);
@@ -234,6 +261,8 @@ static bool tty_code_pop(tty_t* tty, code_t* code);
 
 ic_private bool tty_read_timeout(tty_t* tty, long timeout_ms, code_t* code) {
     while (true) {
+        tty_clear_last_mouse_event(tty);
+
         if (tty_code_pop(tty, code)) {
             return true;
         }

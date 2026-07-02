@@ -2098,6 +2098,73 @@ static bool test_tty_bracketed_paste_repeated_end_without_start(void) {
     return true;
 }
 
+static bool test_tty_sgr_mouse_event_metadata(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL || env->tty == NULL)
+        return true;
+
+    code_t drained = KEY_NONE;
+    while (tty_read_timeout(env->tty, 0, &drained)) {
+    }
+
+    static const uint8_t seq_left_press[] = {'\x1B', '[', '<', '4', ';', '6', ';', '4', 'M'};
+    static const uint8_t seq_left_release[] = {'\x1B', '[', '<', '4', ';', '6', ';', '4', 'm'};
+    static const uint8_t seq_wheel_up[] = {'\x1B', '[', '<', '6', '4', ';', '7', ';', '5', 'M'};
+    static const uint8_t seq_wheel_down[] = {'\x1B', '[', '<', '6', '5', ';', '7', '5', ';', '5',
+                                             'M'};
+
+    static const struct {
+        const uint8_t* raw;
+        size_t raw_len;
+        code_t expected_code;
+        tty_mouse_action_t expected_action;
+        ssize_t expected_column;
+        ssize_t expected_row;
+        code_t expected_modifiers;
+    } cases[] = {{seq_left_press, sizeof(seq_left_press), KEY_EVENT_MOUSE_OTHER | KEY_MOD_SHIFT,
+                  TTY_MOUSE_ACTION_LEFT_PRESS, 6, 4, KEY_MOD_SHIFT},
+                 {seq_left_release, sizeof(seq_left_release), KEY_EVENT_MOUSE_OTHER | KEY_MOD_SHIFT,
+                  TTY_MOUSE_ACTION_LEFT_RELEASE, 6, 4, KEY_MOD_SHIFT},
+                 {seq_wheel_up, sizeof(seq_wheel_up), KEY_EVENT_MOUSE_WHEEL_UP,
+                  TTY_MOUSE_ACTION_WHEEL_UP, 7, 5, 0},
+                 {seq_wheel_down, sizeof(seq_wheel_down), KEY_EVENT_MOUSE_WHEEL_DOWN,
+                  TTY_MOUSE_ACTION_WHEEL_DOWN, 75, 5, 0}};
+
+    for (size_t i = 0; i < (sizeof(cases) / sizeof(cases[0])); ++i) {
+        EXPECT_TRUE(ic_push_raw_input(cases[i].raw, cases[i].raw_len),
+                    "mouse event escape sequence should enqueue into active TTY");
+
+        code_t code = KEY_NONE;
+        bool got = false;
+        for (size_t attempt = 0; attempt < 32; ++attempt) {
+            if (!tty_read_timeout(env->tty, 0, &code)) {
+                break;
+            }
+            if (code == KEY_EVENT_RESIZE) {
+                continue;
+            }
+            got = true;
+            break;
+        }
+
+        EXPECT_TRUE(got, "mouse decode test should yield the expected number of key events");
+        EXPECT_TRUE(code == cases[i].expected_code, "decoded mouse key code mismatch");
+
+        tty_mouse_event_t mouse_event;
+        EXPECT_TRUE(tty_get_last_mouse_event(env->tty, &mouse_event),
+                    "mouse key events should capture metadata");
+        EXPECT_TRUE(mouse_event.action == cases[i].expected_action,
+                    "captured mouse action should match the decoded key event");
+        EXPECT_TRUE(mouse_event.column == cases[i].expected_column &&
+                        mouse_event.row == cases[i].expected_row,
+                    "mouse metadata should preserve reported terminal coordinates");
+        EXPECT_TRUE(mouse_event.modifiers == cases[i].expected_modifiers,
+                    "mouse metadata should preserve modifier masks");
+    }
+
+    return true;
+}
+
 static bool test_key_spec_ctrl_space_variants(void) {
     ic_keycode_t key = IC_KEY_NONE;
     EXPECT_TRUE(ic_parse_key_spec("ctrl+space", &key), "ctrl+space key spec should parse");
@@ -2943,6 +3010,7 @@ static const test_case_t kTests[] = {
      test_tty_bracketed_paste_repeated_start_without_end},
     {"tty_bracketed_paste_repeated_end_without_start",
      test_tty_bracketed_paste_repeated_end_without_start},
+    {"tty_sgr_mouse_event_metadata", test_tty_sgr_mouse_event_metadata},
     {"key_spec_ctrl_space_variants", test_key_spec_ctrl_space_variants},
     {"initial_input_env_lifecycle", test_initial_input_env_lifecycle},
     {"unicode_display_width_control_codepoints", test_unicode_display_width_control_codepoints},

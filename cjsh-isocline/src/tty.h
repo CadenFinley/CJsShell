@@ -42,6 +42,22 @@
 // Key code
 typedef ic_keycode_t code_t;
 
+typedef enum tty_mouse_action_e {
+    TTY_MOUSE_ACTION_NONE = 0,
+    TTY_MOUSE_ACTION_LEFT_PRESS,
+    TTY_MOUSE_ACTION_LEFT_RELEASE,
+    TTY_MOUSE_ACTION_WHEEL_UP,
+    TTY_MOUSE_ACTION_WHEEL_DOWN,
+    TTY_MOUSE_ACTION_OTHER,
+} tty_mouse_action_t;
+
+typedef struct tty_mouse_event_s {
+    tty_mouse_action_t action;
+    ssize_t column;  // 1-based terminal column
+    ssize_t row;     // 1-based terminal row
+    code_t modifiers;
+} tty_mouse_event_t;
+
 // TTY interface
 struct tty_s;
 typedef struct tty_s tty_t;
@@ -66,6 +82,9 @@ ic_private bool code_is_virt_key(code_t c);
 ic_private bool tty_term_resize_event(tty_t* tty);  // did the terminal resize?
 ic_private bool tty_async_stop(const tty_t* tty);   // unblock the read asynchronously
 ic_private void tty_set_esc_delay(tty_t* tty, long initial_delay_ms, long followup_delay_ms);
+ic_private void tty_set_last_mouse_event(tty_t* tty, const tty_mouse_event_t* event);
+ic_private void tty_clear_last_mouse_event(tty_t* tty);
+ic_private bool tty_get_last_mouse_event(const tty_t* tty, tty_mouse_event_t* event);
 
 // shared between tty.c and tty_esc.c: low level character push
 ic_private void tty_cpush_char(tty_t* tty, uint8_t c);

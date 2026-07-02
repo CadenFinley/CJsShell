@@ -73,6 +73,7 @@ typedef struct editor_s {
                                   // extra content)
     ssize_t cur_row;              // current row that has the cursor (0 based, relative to
                                   // the prompt)
+    ssize_t view_first_row;       // first visible row in the current viewport
     ssize_t termw;
     bool modified;                      // has a modification happened? (used for history navigation
                                         // for example)
@@ -99,6 +100,7 @@ typedef struct editor_s {
     const char* inline_right_text;  // inline right-aligned text on input line
     ssize_t inline_right_width;     // cached width of inline right text
     ssize_t line_number_column_width;  // cached total prefix width when line numbers are shown
+    ssize_t mouse_capture_depth;       // nested mouse tracking enablement depth
     alloc_t* mem;                      // allocator
     // caches
     attrbuf_t* attrs;  // reuse attribute buffers
@@ -180,6 +182,7 @@ static bool edit_try_expand_abbreviation(ic_env_t* env, editor_t* eb, bool bound
 static void edit_refresh(ic_env_t* env, editor_t* eb);
 static void edit_refresh_hint(ic_env_t* env, editor_t* eb);
 static void redraw_prompt_prefix_lines(ic_env_t* env, editor_t* eb);
+static bool edit_handle_mouse_click(ic_env_t* env, editor_t* eb);
 
 static void edit_reset_last_arg_state(editor_t* eb) {
     if (eb == NULL) {
@@ -543,6 +546,79 @@ static void edit_set_pos_at_rowcol(ic_env_t* env, editor_t* eb, ssize_t row, ssi
         return;
     eb->pos = pos;
     edit_refresh_hint(env, eb);
+}
+
+static bool edit_handle_mouse_click(ic_env_t* env, editor_t* eb) {
+    if (env == NULL || eb == NULL || env->tty == NULL || env->term == NULL) {
+        return false;
+    }
+
+    tty_mouse_event_t mouse_event;
+    if (!tty_get_last_mouse_event(env->tty, &mouse_event)) {
+        return false;
+    }
+
+    if (mouse_event.action != TTY_MOUSE_ACTION_LEFT_PRESS &&
+        mouse_event.action != TTY_MOUSE_ACTION_LEFT_RELEASE) {
+        return false;
+    }
+
+    if (mouse_event.column <= 0 || mouse_event.row <= 0) {
+        return false;
+    }
+
+    ssize_t cursor_row = 0;
+    ssize_t cursor_col = 0;
+    if (!term_query_cursor_pos(env->term, &cursor_row, &cursor_col)) {
+        return false;
+    }
+    ic_unused(cursor_col);
+
+    ssize_t visible_cursor_row = eb->cur_row - eb->view_first_row;
+    if (visible_cursor_row < 0) {
+        visible_cursor_row = 0;
+    }
+
+    ssize_t top_row = cursor_row - visible_cursor_row;
+    ssize_t clicked_visible_row = mouse_event.row - top_row;
+    if (clicked_visible_row < 0) {
+        return false;
+    }
+
+    ssize_t target_row = eb->view_first_row + clicked_visible_row;
+    if (target_row < 0) {
+        return false;
+    }
+
+    ssize_t promptw = 0;
+    ssize_t cpromptw = 0;
+    edit_get_prompt_width(env, eb, false, &promptw, &cpromptw);
+
+    rowcol_t end_rc = {0};
+    ssize_t input_rows =
+        sbuf_get_rc_at_pos(eb->input, eb->termw, promptw, cpromptw, sbuf_len(eb->input), &end_rc);
+    if (target_row >= input_rows) {
+        return false;
+    }
+
+    ssize_t row_prompt_width = (target_row == 0 ? promptw : cpromptw);
+    ssize_t target_col = mouse_event.column - 1 - row_prompt_width;
+    if (target_col < 0) {
+        target_col = 0;
+    }
+
+    ssize_t new_pos =
+        sbuf_get_pos_at_rc(eb->input, eb->termw, promptw, cpromptw, target_row, target_col);
+    if (new_pos < 0) {
+        return false;
+    }
+
+    if (new_pos != eb->pos) {
+        eb->pos = new_pos;
+        edit_refresh_hint(env, eb);
+    }
+
+    return true;
 }
 
 static bool edit_pos_is_at_row_end(ic_env_t* env, editor_t* eb) {
@@ -1464,6 +1540,7 @@ static void edit_refresh(ic_env_t* env, editor_t* eb) {
     // update previous
     eb->cur_rows = rows;
     eb->cur_row = rc.row;
+    eb->view_first_row = first_row;
     eb->force_linear_line_numbers = false;
 }
 
@@ -2572,21 +2649,50 @@ static bool edit_format_default_status_hints(ic_env_t* env, char* buffer, size_t
     return true;
 }
 
-static bool edit_enable_menu_mouse_scroll(ic_env_t* env) {
-    if (env == NULL || env->term == NULL || !term_is_interactive(env->term)) {
+static bool edit_enable_mouse_tracking(ic_env_t* env, editor_t* eb) {
+    if (env == NULL || eb == NULL || env->term == NULL || !term_is_interactive(env->term)) {
         return false;
     }
-    term_write(env->term, "\x1b[?1000h\x1b[?1006h");
-    term_flush(env->term);
+
+    if (eb->mouse_capture_depth == 0) {
+        term_write(env->term, "\x1b[?1000h\x1b[?1006h");
+        term_flush(env->term);
+    }
+
+    if (eb->mouse_capture_depth < SSIZE_MAX) {
+        eb->mouse_capture_depth++;
+    }
     return true;
 }
 
-static void edit_disable_menu_mouse_scroll(ic_env_t* env, bool enabled) {
-    if (!enabled || env == NULL || env->term == NULL || !term_is_interactive(env->term)) {
+static void edit_disable_mouse_tracking(ic_env_t* env, editor_t* eb, bool enabled) {
+    if (!enabled || env == NULL || eb == NULL || env->term == NULL ||
+        !term_is_interactive(env->term)) {
         return;
     }
-    term_write(env->term, "\x1b[?1000l\x1b[?1006l");
-    term_flush(env->term);
+
+    if (eb->mouse_capture_depth > 0) {
+        eb->mouse_capture_depth--;
+    }
+
+    if (eb->mouse_capture_depth == 0) {
+        term_write(env->term, "\x1b[?1000l\x1b[?1006l");
+        term_flush(env->term);
+    }
+}
+
+static bool edit_enable_menu_mouse_scroll(ic_env_t* env) {
+    if (env == NULL) {
+        return false;
+    }
+    return edit_enable_mouse_tracking(env, env->current_editor);
+}
+
+static void edit_disable_menu_mouse_scroll(ic_env_t* env, bool enabled) {
+    if (env == NULL) {
+        return;
+    }
+    edit_disable_mouse_tracking(env, env->current_editor, enabled);
 }
 
 //-------------------------------------------------------------
@@ -2951,6 +3057,8 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
         }
     }
 
+    bool mouse_tracking_enabled = edit_enable_mouse_tracking(env, &eb);
+
     // process keys
     code_t c = KEY_NONE;  // current key code
     bool has_pending_key = false;
@@ -3074,6 +3182,10 @@ edit_loop_entry:
 
             if ((c < IC_KEY_EVENT_BASE || c >= IC_KEY_UNICODE_MAX) &&
                 key_binding_execute(env, &eb, c)) {
+                continue;
+            }
+
+            if (KEY_NO_MODS(c) == KEY_EVENT_MOUSE_OTHER && edit_handle_mouse_click(env, &eb)) {
                 continue;
             }
 
@@ -3381,6 +3493,8 @@ edit_loop_entry:
     if (res == NULL || sbuf_len(eb.input) <= 1) {
         ic_history_remove_last();
     }
+
+    edit_disable_mouse_tracking(env, &eb, mouse_tracking_enabled);
 
     // Clear the current editor pointer
     env->current_editor = NULL;

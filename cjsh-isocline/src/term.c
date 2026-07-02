@@ -198,6 +198,19 @@ ic_private bool term_line_has_visible_content(term_t* term) {
     return (col > 1);
 }
 
+ic_private bool term_query_cursor_pos(term_t* term, ssize_t* row, ssize_t* col) {
+    if (term == NULL || row == NULL || col == NULL) {
+        return false;
+    }
+    if (!term_is_interactive(term) || term->tty == NULL) {
+        return false;
+    }
+    if (tty_input_pending(term->tty)) {
+        return false;
+    }
+    return term_get_cursor_pos(term, row, col);
+}
+
 ic_private void term_set_track_output(term_t* term, bool enable) {
     if (term == NULL)
         return;

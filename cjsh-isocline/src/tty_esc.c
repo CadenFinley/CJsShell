@@ -335,8 +335,9 @@ static code_t esc_decode_ss3(uint8_t ss3_code) {
     return KEY_NONE;
 }
 
-static code_t esc_decode_mouse_wheel(uint32_t mouse_code, code_t* modifiers) {
-    if (modifiers == NULL) {
+static code_t esc_decode_mouse_event(tty_t* tty, uint32_t mouse_code, uint32_t mouse_column,
+                                     uint32_t mouse_row, bool is_release, code_t* modifiers) {
+    if (tty == NULL || modifiers == NULL) {
         return KEY_NONE;
     }
 
@@ -350,18 +351,40 @@ static code_t esc_decode_mouse_wheel(uint32_t mouse_code, code_t* modifiers) {
         *modifiers |= KEY_MOD_CTRL;
     }
 
-    if ((mouse_code & 0x40U) == 0) {
-        return KEY_EVENT_MOUSE_OTHER;
+    tty_mouse_event_t event;
+    memset(&event, 0, sizeof(event));
+    event.action = TTY_MOUSE_ACTION_OTHER;
+    event.column = (ssize_t)mouse_column;
+    event.row = (ssize_t)mouse_row;
+    event.modifiers = *modifiers;
+
+    code_t code = KEY_EVENT_MOUSE_OTHER;
+    if ((mouse_code & 0x40U) != 0) {
+        switch (mouse_code & 0x03U) {
+            case 0:
+                event.action = TTY_MOUSE_ACTION_WHEEL_UP;
+                code = KEY_EVENT_MOUSE_WHEEL_UP;
+                break;
+            case 1:
+                event.action = TTY_MOUSE_ACTION_WHEEL_DOWN;
+                code = KEY_EVENT_MOUSE_WHEEL_DOWN;
+                break;
+            default:
+                event.action = TTY_MOUSE_ACTION_OTHER;
+                code = KEY_EVENT_MOUSE_OTHER;
+                break;
+        }
+    } else {
+        uint32_t button = (mouse_code & 0x03U);
+        if ((button == 0 && !is_release)) {
+            event.action = TTY_MOUSE_ACTION_LEFT_PRESS;
+        } else if ((button == 0 && is_release) || (button == 3 && !is_release)) {
+            event.action = TTY_MOUSE_ACTION_LEFT_RELEASE;
+        }
     }
 
-    switch (mouse_code & 0x03U) {
-        case 0:
-            return KEY_EVENT_MOUSE_WHEEL_UP;
-        case 1:
-            return KEY_EVENT_MOUSE_WHEEL_DOWN;
-        default:
-            return KEY_EVENT_MOUSE_OTHER;
-    }
+    tty_set_last_mouse_event(tty, &event);
+    return code;
 }
 
 static bool tty_read_csi_num(tty_t* tty, uint8_t* ppeek, uint32_t* num, long esc_timeout) {
@@ -407,11 +430,13 @@ static code_t tty_read_csi(tty_t* tty, uint8_t c1, uint8_t peek, code_t mods0, l
             !tty_readc_noblock(tty, &cy, esc_timeout)) {
             return KEY_NONE;
         }
-        ic_unused(cx);
-        ic_unused(cy);
         code_t modifiers = mods0;
         uint32_t mouse_code = (cb >= 32 ? (uint32_t)(cb - 32) : (uint32_t)cb);
-        code_t code = esc_decode_mouse_wheel(mouse_code, &modifiers);
+        uint32_t mouse_column = (cx >= 32 ? (uint32_t)(cx - 32) : 0U);
+        uint32_t mouse_row = (cy >= 32 ? (uint32_t)(cy - 32) : 0U);
+        bool is_release = false;
+        code_t code =
+            esc_decode_mouse_event(tty, mouse_code, mouse_column, mouse_row, is_release, &modifiers);
         return (code != KEY_NONE ? (code | modifiers) : KEY_NONE);
     }
 
@@ -509,9 +534,7 @@ static code_t tty_read_csi(tty_t* tty, uint8_t c1, uint8_t peek, code_t mods0, l
     // and translate
     code_t code = KEY_NONE;
     if (c1 == '[' && special == '<' && (final == 'M' || final == 'm')) {
-        ic_unused(num2);
-        ic_unused(num3);
-        code = esc_decode_mouse_wheel(num1, &modifiers);
+        code = esc_decode_mouse_event(tty, num1, num2, num3, final == 'm', &modifiers);
     } else if (final == '~') {
         // vt codes
         code = esc_decode_vt(num1);
