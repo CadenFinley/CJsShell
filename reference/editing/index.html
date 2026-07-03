@@ -1752,24 +1752,28 @@ The syntax highlighter can be temporarily disabled with the <code>--no-syntax-hi
 - Frequency-based ranking (commonly used completions appear first)
 - Source attribution (shows where completions come from)
 - Preview of selected completion
+- Optional expanded-by-default completion menu layout
 - Automatic expansion with auto-tab</p>
 <p>Need to author new entries or override the defaults? Check the <a href="../completions/">Completion Authoring Guide</a> for cache formats, nested command support, and manual customization tips.</p>
 <p><strong>Configuration:</strong>
 </p><div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Enable/disable completion preview (enabled by default)</span>
 </span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>cjshopt<span class="w"> </span>completion-preview<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
 </span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Enable/disable auto-tab (disabled by default)</span>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="c1"># Auto-tab automatically completes unique prefixes</span>
-</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>cjshopt<span class="w"> </span>auto-tab<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
-</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>
-</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="c1"># Configure case sensitivity (disabled by default; completions are case-insensitive)</span>
-</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>cjshopt<span class="w"> </span>completion-case<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Open completion menus expanded by default (disabled by default)</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>cjshopt<span class="w"> </span>completion-menu-expanded<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1"># Enable/disable auto-tab (disabled by default)</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="c1"># Auto-tab automatically completes unique prefixes</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>cjshopt<span class="w"> </span>auto-tab<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
 </span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>
-</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="c1"># Enable/disable spell correction (enabled by default)</span>
-</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>cjshopt<span class="w"> </span>completion-spell<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="c1"># Configure case sensitivity (disabled by default; completions are case-insensitive)</span>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>cjshopt<span class="w"> </span>completion-case<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
 </span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>
-</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="c1"># Cap the number of suggestions shown per request (default: 1000, no upper limit)</span>
-</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>cjshopt<span class="w"> </span>set-completion-max<span class="w"> </span>&lt;number<span class="p">|</span>default<span class="p">|</span>status&gt;
+</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="c1"># Enable/disable spell correction (enabled by default)</span>
+</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>cjshopt<span class="w"> </span>completion-spell<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>
+</span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="c1"># Cap the number of suggestions shown per request (default: 1000, no upper limit)</span>
+</span><span id="__span-6-18"><a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a>cjshopt<span class="w"> </span>set-completion-max<span class="w"> </span>&lt;number<span class="p">|</span>default<span class="p">|</span>status&gt;
 </span></code></pre></div><p></p>
 <p>Lower or raise the completion cap (any value &gt;= 1) to keep the menu focused when working inside
 directories that contain thousands of files or deeply nested command trees.</p>
@@ -2026,13 +2030,16 @@ argument from the previous command, use <code>!$</code> or the fuzzy history sea
 </span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>ext<span class="w"> </span>list
 </span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>
 </span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="c1"># Bind Ctrl+G to run a command (add to ~/.cjshrc)</span>
-</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>ext<span class="w"> </span><span class="nb">set</span><span class="w"> </span>ctrl-g<span class="w"> </span><span class="s1">'cjsh-widget accept'</span>
+</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>ext<span class="w"> </span><span class="nb">set</span><span class="w"> </span>ctrl-g<span class="w"> </span>--title<span class="w"> </span><span class="s1">'Accept line'</span><span class="w"> </span><span class="s1">'cjsh-widget accept'</span>
 </span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>
-</span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="c1"># Remove a command binding</span>
-</span><span id="__span-17-8"><a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>ext<span class="w"> </span>clear<span class="w"> </span>ctrl-g
+</span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="c1"># Add a palette-only command with a title used for command palette lookup</span>
+</span><span id="__span-17-8"><a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>ext<span class="w"> </span><span class="nb">set</span><span class="w"> </span>palette:uuid<span class="w"> </span>--title<span class="w"> </span><span class="s1">'Generate UUID'</span><span class="w"> </span><span class="s1">'uuidgen'</span>
 </span><span id="__span-17-9"><a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a>
-</span><span id="__span-17-10"><a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a><span class="c1"># Clear every custom command binding</span>
-</span><span id="__span-17-11"><a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>ext<span class="w"> </span>reset
+</span><span id="__span-17-10"><a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a><span class="c1"># Remove a command binding</span>
+</span><span id="__span-17-11"><a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>ext<span class="w"> </span>clear<span class="w"> </span>ctrl-g
+</span><span id="__span-17-12"><a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a>
+</span><span id="__span-17-13"><a id="__codelineno-17-13" name="__codelineno-17-13" href="#__codelineno-17-13"></a><span class="c1"># Clear every custom command binding</span>
+</span><span id="__span-17-14"><a id="__codelineno-17-14" name="__codelineno-17-14" href="#__codelineno-17-14"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>ext<span class="w"> </span>reset
 </span></code></pre></div>
 <p>Command key bindings typically leverage the <code>cjsh-widget</code> builtin to read or modify editor state. As
 with standard bindings, modifications must be placed in configuration files; inspection commands can
@@ -2179,30 +2186,31 @@ Commands can pre-populate the input buffer (used by <code>fc</code> command for 
 </span><span id="__span-23-6"><a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a>
 </span><span id="__span-23-7"><a id="__codelineno-23-7" name="__codelineno-23-7" href="#__codelineno-23-7"></a><span class="c1"># Completion settings</span>
 </span><span id="__span-23-8"><a id="__codelineno-23-8" name="__codelineno-23-8" href="#__codelineno-23-8"></a>cjshopt<span class="w"> </span>completion-preview<span class="w"> </span>on
-</span><span id="__span-23-9"><a id="__codelineno-23-9" name="__codelineno-23-9" href="#__codelineno-23-9"></a>cjshopt<span class="w"> </span>auto-tab<span class="w"> </span>off
-</span><span id="__span-23-10"><a id="__codelineno-23-10" name="__codelineno-23-10" href="#__codelineno-23-10"></a>cjshopt<span class="w"> </span>completion-case<span class="w"> </span>off<span class="w">  </span><span class="c1"># Case-insensitive completions</span>
-</span><span id="__span-23-11"><a id="__codelineno-23-11" name="__codelineno-23-11" href="#__codelineno-23-11"></a>cjshopt<span class="w"> </span>completion-spell<span class="w"> </span>on
-</span><span id="__span-23-12"><a id="__codelineno-23-12" name="__codelineno-23-12" href="#__codelineno-23-12"></a>
-</span><span id="__span-23-13"><a id="__codelineno-23-13" name="__codelineno-23-13" href="#__codelineno-23-13"></a><span class="c1"># Hint settings</span>
-</span><span id="__span-23-14"><a id="__codelineno-23-14" name="__codelineno-23-14" href="#__codelineno-23-14"></a>cjshopt<span class="w"> </span>hint<span class="w"> </span>on
-</span><span id="__span-23-15"><a id="__codelineno-23-15" name="__codelineno-23-15" href="#__codelineno-23-15"></a>cjshopt<span class="w"> </span>hint-delay<span class="w"> </span><span class="m">100</span><span class="w">  </span><span class="c1"># 100ms delay before showing hints</span>
-</span><span id="__span-23-16"><a id="__codelineno-23-16" name="__codelineno-23-16" href="#__codelineno-23-16"></a>
-</span><span id="__span-23-17"><a id="__codelineno-23-17" name="__codelineno-23-17" href="#__codelineno-23-17"></a><span class="c1"># Help settings</span>
-</span><span id="__span-23-18"><a id="__codelineno-23-18" name="__codelineno-23-18" href="#__codelineno-23-18"></a>cjshopt<span class="w"> </span>inline-help<span class="w"> </span>on
-</span><span id="__span-23-19"><a id="__codelineno-23-19" name="__codelineno-23-19" href="#__codelineno-23-19"></a>
-</span><span id="__span-23-20"><a id="__codelineno-23-20" name="__codelineno-23-20" href="#__codelineno-23-20"></a><span class="c1"># History</span>
-</span><span id="__span-23-21"><a id="__codelineno-23-21" name="__codelineno-23-21" href="#__codelineno-23-21"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span><span class="m">10000</span>
-</span><span id="__span-23-22"><a id="__codelineno-23-22" name="__codelineno-23-22" href="#__codelineno-23-22"></a>
-</span><span id="__span-23-23"><a id="__codelineno-23-23" name="__codelineno-23-23" href="#__codelineno-23-23"></a><span class="c1"># Key bindings</span>
-</span><span id="__span-23-24"><a id="__codelineno-23-24" name="__codelineno-23-24" href="#__codelineno-23-24"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>profile<span class="w"> </span><span class="nb">set</span><span class="w"> </span>emacs
-</span><span id="__span-23-25"><a id="__codelineno-23-25" name="__codelineno-23-25" href="#__codelineno-23-25"></a>
-</span><span id="__span-23-26"><a id="__codelineno-23-26" name="__codelineno-23-26" href="#__codelineno-23-26"></a><span class="c1"># Syntax highlighting styles</span>
-</span><span id="__span-23-27"><a id="__codelineno-23-27" name="__codelineno-23-27" href="#__codelineno-23-27"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>keyword<span class="w"> </span><span class="s2">"bold blue"</span>
-</span><span id="__span-23-28"><a id="__codelineno-23-28" name="__codelineno-23-28" href="#__codelineno-23-28"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>system<span class="w"> </span><span class="s2">"green"</span>
-</span><span id="__span-23-29"><a id="__codelineno-23-29" name="__codelineno-23-29" href="#__codelineno-23-29"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>ic-error<span class="w"> </span><span class="s2">"bold red"</span>
-</span><span id="__span-23-30"><a id="__codelineno-23-30" name="__codelineno-23-30" href="#__codelineno-23-30"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>string<span class="w"> </span><span class="s2">"#ffaa00"</span>
-</span><span id="__span-23-31"><a id="__codelineno-23-31" name="__codelineno-23-31" href="#__codelineno-23-31"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>comment<span class="w"> </span><span class="s2">"italic #888888"</span>
-</span><span id="__span-23-32"><a id="__codelineno-23-32" name="__codelineno-23-32" href="#__codelineno-23-32"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>operator<span class="w"> </span><span class="s2">"bold"</span>
+</span><span id="__span-23-9"><a id="__codelineno-23-9" name="__codelineno-23-9" href="#__codelineno-23-9"></a>cjshopt<span class="w"> </span>completion-menu-expanded<span class="w"> </span>off
+</span><span id="__span-23-10"><a id="__codelineno-23-10" name="__codelineno-23-10" href="#__codelineno-23-10"></a>cjshopt<span class="w"> </span>auto-tab<span class="w"> </span>off
+</span><span id="__span-23-11"><a id="__codelineno-23-11" name="__codelineno-23-11" href="#__codelineno-23-11"></a>cjshopt<span class="w"> </span>completion-case<span class="w"> </span>off<span class="w">  </span><span class="c1"># Case-insensitive completions</span>
+</span><span id="__span-23-12"><a id="__codelineno-23-12" name="__codelineno-23-12" href="#__codelineno-23-12"></a>cjshopt<span class="w"> </span>completion-spell<span class="w"> </span>on
+</span><span id="__span-23-13"><a id="__codelineno-23-13" name="__codelineno-23-13" href="#__codelineno-23-13"></a>
+</span><span id="__span-23-14"><a id="__codelineno-23-14" name="__codelineno-23-14" href="#__codelineno-23-14"></a><span class="c1"># Hint settings</span>
+</span><span id="__span-23-15"><a id="__codelineno-23-15" name="__codelineno-23-15" href="#__codelineno-23-15"></a>cjshopt<span class="w"> </span>hint<span class="w"> </span>on
+</span><span id="__span-23-16"><a id="__codelineno-23-16" name="__codelineno-23-16" href="#__codelineno-23-16"></a>cjshopt<span class="w"> </span>hint-delay<span class="w"> </span><span class="m">100</span><span class="w">  </span><span class="c1"># 100ms delay before showing hints</span>
+</span><span id="__span-23-17"><a id="__codelineno-23-17" name="__codelineno-23-17" href="#__codelineno-23-17"></a>
+</span><span id="__span-23-18"><a id="__codelineno-23-18" name="__codelineno-23-18" href="#__codelineno-23-18"></a><span class="c1"># Help settings</span>
+</span><span id="__span-23-19"><a id="__codelineno-23-19" name="__codelineno-23-19" href="#__codelineno-23-19"></a>cjshopt<span class="w"> </span>inline-help<span class="w"> </span>on
+</span><span id="__span-23-20"><a id="__codelineno-23-20" name="__codelineno-23-20" href="#__codelineno-23-20"></a>
+</span><span id="__span-23-21"><a id="__codelineno-23-21" name="__codelineno-23-21" href="#__codelineno-23-21"></a><span class="c1"># History</span>
+</span><span id="__span-23-22"><a id="__codelineno-23-22" name="__codelineno-23-22" href="#__codelineno-23-22"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span><span class="m">10000</span>
+</span><span id="__span-23-23"><a id="__codelineno-23-23" name="__codelineno-23-23" href="#__codelineno-23-23"></a>
+</span><span id="__span-23-24"><a id="__codelineno-23-24" name="__codelineno-23-24" href="#__codelineno-23-24"></a><span class="c1"># Key bindings</span>
+</span><span id="__span-23-25"><a id="__codelineno-23-25" name="__codelineno-23-25" href="#__codelineno-23-25"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>profile<span class="w"> </span><span class="nb">set</span><span class="w"> </span>emacs
+</span><span id="__span-23-26"><a id="__codelineno-23-26" name="__codelineno-23-26" href="#__codelineno-23-26"></a>
+</span><span id="__span-23-27"><a id="__codelineno-23-27" name="__codelineno-23-27" href="#__codelineno-23-27"></a><span class="c1"># Syntax highlighting styles</span>
+</span><span id="__span-23-28"><a id="__codelineno-23-28" name="__codelineno-23-28" href="#__codelineno-23-28"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>keyword<span class="w"> </span><span class="s2">"bold blue"</span>
+</span><span id="__span-23-29"><a id="__codelineno-23-29" name="__codelineno-23-29" href="#__codelineno-23-29"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>system<span class="w"> </span><span class="s2">"green"</span>
+</span><span id="__span-23-30"><a id="__codelineno-23-30" name="__codelineno-23-30" href="#__codelineno-23-30"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>ic-error<span class="w"> </span><span class="s2">"bold red"</span>
+</span><span id="__span-23-31"><a id="__codelineno-23-31" name="__codelineno-23-31" href="#__codelineno-23-31"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>string<span class="w"> </span><span class="s2">"#ffaa00"</span>
+</span><span id="__span-23-32"><a id="__codelineno-23-32" name="__codelineno-23-32" href="#__codelineno-23-32"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>comment<span class="w"> </span><span class="s2">"italic #888888"</span>
+</span><span id="__span-23-33"><a id="__codelineno-23-33" name="__codelineno-23-33" href="#__codelineno-23-33"></a>cjshopt<span class="w"> </span>style_def<span class="w"> </span>operator<span class="w"> </span><span class="s2">"bold"</span>
 </span></code></pre></div>
 <h3 id="minimal-configuration">Minimal Configuration</h3>
 <p>For a minimal, fast setup (<code>--minimal</code> disables prompt themes/colors, completions and completion learning, syntax highlighting, smart <code>cd</code>, rc sourcing, the title line, history expansion, the status line, multiline line numbers, the startup time banner, error suggestions, and prompt vars):</p>

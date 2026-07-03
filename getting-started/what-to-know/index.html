@@ -651,6 +651,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#completion-menu-default-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Completion Menu Default Layout
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#spell-correction" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1478,6 +1489,9 @@ Fuzzy matching powers command, path, and argument completions without additional
 <h3 id="completion-preview">Completion Preview</h3>
 <p><strong>Status:</strong> Enabled<br>
 <strong>Configure:</strong> <code>cjshopt completion-preview on|off|status</code></p>
+<h3 id="completion-menu-default-layout">Completion Menu Default Layout</h3>
+<p><strong>Status:</strong> Disabled (menus start collapsed)<br>
+<strong>Configure:</strong> <code>cjshopt completion-menu-expanded on|off|status</code></p>
 <h3 id="spell-correction">Spell Correction</h3>
 <p><strong>Status:</strong> Enabled<br>
 <strong>Configure:</strong> <code>cjshopt completion-spell on|off|status</code></p>
@@ -1606,14 +1620,17 @@ falls back to the default search paths.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Toggle completion preview for the current session</span>
 </span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>cjshopt<span class="w"> </span>completion-preview<span class="w"> </span>off
 </span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1"># Enable inline whitespace markers</span>
-</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>cjshopt<span class="w"> </span>visible-whitespace<span class="w"> </span>on
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1"># Open completion menus in expanded mode by default</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>cjshopt<span class="w"> </span>completion-menu-expanded<span class="w"> </span>on
 </span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>
-</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="c1"># Switch to vi key bindings (add to ~/.cjshrc to persist)</span>
-</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>profile<span class="w"> </span><span class="nb">set</span><span class="w"> </span>vi
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="c1"># Enable inline whitespace markers</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>cjshopt<span class="w"> </span>visible-whitespace<span class="w"> </span>on
 </span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>
-</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="c1"># Increase history retention</span>
-</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span><span class="m">20000</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="c1"># Switch to vi key bindings (add to ~/.cjshrc to persist)</span>
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>profile<span class="w"> </span><span class="nb">set</span><span class="w"> </span>vi
+</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a>
+</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="c1"># Increase history retention</span>
+</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span><span class="m">20000</span>
 </span></code></pre></div>
 <p>Persist startup flags by placing commands like the following in <code>~/.cjprofile</code>:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>cjshopt<span class="w"> </span>login-startup-arg<span class="w"> </span>--no-colors
