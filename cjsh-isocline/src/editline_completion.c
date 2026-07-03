@@ -826,7 +826,7 @@ read_key:
         }
     }
 
-    if (expanded_mode && key_no_mods == KEY_EVENT_MOUSE_OTHER) {
+    if (menu_mouse_scroll_enabled && expanded_mode && key_no_mods == KEY_EVENT_MOUSE_OTHER) {
         c = 0;
         goto again;
     }
@@ -862,7 +862,7 @@ read_key:
         goto again;
     }
 
-    if (expanded_mode &&
+    if (menu_mouse_scroll_enabled && expanded_mode &&
         (key_no_mods == KEY_EVENT_MOUSE_WHEEL_UP || key_no_mods == KEY_EVENT_MOUSE_WHEEL_DOWN)) {
         if (count_displayed > 0) {
             if (key_no_mods == KEY_EVENT_MOUSE_WHEEL_DOWN) {

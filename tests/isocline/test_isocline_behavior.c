@@ -1440,6 +1440,11 @@ static bool test_key_binding_crud_and_profiles(void) {
                     strstr(yank_specs, "alt+_") != NULL,
                 "default yank-last-arg specs should expose both readline-style Meta-. and Meta-_");
 
+    const char* mouse_toggle_specs =
+        ic_key_binding_profile_default_specs(IC_KEY_ACTION_TOGGLE_MOUSE_REPORTING);
+    EXPECT_TRUE(mouse_toggle_specs != NULL && strstr(mouse_toggle_specs, "f2") != NULL,
+                "default mouse-toggle specs should expose F2");
+
     EXPECT_FALSE(ic_set_key_binding_profile("does-not-exist"),
                  "unknown key binding profile should be rejected");
 
@@ -1685,6 +1690,9 @@ static bool test_key_action_name_mappings(void) {
                 "completion alias should map to COMPLETE action");
     EXPECT_TRUE(ic_key_action_from_name("insert-last-argument") == IC_KEY_ACTION_YANK_LAST_ARG,
                 "insert-last-argument alias should map to YANK_LAST_ARG action");
+    EXPECT_TRUE(ic_key_action_from_name("toggle-mouse") ==
+                    IC_KEY_ACTION_TOGGLE_MOUSE_REPORTING,
+                "toggle-mouse alias should map to TOGGLE_MOUSE_REPORTING action");
     EXPECT_TRUE(ic_key_action_from_name("unhandled") == IC_KEY_ACTION_RUNOFF,
                 "unhandled alias should map to RUNOFF action");
     EXPECT_TRUE(ic_key_action_from_name("unknown-action") == IC_KEY_ACTION__MAX,
@@ -1694,6 +1702,9 @@ static bool test_key_action_name_mappings(void) {
                  "action-to-name lookup should return canonical yank-last-arg label");
     EXPECT_STREQ(ic_key_action_name(IC_KEY_ACTION_CLEAR_SCREEN), "clear-screen",
                  "action-to-name lookup should return canonical clear-screen label");
+    EXPECT_STREQ(ic_key_action_name(IC_KEY_ACTION_TOGGLE_MOUSE_REPORTING),
+                 "toggle-mouse-reporting",
+                 "action-to-name lookup should return canonical toggle-mouse-reporting label");
     EXPECT_TRUE(ic_key_action_name(IC_KEY_ACTION__MAX) == NULL,
                 "invalid action enum should not produce a name");
 

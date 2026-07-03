@@ -124,6 +124,10 @@ static const key_action_name_entry_t key_action_names[] = {
     {"insert-newline", IC_KEY_ACTION_INSERT_NEWLINE},
     {"newline", IC_KEY_ACTION_INSERT_NEWLINE},
 
+    {"toggle-mouse-reporting", IC_KEY_ACTION_TOGGLE_MOUSE_REPORTING},
+    {"mouse-reporting-toggle", IC_KEY_ACTION_TOGGLE_MOUSE_REPORTING},
+    {"toggle-mouse", IC_KEY_ACTION_TOGGLE_MOUSE_REPORTING},
+
     {"runoff", IC_KEY_ACTION_RUNOFF},
     {"runoff-handler", IC_KEY_ACTION_RUNOFF},
     {"unhandled", IC_KEY_ACTION_RUNOFF},
@@ -183,6 +187,7 @@ static const keybinding_profile_action_spec_t keybinding_profile_default_spec_en
     {IC_KEY_ACTION_COMPLETE, SPEC_COMPLETE},
     {IC_KEY_ACTION_SHOW_HELP, SPEC_SHOW_HELP},
     {IC_KEY_ACTION_INSERT_NEWLINE, SPEC_INSERT_NEWLINE},
+    {IC_KEY_ACTION_TOGGLE_MOUSE_REPORTING, SPEC_TOGGLE_MOUSE_REPORTING},
 };
 
 static const keybinding_profile_t keybinding_profile_default = {

@@ -62,6 +62,7 @@ SHIFT_END = b"\x1b[1;2F"
 SHIFT_UP = b"\x1b[1;2A"
 SHIFT_TAB = b"\x1b[Z"
 F1 = b"\x1bOP"
+F2 = b"\x1bOQ"
 ALT_LT = b"\x1b<"
 ALT_GT = b"\x1b>"
 ALT_DELETE = b"\x1b[3;3~"
@@ -1119,8 +1120,17 @@ def main() -> int:
     mouse_wheel_down_shift = b"\x1b[<69;1;1M"
     mouse_release = b"\x1b[<3;1;1m"
 
-    hist_scroll = run_case(
+    hist_scroll_default_off = run_case(
         binary, "history_search_scroll", b"\x12" + mouse_wheel_down + b"\r"
+    )
+    if hist_scroll_default_off != "history alpha":
+        raise AssertionError(
+            "history_search_scroll without mouse toggle expected 'history alpha', got "
+            f"{hist_scroll_default_off!r}"
+        )
+
+    hist_scroll = run_case(
+        binary, "history_search_scroll", F2 + b"\x12" + mouse_wheel_down + b"\r"
     )
     if hist_scroll != "history beta":
         raise AssertionError(
@@ -1206,7 +1216,7 @@ def main() -> int:
     comp_scroll = run_case(
         binary,
         "completion_many_menu",
-        b"s\t\x0a" + mouse_wheel_down + b"\r\r",
+        F2 + b"s\t\x0a" + mouse_wheel_down + b"\r\r",
     )
     if comp_scroll != "s02":
         raise AssertionError(
@@ -1216,7 +1226,7 @@ def main() -> int:
     comp_scroll_release = run_case(
         binary,
         "completion_many_menu",
-        b"s\t\x0a" + mouse_wheel_down + mouse_release + b"\r\r",
+        F2 + b"s\t\x0a" + mouse_wheel_down + mouse_release + b"\r\r",
     )
     if comp_scroll_release != "s02":
         raise AssertionError(
@@ -1227,7 +1237,7 @@ def main() -> int:
     comp_scroll_shift = run_case(
         binary,
         "completion_many_menu",
-        b"s\t\x0a" + mouse_wheel_down_shift + b"\r\r",
+        F2 + b"s\t\x0a" + mouse_wheel_down_shift + b"\r\r",
     )
     if comp_scroll_shift != "s02":
         raise AssertionError(

@@ -100,7 +100,8 @@ typedef struct editor_s {
     const char* inline_right_text;  // inline right-aligned text on input line
     ssize_t inline_right_width;     // cached width of inline right text
     ssize_t line_number_column_width;  // cached total prefix width when line numbers are shown
-    ssize_t mouse_capture_depth;       // nested mouse tracking enablement depth
+    bool mouse_reporting_enabled;  // whether this edit session has mouse reporting toggled on
+    ssize_t mouse_capture_depth;   // nested mouse tracking enablement depth
     alloc_t* mem;                      // allocator
     // caches
     attrbuf_t* attrs;  // reuse attribute buffers
@@ -183,6 +184,8 @@ static void edit_refresh(ic_env_t* env, editor_t* eb);
 static void edit_refresh_hint(ic_env_t* env, editor_t* eb);
 static void redraw_prompt_prefix_lines(ic_env_t* env, editor_t* eb);
 static bool edit_handle_mouse_click(ic_env_t* env, editor_t* eb);
+static void edit_toggle_mouse_reporting(ic_env_t* env, editor_t* eb);
+static void edit_reset_mouse_reporting_session(ic_env_t* env, editor_t* eb);
 
 static void edit_reset_last_arg_state(editor_t* eb) {
     if (eb == NULL) {
@@ -306,6 +309,9 @@ static bool key_action_execute(ic_env_t* env, editor_t* eb, ic_key_action_t acti
             if (!env->singleline_only) {
                 edit_insert_char(env, eb, '\n');
             }
+            return true;
+        case IC_KEY_ACTION_TOGGLE_MOUSE_REPORTING:
+            edit_toggle_mouse_reporting(env, eb);
             return true;
         default:
             break;
@@ -2665,6 +2671,21 @@ static bool edit_enable_mouse_tracking(ic_env_t* env, editor_t* eb) {
     return true;
 }
 
+static void edit_force_mouse_tracking_disabled(ic_env_t* env, editor_t* eb) {
+    if (eb == NULL) {
+        return;
+    }
+
+    eb->mouse_capture_depth = 0;
+
+    if (env == NULL || env->term == NULL || !term_is_interactive(env->term)) {
+        return;
+    }
+
+    term_write(env->term, "\x1b[?1000l\x1b[?1006l");
+    term_flush(env->term);
+}
+
 static void edit_disable_mouse_tracking(ic_env_t* env, editor_t* eb, bool enabled) {
     if (!enabled || env == NULL || eb == NULL || env->term == NULL ||
         !term_is_interactive(env->term)) {
@@ -2681,8 +2702,47 @@ static void edit_disable_mouse_tracking(ic_env_t* env, editor_t* eb, bool enable
     }
 }
 
+static void edit_set_mouse_reporting_enabled(ic_env_t* env, editor_t* eb, bool enabled) {
+    if (eb == NULL) {
+        return;
+    }
+
+    if (enabled) {
+        if (eb->mouse_reporting_enabled) {
+            return;
+        }
+        if (edit_enable_mouse_tracking(env, eb)) {
+            eb->mouse_reporting_enabled = true;
+        }
+        return;
+    }
+
+    eb->mouse_reporting_enabled = false;
+    edit_force_mouse_tracking_disabled(env, eb);
+}
+
+static void edit_toggle_mouse_reporting(ic_env_t* env, editor_t* eb) {
+    if (eb == NULL) {
+        return;
+    }
+    edit_set_mouse_reporting_enabled(env, eb, !eb->mouse_reporting_enabled);
+}
+
+static void edit_reset_mouse_reporting_session(ic_env_t* env, editor_t* eb) {
+    if (eb == NULL) {
+        return;
+    }
+
+    if (env != NULL && env->tty != NULL) {
+        tty_clear_last_mouse_event(env->tty);
+    }
+
+    edit_set_mouse_reporting_enabled(env, eb, false);
+}
+
 static bool edit_enable_menu_mouse_scroll(ic_env_t* env) {
-    if (env == NULL) {
+    if (env == NULL || env->current_editor == NULL ||
+        !env->current_editor->mouse_reporting_enabled) {
         return false;
     }
     return edit_enable_mouse_tracking(env, env->current_editor);
@@ -3010,6 +3070,7 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
 
     // Set this editor as the current active editor
     env->current_editor = &eb;
+    edit_reset_mouse_reporting_session(env, &eb);
 
     // Insert initial input if present
     bool seeded_multiline_lines = false;
@@ -3056,8 +3117,6 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
             edit_refresh(env, &eb);
         }
     }
-
-    bool mouse_tracking_enabled = edit_enable_mouse_tracking(env, &eb);
 
     // process keys
     code_t c = KEY_NONE;  // current key code
@@ -3185,7 +3244,8 @@ edit_loop_entry:
                 continue;
             }
 
-            if (KEY_NO_MODS(c) == KEY_EVENT_MOUSE_OTHER && edit_handle_mouse_click(env, &eb)) {
+            if (eb.mouse_reporting_enabled && KEY_NO_MODS(c) == KEY_EVENT_MOUSE_OTHER &&
+                edit_handle_mouse_click(env, &eb)) {
                 continue;
             }
 
@@ -3282,6 +3342,9 @@ edit_loop_entry:
                         break;
                     case KEY_F1:
                         edit_show_help(env, &eb);
+                        break;
+                    case KEY_F2:
+                        edit_toggle_mouse_reporting(env, &eb);
                         break;
 
                     // navigation
@@ -3494,7 +3557,7 @@ edit_loop_entry:
         ic_history_remove_last();
     }
 
-    edit_disable_mouse_tracking(env, &eb, mouse_tracking_enabled);
+    edit_reset_mouse_reporting_session(env, &eb);
 
     // Clear the current editor pointer
     env->current_editor = NULL;
