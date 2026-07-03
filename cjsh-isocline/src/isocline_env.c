@@ -142,6 +142,8 @@ static ic_env_t* ic_env_create(ic_malloc_fun_t* _malloc, ic_realloc_fun_t* _real
     bbcode_style_def(env->bbcode, "ic-source", "#ffffd7");
     bbcode_style_def(env->bbcode, "ic-diminish", "ansi-lightgray");
     bbcode_style_def(env->bbcode, "ic-emphasis", "#ffffd7");
+    bbcode_style_def(env->bbcode, "ic-menu-selected", "ansi-black on #ffffd7");
+    bbcode_style_def(env->bbcode, "ic-menu-selected-secondary", "ansi-darkgray on #ffffd7");
     bbcode_style_def(env->bbcode, "ic-hint", "ansi-darkgray");
     bbcode_style_def(env->bbcode, "ic-error", "#d70000");
     bbcode_style_def(env->bbcode, "ic-bracematch", "ansi-white");

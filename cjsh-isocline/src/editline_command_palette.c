@@ -747,14 +747,12 @@ again:;
                 append_ellipsis = false;
             }
 
-            if (match_idx == selected_idx) {
-                const char* arrow = tty_is_utf8(env->tty) ? "\xE2\x86\x92" : ">";
-                sbuf_append(eb->extra, "[ic-emphasis]");
-                sbuf_appendf(eb->extra, "%s ", arrow);
-                sbuf_append(eb->extra, "[!pre]");
-            } else {
-                sbuf_append(eb->extra, "[ic-diminish]  [/][!pre]");
+            bool is_selected = (match_idx == selected_idx);
+            if (is_selected) {
+                sbuf_append(eb->extra, "[ic-menu-selected]");
             }
+            const char* arrow = (tty_is_utf8(env->tty) ? "\xE2\x86\x92" : ">");
+            sbuf_appendf(eb->extra, "[!pre]%s ", (is_selected ? arrow : " "));
 
             if (is_filtered && !showing_all_due_to_no_matches && match->match_len > 0 &&
                 match->match_pos >= 0) {
@@ -779,7 +777,11 @@ again:;
                     }
 
                     if (match_len > 0) {
-                        sbuf_append(eb->extra, "[/pre][u ic-emphasis][!pre]");
+                        if (is_selected) {
+                            sbuf_append(eb->extra, "[/pre][u][!pre]");
+                        } else {
+                            sbuf_append(eb->extra, "[/pre][u ic-emphasis][!pre]");
+                        }
                         sbuf_append_n(eb->extra, display + match_pos, match_len);
                         sbuf_append(eb->extra, "[/pre][/u][!pre]");
                     }
@@ -802,10 +804,8 @@ again:;
 
             sbuf_append(eb->extra, "[/pre]");
 
-            if (match_idx == selected_idx) {
-                sbuf_append(eb->extra, "[/ic-emphasis]");
-            } else {
-                sbuf_append(eb->extra, "[/ic-diminish]");
+            if (is_selected) {
+                sbuf_append(eb->extra, "[/ic-menu-selected]");
             }
 
             sbuf_append(eb->extra, "\n");
