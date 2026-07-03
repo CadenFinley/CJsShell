@@ -748,6 +748,16 @@ bool ic_enable_inline_right_prompt_cursor_follow(bool enable);
 /// Returns whether the right-aligned prompt follows the cursor height.
 bool ic_inline_right_prompt_follows_cursor(void);
 
+/// Enable or disable mouse click reporting by default for new readline sessions.
+/// When enabled, mouse clicking support starts in the same state as if the user pressed the
+/// toggle-mouse keybinding at prompt startup. Returns the previous setting.
+bool ic_enable_mouse_clicking(bool enable);
+
+/// Enable or disable the status-line indicator that says mouse clicking is enabled.
+/// Disabling this hides the indicator text but does not disable mouse clicking support itself.
+/// Returns the previous setting.
+bool ic_enable_mouse_reporting_status_line(bool enable);
+
 /// Disable or enable hinting (enabled by default)
 /// Shows a hint inline when there is a single possible completion.
 /// @returns the previous setting.

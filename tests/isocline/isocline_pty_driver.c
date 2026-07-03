@@ -104,6 +104,8 @@ static int run_readline_status_case(const char* scenario) {
     ic_enable_completion_preview(false);
     ic_enable_auto_tab(false);
     ic_enable_prompt_cleanup(false, 0);
+    ic_enable_mouse_clicking(false);
+    ic_enable_mouse_reporting_status_line(true);
     if (!ic_set_key_binding_profile("emacs")) {
         return 5;
     }
@@ -239,6 +241,8 @@ static int run_case(const char* scenario) {
     ic_enable_completion_preview(false);
     ic_enable_auto_tab(false);
     ic_enable_prompt_cleanup(false, 0);
+    ic_enable_mouse_clicking(false);
+    ic_enable_mouse_reporting_status_line(true);
     if (!ic_set_key_binding_profile(use_vim_profile ? "vim" : "emacs")) {
         return 5;
     }
@@ -314,7 +318,8 @@ static int run_case(const char* scenario) {
         (void)ic_set_hint_delay(0);
         ic_set_default_completer(pty_completion_dispatcher, NULL);
     } else if (strcmp(scenario, "completion_many_menu") == 0 ||
-               strcmp(scenario, "completion_many_menu_custom_mouse_toggle") == 0) {
+               strcmp(scenario, "completion_many_menu_custom_mouse_toggle") == 0 ||
+               strcmp(scenario, "completion_many_menu_mouse_default_on") == 0) {
         g_completion_mode = COMPLETION_MODE_MANY;
         ic_set_default_completer(pty_completion_dispatcher, NULL);
         if (strcmp(scenario, "completion_many_menu_custom_mouse_toggle") == 0) {
@@ -324,12 +329,17 @@ static int run_case(const char* scenario) {
             if (!ic_bind_key(IC_KEY_F2, IC_KEY_ACTION_NONE)) {
                 return 6;
             }
+        } else if (strcmp(scenario, "completion_many_menu_mouse_default_on") == 0) {
+            ic_enable_mouse_clicking(true);
         }
     } else if (strcmp(scenario, "history_search_scroll") == 0) {
         initial_input = "history";
         ic_history_clear();
         ic_history_add("history alpha");
         ic_history_add("history beta");
+    } else if (strcmp(scenario, "insert_backspace_mouse_default_on_hidden_status") == 0) {
+        ic_enable_mouse_clicking(true);
+        ic_enable_mouse_reporting_status_line(false);
     } else if (strcmp(scenario, "ctrl_k_delete_to_end") == 0) {
         initial_input = "abcdef";
     } else if (strcmp(scenario, "ctrl_k_then_type") == 0) {

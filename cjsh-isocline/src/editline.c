@@ -188,7 +188,7 @@ static bool edit_mouse_event_to_target_rowcol(ic_env_t* env, editor_t* eb,
                                               const tty_mouse_event_t* mouse_event,
                                               ssize_t* target_row, ssize_t* target_col);
 static void edit_toggle_mouse_reporting(ic_env_t* env, editor_t* eb);
-static void edit_reset_mouse_reporting_session(ic_env_t* env, editor_t* eb);
+static void edit_reset_mouse_reporting_session(ic_env_t* env, editor_t* eb, bool apply_default);
 
 static void edit_reset_last_arg_state(editor_t* eb) {
     if (eb == NULL) {
@@ -2768,7 +2768,7 @@ static void edit_toggle_mouse_reporting(ic_env_t* env, editor_t* eb) {
     edit_set_mouse_reporting_enabled(env, eb, !eb->mouse_reporting_enabled);
 }
 
-static void edit_reset_mouse_reporting_session(ic_env_t* env, editor_t* eb) {
+static void edit_reset_mouse_reporting_session(ic_env_t* env, editor_t* eb, bool apply_default) {
     if (eb == NULL) {
         return;
     }
@@ -2777,7 +2777,9 @@ static void edit_reset_mouse_reporting_session(ic_env_t* env, editor_t* eb) {
         tty_clear_last_mouse_event(env->tty);
     }
 
-    edit_set_mouse_reporting_enabled(env, eb, false);
+    const bool enable_mouse =
+        (apply_default && env != NULL && env->mouse_reporting_enabled_by_default);
+    edit_set_mouse_reporting_enabled(env, eb, enable_mouse);
 }
 
 static bool edit_enable_menu_mouse_scroll(ic_env_t* env) {
@@ -2927,6 +2929,7 @@ static bool edit_update_status_message(ic_env_t* env, editor_t* eb) {
     }
 
     if (!request_default && !has_custom_message && eb->mouse_reporting_enabled &&
+        env->mouse_reporting_status_line_enabled &&
         mode != IC_STATUS_HINT_OFF) {
         request_default = true;
     }
@@ -2962,7 +2965,7 @@ static bool edit_update_status_message(ic_env_t* env, editor_t* eb) {
         }
     }
 
-    if (eb->mouse_reporting_enabled) {
+    if (eb->mouse_reporting_enabled && env->mouse_reporting_status_line_enabled) {
         with_mouse_prefix = sbuf_new(eb->mem);
         if (with_mouse_prefix != NULL) {
             sbuf_append(with_mouse_prefix, "[ic-status]Mouse clicking is enabled[/]");
@@ -3131,7 +3134,7 @@ static char* edit_line(ic_env_t* env, const char* prompt_text, const char* inlin
 
     // Set this editor as the current active editor
     env->current_editor = &eb;
-    edit_reset_mouse_reporting_session(env, &eb);
+    edit_reset_mouse_reporting_session(env, &eb, true);
 
     // Insert initial input if present
     bool seeded_multiline_lines = false;
@@ -3618,7 +3621,7 @@ edit_loop_entry:
         ic_history_remove_last();
     }
 
-    edit_reset_mouse_reporting_session(env, &eb);
+    edit_reset_mouse_reporting_session(env, &eb, false);
 
     // Clear the current editor pointer
     env->current_editor = NULL;

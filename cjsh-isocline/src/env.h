@@ -78,6 +78,10 @@ struct ic_env_s {
         continuation_check_callback;         // callback that decides whether to submit or continue
     void* continuation_check_arg;            // user state for the continuation callback
     ic_status_hint_mode_t status_hint_mode;  // rendering behavior for default hints
+    bool mouse_reporting_enabled_by_default;     // start each readline session with mouse reporting
+                                                  // enabled?
+    bool mouse_reporting_status_line_enabled;    // show mouse-reporting indicator in the status
+                                                  // line?
     const char* match_braces;                // matching braces, e.g "()[]{}"
     const char* auto_braces;                 // auto insertion braces, e.g "()[]{}\"\"''"
     const char* initial_input;               // initial input text to insert into editor

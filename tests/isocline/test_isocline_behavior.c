@@ -1137,6 +1137,34 @@ static bool test_status_hint_mode_validation(void) {
     return true;
 }
 
+static bool test_mouse_reporting_option_toggles(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    env->mouse_reporting_enabled_by_default = false;
+    EXPECT_FALSE(ic_enable_mouse_clicking(true),
+                 "mouse default toggle should report previous disabled state");
+    EXPECT_TRUE(env->mouse_reporting_enabled_by_default,
+                "mouse default toggle should enable mouse reporting by default");
+    EXPECT_TRUE(ic_enable_mouse_clicking(false),
+                "mouse default toggle should report previous enabled state");
+    EXPECT_FALSE(env->mouse_reporting_enabled_by_default,
+                 "mouse default toggle should disable mouse reporting by default");
+
+    env->mouse_reporting_status_line_enabled = true;
+    EXPECT_TRUE(ic_enable_mouse_reporting_status_line(false),
+                "mouse status-line toggle should report previous enabled state");
+    EXPECT_FALSE(env->mouse_reporting_status_line_enabled,
+                 "mouse status-line toggle should hide the mouse indicator line");
+    EXPECT_FALSE(ic_enable_mouse_reporting_status_line(true),
+                 "mouse status-line toggle should report previous disabled state");
+    EXPECT_TRUE(env->mouse_reporting_status_line_enabled,
+                "mouse status-line toggle should restore the indicator line");
+
+    return true;
+}
+
 static bool test_option_toggle_consistency(void) {
     ic_env_t* env = ensure_env();
     if (env == NULL)
@@ -2990,6 +3018,7 @@ static const test_case_t kTests[] = {
     {"prompt_marker_roundtrip", test_prompt_marker_roundtrip},
     {"hint_delay_clamps", test_hint_delay_clamps},
     {"status_hint_mode_validation", test_status_hint_mode_validation},
+    {"mouse_reporting_option_toggles", test_mouse_reporting_option_toggles},
     {"option_toggle_consistency", test_option_toggle_consistency},
     {"prompt_cleanup_newline_and_getters", test_prompt_cleanup_newline_and_getters},
     {"brace_pair_setters_validation", test_brace_pair_setters_validation},

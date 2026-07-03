@@ -1156,6 +1156,40 @@ def main() -> int:
             f"normalized_output={normalized_mouse_status_output!r}"
         )
 
+    mouse_default_click = run_case(
+        binary,
+        "completion_many_menu_mouse_default_on",
+        b"s\t" + mouse_click_completion_collapsed_second + b"\r",
+    )
+    if mouse_default_click != "s02":
+        raise AssertionError(
+            "completion_many_menu with default mouse enabled expected 's02', got "
+            f"{mouse_default_click!r}"
+        )
+
+    mouse_hidden_result, mouse_hidden_output = run_case(
+        binary,
+        "insert_backspace_mouse_default_on_hidden_status",
+        b"x\x7f\r",
+        capture_output=True,
+    )
+    if mouse_hidden_result != "":
+        raise AssertionError(
+            "mouse hidden-status case expected empty result, got "
+            f"{mouse_hidden_result!r}"
+        )
+    normalized_mouse_hidden_output = normalize_terminal_output(mouse_hidden_output)
+    if "Mouse clicking is enabled" in normalized_mouse_hidden_output:
+        raise AssertionError(
+            "hidden mouse status toggle should suppress indicator text, got "
+            f"normalized_output={normalized_mouse_hidden_output!r}"
+        )
+    if "complete:" not in normalized_mouse_hidden_output:
+        raise AssertionError(
+            "hidden mouse status toggle should keep default status hints visible, got "
+            f"normalized_output={normalized_mouse_hidden_output!r}"
+        )
+
     hist_scroll, hist_scroll_output = run_case(
         binary,
         "history_search_scroll",

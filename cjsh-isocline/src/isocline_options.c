@@ -445,6 +445,24 @@ ic_public ic_status_hint_mode_t ic_get_status_hint_mode(void) {
     return env->status_hint_mode;
 }
 
+ic_public bool ic_enable_mouse_clicking(bool enable) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return false;
+    bool prev = env->mouse_reporting_enabled_by_default;
+    env->mouse_reporting_enabled_by_default = enable;
+    return prev;
+}
+
+ic_public bool ic_enable_mouse_reporting_status_line(bool enable) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return false;
+    bool prev = env->mouse_reporting_status_line_enabled;
+    env->mouse_reporting_status_line_enabled = enable;
+    return prev;
+}
+
 ic_public bool ic_enable_prompt_cleanup(bool enable, size_t extra_lines) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)
