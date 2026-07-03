@@ -730,11 +730,15 @@ ic_public bool ic_set_command_palette_entries(const ic_command_palette_entry_t* 
         return true;
     }
 
-    if (entries == NULL || count > (size_t)SSIZE_MAX) {
+    if (entries == NULL) {
         return false;
     }
 
-    const ssize_t ssize_count = (ssize_t)count;
+    const ssize_t ssize_count = to_ssize_t(count);
+    if (ssize_count <= 0) {
+        return false;
+    }
+
     ic_command_palette_entry_internal_t* copied =
         mem_zalloc_tp_n(env->mem, ic_command_palette_entry_internal_t, ssize_count);
     if (copied == NULL) {
