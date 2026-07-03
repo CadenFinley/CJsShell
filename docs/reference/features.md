@@ -61,6 +61,9 @@ Powered by the embedded [isocline](https://github.com/cadenfinley/isocline) edit
     flip it on the fly with `Alt+C` inside the menu.
 - **Custom key bindings** – Emacs and Vi profiles plus fine-grained overrides via
     `cjshopt keybind` (including command-driven bindings through `cjsh-widget`).
+- **Mouse-aware editing** – Toggle mouse clicking with `F2` for the current prompt or set the
+    default for new prompts with `cjshopt mouse-clicking`. Clicks can reposition the cursor and
+    select completion/history entries, and the mouse wheel scrolls expanded menus.
 - **Typeahead capture** – Keystrokes entered while a command runs are buffered and replayed when the prompt returns so you never lose input.
 - **Abbreviations** – `abbr`/`unabbr` provide fish-style expansions for frequently typed snippets.
 
@@ -90,9 +93,10 @@ for full details.
      - `cjshopt completion-preview`, `cjshopt completion-case`, `cjshopt completion-spell`,
          `cjshopt completion-learning`, `cjshopt auto-tab`
      - `cjshopt hint`, `cjshopt hint-delay`, `cjshopt inline-help`, `cjshopt status-hints`,
-        `cjshopt status-line`, `cjshopt status-reporting`, `cjshopt visible-whitespace`
-    - `cjshopt prompt-newline`, `cjshopt prompt-cleanup`, `cjshopt prompt-cleanup-newline`,
-        `cjshopt prompt-cleanup-empty-line`, `cjshopt prompt-cleanup-truncate`
+         `cjshopt status-line`, `cjshopt status-reporting`, `cjshopt visible-whitespace`
+     - `cjshopt mouse-clicking`, `cjshopt mouse-clicking-status-line`
+     - `cjshopt prompt-newline`, `cjshopt prompt-cleanup`, `cjshopt prompt-cleanup-newline`,
+         `cjshopt prompt-cleanup-empty-line`, `cjshopt prompt-cleanup-truncate`
     - `cjshopt keybind …` and `cjshopt keybind ext …` for keymap management
     - `cjshopt set-history-max` to adjust persistent history size (0 or more entries; no upper limit)
     - `set -o huponexit` mirrors bash's option for sending SIGHUP to background jobs when the

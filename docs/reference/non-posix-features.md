@@ -61,6 +61,9 @@ See [Prompt Markup and Styling](../themes/thedetails.md) for the full markup ref
   non-standard.
 - **Key binding profiles** – Vi/Emacs modes plus user-defined command bindings using
   `cjshopt keybind` and `cjshopt keybind ext`.
+- **Mouse-assisted editing** – `F2` toggles mouse clicking for the current prompt, and
+  `cjshopt mouse-clicking` / `cjshopt mouse-clicking-status-line` set defaults for new prompts and
+  status-line indicators. Clicking to move the cursor or pick menu entries is beyond POSIX scope.
 - **Fish-style abbreviations** – `abbr` and `unabbr` provide inline text expansions, a feature not
   present in POSIX shells.
 
@@ -84,6 +87,8 @@ remains interactive-only by default; see the History section below.
   cache under `~/.cache/cjsh/generated_completions/` for rich option and subcommand help.
 - **Inline preview pane & source annotations** – Completion menus display descriptions, origins
   (history, PATH, builtin), and exit-status tags; these are CJSH-specific niceties.
+- **Pointer navigation in menus** – Expanded completion and history-search menus accept mouse-wheel
+  scrolling plus click selection.
 
 Consult the [Completion Authoring Guide](completions.md) for cache format and customization tips.
 

@@ -39,6 +39,7 @@ Isocline is a modern, pure C line editing library that provides advanced termina
 - Context-aware tab completion
 - Inline hints and preview suggestions
 - Customizable key bindings
+- Mouse-aware cursor movement and menu selection
 - Line numbering for multiline input
 - Optional visible markers for whitespace characters
 - History search and management
@@ -223,6 +224,7 @@ directories that contain thousands of files or deeply nested command trees.
 - Use arrow keys to navigate the completion menu
 - Press `Enter` to accept a completion
 - Press `Esc` to cancel
+- In expanded menus, use the mouse wheel to scroll and click entries to select/accept
 
 ### Hints and Inline Help
 
@@ -291,6 +293,28 @@ cjshopt status-reporting on|off|status
 
 **Full Help:**
 Press `F1` at any time to display the complete key binding cheat sheet, regardless of the inline-help setting.
+
+### Mouse Clicking and Menu Navigation
+
+CJ's Shell can use terminal mouse reporting for cursor placement and menu navigation.
+
+**Per-prompt toggle:**
+- Press `F2` to toggle mouse clicking for the active prompt only
+- When enabled, the status row can show `Mouse clicking is enabled`
+
+**Persistent defaults:**
+```bash
+# Enable mouse clicking by default for new prompts
+cjshopt mouse-clicking on|off|status
+
+# Show or hide the mouse status indicator line
+cjshopt mouse-clicking-status-line on|off|status
+```
+
+**Behavior:**
+- In the editor buffer, left-click moves the cursor to the clicked position
+- In collapsed completion menus, click selection follows the prompt-level mouse toggle
+- In expanded completion menus and history search, click selection and wheel scrolling are enabled while the menu is open
 
 ### Fish-Style Abbreviations
 
@@ -462,6 +486,7 @@ cjshopt keybind profile set emacs|vi
 - `Ctrl+L`: Clear screen
 - `Enter`: Execute command
 - `F1`: Show help / key binding cheat sheet
+- `F2`: Toggle mouse clicking for the current prompt
 - `Esc`: Cancel operation
 
 ### Custom Key Bindings

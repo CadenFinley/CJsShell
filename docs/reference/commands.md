@@ -694,6 +694,8 @@ Available subcommands:
 - `status-hints` - Configure the status hint banner visibility
 - `status-line` - Toggle the entire status row beneath the prompt
 - `status-reporting` - Toggle cjsh validation output in the status row
+- `mouse-clicking` - Configure whether new prompts start with mouse clicking enabled
+- `mouse-clicking-status-line` - Show or hide the mouse-clicking status indicator text
 - `auto-tab` - Configure automatic tab completion
 - `prompt-newline` - Force a blank line after each command
 - `prompt-cleanup` - Enable/disable removal of the previous prompt after execution
@@ -1170,6 +1172,44 @@ cjshopt status-reporting status  # Display the current setting
 
 Persist preferences by adding the command to `~/.cjshrc`.
 
+#### mouse-clicking
+
+Set whether new prompts begin with mouse clicking enabled. This controls prompt-level click
+handling (for example, clicking to reposition the cursor in the active input buffer).
+
+```bash
+cjshopt mouse-clicking <on|off|status>
+```
+
+Examples:
+
+```bash
+cjshopt mouse-clicking on      # Enable mouse clicking by default for new prompts
+cjshopt mouse-clicking off     # Disable mouse clicking by default
+cjshopt mouse-clicking status  # Show the current setting
+```
+
+`F2` (or any key bound to `toggle-mouse-reporting`) still toggles mouse clicking for the current
+prompt at runtime.
+
+#### mouse-clicking-status-line
+
+Show or hide the status-row indicator text that appears when mouse clicking is active.
+
+```bash
+cjshopt mouse-clicking-status-line <on|off|status>
+```
+
+Examples:
+
+```bash
+cjshopt mouse-clicking-status-line on      # Show the "Mouse clicking is enabled" indicator
+cjshopt mouse-clicking-status-line off     # Hide the indicator text
+cjshopt mouse-clicking-status-line status  # Show the current setting
+```
+
+This toggle affects only the indicator text. It does not enable or disable mouse clicking itself.
+
 #### auto-tab
 
 Configure automatic tab completion behavior. When enabled, the shell may automatically complete commands or show completions without requiring explicit tab key presses. **Disabled by default.**
@@ -1208,6 +1248,9 @@ Key subcommands include:
 - `profile set <name>` - Activate the named profile
 
 Key specifications accept pipe (`|`) separated alternatives, so `Ctrl+K|Ctrl+X` is a single argument covering both sequences. Place commands like `cjshopt keybind set cursor-left "Ctrl+H"` in `~/.cjshrc` to keep them between sessions.
+
+Mouse toggle actions use `toggle-mouse-reporting` (aliases: `mouse-reporting-toggle`,
+`toggle-mouse`). The default binding is `F2`.
 
 #### set-history-max
 
