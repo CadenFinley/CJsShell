@@ -1062,7 +1062,22 @@ read_key:
             term_beep(env->term);
         }
         goto again;
-    } else if (c == KEY_F1) {
+    } else {
+        ic_key_action_t action = IC_KEY_ACTION__MAX;
+        bool has_override = key_binding_lookup_action(env, c, &action);
+        bool toggle_mouse_key = (has_override ? (action == IC_KEY_ACTION_TOGGLE_MOUSE_REPORTING)
+                                              : (c == KEY_F2));
+        if (toggle_mouse_key) {
+            edit_toggle_mouse_reporting(env, eb);
+            if (expanded_mode) {
+                menu_mouse_scroll_enabled = false;
+            }
+            c = 0;
+            goto again;
+        }
+    }
+
+    if (c == KEY_F1) {
         edit_show_help(env, eb);
         goto again;
     } else if (c == KEY_ESC) {

@@ -313,9 +313,18 @@ static int run_case(const char* scenario) {
         ic_enable_hint(true);
         (void)ic_set_hint_delay(0);
         ic_set_default_completer(pty_completion_dispatcher, NULL);
-    } else if (strcmp(scenario, "completion_many_menu") == 0) {
+    } else if (strcmp(scenario, "completion_many_menu") == 0 ||
+               strcmp(scenario, "completion_many_menu_custom_mouse_toggle") == 0) {
         g_completion_mode = COMPLETION_MODE_MANY;
         ic_set_default_completer(pty_completion_dispatcher, NULL);
+        if (strcmp(scenario, "completion_many_menu_custom_mouse_toggle") == 0) {
+            if (!ic_bind_key(IC_KEY_F3, IC_KEY_ACTION_TOGGLE_MOUSE_REPORTING)) {
+                return 6;
+            }
+            if (!ic_bind_key(IC_KEY_F2, IC_KEY_ACTION_NONE)) {
+                return 6;
+            }
+        }
     } else if (strcmp(scenario, "history_search_scroll") == 0) {
         initial_input = "history";
         ic_history_clear();

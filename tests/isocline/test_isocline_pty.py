@@ -63,6 +63,7 @@ SHIFT_UP = b"\x1b[1;2A"
 SHIFT_TAB = b"\x1b[Z"
 F1 = b"\x1bOP"
 F2 = b"\x1bOQ"
+F3 = b"\x1bOR"
 ALT_LT = b"\x1b<"
 ALT_GT = b"\x1b>"
 ALT_DELETE = b"\x1b[3;3~"
@@ -1252,6 +1253,39 @@ def main() -> int:
         raise AssertionError(
             "completion_many_menu collapsed click with toggle expected 's02', got "
             f"{comp_click_collapsed_toggle!r}"
+        )
+
+    comp_toggle_collapsed_inside_menu = run_case(
+        binary,
+        "completion_many_menu",
+        b"s\t" + F2 + b"\r\r",
+    )
+    if comp_toggle_collapsed_inside_menu != "s01":
+        raise AssertionError(
+            "completion_many_menu toggle inside collapsed menu expected 's01', got "
+            f"{comp_toggle_collapsed_inside_menu!r}"
+        )
+
+    comp_click_collapsed_toggle_inside_menu = run_case(
+        binary,
+        "completion_many_menu",
+        b"s\t" + F2 + mouse_click_completion_collapsed_second + b"\r",
+    )
+    if comp_click_collapsed_toggle_inside_menu != "s02":
+        raise AssertionError(
+            "completion_many_menu collapsed click after in-menu toggle expected 's02', got "
+            f"{comp_click_collapsed_toggle_inside_menu!r}"
+        )
+
+    comp_click_collapsed_custom_toggle_binding = run_case(
+        binary,
+        "completion_many_menu_custom_mouse_toggle",
+        b"s\t" + F3 + mouse_click_completion_collapsed_second + b"\r",
+    )
+    if comp_click_collapsed_custom_toggle_binding != "s02":
+        raise AssertionError(
+            "completion_many_menu custom mouse-toggle key expected 's02', got "
+            f"{comp_click_collapsed_custom_toggle_binding!r}"
         )
 
     comp_click_expanded = run_case(

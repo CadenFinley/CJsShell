@@ -275,14 +275,18 @@ ic_private bool tty_read_timeout(tty_t* tty, long timeout_ms, code_t* code) {
                 tty->term_resize_event = false;
                 return true;
             }
-            if (timeout_ms < 0 && tty->push_count > 0) {
-                continue;
-            }
-            /* If a blocking read (timeout_ms < 0) returned no data (likely EOF),
-               surface an explicit stop event so the caller can break out instead
-               of spinning on KEY_NONE. For non-blocking reads, keep returning
-               false as before. */
             if (timeout_ms < 0) {
+                // tty_readc_noblock can return false on wake-up notifications used
+                // by tty_code_pushback while still keeping the terminal active.
+                // Keep waiting unless the terminal was actually lost.
+                if (tty->push_count > 0 || !tty->lost_terminal) {
+                    continue;
+                }
+
+                /* If a blocking read (timeout_ms < 0) returned no data (likely EOF),
+                   surface an explicit stop event so the caller can break out instead
+                   of spinning on KEY_NONE. For non-blocking reads, keep returning
+                   false as before. */
                 *code = KEY_EVENT_STOP;
                 return true;
             }
