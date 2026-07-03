@@ -192,6 +192,7 @@ CJ's Shell features a sophisticated completion system that provides context-awar
 - Frequency-based ranking (commonly used completions appear first)
 - Source attribution (shows where completions come from)
 - Preview of selected completion
+- Optional expanded-by-default completion menu layout
 - Automatic expansion with auto-tab
 
 Need to author new entries or override the defaults? Check the [Completion Authoring Guide](completions.md) for cache formats, nested command support, and manual customization tips.
@@ -200,6 +201,9 @@ Need to author new entries or override the defaults? Check the [Completion Autho
 ```bash
 # Enable/disable completion preview (enabled by default)
 cjshopt completion-preview on|off|status
+
+# Open completion menus expanded by default (disabled by default)
+cjshopt completion-menu-expanded on|off|status
 
 # Enable/disable auto-tab (disabled by default)
 # Auto-tab automatically completes unique prefixes
@@ -748,6 +752,7 @@ cjshopt current-line-number-highlight on
 
 # Completion settings
 cjshopt completion-preview on
+cjshopt completion-menu-expanded off
 cjshopt auto-tab off
 cjshopt completion-case off  # Case-insensitive completions
 cjshopt completion-spell on

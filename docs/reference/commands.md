@@ -686,6 +686,7 @@ Available subcommands:
 - `multiline-start-lines` - Configure how many prompt lines are preallocated in multiline mode
 - `hint-delay` - Set hint display delay in milliseconds
 - `completion-preview` - Configure completion preview
+- `completion-menu-expanded` - Open completion menus in expanded mode by default
 - `visible-whitespace` - Toggle visible whitespace characters in the editor
 - `hint` - Configure inline hints
 - `multiline-indent` - Configure auto-indent in multiline input
@@ -1016,6 +1017,27 @@ cjshopt completion-preview status  # Show the current setting
 ```
 
 The subcommand accepts synonyms such as `enable`, `disable`, `true`, and `false`. Add to `~/.cjshrc` to persist the preference.
+
+#### completion-menu-expanded
+
+Control whether the completion menu opens in expanded mode immediately. When enabled, pressing `Tab`
+for multi-match completions starts in the full single-column list instead of the compact collapsed
+grid. **Disabled by default.**
+
+```bash
+cjshopt completion-menu-expanded <on|off|status>
+```
+
+Examples:
+
+```bash
+cjshopt completion-menu-expanded on      # Start completion menus expanded
+cjshopt completion-menu-expanded off     # Start completion menus collapsed (default)
+cjshopt completion-menu-expanded status  # Show the current setting
+```
+
+The subcommand accepts synonyms such as `enable`, `disable`, `true`, and `false`. Add to
+`~/.cjshrc` to persist the preference.
 
 #### visible-whitespace
 

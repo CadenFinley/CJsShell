@@ -812,6 +812,10 @@ static bool test_builtin_docs(void) {
     EXPECT_TRUE(has_entry(cjshopt_doc, "mouse-clicking-status-line",
                           builtin_completions::EntryKind::Subcommand),
                 test_name, "cjshopt should include mouse-clicking-status-line subcommand");
+    EXPECT_TRUE(
+        has_entry(cjshopt_doc, "completion-menu-expanded",
+                  builtin_completions::EntryKind::Subcommand),
+        test_name, "cjshopt should include completion-menu-expanded subcommand");
 
     const auto* completion_max_doc =
         builtin_completions::lookup_builtin_command_doc("cjshopt-set-completion-max");
@@ -826,6 +830,15 @@ static bool test_builtin_docs(void) {
                 "cjshopt-mouse-clicking-status-line doc should exist");
     EXPECT_TRUE(has_entry(mouse_status_doc, "status", builtin_completions::EntryKind::Subcommand),
                 test_name, "mouse-clicking-status-line should include status subcommand");
+
+    const auto* completion_menu_expanded_doc =
+        builtin_completions::lookup_builtin_command_doc("cjshopt-completion-menu-expanded");
+    EXPECT_TRUE(completion_menu_expanded_doc != nullptr, test_name,
+                "cjshopt-completion-menu-expanded doc should exist");
+    EXPECT_TRUE(
+        has_entry(completion_menu_expanded_doc, "status",
+                  builtin_completions::EntryKind::Subcommand),
+        test_name, "completion-menu-expanded should include status subcommand");
 
     const auto* type_doc = builtin_completions::lookup_builtin_command_doc("type");
     EXPECT_TRUE(type_doc != nullptr, test_name, "type doc should exist");

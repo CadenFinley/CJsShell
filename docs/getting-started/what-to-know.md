@@ -75,6 +75,10 @@ Fuzzy matching powers command, path, and argument completions without additional
 **Status:** Enabled  
 **Configure:** `cjshopt completion-preview on|off|status`
 
+### Completion Menu Default Layout
+**Status:** Disabled (menus start collapsed)  
+**Configure:** `cjshopt completion-menu-expanded on|off|status`
+
 ### Spell Correction
 **Status:** Enabled  
 **Configure:** `cjshopt completion-spell on|off|status`
@@ -249,6 +253,9 @@ Use `cjshopt keybind --help` for the full action catalog. For custom widgets, se
 ```bash
 # Toggle completion preview for the current session
 cjshopt completion-preview off
+
+# Open completion menus in expanded mode by default
+cjshopt completion-menu-expanded on
 
 # Enable inline whitespace markers
 cjshopt visible-whitespace on

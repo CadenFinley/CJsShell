@@ -59,6 +59,7 @@ enum class CjshoptSubcommand : std::uint8_t {
     MultilineStartLines,
     HintDelay,
     CompletionPreview,
+    CompletionMenuExpanded,
     VisibleWhitespace,
     Hint,
     MultilineIndent,
@@ -117,6 +118,8 @@ constexpr std::array<CjshoptSubcommandDescriptor, static_cast<size_t>(CjshoptSub
           multiline_start_lines_command},
          {CjshoptSubcommand::HintDelay, "hint-delay", hint_delay_command},
          {CjshoptSubcommand::CompletionPreview, "completion-preview", completion_preview_command},
+         {CjshoptSubcommand::CompletionMenuExpanded, "completion-menu-expanded",
+          completion_menu_expanded_command},
          {CjshoptSubcommand::VisibleWhitespace, "visible-whitespace", visible_whitespace_command},
          {CjshoptSubcommand::Hint, "hint", hint_command},
          {CjshoptSubcommand::MultilineIndent, "multiline-indent", multiline_indent_command},
@@ -192,6 +195,9 @@ const std::vector<std::string>& cjshopt_usage_lines() {
         "  hint-delay <milliseconds>        Set hint display delay in milliseconds",
         std::string("  completion-preview <on|off|status> Configure completion preview ") +
             "(default: enabled)",
+        std::string(
+            "  completion-menu-expanded <on|off|status> Open completion menus expanded ") +
+            "(default: disabled)",
         std::string("  visible-whitespace <on|off|status> Configure visible whitespace ") +
             "characters (default: disabled)",
         "  hint <on|off|status>            Configure inline hints (default: enabled)",
@@ -280,8 +286,8 @@ int cjshopt_command(const std::vector<std::string>& args) {
           "completion-learning, "
            "line-numbers, line-numbers-continuation, line-numbers-replace-prompt, "
            "current-line-number-highlight, multiline-start-lines, hint-delay, "
-
-           "completion-preview, visible-whitespace, hint, multiline-indent, multiline, inline-help, "
+           "completion-preview, completion-menu-expanded, visible-whitespace, hint, "
+           "multiline-indent, multiline, inline-help, "
            "status-hints, status-line, status-reporting, mouse-clicking, "
            "mouse-clicking-status-line, auto-tab, prompt-newline, prompt-cleanup, "
            "prompt-cleanup-newline, "

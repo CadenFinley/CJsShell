@@ -631,6 +631,12 @@ bool ic_enable_auto_tab(bool enable);
 /// Returns the previous setting.
 bool ic_enable_completion_preview(bool enable);
 
+/// Configure whether completion menus open in expanded mode by default (disabled by default).
+/// When enabled, the first completion menu view uses the full single-column layout without
+/// requiring PgDn/ctrl-j to expand.
+/// Returns the previous setting.
+bool ic_enable_completion_menu_start_expanded(bool enable);
+
 /// Disable or enable automatic identation of continuation lines in multiline
 /// input so it aligns with the initial prompt. (enabled by default)
 /// Returns the previous setting.

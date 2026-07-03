@@ -696,6 +696,32 @@ int completion_preview_command(const std::vector<std::string>& args) {
     return handle_toggle_command(config, args);
 }
 
+int completion_menu_expanded_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: completion-menu-expanded <on|off|status>",
+        "Examples:",
+        "  completion-menu-expanded on      Open completion menus expanded by default",
+        "  completion-menu-expanded off     Start completion menus collapsed",
+        "  completion-menu-expanded status  Show the current setting"};
+
+    static const ToggleCommandConfig config{
+        "completion-menu-expanded",
+        usage_lines,
+        []() {
+            bool current_status = ic_enable_completion_menu_start_expanded(true);
+            ic_enable_completion_menu_start_expanded(current_status);
+            return current_status;
+        },
+        [](bool enable) { ic_enable_completion_menu_start_expanded(enable); },
+        "Completion menu default expansion",
+        false,
+        "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
+        {},
+        {}};
+
+    return handle_toggle_command(config, args);
+}
+
 int visible_whitespace_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {
         "Usage: visible-whitespace <on|off|status>",

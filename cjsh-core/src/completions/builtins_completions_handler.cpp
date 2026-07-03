@@ -583,6 +583,8 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
 
              make_subcommand("hint-delay", "Adjust inline hint delay"),
              make_subcommand("completion-preview", "Toggle completion preview"),
+             make_subcommand("completion-menu-expanded",
+                             "Open completion menus expanded by default"),
              make_subcommand("visible-whitespace", "Toggle visible whitespace"),
              make_subcommand("hint", "Toggle inline hints"),
              make_subcommand("multiline-indent", "Toggle multiline auto-indent"),
@@ -709,6 +711,10 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_doc("cjshopt-completion-preview", "",
                 {make_subcommand("on", "Enable completion preview"),
                  make_subcommand("off", "Disable completion preview"),
+                 make_subcommand("status", "Show current setting")});
+        add_doc("cjshopt-completion-menu-expanded", "",
+                {make_subcommand("on", "Open completion menus expanded by default"),
+                 make_subcommand("off", "Start completion menus in collapsed mode"),
                  make_subcommand("status", "Show current setting")});
         add_doc("cjshopt-visible-whitespace", "",
                 {make_subcommand("on", "Show whitespace markers"),
