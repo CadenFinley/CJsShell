@@ -67,6 +67,8 @@ enum class CjshoptSubcommand : std::uint8_t {
     StatusHints,
     StatusLine,
     StatusReporting,
+    MouseClicking,
+    MouseClickingStatusLine,
     AutoTab,
     PromptNewline,
     PromptCleanup,
@@ -123,6 +125,9 @@ constexpr std::array<CjshoptSubcommandDescriptor, static_cast<size_t>(CjshoptSub
          {CjshoptSubcommand::StatusHints, "status-hints", status_hints_command},
          {CjshoptSubcommand::StatusLine, "status-line", status_line_command},
          {CjshoptSubcommand::StatusReporting, "status-reporting", status_reporting_command},
+         {CjshoptSubcommand::MouseClicking, "mouse-clicking", mouse_clicking_command},
+         {CjshoptSubcommand::MouseClickingStatusLine, "mouse-clicking-status-line",
+          mouse_clicking_status_line_command},
          {CjshoptSubcommand::AutoTab, "auto-tab", auto_tab_command},
          {CjshoptSubcommand::PromptNewline, "prompt-newline", prompt_newline_command},
          {CjshoptSubcommand::PromptCleanup, "prompt-cleanup", prompt_cleanup_command},
@@ -203,6 +208,11 @@ const std::vector<std::string>& cjshopt_usage_lines() {
         std::string(
             "  status-reporting <on|off|status>  Disable cjsh validation output while ") +
             "keeping status-hints (default: enabled)",
+        std::string("  mouse-clicking <on|off|status>  Configure mouse clicking default for new ") +
+            "prompts (default: disabled)",
+        std::string(
+            "  mouse-clicking-status-line <on|off|status>  Show or hide the mouse clicking ") +
+            "status indicator (default: enabled)",
         std::string("  auto-tab <on|off|status>        Configure automatic tab completion ") +
             "(default: disabled)",
         std::string("  prompt-newline <on|off|status>  Add a newline after command execution ") +
@@ -268,14 +278,15 @@ int cjshopt_command(const std::vector<std::string>& args) {
           "history-search-case, completion-spell, "
           "smart-cd, script-extension-interpreter, "
           "completion-learning, "
-          "line-numbers, line-numbers-continuation, line-numbers-replace-prompt, "
-          "current-line-number-highlight, multiline-start-lines, hint-delay, "
+           "line-numbers, line-numbers-continuation, line-numbers-replace-prompt, "
+           "current-line-number-highlight, multiline-start-lines, hint-delay, "
 
-          "completion-preview, visible-whitespace, hint, multiline-indent, multiline, inline-help, "
-          "status-hints, status-line, status-reporting, auto-tab, prompt-newline, prompt-cleanup, "
-          "prompt-cleanup-newline, "
-          "prompt-cleanup-empty-line, prompt-cleanup-truncate, right-prompt-follow-cursor, "
-          "keybind, "
+           "completion-preview, visible-whitespace, hint, multiline-indent, multiline, inline-help, "
+           "status-hints, status-line, status-reporting, mouse-clicking, "
+           "mouse-clicking-status-line, auto-tab, prompt-newline, prompt-cleanup, "
+           "prompt-cleanup-newline, "
+           "prompt-cleanup-empty-line, prompt-cleanup-truncate, right-prompt-follow-cursor, "
+           "keybind, "
           "generate-profile, generate-env, generate-rc, generate-logout, set-history-max, "
           "set-completion-max"}});
 

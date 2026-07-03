@@ -993,6 +993,56 @@ int status_reporting_command(const std::vector<std::string>& args) {
     return handle_toggle_command(command_config, args);
 }
 
+int mouse_clicking_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: mouse-clicking <on|off|status>", "Examples:",
+        "  mouse-clicking on      Enable mouse clicking by default for new prompts",
+        "  mouse-clicking off     Disable default mouse clicking for new prompts",
+        "  mouse-clicking status  Show the current setting"};
+
+    static const ToggleCommandConfig config{
+        "mouse-clicking",
+        usage_lines,
+        []() {
+            bool current_status = ic_enable_mouse_clicking(true);
+            ic_enable_mouse_clicking(current_status);
+            return current_status;
+        },
+        [](bool enable) { ic_enable_mouse_clicking(enable); },
+        "Mouse clicking default",
+        false,
+        "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
+        {},
+        {}};
+
+    return handle_toggle_command(config, args);
+}
+
+int mouse_clicking_status_line_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: mouse-clicking-status-line <on|off|status>", "Examples:",
+        "  mouse-clicking-status-line on      Show the mouse-clicking status indicator",
+        "  mouse-clicking-status-line off     Hide the mouse-clicking status indicator",
+        "  mouse-clicking-status-line status  Show the current setting"};
+
+    static const ToggleCommandConfig config{
+        "mouse-clicking-status-line",
+        usage_lines,
+        []() {
+            bool current_status = ic_enable_mouse_reporting_status_line(true);
+            ic_enable_mouse_reporting_status_line(current_status);
+            return current_status;
+        },
+        [](bool enable) { ic_enable_mouse_reporting_status_line(enable); },
+        "Mouse clicking status indicator",
+        false,
+        "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
+        {},
+        {}};
+
+    return handle_toggle_command(config, args);
+}
+
 int auto_tab_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {
         "Usage: auto-tab <on|off|status>",

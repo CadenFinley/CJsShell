@@ -58,6 +58,8 @@ int inline_help_command(const std::vector<std::string>& args);
 int status_hints_command(const std::vector<std::string>& args);
 int status_line_command(const std::vector<std::string>& args);
 int status_reporting_command(const std::vector<std::string>& args);
+int mouse_clicking_command(const std::vector<std::string>& args);
+int mouse_clicking_status_line_command(const std::vector<std::string>& args);
 int auto_tab_command(const std::vector<std::string>& args);
 int prompt_newline_command(const std::vector<std::string>& args);
 int prompt_cleanup_command(const std::vector<std::string>& args);

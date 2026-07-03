@@ -591,6 +591,10 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
              make_subcommand("status-hints", "Control status hint visibility"),
              make_subcommand("status-line", "Disable the status row entirely"),
              make_subcommand("status-reporting", "Mute cjsh status messages"),
+             make_subcommand("mouse-clicking",
+                             "Toggle mouse clicking as the default for new prompts"),
+             make_subcommand("mouse-clicking-status-line",
+                             "Toggle the mouse-clicking status indicator line"),
              make_subcommand("auto-tab", "Toggle automatic tab completion"),
              make_subcommand("prompt-newline", "Toggle newline after command execution"),
              make_subcommand("prompt-cleanup", "Toggle prompt cleanup"),
@@ -739,6 +743,14 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_doc("cjshopt-status-reporting", "",
                 {make_subcommand("on", "Show cjsh validation output"),
                  make_subcommand("off", "Hide cjsh validation output"),
+                 make_subcommand("status", "Show current setting")});
+        add_doc("cjshopt-mouse-clicking", "",
+                {make_subcommand("on", "Enable mouse clicking by default for new prompts"),
+                 make_subcommand("off", "Disable default mouse clicking"),
+                 make_subcommand("status", "Show current setting")});
+        add_doc("cjshopt-mouse-clicking-status-line", "",
+                {make_subcommand("on", "Show the mouse-clicking status indicator"),
+                 make_subcommand("off", "Hide the mouse-clicking status indicator"),
                  make_subcommand("status", "Show current setting")});
         add_doc("cjshopt-auto-tab", "",
                 {make_subcommand("on", "Enable automatic tab completion"),
