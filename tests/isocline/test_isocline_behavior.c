@@ -1473,6 +1473,11 @@ static bool test_key_binding_crud_and_profiles(void) {
     EXPECT_TRUE(mouse_toggle_specs != NULL && strstr(mouse_toggle_specs, "f2") != NULL,
                 "default mouse-toggle specs should expose F2");
 
+    const char* command_palette_specs =
+        ic_key_binding_profile_default_specs(IC_KEY_ACTION_COMMAND_PALETTE);
+    EXPECT_TRUE(command_palette_specs != NULL && strstr(command_palette_specs, "alt+p") != NULL,
+                "default command-palette specs should expose Alt+P");
+
     EXPECT_FALSE(ic_set_key_binding_profile("does-not-exist"),
                  "unknown key binding profile should be rejected");
 
@@ -1721,6 +1726,8 @@ static bool test_key_action_name_mappings(void) {
     EXPECT_TRUE(ic_key_action_from_name("toggle-mouse") ==
                     IC_KEY_ACTION_TOGGLE_MOUSE_REPORTING,
                 "toggle-mouse alias should map to TOGGLE_MOUSE_REPORTING action");
+    EXPECT_TRUE(ic_key_action_from_name("palette") == IC_KEY_ACTION_COMMAND_PALETTE,
+                "palette alias should map to COMMAND_PALETTE action");
     EXPECT_TRUE(ic_key_action_from_name("unhandled") == IC_KEY_ACTION_RUNOFF,
                 "unhandled alias should map to RUNOFF action");
     EXPECT_TRUE(ic_key_action_from_name("unknown-action") == IC_KEY_ACTION__MAX,
@@ -1733,6 +1740,8 @@ static bool test_key_action_name_mappings(void) {
     EXPECT_STREQ(ic_key_action_name(IC_KEY_ACTION_TOGGLE_MOUSE_REPORTING),
                  "toggle-mouse-reporting",
                  "action-to-name lookup should return canonical toggle-mouse-reporting label");
+    EXPECT_STREQ(ic_key_action_name(IC_KEY_ACTION_COMMAND_PALETTE), "command-palette",
+                 "action-to-name lookup should return canonical command-palette label");
     EXPECT_TRUE(ic_key_action_name(IC_KEY_ACTION__MAX) == NULL,
                 "invalid action enum should not produce a name");
 

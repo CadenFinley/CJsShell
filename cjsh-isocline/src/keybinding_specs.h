@@ -71,5 +71,6 @@
 #define SPEC_COMPLETE "tab|alt+?"
 #define SPEC_SHOW_HELP "f1"
 #define SPEC_TOGGLE_MOUSE_REPORTING "f2"
+#define SPEC_COMMAND_PALETTE "alt+p"
 
 #endif  // CJSH_KEYBINDING_SPECS_H

@@ -146,6 +146,7 @@ static bool prompt_line_should_use_line_numbers(const ic_env_t* env, const edito
 
 static void edit_generate_completions(ic_env_t* env, editor_t* eb, bool autotab);
 static void edit_history_search_with_current_word(ic_env_t* env, editor_t* eb);
+static void edit_command_palette(ic_env_t* env, editor_t* eb);
 static void edit_history_prev(ic_env_t* env, editor_t* eb);
 static void edit_history_next(ic_env_t* env, editor_t* eb);
 static void edit_yank_last_arg(ic_env_t* env, editor_t* eb);
@@ -209,6 +210,9 @@ static bool key_action_execute(ic_env_t* env, editor_t* eb, ic_key_action_t acti
             return true;
         case IC_KEY_ACTION_HISTORY_SEARCH:
             edit_history_search_with_current_word(env, eb);
+            return true;
+        case IC_KEY_ACTION_COMMAND_PALETTE:
+            edit_command_palette(env, eb);
             return true;
         case IC_KEY_ACTION_HISTORY_PREV:
             edit_history_prev(env, eb);
@@ -2678,16 +2682,21 @@ static bool edit_format_default_status_hints(ic_env_t* env, char* buffer, size_t
 
     char completion_keys[EDIT_STATUS_HINT_KEYS_LEN];
     char history_search_keys[EDIT_STATUS_HINT_KEYS_LEN];
+    char command_palette_keys[EDIT_STATUS_HINT_KEYS_LEN];
     char help_keys[EDIT_STATUS_HINT_KEYS_LEN];
 
     format_binding_keys(env, IC_KEY_ACTION_COMPLETE, NULL, completion_keys, sizeof(completion_keys),
                         true);
     format_binding_keys(env, IC_KEY_ACTION_HISTORY_SEARCH, NULL, history_search_keys,
                         sizeof(history_search_keys), true);
+    format_binding_keys(env, IC_KEY_ACTION_COMMAND_PALETTE, NULL, command_palette_keys,
+                        sizeof(command_palette_keys), true);
     format_binding_keys(env, IC_KEY_ACTION_SHOW_HELP, NULL, help_keys, sizeof(help_keys), true);
 
-    int written = snprintf(buffer, buflen, "[ic-status]complete: %s  search: %s  help: %s[/]",
-                           completion_keys, history_search_keys, help_keys);
+    int written =
+        snprintf(buffer, buflen,
+                 "[ic-status]complete: %s  search: %s  palette: %s  help: %s[/]",
+                 completion_keys, history_search_keys, command_palette_keys, help_keys);
     if (written < 0) {
         buffer[0] = '\0';
         return false;
@@ -2801,6 +2810,12 @@ static void edit_disable_menu_mouse_scroll(ic_env_t* env, bool enabled) {
 //-------------------------------------------------------------
 
 #include "editline_history.c"
+
+//-------------------------------------------------------------
+// Command palette
+//-------------------------------------------------------------
+
+#include "editline_command_palette.c"
 
 //-------------------------------------------------------------
 // Completion
@@ -3387,6 +3402,10 @@ edit_loop_entry:
                     case KEY_CTRL_R:
                     case KEY_CTRL_S:
                         edit_history_search_with_current_word(env, &eb);
+                        break;
+                    case WITH_ALT('p'):
+                    case WITH_ALT('P'):
+                        edit_command_palette(env, &eb);
                         break;
                     case KEY_CTRL_P:
                         edit_history_prev(env, &eb);

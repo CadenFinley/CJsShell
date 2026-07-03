@@ -128,6 +128,11 @@ static const key_action_name_entry_t key_action_names[] = {
     {"mouse-reporting-toggle", IC_KEY_ACTION_TOGGLE_MOUSE_REPORTING},
     {"toggle-mouse", IC_KEY_ACTION_TOGGLE_MOUSE_REPORTING},
 
+    {"command-palette", IC_KEY_ACTION_COMMAND_PALETTE},
+    {"palette", IC_KEY_ACTION_COMMAND_PALETTE},
+    {"action-palette", IC_KEY_ACTION_COMMAND_PALETTE},
+    {"search-actions", IC_KEY_ACTION_COMMAND_PALETTE},
+
     {"runoff", IC_KEY_ACTION_RUNOFF},
     {"runoff-handler", IC_KEY_ACTION_RUNOFF},
     {"unhandled", IC_KEY_ACTION_RUNOFF},
@@ -188,6 +193,7 @@ static const keybinding_profile_action_spec_t keybinding_profile_default_spec_en
     {IC_KEY_ACTION_SHOW_HELP, SPEC_SHOW_HELP},
     {IC_KEY_ACTION_INSERT_NEWLINE, SPEC_INSERT_NEWLINE},
     {IC_KEY_ACTION_TOGGLE_MOUSE_REPORTING, SPEC_TOGGLE_MOUSE_REPORTING},
+    {IC_KEY_ACTION_COMMAND_PALETTE, SPEC_COMMAND_PALETTE},
 };
 
 static const keybinding_profile_t keybinding_profile_default = {
