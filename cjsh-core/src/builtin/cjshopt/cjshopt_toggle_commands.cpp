@@ -703,8 +703,7 @@ int completion_preview_command(const std::vector<std::string>& args) {
 int completion_menu_expanded_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {
         "Usage: completion-menu-expanded <on|off|status>",
-        "Examples:",
-        "  completion-menu-expanded on      Open completion menus expanded by default",
+        "Examples:", "  completion-menu-expanded on      Open completion menus expanded by default",
         "  completion-menu-expanded off     Start completion menus collapsed",
         "  completion-menu-expanded status  Show the current setting"};
 
@@ -1025,9 +1024,9 @@ int status_reporting_command(const std::vector<std::string>& args) {
 
 int status_line_callback_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {
-        "Usage: status-line-callback <function_name|off|status>",
-        "Examples:",
-        "  status-line-callback my_status_banner  Run my_status_banner before drawing the status row",
+        "Usage: status-line-callback <function_name|off|status>", "Examples:",
+        "  status-line-callback my_status_banner  Run my_status_banner before drawing the status "
+        "row",
         "  status-line-callback off               Disable custom status-line callback output",
         "  status-line-callback status            Show the current callback setting"};
 
@@ -1049,9 +1048,7 @@ int status_line_callback_command(const std::vector<std::string>& args) {
     };
 
     if (args.size() == 1) {
-        print_error({ErrorType::INVALID_ARGUMENT,
-                     "status-line-callback",
-                     "Missing option argument",
+        print_error({ErrorType::INVALID_ARGUMENT, "status-line-callback", "Missing option argument",
                      usage_lines});
         return 1;
     }
@@ -1064,10 +1061,8 @@ int status_line_callback_command(const std::vector<std::string>& args) {
     }
 
     if (args.size() != 2) {
-        print_error({ErrorType::INVALID_ARGUMENT,
-                     "status-line-callback",
-                     "Too many arguments provided",
-                     usage_lines});
+        print_error({ErrorType::INVALID_ARGUMENT, "status-line-callback",
+                     "Too many arguments provided", usage_lines});
         return 1;
     }
 
@@ -1081,15 +1076,14 @@ int status_line_callback_command(const std::vector<std::string>& args) {
         return 0;
     }
 
-    if (matches_token(normalized,
-                      {"off", "disable", "disabled", "none", "clear", "--disable"})) {
+    if (matches_token(normalized, {"off", "disable", "disabled", "none", "clear", "--disable"})) {
         const bool had_callback = !status_line::get_user_status_callback_function().empty();
         status_line::clear_user_status_callback_function();
 
         if (!cjsh_env::startup_active() && had_callback) {
             std::cout << "Status-line callback disabled.\n";
-            std::cout
-                << "Add `cjshopt status-line-callback off` to your ~/.cjshrc to persist this change.\n";
+            std::cout << "Add `cjshopt status-line-callback off` to your ~/.cjshrc to persist this "
+                         "change.\n";
         }
         return 0;
     }
@@ -1098,7 +1092,8 @@ int status_line_callback_command(const std::vector<std::string>& args) {
         print_error({ErrorType::INVALID_ARGUMENT,
                      "status-line-callback",
                      "Invalid function name '" + option + "'",
-                     {"Function names must start with a letter or underscore and contain only letters, digits, and underscores."}});
+                     {"Function names must start with a letter or underscore and contain only "
+                      "letters, digits, and underscores."}});
         return 1;
     }
 
@@ -1135,8 +1130,8 @@ int status_line_callback_command(const std::vector<std::string>& args) {
 
 int mouse_clicking_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {
-        "Usage: mouse-clicking <on|off|status>", "Examples:",
-        "  mouse-clicking on      Enable mouse clicking by default for new prompts",
+        "Usage: mouse-clicking <on|off|status>",
+        "Examples:", "  mouse-clicking on      Enable mouse clicking by default for new prompts",
         "  mouse-clicking off     Disable default mouse clicking for new prompts",
         "  mouse-clicking status  Show the current setting"};
 

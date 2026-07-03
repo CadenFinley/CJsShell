@@ -87,8 +87,7 @@ int set_completion_max_command(const std::vector<std::string>& args);
 std::string get_custom_keybinding(ic_keycode_t key);
 std::string get_custom_keybinding_title(ic_keycode_t key);
 bool has_custom_keybinding(ic_keycode_t key);
-void set_custom_keybinding(ic_keycode_t key,
-                           const std::string& command,
+void set_custom_keybinding(ic_keycode_t key, const std::string& command,
                            const std::string& title = "");
 void clear_custom_keybinding(ic_keycode_t key);
 void clear_all_custom_keybindings();
@@ -96,8 +95,7 @@ std::vector<std::pair<ic_keycode_t, custom_command_binding_t>> list_custom_keybi
 std::string get_custom_palette_command(const std::string& id);
 std::string get_custom_palette_command_title(const std::string& id);
 bool has_custom_palette_command(const std::string& id);
-void set_custom_palette_command(const std::string& id,
-                                const std::string& command,
+void set_custom_palette_command(const std::string& id, const std::string& command,
                                 const std::string& title = "");
 void clear_custom_palette_command(const std::string& id);
 void clear_all_custom_palette_commands();

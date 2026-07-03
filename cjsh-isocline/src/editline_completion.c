@@ -810,13 +810,11 @@ again:
 
         const bool menu_mouse_click_enabled =
             (expanded_mode ? menu_mouse_scroll_enabled : eb->mouse_reporting_enabled);
-        const char* mouse_suffix =
-            (menu_mouse_click_enabled ? " (Mouse clicking is enabled)" : "");
+        const char* mouse_suffix = (menu_mouse_click_enabled ? " (Mouse clicking is enabled)" : "");
 
         if (visible_start > 0 && visible_end >= visible_start) {
-            snprintf(header, sizeof(header),
-                     "[ic-info]Showing %zd-%zd of %zd completions%s%s[/]\n", visible_start,
-                     visible_end, count, hint_suffix, mouse_suffix);
+            snprintf(header, sizeof(header), "[ic-info]Showing %zd-%zd of %zd completions%s%s[/]\n",
+                     visible_start, visible_end, count, hint_suffix, mouse_suffix);
         } else {
             snprintf(header, sizeof(header), "[ic-info]Showing %zd of %zd completions%s%s[/]\n",
                      (visible_count > 0 ? visible_count : count_displayed), count, hint_suffix,
@@ -1072,8 +1070,8 @@ read_key:
     } else {
         ic_key_action_t action = IC_KEY_ACTION__MAX;
         bool has_override = key_binding_lookup_action(env, c, &action);
-        bool toggle_mouse_key = (has_override ? (action == IC_KEY_ACTION_TOGGLE_MOUSE_REPORTING)
-                                              : (c == KEY_F2));
+        bool toggle_mouse_key =
+            (has_override ? (action == IC_KEY_ACTION_TOGGLE_MOUSE_REPORTING) : (c == KEY_F2));
         if (toggle_mouse_key) {
             edit_toggle_mouse_reporting(env, eb);
             if (expanded_mode) {

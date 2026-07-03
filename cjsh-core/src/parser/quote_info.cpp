@@ -100,8 +100,8 @@ std::vector<std::string> expand_tilde_tokens(const std::vector<std::string>& tok
         QuoteInfo qi(raw);
 
         if (qi.is_unquoted() && !qi.value.empty() && qi.value.front() == '~') {
-            std::filesystem::path expanded = cjsh_filesystem::expand_shell_path_token(
-                qi.value, ensure_cwd(), std::string{});
+            std::filesystem::path expanded =
+                cjsh_filesystem::expand_shell_path_token(qi.value, ensure_cwd(), std::string{});
             if (!expanded.empty()) {
                 result.push_back(expanded.string());
             } else {

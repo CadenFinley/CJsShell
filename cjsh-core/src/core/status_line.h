@@ -38,4 +38,4 @@ void set_user_status_callback_function(const std::string& function_name);
 void clear_user_status_callback_function();
 std::string get_user_status_callback_function();
 
-}
+}  // namespace status_line

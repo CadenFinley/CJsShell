@@ -139,8 +139,7 @@ char* ic_readline(const char* prompt_text, const char* inline_right_text,
 /// @param initial_input Same as ic_readline().
 /// @returns A structured result. If `result.input` is non-NULL it must be
 ///          released with ic_free().
-ic_readline_result_t ic_readline_with_status(const char* prompt_text,
-                                             const char* inline_right_text,
+ic_readline_result_t ic_readline_with_status(const char* prompt_text, const char* inline_right_text,
                                              const char* initial_input);
 
 /// Convert an ic_readline_disposition_t into a stable lowercase string.

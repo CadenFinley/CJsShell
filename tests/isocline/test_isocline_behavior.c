@@ -1649,13 +1649,13 @@ static bool expect_explicit_profile_binding(const explicit_profile_binding_t* bi
     }
 
     if (bound_action != binding->action) {
-        expect_safe_log("profile '%s' binding '%s' resolved to '%s' instead of '%s'\n",
-                        binding->profile_name, binding->key_spec,
-                        (ic_key_action_name(bound_action) != NULL ? ic_key_action_name(bound_action)
-                                                                  : "(unknown)"),
-                        (ic_key_action_name(binding->action) != NULL
-                             ? ic_key_action_name(binding->action)
-                             : "(unknown)"));
+        expect_safe_log(
+            "profile '%s' binding '%s' resolved to '%s' instead of '%s'\n", binding->profile_name,
+            binding->key_spec,
+            (ic_key_action_name(bound_action) != NULL ? ic_key_action_name(bound_action)
+                                                      : "(unknown)"),
+            (ic_key_action_name(binding->action) != NULL ? ic_key_action_name(binding->action)
+                                                         : "(unknown)"));
         return false;
     }
 
@@ -1711,7 +1711,8 @@ static bool test_key_binding_profile_specs_register_all_bindings(void) {
 
         size_t expected_explicit_binding_count = 0;
         for (size_t binding_idx = 0;
-             binding_idx < sizeof(explicit_bindings) / sizeof(explicit_bindings[0]); ++binding_idx) {
+             binding_idx < sizeof(explicit_bindings) / sizeof(explicit_bindings[0]);
+             ++binding_idx) {
             if (strcmp(explicit_bindings[binding_idx].profile_name, profile_name) == 0) {
                 expected_explicit_binding_count++;
                 if (!expect_explicit_profile_binding(&explicit_bindings[binding_idx])) {
@@ -1722,10 +1723,11 @@ static bool test_key_binding_profile_specs_register_all_bindings(void) {
 
         size_t listed_count = ic_list_key_bindings(NULL, 0);
         if (listed_count != expected_explicit_binding_count) {
-            expect_safe_log("profile '%s' documented %zu spec tokens but registered %zu explicit bindings "
-                            "instead of %zu\n",
-                            profile_name, expected_binding_count, listed_count,
-                            expected_explicit_binding_count);
+            expect_safe_log(
+                "profile '%s' documented %zu spec tokens but registered %zu explicit bindings "
+                "instead of %zu\n",
+                profile_name, expected_binding_count, listed_count,
+                expected_explicit_binding_count);
             return false;
         }
     }
@@ -1744,8 +1746,7 @@ static bool test_key_action_name_mappings(void) {
                 "completion alias should map to COMPLETE action");
     EXPECT_TRUE(ic_key_action_from_name("insert-last-argument") == IC_KEY_ACTION_YANK_LAST_ARG,
                 "insert-last-argument alias should map to YANK_LAST_ARG action");
-    EXPECT_TRUE(ic_key_action_from_name("toggle-mouse") ==
-                    IC_KEY_ACTION_TOGGLE_MOUSE_REPORTING,
+    EXPECT_TRUE(ic_key_action_from_name("toggle-mouse") == IC_KEY_ACTION_TOGGLE_MOUSE_REPORTING,
                 "toggle-mouse alias should map to TOGGLE_MOUSE_REPORTING action");
     EXPECT_TRUE(ic_key_action_from_name("palette") == IC_KEY_ACTION_COMMAND_PALETTE,
                 "palette alias should map to COMMAND_PALETTE action");
@@ -1758,8 +1759,7 @@ static bool test_key_action_name_mappings(void) {
                  "action-to-name lookup should return canonical yank-last-arg label");
     EXPECT_STREQ(ic_key_action_name(IC_KEY_ACTION_CLEAR_SCREEN), "clear-screen",
                  "action-to-name lookup should return canonical clear-screen label");
-    EXPECT_STREQ(ic_key_action_name(IC_KEY_ACTION_TOGGLE_MOUSE_REPORTING),
-                 "toggle-mouse-reporting",
+    EXPECT_STREQ(ic_key_action_name(IC_KEY_ACTION_TOGGLE_MOUSE_REPORTING), "toggle-mouse-reporting",
                  "action-to-name lookup should return canonical toggle-mouse-reporting label");
     EXPECT_STREQ(ic_key_action_name(IC_KEY_ACTION_COMMAND_PALETTE), "command-palette",
                  "action-to-name lookup should return canonical command-palette label");
@@ -2179,8 +2179,8 @@ static bool test_tty_sgr_mouse_event_metadata(void) {
     static const uint8_t seq_left_press[] = {'\x1B', '[', '<', '4', ';', '6', ';', '4', 'M'};
     static const uint8_t seq_left_release[] = {'\x1B', '[', '<', '4', ';', '6', ';', '4', 'm'};
     static const uint8_t seq_wheel_up[] = {'\x1B', '[', '<', '6', '4', ';', '7', ';', '5', 'M'};
-    static const uint8_t seq_wheel_down[] = {'\x1B', '[', '<', '6', '5', ';', '7', '5', ';', '5',
-                                             'M'};
+    static const uint8_t seq_wheel_down[] = {'\x1B', '[', '<', '6', '5', ';',
+                                             '7',    '5', ';', '5', 'M'};
 
     static const struct {
         const uint8_t* raw;
@@ -3003,9 +3003,10 @@ static bool test_command_palette_entry_registration_and_listing(void) {
 
     ic_command_palette_entry_t listed[4];
     size_t listed_count = ic_list_command_palette_entries(listed, 4);
-    EXPECT_TRUE(listed_count == 2,
-                "listing command palette entries should return all registered entries when buffer is "
-                "large enough");
+    EXPECT_TRUE(
+        listed_count == 2,
+        "listing command palette entries should return all registered entries when buffer is "
+        "large enough");
     EXPECT_STREQ(listed[0].id, "snippet-for",
                  "listed command palette entry should preserve explicit id field");
     EXPECT_STREQ(listed[0].name, "Snippet: for loop",

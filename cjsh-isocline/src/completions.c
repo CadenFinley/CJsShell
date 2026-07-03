@@ -380,7 +380,7 @@ static ssize_t completion_apply(completion_t* cm, stringbuf_t* sbuf, ssize_t pos
     ssize_t delete_after = cm->delete_after;
     if (delete_after == 0) {
         delete_after = completion_matching_hint_after_cursor(completion_get_hint_text(cm),
-                                                            sbuf_string(sbuf), pos);
+                                                             sbuf_string(sbuf), pos);
     }
     ssize_t n = cm->delete_before + delete_after;
     if (ic_strlen(cm->replacement) == n &&

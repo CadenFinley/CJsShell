@@ -703,8 +703,7 @@ again:;
     }
 
     sbuf_clear(eb->extra);
-    const char* mouse_suffix =
-        (menu_mouse_scroll_enabled ? " | Mouse clicking is enabled" : "");
+    const char* mouse_suffix = (menu_mouse_scroll_enabled ? " | Mouse clicking is enabled" : "");
 
     if (match_count > 0) {
         const char* query = sbuf_string(eb->input);
@@ -723,13 +722,13 @@ again:;
                              match_count, match_count == 1 ? "" : "es",
                              session_case_sensitive ? "sensitive" : "insensitive", mouse_suffix);
             } else {
-                sbuf_appendf(eb->extra, "[ic-info]%zd match%s found - case %s%s[/]\n",
-                             match_count, match_count == 1 ? "" : "es",
+                sbuf_appendf(eb->extra, "[ic-info]%zd match%s found - case %s%s[/]\n", match_count,
+                             match_count == 1 ? "" : "es",
                              session_case_sensitive ? "sensitive" : "insensitive", mouse_suffix);
             }
         } else {
-            sbuf_appendf(eb->extra, "[ic-info]History (%zd entr%s) - case %s%s[/]\n",
-                         total_history, total_history == 1 ? "y" : "ies",
+            sbuf_appendf(eb->extra, "[ic-info]History (%zd entr%s) - case %s%s[/]\n", total_history,
+                         total_history == 1 ? "y" : "ies",
                          session_case_sensitive ? "sensitive" : "insensitive", mouse_suffix);
         }
 

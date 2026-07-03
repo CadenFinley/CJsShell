@@ -145,9 +145,9 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
     if (terminal_control_acquired && shell_is_interactive && (isatty(shell_terminal) != 0)) {
         if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
             if (errno != ENOTTY && errno != EINVAL) {
-                set_error(ErrorType::RUNTIME_ERROR, "tcsetpgrp",
-                          "warning: failed to restore terminal control: " +
-                              std::string(strerror(errno)));
+                set_error(
+                    ErrorType::RUNTIME_ERROR, "tcsetpgrp",
+                    "warning: failed to restore terminal control: " + std::string(strerror(errno)));
             }
         }
 

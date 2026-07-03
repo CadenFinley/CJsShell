@@ -53,8 +53,7 @@ bool is_help_flag(const std::string& option) {
 
 const std::vector<std::string>& startup_flag_help_lines() {
     static const std::vector<std::string> lines = [] {
-        std::vector<std::string> help = {"Usage: login-startup-arg <flag>",
-                                         "Available flags:"};
+        std::vector<std::string> help = {"Usage: login-startup-arg <flag>", "Available flags:"};
         for (const auto& entry : startup_flags::descriptors()) {
             help.emplace_back("  " + std::string(entry.name) + "  " + entry.description);
         }
@@ -197,8 +196,8 @@ void print_style_def_usage() {
     std::sort(token_types.begin(), token_types.end());
 
     for (const auto& token_type : token_types) {
-        std::cout << "  " << token_type << " (default: "
-                  << token_constants::default_styles().at(token_type) << ")\n";
+        std::cout << "  " << token_type
+                  << " (default: " << token_constants::default_styles().at(token_type) << ")\n";
     }
 
     std::cout << "\nStyle format: [bold] [italic] [underline] color=#RRGGBB|color=name\n";
@@ -217,7 +216,8 @@ void print_style_def_usage() {
 int startup_flag_command(const std::vector<std::string>& args) {
     const auto& help_lines = startup_flag_help_lines();
 
-    if (builtin_handle_help_with_startup_guard(args, help_lines, BuiltinHelpScanMode::AnyArgument)) {
+    if (builtin_handle_help_with_startup_guard(args, help_lines,
+                                               BuiltinHelpScanMode::AnyArgument)) {
         return 0;
     }
 

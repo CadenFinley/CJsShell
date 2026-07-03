@@ -106,8 +106,7 @@ bool has_custom_palette_command(const std::string& id) {
     return g_custom_palette_commands.find(id) != g_custom_palette_commands.end();
 }
 
-void set_custom_palette_command(const std::string& id,
-                                const std::string& command,
+void set_custom_palette_command(const std::string& id, const std::string& command,
                                 const std::string& title) {
     g_custom_palette_commands[id] = custom_command_binding_t{title, command};
 }
@@ -304,8 +303,8 @@ int keybind_ext_set_command(const std::vector<std::string>& args) {
         std::string effective_title = title.empty() ? palette_id : title;
         set_custom_palette_command(palette_id, command, effective_title);
         if (!cjsh_env::startup_active()) {
-            std::cout << "Registered palette-only command '" << palette_id
-                      << "' (title: '" << effective_title << "'): " << command << '\n';
+            std::cout << "Registered palette-only command '" << palette_id << "' (title: '"
+                      << effective_title << "'): " << command << '\n';
             std::cout << "Add `cjshopt keybind ext set 'palette:" << palette_id << "'";
             if (!title.empty()) {
                 std::cout << " --title '" << title << "'";

@@ -79,8 +79,8 @@ static const help_line_t help_lines[] = {
     {HELP_LINE_BINDING, NULL, "go forward in the history", IC_KEY_ACTION_HISTORY_NEXT, NULL},
     {HELP_LINE_BINDING, NULL, "search the history starting with the current word",
      IC_KEY_ACTION_HISTORY_SEARCH, NULL},
-    {HELP_LINE_BINDING, NULL, "open the command palette for actions",
-     IC_KEY_ACTION_COMMAND_PALETTE, NULL},
+    {HELP_LINE_BINDING, NULL, "open the command palette for actions", IC_KEY_ACTION_COMMAND_PALETTE,
+     NULL},
     {HELP_LINE_BLANK, NULL, NULL, IC_KEY_ACTION__MAX, NULL},
     {HELP_LINE_HEADING, "Deletion:", NULL, IC_KEY_ACTION__MAX, NULL},
     {HELP_LINE_BINDING, NULL, "delete the current character", IC_KEY_ACTION_DELETE_FORWARD, NULL},
@@ -400,12 +400,11 @@ static void edit_show_help(ic_env_t* env, editor_t* eb) {
                 char key_buffer[256];
                 format_binding_keys(env, line->action, line->default_specs, key_buffer,
                                     sizeof(key_buffer), false);
-                bool mouse_toggle_enabled =
-                    (line->action == IC_KEY_ACTION_TOGGLE_MOUSE_REPORTING &&
-                     eb != NULL && eb->mouse_reporting_enabled);
-                bbcode_printf(env->bbcode,
-                              "  [ic-emphasis]%-13s[/][ansi-lightgray]%s%s%s[/]\n", key_buffer,
-                              (line->description[0] == 0 ? "" : ": "), line->description,
+                bool mouse_toggle_enabled = (line->action == IC_KEY_ACTION_TOGGLE_MOUSE_REPORTING &&
+                                             eb != NULL && eb->mouse_reporting_enabled);
+                bbcode_printf(env->bbcode, "  [ic-emphasis]%-13s[/][ansi-lightgray]%s%s%s[/]\n",
+                              key_buffer, (line->description[0] == 0 ? "" : ": "),
+                              line->description,
                               (mouse_toggle_enabled ? " (Mouse clicking is enabled)" : ""));
                 break;
             }

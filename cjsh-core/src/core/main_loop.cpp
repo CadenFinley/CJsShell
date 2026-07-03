@@ -248,7 +248,8 @@ std::optional<std::string> get_next_command(bool command_was_available) {
     char* input = readline_result.input;
 
     if (readline_result.disposition == IC_READLINE_DISPOSITION_STOP ||
-        (readline_result.disposition == IC_READLINE_DISPOSITION_ERROR && readline_result.tty_lost)) {
+        (readline_result.disposition == IC_READLINE_DISPOSITION_ERROR &&
+         readline_result.tty_lost)) {
         consecutive_readline_errors = 0;
         if (input != nullptr) {
             ic_free(input);

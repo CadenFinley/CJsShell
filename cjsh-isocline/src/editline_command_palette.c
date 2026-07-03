@@ -50,126 +50,64 @@ typedef struct command_palette_match_s {
 } command_palette_match_t;
 
 static const command_palette_action_entry_t command_palette_actions[] = {
-    {IC_KEY_ACTION_COMPLETE,
-     "Complete Input",
-     "show completion suggestions at the cursor",
+    {IC_KEY_ACTION_COMPLETE, "Complete Input", "show completion suggestions at the cursor",
      "autocomplete complete suggestion finish word"},
-    {IC_KEY_ACTION_HISTORY_SEARCH,
-     "Search History",
-     "open fuzzy history search",
+    {IC_KEY_ACTION_HISTORY_SEARCH, "Search History", "open fuzzy history search",
      "history reverse search find previous command"},
-    {IC_KEY_ACTION_HISTORY_PREV,
-     "Previous History Entry",
-     "load the previous command from history",
+    {IC_KEY_ACTION_HISTORY_PREV, "Previous History Entry", "load the previous command from history",
      "history back older previous"},
-    {IC_KEY_ACTION_HISTORY_NEXT,
-     "Next History Entry",
-     "load the next command from history",
+    {IC_KEY_ACTION_HISTORY_NEXT, "Next History Entry", "load the next command from history",
      "history forward newer next"},
-    {IC_KEY_ACTION_UNDO,
-     "Undo",
-     "undo the latest edit",
-     "undo revert back"},
-    {IC_KEY_ACTION_REDO,
-     "Redo",
-     "redo the latest undone edit",
-     "redo repeat forward"},
-    {IC_KEY_ACTION_CLEAR_SCREEN,
-     "Clear Screen",
-     "clear the terminal screen",
+    {IC_KEY_ACTION_UNDO, "Undo", "undo the latest edit", "undo revert back"},
+    {IC_KEY_ACTION_REDO, "Redo", "redo the latest undone edit", "redo repeat forward"},
+    {IC_KEY_ACTION_CLEAR_SCREEN, "Clear Screen", "clear the terminal screen",
      "clear cls wipe redraw"},
-    {IC_KEY_ACTION_SHOW_HELP,
-     "Show Help",
-     "open interactive editing help",
+    {IC_KEY_ACTION_SHOW_HELP, "Show Help", "open interactive editing help",
      "help manual keybindings shortcuts"},
-    {IC_KEY_ACTION_INSERT_NEWLINE,
-     "Insert Newline",
-     "insert a newline in multiline mode",
+    {IC_KEY_ACTION_INSERT_NEWLINE, "Insert Newline", "insert a newline in multiline mode",
      "newline line break multi line"},
-    {IC_KEY_ACTION_CURSOR_LEFT,
-     "Cursor Left",
-     "move cursor one character left",
+    {IC_KEY_ACTION_CURSOR_LEFT, "Cursor Left", "move cursor one character left",
      "move left previous character"},
-    {IC_KEY_ACTION_CURSOR_RIGHT_OR_COMPLETE,
-     "Cursor Right",
-     "move cursor right or complete at end",
+    {IC_KEY_ACTION_CURSOR_RIGHT_OR_COMPLETE, "Cursor Right", "move cursor right or complete at end",
      "move right next character smart"},
-    {IC_KEY_ACTION_CURSOR_UP,
-     "Cursor Up",
-     "move cursor one row up",
-     "move up row previous line"},
-    {IC_KEY_ACTION_CURSOR_DOWN,
-     "Cursor Down",
-     "move cursor one row down",
+    {IC_KEY_ACTION_CURSOR_UP, "Cursor Up", "move cursor one row up", "move up row previous line"},
+    {IC_KEY_ACTION_CURSOR_DOWN, "Cursor Down", "move cursor one row down",
      "move down row next line"},
-    {IC_KEY_ACTION_CURSOR_LINE_START,
-     "Line Start",
-     "move cursor to start of line",
+    {IC_KEY_ACTION_CURSOR_LINE_START, "Line Start", "move cursor to start of line",
      "home beginning line start"},
-    {IC_KEY_ACTION_CURSOR_LINE_END,
-     "Line End",
-     "move cursor to end of line",
+    {IC_KEY_ACTION_CURSOR_LINE_END, "Line End", "move cursor to end of line",
      "end line finish line"},
-    {IC_KEY_ACTION_CURSOR_WORD_PREV,
-     "Previous Word",
-     "move cursor to previous word",
+    {IC_KEY_ACTION_CURSOR_WORD_PREV, "Previous Word", "move cursor to previous word",
      "word left backward previous token"},
-    {IC_KEY_ACTION_CURSOR_WORD_NEXT_OR_COMPLETE,
-     "Next Word",
-     "move cursor to next word or complete at end",
-     "word right forward next token"},
-    {IC_KEY_ACTION_CURSOR_INPUT_START,
-     "Input Start",
-     "move cursor to start of input",
+    {IC_KEY_ACTION_CURSOR_WORD_NEXT_OR_COMPLETE, "Next Word",
+     "move cursor to next word or complete at end", "word right forward next token"},
+    {IC_KEY_ACTION_CURSOR_INPUT_START, "Input Start", "move cursor to start of input",
      "input beginning top first"},
-    {IC_KEY_ACTION_CURSOR_INPUT_END,
-     "Input End",
-     "move cursor to end of input",
+    {IC_KEY_ACTION_CURSOR_INPUT_END, "Input End", "move cursor to end of input",
      "input finish bottom last"},
-    {IC_KEY_ACTION_CURSOR_MATCH_BRACE,
-     "Match Brace",
-     "jump to matching brace",
+    {IC_KEY_ACTION_CURSOR_MATCH_BRACE, "Match Brace", "jump to matching brace",
      "brace bracket pair matching jump"},
-    {IC_KEY_ACTION_DELETE_BACKWARD,
-     "Delete Backward",
-     "delete the character before the cursor",
+    {IC_KEY_ACTION_DELETE_BACKWARD, "Delete Backward", "delete the character before the cursor",
      "backspace delete previous character"},
-    {IC_KEY_ACTION_DELETE_FORWARD,
-     "Delete Forward",
-     "delete the character at the cursor",
+    {IC_KEY_ACTION_DELETE_FORWARD, "Delete Forward", "delete the character at the cursor",
      "delete remove next character"},
-    {IC_KEY_ACTION_DELETE_WORD_END,
-     "Delete To Word End",
-     "delete from cursor to the end of the word",
-     "kill word forward delete"},
-    {IC_KEY_ACTION_DELETE_WORD_START_WS,
-     "Delete To Whitespace",
-     "delete backwards to previous whitespace",
-     "delete whitespace backward"},
-    {IC_KEY_ACTION_DELETE_WORD_START,
-     "Delete To Word Start",
-     "delete backwards to start of word",
+    {IC_KEY_ACTION_DELETE_WORD_END, "Delete To Word End",
+     "delete from cursor to the end of the word", "kill word forward delete"},
+    {IC_KEY_ACTION_DELETE_WORD_START_WS, "Delete To Whitespace",
+     "delete backwards to previous whitespace", "delete whitespace backward"},
+    {IC_KEY_ACTION_DELETE_WORD_START, "Delete To Word Start", "delete backwards to start of word",
      "kill word backward delete"},
-    {IC_KEY_ACTION_DELETE_LINE_START,
-     "Delete To Line Start",
-     "delete from cursor to line start",
+    {IC_KEY_ACTION_DELETE_LINE_START, "Delete To Line Start", "delete from cursor to line start",
      "delete kill beginning line"},
-    {IC_KEY_ACTION_DELETE_LINE_END,
-     "Delete To Line End",
-     "delete from cursor to line end",
+    {IC_KEY_ACTION_DELETE_LINE_END, "Delete To Line End", "delete from cursor to line end",
      "delete kill end line"},
-    {IC_KEY_ACTION_TRANSPOSE_CHARS,
-     "Transpose Characters",
-     "swap character with previous character",
-     "swap transpose characters"},
-    {IC_KEY_ACTION_YANK_LAST_ARG,
-     "Insert Last Argument",
+    {IC_KEY_ACTION_TRANSPOSE_CHARS, "Transpose Characters",
+     "swap character with previous character", "swap transpose characters"},
+    {IC_KEY_ACTION_YANK_LAST_ARG, "Insert Last Argument",
      "insert the last argument from previous history entries",
      "yank last argument previous command"},
-    {IC_KEY_ACTION_TOGGLE_MOUSE_REPORTING,
-     "Toggle Mouse Reporting",
-     "toggle mouse clicking support for this prompt",
-     "mouse pointer click reporting toggle"},
+    {IC_KEY_ACTION_TOGGLE_MOUSE_REPORTING, "Toggle Mouse Reporting",
+     "toggle mouse clicking support for this prompt", "mouse pointer click reporting toggle"},
 };
 
 static ssize_t command_palette_action_count(void) {
@@ -177,7 +115,8 @@ static ssize_t command_palette_action_count(void) {
 }
 
 static ssize_t command_palette_custom_count(const ic_env_t* env) {
-    if (env == NULL || env->command_palette_entries == NULL || env->command_palette_entry_count <= 0) {
+    if (env == NULL || env->command_palette_entries == NULL ||
+        env->command_palette_entry_count <= 0) {
         return 0;
     }
     return env->command_palette_entry_count;
@@ -310,8 +249,7 @@ static int command_palette_fuzzy_match_score(const char* entry, const char* quer
         *match_pos = first_match;
     }
     if (match_len != NULL) {
-        *match_len =
-            (first_match >= 0 && last_match >= 0) ? (last_match - first_match + 1) : 0;
+        *match_len = (first_match >= 0 && last_match >= 0) ? (last_match - first_match + 1) : 0;
     }
 
     return score;
@@ -339,8 +277,7 @@ static int command_palette_token_bonus(const command_palette_action_entry_t* ent
         }
 
         size_t token_len = (size_t)(cursor - token_start);
-        while (token_len > 0 &&
-               !isalnum((unsigned char)token_start[token_len - 1]) &&
+        while (token_len > 0 && !isalnum((unsigned char)token_start[token_len - 1]) &&
                token_start[token_len - 1] != '_' && token_start[token_len - 1] != '-') {
             token_len--;
         }
@@ -390,20 +327,17 @@ static bool command_palette_score_action(const command_palette_action_entry_t* e
     ssize_t name_match_pos = -1;
     ssize_t name_match_len = 0;
     int name_score = command_palette_fuzzy_match_score(entry->name, query, &name_match_pos,
-                                                        &name_match_len, case_sensitive);
+                                                       &name_match_len, case_sensitive);
 
     ssize_t description_match_pos = -1;
     ssize_t description_match_len = 0;
-    int description_score =
-        command_palette_fuzzy_match_score(entry->description, query, &description_match_pos,
-                                          &description_match_len, case_sensitive);
+    int description_score = command_palette_fuzzy_match_score(
+        entry->description, query, &description_match_pos, &description_match_len, case_sensitive);
 
     ssize_t keywords_match_pos = -1;
     ssize_t keywords_match_len = 0;
-    int keywords_score = command_palette_fuzzy_match_score(entry->keywords, query,
-                                                            &keywords_match_pos,
-                                                            &keywords_match_len,
-                                                            case_sensitive);
+    int keywords_score = command_palette_fuzzy_match_score(
+        entry->keywords, query, &keywords_match_pos, &keywords_match_len, case_sensitive);
 
     if (name_score < 0 && description_score < 0 && keywords_score < 0) {
         return false;
@@ -509,8 +443,8 @@ static int command_palette_compare_matches(const void* left, const void* right) 
 }
 
 static ssize_t command_palette_search_actions(ic_env_t* env, const char* query, bool case_sensitive,
-                                               command_palette_match_t* matches,
-                                               ssize_t max_matches) {
+                                              command_palette_match_t* matches,
+                                              ssize_t max_matches) {
     if (matches == NULL || max_matches <= 0) {
         return 0;
     }
@@ -639,8 +573,8 @@ again:;
             env, query ? query : "", session_case_sensitive, matches, MAX_COMMAND_PALETTE_RESULTS);
 
         if (match_count == 0 && query != NULL && query[0] != '\0') {
-            match_count = command_palette_search_actions(
-                env, "", session_case_sensitive, matches, MAX_COMMAND_PALETTE_RESULTS);
+            match_count = command_palette_search_actions(env, "", session_case_sensitive, matches,
+                                                         MAX_COMMAND_PALETTE_RESULTS);
             showing_all_due_to_no_matches = true;
         }
     }
@@ -653,8 +587,7 @@ again:;
     }
 
     sbuf_clear(eb->extra);
-    const char* mouse_suffix =
-        (menu_mouse_scroll_enabled ? " | Mouse clicking is enabled" : "");
+    const char* mouse_suffix = (menu_mouse_scroll_enabled ? " | Mouse clicking is enabled" : "");
 
     if (match_count > 0) {
         const char* query = sbuf_string(eb->input);
@@ -672,9 +605,8 @@ again:;
                          match_count == 1 ? "" : "s",
                          session_case_sensitive ? "sensitive" : "insensitive", mouse_suffix);
         } else {
-            sbuf_appendf(eb->extra, "[ic-info]Actions (%zd total) - case %s%s[/]\n",
-                         total_actions, session_case_sensitive ? "sensitive" : "insensitive",
-                         mouse_suffix);
+            sbuf_appendf(eb->extra, "[ic-info]Actions (%zd total) - case %s%s[/]\n", total_actions,
+                         session_case_sensitive ? "sensitive" : "insensitive", mouse_suffix);
         }
 
         ssize_t term_height = term_get_height(env->term);
@@ -740,7 +672,8 @@ again:;
                 if (match->item_idx < 0 || match->item_idx >= command_palette_action_count()) {
                     continue;
                 }
-                const command_palette_action_entry_t* entry = &command_palette_actions[match->item_idx];
+                const command_palette_action_entry_t* entry =
+                    &command_palette_actions[match->item_idx];
                 entry_name = entry->name;
                 entry_description = entry->description;
                 entry_action = entry->action;
@@ -770,8 +703,8 @@ again:;
                 format_binding_keys(env, entry_action, NULL, binding_keys, sizeof(binding_keys),
                                     true);
                 if (entry_description[0] == '\0') {
-                    written = snprintf(linebuf, sizeof(linebuf), "%s [%s]", entry_name,
-                                       binding_keys);
+                    written =
+                        snprintf(linebuf, sizeof(linebuf), "%s [%s]", entry_name, binding_keys);
                 } else {
                     written = snprintf(linebuf, sizeof(linebuf), "%s - %s [%s]", entry_name,
                                        entry_description, binding_keys);
@@ -897,10 +830,9 @@ again:;
     }
 
     if (!env->no_help) {
-        sbuf_append(
-            eb->extra,
-            "[ic-diminish](↑↓/wheel:navigate shift+↑/↓:page enter/tab:run alt+c:case "
-            "esc:cancel)[/]");
+        sbuf_append(eb->extra,
+                    "[ic-diminish](↑↓/wheel:navigate shift+↑/↓:page enter/tab:run alt+c:case "
+                    "esc:cancel)[/]");
     }
 
     edit_refresh(env, eb);
@@ -955,7 +887,8 @@ again:;
         ic_command_palette_entry_t selected_custom_entry = {0};
 
         if (selected_is_custom) {
-            if (selected_match->item_idx < 0 || selected_match->item_idx >= command_palette_custom_count(env)) {
+            if (selected_match->item_idx < 0 ||
+                selected_match->item_idx >= command_palette_custom_count(env)) {
                 term_beep(env->term);
                 goto again;
             }
@@ -966,7 +899,8 @@ again:;
             selected_custom_entry.description = custom_entry->description;
             selected_custom_entry.keywords = custom_entry->keywords;
         } else {
-            if (selected_match->item_idx < 0 || selected_match->item_idx >= command_palette_action_count()) {
+            if (selected_match->item_idx < 0 ||
+                selected_match->item_idx >= command_palette_action_count()) {
                 term_beep(env->term);
                 goto again;
             }
@@ -988,8 +922,8 @@ again:;
         bool handled = false;
         if (selected_is_custom) {
             if (env->command_palette_handler != NULL) {
-                handled =
-                    env->command_palette_handler(&selected_custom_entry, env->command_palette_handler_arg);
+                handled = env->command_palette_handler(&selected_custom_entry,
+                                                       env->command_palette_handler_arg);
             }
         } else {
             handled = key_action_execute(env, eb, selected_action, KEY_NONE);

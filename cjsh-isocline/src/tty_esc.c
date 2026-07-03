@@ -435,8 +435,8 @@ static code_t tty_read_csi(tty_t* tty, uint8_t c1, uint8_t peek, code_t mods0, l
         uint32_t mouse_column = (cx >= 32 ? (uint32_t)(cx - 32) : 0U);
         uint32_t mouse_row = (cy >= 32 ? (uint32_t)(cy - 32) : 0U);
         bool is_release = false;
-        code_t code =
-            esc_decode_mouse_event(tty, mouse_code, mouse_column, mouse_row, is_release, &modifiers);
+        code_t code = esc_decode_mouse_event(tty, mouse_code, mouse_column, mouse_row, is_release,
+                                             &modifiers);
         return (code != KEY_NONE ? (code | modifiers) : KEY_NONE);
     }
 

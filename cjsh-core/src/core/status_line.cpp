@@ -213,7 +213,8 @@ std::string sanitize_status_callback_output(const std::string& raw_output) {
     size_t emitted_lines = 0;
 
     auto emit_line = [&]() {
-        if (emitted_lines >= kStatusCallbackMaxLines || sanitized.size() >= kStatusCallbackMaxBytes) {
+        if (emitted_lines >= kStatusCallbackMaxLines ||
+            sanitized.size() >= kStatusCallbackMaxBytes) {
             current_line.clear();
             return;
         }
@@ -311,7 +312,8 @@ std::string build_user_status_callback_message(Shell* shell, const std::string& 
 
     pipeline_status_utils::set_last_status_env(previous_status_code);
 
-    return sanitize_status_callback_output(cjsh_env::get_shell_variable_value(kStatusCallbackOutputVar));
+    return sanitize_status_callback_output(
+        cjsh_env::get_shell_variable_value(kStatusCallbackOutputVar));
 }
 
 bool has_exited_token_context(const std::string& input, size_t absolute_token_end) {

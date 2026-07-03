@@ -801,7 +801,8 @@ ic_public void ic_clear_command_palette_entries(void) {
 ic_public size_t ic_list_command_palette_entries(ic_command_palette_entry_t* buffer,
                                                  size_t capacity) {
     ic_env_t* env = ic_get_env();
-    if (env == NULL || env->command_palette_entry_count <= 0 || env->command_palette_entries == NULL) {
+    if (env == NULL || env->command_palette_entry_count <= 0 ||
+        env->command_palette_entries == NULL) {
         return 0;
     }
 

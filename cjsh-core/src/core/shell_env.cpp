@@ -56,9 +56,9 @@ extern "C" char** environ;
 #include "error_out.h"
 #include "interpreter.h"
 #include "parser_utils.h"
+#include "pipeline_status_utils.h"
 #include "prompt.h"
 #include "shell.h"
-#include "pipeline_status_utils.h"
 #include "version_command.h"
 
 namespace config {

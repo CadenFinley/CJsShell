@@ -101,7 +101,7 @@ bool Command::has_fd_duplication(int fd) const {
 
 namespace {
 bool is_ampersand_inside_arithmetic_or_brackets(const std::string& text, size_t amp_index,
-                                                 bool respect_quote_escapes) {
+                                                bool respect_quote_escapes) {
     bool in_quotes = false;
     char quote_char = '\0';
     int arith_depth = 0;

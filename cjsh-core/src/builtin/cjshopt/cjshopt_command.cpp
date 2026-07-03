@@ -178,15 +178,14 @@ const std::vector<std::string>& cjshopt_usage_lines() {
             "(default: enabled)",
         std::string("  smart-cd <on|off|status>         Configure smart cd auto-jumps ") +
             "(default: enabled)",
-        std::string(
-            "  script-extension-interpreter <on|off|status> Configure extension-based ") +
+        std::string("  script-extension-interpreter <on|off|status> Configure extension-based ") +
             "script runners (default: enabled)",
         std::string("  completion-learning <on|off|status> Toggle automatic completion learning ") +
             "(default: enabled)",
-        std::string(
-            "  line-numbers <on|off|relative|absolute|status>    Configure line numbers ") +
+        std::string("  line-numbers <on|off|relative|absolute|status>    Configure line numbers ") +
             "in multiline input (default: enabled)",
-        "  line-numbers-continuation <on|off|status> Control line numbers when a continuation prompt is active",
+        "  line-numbers-continuation <on|off|status> Control line numbers when a continuation "
+        "prompt is active",
         std::string(
             "  line-numbers-replace-prompt <on|off|status>       Replace the final prompt line ") +
             "with line numbers (default: disabled)",
@@ -198,8 +197,7 @@ const std::vector<std::string>& cjshopt_usage_lines() {
         "  hint-delay <milliseconds>        Set hint display delay in milliseconds",
         std::string("  completion-preview <on|off|status> Configure completion preview ") +
             "(default: enabled)",
-        std::string(
-            "  completion-menu-expanded <on|off|status> Open completion menus expanded ") +
+        std::string("  completion-menu-expanded <on|off|status> Open completion menus expanded ") +
             "(default: disabled)",
         std::string("  visible-whitespace <on|off|status> Configure visible whitespace ") +
             "characters (default: disabled)",
@@ -214,8 +212,7 @@ const std::vector<std::string>& cjshopt_usage_lines() {
             "status hint banner (default: normal)",
         std::string("  status-line <on|off|status>    Hide or show the status area below the ") +
             "prompt (default: enabled)",
-        std::string(
-            "  status-reporting <on|off|status>  Disable cjsh validation output while ") +
+        std::string("  status-reporting <on|off|status>  Disable cjsh validation output while ") +
             "keeping status-hints (default: enabled)",
         std::string("  status-line-callback <function_name|off|status>  Run a shell function ") +
             "to publish custom status-line text",
@@ -268,9 +265,7 @@ int cjshopt_command(const std::vector<std::string>& args) {
     }
 
     if (args.size() < 2) {
-        print_error({ErrorType::INVALID_ARGUMENT,
-                     "cjshopt",
-                     "Missing subcommand argument",
+        print_error({ErrorType::INVALID_ARGUMENT, "cjshopt", "Missing subcommand argument",
                      cjshopt_usage_lines()});
 
         return 1;
@@ -281,26 +276,25 @@ int cjshopt_command(const std::vector<std::string>& args) {
     if (descriptor.has_value()) {
         return descriptor->handler(std::vector<std::string>(args.begin() + 1, args.end()));
     }
-    print_error(
-        {ErrorType::INVALID_ARGUMENT,
-         "cjshopt",
-          "unknown subcommand '" + subcommand + "'",
-          {"Available subcommands: style_def, login-startup-arg, completion-case, "
-           "history-search-case, completion-spell, "
-           "smart-cd, script-extension-interpreter, "
-           "completion-learning, "
-           "line-numbers, line-numbers-continuation, line-numbers-replace-prompt, "
-           "current-line-number-highlight, multiline-start-lines, hint-delay, "
-           "completion-preview, completion-menu-expanded, visible-whitespace, hint, "
-           "multiline-indent, multiline, inline-help, "
-           "status-hints, status-line, status-reporting, status-line-callback, "
-           "mouse-clicking, "
-           "mouse-clicking-status-line, auto-tab, prompt-newline, prompt-cleanup, "
-           "prompt-cleanup-newline, "
-           "prompt-cleanup-empty-line, prompt-cleanup-truncate, right-prompt-follow-cursor, "
-           "keybind, "
-          "generate-profile, generate-env, generate-rc, generate-logout, set-history-max, "
-          "set-completion-max"}});
+    print_error({ErrorType::INVALID_ARGUMENT,
+                 "cjshopt",
+                 "unknown subcommand '" + subcommand + "'",
+                 {"Available subcommands: style_def, login-startup-arg, completion-case, "
+                  "history-search-case, completion-spell, "
+                  "smart-cd, script-extension-interpreter, "
+                  "completion-learning, "
+                  "line-numbers, line-numbers-continuation, line-numbers-replace-prompt, "
+                  "current-line-number-highlight, multiline-start-lines, hint-delay, "
+                  "completion-preview, completion-menu-expanded, visible-whitespace, hint, "
+                  "multiline-indent, multiline, inline-help, "
+                  "status-hints, status-line, status-reporting, status-line-callback, "
+                  "mouse-clicking, "
+                  "mouse-clicking-status-line, auto-tab, prompt-newline, prompt-cleanup, "
+                  "prompt-cleanup-newline, "
+                  "prompt-cleanup-empty-line, prompt-cleanup-truncate, right-prompt-follow-cursor, "
+                  "keybind, "
+                  "generate-profile, generate-env, generate-rc, generate-logout, set-history-max, "
+                  "set-completion-max"}});
 
     return 1;
 }

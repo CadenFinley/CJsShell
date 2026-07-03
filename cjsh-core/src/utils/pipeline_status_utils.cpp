@@ -66,10 +66,9 @@ void set_last_status_env(int status_code) {
     setenv("?", status_string.c_str(), 1);
 }
 
-void apply_execution_status_env(
-    int status_code, Exec* exec_ptr,
-    const std::function<void(const std::string&)>& on_pipe_set_callback,
-    const std::function<void()>& on_pipe_unset_callback) {
+void apply_execution_status_env(int status_code, Exec* exec_ptr,
+                                const std::function<void(const std::string&)>& on_pipe_set_callback,
+                                const std::function<void()>& on_pipe_unset_callback) {
     set_last_status_env(status_code);
     apply_pipeline_status_env(exec_ptr, on_pipe_set_callback, on_pipe_unset_callback);
 }

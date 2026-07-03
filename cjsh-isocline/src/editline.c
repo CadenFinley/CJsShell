@@ -100,8 +100,8 @@ typedef struct editor_s {
     const char* inline_right_text;  // inline right-aligned text on input line
     ssize_t inline_right_width;     // cached width of inline right text
     ssize_t line_number_column_width;  // cached total prefix width when line numbers are shown
-    bool mouse_reporting_enabled;  // whether this edit session has mouse reporting toggled on
-    ssize_t mouse_capture_depth;   // nested mouse tracking enablement depth
+    bool mouse_reporting_enabled;      // whether this edit session has mouse reporting toggled on
+    ssize_t mouse_capture_depth;       // nested mouse tracking enablement depth
     alloc_t* mem;                      // allocator
     // caches
     attrbuf_t* attrs;  // reuse attribute buffers
@@ -2694,8 +2694,7 @@ static bool edit_format_default_status_hints(ic_env_t* env, char* buffer, size_t
     format_binding_keys(env, IC_KEY_ACTION_SHOW_HELP, NULL, help_keys, sizeof(help_keys), true);
 
     int written =
-        snprintf(buffer, buflen,
-                 "[ic-status]complete: %s  search: %s  palette: %s  help: %s[/]",
+        snprintf(buffer, buflen, "[ic-status]complete: %s  search: %s  palette: %s  help: %s[/]",
                  completion_keys, history_search_keys, command_palette_keys, help_keys);
     if (written < 0) {
         buffer[0] = '\0';
@@ -2944,8 +2943,7 @@ static bool edit_update_status_message(ic_env_t* env, editor_t* eb) {
     }
 
     if (!request_default && !has_custom_message && eb->mouse_reporting_enabled &&
-        env->mouse_reporting_status_line_enabled &&
-        mode != IC_STATUS_HINT_OFF) {
+        env->mouse_reporting_status_line_enabled && mode != IC_STATUS_HINT_OFF) {
         request_default = true;
     }
 
@@ -3620,8 +3618,8 @@ edit_loop_entry:
     if (ctrl_d_pressed || (c == KEY_CTRL_D && sbuf_len(eb.input) == 0)) {
         env->last_readline_disposition = IC_READLINE_DISPOSITION_EOF;
     } else if (ctrl_c_pressed || c == KEY_CTRL_C) {
-        env->last_readline_disposition =
-            (stop_event_received ? IC_READLINE_DISPOSITION_STOP : IC_READLINE_DISPOSITION_INTERRUPT);
+        env->last_readline_disposition = (stop_event_received ? IC_READLINE_DISPOSITION_STOP
+                                                              : IC_READLINE_DISPOSITION_INTERRUPT);
     } else if (c == KEY_EVENT_STOP) {
         env->last_readline_disposition = IC_READLINE_DISPOSITION_STOP;
     } else if (res == NULL) {

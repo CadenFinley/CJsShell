@@ -811,8 +811,10 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
             if (should_interpret_as_cjsh_script(program)) {
                 std::ifstream f(program);
                 if (!f) {
-                    print_error(
-                        {ErrorType::RUNTIME_ERROR, "", "Failed to open script file: " + program, {}});
+                    print_error({ErrorType::RUNTIME_ERROR,
+                                 "",
+                                 "Failed to open script file: " + program,
+                                 {}});
                     return 1;
                 }
                 std::stringstream buffer;
@@ -1678,7 +1680,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                         }
                     }
                     if (is_statement_keyword_prefix(t, StatementKeyword::While)) {
-                        // same reconstruction path for while loops missing inline ; do in this piece
+                        // same reconstruction path for while loops missing inline ; do in this
+                        // piece
                         if (auto inline_result = loop_evaluator::try_execute_inline_do_block(
                                 t, semis, k, handle_while_block)) {
                             last_code = *inline_result;
@@ -1687,7 +1690,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                     }
 
                     if (is_statement_keyword_prefix(t, StatementKeyword::Until)) {
-                        // same reconstruction path for until loops missing inline ; do in this piece
+                        // same reconstruction path for until loops missing inline ; do in this
+                        // piece
                         if (auto inline_result = loop_evaluator::try_execute_inline_do_block(
                                 t, semis, k, handle_until_block)) {
                             last_code = *inline_result;

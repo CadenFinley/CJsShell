@@ -104,18 +104,18 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"pwd", [](const std::vector<std::string>& args) { return ::pwd_command(args); }},
         {"true",
          [](const std::vector<std::string>& args) {
-             if (builtin_handle_help(args, {"Usage: true",
-                                           "Return a successful status (exit code 0).",
-                                           "Any additional arguments are ignored."})) {
+             if (builtin_handle_help(args,
+                                     {"Usage: true", "Return a successful status (exit code 0).",
+                                      "Any additional arguments are ignored."})) {
                  return 0;
              }
              return ::true_command();
          }},
         {"false",
          [](const std::vector<std::string>& args) {
-             if (builtin_handle_help(args, {"Usage: false",
-                                           "Return a failing status (exit code 1).",
-                                           "Any additional arguments are ignored."})) {
+             if (builtin_handle_help(args,
+                                     {"Usage: false", "Return a failing status (exit code 1).",
+                                      "Any additional arguments are ignored."})) {
                  return 0;
              }
              return ::false_command();
@@ -194,9 +194,9 @@ Built_ins::Built_ins() : shell(nullptr) {
          [this](const std::vector<std::string>& args) { return ::exec_command(args, shell); }},
         {":",
          [](const std::vector<std::string>& args) {
-             if (builtin_handle_help(args, {"Usage: :",
-                                           "Null command that does nothing and succeeds.",
-                                            "Any additional arguments are ignored."})) {
+             if (builtin_handle_help(args,
+                                     {"Usage: :", "Null command that does nothing and succeeds.",
+                                      "Any additional arguments are ignored."})) {
                  return 0;
              }
              return 0;
@@ -251,9 +251,9 @@ Built_ins::Built_ins() : shell(nullptr) {
              const std::string& target_command = args[1];
              if (target_command == "builtin") {
                  ErrorInfo error = {ErrorType::INVALID_ARGUMENT,
-                                     "builtin",
-                                     "cannot invoke builtin recursively",
-                                     {"Usage: builtin <command> [args...]"}};
+                                    "builtin",
+                                    "cannot invoke builtin recursively",
+                                    {"Usage: builtin <command> [args...]"}};
                  print_error(error);
                  return 2;
              }
