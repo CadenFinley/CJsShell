@@ -337,6 +337,105 @@ static ssize_t edit_completion_collapsed_max_rows(ic_env_t* env, editor_t* eb) {
     return available_rows;
 }
 
+static ssize_t completion_menu_input_rows(ic_env_t* env, editor_t* eb) {
+    if (env == NULL || eb == NULL) {
+        return 1;
+    }
+
+    ssize_t promptw = 0;
+    ssize_t cpromptw = 0;
+    edit_get_prompt_width(env, eb, false, &promptw, &cpromptw);
+
+    ssize_t input_len = sbuf_len(eb->input);
+    if (input_len < 0) {
+        input_len = 0;
+    }
+
+    rowcol_t rc_dummy;
+    memset(&rc_dummy, 0, sizeof(rc_dummy));
+    ssize_t input_rows =
+        sbuf_get_rc_at_pos(eb->input, eb->termw, promptw, cpromptw, input_len, &rc_dummy);
+    if (input_rows <= 0) {
+        input_rows = 1;
+    }
+    return input_rows;
+}
+
+static bool completion_menu_mouse_select(ic_env_t* env, editor_t* eb, bool expanded_mode,
+                                         bool grid_mode, ssize_t grid_columns, ssize_t grid_rows,
+                                         ssize_t colwidth, ssize_t scroll_offset,
+                                         ssize_t count_displayed, ssize_t last_rows_visible,
+                                         ssize_t* selected, bool* accept_selection) {
+    if (env == NULL || eb == NULL || env->tty == NULL || selected == NULL ||
+        accept_selection == NULL) {
+        return false;
+    }
+
+    *accept_selection = false;
+
+    tty_mouse_event_t mouse_event;
+    if (!tty_get_last_mouse_event(env->tty, &mouse_event)) {
+        return false;
+    }
+
+    if (mouse_event.action != TTY_MOUSE_ACTION_LEFT_PRESS &&
+        mouse_event.action != TTY_MOUSE_ACTION_LEFT_RELEASE) {
+        return false;
+    }
+
+    ssize_t target_row = 0;
+    ssize_t target_col = 0;
+    if (!edit_mouse_event_to_target_rowcol(env, eb, &mouse_event, &target_row, &target_col)) {
+        return false;
+    }
+
+    const ssize_t input_rows = completion_menu_input_rows(env, eb);
+    const ssize_t items_first_row = input_rows + (expanded_mode ? 1 : 0);
+    const ssize_t item_row = target_row - items_first_row;
+    if (item_row < 0) {
+        return false;
+    }
+
+    ssize_t idx = -1;
+    if (expanded_mode) {
+        ssize_t visible_rows = (last_rows_visible > 0 ? last_rows_visible : count_displayed);
+        if (item_row >= visible_rows) {
+            return false;
+        }
+        idx = scroll_offset + item_row;
+    } else if (grid_mode) {
+        if (grid_rows <= 0 || grid_columns <= 0 || colwidth <= 0 || item_row >= grid_rows) {
+            return false;
+        }
+
+        const ssize_t slot_width = colwidth + 2;
+        if (slot_width <= 0 || target_col < 0) {
+            return false;
+        }
+
+        const ssize_t col = target_col / slot_width;
+        const ssize_t col_offset = target_col % slot_width;
+        if (col < 0 || col >= grid_columns || col_offset < 0 || col_offset >= colwidth) {
+            return false;
+        }
+
+        idx = col * grid_rows + item_row;
+    } else {
+        if (item_row >= count_displayed) {
+            return false;
+        }
+        idx = item_row;
+    }
+
+    if (idx < 0 || idx >= count_displayed) {
+        return false;
+    }
+
+    *selected = idx;
+    *accept_selection = (mouse_event.action == TTY_MOUSE_ACTION_LEFT_RELEASE);
+    return true;
+}
+
 static bool edit_recompute_completion_list(ic_env_t* env, editor_t* eb, bool expanded_mode,
                                            ssize_t* count, bool* more_available, ssize_t* selected,
                                            ssize_t* scroll_offset, bool allow_inline_hint) {
@@ -753,9 +852,31 @@ read_key:
     bool grid_mode = (!expanded_mode && grid_layout_active && grid_columns > 1 && grid_rows > 0);
     code_t key_no_mods = KEY_NO_MODS(c);
 
+    if (key_no_mods == KEY_EVENT_MOUSE_OTHER) {
+        const bool click_selection_enabled = (expanded_mode || eb->mouse_reporting_enabled);
+        if (click_selection_enabled) {
+            bool accept_selection = false;
+            if (completion_menu_mouse_select(env, eb, expanded_mode, grid_mode, grid_columns,
+                                             grid_rows, colwidth, scroll_offset, count_displayed,
+                                             last_rows_visible, &selected, &accept_selection)) {
+                if (accept_selection) {
+                    c = KEY_ENTER;
+                    key_no_mods = KEY_ENTER;
+                } else {
+                    goto again;
+                }
+            } else {
+                c = 0;
+                goto again;
+            }
+        } else {
+            c = 0;
+            goto again;
+        }
+    }
+
     if (!expanded_mode &&
-        (key_no_mods == KEY_EVENT_MOUSE_WHEEL_UP || key_no_mods == KEY_EVENT_MOUSE_WHEEL_DOWN ||
-         key_no_mods == KEY_EVENT_MOUSE_OTHER)) {
+        (key_no_mods == KEY_EVENT_MOUSE_WHEEL_UP || key_no_mods == KEY_EVENT_MOUSE_WHEEL_DOWN)) {
         c = 0;
         goto again;
     }
@@ -824,11 +945,6 @@ read_key:
                 goto again;
             }
         }
-    }
-
-    if (menu_mouse_scroll_enabled && expanded_mode && key_no_mods == KEY_EVENT_MOUSE_OTHER) {
-        c = 0;
-        goto again;
     }
 
     if ((c == KEY_RIGHT || c == KEY_LEFT) && grid_mode) {

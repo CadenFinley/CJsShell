@@ -71,6 +71,12 @@ WORD_PREV = b"\x1b[1;2D" if IS_DARWIN else b"\x1b[1;5D"
 WORD_NEXT = b"\x1b[1;2C" if IS_DARWIN else b"\x1b[1;5C"
 
 
+def mouse_left_click(column: int, row: int) -> bytes:
+    press = f"\x1b[<0;{column};{row}M".encode("ascii")
+    release = f"\x1b[<0;{column};{row}m".encode("ascii")
+    return press + release
+
+
 def normalize_terminal_output(text: str) -> str:
     normalized = text.replace("\r", "")
     normalized = ANSI_OSC_RE.sub("", normalized)
@@ -1119,6 +1125,9 @@ def main() -> int:
     mouse_wheel_down = b"\x1b[<65;1;1M"
     mouse_wheel_down_shift = b"\x1b[<69;1;1M"
     mouse_release = b"\x1b[<3;1;1m"
+    mouse_click_history_second = mouse_left_click(6, 4)
+    mouse_click_completion_expanded_second = mouse_left_click(6, 4)
+    mouse_click_completion_collapsed_second = mouse_left_click(6, 3)
 
     hist_scroll = run_case(
         binary, "history_search_scroll", b"\x12" + mouse_wheel_down + b"\r"
@@ -1135,6 +1144,16 @@ def main() -> int:
         raise AssertionError(
             "history_search_scroll with mouse toggle expected 'history beta', got "
             f"{hist_scroll_toggle!r}"
+        )
+
+    hist_click = run_case(
+        binary,
+        "history_search_scroll",
+        b"\x12" + mouse_click_history_second + b"!\r",
+    )
+    if hist_click != "history beta!":
+        raise AssertionError(
+            f"history_search_click expected 'history beta!', got {hist_click!r}"
         )
 
     hist_search_ctrl_s = run_case(binary, "history_search_scroll", b"\x13\r")
@@ -1211,6 +1230,38 @@ def main() -> int:
         raise AssertionError(
             "completion_many_menu collapsed expected 's01', got "
             f"{comp_scroll_collapsed!r}"
+        )
+
+    comp_click_collapsed_default = run_case(
+        binary,
+        "completion_many_menu",
+        b"s\t" + mouse_click_completion_collapsed_second + b"\r\r",
+    )
+    if comp_click_collapsed_default != "s01":
+        raise AssertionError(
+            "completion_many_menu collapsed click without toggle expected 's01', got "
+            f"{comp_click_collapsed_default!r}"
+        )
+
+    comp_click_collapsed_toggle = run_case(
+        binary,
+        "completion_many_menu",
+        F2 + b"s\t" + mouse_click_completion_collapsed_second + b"\r",
+    )
+    if comp_click_collapsed_toggle != "s02":
+        raise AssertionError(
+            "completion_many_menu collapsed click with toggle expected 's02', got "
+            f"{comp_click_collapsed_toggle!r}"
+        )
+
+    comp_click_expanded = run_case(
+        binary,
+        "completion_many_menu",
+        b"s\t\x0a" + mouse_click_completion_expanded_second + b"\r",
+    )
+    if comp_click_expanded != "s02":
+        raise AssertionError(
+            f"completion_many_menu expanded click expected 's02', got {comp_click_expanded!r}"
         )
 
     comp_scroll = run_case(

@@ -184,6 +184,9 @@ static void edit_refresh(ic_env_t* env, editor_t* eb);
 static void edit_refresh_hint(ic_env_t* env, editor_t* eb);
 static void redraw_prompt_prefix_lines(ic_env_t* env, editor_t* eb);
 static bool edit_handle_mouse_click(ic_env_t* env, editor_t* eb);
+static bool edit_mouse_event_to_target_rowcol(ic_env_t* env, editor_t* eb,
+                                              const tty_mouse_event_t* mouse_event,
+                                              ssize_t* target_row, ssize_t* target_col);
 static void edit_toggle_mouse_reporting(ic_env_t* env, editor_t* eb);
 static void edit_reset_mouse_reporting_session(ic_env_t* env, editor_t* eb);
 
@@ -554,6 +557,63 @@ static void edit_set_pos_at_rowcol(ic_env_t* env, editor_t* eb, ssize_t row, ssi
     edit_refresh_hint(env, eb);
 }
 
+static bool edit_mouse_event_to_target_rowcol(ic_env_t* env, editor_t* eb,
+                                              const tty_mouse_event_t* mouse_event,
+                                              ssize_t* target_row, ssize_t* target_col) {
+    if (env == NULL || eb == NULL || env->term == NULL || mouse_event == NULL ||
+        target_row == NULL || target_col == NULL) {
+        return false;
+    }
+
+    if (mouse_event->column <= 0 || mouse_event->row <= 0) {
+        return false;
+    }
+
+    ssize_t cursor_row = 0;
+    ssize_t cursor_col = 0;
+    if (!term_query_cursor_pos(env->term, &cursor_row, &cursor_col)) {
+        ssize_t fallback_row = mouse_event->row - 1;
+        if (fallback_row < 0 || fallback_row >= eb->cur_rows) {
+            return false;
+        }
+
+        ssize_t fallback_col = mouse_event->column - 1;
+        if (fallback_col < 0) {
+            fallback_col = 0;
+        }
+
+        *target_row = fallback_row;
+        *target_col = fallback_col;
+        return true;
+    }
+    ic_unused(cursor_col);
+
+    ssize_t visible_cursor_row = eb->cur_row - eb->view_first_row;
+    if (visible_cursor_row < 0) {
+        visible_cursor_row = 0;
+    }
+
+    ssize_t top_row = cursor_row - visible_cursor_row;
+    ssize_t clicked_visible_row = mouse_event->row - top_row;
+    if (clicked_visible_row < 0) {
+        return false;
+    }
+
+    ssize_t row = eb->view_first_row + clicked_visible_row;
+    if (row < 0 || row >= eb->cur_rows) {
+        return false;
+    }
+
+    ssize_t col = mouse_event->column - 1;
+    if (col < 0) {
+        col = 0;
+    }
+
+    *target_row = row;
+    *target_col = col;
+    return true;
+}
+
 static bool edit_handle_mouse_click(ic_env_t* env, editor_t* eb) {
     if (env == NULL || eb == NULL || env->tty == NULL || env->term == NULL) {
         return false;
@@ -569,30 +629,10 @@ static bool edit_handle_mouse_click(ic_env_t* env, editor_t* eb) {
         return false;
     }
 
-    if (mouse_event.column <= 0 || mouse_event.row <= 0) {
-        return false;
-    }
-
-    ssize_t cursor_row = 0;
-    ssize_t cursor_col = 0;
-    if (!term_query_cursor_pos(env->term, &cursor_row, &cursor_col)) {
-        return false;
-    }
-    ic_unused(cursor_col);
-
-    ssize_t visible_cursor_row = eb->cur_row - eb->view_first_row;
-    if (visible_cursor_row < 0) {
-        visible_cursor_row = 0;
-    }
-
-    ssize_t top_row = cursor_row - visible_cursor_row;
-    ssize_t clicked_visible_row = mouse_event.row - top_row;
-    if (clicked_visible_row < 0) {
-        return false;
-    }
-
-    ssize_t target_row = eb->view_first_row + clicked_visible_row;
-    if (target_row < 0) {
+    ssize_t target_row = 0;
+    ssize_t target_col_absolute = 0;
+    if (!edit_mouse_event_to_target_rowcol(env, eb, &mouse_event, &target_row,
+                                           &target_col_absolute)) {
         return false;
     }
 
@@ -608,7 +648,7 @@ static bool edit_handle_mouse_click(ic_env_t* env, editor_t* eb) {
     }
 
     ssize_t row_prompt_width = (target_row == 0 ? promptw : cpromptw);
-    ssize_t target_col = mouse_event.column - 1 - row_prompt_width;
+    ssize_t target_col = target_col_absolute - row_prompt_width;
     if (target_col < 0) {
         target_col = 0;
     }

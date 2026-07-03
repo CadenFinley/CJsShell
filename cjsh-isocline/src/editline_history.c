@@ -515,6 +515,78 @@ static const char* get_first_line_end(const char* str) {
     return p;
 }
 
+static ssize_t history_menu_input_rows(ic_env_t* env, editor_t* eb) {
+    if (env == NULL || eb == NULL) {
+        return 1;
+    }
+
+    ssize_t promptw = 0;
+    ssize_t cpromptw = 0;
+    edit_get_prompt_width(env, eb, false, &promptw, &cpromptw);
+
+    ssize_t input_len = sbuf_len(eb->input);
+    if (input_len < 0) {
+        input_len = 0;
+    }
+
+    rowcol_t rc_dummy;
+    memset(&rc_dummy, 0, sizeof(rc_dummy));
+    ssize_t input_rows =
+        sbuf_get_rc_at_pos(eb->input, eb->termw, promptw, cpromptw, input_len, &rc_dummy);
+    if (input_rows <= 0) {
+        input_rows = 1;
+    }
+    return input_rows;
+}
+
+static bool history_menu_mouse_select(ic_env_t* env, editor_t* eb, ssize_t match_count,
+                                      ssize_t scroll_offset, ssize_t display_count,
+                                      ssize_t* selected_idx, bool* accept_selection) {
+    if (env == NULL || eb == NULL || env->tty == NULL || selected_idx == NULL ||
+        accept_selection == NULL) {
+        return false;
+    }
+
+    *accept_selection = false;
+
+    tty_mouse_event_t mouse_event;
+    if (!tty_get_last_mouse_event(env->tty, &mouse_event)) {
+        return false;
+    }
+
+    if (mouse_event.action != TTY_MOUSE_ACTION_LEFT_PRESS &&
+        mouse_event.action != TTY_MOUSE_ACTION_LEFT_RELEASE) {
+        return false;
+    }
+
+    if (match_count <= 0 || display_count <= 0) {
+        return false;
+    }
+
+    ssize_t target_row = 0;
+    ssize_t target_col = 0;
+    if (!edit_mouse_event_to_target_rowcol(env, eb, &mouse_event, &target_row, &target_col)) {
+        return false;
+    }
+    ic_unused(target_col);
+
+    const ssize_t input_rows = history_menu_input_rows(env, eb);
+    const ssize_t items_first_row = input_rows + 1;  // one status row before results
+    const ssize_t item_row = target_row - items_first_row;
+    if (item_row < 0 || item_row >= display_count) {
+        return false;
+    }
+
+    const ssize_t idx = scroll_offset + item_row;
+    if (idx < 0 || idx >= match_count) {
+        return false;
+    }
+
+    *selected_idx = idx;
+    *accept_selection = (mouse_event.action == TTY_MOUSE_ACTION_LEFT_RELEASE);
+    return true;
+}
+
 static void edit_history_fuzzy_search(ic_env_t* env, editor_t* eb, char* initial) {
     history_snapshot_t snap = {0};
     if (!history_snapshot_load(env->history, &snap, true)) {
@@ -863,6 +935,22 @@ again:;
     }
     sbuf_clear(eb->extra);
 
+    code_t key_no_mods = KEY_NO_MODS(c);
+    if (menu_mouse_scroll_enabled && key_no_mods == KEY_EVENT_MOUSE_OTHER) {
+        bool accept_selection = false;
+        if (history_menu_mouse_select(env, eb, match_count, scroll_offset, last_display_count,
+                                      &selected_idx, &accept_selection)) {
+            if (accept_selection) {
+                c = KEY_TAB;
+                key_no_mods = KEY_TAB;
+            } else {
+                goto again;
+            }
+        } else {
+            goto again;
+        }
+    }
+
     if (c == KEY_ESC || c == KEY_BELL || c == KEY_CTRL_C) {
         sbuf_clear(eb->extra);
         eb->disable_undo = false;
@@ -934,11 +1022,7 @@ again:;
         return;
     }
 
-    code_t key_no_mods = KEY_NO_MODS(c);
-
-    if (menu_mouse_scroll_enabled && key_no_mods == KEY_EVENT_MOUSE_OTHER) {
-        goto again;
-    } else if ((KEY_MODS(c) & KEY_MOD_SHIFT) && key_no_mods == KEY_DOWN) {
+    if ((KEY_MODS(c) & KEY_MOD_SHIFT) && key_no_mods == KEY_DOWN) {
         if (match_count > 0 && last_display_count > 0) {
             if (scroll_offset < last_max_scroll) {
                 scroll_offset += last_display_count;
