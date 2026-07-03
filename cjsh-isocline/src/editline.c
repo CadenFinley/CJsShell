@@ -2741,8 +2741,7 @@ static void edit_reset_mouse_reporting_session(ic_env_t* env, editor_t* eb) {
 }
 
 static bool edit_enable_menu_mouse_scroll(ic_env_t* env) {
-    if (env == NULL || env->current_editor == NULL ||
-        !env->current_editor->mouse_reporting_enabled) {
+    if (env == NULL || env->current_editor == NULL) {
         return false;
     }
     return edit_enable_mouse_tracking(env, env->current_editor);

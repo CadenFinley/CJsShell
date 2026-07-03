@@ -1120,21 +1120,21 @@ def main() -> int:
     mouse_wheel_down_shift = b"\x1b[<69;1;1M"
     mouse_release = b"\x1b[<3;1;1m"
 
-    hist_scroll_default_off = run_case(
-        binary, "history_search_scroll", b"\x12" + mouse_wheel_down + b"\r"
-    )
-    if hist_scroll_default_off != "history alpha":
-        raise AssertionError(
-            "history_search_scroll without mouse toggle expected 'history alpha', got "
-            f"{hist_scroll_default_off!r}"
-        )
-
     hist_scroll = run_case(
-        binary, "history_search_scroll", F2 + b"\x12" + mouse_wheel_down + b"\r"
+        binary, "history_search_scroll", b"\x12" + mouse_wheel_down + b"\r"
     )
     if hist_scroll != "history beta":
         raise AssertionError(
             f"history_search_scroll expected 'history beta', got {hist_scroll!r}"
+        )
+
+    hist_scroll_toggle = run_case(
+        binary, "history_search_scroll", F2 + b"\x12" + mouse_wheel_down + b"\r"
+    )
+    if hist_scroll_toggle != "history beta":
+        raise AssertionError(
+            "history_search_scroll with mouse toggle expected 'history beta', got "
+            f"{hist_scroll_toggle!r}"
         )
 
     hist_search_ctrl_s = run_case(binary, "history_search_scroll", b"\x13\r")
@@ -1216,7 +1216,7 @@ def main() -> int:
     comp_scroll = run_case(
         binary,
         "completion_many_menu",
-        F2 + b"s\t\x0a" + mouse_wheel_down + b"\r\r",
+        b"s\t\x0a" + mouse_wheel_down + b"\r\r",
     )
     if comp_scroll != "s02":
         raise AssertionError(
@@ -1226,7 +1226,7 @@ def main() -> int:
     comp_scroll_release = run_case(
         binary,
         "completion_many_menu",
-        F2 + b"s\t\x0a" + mouse_wheel_down + mouse_release + b"\r\r",
+        b"s\t\x0a" + mouse_wheel_down + mouse_release + b"\r\r",
     )
     if comp_scroll_release != "s02":
         raise AssertionError(
@@ -1237,7 +1237,7 @@ def main() -> int:
     comp_scroll_shift = run_case(
         binary,
         "completion_many_menu",
-        F2 + b"s\t\x0a" + mouse_wheel_down_shift + b"\r\r",
+        b"s\t\x0a" + mouse_wheel_down_shift + b"\r\r",
     )
     if comp_scroll_shift != "s02":
         raise AssertionError(
