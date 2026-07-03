@@ -2880,7 +2880,6 @@ static bool edit_update_status_message(ic_env_t* env, editor_t* eb) {
     if (edit_format_spell_status_hint(env, eb, spell_buffer, sizeof(spell_buffer))) {
         spell_message = spell_buffer;
     }
-
     stringbuf_t* custom_combined = NULL;
     if (spell_message != NULL) {
         if (custom_message == NULL) {
@@ -2927,9 +2926,15 @@ static bool edit_update_status_message(ic_env_t* env, editor_t* eb) {
             break;
     }
 
+    if (!request_default && !has_custom_message && eb->mouse_reporting_enabled &&
+        mode != IC_STATUS_HINT_OFF) {
+        request_default = true;
+    }
+
     char fallback_buffer[EDIT_STATUS_HINT_BUFFER_LEN];
     const char* next = custom_message;
     stringbuf_t* combined = NULL;
+    stringbuf_t* with_mouse_prefix = NULL;
 
     if (request_default) {
         if (edit_format_default_status_hints(env, fallback_buffer, sizeof(fallback_buffer))) {
@@ -2957,6 +2962,20 @@ static bool edit_update_status_message(ic_env_t* env, editor_t* eb) {
         }
     }
 
+    if (eb->mouse_reporting_enabled) {
+        with_mouse_prefix = sbuf_new(eb->mem);
+        if (with_mouse_prefix != NULL) {
+            sbuf_append(with_mouse_prefix, "[ic-status]Mouse clicking is enabled[/]");
+            if (next != NULL && next[0] != '\0') {
+                sbuf_append_char(with_mouse_prefix, '\n');
+                sbuf_append(with_mouse_prefix, next);
+            }
+            next = sbuf_string(with_mouse_prefix);
+        } else if (next == NULL || next[0] == '\0') {
+            next = "[ic-status]Mouse clicking is enabled[/]";
+        }
+    }
+
     bool changed = false;
     const char* current = sbuf_string(eb->status);
     if (next == NULL) {
@@ -2974,6 +2993,9 @@ static bool edit_update_status_message(ic_env_t* env, editor_t* eb) {
     }
     if (custom_combined != NULL) {
         sbuf_free(custom_combined);
+    }
+    if (with_mouse_prefix != NULL) {
+        sbuf_free(with_mouse_prefix);
     }
 
     return changed;

@@ -1130,12 +1130,47 @@ def main() -> int:
     mouse_click_completion_expanded_second = mouse_left_click(6, 4)
     mouse_click_completion_collapsed_second = mouse_left_click(6, 3)
 
-    hist_scroll = run_case(
-        binary, "history_search_scroll", b"\x12" + mouse_wheel_down + b"\r"
+    mouse_status_result, mouse_status_output = run_case(
+        binary, "insert_backspace", F2 + b"x\x7f\r", capture_output=True
+    )
+    if mouse_status_result != "":
+        raise AssertionError(
+            f"mouse status toggle case expected empty result, got {mouse_status_result!r}"
+        )
+    normalized_mouse_status_output = normalize_terminal_output(mouse_status_output)
+    if "Mouse clicking is enabled" not in normalized_mouse_status_output:
+        raise AssertionError(
+            "status line should show mouse indicator after toggle, got "
+            f"normalized_output={normalized_mouse_status_output!r}"
+        )
+    if "complete:" not in normalized_mouse_status_output:
+        raise AssertionError(
+            "mouse indicator should not replace default status hints, got "
+            f"normalized_output={normalized_mouse_status_output!r}"
+        )
+    mouse_top_index = normalized_mouse_status_output.rfind("Mouse clicking is enabled")
+    hint_index = normalized_mouse_status_output.rfind("complete:")
+    if hint_index >= 0 and mouse_top_index > hint_index:
+        raise AssertionError(
+            "mouse indicator should render above default status hints, got "
+            f"normalized_output={normalized_mouse_status_output!r}"
+        )
+
+    hist_scroll, hist_scroll_output = run_case(
+        binary,
+        "history_search_scroll",
+        b"\x12" + mouse_wheel_down + b"\r",
+        capture_output=True,
     )
     if hist_scroll != "history beta":
         raise AssertionError(
             f"history_search_scroll expected 'history beta', got {hist_scroll!r}"
+        )
+    normalized_hist_scroll_output = normalize_terminal_output(hist_scroll_output)
+    if "Mouse clicking is enabled" not in normalized_hist_scroll_output:
+        raise AssertionError(
+            "history search menu should show mouse indicator when click support is active, got "
+            f"normalized_output={normalized_hist_scroll_output!r}"
         )
 
     hist_scroll_toggle = run_case(
@@ -1288,14 +1323,23 @@ def main() -> int:
             f"{comp_click_collapsed_custom_toggle_binding!r}"
         )
 
-    comp_click_expanded = run_case(
+    comp_click_expanded, comp_click_expanded_output = run_case(
         binary,
         "completion_many_menu",
         b"s\t\x0a" + mouse_click_completion_expanded_second + b"\r",
+        capture_output=True,
     )
     if comp_click_expanded != "s02":
         raise AssertionError(
             f"completion_many_menu expanded click expected 's02', got {comp_click_expanded!r}"
+        )
+    normalized_comp_click_expanded_output = normalize_terminal_output(
+        comp_click_expanded_output
+    )
+    if "Mouse clicking is enabled" not in normalized_comp_click_expanded_output:
+        raise AssertionError(
+            "completion menu should show mouse indicator when click support is active, got "
+            f"normalized_output={normalized_comp_click_expanded_output!r}"
         )
 
     comp_scroll = run_case(
@@ -1330,7 +1374,7 @@ def main() -> int:
         )
 
     help_result, help_output = run_case(
-        binary, "insert_backspace", b"ab" + F1 + b"c\r", capture_output=True
+        binary, "insert_backspace", F2 + b"ab" + F1 + b"c\r", capture_output=True
     )
     if help_result != "abc":
         raise AssertionError(f"show_help expected 'abc', got {help_result!r}")
@@ -1338,6 +1382,14 @@ def main() -> int:
     if "Navigation:" not in normalized_help_output or "Editing:" not in normalized_help_output:
         raise AssertionError(
             "show_help expected rendered help headings, got "
+            f"normalized_output={normalized_help_output!r}"
+        )
+    if (
+        "toggle mouse reporting for this prompt (Mouse clicking is enabled)"
+        not in normalized_help_output
+    ):
+        raise AssertionError(
+            "show_help should mark mouse toggle binding as enabled after F2, got "
             f"normalized_output={normalized_help_output!r}"
         )
 

@@ -798,7 +798,7 @@ again:
             }
         }
 
-        char header[192];
+        char header[224];
         const char* hint_suffix = "";
         if (more_available && max_scroll_offset > 0) {
             hint_suffix = " (more available; PgUp/PgDn or wheel to scroll)";
@@ -808,12 +808,19 @@ again:
             hint_suffix = " (PgUp/PgDn or wheel to scroll)";
         }
 
+        const bool menu_mouse_click_enabled =
+            (expanded_mode ? menu_mouse_scroll_enabled : eb->mouse_reporting_enabled);
+        const char* mouse_suffix =
+            (menu_mouse_click_enabled ? " (Mouse clicking is enabled)" : "");
+
         if (visible_start > 0 && visible_end >= visible_start) {
-            snprintf(header, sizeof(header), "[ic-info]Showing %zd-%zd of %zd completions%s[/]\n",
-                     visible_start, visible_end, count, hint_suffix);
+            snprintf(header, sizeof(header),
+                     "[ic-info]Showing %zd-%zd of %zd completions%s%s[/]\n", visible_start,
+                     visible_end, count, hint_suffix, mouse_suffix);
         } else {
-            snprintf(header, sizeof(header), "[ic-info]Showing %zd of %zd completions%s[/]\n",
-                     (visible_count > 0 ? visible_count : count_displayed), count, hint_suffix);
+            snprintf(header, sizeof(header), "[ic-info]Showing %zd of %zd completions%s%s[/]\n",
+                     (visible_count > 0 ? visible_count : count_displayed), count, hint_suffix,
+                     mouse_suffix);
         }
         sbuf_insert_at(eb->extra, header, 0);
 
