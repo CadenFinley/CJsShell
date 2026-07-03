@@ -68,6 +68,7 @@ enum class CjshoptSubcommand : std::uint8_t {
     StatusHints,
     StatusLine,
     StatusReporting,
+    StatusLineCallback,
     MouseClicking,
     MouseClickingStatusLine,
     AutoTab,
@@ -128,6 +129,8 @@ constexpr std::array<CjshoptSubcommandDescriptor, static_cast<size_t>(CjshoptSub
          {CjshoptSubcommand::StatusHints, "status-hints", status_hints_command},
          {CjshoptSubcommand::StatusLine, "status-line", status_line_command},
          {CjshoptSubcommand::StatusReporting, "status-reporting", status_reporting_command},
+         {CjshoptSubcommand::StatusLineCallback, "status-line-callback",
+          status_line_callback_command},
          {CjshoptSubcommand::MouseClicking, "mouse-clicking", mouse_clicking_command},
          {CjshoptSubcommand::MouseClickingStatusLine, "mouse-clicking-status-line",
           mouse_clicking_status_line_command},
@@ -214,6 +217,8 @@ const std::vector<std::string>& cjshopt_usage_lines() {
         std::string(
             "  status-reporting <on|off|status>  Disable cjsh validation output while ") +
             "keeping status-hints (default: enabled)",
+        std::string("  status-line-callback <function_name|off|status>  Run a shell function ") +
+            "to publish custom status-line text",
         std::string("  mouse-clicking <on|off|status>  Configure mouse clicking default for new ") +
             "prompts (default: disabled)",
         std::string(
@@ -279,16 +284,17 @@ int cjshopt_command(const std::vector<std::string>& args) {
     print_error(
         {ErrorType::INVALID_ARGUMENT,
          "cjshopt",
-         "unknown subcommand '" + subcommand + "'",
-         {"Available subcommands: style_def, login-startup-arg, completion-case, "
-          "history-search-case, completion-spell, "
-          "smart-cd, script-extension-interpreter, "
-          "completion-learning, "
+          "unknown subcommand '" + subcommand + "'",
+          {"Available subcommands: style_def, login-startup-arg, completion-case, "
+           "history-search-case, completion-spell, "
+           "smart-cd, script-extension-interpreter, "
+           "completion-learning, "
            "line-numbers, line-numbers-continuation, line-numbers-replace-prompt, "
            "current-line-number-highlight, multiline-start-lines, hint-delay, "
            "completion-preview, completion-menu-expanded, visible-whitespace, hint, "
            "multiline-indent, multiline, inline-help, "
-           "status-hints, status-line, status-reporting, mouse-clicking, "
+           "status-hints, status-line, status-reporting, status-line-callback, "
+           "mouse-clicking, "
            "mouse-clicking-status-line, auto-tab, prompt-newline, prompt-cleanup, "
            "prompt-cleanup-newline, "
            "prompt-cleanup-empty-line, prompt-cleanup-truncate, right-prompt-follow-cursor, "

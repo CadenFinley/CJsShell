@@ -293,7 +293,18 @@ cjshopt status-reporting on|off|status
 ```
 
 - `on` (default) – show syntax validation results beneath the prompt.
-- `off` – suppress cjsh-generated status text while still allowing `status-hints` (or custom status callbacks) to render.
+- `off` – suppress cjsh-generated status text while still allowing `status-hints` (or `status-line-callback`) to render.
+
+**Status Line Callback:**
+Run your own shell function during status refresh and publish custom content into the status row.
+
+```bash
+cjshopt status-line-callback <function_name|off|status>
+```
+
+- The callback receives the active buffer as `$1` and via `CJSH_STATUS_INPUT`.
+- Set `CJSH_STATUS_OUTPUT` inside the function to the text you want shown.
+- Use `off` to disable callback output.
 
 **Full Help:**
 Press `F1` at any time to display the complete key binding cheat sheet, regardless of the inline-help setting.

@@ -695,6 +695,7 @@ Available subcommands:
 - `status-hints` - Configure the status hint banner visibility
 - `status-line` - Toggle the entire status row beneath the prompt
 - `status-reporting` - Toggle cjsh validation output in the status row
+- `status-line-callback` - Run a shell function that supplies custom status-line text
 - `mouse-clicking` - Configure whether new prompts start with mouse clicking enabled
 - `mouse-clicking-status-line` - Show or hide the mouse-clicking status indicator text
 - `auto-tab` - Configure automatic tab completion
@@ -1193,6 +1194,42 @@ cjshopt status-reporting status  # Display the current setting
 ```
 
 Persist preferences by adding the command to `~/.cjshrc`.
+
+#### status-line-callback
+
+Register a shell function that runs before each status-line refresh and can publish custom text.
+
+```bash
+cjshopt status-line-callback <function_name|off|status>
+```
+
+- `<function_name>` – invoke that shell function on every status refresh.
+- `off` – disable custom callback output.
+- `status` – print the current callback setting.
+
+Callback contract:
+
+- `$1` and `CJSH_STATUS_INPUT` both contain the current input buffer.
+- Set `CJSH_STATUS_OUTPUT` inside your function to the text you want rendered.
+- Leave `CJSH_STATUS_OUTPUT` empty to hide callback output for that refresh.
+
+Example:
+
+```bash
+function my_status_banner() {
+    local buf="$1"
+    if [ -z "$buf" ]; then
+        CJSH_STATUS_OUTPUT="[ic-hint]ready[/]"
+        return
+    fi
+
+    CJSH_STATUS_OUTPUT="[ic-hint]chars:[/] ${#buf}"
+}
+
+cjshopt status-line-callback my_status_banner
+```
+
+Use `cjshopt status-reporting off` if you want only your callback text without cjsh validation output. Keep callback code fast because it runs frequently while editing.
 
 #### mouse-clicking
 

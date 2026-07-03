@@ -42,8 +42,12 @@
 
 #include "cjsh_completions.h"
 #include "error_out.h"
+#include "interpreter.h"
 #include "isocline.h"
+#include "parser_utils.h"
+#include "shell.h"
 #include "shell_env.h"
+#include "status_line.h"
 #include "string_utils.h"
 
 namespace {
@@ -1017,6 +1021,116 @@ int status_reporting_command(const std::vector<std::string>& args) {
         {}};
 
     return handle_toggle_command(command_config, args);
+}
+
+int status_line_callback_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: status-line-callback <function_name|off|status>",
+        "Examples:",
+        "  status-line-callback my_status_banner  Run my_status_banner before drawing the status row",
+        "  status-line-callback off               Disable custom status-line callback output",
+        "  status-line-callback status            Show the current callback setting"};
+
+    auto print_current_state = []() {
+        const std::string current_callback = status_line::get_user_status_callback_function();
+        if (current_callback.empty()) {
+            std::cout << "Status-line callback is currently disabled.\n";
+            return;
+        }
+
+        if (config::status_line_enabled) {
+            std::cout << "Status-line callback function is currently '" << current_callback
+                      << "'.\n";
+            return;
+        }
+
+        std::cout << "Status-line callback function is currently '" << current_callback
+                  << "', but the status-line toggle is off so callback output is hidden.\n";
+    };
+
+    if (args.size() == 1) {
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     "status-line-callback",
+                     "Missing option argument",
+                     usage_lines});
+        return 1;
+    }
+
+    if (builtin_handle_help_with_startup_guard(args, usage_lines)) {
+        if (!cjsh_env::startup_active()) {
+            print_current_state();
+        }
+        return 0;
+    }
+
+    if (args.size() != 2) {
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     "status-line-callback",
+                     "Too many arguments provided",
+                     usage_lines});
+        return 1;
+    }
+
+    const std::string& option = args[1];
+    const std::string normalized = normalize_option(option);
+
+    if (matches_token(normalized, {"status", "--status"})) {
+        if (!cjsh_env::startup_active()) {
+            print_current_state();
+        }
+        return 0;
+    }
+
+    if (matches_token(normalized,
+                      {"off", "disable", "disabled", "none", "clear", "--disable"})) {
+        const bool had_callback = !status_line::get_user_status_callback_function().empty();
+        status_line::clear_user_status_callback_function();
+
+        if (!cjsh_env::startup_active() && had_callback) {
+            std::cout << "Status-line callback disabled.\n";
+            std::cout
+                << "Add `cjshopt status-line-callback off` to your ~/.cjshrc to persist this change.\n";
+        }
+        return 0;
+    }
+
+    if (!is_valid_identifier(option)) {
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     "status-line-callback",
+                     "Invalid function name '" + option + "'",
+                     {"Function names must start with a letter or underscore and contain only letters, digits, and underscores."}});
+        return 1;
+    }
+
+    status_line::set_user_status_callback_function(option);
+
+    bool function_exists = false;
+    if (g_shell != nullptr) {
+        if (ShellScriptInterpreter* interpreter = g_shell->get_shell_script_interpreter();
+            interpreter != nullptr) {
+            function_exists = interpreter->has_function(option);
+        }
+    }
+
+    if (!cjsh_env::startup_active()) {
+        if (config::status_line_enabled) {
+            std::cout << "Status-line callback set to '" << option << "'.\n";
+        } else {
+            std::cout << "Status-line callback set to '" << option
+                      << "', but the status-line toggle is off so callback output stays hidden.\n";
+            std::cout << "Re-enable it with `cjshopt status-line on` to display callback output.\n";
+        }
+
+        if (!function_exists) {
+            std::cout << "Function '" << option
+                      << "' is not defined yet; define it in this session or in ~/.cjshrc.\n";
+        }
+
+        std::cout << "Add `cjshopt status-line-callback " << option
+                  << "` to your ~/.cjshrc to persist this change.\n";
+    }
+
+    return 0;
 }
 
 int mouse_clicking_command(const std::vector<std::string>& args) {

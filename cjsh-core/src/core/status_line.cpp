@@ -30,6 +30,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdlib>
 #include <exception>
 #include <filesystem>
 #include <optional>
@@ -43,6 +44,7 @@
 #include "command_lookup.h"
 #include "error_out.h"
 #include "interpreter.h"
+#include "pipeline_status_utils.h"
 #include "shell.h"
 #include "shell_env.h"
 #include "suggestion_utils.h"
@@ -60,6 +62,93 @@ struct AutoCdInfo {
     std::string token;
     std::string target;
 };
+
+constexpr const char* kStatusCallbackInputVar = "CJSH_STATUS_INPUT";
+constexpr const char* kStatusCallbackOutputVar = "CJSH_STATUS_OUTPUT";
+constexpr size_t kStatusCallbackMaxLines = 6;
+constexpr size_t kStatusCallbackMaxBytes = 2048;
+
+class ScopedShellVariableRestore {
+   public:
+    explicit ScopedShellVariableRestore(const char* name) : name_(name != nullptr ? name : "") {
+        if (!name_.empty() && cjsh_env::shell_variable_is_set(name_)) {
+            had_value_ = true;
+            previous_value_ = cjsh_env::get_shell_variable_value(name_);
+        }
+    }
+
+    ~ScopedShellVariableRestore() {
+        if (name_.empty()) {
+            return;
+        }
+
+        if (had_value_) {
+            (void)cjsh_env::set_shell_variable_value(name_, previous_value_);
+        } else {
+            (void)cjsh_env::unset_shell_variable_value(name_);
+        }
+    }
+
+   private:
+    std::string name_;
+    bool had_value_ = false;
+    std::string previous_value_;
+};
+
+class ScopedProcessEnvRestore {
+   public:
+    explicit ScopedProcessEnvRestore(const char* name) : name_(name != nullptr ? name : "") {
+        if (name_.empty()) {
+            return;
+        }
+
+        const char* current = std::getenv(name_.c_str());
+        if (current != nullptr) {
+            had_value_ = true;
+            previous_value_ = current;
+        }
+    }
+
+    ~ScopedProcessEnvRestore() {
+        if (name_.empty()) {
+            return;
+        }
+
+        if (had_value_) {
+            (void)setenv(name_.c_str(), previous_value_.c_str(), 1);
+        } else {
+            (void)unsetenv(name_.c_str());
+        }
+    }
+
+   private:
+    std::string name_;
+    bool had_value_ = false;
+    std::string previous_value_;
+};
+
+struct ScopedBoolFlag {
+    explicit ScopedBoolFlag(bool* flag) : flag(flag) {
+        if (this->flag != nullptr) {
+            *this->flag = true;
+        }
+    }
+
+    ~ScopedBoolFlag() {
+        if (flag != nullptr) {
+            *flag = false;
+        }
+    }
+
+    ScopedBoolFlag(const ScopedBoolFlag&) = delete;
+    ScopedBoolFlag& operator=(const ScopedBoolFlag&) = delete;
+
+   private:
+    bool* flag;
+};
+
+std::string g_user_status_callback_function;
+thread_local bool g_user_status_callback_active = false;
 
 std::string sanitize_for_status(const std::string& text) {
     if (text.empty()) {
@@ -109,6 +198,120 @@ std::string sanitize_for_status(const std::string& text) {
     }
 
     return sanitized;
+}
+
+std::string sanitize_status_callback_output(const std::string& raw_output) {
+    if (raw_output.empty()) {
+        return {};
+    }
+
+    std::string sanitized;
+    sanitized.reserve(std::min(raw_output.size(), kStatusCallbackMaxBytes));
+
+    std::string current_line;
+    current_line.reserve(128);
+    size_t emitted_lines = 0;
+
+    auto emit_line = [&]() {
+        if (emitted_lines >= kStatusCallbackMaxLines || sanitized.size() >= kStatusCallbackMaxBytes) {
+            current_line.clear();
+            return;
+        }
+
+        std::string cleaned = sanitize_for_status(current_line);
+        current_line.clear();
+        if (cleaned.empty()) {
+            return;
+        }
+
+        if (!sanitized.empty()) {
+            if (sanitized.size() >= kStatusCallbackMaxBytes) {
+                return;
+            }
+            sanitized.push_back('\n');
+        }
+
+        if (sanitized.size() >= kStatusCallbackMaxBytes) {
+            return;
+        }
+
+        size_t remaining = kStatusCallbackMaxBytes - sanitized.size();
+        if (cleaned.size() > remaining) {
+            cleaned.erase(remaining);
+        }
+
+        sanitized.append(cleaned);
+        emitted_lines++;
+    };
+
+    for (char ch : raw_output) {
+        if (ch == '\n' || ch == '\r') {
+            emit_line();
+            if (emitted_lines >= kStatusCallbackMaxLines ||
+                sanitized.size() >= kStatusCallbackMaxBytes) {
+                break;
+            }
+            continue;
+        }
+
+        current_line.push_back(ch);
+    }
+
+    if (!current_line.empty() && emitted_lines < kStatusCallbackMaxLines &&
+        sanitized.size() < kStatusCallbackMaxBytes) {
+        emit_line();
+    }
+
+    return sanitized;
+}
+
+std::string build_user_status_callback_message(Shell* shell, const std::string& input) {
+    if (shell == nullptr || g_user_status_callback_function.empty()) {
+        return {};
+    }
+
+    if (g_user_status_callback_active) {
+        return {};
+    }
+
+    ShellScriptInterpreter* interpreter = shell->get_shell_script_interpreter();
+    if (interpreter == nullptr || !interpreter->has_function(g_user_status_callback_function)) {
+        return {};
+    }
+
+    ScopedShellVariableRestore input_restore(kStatusCallbackInputVar);
+    ScopedShellVariableRestore output_restore(kStatusCallbackOutputVar);
+    ScopedShellVariableRestore pipe_status_restore("PIPESTATUS");
+    ScopedProcessEnvRestore status_restore("?");
+
+    int previous_status_code = 0;
+    if (const char* status_env = std::getenv("?"); status_env != nullptr && status_env[0] != '\0') {
+        char* end = nullptr;
+        long parsed = std::strtol(status_env, &end, 10);
+        if (end != nullptr && *end == '\0') {
+            previous_status_code = static_cast<int>(parsed);
+        }
+    }
+
+    (void)cjsh_env::set_shell_variable_value(kStatusCallbackInputVar, input);
+    (void)cjsh_env::set_shell_variable_value(kStatusCallbackOutputVar, "");
+
+    ScopedBoolFlag callback_guard(&g_user_status_callback_active);
+
+    try {
+        std::vector<std::string> callback_args;
+        callback_args.reserve(2);
+        callback_args.emplace_back(g_user_status_callback_function);
+        callback_args.emplace_back(input);
+        (void)interpreter->invoke_function(callback_args);
+    } catch (...) {
+        pipeline_status_utils::set_last_status_env(previous_status_code);
+        return {};
+    }
+
+    pipeline_status_utils::set_last_status_env(previous_status_code);
+
+    return sanitize_status_callback_output(cjsh_env::get_shell_variable_value(kStatusCallbackOutputVar));
 }
 
 bool has_exited_token_context(const std::string& input, size_t absolute_token_end) {
@@ -581,57 +784,26 @@ std::string build_validation_status_message(
     return message;
 }
 
-std::string previous_passed_buffer;
-
-}  // namespace
-
-const char* create_below_syntax_message(const char* input_buffer, void*) {
-    static thread_local std::string status_message;
-
-    if (!config::status_line_enabled) {
-        status_message.clear();
-        previous_passed_buffer.clear();
-        return nullptr;
-    }
-
+std::string build_cjsh_status_reporting_message(Shell* shell, const std::string& current_input) {
     if (!config::status_reporting_enabled) {
-        status_message.clear();
-        previous_passed_buffer.clear();
-        return nullptr;
+        return {};
     }
-
-    const std::string current_input = (input_buffer != nullptr) ? input_buffer : "";
-
-    if (previous_passed_buffer == current_input) {
-        return status_message.empty() ? nullptr : status_message.c_str();
-    }
-
-    previous_passed_buffer = current_input;
 
     if (current_input.empty()) {
-        status_message.clear();
-        return nullptr;
+        return {};
     }
 
     bool has_visible_content = std::any_of(current_input.begin(), current_input.end(), [](char ch) {
         return std::isspace(static_cast<unsigned char>(ch)) == 0;
     });
 
-    if (!has_visible_content) {
-        status_message.clear();
-        return nullptr;
-    }
-
-    Shell* shell = g_shell.get();
-    if (shell == nullptr) {
-        status_message.clear();
-        return nullptr;
+    if (!has_visible_content || shell == nullptr) {
+        return {};
     }
 
     ShellScriptInterpreter* interpreter = shell->get_shell_script_interpreter();
     if (interpreter == nullptr) {
-        status_message.clear();
-        return nullptr;
+        return {};
     }
 
     std::vector<std::string> lines = interpreter->parse_into_lines(current_input);
@@ -643,12 +815,11 @@ const char* create_below_syntax_message(const char* input_buffer, void*) {
     try {
         errors = interpreter->validate_comprehensive_syntax(lines);
     } catch (const std::exception& ex) {
-        status_message.assign("Validation failed: ");
-        status_message.append(sanitize_for_status(ex.what()));
-        return status_message.c_str();
+        std::string failure_message = "Validation failed: ";
+        failure_message.append(sanitize_for_status(ex.what()));
+        return failure_message;
     } catch (...) {
-        status_message.assign("Validation failed: unknown error.");
-        return status_message.c_str();
+        return "Validation failed: unknown error.";
     }
 
     std::optional<AutoCdInfo> auto_cd_info = detect_auto_cd_command(shell, current_input);
@@ -669,12 +840,70 @@ const char* create_below_syntax_message(const char* input_buffer, void*) {
         combined_message.append(validation_message);
     }
 
-    status_message = std::move(combined_message);
+    return combined_message;
+}
+
+std::string previous_passed_buffer;
+bool previous_passed_buffer_valid = false;
+
+}  // namespace
+
+const char* create_below_syntax_message(const char* input_buffer, void*) {
+    static thread_local std::string status_message;
+
+    if (!config::status_line_enabled) {
+        status_message.clear();
+        previous_passed_buffer.clear();
+        previous_passed_buffer_valid = false;
+        return nullptr;
+    }
+
+    const std::string current_input = (input_buffer != nullptr) ? input_buffer : "";
+
+    if (previous_passed_buffer_valid && previous_passed_buffer == current_input) {
+        return status_message.empty() ? nullptr : status_message.c_str();
+    }
+
+    previous_passed_buffer = current_input;
+    previous_passed_buffer_valid = true;
+    Shell* shell = g_shell.get();
+
+    std::string user_message = build_user_status_callback_message(shell, current_input);
+    std::string reporting_message = build_cjsh_status_reporting_message(shell, current_input);
+
+    status_message.clear();
+    if (!user_message.empty()) {
+        status_message = std::move(user_message);
+    }
+
+    if (!reporting_message.empty()) {
+        if (!status_message.empty()) {
+            status_message.push_back('\n');
+        }
+        status_message.append(reporting_message);
+    }
+
     if (status_message.empty()) {
         return nullptr;
     }
 
     return status_message.c_str();
+}
+
+void set_user_status_callback_function(const std::string& function_name) {
+    g_user_status_callback_function = function_name;
+    previous_passed_buffer.clear();
+    previous_passed_buffer_valid = false;
+}
+
+void clear_user_status_callback_function() {
+    g_user_status_callback_function.clear();
+    previous_passed_buffer.clear();
+    previous_passed_buffer_valid = false;
+}
+
+std::string get_user_status_callback_function() {
+    return g_user_status_callback_function;
 }
 
 }  // namespace status_line
