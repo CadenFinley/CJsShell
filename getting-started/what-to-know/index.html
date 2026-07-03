@@ -750,6 +750,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#mouse-clicking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mouse Clicking
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#visible-whitespace-markers" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1498,19 +1509,26 @@ Fuzzy matching powers command, path, and argument completions without additional
 <h3 id="status-reporting">Status Reporting</h3>
 <p><strong>Status:</strong> Enabled<br>
 <strong>Configure:</strong> <code>cjshopt status-reporting on|off|status</code> (leave the status line visible but mute cjsh’s validation/error summaries)</p>
+<h3 id="mouse-clicking">Mouse Clicking</h3>
+<p><strong>Status:</strong> Disabled by default for new prompts (<code>F2</code> toggles it for the current prompt)<br>
+<strong>Configure:</strong></p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>cjshopt<span class="w"> </span>mouse-clicking<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>cjshopt<span class="w"> </span>mouse-clicking-status-line<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</span></code></pre></div>
+<p>When enabled, you can click to reposition the cursor in the editor, click entries in completion/history menus, and use the mouse wheel in expanded menus. <code>mouse-clicking-status-line</code> only controls whether the <code>Mouse clicking is enabled</code> indicator is shown.</p>
 <h3 id="visible-whitespace-markers">Visible Whitespace Markers</h3>
 <p><strong>Status:</strong> Disabled<br>
 <strong>Configure:</strong> <code>cjshopt visible-whitespace on|off|status</code></p>
 <h3 id="multiline-editing">Multiline Editing</h3>
 <p><strong>Status:</strong> Enabled<br>
 <strong>Configure:</strong></p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>cjshopt<span class="w"> </span>multiline<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>cjshopt<span class="w"> </span>multiline-indent<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>cjshopt<span class="w"> </span>multiline-start-lines<span class="w"> </span>&lt;count<span class="p">|</span>status&gt;
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>cjshopt<span class="w"> </span>line-numbers<span class="w"> </span>&lt;absolute<span class="p">|</span>relative<span class="p">|</span>off<span class="p">|</span>status&gt;
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>cjshopt<span class="w"> </span>line-numbers-continuation<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>cjshopt<span class="w"> </span>line-numbers-replace-prompt<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>cjshopt<span class="w"> </span>current-line-number-highlight<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>cjshopt<span class="w"> </span>multiline<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>cjshopt<span class="w"> </span>multiline-indent<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>cjshopt<span class="w"> </span>multiline-start-lines<span class="w"> </span>&lt;count<span class="p">|</span>status&gt;
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>cjshopt<span class="w"> </span>line-numbers<span class="w"> </span>&lt;absolute<span class="p">|</span>relative<span class="p">|</span>off<span class="p">|</span>status&gt;
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>cjshopt<span class="w"> </span>line-numbers-continuation<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>cjshopt<span class="w"> </span>line-numbers-replace-prompt<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>cjshopt<span class="w"> </span>current-line-number-highlight<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
 </span></code></pre></div>
 <hr>
 <h2 id="navigation-features">Navigation Features</h2>
@@ -1542,9 +1560,9 @@ Smart <code>cd</code> adds fuzzy directory matching for quick navigation between
 falls back to the default search paths.</p>
 <h3 id="persisting-startup-flags">Persisting Startup Flags</h3>
 <p><code>cjshopt login-startup-arg</code> is only valid while configuration files are being sourced. Call it once per flag inside <code>~/.cjprofile</code>:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># ~/.cjprofile</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>cjshopt<span class="w"> </span>login-startup-arg<span class="w"> </span>--no-colors
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>cjshopt<span class="w"> </span>login-startup-arg<span class="w"> </span>--show-startup-time
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># ~/.cjprofile</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>cjshopt<span class="w"> </span>login-startup-arg<span class="w"> </span>--no-colors
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>cjshopt<span class="w"> </span>login-startup-arg<span class="w"> </span>--show-startup-time
 </span></code></pre></div>
 <p>Supported flags: <code>--login</code>, <code>--interactive</code>, <code>--posix</code>, <code>--no-exec</code>, <code>--no-colors</code>, <code>--no-titleline</code>, <code>--show-startup-time</code>, <code>--no-source</code>, <code>--no-completions</code>, <code>--no-completion-learning</code>, <code>--no-smart-cd</code>, <code>--no-script-extension-interpreter</code>, <code>--no-syntax-highlighting</code>, <code>--no-error-suggestions</code>, <code>--no-prompt-vars</code>, <code>--no-history</code>, <code>--no-history-expansion</code>, <code>--no-sh-warning</code>, <code>--minimal</code>, <code>--secure</code>, and <code>--startup-test</code>.</p>
 <h3 id="posix-bash-compatibility">POSIX &amp; Bash Compatibility</h3>
@@ -1558,19 +1576,19 @@ falls back to the default search paths.</p>
 <h2 id="extended-interactive-tools">Extended Interactive Tools</h2>
 <h3 id="abbreviations">Abbreviations</h3>
 <p>Define inline expansions with the <code>abbr</code> builtin:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>abbr<span class="w"> </span><span class="nv">gs</span><span class="o">=</span><span class="s1">'git status --short --branch'</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>abbr<span class="w">                 </span><span class="c1"># list abbreviations</span>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>unabbr<span class="w"> </span>gs<span class="w">            </span><span class="c1"># remove an abbreviation</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>abbr<span class="w"> </span><span class="nv">gs</span><span class="o">=</span><span class="s1">'git status --short --branch'</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>abbr<span class="w">                 </span><span class="c1"># list abbreviations</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>unabbr<span class="w"> </span>gs<span class="w">            </span><span class="c1"># remove an abbreviation</span>
 </span></code></pre></div>
 <h3 id="typeahead">Typeahead</h3>
 <p>Keystrokes are buffered while commands run so no input is lost. This is always enabled.</p>
 <h3 id="key-bindings">Key Bindings</h3>
 <p>Inspect or tweak key bindings with:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>list<span class="w">                   </span><span class="c1"># safe at runtime</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>profile<span class="w"> </span>list<span class="w">           </span><span class="c1"># show available profiles</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>profile<span class="w"> </span><span class="nb">set</span><span class="w"> </span>vi<span class="w">         </span><span class="c1"># choose vi bindings (persist in ~/.cjshrc)</span>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span><span class="nb">set</span><span class="w"> </span>&lt;action&gt;<span class="w"> </span>&lt;keys&gt;<span class="w">    </span><span class="c1"># redefine bindings (run from config files)</span>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>add<span class="w"> </span>&lt;action&gt;<span class="w"> </span>&lt;keys&gt;<span class="w">    </span><span class="c1"># append bindings (run from config files)</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>list<span class="w">                   </span><span class="c1"># safe at runtime</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>profile<span class="w"> </span>list<span class="w">           </span><span class="c1"># show available profiles</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>profile<span class="w"> </span><span class="nb">set</span><span class="w"> </span>vi<span class="w">         </span><span class="c1"># choose vi bindings (persist in ~/.cjshrc)</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span><span class="nb">set</span><span class="w"> </span>&lt;action&gt;<span class="w"> </span>&lt;keys&gt;<span class="w">    </span><span class="c1"># redefine bindings (run from config files)</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>add<span class="w"> </span>&lt;action&gt;<span class="w"> </span>&lt;keys&gt;<span class="w">    </span><span class="c1"># append bindings (run from config files)</span>
 </span></code></pre></div>
 <p>Use <code>cjshopt keybind --help</code> for the full action catalog. For custom widgets, see the <code>cjsh-widget</code> builtin in the reference documentation.</p>
 <hr>
@@ -1585,20 +1603,20 @@ falls back to the default search paths.</p>
 </ul>
 <hr>
 <h2 id="quick-configuration-examples">Quick Configuration Examples</h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Toggle completion preview for the current session</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>cjshopt<span class="w"> </span>completion-preview<span class="w"> </span>off
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Enable inline whitespace markers</span>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>cjshopt<span class="w"> </span>visible-whitespace<span class="w"> </span>on
-</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
-</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1"># Switch to vi key bindings (add to ~/.cjshrc to persist)</span>
-</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>profile<span class="w"> </span><span class="nb">set</span><span class="w"> </span>vi
-</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>
-</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="c1"># Increase history retention</span>
-</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span><span class="m">20000</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Toggle completion preview for the current session</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>cjshopt<span class="w"> </span>completion-preview<span class="w"> </span>off
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1"># Enable inline whitespace markers</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>cjshopt<span class="w"> </span>visible-whitespace<span class="w"> </span>on
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="c1"># Switch to vi key bindings (add to ~/.cjshrc to persist)</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>cjshopt<span class="w"> </span>keybind<span class="w"> </span>profile<span class="w"> </span><span class="nb">set</span><span class="w"> </span>vi
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="c1"># Increase history retention</span>
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>cjshopt<span class="w"> </span>set-history-max<span class="w"> </span><span class="m">20000</span>
 </span></code></pre></div>
 <p>Persist startup flags by placing commands like the following in <code>~/.cjprofile</code>:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>cjshopt<span class="w"> </span>login-startup-arg<span class="w"> </span>--no-colors
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>cjshopt<span class="w"> </span>login-startup-arg<span class="w"> </span>--no-colors
 </span></code></pre></div>
 <p>Run <code>cjshopt --help</code> for a complete list of interactive toggles and their detailed help screens.</p>
 

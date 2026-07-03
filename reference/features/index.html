@@ -1166,6 +1166,9 @@ require no third-party plugins.</p>
     flip it on the fly with <code>Alt+C</code> inside the menu.</li>
 <li><strong>Custom key bindings</strong> – Emacs and Vi profiles plus fine-grained overrides via
     <code>cjshopt keybind</code> (including command-driven bindings through <code>cjsh-widget</code>).</li>
+<li><strong>Mouse-aware editing</strong> – Toggle mouse clicking with <code>F2</code> for the current prompt or set the
+    default for new prompts with <code>cjshopt mouse-clicking</code>. Clicks can reposition the cursor and
+    select completion/history entries, and the mouse wheel scrolls expanded menus.</li>
 <li><strong>Typeahead capture</strong> – Keystrokes entered while a command runs are buffered and replayed when the prompt returns so you never lose input.</li>
 <li><strong>Abbreviations</strong> – <code>abbr</code>/<code>unabbr</code> provide fish-style expansions for frequently typed snippets.</li>
 </ul>
@@ -1194,9 +1197,10 @@ for full details.</p>
 <li><code>cjshopt completion-preview</code>, <code>cjshopt completion-case</code>, <code>cjshopt completion-spell</code>,
      <code>cjshopt completion-learning</code>, <code>cjshopt auto-tab</code></li>
 <li><code>cjshopt hint</code>, <code>cjshopt hint-delay</code>, <code>cjshopt inline-help</code>, <code>cjshopt status-hints</code>,
-    <code>cjshopt status-line</code>, <code>cjshopt status-reporting</code>, <code>cjshopt visible-whitespace</code></li>
+     <code>cjshopt status-line</code>, <code>cjshopt status-reporting</code>, <code>cjshopt visible-whitespace</code></li>
+<li><code>cjshopt mouse-clicking</code>, <code>cjshopt mouse-clicking-status-line</code></li>
 <li><code>cjshopt prompt-newline</code>, <code>cjshopt prompt-cleanup</code>, <code>cjshopt prompt-cleanup-newline</code>,
-    <code>cjshopt prompt-cleanup-empty-line</code>, <code>cjshopt prompt-cleanup-truncate</code></li>
+     <code>cjshopt prompt-cleanup-empty-line</code>, <code>cjshopt prompt-cleanup-truncate</code></li>
 <li><code>cjshopt keybind …</code> and <code>cjshopt keybind ext …</code> for keymap management</li>
 <li><code>cjshopt set-history-max</code> to adjust persistent history size (0 or more entries; no upper limit)</li>
 <li><code>set -o huponexit</code> mirrors bash's option for sending SIGHUP to background jobs when the

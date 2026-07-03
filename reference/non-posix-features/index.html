@@ -1160,6 +1160,9 @@ necessary.</p>
   non-standard.</li>
 <li><strong>Key binding profiles</strong> – Vi/Emacs modes plus user-defined command bindings using
   <code>cjshopt keybind</code> and <code>cjshopt keybind ext</code>.</li>
+<li><strong>Mouse-assisted editing</strong> – <code>F2</code> toggles mouse clicking for the current prompt, and
+  <code>cjshopt mouse-clicking</code> / <code>cjshopt mouse-clicking-status-line</code> set defaults for new prompts and
+  status-line indicators. Clicking to move the cursor or pick menu entries is beyond POSIX scope.</li>
 <li><strong>Fish-style abbreviations</strong> – <code>abbr</code> and <code>unabbr</code> provide inline text expansions, a feature not
   present in POSIX shells.</li>
 </ul>
@@ -1182,6 +1185,8 @@ remains interactive-only by default; see the History section below.</p>
   cache under <code>~/.cache/cjsh/generated_completions/</code> for rich option and subcommand help.</li>
 <li><strong>Inline preview pane &amp; source annotations</strong> – Completion menus display descriptions, origins
   (history, PATH, builtin), and exit-status tags; these are CJSH-specific niceties.</li>
+<li><strong>Pointer navigation in menus</strong> – Expanded completion and history-search menus accept mouse-wheel
+  scrolling plus click selection.</li>
 </ul>
 <p>Consult the <a href="../completions/">Completion Authoring Guide</a> for cache format and customization tips.</p>
 <h2 id="command-enhancements">Command Enhancements</h2>
