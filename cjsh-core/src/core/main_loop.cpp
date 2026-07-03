@@ -83,6 +83,8 @@ namespace {
 
 bool last_prompt_started_with_newline = false;
 
+void refresh_command_palette_entries();
+
 bool parent_process_alive() {
     if (!config::interactive_mode) {
         return true;
@@ -235,6 +237,7 @@ std::optional<std::string> get_next_command(bool command_was_available) {
     // read input from isocline and had over everything that we captured and calculated above
     const char* initial_input = sanitized_buffer.empty() ? nullptr : sanitized_buffer.c_str();
     const char* inline_right_ptr = inline_right_text.empty() ? nullptr : inline_right_text.c_str();
+    refresh_command_palette_entries();
     prompt::set_prompt_refresh_allowed(true);
     ic_readline_result_t readline_result =
         ic_readline_with_status(prompt_text.c_str(), inline_right_ptr, initial_input);
@@ -289,49 +292,165 @@ std::optional<std::string> get_next_command(bool command_was_available) {
     return command_to_run;
 }
 
+bool execute_custom_editor_command(const std::string& command) {
+    if (command.empty() || g_shell == nullptr) {
+        return false;
+    }
+
+    const char* buffer = ic_get_buffer();
+    size_t cursor_pos = 0;
+    ic_get_cursor_pos(&cursor_pos);
+
+    std::string original_buffer = buffer ? buffer : "";
+
+    cjsh_env::set_shell_variable_value("CJSH_LINE", original_buffer);
+    cjsh_env::set_shell_variable_value("CJSH_POINT", std::to_string(cursor_pos));
+
+    g_shell->execute(command);
+
+    if (cjsh_env::shell_variable_is_set("CJSH_LINE")) {
+        std::string new_buffer_env = cjsh_env::get_shell_variable_value("CJSH_LINE");
+        if (original_buffer != new_buffer_env) {
+            ic_set_buffer(new_buffer_env.c_str());
+        }
+    }
+
+    if (cjsh_env::shell_variable_is_set("CJSH_POINT")) {
+        std::string new_point_env = cjsh_env::get_shell_variable_value("CJSH_POINT");
+        char* endptr;
+        long new_pos = strtol(new_point_env.c_str(), &endptr, 10);
+        if (endptr != new_point_env.c_str() && new_pos >= 0) {
+            ic_set_cursor_pos((size_t)new_pos);
+        }
+    }
+
+    cjsh_env::unset_shell_variable_value("CJSH_LINE");
+    cjsh_env::unset_shell_variable_value("CJSH_POINT");
+    return true;
+}
+
+bool execute_custom_keybinding_command(ic_keycode_t key) {
+    if (!has_custom_keybinding(key)) {
+        return false;
+    }
+    return execute_custom_editor_command(get_custom_keybinding(key));
+}
+
+bool execute_custom_palette_command(const std::string& palette_id) {
+    if (palette_id.empty() || !has_custom_palette_command(palette_id)) {
+        return false;
+    }
+    return execute_custom_editor_command(get_custom_palette_command(palette_id));
+}
+
+bool handle_command_palette_entry(const ic_command_palette_entry_t* entry, void*) {
+    if (entry == nullptr || entry->id == nullptr || entry->id[0] == '\0') {
+        return false;
+    }
+
+    constexpr const char* kExtKeyPrefix = "ext-key:";
+    constexpr const char* kExtPalettePrefix = "ext-cmd:";
+    std::string id(entry->id);
+
+    if (id.rfind(kExtKeyPrefix, 0) == 0) {
+        std::string key_spec = id;
+        key_spec.erase(0, std::strlen(kExtKeyPrefix));
+        ic_keycode_t key = IC_KEY_NONE;
+        if (!ic_parse_key_spec(key_spec.c_str(), &key)) {
+            return false;
+        }
+        return execute_custom_keybinding_command(key);
+    }
+
+    if (id.rfind(kExtPalettePrefix, 0) == 0) {
+        std::string palette_id = id;
+        palette_id.erase(0, std::strlen(kExtPalettePrefix));
+        return execute_custom_palette_command(palette_id);
+    }
+
+    return false;
+}
+
+void refresh_command_palette_entries() {
+    auto custom_bindings = list_custom_keybindings();
+    auto palette_bindings = list_custom_palette_commands();
+    if (custom_bindings.empty() && palette_bindings.empty()) {
+        ic_clear_command_palette_entries();
+        return;
+    }
+
+    std::vector<std::string> ids;
+    std::vector<std::string> names;
+    std::vector<std::string> descriptions;
+    std::vector<std::string> keywords;
+    const size_t total_entries = custom_bindings.size() + palette_bindings.size();
+    ids.reserve(total_entries);
+    names.reserve(total_entries);
+    descriptions.reserve(total_entries);
+    keywords.reserve(total_entries);
+
+    constexpr size_t kMaxPreview = 48;
+
+    for (const auto& [key, binding] : custom_bindings) {
+        char key_spec_buffer[64];
+        if (!ic_format_key_spec(key, key_spec_buffer, sizeof(key_spec_buffer))) {
+            continue;
+        }
+
+        std::string command_preview = binding.command;
+        if (command_preview.size() > kMaxPreview) {
+            command_preview = command_preview.substr(0, kMaxPreview - 3) + "...";
+        }
+
+        std::string title = binding.title.empty() ? command_preview : binding.title;
+
+        ids.emplace_back(std::string("ext-key:") + key_spec_buffer);
+        names.emplace_back(title);
+        descriptions.emplace_back(std::string("[") + key_spec_buffer + "] (custom)");
+        keywords.emplace_back(std::string("custom keybinding snippet widget command ") +
+                              key_spec_buffer + " " + title + " " + binding.command);
+    }
+
+    for (const auto& [id, binding] : palette_bindings) {
+        std::string command_preview = binding.command;
+        if (command_preview.size() > kMaxPreview) {
+            command_preview = command_preview.substr(0, kMaxPreview - 3) + "...";
+        }
+
+        std::string title = binding.title.empty() ? id : binding.title;
+
+        ids.emplace_back(std::string("ext-cmd:") + id);
+        names.emplace_back(title);
+        descriptions.emplace_back("");
+        keywords.emplace_back(std::string("palette snippet custom command ") + id + " " + title +
+                              " " + command_preview);
+    }
+
+    if (ids.empty()) {
+        ic_clear_command_palette_entries();
+        return;
+    }
+
+    std::vector<ic_command_palette_entry_t> entries(ids.size());
+    for (size_t i = 0; i < ids.size(); ++i) {
+        entries[i].id = ids[i].c_str();
+        entries[i].name = names[i].c_str();
+        entries[i].description = descriptions[i].c_str();
+        entries[i].keywords = keywords[i].c_str();
+    }
+
+    if (!ic_set_command_palette_entries(entries.data(), entries.size())) {
+        ic_clear_command_palette_entries();
+    }
+}
+
 bool handle_runoff_bind(ic_keycode_t key, void*) {
     // handle custom keybindings from the user
     if (key == IC_KEY_EVENT_PROMPT_REFRESH) {
         return prompt::handle_async_prompt_refresh();
     }
 
-    if (has_custom_keybinding(key)) {
-        std::string command = get_custom_keybinding(key);
-        if (!command.empty()) {
-            const char* buffer = ic_get_buffer();
-            size_t cursor_pos = 0;
-            ic_get_cursor_pos(&cursor_pos);
-
-            std::string original_buffer = buffer ? buffer : "";
-
-            cjsh_env::set_shell_variable_value("CJSH_LINE", original_buffer);
-            cjsh_env::set_shell_variable_value("CJSH_POINT", std::to_string(cursor_pos));
-
-            g_shell->execute(command);
-
-            if (cjsh_env::shell_variable_is_set("CJSH_LINE")) {
-                std::string new_buffer_env = cjsh_env::get_shell_variable_value("CJSH_LINE");
-                if (original_buffer != new_buffer_env) {
-                    ic_set_buffer(new_buffer_env.c_str());
-                }
-            }
-
-            if (cjsh_env::shell_variable_is_set("CJSH_POINT")) {
-                std::string new_point_env = cjsh_env::get_shell_variable_value("CJSH_POINT");
-                char* endptr;
-                long new_pos = strtol(new_point_env.c_str(), &endptr, 10);
-                if (endptr != new_point_env.c_str() && new_pos >= 0) {
-                    ic_set_cursor_pos((size_t)new_pos);
-                }
-            }
-
-            cjsh_env::unset_shell_variable_value("CJSH_LINE");
-            cjsh_env::unset_shell_variable_value("CJSH_POINT");
-
-            return true;
-        }
-    }
-    return false;
+    return execute_custom_keybinding_command(key);
 }
 
 bool should_show_creator_line() {
@@ -402,6 +521,8 @@ void initialize_isocline() {
     ic_enable_history_duplicates(false);
     ic_set_prompt_marker("", nullptr);
     ic_set_unhandled_key_handler(handle_runoff_bind, nullptr);
+    ic_set_command_palette_entry_handler(handle_command_palette_entry, nullptr);
+    refresh_command_palette_entries();
     (void)ic_bind_key(IC_KEY_EVENT_PROMPT_REFRESH, IC_KEY_ACTION_RUNOFF);
     ic_set_status_message_callback(status_line::create_below_syntax_message, nullptr);
     ic_set_check_for_continuation_or_return_callback(continuation_or_return_callback, nullptr);

@@ -121,6 +121,17 @@ static const char* stub_status_message(const char* input_buffer, void* arg) {
     return (arg != NULL ? "status" : NULL);
 }
 
+static bool g_command_palette_handler_called = false;
+static const char* g_command_palette_handler_last_id = NULL;
+static void* g_command_palette_handler_last_arg = NULL;
+
+static bool stub_command_palette_handler(const ic_command_palette_entry_t* entry, void* arg) {
+    g_command_palette_handler_called = true;
+    g_command_palette_handler_last_id = (entry != NULL ? entry->id : NULL);
+    g_command_palette_handler_last_arg = arg;
+    return (entry != NULL && entry->id != NULL && entry->id[0] != '\0');
+}
+
 static bool test_readline_disposition_name_mappings(void) {
     EXPECT_STREQ(ic_readline_disposition_name(IC_READLINE_DISPOSITION_SUBMIT), "submit",
                  "submit disposition name mismatch");
@@ -2948,6 +2959,100 @@ static bool test_key_queue_api_noop_inputs(void) {
     return true;
 }
 
+static bool test_command_palette_entry_registration_and_listing(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    ic_clear_command_palette_entries();
+    EXPECT_TRUE(ic_list_command_palette_entries(NULL, 0) == 0,
+                "clearing command palette entries should leave registry empty");
+
+    EXPECT_FALSE(ic_set_command_palette_entries(NULL, 1),
+                 "setting command palette entries should reject NULL array with non-zero count");
+
+    const ic_command_palette_entry_t invalid_entry[] = {
+        {"invalid", "", "", ""},
+    };
+    EXPECT_FALSE(ic_set_command_palette_entries(invalid_entry, 1),
+                 "command palette entries should reject empty display names");
+
+    const ic_command_palette_entry_t entries[] = {
+        {"snippet-for", "Snippet: for loop", "insert a for-loop skeleton",
+         "snippet for loop template"},
+        {NULL, "Snippet: if guard", "insert an if statement guard", "snippet if guard template"},
+    };
+
+    EXPECT_TRUE(ic_set_command_palette_entries(entries, 2),
+                "setting command palette entries should accept valid metadata rows");
+    EXPECT_TRUE(env->command_palette_entry_count == 2,
+                "environment should track registered command palette entry count");
+
+    EXPECT_TRUE(ic_list_command_palette_entries(NULL, 0) == 2,
+                "listing command palette entries should report full count when buffer is NULL");
+
+    ic_command_palette_entry_t listed[4];
+    size_t listed_count = ic_list_command_palette_entries(listed, 4);
+    EXPECT_TRUE(listed_count == 2,
+                "listing command palette entries should return all registered entries when buffer is "
+                "large enough");
+    EXPECT_STREQ(listed[0].id, "snippet-for",
+                 "listed command palette entry should preserve explicit id field");
+    EXPECT_STREQ(listed[0].name, "Snippet: for loop",
+                 "listed command palette entry should preserve display name");
+    EXPECT_STREQ(listed[1].id, "Snippet: if guard",
+                 "entry id should default to display name when id is omitted");
+
+    const ic_command_palette_entry_t replacement[] = {
+        {"snippet-while", "Snippet: while loop", "insert a while-loop skeleton",
+         "snippet while loop template"},
+    };
+    EXPECT_TRUE(ic_set_command_palette_entries(replacement, 1),
+                "setting command palette entries should replace prior registrations");
+    EXPECT_TRUE(ic_list_command_palette_entries(NULL, 0) == 1,
+                "replacing command palette entries should shrink registry to new count");
+
+    ic_clear_command_palette_entries();
+    EXPECT_TRUE(ic_list_command_palette_entries(NULL, 0) == 0,
+                "command palette entry clear API should remove all registered rows");
+    return true;
+}
+
+static bool test_command_palette_handler_registration(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    ic_set_command_palette_entry_handler(NULL, NULL);
+    EXPECT_TRUE(env->command_palette_handler == NULL,
+                "clearing command palette handler should reset callback pointer");
+    EXPECT_TRUE(env->command_palette_handler_arg == NULL,
+                "clearing command palette handler should reset callback argument");
+
+    ic_set_command_palette_entry_handler(stub_command_palette_handler, (void*)0xFACE);
+    EXPECT_TRUE(env->command_palette_handler == stub_command_palette_handler,
+                "command palette handler setter should store callback pointer verbatim");
+    EXPECT_TRUE(env->command_palette_handler_arg == (void*)0xFACE,
+                "command palette handler setter should store callback user argument");
+
+    g_command_palette_handler_called = false;
+    g_command_palette_handler_last_id = NULL;
+    g_command_palette_handler_last_arg = NULL;
+
+    const ic_command_palette_entry_t sample = {"snippet-for", "Snippet: for loop", "", ""};
+    EXPECT_TRUE(env->command_palette_handler(&sample, env->command_palette_handler_arg),
+                "stored command palette handler callback should remain invokable");
+    EXPECT_TRUE(g_command_palette_handler_called,
+                "command palette handler test stub should record invocation");
+    EXPECT_STREQ(g_command_palette_handler_last_id, "snippet-for",
+                 "command palette handler should receive selected entry metadata");
+    EXPECT_TRUE(g_command_palette_handler_last_arg == (void*)0xFACE,
+                "command palette handler should receive configured callback argument");
+
+    ic_set_command_palette_entry_handler(NULL, NULL);
+    return true;
+}
+
 static bool test_status_message_callback_registration(void) {
     ic_env_t* env = ensure_env();
     if (env == NULL)
@@ -3089,6 +3194,9 @@ static const test_case_t kTests[] = {
     {"history_fuzzy_max_matches_cap", test_history_fuzzy_max_matches_cap},
     {"key_spec_alias_and_f24_roundtrip", test_key_spec_alias_and_f24_roundtrip},
     {"key_queue_api_noop_inputs", test_key_queue_api_noop_inputs},
+    {"command_palette_entry_registration_and_listing",
+     test_command_palette_entry_registration_and_listing},
+    {"command_palette_handler_registration", test_command_palette_handler_registration},
     {"status_message_callback_registration", test_status_message_callback_registration},
     {"term_color_bits_and_toggle_roundtrip", test_term_color_bits_and_toggle_roundtrip},
 };

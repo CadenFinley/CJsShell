@@ -535,7 +535,10 @@ Use the extended key binding namespace to trigger shell commands directly from k
 cjshopt keybind ext list
 
 # Bind Ctrl+G to run a command (add to ~/.cjshrc)
-cjshopt keybind ext set ctrl-g 'cjsh-widget accept'
+cjshopt keybind ext set ctrl-g --title 'Accept line' 'cjsh-widget accept'
+
+# Add a palette-only command with a title used for command palette lookup
+cjshopt keybind ext set palette:uuid --title 'Generate UUID' 'uuidgen'
 
 # Remove a command binding
 cjshopt keybind ext clear ctrl-g

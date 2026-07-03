@@ -55,6 +55,13 @@ typedef struct ic_abbreviation_entry_s {
     ssize_t trigger_len;
 } ic_abbreviation_entry_t;
 
+typedef struct ic_command_palette_entry_internal_s {
+    char* id;
+    char* name;
+    char* description;
+    char* keywords;
+} ic_command_palette_entry_internal_t;
+
 struct ic_env_s {
     alloc_t* mem;                     // potential custom allocator
     ic_env_t* next;                   // next environment (used for proper deallocation)
@@ -130,6 +137,11 @@ struct ic_env_s {
     ic_abbreviation_entry_t* abbreviations;
     ssize_t abbreviation_count;
     ssize_t abbreviation_capacity;
+
+    ic_command_palette_entry_internal_t* command_palette_entries;
+    ssize_t command_palette_entry_count;
+    ic_command_palette_entry_handler_t* command_palette_handler;
+    void* command_palette_handler_arg;
 
     char* whitespace_marker;  // custom marker used when visualizing spaces
 };

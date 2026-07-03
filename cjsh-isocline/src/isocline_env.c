@@ -181,6 +181,17 @@ static void ic_env_free(ic_env_t* env) {
         env->abbreviation_count = 0;
         env->abbreviation_capacity = 0;
     }
+    if (env->command_palette_entries != NULL) {
+        for (ssize_t i = 0; i < env->command_palette_entry_count; ++i) {
+            mem_free(env->mem, env->command_palette_entries[i].id);
+            mem_free(env->mem, env->command_palette_entries[i].name);
+            mem_free(env->mem, env->command_palette_entries[i].description);
+            mem_free(env->mem, env->command_palette_entries[i].keywords);
+        }
+        mem_free(env->mem, env->command_palette_entries);
+        env->command_palette_entries = NULL;
+        env->command_palette_entry_count = 0;
+    }
     mem_free(env->mem, env->cprompt_marker);
     mem_free(env->mem, env->prompt_marker);
     mem_free(env->mem, env->prompt_eol_mark);

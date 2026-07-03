@@ -42,7 +42,8 @@ typedef struct command_palette_action_entry_s {
 } command_palette_action_entry_t;
 
 typedef struct command_palette_match_s {
-    ssize_t action_idx;
+    bool is_custom;
+    ssize_t item_idx;
     int score;
     ssize_t match_pos;
     ssize_t match_len;
@@ -173,6 +174,13 @@ static const command_palette_action_entry_t command_palette_actions[] = {
 
 static ssize_t command_palette_action_count(void) {
     return (ssize_t)(sizeof(command_palette_actions) / sizeof(command_palette_actions[0]));
+}
+
+static ssize_t command_palette_custom_count(const ic_env_t* env) {
+    if (env == NULL || env->command_palette_entries == NULL || env->command_palette_entry_count <= 0) {
+        return 0;
+    }
+    return env->command_palette_entry_count;
 }
 
 static bool command_palette_char_equals(char left, char right, bool case_sensitive) {
@@ -487,18 +495,22 @@ static int command_palette_compare_matches(const void* left, const void* right) 
         return (b->score - a->score);
     }
 
-    if (a->action_idx < b->action_idx) {
+    if (a->is_custom != b->is_custom) {
+        return (a->is_custom ? 1 : -1);
+    }
+
+    if (a->item_idx < b->item_idx) {
         return -1;
     }
-    if (a->action_idx > b->action_idx) {
+    if (a->item_idx > b->item_idx) {
         return 1;
     }
     return 0;
 }
 
-static ssize_t command_palette_search_actions(const char* query, bool case_sensitive,
-                                              command_palette_match_t* matches,
-                                              ssize_t max_matches) {
+static ssize_t command_palette_search_actions(ic_env_t* env, const char* query, bool case_sensitive,
+                                               command_palette_match_t* matches,
+                                               ssize_t max_matches) {
     if (matches == NULL || max_matches <= 0) {
         return 0;
     }
@@ -520,7 +532,39 @@ static ssize_t command_palette_search_actions(const char* query, bool case_sensi
             score = (int)(1000 - i);
         }
 
-        matches[count].action_idx = i;
+        matches[count].is_custom = false;
+        matches[count].item_idx = i;
+        matches[count].score = score;
+        matches[count].match_pos = match_pos;
+        matches[count].match_len = match_len;
+        count++;
+    }
+
+    ssize_t total_custom_entries = command_palette_custom_count(env);
+    for (ssize_t i = 0; i < total_custom_entries && count < max_matches; ++i) {
+        const ic_command_palette_entry_internal_t* custom_entry = &env->command_palette_entries[i];
+        command_palette_action_entry_t score_entry = {
+            IC_KEY_ACTION_NONE,
+            custom_entry->name,
+            custom_entry->description,
+            custom_entry->keywords,
+        };
+
+        int score = 0;
+        ssize_t match_pos = -1;
+        ssize_t match_len = 0;
+
+        if (!command_palette_score_action(&score_entry, query, case_sensitive, &score, &match_pos,
+                                          &match_len)) {
+            continue;
+        }
+
+        if (query == NULL || query[0] == '\0') {
+            score = (int)(500 - i);
+        }
+
+        matches[count].is_custom = true;
+        matches[count].item_idx = i;
         matches[count].score = score;
         matches[count].match_pos = match_pos;
         matches[count].match_len = match_len;
@@ -538,7 +582,7 @@ static void edit_command_palette(ic_env_t* env, editor_t* eb) {
         return;
     }
 
-    if (command_palette_action_count() <= 0) {
+    if (command_palette_action_count() + command_palette_custom_count(env) <= 0) {
         term_beep(env->term);
         return;
     }
@@ -591,12 +635,12 @@ again:;
 
     {
         const char* query = sbuf_string(eb->input);
-        match_count = command_palette_search_actions(query ? query : "", session_case_sensitive,
-                                                     matches, MAX_COMMAND_PALETTE_RESULTS);
+        match_count = command_palette_search_actions(
+            env, query ? query : "", session_case_sensitive, matches, MAX_COMMAND_PALETTE_RESULTS);
 
         if (match_count == 0 && query != NULL && query[0] != '\0') {
-            match_count = command_palette_search_actions("", session_case_sensitive, matches,
-                                                         MAX_COMMAND_PALETTE_RESULTS);
+            match_count = command_palette_search_actions(
+                env, "", session_case_sensitive, matches, MAX_COMMAND_PALETTE_RESULTS);
             showing_all_due_to_no_matches = true;
         }
     }
@@ -615,7 +659,7 @@ again:;
     if (match_count > 0) {
         const char* query = sbuf_string(eb->input);
         bool is_filtered = (query != NULL && query[0] != '\0');
-        ssize_t total_actions = command_palette_action_count();
+        ssize_t total_actions = command_palette_action_count() + command_palette_custom_count(env);
 
         if (showing_all_due_to_no_matches) {
             sbuf_appendf(
@@ -679,18 +723,60 @@ again:;
             }
 
             const command_palette_match_t* match = &matches[match_idx];
-            if (match->action_idx < 0 || match->action_idx >= command_palette_action_count()) {
+            const char* entry_name = NULL;
+            const char* entry_description = NULL;
+            ic_key_action_t entry_action = IC_KEY_ACTION_NONE;
+            bool entry_is_custom = match->is_custom;
+
+            if (entry_is_custom) {
+                if (match->item_idx < 0 || match->item_idx >= command_palette_custom_count(env)) {
+                    continue;
+                }
+                const ic_command_palette_entry_internal_t* custom_entry =
+                    &env->command_palette_entries[match->item_idx];
+                entry_name = custom_entry->name;
+                entry_description = custom_entry->description;
+            } else {
+                if (match->item_idx < 0 || match->item_idx >= command_palette_action_count()) {
+                    continue;
+                }
+                const command_palette_action_entry_t* entry = &command_palette_actions[match->item_idx];
+                entry_name = entry->name;
+                entry_description = entry->description;
+                entry_action = entry->action;
+            }
+
+            if (entry_name == NULL || entry_name[0] == '\0') {
                 continue;
             }
-            const command_palette_action_entry_t* entry =
-                &command_palette_actions[match->action_idx];
-
-            char binding_keys[64];
-            format_binding_keys(env, entry->action, NULL, binding_keys, sizeof(binding_keys), true);
+            if (entry_description == NULL) {
+                entry_description = "";
+            }
 
             char linebuf[512];
-            int written = snprintf(linebuf, sizeof(linebuf), "%s - %s [%s]", entry->name,
-                                   entry->description, binding_keys);
+            int written = -1;
+            if (entry_is_custom) {
+                if (entry_description[0] == '\0') {
+                    written = snprintf(linebuf, sizeof(linebuf), "%s (custom)", entry_name);
+                } else if (strstr(entry_description, "(custom)") != NULL) {
+                    written = snprintf(linebuf, sizeof(linebuf), "%s - %s", entry_name,
+                                       entry_description);
+                } else {
+                    written = snprintf(linebuf, sizeof(linebuf), "%s - %s (custom)", entry_name,
+                                       entry_description);
+                }
+            } else {
+                char binding_keys[64];
+                format_binding_keys(env, entry_action, NULL, binding_keys, sizeof(binding_keys),
+                                    true);
+                if (entry_description[0] == '\0') {
+                    written = snprintf(linebuf, sizeof(linebuf), "%s [%s]", entry_name,
+                                       binding_keys);
+                } else {
+                    written = snprintf(linebuf, sizeof(linebuf), "%s - %s [%s]", entry_name,
+                                       entry_description, binding_keys);
+                }
+            }
             if (written < 0) {
                 continue;
             }
@@ -864,13 +950,28 @@ again:;
         }
 
         const command_palette_match_t* selected_match = &matches[selected_idx];
-        if (selected_match->action_idx < 0 ||
-            selected_match->action_idx >= command_palette_action_count()) {
-            term_beep(env->term);
-            goto again;
-        }
+        bool selected_is_custom = selected_match->is_custom;
+        ic_key_action_t selected_action = IC_KEY_ACTION_NONE;
+        ic_command_palette_entry_t selected_custom_entry = {0};
 
-        ic_key_action_t selected_action = command_palette_actions[selected_match->action_idx].action;
+        if (selected_is_custom) {
+            if (selected_match->item_idx < 0 || selected_match->item_idx >= command_palette_custom_count(env)) {
+                term_beep(env->term);
+                goto again;
+            }
+            const ic_command_palette_entry_internal_t* custom_entry =
+                &env->command_palette_entries[selected_match->item_idx];
+            selected_custom_entry.id = custom_entry->id;
+            selected_custom_entry.name = custom_entry->name;
+            selected_custom_entry.description = custom_entry->description;
+            selected_custom_entry.keywords = custom_entry->keywords;
+        } else {
+            if (selected_match->item_idx < 0 || selected_match->item_idx >= command_palette_action_count()) {
+                term_beep(env->term);
+                goto again;
+            }
+            selected_action = command_palette_actions[selected_match->item_idx].action;
+        }
 
         sbuf_clear(eb->extra);
         eb->disable_undo = false;
@@ -884,7 +985,17 @@ again:;
         ic_enable_highlight(old_highlight);
         edit_disable_menu_mouse_scroll(env, menu_mouse_scroll_enabled);
 
-        if (!key_action_execute(env, eb, selected_action, KEY_NONE)) {
+        bool handled = false;
+        if (selected_is_custom) {
+            if (env->command_palette_handler != NULL) {
+                handled =
+                    env->command_palette_handler(&selected_custom_entry, env->command_palette_handler_arg);
+            }
+        } else {
+            handled = key_action_execute(env, eb, selected_action, KEY_NONE);
+        }
+
+        if (!handled) {
             term_beep(env->term);
         }
         edit_refresh(env, eb);

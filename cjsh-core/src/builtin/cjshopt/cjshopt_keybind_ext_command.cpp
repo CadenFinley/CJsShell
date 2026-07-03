@@ -29,6 +29,7 @@
 #include "cjshopt_command.h"
 
 #include <algorithm>
+#include <cstring>
 #include <iomanip>
 #include <iostream>
 #include <string>
@@ -41,13 +42,22 @@
 #include "shell_env.h"
 
 namespace {
-std::unordered_map<ic_keycode_t, std::string> g_custom_keybindings;
+std::unordered_map<ic_keycode_t, custom_command_binding_t> g_custom_keybindings;
+std::unordered_map<std::string, custom_command_binding_t> g_custom_palette_commands;
 }  // namespace
 
 std::string get_custom_keybinding(ic_keycode_t key) {
     auto it = g_custom_keybindings.find(key);
     if (it != g_custom_keybindings.end()) {
-        return it->second;
+        return it->second.command;
+    }
+    return "";
+}
+
+std::string get_custom_keybinding_title(ic_keycode_t key) {
+    auto it = g_custom_keybindings.find(key);
+    if (it != g_custom_keybindings.end()) {
+        return it->second.title;
     }
     return "";
 }
@@ -56,8 +66,8 @@ bool has_custom_keybinding(ic_keycode_t key) {
     return g_custom_keybindings.find(key) != g_custom_keybindings.end();
 }
 
-void set_custom_keybinding(ic_keycode_t key, const std::string& command) {
-    g_custom_keybindings[key] = command;
+void set_custom_keybinding(ic_keycode_t key, const std::string& command, const std::string& title) {
+    g_custom_keybindings[key] = custom_command_binding_t{title, command};
 }
 
 void clear_custom_keybinding(ic_keycode_t key) {
@@ -68,22 +78,94 @@ void clear_all_custom_keybindings() {
     g_custom_keybindings.clear();
 }
 
+std::vector<std::pair<ic_keycode_t, custom_command_binding_t>> list_custom_keybindings() {
+    std::vector<std::pair<ic_keycode_t, custom_command_binding_t>> entries(
+        g_custom_keybindings.begin(), g_custom_keybindings.end());
+    std::sort(entries.begin(), entries.end(),
+              [](const auto& left, const auto& right) { return left.first < right.first; });
+    return entries;
+}
+
+std::string get_custom_palette_command(const std::string& id) {
+    auto it = g_custom_palette_commands.find(id);
+    if (it != g_custom_palette_commands.end()) {
+        return it->second.command;
+    }
+    return "";
+}
+
+std::string get_custom_palette_command_title(const std::string& id) {
+    auto it = g_custom_palette_commands.find(id);
+    if (it != g_custom_palette_commands.end()) {
+        return it->second.title;
+    }
+    return "";
+}
+
+bool has_custom_palette_command(const std::string& id) {
+    return g_custom_palette_commands.find(id) != g_custom_palette_commands.end();
+}
+
+void set_custom_palette_command(const std::string& id,
+                                const std::string& command,
+                                const std::string& title) {
+    g_custom_palette_commands[id] = custom_command_binding_t{title, command};
+}
+
+void clear_custom_palette_command(const std::string& id) {
+    g_custom_palette_commands.erase(id);
+}
+
+void clear_all_custom_palette_commands() {
+    g_custom_palette_commands.clear();
+}
+
+std::vector<std::pair<std::string, custom_command_binding_t>> list_custom_palette_commands() {
+    std::vector<std::pair<std::string, custom_command_binding_t>> entries(
+        g_custom_palette_commands.begin(), g_custom_palette_commands.end());
+    std::sort(entries.begin(), entries.end(),
+              [](const auto& left, const auto& right) { return left.first < right.first; });
+    return entries;
+}
+
 namespace {
+constexpr const char* kPalettePrefix = "palette:";
+
+bool parse_palette_spec(const std::string& key_spec, std::string* out_palette_id) {
+    if (out_palette_id == nullptr) {
+        return false;
+    }
+    if (key_spec.rfind(kPalettePrefix, 0) != 0) {
+        return false;
+    }
+
+    std::string id = key_spec.substr(std::strlen(kPalettePrefix));
+    if (id.empty()) {
+        return false;
+    }
+    *out_palette_id = id;
+    return true;
+}
+
 const std::vector<std::string>& keybind_ext_usage_lines() {
     static const std::vector<std::string> kUsage = {
         "Usage: keybind ext <subcommand> [...]",
         "",
         "Subcommands:",
-        "  list              Show all custom command keybindings",
-        "  set <key> <cmd>   Bind a key to execute a command",
-        "  clear <key>...    Remove custom command bindings for specified key(s)",
-        "  reset             Clear all custom command keybindings",
+        "  list                   Show custom key and palette command bindings",
+        "  set <key> [--title <title>] <cmd> Bind a key to execute a command",
+        "  set palette:<id> [--title <title>] <cmd> Add palette-only command",
+        "  clear <key|palette:id>... Remove custom command bindings",
+        "  reset                  Clear all custom command bindings",
         "",
         "Examples:",
         "  keybind ext set 'ctrl-g' 'echo Hello!'",
+        "  keybind ext set 'ctrl-g' --title 'Accept line' 'cjsh-widget accept'",
+        "  keybind ext set 'palette:uuid' 'uuidgen'",
+        "  keybind ext set 'palette:uuid' --title 'Generate UUID' 'uuidgen'",
         "  keybind ext set 'F5' 'clear'",
         "  keybind ext list",
-        "  keybind ext clear 'ctrl-g'",
+        "  keybind ext clear 'ctrl-g' 'palette:uuid'",
         "  keybind ext reset",
     };
     return kUsage;
@@ -103,29 +185,47 @@ int keybind_ext_list_command() {
         return 0;
     }
 
-    if (g_custom_keybindings.empty()) {
-        std::cout << "No custom command keybindings are currently defined.\n";
-        std::cout << "To bind a key to a command, add 'cjshopt keybind ext set <key> <command>' "
-                     "to your ~/.cjshrc file.\n";
+    auto sorted_bindings = list_custom_keybindings();
+    auto sorted_palette = list_custom_palette_commands();
+
+    if (sorted_bindings.empty() && sorted_palette.empty()) {
+        std::cout << "No custom command bindings are currently defined.\n";
+        std::cout << "Add 'cjshopt keybind ext set <key> [--title <title>] <command>' for "
+                     "keybound actions or 'cjshopt keybind ext set palette:<id> [--title "
+                     "<title>] <command>' for palette-only snippets in ~/.cjshrc.\n";
         return 0;
     }
 
-    std::cout << "Custom command keybindings:\n\n";
-    std::cout << std::left << std::setw(20) << "Key" << "Command\n";
-    std::cout << std::string(60, '-') << '\n';
-
-    std::vector<std::pair<ic_keycode_t, std::string>> sorted_bindings(g_custom_keybindings.begin(),
-                                                                      g_custom_keybindings.end());
-    std::sort(sorted_bindings.begin(), sorted_bindings.end());
-
-    for (const auto& [key, command] : sorted_bindings) {
-        char buffer[64];
-        if (ic_format_key_spec(key, buffer, sizeof(buffer))) {
-            std::cout << std::left << std::setw(20) << buffer << command << '\n';
+    if (!sorted_bindings.empty()) {
+        std::cout << "Custom command keybindings:\n\n";
+        std::cout << std::left << std::setw(20) << "Key" << std::setw(28) << "Title"
+                  << "Command\n";
+        std::cout << std::string(96, '-') << '\n';
+        for (const auto& [key, binding] : sorted_bindings) {
+            char buffer[64];
+            if (ic_format_key_spec(key, buffer, sizeof(buffer))) {
+                std::string title = binding.title.empty() ? binding.command : binding.title;
+                std::cout << std::left << std::setw(20) << buffer << std::setw(28) << title
+                          << binding.command << '\n';
+            }
         }
+        std::cout << '\n';
     }
 
-    std::cout << "\nThese bindings are defined in your configuration files.\n";
+    if (!sorted_palette.empty()) {
+        std::cout << "Palette-only commands:\n\n";
+        std::cout << std::left << std::setw(24) << "Palette ID" << std::setw(28) << "Title"
+                  << "Command\n";
+        std::cout << std::string(104, '-') << '\n';
+        for (const auto& [id, binding] : sorted_palette) {
+            std::string title = binding.title.empty() ? id : binding.title;
+            std::cout << std::left << std::setw(24) << id << std::setw(28) << title
+                      << binding.command << '\n';
+        }
+        std::cout << '\n';
+    }
+
+    std::cout << "These bindings are defined in your configuration files.\n";
     std::cout << "To modify them, edit your ~/.cjshrc file.\n";
 
     return 0;
@@ -136,19 +236,83 @@ int keybind_ext_set_command(const std::vector<std::string>& args) {
         print_error({ErrorType::INVALID_ARGUMENT,
                      "keybind ext",
                      "set requires a key specification and a command",
-                     {"Usage: keybind ext set <key_spec> <command>",
-                      "Example: keybind ext set 'ctrl-g' 'echo Hello from ctrl-g!'"}});
+                     {"Usage: keybind ext set <key_spec|palette:id> [--title <title>] <command>",
+                      "Example: keybind ext set 'ctrl-g' 'echo Hello from ctrl-g!'",
+                      "Example: keybind ext set 'ctrl-g' --title 'Accept line' "
+                      "'cjsh-widget accept'",
+                      "Example: keybind ext set 'palette:uuid' --title 'Generate UUID' "
+                      "'uuidgen'"}});
         return 1;
     }
 
     const std::string& key_spec = args[3];
+    std::string title;
+    size_t command_start = 4;
+
+    if (args[4] == "--title") {
+        if (args.size() < 7) {
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         "keybind ext",
+                         "--title requires a title and a command",
+                         {"Usage: keybind ext set <key_spec|palette:id> --title <title> "
+                          "<command>",
+                          "Example: keybind ext set 'ctrl-g' --title 'Accept line' "
+                          "'cjsh-widget accept'"}});
+            return 1;
+        }
+        title = args[5];
+        command_start = 6;
+    } else if (args[4].rfind("--title=", 0) == 0) {
+        title = args[4].substr(std::strlen("--title="));
+        if (title.empty()) {
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         "keybind ext",
+                         "--title option cannot be empty",
+                         {"Usage: keybind ext set <key_spec|palette:id> --title <title> "
+                          "<command>"}});
+            return 1;
+        }
+        command_start = 5;
+    }
+
+    if (command_start >= args.size()) {
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     "keybind ext",
+                     "set requires a command",
+                     {"Usage: keybind ext set <key_spec|palette:id> [--title <title>] <command>"}});
+        return 1;
+    }
 
     std::string command;
-    for (size_t i = 4; i < args.size(); ++i) {
-        if (i > 4) {
+    for (size_t i = command_start; i < args.size(); ++i) {
+        if (i > command_start) {
             command += " ";
         }
         command += args[i];
+    }
+
+    if (key_spec.rfind(kPalettePrefix, 0) == 0) {
+        std::string palette_id;
+        if (!parse_palette_spec(key_spec, &palette_id)) {
+            print_error({ErrorType::INVALID_ARGUMENT,
+                         "keybind ext",
+                         "Invalid palette identifier '" + key_spec + "'",
+                         {"Palette-only entries must use format 'palette:<id>'"}});
+            return 1;
+        }
+
+        std::string effective_title = title.empty() ? palette_id : title;
+        set_custom_palette_command(palette_id, command, effective_title);
+        if (!cjsh_env::startup_active()) {
+            std::cout << "Registered palette-only command '" << palette_id
+                      << "' (title: '" << effective_title << "'): " << command << '\n';
+            std::cout << "Add `cjshopt keybind ext set 'palette:" << palette_id << "'";
+            if (!title.empty()) {
+                std::cout << " --title '" << title << "'";
+            }
+            std::cout << " '" << command << "'` to your ~/.cjshrc to persist this change.\n";
+        }
+        return 0;
     }
 
     ic_keycode_t key_code = 0;
@@ -156,7 +320,8 @@ int keybind_ext_set_command(const std::vector<std::string>& args) {
         print_error({ErrorType::INVALID_ARGUMENT,
                      "keybind ext",
                      "Invalid key specification '" + key_spec + "'",
-                     {"Use standard key spec format like 'ctrl-g', 'alt-h', 'F5', etc."}});
+                     {"Use key specs like 'ctrl-g', 'alt-h', 'F5', or palette IDs like "
+                      "'palette:uuid'."}});
         return 1;
     }
 
@@ -184,12 +349,17 @@ int keybind_ext_set_command(const std::vector<std::string>& args) {
         return 1;
     }
 
-    set_custom_keybinding(key_code, command);
+    std::string effective_title = title.empty() ? command : title;
+    set_custom_keybinding(key_code, command, effective_title);
 
     if (!cjsh_env::startup_active()) {
-        std::cout << "Bound key '" << key_spec << "' to command: " << command << '\n';
-        std::cout << "Add `cjshopt keybind ext set '" << key_spec << "' '" << command
-                  << "'` to your ~/.cjshrc to persist this change.\n";
+        std::cout << "Bound key '" << key_spec << "' (title: '" << effective_title
+                  << "') to command: " << command << '\n';
+        std::cout << "Add `cjshopt keybind ext set '" << key_spec << "'";
+        if (!title.empty()) {
+            std::cout << " --title '" << title << "'";
+        }
+        std::cout << " '" << command << "'` to your ~/.cjshrc to persist this change.\n";
     }
 
     return 0;
@@ -199,9 +369,9 @@ int keybind_ext_clear_command(const std::vector<std::string>& args) {
     if (args.size() < 4) {
         print_error({ErrorType::INVALID_ARGUMENT,
                      "keybind ext",
-                     "clear requires at least one key specification",
-                     {"Usage: keybind ext clear <key_spec> [<key_spec> ...]",
-                      "Example: keybind ext clear 'ctrl-g' 'alt-h'"}});
+                     "clear requires at least one key specification or palette id",
+                     {"Usage: keybind ext clear <key_spec|palette:id> [<...>]",
+                      "Example: keybind ext clear 'ctrl-g' 'palette:uuid'"}});
         return 1;
     }
 
@@ -210,6 +380,25 @@ int keybind_ext_clear_command(const std::vector<std::string>& args) {
 
     for (size_t i = 3; i < args.size(); ++i) {
         const std::string& key_spec = args[i];
+
+        if (key_spec.rfind(kPalettePrefix, 0) == 0) {
+            std::string palette_id;
+            if (!parse_palette_spec(key_spec, &palette_id)) {
+                print_error({ErrorType::INVALID_ARGUMENT,
+                             "keybind ext",
+                             "Invalid palette identifier '" + key_spec + "'",
+                             {"Palette-only entries must use format 'palette:<id>'"}});
+                continue;
+            }
+
+            if (has_custom_palette_command(palette_id)) {
+                clear_custom_palette_command(palette_id);
+                cleared.push_back(key_spec);
+            } else {
+                not_found.push_back(key_spec);
+            }
+            continue;
+        }
 
         ic_keycode_t key_code = 0;
         if (!ic_parse_key_spec(key_spec.c_str(), &key_code)) {
@@ -260,9 +449,10 @@ int keybind_ext_reset_command() {
         ic_clear_key_binding(key);
     }
     clear_all_custom_keybindings();
+    clear_all_custom_palette_commands();
 
     if (!cjsh_env::startup_active()) {
-        std::cout << "All custom command keybindings cleared.\n";
+        std::cout << "All custom command keybindings and palette-only commands cleared.\n";
     }
 
     return 0;
