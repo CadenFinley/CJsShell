@@ -80,6 +80,33 @@ else
     fail "Expected 'Hello World', got '$result'"
 fi
 
+log_test "POSIX name() ( ... ) subshell body definition"
+result=$("$SHELL_TO_TEST" -c 'flag=outer; demo() ( echo "call:$flag" ); echo "defined:$flag"; demo' 2>/dev/null | tr '\n' ' ')
+expected="defined:outer call:outer "
+if [ "$result" = "$expected" ]; then
+    pass
+else
+    fail "Expected '$expected', got '$result'"
+fi
+
+log_test "POSIX name() ( ... ) keeps assignments scoped"
+result=$("$SHELL_TO_TEST" -c 'var=global; set_local() ( var=local; echo "$var" ); set_local; echo "$var"' 2>/dev/null | tr '\n' ' ')
+expected="local global "
+if [ "$result" = "$expected" ]; then
+    pass
+else
+    fail "Expected '$expected', got '$result'"
+fi
+
+log_test "POSIX inline name() ( ... ) after semicolon"
+result=$("$SHELL_TO_TEST" -c 'echo start; semiposix() ( echo done ); semiposix' 2>/dev/null | tr '\n' ' ')
+expected="start done "
+if [ "$result" = "$expected" ]; then
+    pass
+else
+    fail "Expected '$expected', got '$result'"
+fi
+
 log_test "Function with parameters"
 result=$("$SHELL_TO_TEST" -c 'greet() { echo "Hello $1"; }; greet Alice' 2>/dev/null)
 if [ "$result" = "Hello Alice" ]; then

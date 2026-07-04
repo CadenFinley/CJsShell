@@ -609,6 +609,17 @@ int ShellScriptInterpreter::execute_subshell(const std::string& subshell_content
 }
 
 int ShellScriptInterpreter::execute_function_call(const std::vector<std::string>& expanded_args) {
+    if (expanded_args.empty()) {
+        return set_last_status(0);
+    }
+
+    auto function_it = functions.find(expanded_args[0]);
+    if (function_it == functions.end()) {
+        return set_last_status(127);
+    }
+
+    const function_evaluator::FunctionDefinition& function_definition = function_it->second;
+
     push_function_scope();
 
     std::vector<std::string> saved_params = flags::get_positional_parameters();
@@ -626,7 +637,20 @@ int ShellScriptInterpreter::execute_function_call(const std::vector<std::string>
         setenv(name.c_str(), expanded_args[pi].c_str(), 1);
     }
 
-    int exit_code = execute_block(functions[expanded_args[0]]);
+    int exit_code = 0;
+    if (function_definition.uses_subshell_body) {
+        std::ostringstream body_stream;
+        for (size_t body_line_index = 0; body_line_index < function_definition.body_lines.size();
+             ++body_line_index) {
+            if (body_line_index > 0) {
+                body_stream << '\n';
+            }
+            body_stream << function_definition.body_lines[body_line_index];
+        }
+        exit_code = execute_subshell(body_stream.str());
+    } else {
+        exit_code = execute_block(function_definition.body_lines);
+    }
 
     if (exit_code == exit_break) {
         if (cjsh_env::shell_variable_is_set("CJSH_RETURN_CODE")) {
@@ -1474,11 +1498,10 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
 
         std::string trimmed_line = trim(line);
         bool is_function_def = false;
-        if (line.find("()") != std::string::npos && line.find('{') != std::string::npos) {
+        if (line.find("()") != std::string::npos) {
             is_function_def = true;
         } else if (trimmed_line.rfind("function", 0) == 0 && trimmed_line.length() > 8 &&
-                   std::isspace(static_cast<unsigned char>(trimmed_line[8])) &&
-                   line.find('{') != std::string::npos) {
+                   std::isspace(static_cast<unsigned char>(trimmed_line[8]))) {
             is_function_def = true;
         }
 
@@ -1574,11 +1597,12 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
 
                     bool is_inline_function = false;
                     std::string func_name;
-                    size_t brace_pos = t.find('{');
+                    size_t body_start_pos = std::string::npos;
+                    char opening_delim = '{';
+                    char closing_delim = '}';
 
                     if (t.rfind("function", 0) == 0 && t.length() > 8 &&
-                        std::isspace(static_cast<unsigned char>(t[8])) &&
-                        brace_pos != std::string::npos) {
+                        std::isspace(static_cast<unsigned char>(t[8]))) {
                         size_t name_start = 8;
                         while (name_start < t.length() &&
                                std::isspace(static_cast<unsigned char>(t[name_start]))) {
@@ -1592,28 +1616,71 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                                 name_end++;
                             }
                             func_name = t.substr(name_start, name_end - name_start);
-                            is_inline_function = true;
+
+                            size_t scan_pos = name_end;
+                            while (scan_pos < t.length() &&
+                                   std::isspace(static_cast<unsigned char>(t[scan_pos]))) {
+                                scan_pos++;
+                            }
+
+                            if (scan_pos < t.length() && t[scan_pos] == '(') {
+                                size_t lookahead = scan_pos + 1;
+                                while (lookahead < t.length() &&
+                                       std::isspace(static_cast<unsigned char>(t[lookahead]))) {
+                                    lookahead++;
+                                }
+                                if (lookahead < t.length() && t[lookahead] == ')') {
+                                    scan_pos = lookahead + 1;
+                                    while (scan_pos < t.length() &&
+                                           std::isspace(static_cast<unsigned char>(t[scan_pos]))) {
+                                        scan_pos++;
+                                    }
+                                }
+                            }
+
+                            if (scan_pos < t.length() &&
+                                (t[scan_pos] == '{' || t[scan_pos] == '(')) {
+                                body_start_pos = scan_pos;
+                                opening_delim = t[scan_pos];
+                                closing_delim = opening_delim == '{' ? '}' : ')';
+                                is_inline_function = true;
+                            }
                         }
                     }
 
-                    if (!is_inline_function && t.find("()") != std::string::npos &&
-                        brace_pos != std::string::npos) {
+                    if (!is_inline_function && t.find("()") != std::string::npos) {
                         size_t name_end = t.find("()");
-                        if (name_end != std::string::npos && brace_pos != std::string::npos &&
-                            name_end < brace_pos) {
-                            func_name = trim(t.substr(0, name_end));
-                            is_inline_function = true;
+                        if (name_end != std::string::npos) {
+                            std::string potential_name = trim(t.substr(0, name_end));
+                            size_t scan_pos = name_end + 2;
+                            while (scan_pos < t.length() &&
+                                   std::isspace(static_cast<unsigned char>(t[scan_pos]))) {
+                                scan_pos++;
+                            }
+
+                            if (!potential_name.empty() &&
+                                potential_name.find(' ') == std::string::npos &&
+                                scan_pos < t.length() &&
+                                (t[scan_pos] == '{' || t[scan_pos] == '(')) {
+                                func_name = potential_name;
+                                body_start_pos = scan_pos;
+                                opening_delim = t[scan_pos];
+                                closing_delim = opening_delim == '{' ? '}' : ')';
+                                is_inline_function = true;
+                            }
                         }
                     }
 
                     if (is_inline_function && !func_name.empty() &&
-                        func_name.find(' ') == std::string::npos) {
+                        func_name.find(' ') == std::string::npos &&
+                        body_start_pos != std::string::npos) {
                         std::vector<std::string> body_lines;
-                        std::string after_brace = trim(t.substr(brace_pos + 1));
-                        if (!after_brace.empty()) {
-                            size_t end_brace = after_brace.find('}');
-                            if (end_brace != std::string::npos) {
-                                std::string body_part = trim(after_brace.substr(0, end_brace));
+                        std::string after_body_open = trim(t.substr(body_start_pos + 1));
+                        if (!after_body_open.empty()) {
+                            size_t body_close_pos = after_body_open.find(closing_delim);
+                            if (body_close_pos != std::string::npos) {
+                                std::string body_part =
+                                    trim(after_body_open.substr(0, body_close_pos));
                                 if (!body_part.empty())
                                     body_lines.push_back(body_part);
                                 if (readonly_function_manager_is(func_name)) {
@@ -1623,7 +1690,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                                                  {}});
                                     last_code = 1;
                                 } else {
-                                    functions[func_name] = body_lines;
+                                    functions[func_name] = {body_lines, opening_delim == '('};
                                     last_code = 0;
                                 }
                                 set_last_status(last_code);
@@ -1768,46 +1835,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                         if (!contains_pipeline && !first_toks.empty() &&
                             (functions.count(first_toks[0]) != 0U)) {
                             is_function_call = true;
-
-                            push_function_scope();
-
-                            std::vector<std::string> saved_params =
-                                flags::get_positional_parameters();
-
-                            std::vector<std::string> func_params;
-                            for (size_t pi = 1; pi < first_toks.size(); ++pi) {
-                                func_params.push_back(first_toks[pi]);
-                            }
-                            flags::set_positional_parameters(func_params);
-
-                            std::vector<std::string> param_names;
-                            for (size_t pi = 1; pi < first_toks.size() && pi <= 9; ++pi) {
-                                std::string name = std::to_string(pi);
-                                param_names.push_back(name);
-                                setenv(name.c_str(), first_toks[pi].c_str(), 1);
-                            }
-
-                            code = execute_block(functions[first_toks[0]]);
-
-                            if (code == exit_break) {
-                                if (cjsh_env::shell_variable_is_set("CJSH_RETURN_CODE")) {
-                                    std::string return_code_env =
-                                        cjsh_env::get_shell_variable_value("CJSH_RETURN_CODE");
-                                    try {
-                                        code = std::stoi(return_code_env);
-                                        cjsh_env::unset_shell_variable_value("CJSH_RETURN_CODE");
-                                    } catch (const std::exception&) {
-                                        code = 0;
-                                    }
-                                }
-                            }
-
-                            flags::set_positional_parameters(saved_params);
-
-                            for (const auto& n : param_names)
-                                unsetenv(n.c_str());
-
-                            pop_function_scope();
+                            code = execute_function_call(first_toks);
                         } else {
                             try {
                                 code = execute_simple_or_pipeline(cmd_text);

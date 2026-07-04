@@ -83,6 +83,22 @@ else
     fail_test "! false | true should exit 1 but exited $EXIT_CODE"
 fi
 
+NEGATED_OUTPUT=$("$CJSH_PATH" -c "! : >/dev/null" 2>&1)
+EXIT_CODE=$?
+if [ "$EXIT_CODE" -eq 1 ] && [ -z "$NEGATED_OUTPUT" ]; then
+    pass_test "! : >/dev/null does not print runtime noise"
+else
+    fail_test "! : >/dev/null should be silent with exit 1 (exit=$EXIT_CODE, output='$NEGATED_OUTPUT')"
+fi
+
+NEGATED_OUTPUT=$("$CJSH_PATH" -c "! command -v command >/dev/null 2>&1" 2>&1)
+EXIT_CODE=$?
+if [ "$EXIT_CODE" -eq 1 ] && [ -z "$NEGATED_OUTPUT" ]; then
+    pass_test "! command -v command >/dev/null 2>&1 does not print runtime noise"
+else
+    fail_test "! command -v command >/dev/null 2>&1 should be silent with exit 1 (exit=$EXIT_CODE, output='$NEGATED_OUTPUT')"
+fi
+
 echo ""
 echo "Pipeline Tests Summary:"
 echo "Passed: $TESTS_PASSED"

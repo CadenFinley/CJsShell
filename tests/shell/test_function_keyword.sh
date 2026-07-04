@@ -194,40 +194,73 @@ else
     fail "Expected '3', got '$result'"
 fi
 
-log_test "function with subshell body syntax"
-subshell_script='count_lines() (
-    printf "a\nb\nc\n" | wc -l
+log_test "name() ( ... ) syntax defers execution until call"
+subshell_script='flag=outer
+count_lines() (
+    printf "call:%s\n" "$flag"
 )
+echo "defined:$flag"
 count_lines'
-result=$("$SHELL_TO_TEST" -c "$subshell_script" 2>/dev/null | tr -d ' ')
-if [ "$result" = "3" ]; then
+result=$("$SHELL_TO_TEST" -c "$subshell_script" 2>/dev/null | tr '\n' ' ')
+expected="defined:outer call:outer "
+if [ "$result" = "$expected" ]; then
     pass
 else
-    fail "Expected '3', got '$result'"
+    fail "Expected '$expected', got '$result'"
+fi
+
+log_test "name() ( ... ) keeps variable changes scoped"
+subshell_scope_script='value=outer
+set_inner() (
+    value=inner
+    echo "inside:$value"
+)
+set_inner
+echo "outside:$value"'
+result=$("$SHELL_TO_TEST" -c "$subshell_scope_script" 2>/dev/null | tr '\n' ' ')
+expected="inside:inner outside:outer "
+if [ "$result" = "$expected" ]; then
+    pass
+else
+    fail "Expected '$expected', got '$result'"
 fi
 
 log_test "function keyword with subshell body syntax"
 keyword_subshell_script='function count_lines_kw() (
     printf "d\ne\nf\n" | wc -l
 )
+echo "defined"
 count_lines_kw'
-result=$("$SHELL_TO_TEST" -c "$keyword_subshell_script" 2>/dev/null | tr -d ' ')
-if [ "$result" = "3" ]; then
+result=$("$SHELL_TO_TEST" -c "$keyword_subshell_script" 2>/dev/null | tr -d '[:space:]')
+expected="defined3"
+if [ "$result" = "$expected" ]; then
     pass
 else
-    fail "Expected '3', got '$result'"
+    fail "Expected '$expected', got '$result'"
 fi
 
 log_test "function keyword with parentheses header and subshell body"
 keyword_paren_script='function greet() (
     echo "hello"
 )
+echo "ready"
 greet'
-result=$("$SHELL_TO_TEST" -c "$keyword_paren_script" 2>/dev/null)
-if [ "$result" = "hello" ]; then
+result=$("$SHELL_TO_TEST" -c "$keyword_paren_script" 2>/dev/null | tr '\n' ' ')
+expected="ready hello "
+if [ "$result" = "$expected" ]; then
     pass
 else
-    fail "Expected 'hello', got '$result'"
+    fail "Expected '$expected', got '$result'"
+fi
+
+log_test "inline name() ( ... ) after semicolon"
+inline_subshell_script='echo "before"; inline_subshell() ( echo "after" ); inline_subshell'
+result=$("$SHELL_TO_TEST" -c "$inline_subshell_script" 2>/dev/null | tr '\n' ' ')
+expected="before after "
+if [ "$result" = "$expected" ]; then
+    pass
+else
+    fail "Expected '$expected', got '$result'"
 fi
 
 log_test "function keyword with if statement"

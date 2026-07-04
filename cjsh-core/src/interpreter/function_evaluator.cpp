@@ -149,7 +149,7 @@ FunctionParseResult parse_and_register_functions(
                                      func_name + ": readonly function",
                                      {}});
                     } else {
-                        functions[func_name] = body_lines;
+                        functions[func_name] = {body_lines, opening_delim == '('};
                     }
 
                     std::string remainder = trim_func(after_body.substr(end_delim + 1));
@@ -211,7 +211,7 @@ FunctionParseResult parse_and_register_functions(
                                  func_name + ": readonly function",
                                  {}});
                 } else {
-                    functions[func_name] = body_lines;
+                    functions[func_name] = {body_lines, opening_delim == '('};
                 }
 
                 if (after_closing_delim.empty()) {

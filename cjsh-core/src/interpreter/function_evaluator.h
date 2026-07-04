@@ -35,7 +35,12 @@
 
 namespace function_evaluator {
 
-using FunctionMap = std::unordered_map<std::string, std::vector<std::string>>;
+struct FunctionDefinition {
+    std::vector<std::string> body_lines;
+    bool uses_subshell_body = false;
+};
+
+using FunctionMap = std::unordered_map<std::string, FunctionDefinition>;
 using LocalVariableStack = std::vector<std::unordered_map<std::string, std::string>>;
 
 struct FunctionParseResult {

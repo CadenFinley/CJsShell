@@ -59,13 +59,20 @@ void Exec::print_error_if_needed(int exit_code) {
 
     ErrorInfo error = get_error();
     bool already_reported = (error.type == ErrorType::COMMAND_NOT_FOUND && error.message.empty());
+    if (!already_reported && error.type == ErrorType::UNKNOWN_ERROR && error.command_used.empty() &&
+        error.message.empty() && error.suggestions.empty()) {
+        already_reported = true;
+    }
     if (!already_reported && exit_code == 126 && error.type == ErrorType::PERMISSION_DENIED &&
         error.message.find("command failed with exit code") != std::string::npos) {
         already_reported = true;
     }
-    if (!already_reported &&
-        (error.type != ErrorType::RUNTIME_ERROR ||
-         error.message.find("command failed with exit code") == std::string::npos)) {
+    const bool generic_runtime_exit_message =
+        (error.type == ErrorType::RUNTIME_ERROR) &&
+        (error.message.find("command failed with exit code") != std::string::npos ||
+         error.message.find("completed successfully") != std::string::npos);
+
+    if (!already_reported && !generic_runtime_exit_message) {
         print_last_error();
     }
 }

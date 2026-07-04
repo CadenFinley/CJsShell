@@ -233,4 +233,40 @@ else
   echo "PASS: oh-my-zsh style pattern matching works"
 fi
 
+# Test 21: Builtin stdout before $(...) should not contaminate substitution output
+"$CJSH_PATH" -c 'cjshopt completion-case status; x=$(mktemp); [ -f "$x" ] && rm -f "$x"' >/dev/null 2>&1
+if [ $? -eq 0 ]; then
+  echo "PASS: builtin stdout does not leak into \$() substitution"
+else
+  echo "FAIL: builtin stdout leaked into \$() substitution"
+  exit 1
+fi
+
+# Test 22: Builtin stdout before backticks should not contaminate substitution output
+"$CJSH_PATH" -c 'cjshopt completion-case status; x=`mktemp`; [ -f "$x" ] && rm -f "$x"' >/dev/null 2>&1
+if [ $? -eq 0 ]; then
+  echo "PASS: builtin stdout does not leak into backtick substitution"
+else
+  echo "FAIL: builtin stdout leaked into backtick substitution"
+  exit 1
+fi
+
+# Test 23: Polluted substitution must not break later redirections
+"$CJSH_PATH" -c 'cjshopt completion-case status; target=$(mktemp); printf "ok" > "$target" && [ "$(cat "$target")" = "ok" ] && rm -f "$target"' >/dev/null 2>&1
+if [ $? -eq 0 ]; then
+  echo "PASS: command substitution output remains safe for redirections"
+else
+  echo "FAIL: command substitution contamination broke redirection filename handling"
+  exit 1
+fi
+
+# Test 24: Command substitution result should stay single-line after prior builtin stdout
+"$CJSH_PATH" -c 'cjshopt completion-case status; x=$(mktemp); lines=$(printf "%s\n" "$x" | wc -l | tr -d "[:space:]"); [ "$lines" = "1" ] && [ -f "$x" ] && rm -f "$x"' >/dev/null 2>&1
+if [ $? -eq 0 ]; then
+  echo "PASS: command substitution result remains a single filename"
+else
+  echo "FAIL: command substitution result became multi-line after builtin output"
+  exit 1
+fi
+
 exit 0

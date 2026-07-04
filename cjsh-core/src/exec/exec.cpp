@@ -40,6 +40,7 @@
 #include <atomic>
 #include <cerrno>
 #include <csignal>
+#include <cstdio>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -73,6 +74,13 @@ namespace {
 
 int extract_exit_code(int status) {
     return wait_status_utils::to_exit_code(status, 1);
+}
+
+void flush_standard_streams_before_fork() {
+    std::cout.flush();
+    std::cerr.flush();
+    std::clog.flush();
+    (void)std::fflush(nullptr);
 }
 
 std::string join_arguments(const std::vector<std::string>& args) {
@@ -2448,6 +2456,8 @@ CommandOutput execute_with_stdout_capture(const std::function<int()>& child_exec
     if (pipe_result.is_error()) {
         return result;
     }
+
+    flush_standard_streams_before_fork();
 
     pid_t pid = fork();
     if (pid == -1) {
