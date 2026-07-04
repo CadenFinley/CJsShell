@@ -948,8 +948,12 @@ void maybe_set_foreground_terminal(bool enabled, int terminal_fd, pid_t pgid,
     }
 }
 
-bool can_control_terminal(bool shell_is_interactive, int terminal_fd) {
-    if (!shell_is_interactive || terminal_fd < 0 || isatty(terminal_fd) == 0) {
+bool can_control_terminal(bool shell_is_interactive, int terminal_fd, pid_t shell_pgid) {
+    if (!shell_is_interactive || terminal_fd < 0 || shell_pgid <= 0 || isatty(terminal_fd) == 0) {
+        return false;
+    }
+
+    if (getpid() != shell_pgid || getpgrp() != shell_pgid) {
         return false;
     }
 
@@ -958,7 +962,7 @@ bool can_control_terminal(bool shell_is_interactive, int terminal_fd) {
         return false;
     }
 
-    return foreground_pgid == getpgrp();
+    return foreground_pgid == shell_pgid;
 }
 
 [[noreturn]] void exec_external_child(const std::vector<std::string>& args,
@@ -1429,7 +1433,8 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
 
 int Exec::execute_pipeline(const std::vector<Command>& commands) {
     const bool pipeline_negated = (!commands.empty() && commands[0].negate_pipeline);
-    const bool use_job_control = can_control_terminal(shell_is_interactive, shell_terminal);
+    const bool use_job_control =
+        can_control_terminal(shell_is_interactive, shell_terminal, shell_pgid);
 
     auto apply_pipefail = [&](int exit_code, const std::vector<int>& statuses) -> int {
         if (!g_shell || !g_shell->get_shell_option(ShellOption::Pipefail)) {

@@ -121,8 +121,12 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
         return;
     }
 
+    const bool main_shell_controls_terminal =
+        shell_is_interactive && (isatty(shell_terminal) != 0) && shell_pgid > 0 &&
+        getpid() == shell_pgid && getpgrp() == shell_pgid;
+
     bool terminal_control_acquired = false;
-    if (shell_is_interactive && (isatty(shell_terminal) != 0)) {
+    if (main_shell_controls_terminal) {
         if (tcsetpgrp(shell_terminal, job->pgid) == 0) {
             terminal_control_acquired = true;
         } else {
@@ -142,7 +146,7 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
 
     jobs_mutex.lock();
 
-    if (terminal_control_acquired && shell_is_interactive && (isatty(shell_terminal) != 0)) {
+    if (terminal_control_acquired && main_shell_controls_terminal) {
         if (tcsetpgrp(shell_terminal, shell_pgid) < 0) {
             if (errno != ENOTTY && errno != EINVAL) {
                 set_error(

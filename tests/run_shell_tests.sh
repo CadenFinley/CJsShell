@@ -96,6 +96,7 @@ ISOCLINE_PTY_DRIVER_BINARY="${ISOCLINE_PTY_DRIVER_BINARY:-$DEFAULT_ISOCLINE_PTY_
 ISOCLINE_PTY_TEST_SCRIPT="$SCRIPT_DIR/isocline/test_isocline_pty.py"
 BUILD_SYSTEM_TEST_SCRIPT="$SCRIPT_DIR/build_system/test_build_system.py"
 INTERACTIVE_SHUTDOWN_TEST_SCRIPT="$SCRIPT_DIR/core/test_interactive_shutdown.py"
+FUNCTION_PIPELINE_JOB_CONTROL_TEST_SCRIPT="$SCRIPT_DIR/core/test_function_pipeline_job_control.py"
 
 
 if [ -n "$CI" ] || [ -n "$GITHUB_ACTIONS" ] || [ -n "$CONTINUOUS_INTEGRATION" ]; then
@@ -125,6 +126,7 @@ HISTORY_EXPANSION_TEST_RESULT=0
 ISOCLINE_PTY_TEST_RESULT=0
 BUILD_SYSTEM_TEST_RESULT=0
 INTERACTIVE_SHUTDOWN_TEST_RESULT=0
+FUNCTION_PIPELINE_JOB_CONTROL_TEST_RESULT=0
 
 
 if [ ! -x "$CJSH" ]; then
@@ -513,6 +515,17 @@ else
     report_skipped_suite "test_interactive_shutdown" "script not found at $INTERACTIVE_SHUTDOWN_TEST_SCRIPT"
 fi
 
+if [ -f "$FUNCTION_PIPELINE_JOB_CONTROL_TEST_SCRIPT" ]; then
+    if command -v python3 >/dev/null 2>&1; then
+        run_external_suite "test_function_pipeline_job_control" "python" "binary" python3 "$FUNCTION_PIPELINE_JOB_CONTROL_TEST_SCRIPT" "$CJSH"
+        FUNCTION_PIPELINE_JOB_CONTROL_TEST_RESULT=$?
+    else
+        report_skipped_suite "test_function_pipeline_job_control" "python3 not found"
+    fi
+else
+    report_skipped_suite "test_function_pipeline_job_control" "script not found at $FUNCTION_PIPELINE_JOB_CONTROL_TEST_SCRIPT"
+fi
+
 OVERALL_STATUS=0
 if [ $FILES_FAIL -ne 0 ]; then
     OVERALL_STATUS=$FILES_FAIL
@@ -564,6 +577,13 @@ if [ $INTERACTIVE_SHUTDOWN_TEST_RESULT -ne 0 ]; then
         OVERALL_STATUS=$INTERACTIVE_SHUTDOWN_TEST_RESULT
     else
         OVERALL_STATUS=$((OVERALL_STATUS + INTERACTIVE_SHUTDOWN_TEST_RESULT))
+    fi
+fi
+if [ $FUNCTION_PIPELINE_JOB_CONTROL_TEST_RESULT -ne 0 ]; then
+    if [ $OVERALL_STATUS -eq 0 ]; then
+        OVERALL_STATUS=$FUNCTION_PIPELINE_JOB_CONTROL_TEST_RESULT
+    else
+        OVERALL_STATUS=$((OVERALL_STATUS + FUNCTION_PIPELINE_JOB_CONTROL_TEST_RESULT))
     fi
 fi
 
