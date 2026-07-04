@@ -398,14 +398,25 @@ static void edit_show_help(ic_env_t* env, editor_t* eb) {
                 break;
             case HELP_LINE_BINDING: {
                 char key_buffer[256];
+                char mouse_suffix[320];
                 format_binding_keys(env, line->action, line->default_specs, key_buffer,
                                     sizeof(key_buffer), false);
                 bool mouse_toggle_enabled = (line->action == IC_KEY_ACTION_TOGGLE_MOUSE_REPORTING &&
                                              eb != NULL && eb->mouse_reporting_enabled);
+                mouse_suffix[0] = '\0';
+                if (mouse_toggle_enabled) {
+                    if (strcmp(key_buffer, "(unbound)") != 0) {
+                        snprintf(mouse_suffix, sizeof(mouse_suffix),
+                                 " (Mouse clicking is enabled; press %s to disable)", key_buffer);
+                    } else {
+                        ic_strncpy(mouse_suffix, (ssize_t)sizeof(mouse_suffix),
+                                   " (Mouse clicking is enabled)",
+                                   (ssize_t)sizeof(mouse_suffix) - 1);
+                    }
+                }
                 bbcode_printf(env->bbcode, "  [ic-emphasis]%-13s[/][ansi-lightgray]%s%s%s[/]\n",
                               key_buffer, (line->description[0] == 0 ? "" : ": "),
-                              line->description,
-                              (mouse_toggle_enabled ? " (Mouse clicking is enabled)" : ""));
+                              line->description, mouse_suffix);
                 break;
             }
         }

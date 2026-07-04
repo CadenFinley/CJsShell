@@ -1419,8 +1419,9 @@ def main() -> int:
             f"normalized_output={normalized_help_output!r}"
         )
     if (
-        "toggle mouse reporting for this prompt (Mouse clicking is enabled)"
+        "toggle mouse reporting for this prompt (Mouse clicking is enabled; press "
         not in normalized_help_output
+        or " to disable)" not in normalized_help_output
     ):
         raise AssertionError(
             "show_help should mark mouse toggle binding as enabled after F2, got "

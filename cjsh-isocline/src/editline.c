@@ -2779,6 +2779,27 @@ static bool edit_format_default_status_hints(ic_env_t* env, char* buffer, size_t
     return true;
 }
 
+static void edit_format_mouse_enabled_status_hint(ic_env_t* env, bool include_disable_hint,
+                                                  char* buffer, size_t buflen) {
+    if (buffer == NULL || buflen == 0) {
+        return;
+    }
+
+    if (include_disable_hint) {
+        char mouse_toggle_keys[EDIT_STATUS_HINT_KEYS_LEN];
+        format_binding_keys(env, IC_KEY_ACTION_TOGGLE_MOUSE_REPORTING, NULL, mouse_toggle_keys,
+                            sizeof(mouse_toggle_keys), true);
+        if (mouse_toggle_keys[0] != '\0' && strcmp(mouse_toggle_keys, "(unbound)") != 0) {
+            if (snprintf(buffer, buflen, "Mouse clicking is enabled (press %s to disable)",
+                         mouse_toggle_keys) >= 0) {
+                return;
+            }
+        }
+    }
+
+    ic_strncpy(buffer, (ssize_t)buflen, "Mouse clicking is enabled", (ssize_t)buflen - 1);
+}
+
 static bool edit_enable_mouse_tracking(ic_env_t* env, editor_t* eb) {
     if (env == NULL || eb == NULL || env->term == NULL || !term_is_interactive(env->term)) {
         return false;
@@ -3024,6 +3045,9 @@ static bool edit_update_status_message(ic_env_t* env, editor_t* eb) {
     }
 
     char fallback_buffer[EDIT_STATUS_HINT_BUFFER_LEN];
+    char mouse_status_text[EDIT_STATUS_HINT_BUFFER_LEN];
+    char mouse_status_bbcode[EDIT_STATUS_HINT_BUFFER_LEN];
+    const char* mouse_status_prefix = "[ic-status]Mouse clicking is enabled[/]";
     const char* next = custom_message;
     stringbuf_t* combined = NULL;
     stringbuf_t* with_mouse_prefix = NULL;
@@ -3055,16 +3079,22 @@ static bool edit_update_status_message(ic_env_t* env, editor_t* eb) {
     }
 
     if (eb->mouse_reporting_enabled && env->mouse_reporting_status_line_enabled) {
+        edit_format_mouse_enabled_status_hint(env, true, mouse_status_text, sizeof(mouse_status_text));
+        if (snprintf(mouse_status_bbcode, sizeof(mouse_status_bbcode), "[ic-status]%s[/]",
+                     mouse_status_text) >= 0) {
+            mouse_status_prefix = mouse_status_bbcode;
+        }
+
         with_mouse_prefix = sbuf_new(eb->mem);
         if (with_mouse_prefix != NULL) {
-            sbuf_append(with_mouse_prefix, "[ic-status]Mouse clicking is enabled[/]");
+            sbuf_append(with_mouse_prefix, mouse_status_prefix);
             if (next != NULL && next[0] != '\0') {
                 sbuf_append_char(with_mouse_prefix, '\n');
                 sbuf_append(with_mouse_prefix, next);
             }
             next = sbuf_string(with_mouse_prefix);
         } else if (next == NULL || next[0] == '\0') {
-            next = "[ic-status]Mouse clicking is enabled[/]";
+            next = mouse_status_prefix;
         }
     }
 

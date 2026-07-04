@@ -787,7 +787,7 @@ again:
             }
         }
 
-        char header[224];
+        char header[384];
         const char* hint_suffix = "";
         if (more_available && max_scroll_offset > 0) {
             hint_suffix = " (more available; PgUp/PgDn or wheel to scroll)";
@@ -799,7 +799,17 @@ again:
 
         const bool menu_mouse_click_enabled =
             (expanded_mode ? menu_mouse_scroll_enabled : eb->mouse_reporting_enabled);
-        const char* mouse_suffix = (menu_mouse_click_enabled ? " (Mouse clicking is enabled)" : "");
+        char mouse_suffix[EDIT_STATUS_HINT_BUFFER_LEN];
+        mouse_suffix[0] = '\0';
+        if (menu_mouse_click_enabled) {
+            char mouse_status_text[EDIT_STATUS_HINT_BUFFER_LEN];
+            const bool can_disable_mouse_here = (!expanded_mode && eb->mouse_reporting_enabled);
+            edit_format_mouse_enabled_status_hint(env, can_disable_mouse_here, mouse_status_text,
+                                                  sizeof(mouse_status_text));
+            if (snprintf(mouse_suffix, sizeof(mouse_suffix), " (%s)", mouse_status_text) < 0) {
+                mouse_suffix[0] = '\0';
+            }
+        }
 
         if (visible_start > 0 && visible_end >= visible_start) {
             snprintf(header, sizeof(header), "[ic-info]Showing %zd-%zd of %zd completions%s%s[/]\n",
