@@ -1,6 +1,43 @@
 # cjsh Changelog
 
-This changelog documents tagged releases from `v1.1.2` through `v1.3.0`.
+This changelog documents tagged releases from `v1.1.2` through `v1.3.1`.
+
+## 1.3.1 - 2026-07-04
+
+Range: `v1.3.0..HEAD` (13 commits, 45 files changed)
+
+### Highlights
+
+- Added a new interactive command palette with custom keybinding hooks and palette-only command entries for faster command execution.
+- Introduced status-line controls (`status-reporting` and `status-line-callback`) so users can keep hints while customizing or muting validation output.
+- Expanded mouse-driven editing controls with new runtime toggles and stronger click/scroll handling in completion and history menus.
+
+### Added
+
+- Added a command palette action (`command-palette`) with default `Alt+P` binding and searchable built-in actions.
+- Added `cjshopt keybind ext` support for custom command bindings and palette-only snippets with optional titles.
+- Added `cjshopt status-line-callback` for per-refresh shell-function status messages via `CJSH_STATUS_INPUT` / `CJSH_STATUS_OUTPUT`.
+- Added `cjshopt completion-menu-expanded` to set expanded completion menus as the default behavior.
+- Added `cjshopt mouse-clicking` and `cjshopt mouse-clicking-status-line` to control prompt-level mouse defaults and indicator visibility.
+
+### Changed
+
+- Changed status-line composition to combine callback output, spell hints, and validation summaries with safer refresh/state handling.
+- Updated completion/history/help UI copy and menu headers to surface mouse-active context and improve interaction hints.
+- Refined keybinding and palette plumbing across core/isocline integration for startup-driven customization.
+- Updated documentation for new 1.3.1 `cjshopt` toggles, callback behavior, and command-driven keybinding flows.
+
+### Fixed
+
+- Fixed mouse click cursor placement when hints/completions add extra rendered lines in the editor view.
+- Fixed mouse menu interaction edge cases around completion rendering/scrolling paths.
+- Fixed command-palette entry import bounds/validation in isocline options handling.
+
+### Internal, CI, and Tests
+
+- Added new completion and PTY/isocline coverage for status-line controls, mouse toggles, command palette paths, and expanded completion defaults.
+- Added automated release workflow support (`.github/workflows/release.yml`).
+- Landed cleanup passes in filesystem internals and broad formatting normalization across touched modules.
 
 ## 1.3.0 - 2026-07-02
 
