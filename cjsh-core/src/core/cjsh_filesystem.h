@@ -28,15 +28,13 @@
 
 #pragma once
 
-#include <limits.h>
-#include <unistd.h>
+#include <sys/types.h>
 
-#include <fcntl.h>
-#include <sys/stat.h>
 #include <cstdint>
 #include <ctime>
 #include <filesystem>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -46,16 +44,16 @@ namespace cjsh_filesystem {
 
 struct Error {
     std::string message;
-    explicit Error(const std::string& msg) : message(msg) {
+    explicit Error(std::string msg) : message(std::move(msg)) {
     }
 };
 
 template <typename T>
 class Result {
    public:
-    explicit Result(T value) : value_(std::move(value)), has_value_(true) {
+    explicit Result(T value) : value_(std::move(value)) {
     }
-    explicit Result(const Error& error) : error_(error.message), has_value_(false) {
+    explicit Result(const Error& error) : error_(error.message) {
     }
 
     static Result<T> ok(T value) {
@@ -66,41 +64,39 @@ class Result {
     }
 
     bool is_ok() const {
-        return has_value_;
+        return value_.has_value();
     }
     bool is_error() const {
-        return !has_value_;
+        return !value_.has_value();
     }
 
     const T& value() const {
-        if (!has_value_)
+        if (!value_)
             throw std::runtime_error("Attempted to access value of error Result");
-        return value_;
+        return *value_;
     }
 
     T& value() {
-        if (!has_value_)
+        if (!value_)
             throw std::runtime_error("Attempted to access value of error Result");
-        return value_;
+        return *value_;
     }
 
     const std::string& error() const {
-        if (has_value_)
+        if (value_)
             throw std::runtime_error("Attempted to access error of ok Result");
         return error_;
     }
 
    private:
-    T value_{};
+    std::optional<T> value_;
     std::string error_;
-    bool has_value_;
 };
 
 template <>
 class Result<void> {
    public:
-    Result() : has_value_(true) {
-    }
+    Result() = default;
     explicit Result(const Error& error) : error_(error.message), has_value_(false) {
     }
 
@@ -126,7 +122,7 @@ class Result<void> {
 
    private:
     std::string error_;
-    bool has_value_;
+    bool has_value_{true};
 };
 
 Result<int> safe_open(const std::string& path, int flags, mode_t mode = 0644);

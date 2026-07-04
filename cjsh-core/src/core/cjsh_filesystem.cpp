@@ -28,13 +28,15 @@
 
 #include "cjsh_filesystem.h"
 
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
 #include <algorithm>
 #include <array>
 #include <cerrno>
 #include <chrono>
-#include <cstdio>
 #include <cstdlib>
-#include <cstring>
 #include <mutex>
 #include <optional>
 #include <string_view>
@@ -47,11 +49,6 @@
 #include "parser.h"
 #include "shell.h"
 #include "shell_env.h"
-
-#ifdef __linux__
-#include <linux/limits.h>
-#include <unistd.h>
-#endif
 
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
@@ -97,6 +94,68 @@ std::filesystem::path expand_leading_tilde_path(std::string_view raw_value) {
 
     return candidate;
 }
+
+bool path_exists(const std::filesystem::path& path) {
+    std::error_code ec;
+    return std::filesystem::exists(path, ec) && !ec;
+}
+
+bool path_is_directory(const std::filesystem::path& path) {
+    std::error_code ec;
+    return std::filesystem::is_directory(path, ec) && !ec;
+}
+
+bool path_is_regular_file(const std::filesystem::path& path) {
+    std::error_code ec;
+    return std::filesystem::is_regular_file(path, ec) && !ec;
+}
+
+void close_fd_if_valid(int fd) {
+    if (fd >= 0) {
+        ::close(fd);
+    }
+}
+
+class ScopedFd {
+   public:
+    explicit ScopedFd(int fd = -1) : fd_(fd) {
+    }
+
+    ~ScopedFd() {
+        close_fd_if_valid(fd_);
+    }
+
+    ScopedFd(const ScopedFd&) = delete;
+    ScopedFd& operator=(const ScopedFd&) = delete;
+
+    ScopedFd(ScopedFd&& other) noexcept : fd_(other.release()) {
+    }
+
+    ScopedFd& operator=(ScopedFd&& other) noexcept {
+        if (this != &other) {
+            reset(other.release());
+        }
+        return *this;
+    }
+
+    int get() const {
+        return fd_;
+    }
+
+    int release() {
+        int released = fd_;
+        fd_ = -1;
+        return released;
+    }
+
+    void reset(int fd = -1) {
+        close_fd_if_valid(fd_);
+        fd_ = fd;
+    }
+
+   private:
+    int fd_;
+};
 }  // namespace
 
 std::filesystem::path normalize_override_path(std::string_view raw_value) {
@@ -274,13 +333,11 @@ std::optional<std::filesystem::path> resolve_executable_token(const std::string&
         }
     }
 
-    std::error_code exists_ec;
-    if (!std::filesystem::exists(candidate, exists_ec) || exists_ec) {
+    if (!path_exists(candidate)) {
         return std::nullopt;
     }
 
-    std::error_code file_ec;
-    if (std::filesystem::is_directory(candidate, file_ec) || file_ec) {
+    if (path_is_directory(candidate)) {
         return std::nullopt;
     }
 
@@ -288,13 +345,11 @@ std::optional<std::filesystem::path> resolve_executable_token(const std::string&
 }
 
 bool path_is_executable(const std::filesystem::path& candidate) {
-    std::error_code ec;
-
-    if (!std::filesystem::exists(candidate, ec) || ec) {
+    if (!path_exists(candidate)) {
         return false;
     }
 
-    if (std::filesystem::is_directory(candidate, ec) || ec) {
+    if (path_is_directory(candidate)) {
         return false;
     }
 
@@ -333,102 +388,8 @@ struct CachedExecutable {
     bool manually_added{false};
 };
 
-std::mutex g_path_hash_mutex;
-std::unordered_map<std::string, CachedExecutable> g_path_hash_entries;
-std::string g_path_snapshot;
-bool g_path_hash_seeded = false;
-
-void seed_path_hash_locked(const std::string& path_value) {
-    if (g_path_hash_seeded || path_value.empty()) {
-        return;
-    }
-
-    auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-
-    for_each_path_segment(path_value, [&](std::string_view raw_segment) {
-        if (raw_segment.empty()) {
-            return false;
-        }
-
-        std::filesystem::path directory_path(raw_segment);
-        std::error_code ec;
-
-        if (!std::filesystem::exists(directory_path, ec) || ec) {
-            ec.clear();
-            return false;
-        }
-
-        if (!std::filesystem::is_directory(directory_path, ec) || ec) {
-            ec.clear();
-            return false;
-        }
-
-        std::filesystem::directory_iterator it(
-            directory_path, std::filesystem::directory_options::skip_permission_denied, ec);
-        if (ec) {
-            ec.clear();
-            return false;
-        }
-
-        for (; it != std::filesystem::directory_iterator(); it.increment(ec)) {
-            if (ec) {
-                ec.clear();
-                break;
-            }
-
-            const auto& entry = *it;
-            auto status = entry.status(ec);
-            if (ec) {
-                ec.clear();
-                continue;
-            }
-
-            if (!std::filesystem::is_regular_file(status)) {
-                continue;
-            }
-
-            auto perms = status.permissions();
-            constexpr auto exec_mask = std::filesystem::perms::owner_exec |
-                                       std::filesystem::perms::group_exec |
-                                       std::filesystem::perms::others_exec;
-
-            if ((perms & exec_mask) == std::filesystem::perms::none) {
-                continue;
-            }
-
-            std::string exec_name = entry.path().filename().string();
-            if (g_path_hash_entries.find(exec_name) != g_path_hash_entries.end()) {
-                continue;
-            }
-
-            CachedExecutable cache_entry;
-            cache_entry.path = entry.path().string();
-            cache_entry.hits = 0;
-            cache_entry.last_used = now;
-            cache_entry.manually_added = false;
-            g_path_hash_entries.emplace(std::move(exec_name), std::move(cache_entry));
-        }
-
-        return false;
-    });
-
-    g_path_hash_seeded = true;
-}
-
 std::string current_path_env_value() {
     return cjsh_env::get_shell_variable_value("PATH");
-}
-
-void ensure_path_snapshot_locked(const std::string& current_path) {
-    if (current_path != g_path_snapshot) {
-        g_path_hash_entries.clear();
-        g_path_snapshot = current_path;
-        g_path_hash_seeded = false;
-    }
-}
-
-bool entry_is_valid(const CachedExecutable& entry) {
-    return path_is_executable(entry.path);
 }
 
 bool is_cacheable_command(const std::string& name) {
@@ -466,52 +427,202 @@ std::string scan_path_for_command(const std::string& name, std::string_view path
     return resolved;
 }
 
+class PathHashCache {
+   public:
+    std::string resolve(const std::string& name, CacheUsage usage) {
+        std::string current_path = current_path_env_value();
+        std::lock_guard<std::mutex> lock(mutex_);
+        ensure_snapshot_locked(current_path);
+
+        auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+
+        auto it = entries_.find(name);
+        if (it != entries_.end()) {
+            if (entry_is_valid(it->second)) {
+                if (usage == CacheUsage::Execution) {
+                    it->second.hits++;
+                }
+                if (usage == CacheUsage::Manual) {
+                    it->second.manually_added = true;
+                }
+                it->second.last_used = now;
+                return it->second.path;
+            }
+            entries_.erase(it);
+        }
+
+        if (current_path.empty()) {
+            return {};
+        }
+
+        std::string resolved = scan_path_for_command(name, current_path);
+        if (!resolved.empty()) {
+            CachedExecutable entry;
+            entry.path = resolved;
+            entry.hits = (usage == CacheUsage::Execution) ? 1 : 0;
+            entry.manually_added = (usage == CacheUsage::Manual);
+            entry.last_used = now;
+            entries_[name] = std::move(entry);
+        }
+
+        return resolved;
+    }
+
+    std::vector<std::string> executables_in_path() {
+        std::string current_path = current_path_env_value();
+        std::lock_guard<std::mutex> lock(mutex_);
+        ensure_snapshot_locked(current_path);
+        seed_locked(current_path);
+
+        std::vector<std::string> executables;
+        executables.reserve(entries_.size());
+        for (const auto& [command, entry] : entries_) {
+            (void)entry;
+            executables.push_back(command);
+        }
+
+        return executables;
+    }
+
+    std::vector<PathHashEntry> entries() {
+        std::string current_path = current_path_env_value();
+        std::lock_guard<std::mutex> lock(mutex_);
+        ensure_snapshot_locked(current_path);
+
+        std::vector<PathHashEntry> snapshot;
+        snapshot.reserve(entries_.size());
+        for (const auto& [command, entry] : entries_) {
+            snapshot.push_back(
+                {command, entry.path, entry.hits, entry.last_used, entry.manually_added});
+        }
+
+        std::sort(snapshot.begin(), snapshot.end(), [](const PathHashEntry& lhs,
+                                                       const PathHashEntry& rhs) {
+            if (lhs.hits == rhs.hits) {
+                return lhs.command < rhs.command;
+            }
+            return lhs.hits > rhs.hits;
+        });
+
+        return snapshot;
+    }
+
+    void reset() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        entries_.clear();
+        path_snapshot_ = current_path_env_value();
+        seeded_ = false;
+    }
+
+   private:
+    static bool entry_is_valid(const CachedExecutable& entry) {
+        return path_is_executable(entry.path);
+    }
+
+    void ensure_snapshot_locked(const std::string& current_path) {
+        if (current_path != path_snapshot_) {
+            entries_.clear();
+            path_snapshot_ = current_path;
+            seeded_ = false;
+        }
+    }
+
+    void seed_locked(const std::string& path_value) {
+        if (seeded_ || path_value.empty()) {
+            return;
+        }
+
+        auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+
+        for_each_path_segment(path_value, [&](std::string_view raw_segment) {
+            if (raw_segment.empty()) {
+                return false;
+            }
+
+            std::filesystem::path directory_path(raw_segment);
+            if (!path_is_directory(directory_path)) {
+                return false;
+            }
+
+            std::error_code ec;
+            std::filesystem::directory_iterator it(
+                directory_path, std::filesystem::directory_options::skip_permission_denied, ec);
+            if (ec) {
+                return false;
+            }
+
+            for (; it != std::filesystem::directory_iterator(); it.increment(ec)) {
+                if (ec) {
+                    break;
+                }
+
+                const auto& entry = *it;
+                auto status = entry.status(ec);
+                if (ec) {
+                    ec.clear();
+                    continue;
+                }
+
+                if (!std::filesystem::is_regular_file(status)) {
+                    continue;
+                }
+
+                auto perms = status.permissions();
+                constexpr auto exec_mask = std::filesystem::perms::owner_exec |
+                                           std::filesystem::perms::group_exec |
+                                           std::filesystem::perms::others_exec;
+                if ((perms & exec_mask) == std::filesystem::perms::none) {
+                    continue;
+                }
+
+                std::string command = entry.path().filename().string();
+                if (entries_.find(command) != entries_.end()) {
+                    continue;
+                }
+
+                entries_.emplace(std::move(command),
+                                 CachedExecutable{entry.path().string(), 0, now, false});
+            }
+
+            return false;
+        });
+
+        seeded_ = true;
+    }
+
+    std::mutex mutex_;
+    std::unordered_map<std::string, CachedExecutable> entries_;
+    std::string path_snapshot_;
+    bool seeded_{false};
+};
+
+PathHashCache g_path_hash_cache;
+
+PathHashCache& path_hash_cache() {
+    return g_path_hash_cache;
+}
+
 std::string resolve_command_with_cache(const std::string& name, CacheUsage usage) {
     if (!is_cacheable_command(name)) {
         return resolve_explicit_command(name);
     }
 
-    std::string current_path = current_path_env_value();
-    std::lock_guard<std::mutex> lock(g_path_hash_mutex);
-    ensure_path_snapshot_locked(current_path);
+    return path_hash_cache().resolve(name, usage);
+}
 
-    auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+std::vector<std::string> get_executables_from_path_cache() {
+    return path_hash_cache().executables_in_path();
+}
 
-    auto it = g_path_hash_entries.find(name);
-    if (it != g_path_hash_entries.end()) {
-        if (entry_is_valid(it->second)) {
-            if (usage == CacheUsage::Execution) {
-                it->second.hits++;
-            }
-            if (usage == CacheUsage::Manual) {
-                it->second.manually_added = true;
-            }
-            it->second.last_used = now;
-            return it->second.path;
-        }
-        g_path_hash_entries.erase(it);
-    }
+std::vector<PathHashEntry> get_entries_from_path_cache() {
+    return path_hash_cache().entries();
+}
 
-    if (current_path.empty()) {
-        return {};
-    }
-
-    std::string resolved = scan_path_for_command(name, current_path);
-    if (!resolved.empty()) {
-        CachedExecutable entry;
-        entry.path = resolved;
-        entry.hits = (usage == CacheUsage::Execution) ? 1 : 0;
-        entry.manually_added = (usage == CacheUsage::Manual);
-        entry.last_used = now;
-        g_path_hash_entries[name] = std::move(entry);
-    }
-
-    return resolved;
+void reset_path_cache_entries() {
+    path_hash_cache().reset();
 }
 
 }  // namespace
-
-std::filesystem::path g_cjsh_path;
 
 std::string safe_current_directory() {
     char* cwd = ::getcwd(nullptr, 0);
@@ -597,9 +708,7 @@ Result<void> safe_dup2(int oldfd, int newfd) {
 }
 
 void safe_close(int fd) {
-    if (fd >= 0) {
-        ::close(fd);
-    }
+    close_fd_if_valid(fd);
 }
 
 Result<void> redirect_fd(const std::string& file, int target_fd, int flags) {
@@ -608,14 +717,15 @@ Result<void> redirect_fd(const std::string& file, int target_fd, int flags) {
         return Result<void>::error(open_result.error());
     }
 
-    int file_fd = open_result.value();
+    ScopedFd file_fd(open_result.value());
+    if (file_fd.get() == target_fd) {
+        (void)file_fd.release();
+        return Result<void>::ok();
+    }
 
-    if (file_fd != target_fd) {
-        auto dup_result = safe_dup2(file_fd, target_fd);
-        safe_close(file_fd);
-        if (dup_result.is_error()) {
-            return dup_result;
-        }
+    auto dup_result = safe_dup2(file_fd.get(), target_fd);
+    if (dup_result.is_error()) {
+        return dup_result;
     }
 
     return Result<void>::ok();
@@ -641,19 +751,21 @@ Result<void> create_pipe_cloexec(int pipe_fds[2]) {
         return Result<void>::error("failed to create pipe: " + describe_errno(errno));
     }
 
-    auto read_result = set_close_on_exec(pipe_fds[0]);
+    ScopedFd read_end(pipe_fds[0]);
+    ScopedFd write_end(pipe_fds[1]);
+
+    auto read_result = set_close_on_exec(read_end.get());
     if (read_result.is_error()) {
-        safe_close(pipe_fds[0]);
-        safe_close(pipe_fds[1]);
         return Result<void>::error("failed to secure pipe read end: " + read_result.error());
     }
 
-    auto write_result = set_close_on_exec(pipe_fds[1]);
+    auto write_result = set_close_on_exec(write_end.get());
     if (write_result.is_error()) {
-        safe_close(pipe_fds[0]);
-        safe_close(pipe_fds[1]);
         return Result<void>::error("failed to secure pipe write end: " + write_result.error());
     }
+
+    pipe_fds[0] = read_end.release();
+    pipe_fds[1] = write_end.release();
 
     return Result<void>::ok();
 }
@@ -661,8 +773,16 @@ Result<void> create_pipe_cloexec(int pipe_fds[2]) {
 Result<void> duplicate_pipe_read_end_to_fd(int (&pipe_fds)[2], int target_fd) {
     safe_close(pipe_fds[1]);
 
+    if (pipe_fds[0] == target_fd) {
+        pipe_fds[1] = -1;
+        pipe_fds[0] = -1;
+        return Result<void>::ok();
+    }
+
     auto dup_result = safe_dup2(pipe_fds[0], target_fd);
     safe_close(pipe_fds[0]);
+    pipe_fds[1] = -1;
+    pipe_fds[0] = -1;
     if (dup_result.is_error()) {
         return Result<void>::error(dup_result.error());
     }
@@ -673,6 +793,8 @@ Result<void> duplicate_pipe_read_end_to_fd(int (&pipe_fds)[2], int target_fd) {
 void close_pipe(int pipe_fds[2]) {
     safe_close(pipe_fds[0]);
     safe_close(pipe_fds[1]);
+    pipe_fds[0] = -1;
+    pipe_fds[1] = -1;
 }
 
 namespace {
@@ -683,19 +805,17 @@ Result<void> write_content_with_permissions(const std::string& path, std::string
         return Result<void>::error(open_result.error());
     }
 
-    int fd = open_result.value();
+    ScopedFd fd(open_result.value());
 
     if (enforce_secure_permissions) {
-        if (::fchmod(fd, S_IRUSR | S_IWUSR) == -1) {
+        if (::fchmod(fd.get(), S_IRUSR | S_IWUSR) == -1) {
             std::string error_message =
                 "Failed to set secure permissions on '" + path + "': " + describe_errno(errno);
-            safe_close(fd);
             return Result<void>::error(error_message);
         }
     }
 
-    auto write_result = write_all(fd, content);
-    safe_close(fd);
+    auto write_result = write_all(fd.get(), content);
 
     if (write_result.is_error()) {
         return Result<void>::error(write_result.error());
@@ -824,14 +944,11 @@ bool path_is_directory_candidate(const std::string& value, const std::string& cw
     }
 
     std::filesystem::path candidate(value);
-    std::error_code ec;
-
     if (!candidate.is_absolute()) {
         candidate = std::filesystem::path(cwd) / candidate;
     }
 
-    return std::filesystem::exists(candidate, ec) && !ec &&
-           std::filesystem::is_directory(candidate, ec) && !ec;
+    return path_is_directory(candidate);
 }
 
 bool token_has_explicit_path_hint(const std::string& value) {
@@ -860,16 +977,8 @@ std::filesystem::path expand_shell_path_token(const std::string& value, const st
         return std::filesystem::path(previous_directory);
     }
 
-    if (value == "~") {
-        return g_user_home_path();
-    }
-
-    if (value.rfind("~/", 0) == 0) {
-        std::filesystem::path candidate = g_user_home_path();
-        if (value.size() > 2) {
-            candidate /= value.substr(2);
-        }
-        return candidate;
+    if (value == "~" || value.rfind("~/", 0) == 0) {
+        return expand_leading_tilde_path(value);
     }
 
     if (value.rfind("-/", 0) == 0) {
@@ -902,9 +1011,7 @@ std::string resolve_shell_token_path(const std::string& value, const std::string
 }
 
 bool is_directory_path(const std::filesystem::path& path) {
-    std::error_code ec;
-    return std::filesystem::exists(path, ec) && !ec && std::filesystem::is_directory(path, ec) &&
-           !ec;
+    return path_is_directory(path);
 }
 
 std::string resolve_existing_shell_directory_token(const std::string& value, const std::string& cwd,
@@ -951,18 +1058,25 @@ Result<std::string> read_file_content(const std::string& path) {
         return Result<std::string>::error(open_result.error());
     }
 
-    int fd = open_result.value();
+    ScopedFd fd(open_result.value());
     std::string content;
     char buffer[4096];
-    ssize_t bytes_read = 0;
 
-    while ((bytes_read = read(fd, buffer, sizeof(buffer))) > 0) {
-        content.append(buffer, static_cast<size_t>(bytes_read));
-    }
+    while (true) {
+        ssize_t bytes_read = ::read(fd.get(), buffer, sizeof(buffer));
+        if (bytes_read > 0) {
+            content.append(buffer, static_cast<size_t>(bytes_read));
+            continue;
+        }
 
-    safe_close(fd);
+        if (bytes_read == 0) {
+            break;
+        }
 
-    if (bytes_read < 0) {
+        if (errno == EINTR) {
+            continue;
+        }
+
         return Result<std::string>::error("Failed to read from file '" + path +
                                           "': " + describe_errno(errno));
     }
@@ -971,80 +1085,73 @@ Result<std::string> read_file_content(const std::string& path) {
 }
 
 std::vector<std::string> get_executables_in_path() {
-    std::vector<std::string> executables;
-
-    std::lock_guard<std::mutex> lock(g_path_hash_mutex);
-    std::string current_path = current_path_env_value();
-    ensure_path_snapshot_locked(current_path);
-    seed_path_hash_locked(current_path);
-
-    executables.reserve(g_path_hash_entries.size());
-    for (const auto& entry : g_path_hash_entries) {
-        executables.push_back(entry.first);
-    }
-
-    return executables;
+    return get_executables_from_path_cache();
 }
 
 bool file_exists(const std::filesystem::path& path) {
-    return std::filesystem::exists(path);
+    return path_exists(path);
 }
 
 bool initialize_cjsh_directories() {
-    std::string current_path = safe_current_directory();
-    cjsh_env::set_shell_variable_value("PWD", current_path);
+    cjsh_env::set_shell_variable_value("PWD", safe_current_directory());
 
-    try {
-        bool home_exists = file_exists(g_user_home_path());
-
-        if (!home_exists) {
-            print_error({ErrorType::FATAL_ERROR,
-                         "",
-                         "User home path not found",
-                         {"Set $HOME to an existing directory.",
-                          "Create the home directory and try again."}});
-            return false;
-        }
-        std::filesystem::create_directories(g_cjsh_config_path());
-        std::filesystem::create_directories(g_cjsh_cache_path());
-        std::filesystem::create_directories(g_cjsh_generated_completions_path());
-        if (config::history_enabled) {
-            const auto& history_path = g_cjsh_history_path();
-            const auto history_parent = history_path.parent_path();
-
-            if (!history_parent.empty()) {
-                std::error_code history_dir_error;
-                std::filesystem::create_directories(history_parent, history_dir_error);
-                if (history_dir_error) {
-                    print_error(
-                        {ErrorType::RUNTIME_ERROR,
-                         history_parent.string(),
-                         "Failed to prepare history directory: " + history_dir_error.message(),
-                         {"Check CJSH_HISTORY_FILE or adjust permissions"}});
-                    return false;
-                }
-            }
-
-            bool history_exists = file_exists(history_path);
-
-            if (!history_exists) {
-                auto write_result = write_file_content(history_path.string(), "");
-                if (!write_result.is_ok()) {
-                    print_error(
-                        {ErrorType::RUNTIME_ERROR, history_path.c_str(), write_result.error(), {}});
-                    return false;
-                }
-            }
-        }
-
-    } catch (const std::exception& e) {
+    if (!path_is_directory(g_user_home_path())) {
         print_error({ErrorType::FATAL_ERROR,
                      "",
-                     "Failed to initialize interactive filesystem",
+                     "User home path not found",
+                     {"Set $HOME to an existing directory.",
+                      "Create the home directory and try again."}});
+        return false;
+    }
+
+    auto create_directory_or_report = [](const std::filesystem::path& directory) {
+        std::error_code ec;
+        std::filesystem::create_directories(directory, ec);
+        if (!ec) {
+            return true;
+        }
+
+        print_error({ErrorType::FATAL_ERROR,
+                     directory.string(),
+                     "Failed to initialize interactive filesystem: " + ec.message(),
                      {"Ensure $HOME exists and is writable.",
                       "Check permissions for ~/.config/cjsh and ~/.cache/cjsh."}});
         return false;
+    };
+
+    if (!create_directory_or_report(g_cjsh_config_path()) ||
+        !create_directory_or_report(g_cjsh_cache_path()) ||
+        !create_directory_or_report(g_cjsh_generated_completions_path())) {
+        return false;
     }
+
+    if (!config::history_enabled) {
+        return true;
+    }
+
+    const auto& history_path = g_cjsh_history_path();
+    const auto history_parent = history_path.parent_path();
+
+    if (!history_parent.empty()) {
+        std::error_code history_dir_error;
+        std::filesystem::create_directories(history_parent, history_dir_error);
+        if (history_dir_error) {
+            print_error({ErrorType::RUNTIME_ERROR,
+                         history_parent.string(),
+                         "Failed to prepare history directory: " + history_dir_error.message(),
+                         {"Check CJSH_HISTORY_FILE or adjust permissions"}});
+            return false;
+        }
+    }
+
+    if (!file_exists(history_path)) {
+        auto write_result = write_file_content(history_path.string(), "");
+        if (!write_result.is_ok()) {
+            print_error({ErrorType::RUNTIME_ERROR, history_path.c_str(), write_result.error(), {}});
+            return false;
+        }
+    }
+
     return true;
 }
 
@@ -1150,29 +1257,11 @@ bool hash_executable(const std::string& name, std::string* resolved_path) {
 }
 
 std::vector<PathHashEntry> get_path_hash_entries() {
-    std::string current_path = current_path_env_value();
-    std::lock_guard<std::mutex> lock(g_path_hash_mutex);
-    ensure_path_snapshot_locked(current_path);
-    std::vector<PathHashEntry> entries;
-    entries.reserve(g_path_hash_entries.size());
-    for (const auto& [command, entry] : g_path_hash_entries) {
-        entries.push_back({command, entry.path, entry.hits, entry.last_used, entry.manually_added});
-    }
-    std::sort(entries.begin(), entries.end(),
-              [](const PathHashEntry& lhs, const PathHashEntry& rhs) {
-                  if (lhs.hits == rhs.hits) {
-                      return lhs.command < rhs.command;
-                  }
-                  return lhs.hits > rhs.hits;
-              });
-    return entries;
+    return get_entries_from_path_cache();
 }
 
 void reset_path_hash() {
-    std::lock_guard<std::mutex> lock(g_path_hash_mutex);
-    g_path_hash_entries.clear();
-    g_path_snapshot = current_path_env_value();
-    g_path_hash_seeded = false;
+    reset_path_cache_entries();
 }
 
 namespace {
@@ -1201,79 +1290,85 @@ bool write_configuration_file(const std::filesystem::path& target_path,
     return true;
 }
 
+bool startup_file_is_usable(const std::filesystem::path& candidate, bool require_regular_file) {
+    return require_regular_file ? path_is_regular_file(candidate) : file_exists(candidate);
+}
+
+bool execute_startup_file_if_present(const std::filesystem::path& path, bool require_regular_file,
+                                     bool optional_mode) {
+    if (!startup_file_is_usable(path, require_regular_file)) {
+        return false;
+    }
+
+    g_shell->execute_script_file(path, optional_mode);
+    return true;
+}
+
 bool process_startup_file_with_fallback(const std::filesystem::path& primary,
                                         const std::filesystem::path& alternate,
                                         bool require_regular_file, bool optional_mode) {
-    auto exists_and_usable = [&](const std::filesystem::path& candidate) {
-        if (require_regular_file) {
-            std::error_code status_ec;
-            auto status = std::filesystem::status(candidate, status_ec);
-            return !status_ec && std::filesystem::is_regular_file(status);
-        }
-        return file_exists(candidate);
-    };
+    return execute_startup_file_if_present(primary, require_regular_file, optional_mode) ||
+           execute_startup_file_if_present(alternate, require_regular_file, optional_mode);
+}
 
-    if (exists_and_usable(primary)) {
-        g_shell->execute_script_file(primary, optional_mode);
-        return true;
-    }
+bool create_default_startup_file(const std::filesystem::path& target_path,
+                                 std::string_view file_label,
+                                 std::string_view load_description) {
+    std::string content;
+    content.reserve(128 + file_label.size() + load_description.size());
+    content.append("#!/usr/bin/env cjsh\n");
+    content.append("# cjsh ");
+    content.append(file_label);
+    content.append("\n# ");
+    content.append(load_description);
+    content.push_back('\n');
 
-    if (exists_and_usable(alternate)) {
-        g_shell->execute_script_file(alternate, optional_mode);
-        return true;
-    }
+    return write_configuration_file(target_path, content);
+}
 
-    return false;
+bool startup_files_disabled() {
+    return config::secure_mode || config::posix_mode;
 }
 }  // namespace
 
 bool create_profile_file(const std::filesystem::path& target_path) {
-    std::string profile_content =
-        "#!/usr/bin/env cjsh\n"
-        "# cjsh Configuration File\n"
-        "# this file is sourced when the shell starts in login mode\n";
-    return write_configuration_file(target_path, profile_content);
+    return create_default_startup_file(target_path,
+                                       "Configuration File",
+                                       "this file is sourced when the shell starts in login mode");
 }
 
 bool create_env_file(const std::filesystem::path& target_path) {
-    std::string env_content =
-        "#!/usr/bin/env cjsh\n"
-        "# cjsh Environment File\n"
-        "# this file is sourced for every shell start before login/interactive setup\n";
-    return write_configuration_file(target_path, env_content);
+    return create_default_startup_file(
+        target_path,
+        "Environment File",
+        "this file is sourced for every shell start before login/interactive setup");
 }
 
 bool create_source_file(const std::filesystem::path& target_path) {
-    std::string source_content =
-        "#!/usr/bin/env cjsh\n"
-        "# cjsh Source File\n"
-        "# this file is sourced when the shell starts in interactive mode\n";
-    return write_configuration_file(target_path, source_content);
+    return create_default_startup_file(
+        target_path, "Source File", "this file is sourced when the shell starts in interactive mode");
 }
 
 bool create_logout_file(const std::filesystem::path& target_path) {
-    std::string logout_content =
-        "#!/usr/bin/env cjsh\n"
-        "# cjsh Logout File\n"
-        "# this file is sourced when the shell exits from a login "
-        "session\n";
-    return write_configuration_file(target_path, logout_content);
+    return create_default_startup_file(
+        target_path, "Logout File", "this file is sourced when the shell exits from a login session");
 }
 
 bool is_first_boot() {
-    return !std::filesystem::exists(g_cjsh_first_boot_path());
+    return !file_exists(g_cjsh_first_boot_path());
 }
 
 void process_profile_files() {
-    if (config::secure_mode || config::posix_mode) {
+    if (startup_files_disabled()) {
         return;
     }
+
     process_startup_file_with_fallback(g_cjsh_profile_path(), g_cjsh_profile_alt_path(), false,
                                        true);
 }
 
 void process_env_files() {
-    if (config::secure_mode || config::posix_mode) {
+    if (startup_files_disabled()) {
         return;
     }
 
@@ -1282,9 +1377,7 @@ void process_env_files() {
         if (!env_override.empty()) {
             std::filesystem::path override_path = normalize_override_path(env_override);
 
-            std::error_code status_ec;
-            auto status = std::filesystem::status(override_path, status_ec);
-            if (!status_ec && std::filesystem::is_regular_file(status)) {
+            if (path_is_regular_file(override_path)) {
                 g_shell->execute_script_file(override_path, true);
             }
             return;
@@ -1295,15 +1388,18 @@ void process_env_files() {
 }
 
 void process_logout_file() {
-    if (!config::secure_mode && !config::posix_mode &&
-        (config::interactive_mode || config::force_interactive)) {
-        process_startup_file_with_fallback(g_cjsh_logout_path(), g_cjsh_logout_alt_path(), false,
-                                           true);
+    if (startup_files_disabled()) {
+        return;
+    }
+
+    if (config::interactive_mode || config::force_interactive) {
+        process_startup_file_with_fallback(
+            g_cjsh_logout_path(), g_cjsh_logout_alt_path(), false, true);
     }
 }
 
 void process_source_files() {
-    if (!config::source_enabled || config::secure_mode || config::posix_mode) {
+    if (!config::source_enabled || startup_files_disabled()) {
         return;
     }
 
