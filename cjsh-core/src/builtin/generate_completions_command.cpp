@@ -48,6 +48,190 @@
 #include "external_sub_completions.h"
 #include "shell_env.h"
 
+namespace {
+
+constexpr const char kCommandName[] = "generate-completions";
+constexpr std::size_t kFallbackDefaultJobs = 4;
+
+struct GenerateCompletionsOptions {
+    bool quiet{false};
+    bool force_refresh{true};
+    bool include_subcommands{false};
+    std::size_t requested_jobs{0};
+    std::vector<std::string> targets;
+};
+
+void print_invalid_option_error(const std::string& option) {
+    print_error({ErrorType::INVALID_ARGUMENT,
+                 kCommandName,
+                 "invalid option: " + option,
+                 {"Use --help for usage."}});
+}
+
+void print_invalid_jobs_argument(const std::string& option_name, const std::string& value) {
+    print_error({ErrorType::INVALID_ARGUMENT,
+                 kCommandName,
+                 "invalid argument for " + option_name + ": " + value,
+                 {"Use a positive integer."}});
+}
+
+void print_missing_jobs_argument(const std::string& option_name) {
+    print_error({ErrorType::INVALID_ARGUMENT,
+                 kCommandName,
+                 "missing value for " + option_name,
+                 {"Use " + option_name + " <count> with a positive integer."}});
+}
+
+bool parse_job_count(const std::string& value, std::size_t& parsed_jobs) {
+    if (value.empty())
+        return false;
+
+    std::size_t consumed = 0;
+    try {
+        const unsigned long long raw = std::stoull(value, &consumed);
+        if (consumed != value.size() || raw == 0 ||
+            raw > static_cast<unsigned long long>(std::numeric_limits<std::size_t>::max())) {
+            return false;
+        }
+        parsed_jobs = static_cast<std::size_t>(raw);
+        return true;
+    } catch (const std::exception&) {
+        return false;
+    }
+}
+
+int parse_generate_completions_options(const std::vector<std::string>& args,
+                                       GenerateCompletionsOptions& options) {
+    bool after_separator = false;
+
+    for (std::size_t i = 1; i < args.size(); ++i) {
+        const std::string& arg = args[i];
+        if (!after_separator && !arg.empty() && arg[0] == '-') {
+            if (arg == "--") {
+                after_separator = true;
+                continue;
+            }
+            if (arg == "--force" || arg == "-f") {
+                options.force_refresh = true;
+                continue;
+            }
+            if (arg == "--no-force") {
+                options.force_refresh = false;
+                continue;
+            }
+            if (arg == "--quiet" || arg == "-q") {
+                options.quiet = true;
+                continue;
+            }
+            if (arg == "--subcommands" || arg == "-s") {
+                options.include_subcommands = true;
+                continue;
+            }
+            if (arg == "--jobs" || arg == "-j") {
+                if (i + 1 >= args.size()) {
+                    print_missing_jobs_argument(arg);
+                    return 2;
+                }
+
+                ++i;
+                if (!parse_job_count(args[i], options.requested_jobs)) {
+                    print_invalid_jobs_argument(arg, args[i]);
+                    return 2;
+                }
+                continue;
+            }
+            if (arg.rfind("--jobs=", 0) == 0) {
+                const std::string value = arg.substr(7);
+                if (value.empty()) {
+                    print_missing_jobs_argument("--jobs");
+                    return 2;
+                }
+                if (!parse_job_count(value, options.requested_jobs)) {
+                    print_invalid_jobs_argument("--jobs", value);
+                    return 2;
+                }
+                continue;
+            }
+            if (arg.size() > 2 && arg[0] == '-' && arg[1] == 'j') {
+                const std::string value = arg.substr(2);
+                if (value.empty()) {
+                    print_missing_jobs_argument("-j");
+                    return 2;
+                }
+                if (!parse_job_count(value, options.requested_jobs)) {
+                    print_invalid_jobs_argument("-j", value);
+                    return 2;
+                }
+                continue;
+            }
+
+            print_invalid_option_error(arg);
+            return 2;
+        }
+
+        options.targets.push_back(arg);
+    }
+
+    return 0;
+}
+
+std::size_t resolve_job_count(std::size_t requested_jobs, std::size_t target_count) {
+    std::size_t job_count = requested_jobs;
+    if (job_count == 0) {
+        const unsigned int hardware_threads = std::thread::hardware_concurrency();
+        job_count = hardware_threads == 0 ? kFallbackDefaultJobs
+                                          : static_cast<std::size_t>(hardware_threads);
+    }
+
+    if (job_count == 0)
+        job_count = 1;
+
+    if (target_count > 0)
+        job_count = std::min(job_count, target_count);
+
+    if (job_count == 0)
+        job_count = 1;
+
+    return job_count;
+}
+
+void print_target_result_line(const std::string& target_name, bool generated, bool is_root_target) {
+    if (generated) {
+        std::cout << "  [OK] " << target_name;
+    } else {
+        std::cout << "  [WARN] " << target_name << " (no manual entry or unable to generate)";
+    }
+
+    if (!is_root_target)
+        std::cout << " (subcommand cache)";
+
+    std::cout << std::endl;
+}
+
+void report_target_result(bool quiet, std::mutex* output_mutex, const std::string& target_name,
+                          bool generated, bool is_root_target) {
+    if (quiet)
+        return;
+
+    if (output_mutex != nullptr) {
+        std::lock_guard<std::mutex> lock(*output_mutex);
+        print_target_result_line(target_name, generated, is_root_target);
+        return;
+    }
+
+    print_target_result_line(target_name, generated, is_root_target);
+}
+
+int interrupt_exit_code() {
+#ifdef SIGINT
+    return 128 + SIGINT;
+#else
+    return 130;
+#endif
+}
+
+} // namespace
+
 // NOLINTBEGIN(performance-avoid-endl)
 int generate_completions_command(const std::vector<std::string>& args, Shell* shell) {
     auto run = [&]() -> int {
@@ -67,146 +251,42 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
         }
 
         if (!config::completions_enabled) {
-            print_error({ErrorType::RUNTIME_ERROR,
-                         "generate-completions",
-                         "completions are disabled in the current shell configuration",
-                         {}});
+            print_error({ErrorType::RUNTIME_ERROR, kCommandName,
+                         "completions are disabled in the current shell configuration", {}});
             return 1;
         }
 
-        bool quiet = false;
-        bool force_refresh = true;
-        bool include_subcommands = false;
-        bool after_separator = false;
-        std::size_t requested_jobs = 0;
-        std::vector<std::string> targets;
-
-        auto set_job_count = [&](const std::string& value) -> bool {
-            if (value.empty())
-                return false;
-            std::size_t parsed = 0;
-            try {
-                unsigned long raw = std::stoul(value);
-                if (raw == 0 || raw > std::numeric_limits<std::size_t>::max())
-                    return false;
-                parsed = static_cast<std::size_t>(raw);
-            } catch (const std::exception&) {
-                return false;
-            }
-            if (parsed == 0)
-                return false;
-            requested_jobs = parsed;
-            return true;
-        };
-
-        for (std::size_t i = 1; i < args.size(); ++i) {
-            const std::string& arg = args[i];
-            if (!after_separator && !arg.empty() && arg[0] == '-') {
-                if (arg == "--") {
-                    after_separator = true;
-                    continue;
-                }
-                if (arg == "--force" || arg == "-f") {
-                    force_refresh = true;
-                    continue;
-                }
-                if (arg == "--no-force") {
-                    force_refresh = false;
-                    continue;
-                }
-                if (arg == "--quiet" || arg == "-q") {
-                    quiet = true;
-                    continue;
-                }
-                if (arg == "--subcommands" || arg == "-s") {
-                    include_subcommands = true;
-                    continue;
-                }
-                if (arg == "--jobs" || arg == "-j") {
-                    if (i + 1 >= args.size()) {
-                        continue;
-                    }
-                    ++i;
-                    if (!set_job_count(args[i])) {
-                        print_error({ErrorType::INVALID_ARGUMENT,
-                                     "generate-completions",
-                                     "invalid argument for --jobs: " + args[i],
-                                     {"Use a positive integer."}});
-                        return 2;
-                    }
-                    continue;
-                }
-                if (arg.rfind("--jobs=", 0) == 0) {
-                    std::string value = arg.substr(7);
-                    if (value.empty()) {
-                        continue;
-                    }
-                    if (!set_job_count(value)) {
-                        print_error({ErrorType::INVALID_ARGUMENT,
-                                     "generate-completions",
-                                     "invalid argument for --jobs: " + value,
-                                     {"Use a positive integer."}});
-                        return 2;
-                    }
-                    continue;
-                }
-                if (arg.size() > 2 && arg[0] == '-' && arg[1] == 'j') {
-                    std::string value = arg.substr(2);
-                    if (value.empty()) {
-                        print_error({ErrorType::INVALID_ARGUMENT,
-                                     "generate-completions",
-                                     "missing value for -j",
-                                     {"Use -j <count> with a positive integer."}});
-                        return 2;
-                    }
-                    if (!set_job_count(value)) {
-                        print_error({ErrorType::INVALID_ARGUMENT,
-                                     "generate-completions",
-                                     "invalid argument for -j: " + value,
-                                     {"Use a positive integer."}});
-                        return 2;
-                    }
-                    continue;
-                }
-                print_error({ErrorType::INVALID_ARGUMENT,
-                             "generate-completions",
-                             "invalid option: " + arg,
-                             {"Use --help for usage."}});
-                return 2;
-            }
-            targets.push_back(arg);
-        }
+        GenerateCompletionsOptions options;
+        const int parse_status = parse_generate_completions_options(args, options);
+        if (parse_status != 0)
+            return parse_status;
 
         if (!cjsh_filesystem::initialize_cjsh_directories()) {
-            print_error({ErrorType::RUNTIME_ERROR,
-                         "generate-completions",
-                         "failed to initialize cjsh directories",
-                         {}});
+            print_error({ErrorType::RUNTIME_ERROR, kCommandName,
+                         "failed to initialize cjsh directories", {}});
             return 1;
         }
 
-        if (targets.empty()) {
-            targets = cjsh_filesystem::get_executables_in_path();
+        if (options.targets.empty()) {
+            options.targets = cjsh_filesystem::get_executables_in_path();
         }
 
-        if (targets.empty()) {
-            if (!quiet) {
-                std::cout << "generate-completions: no commands discovered" << std::endl;
+        if (options.targets.empty()) {
+            if (!options.quiet) {
+                std::cout << kCommandName << ": no commands discovered" << std::endl;
             }
             return 0;
         }
 
-        // quiet = false;
-
-        std::sort(targets.begin(), targets.end());
-        targets.erase(std::unique(targets.begin(), targets.end()), targets.end());
+        std::sort(options.targets.begin(), options.targets.end());
+        options.targets.erase(std::unique(options.targets.begin(), options.targets.end()),
+                              options.targets.end());
 
         const auto start_time = std::chrono::steady_clock::now();
 
         std::vector<std::string> failures;
         std::atomic<bool> cancel_requested{false};
         std::mutex signal_poll_mutex;
-        Shell* shell_ptr = shell;
 
         auto check_for_interrupt = [&](bool allow_shell_processing) -> bool {
             if (cancel_requested.load()) {
@@ -226,8 +306,8 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
             SignalProcessingResult pending{};
             bool processed = false;
 
-            if (allow_shell_processing && shell_ptr != nullptr) {
-                pending = shell_ptr->process_pending_signals();
+            if (allow_shell_processing && shell != nullptr) {
+                pending = shell->process_pending_signals();
                 processed = true;
             } else if (auto* signal_handler = SignalHandler::instance()) {
                 std::lock_guard<std::mutex> lock(signal_poll_mutex);
@@ -253,61 +333,35 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
             return cancel_requested.load();
         };
 
-        const unsigned int hardware_threads = std::thread::hardware_concurrency();
-        std::size_t default_jobs =
-            hardware_threads == 0 ? 4 : static_cast<std::size_t>(hardware_threads);
-        if (default_jobs == 0)
-            default_jobs = 1;
+        const std::size_t job_count = resolve_job_count(options.requested_jobs, options.targets.size());
 
-        std::size_t job_count = requested_jobs > 0 ? requested_jobs : default_jobs;
-        if (job_count == 0)
-            job_count = 1;
-        job_count = std::min(job_count, targets.size());
-        if (job_count == 0)
-            job_count = 1;
-
-        if (!quiet) {
-            std::cout << "generate-completions: processing " << targets.size() << " command"
-                      << (targets.size() == 1 ? "" : "s")
-                      << (force_refresh ? " (forcing refresh)" : "")
-                      << (include_subcommands ? " with subcommands" : "") << " using " << job_count
-                      << " job" << (job_count == 1 ? "" : "s") << std::endl;
+        if (!options.quiet) {
+            std::cout << kCommandName << ": processing " << options.targets.size() << " command"
+                      << (options.targets.size() == 1 ? "" : "s")
+                      << (options.force_refresh ? " (forcing refresh)" : "")
+                      << (options.include_subcommands ? " with subcommands" : "")
+                      << " using " << job_count << " job" << (job_count == 1 ? "" : "s")
+                      << std::endl;
         }
 
         std::size_t success_count = 0;
         if (job_count == 1) {
-            for (const auto& command : targets) {
+            for (const auto& command : options.targets) {
                 if (check_for_interrupt(true)) {
                     break;
                 }
 
-                auto report_target_result = [&](const std::string& target_name, bool generated,
-                                                bool is_root_target) {
-                    if (quiet) {
-                        return;
-                    }
-
-                    if (generated) {
-                        std::cout << "  [OK] " << target_name;
-                        if (!is_root_target) {
-                            std::cout << " (subcommand cache)";
-                        }
-                        std::cout << std::endl;
-                    } else {
-                        std::cout << "  [WARN] " << target_name
-                                  << " (no manual entry or unable to generate)";
-                        if (!is_root_target) {
-                            std::cout << " (subcommand cache)";
-                        }
-                        std::cout << std::endl;
-                    }
+                auto progress_report = [&](const std::string& target_name, bool generated,
+                                           bool is_root_target) {
+                    report_target_result(options.quiet, nullptr, target_name, generated,
+                                         is_root_target);
                 };
 
                 auto should_cancel = [&]() { return check_for_interrupt(true); };
 
                 bool generated = regenerate_external_completion_cache(
-                    command, force_refresh, include_subcommands, report_target_result,
-                    should_cancel);
+                    command, options.force_refresh, options.include_subcommands,
+                    progress_report, should_cancel);
                 if (generated) {
                     ++success_count;
                 } else {
@@ -332,42 +386,25 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
                     }
 
                     std::size_t index = next_index.fetch_add(1, std::memory_order_relaxed);
-                    if (index >= targets.size())
+                    if (index >= options.targets.size())
                         break;
 
                     if (cancel_requested.load()) {
                         break;
                     }
 
-                    const std::string& command = targets[index];
-                    auto report_target_result = [&](const std::string& target_name, bool generated,
-                                                    bool is_root_target) {
-                        if (quiet) {
-                            return;
-                        }
-
-                        std::lock_guard<std::mutex> lock(output_mutex);
-                        if (generated) {
-                            std::cout << "  [OK] " << target_name;
-                            if (!is_root_target) {
-                                std::cout << " (subcommand cache)";
-                            }
-                            std::cout << std::endl;
-                        } else {
-                            std::cout << "  [WARN] " << target_name
-                                      << " (no manual entry or unable to generate)";
-                            if (!is_root_target) {
-                                std::cout << " (subcommand cache)";
-                            }
-                            std::cout << std::endl;
-                        }
+                    const std::string& command = options.targets[index];
+                    auto progress_report = [&](const std::string& target_name, bool generated,
+                                               bool is_root_target) {
+                        report_target_result(options.quiet, &output_mutex, target_name, generated,
+                                             is_root_target);
                     };
 
                     auto should_cancel = [&]() { return check_for_interrupt(false); };
 
                     bool generated = regenerate_external_completion_cache(
-                        command, force_refresh, include_subcommands, report_target_result,
-                        should_cancel);
+                        command, options.force_refresh, options.include_subcommands,
+                        progress_report, should_cancel);
                     if (generated) {
                         success_counter.fetch_add(1, std::memory_order_relaxed);
                     } else {
@@ -394,21 +431,17 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
         }
 
         if (check_for_interrupt(true)) {
-#ifdef SIGINT
-            return 128 + SIGINT;
-#else
-            return 130;
-#endif
+            return interrupt_exit_code();
         }
 
-        if (!quiet) {
+        if (!options.quiet) {
             const auto elapsed = std::chrono::steady_clock::now() - start_time;
             const auto elapsed_seconds =
                 std::chrono::duration_cast<std::chrono::duration<double>>(elapsed);
             std::ostringstream elapsed_stream;
             elapsed_stream << std::fixed << std::setprecision(1) << elapsed_seconds.count() << "s";
 
-            std::cout << "generate-completions: " << success_count << "/" << targets.size()
+            std::cout << kCommandName << ": " << success_count << "/" << options.targets.size()
                       << " updated";
             if (!failures.empty()) {
                 std::cout << ", " << failures.size() << " missing";
@@ -422,7 +455,7 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
         }
 
         if (!failures.empty()) {
-            if (quiet) {
+            if (options.quiet) {
                 for (const auto& command : failures) {
                     std::cout << command << std::endl;
                 }
@@ -436,7 +469,7 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
     try {
         return run();
     } catch (...) {
-        print_error({ErrorType::INVALID_ARGUMENT, "generate-completions", "invalid argument", {}});
+        print_error({ErrorType::INVALID_ARGUMENT, kCommandName, "invalid argument", {}});
         return 1;
     }
 }
