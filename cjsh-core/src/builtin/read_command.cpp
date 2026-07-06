@@ -31,175 +31,187 @@
 #include "builtin_help.h"
 #include "builtin_option_parser.h"
 
+#include <algorithm>
 #include <poll.h>
 #include <unistd.h>
+
 #include <cerrno>
 #include <chrono>
 #include <cstdio>
-#include <cstdlib>
-#include <cstring>
+#include <exception>
 #include <iostream>
 #include <limits>
+#include <optional>
+
 #include "error_out.h"
 #include "numeric_utils.h"
 #include "readonly_command.h"
 #include "shell.h"
 #include "shell_env.h"
 
-int read_command(const std::vector<std::string>& args, Shell* shell) {
-    if (builtin_handle_help(
-            args,
-            {"Usage: read [-r] [-p prompt] [-n nchars] [-d delim] [-t timeout] [name ...]",
-             "Read a line from standard input and split it into fields.", "",
-             "Options:", "  -r            do not allow backslashes to escape any characters",
-             "  -p prompt     output PROMPT without a trailing newline before reading",
-             "  -n nchars     return after reading NCHARS characters rather than waiting for a "
-             "newline",
-             "  -d delim      continue until the first character of DELIM is read, rather than "
-             "newline",
-             "  -t timeout    time out after TIMEOUT seconds (fractional allowed)"},
-            BuiltinHelpScanMode::AnyArgument)) {
-        return 0;
-    }
+namespace {
 
-    if (shell == nullptr) {
-        print_error({ErrorType::FATAL_ERROR, "read", "shell not initialized properly", {}});
-        return 1;
-    }
+constexpr const char* kReadCommandName = "read";
+constexpr const char* kDefaultReplyVariable = "REPLY";
+constexpr const char* kDefaultDelimiter = "\n";
 
-    std::cin.clear();
-    clearerr(stdin);
+enum class ReadInputStatus {
+    Success,
+    TimeoutNoData,
+    EndOfFileNoData,
+};
 
+struct ReadOptions {
     bool raw_mode = false;
     int nchars = -1;
     std::string prompt;
-    std::string delim = "\n";
+    std::string delim = kDefaultDelimiter;
     bool has_timeout = false;
     double timeout_seconds = 0.0;
+};
 
-    size_t start_index = 1;
+const std::vector<std::string>& read_help_lines() {
+    static const std::vector<std::string> kHelpLines = {
+        "Usage: read [-r] [-p prompt] [-n nchars] [-d delim] [-t timeout] [name ...]",
+        "Read a line from standard input and split it into fields.",
+        "",
+        "Options:",
+        "  -r            do not allow backslashes to escape any characters",
+        "  -p prompt     output PROMPT without a trailing newline before reading",
+        "  -n nchars     return after reading NCHARS characters rather than waiting for a "
+        "newline",
+        "  -d delim      continue until the first character of DELIM is read, rather than "
+        "newline",
+        "  -t timeout    time out after TIMEOUT seconds (fractional allowed)"};
+    return kHelpLines;
+}
+
+void clear_input_stream_state() {
+    std::cin.clear();
+    clearerr(stdin);
+}
+
+bool parse_read_options(const std::vector<std::string>& args, size_t& start_index,
+                        ReadOptions& options) {
     std::vector<BuiltinParsedShortOption> parsed_options;
     const bool options_ok = builtin_parse_short_options_ex(
-        args, start_index, "read",
+        args, start_index, kReadCommandName,
         [](char option) {
             return option == 'r' || option == 'n' || option == 'p' || option == 'd' ||
                    option == 't';
         },
-        [](char option) {
-            return option == 'n' || option == 'p' || option == 'd' || option == 't';
-        },
+        [](char option) { return option == 'n' || option == 'p' || option == 'd' || option == 't'; },
         parsed_options);
     if (!options_ok) {
-        return 1;
+        return false;
     }
 
     for (const auto& option : parsed_options) {
+        const std::string option_value = option.value.value_or("");
         switch (option.option) {
             case 'r':
-                raw_mode = true;
+                options.raw_mode = true;
                 break;
             case 'n':
-                if (!numeric_utils::parse_int_strict(option.value.value_or(""), nchars)) {
+                if (!numeric_utils::parse_int_strict(option_value, options.nchars)) {
                     print_error({ErrorType::INVALID_ARGUMENT,
-                                 "read",
-                                 "invalid number of characters: " + option.value.value_or(""),
+                                 kReadCommandName,
+                                 "invalid number of characters: " + option_value,
                                  {}});
-                    return 1;
+                    return false;
                 }
                 break;
             case 'p':
-                prompt = option.value.value_or("");
+                options.prompt = option_value;
                 break;
             case 'd':
-                delim = option.value.value_or("\n");
+                options.delim = option.value.value_or(kDefaultDelimiter);
                 break;
             case 't':
                 try {
-                    timeout_seconds = std::stod(option.value.value_or(""));
+                    options.timeout_seconds = std::stod(option_value);
                 } catch (const std::exception&) {
                     print_error({ErrorType::INVALID_ARGUMENT,
-                                 "read",
-                                 "invalid timeout: " + option.value.value_or(""),
+                                 kReadCommandName,
+                                 "invalid timeout: " + option_value,
                                  {}});
-                    return 1;
+                    return false;
                 }
-                if (timeout_seconds < 0.0) {
+                if (options.timeout_seconds < 0.0) {
                     print_error({ErrorType::INVALID_ARGUMENT,
-                                 "read",
-                                 "invalid timeout: " + option.value.value_or(""),
+                                 kReadCommandName,
+                                 "invalid timeout: " + option_value,
                                  {}});
-                    return 1;
+                    return false;
                 }
-                has_timeout = true;
+                options.has_timeout = true;
                 break;
             default:
                 break;
         }
     }
 
-    std::vector<std::string> var_names(args.begin() + static_cast<long>(start_index), args.end());
+    return true;
+}
 
-    if (var_names.empty()) {
-        var_names.push_back("REPLY");
+bool wait_for_input(const std::optional<std::chrono::steady_clock::time_point>& deadline) {
+    if (!deadline.has_value()) {
+        return true;
     }
 
-    if (!prompt.empty()) {
-        std::cout << prompt << std::flush;
+    const auto now = std::chrono::steady_clock::now();
+    if (now >= deadline.value()) {
+        return false;
     }
 
-    auto deadline = std::chrono::steady_clock::now();
-    if (has_timeout) {
-        deadline += std::chrono::duration_cast<std::chrono::steady_clock::duration>(
-            std::chrono::duration<double>(timeout_seconds));
+    const auto remaining_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(deadline.value() - now).count();
+    if (remaining_ms < 0) {
+        return false;
     }
 
-    auto wait_for_input = [&]() -> bool {
-        if (!has_timeout) {
-            return true;
-        }
+    const int timeout_ms =
+        static_cast<int>(std::min<long long>(remaining_ms, std::numeric_limits<int>::max()));
 
-        auto now = std::chrono::steady_clock::now();
-        if (now >= deadline) {
-            return false;
-        }
+    struct pollfd pfd { STDIN_FILENO, POLLIN, 0 };
 
-        auto remaining =
-            std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now).count();
-        if (remaining < 0) {
-            return false;
-        }
+    int poll_result = 0;
+    do {
+        poll_result = poll(&pfd, 1, timeout_ms);
+    } while (poll_result < 0 && errno == EINTR);
 
-        int timeout_ms =
-            static_cast<int>(std::min<long long>(remaining, std::numeric_limits<int>::max()));
-        struct pollfd pfd{STDIN_FILENO, POLLIN, 0};
-        int result = 0;
-        do {
-            result = poll(&pfd, 1, timeout_ms);
-        } while (result < 0 && errno == EINTR);
-        return result > 0;
-    };
+    return poll_result > 0;
+}
 
-    std::string input;
-    char c = 0;
-    int chars_read = 0;
+ReadInputStatus collect_input(const ReadOptions& options, std::string& input) {
+    std::optional<std::chrono::steady_clock::time_point> deadline;
+    if (options.has_timeout) {
+        deadline =
+            std::chrono::steady_clock::now() +
+            std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                std::chrono::duration<double>(options.timeout_seconds));
+    }
+
     bool timed_out = false;
-
     auto read_char = [&](char& out) -> bool {
-        if (!wait_for_input()) {
+        if (!wait_for_input(deadline)) {
             timed_out = true;
             return false;
         }
         return static_cast<bool>(std::cin.get(out));
     };
 
-    if (nchars > 0) {
-        while (chars_read < nchars && read_char(c)) {
+    char c = 0;
+    int chars_read = 0;
+
+    if (options.nchars > 0) {
+        while (chars_read < options.nchars && read_char(c)) {
             input += c;
             chars_read++;
         }
     } else {
         while (read_char(c)) {
-            if (delim.find(c) != std::string::npos) {
+            if (options.delim.find(c) != std::string::npos) {
                 break;
             }
             input += c;
@@ -207,146 +219,241 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
     }
 
     if (timed_out && input.empty()) {
-        return 1;
+        return ReadInputStatus::TimeoutNoData;
     }
 
     if (std::cin.eof() && input.empty()) {
-        return 1;
+        return ReadInputStatus::EndOfFileNoData;
     }
 
-    if (!raw_mode) {
-        std::string processed;
-        for (size_t i = 0; i < input.length(); ++i) {
-            if (input[i] == '\\' && i + 1 < input.length()) {
-                char next = input[i + 1];
-                switch (next) {
-                    case 'n':
-                        processed += '\n';
-                        i++;
-                        break;
-                    case 't':
-                        processed += '\t';
-                        i++;
-                        break;
-                    case 'r':
-                        processed += '\r';
-                        i++;
-                        break;
-                    case 'b':
-                        processed += '\b';
-                        i++;
-                        break;
-                    case 'a':
-                        processed += '\a';
-                        i++;
-                        break;
-                    case 'v':
-                        processed += '\v';
-                        i++;
-                        break;
-                    case 'f':
-                        processed += '\f';
-                        i++;
-                        break;
-                    case '\\':
-                        processed += '\\';
-                        i++;
-                        break;
-                    default:
-                        processed += input[i];
-                        break;
-                }
-            } else {
-                processed += input[i];
-            }
-        }
-        input = processed;
-    }
+    return ReadInputStatus::Success;
+}
 
-    std::string ifs = cjsh_env::get_ifs_delimiters();
+std::string process_backslash_escapes(const std::string& input) {
+    std::string processed;
+    processed.reserve(input.length());
 
-    std::vector<std::string> fields;
-
-    if (ifs.empty()) {
-        fields.push_back(input);
-    } else {
-        bool ifs_all_whitespace = true;
-        for (char ifs_char : ifs) {
-            if (ifs_char != ' ' && ifs_char != '\t' && ifs_char != '\n') {
-                ifs_all_whitespace = false;
-                break;
-            }
-        }
-
-        if (ifs_all_whitespace) {
-            size_t start = 0;
-
-            while (start < input.length() && ifs.find(input[start]) != std::string::npos) {
-                start++;
-            }
-
-            std::string current_field;
-            for (size_t i = start; i < input.length(); ++i) {
-                if (ifs.find(input[i]) != std::string::npos) {
-                    if (!current_field.empty()) {
-                        fields.push_back(current_field);
-                        current_field.clear();
-                    }
-                } else {
-                    current_field += input[i];
-                }
-            }
-            if (!current_field.empty()) {
-                fields.push_back(current_field);
+    for (size_t i = 0; i < input.length(); ++i) {
+        if (input[i] == '\\' && i + 1 < input.length()) {
+            const char next = input[i + 1];
+            switch (next) {
+                case 'n':
+                    processed += '\n';
+                    i++;
+                    break;
+                case 't':
+                    processed += '\t';
+                    i++;
+                    break;
+                case 'r':
+                    processed += '\r';
+                    i++;
+                    break;
+                case 'b':
+                    processed += '\b';
+                    i++;
+                    break;
+                case 'a':
+                    processed += '\a';
+                    i++;
+                    break;
+                case 'v':
+                    processed += '\v';
+                    i++;
+                    break;
+                case 'f':
+                    processed += '\f';
+                    i++;
+                    break;
+                case '\\':
+                    processed += '\\';
+                    i++;
+                    break;
+                default:
+                    processed += input[i];
+                    break;
             }
         } else {
-            std::string current_field;
-            for (size_t i = 0; i < input.length(); ++i) {
-                if (ifs.find(input[i]) != std::string::npos) {
-                    fields.push_back(current_field);
-                    current_field.clear();
-                } else {
-                    current_field += input[i];
-                }
-            }
-            fields.push_back(current_field);
-
-            while (!fields.empty() && fields.front().empty()) {
-                fields.erase(fields.begin());
-            }
-            while (!fields.empty() && fields.back().empty()) {
-                fields.pop_back();
-            }
+            processed += input[i];
         }
     }
 
+    return processed;
+}
+
+bool is_all_whitespace_ifs(const std::string& ifs) {
+    for (char c : ifs) {
+        if (c != ' ' && c != '\t' && c != '\n') {
+            return false;
+        }
+    }
+    return true;
+}
+
+std::vector<std::string> split_with_whitespace_ifs(const std::string& input,
+                                                   const std::string& ifs) {
+    std::vector<std::string> fields;
+    size_t start = 0;
+
+    while (start < input.length() && ifs.find(input[start]) != std::string::npos) {
+        start++;
+    }
+
+    std::string current_field;
+    for (size_t i = start; i < input.length(); ++i) {
+        if (ifs.find(input[i]) != std::string::npos) {
+            if (!current_field.empty()) {
+                fields.push_back(current_field);
+                current_field.clear();
+            }
+        } else {
+            current_field += input[i];
+        }
+    }
+
+    if (!current_field.empty()) {
+        fields.push_back(current_field);
+    }
+
+    return fields;
+}
+
+std::vector<std::string> split_with_general_ifs(const std::string& input, const std::string& ifs) {
+    std::vector<std::string> fields;
+    std::string current_field;
+
+    for (char c : input) {
+        if (ifs.find(c) != std::string::npos) {
+            fields.push_back(current_field);
+            current_field.clear();
+        } else {
+            current_field += c;
+        }
+    }
+    fields.push_back(current_field);
+
+    size_t first_non_empty = 0;
+    while (first_non_empty < fields.size() && fields[first_non_empty].empty()) {
+        first_non_empty++;
+    }
+
+    size_t one_past_last_non_empty = fields.size();
+    while (one_past_last_non_empty > first_non_empty &&
+           fields[one_past_last_non_empty - 1].empty()) {
+        one_past_last_non_empty--;
+    }
+
+    return std::vector<std::string>(fields.begin() + static_cast<long>(first_non_empty),
+                                    fields.begin() + static_cast<long>(one_past_last_non_empty));
+}
+
+std::vector<std::string> split_fields(const std::string& input, const std::string& ifs) {
+    if (ifs.empty()) {
+        return {input};
+    }
+
+    if (is_all_whitespace_ifs(ifs)) {
+        return split_with_whitespace_ifs(input, ifs);
+    }
+
+    return split_with_general_ifs(input, ifs);
+}
+
+std::vector<std::string> collect_variable_names(const std::vector<std::string>& args,
+                                                size_t start_index) {
+    std::vector<std::string> var_names;
+    for (size_t i = start_index; i < args.size(); ++i) {
+        var_names.push_back(args[i]);
+    }
+
+    if (var_names.empty()) {
+        var_names.push_back(kDefaultReplyVariable);
+    }
+
+    return var_names;
+}
+
+std::string join_remaining_fields(const std::vector<std::string>& fields, size_t start_index) {
+    std::string joined;
+    for (size_t i = start_index; i < fields.size(); ++i) {
+        if (i > start_index) {
+            joined += " ";
+        }
+        joined += fields[i];
+    }
+    return joined;
+}
+
+bool assign_fields_to_variables(const std::vector<std::string>& var_names,
+                                const std::vector<std::string>& fields, Shell* shell) {
     for (size_t i = 0; i < var_names.size(); ++i) {
         const std::string& var_name = var_names[i];
-
-        if (!readonly_manager_can_assign(var_name, "read")) {
-            return 1;
+        if (!readonly_manager_can_assign(var_name, kReadCommandName)) {
+            return false;
         }
 
         std::string value;
         if (i < fields.size()) {
-            if (i == var_names.size() - 1 && fields.size() > var_names.size()) {
-                for (size_t j = i; j < fields.size(); ++j) {
-                    if (j > i)
-                        value += " ";
-                    value += fields[j];
-                }
+            const bool is_last_var = i == var_names.size() - 1;
+            const bool has_extra_fields = fields.size() > var_names.size();
+            if (is_last_var && has_extra_fields) {
+                value = join_remaining_fields(fields, i);
             } else {
                 value = fields[i];
             }
         }
 
         if (!cjsh_env::set_shell_variable_value(var_name, value)) {
-            print_error({ErrorType::FATAL_ERROR, "read", "shell not initialized properly", {}});
-            return 1;
+            print_error(
+                {ErrorType::FATAL_ERROR, kReadCommandName, "shell not initialized properly", {}});
+            return false;
         }
     }
 
     cjsh_env::sync_parser_env_vars(shell);
+    return true;
+}
+
+}  // namespace
+
+int read_command(const std::vector<std::string>& args, Shell* shell) {
+    if (builtin_handle_help(args, read_help_lines(), BuiltinHelpScanMode::AnyArgument)) {
+        return 0;
+    }
+
+    if (shell == nullptr) {
+        print_error({ErrorType::FATAL_ERROR, kReadCommandName, "shell not initialized properly", {}});
+        return 1;
+    }
+
+    clear_input_stream_state();
+
+    ReadOptions options;
+    size_t start_index = 1;
+    if (!parse_read_options(args, start_index, options)) {
+        return 1;
+    }
+
+    std::vector<std::string> var_names = collect_variable_names(args, start_index);
+
+    if (!options.prompt.empty()) {
+        std::cout << options.prompt << std::flush;
+    }
+
+    std::string input;
+    const ReadInputStatus read_status = collect_input(options, input);
+    if (read_status != ReadInputStatus::Success) {
+        return 1;
+    }
+
+    if (!options.raw_mode) {
+        input = process_backslash_escapes(input);
+    }
+
+    std::vector<std::string> fields = split_fields(input, cjsh_env::get_ifs_delimiters());
+    if (!assign_fields_to_variables(var_names, fields, shell)) {
+        return 1;
+    }
 
     return 0;
 }
