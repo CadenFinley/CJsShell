@@ -30,7 +30,6 @@
 
 #include <sys/types.h>
 #include <unistd.h>
-#include <algorithm>
 #include <cctype>
 #include <cerrno>
 #include <csignal>
@@ -43,7 +42,6 @@
 #include <system_error>
 
 #include "builtin.h"
-#include "cjsh_filesystem.h"
 #include "command_lookup.h"
 #include "error_out.h"
 #include "exec.h"
@@ -208,6 +206,8 @@ int Shell::execute(const std::string& script, bool skip_validation) {
 
     if (shell_script_interpreter) {
         // execute the parsed lines
+        // the block is tokenized, parsed, and interpreted and then passed to the execute_command
+        // function
         int exit_code = shell_script_interpreter->execute_block(lines, skip_validation);
         last_command = script;
         return exit_code;
@@ -218,12 +218,15 @@ int Shell::execute(const std::string& script, bool skip_validation) {
 
 int Shell::execute_command(std::vector<std::string> args, bool run_in_background,
                            bool auto_background_on_stop, bool auto_background_on_stop_silent) {
+    // fast path back out, this condition should never hit as many other things would have failed
+    // beforehand
+    if (!shell_exec || !built_ins) {
+        print_error({ErrorType::FATAL_ERROR, "", "shell not initialized properly", {}});
+    }
+
     // main single command executor that dirives from execute_block in interpreter.cpp
     if (args.empty()) {
         return 0;
-    }
-    if (!shell_exec || !built_ins) {
-        print_error({ErrorType::FATAL_ERROR, "", "shell not initialized properly", {}});
     }
 
     // xtrace handling

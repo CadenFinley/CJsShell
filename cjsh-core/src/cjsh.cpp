@@ -191,6 +191,9 @@ int run_cjsh(int argc, char* argv[]) {
         flags::apply_profile_startup_flags();
     }
 
+    // if there is a command to execute and the passed script file is not empty then we set $0 to
+    // the name of the script file and sync the envvars to the shell so that $0 is properly set for
+    // the command to execute
     if (config::execute_command && !script_file.empty()) {
         setenv("0", script_file.c_str(), 1);
         auto& env_map = cjsh_env::env_vars();
@@ -212,7 +215,8 @@ int run_cjsh(int argc, char* argv[]) {
         return handle_non_interactive_mode(script_file);
     }
 
-    // handle the case where stdin is not a terminal
+    // handle the case where stdin is not a terminal so we check to see if stdin is piped and if
+    // there is not a command to execute and then we execute the piped or passed script file
     const bool stdin_is_piped = (isatty(STDIN_FILENO) == 0);
     if (config::force_interactive && stdin_is_piped && !config::execute_command) {
         cjsh_env::set_startup_active(false);
