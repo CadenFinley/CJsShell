@@ -356,6 +356,9 @@ static int run_case(const char* scenario) {
     } else if (strcmp(scenario, "insert_backspace_mouse_default_on_hidden_status") == 0) {
         ic_enable_mouse_clicking(true);
         ic_enable_mouse_reporting_status_line(false);
+    } else if (strcmp(scenario, "mouse_status_nonempty_buffer") == 0) {
+        initial_input = "x";
+        ic_enable_mouse_clicking(true);
     } else if (strcmp(scenario, "ctrl_k_delete_to_end") == 0) {
         initial_input = "abcdef";
     } else if (strcmp(scenario, "ctrl_k_then_type") == 0) {

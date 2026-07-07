@@ -1156,6 +1156,26 @@ def main() -> int:
             f"normalized_output={normalized_mouse_status_output!r}"
         )
 
+    mouse_nonempty_result, mouse_nonempty_output = run_case(
+        binary, "mouse_status_nonempty_buffer", b"\r", capture_output=True
+    )
+    if mouse_nonempty_result != "x":
+        raise AssertionError(
+            "mouse non-empty buffer case expected 'x', got "
+            f"{mouse_nonempty_result!r}"
+        )
+    normalized_mouse_nonempty_output = normalize_terminal_output(mouse_nonempty_output)
+    if "Mouse clicking is enabled" not in normalized_mouse_nonempty_output:
+        raise AssertionError(
+            "non-empty mouse status case should show mouse indicator, got "
+            f"normalized_output={normalized_mouse_nonempty_output!r}"
+        )
+    if "complete:" in normalized_mouse_nonempty_output:
+        raise AssertionError(
+            "default status hints should stay hidden when input buffer has content, got "
+            f"normalized_output={normalized_mouse_nonempty_output!r}"
+        )
+
     mouse_default_click = run_case(
         binary,
         "completion_many_menu_mouse_default_on",

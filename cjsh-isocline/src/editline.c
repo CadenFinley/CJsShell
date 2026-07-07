@@ -3066,11 +3066,6 @@ static bool edit_update_status_message(ic_env_t* env, editor_t* eb) {
             break;
     }
 
-    if (!request_default && !has_custom_message && eb->mouse_reporting_enabled &&
-        env->mouse_reporting_status_line_enabled && mode != IC_STATUS_HINT_OFF) {
-        request_default = true;
-    }
-
     char fallback_buffer[EDIT_STATUS_HINT_BUFFER_LEN];
     char mouse_status_text[EDIT_STATUS_HINT_BUFFER_LEN];
     char mouse_status_bbcode[EDIT_STATUS_HINT_BUFFER_LEN];
