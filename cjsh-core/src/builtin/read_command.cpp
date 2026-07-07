@@ -31,9 +31,9 @@
 #include "builtin_help.h"
 #include "builtin_option_parser.h"
 
-#include <algorithm>
 #include <poll.h>
 #include <unistd.h>
+#include <algorithm>
 
 #include <cerrno>
 #include <chrono>
@@ -55,7 +55,7 @@ constexpr const char* kReadCommandName = "read";
 constexpr const char* kDefaultReplyVariable = "REPLY";
 constexpr const char* kDefaultDelimiter = "\n";
 
-enum class ReadInputStatus {
+enum class ReadInputStatus : std::uint8_t {
     Success,
     TimeoutNoData,
     EndOfFileNoData,
@@ -100,7 +100,9 @@ bool parse_read_options(const std::vector<std::string>& args, size_t& start_inde
             return option == 'r' || option == 'n' || option == 'p' || option == 'd' ||
                    option == 't';
         },
-        [](char option) { return option == 'n' || option == 'p' || option == 'd' || option == 't'; },
+        [](char option) {
+            return option == 'n' || option == 'p' || option == 'd' || option == 't';
+        },
         parsed_options);
     if (!options_ok) {
         return false;
@@ -173,7 +175,7 @@ bool wait_for_input(const std::optional<std::chrono::steady_clock::time_point>& 
     const int timeout_ms =
         static_cast<int>(std::min<long long>(remaining_ms, std::numeric_limits<int>::max()));
 
-    struct pollfd pfd { STDIN_FILENO, POLLIN, 0 };
+    struct pollfd pfd{STDIN_FILENO, POLLIN, 0};
 
     int poll_result = 0;
     do {
@@ -186,10 +188,9 @@ bool wait_for_input(const std::optional<std::chrono::steady_clock::time_point>& 
 ReadInputStatus collect_input(const ReadOptions& options, std::string& input) {
     std::optional<std::chrono::steady_clock::time_point> deadline;
     if (options.has_timeout) {
-        deadline =
-            std::chrono::steady_clock::now() +
-            std::chrono::duration_cast<std::chrono::steady_clock::duration>(
-                std::chrono::duration<double>(options.timeout_seconds));
+        deadline = std::chrono::steady_clock::now() +
+                   std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                       std::chrono::duration<double>(options.timeout_seconds));
     }
 
     bool timed_out = false;
@@ -422,7 +423,8 @@ int read_command(const std::vector<std::string>& args, Shell* shell) {
     }
 
     if (shell == nullptr) {
-        print_error({ErrorType::FATAL_ERROR, kReadCommandName, "shell not initialized properly", {}});
+        print_error(
+            {ErrorType::FATAL_ERROR, kReadCommandName, "shell not initialized properly", {}});
         return 1;
     }
 
