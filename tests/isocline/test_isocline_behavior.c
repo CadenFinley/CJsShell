@@ -2234,6 +2234,54 @@ static bool test_tty_sgr_mouse_event_metadata(void) {
     return true;
 }
 
+static bool test_tty_kitty_ctrl_sequence_decode_regression(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL || env->tty == NULL)
+        return true;
+
+    code_t drained = KEY_NONE;
+    while (tty_read_timeout(env->tty, 0, &drained)) {
+    }
+
+    static const uint8_t seq_ctrl_a_caps_lock[] = {'\x1B', '[', '9', '7', ';', '6', '9', 'u'};
+    static const uint8_t seq_ctrl_enter_caps_lock[] = {'\x1B', '[', '1', '3', ';', '6', '9', 'u'};
+
+    static const struct {
+        const uint8_t* raw;
+        size_t raw_len;
+        code_t expected;
+        const char* label;
+    } cases[] = {
+        {seq_ctrl_a_caps_lock, sizeof(seq_ctrl_a_caps_lock), KEY_CTRL_A,
+         "kitty ctrl+a sequence should decode to ctrl-a"},
+        {seq_ctrl_enter_caps_lock, sizeof(seq_ctrl_enter_caps_lock), KEY_LINEFEED,
+         "kitty ctrl+enter sequence should decode to linefeed"},
+    };
+
+    for (size_t i = 0; i < (sizeof(cases) / sizeof(cases[0])); ++i) {
+        EXPECT_TRUE(ic_push_raw_input(cases[i].raw, cases[i].raw_len),
+                    "kitty ctrl sequence should enqueue into active TTY");
+
+        code_t code = KEY_NONE;
+        bool got = false;
+        for (size_t attempt = 0; attempt < 32; ++attempt) {
+            if (!tty_read_timeout(env->tty, 0, &code)) {
+                break;
+            }
+            if (code == KEY_EVENT_RESIZE) {
+                continue;
+            }
+            got = true;
+            break;
+        }
+
+        EXPECT_TRUE(got, "kitty ctrl sequence should yield a decoded key event");
+        EXPECT_TRUE(code == cases[i].expected, cases[i].label);
+    }
+
+    return true;
+}
+
 static bool test_key_spec_ctrl_space_variants(void) {
     ic_keycode_t key = IC_KEY_NONE;
     EXPECT_TRUE(ic_parse_key_spec("ctrl+space", &key), "ctrl+space key spec should parse");
@@ -3176,6 +3224,7 @@ static const test_case_t kTests[] = {
     {"tty_bracketed_paste_repeated_end_without_start",
      test_tty_bracketed_paste_repeated_end_without_start},
     {"tty_sgr_mouse_event_metadata", test_tty_sgr_mouse_event_metadata},
+    {"tty_kitty_ctrl_sequence_decode_regression", test_tty_kitty_ctrl_sequence_decode_regression},
     {"key_spec_ctrl_space_variants", test_key_spec_ctrl_space_variants},
     {"initial_input_env_lifecycle", test_initial_input_env_lifecycle},
     {"unicode_display_width_control_codepoints", test_unicode_display_width_control_codepoints},

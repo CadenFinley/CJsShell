@@ -348,6 +348,11 @@ static code_t modify_code(code_t code, bool in_paste_mode) {
         code = KEY_LINEFEED;
     }
 
+    else if ((mods & KEY_MOD_CTRL) != 0 &&
+             ((key >= 'a' && key <= 'z') || (key >= 'A' && key <= 'Z'))) {
+        code = (key & 0x1F);
+    }
+
     else if (code == WITH_CTRL(KEY_TAB)) {
         code = KEY_SHIFT_TAB;
     }

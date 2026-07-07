@@ -372,7 +372,7 @@ ic_public bool ic_stop_completing(const ic_completion_env_t* cenv) {
 
 static ssize_t completion_apply(completion_t* cm, stringbuf_t* sbuf, ssize_t pos) {
     if (cm == NULL)
-        return -1;
+        return IC_COMP_APPLY_FAIL;
     debug_msg("completion: apply: %s at %zd\n", cm->replacement, pos);
     ssize_t start = pos - cm->delete_before;
     if (start < 0)
@@ -385,8 +385,9 @@ static ssize_t completion_apply(completion_t* cm, stringbuf_t* sbuf, ssize_t pos
     ssize_t n = cm->delete_before + delete_after;
     if (ic_strlen(cm->replacement) == n &&
         strncmp(sbuf_string_at(sbuf, start), cm->replacement, to_size_t(n)) == 0) {
-        // Text is already complete; still move over any matching suffix after the cursor.
-        return (delete_after > 0 ? start + n : -1);
+        if (delete_after > 0)
+            return start + n;
+        return IC_COMP_APPLY_NOOP;
     } else {
         sbuf_delete_from_to(sbuf, start, pos + delete_after);
         return sbuf_insert_at(sbuf, cm->replacement, start);
@@ -416,21 +417,21 @@ ic_private ssize_t completions_apply_longest_prefix(completions_t* cms, stringbu
     }
 
     if (pos < 0)
-        return -1;
+        return IC_COMP_APPLY_FAIL;
 
     size_t prefix_len = (size_t)pos;
     if (prefix_len >= IC_MAX_PREFIX)
-        return -1;  // avoid overrunning our working buffer
+        return IC_COMP_APPLY_FAIL;  // avoid overrunning our working buffer
 
     size_t buffer_len = (size_t)sbuf_len(sbuf);
     if (prefix_len > buffer_len)
-        return -1;
+        return IC_COMP_APPLY_FAIL;
 
     char* original_prefix = NULL;
     if (prefix_len > 0) {
         original_prefix = (char*)malloc(prefix_len + 1);
         if (original_prefix == NULL)
-            return -1;
+            return IC_COMP_APPLY_FAIL;
         memcpy(original_prefix, sbuf_string(sbuf), prefix_len);
         original_prefix[prefix_len] = '\0';
     }
@@ -508,7 +509,7 @@ ic_private ssize_t completions_apply_longest_prefix(completions_t* cms, stringbu
     }
 
     if (!common_initialized || common_len <= prefix_len) {
-        return -1;
+        return IC_COMP_APPLY_NOOP;
     }
 
     size_t insert_len = common_len - prefix_len;
@@ -525,6 +526,7 @@ ic_private ssize_t completions_apply_longest_prefix(completions_t* cms, stringbu
     memset(&cprefix, 0, sizeof(cprefix));
     cprefix.delete_before = 0;
     cprefix.replacement = insert_text;
+    cprefix.delete_after = ic_count_end_overlap(insert_text, sbuf_string_at(sbuf, pos));
 
     ssize_t newpos = completion_apply(&cprefix, sbuf, pos);
     if (newpos < 0)

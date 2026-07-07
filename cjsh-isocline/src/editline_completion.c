@@ -36,31 +36,42 @@
 #define IC_SMALL_MENU_SOURCE_LIMIT 35
 #define IC_LARGE_MENU_SOURCE_LIMIT 70
 
+static bool edit_completion_commit(editor_t* eb, ssize_t newpos) {
+    if (newpos == IC_COMP_APPLY_FAIL) {
+        editor_undo_restore(eb, false);
+        return false;
+    }
+    if (newpos == IC_COMP_APPLY_NOOP) {
+        editor_undo_forget(eb);
+        return false;
+    }
+    eb->pos = newpos;
+    return true;
+}
+
 // return true if anything changed
 static bool edit_complete(ic_env_t* env, editor_t* eb, ssize_t idx) {
     editor_start_modify(eb);
     ssize_t newpos = completions_apply(env->completions, idx, eb->input, eb->pos);
-    if (newpos < 0) {
-        editor_undo_restore(eb, false);
-        return false;
+    bool changed = edit_completion_commit(eb, newpos);
+
+    if (changed) {
+        edit_expand_abbreviation_if_needed(env, eb, true);
+        edit_refresh(env, eb);
+    } else if (newpos == IC_COMP_APPLY_NOOP && completions_count(env->completions) > 1) {
+        edit_refresh(env, eb);
     }
-    eb->pos = newpos;
-    edit_expand_abbreviation_if_needed(env, eb, true);
-    edit_refresh(env, eb);
-    return true;
+    return changed;
 }
 
-static bool edit_complete_longest_prefix(ic_env_t* env, editor_t* eb) {
+static void edit_complete_longest_prefix(ic_env_t* env, editor_t* eb) {
     editor_start_modify(eb);
     ssize_t newpos = completions_apply_longest_prefix(env->completions, eb->input, eb->pos);
-    if (newpos < 0) {
-        editor_undo_restore(eb, false);
-        return false;
+    if (!edit_completion_commit(eb, newpos)) {
+        return;
     }
-    eb->pos = newpos;
     edit_expand_abbreviation_if_needed(env, eb, true);
     edit_refresh(env, eb);
-    return true;
 }
 
 ic_private void sbuf_append_tagged(stringbuf_t* sb, const char* tag, const char* content) {

@@ -729,8 +729,10 @@ ic_private ssize_t sbuf_insert_at_n(stringbuf_t* sbuf, const char* s, ssize_t n,
 }
 
 ic_private stringbuf_t* sbuf_split_at(stringbuf_t* sb, ssize_t pos) {
+    if (pos < 0)
+        return NULL;
     stringbuf_t* res = sbuf_new(sb->mem);
-    if (res == NULL || pos < 0)
+    if (res == NULL)
         return NULL;
     if (pos < sb->count) {
         sbuf_append_n(res, sb->buf + pos, sb->count - pos);
@@ -1121,6 +1123,18 @@ ic_public long ic_is_token(const char* s, long pos, ic_is_char_class_fun_t* is_t
 
 static int ic_strncmp(const char* s1, const char* s2, ssize_t n) {
     return strncmp(s1, s2, to_size_t(n));
+}
+
+ic_private ssize_t ic_count_end_overlap(const char* s, const char* postfix) {
+    if (s == NULL || postfix == NULL)
+        return 0;
+    const ssize_t slen = ic_strlen(s);
+    for (ssize_t count = ic_strlen(postfix); count > 0; count--) {
+        if (count <= slen && ic_strncmp(&s[slen - count], postfix, count) == 0) {
+            return count;
+        }
+    }
+    return 0;
 }
 
 // Convenience: Does this match the specified token?
