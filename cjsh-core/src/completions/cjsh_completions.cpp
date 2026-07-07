@@ -97,6 +97,71 @@ const char* extract_current_line_prefix(const char* prefix) {
     return prefix;
 }
 
+struct CommandSubstitutionFrame {
+    size_t content_start;
+    int paren_depth;
+};
+
+size_t find_innermost_unclosed_command_substitution_start(const std::string& prefix) {
+    std::vector<CommandSubstitutionFrame> stack;
+    stack.reserve(4);
+
+    utils::QuoteState quote_state;
+    for (size_t i = 0; i < prefix.size(); ++i) {
+        char ch = prefix[i];
+        const bool was_escaped = quote_state.escaped;
+        const bool was_in_single_quote = quote_state.in_single_quote;
+        const auto advance_result = quote_state.consume_forward(ch);
+
+        if (advance_result == utils::QuoteAdvanceResult::Continue) {
+            continue;
+        }
+
+        if (!was_escaped && !was_in_single_quote && ch == '$' && i + 1 < prefix.size() &&
+            prefix[i + 1] == '(' && (i + 2 >= prefix.size() || prefix[i + 2] != '(')) {
+            stack.push_back(CommandSubstitutionFrame{i + 2, 1});
+            ++i;
+            continue;
+        }
+
+        if (stack.empty() || quote_state.inside_quotes()) {
+            continue;
+        }
+
+        if (ch == '(') {
+            ++stack.back().paren_depth;
+            continue;
+        }
+
+        if (ch == ')') {
+            --stack.back().paren_depth;
+            if (stack.back().paren_depth <= 0) {
+                stack.pop_back();
+            }
+        }
+    }
+
+    if (stack.empty()) {
+        return std::string::npos;
+    }
+
+    return stack.back().content_start;
+}
+
+std::string extract_completion_scope_prefix(const char* prefix) {
+    const char* current_line_prefix = extract_current_line_prefix(prefix);
+    std::string scoped_prefix = current_line_prefix ? current_line_prefix : "";
+
+    size_t command_substitution_start =
+        find_innermost_unclosed_command_substitution_start(scoped_prefix);
+    if (command_substitution_start != std::string::npos &&
+        command_substitution_start <= scoped_prefix.size()) {
+        return scoped_prefix.substr(command_substitution_start);
+    }
+
+    return scoped_prefix;
+}
+
 bool prepare_prefix_state(ic_completion_env_t* cenv, const char* prefix, std::string& prefix_str,
                           size_t& prefix_len) {
     if (ic_stop_completing(cenv))
@@ -1489,12 +1554,13 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
         return;
 
     const char* effective_prefix = (prefix != nullptr) ? prefix : "";
-    const char* current_line_prefix = extract_current_line_prefix(effective_prefix);
+    std::string completion_scope_prefix = extract_completion_scope_prefix(effective_prefix);
+    const char* current_line_prefix = completion_scope_prefix.c_str();
 
     completion_tracker::completion_session_begin(cenv, effective_prefix);
 
     CompletionContext context;
-    if (current_line_prefix[0] == '\0') {
+    if (completion_scope_prefix.empty()) {
         context = CONTEXT_COMMAND;
     } else {
         context = detect_completion_context(current_line_prefix);

@@ -118,6 +118,35 @@ static ssize_t run_completion_generation(const char* input, ic_completer_fun_t* 
                                         max_results);
 }
 
+static bool generated_completions_include_replacement(const char* replacement) {
+    if (replacement == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ic_get_env();
+    if (env == nullptr || env->completions == nullptr) {
+        return false;
+    }
+
+    ssize_t count = completions_count(env->completions);
+    for (ssize_t i = 0; i < count; ++i) {
+        const char* candidate = completions_get_replacement(env->completions, i);
+        if (candidate != nullptr && std::strcmp(candidate, replacement) == 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static void clear_generated_completions(void) {
+    ic_env_t* env = ic_get_env();
+    if (env == nullptr || env->completions == nullptr) {
+        return;
+    }
+    completions_clear(env->completions);
+}
+
 static bool apply_single_generated_completion(const char* input, ssize_t cursor,
                                               const CompletionAction& action, std::string& result,
                                               ssize_t& new_pos) {
@@ -283,6 +312,35 @@ static bool test_tokenize_shell_words_preserve_literals(void) {
                 "escaped space should retain the escape sequence");
     EXPECT_TRUE(tokens[3] == "'single quoted'", test_name,
                 "single quotes should be preserved when requested");
+    return true;
+}
+
+static bool test_default_completer_command_in_command_substitution(void) {
+    const char* test_name = "default_completer_command_in_command_substitution";
+    ssize_t count = run_completion_generation("$(ech", &cjsh_default_completer, 256);
+
+    EXPECT_TRUE(count > 0, test_name,
+                "default completer should return suggestions for command substitution prefix");
+    bool has_command = generated_completions_include_replacement("echo ");
+    clear_generated_completions();
+
+    EXPECT_TRUE(has_command, test_name,
+                "command substitution scope should include command completions");
+    return true;
+}
+
+static bool test_default_completer_nested_command_substitution_scope(void) {
+    const char* test_name = "default_completer_nested_command_substitution_scope";
+    ssize_t count =
+        run_completion_generation("echo $(printf '%s' $(ech", &cjsh_default_completer, 256);
+
+    EXPECT_TRUE(count > 0, test_name,
+                "default completer should return suggestions inside nested command substitution");
+    bool has_command = generated_completions_include_replacement("echo ");
+    clear_generated_completions();
+
+    EXPECT_TRUE(has_command, test_name,
+                "innermost command substitution should drive command completions");
     return true;
 }
 
@@ -883,6 +941,10 @@ static const test_case_t kTests[] = {
     {"tokenize_command_line_escaped_quotes", test_tokenize_command_line_escaped_quotes},
     {"tokenize_command_line_unterminated_quote", test_tokenize_command_line_unterminated_quote},
     {"tokenize_shell_words_preserve_literals", test_tokenize_shell_words_preserve_literals},
+    {"default_completer_command_in_command_substitution",
+     test_default_completer_command_in_command_substitution},
+    {"default_completer_nested_command_substitution_scope",
+     test_default_completer_nested_command_substitution_scope},
     {"find_last_unquoted_space", test_find_last_unquoted_space},
     {"find_last_unquoted_space_with_tabs", test_find_last_unquoted_space_with_tabs},
     {"find_last_unquoted_space_with_escaped_space",
