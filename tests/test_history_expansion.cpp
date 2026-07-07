@@ -113,6 +113,18 @@ static bool test_previous_command_word_designators_expand(void) {
                         "!* should expand to all previous command arguments");
 }
 
+static bool test_double_bang_replays_last_expanded_command(void) {
+    const char* test_name = "double_bang_replays_last_expanded_command";
+    const std::vector<std::string> history = {"echo alpha", "echo alpha", "!!"};
+
+    const auto result = HistoryExpansion::expand("!!", history, true);
+
+    EXPECT_FALSE(result.has_error, test_name, "double bang should not fail");
+    EXPECT_TRUE(result.was_expanded, test_name, "double bang should expand");
+    return expect_streq(result.expanded_command, "echo alpha", test_name,
+                        "double bang should replay the previous expanded command");
+}
+
 int main(void) {
     struct TestCase {
         const char* name;
@@ -123,6 +135,8 @@ int main(void) {
         {"substring_search_skips_staged_entry", test_substring_search_skips_staged_entry},
         {"quick_substitution_skips_staged_entry", test_quick_substitution_skips_staged_entry},
         {"previous_command_word_designators_expand", test_previous_command_word_designators_expand},
+        {"double_bang_replays_last_expanded_command",
+         test_double_bang_replays_last_expanded_command},
     };
 
     const std::size_t test_count = sizeof(tests) / sizeof(tests[0]);

@@ -160,7 +160,7 @@ bool process_command_line(const std::string& command) {
             {"code", exit_code_str.c_str()},
             {"ms", elapsed_ms_str.c_str()},
         };
-        ic_history_add_with_metadata(command.c_str(), metadata, 3);
+        ic_history_add_with_metadata(expanded_command.c_str(), metadata, 3);
     }
     // perform memory cleanup
 #if defined(__APPLE__) && MAC_OS_X_VERSION_MAX_ALLOWED >= 1070

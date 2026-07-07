@@ -126,6 +126,7 @@ bool HistoryExpansion::expand_double_bang(const std::string& command, size_t& po
     }
 
     const std::string& last_command = history.back();
+
     pos += 2;
 
     if (pos < command.length() && command[pos] == ':') {
