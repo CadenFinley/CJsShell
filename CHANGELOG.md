@@ -1,6 +1,42 @@
 # cjsh Changelog
 
-This changelog documents tagged releases from `v1.1.2` through `v1.3.1`.
+This changelog documents tagged releases from `v1.1.2` through `v1.3.2`.
+
+## 1.3.2 - 2026-07-07
+
+Range: `v1.3.1..HEAD` (15 commits, 56 files changed)
+
+### Highlights
+
+- Added optional Enter-triggered spell autocorrection for single spell matches, with new `cjshopt` controls and docs.
+- Improved parser/interpreter handling for subshell-style function definitions so `name() ( ... )` forms define cleanly, execute only on call, and preserve subshell scope.
+- Fixed command-execution edge cases around stdout capture/job control, including command-substitution contamination and function pipelines under `stty tostop`.
+
+### Added
+
+- Added `cjshopt completion-spell-enter` (`on|off|status`) plus builtin completion/help metadata for the new toggle.
+- Added isocline spell-on-enter plumbing (`ic_enable_spell_correct_on_enter`) and PTY coverage for Enter-time spell correction behavior.
+- Added a dedicated function-pipeline job-control regression suite (`tests/core/test_function_pipeline_job_control.py`) and wired it into `tests/run_shell_tests.sh`.
+
+### Changed
+
+- Changed completion context scoping to track the innermost unclosed command substitution when completing inside `$(...)`.
+- Refactored arithmetic-command parsing helpers into shared parser utilities and reused them across interpreter, conditional, and loop paths.
+- Updated `exec`, `read`, and `generate-completions` internals for stricter option/error handling and cleaner execution flow.
+- Synced local isocline behavior with newer upstream-oriented updates across completion, help, string-buffer, and TTY handling paths.
+
+### Fixed
+
+- Fixed Enter-submit behavior so spell correction stays opt-in while still allowing single-match auto-correction when explicitly enabled.
+- Fixed command-substitution regressions where prior builtin stdout could leak into `$()`/backtick results and break follow-on redirections.
+- Fixed negated command output handling so `!` forms respect quiet redirections without runtime noise.
+- Fixed subshell-style function parsing/execution edge cases, including inline semicolon forms and variable-scope preservation.
+- Fixed interactive job-control handling for function pipelines so foreground control and `tostop` scenarios do not spuriously stop jobs.
+
+### Internal, CI, and Tests
+
+- Expanded shell/isocline/completion regression coverage for spell-enter toggles, kitty control-sequence decoding, mouse-status rendering, command-substitution safety, and function syntax cases.
+- Removed the deprecated release workflow file and continued cleanup passes across interpreter, exec, and builtin implementations.
 
 ## 1.3.1 - 2026-07-04
 

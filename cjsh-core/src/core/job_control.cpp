@@ -108,10 +108,7 @@ std::shared_ptr<JobControlJob> resolve_job_argument(const std::vector<std::strin
 
         const auto jobs = job_manager.get_all_jobs();
         if (jobs.empty()) {
-            print_error({ErrorType::INVALID_ARGUMENT,
-                         "",
-                         "no current job",
-                         {"Use 'jobs' to list available jobs"}});
+            print_error({ErrorType::UNKNOWN_ERROR, args[0], "no current job", {}});
             return nullptr;
         }
 
