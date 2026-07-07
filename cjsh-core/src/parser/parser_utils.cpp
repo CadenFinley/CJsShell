@@ -288,7 +288,7 @@ size_t parser_find_inline_do_position(const std::string& text, size_t search_fro
 }
 
 bool parser_find_matching_command_substitution_end(const std::string& text, size_t start_index,
-                                                   size_t& end_out) {
+                                                    size_t& end_out) {
     if (start_index == 0 || start_index > text.size()) {
         return false;
     }
@@ -316,6 +316,160 @@ bool parser_find_matching_command_substitution_end(const std::string& text, size
             --depth;
             if (depth == 0) {
                 end_out = i;
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+bool parser_find_balanced_double_parens(std::string_view text, size_t open_pos,
+                                        size_t& content_start_out, size_t& content_end_out,
+                                        size_t& after_close_out) {
+    if (open_pos + 1 >= text.size() || text.compare(open_pos, 2, "((") != 0) {
+        return false;
+    }
+
+    int depth = 1;
+    bool in_single = false;
+    bool in_double = false;
+    bool escaped = false;
+
+    for (size_t i = open_pos + 2; i < text.size();) {
+        char ch = text[i];
+
+        if (escaped) {
+            escaped = false;
+            ++i;
+            continue;
+        }
+
+        if (ch == '\\' && !in_single) {
+            escaped = true;
+            ++i;
+            continue;
+        }
+
+        if (!in_double && ch == '\'') {
+            in_single = !in_single;
+            ++i;
+            continue;
+        }
+
+        if (!in_single && ch == '"') {
+            in_double = !in_double;
+            ++i;
+            continue;
+        }
+
+        if (in_single || in_double) {
+            ++i;
+            continue;
+        }
+
+        if (i + 1 < text.size() && text.compare(i, 2, "((") == 0) {
+            ++depth;
+            i += 2;
+            continue;
+        }
+
+        if (i + 1 < text.size() && text.compare(i, 2, "))") == 0) {
+            --depth;
+            if (depth == 0) {
+                content_start_out = open_pos + 2;
+                content_end_out = i;
+                after_close_out = i + 2;
+                return true;
+            }
+            i += 2;
+            continue;
+        }
+
+        ++i;
+    }
+
+    return false;
+}
+
+bool parser_parse_arithmetic_command_form(std::string_view text, bool& negate_status_out,
+                                          std::string& expression_out) {
+    std::string trimmed = trim_whitespace(std::string(text));
+    negate_status_out = false;
+    expression_out.clear();
+
+    if (!trimmed.empty() && trimmed.front() == '!') {
+        size_t after_bang = 1;
+        bool has_whitespace_after_bang =
+            (after_bang >= trimmed.size()) ||
+            (std::isspace(static_cast<unsigned char>(trimmed[after_bang])) != 0);
+        if (has_whitespace_after_bang) {
+            negate_status_out = true;
+            while (after_bang < trimmed.size() &&
+                   (std::isspace(static_cast<unsigned char>(trimmed[after_bang])) != 0)) {
+                ++after_bang;
+            }
+            trimmed = trimmed.substr(after_bang);
+        }
+    }
+
+    size_t content_start = 0;
+    size_t content_end = 0;
+    size_t after_close = 0;
+    if (!parser_find_balanced_double_parens(trimmed, 0, content_start, content_end, after_close)) {
+        return false;
+    }
+
+    std::string trailing = trim_whitespace(trimmed.substr(after_close));
+    if (!trailing.empty()) {
+        return false;
+    }
+
+    expression_out = trimmed.substr(content_start, content_end - content_start);
+    return true;
+}
+
+bool parser_contains_arithmetic_command_form(std::string_view text) {
+    bool in_single = false;
+    bool in_double = false;
+    bool in_backtick = false;
+    bool escaped = false;
+
+    for (size_t i = 0; i + 1 < text.size(); ++i) {
+        char ch = text[i];
+
+        if (escaped) {
+            escaped = false;
+            continue;
+        }
+
+        if (!in_single && ch == '\\') {
+            escaped = true;
+            continue;
+        }
+
+        if (!in_double && !in_backtick && ch == '\'') {
+            in_single = !in_single;
+            continue;
+        }
+
+        if (!in_single && !in_backtick && ch == '"') {
+            in_double = !in_double;
+            continue;
+        }
+
+        if (!in_single && !in_double && ch == '`') {
+            in_backtick = !in_backtick;
+            continue;
+        }
+
+        if (in_single || in_double || in_backtick) {
+            continue;
+        }
+
+        if (text.compare(i, 2, "((") == 0) {
+            char previous = (i == 0) ? '\0' : text[i - 1];
+            if (previous != '$') {
                 return true;
             }
         }

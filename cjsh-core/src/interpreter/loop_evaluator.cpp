@@ -377,71 +377,15 @@ bool parse_c_style_for_header(const std::string& header, CStyleForHeader& out) {
         return false;
     }
 
-    size_t content_start = pos + 2;
-    size_t i = content_start;
-    int depth = 1;
-    bool in_single = false;
-    bool in_double = false;
-    bool escaped = false;
-    size_t content_end = std::string::npos;
-
-    while (i < normalized.size()) {
-        char ch = normalized[i];
-
-        if (escaped) {
-            escaped = false;
-            ++i;
-            continue;
-        }
-
-        if (ch == '\\' && !in_single) {
-            escaped = true;
-            ++i;
-            continue;
-        }
-
-        if (!in_double && ch == '\'') {
-            in_single = !in_single;
-            ++i;
-            continue;
-        }
-
-        if (!in_single && ch == '"') {
-            in_double = !in_double;
-            ++i;
-            continue;
-        }
-
-        if (in_single || in_double) {
-            ++i;
-            continue;
-        }
-
-        if (i + 1 < normalized.size() && normalized.compare(i, 2, "((") == 0) {
-            ++depth;
-            i += 2;
-            continue;
-        }
-
-        if (i + 1 < normalized.size() && normalized.compare(i, 2, "))") == 0) {
-            --depth;
-            if (depth == 0) {
-                content_end = i;
-                i += 2;
-                break;
-            }
-            i += 2;
-            continue;
-        }
-
-        ++i;
-    }
-
-    if (depth != 0 || content_end == std::string::npos) {
+    size_t content_start = 0;
+    size_t content_end = 0;
+    size_t after_close = 0;
+    if (!parser_find_balanced_double_parens(normalized, pos, content_start, content_end,
+                                             after_close)) {
         return false;
     }
 
-    std::string trailing = trim(normalized.substr(i));
+    std::string trailing = trim(normalized.substr(after_close));
     if (!trailing.empty()) {
         return false;
     }
@@ -457,49 +401,6 @@ bool parse_c_style_for_header(const std::string& header, CStyleForHeader& out) {
     out.condition_expression = std::move(parts[1]);
     out.update_expression = std::move(parts[2]);
     return true;
-}
-
-bool contains_arithmetic_command_form(const std::string& text) {
-    bool in_single = false;
-    bool in_double = false;
-    bool escaped = false;
-
-    for (size_t i = 0; i + 1 < text.size(); ++i) {
-        char ch = text[i];
-
-        if (escaped) {
-            escaped = false;
-            continue;
-        }
-
-        if (!in_single && ch == '\\') {
-            escaped = true;
-            continue;
-        }
-
-        if (!in_double && ch == '\'') {
-            in_single = !in_single;
-            continue;
-        }
-
-        if (!in_single && ch == '"') {
-            in_double = !in_double;
-            continue;
-        }
-
-        if (in_single || in_double) {
-            continue;
-        }
-
-        if (text.compare(i, 2, "((") == 0) {
-            char previous = (i == 0) ? '\0' : text[i - 1];
-            if (previous != '$') {
-                return true;
-            }
-        }
-    }
-
-    return false;
 }
 
 std::pair<std::string, std::string> split_done_suffix(const std::string& suffix) {
@@ -590,6 +491,29 @@ bool trailing_contains_block_closer_segment(const std::string& trailing_commands
     }
 
     return false;
+}
+
+int execute_loop_trailing_commands(
+    int loop_rc, const std::string& trailing_commands,
+    const std::function<int(const std::string&)>& execute_simple_or_pipeline,
+    Parser* shell_parser) {
+    if (trailing_commands.empty()) {
+        return loop_rc;
+    }
+
+    if (trailing_contains_block_closer_segment(trailing_commands, shell_parser)) {
+        return loop_rc;
+    }
+
+    if (loop_rc == 253 || loop_rc == 254 || loop_rc == 255 || cjsh_env::exit_requested()) {
+        return loop_rc;
+    }
+
+    if (!execute_simple_or_pipeline) {
+        return loop_rc;
+    }
+
+    return execute_simple_or_pipeline(trailing_commands);
 }
 
 int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
@@ -737,22 +661,6 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
         }
     }
 
-    auto finalize_with_trailing_commands = [&](int loop_rc) {
-        if (trailing_commands.empty()) {
-            return loop_rc;
-        }
-
-        if (trailing_contains_block_closer_segment(trailing_commands, shell_parser)) {
-            return loop_rc;
-        }
-
-        if (loop_rc == 253 || loop_rc == 254 || loop_rc == 255 || cjsh_env::exit_requested()) {
-            return loop_rc;
-        }
-
-        return execute_simple_or_pipeline(trailing_commands);
-    };
-
     auto command_has_redirections = [](const Command& cmd) {
         return !cmd.input_file.empty() || !cmd.here_doc.empty() || !cmd.here_string.empty() ||
                !cmd.output_file.empty() || !cmd.append_file.empty() || !cmd.stderr_file.empty() ||
@@ -761,7 +669,7 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
                !cmd.fd_duplications.empty();
     };
 
-    const bool condition_has_arithmetic_command_form = contains_arithmetic_command_form(cond);
+    const bool condition_has_arithmetic_command_form = parser_contains_arithmetic_command_form(cond);
 
     if (shell_parser && g_shell && g_shell->shell_exec) {
         Command control_cmd;
@@ -844,11 +752,13 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
             bool action_invoked = false;
             int exit_code = g_shell->shell_exec->run_with_command_redirections(
                 control_cmd, run_loop_logic, keyword, false, &action_invoked);
-            return finalize_with_trailing_commands(exit_code);
+            return execute_loop_trailing_commands(exit_code, trailing_commands,
+                                                  execute_simple_or_pipeline, shell_parser);
         }
     }
 
-    return finalize_with_trailing_commands(run_loop_logic());
+    return execute_loop_trailing_commands(run_loop_logic(), trailing_commands,
+                                          execute_simple_or_pipeline, shell_parser);
 }
 
 }  // namespace
@@ -916,23 +826,8 @@ int handle_for_block(
     } range_info;
 
     auto finalize_with_trailing_commands = [&](int loop_rc, const std::string& trailing_commands) {
-        if (trailing_commands.empty()) {
-            return loop_rc;
-        }
-
-        if (trailing_contains_block_closer_segment(trailing_commands, shell_parser)) {
-            return loop_rc;
-        }
-
-        if (loop_rc == 253 || loop_rc == 254 || loop_rc == 255 || cjsh_env::exit_requested()) {
-            return loop_rc;
-        }
-
-        if (!execute_simple_or_pipeline) {
-            return loop_rc;
-        }
-
-        return execute_simple_or_pipeline(trailing_commands);
+        return execute_loop_trailing_commands(loop_rc, trailing_commands,
+                                              execute_simple_or_pipeline, shell_parser);
     };
 
     auto assign_loop_variable = [&](const std::string& value) {
@@ -1021,6 +916,112 @@ int handle_for_block(
         return !var.empty();
     };
 
+    auto execute_for_iterations =
+        [&](const std::function<LoopCommandOutcome()>& run_iteration,
+            const std::string& trailing_commands,
+            const std::function<void()>& on_early_return) -> int {
+        int rc = 0;
+
+        auto evaluate_arithmetic_or_fail = [&](const std::string& expression,
+                                               long long& result_out) -> bool {
+            if (!evaluate_arithmetic_expression) {
+                print_error({ErrorType::RUNTIME_ERROR,
+                             ErrorSeverity::ERROR,
+                             "for",
+                             "arithmetic evaluator not available for C-style for loop",
+                             {"Use a regular 'for var in ...' loop or initialize arithmetic "
+                              "support before executing this block."}});
+                rc = 1;
+                return false;
+            }
+
+            try {
+                result_out = evaluate_arithmetic_expression(expression);
+                return true;
+            } catch (const std::exception& e) {
+                print_error({ErrorType::RUNTIME_ERROR,
+                             ErrorSeverity::ERROR,
+                             "for",
+                             std::string("failed to evaluate arithmetic expression: ") + e.what(),
+                             {"Check C-style for-loop expressions for invalid operators or "
+                              "division by zero."}});
+                rc = 1;
+                return false;
+            }
+        };
+
+        if (c_style_header.is_c_style) {
+            if (!c_style_header.init_expression.empty()) {
+                long long ignored_result = 0;
+                if (!evaluate_arithmetic_or_fail(c_style_header.init_expression, ignored_result)) {
+                    on_early_return();
+                    return finalize_with_trailing_commands(rc, trailing_commands);
+                }
+            }
+
+            while (true) {
+                int signal_rc = 0;
+                if (check_loop_interrupt(signal_rc)) {
+                    rc = signal_rc;
+                    break;
+                }
+
+                long long condition_value = 1;
+                if (!c_style_header.condition_expression.empty()) {
+                    if (!evaluate_arithmetic_or_fail(c_style_header.condition_expression,
+                                                     condition_value)) {
+                        on_early_return();
+                        return finalize_with_trailing_commands(rc, trailing_commands);
+                    }
+                }
+
+                if (condition_value == 0) {
+                    break;
+                }
+
+                auto outcome = run_iteration();
+                rc = outcome.code;
+
+                if (outcome.flow == LoopFlow::BREAK) {
+                    break;
+                }
+
+                if (!c_style_header.update_expression.empty()) {
+                    long long ignored_result = 0;
+                    if (!evaluate_arithmetic_or_fail(c_style_header.update_expression,
+                                                     ignored_result)) {
+                        on_early_return();
+                        return finalize_with_trailing_commands(rc, trailing_commands);
+                    }
+                }
+            }
+        } else if (range_info.is_range) {
+            rc = iterate_numeric_range(range_info.start, range_info.end, range_info.is_ascending,
+                                       [&](int value) -> LoopCommandOutcome {
+                                           assign_loop_variable(std::to_string(value));
+                                           return run_iteration();
+                                       });
+        } else {
+            for (const auto& it : items) {
+                int signal_rc = 0;
+                if (check_loop_interrupt(signal_rc)) {
+                    rc = signal_rc;
+                    break;
+                }
+                assign_loop_variable(it);
+
+                auto outcome = run_iteration();
+                rc = outcome.code;
+                if (outcome.flow == LoopFlow::NONE || outcome.flow == LoopFlow::CONTINUE) {
+                    continue;
+                }
+                break;
+            }
+        }
+
+        return finalize_with_trailing_commands(rc, trailing_commands);
+    };
+
     size_t do_pos = parser_find_inline_do_position(first);
     size_t done_pos_on_line = parser_find_keyword_token(first, "done", 0);
     if (do_pos != std::string::npos && done_pos_on_line != std::string::npos) {
@@ -1063,105 +1064,7 @@ int handle_for_block(
             return handle_loop_command_result(execute_block(*body_lines_ptr), 0, 255, 0, 254, true);
         };
 
-        int rc = 0;
-
-        auto evaluate_arithmetic_or_fail = [&](const std::string& expression,
-                                               long long& result_out) -> bool {
-            if (!evaluate_arithmetic_expression) {
-                print_error({ErrorType::RUNTIME_ERROR,
-                             ErrorSeverity::ERROR,
-                             "for",
-                             "arithmetic evaluator not available for C-style for loop",
-                             {"Use a regular 'for var in ...' loop or initialize arithmetic "
-                              "support before executing this block."}});
-                rc = 1;
-                return false;
-            }
-
-            try {
-                result_out = evaluate_arithmetic_expression(expression);
-                return true;
-            } catch (const std::exception& e) {
-                print_error({ErrorType::RUNTIME_ERROR,
-                             ErrorSeverity::ERROR,
-                             "for",
-                             std::string("failed to evaluate arithmetic expression: ") + e.what(),
-                             {"Check C-style for-loop expressions for invalid operators or "
-                              "division by zero."}});
-                rc = 1;
-                return false;
-            }
-        };
-
-        if (c_style_header.is_c_style) {
-            // c-style for: init; condition; update
-            if (!c_style_header.init_expression.empty()) {
-                long long ignored_result = 0;
-                if (!evaluate_arithmetic_or_fail(c_style_header.init_expression, ignored_result)) {
-                    return finalize_with_trailing_commands(rc, trailing_commands);
-                }
-            }
-
-            while (true) {
-                int signal_rc = 0;
-                if (check_loop_interrupt(signal_rc)) {
-                    rc = signal_rc;
-                    break;
-                }
-
-                long long condition_value = 1;
-                if (!c_style_header.condition_expression.empty()) {
-                    if (!evaluate_arithmetic_or_fail(c_style_header.condition_expression,
-                                                     condition_value)) {
-                        return finalize_with_trailing_commands(rc, trailing_commands);
-                    }
-                }
-
-                if (condition_value == 0) {
-                    break;
-                }
-
-                auto outcome = run_cached_body();
-                rc = outcome.code;
-
-                if (outcome.flow == LoopFlow::BREAK) {
-                    break;
-                }
-
-                if (!c_style_header.update_expression.empty()) {
-                    long long ignored_result = 0;
-                    if (!evaluate_arithmetic_or_fail(c_style_header.update_expression,
-                                                     ignored_result)) {
-                        return finalize_with_trailing_commands(rc, trailing_commands);
-                    }
-                }
-            }
-        } else if (range_info.is_range) {
-            // numeric brace range for i in {start..end}
-            rc = iterate_numeric_range(range_info.start, range_info.end, range_info.is_ascending,
-                                       [&](int value) -> LoopCommandOutcome {
-                                           std::string val_str = std::to_string(value);
-                                           assign_loop_variable(val_str);
-                                           return run_cached_body();
-                                       });
-        } else {
-            // standard for-in item iteration
-            for (const auto& it : items) {
-                int signal_rc = 0;
-                if (check_loop_interrupt(signal_rc)) {
-                    rc = signal_rc;
-                    break;
-                }
-                assign_loop_variable(it);
-
-                auto outcome = run_cached_body();
-                rc = outcome.code;
-                if (outcome.flow == LoopFlow::NONE || outcome.flow == LoopFlow::CONTINUE)
-                    continue;
-                break;
-            }
-        }
-        return finalize_with_trailing_commands(rc, trailing_commands);
+        return execute_for_iterations(run_cached_body, trailing_commands, []() {});
     }
 
     // multiline for path: accumulate header until do and collect body through matching done
@@ -1267,113 +1170,15 @@ int handle_for_block(
         }
     }
 
-    int rc = 0;
-
     auto run_body_and_handle_result = [&]() -> LoopCommandOutcome {
         // execute one iteration body and map break continue behavior
         return handle_loop_command_result(execute_block(body_lines), 0, 255, 0, 254, true);
     };
 
-    auto evaluate_arithmetic_or_fail = [&](const std::string& expression,
-                                           long long& result_out) -> bool {
-        if (!evaluate_arithmetic_expression) {
-            print_error({ErrorType::RUNTIME_ERROR,
-                         ErrorSeverity::ERROR,
-                         "for",
-                         "arithmetic evaluator not available for C-style for loop",
-                         {"Use a regular 'for var in ...' loop or initialize arithmetic support "
-                          "before executing this block."}});
-            rc = 1;
-            return false;
-        }
-
-        try {
-            result_out = evaluate_arithmetic_expression(expression);
-            return true;
-        } catch (const std::exception& e) {
-            print_error({ErrorType::RUNTIME_ERROR,
-                         ErrorSeverity::ERROR,
-                         "for",
-                         std::string("failed to evaluate arithmetic expression: ") + e.what(),
-                         {"Check C-style for-loop expressions for invalid operators or division "
-                          "by zero."}});
-            rc = 1;
-            return false;
-        }
-    };
-
-    if (c_style_header.is_c_style) {
-        // c-style for: init; condition; update
-        if (!c_style_header.init_expression.empty()) {
-            long long ignored_result = 0;
-            if (!evaluate_arithmetic_or_fail(c_style_header.init_expression, ignored_result)) {
-                idx = body_end_idx;
-                return finalize_with_trailing_commands(rc, trailing_commands);
-            }
-        }
-
-        while (true) {
-            int signal_rc = 0;
-            if (check_loop_interrupt(signal_rc)) {
-                rc = signal_rc;
-                break;
-            }
-
-            long long condition_value = 1;
-            if (!c_style_header.condition_expression.empty()) {
-                if (!evaluate_arithmetic_or_fail(c_style_header.condition_expression,
-                                                 condition_value)) {
-                    idx = body_end_idx;
-                    return finalize_with_trailing_commands(rc, trailing_commands);
-                }
-            }
-
-            if (condition_value == 0) {
-                break;
-            }
-
-            auto outcome = run_body_and_handle_result();
-            rc = outcome.code;
-
-            if (outcome.flow == LoopFlow::BREAK) {
-                break;
-            }
-
-            if (!c_style_header.update_expression.empty()) {
-                long long ignored_result = 0;
-                if (!evaluate_arithmetic_or_fail(c_style_header.update_expression,
-                                                 ignored_result)) {
-                    idx = body_end_idx;
-                    return finalize_with_trailing_commands(rc, trailing_commands);
-                }
-            }
-        }
-    } else if (range_info.is_range) {
-        // numeric brace range for i in {start..end}
-        rc = iterate_numeric_range(range_info.start, range_info.end, range_info.is_ascending,
-                                   [&](int value) -> LoopCommandOutcome {
-                                       std::string val_str = std::to_string(value);
-                                       assign_loop_variable(val_str);
-                                       return run_body_and_handle_result();
-                                   });
-    } else {
-        // standard for-in item iteration
-        for (const auto& it : items) {
-            int signal_rc = 0;
-            if (check_loop_interrupt(signal_rc)) {
-                rc = signal_rc;
-                break;
-            }
-            assign_loop_variable(it);
-            auto outcome = run_body_and_handle_result();
-            rc = outcome.code;
-            if (outcome.flow == LoopFlow::NONE || outcome.flow == LoopFlow::CONTINUE)
-                continue;
-            break;
-        }
-    }
+    int rc = execute_for_iterations(run_body_and_handle_result, trailing_commands,
+                                    [&]() { idx = body_end_idx; });
     idx = body_end_idx;
-    return finalize_with_trailing_commands(rc, trailing_commands);
+    return rc;
 }
 
 int handle_condition_loop_block(

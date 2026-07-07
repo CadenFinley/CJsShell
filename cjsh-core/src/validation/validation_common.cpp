@@ -577,75 +577,22 @@ ForLoopCheckResult analyze_for_loop_syntax(const std::vector<std::string>& token
             return false;
         }
 
-        size_t i = pos + 2;
-        int depth = 1;
-        bool in_single = false;
-        bool in_double = false;
-        bool escaped = false;
-        size_t close_pos = std::string::npos;
-
-        while (i < trimmed_line.size()) {
-            char ch = trimmed_line[i];
-
-            if (escaped) {
-                escaped = false;
-                ++i;
-                continue;
-            }
-
-            if (ch == '\\' && !in_single) {
-                escaped = true;
-                ++i;
-                continue;
-            }
-
-            if (!in_double && ch == '\'') {
-                in_single = !in_single;
-                ++i;
-                continue;
-            }
-
-            if (!in_single && ch == '"') {
-                in_double = !in_double;
-                ++i;
-                continue;
-            }
-
-            if (in_single || in_double) {
-                ++i;
-                continue;
-            }
-
-            if (i + 1 < trimmed_line.size() && trimmed_line.compare(i, 2, "((") == 0) {
-                ++depth;
-                i += 2;
-                continue;
-            }
-
-            if (i + 1 < trimmed_line.size() && trimmed_line.compare(i, 2, "))") == 0) {
-                --depth;
-                if (depth == 0) {
-                    close_pos = i;
-                    break;
-                }
-                i += 2;
-                continue;
-            }
-
-            ++i;
-        }
-
-        if (close_pos == std::string::npos || depth != 0) {
+        size_t content_start = 0;
+        size_t content_end = 0;
+        size_t after_close = 0;
+        if (!parser_find_balanced_double_parens(trimmed_line, pos, content_start, content_end,
+                                                after_close)) {
             result.incomplete = true;
             return true;
         }
+        (void)after_close;
 
-        std::string c_style_expr = trimmed_line.substr(pos + 2, close_pos - (pos + 2));
+        std::string c_style_expr = trimmed_line.substr(content_start, content_end - content_start);
         int semicolon_count = 0;
         int paren_depth = 0;
-        in_single = false;
-        in_double = false;
-        escaped = false;
+        bool in_single = false;
+        bool in_double = false;
+        bool escaped = false;
 
         for (size_t expr_idx = 0; expr_idx < c_style_expr.size(); ++expr_idx) {
             char ch = c_style_expr[expr_idx];

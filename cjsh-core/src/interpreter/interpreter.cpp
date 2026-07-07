@@ -253,103 +253,6 @@ bool parse_array_literal_assignment(const std::vector<std::string>& args, std::s
     return true;
 }
 
-bool parse_arithmetic_command_form(std::string_view text, bool& negate_status,
-                                   std::string& expression_out) {
-    std::string trimmed = trim(std::string(text));
-    negate_status = false;
-    expression_out.clear();
-
-    if (!trimmed.empty() && trimmed.front() == '!') {
-        size_t after_bang = 1;
-        bool has_whitespace_after_bang =
-            (after_bang >= trimmed.size()) ||
-            (std::isspace(static_cast<unsigned char>(trimmed[after_bang])) != 0);
-        if (has_whitespace_after_bang) {
-            negate_status = true;
-            while (after_bang < trimmed.size() &&
-                   (std::isspace(static_cast<unsigned char>(trimmed[after_bang])) != 0)) {
-                ++after_bang;
-            }
-            trimmed = trimmed.substr(after_bang);
-        }
-    }
-
-    if (trimmed.size() < 4 || trimmed.compare(0, 2, "((") != 0) {
-        return false;
-    }
-
-    int depth = 1;
-    size_t i = 2;
-    size_t expr_end = std::string::npos;
-    bool in_single = false;
-    bool in_double = false;
-    bool escaped = false;
-
-    while (i < trimmed.size()) {
-        char ch = trimmed[i];
-
-        if (escaped) {
-            escaped = false;
-            ++i;
-            continue;
-        }
-
-        if (ch == '\\' && !in_single) {
-            escaped = true;
-            ++i;
-            continue;
-        }
-
-        if (!in_double && ch == '\'') {
-            in_single = !in_single;
-            ++i;
-            continue;
-        }
-
-        if (!in_single && ch == '"') {
-            in_double = !in_double;
-            ++i;
-            continue;
-        }
-
-        if (in_single || in_double) {
-            ++i;
-            continue;
-        }
-
-        if (i + 1 < trimmed.size() && trimmed.compare(i, 2, "((") == 0) {
-            ++depth;
-            i += 2;
-            continue;
-        }
-
-        if (i + 1 < trimmed.size() && trimmed.compare(i, 2, "))") == 0) {
-            --depth;
-            if (depth == 0) {
-                expr_end = i;
-                i += 2;
-                break;
-            }
-            i += 2;
-            continue;
-        }
-
-        ++i;
-    }
-
-    if (depth != 0 || expr_end == std::string::npos) {
-        return false;
-    }
-
-    std::string trailing = trim(trimmed.substr(i));
-    if (!trailing.empty()) {
-        return false;
-    }
-
-    expression_out = trimmed.substr(2, expr_end - 2);
-    return true;
-}
-
 enum class StatementKeyword : std::uint8_t {
     If,
     For,
@@ -943,8 +846,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
 
         bool negate_arithmetic_status = false;
         std::string arithmetic_command_expression;
-        if (parse_arithmetic_command_form(trimmed_text, negate_arithmetic_status,
-                                          arithmetic_command_expression)) {
+        if (parser_parse_arithmetic_command_form(trimmed_text, negate_arithmetic_status,
+                                                 arithmetic_command_expression)) {
             try {
                 std::string expanded_expression = expand_all_substitutions(
                     arithmetic_command_expression, execute_simple_or_pipeline);
