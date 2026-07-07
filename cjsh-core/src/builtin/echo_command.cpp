@@ -30,7 +30,6 @@
 #include "builtin_help.h"
 #include "shell_env.h"
 
-#include <cstdlib>
 #include <iostream>
 #include <string>
 
@@ -38,14 +37,155 @@
 
 namespace {
 
-inline int hextobin(unsigned char c) {
-    if (c >= '0' && c <= '9')
-        return c - '0';
-    if (c >= 'a' && c <= 'f')
-        return c - 'a' + 10;
-    if (c >= 'A' && c <= 'F')
-        return c - 'A' + 10;
-    return 0;
+bool is_octal_digit(char c) {
+    return c >= '0' && c <= '7';
+}
+
+bool is_valid_echo_option(const std::string& option) {
+    if (option.length() <= 1 || option[0] != '-') {
+        return false;
+    }
+
+    for (size_t i = 1; i < option.length(); ++i) {
+        char c = option[i];
+        if (c != 'e' && c != 'E' && c != 'n') {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void apply_echo_option(const std::string& option, bool& interpret_escapes, bool& append_newline) {
+    for (size_t i = 1; i < option.length(); ++i) {
+        switch (option[i]) {
+            case 'e':
+                interpret_escapes = true;
+                break;
+            case 'E':
+                interpret_escapes = false;
+                break;
+            case 'n':
+                append_newline = false;
+                break;
+        }
+    }
+}
+
+unsigned int consume_octal_digits(const std::string& text, size_t& i, unsigned int value,
+                                  size_t max_digits) {
+    size_t digits = 0;
+    while (digits < max_digits && i + 1 < text.length() && is_octal_digit(text[i + 1])) {
+        ++i;
+        value = value * 8U + static_cast<unsigned int>(text[i] - '0');
+        ++digits;
+    }
+    return value;
+}
+
+bool parse_hex_byte(const std::string& text, size_t& i, unsigned int& value) {
+    if (i + 1 >= text.length() || !is_hex_digit(text[i + 1])) {
+        return false;
+    }
+
+    ++i;
+    int high = from_hex_digit(text[i]);
+    if (high < 0) {
+        return false;
+    }
+    value = static_cast<unsigned int>(high);
+
+    if (i + 1 < text.length() && is_hex_digit(text[i + 1])) {
+        ++i;
+        int low = from_hex_digit(text[i]);
+        if (low < 0) {
+            return false;
+        }
+        value = value * 16U + static_cast<unsigned int>(low);
+    }
+
+    return true;
+}
+
+bool print_with_escapes(std::ostream& out, const std::string& input) {
+    size_t i = 0;
+    while (i < input.length()) {
+        unsigned char c = static_cast<unsigned char>(input[i]);
+
+        if (c != '\\' || i + 1 >= input.length()) {
+            out << static_cast<char>(c);
+            ++i;
+            continue;
+        }
+
+        c = static_cast<unsigned char>(input[++i]);
+
+        switch (c) {
+            case 'a':
+                out << '\a';
+                break;
+            case 'b':
+                out << '\b';
+                break;
+            case 'c':
+                out.flush();
+                return false;
+            case 'e':
+                out << '\x1B';
+                break;
+            case 'f':
+                out << '\f';
+                break;
+            case 'n':
+                out << '\n';
+                break;
+            case 'r':
+                out << '\r';
+                break;
+            case 't':
+                out << '\t';
+                break;
+            case 'v':
+                out << '\v';
+                break;
+            case 'x': {
+                unsigned int value = 0;
+                if (parse_hex_byte(input, i, value)) {
+                    out << static_cast<char>(static_cast<unsigned char>(value));
+                } else {
+                    out << '\\' << 'x';
+                }
+                break;
+            }
+            case '0': {
+                unsigned int value = consume_octal_digits(input, i, 0U, 3);
+                out << static_cast<char>(static_cast<unsigned char>(value));
+                break;
+            }
+            case '1':
+            case '2':
+            case '3':
+            case '4':
+            case '5':
+            case '6':
+            case '7': {
+                unsigned int value =
+                    consume_octal_digits(input, i, static_cast<unsigned int>(c - '0'), 2);
+                out << static_cast<char>(static_cast<unsigned char>(value));
+                break;
+            }
+            case '\\':
+                out << '\\';
+                break;
+            default:
+                out << '\\' << static_cast<char>(c);
+                break;
+        }
+
+        ++i;
+    }
+
+    return true;
 }
 
 }  // namespace
@@ -75,193 +215,45 @@ int echo_command(const std::vector<std::string>& args) {
         return 0;
     }
 
-    bool display_return = true;
-    bool do_v9 = false;
+    bool append_newline = true;
+    bool interpret_escapes = false;
     bool posixly_correct = cjsh_env::shell_variable_is_set("POSIXLY_CORRECT");
     bool allow_options = !posixly_correct || (args.size() > 1 && args[1] == "-n");
 
-    std::vector<std::string> echo_args = args;
-
-    bool redirect_to_stderr = false;
-    if (!echo_args.empty() && echo_args.back() == ">&2") {
-        redirect_to_stderr = true;
-        echo_args.pop_back();
-    }
+    bool redirect_to_stderr = !args.empty() && args.back() == ">&2";
+    size_t args_end = redirect_to_stderr ? args.size() - 1 : args.size();
 
     size_t arg_idx = 1;
 
     if (allow_options) {
-        while (arg_idx < echo_args.size() && !echo_args[arg_idx].empty() &&
-               echo_args[arg_idx][0] == '-') {
-            const std::string& opt = echo_args[arg_idx];
-
-            if (opt.length() == 1) {
-                break;
-            }
-
-            bool valid_options = true;
-            for (size_t i = 1; i < opt.length(); i++) {
-                char c = opt[i];
-                if (c != 'e' && c != 'E' && c != 'n') {
-                    valid_options = false;
-                    break;
-                }
-            }
-
-            if (!valid_options) {
-                break;
-            }
-
-            for (size_t i = 1; i < opt.length(); i++) {
-                switch (opt[i]) {
-                    case 'e':
-                        do_v9 = true;
-                        break;
-                    case 'E':
-                        do_v9 = false;
-                        break;
-                    case 'n':
-                        display_return = false;
-                        break;
-                }
-            }
-
-            arg_idx++;
+        while (arg_idx < args_end && is_valid_echo_option(args[arg_idx])) {
+            apply_echo_option(args[arg_idx], interpret_escapes, append_newline);
+            ++arg_idx;
         }
     }
 
     std::ostream& out = redirect_to_stderr ? std::cerr : std::cout;
-
     bool first = true;
 
-    if (do_v9 || posixly_correct) {
-        while (arg_idx < echo_args.size()) {
-            if (!first) {
-                out << ' ';
-            }
-            first = false;
-
-            const std::string& s = echo_args[arg_idx];
-            size_t i = 0;
-
-            while (i < s.length()) {
-                unsigned char c = static_cast<unsigned char>(s[i]);
-
-                if (c == '\\' && i + 1 < s.length()) {
-                    i++;
-                    c = static_cast<unsigned char>(s[i]);
-
-                    switch (c) {
-                        case 'a':
-                            out << '\a';
-                            break;
-                        case 'b':
-                            out << '\b';
-                            break;
-                        case 'c':
-
-                            out.flush();
-                            return 0;
-                        case 'e':
-                            out << '\x1B';
-                            break;
-                        case 'f':
-                            out << '\f';
-                            break;
-                        case 'n':
-                            out << '\n';
-                            break;
-                        case 'r':
-                            out << '\r';
-                            break;
-                        case 't':
-                            out << '\t';
-                            break;
-                        case 'v':
-                            out << '\v';
-                            break;
-                        case 'x': {
-                            if (i + 1 < s.length() && is_hex_digit(s[i + 1])) {
-                                i++;
-                                unsigned char ch = static_cast<unsigned char>(s[i]);
-                                unsigned int value = static_cast<unsigned int>(hextobin(ch));
-
-                                if (i + 1 < s.length() && is_hex_digit(s[i + 1])) {
-                                    i++;
-                                    ch = static_cast<unsigned char>(s[i]);
-                                    value = value * 16u + static_cast<unsigned int>(hextobin(ch));
-                                }
-                                out << static_cast<char>(static_cast<unsigned char>(value));
-                            } else {
-                                out << '\\' << 'x';
-                            }
-                            break;
-                        }
-                        case '0':
-
-                        {
-                            unsigned int value = 0;
-                            if (i + 1 < s.length() && s[i + 1] >= '0' && s[i + 1] <= '7') {
-                                i++;
-                                value = static_cast<unsigned int>(s[i] - '0');
-                                if (i + 1 < s.length() && s[i + 1] >= '0' && s[i + 1] <= '7') {
-                                    i++;
-                                    value = value * 8u + static_cast<unsigned int>(s[i] - '0');
-                                    if (i + 1 < s.length() && s[i + 1] >= '0' && s[i + 1] <= '7') {
-                                        i++;
-                                        value = value * 8u + static_cast<unsigned int>(s[i] - '0');
-                                    }
-                                }
-                            }
-                            out << static_cast<char>(static_cast<unsigned char>(value));
-                        } break;
-                        case '1':
-                        case '2':
-                        case '3':
-                        case '4':
-                        case '5':
-                        case '6':
-                        case '7': {
-                            unsigned int value = static_cast<unsigned int>(c - '0');
-                            if (i + 1 < s.length() && s[i + 1] >= '0' && s[i + 1] <= '7') {
-                                i++;
-                                value = value * 8u + static_cast<unsigned int>(s[i] - '0');
-                                if (i + 1 < s.length() && s[i + 1] >= '0' && s[i + 1] <= '7') {
-                                    i++;
-                                    value = value * 8u + static_cast<unsigned int>(s[i] - '0');
-                                }
-                            }
-                            out << static_cast<char>(static_cast<unsigned char>(value));
-                            break;
-                        }
-                        case '\\':
-                            out << '\\';
-                            break;
-                        default:
-
-                            out << '\\';
-                            i--;
-                            break;
-                    }
-                } else {
-                    out << static_cast<char>(c);
-                }
-                i++;
-            }
-            arg_idx++;
+    while (arg_idx < args_end) {
+        if (!first) {
+            out << ' ';
         }
-    } else {
-        while (arg_idx < echo_args.size()) {
-            if (!first) {
-                out << ' ';
+        first = false;
+
+        const std::string& value = args[arg_idx];
+        if (interpret_escapes || posixly_correct) {
+            if (!print_with_escapes(out, value)) {
+                return 0;
             }
-            first = false;
-            out << echo_args[arg_idx];
-            arg_idx++;
+        } else {
+            out << value;
         }
+
+        ++arg_idx;
     }
 
-    if (display_return) {
+    if (append_newline) {
         out << '\n';
     }
 

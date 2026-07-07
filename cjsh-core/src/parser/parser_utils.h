@@ -110,6 +110,7 @@ std::pair<std::string, bool> strip_noenv_sentinels(const std::string& s);
 bool strip_subst_literal_markers(std::string& value);
 
 bool is_hex_digit(char c);
+int from_hex_digit(char c);
 
 bool is_char_escaped(const char* str, size_t pos);
 

@@ -185,6 +185,19 @@ bool is_hex_digit(char c) {
     return std::isxdigit(static_cast<unsigned char>(c)) != 0;
 }
 
+int from_hex_digit(char c) {
+    if (c >= '0' && c <= '9') {
+        return c - '0';
+    }
+    if (c >= 'a' && c <= 'f') {
+        return c - 'a' + 10;
+    }
+    if (c >= 'A' && c <= 'F') {
+        return c - 'A' + 10;
+    }
+    return -1;
+}
+
 bool is_char_escaped(const char* str, size_t pos) {
     if (pos == 0) {
         return false;

@@ -69,16 +69,6 @@ static inline bool is_octal_digit(char c) {
     return c >= '0' && c <= '7';
 }
 
-static inline int from_hex(char c) {
-    if (c >= '0' && c <= '9')
-        return c - '0';
-    if (c >= 'a' && c <= 'f')
-        return c - 'a' + 10;
-    if (c >= 'A' && c <= 'F')
-        return c - 'A' + 10;
-    return 0;
-}
-
 static inline int from_octal(char c) {
     return c - '0';
 }
@@ -268,7 +258,7 @@ static int print_esc(const char* escstart, bool octal_0) {
 
     if (*p == 'x') {
         for (esc_length = 0, ++p; esc_length < 2 && is_hex_digit(*p); ++esc_length, ++p)
-            esc_value = esc_value * 16 + from_hex(*p);
+            esc_value = esc_value * 16 + from_hex_digit(*p);
         if (esc_length == 0) {
             print_error({ErrorType::INVALID_ARGUMENT,
                          "printf",
@@ -296,7 +286,7 @@ static int print_esc(const char* escstart, bool octal_0) {
                              {}});
                 exit(1);
             }
-            uni_value = uni_value * 16 + static_cast<uint32_t>(from_hex(*p));
+            uni_value = uni_value * 16 + static_cast<uint32_t>(from_hex_digit(*p));
         }
 
         if (uni_value >= 0xD800 && uni_value <= 0xDFFF) {
