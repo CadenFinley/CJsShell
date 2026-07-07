@@ -676,6 +676,7 @@ Available subcommands:
 - `completion-case` - Configure completion case sensitivity
 - `history-search-case` - Configure fuzzy history case sensitivity
 - `completion-spell` - Toggle spell correction suggestions in completions
+- `completion-spell-enter` - Toggle Enter-triggered spell autocorrection when exactly one spell match exists
 - `completion-learning` - Toggle automatic completion learning from man pages
 - `smart-cd` - Toggle fuzzy auto-jumps for `cd`
 - `script-extension-interpreter` - Toggle extension-based script runners
@@ -821,6 +822,26 @@ Examples:
 ```bash
 cjshopt completion-spell on       # Turn on spell correction
 cjshopt completion-spell status   # Display the current state
+```
+
+Persist the choice by placing the command in `~/.cjshrc`.
+
+#### completion-spell-enter
+
+Enable, disable, or inspect Enter-triggered spell autocorrection. When enabled, pressing Enter will
+apply a spell correction before submission if there is exactly one spell-sourced correction
+candidate. The subcommand accepts synonyms such as `enable`, `disable`, `true`, `false`, and
+`--status`.
+
+```bash
+cjshopt completion-spell-enter <on|off|status>
+```
+
+Examples:
+
+```bash
+cjshopt completion-spell-enter on       # Auto-apply a single spell correction on Enter
+cjshopt completion-spell-enter status   # Show the current setting
 ```
 
 Persist the choice by placing the command in `~/.cjshrc`.

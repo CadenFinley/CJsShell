@@ -83,6 +83,10 @@ Fuzzy matching powers command, path, and argument completions without additional
 **Status:** Enabled  
 **Configure:** `cjshopt completion-spell on|off|status`
 
+### Enter Spell Autocorrection
+**Status:** Disabled  
+**Configure:** `cjshopt completion-spell-enter on|off|status`
+
 ### Completion Case Sensitivity
 **Status:** Disabled (completions are case-insensitive)  
 **Configure:** `cjshopt completion-case on|off|status`

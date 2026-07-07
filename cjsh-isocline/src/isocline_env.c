@@ -108,6 +108,7 @@ static ic_env_t* ic_env_create(ic_malloc_fun_t* _malloc, ic_realloc_fun_t* _real
     // Set default enabled features
     env->hint_delay = 0;                        // hint delay (0)
     env->spell_correct = true;                  // completion spell fixing
+    env->spell_correct_on_enter = false;        // enter-submit spell correction
     env->show_line_numbers = true;              // line numbers
     env->relative_line_numbers = false;         // absolute numbering by default
     env->highlight_current_line_number = true;  // highlight current line number by default

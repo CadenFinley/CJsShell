@@ -46,6 +46,7 @@ int startup_flag_command(const std::vector<std::string>& args);
 int completion_case_command(const std::vector<std::string>& args);
 int history_search_case_command(const std::vector<std::string>& args);
 int completion_spell_command(const std::vector<std::string>& args);
+int completion_spell_enter_command(const std::vector<std::string>& args);
 int completion_learning_command(const std::vector<std::string>& args);
 int smart_cd_command(const std::vector<std::string>& args);
 int script_extension_interpreter_command(const std::vector<std::string>& args);

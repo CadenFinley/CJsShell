@@ -567,6 +567,8 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
              make_subcommand("completion-case", "Configure completion case sensitivity"),
              make_subcommand("history-search-case", "Configure fuzzy history case sensitivity"),
              make_subcommand("completion-spell", "Configure completion spell correction"),
+             make_subcommand("completion-spell-enter",
+                             "Auto-apply a single spell correction when pressing Enter"),
              make_subcommand("completion-learning", "Toggle completion learning"),
              make_subcommand("smart-cd", "Toggle smart cd auto-jumps"),
              make_subcommand("script-extension-interpreter",
@@ -701,6 +703,10 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_doc("cjshopt-completion-spell", "",
                 {make_subcommand("on", "Enable spell correction"),
                  make_subcommand("off", "Disable spell correction"),
+                 make_subcommand("status", "Show current setting")});
+        add_doc("cjshopt-completion-spell-enter", "",
+                {make_subcommand("on", "Auto-apply a single spell correction on Enter"),
+                 make_subcommand("off", "Submit input without Enter autocorrection"),
                  make_subcommand("status", "Show current setting")});
         add_doc("cjshopt-smart-cd", "",
                 {make_subcommand("on", "Enable smart cd auto-jumps"),

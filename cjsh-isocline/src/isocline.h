@@ -774,6 +774,12 @@ bool ic_enable_hint(bool enable);
 /// @returns the previous setting.
 bool ic_enable_spell_correct(bool enable);
 
+/// Disable or enable spell correction when submitting with Enter (disabled by default).
+/// When enabled, pressing Enter applies a single available spell correction suggestion
+/// before accepting the line.
+/// @returns the previous setting.
+bool ic_enable_spell_correct_on_enter(bool enable);
+
 /// Set millisecond delay before a hint is displayed. Can be zero. (0ms by
 /// default).
 long ic_set_hint_delay(long delay_ms);

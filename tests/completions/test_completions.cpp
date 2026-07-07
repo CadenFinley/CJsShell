@@ -875,6 +875,9 @@ static bool test_builtin_docs(void) {
     EXPECT_TRUE(has_entry(cjshopt_doc, "completion-menu-expanded",
                           builtin_completions::EntryKind::Subcommand),
                 test_name, "cjshopt should include completion-menu-expanded subcommand");
+    EXPECT_TRUE(has_entry(cjshopt_doc, "completion-spell-enter",
+                          builtin_completions::EntryKind::Subcommand),
+                test_name, "cjshopt should include completion-spell-enter subcommand");
 
     const auto* completion_max_doc =
         builtin_completions::lookup_builtin_command_doc("cjshopt-set-completion-max");
@@ -905,6 +908,14 @@ static bool test_builtin_docs(void) {
     EXPECT_TRUE(has_entry(completion_menu_expanded_doc, "status",
                           builtin_completions::EntryKind::Subcommand),
                 test_name, "completion-menu-expanded should include status subcommand");
+
+    const auto* completion_spell_enter_doc =
+        builtin_completions::lookup_builtin_command_doc("cjshopt-completion-spell-enter");
+    EXPECT_TRUE(completion_spell_enter_doc != nullptr, test_name,
+                "cjshopt-completion-spell-enter doc should exist");
+    EXPECT_TRUE(has_entry(completion_spell_enter_doc, "status",
+                          builtin_completions::EntryKind::Subcommand),
+                test_name, "completion-spell-enter should include status subcommand");
 
     const auto* type_doc = builtin_completions::lookup_builtin_command_doc("type");
     EXPECT_TRUE(type_doc != nullptr, test_name, "type doc should exist");

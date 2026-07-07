@@ -49,6 +49,7 @@ enum class CjshoptSubcommand : std::uint8_t {
     CompletionCase,
     HistorySearchCase,
     CompletionSpell,
+    CompletionSpellEnter,
     CompletionLearning,
     SmartCd,
     ScriptExtensionInterpreter,
@@ -103,6 +104,8 @@ constexpr std::array<CjshoptSubcommandDescriptor, static_cast<size_t>(CjshoptSub
          {CjshoptSubcommand::CompletionCase, "completion-case", completion_case_command},
          {CjshoptSubcommand::HistorySearchCase, "history-search-case", history_search_case_command},
          {CjshoptSubcommand::CompletionSpell, "completion-spell", completion_spell_command},
+         {CjshoptSubcommand::CompletionSpellEnter, "completion-spell-enter",
+          completion_spell_enter_command},
          {CjshoptSubcommand::CompletionLearning, "completion-learning",
           completion_learning_command},
          {CjshoptSubcommand::SmartCd, "smart-cd", smart_cd_command},
@@ -176,6 +179,9 @@ const std::vector<std::string>& cjshopt_usage_lines() {
             "(default: enabled)",
         std::string("  completion-spell <on|off|status> Configure completion spell correction ") +
             "(default: enabled)",
+        std::string(
+            "  completion-spell-enter <on|off|status> Auto-apply single spell corrections on ") +
+            "Enter (default: disabled)",
         std::string("  smart-cd <on|off|status>         Configure smart cd auto-jumps ") +
             "(default: enabled)",
         std::string("  script-extension-interpreter <on|off|status> Configure extension-based ") +
@@ -279,10 +285,10 @@ int cjshopt_command(const std::vector<std::string>& args) {
     print_error({ErrorType::INVALID_ARGUMENT,
                  "cjshopt",
                  "unknown subcommand '" + subcommand + "'",
-                 {"Available subcommands: style_def, login-startup-arg, completion-case, "
-                  "history-search-case, completion-spell, "
-                  "smart-cd, script-extension-interpreter, "
-                  "completion-learning, "
+                  {"Available subcommands: style_def, login-startup-arg, completion-case, "
+                   "history-search-case, completion-spell, completion-spell-enter, "
+                   "smart-cd, script-extension-interpreter, "
+                   "completion-learning, "
                   "line-numbers, line-numbers-continuation, line-numbers-replace-prompt, "
                   "current-line-number-highlight, multiline-start-lines, hint-delay, "
                   "completion-preview, completion-menu-expanded, visible-whitespace, hint, "

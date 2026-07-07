@@ -329,6 +329,28 @@ int completion_spell_command(const std::vector<std::string>& args) {
     return handle_toggle_command(config, args);
 }
 
+int completion_spell_enter_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: completion-spell-enter <on|off|status>",
+        "Examples:",
+        "  completion-spell-enter on      Auto-apply a single spell correction when pressing Enter",
+        "  completion-spell-enter off     Submit input as typed when pressing Enter",
+        "  completion-spell-enter status  Show the current setting"};
+
+    static const ToggleCommandConfig config{
+        "completion-spell-enter",
+        usage_lines,
+        []() { return is_completion_spell_correction_on_enter_enabled(); },
+        [](bool enable) { set_completion_spell_correction_on_enter_enabled(enable); },
+        "Enter spell correction",
+        false,
+        "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
+        {},
+        {}};
+
+    return handle_toggle_command(config, args);
+}
+
 int completion_learning_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {
         "Usage: completion-learning <on|off|status>", "Examples:",

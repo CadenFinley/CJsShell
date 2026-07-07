@@ -49,6 +49,7 @@ typedef enum completion_mode_e {
     COMPLETION_MODE_SINGLE,
     COMPLETION_MODE_DUAL,
     COMPLETION_MODE_MANY,
+    COMPLETION_MODE_SPELL_SINGLE,
 } completion_mode_t;
 
 static completion_mode_t g_completion_mode = COMPLETION_MODE_NONE;
@@ -70,6 +71,13 @@ static void pty_completion_word_provider(ic_completion_env_t* cenv, const char* 
             "s08", "s09", "s10", "s11", "s12", NULL,
         };
         (void)ic_add_completions(cenv, prefix, many_words);
+        return;
+    }
+    if (g_completion_mode == COMPLETION_MODE_SPELL_SINGLE) {
+        if (prefix != NULL && strcmp(prefix, "hlelo") == 0) {
+            (void)ic_add_completion_prim_with_source(cenv, "hello", NULL, NULL, "spell",
+                                                     (long)strlen(prefix), 0);
+        }
         return;
     }
 }
@@ -103,6 +111,7 @@ static int run_readline_status_case(const char* scenario) {
     ic_enable_inline_help(false);
     ic_enable_completion_preview(false);
     ic_enable_auto_tab(false);
+    ic_enable_spell_correct_on_enter(false);
     ic_enable_prompt_cleanup(false, 0);
     ic_enable_mouse_clicking(false);
     ic_enable_mouse_reporting_status_line(true);
@@ -312,6 +321,13 @@ static int run_case(const char* scenario) {
         initial_input = "say he";
         g_completion_mode = COMPLETION_MODE_SINGLE;
         ic_set_default_completer(pty_completion_dispatcher, NULL);
+    } else if (strcmp(scenario, "enter_spell_single_disabled") == 0 ||
+               strcmp(scenario, "enter_spell_single_enabled") == 0) {
+        g_completion_mode = COMPLETION_MODE_SPELL_SINGLE;
+        ic_set_default_completer(pty_completion_dispatcher, NULL);
+        if (strcmp(scenario, "enter_spell_single_enabled") == 0) {
+            ic_enable_spell_correct_on_enter(true);
+        }
     } else if (strcmp(scenario, "hint_clears_on_empty_line") == 0) {
         g_completion_mode = COMPLETION_MODE_SINGLE;
         ic_enable_hint(true);

@@ -215,6 +215,9 @@ cjshopt completion-case on|off|status
 # Enable/disable spell correction (enabled by default)
 cjshopt completion-spell on|off|status
 
+# Enable/disable Enter-triggered spell autocorrection (disabled by default)
+cjshopt completion-spell-enter on|off|status
+
 # Cap the number of suggestions shown per request (default: 1000, no upper limit)
 cjshopt set-completion-max <number|default|status>
 ```
@@ -644,6 +647,9 @@ When no exact match is found, cjsh attempts to find the closest match using edit
 ```bash
 # Enable/disable spell correction (enabled by default)
 cjshopt completion-spell on|off|status
+
+# Enable/disable Enter-triggered spell autocorrection (disabled by default)
+cjshopt completion-spell-enter on|off|status
 ```
 
 ### Heredoc Support
@@ -767,6 +773,7 @@ cjshopt completion-menu-expanded off
 cjshopt auto-tab off
 cjshopt completion-case off  # Case-insensitive completions
 cjshopt completion-spell on
+cjshopt completion-spell-enter off
 
 # Hint settings
 cjshopt hint on

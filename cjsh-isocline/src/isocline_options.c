@@ -405,6 +405,15 @@ ic_public bool ic_enable_spell_correct(bool enable) {
     return prev;
 }
 
+ic_public bool ic_enable_spell_correct_on_enter(bool enable) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return false;
+    bool prev = env->spell_correct_on_enter;
+    env->spell_correct_on_enter = enable;
+    return prev;
+}
+
 ic_public long ic_set_hint_delay(long delay_ms) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)

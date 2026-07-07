@@ -112,6 +112,7 @@ struct ic_env_s {
     bool no_lscolors;                    // use LSCOLORS/LS_COLORS to colorize file name
                                          // completions?
     bool spell_correct;                  // enable spell correction on completions?
+    bool spell_correct_on_enter;         // apply single spell correction when submitting?
     bool show_line_numbers;              // show line numbers in multiline mode?
     bool relative_line_numbers;          // use relative line numbers when enabled?
     bool highlight_current_line_number;  // highlight the current line number differently?

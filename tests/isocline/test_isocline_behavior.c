@@ -1217,6 +1217,16 @@ static bool test_option_toggle_consistency(void) {
                 "spell-correct disable should report previously enabled state");
     EXPECT_FALSE(env->spell_correct, "spell-correct disable should clear flag");
 
+    env->spell_correct_on_enter = false;
+    EXPECT_FALSE(ic_enable_spell_correct_on_enter(true),
+                 "spell-correct-on-enter enable should report previously disabled state");
+    EXPECT_TRUE(env->spell_correct_on_enter,
+                "spell-correct-on-enter enable should set environment flag");
+    EXPECT_TRUE(ic_enable_spell_correct_on_enter(false),
+                "spell-correct-on-enter disable should report previously enabled state");
+    EXPECT_FALSE(env->spell_correct_on_enter,
+                 "spell-correct-on-enter disable should clear environment flag");
+
     env->no_highlight = false;
     EXPECT_TRUE(ic_enable_highlight(false),
                 "highlight disable should report previously enabled state");
@@ -1252,6 +1262,7 @@ static bool test_option_toggle_consistency(void) {
     (void)ic_enable_multiline_indent(true);
     (void)ic_enable_hint(true);
     (void)ic_enable_spell_correct(true);
+    (void)ic_enable_spell_correct_on_enter(false);
     (void)ic_enable_highlight(true);
     (void)ic_enable_inline_help(true);
     (void)ic_enable_current_line_number_highlight(true);

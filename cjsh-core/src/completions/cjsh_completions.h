@@ -41,6 +41,8 @@ void set_completion_case_sensitive(bool case_sensitive);
 bool is_completion_case_sensitive();
 void set_completion_spell_correction_enabled(bool enabled);
 bool is_completion_spell_correction_enabled();
+void set_completion_spell_correction_on_enter_enabled(bool enabled);
+bool is_completion_spell_correction_on_enter_enabled();
 bool set_completion_max_results(long max_results, std::string* error_message = nullptr);
 long get_completion_max_results();
 long get_completion_default_max_results();

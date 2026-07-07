@@ -1285,6 +1285,20 @@ def main() -> int:
             f"completion_no_match expected 'xyz', got {comp_nomatch!r}"
         )
 
+    spell_submit_disabled = run_case(binary, "enter_spell_single_disabled", b"hlelo\r")
+    if spell_submit_disabled != "hlelo":
+        raise AssertionError(
+            "enter_spell_single_disabled expected 'hlelo', got "
+            f"{spell_submit_disabled!r}"
+        )
+
+    spell_submit_enabled = run_case(binary, "enter_spell_single_enabled", b"hlelo\r")
+    if spell_submit_enabled != "hello":
+        raise AssertionError(
+            "enter_spell_single_enabled expected 'hello', got "
+            f"{spell_submit_enabled!r}"
+        )
+
     comp_common = run_case(binary, "completion_dual_common_prefix", b"pla\t\r\r")
     if comp_common != "planet":
         raise AssertionError(

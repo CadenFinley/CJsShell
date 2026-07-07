@@ -92,6 +92,7 @@ for full details.
         `cjshopt multiline-start-lines`
      - `cjshopt completion-preview`, `cjshopt completion-menu-expanded`,
          `cjshopt completion-case`, `cjshopt completion-spell`,
+         `cjshopt completion-spell-enter`,
          `cjshopt completion-learning`, `cjshopt auto-tab`
      - `cjshopt hint`, `cjshopt hint-delay`, `cjshopt inline-help`, `cjshopt status-hints`,
          `cjshopt status-line`, `cjshopt status-reporting`, `cjshopt visible-whitespace`

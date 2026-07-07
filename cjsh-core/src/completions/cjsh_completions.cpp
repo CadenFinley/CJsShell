@@ -65,6 +65,7 @@
 namespace {
 bool g_completion_case_sensitive = false;
 bool g_completion_spell_correction_enabled = true;
+bool g_completion_spell_correction_on_enter_enabled = false;
 }  // namespace
 
 enum CompletionContext : std::uint8_t {
@@ -1657,6 +1658,8 @@ void initialize_completion_system() {
         ic_enable_auto_tab(false);
         ic_enable_inline_help(false);
     }
+    ic_enable_spell_correct(g_completion_spell_correction_enabled);
+    ic_enable_spell_correct_on_enter(g_completion_spell_correction_on_enter_enabled);
     if (!completion_history::enforce_history_limit(nullptr)) {
         print_error(
             {ErrorType::RUNTIME_ERROR,
@@ -1682,6 +1685,15 @@ void set_completion_spell_correction_enabled(bool enabled) {
 
 bool is_completion_spell_correction_enabled() {
     return g_completion_spell_correction_enabled;
+}
+
+void set_completion_spell_correction_on_enter_enabled(bool enabled) {
+    g_completion_spell_correction_on_enter_enabled = enabled;
+    ic_enable_spell_correct_on_enter(enabled);
+}
+
+bool is_completion_spell_correction_on_enter_enabled() {
+    return g_completion_spell_correction_on_enter_enabled;
 }
 
 bool set_completion_max_results(long max_results, std::string* error_message) {

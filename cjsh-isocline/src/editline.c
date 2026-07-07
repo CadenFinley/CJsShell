@@ -195,6 +195,7 @@ static bool edit_mouse_event_to_target_rowcol(ic_env_t* env, editor_t* eb,
                                               ssize_t* target_row, ssize_t* target_col);
 static void edit_toggle_mouse_reporting(ic_env_t* env, editor_t* eb);
 static void edit_reset_mouse_reporting_session(ic_env_t* env, editor_t* eb, bool apply_default);
+static bool edit_try_spell_correct_on_enter(ic_env_t* env, editor_t* eb);
 
 static void edit_reset_last_arg_state(editor_t* eb) {
     if (eb == NULL) {
@@ -909,6 +910,32 @@ static bool edit_try_spell_correct(ic_env_t* env, editor_t* eb) {
     }
     completions_clear(env->completions);
     mem_free(env->mem, original_word);
+    return applied;
+}
+
+static bool edit_try_spell_correct_on_enter(ic_env_t* env, editor_t* eb) {
+    if (env == NULL || eb == NULL)
+        return false;
+    if (!env->spell_correct || !env->spell_correct_on_enter)
+        return false;
+
+    const char* input = sbuf_string(eb->input);
+    if (input == NULL || eb->pos <= 0)
+        return false;
+
+    ssize_t prev = str_prev_ofs(input, eb->pos, NULL);
+    if (prev <= 0)
+        return false;
+    if (ic_char_is_separator(input + eb->pos - prev, (long)prev))
+        return false;
+
+    ssize_t count = completions_generate(env, env->completions, input, eb->pos,
+                                         IC_MAX_COMPLETIONS_TO_TRY);
+    bool applied = false;
+    if (count == 1 && completions_all_sources_equal(env->completions, "spell")) {
+        applied = edit_complete(env, eb, 0);
+    }
+    completions_clear(env->completions);
     return applied;
 }
 
@@ -3334,6 +3361,15 @@ edit_loop_entry:
                     pending_key = KEY_LINEFEED;
                     continue;
                 }
+                if (should_submit && edit_try_spell_correct_on_enter(env, &eb)) {
+                    should_submit = edit_should_submit_current_buffer(env, &eb);
+                    if (!should_submit && !env->singleline_only) {
+                        eb.request_submit = false;
+                        has_pending_key = true;
+                        pending_key = KEY_LINEFEED;
+                        continue;
+                    }
+                }
                 c = KEY_ENTER;
                 break;
             }
@@ -3675,6 +3711,16 @@ edit_loop_entry:
                     has_pending_key = true;
                     pending_key = KEY_LINEFEED;
                     continue;
+                }
+                if (should_submit && edit_try_spell_correct_on_enter(env, &eb)) {
+                    should_submit = edit_should_submit_current_buffer(env, &eb);
+                    if (!should_submit && !env->singleline_only) {
+                        request_submit = false;
+                        eb.request_submit = false;
+                        has_pending_key = true;
+                        pending_key = KEY_LINEFEED;
+                        continue;
+                    }
                 }
                 c = KEY_ENTER;
                 break;
