@@ -70,6 +70,7 @@ namespace prompt {
 namespace {
 
 std::atomic<bool> g_prompt_refresh_allowed{false};
+thread_local std::string g_transient_final_right_prompt;
 
 }  // namespace
 namespace {
@@ -1015,13 +1016,32 @@ std::string render_secondary_prompt() {
 }
 
 bool apply_transient_final_prompt_if_configured() {
-    if (!config::prompt_vars_enabled || !cjsh_env::shell_variable_is_set("PS1_FINAL")) {
+    if (!config::prompt_vars_enabled) {
         return false;
     }
 
-    std::string ps1_final = cjsh_env::get_shell_variable_value("PS1_FINAL");
-    std::string prompt_text = expand_prompt_string(ps1_final, PromptContext::Final);
-    return ic_current_loop_reset(nullptr, prompt_text.c_str(), nullptr);
+    const bool has_ps1_final = cjsh_env::shell_variable_is_set("PS1_FINAL");
+    const bool has_rps1_final = cjsh_env::shell_variable_is_set("RPS1_FINAL");
+    if (!has_ps1_final && !has_rps1_final) {
+        return false;
+    }
+
+    const char* final_prompt_ptr = nullptr;
+    std::string final_prompt_text;
+    if (has_ps1_final) {
+        std::string ps1_final = cjsh_env::get_shell_variable_value("PS1_FINAL");
+        final_prompt_text = expand_prompt_string(ps1_final, PromptContext::Final);
+        final_prompt_ptr = final_prompt_text.c_str();
+    }
+
+    const char* final_right_prompt_ptr = nullptr;
+    if (has_rps1_final) {
+        std::string rps1_final = cjsh_env::get_shell_variable_value("RPS1_FINAL");
+        g_transient_final_right_prompt = expand_prompt_string(rps1_final, PromptContext::Right);
+        final_right_prompt_ptr = g_transient_final_right_prompt.c_str();
+    }
+
+    return ic_current_loop_reset(nullptr, final_prompt_ptr, final_right_prompt_ptr);
 }
 
 void execute_prompt_command() {

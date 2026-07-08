@@ -133,6 +133,8 @@ All escape processing happens before markup is interpreted.
 
 - `RPS1` (preferred) or `RPROMPT` controls the inline right prompt. Markup and escapes work the
   same way as `PS1`.
+- `PS1_FINAL` swaps the submitted prompt line after Enter accepts input. Pair it with
+  `RPS1_FINAL` to style (or clear) the submitted line's right prompt independently.
 - `PS2` is used automatically for continuation lines by the line editor. Set it if you want a
   custom secondary prompt, e.g. `export PS2='[dim]> [/dim]'`.
 - `PROMPT_COMMAND`, when set, runs before CJ's Shell generates `PS1`/`RPS1`. Use it to refresh
