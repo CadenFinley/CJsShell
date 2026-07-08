@@ -86,44 +86,11 @@ Install it under a prefix with:
 cmake --install build/release --prefix ~/.local
 ```
 
-### Available Presets
-
-- `release`: optimized default build
-- `debug`: debug build with AddressSanitizer enabled
-- `minimal`: size-focused release profile
-- `relwithdebinfo`: optimized build with debug symbols
-- `minsizerel`: CMake `MinSizeRel` profile
-
 List all configured presets with `cmake --list-presets`.
-
-## Testing
-
-The repository includes both focused CTest coverage and a larger shell integration harness.
-
-Run the registered CTest suites:
-
-```bash
-ctest --preset release
-```
-
-Run the full shell and integration harness from the repository root:
-
-```bash
-./tests/run_shell_tests.sh "build/release/cjsh"
-```
-
-If you are working on parser, runtime, job-control, or memory-sensitive changes, also build and test the `debug` preset.
 
 ## Documentation
 
 Project documentation is published at [cadenfinley.github.io/CJsShell](https://cadenfinley.github.io/CJsShell/).
-
-To preview the docs locally:
-
-```bash
-python3 -m pip install -r docs/requirements.txt
-mkdocs serve --config-file docs/mkdocs.yml
-```
 
 ## Contributing
 
