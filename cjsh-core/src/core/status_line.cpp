@@ -37,6 +37,7 @@
 #include <string>
 #include <system_error>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "builtin.h"
@@ -359,11 +360,71 @@ std::vector<std::string> extract_candidate_commands(const std::vector<std::strin
     return commands;
 }
 
-UnknownCommandInfo build_unknown_command_info(const std::string& token) {
+std::vector<std::string> gather_candidate_commands_for_query(const std::string& query) {
+    if (query.empty()) {
+        return {};
+    }
+
+    auto suggestions = suggestion_utils::generate_command_suggestions_if_enabled(query);
+    return extract_candidate_commands(suggestions);
+}
+
+bool token_allows_split_command_merge(const std::string& token) {
+    if (token.empty() || token[0] == '-' || token.find('=') != std::string::npos) {
+        return false;
+    }
+
+    static const std::string kDisallowedChars = "/\\'\"`$|&;(){}[]<>";
+    return token.find_first_of(kDisallowedChars) == std::string::npos;
+}
+
+std::vector<std::string> merge_candidate_commands(const std::vector<std::string>& primary,
+                                                  const std::vector<std::string>& fallback,
+                                                  size_t max_results = 3) {
+    std::vector<std::string> merged;
+    merged.reserve(max_results);
+    std::unordered_set<std::string> seen;
+    seen.reserve(max_results * 2);
+
+    auto append_unique = [&](const std::vector<std::string>& candidates) {
+        for (const auto& candidate : candidates) {
+            if (candidate.empty()) {
+                continue;
+            }
+            if (!seen.insert(candidate).second) {
+                continue;
+            }
+            merged.push_back(candidate);
+            if (merged.size() >= max_results) {
+                return;
+            }
+        }
+    };
+
+    append_unique(primary);
+    if (merged.size() < max_results) {
+        append_unique(fallback);
+    }
+
+    return merged;
+}
+
+UnknownCommandInfo build_unknown_command_info(const std::string& token,
+                                              const std::string& split_unknown_token = {}) {
     UnknownCommandInfo info;
     info.command = token;
-    auto suggestions = suggestion_utils::generate_command_suggestions_if_enabled(token);
-    info.suggestions = extract_candidate_commands(suggestions);
+
+    std::vector<std::string> token_suggestions = gather_candidate_commands_for_query(token);
+
+    if (!split_unknown_token.empty() && token_allows_split_command_merge(token) &&
+        token_allows_split_command_merge(split_unknown_token)) {
+        std::vector<std::string> merged_suggestions =
+            gather_candidate_commands_for_query(token + split_unknown_token);
+        info.suggestions = merge_candidate_commands(merged_suggestions, token_suggestions);
+        return info;
+    }
+
+    info.suggestions = std::move(token_suggestions);
     return info;
 }
 
@@ -387,7 +448,35 @@ std::optional<UnknownCommandInfo> analyze_command_range(
         !command_analysis::is_known_command_token(token, cmd_start, shell, available_commands) &&
         !token.empty();
     if (token_unknown && has_exited_token_context(original_input, absolute_token_end)) {
-        return build_unknown_command_info(token);
+        std::string split_unknown_token;
+
+        size_t second_token_cursor = token_cursor;
+        size_t second_token_start = 0;
+        size_t second_token_end = 0;
+        if (command_analysis::extract_next_token(cmd_str, second_token_cursor, second_token_start,
+                                                 second_token_end)) {
+            size_t third_token_start = 0;
+            size_t third_token_end = 0;
+            const bool has_third_token = command_analysis::extract_next_token(
+                cmd_str, second_token_cursor, third_token_start, third_token_end);
+
+            if (!has_third_token) {
+                std::string second_token =
+                    cmd_str.substr(second_token_start, second_token_end - second_token_start);
+                size_t absolute_second_token_end = cmd_start + second_token_end;
+                bool second_unknown = !second_token.empty() &&
+                                      !command_analysis::is_known_command_token(
+                                          second_token, cmd_start + second_token_start, shell,
+                                          available_commands);
+
+                if (second_unknown &&
+                    token_ready_for_status(original_input, absolute_second_token_end)) {
+                    split_unknown_token = std::move(second_token);
+                }
+            }
+        }
+
+        return build_unknown_command_info(token, split_unknown_token);
     }
 
     if (token == "sudo") {
