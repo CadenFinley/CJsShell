@@ -1168,7 +1168,8 @@ require no third-party plugins.</p>
     <code>cjshopt keybind</code> (including command-driven bindings through <code>cjsh-widget</code>).</li>
 <li><strong>Mouse-aware editing</strong> – Toggle mouse clicking with <code>F2</code> for the current prompt or set the
     default for new prompts with <code>cjshopt mouse-clicking</code>. Clicks can reposition the cursor and
-    select completion/history entries, and the mouse wheel scrolls expanded menus.</li>
+    select completion/history entries, the mouse wheel scrolls expanded menus, and
+    <code>cjshopt completion-click-accept</code> controls whether clicks accept completion entries.</li>
 <li><strong>Typeahead capture</strong> – Keystrokes entered while a command runs are buffered and replayed when the prompt returns so you never lose input.</li>
 <li><strong>Abbreviations</strong> – <code>abbr</code>/<code>unabbr</code> provide fish-style expansions for frequently typed snippets.</li>
 </ul>
@@ -1193,9 +1194,9 @@ for full details.</p>
 <li><code>cjshopt multiline</code>, <code>cjshopt multiline-indent</code>, <code>cjshopt line-numbers</code>,
     <code>cjshopt multiline-start-lines</code></li>
 <li><code>cjshopt completion-preview</code>, <code>cjshopt completion-menu-expanded</code>,
-     <code>cjshopt completion-case</code>, <code>cjshopt completion-spell</code>,
-     <code>cjshopt completion-spell-enter</code>,
-     <code>cjshopt completion-learning</code>, <code>cjshopt auto-tab</code></li>
+      <code>cjshopt completion-click-accept</code>, <code>cjshopt completion-case</code>, <code>cjshopt completion-spell</code>,
+      <code>cjshopt completion-spell-enter</code>,
+      <code>cjshopt completion-learning</code>, <code>cjshopt auto-tab</code></li>
 <li><code>cjshopt hint</code>, <code>cjshopt hint-delay</code>, <code>cjshopt inline-help</code>, <code>cjshopt status-hints</code>,
      <code>cjshopt status-line</code>, <code>cjshopt status-reporting</code>, <code>cjshopt visible-whitespace</code></li>
 <li><code>cjshopt mouse-clicking</code>, <code>cjshopt mouse-clicking-status-line</code></li>

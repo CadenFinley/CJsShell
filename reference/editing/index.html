@@ -1762,21 +1762,25 @@ The syntax highlighter can be temporarily disabled with the <code>--no-syntax-hi
 </span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Open completion menus expanded by default (disabled by default)</span>
 </span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>cjshopt<span class="w"> </span>completion-menu-expanded<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
 </span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
-</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1"># Enable/disable auto-tab (disabled by default)</span>
-</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="c1"># Auto-tab automatically completes unique prefixes</span>
-</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>cjshopt<span class="w"> </span>auto-tab<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1"># Control whether mouse clicks immediately accept completion entries</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="c1"># (disabled by default)</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>cjshopt<span class="w"> </span>completion-click-accept<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
 </span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>
-</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="c1"># Configure case sensitivity (disabled by default; completions are case-insensitive)</span>
-</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>cjshopt<span class="w"> </span>completion-case<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
-</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>
-</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="c1"># Enable/disable spell correction (enabled by default)</span>
-</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>cjshopt<span class="w"> </span>completion-spell<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
-</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>
-</span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="c1"># Enable/disable Enter-triggered spell autocorrection (disabled by default)</span>
-</span><span id="__span-6-18"><a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a>cjshopt<span class="w"> </span>completion-spell-enter<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
-</span><span id="__span-6-19"><a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a>
-</span><span id="__span-6-20"><a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a><span class="c1"># Cap the number of suggestions shown per request (default: 1000, no upper limit)</span>
-</span><span id="__span-6-21"><a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a>cjshopt<span class="w"> </span>set-completion-max<span class="w"> </span>&lt;number<span class="p">|</span>default<span class="p">|</span>status&gt;
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="c1"># Enable/disable auto-tab (disabled by default)</span>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="c1"># Auto-tab automatically completes unique prefixes</span>
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>cjshopt<span class="w"> </span>auto-tab<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>
+</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="c1"># Configure case sensitivity (disabled by default; completions are case-insensitive)</span>
+</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>cjshopt<span class="w"> </span>completion-case<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a>
+</span><span id="__span-6-18"><a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a><span class="c1"># Enable/disable spell correction (enabled by default)</span>
+</span><span id="__span-6-19"><a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a>cjshopt<span class="w"> </span>completion-spell<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</span><span id="__span-6-20"><a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a>
+</span><span id="__span-6-21"><a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a><span class="c1"># Enable/disable Enter-triggered spell autocorrection (disabled by default)</span>
+</span><span id="__span-6-22"><a id="__codelineno-6-22" name="__codelineno-6-22" href="#__codelineno-6-22"></a>cjshopt<span class="w"> </span>completion-spell-enter<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</span><span id="__span-6-23"><a id="__codelineno-6-23" name="__codelineno-6-23" href="#__codelineno-6-23"></a>
+</span><span id="__span-6-24"><a id="__codelineno-6-24" name="__codelineno-6-24" href="#__codelineno-6-24"></a><span class="c1"># Cap the number of suggestions shown per request (default: 1000, no upper limit)</span>
+</span><span id="__span-6-25"><a id="__codelineno-6-25" name="__codelineno-6-25" href="#__codelineno-6-25"></a>cjshopt<span class="w"> </span>set-completion-max<span class="w"> </span>&lt;number<span class="p">|</span>default<span class="p">|</span>status&gt;
 </span></code></pre></div><p></p>
 <p>Lower or raise the completion cap (any value &gt;= 1) to keep the menu focused when working inside
 directories that contain thousands of files or deeply nested command trees.</p>
@@ -1786,7 +1790,8 @@ directories that contain thousands of files or deeply nested command trees.</p>
 - Use arrow keys to navigate the completion menu
 - Press <code>Enter</code> to accept a completion
 - Press <code>Esc</code> to cancel
-- In expanded menus, use the mouse wheel to scroll and click entries to select/accept</p>
+- In expanded menus, use the mouse wheel to scroll and click entries to select/accept
+  (<code>cjshopt completion-click-accept off</code> keeps click selection but requires Enter/Right/End to accept)</p>
 <h3 id="hints-and-inline-help">Hints and Inline Help</h3>
 <p>CJ's Shell provides inline hints and help to assist with command input.</p>
 <p><strong>Hints:</strong>
@@ -1859,11 +1864,15 @@ Press <code>F1</code> at any time to display the complete key binding cheat shee
 </span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>
 </span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="c1"># Show or hide the mouse status indicator line</span>
 </span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>cjshopt<span class="w"> </span>mouse-clicking-status-line<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>
+</span><span id="__span-13-7"><a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="c1"># Configure click-to-accept behavior for completion hints and completion menus</span>
+</span><span id="__span-13-8"><a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>cjshopt<span class="w"> </span>completion-click-accept<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
 </span></code></pre></div><p></p>
 <p><strong>Behavior:</strong>
 - In the editor buffer, left-click moves the cursor to the clicked position
 - In collapsed completion menus, click selection follows the prompt-level mouse toggle
-- In expanded completion menus and history search, click selection and wheel scrolling are enabled while the menu is open</p>
+- In expanded completion menus and history search, click selection and wheel scrolling are enabled while the menu is open
+- Completion click acceptance follows <code>cjshopt completion-click-accept</code> (disabled by default)</p>
 <h3 id="fish-style-abbreviations">Fish-Style Abbreviations</h3>
 <p>CJ's Shell supports fish-style abbreviations that expand typed shortcuts into longer phrases as soon as you type a whitespace character or submit the line. This is powered directly by the isocline editor, so expansions happen inline without disrupting your cursor position or undo history.</p>
 <p><strong>Usage:</strong>
