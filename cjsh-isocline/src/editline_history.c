@@ -565,7 +565,8 @@ static bool history_menu_mouse_select(ic_env_t* env, editor_t* eb, ssize_t match
 
     ssize_t target_row = 0;
     ssize_t target_col = 0;
-    if (!edit_mouse_event_to_target_rowcol(env, eb, &mouse_event, &target_row, &target_col)) {
+    if (!edit_mouse_event_to_target_rowcol(env, eb, &mouse_event, &target_row, &target_col,
+                                           NULL)) {
         return false;
     }
     ic_unused(target_col);

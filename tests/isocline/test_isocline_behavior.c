@@ -1153,15 +1153,55 @@ static bool test_mouse_reporting_option_toggles(void) {
     if (env == NULL)
         return false;
 
+    env->mouse_reporting_mode = IC_MOUSE_CLICKING_DISABLED;
+    env->mouse_reporting_enabled_by_default = false;
+
+    EXPECT_TRUE(ic_get_mouse_clicking_mode() == IC_MOUSE_CLICKING_DISABLED,
+                "mouse mode getter should mirror disabled state");
+    EXPECT_TRUE(ic_set_mouse_clicking_mode(IC_MOUSE_CLICKING_SIMPLE) == IC_MOUSE_CLICKING_DISABLED,
+                "mouse mode setter should report previous disabled mode");
+    EXPECT_TRUE(env->mouse_reporting_mode == IC_MOUSE_CLICKING_SIMPLE,
+                "mouse mode setter should store simple mode");
+    EXPECT_TRUE(env->mouse_reporting_enabled_by_default,
+                "simple mode should enable mouse capture by default");
+
+    EXPECT_TRUE(ic_set_mouse_clicking_mode(IC_MOUSE_CLICKING_DISABLED) == IC_MOUSE_CLICKING_SIMPLE,
+                "mouse mode setter should report previous simple mode");
+    EXPECT_TRUE(env->mouse_reporting_mode == IC_MOUSE_CLICKING_DISABLED,
+                "mouse mode setter should store disabled mode");
+    EXPECT_FALSE(env->mouse_reporting_enabled_by_default,
+                 "disabled mode should force startup mouse capture off");
+
+    EXPECT_TRUE(ic_set_mouse_clicking_mode((ic_mouse_clicking_mode_t)42) ==
+                    IC_MOUSE_CLICKING_DISABLED,
+                "invalid mouse mode should report previous disabled mode");
+    EXPECT_TRUE(env->mouse_reporting_mode == IC_MOUSE_CLICKING_SMART,
+                "invalid mouse mode should normalize to smart mode");
+    EXPECT_TRUE(env->mouse_reporting_enabled_by_default,
+                "smart mode should enable mouse capture by default");
+
+    EXPECT_TRUE(ic_enable_mouse_clicking(false),
+                "legacy mouse startup toggle should report previous enabled state");
+    EXPECT_FALSE(env->mouse_reporting_enabled_by_default,
+                 "legacy mouse startup toggle should disable startup capture");
+    EXPECT_TRUE(env->mouse_reporting_mode == IC_MOUSE_CLICKING_SMART,
+                "legacy mouse startup toggle should preserve smart mode");
+
+    EXPECT_FALSE(ic_enable_mouse_clicking(true),
+                 "legacy mouse startup toggle should report previous disabled state");
+    EXPECT_TRUE(env->mouse_reporting_enabled_by_default,
+                "legacy mouse startup toggle should enable startup capture");
+    EXPECT_TRUE(env->mouse_reporting_mode == IC_MOUSE_CLICKING_SMART,
+                "legacy mouse startup toggle should keep smart mode when already enabled");
+
+    env->mouse_reporting_mode = IC_MOUSE_CLICKING_DISABLED;
     env->mouse_reporting_enabled_by_default = false;
     EXPECT_FALSE(ic_enable_mouse_clicking(true),
-                 "mouse default toggle should report previous disabled state");
+                 "legacy enable should report previous disabled startup state");
+    EXPECT_TRUE(env->mouse_reporting_mode == IC_MOUSE_CLICKING_SIMPLE,
+                "legacy enable should lift disabled mode to simple mode");
     EXPECT_TRUE(env->mouse_reporting_enabled_by_default,
-                "mouse default toggle should enable mouse reporting by default");
-    EXPECT_TRUE(ic_enable_mouse_clicking(false),
-                "mouse default toggle should report previous enabled state");
-    EXPECT_FALSE(env->mouse_reporting_enabled_by_default,
-                 "mouse default toggle should disable mouse reporting by default");
+                "legacy enable should turn startup mouse capture back on");
 
     env->mouse_reporting_status_line_enabled = true;
     EXPECT_TRUE(ic_enable_mouse_reporting_status_line(false),
@@ -2245,6 +2285,54 @@ static bool test_tty_sgr_mouse_event_metadata(void) {
     return true;
 }
 
+static bool test_tty_focus_event_decode(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL || env->tty == NULL)
+        return true;
+
+    code_t drained = KEY_NONE;
+    while (tty_read_timeout(env->tty, 0, &drained)) {
+    }
+
+    static const uint8_t seq_focus_in[] = {'\x1B', '[', 'I'};
+    static const uint8_t seq_focus_out[] = {'\x1B', '[', 'O'};
+
+    static const struct {
+        const uint8_t* raw;
+        size_t raw_len;
+        code_t expected;
+        const char* label;
+    } cases[] = {
+        {seq_focus_in, sizeof(seq_focus_in), KEY_EVENT_FOCUS_IN,
+         "focus-in escape sequence should decode into focus-in event"},
+        {seq_focus_out, sizeof(seq_focus_out), KEY_EVENT_FOCUS_OUT,
+         "focus-out escape sequence should decode into focus-out event"},
+    };
+
+    for (size_t i = 0; i < (sizeof(cases) / sizeof(cases[0])); ++i) {
+        EXPECT_TRUE(ic_push_raw_input(cases[i].raw, cases[i].raw_len),
+                    "focus event escape sequence should enqueue into active TTY");
+
+        code_t code = KEY_NONE;
+        bool got = false;
+        for (size_t attempt = 0; attempt < 32; ++attempt) {
+            if (!tty_read_timeout(env->tty, 0, &code)) {
+                break;
+            }
+            if (code == KEY_EVENT_RESIZE) {
+                continue;
+            }
+            got = true;
+            break;
+        }
+
+        EXPECT_TRUE(got, "focus decode test should produce one key event");
+        EXPECT_TRUE(code == cases[i].expected, cases[i].label);
+    }
+
+    return true;
+}
+
 static bool test_tty_kitty_ctrl_sequence_decode_regression(void) {
     ic_env_t* env = ensure_env();
     if (env == NULL || env->tty == NULL)
@@ -3235,6 +3323,7 @@ static const test_case_t kTests[] = {
     {"tty_bracketed_paste_repeated_end_without_start",
      test_tty_bracketed_paste_repeated_end_without_start},
     {"tty_sgr_mouse_event_metadata", test_tty_sgr_mouse_event_metadata},
+    {"tty_focus_event_decode", test_tty_focus_event_decode},
     {"tty_kitty_ctrl_sequence_decode_regression", test_tty_kitty_ctrl_sequence_decode_regression},
     {"key_spec_ctrl_space_variants", test_key_spec_ctrl_space_variants},
     {"initial_input_env_lifecycle", test_initial_input_env_lifecycle},

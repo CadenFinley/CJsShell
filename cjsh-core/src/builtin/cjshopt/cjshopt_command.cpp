@@ -222,8 +222,9 @@ const std::vector<std::string>& cjshopt_usage_lines() {
             "keeping status-hints (default: enabled)",
         std::string("  status-line-callback <function_name|off|status>  Run a shell function ") +
             "to publish custom status-line text",
-        std::string("  mouse-clicking <on|off|status>  Configure mouse clicking default for new ") +
-            "prompts (default: disabled)",
+        std::string(
+            "  mouse-clicking <disabled|simple|smart|status>  Configure mouse capture behavior ") +
+            "for new prompts (default: disabled)",
         std::string(
             "  mouse-clicking-status-line <on|off|status>  Show or hide the mouse clicking ") +
             "status indicator (default: enabled)",

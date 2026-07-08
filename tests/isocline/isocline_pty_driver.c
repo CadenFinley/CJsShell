@@ -350,6 +350,7 @@ static int run_case(const char* scenario) {
         }
     } else if (strcmp(scenario, "history_search_scroll") == 0) {
         initial_input = "history";
+        ic_enable_mouse_clicking(true);
         ic_history_clear();
         ic_history_add("history alpha");
         ic_history_add("history beta");

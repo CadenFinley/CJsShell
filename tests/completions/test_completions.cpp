@@ -886,6 +886,16 @@ static bool test_builtin_docs(void) {
     EXPECT_TRUE(has_entry(completion_max_doc, "--status", builtin_completions::EntryKind::Option),
                 test_name, "set-completion-max should include --status option");
 
+    const auto* mouse_mode_doc =
+        builtin_completions::lookup_builtin_command_doc("cjshopt-mouse-clicking");
+    EXPECT_TRUE(mouse_mode_doc != nullptr, test_name, "cjshopt-mouse-clicking doc should exist");
+    EXPECT_TRUE(has_entry(mouse_mode_doc, "disabled", builtin_completions::EntryKind::Subcommand),
+                test_name, "mouse-clicking should include disabled mode");
+    EXPECT_TRUE(has_entry(mouse_mode_doc, "simple", builtin_completions::EntryKind::Subcommand),
+                test_name, "mouse-clicking should include simple mode");
+    EXPECT_TRUE(has_entry(mouse_mode_doc, "smart", builtin_completions::EntryKind::Subcommand),
+                test_name, "mouse-clicking should include smart mode");
+
     const auto* mouse_status_doc =
         builtin_completions::lookup_builtin_command_doc("cjshopt-mouse-clicking-status-line");
     EXPECT_TRUE(mouse_status_doc != nullptr, test_name,

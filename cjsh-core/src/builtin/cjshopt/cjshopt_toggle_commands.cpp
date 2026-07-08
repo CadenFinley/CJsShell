@@ -1151,27 +1151,105 @@ int status_line_callback_command(const std::vector<std::string>& args) {
 
 int mouse_clicking_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {
-        "Usage: mouse-clicking <on|off|status>",
-        "Examples:", "  mouse-clicking on      Enable mouse clicking by default for new prompts",
-        "  mouse-clicking off     Disable default mouse clicking for new prompts",
-        "  mouse-clicking status  Show the current setting"};
+        "Usage: mouse-clicking <disabled|simple|smart|status>",
+        "Examples:",
+        "  mouse-clicking disabled  Never capture mouse events",
+        "  mouse-clicking simple    Start with mouse capture enabled; toggle manually",
+        "  mouse-clicking smart     Start enabled with automatic suspend/resume",
+        "  mouse-clicking status    Show the current mode"};
 
-    static const ToggleCommandConfig config{
-        "mouse-clicking",
-        usage_lines,
-        []() {
-            bool current_status = ic_enable_mouse_clicking(true);
-            ic_enable_mouse_clicking(current_status);
-            return current_status;
-        },
-        [](bool enable) { ic_enable_mouse_clicking(enable); },
-        "Mouse clicking default",
-        false,
-        "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
-        {},
-        {}};
+    const auto describe_mode = [](ic_mouse_clicking_mode_t mode) -> const char* {
+        switch (mode) {
+            case IC_MOUSE_CLICKING_DISABLED:
+                return "never captures mouse events";
+            case IC_MOUSE_CLICKING_SIMPLE:
+                return "manual toggle only";
+            case IC_MOUSE_CLICKING_SMART:
+                return "auto suspend/resume";
+            default:
+                return "auto suspend/resume";
+        }
+    };
 
-    return handle_toggle_command(config, args);
+    const auto canonical_mode_token = [](ic_mouse_clicking_mode_t mode) -> const char* {
+        switch (mode) {
+            case IC_MOUSE_CLICKING_DISABLED:
+                return "disabled";
+            case IC_MOUSE_CLICKING_SIMPLE:
+                return "simple";
+            case IC_MOUSE_CLICKING_SMART:
+                return "smart";
+            default:
+                return "smart";
+        }
+    };
+
+    const auto parse_mode = [](const std::string& normalized)
+        -> std::optional<ic_mouse_clicking_mode_t> {
+        if (matches_token(normalized, {"disabled", "off", "disable", "none", "false", "0",
+                                       "--disable"})) {
+            return IC_MOUSE_CLICKING_DISABLED;
+        }
+        if (matches_token(normalized,
+                          {"simple", "on", "enable", "enabled", "true", "1", "--enable"})) {
+            return IC_MOUSE_CLICKING_SIMPLE;
+        }
+        if (matches_token(normalized, {"smart", "auto", "automatic"})) {
+            return IC_MOUSE_CLICKING_SMART;
+        }
+        return std::nullopt;
+    };
+
+    if (args.size() == 1) {
+        print_error(
+            {ErrorType::INVALID_ARGUMENT, "mouse-clicking", "Missing option argument", usage_lines});
+        return 1;
+    }
+
+    if (builtin_handle_help_with_startup_guard(args, usage_lines)) {
+        return 0;
+    }
+
+    if (args.size() != 2) {
+        print_error({ErrorType::INVALID_ARGUMENT, "mouse-clicking", "Too many arguments provided",
+                     usage_lines});
+        return 1;
+    }
+
+    const std::string& option = args[1];
+    const std::string normalized = normalize_option(option);
+
+    if (matches_token(normalized, {"status", "--status"})) {
+        if (!cjsh_env::startup_active()) {
+            ic_mouse_clicking_mode_t mode = ic_get_mouse_clicking_mode();
+            std::cout << "Mouse clicking mode is currently " << canonical_mode_token(mode) << " ("
+                      << describe_mode(mode) << ").\n";
+        }
+        return 0;
+    }
+
+    std::optional<ic_mouse_clicking_mode_t> requested_mode = parse_mode(normalized);
+    if (!requested_mode.has_value()) {
+        print_error({ErrorType::INVALID_ARGUMENT, "mouse-clicking", "Unknown option '" + option + "'",
+                     usage_lines});
+        return 1;
+    }
+
+    ic_mouse_clicking_mode_t current_mode = ic_get_mouse_clicking_mode();
+    if (current_mode == *requested_mode) {
+        return 0;
+    }
+
+    ic_set_mouse_clicking_mode(*requested_mode);
+
+    if (!cjsh_env::startup_active()) {
+        std::cout << "Mouse clicking mode set to " << canonical_mode_token(*requested_mode) << " ("
+                  << describe_mode(*requested_mode) << ").\n";
+        std::cout << "Add `cjshopt mouse-clicking " << canonical_mode_token(*requested_mode)
+                  << "` to your ~/.cjshrc to persist this change.\n";
+    }
+
+    return 0;
 }
 
 int mouse_clicking_status_line_command(const std::vector<std::string>& args) {

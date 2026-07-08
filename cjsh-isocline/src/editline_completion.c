@@ -385,7 +385,8 @@ static bool completion_menu_mouse_select(ic_env_t* env, editor_t* eb, bool expan
 
     ssize_t target_row = 0;
     ssize_t target_col = 0;
-    if (!edit_mouse_event_to_target_rowcol(env, eb, &mouse_event, &target_row, &target_col)) {
+    if (!edit_mouse_event_to_target_rowcol(env, eb, &mouse_event, &target_row, &target_col,
+                                           NULL)) {
         return false;
     }
 
@@ -1078,11 +1079,7 @@ read_key:
         }
         goto again;
     } else {
-        ic_key_action_t action = IC_KEY_ACTION__MAX;
-        bool has_override = key_binding_lookup_action(env, c, &action);
-        bool toggle_mouse_key =
-            (has_override ? (action == IC_KEY_ACTION_TOGGLE_MOUSE_REPORTING) : (c == KEY_F2));
-        if (toggle_mouse_key) {
+        if (edit_key_is_mouse_toggle_binding(env, c)) {
             edit_toggle_mouse_reporting(env, eb);
             if (expanded_mode) {
                 menu_mouse_scroll_enabled = false;

@@ -104,9 +104,13 @@ typedef struct editor_s {
     ssize_t last_screen_cursor_row;    // cached absolute cursor row from the last successful query
     ssize_t last_screen_cursor_col;    // cached absolute cursor col from the last successful query
     bool last_screen_cursor_known;     // whether absolute cursor position cache is valid
-    bool mouse_reporting_enabled;      // whether this edit session has mouse reporting toggled on
-    ssize_t mouse_capture_depth;       // nested mouse tracking enablement depth
-    alloc_t* mem;                      // allocator
+    ic_mouse_clicking_mode_t mouse_reporting_mode;  // per-session mouse capture strategy
+    bool mouse_reporting_enabled;                  // whether terminal mouse capture is currently on
+    bool mouse_reporting_manual_enabled;           // user/default preference for this session
+    bool mouse_reporting_auto_suspended;           // smart mode auto-disabled mouse capture
+    bool mouse_focus_reporting_enabled;            // focus-in/focus-out reporting (CSI I/O) enabled
+    ssize_t mouse_capture_depth;                   // nested mouse tracking enablement depth
+    alloc_t* mem;                                  // allocator
     // caches
     attrbuf_t* attrs;  // reuse attribute buffers
     attrbuf_t* attrs_extra;
@@ -191,7 +195,10 @@ static void redraw_prompt_prefix_lines(ic_env_t* env, editor_t* eb);
 static bool edit_handle_mouse_click(ic_env_t* env, editor_t* eb, const char* rendered_hint);
 static bool edit_mouse_event_to_target_rowcol(ic_env_t* env, editor_t* eb,
                                               const tty_mouse_event_t* mouse_event,
-                                              ssize_t* target_row, ssize_t* target_col);
+                                              ssize_t* target_row, ssize_t* target_col,
+                                              bool* clicked_above_viewport);
+static bool edit_key_is_mouse_toggle_binding(const ic_env_t* env, code_t key);
+static void edit_set_mouse_reporting_enabled(ic_env_t* env, editor_t* eb, bool enabled);
 static void edit_toggle_mouse_reporting(ic_env_t* env, editor_t* eb);
 static void edit_reset_mouse_reporting_session(ic_env_t* env, editor_t* eb, bool apply_default);
 static bool edit_try_spell_correct_on_enter(ic_env_t* env, editor_t* eb);
@@ -583,10 +590,15 @@ static void edit_set_pos_at_rowcol(ic_env_t* env, editor_t* eb, ssize_t row, ssi
 
 static bool edit_mouse_event_to_target_rowcol(ic_env_t* env, editor_t* eb,
                                               const tty_mouse_event_t* mouse_event,
-                                              ssize_t* target_row, ssize_t* target_col) {
+                                              ssize_t* target_row, ssize_t* target_col,
+                                              bool* clicked_above_viewport) {
     if (env == NULL || eb == NULL || env->term == NULL || mouse_event == NULL ||
         target_row == NULL || target_col == NULL) {
         return false;
+    }
+
+    if (clicked_above_viewport != NULL) {
+        *clicked_above_viewport = false;
     }
 
     if (mouse_event->column <= 0 || mouse_event->row <= 0) {
@@ -631,6 +643,9 @@ static bool edit_mouse_event_to_target_rowcol(ic_env_t* env, editor_t* eb,
     ssize_t top_row = cursor_row - visible_cursor_row;
     ssize_t clicked_visible_row = mouse_event->row - top_row;
     if (clicked_visible_row < 0) {
+        if (clicked_above_viewport != NULL) {
+            *clicked_above_viewport = true;
+        }
         return false;
     }
 
@@ -666,7 +681,7 @@ static bool edit_handle_mouse_click(ic_env_t* env, editor_t* eb, const char* ren
     ssize_t target_row = 0;
     ssize_t target_col_absolute = 0;
     if (!edit_mouse_event_to_target_rowcol(env, eb, &mouse_event, &target_row,
-                                           &target_col_absolute)) {
+                                           &target_col_absolute, NULL)) {
         return false;
     }
 
@@ -2825,6 +2840,57 @@ static void edit_format_mouse_enabled_status_hint(ic_env_t* env, bool include_di
     ic_strncpy(buffer, (ssize_t)buflen, "Mouse clicking is enabled", (ssize_t)buflen - 1);
 }
 
+static ic_mouse_clicking_mode_t edit_normalize_mouse_mode(ic_mouse_clicking_mode_t mode) {
+    switch (mode) {
+        case IC_MOUSE_CLICKING_DISABLED:
+        case IC_MOUSE_CLICKING_SIMPLE:
+        case IC_MOUSE_CLICKING_SMART:
+            return mode;
+        default:
+            return IC_MOUSE_CLICKING_SMART;
+    }
+}
+
+static bool edit_mouse_mode_supports_capture(ic_mouse_clicking_mode_t mode) {
+    return (edit_normalize_mouse_mode(mode) != IC_MOUSE_CLICKING_DISABLED);
+}
+
+static bool edit_mouse_capture_should_be_enabled(const editor_t* eb) {
+    if (eb == NULL) {
+        return false;
+    }
+
+    if (!edit_mouse_mode_supports_capture(eb->mouse_reporting_mode) ||
+        !eb->mouse_reporting_manual_enabled) {
+        return false;
+    }
+
+    if (eb->mouse_reporting_mode == IC_MOUSE_CLICKING_SMART && eb->mouse_reporting_auto_suspended) {
+        return false;
+    }
+
+    return true;
+}
+
+static void edit_set_mouse_focus_reporting(ic_env_t* env, editor_t* eb, bool enabled) {
+    if (eb == NULL) {
+        return;
+    }
+
+    if (eb->mouse_focus_reporting_enabled == enabled) {
+        return;
+    }
+
+    if (env == NULL || env->term == NULL || !term_is_interactive(env->term)) {
+        eb->mouse_focus_reporting_enabled = false;
+        return;
+    }
+
+    term_write(env->term, (enabled ? "\x1b[?1004h" : "\x1b[?1004l"));
+    term_flush(env->term);
+    eb->mouse_focus_reporting_enabled = enabled;
+}
+
 static bool edit_enable_mouse_tracking(ic_env_t* env, editor_t* eb) {
     if (env == NULL || eb == NULL || env->term == NULL || !term_is_interactive(env->term)) {
         return false;
@@ -2891,11 +2957,202 @@ static void edit_set_mouse_reporting_enabled(ic_env_t* env, editor_t* eb, bool e
     edit_force_mouse_tracking_disabled(env, eb);
 }
 
+static void edit_apply_mouse_reporting_policy(ic_env_t* env, editor_t* eb) {
+    if (eb == NULL) {
+        return;
+    }
+
+    edit_set_mouse_reporting_enabled(env, eb, edit_mouse_capture_should_be_enabled(eb));
+}
+
+static void edit_set_mouse_manual_enabled(ic_env_t* env, editor_t* eb, bool enabled) {
+    if (eb == NULL) {
+        return;
+    }
+
+    if (!edit_mouse_mode_supports_capture(eb->mouse_reporting_mode)) {
+        enabled = false;
+    }
+
+    eb->mouse_reporting_manual_enabled = enabled;
+    if (!enabled) {
+        eb->mouse_reporting_auto_suspended = false;
+    }
+
+    edit_apply_mouse_reporting_policy(env, eb);
+}
+
+static void edit_set_mouse_auto_suspended(ic_env_t* env, editor_t* eb, bool suspended) {
+    if (eb == NULL) {
+        return;
+    }
+
+    if (eb->mouse_reporting_mode != IC_MOUSE_CLICKING_SMART || !eb->mouse_reporting_manual_enabled) {
+        suspended = false;
+    }
+
+    if (eb->mouse_reporting_auto_suspended == suspended) {
+        return;
+    }
+
+    eb->mouse_reporting_auto_suspended = suspended;
+    edit_apply_mouse_reporting_policy(env, eb);
+}
+
+static bool edit_binding_specs_include_key(const char* specs, code_t key) {
+    if (specs == NULL || specs[0] == '\0') {
+        return false;
+    }
+
+    const char* p = specs;
+    while (*p != '\0') {
+        while (*p == ' ' || *p == '\t' || *p == '|') {
+            p++;
+        }
+        if (*p == '\0') {
+            break;
+        }
+
+        const char* start = p;
+        while (*p != '\0' && *p != '|') {
+            p++;
+        }
+        const char* end = p;
+
+        while (start < end && (*start == ' ' || *start == '\t')) {
+            start++;
+        }
+        while (start < end && (end[-1] == ' ' || end[-1] == '\t')) {
+            end--;
+        }
+        if (start >= end) {
+            continue;
+        }
+
+        size_t len = (size_t)(end - start);
+        if (len >= 64) {
+            continue;
+        }
+
+        char token[64];
+        memcpy(token, start, len);
+        token[len] = '\0';
+
+        ic_keycode_t parsed_key = IC_KEY_NONE;
+        if (ic_parse_key_spec(token, &parsed_key) && parsed_key == key) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool edit_key_is_action_binding(const ic_env_t* env, code_t key, ic_key_action_t action) {
+    if (env == NULL) {
+        return false;
+    }
+
+    ic_key_action_t bound_action = IC_KEY_ACTION__MAX;
+    if (key_binding_lookup_action(env, key, &bound_action)) {
+        return (bound_action == action);
+    }
+
+    const char* specs = ic_key_binding_profile_default_specs(action);
+    return edit_binding_specs_include_key(specs, key);
+}
+
+static bool edit_key_is_mouse_toggle_binding(const ic_env_t* env, code_t key) {
+    return edit_key_is_action_binding(env, key, IC_KEY_ACTION_TOGGLE_MOUSE_REPORTING);
+}
+
+static bool edit_mouse_auto_resume_triggered_by_key(code_t key) {
+    code_t key_no_mods = KEY_NO_MODS(key);
+    if (key_no_mods == KEY_NONE) {
+        return false;
+    }
+
+    if (key_no_mods == KEY_EVENT_FOCUS_IN) {
+        return true;
+    }
+
+    return (key_no_mods < KEY_EVENT_BASE);
+}
+
+static void edit_maybe_resume_smart_mouse_reporting(ic_env_t* env, editor_t* eb, code_t key) {
+    if (env == NULL || eb == NULL) {
+        return;
+    }
+
+    if (eb->mouse_reporting_mode != IC_MOUSE_CLICKING_SMART || !eb->mouse_reporting_manual_enabled ||
+        !eb->mouse_reporting_auto_suspended) {
+        return;
+    }
+
+    if (edit_key_is_mouse_toggle_binding(env, key)) {
+        return;
+    }
+
+    if (edit_mouse_auto_resume_triggered_by_key(key)) {
+        edit_set_mouse_auto_suspended(env, eb, false);
+    }
+}
+
+static bool edit_mouse_event_is_above_viewport(ic_env_t* env, editor_t* eb) {
+    if (env == NULL || eb == NULL || env->tty == NULL) {
+        return false;
+    }
+
+    tty_mouse_event_t mouse_event;
+    if (!tty_get_last_mouse_event(env->tty, &mouse_event)) {
+        return false;
+    }
+
+    if (mouse_event.action != TTY_MOUSE_ACTION_LEFT_PRESS &&
+        mouse_event.action != TTY_MOUSE_ACTION_LEFT_RELEASE) {
+        return false;
+    }
+
+    ssize_t target_row = 0;
+    ssize_t target_col = 0;
+    bool clicked_above_viewport = false;
+    (void)edit_mouse_event_to_target_rowcol(env, eb, &mouse_event, &target_row, &target_col,
+                                            &clicked_above_viewport);
+    return clicked_above_viewport;
+}
+
+static bool edit_should_auto_suspend_mouse_reporting(ic_env_t* env, editor_t* eb, code_t key) {
+    if (env == NULL || eb == NULL) {
+        return false;
+    }
+
+    if (eb->mouse_reporting_mode != IC_MOUSE_CLICKING_SMART || !eb->mouse_reporting_enabled ||
+        !eb->mouse_reporting_manual_enabled || eb->mouse_reporting_auto_suspended) {
+        return false;
+    }
+
+    code_t key_no_mods = KEY_NO_MODS(key);
+    if (key_no_mods == KEY_EVENT_MOUSE_WHEEL_UP || key_no_mods == KEY_EVENT_MOUSE_WHEEL_DOWN) {
+        return true;
+    }
+
+    if (key_no_mods == KEY_EVENT_MOUSE_OTHER && edit_mouse_event_is_above_viewport(env, eb)) {
+        return true;
+    }
+
+    return false;
+}
+
 static void edit_toggle_mouse_reporting(ic_env_t* env, editor_t* eb) {
     if (eb == NULL) {
         return;
     }
-    edit_set_mouse_reporting_enabled(env, eb, !eb->mouse_reporting_enabled);
+
+    if (!edit_mouse_mode_supports_capture(eb->mouse_reporting_mode)) {
+        return;
+    }
+
+    bool currently_enabled = edit_mouse_capture_should_be_enabled(eb);
+    edit_set_mouse_manual_enabled(env, eb, !currently_enabled);
 }
 
 static void edit_reset_mouse_reporting_session(ic_env_t* env, editor_t* eb, bool apply_default) {
@@ -2907,15 +3164,40 @@ static void edit_reset_mouse_reporting_session(ic_env_t* env, editor_t* eb, bool
         tty_clear_last_mouse_event(env->tty);
     }
 
-    const bool enable_mouse =
-        (apply_default && env != NULL && env->mouse_reporting_enabled_by_default);
-    edit_set_mouse_reporting_enabled(env, eb, enable_mouse);
+    if (!apply_default) {
+        eb->mouse_reporting_mode = IC_MOUSE_CLICKING_DISABLED;
+        eb->mouse_reporting_manual_enabled = false;
+        eb->mouse_reporting_auto_suspended = false;
+        edit_apply_mouse_reporting_policy(env, eb);
+        edit_set_mouse_focus_reporting(env, eb, false);
+        return;
+    }
+
+    ic_mouse_clicking_mode_t mode = IC_MOUSE_CLICKING_SMART;
+    bool default_enabled = true;
+    if (env != NULL) {
+        mode = env->mouse_reporting_mode;
+        default_enabled = env->mouse_reporting_enabled_by_default;
+    }
+
+    eb->mouse_reporting_mode = edit_normalize_mouse_mode(mode);
+    eb->mouse_reporting_manual_enabled =
+        (default_enabled && edit_mouse_mode_supports_capture(eb->mouse_reporting_mode));
+    eb->mouse_reporting_auto_suspended = false;
+    edit_apply_mouse_reporting_policy(env, eb);
+    edit_set_mouse_focus_reporting(env, eb,
+                                   (eb->mouse_reporting_mode == IC_MOUSE_CLICKING_SMART));
 }
 
 static bool edit_enable_menu_mouse_scroll(ic_env_t* env) {
     if (env == NULL || env->current_editor == NULL) {
         return false;
     }
+
+    if (!edit_mouse_capture_should_be_enabled(env->current_editor)) {
+        return false;
+    }
+
     return edit_enable_mouse_tracking(env, env->current_editor);
 }
 
@@ -3417,6 +3699,8 @@ edit_loop_entry:
                 c = KEY_ENTER;
             }
 
+            edit_maybe_resume_smart_mouse_reporting(env, &eb, c);
+
             if (edit_key_resets_last_arg_state(env, c)) {
                 edit_reset_last_arg_state(&eb);
             }
@@ -3450,6 +3734,24 @@ edit_loop_entry:
 
             if ((c < IC_KEY_EVENT_BASE || c >= IC_KEY_UNICODE_MAX) &&
                 key_binding_execute(env, &eb, c)) {
+                if (pending_hint != NULL) {
+                    mem_free(eb.mem, pending_hint);
+                    pending_hint = NULL;
+                }
+                continue;
+            }
+
+            if (edit_key_is_mouse_toggle_binding(env, c)) {
+                edit_toggle_mouse_reporting(env, &eb);
+                if (pending_hint != NULL) {
+                    mem_free(eb.mem, pending_hint);
+                    pending_hint = NULL;
+                }
+                continue;
+            }
+
+            if (edit_should_auto_suspend_mouse_reporting(env, &eb, c)) {
+                edit_set_mouse_auto_suspended(env, &eb, true);
                 if (pending_hint != NULL) {
                     mem_free(eb.mem, pending_hint);
                     pending_hint = NULL;
@@ -3568,9 +3870,6 @@ edit_loop_entry:
                         break;
                     case KEY_F1:
                         edit_show_help(env, &eb);
-                        break;
-                    case KEY_F2:
-                        edit_toggle_mouse_reporting(env, &eb);
                         break;
 
                     // navigation

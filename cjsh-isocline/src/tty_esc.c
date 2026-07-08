@@ -536,6 +536,10 @@ static code_t tty_read_csi(tty_t* tty, uint8_t c1, uint8_t peek, code_t mods0, l
     code_t code = KEY_NONE;
     if (c1 == '[' && special == '<' && (final == 'M' || final == 'm')) {
         code = esc_decode_mouse_event(tty, num1, num2, num3, final == 'm', &modifiers);
+    } else if (c1 == '[' && special == 0 && final == 'I') {
+        code = KEY_EVENT_FOCUS_IN;
+    } else if (c1 == '[' && special == 0 && final == 'O') {
+        code = KEY_EVENT_FOCUS_OUT;
     } else if (final == '~') {
         // vt codes
         code = esc_decode_vt(num1);

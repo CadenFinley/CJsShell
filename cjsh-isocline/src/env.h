@@ -84,9 +84,11 @@ struct ic_env_s {
     ic_check_for_continuation_or_return_fun_t*
         continuation_check_callback;          // callback that decides whether to submit or continue
     void* continuation_check_arg;             // user state for the continuation callback
-    ic_status_hint_mode_t status_hint_mode;   // rendering behavior for default hints
-    bool mouse_reporting_enabled_by_default;  // start each readline session with mouse reporting
-                                              // enabled?
+    ic_status_hint_mode_t status_hint_mode;  // rendering behavior for default hints
+    ic_mouse_clicking_mode_t
+        mouse_reporting_mode;                 // capture strategy for mouse interaction sessions
+    bool mouse_reporting_enabled_by_default;  // should new readline sessions start with mouse
+                                              // capture active?
     bool mouse_reporting_status_line_enabled;  // show mouse-reporting indicator in the status
                                                // line?
     const char* match_braces;                  // matching braces, e.g "()[]{}"

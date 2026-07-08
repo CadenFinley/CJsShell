@@ -222,6 +222,24 @@ ic_status_hint_mode_t ic_set_status_hint_mode(ic_status_hint_mode_t mode);
 /// Get the current status hint rendering mode.
 ic_status_hint_mode_t ic_get_status_hint_mode(void);
 
+/// Mouse capture behavior for readline sessions.
+/// - `IC_MOUSE_CLICKING_DISABLED`: never capture mouse events.
+/// - `IC_MOUSE_CLICKING_SIMPLE`: start with mouse capture enabled; only manual toggle changes it.
+/// - `IC_MOUSE_CLICKING_SMART`: start enabled and auto-suspend on wheel/viewport-exit input,
+///   then auto-resume on keyboard/focus-in input.
+typedef enum ic_mouse_clicking_mode_e {
+    IC_MOUSE_CLICKING_DISABLED = 0,
+    IC_MOUSE_CLICKING_SIMPLE,
+    IC_MOUSE_CLICKING_SMART,
+} ic_mouse_clicking_mode_t;
+
+/// Set mouse capture mode. Invalid values normalize to `IC_MOUSE_CLICKING_SMART`.
+/// Returns the previous mode.
+ic_mouse_clicking_mode_t ic_set_mouse_clicking_mode(ic_mouse_clicking_mode_t mode);
+
+/// Get the configured mouse capture mode.
+ic_mouse_clicking_mode_t ic_get_mouse_clicking_mode(void);
+
 /// Queue multiple key events so they are processed before the next read.
 /// Returns `false` if the readline environment is not yet initialized.
 bool ic_push_key_sequence(const ic_keycode_t* keys, size_t count);
@@ -753,9 +771,10 @@ bool ic_enable_inline_right_prompt_cursor_follow(bool enable);
 /// Returns whether the right-aligned prompt follows the cursor height.
 bool ic_inline_right_prompt_follows_cursor(void);
 
-/// Enable or disable mouse click reporting by default for new readline sessions.
-/// When enabled, mouse clicking support starts in the same state as if the user pressed the
-/// toggle-mouse keybinding at prompt startup. Returns the previous setting.
+/// Legacy compatibility helper for older callers.
+/// `true` enables per-prompt mouse capture defaults (equivalent to SIMPLE mode startup behavior);
+/// `false` disables startup capture while preserving the current mode.
+/// Returns the previous startup-default setting.
 bool ic_enable_mouse_clicking(bool enable);
 
 /// Enable or disable the status-line indicator that says mouse clicking is enabled.

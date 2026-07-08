@@ -1230,9 +1230,9 @@ def main() -> int:
     hist_scroll_toggle = run_case(
         binary, "history_search_scroll", F2 + b"\x12" + mouse_wheel_down + b"\r"
     )
-    if hist_scroll_toggle != "history beta":
+    if hist_scroll_toggle != "history alpha":
         raise AssertionError(
-            "history_search_scroll with mouse toggle expected 'history beta', got "
+            "history_search_scroll with mouse toggle expected 'history alpha', got "
             f"{hist_scroll_toggle!r}"
         )
 
@@ -1393,7 +1393,7 @@ def main() -> int:
 
     comp_click_expanded, comp_click_expanded_output = run_case(
         binary,
-        "completion_many_menu",
+        "completion_many_menu_mouse_default_on",
         b"s\t\x0a" + mouse_click_completion_expanded_second + b"\r",
         capture_output=True,
     )
@@ -1412,7 +1412,7 @@ def main() -> int:
 
     comp_scroll = run_case(
         binary,
-        "completion_many_menu",
+        "completion_many_menu_mouse_default_on",
         b"s\t\x0a" + mouse_wheel_down + b"\r\r",
     )
     if comp_scroll != "s02":
@@ -1422,7 +1422,7 @@ def main() -> int:
 
     comp_scroll_release = run_case(
         binary,
-        "completion_many_menu",
+        "completion_many_menu_mouse_default_on",
         b"s\t\x0a" + mouse_wheel_down + mouse_release + b"\r\r",
     )
     if comp_scroll_release != "s02":
@@ -1433,7 +1433,7 @@ def main() -> int:
 
     comp_scroll_shift = run_case(
         binary,
-        "completion_many_menu",
+        "completion_many_menu_mouse_default_on",
         b"s\t\x0a" + mouse_wheel_down_shift + b"\r\r",
     )
     if comp_scroll_shift != "s02":
