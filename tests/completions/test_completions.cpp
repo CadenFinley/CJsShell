@@ -344,6 +344,40 @@ static bool test_default_completer_nested_command_substitution_scope(void) {
     return true;
 }
 
+static bool test_default_completer_split_unknown_command_merge(void) {
+    const char* test_name = "default_completer_split_unknown_command_merge";
+    ssize_t count = run_completion_generation("pri ntf", &cjsh_default_completer, 256);
+
+    EXPECT_TRUE(count > 0, test_name,
+                "default completer should return suggestions for split unknown command tokens");
+    bool has_command = generated_completions_include_replacement("printf ") ||
+                       generated_completions_include_replacement("printf");
+    clear_generated_completions();
+
+    EXPECT_TRUE(has_command, test_name,
+                "split unknown command tokens should merge into known command completions");
+    return true;
+}
+
+static bool test_default_completer_split_unknown_command_spell(void) {
+    const char* test_name = "default_completer_split_unknown_command_spell";
+    const bool original_spell_setting = is_completion_spell_correction_enabled();
+    set_completion_spell_correction_enabled(true);
+
+    ssize_t count = run_completion_generation("pri tf", &cjsh_default_completer, 256);
+    bool has_command = generated_completions_include_replacement("printf ") ||
+                       generated_completions_include_replacement("printf");
+    clear_generated_completions();
+
+    set_completion_spell_correction_enabled(original_spell_setting);
+
+    EXPECT_TRUE(count > 0, test_name,
+                "default completer should return spell suggestions for merged unknown tokens");
+    EXPECT_TRUE(has_command, test_name,
+                "merged unknown command tokens should include spell-corrected command suggestions");
+    return true;
+}
+
 static bool test_find_last_unquoted_space(void) {
     const char* test_name = "find_last_unquoted_space";
     std::string line = "echo \"a b\" c";
@@ -966,6 +1000,10 @@ static const test_case_t kTests[] = {
      test_default_completer_command_in_command_substitution},
     {"default_completer_nested_command_substitution_scope",
      test_default_completer_nested_command_substitution_scope},
+    {"default_completer_split_unknown_command_merge",
+     test_default_completer_split_unknown_command_merge},
+    {"default_completer_split_unknown_command_spell",
+     test_default_completer_split_unknown_command_spell},
     {"find_last_unquoted_space", test_find_last_unquoted_space},
     {"find_last_unquoted_space_with_tabs", test_find_last_unquoted_space_with_tabs},
     {"find_last_unquoted_space_with_escaped_space",

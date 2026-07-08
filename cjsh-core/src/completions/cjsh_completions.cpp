@@ -588,6 +588,162 @@ CommandCompletionSources collect_command_completion_sources(bool include_executa
     return sources;
 }
 
+bool command_resolution_is_unknown(const std::string& token) {
+    if (token.empty()) {
+        return false;
+    }
+
+    if (command_lookup::should_auto_cd_token(token, g_shell.get())) {
+        return false;
+    }
+
+    const auto resolution = command_lookup::resolve_command(token, g_shell.get(), true);
+    return !resolution.is_keyword && !resolution.is_builtin && !resolution.has_alias &&
+           !resolution.has_function && !resolution.has_path;
+}
+
+bool token_allows_split_command_merge(const std::string& token) {
+    if (token.empty() || token[0] == '-' || token.find('=') != std::string::npos) {
+        return false;
+    }
+
+    static const std::string kDisallowedChars = "/\\'\"`$|&;(){}[]<>";
+    return token.find_first_of(kDisallowedChars) == std::string::npos;
+}
+
+void add_command_spell_corrections(ic_completion_env_t* cenv,
+                                   const CommandCompletionSources& sources,
+                                   const std::string& normalized_prefix,
+                                   size_t delete_before_length) {
+    if (ic_has_completions(cenv) || !g_completion_spell_correction_enabled) {
+        return;
+    }
+
+    if (!completion_spell::should_consider_spell_correction(normalized_prefix)) {
+        return;
+    }
+
+    std::unordered_map<std::string, completion_spell::SpellCorrectionMatch> spell_matches;
+
+    completion_spell::collect_spell_correction_candidates(
+        sources.builtin_cmds, [](const std::string& value) { return value; },
+        [](const std::string& cmd) { return is_interactive_builtin(cmd); }, normalized_prefix,
+        spell_matches);
+
+    completion_spell::collect_spell_correction_candidates(
+        sources.function_names, [](const std::string& value) { return value; },
+        std::function<bool(const std::string&)>{}, normalized_prefix, spell_matches);
+
+    completion_spell::collect_spell_correction_candidates(
+        sources.alias_names, [](const std::string& value) { return value; },
+        std::function<bool(const std::string&)>{}, normalized_prefix, spell_matches);
+
+    completion_spell::collect_spell_correction_candidates(
+        sources.abbreviation_names, [](const std::string& value) { return value; },
+        std::function<bool(const std::string&)>{}, normalized_prefix, spell_matches);
+
+    completion_spell::collect_spell_correction_candidates(
+        sources.executables_in_path, [](const std::string& value) { return value; },
+        std::function<bool(const std::string&)>{}, normalized_prefix, spell_matches);
+
+    if (!spell_matches.empty()) {
+        completion_spell::add_spell_correction_matches(cenv, spell_matches, delete_before_length);
+    }
+}
+
+void add_command_name_completions(ic_completion_env_t* cenv,
+                                  const CommandCompletionSources& sources,
+                                  const std::string& prefix, size_t delete_before_length) {
+    add_builtin_command_candidates(cenv, sources.builtin_cmds, prefix, delete_before_length);
+    if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv)) {
+        return;
+    }
+
+    const auto& control_structures = command_lookup::shell_control_structure_keywords();
+    process_command_candidates(
+        cenv, control_structures, prefix, delete_before_length, "control structure",
+        [](const std::string& value) { return value; }, std::function<bool(const std::string&)>{},
+        builtin_summary_for_command);
+    if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv)) {
+        return;
+    }
+
+    process_command_candidates(cenv, sources.function_names, prefix, delete_before_length,
+                               "function", [](const std::string& value) { return value; });
+    if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv)) {
+        return;
+    }
+
+    auto alias_source_provider = make_map_source_provider(sources.alias_map);
+    process_command_candidates(
+        cenv, sources.alias_names, prefix, delete_before_length, "alias",
+        [](const std::string& value) { return value; }, std::function<bool(const std::string&)>{},
+        alias_source_provider);
+    if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv)) {
+        return;
+    }
+
+    auto abbreviation_source_provider = make_map_source_provider(sources.abbreviation_map);
+    process_command_candidates(
+        cenv, sources.abbreviation_names, prefix, delete_before_length, "abbreviation",
+        [](const std::string& value) { return value; }, std::function<bool(const std::string&)>{},
+        abbreviation_source_provider);
+    if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv)) {
+        return;
+    }
+
+    size_t summary_fetch_budget = delete_before_length == 0 ? 2 : 5;
+    auto system_summary_provider = [&](const std::string& cmd) -> std::string {
+        std::string summary = get_command_summary(cmd, false);
+        if (!summary.empty()) {
+            return summary;
+        }
+        if (!config::completion_learning_enabled || summary_fetch_budget == 0) {
+            return {};
+        }
+        --summary_fetch_budget;
+        return get_command_summary(cmd, true);
+    };
+
+    process_command_candidates(
+        cenv, sources.executables_in_path, prefix, delete_before_length,
+        "system installed command", [](const std::string& value) { return value; }, {},
+        system_summary_provider);
+
+    std::string normalized_prefix = completion_utils::normalize_for_comparison(prefix);
+    add_command_spell_corrections(cenv, sources, normalized_prefix, delete_before_length);
+}
+
+bool add_split_unknown_command_completions(ic_completion_env_t* cenv,
+                                           const std::vector<std::string>& tokens,
+                                           bool ends_with_space,
+                                           const std::string& full_prefix) {
+    if (cenv == nullptr || ends_with_space || tokens.size() != 2 ||
+        ic_stop_completing(cenv) || completion_tracker::completion_limit_hit()) {
+        return false;
+    }
+
+    const std::string& first_token = tokens[0];
+    const std::string& second_token = tokens[1];
+    if (!token_allows_split_command_merge(first_token) ||
+        !token_allows_split_command_merge(second_token)) {
+        return false;
+    }
+
+    if (!command_resolution_is_unknown(first_token) || !command_resolution_is_unknown(second_token)) {
+        return false;
+    }
+
+    std::string merged_prefix = first_token + second_token;
+    if (merged_prefix.empty()) {
+        return false;
+    }
+
+    auto sources = collect_command_completion_sources(true);
+    add_command_name_completions(cenv, sources, merged_prefix, full_prefix.length());
+    return ic_has_completions(cenv);
+}
+
 bool is_valid_variable_completion_prefix(const std::string& prefix) {
     for (char ch : prefix) {
         unsigned char uch = static_cast<unsigned char>(ch);
@@ -1141,86 +1297,7 @@ void cjsh_command_completer(ic_completion_env_t* cenv, const char* prefix) {
         return;
 
     auto sources = collect_command_completion_sources(true);
-
-    add_builtin_command_candidates(cenv, sources.builtin_cmds, prefix_str, prefix_len);
-    if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv))
-        return;
-
-    const auto& control_structures = command_lookup::shell_control_structure_keywords();
-    process_command_candidates(
-        cenv, control_structures, prefix_str, prefix_len, "control structure",
-        [](const std::string& value) { return value; }, std::function<bool(const std::string&)>{},
-        builtin_summary_for_command);
-    if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv))
-        return;
-
-    process_command_candidates(cenv, sources.function_names, prefix_str, prefix_len, "function",
-                               [](const std::string& value) { return value; });
-    if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv))
-        return;
-
-    auto alias_source_provider = make_map_source_provider(sources.alias_map);
-    process_command_candidates(
-        cenv, sources.alias_names, prefix_str, prefix_len, "alias",
-        [](const std::string& value) { return value; }, std::function<bool(const std::string&)>{},
-        alias_source_provider);
-    if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv))
-        return;
-
-    auto abbreviation_source_provider = make_map_source_provider(sources.abbreviation_map);
-    process_command_candidates(
-        cenv, sources.abbreviation_names, prefix_str, prefix_len, "abbreviation",
-        [](const std::string& value) { return value; }, std::function<bool(const std::string&)>{},
-        abbreviation_source_provider);
-    if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv))
-        return;
-
-    size_t summary_fetch_budget = prefix_len == 0 ? 2 : 5;
-    auto system_summary_provider = [&](const std::string& cmd) -> std::string {
-        std::string summary = get_command_summary(cmd, false);
-        if (!summary.empty())
-            return summary;
-        if (!config::completion_learning_enabled || summary_fetch_budget == 0)
-            return {};
-        --summary_fetch_budget;
-        return get_command_summary(cmd, true);
-    };
-
-    process_command_candidates(
-        cenv, sources.executables_in_path, prefix_str, prefix_len, "system installed command",
-        [](const std::string& value) { return value; }, {}, system_summary_provider);
-
-    if (!ic_has_completions(cenv) && g_completion_spell_correction_enabled) {
-        std::string normalized_prefix = completion_utils::normalize_for_comparison(prefix_str);
-        if (completion_spell::should_consider_spell_correction(normalized_prefix)) {
-            std::unordered_map<std::string, completion_spell::SpellCorrectionMatch> spell_matches;
-
-            completion_spell::collect_spell_correction_candidates(
-                sources.builtin_cmds, [](const std::string& value) { return value; },
-                [](const std::string& cmd) { return is_interactive_builtin(cmd); },
-                normalized_prefix, spell_matches);
-
-            completion_spell::collect_spell_correction_candidates(
-                sources.function_names, [](const std::string& value) { return value; },
-                std::function<bool(const std::string&)>{}, normalized_prefix, spell_matches);
-
-            completion_spell::collect_spell_correction_candidates(
-                sources.alias_names, [](const std::string& value) { return value; },
-                std::function<bool(const std::string&)>{}, normalized_prefix, spell_matches);
-
-            completion_spell::collect_spell_correction_candidates(
-                sources.abbreviation_names, [](const std::string& value) { return value; },
-                std::function<bool(const std::string&)>{}, normalized_prefix, spell_matches);
-
-            completion_spell::collect_spell_correction_candidates(
-                sources.executables_in_path, [](const std::string& value) { return value; },
-                std::function<bool(const std::string&)>{}, normalized_prefix, spell_matches);
-
-            if (!spell_matches.empty()) {
-                completion_spell::add_spell_correction_matches(cenv, spell_matches, prefix_len);
-            }
-        }
-    }
+    add_command_name_completions(cenv, sources, prefix_str, prefix_len);
 }
 
 bool looks_like_file_path(const std::string& str) {
@@ -1632,6 +1709,8 @@ void cjsh_default_completer(ic_completion_env_t* cenv, const char* prefix) {
 
                 handle_external_sub_completions(cenv, current_line_prefix);
             }
+
+            add_split_unknown_command_completions(cenv, tokens, ends_with_space, prefix_str);
 
             if (!tokens.empty() && completion_utils::equals_completion_token(tokens[0], "cd")) {
                 cjsh_filename_completer(cenv, current_line_prefix);
