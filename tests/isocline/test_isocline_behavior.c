@@ -608,6 +608,50 @@ static bool test_history_frequency_metadata_interactive_flow(void) {
     return true;
 }
 
+static bool test_history_snapshot_dedup_prefers_exit_code_metadata(void) {
+    alloc_t* mem = test_allocator();
+    if (mem == NULL)
+        return false;
+
+    history_t* history = history_new(mem);
+    if (history == NULL)
+        return false;
+
+    const char* history_path = "./isocline_history_dedup_exit_code.log";
+    (void)remove(history_path);
+    history_load_from(history, history_path, 16);
+    history_clear(history);
+
+    const ic_history_metadata_t executed_meta[] = {
+        {"code", "7"},
+    };
+
+    EXPECT_TRUE(history_push_with_metadata(history, "echo hi", executed_meta,
+                                           sizeof(executed_meta) / sizeof(executed_meta[0])),
+                "executed history entry should be stored with exit-code metadata");
+    EXPECT_TRUE(history_push(history, ""),
+                "interactive staging should append a transient blank history entry");
+    EXPECT_TRUE(history_update(history, "echo hi"),
+                "interactive staging update should rewrite the transient entry to the buffer");
+
+    history_snapshot_t snap = {0};
+    EXPECT_TRUE(history_snapshot_load(history, &snap, true),
+                "deduplicated snapshot should load successfully with staged duplicates present");
+    EXPECT_TRUE(history_snapshot_count(&snap) == 1,
+                "deduplicated snapshot should collapse staged and executed duplicates into one entry");
+
+    const history_entry_t* newest = history_snapshot_get(&snap, 0);
+    EXPECT_TRUE(newest != NULL, "deduplicated snapshot should expose the surviving history entry");
+    EXPECT_STREQ(history_entry_get_metadata(newest, "code"), "7",
+                 "deduplicated snapshot should preserve the entry that has exit-code metadata");
+    history_snapshot_free(history, &snap);
+
+    history_clear(history);
+    history_free(history);
+    (void)remove(history_path);
+    return true;
+}
+
 static bool test_history_fuzzy_case_toggle(void) {
     ic_env_t* env = ensure_env();
     alloc_t* mem = test_allocator();
@@ -3266,6 +3310,8 @@ static const test_case_t kTests[] = {
     {"history_frequency_metadata_tracking", test_history_frequency_metadata_tracking},
     {"history_frequency_metadata_interactive_flow",
      test_history_frequency_metadata_interactive_flow},
+    {"history_snapshot_dedup_prefers_exit_code_metadata",
+     test_history_snapshot_dedup_prefers_exit_code_metadata},
     {"history_disabled_mode_rejects_push", test_history_disabled_mode_rejects_push},
     {"key_spec_separator_and_invalid_forms", test_key_spec_separator_and_invalid_forms},
     {"key_binding_named_invalid_inputs", test_key_binding_named_invalid_inputs},

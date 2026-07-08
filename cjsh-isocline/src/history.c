@@ -68,6 +68,8 @@ typedef struct history_query_filter_s {
 
 static const char* k_history_timestamp_key = "timestamp";
 static const char* k_history_frequency_key = "frequency";
+static const char* k_history_exit_code_key = "code";
+static const char* k_history_exit_code_legacy_key = "exit_code";
 
 static bool history_metadata_key_valid(const char* key) {
     if (key == NULL || key[0] == '\0')
@@ -131,6 +133,18 @@ static const char* history_entry_metadata_lookup(const history_entry_t* entry, c
         }
     }
     return NULL;
+}
+
+static bool history_entry_has_exit_code(const history_entry_t* entry) {
+    if (entry == NULL)
+        return false;
+
+    const char* exit_code = history_entry_metadata_lookup(entry, k_history_exit_code_key, NULL);
+    if (exit_code == NULL || exit_code[0] == '\0') {
+        exit_code = history_entry_metadata_lookup(entry, k_history_exit_code_legacy_key, NULL);
+    }
+
+    return (exit_code != NULL && exit_code[0] != '\0');
 }
 
 static bool history_entry_set_metadata(history_t* h, history_entry_t* entry, const char* key,
@@ -344,17 +358,33 @@ static void history_list_prune_to_max(history_t* h, history_list_t* list) {
 }
 
 static void history_list_remove_duplicates(history_t* h, history_list_t* list) {
-    if (h->allow_duplicates)
+    if (h == NULL || list == NULL || h->allow_duplicates)
         return;
+
     for (ssize_t i = list->count - 1; i >= 0; i--) {
         const char* current = list->entries[i].command;
         if (current == NULL)
             continue;
+
+        bool current_has_exit_code = history_entry_has_exit_code(&list->entries[i]);
+
         for (ssize_t j = i - 1; j >= 0; j--) {
-            if (list->entries[j].command != NULL &&
-                strcmp(current, list->entries[j].command) == 0) {
-                history_list_remove_at(h, list, j);
+            const char* candidate = list->entries[j].command;
+            if (candidate == NULL || strcmp(current, candidate) != 0) {
+                continue;
             }
+
+            bool candidate_has_exit_code = history_entry_has_exit_code(&list->entries[j]);
+
+            if (current_has_exit_code || !candidate_has_exit_code) {
+                history_list_remove_at(h, list, j);
+                i--;
+                continue;
+            }
+
+            history_list_remove_at(h, list, i);
+            i = j + 1;
+            break;
         }
     }
 }
