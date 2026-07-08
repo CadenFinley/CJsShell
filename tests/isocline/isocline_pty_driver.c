@@ -113,6 +113,7 @@ static int run_readline_status_case(const char* scenario) {
     ic_enable_auto_tab(false);
     ic_enable_spell_correct_on_enter(false);
     ic_enable_prompt_cleanup(false, 0);
+    ic_set_mouse_clicking_mode(IC_MOUSE_CLICKING_SIMPLE);
     ic_enable_mouse_clicking(false);
     ic_enable_mouse_reporting_status_line(true);
     if (!ic_set_key_binding_profile("emacs")) {
@@ -250,6 +251,7 @@ static int run_case(const char* scenario) {
     ic_enable_completion_preview(false);
     ic_enable_auto_tab(false);
     ic_enable_prompt_cleanup(false, 0);
+    ic_set_mouse_clicking_mode(IC_MOUSE_CLICKING_SIMPLE);
     ic_enable_mouse_clicking(false);
     ic_enable_mouse_reporting_status_line(true);
     if (!ic_set_key_binding_profile(use_vim_profile ? "vim" : "emacs")) {
