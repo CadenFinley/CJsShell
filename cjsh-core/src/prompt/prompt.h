@@ -46,6 +46,8 @@ std::string default_secondary_prompt_template();
 
 void execute_prompt_command();
 
+bool apply_transient_final_prompt_if_configured();
+
 void initialize_colors();
 
 void apply_terminal_window_title();

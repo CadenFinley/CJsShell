@@ -503,7 +503,11 @@ bool continuation_or_return_callback(const char* input_buffer, void*) {
     }
 
     std::string buffer(input_buffer);
-    return !buffer_requires_additional_input(buffer);
+    bool should_submit = !buffer_requires_additional_input(buffer);
+    if (should_submit) {
+        prompt::apply_transient_final_prompt_if_configured();
+    }
+    return should_submit;
 }
 
 }  // namespace

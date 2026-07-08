@@ -591,6 +591,9 @@ Displayed for continuation lines in multiline input. The default `PS2` template 
 **Customization:**
 Define these markers directly inside `PS1`, `PS2`, and any helper functions you call from `PROMPT_COMMAND`.
 
+**Transient Final Prompt:**
+Set `PS1_FINAL` to replace the just-submitted prompt line with a different style after Enter accepts the command buffer.
+
 ## Terminal Features
 
 ### Color Support

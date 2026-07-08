@@ -78,6 +78,7 @@ enum class PromptContext : uint8_t {
     Primary,
     Right,
     Secondary,
+    Final,
 };
 
 struct GitDirInfo {
@@ -1011,6 +1012,16 @@ std::string render_secondary_prompt() {
         return {};
     }
     return expand_prompt_string(ps2, PromptContext::Secondary);
+}
+
+bool apply_transient_final_prompt_if_configured() {
+    if (!config::prompt_vars_enabled || !cjsh_env::shell_variable_is_set("PS1_FINAL")) {
+        return false;
+    }
+
+    std::string ps1_final = cjsh_env::get_shell_variable_value("PS1_FINAL");
+    std::string prompt_text = expand_prompt_string(ps1_final, PromptContext::Final);
+    return ic_current_loop_reset(nullptr, prompt_text.c_str(), nullptr);
 }
 
 void execute_prompt_command() {
