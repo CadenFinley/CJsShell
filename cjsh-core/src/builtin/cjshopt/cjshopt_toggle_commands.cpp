@@ -746,6 +746,28 @@ int completion_menu_expanded_command(const std::vector<std::string>& args) {
     return handle_toggle_command(config, args);
 }
 
+int completion_click_accept_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: completion-click-accept <on|off|status>",
+        "Examples:",
+        "  completion-click-accept on       Always accept completions when clicked",
+        "  completion-click-accept off      Click selects completions without accepting",
+        "  completion-click-accept status   Show the current setting"};
+
+    static const ToggleCommandConfig config{
+        "completion-click-accept",
+        usage_lines,
+        []() { return ic_completion_click_accept_is_enabled(); },
+        [](bool enable) { ic_enable_completion_click_accept(enable); },
+        "Completion click-to-accept",
+        false,
+        "Add `cjshopt {command} {state}` to your ~/.cjshrc to persist this change.\n",
+        {},
+        {}};
+
+    return handle_toggle_command(config, args);
+}
+
 int visible_whitespace_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {
         "Usage: visible-whitespace <on|off|status>",

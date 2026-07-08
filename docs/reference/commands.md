@@ -688,6 +688,7 @@ Available subcommands:
 - `hint-delay` - Set hint display delay in milliseconds
 - `completion-preview` - Configure completion preview
 - `completion-menu-expanded` - Open completion menus in expanded mode by default
+- `completion-click-accept` - Configure whether click interactions accept completion candidates
 - `visible-whitespace` - Toggle visible whitespace characters in the editor
 - `hint` - Configure inline hints
 - `multiline-indent` - Configure auto-indent in multiline input
@@ -1056,6 +1057,25 @@ cjshopt completion-menu-expanded status  # Show the current setting
 
 The subcommand accepts synonyms such as `enable`, `disable`, `true`, and `false`. Add to
 `~/.cjshrc` to persist the preference.
+
+#### completion-click-accept
+
+Control whether mouse clicks immediately accept completion hints and completion-menu entries.
+
+```bash
+cjshopt completion-click-accept <on|off|status>
+```
+
+Examples:
+
+```bash
+cjshopt completion-click-accept on       # Always accept completion entries on click
+cjshopt completion-click-accept off      # Click selects entries without accepting (default)
+cjshopt completion-click-accept status   # Show the current setting
+```
+
+`off` is useful when you still want mouse selection/highlighting but prefer confirming with
+`Enter`, `Right`, or `End`. Add the command to `~/.cjshrc` to persist the preference.
 
 #### visible-whitespace
 

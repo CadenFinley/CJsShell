@@ -875,7 +875,7 @@ read_key:
             if (completion_menu_mouse_select(env, eb, expanded_mode, grid_mode, grid_columns,
                                              grid_rows, colwidth, scroll_offset, count_displayed,
                                              last_rows_visible, &selected, &accept_selection)) {
-                if (accept_selection) {
+                if (accept_selection && edit_completion_click_accept_enabled(env)) {
                     c = KEY_ENTER;
                     key_no_mods = KEY_ENTER;
                 } else {

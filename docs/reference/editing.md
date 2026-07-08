@@ -205,6 +205,10 @@ cjshopt completion-preview on|off|status
 # Open completion menus expanded by default (disabled by default)
 cjshopt completion-menu-expanded on|off|status
 
+# Control whether mouse clicks immediately accept completion entries
+# (disabled by default)
+cjshopt completion-click-accept on|off|status
+
 # Enable/disable auto-tab (disabled by default)
 # Auto-tab automatically completes unique prefixes
 cjshopt auto-tab on|off|status
@@ -232,6 +236,7 @@ directories that contain thousands of files or deeply nested command trees.
 - Press `Enter` to accept a completion
 - Press `Esc` to cancel
 - In expanded menus, use the mouse wheel to scroll and click entries to select/accept
+  (`cjshopt completion-click-accept off` keeps click selection but requires Enter/Right/End to accept)
 
 ### Hints and Inline Help
 
@@ -327,12 +332,16 @@ cjshopt mouse-clicking on|off|status
 
 # Show or hide the mouse status indicator line
 cjshopt mouse-clicking-status-line on|off|status
+
+# Configure click-to-accept behavior for completion hints and completion menus
+cjshopt completion-click-accept on|off|status
 ```
 
 **Behavior:**
 - In the editor buffer, left-click moves the cursor to the clicked position
 - In collapsed completion menus, click selection follows the prompt-level mouse toggle
 - In expanded completion menus and history search, click selection and wheel scrolling are enabled while the menu is open
+- Completion click acceptance follows `cjshopt completion-click-accept` (disabled by default)
 
 ### Fish-Style Abbreviations
 

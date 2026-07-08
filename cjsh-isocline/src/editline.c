@@ -152,6 +152,10 @@ static bool prompt_line_should_use_line_numbers(const ic_env_t* env, const edito
     return ic_prompt_line_replacement_should_activate(&predicate);
 }
 
+static bool edit_completion_click_accept_enabled(const ic_env_t* env) {
+    return (env != NULL && env->completion_click_accept_enabled);
+}
+
 static void edit_generate_completions(ic_env_t* env, editor_t* eb, bool autotab);
 static void edit_history_search_with_current_word(ic_env_t* env, editor_t* eb);
 static void edit_command_palette(ic_env_t* env, editor_t* eb);
@@ -755,6 +759,14 @@ static bool edit_handle_mouse_click(ic_env_t* env, editor_t* eb, const char* ren
     sbuf_free(display_input_with_hint);
 
     if (clicked_hint_region) {
+        if (!edit_completion_click_accept_enabled(env)) {
+            if (new_pos != eb->pos) {
+                eb->pos = new_pos;
+                edit_refresh_hint(env, eb);
+            }
+            return true;
+        }
+
         bool spell_hint = false;
         if (env->completions != NULL && completions_count(env->completions) > 0) {
             const char* source = completions_get_source(env->completions, 0);

@@ -61,6 +61,7 @@ enum class CjshoptSubcommand : std::uint8_t {
     HintDelay,
     CompletionPreview,
     CompletionMenuExpanded,
+    CompletionClickAccept,
     VisibleWhitespace,
     Hint,
     MultilineIndent,
@@ -120,6 +121,8 @@ constexpr std::array<CjshoptSubcommandDescriptor, static_cast<size_t>(CjshoptSub
          {CjshoptSubcommand::CompletionPreview, "completion-preview", completion_preview_command},
          {CjshoptSubcommand::CompletionMenuExpanded, "completion-menu-expanded",
           completion_menu_expanded_command},
+         {CjshoptSubcommand::CompletionClickAccept, "completion-click-accept",
+          completion_click_accept_command},
          {CjshoptSubcommand::VisibleWhitespace, "visible-whitespace", visible_whitespace_command},
          {CjshoptSubcommand::Hint, "hint", hint_command},
          {CjshoptSubcommand::MultilineIndent, "multiline-indent", multiline_indent_command},
@@ -194,6 +197,8 @@ const std::vector<std::string>& cjshopt_usage_lines() {
             "(default: enabled)",
         std::string("  completion-menu-expanded <on|off|status> Open completion menus expanded ") +
             "(default: disabled)",
+        std::string("  completion-click-accept <on|off|status> Control click-to-accept behavior ") +
+            "for completion entries (default: disabled)",
         std::string("  visible-whitespace <on|off|status> Configure visible whitespace ") +
             "characters (default: disabled)",
         "  hint <on|off|status>            Configure inline hints (default: enabled)",
@@ -272,9 +277,10 @@ int cjshopt_command(const std::vector<std::string>& args) {
                   "smart-cd, script-extension-interpreter, "
                   "completion-learning, "
                   "line-numbers, line-numbers-continuation, line-numbers-replace-prompt, "
-                  "current-line-number-highlight, multiline-start-lines, hint-delay, "
-                  "completion-preview, completion-menu-expanded, visible-whitespace, hint, "
-                  "multiline-indent, multiline, inline-help, "
+                   "current-line-number-highlight, multiline-start-lines, hint-delay, "
+                   "completion-preview, completion-menu-expanded, completion-click-accept, "
+                   "visible-whitespace, hint, "
+                   "multiline-indent, multiline, inline-help, "
                   "status-hints, status-line, status-reporting, status-line-callback, "
                   "mouse-clicking, mouse-clicking-status-line, auto-tab, prompt-newline, "
                   "right-prompt-follow-cursor, "

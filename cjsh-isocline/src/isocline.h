@@ -654,6 +654,13 @@ bool ic_enable_completion_preview(bool enable);
 /// Returns the previous setting.
 bool ic_enable_completion_menu_start_expanded(bool enable);
 
+/// Enable or disable click-to-accept for completion candidates (disabled by default).
+/// Returns the previous setting.
+bool ic_enable_completion_click_accept(bool enable);
+
+/// Returns whether click-to-accept for completion candidates is currently enabled.
+bool ic_completion_click_accept_is_enabled(void);
+
 /// Disable or enable automatic identation of continuation lines in multiline
 /// input so it aligns with the initial prompt. (enabled by default)
 /// Returns the previous setting.

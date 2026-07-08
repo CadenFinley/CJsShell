@@ -63,7 +63,8 @@ Powered by the embedded [isocline](https://github.com/cadenfinley/isocline) edit
     `cjshopt keybind` (including command-driven bindings through `cjsh-widget`).
 - **Mouse-aware editing** – Toggle mouse clicking with `F2` for the current prompt or set the
     default for new prompts with `cjshopt mouse-clicking`. Clicks can reposition the cursor and
-    select completion/history entries, and the mouse wheel scrolls expanded menus.
+    select completion/history entries, the mouse wheel scrolls expanded menus, and
+    `cjshopt completion-click-accept` controls whether clicks accept completion entries.
 - **Typeahead capture** – Keystrokes entered while a command runs are buffered and replayed when the prompt returns so you never lose input.
 - **Abbreviations** – `abbr`/`unabbr` provide fish-style expansions for frequently typed snippets.
 
@@ -88,10 +89,10 @@ for full details.
 - **Runtime toggles** – Every major interactive feature has a `cjshopt` command. Highlights:
     - `cjshopt multiline`, `cjshopt multiline-indent`, `cjshopt line-numbers`,
         `cjshopt multiline-start-lines`
-     - `cjshopt completion-preview`, `cjshopt completion-menu-expanded`,
-         `cjshopt completion-case`, `cjshopt completion-spell`,
-         `cjshopt completion-spell-enter`,
-         `cjshopt completion-learning`, `cjshopt auto-tab`
+      - `cjshopt completion-preview`, `cjshopt completion-menu-expanded`,
+          `cjshopt completion-click-accept`, `cjshopt completion-case`, `cjshopt completion-spell`,
+          `cjshopt completion-spell-enter`,
+          `cjshopt completion-learning`, `cjshopt auto-tab`
      - `cjshopt hint`, `cjshopt hint-delay`, `cjshopt inline-help`, `cjshopt status-hints`,
          `cjshopt status-line`, `cjshopt status-reporting`, `cjshopt visible-whitespace`
      - `cjshopt mouse-clicking`, `cjshopt mouse-clicking-status-line`

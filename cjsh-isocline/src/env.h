@@ -103,6 +103,7 @@ struct ic_env_s {
     bool complete_nopreview;             // do not show completion preview for each
                                          // selection in the completion menu?
     bool complete_menu_start_expanded;   // open completion menus expanded by default?
+    bool completion_click_accept_enabled;  // should completion clicks accept immediately?
     bool complete_autotab;               // try to keep completing after a completion?
     bool no_multiline_indent;            // indent continuation lines to line up under the
                                          // initial prompt

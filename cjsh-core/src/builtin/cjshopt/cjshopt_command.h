@@ -57,6 +57,7 @@ int current_line_number_highlight_command(const std::vector<std::string>& args);
 int hint_delay_command(const std::vector<std::string>& args);
 int completion_preview_command(const std::vector<std::string>& args);
 int completion_menu_expanded_command(const std::vector<std::string>& args);
+int completion_click_accept_command(const std::vector<std::string>& args);
 int visible_whitespace_command(const std::vector<std::string>& args);
 int hint_command(const std::vector<std::string>& args);
 int multiline_indent_command(const std::vector<std::string>& args);

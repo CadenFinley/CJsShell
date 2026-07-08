@@ -116,6 +116,7 @@ static ic_env_t* ic_env_create(ic_malloc_fun_t* _malloc, ic_realloc_fun_t* _real
     env->replace_prompt_line_with_line_number = false;  // keep final prompt line visible by default
     env->complete_nopreview = false;            // completion preview (inverted: false = enabled)
     env->complete_menu_start_expanded = false;  // keep completion menu collapsed by default
+    env->completion_click_accept_enabled = false;  // keep click-to-accept off by default
     env->no_hint = false;                       // hint (inverted: false = enabled)
     env->complete_autotab = false;              // auto tab (disabled by default)
     env->no_help = false;                       // inline help (inverted: false = enabled)
