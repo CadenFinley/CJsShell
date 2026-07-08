@@ -84,7 +84,7 @@ The syntax highlighter exposes reusable style names that can be used as tags. Th
 from `token_constants::default_styles` and include:
 
 ```
-unknown-command  colon  path-exists  path-not-exists
+unknown-command  colon  file-argument  path-exists  path-not-exists
 glob-pattern     operator  keyword  builtin  system
 variable         assignment-value  string  comment
 command-substitution  arithmetic  option  number

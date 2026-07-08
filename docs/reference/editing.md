@@ -168,7 +168,7 @@ cjshopt style_def <token_type> <style>
 **Available Style Names:**
 - `keyword`, `builtin`, `system`, `unknown-command`
 - `string`, `comment`, `variable`, `number`, `operator`
-- `path-exists`, `path-not-exists`, `glob-pattern`, `assignment-value`
+- `file-argument`, `path-exists`, `path-not-exists`, `glob-pattern`, `assignment-value`
 - `command-substitution`, `arithmetic`, `option`, `function-definition`, `history-expansion`
 - `ic-prompt`, `ic-hint`, `ic-error`, `ic-info`, `ic-source`, `ic-diminish`, `ic-emphasis`
 - `ic-linenumbers`, `ic-linenumber-current`, `ic-bracematch`, `ic-whitespace-char`
@@ -711,7 +711,7 @@ All visual aspects of the editor can be customized through style definitions.
 - `system`: External commands resolved from PATH
 - `unknown-command`: Unresolved command names
 - `string`, `comment`, `variable`, `number`, `operator`
-- `path-exists`, `path-not-exists`, `glob-pattern`, `assignment-value`
+- `file-argument`, `path-exists`, `path-not-exists`, `glob-pattern`, `assignment-value`
 - `command-substitution`, `arithmetic`, `option`, `function-definition`, `history-expansion`
 
 **Interactive UI Styles:**

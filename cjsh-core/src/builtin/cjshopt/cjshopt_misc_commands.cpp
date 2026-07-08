@@ -76,6 +76,9 @@ std::string style_preview_sample(const std::string& token_type) {
     if (token_type == "colon") {
         return ":";
     }
+    if (token_type == "file-argument") {
+        return "README.md";
+    }
     if (token_type == "path-exists") {
         return "/usr";
     }

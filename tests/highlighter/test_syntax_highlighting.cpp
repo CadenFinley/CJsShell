@@ -27,6 +27,8 @@
 */
 
 #include <cstdio>
+#include <filesystem>
+#include <fstream>
 #include <memory>
 #include <string>
 #include <unordered_set>
@@ -1230,6 +1232,56 @@ static bool test_c_style_for_header_command_boundary(void) {
     return true;
 }
 
+static bool test_existing_file_argument_highlighting(void) {
+    const char* test_name = "existing_file_argument_highlighting";
+    const std::string filename = ".cjsh_file_argument_highlight_test";
+    const std::filesystem::path file_path = std::filesystem::current_path() / filename;
+
+    std::ofstream output(file_path, std::ios::out | std::ios::trunc);
+    if (!output.is_open()) {
+        log_failure(test_name, "failed to create temporary test file");
+        return false;
+    }
+    output << "test";
+    output.close();
+
+    const std::string input = "cat " + filename;
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        std::error_code remove_error;
+        std::filesystem::remove(file_path, remove_error);
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        std::error_code remove_error;
+        std::filesystem::remove(file_path, remove_error);
+        return false;
+    }
+
+    size_t file_pos = input.find(filename);
+    if (file_pos == std::string::npos) {
+        log_failure(test_name, "failed to locate file argument token");
+        attrbuf_free(attrs);
+        std::error_code remove_error;
+        std::filesystem::remove(file_path, remove_error);
+        return false;
+    }
+
+    bool ok = expect_style_range(attrs, env->bbcode, file_pos, filename.size(),
+                                 "cjsh-file-argument", test_name,
+                                 "existing file argument should be highlighted as file argument");
+
+    attrbuf_free(attrs);
+
+    std::error_code remove_error;
+    std::filesystem::remove(file_path, remove_error);
+
+    return ok;
+}
+
 typedef bool (*test_fn_t)(void);
 
 typedef struct test_case_s {
@@ -1279,6 +1331,7 @@ static const test_case_t kTests[] = {
     {"subshell_group_highlighting", test_subshell_group_highlighting},
     {"subshell_tokens_known_to_validator", test_subshell_tokens_known_to_validator},
     {"c_style_for_header_command_boundary", test_c_style_for_header_command_boundary},
+    {"existing_file_argument_highlighting", test_existing_file_argument_highlighting},
 };
 
 int main(void) {

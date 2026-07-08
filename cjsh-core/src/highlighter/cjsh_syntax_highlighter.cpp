@@ -53,6 +53,18 @@ bool is_opening_grouping_delimiter_token(const std::string& token) {
     return token == "(" || token == "{";
 }
 
+bool argument_resolves_to_existing_path(const std::string& token) {
+    if (token.empty() || token == "-") {
+        return false;
+    }
+
+    const std::string cwd = cjsh_filesystem::safe_current_directory();
+    const std::string previous_directory = (g_shell != nullptr) ? g_shell->get_previous_directory() : "";
+    const std::string path_to_check =
+        cjsh_filesystem::resolve_shell_token_path(token, cwd, previous_directory);
+    return std::filesystem::exists(path_to_check);
+}
+
 void highlight_command_resolution(ic_highlight_env_t* henv, size_t start, size_t length,
                                   bool is_system_command) {
     ic_highlight(henv, static_cast<long>(start), static_cast<long>(length),
@@ -248,7 +260,7 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
                 }
             } else if (is_cd_command && (arg == "~" || arg == "-")) {
                 ic_highlight(henv, static_cast<long>(absolute_arg_start),
-                             static_cast<long>(arg_length), "cjsh-path-exists");
+                             static_cast<long>(arg_length), "cjsh-file-argument");
             } else if (is_glob_pattern(arg)) {
                 ic_highlight(henv, static_cast<long>(absolute_arg_start),
                              static_cast<long>(arg_length), "cjsh-glob-pattern");
@@ -261,11 +273,14 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
 
                 if (std::filesystem::exists(path_to_check)) {
                     ic_highlight(henv, static_cast<long>(absolute_arg_start),
-                                 static_cast<long>(arg_length), "cjsh-path-exists");
+                                 static_cast<long>(arg_length), "cjsh-file-argument");
                 } else {
                     ic_highlight(henv, static_cast<long>(absolute_arg_start),
                                  static_cast<long>(arg_length), "cjsh-path-not-exists");
                 }
+            } else if (argument_resolves_to_existing_path(arg)) {
+                ic_highlight(henv, static_cast<long>(absolute_arg_start),
+                             static_cast<long>(arg_length), "cjsh-file-argument");
             }
         }
 

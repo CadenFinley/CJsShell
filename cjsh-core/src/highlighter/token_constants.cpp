@@ -102,6 +102,7 @@ const std::unordered_map<std::string, std::string>& default_styles() {
     static const std::unordered_map<std::string, std::string> kDefaultStyles = {
         {"unknown-command", "color=#FFFFFF underline underline-color=#FF0000"},
         {"colon", "bold color=#8BE9FD"},
+        {"file-argument", "color=#8BE9FD"},
         {"path-exists", "color=#50FA7B"},
         {"path-not-exists", "color=#FF5555"},
         {"glob-pattern", "color=#F1FA8C"},

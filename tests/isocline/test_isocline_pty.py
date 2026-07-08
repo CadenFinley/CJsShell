@@ -1129,6 +1129,7 @@ def main() -> int:
     mouse_click_history_second = mouse_left_click(6, 4)
     mouse_click_completion_expanded_second = mouse_left_click(6, 4)
     mouse_click_completion_collapsed_second = mouse_left_click(6, 3)
+    mouse_click_inline_hint = mouse_left_click(10, 1)
 
     mouse_status_result, mouse_status_output = run_case(
         binary, "insert_backspace", F2 + b"x\x7f\r", capture_output=True
@@ -1256,6 +1257,17 @@ def main() -> int:
     if comp_single != "hello":
         raise AssertionError(
             f"completion_single_tab expected 'hello', got {comp_single!r}"
+        )
+
+    comp_single_hint_click = run_case(
+        binary,
+        "hint_clears_on_empty_line",
+        F2 + b"hel" + mouse_click_inline_hint + b"\r",
+    )
+    if comp_single_hint_click != "hello":
+        raise AssertionError(
+            "mouse click on inline hint expected 'hello', got "
+            f"{comp_single_hint_click!r}"
         )
 
     comp_single_type = run_case(binary, "completion_single_then_type", b"hel\t!\r")

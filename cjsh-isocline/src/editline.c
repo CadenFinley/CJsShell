@@ -739,10 +739,12 @@ static bool edit_handle_mouse_click(ic_env_t* env, editor_t* eb, const char* ren
         return false;
     }
 
+    bool clicked_hint_region = false;
     if (display_input_with_hint != NULL && display_hint_len > 0) {
         const ssize_t display_hint_end_pos = display_hint_insert_pos + display_hint_len;
         if (new_pos > display_hint_insert_pos) {
-            if (new_pos < display_hint_end_pos) {
+            if (new_pos <= display_hint_end_pos) {
+                clicked_hint_region = true;
                 new_pos = display_hint_insert_pos;
             } else {
                 new_pos -= display_hint_len;
@@ -751,6 +753,26 @@ static bool edit_handle_mouse_click(ic_env_t* env, editor_t* eb, const char* ren
     }
 
     sbuf_free(display_input_with_hint);
+
+    if (clicked_hint_region) {
+        bool spell_hint = false;
+        if (env->completions != NULL && completions_count(env->completions) > 0) {
+            const char* source = completions_get_source(env->completions, 0);
+            spell_hint = (source != NULL && strcmp(source, "spell") == 0);
+        }
+
+        if (active_hint != NULL && active_hint[0] != '\0' && !spell_hint) {
+            editor_start_modify(eb);
+            ssize_t accepted_pos = sbuf_insert_at(eb->input, active_hint, eb->pos);
+            if (accepted_pos >= 0) {
+                eb->pos = accepted_pos;
+            }
+            edit_refresh_hint(env, eb);
+        } else {
+            edit_generate_completions(env, eb, true);
+        }
+        return true;
+    }
 
     if (new_pos != eb->pos) {
         eb->pos = new_pos;
