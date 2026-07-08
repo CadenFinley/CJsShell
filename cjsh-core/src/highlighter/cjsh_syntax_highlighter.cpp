@@ -65,6 +65,55 @@ bool argument_resolves_to_existing_path(const std::string& token) {
     return std::filesystem::exists(path_to_check);
 }
 
+bool token_allows_split_command_merge(const std::string& token) {
+    if (token.empty() || token[0] == '-' || token.find('=') != std::string::npos) {
+        return false;
+    }
+
+    static const std::string kDisallowedChars = "/\\'\"`$|&;(){}[]<>";
+    return token.find_first_of(kDisallowedChars) == std::string::npos;
+}
+
+bool has_nearby_split_merge_candidate(const std::string& first_token,
+                                      const std::string& second_token,
+                                      const std::unordered_set<std::string>& available_commands) {
+    if (first_token.length() < 2 || second_token.length() < 2) {
+        return false;
+    }
+
+    constexpr size_t kMaxGapChars = 1;
+    const size_t min_candidate_length = first_token.length() + second_token.length();
+    const size_t max_candidate_length = min_candidate_length + kMaxGapChars;
+
+    auto matches_candidate = [&](const std::string& candidate) {
+        if (candidate.length() < min_candidate_length || candidate.length() > max_candidate_length) {
+            return false;
+        }
+
+        if (candidate.rfind(first_token, 0) != 0) {
+            return false;
+        }
+
+        return candidate.compare(candidate.length() - second_token.length(), second_token.length(),
+                                 second_token) == 0;
+    };
+
+    for (const auto& candidate : available_commands) {
+        if (matches_candidate(candidate)) {
+            return true;
+        }
+    }
+
+    const auto executables_in_path = cjsh_filesystem::get_executables_in_path();
+    for (const auto& candidate : executables_in_path) {
+        if (matches_candidate(candidate)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void highlight_command_resolution(ic_highlight_env_t* henv, size_t start, size_t length,
                                   bool is_system_command) {
     ic_highlight(henv, static_cast<long>(start), static_cast<long>(length),
@@ -96,6 +145,50 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
     bool handled_first_token = false;
     size_t absolute_token_start = cmd_start + first_token_start;
     size_t first_token_length = first_token_end - first_token_start;
+
+    std::unordered_set<std::string> available_commands;
+    if (g_shell != nullptr) {
+        available_commands = g_shell->get_available_commands();
+    }
+
+    const bool first_token_unknown =
+        !command_analysis::is_known_command_token(token, absolute_token_start, g_shell.get(),
+                                                  available_commands);
+
+    bool highlight_split_unknown_second_token = false;
+    size_t split_second_token_absolute_start = 0;
+    size_t split_second_token_length = 0;
+    {
+        size_t split_cursor = token_cursor;
+        size_t second_token_start = 0;
+        size_t second_token_end = 0;
+        if (command_analysis::extract_next_token(cmd_str, split_cursor, second_token_start,
+                                                 second_token_end)) {
+            size_t third_token_start = 0;
+            size_t third_token_end = 0;
+            const bool has_third_token =
+                command_analysis::extract_next_token(cmd_str, split_cursor, third_token_start,
+                                                     third_token_end);
+            if (!has_third_token && token_allows_split_command_merge(token)) {
+                std::string second_token =
+                    cmd_str.substr(second_token_start, second_token_end - second_token_start);
+                if (token_allows_split_command_merge(second_token)) {
+                    const size_t absolute_second_token_start = cmd_start + second_token_start;
+                    const bool merged_token_known = command_analysis::is_known_command_token(
+                        token + second_token, absolute_token_start, g_shell.get(), available_commands);
+                    const bool merged_token_near_match =
+                        !merged_token_known && has_nearby_split_merge_candidate(
+                                                 token, second_token, available_commands);
+
+                    if (first_token_unknown && (merged_token_known || merged_token_near_match)) {
+                        highlight_split_unknown_second_token = true;
+                        split_second_token_absolute_start = absolute_second_token_start;
+                        split_second_token_length = second_token_end - second_token_start;
+                    }
+                }
+            }
+        }
+    }
 
     if (is_grouping_delimiter_token(token)) {
         ic_highlight(henv, static_cast<long>(absolute_token_start),
@@ -149,8 +242,7 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
     }
 
     if (!handled_first_token) {
-        auto cmds = g_shell->get_available_commands();
-        if (cmds.find(token) != cmds.end()) {
+        if (available_commands.find(token) != available_commands.end()) {
             ic_highlight(henv, static_cast<long>(absolute_token_start),
                          static_cast<long>(first_token_length), "cjsh-builtin");
         } else {
@@ -186,6 +278,15 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
         size_t absolute_arg_start = cmd_start + arg_start;
         size_t arg_length = arg_end - arg_start;
         std::string arg = cmd_str.substr(arg_start, arg_length);
+
+        if (highlight_split_unknown_second_token && arg_index == 0 &&
+            absolute_arg_start == split_second_token_absolute_start &&
+            arg_length == split_second_token_length) {
+            ic_highlight(henv, static_cast<long>(absolute_arg_start), static_cast<long>(arg_length),
+                         "cjsh-unknown-command");
+            ++arg_index;
+            continue;
+        }
 
         if (is_redirection_operator(arg) || comparison_ops.count(arg) > 0) {
             ic_highlight(henv, static_cast<long>(absolute_arg_start), static_cast<long>(arg_length),
@@ -244,8 +345,7 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
                             is_abbreviation = abbreviations.find(arg) != abbreviations.end();
                         }
 
-                        auto cmds = g_shell->get_available_commands();
-                        if (is_abbreviation || cmds.find(arg) != cmds.end() ||
+                        if (is_abbreviation || available_commands.find(arg) != available_commands.end() ||
                             is_shell_builtin(arg)) {
                             ic_highlight(henv, static_cast<long>(absolute_arg_start),
                                          static_cast<long>(arg_length), "cjsh-builtin");

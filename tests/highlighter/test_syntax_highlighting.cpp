@@ -129,6 +129,29 @@ static bool expect_style_range(attrbuf_t* attrs, bbcode_t* bbcode, size_t start,
     return true;
 }
 
+static bool expect_not_style_range(attrbuf_t* attrs, bbcode_t* bbcode, size_t start, size_t length,
+                                   const char* style, const char* test_name,
+                                   const char* message) {
+    if (length == 0) {
+        log_failure(test_name, "expected non-empty highlight range");
+        return false;
+    }
+    attr_t forbidden = bbcode_style(bbcode, style);
+    if (attr_is_none(forbidden)) {
+        log_failure(test_name, "forbidden style not registered");
+        return false;
+    }
+
+    for (size_t i = start; i < start + length; ++i) {
+        attr_t actual = attrbuf_attr_at(attrs, static_cast<ssize_t>(i));
+        if (attr_is_eq(actual, forbidden)) {
+            log_failure(test_name, message);
+            return false;
+        }
+    }
+    return true;
+}
+
 static bool test_variable_assignment_highlighting(void) {
     const char* test_name = "variable_assignment_highlighting";
     const std::string input = "FOO=42";
@@ -550,6 +573,152 @@ static bool test_keyword_argument_highlighting(void) {
                                  "then should be highlighted as keyword") &&
               expect_style_range(attrs, env->bbcode, fi_pos, 2, "cjsh-keyword", test_name,
                                  "fi should be highlighted as keyword");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
+static bool test_split_unknown_command_fragment_highlighting(void) {
+    const char* test_name = "split_unknown_command_fragment_highlighting";
+    const std::string input = "e cho";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    size_t first_pos = input.find("e");
+    size_t second_pos = input.find("cho");
+    if (first_pos == std::string::npos || second_pos == std::string::npos) {
+        log_failure(test_name, "failed to locate split command fragments");
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    bool ok =
+        expect_style_range(attrs, env->bbcode, first_pos, 1, "cjsh-unknown-command", test_name,
+                           "first split command fragment should be highlighted as unknown") &&
+        expect_style_range(attrs, env->bbcode, second_pos, 3, "cjsh-unknown-command", test_name,
+                           "second split command fragment should be highlighted as unknown");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
+static bool test_split_unknown_command_fragment_highlighting_with_gap(void) {
+    const char* test_name = "split_unknown_command_fragment_highlighting_with_gap";
+    const std::string input = "pri tf";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    size_t first_pos = input.find("pri");
+    size_t second_pos = input.find("tf");
+    if (first_pos == std::string::npos || second_pos == std::string::npos) {
+        log_failure(test_name, "failed to locate split command fragments with gap");
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    bool ok =
+        expect_style_range(attrs, env->bbcode, first_pos, 3, "cjsh-unknown-command", test_name,
+                           "first split command fragment should be highlighted as unknown") &&
+        expect_style_range(attrs, env->bbcode, second_pos, 2, "cjsh-unknown-command", test_name,
+                           "second split command fragment should be highlighted as unknown");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
+static bool test_split_unknown_command_fragment_highlighting_with_known_second_token(void) {
+    const char* test_name = "split_unknown_command_fragment_highlighting_with_known_second_token";
+    if (g_shell == nullptr) {
+        log_failure(test_name, "shell instance is not initialized");
+        return false;
+    }
+
+    auto original_aliases = g_shell->get_aliases();
+    auto updated_aliases = original_aliases;
+    updated_aliases["code"] = "echo known-code-fragment";
+    updated_aliases["opencode"] = "echo merged-command";
+    g_shell->set_aliases(updated_aliases);
+
+    const std::string input = "ope code";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        g_shell->set_aliases(original_aliases);
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        g_shell->set_aliases(original_aliases);
+        return false;
+    }
+
+    size_t first_pos = input.find("ope");
+    size_t second_pos = input.find("code");
+    if (first_pos == std::string::npos || second_pos == std::string::npos) {
+        log_failure(test_name, "failed to locate split command fragments");
+        attrbuf_free(attrs);
+        g_shell->set_aliases(original_aliases);
+        return false;
+    }
+
+    bool ok =
+        expect_style_range(attrs, env->bbcode, first_pos, 3, "cjsh-unknown-command", test_name,
+                           "first split command fragment should be highlighted as unknown") &&
+        expect_style_range(attrs, env->bbcode, second_pos, 4, "cjsh-unknown-command", test_name,
+                           "known second fragment should still be highlighted as unknown in a split typo");
+
+    attrbuf_free(attrs);
+    g_shell->set_aliases(original_aliases);
+    return ok;
+}
+
+static bool test_unknown_command_argument_not_marked_as_unknown_command(void) {
+    const char* test_name = "unknown_command_argument_not_marked_as_unknown_command";
+    const std::string unknown_command = "definitelynotrealcmd";
+    const std::string argument = "__cjsh_argument_token__";
+    const std::string input = unknown_command + " " + argument;
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    size_t command_pos = input.find(unknown_command);
+    size_t argument_pos = input.find(argument);
+    if (command_pos == std::string::npos || argument_pos == std::string::npos) {
+        log_failure(test_name, "failed to locate command and argument tokens");
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    bool ok = expect_style_range(attrs, env->bbcode, command_pos, unknown_command.size(),
+                                 "cjsh-unknown-command", test_name,
+                                 "unknown command should be highlighted as unknown") &&
+              expect_not_style_range(attrs, env->bbcode, argument_pos, argument.size(),
+                                     "cjsh-unknown-command", test_name,
+                                     "ordinary argument should not be highlighted as unknown command");
 
     attrbuf_free(attrs);
     return ok;
@@ -1304,6 +1473,14 @@ static const test_case_t kTests[] = {
     {"background_operator_highlighting", test_background_operator_highlighting},
     {"option_glob_redirection_highlighting", test_option_glob_redirection_highlighting},
     {"keyword_argument_highlighting", test_keyword_argument_highlighting},
+    {"split_unknown_command_fragment_highlighting",
+     test_split_unknown_command_fragment_highlighting},
+    {"split_unknown_command_fragment_highlighting_with_gap",
+     test_split_unknown_command_fragment_highlighting_with_gap},
+    {"split_unknown_command_fragment_highlighting_with_known_second_token",
+     test_split_unknown_command_fragment_highlighting_with_known_second_token},
+    {"unknown_command_argument_not_marked_as_unknown_command",
+     test_unknown_command_argument_not_marked_as_unknown_command},
     {"braced_variable_highlighting", test_braced_variable_highlighting},
     {"braced_variable_default_highlighting", test_braced_variable_default_highlighting},
     {"nested_command_substitution_highlighting", test_nested_command_substitution_highlighting},
