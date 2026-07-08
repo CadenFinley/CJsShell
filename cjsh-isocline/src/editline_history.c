@@ -133,6 +133,24 @@ static bool history_search_has_valid_metadata_tag(const char* query) {
 }
 
 static const char* k_history_search_timestamp_key = "timestamp";
+static const char* k_history_search_exit_code_key = "code";
+static const char* k_history_search_exit_code_legacy_key = "exit_code";
+
+static const char* history_search_entry_exit_code(const history_entry_t* entry) {
+    if (entry == NULL) {
+        return NULL;
+    }
+
+    const char* exit_code = history_entry_get_metadata(entry, k_history_search_exit_code_key);
+    if (exit_code == NULL || exit_code[0] == '\0') {
+        exit_code = history_entry_get_metadata(entry, k_history_search_exit_code_legacy_key);
+    }
+
+    if (exit_code == NULL || exit_code[0] == '\0') {
+        return NULL;
+    }
+    return exit_code;
+}
 
 static bool history_search_format_relative_time(time_t timestamp, char* formatted_buf,
                                                 size_t formatted_buf_size) {
@@ -718,7 +736,7 @@ again:;
     char metadata_preview_key[64];
     metadata_preview_key[0] = '\0';
     const char* metadata_suffix_key = k_history_search_timestamp_key;
-    bool metadata_suffix_label_last_run = true;
+    bool metadata_suffix_use_default_tag = true;
 
     {
         const char* query = sbuf_string(eb->input);
@@ -729,10 +747,10 @@ again:;
 
         if (metadata_preview_key[0] != '\0') {
             metadata_suffix_key = metadata_preview_key;
-            metadata_suffix_label_last_run = false;
+            metadata_suffix_use_default_tag = false;
         } else {
             metadata_suffix_key = k_history_search_timestamp_key;
-            metadata_suffix_label_last_run = true;
+            metadata_suffix_use_default_tag = true;
         }
 
         history_fuzzy_search_with_case(env->history, query ? query : "", matches, MAX_FUZZY_RESULTS,
@@ -840,15 +858,33 @@ again:;
             char metadata_suffix[160];
             metadata_suffix[0] = '\0';
             ssize_t metadata_reserved_columns = 0;
-            if (metadata_suffix_key != NULL && metadata_suffix_key[0] != '\0') {
+            if (metadata_suffix_use_default_tag) {
+                const char* exit_code = history_search_entry_exit_code(entry);
+                char formatted_meta_value[64];
+                const char* shown_value = history_search_pretty_metadata_value(
+                    k_history_search_timestamp_key,
+                    history_entry_get_metadata(entry, k_history_search_timestamp_key),
+                    formatted_meta_value, sizeof(formatted_meta_value));
+
+                if (exit_code != NULL) {
+                    int suffix_written = snprintf(metadata_suffix, sizeof(metadata_suffix),
+                                                  " [%s | %s]", shown_value, exit_code);
+                    if (suffix_written > 0) {
+                        if (suffix_written >= (int)sizeof(metadata_suffix)) {
+                            suffix_written = (int)sizeof(metadata_suffix) - 1;
+                            metadata_suffix[suffix_written] = '\0';
+                        }
+                        metadata_reserved_columns = suffix_written;
+                    }
+                }
+            } else if (metadata_suffix_key != NULL && metadata_suffix_key[0] != '\0') {
                 const char* meta_value = history_entry_get_metadata(entry, metadata_suffix_key);
                 char formatted_meta_value[64];
                 const char* shown_value = history_search_pretty_metadata_value(
                     metadata_suffix_key, meta_value, formatted_meta_value,
                     sizeof(formatted_meta_value));
                 int suffix_written =
-                    snprintf(metadata_suffix, sizeof(metadata_suffix),
-                             metadata_suffix_label_last_run ? " [%s]" : " [%s]", shown_value);
+                    snprintf(metadata_suffix, sizeof(metadata_suffix), " [%s]", shown_value);
                 if (suffix_written > 0) {
                     if (suffix_written >= (int)sizeof(metadata_suffix)) {
                         suffix_written = (int)sizeof(metadata_suffix) - 1;
