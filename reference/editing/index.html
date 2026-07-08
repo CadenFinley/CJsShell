@@ -2070,7 +2070,9 @@ Displayed for continuation lines in multiline input. The default <code>PS2</code
 <p><strong>Customization:</strong>
 Define these markers directly inside <code>PS1</code>, <code>PS2</code>, and any helper functions you call from <code>PROMPT_COMMAND</code>.</p>
 <p><strong>Transient Final Prompt:</strong>
-Set <code>PS1_FINAL</code> to replace the just-submitted prompt line with a different style after Enter accepts the command buffer.</p>
+Set <code>PS1_FINAL</code> to replace the just-submitted prompt line with a different style after Enter
+accepts the command buffer. Set <code>RPS1_FINAL</code> if you also want a dedicated transient right prompt
+on that submitted line.</p>
 <h2 id="terminal-features">Terminal Features</h2>
 <h3 id="color-support">Color Support</h3>
 <p>CJ's Shell automatically detects terminal capabilities:</p>

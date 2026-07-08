@@ -1245,6 +1245,8 @@ tags freely; the parser keeps a stack so <code>[b][color=hotpink]...[/color][/b]
 <ul>
 <li><code>RPS1</code> (preferred) or <code>RPROMPT</code> controls the inline right prompt. Markup and escapes work the
   same way as <code>PS1</code>.</li>
+<li><code>PS1_FINAL</code> swaps the submitted prompt line after Enter accepts input. Pair it with
+  <code>RPS1_FINAL</code> to style (or clear) the submitted line's right prompt independently.</li>
 <li><code>PS2</code> is used automatically for continuation lines by the line editor. Set it if you want a
   custom secondary prompt, e.g. <code>export PS2='[dim]&gt; [/dim]'</code>.</li>
 <li><code>PROMPT_COMMAND</code>, when set, runs before CJ's Shell generates <code>PS1</code>/<code>RPS1</code>. Use it to refresh
