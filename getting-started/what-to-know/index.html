@@ -590,10 +590,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#prompt-cleanup-layout" class="md-nav__link">
+  <a href="#prompt-layout" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Prompt Cleanup &amp; Layout
+        Prompt Layout
       
     </span>
   </a>
@@ -1478,16 +1478,12 @@
 <p><strong>Status:</strong> Enabled when the terminal advertises 24-bit color.<br>
 <strong>Configure:</strong> Automatically detected; adjust styling through your prompt definitions or <code>cjshopt style_def</code>.<br>
 <strong>Disable:</strong> Launch with <code>cjsh --no-colors</code> or persist by adding <code>cjshopt login-startup-arg --no-colors</code> to <code>~/.cjprofile</code>.</p>
-<h3 id="prompt-cleanup-layout">Prompt Cleanup &amp; Layout</h3>
-<p><strong>Status:</strong> <code>prompt-cleanup</code>, <code>prompt-cleanup-newline</code>, <code>prompt-cleanup-empty-line</code>, and <code>prompt-cleanup-truncate</code> default to off so prompts stay exactly as rendered; <code>prompt-newline</code> is also off by default.<br>
+<h3 id="prompt-layout">Prompt Layout</h3>
+<p><strong>Status:</strong> <code>prompt-newline</code> defaults to off so prompts stay compact unless you explicitly add spacing.<br>
 <strong>Configure:</strong></p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>cjshopt<span class="w"> </span>prompt-cleanup<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>cjshopt<span class="w"> </span>prompt-cleanup-newline<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>cjshopt<span class="w"> </span>prompt-cleanup-empty-line<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>cjshopt<span class="w"> </span>prompt-cleanup-truncate<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>cjshopt<span class="w"> </span>prompt-newline<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>cjshopt<span class="w"> </span>prompt-newline<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
 </span></code></pre></div>
-<p>These toggles control whether the previous prompt is erased, whether spacer lines are inserted before or after cleanup, and whether multiline prompts collapse to a single line once a command runs. Enable them to keep transcripts compact; leave them off for a literal transcription of your prompts.</p>
+<p>Enable <code>prompt-newline</code> when you want a visual spacer between commands in long transcripts. Keep it off for a denser prompt layout.</p>
 <h3 id="syntax-highlighting">Syntax Highlighting</h3>
 <p><strong>Status:</strong> Enabled<br>
 <strong>Configure:</strong> Change token styles with <code>cjshopt style_def &lt;token_type&gt; &lt;style&gt;</code>.<br>

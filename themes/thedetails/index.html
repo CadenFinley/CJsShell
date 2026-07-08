@@ -1012,10 +1012,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#prompt-cleanup-and-layout-options" class="md-nav__link">
+  <a href="#prompt-layout-options" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Prompt Cleanup and Layout Options
+        Prompt Layout Options
       
     </span>
   </a>
@@ -1266,14 +1266,10 @@ tags freely; the parser keeps a stack so <code>[b][color=hotpink]...[/color][/b]
 </span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># Hide the marker text while still preserving the partial line</span>
 </span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PROMPT_EOL_MARK</span><span class="o">=</span><span class="s1">''</span>
 </span></code></pre></div>
-<h2 id="prompt-cleanup-and-layout-options">Prompt Cleanup and Layout Options</h2>
+<h2 id="prompt-layout-options">Prompt Layout Options</h2>
 <p>Use <code>cjshopt</code> to control how the prompt behaves after command execution:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>cjshopt<span class="w"> </span>prompt-cleanup<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status<span class="w">          </span><span class="c1"># Remove the previous prompt when you press Enter</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>cjshopt<span class="w"> </span>prompt-cleanup-newline<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status<span class="w">  </span><span class="c1"># Insert a blank line before the next prompt</span>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>cjshopt<span class="w"> </span>prompt-cleanup-empty-line<span class="w"> </span>on<span class="p">|</span>off<span class="w">      </span><span class="c1"># Emit an extra spacer line during cleanup</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>cjshopt<span class="w"> </span>prompt-cleanup-truncate<span class="w"> </span>on<span class="p">|</span>off<span class="w">        </span><span class="c1"># Collapse multiline prompts to a single line</span>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>cjshopt<span class="w"> </span>prompt-newline<span class="w"> </span>on<span class="p">|</span>off<span class="w">                 </span><span class="c1"># Always print a blank line after commands</span>
-</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>cjshopt<span class="w"> </span>right-prompt-follow-cursor<span class="w"> </span>on<span class="p">|</span>off<span class="w">     </span><span class="c1"># Make the inline right prompt follow the cursor row</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>cjshopt<span class="w"> </span>prompt-newline<span class="w"> </span>on<span class="p">|</span>off<span class="w">                 </span><span class="c1"># Always print a blank line after commands</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>cjshopt<span class="w"> </span>right-prompt-follow-cursor<span class="w"> </span>on<span class="p">|</span>off<span class="w">     </span><span class="c1"># Make the inline right prompt follow the cursor row</span>
 </span></code></pre></div>
 <p>Each toggle prints guidance on how to persist the setting. Add the chosen command to <code>~/.cjshrc</code>
 to make it stick.</p>

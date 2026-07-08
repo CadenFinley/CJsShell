@@ -1138,9 +1138,8 @@ necessary.</p>
 <li><strong>Markup-driven prompts</strong> – <code>PS1</code>, <code>RPS1</code>, and <code>PS2</code> accept BBCode-style markup. Tags such as
   <code>[b]</code>, <code>[color=#ff69b4]</code>, <code>[ic-hint]</code>, and <code>[bgcolor=ansi-darkgray]</code> are specific to CJSH's
   integration with the isocline editor.</li>
-<li><strong>Prompt cleanup controls</strong> – <code>cjshopt prompt-cleanup*</code> toggles remove the previous prompt, insert
-  spacer lines, or truncate multiline prompts. These behaviors are not part of traditional POSIX
-  shells.</li>
+<li><strong>Prompt spacing control</strong> – <code>cjshopt prompt-newline</code> can force a blank line after every command,
+  regardless of whether the command emitted one itself.</li>
 <li><strong>Partial-line guard marker</strong> – if output leaves the cursor mid-line, cjsh preserves that partial
   line, prints <code>PROMPT_EOL_MARK</code> (<code>%</code> for non-root, <code>#</code> for root by default), and forces terminal
   wrapping before drawing the next prompt.</li>
@@ -1248,7 +1247,7 @@ login/logout dotfiles:</p>
 <p>Or persist equivalent flags through <code>cjshopt login-startup-arg</code> in <code>~/.cjprofile</code>.</p>
 <h2 id="summary">Summary</h2>
 <ul>
-<li>Prompt markup, cleanup toggles, and syntax styling provide rich visual customization beyond POSIX.</li>
+<li>Prompt markup, layout toggles, and syntax styling provide rich visual customization beyond POSIX.</li>
 <li>The isocline editor delivers multiline editing, hints, completions, abbreviations, and keymap
   control.</li>
 <li>Builtins such as <code>cjshopt</code>, <code>approot</code>, <code>generate-completions</code>, <code>hook</code>, <code>restart</code>, and

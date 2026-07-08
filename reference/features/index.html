@@ -1182,8 +1182,6 @@ for full details.</p>
     <a href="../../themes/thedetails/">Prompt Markup and Styling</a>.</li>
 <li><strong>Partial-line preservation marker</strong> via <code>PROMPT_EOL_MARK</code> controls what appears when command
     output does not end in a newline before the next prompt.</li>
-<li><strong>Prompt cleanup toggles</strong> via <code>cjshopt prompt-cleanup*</code> set whether the previous prompt is
-    removed, whether blank lines are inserted, and whether multiline prompts are truncated.</li>
 <li><strong>Right prompt cursor tracking</strong> – <code>cjshopt right-prompt-follow-cursor</code> keeps the inline right
     prompt aligned with the current cursor row instead of pinning it to the first line.</li>
 <li><strong><code>cjshopt style_def</code></strong> redefines syntax-highlighter styles (<code>unknown-command</code>, <code>ic-hint</code>, etc.),
@@ -1201,8 +1199,7 @@ for full details.</p>
 <li><code>cjshopt hint</code>, <code>cjshopt hint-delay</code>, <code>cjshopt inline-help</code>, <code>cjshopt status-hints</code>,
      <code>cjshopt status-line</code>, <code>cjshopt status-reporting</code>, <code>cjshopt visible-whitespace</code></li>
 <li><code>cjshopt mouse-clicking</code>, <code>cjshopt mouse-clicking-status-line</code></li>
-<li><code>cjshopt prompt-newline</code>, <code>cjshopt prompt-cleanup</code>, <code>cjshopt prompt-cleanup-newline</code>,
-     <code>cjshopt prompt-cleanup-empty-line</code>, <code>cjshopt prompt-cleanup-truncate</code></li>
+<li><code>cjshopt prompt-newline</code>, <code>cjshopt right-prompt-follow-cursor</code></li>
 <li><code>cjshopt keybind …</code> and <code>cjshopt keybind ext …</code> for keymap management</li>
 <li><code>cjshopt set-history-max</code> to adjust persistent history size (0 or more entries; no upper limit)</li>
 <li><code>set -o huponexit</code> mirrors bash's option for sending SIGHUP to background jobs when the

@@ -2118,50 +2118,6 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#prompt-cleanup" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        prompt-cleanup
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#prompt-cleanup-newline" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        prompt-cleanup-newline
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#prompt-cleanup-empty-line" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        prompt-cleanup-empty-line
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#prompt-cleanup-truncate" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        prompt-cleanup-truncate
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#right-prompt-follow-cursor" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2856,10 +2812,6 @@ without printing a literal newline).</p>
 - <code>mouse-clicking-status-line</code> - Show or hide the mouse-clicking status indicator text
 - <code>auto-tab</code> - Configure automatic tab completion
 - <code>prompt-newline</code> - Force a blank line after each command
-- <code>prompt-cleanup</code> - Enable/disable removal of the previous prompt after execution
-- <code>prompt-cleanup-newline</code> - Control whether cleanup inserts a newline before the next prompt
-- <code>prompt-cleanup-empty-line</code> - Insert an empty spacer line during cleanup
-- <code>prompt-cleanup-truncate</code> - Collapse multiline prompts when cleanup runs
 - <code>right-prompt-follow-cursor</code> - Keep the inline right prompt aligned with the active cursor row
 - <code>keybind</code> - Inspect or modify key bindings (changes apply immediately; add to <code>~/.cjshrc</code> to persist)
 - <code>generate-env</code> - Create or overwrite ~/.cjshenv (use <code>--alt</code> for <code>~/.config/cjsh/.cjshenv</code>)
@@ -3369,34 +3321,11 @@ to persist the preference.</p>
 </span><span id="__span-125-3"><a id="__codelineno-125-3" name="__codelineno-125-3" href="#__codelineno-125-3"></a>cjshopt<span class="w"> </span>prompt-newline<span class="w"> </span>status
 </span></code></pre></div>
 <p>Enable the toggle to keep transcripts readable when prompts have dense information; disable it for a compact display.</p>
-<h4 id="prompt-cleanup">prompt-cleanup</h4>
-<p>Remove the previous prompt before printing command output. This keeps long prompts from duplicating when you scroll back through logs.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-126-1"><a id="__codelineno-126-1" name="__codelineno-126-1" href="#__codelineno-126-1"></a>cjshopt<span class="w"> </span>prompt-cleanup<span class="w"> </span>on
-</span><span id="__span-126-2"><a id="__codelineno-126-2" name="__codelineno-126-2" href="#__codelineno-126-2"></a>cjshopt<span class="w"> </span>prompt-cleanup<span class="w"> </span>off
-</span></code></pre></div>
-<p>Pair this with the newline/empty-line toggles below for additional spacing control.</p>
-<h4 id="prompt-cleanup-newline">prompt-cleanup-newline</h4>
-<p>Decide whether prompt cleanup inserts a newline before the next prompt renders.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-127-1"><a id="__codelineno-127-1" name="__codelineno-127-1" href="#__codelineno-127-1"></a>cjshopt<span class="w"> </span>prompt-cleanup-newline<span class="w"> </span>on
-</span><span id="__span-127-2"><a id="__codelineno-127-2" name="__codelineno-127-2" href="#__codelineno-127-2"></a>cjshopt<span class="w"> </span>prompt-cleanup-newline<span class="w"> </span>off
-</span></code></pre></div>
-<p>When enabled, you always get a spacer line between commands once cleanup runs.</p>
-<h4 id="prompt-cleanup-empty-line">prompt-cleanup-empty-line</h4>
-<p>Insert an extra empty line while cleanup runs. This is useful when you want one blank line before and after prompts in transcripts.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-128-1"><a id="__codelineno-128-1" name="__codelineno-128-1" href="#__codelineno-128-1"></a>cjshopt<span class="w"> </span>prompt-cleanup-empty-line<span class="w"> </span>on
-</span><span id="__span-128-2"><a id="__codelineno-128-2" name="__codelineno-128-2" href="#__codelineno-128-2"></a>cjshopt<span class="w"> </span>prompt-cleanup-empty-line<span class="w"> </span>off
-</span></code></pre></div>
-<h4 id="prompt-cleanup-truncate">prompt-cleanup-truncate</h4>
-<p>Collapse multiline prompts to a single line after a command has executed so the previous prompt does not dominate your scrollback.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-129-1"><a id="__codelineno-129-1" name="__codelineno-129-1" href="#__codelineno-129-1"></a>cjshopt<span class="w"> </span>prompt-cleanup-truncate<span class="w"> </span>on
-</span><span id="__span-129-2"><a id="__codelineno-129-2" name="__codelineno-129-2" href="#__codelineno-129-2"></a>cjshopt<span class="w"> </span>prompt-cleanup-truncate<span class="w"> </span>off
-</span></code></pre></div>
-<p>All prompt-cleanup toggles accept <code>status</code> to report their current state and can be persisted by adding the commands to <code>~/.cjshrc</code>.</p>
 <h4 id="right-prompt-follow-cursor">right-prompt-follow-cursor</h4>
 <p>Make the inline right prompt (<code>RPS1</code>/<code>RPROMPT</code>) follow the cursor row while editing multi-line input. When disabled (default), the right prompt always renders on the first line even if the cursor moves down the buffer.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-130-1"><a id="__codelineno-130-1" name="__codelineno-130-1" href="#__codelineno-130-1"></a>cjshopt<span class="w"> </span>right-prompt-follow-cursor<span class="w"> </span>on
-</span><span id="__span-130-2"><a id="__codelineno-130-2" name="__codelineno-130-2" href="#__codelineno-130-2"></a>cjshopt<span class="w"> </span>right-prompt-follow-cursor<span class="w"> </span>off
-</span><span id="__span-130-3"><a id="__codelineno-130-3" name="__codelineno-130-3" href="#__codelineno-130-3"></a>cjshopt<span class="w"> </span>right-prompt-follow-cursor<span class="w"> </span>status
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-126-1"><a id="__codelineno-126-1" name="__codelineno-126-1" href="#__codelineno-126-1"></a>cjshopt<span class="w"> </span>right-prompt-follow-cursor<span class="w"> </span>on
+</span><span id="__span-126-2"><a id="__codelineno-126-2" name="__codelineno-126-2" href="#__codelineno-126-2"></a>cjshopt<span class="w"> </span>right-prompt-follow-cursor<span class="w"> </span>off
+</span><span id="__span-126-3"><a id="__codelineno-126-3" name="__codelineno-126-3" href="#__codelineno-126-3"></a>cjshopt<span class="w"> </span>right-prompt-follow-cursor<span class="w"> </span>status
 </span></code></pre></div>
 <p>Enabling the toggle keeps status blocks such as clocks or Git metadata aligned with the active input line, which is especially helpful for long pipelines that wrap across multiple rows.</p>
 

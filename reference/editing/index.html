@@ -1026,10 +1026,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#prompt-cleanup" class="md-nav__link">
+  <a href="#prompt-spacing" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Prompt Cleanup
+        Prompt Spacing
       
     </span>
   </a>
@@ -2057,14 +2057,10 @@ argument from the previous command, use <code>!$</code> or the fuzzy history sea
 with standard bindings, modifications must be placed in configuration files; inspection commands can
 run interactively, but setters only take effect during startup.</p>
 <h2 id="prompt-customization">Prompt Customization</h2>
-<h3 id="prompt-cleanup">Prompt Cleanup</h3>
-<p>Control how the prompt is displayed after accepting input.</p>
-<p><strong>Features:</strong>
-- Removes full prompt and shows only trailing segment
-- Optional empty line insertion
-- Multiline truncation</p>
+<h3 id="prompt-spacing">Prompt Spacing</h3>
+<p>Control whether cjsh inserts a blank line after command execution.</p>
 <p><strong>Configuration:</strong>
-Tune cleanup behavior with the <code>cjshopt prompt-cleanup</code>, <code>prompt-cleanup-newline</code>, <code>prompt-cleanup-empty-line</code>, <code>prompt-cleanup-truncate</code>, and <code>prompt-newline</code> toggles. Add the desired commands to your startup files (typically <code>~/.cjshrc</code>) to keep the settings persistent.</p>
+Use <code>cjshopt prompt-newline on|off|status</code>, then add the same command to your startup files (typically <code>~/.cjshrc</code>) if you want it persisted.</p>
 <h3 id="prompt-markers">Prompt Markers</h3>
 <p>The prompt system uses markers to indicate different states:</p>
 <p><strong>Primary Prompt Marker:</strong>
