@@ -31,7 +31,6 @@
 #include <signal.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <algorithm>
 #include <cctype>
 #include <cerrno>
 #include <chrono>
@@ -59,7 +58,6 @@
 #include "error_out.h"
 #include "exec.h"
 #include "interpreter.h"
-#include "isocline.h"
 #include "job_control.h"
 #include "keycodes.h"
 #include "parser.h"
@@ -91,7 +89,7 @@ bool parent_process_alive() {
     }
 
     const pid_t parent_pid = getppid();
-    return !(parent_pid == 1 || (kill(parent_pid, 0) == -1 && errno == ESRCH));
+    return parent_pid != 1 && (kill(parent_pid, 0) != -1 || errno != ESRCH);
 }
 
 bool process_command_line(const std::string& command) {
