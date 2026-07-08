@@ -74,10 +74,6 @@ enum class CjshoptSubcommand : std::uint8_t {
     MouseClickingStatusLine,
     AutoTab,
     PromptNewline,
-    PromptCleanup,
-    PromptCleanupNewline,
-    PromptCleanupEmptyLine,
-    PromptCleanupTruncate,
     RightPromptFollowCursor,
     Keybind,
     GenerateProfile,
@@ -139,13 +135,6 @@ constexpr std::array<CjshoptSubcommandDescriptor, static_cast<size_t>(CjshoptSub
           mouse_clicking_status_line_command},
          {CjshoptSubcommand::AutoTab, "auto-tab", auto_tab_command},
          {CjshoptSubcommand::PromptNewline, "prompt-newline", prompt_newline_command},
-         {CjshoptSubcommand::PromptCleanup, "prompt-cleanup", prompt_cleanup_command},
-         {CjshoptSubcommand::PromptCleanupNewline, "prompt-cleanup-newline",
-          prompt_cleanup_newline_command},
-         {CjshoptSubcommand::PromptCleanupEmptyLine, "prompt-cleanup-empty-line",
-          prompt_cleanup_empty_line_command},
-         {CjshoptSubcommand::PromptCleanupTruncate, "prompt-cleanup-truncate",
-          prompt_cleanup_truncate_command},
          {CjshoptSubcommand::RightPromptFollowCursor, "right-prompt-follow-cursor",
           right_prompt_follow_cursor_command},
          {CjshoptSubcommand::Keybind, "keybind", keybind_command},
@@ -232,14 +221,6 @@ const std::vector<std::string>& cjshopt_usage_lines() {
             "(default: disabled)",
         std::string("  prompt-newline <on|off|status>  Add a newline after command execution ") +
             "(default: disabled)",
-        std::string("  prompt-cleanup <on|off|status>  Toggle prompt cleanup behavior ") +
-            "(default: disabled)",
-        std::string("  prompt-cleanup-newline <on|off|status>  Control cleanup newline behavior ") +
-            "(default: disabled)",
-        std::string("  prompt-cleanup-empty-line <on|off|status>  Control cleanup empty line ") +
-            "insertion (default: disabled)",
-        std::string("  prompt-cleanup-truncate <on|off|status>  Control cleanup multiline ") +
-            "truncation (default: disabled)",
         std::string("  right-prompt-follow-cursor <on|off|status>  Re-anchor the inline right ") +
             "prompt to the cursor row (default: disabled)",
         "  keybind <subcommand> [...]       Inspect or modify key bindings",
@@ -295,10 +276,8 @@ int cjshopt_command(const std::vector<std::string>& args) {
                   "completion-preview, completion-menu-expanded, visible-whitespace, hint, "
                   "multiline-indent, multiline, inline-help, "
                   "status-hints, status-line, status-reporting, status-line-callback, "
-                  "mouse-clicking, "
-                  "mouse-clicking-status-line, auto-tab, prompt-newline, prompt-cleanup, "
-                  "prompt-cleanup-newline, "
-                  "prompt-cleanup-empty-line, prompt-cleanup-truncate, right-prompt-follow-cursor, "
+                  "mouse-clicking, mouse-clicking-status-line, auto-tab, prompt-newline, "
+                  "right-prompt-follow-cursor, "
                   "keybind, "
                   "generate-profile, generate-env, generate-rc, generate-logout, set-history-max, "
                   "set-completion-max"}});

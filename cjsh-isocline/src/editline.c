@@ -1737,165 +1737,6 @@ static void edit_clear_screen(ic_env_t* env, editor_t* eb) {
     edit_refresh(env, eb);
 }
 
-static void edit_cleanup_erase_prompt(ic_env_t* env, editor_t* eb) {
-    if (env == NULL || eb == NULL)
-        return;
-    ssize_t extra = to_ssize_t(env->prompt_cleanup_extra_lines);
-    if (eb->cur_rows <= 0 && eb->prompt_prefix_lines <= 0 && extra <= 0)
-        return;
-
-    term_attr_reset(env->term);
-    term_start_of_line(env->term);
-
-    ssize_t rows = (eb->cur_rows < 0 ? 0 : eb->cur_rows);
-    ssize_t prefixes = (eb->prompt_prefix_lines < 0 ? 0 : eb->prompt_prefix_lines);
-    if (eb->prompt_begins_with_newline && prefixes > 0) {
-        prefixes -= 1;
-    }
-    ssize_t total = rows + prefixes + (extra > 0 ? extra : 0);
-    if (total <= 0)
-        return;
-
-    ssize_t up = (eb->cur_row < 0 ? 0 : eb->cur_row) + prefixes;
-    if (extra > 0) {
-        up += extra;
-    }
-    if (up > 0) {
-        term_up(env->term, up);
-        term_start_of_line(env->term);
-    }
-
-    term_delete_lines(env->term, total);
-    term_start_of_line(env->term);
-}
-
-static void edit_cleanup_print(ic_env_t* env, editor_t* eb, const char* final_input) {
-    if (env == NULL || eb == NULL)
-        return;
-
-    const bool add_empty_line = env->prompt_cleanup_add_empty_line;
-    const char* prompt_line = (eb->prompt_text != NULL ? eb->prompt_text : "");
-    const char* prompt_marker = (env->prompt_marker != NULL ? env->prompt_marker : "");
-    ssize_t promptw = bbcode_column_width(env->bbcode, prompt_line) +
-                      bbcode_column_width(env->bbcode, prompt_marker);
-    if (promptw < 0)
-        promptw = 0;
-
-    bbcode_style_open(env->bbcode, "ic-prompt");
-    bbcode_print(env->bbcode, prompt_line);
-    bbcode_print(env->bbcode, prompt_marker);
-    bbcode_style_close(env->bbcode, NULL);
-
-    attrbuf_t* cleanup_attrs = NULL;
-    const attr_t* cleanup_attr_data = NULL;
-    ssize_t final_len = 0;
-
-    if (final_input != NULL && final_input[0] != '\0') {
-        final_len = ic_strlen(final_input);
-        if (final_len > 0) {
-            cleanup_attrs = attrbuf_new(env->mem);
-            if (cleanup_attrs != NULL) {
-                highlight(env->mem, env->bbcode, final_input, cleanup_attrs,
-                          (env->no_highlight ? NULL : env->highlighter), env->highlighter_arg);
-                if (!env->no_bracematch) {
-                    highlight_match_braces(final_input, cleanup_attrs, final_len,
-                                           ic_env_get_match_braces(env),
-                                           bbcode_style(env->bbcode, "ic-bracematch"),
-                                           bbcode_style(env->bbcode, "ic-error"));
-                }
-                if (attrbuf_len(cleanup_attrs) >= final_len) {
-                    cleanup_attr_data = attrbuf_attrs(cleanup_attrs, final_len);
-                }
-            }
-
-            bool should_truncate = false;
-            ssize_t first_line_len = 0;
-            if (env->prompt_cleanup_truncate_multiline) {
-                const char* first_newline = memchr(final_input, '\n', final_len);
-                if (first_newline != NULL) {
-                    should_truncate = true;
-                    first_line_len = (ssize_t)(first_newline - final_input);
-                    if (first_line_len < 0) {
-                        first_line_len = 0;
-                    }
-                }
-            }
-
-            if (should_truncate) {
-                if (first_line_len > 0) {
-                    const attr_t* first_line_attrs =
-                        (cleanup_attr_data != NULL ? cleanup_attr_data : NULL);
-                    term_write_formatted_n(env->term, final_input, first_line_attrs,
-                                           first_line_len);
-                }
-                term_write(env->term, "...");
-            } else {
-                ssize_t offset = 0;
-                ssize_t line_number = 1;  // continuation lines start counting at 1
-                while (offset < final_len) {
-                    const char* segment_start = final_input + offset;
-                    const char* newline = memchr(segment_start, '\n', final_len - offset);
-                    ssize_t segment_len =
-                        (newline == NULL ? (final_len - offset)
-                                         : to_ssize_t(newline - segment_start + 1));
-                    const attr_t* segment_attrs =
-                        (cleanup_attr_data != NULL ? cleanup_attr_data + offset : NULL);
-
-                    term_write_formatted_n(env->term, segment_start, segment_attrs, segment_len);
-                    offset += segment_len;
-
-                    if (newline != NULL && offset < final_len) {
-                        // Print line number prefix for continuation lines if line numbers are
-                        // enabled
-                        if (line_numbers_enabled(env)) {
-                            bbcode_style_open(env->bbcode, "ic-linenumbers");
-                            char line_number_str[16];
-                            format_line_number_prompt(line_number_str, sizeof(line_number_str),
-                                                      line_number, -1, env->relative_line_numbers);
-
-                            ssize_t line_number_width = (ssize_t)strlen(line_number_str);
-                            ssize_t indent_target =
-                                compute_continuation_indent_target(env, eb, promptw);
-                            ssize_t desired_width = indent_target;
-                            if (eb->line_number_column_width > desired_width) {
-                                desired_width = eb->line_number_column_width;
-                            }
-                            if (line_number_width > desired_width) {
-                                desired_width = line_number_width;
-                            }
-
-                            ssize_t leading_spaces = desired_width - line_number_width;
-                            if (leading_spaces > 0) {
-                                term_write_repeat(env->term, " ", leading_spaces);
-                            }
-
-                            bbcode_print(env->bbcode, line_number_str);
-                            bbcode_style_close(env->bbcode, NULL);
-                        } else if (promptw > 0) {
-                            term_write_repeat(env->term, " ", promptw);
-                        }
-                        line_number++;
-                    }
-                }
-            }
-        }
-    }
-
-    attrbuf_free(cleanup_attrs);
-
-    if (add_empty_line) {
-        term_write_char(env->term, '\n');
-    }
-    term_flush(env->term);
-}
-
-static void edit_apply_prompt_cleanup(ic_env_t* env, editor_t* eb, const char* final_input) {
-    if (env == NULL || eb == NULL)
-        return;
-    edit_cleanup_erase_prompt(env, eb);
-    edit_cleanup_print(env, eb, final_input);
-}
-
 // refresh after a terminal window resized (but before doing further edit
 // operations!)
 static bool edit_resize(ic_env_t* env, editor_t* eb) {
@@ -4044,7 +3885,7 @@ edit_loop_entry:
         sbuf_clear(eb.status);
     }
 
-    if (!env->prompt_cleanup && line_numbers_enabled(env)) {
+    if (line_numbers_enabled(env)) {
         eb.force_linear_line_numbers = true;
     }
 
@@ -4080,10 +3921,6 @@ edit_loop_entry:
         env->last_readline_disposition = IC_READLINE_DISPOSITION_ERROR;
     } else {
         env->last_readline_disposition = IC_READLINE_DISPOSITION_SUBMIT;
-    }
-
-    if (env->prompt_cleanup && res != NULL && c == KEY_ENTER) {
-        edit_apply_prompt_cleanup(env, &eb, res);
     }
 
     // update history in memory (file saving handled after execution)

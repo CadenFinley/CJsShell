@@ -736,33 +736,6 @@ const char* ic_get_whitespace_marker(void);
 /// @returns the previous setting.
 bool ic_enable_inline_help(bool enable);
 
-/// Enable or disable prompt cleanup after accepting input.
-/// When enabled, accepting a line removes the prompt and rewrites just the
-/// trailing prompt segment next to the submitted input. The optional
-/// \p extra_lines parameter specifies how many additional terminal lines
-/// beyond the prompt should be cleared while rewriting (defaults to 0).
-/// Returns the previous setting.
-bool ic_enable_prompt_cleanup(bool enable, size_t extra_lines
-#ifdef __cplusplus
-                                           = 0
-#endif
-);
-bool ic_prompt_cleanup_is_enabled(void);
-size_t ic_prompt_cleanup_extra_lines(void);
-bool ic_enable_prompt_cleanup_newline(bool enable);
-bool ic_prompt_cleanup_newline_is_enabled(void);
-
-/// Enable or disable inserting an empty line after prompt cleanup output.
-/// Returns the previous setting.
-bool ic_enable_prompt_cleanup_empty_line(bool enable);
-bool ic_prompt_cleanup_empty_line_is_enabled(void);
-
-/// Enable or disable multiline truncation during prompt cleanup.
-/// When enabled, multiline submissions are collapsed to the first line followed by an ellipsis.
-/// Returns the previous setting.
-bool ic_enable_prompt_cleanup_truncate_multiline(bool enable);
-bool ic_prompt_cleanup_truncate_multiline_is_enabled(void);
-
 /// Enable or disable cursor-tracking for the inline right prompt (RPS1).
 /// When enabled, the right-aligned prompt is re-rendered on the same terminal row as the cursor
 /// instead of remaining pinned to the first editable row. Returns the previous setting.

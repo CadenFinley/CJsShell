@@ -701,10 +701,6 @@ Available subcommands:
 - `mouse-clicking-status-line` - Show or hide the mouse-clicking status indicator text
 - `auto-tab` - Configure automatic tab completion
 - `prompt-newline` - Force a blank line after each command
-- `prompt-cleanup` - Enable/disable removal of the previous prompt after execution
-- `prompt-cleanup-newline` - Control whether cleanup inserts a newline before the next prompt
-- `prompt-cleanup-empty-line` - Insert an empty spacer line during cleanup
-- `prompt-cleanup-truncate` - Collapse multiline prompts when cleanup runs
 - `right-prompt-follow-cursor` - Keep the inline right prompt aligned with the active cursor row
 - `keybind` - Inspect or modify key bindings (changes apply immediately; add to `~/.cjshrc` to persist)
 - `generate-env` - Create or overwrite ~/.cjshenv (use `--alt` for `~/.config/cjsh/.cjshenv`)
@@ -1391,48 +1387,6 @@ cjshopt prompt-newline status
 ```
 
 Enable the toggle to keep transcripts readable when prompts have dense information; disable it for a compact display.
-
-#### prompt-cleanup
-
-Remove the previous prompt before printing command output. This keeps long prompts from duplicating when you scroll back through logs.
-
-```bash
-cjshopt prompt-cleanup on
-cjshopt prompt-cleanup off
-```
-
-Pair this with the newline/empty-line toggles below for additional spacing control.
-
-#### prompt-cleanup-newline
-
-Decide whether prompt cleanup inserts a newline before the next prompt renders.
-
-```bash
-cjshopt prompt-cleanup-newline on
-cjshopt prompt-cleanup-newline off
-```
-
-When enabled, you always get a spacer line between commands once cleanup runs.
-
-#### prompt-cleanup-empty-line
-
-Insert an extra empty line while cleanup runs. This is useful when you want one blank line before and after prompts in transcripts.
-
-```bash
-cjshopt prompt-cleanup-empty-line on
-cjshopt prompt-cleanup-empty-line off
-```
-
-#### prompt-cleanup-truncate
-
-Collapse multiline prompts to a single line after a command has executed so the previous prompt does not dominate your scrollback.
-
-```bash
-cjshopt prompt-cleanup-truncate on
-cjshopt prompt-cleanup-truncate off
-```
-
-All prompt-cleanup toggles accept `status` to report their current state and can be persisted by adding the commands to `~/.cjshrc`.
 
 #### right-prompt-follow-cursor
 

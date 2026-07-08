@@ -571,17 +571,12 @@ run interactively, but setters only take effect during startup.
 
 ## Prompt Customization
 
-### Prompt Cleanup
+### Prompt Spacing
 
-Control how the prompt is displayed after accepting input.
-
-**Features:**
-- Removes full prompt and shows only trailing segment
-- Optional empty line insertion
-- Multiline truncation
+Control whether cjsh inserts a blank line after command execution.
 
 **Configuration:**
-Tune cleanup behavior with the `cjshopt prompt-cleanup`, `prompt-cleanup-newline`, `prompt-cleanup-empty-line`, `prompt-cleanup-truncate`, and `prompt-newline` toggles. Add the desired commands to your startup files (typically `~/.cjshrc`) to keep the settings persistent.
+Use `cjshopt prompt-newline on|off|status`, then add the same command to your startup files (typically `~/.cjshrc`) if you want it persisted.
 
 ### Prompt Markers
 

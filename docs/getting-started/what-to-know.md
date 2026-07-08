@@ -44,19 +44,15 @@ All prompt styling now lives inside your dotfiles—no external theme DSL or bun
 **Configure:** Automatically detected; adjust styling through your prompt definitions or `cjshopt style_def`.  
 **Disable:** Launch with `cjsh --no-colors` or persist by adding `cjshopt login-startup-arg --no-colors` to `~/.cjprofile`.
 
-### Prompt Cleanup & Layout
-**Status:** `prompt-cleanup`, `prompt-cleanup-newline`, `prompt-cleanup-empty-line`, and `prompt-cleanup-truncate` default to off so prompts stay exactly as rendered; `prompt-newline` is also off by default.  
+### Prompt Layout
+**Status:** `prompt-newline` defaults to off so prompts stay compact unless you explicitly add spacing.  
 **Configure:**
 
 ```bash
-cjshopt prompt-cleanup on|off|status
-cjshopt prompt-cleanup-newline on|off|status
-cjshopt prompt-cleanup-empty-line on|off|status
-cjshopt prompt-cleanup-truncate on|off|status
 cjshopt prompt-newline on|off|status
 ```
 
-These toggles control whether the previous prompt is erased, whether spacer lines are inserted before or after cleanup, and whether multiline prompts collapse to a single line once a command runs. Enable them to keep transcripts compact; leave them off for a literal transcription of your prompts.
+Enable `prompt-newline` when you want a visual spacer between commands in long transcripts. Keep it off for a denser prompt layout.
 
 ### Syntax Highlighting
 **Status:** Enabled  

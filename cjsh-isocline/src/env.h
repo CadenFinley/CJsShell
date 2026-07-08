@@ -122,15 +122,9 @@ struct ic_env_s {
                                                        // prompts are active?
     bool replace_prompt_line_with_line_number;         // swap final prompt line with line numbers?
     bool show_whitespace_characters;                   // visualize spaces while editing?
-    bool prompt_cleanup;                               // after enter, rewrite prompt inline?
-    bool prompt_cleanup_add_empty_line;                // optionally add empty line after
-                                                       // cleanup
-    bool prompt_cleanup_truncate_multiline;            // during cleanup, collapse multiline input
-    bool prompt_cleanup_newline_after_execution;       // request newline spacing between prompts
     bool inline_right_prompt_follows_cursor;           // right prompt tracks cursor row
     bool bracketed_paste_enabled;                      // bracketed paste mode active
     size_t multiline_start_line_count;  // prefill multiline prompts with this many lines
-    size_t prompt_cleanup_extra_lines;  // additional terminal lines to erase during cleanup
     long hint_delay;                    // delay before displaying a hint in milliseconds
 
     ic_key_binding_entry_t* key_bindings;  // dynamic array of custom key bindings

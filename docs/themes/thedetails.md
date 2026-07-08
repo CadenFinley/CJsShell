@@ -156,15 +156,11 @@ export PROMPT_EOL_MARK='[b reverse]![/]'
 export PROMPT_EOL_MARK=''
 ```
 
-## Prompt Cleanup and Layout Options
+## Prompt Layout Options
 
 Use `cjshopt` to control how the prompt behaves after command execution:
 
 ```bash
-cjshopt prompt-cleanup on|off|status          # Remove the previous prompt when you press Enter
-cjshopt prompt-cleanup-newline on|off|status  # Insert a blank line before the next prompt
-cjshopt prompt-cleanup-empty-line on|off      # Emit an extra spacer line during cleanup
-cjshopt prompt-cleanup-truncate on|off        # Collapse multiline prompts to a single line
 cjshopt prompt-newline on|off                 # Always print a blank line after commands
 cjshopt right-prompt-follow-cursor on|off     # Make the inline right prompt follow the cursor row
 ```

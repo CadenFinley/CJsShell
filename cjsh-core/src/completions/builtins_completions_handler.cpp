@@ -603,10 +603,6 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                              "Toggle the mouse-clicking status indicator line"),
              make_subcommand("auto-tab", "Toggle automatic tab completion"),
              make_subcommand("prompt-newline", "Toggle newline after command execution"),
-             make_subcommand("prompt-cleanup", "Toggle prompt cleanup"),
-             make_subcommand("prompt-cleanup-newline", "Toggle cleanup newline behavior"),
-             make_subcommand("prompt-cleanup-empty-line", "Toggle cleanup empty line insertion"),
-             make_subcommand("prompt-cleanup-truncate", "Toggle cleanup multiline truncation"),
              make_subcommand("right-prompt-follow-cursor", "Move the right prompt with the cursor"),
              make_subcommand("keybind", "Inspect or modify key bindings"),
              make_subcommand("generate-profile", "Generate ~/.cjprofile"),
@@ -797,22 +793,6 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
         add_doc("cjshopt-prompt-newline", "",
                 {make_subcommand("on", "Insert a newline after every command"),
                  make_subcommand("off", "Skip the post-command newline"),
-                 make_subcommand("status", "Show current setting")});
-        add_doc("cjshopt-prompt-cleanup", "",
-                {make_subcommand("on", "Enable prompt cleanup before execution"),
-                 make_subcommand("off", "Disable prompt cleanup"),
-                 make_subcommand("status", "Show current setting")});
-        add_doc("cjshopt-prompt-cleanup-newline", "",
-                {make_subcommand("on", "Add a newline as part of prompt cleanup"),
-                 make_subcommand("off", "Skip the cleanup newline"),
-                 make_subcommand("status", "Show current setting")});
-        add_doc("cjshopt-prompt-cleanup-empty-line", "",
-                {make_subcommand("on", "Insert an empty line while cleaning prompts"),
-                 make_subcommand("off", "Keep cleanup compact"),
-                 make_subcommand("status", "Show current setting")});
-        add_doc("cjshopt-prompt-cleanup-truncate", "",
-                {make_subcommand("on", "Truncate multiline prompts during cleanup"),
-                 make_subcommand("off", "Keep multiline prompts intact"),
                  make_subcommand("status", "Show current setting")});
         add_doc("cjshopt-right-prompt-follow-cursor", "",
                 {make_subcommand("on", "Move the right prompt with the cursor"),

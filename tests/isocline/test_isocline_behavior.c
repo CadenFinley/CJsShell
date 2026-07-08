@@ -297,37 +297,6 @@ static bool test_visible_whitespace_marker(void) {
     return true;
 }
 
-static bool test_prompt_cleanup_modes(void) {
-    ic_env_t* env = ensure_env();
-    if (env == NULL)
-        return false;
-
-    env->prompt_cleanup = false;
-    env->prompt_cleanup_add_empty_line = false;
-    env->prompt_cleanup_truncate_multiline = false;
-    env->prompt_cleanup_extra_lines = 0;
-
-    bool prev_cleanup = ic_enable_prompt_cleanup(true, 2);
-    EXPECT_FALSE(prev_cleanup, "prompt cleanup should report it was previously disabled");
-    EXPECT_TRUE(env->prompt_cleanup, "prompt cleanup flag should be enabled");
-    EXPECT_TRUE(env->prompt_cleanup_extra_lines == 2,
-                "prompt cleanup extra lines should match requested value");
-
-    bool prev_empty = ic_enable_prompt_cleanup_empty_line(true);
-    EXPECT_FALSE(prev_empty, "empty-line cleanup should report it was previously disabled");
-    EXPECT_TRUE(env->prompt_cleanup_add_empty_line, "empty-line cleanup flag should be enabled");
-
-    bool prev_truncate = ic_enable_prompt_cleanup_truncate_multiline(true);
-    EXPECT_FALSE(prev_truncate, "truncate cleanup should report it was previously disabled");
-    EXPECT_TRUE(env->prompt_cleanup_truncate_multiline, "truncate cleanup flag should be enabled");
-
-    // Restore defaults
-    ic_enable_prompt_cleanup(false, 0);
-    ic_enable_prompt_cleanup_empty_line(false);
-    ic_enable_prompt_cleanup_truncate_multiline(false);
-    return true;
-}
-
 static bool test_multiline_start_line_count_clamp(void) {
     ic_env_t* env = ensure_env();
     if (env == NULL)
@@ -1309,41 +1278,6 @@ static bool test_option_toggle_consistency(void) {
     (void)ic_enable_inline_right_prompt_cursor_follow(false);
     (void)ic_enable_brace_matching(true);
     (void)ic_enable_brace_insertion(true);
-    return true;
-}
-
-static bool test_prompt_cleanup_newline_and_getters(void) {
-    ic_env_t* env = ensure_env();
-    if (env == NULL)
-        return false;
-
-    env->prompt_cleanup = false;
-    env->prompt_cleanup_extra_lines = 0;
-    env->prompt_cleanup_newline_after_execution = false;
-
-    EXPECT_FALSE(ic_prompt_cleanup_is_enabled(),
-                 "prompt cleanup getter should report disabled state");
-    EXPECT_TRUE(ic_prompt_cleanup_extra_lines() == 0,
-                "prompt cleanup extra lines getter should report current value");
-
-    EXPECT_FALSE(ic_enable_prompt_cleanup(true, 3),
-                 "prompt cleanup enable should report previously disabled state");
-    EXPECT_TRUE(ic_prompt_cleanup_is_enabled(),
-                "prompt cleanup getter should report enabled state");
-    EXPECT_TRUE(ic_prompt_cleanup_extra_lines() == 3,
-                "prompt cleanup extra lines should match configured value");
-
-    EXPECT_FALSE(ic_enable_prompt_cleanup_newline(true),
-                 "prompt cleanup newline enable should report previously disabled state");
-    EXPECT_TRUE(ic_prompt_cleanup_newline_is_enabled(),
-                "prompt cleanup newline getter should mirror enabled state");
-
-    EXPECT_TRUE(ic_enable_prompt_cleanup_newline(false),
-                "prompt cleanup newline disable should report previous enabled state");
-    EXPECT_FALSE(ic_prompt_cleanup_newline_is_enabled(),
-                 "prompt cleanup newline getter should mirror disabled state");
-
-    (void)ic_enable_prompt_cleanup(false, 0);
     return true;
 }
 
@@ -3266,7 +3200,6 @@ static const test_case_t kTests[] = {
     {"line_number_prompt_replacement_toggle", test_line_number_prompt_replacement_toggle},
     {"prompt_line_replacement_requires_content", test_prompt_line_replacement_requires_content},
     {"visible_whitespace_marker", test_visible_whitespace_marker},
-    {"prompt_cleanup_modes", test_prompt_cleanup_modes},
     {"multiline_start_line_count_clamp", test_multiline_start_line_count_clamp},
     {"editline_buffer_api_without_editor", test_editline_buffer_api_without_editor},
     {"continuation_callback_registration", test_continuation_callback_registration},
@@ -3292,7 +3225,6 @@ static const test_case_t kTests[] = {
     {"status_hint_mode_validation", test_status_hint_mode_validation},
     {"mouse_reporting_option_toggles", test_mouse_reporting_option_toggles},
     {"option_toggle_consistency", test_option_toggle_consistency},
-    {"prompt_cleanup_newline_and_getters", test_prompt_cleanup_newline_and_getters},
     {"brace_pair_setters_validation", test_brace_pair_setters_validation},
     {"abbreviation_management", test_abbreviation_management},
     {"key_spec_parse_and_format_roundtrip", test_key_spec_parse_and_format_roundtrip},

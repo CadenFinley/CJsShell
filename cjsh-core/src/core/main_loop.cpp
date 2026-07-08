@@ -185,18 +185,11 @@ void update_job_management() {
     JobManager::instance().cleanup_finished_jobs();
 }
 
-std::string generate_prompt(bool command_was_available) {
-    // std::printf(" \r");
-    // (void)std::fflush(stdout);
-    const bool prompt_cleanup_enabled = ic_prompt_cleanup_is_enabled();
-    const bool prompt_cleanup_newline = ic_prompt_cleanup_newline_is_enabled();
-    const size_t extra_cleanup_lines =
-        (prompt_cleanup_enabled && prompt_cleanup_newline && command_was_available) ? 1 : 0;
-    ic_enable_prompt_cleanup(prompt_cleanup_enabled, extra_cleanup_lines);
+std::string generate_prompt() {
     return prompt::render_primary_prompt();
 }
 
-std::optional<std::string> get_next_command(bool command_was_available) {
+std::optional<std::string> get_next_command() {
     // main input getting
     std::string command_to_run;
 
@@ -211,7 +204,7 @@ std::optional<std::string> get_next_command(bool command_was_available) {
         prompt::apply_terminal_window_title();
     }
     cjsh_env::update_terminal_dimensions();
-    std::string prompt_text = generate_prompt(command_was_available);
+    std::string prompt_text = generate_prompt();
     std::string prompt_eol_mark = prompt::render_prompt_eol_mark();
     ic_set_prompt_eol_mark(prompt_eol_mark.c_str());
     last_prompt_started_with_newline = (!prompt_text.empty() && prompt_text.front() == '\n');
@@ -537,8 +530,6 @@ void main_process_loop() {
     typeahead::initialize();
 
     std::string command_to_run;
-    bool command_available = false;
-
     // main input loop, runs until exit
     while (true) {
         // handle any pending signals before each prompt
@@ -558,19 +549,17 @@ void main_process_loop() {
         update_job_management();
 
         // fetch the next command from the user
-        std::optional<std::string> next_command = get_next_command(command_available);
+        std::optional<std::string> next_command = get_next_command();
 
         if (cjsh_env::exit_requested()) {
             break;
         }
 
         if (!next_command.has_value()) {
-            command_available = false;
             continue;
         }
 
         command_to_run = std::move(*next_command);
-        command_available = true;
 
         // handle the command from the user
         bool exit_requested = process_command_line(command_to_run);
@@ -579,11 +568,10 @@ void main_process_loop() {
         }
 
         // handle styling configuration
-        if (config::newline_after_execution && command_to_run != "clear" && command_available &&
-            !last_prompt_started_with_newline && ic_prompt_cleanup_is_enabled()) {
+        if (config::newline_after_execution && command_to_run != "clear" &&
+            !last_prompt_started_with_newline) {
             (void)std::fputc('\n', stdout);
             (void)std::fflush(stdout);
-            command_available = false;
         }
     }
 

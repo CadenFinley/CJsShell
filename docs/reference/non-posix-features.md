@@ -38,9 +38,8 @@ necessary.
 - **Markup-driven prompts** – `PS1`, `RPS1`, and `PS2` accept BBCode-style markup. Tags such as
   `[b]`, `[color=#ff69b4]`, `[ic-hint]`, and `[bgcolor=ansi-darkgray]` are specific to CJSH's
   integration with the isocline editor.
-- **Prompt cleanup controls** – `cjshopt prompt-cleanup*` toggles remove the previous prompt, insert
-  spacer lines, or truncate multiline prompts. These behaviors are not part of traditional POSIX
-  shells.
+- **Prompt spacing control** – `cjshopt prompt-newline` can force a blank line after every command,
+  regardless of whether the command emitted one itself.
 - **Partial-line guard marker** – if output leaves the cursor mid-line, cjsh preserves that partial
   line, prints `PROMPT_EOL_MARK` (`%` for non-root, `#` for root by default), and forces terminal
   wrapping before drawing the next prompt.
@@ -156,7 +155,7 @@ Or persist equivalent flags through `cjshopt login-startup-arg` in `~/.cjprofile
 
 ## Summary
 
-- Prompt markup, cleanup toggles, and syntax styling provide rich visual customization beyond POSIX.
+- Prompt markup, layout toggles, and syntax styling provide rich visual customization beyond POSIX.
 - The isocline editor delivers multiline editing, hints, completions, abbreviations, and keymap
   control.
 - Builtins such as `cjshopt`, `approot`, `generate-completions`, `hook`, `restart`, and

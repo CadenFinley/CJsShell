@@ -47,18 +47,11 @@
 
 static bool getline_interrupt = false;
 
-static void restore_heredoc_env(ic_env_t* env, bool singleline_only, char multiline_eol,
-                                bool prompt_cleanup, bool prompt_cleanup_add_empty_line,
-                                bool prompt_cleanup_truncate_multiline,
-                                size_t prompt_cleanup_extra_lines) {
+static void restore_heredoc_env(ic_env_t* env, bool singleline_only, char multiline_eol) {
     if (env == NULL)
         return;
     env->singleline_only = singleline_only;
     env->multiline_eol = multiline_eol;
-    env->prompt_cleanup = prompt_cleanup;
-    env->prompt_cleanup_add_empty_line = prompt_cleanup_add_empty_line;
-    env->prompt_cleanup_truncate_multiline = prompt_cleanup_truncate_multiline;
-    env->prompt_cleanup_extra_lines = prompt_cleanup_extra_lines;
 }
 
 //-------------------------------------------------------------
@@ -257,24 +250,13 @@ ic_public char* ic_read_heredoc(const char* delimiter, bool strip_tabs) {
 
     const bool prev_singleline_only = env->singleline_only;
     const char prev_multiline_eol = env->multiline_eol;
-    const bool prev_prompt_cleanup = env->prompt_cleanup;
-    const bool prev_prompt_cleanup_add_empty_line = env->prompt_cleanup_add_empty_line;
-    const bool prev_prompt_cleanup_truncate_multiline = env->prompt_cleanup_truncate_multiline;
-    const size_t prev_prompt_cleanup_extra_lines = env->prompt_cleanup_extra_lines;
 
     env->singleline_only = true;
     env->multiline_eol = 0;
-    env->prompt_cleanup = false;
-    env->prompt_cleanup_add_empty_line = false;
-    env->prompt_cleanup_truncate_multiline = false;
-    env->prompt_cleanup_extra_lines = 0;
 
     stringbuf_t* content = sbuf_new(env->mem);
     if (content == NULL) {
-        restore_heredoc_env(env, prev_singleline_only, prev_multiline_eol, prev_prompt_cleanup,
-                            prev_prompt_cleanup_add_empty_line,
-                            prev_prompt_cleanup_truncate_multiline,
-                            prev_prompt_cleanup_extra_lines);
+        restore_heredoc_env(env, prev_singleline_only, prev_multiline_eol);
         return NULL;
     }
 
@@ -297,10 +279,7 @@ ic_public char* ic_read_heredoc(const char* delimiter, bool strip_tabs) {
                 ic_free(line);
             }
             sbuf_free(content);
-            restore_heredoc_env(env, prev_singleline_only, prev_multiline_eol, prev_prompt_cleanup,
-                                prev_prompt_cleanup_add_empty_line,
-                                prev_prompt_cleanup_truncate_multiline,
-                                prev_prompt_cleanup_extra_lines);
+            restore_heredoc_env(env, prev_singleline_only, prev_multiline_eol);
             return NULL;
         }
 
@@ -343,9 +322,7 @@ ic_public char* ic_read_heredoc(const char* delimiter, bool strip_tabs) {
 
     result = sbuf_free_dup(content);
 
-    restore_heredoc_env(env, prev_singleline_only, prev_multiline_eol, prev_prompt_cleanup,
-                        prev_prompt_cleanup_add_empty_line, prev_prompt_cleanup_truncate_multiline,
-                        prev_prompt_cleanup_extra_lines);
+    restore_heredoc_env(env, prev_singleline_only, prev_multiline_eol);
 
     return result;
 }

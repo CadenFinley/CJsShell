@@ -78,8 +78,6 @@ for full details.
     [Prompt Markup and Styling](../themes/thedetails.md).
 - **Partial-line preservation marker** via `PROMPT_EOL_MARK` controls what appears when command
     output does not end in a newline before the next prompt.
-- **Prompt cleanup toggles** via `cjshopt prompt-cleanup*` set whether the previous prompt is
-    removed, whether blank lines are inserted, and whether multiline prompts are truncated.
 - **Right prompt cursor tracking** – `cjshopt right-prompt-follow-cursor` keeps the inline right
     prompt aligned with the current cursor row instead of pinning it to the first line.
 - **`cjshopt style_def`** redefines syntax-highlighter styles (`unknown-command`, `ic-hint`, etc.),
@@ -97,9 +95,8 @@ for full details.
      - `cjshopt hint`, `cjshopt hint-delay`, `cjshopt inline-help`, `cjshopt status-hints`,
          `cjshopt status-line`, `cjshopt status-reporting`, `cjshopt visible-whitespace`
      - `cjshopt mouse-clicking`, `cjshopt mouse-clicking-status-line`
-     - `cjshopt prompt-newline`, `cjshopt prompt-cleanup`, `cjshopt prompt-cleanup-newline`,
-         `cjshopt prompt-cleanup-empty-line`, `cjshopt prompt-cleanup-truncate`
-    - `cjshopt keybind …` and `cjshopt keybind ext …` for keymap management
+     - `cjshopt prompt-newline`, `cjshopt right-prompt-follow-cursor`
+     - `cjshopt keybind …` and `cjshopt keybind ext …` for keymap management
     - `cjshopt set-history-max` to adjust persistent history size (0 or more entries; no upper limit)
     - `set -o huponexit` mirrors bash's option for sending SIGHUP to background jobs when the
         shell exits (off by default so long-running helpers stick around)
