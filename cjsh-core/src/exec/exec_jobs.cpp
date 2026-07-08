@@ -121,9 +121,9 @@ void Exec::put_job_in_foreground(int job_id, bool cont) {
         return;
     }
 
-    const bool main_shell_controls_terminal =
-        shell_is_interactive && (isatty(shell_terminal) != 0) && shell_pgid > 0 &&
-        getpid() == shell_pgid && getpgrp() == shell_pgid;
+    const bool main_shell_controls_terminal = shell_is_interactive &&
+                                              (isatty(shell_terminal) != 0) && shell_pgid > 0 &&
+                                              getpid() == shell_pgid && getpgrp() == shell_pgid;
 
     bool terminal_control_acquired = false;
     if (main_shell_controls_terminal) {

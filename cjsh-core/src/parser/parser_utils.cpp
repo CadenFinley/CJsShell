@@ -288,7 +288,7 @@ size_t parser_find_inline_do_position(const std::string& text, size_t search_fro
 }
 
 bool parser_find_matching_command_substitution_end(const std::string& text, size_t start_index,
-                                                    size_t& end_out) {
+                                                   size_t& end_out) {
     if (start_index == 0 || start_index > text.size()) {
         return false;
     }

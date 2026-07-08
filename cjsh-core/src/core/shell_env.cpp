@@ -128,10 +128,6 @@ void apply_env_vars_to_parser(Shell* shell) {
 
 }  // namespace
 
-bool should_mirror_to_process_env(const std::string& name);
-void mirror_set_to_process_env(const std::string& name, const std::string& value);
-void mirror_unset_from_process_env(const std::string& name);
-
 void setup_environment_variables(const char* argv0) {
     std::string shell_value = "cjsh";
     std::string existing_shell_value;

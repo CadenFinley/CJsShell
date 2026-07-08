@@ -160,8 +160,8 @@ static bool qword_add_completion_ex(ic_env_t* env, void* closure, const char* re
             pos += next;
         }
     }
-    const long delete_after_adjust = (long)ic_count_end_overlap(sbuf_string(wenv->sbuf),
-                                                                wenv->postfix);
+    const long delete_after_adjust =
+        (long)ic_count_end_overlap(sbuf_string(wenv->sbuf), wenv->postfix);
     // and call the previous completion function
     return (*wenv->prev_complete)(env, wenv->prev_env, sbuf_string(wenv->sbuf), display, help,
                                   wenv->delete_before_adjust + delete_before,

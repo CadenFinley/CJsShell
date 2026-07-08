@@ -230,7 +230,7 @@ int interrupt_exit_code() {
 #endif
 }
 
-} // namespace
+}  // namespace
 
 // NOLINTBEGIN(performance-avoid-endl)
 int generate_completions_command(const std::vector<std::string>& args, Shell* shell) {
@@ -251,8 +251,10 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
         }
 
         if (!config::completions_enabled) {
-            print_error({ErrorType::RUNTIME_ERROR, kCommandName,
-                         "completions are disabled in the current shell configuration", {}});
+            print_error({ErrorType::RUNTIME_ERROR,
+                         kCommandName,
+                         "completions are disabled in the current shell configuration",
+                         {}});
             return 1;
         }
 
@@ -262,8 +264,10 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
             return parse_status;
 
         if (!cjsh_filesystem::initialize_cjsh_directories()) {
-            print_error({ErrorType::RUNTIME_ERROR, kCommandName,
-                         "failed to initialize cjsh directories", {}});
+            print_error({ErrorType::RUNTIME_ERROR,
+                         kCommandName,
+                         "failed to initialize cjsh directories",
+                         {}});
             return 1;
         }
 
@@ -333,15 +337,15 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
             return cancel_requested.load();
         };
 
-        const std::size_t job_count = resolve_job_count(options.requested_jobs, options.targets.size());
+        const std::size_t job_count =
+            resolve_job_count(options.requested_jobs, options.targets.size());
 
         if (!options.quiet) {
             std::cout << kCommandName << ": processing " << options.targets.size() << " command"
                       << (options.targets.size() == 1 ? "" : "s")
                       << (options.force_refresh ? " (forcing refresh)" : "")
-                      << (options.include_subcommands ? " with subcommands" : "")
-                      << " using " << job_count << " job" << (job_count == 1 ? "" : "s")
-                      << std::endl;
+                      << (options.include_subcommands ? " with subcommands" : "") << " using "
+                      << job_count << " job" << (job_count == 1 ? "" : "s") << std::endl;
         }
 
         std::size_t success_count = 0;
@@ -360,8 +364,8 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
                 auto should_cancel = [&]() { return check_for_interrupt(true); };
 
                 bool generated = regenerate_external_completion_cache(
-                    command, options.force_refresh, options.include_subcommands,
-                    progress_report, should_cancel);
+                    command, options.force_refresh, options.include_subcommands, progress_report,
+                    should_cancel);
                 if (generated) {
                     ++success_count;
                 } else {

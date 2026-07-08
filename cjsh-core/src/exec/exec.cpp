@@ -40,8 +40,8 @@
 #include <atomic>
 #include <cerrno>
 #include <csignal>
-#include <cstdio>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>

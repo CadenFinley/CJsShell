@@ -285,10 +285,10 @@ int cjshopt_command(const std::vector<std::string>& args) {
     print_error({ErrorType::INVALID_ARGUMENT,
                  "cjshopt",
                  "unknown subcommand '" + subcommand + "'",
-                  {"Available subcommands: style_def, login-startup-arg, completion-case, "
-                   "history-search-case, completion-spell, completion-spell-enter, "
-                   "smart-cd, script-extension-interpreter, "
-                   "completion-learning, "
+                 {"Available subcommands: style_def, login-startup-arg, completion-case, "
+                  "history-search-case, completion-spell, completion-spell-enter, "
+                  "smart-cd, script-extension-interpreter, "
+                  "completion-learning, "
                   "line-numbers, line-numbers-continuation, line-numbers-replace-prompt, "
                   "current-line-number-highlight, multiline-start-lines, hint-delay, "
                   "completion-preview, completion-menu-expanded, visible-whitespace, hint, "

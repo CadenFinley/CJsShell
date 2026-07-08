@@ -496,13 +496,13 @@ class PathHashCache {
                 {command, entry.path, entry.hits, entry.last_used, entry.manually_added});
         }
 
-        std::sort(snapshot.begin(), snapshot.end(), [](const PathHashEntry& lhs,
-                                                       const PathHashEntry& rhs) {
-            if (lhs.hits == rhs.hits) {
-                return lhs.command < rhs.command;
-            }
-            return lhs.hits > rhs.hits;
-        });
+        std::sort(snapshot.begin(), snapshot.end(),
+                  [](const PathHashEntry& lhs, const PathHashEntry& rhs) {
+                      if (lhs.hits == rhs.hits) {
+                          return lhs.command < rhs.command;
+                      }
+                      return lhs.hits > rhs.hits;
+                  });
 
         return snapshot;
     }
@@ -1096,11 +1096,11 @@ bool initialize_cjsh_directories() {
     cjsh_env::set_shell_variable_value("PWD", safe_current_directory());
 
     if (!path_is_directory(g_user_home_path())) {
-        print_error({ErrorType::FATAL_ERROR,
-                     "",
-                     "User home path not found",
-                     {"Set $HOME to an existing directory.",
-                      "Create the home directory and try again."}});
+        print_error(
+            {ErrorType::FATAL_ERROR,
+             "",
+             "User home path not found",
+             {"Set $HOME to an existing directory.", "Create the home directory and try again."}});
         return false;
     }
 
@@ -1312,8 +1312,7 @@ bool process_startup_file_with_fallback(const std::filesystem::path& primary,
 }
 
 bool create_default_startup_file(const std::filesystem::path& target_path,
-                                 std::string_view file_label,
-                                 std::string_view load_description) {
+                                 std::string_view file_label, std::string_view load_description) {
     std::string content;
     content.reserve(128 + file_label.size() + load_description.size());
     content.append("#!/usr/bin/env cjsh\n");
@@ -1332,26 +1331,26 @@ bool startup_files_disabled() {
 }  // namespace
 
 bool create_profile_file(const std::filesystem::path& target_path) {
-    return create_default_startup_file(target_path,
-                                       "Configuration File",
+    return create_default_startup_file(target_path, "Configuration File",
                                        "this file is sourced when the shell starts in login mode");
 }
 
 bool create_env_file(const std::filesystem::path& target_path) {
     return create_default_startup_file(
-        target_path,
-        "Environment File",
+        target_path, "Environment File",
         "this file is sourced for every shell start before login/interactive setup");
 }
 
 bool create_source_file(const std::filesystem::path& target_path) {
     return create_default_startup_file(
-        target_path, "Source File", "this file is sourced when the shell starts in interactive mode");
+        target_path, "Source File",
+        "this file is sourced when the shell starts in interactive mode");
 }
 
 bool create_logout_file(const std::filesystem::path& target_path) {
     return create_default_startup_file(
-        target_path, "Logout File", "this file is sourced when the shell exits from a login session");
+        target_path, "Logout File",
+        "this file is sourced when the shell exits from a login session");
 }
 
 bool is_first_boot() {
@@ -1393,8 +1392,8 @@ void process_logout_file() {
     }
 
     if (config::interactive_mode || config::force_interactive) {
-        process_startup_file_with_fallback(
-            g_cjsh_logout_path(), g_cjsh_logout_alt_path(), false, true);
+        process_startup_file_with_fallback(g_cjsh_logout_path(), g_cjsh_logout_alt_path(), false,
+                                           true);
     }
 }
 

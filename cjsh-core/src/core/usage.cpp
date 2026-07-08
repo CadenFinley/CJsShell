@@ -32,7 +32,7 @@
 
 #include "version_command.h"
 
-void print_usage(bool print_version, bool print_hook, bool print_footer) {
+int print_usage(bool print_version, bool print_hook, bool print_footer) {
     if (print_version) {
         (void)version_command({});
     }
@@ -100,4 +100,6 @@ void print_usage(bool print_version, bool print_hook, bool print_footer) {
                   << "  Documentation: https://cadenfinley.github.io/CJsShell/\n"
                   << "  Repository:    https://github.com/CadenFinley/CJsShell\n"
                   << "  Run 'help' inside cjsh for built-in command reference\n";
+
+    return 0;
 }

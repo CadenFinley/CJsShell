@@ -120,9 +120,10 @@ void cleanup_resources() {
 }
 
 int run_cjsh(int argc, char* argv[]) {
-    cjsh_env::reset_shell_state();
     // set start time
     startup_begin_time() = std::chrono::steady_clock::now();
+
+    cjsh_env::reset_shell_state();
 
     // parse passed flags
     auto parse_result = flags::parse_arguments(argc, argv);
@@ -141,8 +142,7 @@ int run_cjsh(int argc, char* argv[]) {
         return version_command({});
     }
     if (config::show_help) {
-        print_usage();
-        return 0;
+        return print_usage();
     }
 
     // determine if the passed arg is a script file and grab following args to be used for the

@@ -331,8 +331,7 @@ int completion_spell_command(const std::vector<std::string>& args) {
 
 int completion_spell_enter_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {
-        "Usage: completion-spell-enter <on|off|status>",
-        "Examples:",
+        "Usage: completion-spell-enter <on|off|status>", "Examples:",
         "  completion-spell-enter on      Auto-apply a single spell correction when pressing Enter",
         "  completion-spell-enter off     Submit input as typed when pressing Enter",
         "  completion-spell-enter status  Show the current setting"};

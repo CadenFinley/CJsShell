@@ -124,7 +124,7 @@ size_t parser_find_keyword_token(const std::string& text, const std::string& key
                                  size_t search_from = 0);
 size_t parser_find_inline_do_position(const std::string& text, size_t search_from = 0);
 bool parser_find_matching_command_substitution_end(const std::string& text, size_t start_index,
-                                                    size_t& end_out);
+                                                   size_t& end_out);
 bool parser_find_balanced_double_parens(std::string_view text, size_t open_pos,
                                         size_t& content_start_out, size_t& content_end_out,
                                         size_t& after_close_out);

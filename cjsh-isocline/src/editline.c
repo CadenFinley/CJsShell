@@ -100,10 +100,10 @@ typedef struct editor_s {
     const char* inline_right_text;  // inline right-aligned text on input line
     ssize_t inline_right_width;     // cached width of inline right text
     ssize_t line_number_column_width;  // cached total prefix width when line numbers are shown
-    char* rendered_hint_snapshot;  // most recent hint text that was rendered on screen
-    ssize_t last_screen_cursor_row;  // cached absolute cursor row from the last successful query
-    ssize_t last_screen_cursor_col;  // cached absolute cursor col from the last successful query
-    bool last_screen_cursor_known;   // whether absolute cursor position cache is valid
+    char* rendered_hint_snapshot;      // most recent hint text that was rendered on screen
+    ssize_t last_screen_cursor_row;    // cached absolute cursor row from the last successful query
+    ssize_t last_screen_cursor_col;    // cached absolute cursor col from the last successful query
+    bool last_screen_cursor_known;     // whether absolute cursor position cache is valid
     bool mouse_reporting_enabled;      // whether this edit session has mouse reporting toggled on
     ssize_t mouse_capture_depth;       // nested mouse tracking enablement depth
     alloc_t* mem;                      // allocator
@@ -188,8 +188,7 @@ static bool edit_try_expand_abbreviation(ic_env_t* env, editor_t* eb, bool bound
 static void edit_refresh(ic_env_t* env, editor_t* eb);
 static void edit_refresh_hint(ic_env_t* env, editor_t* eb);
 static void redraw_prompt_prefix_lines(ic_env_t* env, editor_t* eb);
-static bool edit_handle_mouse_click(ic_env_t* env, editor_t* eb,
-                                    const char* rendered_hint);
+static bool edit_handle_mouse_click(ic_env_t* env, editor_t* eb, const char* rendered_hint);
 static bool edit_mouse_event_to_target_rowcol(ic_env_t* env, editor_t* eb,
                                               const tty_mouse_event_t* mouse_event,
                                               ssize_t* target_row, ssize_t* target_col);
@@ -676,8 +675,8 @@ static bool edit_handle_mouse_click(ic_env_t* env, editor_t* eb, const char* ren
     edit_get_prompt_width(env, eb, false, &promptw, &cpromptw);
 
     const char* active_hint = rendered_hint;
-    if ((active_hint == NULL || active_hint[0] == '\0') &&
-        eb->rendered_hint_snapshot != NULL && eb->rendered_hint_snapshot[0] != '\0') {
+    if ((active_hint == NULL || active_hint[0] == '\0') && eb->rendered_hint_snapshot != NULL &&
+        eb->rendered_hint_snapshot[0] != '\0') {
         active_hint = eb->rendered_hint_snapshot;
     }
     if ((active_hint == NULL || active_hint[0] == '\0') && env->completions != NULL &&
@@ -929,8 +928,8 @@ static bool edit_try_spell_correct_on_enter(ic_env_t* env, editor_t* eb) {
     if (ic_char_is_separator(input + eb->pos - prev, (long)prev))
         return false;
 
-    ssize_t count = completions_generate(env, env->completions, input, eb->pos,
-                                         IC_MAX_COMPLETIONS_TO_TRY);
+    ssize_t count =
+        completions_generate(env, env->completions, input, eb->pos, IC_MAX_COMPLETIONS_TO_TRY);
     bool applied = false;
     if (count == 1 && completions_all_sources_equal(env->completions, "spell")) {
         applied = edit_complete(env, eb, 0);
@@ -1470,8 +1469,7 @@ static bool edit_current_line_is_empty(editor_t* eb) {
 
 static void edit_refresh(ic_env_t* env, editor_t* eb) {
     eb->replace_prompt_line_with_number = prompt_line_should_use_line_numbers(env, eb);
-    edit_set_rendered_hint_snapshot(
-        eb, (sbuf_len(eb->hint) > 0 ? sbuf_string(eb->hint) : NULL));
+    edit_set_rendered_hint_snapshot(eb, (sbuf_len(eb->hint) > 0 ? sbuf_string(eb->hint) : NULL));
     // calculate the new cursor row and total rows needed
     ssize_t promptw, cpromptw;
     edit_get_prompt_width(env, eb, false, &promptw, &cpromptw);
@@ -3101,7 +3099,8 @@ static bool edit_update_status_message(ic_env_t* env, editor_t* eb) {
     }
 
     if (eb->mouse_reporting_enabled && env->mouse_reporting_status_line_enabled) {
-        edit_format_mouse_enabled_status_hint(env, true, mouse_status_text, sizeof(mouse_status_text));
+        edit_format_mouse_enabled_status_hint(env, true, mouse_status_text,
+                                              sizeof(mouse_status_text));
         if (snprintf(mouse_status_bbcode, sizeof(mouse_status_bbcode), "[ic-status]%s[/]",
                      mouse_status_text) >= 0) {
             mouse_status_prefix = mouse_status_bbcode;

@@ -381,7 +381,7 @@ bool parse_c_style_for_header(const std::string& header, CStyleForHeader& out) {
     size_t content_end = 0;
     size_t after_close = 0;
     if (!parser_find_balanced_double_parens(normalized, pos, content_start, content_end,
-                                             after_close)) {
+                                            after_close)) {
         return false;
     }
 
@@ -669,7 +669,8 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
                !cmd.fd_duplications.empty();
     };
 
-    const bool condition_has_arithmetic_command_form = parser_contains_arithmetic_command_form(cond);
+    const bool condition_has_arithmetic_command_form =
+        parser_contains_arithmetic_command_form(cond);
 
     if (shell_parser && g_shell && g_shell->shell_exec) {
         Command control_cmd;
@@ -916,10 +917,9 @@ int handle_for_block(
         return !var.empty();
     };
 
-    auto execute_for_iterations =
-        [&](const std::function<LoopCommandOutcome()>& run_iteration,
-            const std::string& trailing_commands,
-            const std::function<void()>& on_early_return) -> int {
+    auto execute_for_iterations = [&](const std::function<LoopCommandOutcome()>& run_iteration,
+                                      const std::string& trailing_commands,
+                                      const std::function<void()>& on_early_return) -> int {
         int rc = 0;
 
         auto evaluate_arithmetic_or_fail = [&](const std::string& expression,
