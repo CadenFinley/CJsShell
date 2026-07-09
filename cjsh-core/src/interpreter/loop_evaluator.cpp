@@ -496,7 +496,7 @@ bool trailing_contains_block_closer_segment(const std::string& trailing_commands
 int execute_loop_trailing_commands(
     int loop_rc, const std::string& trailing_commands,
     const std::function<int(const std::string&)>& execute_simple_or_pipeline,
-    Parser* shell_parser) {
+    Parser* shell_parser, const std::function<bool()>& should_abort_execution) {
     if (trailing_commands.empty()) {
         return loop_rc;
     }
@@ -505,7 +505,8 @@ int execute_loop_trailing_commands(
         return loop_rc;
     }
 
-    if (loop_rc == 253 || loop_rc == 254 || loop_rc == 255 || cjsh_env::exit_requested()) {
+    if ((should_abort_execution && should_abort_execution()) || loop_rc == 253 ||
+        loop_rc == 254 || loop_rc == 255 || cjsh_env::exit_requested()) {
         return loop_rc;
     }
 
@@ -520,12 +521,17 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
                       const std::string& keyword, bool is_until,
                       const std::function<int(const std::vector<std::string>&)>& execute_block,
                       const std::function<int(const std::string&)>& execute_simple_or_pipeline,
-                      Parser* shell_parser) {
+                      Parser* shell_parser,
+                      const std::function<bool()>& should_abort_execution) {
     // shared while/until evaluator used by interpreter loop dispatch
     size_t loop_start_idx = idx;
     std::string first = trim(strip_inline_comment(src_lines[idx]));
     if (first != keyword && first.rfind(keyword + " ", 0) != 0)
         return 1;
+
+    auto abort_pending = [&]() {
+        return should_abort_execution && should_abort_execution();
+    };
 
     // parse the loop header and detect inline do/body placement
     auto parse_cond_from = [&](const std::string& s, std::string& cond, bool& inline_do,
@@ -624,6 +630,10 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
             int c = 0;
             if (!cond.empty()) {
                 c = execute_simple_or_pipeline(cond);
+                if (abort_pending()) {
+                    rc = c;
+                    break;
+                }
 
                 int signal_rc = 0;
                 if (check_loop_interrupt(signal_rc)) {
@@ -640,6 +650,8 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
             rc = execute_block(body_lines);
             auto outcome = handle_loop_command_result(rc, 0, 255, 0, 254, true);
             rc = outcome.code;
+            if (abort_pending())
+                break;
             if (outcome.flow == LoopFlow::BREAK)
                 break;
             if (outcome.flow == LoopFlow::CONTINUE)
@@ -666,7 +678,7 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
                !cmd.output_file.empty() || !cmd.append_file.empty() || !cmd.stderr_file.empty() ||
                cmd.stderr_to_stdout || cmd.stdout_to_stderr || cmd.both_output ||
                !cmd.process_substitutions.empty() || !cmd.fd_redirections.empty() ||
-               !cmd.fd_duplications.empty();
+               !cmd.fd_duplications.empty() || !cmd.redirection_order.empty();
     };
 
     const bool condition_has_arithmetic_command_form =
@@ -732,6 +744,9 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
             control_cmd.fd_duplications.insert(control_cmd.fd_duplications.end(),
                                                source.fd_duplications.begin(),
                                                source.fd_duplications.end());
+            control_cmd.redirection_order.insert(control_cmd.redirection_order.end(),
+                                                 source.redirection_order.begin(),
+                                                 source.redirection_order.end());
             control_cmd.process_substitutions.insert(control_cmd.process_substitutions.end(),
                                                      source.process_substitutions.begin(),
                                                      source.process_substitutions.end());
@@ -754,12 +769,14 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
             int exit_code = g_shell->shell_exec->run_with_command_redirections(
                 control_cmd, run_loop_logic, keyword, false, &action_invoked);
             return execute_loop_trailing_commands(exit_code, trailing_commands,
-                                                  execute_simple_or_pipeline, shell_parser);
+                                                  execute_simple_or_pipeline, shell_parser,
+                                                  should_abort_execution);
         }
     }
 
     return execute_loop_trailing_commands(run_loop_logic(), trailing_commands,
-                                          execute_simple_or_pipeline, shell_parser);
+                                          execute_simple_or_pipeline, shell_parser,
+                                          should_abort_execution);
 }
 
 }  // namespace
@@ -808,8 +825,8 @@ int handle_for_block(
     const std::vector<std::string>& src_lines, size_t& idx,
     const std::function<int(const std::vector<std::string>&)>& execute_block,
     const std::function<long long(const std::string&)>& evaluate_arithmetic_expression,
-    const std::function<int(const std::string&)>& execute_simple_or_pipeline,
-    Parser* shell_parser) {
+    const std::function<int(const std::string&)>& execute_simple_or_pipeline, Parser* shell_parser,
+    const std::function<bool()>& should_abort_execution) {
     // main for evaluator called after interpreter classifies a block as for
     std::string first = trim(strip_inline_comment(src_lines[idx]));
     if (first != "for" && first.rfind("for ", 0) != 0)
@@ -818,6 +835,9 @@ int handle_for_block(
     std::string var;
     std::vector<std::string> items;
     CStyleForHeader c_style_header;
+    auto abort_pending = [&]() {
+        return should_abort_execution && should_abort_execution();
+    };
 
     struct RangeInfo {
         bool is_range = false;
@@ -828,7 +848,8 @@ int handle_for_block(
 
     auto finalize_with_trailing_commands = [&](int loop_rc, const std::string& trailing_commands) {
         return execute_loop_trailing_commands(loop_rc, trailing_commands,
-                                              execute_simple_or_pipeline, shell_parser);
+                                              execute_simple_or_pipeline, shell_parser,
+                                              should_abort_execution);
     };
 
     auto assign_loop_variable = [&](const std::string& value) {
@@ -981,6 +1002,9 @@ int handle_for_block(
 
                 auto outcome = run_iteration();
                 rc = outcome.code;
+                if (abort_pending()) {
+                    break;
+                }
 
                 if (outcome.flow == LoopFlow::BREAK) {
                     break;
@@ -1012,6 +1036,9 @@ int handle_for_block(
 
                 auto outcome = run_iteration();
                 rc = outcome.code;
+                if (abort_pending()) {
+                    break;
+                }
                 if (outcome.flow == LoopFlow::NONE || outcome.flow == LoopFlow::CONTINUE) {
                     continue;
                 }
@@ -1042,10 +1069,13 @@ int handle_for_block(
         }
 
         std::string body = done_pos == std::string::npos ? tail : trim(tail.substr(0, done_pos));
+        std::string done_redirections;
         std::string trailing_commands;
         if (done_pos != std::string::npos) {
             std::string done_suffix = trim(tail.substr(done_pos + 4));
-            trailing_commands = split_done_suffix(done_suffix).second;
+            auto suffix_parts = split_done_suffix(done_suffix);
+            done_redirections = suffix_parts.first;
+            trailing_commands = suffix_parts.second;
         }
 
         if (shell_parser == nullptr) {
@@ -1061,8 +1091,32 @@ int handle_for_block(
 
         auto run_cached_body = [&, body_lines_ptr]() -> LoopCommandOutcome {
             // execute one iteration body then translate result into loop flow semantics
-            return handle_loop_command_result(execute_block(*body_lines_ptr), 0, 255, 0, 254, true);
+            int body_rc = execute_block(*body_lines_ptr);
+            if (abort_pending()) {
+                return {LoopFlow::BREAK, body_rc};
+            }
+            return handle_loop_command_result(body_rc, 0, 255, 0, 254, true);
         };
+
+        if (!done_redirections.empty() && shell_parser != nullptr && g_shell && g_shell->shell_exec) {
+            try {
+                auto redir_cmds =
+                    shell_parser->parse_pipeline_with_preprocessing("true " + done_redirections);
+                if (!redir_cmds.empty()) {
+                    bool action_invoked = false;
+                    int exit_code = g_shell->shell_exec->run_with_command_redirections(
+                        redir_cmds[0],
+                        [&]() { return execute_for_iterations(run_cached_body, "", []() {}); },
+                        "for", false, &action_invoked);
+                    if (!action_invoked) {
+                        return exit_code;
+                    }
+                    return finalize_with_trailing_commands(exit_code, trailing_commands);
+                }
+            } catch (const std::exception&) {
+                // Fall back to normal loop execution if redirection extraction fails.
+            }
+        }
 
         return execute_for_iterations(run_cached_body, trailing_commands, []() {});
     }
@@ -1172,7 +1226,11 @@ int handle_for_block(
 
     auto run_body_and_handle_result = [&]() -> LoopCommandOutcome {
         // execute one iteration body and map break continue behavior
-        return handle_loop_command_result(execute_block(body_lines), 0, 255, 0, 254, true);
+        int body_rc = execute_block(body_lines);
+        if (abort_pending()) {
+            return {LoopFlow::BREAK, body_rc};
+        }
+        return handle_loop_command_result(body_rc, 0, 255, 0, 254, true);
     };
 
     int rc = execute_for_iterations(run_body_and_handle_result, trailing_commands,
@@ -1184,13 +1242,13 @@ int handle_for_block(
 int handle_condition_loop_block(
     LoopCondition condition, const std::vector<std::string>& src_lines, size_t& idx,
     const std::function<int(const std::vector<std::string>&)>& execute_block,
-    const std::function<int(const std::string&)>& execute_simple_or_pipeline,
-    Parser* shell_parser) {
+    const std::function<int(const std::string&)>& execute_simple_or_pipeline, Parser* shell_parser,
+    const std::function<bool()>& should_abort_execution) {
     // thin dispatcher that maps while/until into the shared loop-block implementation
     const char* keyword = condition == LoopCondition::WHILE ? "while" : "until";
     bool is_until = condition == LoopCondition::UNTIL;
     return handle_loop_block(src_lines, idx, keyword, is_until, execute_block,
-                             execute_simple_or_pipeline, shell_parser);
+                             execute_simple_or_pipeline, shell_parser, should_abort_execution);
 }
 
 std::optional<int> try_execute_inline_do_block(
@@ -1215,10 +1273,12 @@ std::optional<int> try_execute_inline_do_block(
 
     size_t scan = lookahead + 1;
     bool found_done = false;
+    std::string done_suffix;
     for (; scan < segments.size(); ++scan) {
         std::string seg = trim(strip_inline_comment(segments[scan]));
-        if (seg == "done") {
+        if (seg == "done" || parser_starts_with_keyword_token(seg, "done")) {
             found_done = true;
+            done_suffix = trim(seg.substr(4));
             break;
         }
         if (!body.empty())
@@ -1233,6 +1293,9 @@ std::optional<int> try_execute_inline_do_block(
     if (!body.empty())
         combined += " " + body;
     combined += "; done";
+    if (!done_suffix.empty()) {
+        combined += " " + done_suffix;
+    }
 
     size_t local_idx = 0;
     std::vector<std::string> inline_lines{combined};

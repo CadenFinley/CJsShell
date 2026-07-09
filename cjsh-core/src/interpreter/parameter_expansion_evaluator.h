@@ -40,11 +40,13 @@ class ParameterExpansionEvaluator {
     using PatternMatcher = std::function<bool(const std::string&, const std::string&)>;
     using ArrayLengthReader = std::function<std::optional<size_t>(const std::string&)>;
     using ArrayKeysReader = std::function<std::string(const std::string&)>;
+    using WordExpander = std::function<std::string(const std::string&)>;
 
     ParameterExpansionEvaluator(VariableReader var_reader, VariableWriter var_writer,
                                 VariableChecker var_checker, PatternMatcher pattern_matcher,
                                 ArrayLengthReader array_length_reader = nullptr,
-                                ArrayKeysReader array_keys_reader = nullptr);
+                                ArrayKeysReader array_keys_reader = nullptr,
+                                WordExpander word_expander = nullptr);
     std::string expand(const std::string& param_expr);
 
    private:
@@ -54,6 +56,7 @@ class ParameterExpansionEvaluator {
     PatternMatcher matches_pattern;
     ArrayLengthReader read_array_length;
     ArrayKeysReader read_array_keys;
+    WordExpander expand_word;
 
     std::string pattern_match_prefix(const std::string& value, const std::string& pattern,
                                      bool longest);

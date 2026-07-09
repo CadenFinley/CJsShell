@@ -504,6 +504,10 @@ void VariableExpander::expand_command_paths_with_home(Command& cmd, const std::s
     for (auto& fd_redir : cmd.fd_redirections) {
         expand_path(fd_redir.second);
     }
+
+    for (auto& redirection : cmd.redirection_order) {
+        expand_path(redirection.value);
+    }
 }
 
 void VariableExpander::expand_command_redirection_paths(Command& cmd) {
@@ -532,6 +536,10 @@ void VariableExpander::expand_command_redirection_paths(Command& cmd) {
         } else {
             expand_vars_in_path(spec);
         }
+    }
+
+    for (auto& redirection : cmd.redirection_order) {
+        expand_vars_in_path(redirection.value);
     }
 }
 

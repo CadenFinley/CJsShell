@@ -37,13 +37,15 @@ ParameterExpansionEvaluator::ParameterExpansionEvaluator(VariableReader var_read
                                                          VariableChecker var_checker,
                                                          PatternMatcher pattern_matcher,
                                                          ArrayLengthReader array_length_reader,
-                                                         ArrayKeysReader array_keys_reader)
+                                                         ArrayKeysReader array_keys_reader,
+                                                         WordExpander word_expander)
     : read_variable(std::move(var_reader)),
       write_variable(std::move(var_writer)),
       is_variable_set(std::move(var_checker)),
       matches_pattern(std::move(pattern_matcher)),
       read_array_length(std::move(array_length_reader)),
-      read_array_keys(std::move(array_keys_reader)) {
+      read_array_keys(std::move(array_keys_reader)),
+      expand_word(std::move(word_expander)) {
 }
 
 std::string ParameterExpansionEvaluator::expand(const std::string& param_expr) {
@@ -190,33 +192,40 @@ std::string ParameterExpansionEvaluator::expand(const std::string& param_expr) {
     }
 
     std::string operand = param_expr.substr(op_pos + op.length());
+    auto expand_operand = [&]() -> std::string {
+        return expand_word ? expand_word(operand) : operand;
+    };
 
     if (op == ":-") {
-        return (is_set && !var_value.empty()) ? var_value : operand;
+        return (is_set && !var_value.empty()) ? var_value : expand_operand();
     }
     if (op == "-") {
-        return is_set ? var_value : operand;
+        return is_set ? var_value : expand_operand();
     }
 
     if (op == ":=") {
-        if (!is_set) {
-            write_variable(var_name, operand);
-            return operand;
+        if (!is_set || var_value.empty()) {
+            std::string expanded_operand = expand_operand();
+            write_variable(var_name, expanded_operand);
+            return expanded_operand;
         }
         return var_value;
     }
     if (op == "=") {
         if (!is_set) {
-            write_variable(var_name, operand);
-            return operand;
+            std::string expanded_operand = expand_operand();
+            write_variable(var_name, expanded_operand);
+            return expanded_operand;
         }
         return var_value;
     }
 
     if (op == ":?") {
         if (!is_set || var_value.empty()) {
+            std::string expanded_operand = operand.empty() ? operand : expand_operand();
             std::string error_msg =
-                var_name + ": " + (operand.empty() ? "parameter null or not set" : operand);
+                var_name + ": " +
+                (expanded_operand.empty() ? "parameter null or not set" : expanded_operand);
             throw std::runtime_error("parameter expansion error: " + error_msg + " in ${" +
                                      var_name + op + operand + "}");
         }
@@ -224,8 +233,9 @@ std::string ParameterExpansionEvaluator::expand(const std::string& param_expr) {
     }
     if (op == "?") {
         if (!is_set) {
+            std::string expanded_operand = operand.empty() ? operand : expand_operand();
             std::string error_msg =
-                var_name + ": " + (operand.empty() ? "parameter not set" : operand);
+                var_name + ": " + (expanded_operand.empty() ? "parameter not set" : expanded_operand);
             throw std::runtime_error("parameter expansion error: " + error_msg + " in ${" +
                                      var_name + op + operand + "}");
         }
@@ -233,10 +243,10 @@ std::string ParameterExpansionEvaluator::expand(const std::string& param_expr) {
     }
 
     if (op == ":+") {
-        return (is_set && !var_value.empty()) ? operand : "";
+        return (is_set && !var_value.empty()) ? expand_operand() : "";
     }
     if (op == "+") {
-        return is_set ? operand : "";
+        return is_set ? expand_operand() : "";
     }
 
     if (op == "#") {

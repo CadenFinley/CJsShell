@@ -35,6 +35,7 @@
 
 #include "flags.h"
 #include "job_control.h"
+#include "shell_env.h"
 
 namespace parameter_utils {
 
@@ -73,12 +74,18 @@ std::string join_positional_parameters() {
         return "";
     }
 
+    std::string ifs = cjsh_env::get_ifs_delimiters();
+    std::string separator;
+    if (!ifs.empty()) {
+        separator.push_back(ifs.front());
+    }
+
     size_t total_length = 0;
     for (const auto& param : params) {
         total_length += param.size();
     }
     if (params.size() > 1) {
-        total_length += params.size() - 1;
+        total_length += separator.size() * (params.size() - 1);
     }
 
     std::string joined;
@@ -86,7 +93,7 @@ std::string join_positional_parameters() {
 
     for (size_t i = 0; i < params.size(); ++i) {
         if (i > 0) {
-            joined.push_back(' ');
+            joined += separator;
         }
         joined += params[i];
     }

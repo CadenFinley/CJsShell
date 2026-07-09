@@ -233,11 +233,11 @@ else
 fi
 
 OUTPUT=$(STAGE_ALPHA_READY=0 BETA_VALUE=1 GAMMA_VALUE=2 FALLBACK_STAGE= "$CJSH_PATH" "$TEMP_SCRIPT")
-EXPECTED="alpha:fail
+EXPECTED="alpha:fallback-rescue
 beta:beta-error:beta-lt
 gamma:gamma-small
 score:balanced
-warnings:0
+warnings:1
 summary:fail"
 
 if [ "$OUTPUT" = "$EXPECTED" ]; then

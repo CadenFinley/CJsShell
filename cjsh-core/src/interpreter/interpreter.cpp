@@ -87,6 +87,9 @@ using shell_script_interpreter::detail::strip_inline_comment;
 using shell_script_interpreter::detail::trim;
 
 namespace {
+
+thread_local bool g_parameter_expansion_fatal_error = false;
+
 constexpr std::string_view kSignalExitExceptionPrefix = "__CJSH_SIGNAL_EXIT__:";
 
 std::optional<int> collect_pending_signal_exit_code() {
@@ -418,6 +421,10 @@ int handle_runtime_exception(const std::string& text, const std::runtime_error& 
                                       suggestions, 2);
     }
 
+    if (message.find("parameter expansion error:") != std::string::npos) {
+        g_parameter_expansion_fatal_error = true;
+    }
+
     if (config::error_suggestions_enabled) {
         suggestions.push_back("Check command syntax and system resources.");
     }
@@ -675,6 +682,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
     } validation_scope(this, skip_validation);
 
     const bool effective_skip = skip_validation_mode;
+    if (!effective_skip) {
+        g_parameter_expansion_fatal_error = false;
+    }
 
     if (g_shell == nullptr) {
         print_error({ErrorType::FATAL_ERROR, "", "shell not initialized properly", {}});
@@ -829,6 +839,10 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                         return last_code;
                     }
 
+                    if (g_parameter_expansion_fatal_error) {
+                        return last_code;
+                    }
+
                     if (g_shell && g_shell->should_abort_on_nonzero_exit(last_code) &&
                         last_code != 0 && !is_control_flow_exit_code(last_code)) {
                         return last_code;
@@ -917,7 +931,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                                     c.stderr_to_stdout || c.stdout_to_stderr ||
                                     !c.stderr_file.empty() || !c.here_doc.empty() ||
                                     c.both_output || !c.here_string.empty() ||
-                                    !c.fd_redirections.empty() || !c.fd_duplications.empty();
+                                    !c.fd_redirections.empty() || !c.fd_duplications.empty() ||
+                                    !c.redirection_order.empty();
 
                 if (c.negate_pipeline) {
                     has_redir_or_pipe = true;
@@ -1134,6 +1149,10 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         return collect_pending_signal_exit_code();
     };
 
+    auto should_abort_for_parameter_expansion = []() {
+        return g_parameter_expansion_fatal_error;
+    };
+
     int last_code = 0;
 
     auto execute_block_wrapper = [&](const std::vector<std::string>& block_lines) -> int {
@@ -1155,7 +1174,8 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
     auto handle_if_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
         return conditional_evaluator::handle_if_block(src_lines, idx, execute_block_wrapper,
                                                       execute_simple_or_pipeline,
-                                                      evaluate_logical_condition, shell_parser);
+                                                      evaluate_logical_condition, shell_parser,
+                                                      should_abort_for_parameter_expansion);
     };
 
     auto handle_for_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
@@ -1164,7 +1184,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         return loop_evaluator::handle_for_block(
             src_lines, idx, execute_block_skip_validation,
             [this](const std::string& expr) { return evaluate_arithmetic_expression(expr); },
-            execute_simple_or_pipeline, shell_parser);
+            execute_simple_or_pipeline, shell_parser, should_abort_for_parameter_expansion);
     };
 
     auto handle_case_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
@@ -1282,14 +1302,14 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         // while blocks use the shared condition loop evaluator
         return loop_evaluator::handle_condition_loop_block(
             loop_evaluator::LoopCondition::WHILE, src_lines, idx, execute_block_skip_validation,
-            execute_simple_or_pipeline, shell_parser);
+            execute_simple_or_pipeline, shell_parser, should_abort_for_parameter_expansion);
     };
 
     auto handle_until_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
         // until blocks use the same evaluator with inverted continuation condition
         return loop_evaluator::handle_condition_loop_block(
             loop_evaluator::LoopCondition::UNTIL, src_lines, idx, execute_block_skip_validation,
-            execute_simple_or_pipeline, shell_parser);
+            execute_simple_or_pipeline, shell_parser, should_abort_for_parameter_expansion);
     };
 
     // runtime execution trace starts here after parser and validation stages have completed
@@ -1325,6 +1345,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
             last_code = block_result.exit_code;
             line_index = block_result.next_line_index;
             if (is_terminating_signal_exit_code(last_code)) {
+                return set_last_status(last_code);
+            }
+            if (g_parameter_expansion_fatal_error) {
                 return set_last_status(last_code);
             }
             if (is_control_flow_exit_code(last_code) || cjsh_env::exit_requested()) {
@@ -1465,6 +1488,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                 std::vector<std::string> one{trimmed_cmd};
                 int code = handle_if_block(one, local_idx);
                 last_code = code;
+                if (g_parameter_expansion_fatal_error) {
+                    return set_last_status(last_code);
+                }
                 continue;
             }
 
@@ -1475,6 +1501,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                 std::vector<std::string> one{trimmed_cmd};
                 int code = handle_case_block(one, local_idx);
                 last_code = code;
+                if (g_parameter_expansion_fatal_error) {
+                    return set_last_status(last_code);
+                }
                 continue;
             }
 
@@ -1609,6 +1638,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                         std::vector<std::string> one{t};
                         int code = handle_for_block(one, local_idx);
                         last_code = code;
+                        if (g_parameter_expansion_fatal_error) {
+                            return set_last_status(last_code);
+                        }
                         continue;
                     }
                     if (is_statement_keyword_prefix(t, StatementKeyword::While) &&
@@ -1618,6 +1650,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                         std::vector<std::string> one{t};
                         int code = handle_while_block(one, local_idx);
                         last_code = code;
+                        if (g_parameter_expansion_fatal_error) {
+                            return set_last_status(last_code);
+                        }
                         continue;
                     }
                     if (is_statement_keyword_prefix(t, StatementKeyword::Until) &&
@@ -1627,6 +1662,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                         std::vector<std::string> one{t};
                         int code = handle_until_block(one, local_idx);
                         last_code = code;
+                        if (g_parameter_expansion_fatal_error) {
+                            return set_last_status(last_code);
+                        }
                         continue;
                     }
 
@@ -1638,6 +1676,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                         std::vector<std::string> one{t};
                         int code = handle_if_block(one, local_idx);
                         last_code = code;
+                        if (g_parameter_expansion_fatal_error) {
+                            return set_last_status(last_code);
+                        }
                         continue;
                     }
 
@@ -1646,6 +1687,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                         if (auto inline_result = loop_evaluator::try_execute_inline_do_block(
                                 t, semis, k, handle_for_block)) {
                             last_code = *inline_result;
+                            if (g_parameter_expansion_fatal_error) {
+                                return set_last_status(last_code);
+                            }
                             break;
                         }
                     }
@@ -1655,6 +1699,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                         if (auto inline_result = loop_evaluator::try_execute_inline_do_block(
                                 t, semis, k, handle_while_block)) {
                             last_code = *inline_result;
+                            if (g_parameter_expansion_fatal_error) {
+                                return set_last_status(last_code);
+                            }
                             break;
                         }
                     }
@@ -1665,6 +1712,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                         if (auto inline_result = loop_evaluator::try_execute_inline_do_block(
                                 t, semis, k, handle_until_block)) {
                             last_code = *inline_result;
+                            if (g_parameter_expansion_fatal_error) {
+                                return set_last_status(last_code);
+                            }
                             break;
                         }
                     }
@@ -1750,6 +1800,10 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                     last_code = code;
 
                     set_last_status(last_code);
+
+                    if (g_parameter_expansion_fatal_error) {
+                        return set_last_status(last_code);
+                    }
 
                     if (is_terminating_signal_exit_code(code)) {
                         return set_last_status(code);
@@ -1983,6 +2037,9 @@ std::string ShellScriptInterpreter::expand_parameter_expression(const std::strin
     };
 
     auto array_length_reader = [this](const std::string& name) -> std::optional<size_t> {
+        if (name == "@" || name == "*") {
+            return flags::get_positional_parameter_count();
+        }
         return variable_manager.get_array_length(name);
     };
 
@@ -1990,8 +2047,22 @@ std::string ShellScriptInterpreter::expand_parameter_expression(const std::strin
         return variable_manager.get_array_keys(name);
     };
 
+    auto word_expander = [this](const std::string& word) -> std::string {
+        std::string expanded = expand_all_substitutions(
+            word, [](const std::string& command) { return g_shell ? g_shell->execute(command) : 1; });
+
+        if (!expanded.empty() && expanded[0] == '~' &&
+            (expanded.size() == 1 || expanded[1] == '/')) {
+            std::string home = get_variable_value("HOME");
+            if (!home.empty()) {
+                expanded = home + expanded.substr(1);
+            }
+        }
+        return expanded;
+    };
+
     ParameterExpansionEvaluator evaluator(var_reader, var_writer, var_checker, pattern_match_fn,
-                                          array_length_reader, array_keys_reader);
+                                          array_length_reader, array_keys_reader, word_expander);
     return evaluator.expand(param_expr);
 }
 

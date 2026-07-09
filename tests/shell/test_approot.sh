@@ -110,6 +110,7 @@ FIRST_BOOT_EXPECTED=$(cd "$CACHE_DIR" && pwd -P)
 COMPLETIONS_EXPECTED=$(cd "$COMPLETIONS_DIR" && pwd -P)
 HOME_EXPECTED=$(cd "$HOME" && pwd -P)
 CJSH_EXPECTED=$(cd "$(dirname "$CJSH_PATH")" && pwd -P)
+CJSH_ABS_PATH="$CJSH_EXPECTED/$(basename "$CJSH_PATH")"
 START_EXPECTED=$(pwd -P)
 HISTORY_FILE_EXPECTED="$CACHE_EXPECTED/history.txt"
 FIRST_BOOT_FILE_EXPECTED="$CACHE_EXPECTED/.first_boot"
@@ -195,9 +196,10 @@ if [ -n "$ENV_OVERRIDE_DIR" ] && [ -d "$ENV_OVERRIDE_DIR" ]; then
     ENV_OVERRIDE_FILE="$ENV_OVERRIDE_DIR/cjsh-env.override"
     ENV_OVERRIDE_EXPECTED=$(cd "$ENV_OVERRIDE_DIR" && pwd)
     ENV_OVERRIDE_FILE_EXPECTED="$ENV_OVERRIDE_FILE"
-    TILDE_ENV_OVERRIDE_FILE="$HOME/cjsh_tilde_env_override.$$"
+    TILDE_ENV_OVERRIDE_HOME=$(mktemp -d 2>/dev/null)
+    TILDE_ENV_OVERRIDE_FILE="$TILDE_ENV_OVERRIDE_HOME/cjsh_tilde_env_override.$$"
     TILDE_ENV_OVERRIDE_BASENAME=$(basename "$TILDE_ENV_OVERRIDE_FILE")
-    TILDE_ENV_OVERRIDE_EXPECTED="$HOME_EXPECTED"
+    TILDE_ENV_OVERRIDE_EXPECTED=$(cd "$TILDE_ENV_OVERRIDE_HOME" && pwd)
     TILDE_ENV_OVERRIDE_FILE_EXPECTED="$TILDE_ENV_OVERRIDE_FILE"
 
     : > "$TILDE_ENV_OVERRIDE_FILE"
@@ -210,12 +212,24 @@ if [ -n "$ENV_OVERRIDE_DIR" ] && [ -d "$ENV_OVERRIDE_DIR" ]; then
         "export CJSH_ENV='$ENV_OVERRIDE_FILE'; approot --file env" "$ENV_OVERRIDE_FILE_EXPECTED"
     run_path_test "approot --file cjshenv honors missing CJSH_ENV file" \
         "export CJSH_ENV='$ENV_OVERRIDE_FILE'; approot --file cjshenv" "$ENV_OVERRIDE_FILE_EXPECTED"
-    run_path_test "approot env expands leading tilde in CJSH_ENV" \
-        "export CJSH_ENV='~/$TILDE_ENV_OVERRIDE_BASENAME'; approot env; pwd" "$TILDE_ENV_OVERRIDE_EXPECTED"
-    run_path_test "approot --file env expands leading tilde in CJSH_ENV" \
-        "export CJSH_ENV='~/$TILDE_ENV_OVERRIDE_BASENAME'; approot --file env" "$TILDE_ENV_OVERRIDE_FILE_EXPECTED"
+    OUT=$(HOME="$TILDE_ENV_OVERRIDE_HOME" "$CJSH_PATH" -c "export CJSH_ENV='~/$TILDE_ENV_OVERRIDE_BASENAME'; approot env; pwd")
+    STATUS=$?
+    if [ "$STATUS" -eq 0 ] && [ "$OUT" = "$TILDE_ENV_OVERRIDE_EXPECTED" ]; then
+        pass_test "approot env expands leading tilde in CJSH_ENV"
+    else
+        fail_test "approot env tilde expansion (status=$STATUS, expected '$TILDE_ENV_OVERRIDE_EXPECTED', got '$OUT')"
+    fi
+
+    OUT=$(HOME="$TILDE_ENV_OVERRIDE_HOME" "$CJSH_PATH" -c "export CJSH_ENV='~/$TILDE_ENV_OVERRIDE_BASENAME'; approot --file env")
+    STATUS=$?
+    if [ "$STATUS" -eq 0 ] && [ "$OUT" = "$TILDE_ENV_OVERRIDE_FILE_EXPECTED" ]; then
+        pass_test "approot --file env expands leading tilde in CJSH_ENV"
+    else
+        fail_test "approot --file env tilde expansion (status=$STATUS, expected '$TILDE_ENV_OVERRIDE_FILE_EXPECTED', got '$OUT')"
+    fi
 
     rm -f "$TILDE_ENV_OVERRIDE_FILE"
+    rm -rf "$TILDE_ENV_OVERRIDE_HOME"
     rm -rf "$ENV_OVERRIDE_DIR"
 else
     fail_test "approot env override handling (mktemp unavailable)"
@@ -224,7 +238,7 @@ fi
 SYMLINK_DIR=$(mktemp -d 2>/dev/null)
 if [ -n "$SYMLINK_DIR" ] && [ -d "$SYMLINK_DIR" ]; then
     SYMLINK_CJSH="$SYMLINK_DIR/cjsh"
-    if ln -s "$CJSH_PATH" "$SYMLINK_CJSH" >/dev/null 2>&1; then
+    if ln -s "$CJSH_ABS_PATH" "$SYMLINK_CJSH" >/dev/null 2>&1; then
         OUT=$("$SYMLINK_CJSH" -c "approot cjsh; pwd")
         STATUS=$?
         if [ "$STATUS" -eq 0 ] && [ "$OUT" = "$CJSH_EXPECTED" ]; then

@@ -32,10 +32,13 @@
 #include <cctype>
 #include <iterator>
 #include <optional>
+#include <utility>
 
+#include "exec.h"
 #include "interpreter_utils.h"
 #include "parser.h"
 #include "parser_utils.h"
+#include "shell.h"
 #include "shell_env.h"
 
 using shell_script_interpreter::detail::process_line_for_validation;
@@ -179,6 +182,14 @@ void expand_segment(const std::string& segment, std::vector<std::string>& out) {
     if (cleaned.empty())
         return;
 
+    if (parser_starts_with_keyword_token(cleaned, "fi")) {
+        out.push_back("fi");
+        std::string remainder = trim(cleaned.substr(2));
+        if (!remainder.empty())
+            expand_segment(remainder, out);
+        return;
+    }
+
     if (parser_starts_with_keyword_token(cleaned, "then")) {
         out.push_back("then");
         std::string remainder = trim(cleaned.substr(4));
@@ -201,6 +212,38 @@ void expand_segment(const std::string& segment, std::vector<std::string>& out) {
     }
 
     out.push_back(cleaned);
+}
+
+bool segment_begins_with_redirection(const std::string& segment) {
+    std::string trimmed = trim(segment);
+    if (trimmed.empty()) {
+        return false;
+    }
+    if (trimmed[0] == '<' || trimmed[0] == '>') {
+        return true;
+    }
+    size_t i = 0;
+    while (i < trimmed.size() && std::isdigit(static_cast<unsigned char>(trimmed[i])) != 0) {
+        i++;
+    }
+    return i > 0 && i < trimmed.size() && (trimmed[i] == '<' || trimmed[i] == '>');
+}
+
+std::pair<std::string, std::string> split_leading_redirection_commands(
+    const std::string& trailing_commands) {
+    auto segments = split_top_level_semicolons(trailing_commands);
+    if (segments.empty() || !segment_begins_with_redirection(segments[0])) {
+        return {"", trailing_commands};
+    }
+
+    std::string remaining;
+    for (size_t i = 1; i < segments.size(); ++i) {
+        if (!remaining.empty()) {
+            remaining += "; ";
+        }
+        remaining += segments[i];
+    }
+    return {segments[0], remaining};
 }
 
 struct ExpandedSingleLineIf {
@@ -289,7 +332,8 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                     const std::function<int(const std::vector<std::string>&)>& execute_block,
                     const std::function<int(const std::string&)>& execute_simple_or_pipeline,
                     const std::function<int(const std::string&)>& evaluate_logical_condition,
-                    Parser* shell_parser) {
+                    Parser* shell_parser,
+                    const std::function<bool()>& should_abort_execution) {
     // main if dispatcher called from interpreter when a line begins with if
     if (src_lines.size() == 1 && shell_parser != nullptr) {
         // normalize dense one-line forms into an if-only block plus optional trailing commands
@@ -318,17 +362,51 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
         if (has_elif || has_trailing_commands) {
             if (auto expanded = expand_single_line_if(src_lines[idx])) {
                 size_t local_idx = 0;
-                // recurse through the same evaluator so one-line if forms share the same branch
-                // behavior as multiline blocks
-                int rc = handle_if_block(expanded->lines, local_idx, execute_block,
-                                         execute_simple_or_pipeline, evaluate_logical_condition,
-                                         shell_parser);
+                auto trailing_split =
+                    split_leading_redirection_commands(expanded->trailing_commands);
 
-                if (!expanded->trailing_commands.empty() && rc != 253 && rc != 254 && rc != 255 &&
+                auto run_expanded_if = [&]() -> int {
+                    local_idx = 0;
+                    // recurse through the same evaluator so one-line if forms share the same branch
+                    // behavior as multiline blocks
+                    return handle_if_block(expanded->lines, local_idx, execute_block,
+                                           execute_simple_or_pipeline, evaluate_logical_condition,
+                                           shell_parser, should_abort_execution);
+                };
+
+                int rc = 0;
+                if (!trailing_split.first.empty() && g_shell && g_shell->shell_exec) {
+                    try {
+                        auto redir_cmds = shell_parser->parse_pipeline_with_preprocessing(
+                            "true " + trailing_split.first);
+                        if (!redir_cmds.empty()) {
+                            bool action_invoked = false;
+                            rc = g_shell->shell_exec->run_with_command_redirections(
+                                redir_cmds[0], run_expanded_if, "if", false, &action_invoked);
+                            if (!action_invoked) {
+                                idx = 0;
+                                return rc;
+                            }
+                        } else {
+                            rc = run_expanded_if();
+                        }
+                    } catch (const std::exception&) {
+                        rc = run_expanded_if();
+                    }
+                } else {
+                    rc = run_expanded_if();
+                }
+
+                if (should_abort_execution && should_abort_execution()) {
+                    idx = 0;
+                    return rc;
+                }
+
+                if (!trailing_split.second.empty() && rc != 253 && rc != 254 && rc != 255 &&
                     !cjsh_env::exit_requested()) {
                     // execute any commands that came after fi in the original one-line text
                     auto trailing_cmds =
-                        shell_parser->parse_semicolon_commands(expanded->trailing_commands);
+                        shell_parser->parse_semicolon_commands(trailing_split.second);
                     for (const auto& cmd : trailing_cmds) {
                         int follow_rc = execute_simple_or_pipeline(cmd);
                         rc = follow_rc;

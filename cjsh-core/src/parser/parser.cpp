@@ -67,6 +67,7 @@ Command::Command() {
     process_substitutions.reserve(2);
     fd_redirections.reserve(2);
     fd_duplications.reserve(2);
+    redirection_order.reserve(4);
 }
 
 void Command::set_fd_redirection(int fd, std::string value) {
@@ -87,6 +88,11 @@ void Command::set_fd_duplication(int fd, int target) {
     } else {
         fd_duplications.emplace_back(fd, target);
     }
+}
+
+void Command::add_redirection(CommandRedirectionType type, std::string value, int fd,
+                              int target_fd) {
+    redirection_order.push_back(CommandRedirection{type, fd, target_fd, std::move(value)});
 }
 
 bool Command::has_fd_redirection(int fd) const {
@@ -489,6 +495,9 @@ bool Parser::handle_fd_redirection(const std::string& value, size_t& i,
         std::string file = QuoteInfo(tokens[++i]).value;
         std::string direction = (op == '<') ? "input:" : "output:";
         cmd.set_fd_redirection(fd, direction + file);
+        cmd.add_redirection((op == '<') ? CommandRedirectionType::FdInput
+                                        : CommandRedirectionType::FdOutput,
+                            file, fd);
         return true;
     } catch (const std::exception&) {
         filtered_args.push_back(tokens[i]);
@@ -1464,6 +1473,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
 
             if (right == "-") {
                 cmd.set_fd_duplication(dst_fd, -1);
+                cmd.add_redirection(CommandRedirectionType::Close, "", dst_fd, -1);
                 return true;
             }
 
@@ -1473,6 +1483,7 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
 
             int src_fd = std::stoi(right);
             cmd.set_fd_duplication(dst_fd, src_fd);
+            cmd.add_redirection(CommandRedirectionType::Duplicate, "", dst_fd, src_fd);
             return true;
         };
 
@@ -1494,27 +1505,36 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                 switch (*redir) {
                     case RedirectionToken::Input:
                         cmd.input_file = get_next_token_value(i);
+                        cmd.add_redirection(CommandRedirectionType::Input, cmd.input_file);
                         break;
                     case RedirectionToken::Output:
                         cmd.output_file = get_next_token_value(i);
+                        cmd.force_overwrite = false;
+                        cmd.add_redirection(CommandRedirectionType::Output, cmd.output_file);
                         break;
                     case RedirectionToken::Append:
                         cmd.append_file = get_next_token_value(i);
+                        cmd.add_redirection(CommandRedirectionType::Append, cmd.append_file);
                         break;
                     case RedirectionToken::ForceOutput:
                         cmd.output_file = get_next_token_value(i);
                         cmd.force_overwrite = true;
+                        cmd.add_redirection(CommandRedirectionType::ForceOutput, cmd.output_file);
                         break;
                     case RedirectionToken::BothOutput:
                         cmd.both_output_file = get_next_token_value(i);
                         cmd.both_output = true;
+                        cmd.add_redirection(CommandRedirectionType::BothOutput,
+                                            cmd.both_output_file);
                         break;
                     case RedirectionToken::HereDoc:
                     case RedirectionToken::HereDocStrip:
                         cmd.here_doc = get_next_token_value(i);
+                        cmd.add_redirection(CommandRedirectionType::HereDoc, cmd.here_doc);
                         break;
                     case RedirectionToken::HereString:
                         cmd.here_string = get_next_token_value(i);
+                        cmd.add_redirection(CommandRedirectionType::HereString, cmd.here_string);
                         break;
                     case RedirectionToken::ReadWrite:
                     case RedirectionToken::DupInput:
@@ -1524,12 +1544,19 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                     case RedirectionToken::StderrAppend:
                         cmd.stderr_file = get_next_token_value(i);
                         cmd.stderr_append = (*redir == RedirectionToken::StderrAppend);
+                        cmd.add_redirection(cmd.stderr_append ? CommandRedirectionType::StderrAppend
+                                                              : CommandRedirectionType::StderrOutput,
+                                            cmd.stderr_file);
                         break;
                     case RedirectionToken::StderrToStdout:
                         cmd.stderr_to_stdout = true;
+                        cmd.add_redirection(CommandRedirectionType::Duplicate, "", STDERR_FILENO,
+                                            STDOUT_FILENO);
                         break;
                     case RedirectionToken::StdoutToStderr:
                         cmd.stdout_to_stderr = true;
+                        cmd.add_redirection(CommandRedirectionType::Duplicate, "", STDOUT_FILENO,
+                                            STDERR_FILENO);
                         break;
                 }
             } else if (handle_fd_duplication_token(qi.value)) {
@@ -1725,12 +1752,20 @@ std::vector<Command> Parser::parse_pipeline_with_preprocessing(const std::string
 
     for (auto& cmd : commands) {
         if (!cmd.input_file.empty() && cmd.input_file.find("HEREDOC_PLACEHOLDER_") == 0) {
+            std::string placeholder = cmd.input_file;
             auto it = current_here_docs.find(cmd.input_file);
             if (it != current_here_docs.end()) {
                 std::string content = it->second;
                 process_heredoc_content(content);
                 cmd.here_doc = content;
                 cmd.input_file.clear();
+                for (auto& redirection : cmd.redirection_order) {
+                    if (redirection.type == CommandRedirectionType::Input &&
+                        redirection.value == placeholder) {
+                        redirection.type = CommandRedirectionType::HereDoc;
+                        redirection.value = cmd.here_doc;
+                    }
+                }
             }
         }
 
@@ -1738,6 +1773,14 @@ std::vector<Command> Parser::parse_pipeline_with_preprocessing(const std::string
             std::string content = current_here_docs[cmd.here_doc];
             process_heredoc_content(content);
             cmd.here_doc = content;
+        }
+
+        if (!cmd.here_doc.empty()) {
+            for (auto& redirection : cmd.redirection_order) {
+                if (redirection.type == CommandRedirectionType::HereDoc) {
+                    redirection.value = cmd.here_doc;
+                }
+            }
         }
     }
 

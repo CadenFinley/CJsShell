@@ -39,6 +39,29 @@ class Shell;
 #include "tokenizer.h"
 #include "variable_expander.h"
 
+enum class CommandRedirectionType {
+    Input,
+    Output,
+    Append,
+    ForceOutput,
+    StderrOutput,
+    StderrAppend,
+    Duplicate,
+    Close,
+    BothOutput,
+    HereDoc,
+    HereString,
+    FdInput,
+    FdOutput
+};
+
+struct CommandRedirection {
+    CommandRedirectionType type;
+    int fd{-1};
+    int target_fd{-1};
+    std::string value;
+};
+
 struct Command {
     std::vector<std::string> args;
     std::string input_file;
@@ -61,6 +84,7 @@ struct Command {
 
     std::vector<std::pair<int, std::string>> fd_redirections;
     std::vector<std::pair<int, int>> fd_duplications;
+    std::vector<CommandRedirection> redirection_order;
     std::vector<std::string> process_substitutions;
 
     Command();
@@ -68,6 +92,9 @@ struct Command {
     void set_fd_redirection(int fd, std::string value);
 
     void set_fd_duplication(int fd, int target);
+
+    void add_redirection(CommandRedirectionType type, std::string value = "", int fd = -1,
+                         int target_fd = -1);
 
     bool has_fd_redirection(int fd) const;
 

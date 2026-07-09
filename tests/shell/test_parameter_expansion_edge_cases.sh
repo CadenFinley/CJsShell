@@ -85,6 +85,30 @@ else
     fail_test "colon error should abort (status=$STATUS, got '$OUT')"
 fi
 
+OUT=$("$CJSH_PATH" -c 'if true; then echo ${x:?bad}; fi; echo after' 2>&1)
+STATUS=$?
+if [ $STATUS -ne 0 ] && ! printf '%s\n' "$OUT" | grep -q '^after$'; then
+    pass_test "colon error aborts one-line if body"
+else
+    fail_test "colon error in if should abort trailing command (status=$STATUS, got '$OUT')"
+fi
+
+OUT=$("$CJSH_PATH" -c 'for i in 1; do echo ${x:?bad}; done; echo after' 2>&1)
+STATUS=$?
+if [ $STATUS -ne 0 ] && ! printf '%s\n' "$OUT" | grep -q '^after$'; then
+    pass_test "colon error aborts one-line for body"
+else
+    fail_test "colon error in for should abort trailing command (status=$STATUS, got '$OUT')"
+fi
+
+OUT=$("$CJSH_PATH" -c 'i=0; while [ $i -lt 1 ]; do i=$((i + 1)); echo ${x:?bad}; done; echo after' 2>&1)
+STATUS=$?
+if [ $STATUS -ne 0 ] && ! printf '%s\n' "$OUT" | grep -q '^after$'; then
+    pass_test "colon error aborts one-line while body"
+else
+    fail_test "colon error in while should abort trailing command (status=$STATUS, got '$OUT')"
+fi
+
 echo ""
 echo "Parameter Expansion Edge Cases Summary:"
 echo "Passed: $TESTS_PASSED"
