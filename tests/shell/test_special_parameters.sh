@@ -122,10 +122,17 @@ fi
 echo "Test quoted \"\$*\" vs \"\$@\" difference"
 output=$("$CJSH_PATH" -c 'set -- "arg 1" "arg 2"; for x in "$*"; do echo "[$x]"; done' 2>/dev/null)
 lines=$(echo "$output" | wc -l | tr -d ' ')
-if [ "$lines" = "1" ]; then
+if [ "$lines" = "1" ] && [ "$output" = "[arg 1 arg 2]" ]; then
     pass_test "\"\$*\" (quoted) - treats all args as single string"
 else
-    fail_test "\"\$*\" (quoted) - should be single string, got $lines lines: '$output'"
+    fail_test "\"\$*\" (quoted) - expected one joined arg, got $lines lines: '$output'"
+fi
+
+output=$("$CJSH_PATH" -c 'IFS=,; set -- "arg 1" "arg 2"; for x in "$*"; do echo "[$x]"; done' 2>/dev/null)
+if [ "$output" = "[arg 1,arg 2]" ]; then
+    pass_test "\"\$*\" (quoted) - joins with first IFS character"
+else
+    fail_test "\"\$*\" (quoted) - expected IFS comma join, got: '$output'"
 fi
 
 output=$("$CJSH_PATH" -c 'set -- "arg 1" "arg 2"; for x in "$@"; do echo "[$x]"; done' 2>/dev/null)
@@ -134,6 +141,14 @@ if [ "$lines" = "2" ]; then
     pass_test "\"\$@\" (quoted) - preserves individual args"
 else
     fail_test "\"\$@\" (quoted) - should be 2 args, got $lines lines: '$output'"
+fi
+
+echo "Test length of \$@ and \$* special parameters"
+output=$("$CJSH_PATH" -c 'set -- abc de; echo ${#1}:${#@}:${#*}' 2>/dev/null)
+if [ "$output" = "3:2:2" ]; then
+    pass_test "\${#@} and \${#*} return positional parameter count"
+else
+    fail_test "\${#@} and \${#*} - expected '3:2:2', got: '$output'"
 fi
 
 echo "Test \$- special parameter (current options)"

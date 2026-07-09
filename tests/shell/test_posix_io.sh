@@ -275,7 +275,7 @@ fi
 rm -f "/tmp/test_force_$$"
 
 log_test "Multiple redirections"
-"$SHELL_TO_TEST" -c "echo stdout; echo stderr >&2" > "/tmp/test_multi_out_$$" 2> "/tmp/test_multi_err_$$"
+"$SHELL_TO_TEST" -c "sh -c 'printf stdout; printf stderr >&2' > /tmp/test_multi_out_$$ 2> /tmp/test_multi_err_$$"
 out_content=$(cat "/tmp/test_multi_out_$$" 2>/dev/null)
 err_content=$(cat "/tmp/test_multi_err_$$" 2>/dev/null)
 if [ "$out_content" = "stdout" ] && [ "$err_content" = "stderr" ]; then
@@ -287,13 +287,13 @@ else
 fi
 
 log_test "Redirection order independence"
-"$SHELL_TO_TEST" -c "echo test 2>&1 > /tmp/test_order_$$" 2>/dev/null
+stderr_content=$("$SHELL_TO_TEST" -c "sh -c 'printf test; printf err >&2' 2>&1 > /tmp/test_order_$$" 2>&1)
 result=$(cat "/tmp/test_order_$$" 2>/dev/null)
-if [ "$result" = "test" ]; then
+if [ "$stderr_content" = "err" ] && [ "$result" = "test" ]; then
     pass
     rm -f "/tmp/test_order_$$"
 else
-    fail "Redirection order handling failed"
+    fail "Redirection order handling failed (stderr='$stderr_content', file='$result')"
     rm -f "/tmp/test_order_$$"
 fi
 

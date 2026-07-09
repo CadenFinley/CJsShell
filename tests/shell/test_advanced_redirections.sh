@@ -47,32 +47,32 @@ fail_test() {
     TESTS_FAILED=$((TESTS_FAILED + 1))
 }
 
-"$CJSH_PATH" -c "echo stdout; echo stderr >&2" > /tmp/both_redirect 2>&1
-OUT=$(cat /tmp/both_redirect)
+OUT=$("$CJSH_PATH" -c "sh -c 'printf stdout; printf stderr >&2' &> /tmp/both_redirect" 2>&1)
+FILE_OUT=$(cat /tmp/both_redirect 2>/dev/null)
 rm -f /tmp/both_redirect
-if echo "$OUT" | grep -q "stdout" && echo "$OUT" | grep -q "stderr"; then
+if [ -z "$OUT" ] && [ "$FILE_OUT" = "stdoutstderr" ]; then
     pass_test "redirect both stdout and stderr with &>"
 else
-    fail_test "both redirect &> (got '$OUT')"
+    fail_test "both redirect &> (stdout='$OUT', file='$FILE_OUT')"
 fi
 
-"$CJSH_PATH" -c "echo stdout; echo stderr >&2" > /tmp/both_redirect2 2>&1
-OUT=$(cat /tmp/both_redirect2)
+OUT=$("$CJSH_PATH" -c "sh -c 'printf stdout; printf stderr >&2' > /tmp/both_redirect2 2>&1" 2>&1)
+FILE_OUT=$(cat /tmp/both_redirect2 2>/dev/null)
 rm -f /tmp/both_redirect2
-if echo "$OUT" | grep -q "stdout" && echo "$OUT" | grep -q "stderr"; then
+if [ -z "$OUT" ] && [ "$FILE_OUT" = "stdoutstderr" ]; then
     pass_test "redirect both with >file 2>&1"
 else
-    fail_test "both redirect >file 2>&1 (got '$OUT')"
+    fail_test "both redirect >file 2>&1 (stdout='$OUT', file='$FILE_OUT')"
 fi
 
-"$CJSH_PATH" -c "echo stdout; echo stderr >&2" 2>&1 > /tmp/order_test1
+OUT=$("$CJSH_PATH" -c "sh -c 'printf stdout; printf stderr >&2' 2>&1 > /tmp/order_test1" 2>&1)
 if [ -f /tmp/order_test1 ]; then
-    OUT=$(cat /tmp/order_test1)
+    FILE_OUT=$(cat /tmp/order_test1)
     rm -f /tmp/order_test1
-    if [ "$OUT" = "stdout" ]; then
+    if [ "$OUT" = "stderr" ] && [ "$FILE_OUT" = "stdout" ]; then
         pass_test "redirection order 2>&1 >file"
     else
-        fail_test "redirection order 2>&1 >file (got '$OUT')"
+        fail_test "redirection order 2>&1 >file (stdout='$OUT', file='$FILE_OUT')"
     fi
 else
     fail_test "redirection order test file not created"
@@ -151,7 +151,7 @@ else
     fail_test "append mode (got '$OUT')"
 fi
 
-"$CJSH_PATH" -c "echo stdout; echo stderr >&2" 2> /tmp/stderr_only > /tmp/stdout_only
+"$CJSH_PATH" -c "sh -c 'printf stdout; printf stderr >&2' 2> /tmp/stderr_only > /tmp/stdout_only"
 STDOUT=$(cat /tmp/stdout_only)
 STDERR=$(cat /tmp/stderr_only)
 rm -f /tmp/stderr_only /tmp/stdout_only
@@ -201,17 +201,20 @@ else
     fail_test "stderr to /dev/null (got '$OUT')"
 fi
 
-OUT=$("$CJSH_PATH" -c "if true; then echo yes; fi > /tmp/if_redir; cat /tmp/if_redir")
+OUT=$("$CJSH_PATH" -c "if true; then echo yes; fi > /tmp/if_redir; echo marker; cat /tmp/if_redir" 2>&1)
 rm -f /tmp/if_redir
-if [ "$OUT" = "yes" ]; then
+EXPECTED="marker
+yes"
+if [ "$OUT" = "$EXPECTED" ]; then
     pass_test "redirection on if statement"
 else
     fail_test "if redirection (got '$OUT')"
 fi
 
-OUT=$("$CJSH_PATH" -c "for i in 1 2 3; do echo \$i; done > /tmp/loop_redir; cat /tmp/loop_redir")
+OUT=$("$CJSH_PATH" -c "for i in 1 2 3; do echo \$i; done > /tmp/loop_redir; echo marker; cat /tmp/loop_redir" 2>&1)
 rm -f /tmp/loop_redir
-EXPECTED="1
+EXPECTED="marker
+1
 2
 3"
 if [ "$OUT" = "$EXPECTED" ]; then
@@ -220,9 +223,10 @@ else
     fail_test "loop redirection (got '$OUT')"
 fi
 
-OUT=$("$CJSH_PATH" -c "i=1; while [ \$i -le 3 ]; do echo \$i; i=\$((i+1)); done > /tmp/while_redir; cat /tmp/while_redir")
+OUT=$("$CJSH_PATH" -c "i=1; while [ \$i -le 3 ]; do echo \$i; i=\$((i+1)); done > /tmp/while_redir; echo marker; cat /tmp/while_redir" 2>&1)
 rm -f /tmp/while_redir
-EXPECTED="1
+EXPECTED="marker
+1
 2
 3"
 if [ "$OUT" = "$EXPECTED" ]; then
@@ -231,7 +235,7 @@ else
     fail_test "while redirection (got '$OUT')"
 fi
 
-"$CJSH_PATH" -c "echo test" > /tmp/multi1 > /tmp/multi2
+"$CJSH_PATH" -c "echo test > /tmp/multi1 > /tmp/multi2"
 if [ -f /tmp/multi2 ]; then
     OUT=$(cat /tmp/multi2)
     rm -f /tmp/multi1 /tmp/multi2
@@ -245,7 +249,11 @@ else
     fail_test "multiple redirections file not created"
 fi
 
-OUT=$("$CJSH_PATH" -c "echo test > ~/test_tilde_redir_cjsh; cat ~/test_tilde_redir_cjsh; rm -f ~/test_tilde_redir_cjsh")
+TILDE_HOME="/tmp/cjsh_tilde_redir_home_$$"
+rm -rf "$TILDE_HOME"
+mkdir -p "$TILDE_HOME"
+OUT=$(HOME="$TILDE_HOME" "$CJSH_PATH" -c "echo test > ~/test_tilde_redir_cjsh; cat ~/test_tilde_redir_cjsh; rm -f ~/test_tilde_redir_cjsh" 2>&1)
+rm -rf "$TILDE_HOME"
 if [ "$OUT" = "test" ]; then
     pass_test "redirection with tilde expansion"
 else
