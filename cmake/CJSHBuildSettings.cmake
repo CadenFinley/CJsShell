@@ -268,8 +268,8 @@ function(cjsh_apply_build_profile)
             target_compile_options(
                 ${CJSH_PROFILE_TARGET}
                 INTERFACE
-                    "$<$<CONFIG:Release>:-O2>"
-                    "$<$<CONFIG:RelWithDebInfo>:-O2>"
+                    "$<$<CONFIG:Release>:-O3>"
+                    "$<$<CONFIG:RelWithDebInfo>:-O3>"
                     "$<$<CONFIG:MinSizeRel>:-Oz>"
             )
         endif()
