@@ -224,6 +224,16 @@ def run_interrupt_then_exit(binary: str) -> None:
             raise AssertionError(f"exit after Ctrl-C returned {return_code}, expected 0")
 
 
+def run_interrupt_with_queued_exit(binary: str) -> None:
+    with InteractiveSession(binary, "ctrl-c queued exit") as session:
+        session.pump(duration_s=0.6)
+        session.write(b"\x03exit 0\r")
+
+        return_code = session.wait_for_exit(timeout_s=3.0)
+        if return_code != 0:
+            raise AssertionError(f"queued exit after Ctrl-C returned {return_code}, expected 0")
+
+
 def run_sigterm_at_prompt(binary: str) -> None:
     with InteractiveSession(binary, "sigterm at prompt") as session:
         session.pump(duration_s=0.6)
@@ -279,6 +289,7 @@ def main(argv: list[str]) -> int:
             ("ctrl-d exits", lambda: run_ctrl_d_exits(binary)),
             ("exit status command", lambda: run_exit_status_command(binary)),
             ("ctrl-c then exit", lambda: run_interrupt_then_exit(binary)),
+            ("ctrl-c queued exit", lambda: run_interrupt_with_queued_exit(binary)),
             ("sigterm at prompt", lambda: run_sigterm_at_prompt(binary)),
         ]
     )

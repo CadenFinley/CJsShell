@@ -312,6 +312,7 @@ std::string capture_available_input() {
     bool restore_termios = false;
     if (tcgetattr(STDIN_FILENO, &original_termios) == 0) {
         struct termios raw_termios = original_termios;
+        raw_termios.c_iflag &= static_cast<tcflag_t>(~ICRNL);
         raw_termios.c_lflag &= static_cast<tcflag_t>(~(ICANON | ECHO));
         raw_termios.c_cc[VMIN] = 0;
         raw_termios.c_cc[VTIME] = 0;

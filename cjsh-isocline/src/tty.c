@@ -903,7 +903,7 @@ ic_private bool tty_start_raw(tty_t* tty) {
         return false;
     if (tty->raw_enabled)
         return true;
-    if (tcsetattr(tty->fd_in, TCSAFLUSH, &tty->raw_ios) < 0)
+    if (tcsetattr(tty->fd_in, TCSANOW, &tty->raw_ios) < 0)
         return false;
     tty->raw_enabled = true;
     return true;
@@ -915,7 +915,7 @@ ic_private void tty_end_raw(tty_t* tty) {
     if (!tty->raw_enabled)
         return;
     tty->cpush_count = 0;
-    if (tcsetattr(tty->fd_in, TCSAFLUSH, &tty->orig_ios) < 0)
+    if (tcsetattr(tty->fd_in, TCSANOW, &tty->orig_ios) < 0)
         return;
     tty->raw_enabled = false;
 }

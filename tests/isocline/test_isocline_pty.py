@@ -257,7 +257,8 @@ def run_case(
             read_pending_output(fd, output)
 
             if not sent and b"pty> " in output:
-                os.write(fd, key_bytes)
+                if key_bytes:
+                    os.write(fd, key_bytes)
                 sent = True
 
             waited_pid, status = os.waitpid(pid, os.WNOHANG)
