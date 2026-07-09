@@ -264,6 +264,7 @@ static int run_case(const char* scenario) {
     ic_enable_inline_help(false);
     ic_enable_completion_preview(false);
     ic_enable_auto_tab(false);
+    ic_enable_completion_click_accept(true);
     ic_set_mouse_clicking_mode(IC_MOUSE_CLICKING_SIMPLE);
     ic_enable_mouse_clicking(false);
     ic_enable_mouse_reporting_status_line(true);
