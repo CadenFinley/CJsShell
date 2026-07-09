@@ -1253,6 +1253,30 @@ def main() -> int:
             f"history_search_scroll ctrl+s expected 'history alpha', got {hist_search_ctrl_s!r}"
         )
 
+    hist_multiline_preview, hist_multiline_output = run_case(
+        binary,
+        "history_search_multiline",
+        b"\x12\r",
+        capture_output=True,
+    )
+    if hist_multiline_preview != "mlhist first line\nmlhist second line":
+        raise AssertionError(
+            "history_search_multiline expected full multiline command, got "
+            f"{hist_multiline_preview!r}"
+        )
+    normalized_hist_multiline_output = normalize_terminal_output(hist_multiline_output)
+    if "mlhist second line" not in normalized_hist_multiline_output:
+        raise AssertionError(
+            "history search menu should show full selected multiline command text, got "
+            f"normalized_output={normalized_hist_multiline_output!r}"
+        )
+    if "mlhist first line..." in normalized_hist_multiline_output:
+        raise AssertionError(
+            "history search menu should render selected multiline command inline instead of "
+            "truncating it, got "
+            f"normalized_output={normalized_hist_multiline_output!r}"
+        )
+
     comp_single = run_case(binary, "completion_single_tab", b"hel\t\r")
     if comp_single != "hello":
         raise AssertionError(
@@ -1451,6 +1475,26 @@ def main() -> int:
     if comp_scroll_shift != "s02":
         raise AssertionError(
             f"completion_many_menu shift-wheel expected 's02', got {comp_scroll_shift!r}"
+        )
+
+    comp_multiline_preview, comp_multiline_preview_output = run_case(
+        binary,
+        "completion_many_menu_multiline",
+        b"m\t\x0a" + DOWN + b"\r\r",
+        capture_output=True,
+    )
+    if comp_multiline_preview != "m02":
+        raise AssertionError(
+            "completion_many_menu_multiline expected 'm02', got "
+            f"{comp_multiline_preview!r}"
+        )
+    normalized_comp_multiline_preview_output = normalize_terminal_output(
+        comp_multiline_preview_output
+    )
+    if "m02 second line" not in normalized_comp_multiline_preview_output:
+        raise AssertionError(
+            "expanded completion menu should show full multiline selection text, got "
+            f"normalized_output={normalized_comp_multiline_preview_output!r}"
         )
 
     help_result, help_output = run_case(

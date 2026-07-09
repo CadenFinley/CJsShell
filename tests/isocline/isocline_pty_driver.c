@@ -49,6 +49,7 @@ typedef enum completion_mode_e {
     COMPLETION_MODE_SINGLE,
     COMPLETION_MODE_DUAL,
     COMPLETION_MODE_MANY,
+    COMPLETION_MODE_MANY_MULTILINE,
     COMPLETION_MODE_SPELL_SINGLE,
 } completion_mode_t;
 
@@ -71,6 +72,20 @@ static void pty_completion_word_provider(ic_completion_env_t* cenv, const char* 
             "s08", "s09", "s10", "s11", "s12", NULL,
         };
         (void)ic_add_completions(cenv, prefix, many_words);
+        return;
+    }
+    if (g_completion_mode == COMPLETION_MODE_MANY_MULTILINE) {
+        static const char* many_words[] = {
+            "m01", "m02", "m03", "m04", "m05", "m06",
+            "m07", "m08", "m09", "m10", "m11", "m12",
+        };
+        const long delete_before = (prefix != NULL ? (long)strlen(prefix) : 0L);
+        for (size_t i = 0; i < (sizeof(many_words) / sizeof(many_words[0])); i++) {
+            const char* replacement = many_words[i];
+            const char* display = (i == 1 ? "m02 first line\nm02 second line" : replacement);
+            (void)ic_add_completion_prim_with_source(cenv, replacement, display, NULL, "history",
+                                                     delete_before, 0);
+        }
         return;
     }
     if (g_completion_mode == COMPLETION_MODE_SPELL_SINGLE) {
@@ -335,8 +350,12 @@ static int run_case(const char* scenario) {
         ic_set_default_completer(pty_completion_dispatcher, NULL);
     } else if (strcmp(scenario, "completion_many_menu") == 0 ||
                strcmp(scenario, "completion_many_menu_custom_mouse_toggle") == 0 ||
-               strcmp(scenario, "completion_many_menu_mouse_default_on") == 0) {
-        g_completion_mode = COMPLETION_MODE_MANY;
+               strcmp(scenario, "completion_many_menu_mouse_default_on") == 0 ||
+               strcmp(scenario, "completion_many_menu_multiline") == 0) {
+        g_completion_mode =
+            (strcmp(scenario, "completion_many_menu_multiline") == 0
+                 ? COMPLETION_MODE_MANY_MULTILINE
+                 : COMPLETION_MODE_MANY);
         ic_set_default_completer(pty_completion_dispatcher, NULL);
         if (strcmp(scenario, "completion_many_menu_custom_mouse_toggle") == 0) {
             if (!ic_bind_key(IC_KEY_F3, IC_KEY_ACTION_TOGGLE_MOUSE_REPORTING)) {
@@ -354,6 +373,11 @@ static int run_case(const char* scenario) {
         ic_history_clear();
         ic_history_add("history alpha");
         ic_history_add("history beta");
+    } else if (strcmp(scenario, "history_search_multiline") == 0) {
+        initial_input = "mlhist";
+        ic_history_clear();
+        ic_history_add("printf done");
+        ic_history_add("mlhist first line\nmlhist second line");
     } else if (strcmp(scenario, "insert_backspace_mouse_default_on_hidden_status") == 0) {
         ic_enable_mouse_clicking(true);
         ic_enable_mouse_reporting_status_line(false);

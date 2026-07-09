@@ -579,6 +579,66 @@ static const char* get_first_line_end(const char* str) {
     return p;
 }
 
+static bool history_menu_contains_line_break(const char* str) {
+    if (str == NULL) {
+        return false;
+    }
+    return (strchr(str, '\n') != NULL || strchr(str, '\r') != NULL);
+}
+
+static ssize_t history_menu_line_count(const char* str) {
+    if (str == NULL || *str == '\0') {
+        return 1;
+    }
+
+    ssize_t lines = 1;
+    for (const char* p = str; *p != '\0'; ++p) {
+        if (*p == '\n') {
+            lines++;
+        } else if (*p == '\r') {
+            lines++;
+            if (p[1] == '\n') {
+                ++p;
+            }
+        }
+    }
+    return lines;
+}
+
+static void history_menu_append_multiline_preview(ic_env_t* env, editor_t* eb,
+                                                  const char* command) {
+    if (env == NULL || eb == NULL || command == NULL) {
+        return;
+    }
+
+    const char* arrow = (tty_is_utf8(env->tty) ? "\xE2\x86\x92" : ">");
+    sbuf_append(eb->extra, "[ic-menu-selected][!pre]");
+    sbuf_appendf(eb->extra, "%s ", arrow);
+
+    const char* segment = command;
+    for (const char* p = command; *p != '\0'; ++p) {
+        if (*p != '\n' && *p != '\r') {
+            continue;
+        }
+
+        if (p > segment) {
+            sbuf_append_n(eb->extra, segment, p - segment);
+        }
+
+        sbuf_append(eb->extra, "\n  ");
+        if (*p == '\r' && p[1] == '\n') {
+            ++p;
+        }
+        segment = p + 1;
+    }
+
+    if (*segment != '\0') {
+        sbuf_append(eb->extra, segment);
+    }
+
+    sbuf_append(eb->extra, "[/pre][/ic-menu-selected]");
+}
+
 static ssize_t history_menu_input_rows(ic_env_t* env, editor_t* eb) {
     if (env == NULL || eb == NULL) {
         return 1;
@@ -779,11 +839,21 @@ again:;
 
     sbuf_clear(eb->extra);
     const char* mouse_suffix = (menu_mouse_scroll_enabled ? " | Mouse clicking is enabled" : "");
+    ssize_t selected_multiline_preview_rows = 0;
 
     if (match_count > 0) {
         const char* query = sbuf_string(eb->input);
         bool is_filtered = (query != NULL && query[0] != '\0');
         ssize_t total_history = history_snapshot_count(&snap);
+
+        if (selected_idx >= 0 && selected_idx < match_count) {
+            const history_entry_t* selected_entry =
+                history_snapshot_get(&snap, matches[selected_idx].hidx);
+            if (selected_entry != NULL && selected_entry->command != NULL &&
+                history_menu_contains_line_break(selected_entry->command)) {
+                selected_multiline_preview_rows = history_menu_line_count(selected_entry->command);
+            }
+        }
 
         if (showing_all_due_to_no_matches) {
             sbuf_appendf(eb->extra,
@@ -817,7 +887,15 @@ again:;
             available_lines = 3;
         }
 
-        ssize_t display_count = (match_count > available_lines) ? available_lines : match_count;
+        ssize_t rows_for_items = available_lines;
+        if (selected_multiline_preview_rows > 1) {
+            rows_for_items -= (selected_multiline_preview_rows - 1);
+            if (rows_for_items < 1) {
+                rows_for_items = 1;
+            }
+        }
+
+        ssize_t display_count = (match_count > rows_for_items) ? rows_for_items : match_count;
         if (display_count < 1) {
             display_count = 1;
         }
@@ -926,6 +1004,17 @@ again:;
             }
 
             bool is_selected = (match_idx == selected_idx);
+            bool show_selected_multiline_inline = (is_selected && is_multiline);
+
+            if (show_selected_multiline_inline) {
+                history_menu_append_multiline_preview(env, eb, display);
+                if (metadata_suffix[0] != '\0') {
+                    sbuf_appendf(eb->extra, "[ic-menu-selected-secondary]%s[/]", metadata_suffix);
+                }
+                sbuf_append(eb->extra, "\n");
+                continue;
+            }
+
             if (is_selected) {
                 sbuf_append(eb->extra, "[ic-menu-selected]");
             }
