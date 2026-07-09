@@ -495,9 +495,9 @@ bool Parser::handle_fd_redirection(const std::string& value, size_t& i,
         std::string file = QuoteInfo(tokens[++i]).value;
         std::string direction = (op == '<') ? "input:" : "output:";
         cmd.set_fd_redirection(fd, direction + file);
-        cmd.add_redirection((op == '<') ? CommandRedirectionType::FdInput
-                                        : CommandRedirectionType::FdOutput,
-                            file, fd);
+        cmd.add_redirection(
+            (op == '<') ? CommandRedirectionType::FdInput : CommandRedirectionType::FdOutput, file,
+            fd);
         return true;
     } catch (const std::exception&) {
         filtered_args.push_back(tokens[i]);
@@ -1544,8 +1544,9 @@ std::vector<Command> Parser::parse_pipeline(const std::string& command) {
                     case RedirectionToken::StderrAppend:
                         cmd.stderr_file = get_next_token_value(i);
                         cmd.stderr_append = (*redir == RedirectionToken::StderrAppend);
-                        cmd.add_redirection(cmd.stderr_append ? CommandRedirectionType::StderrAppend
-                                                              : CommandRedirectionType::StderrOutput,
+                        cmd.add_redirection(cmd.stderr_append
+                                                ? CommandRedirectionType::StderrAppend
+                                                : CommandRedirectionType::StderrOutput,
                                             cmd.stderr_file);
                         break;
                     case RedirectionToken::StderrToStdout:

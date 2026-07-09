@@ -495,8 +495,8 @@ bool trailing_contains_block_closer_segment(const std::string& trailing_commands
 
 int execute_loop_trailing_commands(
     int loop_rc, const std::string& trailing_commands,
-    const std::function<int(const std::string&)>& execute_simple_or_pipeline,
-    Parser* shell_parser, const std::function<bool()>& should_abort_execution) {
+    const std::function<int(const std::string&)>& execute_simple_or_pipeline, Parser* shell_parser,
+    const std::function<bool()>& should_abort_execution) {
     if (trailing_commands.empty()) {
         return loop_rc;
     }
@@ -505,8 +505,8 @@ int execute_loop_trailing_commands(
         return loop_rc;
     }
 
-    if ((should_abort_execution && should_abort_execution()) || loop_rc == 253 ||
-        loop_rc == 254 || loop_rc == 255 || cjsh_env::exit_requested()) {
+    if ((should_abort_execution && should_abort_execution()) || loop_rc == 253 || loop_rc == 254 ||
+        loop_rc == 255 || cjsh_env::exit_requested()) {
         return loop_rc;
     }
 
@@ -521,17 +521,14 @@ int handle_loop_block(const std::vector<std::string>& src_lines, size_t& idx,
                       const std::string& keyword, bool is_until,
                       const std::function<int(const std::vector<std::string>&)>& execute_block,
                       const std::function<int(const std::string&)>& execute_simple_or_pipeline,
-                      Parser* shell_parser,
-                      const std::function<bool()>& should_abort_execution) {
+                      Parser* shell_parser, const std::function<bool()>& should_abort_execution) {
     // shared while/until evaluator used by interpreter loop dispatch
     size_t loop_start_idx = idx;
     std::string first = trim(strip_inline_comment(src_lines[idx]));
     if (first != keyword && first.rfind(keyword + " ", 0) != 0)
         return 1;
 
-    auto abort_pending = [&]() {
-        return should_abort_execution && should_abort_execution();
-    };
+    auto abort_pending = [&]() { return should_abort_execution && should_abort_execution(); };
 
     // parse the loop header and detect inline do/body placement
     auto parse_cond_from = [&](const std::string& s, std::string& cond, bool& inline_do,
@@ -835,9 +832,7 @@ int handle_for_block(
     std::string var;
     std::vector<std::string> items;
     CStyleForHeader c_style_header;
-    auto abort_pending = [&]() {
-        return should_abort_execution && should_abort_execution();
-    };
+    auto abort_pending = [&]() { return should_abort_execution && should_abort_execution(); };
 
     struct RangeInfo {
         bool is_range = false;
@@ -1098,7 +1093,8 @@ int handle_for_block(
             return handle_loop_command_result(body_rc, 0, 255, 0, 254, true);
         };
 
-        if (!done_redirections.empty() && shell_parser != nullptr && g_shell && g_shell->shell_exec) {
+        if (!done_redirections.empty() && shell_parser != nullptr && g_shell &&
+            g_shell->shell_exec) {
             try {
                 auto redir_cmds =
                     shell_parser->parse_pipeline_with_preprocessing("true " + done_redirections);

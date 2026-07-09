@@ -637,8 +637,9 @@ static bool test_history_snapshot_dedup_prefers_exit_code_metadata(void) {
     history_snapshot_t snap = {0};
     EXPECT_TRUE(history_snapshot_load(history, &snap, true),
                 "deduplicated snapshot should load successfully with staged duplicates present");
-    EXPECT_TRUE(history_snapshot_count(&snap) == 1,
-                "deduplicated snapshot should collapse staged and executed duplicates into one entry");
+    EXPECT_TRUE(
+        history_snapshot_count(&snap) == 1,
+        "deduplicated snapshot should collapse staged and executed duplicates into one entry");
 
     const history_entry_t* newest = history_snapshot_get(&snap, 0);
     EXPECT_TRUE(newest != NULL, "deduplicated snapshot should expose the surviving history entry");
@@ -1185,9 +1186,9 @@ static bool test_mouse_reporting_option_toggles(void) {
     EXPECT_FALSE(env->mouse_reporting_enabled_by_default,
                  "disabled mode should force startup mouse capture off");
 
-    EXPECT_TRUE(ic_set_mouse_clicking_mode((ic_mouse_clicking_mode_t)42) ==
-                    IC_MOUSE_CLICKING_DISABLED,
-                "invalid mouse mode should report previous disabled mode");
+    EXPECT_TRUE(
+        ic_set_mouse_clicking_mode((ic_mouse_clicking_mode_t)42) == IC_MOUSE_CLICKING_DISABLED,
+        "invalid mouse mode should report previous disabled mode");
     EXPECT_TRUE(env->mouse_reporting_mode == IC_MOUSE_CLICKING_SMART,
                 "invalid mouse mode should normalize to smart mode");
     EXPECT_TRUE(env->mouse_reporting_enabled_by_default,

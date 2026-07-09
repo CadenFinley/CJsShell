@@ -123,6 +123,7 @@ int run_cjsh(int argc, char* argv[]) {
     // set start time
     startup_begin_time() = std::chrono::steady_clock::now();
 
+    // reset shell state to begin startup
     cjsh_env::reset_shell_state();
 
     // parse passed flags

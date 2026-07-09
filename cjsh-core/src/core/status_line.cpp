@@ -464,10 +464,10 @@ std::optional<UnknownCommandInfo> analyze_command_range(
                 std::string second_token =
                     cmd_str.substr(second_token_start, second_token_end - second_token_start);
                 size_t absolute_second_token_end = cmd_start + second_token_end;
-                bool second_unknown = !second_token.empty() &&
-                                      !command_analysis::is_known_command_token(
-                                          second_token, cmd_start + second_token_start, shell,
-                                          available_commands);
+                bool second_unknown =
+                    !second_token.empty() &&
+                    !command_analysis::is_known_command_token(
+                        second_token, cmd_start + second_token_start, shell, available_commands);
 
                 if (second_unknown &&
                     token_ready_for_status(original_input, absolute_second_token_end)) {

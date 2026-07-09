@@ -926,13 +926,12 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
             has_redir_or_pipe = has_multiple_commands;
             if (!has_multiple_commands && !cmds.empty()) {
                 const auto& c = cmds[0];
-                has_redir_or_pipe = c.background || !c.input_file.empty() ||
-                                    !c.output_file.empty() || !c.append_file.empty() ||
-                                    c.stderr_to_stdout || c.stdout_to_stderr ||
-                                    !c.stderr_file.empty() || !c.here_doc.empty() ||
-                                    c.both_output || !c.here_string.empty() ||
-                                    !c.fd_redirections.empty() || !c.fd_duplications.empty() ||
-                                    !c.redirection_order.empty();
+                has_redir_or_pipe =
+                    c.background || !c.input_file.empty() || !c.output_file.empty() ||
+                    !c.append_file.empty() || c.stderr_to_stdout || c.stdout_to_stderr ||
+                    !c.stderr_file.empty() || !c.here_doc.empty() || c.both_output ||
+                    !c.here_string.empty() || !c.fd_redirections.empty() ||
+                    !c.fd_duplications.empty() || !c.redirection_order.empty();
 
                 if (c.negate_pipeline) {
                     has_redir_or_pipe = true;
@@ -1149,9 +1148,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         return collect_pending_signal_exit_code();
     };
 
-    auto should_abort_for_parameter_expansion = []() {
-        return g_parameter_expansion_fatal_error;
-    };
+    auto should_abort_for_parameter_expansion = []() { return g_parameter_expansion_fatal_error; };
 
     int last_code = 0;
 
@@ -1172,10 +1169,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
 
     // central if evaluator used by both multiline script flow and one-line inline conditionals
     auto handle_if_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
-        return conditional_evaluator::handle_if_block(src_lines, idx, execute_block_wrapper,
-                                                      execute_simple_or_pipeline,
-                                                      evaluate_logical_condition, shell_parser,
-                                                      should_abort_for_parameter_expansion);
+        return conditional_evaluator::handle_if_block(
+            src_lines, idx, execute_block_wrapper, execute_simple_or_pipeline,
+            evaluate_logical_condition, shell_parser, should_abort_for_parameter_expansion);
     };
 
     auto handle_for_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
@@ -2048,8 +2044,9 @@ std::string ShellScriptInterpreter::expand_parameter_expression(const std::strin
     };
 
     auto word_expander = [this](const std::string& word) -> std::string {
-        std::string expanded = expand_all_substitutions(
-            word, [](const std::string& command) { return g_shell ? g_shell->execute(command) : 1; });
+        std::string expanded = expand_all_substitutions(word, [](const std::string& command) {
+            return g_shell ? g_shell->execute(command) : 1;
+        });
 
         if (!expanded.empty() && expanded[0] == '~' &&
             (expanded.size() == 1 || expanded[1] == '/')) {

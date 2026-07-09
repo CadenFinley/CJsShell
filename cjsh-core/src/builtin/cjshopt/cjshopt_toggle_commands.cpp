@@ -749,8 +749,7 @@ int completion_menu_expanded_command(const std::vector<std::string>& args) {
 int completion_click_accept_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {
         "Usage: completion-click-accept <on|off|status>",
-        "Examples:",
-        "  completion-click-accept on       Always accept completions when clicked",
+        "Examples:", "  completion-click-accept on       Always accept completions when clicked",
         "  completion-click-accept off      Click selects completions without accepting",
         "  completion-click-accept status   Show the current setting"};
 
@@ -1206,10 +1205,10 @@ int mouse_clicking_command(const std::vector<std::string>& args) {
         }
     };
 
-    const auto parse_mode = [](const std::string& normalized)
-        -> std::optional<ic_mouse_clicking_mode_t> {
-        if (matches_token(normalized, {"disabled", "off", "disable", "none", "false", "0",
-                                       "--disable"})) {
+    const auto parse_mode =
+        [](const std::string& normalized) -> std::optional<ic_mouse_clicking_mode_t> {
+        if (matches_token(normalized,
+                          {"disabled", "off", "disable", "none", "false", "0", "--disable"})) {
             return IC_MOUSE_CLICKING_DISABLED;
         }
         if (matches_token(normalized,
@@ -1223,8 +1222,8 @@ int mouse_clicking_command(const std::vector<std::string>& args) {
     };
 
     if (args.size() == 1) {
-        print_error(
-            {ErrorType::INVALID_ARGUMENT, "mouse-clicking", "Missing option argument", usage_lines});
+        print_error({ErrorType::INVALID_ARGUMENT, "mouse-clicking", "Missing option argument",
+                     usage_lines});
         return 1;
     }
 
@@ -1252,8 +1251,8 @@ int mouse_clicking_command(const std::vector<std::string>& args) {
 
     std::optional<ic_mouse_clicking_mode_t> requested_mode = parse_mode(normalized);
     if (!requested_mode.has_value()) {
-        print_error({ErrorType::INVALID_ARGUMENT, "mouse-clicking", "Unknown option '" + option + "'",
-                     usage_lines});
+        print_error({ErrorType::INVALID_ARGUMENT, "mouse-clicking",
+                     "Unknown option '" + option + "'", usage_lines});
         return 1;
     }
 

@@ -82,43 +82,43 @@ struct ic_env_s {
     ic_status_message_fun_t* status_message_callback;  // callback for status message text
     void* status_message_arg;                          // user state for status callback
     ic_check_for_continuation_or_return_fun_t*
-        continuation_check_callback;          // callback that decides whether to submit or continue
-    void* continuation_check_arg;             // user state for the continuation callback
+        continuation_check_callback;         // callback that decides whether to submit or continue
+    void* continuation_check_arg;            // user state for the continuation callback
     ic_status_hint_mode_t status_hint_mode;  // rendering behavior for default hints
     ic_mouse_clicking_mode_t
-        mouse_reporting_mode;                 // capture strategy for mouse interaction sessions
-    bool mouse_reporting_enabled_by_default;  // should new readline sessions start with mouse
-                                              // capture active?
+        mouse_reporting_mode;                  // capture strategy for mouse interaction sessions
+    bool mouse_reporting_enabled_by_default;   // should new readline sessions start with mouse
+                                               // capture active?
     bool mouse_reporting_status_line_enabled;  // show mouse-reporting indicator in the status
                                                // line?
     const char* match_braces;                  // matching braces, e.g "()[]{}"
     const char* auto_braces;                   // auto insertion braces, e.g "()[]{}\"\"''"
     const char* initial_input;                 // initial input text to insert into editor
     ic_readline_disposition_t last_readline_disposition;  // disposition from most recent read
-    char multiline_eol;                  // character used for multiline input ("\") (set to 0
-                                         // to disable)
-    bool initialized;                    // are we initialized?
-    bool noedit;                         // is rich editing possible (tty != NULL)
-    bool singleline_only;                // allow only single line editing?
-    bool complete_nopreview;             // do not show completion preview for each
-                                         // selection in the completion menu?
-    bool complete_menu_start_expanded;   // open completion menus expanded by default?
+    char multiline_eol;                    // character used for multiline input ("\") (set to 0
+                                           // to disable)
+    bool initialized;                      // are we initialized?
+    bool noedit;                           // is rich editing possible (tty != NULL)
+    bool singleline_only;                  // allow only single line editing?
+    bool complete_nopreview;               // do not show completion preview for each
+                                           // selection in the completion menu?
+    bool complete_menu_start_expanded;     // open completion menus expanded by default?
     bool completion_click_accept_enabled;  // should completion clicks accept immediately?
-    bool complete_autotab;               // try to keep completing after a completion?
-    bool no_multiline_indent;            // indent continuation lines to line up under the
-                                         // initial prompt
-    bool no_help;                        // show short help line for history search etc.
-    bool no_hint;                        // allow hinting?
-    bool no_highlight;                   // enable highlighting?
-    bool no_bracematch;                  // enable brace matching?
-    bool no_autobrace;                   // enable automatic brace insertion?
-    bool no_lscolors;                    // use LSCOLORS/LS_COLORS to colorize file name
-                                         // completions?
-    bool spell_correct;                  // enable spell correction on completions?
-    bool spell_correct_on_enter;         // apply single spell correction when submitting?
-    bool show_line_numbers;              // show line numbers in multiline mode?
-    bool relative_line_numbers;          // use relative line numbers when enabled?
-    bool highlight_current_line_number;  // highlight the current line number differently?
+    bool complete_autotab;                 // try to keep completing after a completion?
+    bool no_multiline_indent;              // indent continuation lines to line up under the
+                                           // initial prompt
+    bool no_help;                          // show short help line for history search etc.
+    bool no_hint;                          // allow hinting?
+    bool no_highlight;                     // enable highlighting?
+    bool no_bracematch;                    // enable brace matching?
+    bool no_autobrace;                     // enable automatic brace insertion?
+    bool no_lscolors;                      // use LSCOLORS/LS_COLORS to colorize file name
+                                           // completions?
+    bool spell_correct;                    // enable spell correction on completions?
+    bool spell_correct_on_enter;           // apply single spell correction when submitting?
+    bool show_line_numbers;                // show line numbers in multiline mode?
+    bool relative_line_numbers;            // use relative line numbers when enabled?
+    bool highlight_current_line_number;    // highlight the current line number differently?
     bool allow_line_numbers_with_continuation_prompt;  // keep line numbers when continuation
                                                        // prompts are active?
     bool replace_prompt_line_with_line_number;         // swap final prompt line with line numbers?

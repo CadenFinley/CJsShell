@@ -960,12 +960,12 @@ static bool test_builtin_docs(void) {
         builtin_completions::lookup_builtin_command_doc("cjshopt-completion-click-accept");
     EXPECT_TRUE(completion_click_accept_doc != nullptr, test_name,
                 "cjshopt-completion-click-accept doc should exist");
-    EXPECT_TRUE(has_entry(completion_click_accept_doc, "on",
-                          builtin_completions::EntryKind::Subcommand),
-                test_name, "completion-click-accept should include on subcommand");
-    EXPECT_TRUE(has_entry(completion_click_accept_doc, "off",
-                          builtin_completions::EntryKind::Subcommand),
-                test_name, "completion-click-accept should include off subcommand");
+    EXPECT_TRUE(
+        has_entry(completion_click_accept_doc, "on", builtin_completions::EntryKind::Subcommand),
+        test_name, "completion-click-accept should include on subcommand");
+    EXPECT_TRUE(
+        has_entry(completion_click_accept_doc, "off", builtin_completions::EntryKind::Subcommand),
+        test_name, "completion-click-accept should include off subcommand");
     EXPECT_TRUE(has_entry(completion_click_accept_doc, "status",
                           builtin_completions::EntryKind::Subcommand),
                 test_name, "completion-click-accept should include status subcommand");

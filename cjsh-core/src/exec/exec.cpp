@@ -847,8 +847,7 @@ bool apply_ordered_redirections(const Command& cmd, ErrorHandler&& on_error) {
                 }
                 break;
             case CommandRedirectionType::Duplicate: {
-                auto dup_result =
-                    cjsh_filesystem::safe_dup2(redirection.target_fd, redirection.fd);
+                auto dup_result = cjsh_filesystem::safe_dup2(redirection.target_fd, redirection.fd);
                 if (dup_result.is_error()) {
                     return fail(ErrorType::RUNTIME_ERROR,
                                 "dup2 failed for " + std::to_string(redirection.fd) + ">&" +
@@ -868,8 +867,7 @@ bool apply_ordered_redirections(const Command& cmd, ErrorHandler&& on_error) {
                 auto dup_result = cjsh_filesystem::safe_dup2(STDOUT_FILENO, STDERR_FILENO);
                 if (dup_result.is_error()) {
                     return fail(ErrorType::RUNTIME_ERROR,
-                                "dup2 failed for stderr in &> redirection: " +
-                                    dup_result.error());
+                                "dup2 failed for stderr in &> redirection: " + dup_result.error());
                 }
                 break;
             }
@@ -904,15 +902,15 @@ bool apply_ordered_redirections(const Command& cmd, ErrorHandler&& on_error) {
                     std::string message;
                     switch (here_error->type) {
                         case cjsh_filesystem::HereStringErrorType::Pipe:
-                            message = "failed to create pipe for here string: " +
-                                      here_error->detail;
+                            message =
+                                "failed to create pipe for here string: " + here_error->detail;
                             break;
                         case cjsh_filesystem::HereStringErrorType::Write:
                             message = "failed to write here string content: " + here_error->detail;
                             break;
                         case cjsh_filesystem::HereStringErrorType::Dup:
-                            message = "failed to duplicate here string descriptor: " +
-                                      here_error->detail;
+                            message =
+                                "failed to duplicate here string descriptor: " + here_error->detail;
                             break;
                     }
                     return fail(ErrorType::RUNTIME_ERROR, message);
@@ -2218,7 +2216,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                         child_error(ErrorType::RUNTIME_ERROR,
                                     "failed to apply ordered redirections for pipeline child");
                     }
-                } else if (!configure_stderr_redirects(cmd, handle_stream_redirect_error_and_exit)) {
+                } else if (!configure_stderr_redirects(cmd,
+                                                       handle_stream_redirect_error_and_exit)) {
                     child_error(ErrorType::RUNTIME_ERROR,
                                 "failed to configure stderr redirections for pipeline child");
                 }

@@ -59,7 +59,8 @@ bool argument_resolves_to_existing_path(const std::string& token) {
     }
 
     const std::string cwd = cjsh_filesystem::safe_current_directory();
-    const std::string previous_directory = (g_shell != nullptr) ? g_shell->get_previous_directory() : "";
+    const std::string previous_directory =
+        (g_shell != nullptr) ? g_shell->get_previous_directory() : "";
     const std::string path_to_check =
         cjsh_filesystem::resolve_shell_token_path(token, cwd, previous_directory);
     return std::filesystem::exists(path_to_check);
@@ -86,7 +87,8 @@ bool has_nearby_split_merge_candidate(const std::string& first_token,
     const size_t max_candidate_length = min_candidate_length + kMaxGapChars;
 
     auto matches_candidate = [&](const std::string& candidate) {
-        if (candidate.length() < min_candidate_length || candidate.length() > max_candidate_length) {
+        if (candidate.length() < min_candidate_length ||
+            candidate.length() > max_candidate_length) {
             return false;
         }
 
@@ -151,9 +153,8 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
         available_commands = g_shell->get_available_commands();
     }
 
-    const bool first_token_unknown =
-        !command_analysis::is_known_command_token(token, absolute_token_start, g_shell.get(),
-                                                  available_commands);
+    const bool first_token_unknown = !command_analysis::is_known_command_token(
+        token, absolute_token_start, g_shell.get(), available_commands);
 
     bool highlight_split_unknown_second_token = false;
     size_t split_second_token_absolute_start = 0;
@@ -166,19 +167,19 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
                                                  second_token_end)) {
             size_t third_token_start = 0;
             size_t third_token_end = 0;
-            const bool has_third_token =
-                command_analysis::extract_next_token(cmd_str, split_cursor, third_token_start,
-                                                     third_token_end);
+            const bool has_third_token = command_analysis::extract_next_token(
+                cmd_str, split_cursor, third_token_start, third_token_end);
             if (!has_third_token && token_allows_split_command_merge(token)) {
                 std::string second_token =
                     cmd_str.substr(second_token_start, second_token_end - second_token_start);
                 if (token_allows_split_command_merge(second_token)) {
                     const size_t absolute_second_token_start = cmd_start + second_token_start;
                     const bool merged_token_known = command_analysis::is_known_command_token(
-                        token + second_token, absolute_token_start, g_shell.get(), available_commands);
+                        token + second_token, absolute_token_start, g_shell.get(),
+                        available_commands);
                     const bool merged_token_near_match =
-                        !merged_token_known && has_nearby_split_merge_candidate(
-                                                 token, second_token, available_commands);
+                        !merged_token_known &&
+                        has_nearby_split_merge_candidate(token, second_token, available_commands);
 
                     if (first_token_unknown && (merged_token_known || merged_token_near_match)) {
                         highlight_split_unknown_second_token = true;
@@ -345,7 +346,8 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
                             is_abbreviation = abbreviations.find(arg) != abbreviations.end();
                         }
 
-                        if (is_abbreviation || available_commands.find(arg) != available_commands.end() ||
+                        if (is_abbreviation ||
+                            available_commands.find(arg) != available_commands.end() ||
                             is_shell_builtin(arg)) {
                             ic_highlight(henv, static_cast<long>(absolute_arg_start),
                                          static_cast<long>(arg_length), "cjsh-builtin");

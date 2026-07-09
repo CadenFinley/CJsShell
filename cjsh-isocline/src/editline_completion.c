@@ -444,8 +444,7 @@ static bool completion_menu_mouse_select(ic_env_t* env, editor_t* eb, bool expan
 
     ssize_t target_row = 0;
     ssize_t target_col = 0;
-    if (!edit_mouse_event_to_target_rowcol(env, eb, &mouse_event, &target_row, &target_col,
-                                           NULL)) {
+    if (!edit_mouse_event_to_target_rowcol(env, eb, &mouse_event, &target_row, &target_col, NULL)) {
         return false;
     }
 

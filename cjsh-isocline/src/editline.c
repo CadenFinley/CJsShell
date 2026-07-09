@@ -105,12 +105,12 @@ typedef struct editor_s {
     ssize_t last_screen_cursor_col;    // cached absolute cursor col from the last successful query
     bool last_screen_cursor_known;     // whether absolute cursor position cache is valid
     ic_mouse_clicking_mode_t mouse_reporting_mode;  // per-session mouse capture strategy
-    bool mouse_reporting_enabled;                  // whether terminal mouse capture is currently on
-    bool mouse_reporting_manual_enabled;           // user/default preference for this session
-    bool mouse_reporting_auto_suspended;           // smart mode auto-disabled mouse capture
-    bool mouse_focus_reporting_enabled;            // focus-in/focus-out reporting (CSI I/O) enabled
-    ssize_t mouse_capture_depth;                   // nested mouse tracking enablement depth
-    alloc_t* mem;                                  // allocator
+    bool mouse_reporting_enabled;         // whether terminal mouse capture is currently on
+    bool mouse_reporting_manual_enabled;  // user/default preference for this session
+    bool mouse_reporting_auto_suspended;  // smart mode auto-disabled mouse capture
+    bool mouse_focus_reporting_enabled;   // focus-in/focus-out reporting (CSI I/O) enabled
+    ssize_t mouse_capture_depth;          // nested mouse tracking enablement depth
+    alloc_t* mem;                         // allocator
     // caches
     attrbuf_t* attrs;  // reuse attribute buffers
     attrbuf_t* attrs_extra;
@@ -684,8 +684,8 @@ static bool edit_handle_mouse_click(ic_env_t* env, editor_t* eb, const char* ren
 
     ssize_t target_row = 0;
     ssize_t target_col_absolute = 0;
-    if (!edit_mouse_event_to_target_rowcol(env, eb, &mouse_event, &target_row,
-                                           &target_col_absolute, NULL)) {
+    if (!edit_mouse_event_to_target_rowcol(env, eb, &mouse_event, &target_row, &target_col_absolute,
+                                           NULL)) {
         return false;
     }
 
@@ -2862,7 +2862,8 @@ static void edit_set_mouse_auto_suspended(ic_env_t* env, editor_t* eb, bool susp
         return;
     }
 
-    if (eb->mouse_reporting_mode != IC_MOUSE_CLICKING_SMART || !eb->mouse_reporting_manual_enabled) {
+    if (eb->mouse_reporting_mode != IC_MOUSE_CLICKING_SMART ||
+        !eb->mouse_reporting_manual_enabled) {
         suspended = false;
     }
 
@@ -2958,8 +2959,8 @@ static void edit_maybe_resume_smart_mouse_reporting(ic_env_t* env, editor_t* eb,
         return;
     }
 
-    if (eb->mouse_reporting_mode != IC_MOUSE_CLICKING_SMART || !eb->mouse_reporting_manual_enabled ||
-        !eb->mouse_reporting_auto_suspended) {
+    if (eb->mouse_reporting_mode != IC_MOUSE_CLICKING_SMART ||
+        !eb->mouse_reporting_manual_enabled || !eb->mouse_reporting_auto_suspended) {
         return;
     }
 
@@ -3060,8 +3061,7 @@ static void edit_reset_mouse_reporting_session(ic_env_t* env, editor_t* eb, bool
         (default_enabled && edit_mouse_mode_supports_capture(eb->mouse_reporting_mode));
     eb->mouse_reporting_auto_suspended = false;
     edit_apply_mouse_reporting_policy(env, eb);
-    edit_set_mouse_focus_reporting(env, eb,
-                                   (eb->mouse_reporting_mode == IC_MOUSE_CLICKING_SMART));
+    edit_set_mouse_focus_reporting(env, eb, (eb->mouse_reporting_mode == IC_MOUSE_CLICKING_SMART));
 }
 
 static bool edit_enable_menu_mouse_scroll(ic_env_t* env) {

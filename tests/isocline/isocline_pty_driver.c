@@ -76,8 +76,7 @@ static void pty_completion_word_provider(ic_completion_env_t* cenv, const char* 
     }
     if (g_completion_mode == COMPLETION_MODE_MANY_MULTILINE) {
         static const char* many_words[] = {
-            "m01", "m02", "m03", "m04", "m05", "m06",
-            "m07", "m08", "m09", "m10", "m11", "m12",
+            "m01", "m02", "m03", "m04", "m05", "m06", "m07", "m08", "m09", "m10", "m11", "m12",
         };
         const long delete_before = (prefix != NULL ? (long)strlen(prefix) : 0L);
         for (size_t i = 0; i < (sizeof(many_words) / sizeof(many_words[0])); i++) {
@@ -353,10 +352,9 @@ static int run_case(const char* scenario) {
                strcmp(scenario, "completion_many_menu_custom_mouse_toggle") == 0 ||
                strcmp(scenario, "completion_many_menu_mouse_default_on") == 0 ||
                strcmp(scenario, "completion_many_menu_multiline") == 0) {
-        g_completion_mode =
-            (strcmp(scenario, "completion_many_menu_multiline") == 0
-                 ? COMPLETION_MODE_MANY_MULTILINE
-                 : COMPLETION_MODE_MANY);
+        g_completion_mode = (strcmp(scenario, "completion_many_menu_multiline") == 0
+                                 ? COMPLETION_MODE_MANY_MULTILINE
+                                 : COMPLETION_MODE_MANY);
         ic_set_default_completer(pty_completion_dispatcher, NULL);
         if (strcmp(scenario, "completion_many_menu_custom_mouse_toggle") == 0) {
             if (!ic_bind_key(IC_KEY_F3, IC_KEY_ACTION_TOGGLE_MOUSE_REPORTING)) {

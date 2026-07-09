@@ -32,13 +32,10 @@
 #include <cstdlib>
 #include <stdexcept>
 
-ParameterExpansionEvaluator::ParameterExpansionEvaluator(VariableReader var_reader,
-                                                         VariableWriter var_writer,
-                                                         VariableChecker var_checker,
-                                                         PatternMatcher pattern_matcher,
-                                                         ArrayLengthReader array_length_reader,
-                                                         ArrayKeysReader array_keys_reader,
-                                                         WordExpander word_expander)
+ParameterExpansionEvaluator::ParameterExpansionEvaluator(
+    VariableReader var_reader, VariableWriter var_writer, VariableChecker var_checker,
+    PatternMatcher pattern_matcher, ArrayLengthReader array_length_reader,
+    ArrayKeysReader array_keys_reader, WordExpander word_expander)
     : read_variable(std::move(var_reader)),
       write_variable(std::move(var_writer)),
       is_variable_set(std::move(var_checker)),
@@ -235,7 +232,8 @@ std::string ParameterExpansionEvaluator::expand(const std::string& param_expr) {
         if (!is_set) {
             std::string expanded_operand = operand.empty() ? operand : expand_operand();
             std::string error_msg =
-                var_name + ": " + (expanded_operand.empty() ? "parameter not set" : expanded_operand);
+                var_name + ": " +
+                (expanded_operand.empty() ? "parameter not set" : expanded_operand);
             throw std::runtime_error("parameter expansion error: " + error_msg + " in ${" +
                                      var_name + op + operand + "}");
         }

@@ -332,8 +332,7 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                     const std::function<int(const std::vector<std::string>&)>& execute_block,
                     const std::function<int(const std::string&)>& execute_simple_or_pipeline,
                     const std::function<int(const std::string&)>& evaluate_logical_condition,
-                    Parser* shell_parser,
-                    const std::function<bool()>& should_abort_execution) {
+                    Parser* shell_parser, const std::function<bool()>& should_abort_execution) {
     // main if dispatcher called from interpreter when a line begins with if
     if (src_lines.size() == 1 && shell_parser != nullptr) {
         // normalize dense one-line forms into an if-only block plus optional trailing commands

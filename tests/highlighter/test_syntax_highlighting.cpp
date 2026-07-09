@@ -130,8 +130,7 @@ static bool expect_style_range(attrbuf_t* attrs, bbcode_t* bbcode, size_t start,
 }
 
 static bool expect_not_style_range(attrbuf_t* attrs, bbcode_t* bbcode, size_t start, size_t length,
-                                   const char* style, const char* test_name,
-                                   const char* message) {
+                                   const char* style, const char* test_name, const char* message) {
     if (length == 0) {
         log_failure(test_name, "expected non-empty highlight range");
         return false;
@@ -681,8 +680,9 @@ static bool test_split_unknown_command_fragment_highlighting_with_known_second_t
     bool ok =
         expect_style_range(attrs, env->bbcode, first_pos, 3, "cjsh-unknown-command", test_name,
                            "first split command fragment should be highlighted as unknown") &&
-        expect_style_range(attrs, env->bbcode, second_pos, 4, "cjsh-unknown-command", test_name,
-                           "known second fragment should still be highlighted as unknown in a split typo");
+        expect_style_range(
+            attrs, env->bbcode, second_pos, 4, "cjsh-unknown-command", test_name,
+            "known second fragment should still be highlighted as unknown in a split typo");
 
     attrbuf_free(attrs);
     g_shell->set_aliases(original_aliases);
@@ -716,9 +716,9 @@ static bool test_unknown_command_argument_not_marked_as_unknown_command(void) {
     bool ok = expect_style_range(attrs, env->bbcode, command_pos, unknown_command.size(),
                                  "cjsh-unknown-command", test_name,
                                  "unknown command should be highlighted as unknown") &&
-              expect_not_style_range(attrs, env->bbcode, argument_pos, argument.size(),
-                                     "cjsh-unknown-command", test_name,
-                                     "ordinary argument should not be highlighted as unknown command");
+              expect_not_style_range(
+                  attrs, env->bbcode, argument_pos, argument.size(), "cjsh-unknown-command",
+                  test_name, "ordinary argument should not be highlighted as unknown command");
 
     attrbuf_free(attrs);
     return ok;
