@@ -301,6 +301,22 @@ parse_python_unittest_counts() {
     printf "%s %s %s" "$suite_total" "$suite_passed" "$suite_failed"
 }
 
+parse_status_line_counts() {
+    suite_output=$1
+    printf "%s\n" "$suite_output" | awk '
+        /^PASS([[:space:]:]|$)/ {
+            passed++
+        }
+        /^FAIL([[:space:]:]|$)/ {
+            failed++
+        }
+        END {
+            total = passed + failed
+            print total " " passed " " failed
+        }
+    '
+}
+
 sanitize_terminal_output() {
     raw_text=$1
     printf "%s\n" "$raw_text" | awk '
@@ -349,6 +365,9 @@ run_external_suite() {
             ;;
         python)
             suite_counts=$(parse_python_unittest_counts "$suite_output_clean" "$suite_exit_code")
+            ;;
+        status)
+            suite_counts=$(parse_status_line_counts "$suite_output_clean")
             ;;
         *)
             suite_counts="0 0 0"
@@ -506,7 +525,7 @@ fi
 
 if [ -f "$INTERACTIVE_SHUTDOWN_TEST_SCRIPT" ]; then
     if command -v python3 >/dev/null 2>&1; then
-        run_external_suite "test_interactive_shutdown" "python" "binary" python3 "$INTERACTIVE_SHUTDOWN_TEST_SCRIPT" "$CJSH"
+        run_external_suite "test_interactive_shutdown" "status" "binary" python3 "$INTERACTIVE_SHUTDOWN_TEST_SCRIPT" "$CJSH"
         INTERACTIVE_SHUTDOWN_TEST_RESULT=$?
     else
         report_skipped_suite "test_interactive_shutdown" "python3 not found"
@@ -517,7 +536,7 @@ fi
 
 if [ -f "$FUNCTION_PIPELINE_JOB_CONTROL_TEST_SCRIPT" ]; then
     if command -v python3 >/dev/null 2>&1; then
-        run_external_suite "test_function_pipeline_job_control" "python" "binary" python3 "$FUNCTION_PIPELINE_JOB_CONTROL_TEST_SCRIPT" "$CJSH"
+        run_external_suite "test_function_pipeline_job_control" "status" "binary" python3 "$FUNCTION_PIPELINE_JOB_CONTROL_TEST_SCRIPT" "$CJSH"
         FUNCTION_PIPELINE_JOB_CONTROL_TEST_RESULT=$?
     else
         report_skipped_suite "test_function_pipeline_job_control" "python3 not found"

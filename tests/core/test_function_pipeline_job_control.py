@@ -34,6 +34,13 @@ import re
 import subprocess
 import sys
 import time
+from typing import Callable, NamedTuple
+
+
+class JobControlResult(NamedTuple):
+    return_code: int | None
+    output: str
+    timed_out: bool
 
 
 def sanitize_output(text: str) -> str:
@@ -44,8 +51,9 @@ def sanitize_output(text: str) -> str:
     return text.replace("\r", "\n")
 
 
-def run_job_control_case(binary: str) -> None:
+def run_job_control_case(binary: str) -> JobControlResult:
     master_fd, slave_fd = os.openpty()
+    os.set_blocking(master_fd, False)
     env = os.environ.copy()
     env.setdefault("TERM", "xterm-256color")
 
@@ -57,6 +65,7 @@ def run_job_control_case(binary: str) -> None:
 
     process: subprocess.Popen[bytes] | None = None
     output = bytearray()
+    timed_out = False
 
     try:
         process = subprocess.Popen(
@@ -89,7 +98,7 @@ def run_job_control_case(binary: str) -> None:
                 time.sleep(0.02)
 
         if process.poll() is None:
-            raise AssertionError("cjsh did not finish the function pipeline command in time")
+            timed_out = True
     finally:
         if slave_fd >= 0:
             try:
@@ -109,15 +118,32 @@ def run_job_control_case(binary: str) -> None:
         raise AssertionError("failed to start cjsh")
 
     cleaned = sanitize_output(output.decode(errors="replace"))
+    return JobControlResult(process.returncode, cleaned, timed_out)
 
-    if process.returncode != 0:
-        raise AssertionError(f"cjsh exited with {process.returncode}:\n{cleaned}")
 
-    if "Stopped" in cleaned:
-        raise AssertionError(f"pipeline job unexpectedly stopped:\n{cleaned}")
+def require(condition: bool, message: str) -> None:
+    if not condition:
+        raise AssertionError(message)
 
-    if "target" not in cleaned:
-        raise AssertionError(f"expected grep output was missing:\n{cleaned}")
+
+def run_checks(checks: list[tuple[str, Callable[[], None]]], suite_name: str) -> int:
+    failures = 0
+    for label, check in checks:
+        try:
+            check()
+        except Exception as exc:
+            failures += 1
+            message = f"{type(exc).__name__}: {exc}".replace("\n", "\n    ")
+            print(f"FAIL: {label}: {message}", file=sys.stderr)
+        else:
+            print(f"PASS: {label}")
+
+    if failures:
+        print(f"{failures}/{len(checks)} {suite_name} tests failed", file=sys.stderr)
+        return 1
+
+    print(f"All {len(checks)} {suite_name} tests passed")
+    return 0
 
 
 def main(argv: list[str]) -> int:
@@ -125,9 +151,49 @@ def main(argv: list[str]) -> int:
         print("usage: test_function_pipeline_job_control.py <cjsh_binary>", file=sys.stderr)
         return 2
 
-    run_job_control_case(argv[0])
-    print("function pipeline job-control test passed")
-    return 0
+    try:
+        result = run_job_control_case(argv[0])
+    except Exception as exc:
+        message = f"{type(exc).__name__}: {exc}".replace("\n", "\n    ")
+        print(
+            f"FAIL: function pipeline command setup: {message}",
+            file=sys.stderr,
+        )
+        print("1/1 function pipeline job-control tests failed", file=sys.stderr)
+        return 1
+
+    checks: list[tuple[str, Callable[[], None]]] = [
+        (
+            "function pipeline command completes",
+            lambda: require(
+                not result.timed_out,
+                f"cjsh did not finish the function pipeline command in time:\n{result.output}",
+            ),
+        ),
+        (
+            "function pipeline exits successfully",
+            lambda: require(
+                result.return_code == 0,
+                f"cjsh exited with {result.return_code}:\n{result.output}",
+            ),
+        ),
+        (
+            "function pipeline stays in foreground",
+            lambda: require(
+                "Stopped" not in result.output,
+                f"pipeline job unexpectedly stopped:\n{result.output}",
+            ),
+        ),
+        (
+            "function pipeline produces grep output",
+            lambda: require(
+                "target" in result.output,
+                f"expected grep output was missing:\n{result.output}",
+            ),
+        ),
+    ]
+
+    return run_checks(checks, "function pipeline job-control")
 
 
 if __name__ == "__main__":
