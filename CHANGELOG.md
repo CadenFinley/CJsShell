@@ -1,6 +1,45 @@
 # cjsh Changelog
 
-This changelog documents tagged releases from `v1.1.2` through `v1.3.2`.
+This changelog documents tagged releases from `v1.1.2` through `v1.3.3`.
+
+## 1.3.3 - 2026-07-08
+
+Range: `v1.3.2..HEAD` (19 commits, 52 files changed)
+
+### Highlights
+
+- Finalized 1.3.3 as a stable release by clearing the default pre-release build marker.
+- Added transient submitted-prompt styling (`PS1_FINAL` / `RPS1_FINAL`) and simplified prompt layout controls by removing legacy prompt-cleanup toggles.
+- Improved interactive editing and menu UX with click-to-accept completion controls, multiline menu previews, and richer history metadata display.
+
+### Added
+
+- Added `cjshopt completion-click-accept` (`on|off|status`) plus completion/help metadata and isocline plumbing for click-accept behavior.
+- Added transient prompt variables `PS1_FINAL` and `RPS1_FINAL` to restyle submitted prompt lines after Enter.
+- Added the `file-argument` syntax-highlighting style and broader path-argument highlighting for existing file arguments.
+- Added split-unknown command merge completions to recover from accidentally separated command tokens.
+- Added richer history-search metadata rendering with relative timestamps, exit-code suffixes, and metadata-key previews.
+
+### Changed
+
+- Changed `cjshopt mouse-clicking` from boolean toggles to `disabled|simple|smart|status` modes with explicit smart suspend/resume behavior.
+- Changed completion and history menus to handle multiline candidates and entries with inline previews while preserving scroll/selection behavior.
+- Changed history deduplication to prefer entries that carry exit-code metadata when duplicate commands are collapsed.
+- Changed docs/reference coverage across commands, editing, features, and themes for the new completion click mode, prompt-final variables, and prompt-layout model.
+- Simplified `README.md` by removing duplicated preset/testing/doc-preview sections now covered in dedicated docs.
+
+### Fixed
+
+- Fixed history staging so interactive commands are recorded using expanded command text, with new regression coverage for `!!` replay behavior.
+- Fixed completion-application edge cases where accepted completions could duplicate already-present single-line or multiline suffix text.
+- Fixed unknown-command suggestion and highlighting paths to better handle accidentally split command tokens.
+- Fixed status-line unknown-command suggestions by merging split-token candidates with standard suggestion output.
+- Fixed multiline mouse-targeting and menu interaction edge cases in isocline PTY flows.
+
+### Internal, CI, and Tests
+
+- Expanded completion/highlighter/isocline regression coverage for click-accept toggles, multiline menus, metadata filtering, and mouse behavior.
+- Continued cleanup/refactor passes across filesystem setup, parser helpers, loop handling, exec flow, and completion generation internals.
 
 ## 1.3.2 - 2026-07-07
 
