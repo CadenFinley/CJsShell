@@ -116,6 +116,21 @@ bool has_nearby_split_merge_candidate(const std::string& first_token,
     return false;
 }
 
+bool separator_is_redirection_operator(const std::string& analysis, size_t separator_start,
+                                       const command_analysis::CommandSeparator& separator) {
+    if (!separator.is_operator || separator.length == 0 || separator_start >= analysis.size()) {
+        return false;
+    }
+
+    const char first = analysis[separator_start];
+    if (first == '>' || first == '<') {
+        return true;
+    }
+
+    return separator.length >= 2 && first == '&' && separator_start + 1 < analysis.size() &&
+           analysis[separator_start + 1] == '>';
+}
+
 void highlight_command_resolution(ic_highlight_env_t* henv, size_t start, size_t length,
                                   bool is_system_command) {
     ic_highlight(henv, static_cast<long>(start), static_cast<long>(length),
@@ -449,6 +464,7 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
     const auto& comparison_ops = token_constants::comparison_operators();
 
     size_t pos = 0;
+    bool next_range_is_redirection_operand = false;
     while (pos < len) {
         size_t cmd_end = command_analysis::find_command_end(sanitized_input, pos);
 
@@ -457,7 +473,7 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
             cmd_start++;
         }
 
-        if (cmd_start < cmd_end) {
+        if (cmd_start < cmd_end && !next_range_is_redirection_operand) {
             highlight_command_range(henv, input, sanitized_input, cmd_start, cmd_end,
                                     comparison_ops);
         }
@@ -470,8 +486,11 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
                     ic_highlight(henv, static_cast<long>(pos), static_cast<long>(separator.length),
                                  "cjsh-operator");
                 }
+                next_range_is_redirection_operand =
+                    separator_is_redirection_operator(sanitized_input, pos, separator);
                 pos += separator.length;
             } else {
+                next_range_is_redirection_operand = false;
                 pos += 1;
             }
         }

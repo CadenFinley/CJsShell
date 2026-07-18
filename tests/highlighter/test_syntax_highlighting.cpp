@@ -724,6 +724,43 @@ static bool test_unknown_command_argument_not_marked_as_unknown_command(void) {
     return ok;
 }
 
+static bool test_redirection_target_not_marked_as_unknown_command(void) {
+    const char* test_name = "redirection_target_not_marked_as_unknown_command";
+    const std::string input = "echo hello > pipe";
+    attrbuf_t* attrs = highlight_input(input, test_name);
+    if (attrs == nullptr) {
+        return false;
+    }
+
+    ic_env_t* env = ensure_env(test_name);
+    if (env == nullptr) {
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    const size_t command_pos = input.find("echo");
+    const size_t redirection_pos = input.find('>');
+    const size_t target_pos = input.find("pipe");
+    if (command_pos == std::string::npos || redirection_pos == std::string::npos ||
+        target_pos == std::string::npos) {
+        log_failure(test_name, "failed to locate command, redirection, and target tokens");
+        attrbuf_free(attrs);
+        return false;
+    }
+
+    bool ok = expect_not_style_range(attrs, env->bbcode, command_pos, 4, "cjsh-unknown-command",
+                                     test_name,
+                                     "known command should not be highlighted as unknown") &&
+              expect_style_range(attrs, env->bbcode, redirection_pos, 1, "cjsh-operator",
+                                 test_name, "redirection operator should be highlighted") &&
+              expect_not_style_range(attrs, env->bbcode, target_pos, 4, "cjsh-unknown-command",
+                                     test_name,
+                                     "redirection target should not be highlighted as unknown");
+
+    attrbuf_free(attrs);
+    return ok;
+}
+
 static bool test_braced_variable_highlighting(void) {
     const char* test_name = "braced_variable_highlighting";
     const std::string input = "echo ${HOME}";
@@ -1481,6 +1518,8 @@ static const test_case_t kTests[] = {
      test_split_unknown_command_fragment_highlighting_with_known_second_token},
     {"unknown_command_argument_not_marked_as_unknown_command",
      test_unknown_command_argument_not_marked_as_unknown_command},
+    {"redirection_target_not_marked_as_unknown_command",
+     test_redirection_target_not_marked_as_unknown_command},
     {"braced_variable_highlighting", test_braced_variable_highlighting},
     {"braced_variable_default_highlighting", test_braced_variable_default_highlighting},
     {"nested_command_substitution_highlighting", test_nested_command_substitution_highlighting},
