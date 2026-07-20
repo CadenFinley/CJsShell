@@ -49,11 +49,12 @@ cmake --build --preset release --parallel
 ## Module layout
 
 - `src/isocline.h` - public API surface consumed by `cjsh`
-- `src/editline*.c` - interactive line editing and buffer control
-- `src/completion*.c` / `src/highlight*` - completion and highlighting engine
-- `src/history*` - history store and retrieval logic
-- `src/isocline_*.c` - cjsh-specific integration points and behaviors
-- `src/term*` / `src/tty*` - terminal, TTY, and escape-sequence handling
+- `src/core/` - aggregation unit, runtime environment lifecycle, and shared core helpers
+- `src/edit/` - readline entry points, interactive editing flow, typeahead, history, and undo
+- `src/completion/` - completion and highlighting engine internals
+- `src/keybinding/` - keycode tables and keybinding registration/runtime behavior
+- `src/terminal/` - terminal rendering, bbcode/attributes, TTY I/O, and Unicode helpers
+- `src/utils/` - reusable utilities shared across components
 
 ## Upstream and license
 

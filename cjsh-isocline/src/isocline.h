@@ -41,8 +41,8 @@ extern "C" {
 #include <stddef.h>
 #include <stdint.h>
 
-#include "keybindings.h"
-#include "keycodes.h"
+#include "keybinding/keybindings.h"
+#include "keybinding/keycodes.h"
 
 /// Token returned from ic_readline* when Ctrl+C is pressed with an empty buffer.
 #define IC_READLINE_TOKEN_CTRL_C "<CTRL+C>"

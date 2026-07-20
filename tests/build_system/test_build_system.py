@@ -495,7 +495,7 @@ class BuildSystemConfigurationTests(unittest.TestCase):
         main_definitions = extract_definitions(load_cpp_compile_arguments(build_dir))
         isocline_c_args = load_compile_arguments_for_source_suffix(
             build_dir,
-            "cjsh-isocline/src/isocline.c",
+            "cjsh-isocline/src/core/isocline.c",
         )
         isocline_c_definitions = extract_definitions(isocline_c_args)
 
