@@ -34,7 +34,6 @@
 
 #include <algorithm>
 #include <cstdint>
-#include <cstdlib>
 #include <string>
 #include <vector>
 
@@ -50,6 +49,15 @@ enum class JobWarningState : std::uint8_t {
 
 JobWarningState g_last_job_warning = JobWarningState::NONE;
 std::uint64_t g_last_exit_warning_command = 0;
+
+int get_last_command_status() {
+    const std::string last_status = cjsh_env::get_shell_variable_value("?");
+    if (last_status.empty()) {
+        return 0;
+    }
+
+    return numeric_utils::parse_exit_status_or(last_status, 0, false);
+}
 }  // namespace
 
 int exit_command(const std::vector<std::string>& args) {
@@ -58,7 +66,7 @@ int exit_command(const std::vector<std::string>& args) {
                                    "Use --force to skip running exit traps."})) {
         return 0;
     }
-    int exit_code = 0;
+    int exit_code = get_last_command_status();
     bool force_exit = false;
     int non_flag_args = 0;
 

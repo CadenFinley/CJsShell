@@ -80,6 +80,14 @@ else
     fail "Basic exit should return code 0, got $?"
 fi
 
+log_test "Default exit reuses last command status"
+"$SHELL_TO_TEST" -c "false; exit" 2>/dev/null
+if [ $? -eq 1 ]; then
+    pass
+else
+    fail "Exit without args should reuse previous status 1, got $?"
+fi
+
 log_test "Exit with specific code (42)"
 "$SHELL_TO_TEST" -c "exit 42" 2>/dev/null
 if [ $? -eq 42 ]; then
@@ -339,12 +347,12 @@ else
     fail "Exit should use first valid numeric argument, expected 50, got $?"
 fi
 
-log_test "Exit with only flags and no code"
-"$SHELL_TO_TEST" -c "exit --force -f" 2>/dev/null
-if [ $? -eq 0 ]; then
+log_test "Exit with only flags and no code reuses last status"
+"$SHELL_TO_TEST" -c "false; exit --force -f" 2>/dev/null
+if [ $? -eq 1 ]; then
     pass
 else
-    fail "Exit with only flags should default to 0, got $?"
+    fail "Exit with only flags should reuse previous status 1, got $?"
 fi
 
 echo ""
