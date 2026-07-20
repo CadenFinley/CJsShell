@@ -198,7 +198,7 @@ ic_private bool skip_esc(const char* s, ssize_t len, ssize_t* esclen) {
     if (strchr(" #%()*+", s[1]) != NULL) {
         // assume escape sequence of length 3 (like ESC % G)
         if (esclen != NULL)
-            *esclen = 2;
+            *esclen = (len >= 3 ? 3 : 2);
         return true;
     } else {
         // assume single character escape code (like ESC 7)

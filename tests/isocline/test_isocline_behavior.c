@@ -1113,6 +1113,42 @@ static bool test_push_raw_input_null_pointer_rejected(void) {
     return true;
 }
 
+static bool test_tty_capture_pending_raw_preconditions(void) {
+    stringbuf_t* out = new_stringbuf();
+    EXPECT_TRUE(out != NULL, "test string buffer allocation should succeed");
+
+    EXPECT_FALSE(tty_capture_pending_raw(NULL, out),
+                 "pending raw capture should reject NULL tty");
+    EXPECT_TRUE(sbuf_len(out) == 0, "failed capture should leave output buffer empty");
+
+    struct tty_s tty_probe;
+    memset(&tty_probe, 0, sizeof(tty_probe));
+    tty_probe.fd_in = -1;
+    sbuf_append(out, "stale");
+    EXPECT_FALSE(tty_capture_pending_raw((tty_t*)&tty_probe, out),
+                 "pending raw capture should reject non-tty file descriptors");
+    EXPECT_TRUE(sbuf_len(out) == 0, "failed capture should clear stale output");
+
+    sbuf_free(out);
+    return true;
+}
+
+static bool test_escape_skip_charset_sequence_length(void) {
+    ssize_t esc_len = 0;
+    EXPECT_TRUE(skip_esc("\x1b(B", 3, &esc_len),
+                "shared escape skipper should identify charset-shift sequences");
+    EXPECT_TRUE(esc_len == 3,
+                "charset-shift escape sequence should consume all three bytes");
+
+    esc_len = 0;
+    EXPECT_TRUE(skip_esc("\x1b%G", 3, &esc_len),
+                "shared escape skipper should identify percent charset sequences");
+    EXPECT_TRUE(esc_len == 3,
+                "percent charset escape sequence should consume all three bytes");
+
+    return true;
+}
+
 static bool test_typeahead_toggle_lifecycle(void) {
     ic_env_t* env = ensure_env();
     if (env == NULL)
@@ -1250,6 +1286,19 @@ static bool test_typeahead_filter_removes_charset_numeric_and_control_bytes(void
     return true;
 }
 
+static bool test_typeahead_filter_reuses_extended_escape_skipper(void) {
+    stringbuf_t* out = new_stringbuf();
+    EXPECT_TRUE(out != NULL, "test string buffer allocation should succeed");
+
+    const char* input = "a\x1bPignored\x07" "b\x1b_ignored\x1b\\c\x1b%Gd";
+    ic_typeahead_filter_escape_sequences_into(input, strlen(input), out);
+    EXPECT_STREQ(sbuf_string(out), "abcd",
+                 "typeahead filter should use shared escape skipper for DCS/PM/charset escapes");
+
+    sbuf_free(out);
+    return true;
+}
+
 static bool test_typeahead_normalize_backspace_and_delete(void) {
     stringbuf_t* out = new_stringbuf();
     EXPECT_TRUE(out != NULL, "test string buffer allocation should succeed");
@@ -1258,6 +1307,19 @@ static bool test_typeahead_normalize_backspace_and_delete(void) {
     ic_typeahead_normalize_line_edit_sequences_into(input, sizeof(input), out);
     EXPECT_STREQ(sbuf_string(out), "abe",
                  "backspace and delete should remove the previous normalized character");
+
+    sbuf_free(out);
+    return true;
+}
+
+static bool test_typeahead_normalize_backspace_deletes_full_utf8_codepoint(void) {
+    stringbuf_t* out = new_stringbuf();
+    EXPECT_TRUE(out != NULL, "test string buffer allocation should succeed");
+
+    const char input[] = {'a', (char)0xC3, (char)0xA9, '\b', 'b'};
+    ic_typeahead_normalize_line_edit_sequences_into(input, sizeof(input), out);
+    EXPECT_STREQ(sbuf_string(out), "ab",
+                 "backspace should delete the full previous UTF-8 codepoint");
 
     sbuf_free(out);
     return true;
@@ -1292,6 +1354,20 @@ static bool test_typeahead_normalize_ctrl_w_deletes_previous_word(void) {
                                                     sizeof(input_with_ctrl_w), out);
     EXPECT_STREQ(sbuf_string(out), "cmd alpha   gamma",
                  "Ctrl-W should remove trailing space and the previous word");
+
+    sbuf_free(out);
+    return true;
+}
+
+static bool test_typeahead_normalize_ctrl_w_deletes_utf8_word(void) {
+    stringbuf_t* out = new_stringbuf();
+    EXPECT_TRUE(out != NULL, "test string buffer allocation should succeed");
+
+    const char input[] = {'c', 'm', 'd', ' ', (char)0xC3, (char)0xA9,
+                          (char)0xE2, (char)0x82, (char)0xAC, 0x17, 'x'};
+    ic_typeahead_normalize_line_edit_sequences_into(input, sizeof(input), out);
+    EXPECT_STREQ(sbuf_string(out), "cmd x",
+                 "Ctrl-W should delete complete UTF-8 codepoints in the previous word");
 
     sbuf_free(out);
     return true;
@@ -3713,6 +3789,8 @@ static const test_case_t kTests[] = {
     {"push_raw_input_preconditions", test_push_raw_input_preconditions},
     {"tty_character_pushback_capacity_guard", test_tty_character_pushback_capacity_guard},
     {"push_raw_input_null_pointer_rejected", test_push_raw_input_null_pointer_rejected},
+    {"tty_capture_pending_raw_preconditions", test_tty_capture_pending_raw_preconditions},
+    {"escape_skip_charset_sequence_length", test_escape_skip_charset_sequence_length},
     {"typeahead_toggle_lifecycle", test_typeahead_toggle_lifecycle},
     {"typeahead_clear_pending_state", test_typeahead_clear_pending_state},
     {"typeahead_capture_gate_registration_and_disabled_state",
@@ -3722,11 +3800,17 @@ static const test_case_t kTests[] = {
     {"typeahead_filter_removes_osc_sequences", test_typeahead_filter_removes_osc_sequences},
     {"typeahead_filter_removes_charset_numeric_and_control_bytes",
      test_typeahead_filter_removes_charset_numeric_and_control_bytes},
+    {"typeahead_filter_reuses_extended_escape_skipper",
+     test_typeahead_filter_reuses_extended_escape_skipper},
     {"typeahead_normalize_backspace_and_delete", test_typeahead_normalize_backspace_and_delete},
+    {"typeahead_normalize_backspace_deletes_full_utf8_codepoint",
+     test_typeahead_normalize_backspace_deletes_full_utf8_codepoint},
     {"typeahead_normalize_ctrl_u_keeps_previous_lines",
      test_typeahead_normalize_ctrl_u_keeps_previous_lines},
     {"typeahead_normalize_ctrl_w_deletes_previous_word",
      test_typeahead_normalize_ctrl_w_deletes_previous_word},
+    {"typeahead_normalize_ctrl_w_deletes_utf8_word",
+     test_typeahead_normalize_ctrl_w_deletes_utf8_word},
     {"typeahead_ingest_rejects_disabled_null_and_empty_input",
      test_typeahead_ingest_rejects_disabled_null_and_empty_input},
     {"typeahead_ingest_plain_text_sets_pending_initial_input",

@@ -55,6 +55,8 @@ WINBASEAPI ULONGLONG WINAPI GetTickCount64(VOID);
 #include <unistd.h>
 #endif
 
+#include "stringbuf.h"
+
 #define TTY_PUSH_MAX (32)
 
 struct tty_s {
@@ -597,6 +599,92 @@ ic_private bool tty_input_pending(const tty_t* tty) {
     }
 #endif
     return false;
+}
+
+ic_private bool tty_capture_pending_raw(tty_t* tty, stringbuf_t* out) {
+    if (out == NULL) {
+        return false;
+    }
+    sbuf_clear(out);
+
+    if (tty == NULL) {
+        return false;
+    }
+
+#if defined(_WIN32)
+    return false;
+#else
+    if (isatty(tty->fd_in) == 0) {
+        return false;
+    }
+
+    int fd_flags = fcntl(tty->fd_in, F_GETFL, 0);
+    if (fd_flags == -1) {
+        return false;
+    }
+
+    bool restore_flags = false;
+    if ((fd_flags & O_NONBLOCK) == 0) {
+        if (fcntl(tty->fd_in, F_SETFL, fd_flags | O_NONBLOCK) != 0) {
+            return false;
+        }
+        restore_flags = true;
+    }
+
+    struct termios original_termios;
+    memset(&original_termios, 0, sizeof(original_termios));
+    bool restore_termios = false;
+    if (tcgetattr(tty->fd_in, &original_termios) == 0) {
+        struct termios raw_termios = original_termios;
+        raw_termios.c_iflag &= (tcflag_t)(~ICRNL);
+        raw_termios.c_lflag &= (tcflag_t)(~(ICANON | ECHO));
+        raw_termios.c_cc[VMIN] = 0;
+        raw_termios.c_cc[VTIME] = 0;
+        if (tcsetattr(tty->fd_in, TCSANOW, &raw_termios) == 0) {
+            restore_termios = true;
+        }
+    }
+
+    char buffer[256];
+    for (;;) {
+        ssize_t bytes_read = read(tty->fd_in, buffer, sizeof(buffer));
+        if (bytes_read > 0) {
+            sbuf_append_n(out, buffer, bytes_read);
+            if (bytes_read < (ssize_t)sizeof(buffer)) {
+                break;
+            }
+            continue;
+        }
+
+        if (bytes_read == 0) {
+            tty->lost_terminal = true;
+            break;
+        }
+
+        if (errno == EINTR) {
+            continue;
+        }
+
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
+            break;
+        }
+
+        break;
+    }
+
+    if (restore_termios) {
+        tcsetattr(tty->fd_in, TCSANOW, &original_termios);
+    }
+    if (restore_flags) {
+        fcntl(tty->fd_in, F_SETFL, fd_flags);
+    }
+
+    if (sbuf_len(out) > 0) {
+        tty->lost_terminal = false;
+        return true;
+    }
+    return false;
+#endif
 }
 
 ic_private bool tty_lost_terminal(const tty_t* tty) {

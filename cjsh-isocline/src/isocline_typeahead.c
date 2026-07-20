@@ -34,23 +34,15 @@
 
 #include "isocline_typeahead.h"
 
-#include <errno.h>
 #include <stdbool.h>
 #include <string.h>
-
-#if !defined(_WIN32)
-#include <fcntl.h>
-#include <poll.h>
-#include <sys/ioctl.h>
-#include <termios.h>
-#include <unistd.h>
-#endif
 
 #include "common.h"
 #include "env.h"
 #include "isocline.h"
 #include "stringbuf.h"
 #include "term.h"
+#include "tty.h"
 
 static bool typeahead_capture_allowed(ic_env_t* env) {
     if (env == NULL || !env->typeahead_enabled) {
@@ -107,17 +99,6 @@ static bool buffer_all_newlines(const char* bytes, ssize_t len) {
     return true;
 }
 
-static bool is_csi_final_byte(char c) {
-    return ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '~' || c == 'c' ||
-            c == 'h' || c == 'l' || c == 'm' || c == 'n' || c == 'r' || c == 'J' ||
-            c == 'K' || c == 'H' || c == 'f');
-}
-
-static bool is_csi_parameter_byte(char c) {
-    return ((c >= '0' && c <= '9') || c == ';' || c == '?' || c == '!' || c == '=' ||
-            c == '>' || c == '<');
-}
-
 ic_private void ic_typeahead_filter_escape_sequences_into(const char* input, size_t input_len,
                                                           stringbuf_t* output) {
     if (output == NULL) {
@@ -132,43 +113,18 @@ ic_private void ic_typeahead_filter_escape_sequences_into(const char* input, siz
     for (size_t i = 0; i < input_len; ++i) {
         unsigned char ch = (unsigned char)input[i];
 
-        if (ch == '\x1b' && i + 1 < input_len) {
-            char next = input[i + 1];
-
-            if (next == '[') {
-                i += 2;
-                while (i < input_len) {
-                    char c = input[i];
-
-                    if (is_csi_final_byte(c)) {
-                        break;
-                    }
-
-                    if (!is_csi_parameter_byte(c)) {
-                        break;
-                    }
-                    i++;
-                }
-            } else if (next == ']') {
-                i += 2;
-                while (i < input_len) {
-                    if (input[i] == '\x07') {
-                        break;
-                    }
-                    if (input[i] == '\x1b' && i + 1 < input_len && input[i + 1] == '\\') {
-                        i++;
-                        break;
-                    }
-                    i++;
-                }
-            } else if (next == '(' || next == ')') {
-                i += (i + 2 < input_len) ? 2 : 1;
-            } else if (next >= '0' && next <= '9') {
+        if (ch == '\x1b') {
+            ssize_t esc_len = 0;
+            if (i + 1 < input_len && input[i + 1] >= '0' && input[i + 1] <= '9') {
                 i += 1;
                 while (i + 1 < input_len && input[i + 1] >= '0' && input[i + 1] <= '9') {
                     i++;
                 }
-            } else {
+            } else if (skip_esc(input + i, (ssize_t)(input_len - i), &esc_len) && esc_len > 0) {
+                i += (size_t)esc_len - 1;
+            } else if (i + 1 < input_len) {
+                // Match isocline's existing "ESC + following byte" treatment for
+                // incomplete or unrecognized escape prefixes.
                 i += 1;
             }
         } else if (ch == '\x07' || (ch < 0x20 && ch != '\t' && ch != '\n' && ch != '\r')) {
@@ -198,36 +154,42 @@ ic_private void ic_typeahead_normalize_line_edit_sequences_into(const char* inpu
             case 0x7F: {
                 ssize_t len = sbuf_len(output);
                 if (len > 0) {
-                    sbuf_delete_at(output, len - 1, 1);
+                    (void)sbuf_delete_char_before(output, len);
                 }
                 break;
             }
             case 0x15: {
-                while (sbuf_len(output) > 0) {
-                    ssize_t len = sbuf_len(output);
-                    if (sbuf_char_at(output, len - 1) == '\n') {
-                        break;
-                    }
-                    sbuf_delete_at(output, len - 1, 1);
+                ssize_t len = sbuf_len(output);
+                if (len > 0) {
+                    ssize_t start = sbuf_find_line_start(output, len);
+                    sbuf_delete_from_to(output, start, len);
                 }
                 break;
             }
             case 0x17: {
                 while (sbuf_len(output) > 0) {
                     ssize_t len = sbuf_len(output);
-                    char c = sbuf_char_at(output, len - 1);
-                    if (c != ' ' && c != '\t') {
+                    ssize_t prev = sbuf_prev(output, len, NULL);
+                    if (prev < 0 || prev >= len) {
                         break;
                     }
-                    sbuf_delete_at(output, len - 1, 1);
+                    char c = sbuf_char_at(output, prev);
+                    if (len - prev != 1 || (c != ' ' && c != '\t')) {
+                        break;
+                    }
+                    (void)sbuf_delete_char_before(output, len);
                 }
                 while (sbuf_len(output) > 0) {
                     ssize_t len = sbuf_len(output);
-                    char c = sbuf_char_at(output, len - 1);
-                    if (c == ' ' || c == '\t' || c == '\n') {
+                    ssize_t prev = sbuf_prev(output, len, NULL);
+                    if (prev < 0 || prev >= len) {
                         break;
                     }
-                    sbuf_delete_at(output, len - 1, 1);
+                    char c = sbuf_char_at(output, prev);
+                    if (len - prev == 1 && (c == ' ' || c == '\t' || c == '\n')) {
+                        break;
+                    }
+                    (void)sbuf_delete_char_before(output, len);
                 }
                 break;
             }
@@ -370,91 +332,6 @@ ic_private bool ic_typeahead_ingest_raw_input(const uint8_t* data, size_t length
     return true;
 }
 
-#if !defined(_WIN32)
-static bool capture_available_input_into(stringbuf_t* captured) {
-    if (captured == NULL) {
-        return false;
-    }
-    sbuf_clear(captured);
-
-    if (isatty(STDIN_FILENO) == 0) {
-        return false;
-    }
-
-    int fd_flags = fcntl(STDIN_FILENO, F_GETFL, 0);
-    if (fd_flags == -1) {
-        return false;
-    }
-
-    bool restore_flags = false;
-    if ((fd_flags & O_NONBLOCK) == 0) {
-        if (fcntl(STDIN_FILENO, F_SETFL, fd_flags | O_NONBLOCK) == 0) {
-            restore_flags = true;
-        }
-    }
-
-    struct termios original_termios;
-    memset(&original_termios, 0, sizeof(original_termios));
-    bool restore_termios = false;
-    if (tcgetattr(STDIN_FILENO, &original_termios) == 0) {
-        struct termios raw_termios = original_termios;
-        raw_termios.c_iflag &= (tcflag_t)(~ICRNL);
-        raw_termios.c_lflag &= (tcflag_t)(~(ICANON | ECHO));
-        raw_termios.c_cc[VMIN] = 0;
-        raw_termios.c_cc[VTIME] = 0;
-        if (tcsetattr(STDIN_FILENO, TCSANOW, &raw_termios) == 0) {
-            restore_termios = true;
-        }
-    }
-
-    int queued_bytes = 0;
-    (void)ioctl(STDIN_FILENO, FIONREAD, &queued_bytes);
-
-    char buffer[256];
-    for (;;) {
-        ssize_t bytes_read = read(STDIN_FILENO, buffer, sizeof(buffer));
-        if (bytes_read > 0) {
-            sbuf_append_n(captured, buffer, bytes_read);
-            if (bytes_read < (ssize_t)sizeof(buffer)) {
-                break;
-            }
-            continue;
-        }
-
-        if (bytes_read == 0) {
-            break;
-        }
-
-        if (errno == EINTR) {
-            continue;
-        }
-
-        if (errno == EAGAIN || errno == EWOULDBLOCK) {
-            break;
-        }
-        break;
-    }
-
-    if (sbuf_len(captured) <= 0) {
-        struct pollfd pfd;
-        memset(&pfd, 0, sizeof(pfd));
-        pfd.fd = STDIN_FILENO;
-        pfd.events = POLLIN;
-        (void)poll(&pfd, 1, 0);
-    }
-
-    if (restore_termios) {
-        tcsetattr(STDIN_FILENO, TCSANOW, &original_termios);
-    }
-    if (restore_flags) {
-        fcntl(STDIN_FILENO, F_SETFL, fd_flags);
-    }
-
-    ic_unused(queued_bytes);
-    return (sbuf_len(captured) > 0);
-}
-#endif
-
 ic_public bool ic_enable_typeahead(bool enable) {
     ic_env_t* env = ic_get_env();
     if (env == NULL) {
@@ -490,15 +367,12 @@ ic_public bool ic_typeahead_capture_available_input(void) {
         return false;
     }
 
-#if defined(_WIN32)
-    return false;
-#else
     stringbuf_t* captured = sbuf_new(env->mem);
     if (captured == NULL) {
         return false;
     }
 
-    bool captured_any = capture_available_input_into(captured);
+    bool captured_any = tty_capture_pending_raw(env->tty, captured);
     if (captured_any) {
         const char* bytes = sbuf_string(captured);
         ssize_t len = sbuf_len(captured);
@@ -507,7 +381,6 @@ ic_public bool ic_typeahead_capture_available_input(void) {
 
     sbuf_free(captured);
     return captured_any;
-#endif
 }
 
 static void typeahead_flush_pending_raw(ic_env_t* env) {

@@ -61,6 +61,8 @@ typedef struct tty_mouse_event_s {
 // TTY interface
 struct tty_s;
 typedef struct tty_s tty_t;
+struct stringbuf_s;
+typedef struct stringbuf_s stringbuf_t;
 
 ic_private tty_t* tty_new(alloc_t* mem, int fd_in);
 ic_private void tty_free(tty_t* tty);
@@ -73,6 +75,7 @@ ic_private bool tty_start_raw(tty_t* tty);
 ic_private void tty_end_raw(tty_t* tty);
 ic_private code_t tty_read(tty_t* tty);
 ic_private bool tty_read_timeout(tty_t* tty, long timeout_ms, code_t* c);
+ic_private bool tty_capture_pending_raw(tty_t* tty, stringbuf_t* out);
 
 ic_private void tty_code_pushback(tty_t* tty, code_t c);
 ic_private bool code_is_ascii_char(code_t c, char* chr);
