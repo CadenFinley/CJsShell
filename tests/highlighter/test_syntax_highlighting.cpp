@@ -748,14 +748,13 @@ static bool test_redirection_target_not_marked_as_unknown_command(void) {
         return false;
     }
 
-    bool ok = expect_not_style_range(attrs, env->bbcode, command_pos, 4, "cjsh-unknown-command",
-                                     test_name,
-                                     "known command should not be highlighted as unknown") &&
-              expect_style_range(attrs, env->bbcode, redirection_pos, 1, "cjsh-operator",
-                                 test_name, "redirection operator should be highlighted") &&
-              expect_not_style_range(attrs, env->bbcode, target_pos, 4, "cjsh-unknown-command",
-                                     test_name,
-                                     "redirection target should not be highlighted as unknown");
+    bool ok =
+        expect_not_style_range(attrs, env->bbcode, command_pos, 4, "cjsh-unknown-command",
+                               test_name, "known command should not be highlighted as unknown") &&
+        expect_style_range(attrs, env->bbcode, redirection_pos, 1, "cjsh-operator", test_name,
+                           "redirection operator should be highlighted") &&
+        expect_not_style_range(attrs, env->bbcode, target_pos, 4, "cjsh-unknown-command", test_name,
+                               "redirection target should not be highlighted as unknown");
 
     attrbuf_free(attrs);
     return ok;

@@ -83,11 +83,11 @@ struct ic_env_s {
     ic_status_message_fun_t* status_message_callback;  // callback for status message text
     void* status_message_arg;                          // user state for status callback
     ic_check_for_continuation_or_return_fun_t*
-        continuation_check_callback;         // callback that decides whether to submit or continue
-    void* continuation_check_arg;            // user state for the continuation callback
+        continuation_check_callback;  // callback that decides whether to submit or continue
+    void* continuation_check_arg;     // user state for the continuation callback
     ic_typeahead_capture_allowed_fun_t*
         typeahead_capture_allowed_callback;  // callback that gates typeahead capture
-    void* typeahead_capture_allowed_arg;      // user state for the typeahead gate callback
+    void* typeahead_capture_allowed_arg;     // user state for the typeahead gate callback
     ic_status_hint_mode_t status_hint_mode;  // rendering behavior for default hints
     ic_mouse_clicking_mode_t
         mouse_reporting_mode;                  // capture strategy for mouse interaction sessions
@@ -131,7 +131,7 @@ struct ic_env_s {
     bool show_whitespace_characters;                   // visualize spaces while editing?
     bool inline_right_prompt_follows_cursor;           // right prompt tracks cursor row
     bool bracketed_paste_enabled;                      // bracketed paste mode active
-    bool typeahead_enabled;                             // capture pending stdin for next readline
+    bool typeahead_enabled;                            // capture pending stdin for next readline
     size_t multiline_start_line_count;  // prefill multiline prompts with this many lines
     long hint_delay;                    // delay before displaying a hint in milliseconds
 

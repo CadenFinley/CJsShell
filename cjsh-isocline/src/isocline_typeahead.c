@@ -135,8 +135,7 @@ ic_private void ic_typeahead_filter_escape_sequences_into(const char* input, siz
     }
 }
 
-ic_private void ic_typeahead_normalize_line_edit_sequences_into(const char* input,
-                                                                size_t input_len,
+ic_private void ic_typeahead_normalize_line_edit_sequences_into(const char* input, size_t input_len,
                                                                 stringbuf_t* output) {
     if (output == NULL) {
         return;

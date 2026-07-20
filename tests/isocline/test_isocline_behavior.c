@@ -1117,8 +1117,7 @@ static bool test_tty_capture_pending_raw_preconditions(void) {
     stringbuf_t* out = new_stringbuf();
     EXPECT_TRUE(out != NULL, "test string buffer allocation should succeed");
 
-    EXPECT_FALSE(tty_capture_pending_raw(NULL, out),
-                 "pending raw capture should reject NULL tty");
+    EXPECT_FALSE(tty_capture_pending_raw(NULL, out), "pending raw capture should reject NULL tty");
     EXPECT_TRUE(sbuf_len(out) == 0, "failed capture should leave output buffer empty");
 
     struct tty_s tty_probe;
@@ -1137,14 +1136,12 @@ static bool test_escape_skip_charset_sequence_length(void) {
     ssize_t esc_len = 0;
     EXPECT_TRUE(skip_esc("\x1b(B", 3, &esc_len),
                 "shared escape skipper should identify charset-shift sequences");
-    EXPECT_TRUE(esc_len == 3,
-                "charset-shift escape sequence should consume all three bytes");
+    EXPECT_TRUE(esc_len == 3, "charset-shift escape sequence should consume all three bytes");
 
     esc_len = 0;
     EXPECT_TRUE(skip_esc("\x1b%G", 3, &esc_len),
                 "shared escape skipper should identify percent charset sequences");
-    EXPECT_TRUE(esc_len == 3,
-                "percent charset escape sequence should consume all three bytes");
+    EXPECT_TRUE(esc_len == 3, "percent charset escape sequence should consume all three bytes");
 
     return true;
 }
@@ -1276,8 +1273,8 @@ static bool test_typeahead_filter_removes_charset_numeric_and_control_bytes(void
     stringbuf_t* out = new_stringbuf();
     EXPECT_TRUE(out != NULL, "test string buffer allocation should succeed");
 
-    const char input[] = {'a', '\x1b', '(', 'B', 'b', '\x1b', '1', '2', '3',
-                          'c', '\x07', 'd', '\x03', 'e', '\0'};
+    const char input[] = {'a', '\x1b', '(',    'B', 'b',    '\x1b', '1', '2',
+                          '3', 'c',    '\x07', 'd', '\x03', 'e',    '\0'};
     ic_typeahead_filter_escape_sequences_into(input, strlen(input), out);
     EXPECT_STREQ(sbuf_string(out), "abcde",
                  "charset, numeric escape, bell, and control bytes should be removed");
@@ -1290,7 +1287,9 @@ static bool test_typeahead_filter_reuses_extended_escape_skipper(void) {
     stringbuf_t* out = new_stringbuf();
     EXPECT_TRUE(out != NULL, "test string buffer allocation should succeed");
 
-    const char* input = "a\x1bPignored\x07" "b\x1b_ignored\x1b\\c\x1b%Gd";
+    const char* input =
+        "a\x1bPignored\x07"
+        "b\x1b_ignored\x1b\\c\x1b%Gd";
     ic_typeahead_filter_escape_sequences_into(input, strlen(input), out);
     EXPECT_STREQ(sbuf_string(out), "abcd",
                  "typeahead filter should use shared escape skipper for DCS/PM/charset escapes");
@@ -1347,11 +1346,10 @@ static bool test_typeahead_normalize_ctrl_w_deletes_previous_word(void) {
     EXPECT_STREQ(sbuf_string(out), "cmd alpha   beta",
                  "baseline normalize should preserve text without control bytes");
 
-    const char input_with_ctrl_w[] = {'c', 'm', 'd', ' ', 'a', 'l', 'p', 'h', 'a',
-                                      ' ', ' ', ' ', 'b', 'e', 't', 'a', 0x17,
-                                      'g', 'a', 'm', 'm', 'a'};
-    ic_typeahead_normalize_line_edit_sequences_into(input_with_ctrl_w,
-                                                    sizeof(input_with_ctrl_w), out);
+    const char input_with_ctrl_w[] = {'c', 'm', 'd', ' ', 'a', 'l',  'p', 'h', 'a', ' ', ' ',
+                                      ' ', 'b', 'e', 't', 'a', 0x17, 'g', 'a', 'm', 'm', 'a'};
+    ic_typeahead_normalize_line_edit_sequences_into(input_with_ctrl_w, sizeof(input_with_ctrl_w),
+                                                    out);
     EXPECT_STREQ(sbuf_string(out), "cmd alpha   gamma",
                  "Ctrl-W should remove trailing space and the previous word");
 
@@ -1363,7 +1361,7 @@ static bool test_typeahead_normalize_ctrl_w_deletes_utf8_word(void) {
     stringbuf_t* out = new_stringbuf();
     EXPECT_TRUE(out != NULL, "test string buffer allocation should succeed");
 
-    const char input[] = {'c', 'm', 'd', ' ', (char)0xC3, (char)0xA9,
+    const char input[] = {'c',        'm',        'd',        ' ',  (char)0xC3, (char)0xA9,
                           (char)0xE2, (char)0x82, (char)0xAC, 0x17, 'x'};
     ic_typeahead_normalize_line_edit_sequences_into(input, sizeof(input), out);
     EXPECT_STREQ(sbuf_string(out), "cmd x",
@@ -1436,7 +1434,9 @@ static bool test_typeahead_ingest_filters_escape_sequences_before_pending_input(
         return false;
 
     reset_typeahead_test_state(true);
-    const char* raw = "ab\x1b[C\x1b]0;ignored\x07" "cd";
+    const char* raw =
+        "ab\x1b[C\x1b]0;ignored\x07"
+        "cd";
     EXPECT_TRUE(ic_typeahead_ingest_raw_input((const uint8_t*)raw, strlen(raw)),
                 "escape-rich raw input should ingest");
     EXPECT_STREQ(ic_typeahead_pending_initial_input(env), "abcd",
@@ -1467,9 +1467,9 @@ static bool test_typeahead_ingest_keeps_last_incomplete_line_after_newline(void)
         return false;
 
     reset_typeahead_test_state(true);
-    EXPECT_TRUE(
-        ic_typeahead_ingest_raw_input((const uint8_t*)"first command\nsecond", strlen("first command\nsecond")),
-        "multiline pending input should ingest");
+    EXPECT_TRUE(ic_typeahead_ingest_raw_input((const uint8_t*)"first command\nsecond",
+                                              strlen("first command\nsecond")),
+                "multiline pending input should ingest");
     EXPECT_STREQ(ic_typeahead_pending_initial_input(env), "second",
                  "pending initial input should keep only text after the last newline");
 
@@ -1541,8 +1541,7 @@ static bool test_typeahead_prepare_replays_control_raw_bytes_in_original_order(v
     ic_set_typeahead_capture_allowed_callback(stub_typeahead_capture_allowed, NULL);
 
     static const uint8_t raw[] = {'a', 'b', 0x7F, 'c', 'd'};
-    EXPECT_TRUE(ic_typeahead_ingest_raw_input(raw, sizeof(raw)),
-                "control raw input should ingest");
+    EXPECT_TRUE(ic_typeahead_ingest_raw_input(raw, sizeof(raw)), "control raw input should ingest");
     EXPECT_STREQ(ic_typeahead_pending_initial_input(env), "acd",
                  "normalized pending input should reflect line editing before replay");
 
@@ -1582,8 +1581,7 @@ static bool test_typeahead_prepare_failed_control_replay_preserves_initial_input
     ic_set_typeahead_capture_allowed_callback(stub_typeahead_capture_allowed, NULL);
 
     static const uint8_t raw[] = {'r', 'u', 'n', '\n'};
-    EXPECT_TRUE(ic_typeahead_ingest_raw_input(raw, sizeof(raw)),
-                "newline raw input should ingest");
+    EXPECT_TRUE(ic_typeahead_ingest_raw_input(raw, sizeof(raw)), "newline raw input should ingest");
 
     tty_t* saved_tty = env->tty;
     env->tty = NULL;

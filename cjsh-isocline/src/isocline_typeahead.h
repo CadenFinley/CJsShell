@@ -41,8 +41,7 @@
 
 ic_private void ic_typeahead_filter_escape_sequences_into(const char* input, size_t input_len,
                                                           stringbuf_t* output);
-ic_private void ic_typeahead_normalize_line_edit_sequences_into(const char* input,
-                                                                size_t input_len,
+ic_private void ic_typeahead_normalize_line_edit_sequences_into(const char* input, size_t input_len,
                                                                 stringbuf_t* output);
 ic_private bool ic_typeahead_ingest_raw_input(const uint8_t* data, size_t length);
 ic_private void ic_typeahead_prepare_for_readline(ic_env_t* env);
