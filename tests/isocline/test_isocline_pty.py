@@ -1497,6 +1497,15 @@ def main() -> int:
             "expanded completion menu should show full multiline selection text, got "
             f"normalized_output={normalized_comp_multiline_preview_output!r}"
         )
+    if (
+        "→ m02 first line..." in normalized_comp_multiline_preview_output
+        or "> m02 first line..." in normalized_comp_multiline_preview_output
+    ):
+        raise AssertionError(
+            "expanded completion menu should render the selected multiline candidate inline "
+            "instead of leaving the selected row collapsed, got "
+            f"normalized_output={normalized_comp_multiline_preview_output!r}"
+        )
 
     help_result, help_output = run_case(
         binary, "insert_backspace", F2 + b"ab" + F1 + b"c\r", capture_output=True

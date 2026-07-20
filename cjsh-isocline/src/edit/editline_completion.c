@@ -458,10 +458,34 @@ static bool completion_menu_mouse_select(ic_env_t* env, editor_t* eb, bool expan
     ssize_t idx = -1;
     if (expanded_mode) {
         ssize_t visible_rows = (last_rows_visible > 0 ? last_rows_visible : count_displayed);
-        if (item_row >= visible_rows) {
+        ssize_t selected_preview_rows = 1;
+        if (*selected >= scroll_offset && *selected < scroll_offset + visible_rows) {
+            const char* selected_display =
+                completions_get_display(env->completions, *selected, NULL);
+            if (completion_contains_line_break(selected_display)) {
+                selected_preview_rows = completion_line_count(selected_display);
+                if (selected_preview_rows < 1) {
+                    selected_preview_rows = 1;
+                }
+            }
+        }
+        ssize_t physical_rows = visible_rows + (selected_preview_rows - 1);
+        if (item_row >= physical_rows) {
             return false;
         }
-        idx = scroll_offset + item_row;
+        if (selected_preview_rows > 1 && *selected >= scroll_offset &&
+            *selected < scroll_offset + visible_rows) {
+            const ssize_t selected_row = *selected - scroll_offset;
+            if (item_row >= selected_row && item_row < selected_row + selected_preview_rows) {
+                idx = *selected;
+            } else if (item_row > selected_row) {
+                idx = scroll_offset + item_row - (selected_preview_rows - 1);
+            } else {
+                idx = scroll_offset + item_row;
+            }
+        } else {
+            idx = scroll_offset + item_row;
+        }
     } else if (grid_mode) {
         if (grid_rows <= 0 || grid_columns <= 0 || colwidth <= 0 || item_row >= grid_rows) {
             return false;
@@ -781,8 +805,8 @@ again:
             if (completion_contains_line_break(selected_display)) {
                 selected_multiline_preview = selected_display;
                 selected_multiline_preview_rows = completion_line_count(selected_display);
-                if (selected_multiline_preview_rows > 0) {
-                    rows_for_items -= selected_multiline_preview_rows;
+                if (selected_multiline_preview_rows > 1) {
+                    rows_for_items -= (selected_multiline_preview_rows - 1);
                     if (rows_for_items < 1) {
                         rows_for_items = 1;
                     }
@@ -842,7 +866,11 @@ again:
                 sbuf_append(eb->extra, "\n");
             }
             wrote_any_row = true;
-            editor_append_completion(env, eb, idx, colwidth, false, (selected == idx));
+            if (selected == idx && selected_multiline_preview != NULL) {
+                completion_append_multiline_preview(env, eb, selected_multiline_preview);
+            } else {
+                editor_append_completion(env, eb, idx, colwidth, false, (selected == idx));
+            }
             visible_count++;
         }
 
@@ -864,13 +892,6 @@ again:
                             "[ic-info]Use up/down, tab/shift-tab, or wheel to move; Shift+Up/Down "
                             "to page; PgUp/PgDn to scroll[/]");
             }
-        }
-
-        if (selected_multiline_preview != NULL) {
-            if (sbuf_len(eb->extra) > 0) {
-                sbuf_append(eb->extra, "\n");
-            }
-            completion_append_multiline_preview(env, eb, selected_multiline_preview);
         }
 
         ssize_t visible_start = 0;

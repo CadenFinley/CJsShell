@@ -237,6 +237,8 @@ directories that contain thousands of files or deeply nested command trees.
 - Press `Esc` to cancel
 - In expanded menus, use the mouse wheel to scroll and click entries to select/accept
   (`cjshopt completion-click-accept off` keeps click selection but requires Enter/Right/End to accept)
+- In expanded menus, selected multiline completion entries expand inline so the full candidate text
+  is visible while you navigate.
 
 ### Hints and Inline Help
 
