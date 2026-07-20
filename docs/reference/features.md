@@ -133,7 +133,7 @@ Persistent caches (history, generated completions, etc.) live under `~/.cache/cj
 - `-i, --interactive` – force interactive behavior even if stdin is not a tty
 - `-c, --command=<string>` – execute a single command and exit (disables history expansion)
 - `--no-exec` – read commands but do not execute them
-- `--posix` – enable POSIX mode and reject non-POSIX syntax
+- `--posix` – enable POSIX mode and reject non-POSIX syntax and non-POSIX builtins
 - `-m, --minimal` – disable prompt themes/colors, completions and completion learning, syntax
   highlighting, rc sourcing, smart cd, the title line, history expansion, the status line,
   multiline line numbers, the startup time banner, error suggestions, and prompt vars

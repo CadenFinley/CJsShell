@@ -82,9 +82,13 @@
 namespace {
 
 bool is_posix_restricted_builtin(const std::string& name) {
-    return name == "abbr" || name == "abbreviate" || name == "approot" || name == "unabbr" ||
-           name == "unabbreviate" || name == "generate-completions" || name == "hook" ||
-           name == "cjsh-widget" || name == "cjshopt";
+    return name == "abbr" || name == "abbreviate" || name == "approot" || name == "pushd" ||
+           name == "popd" || name == "dirs" || name == "unabbr" ||
+           name == "unabbreviate" || name == "help" || name == "version" ||
+           name == "history" || name == "restart" || name == "type" || name == "which" ||
+           name == "jobname" || name == "disown" || name == "generate-completions" ||
+           name == "hook" || name == "cjsh-widget" || name == "cjshopt" ||
+           name == "builtin" || name == "quit" || name == "bye";
 }
 
 int reject_posix_restricted_builtin(const std::string& name) {
@@ -187,6 +191,7 @@ Built_ins::Built_ins() : shell(nullptr) {
         {"fc", [this](const std::vector<std::string>& args) { return ::fc_command(args, shell); }},
         {"exit", [](const std::vector<std::string>& args) { return ::exit_command(args); }},
         {"quit", [](const std::vector<std::string>& args) { return ::exit_command(args); }},
+        {"bye", [](const std::vector<std::string>& args) { return ::exit_command(args); }},
         {"restart", [](const std::vector<std::string>& args) { return ::restart_command(args); }},
         {"test", [](const std::vector<std::string>& args) { return ::test_command(args); }},
         {"[", [](const std::vector<std::string>& args) { return ::test_command(args); }},

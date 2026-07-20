@@ -425,6 +425,7 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
 
         add_doc("exit", "Exit the shell with an optional status", {});
         add_alias("quit", "exit");
+        add_alias("bye", "exit");
         add_doc("restart", "Re-exec cjsh in place",
                 {make_option("-n", "Restart as plain cjsh without original startup arguments"),
                  make_option("--no-flags",

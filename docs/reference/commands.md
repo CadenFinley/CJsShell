@@ -127,13 +127,16 @@ printf format [arguments...]
 
 ## Shell Control
 
-### exit / quit
+### exit / quit / bye
 Leave the shell with an optional exit status.
 
 ```bash
 exit [n]
 quit [n]
+bye [n]
 ```
+
+- In `--posix` mode, use `exit`; `quit` and `bye` are disabled.
 
 ### help
 Display the CJSH command reference.
@@ -759,7 +762,7 @@ Supported flags:
 | `--no-exec` | Read commands but do not execute them |
 | `--minimal` | Disable prompt themes/colors, completions and completion learning, syntax highlighting, smart cd, rc sourcing, title line, history expansion, the status line, multiline line numbers, startup time banner, error suggestions, prompt vars, and special lifecycle handlers |
 | `--secure` | Skip profile/rc/logout sourcing even for login shells, and ignore special lifecycle handlers |
-| `--posix` | Enable POSIX mode, reject non-POSIX syntax, and ignore special lifecycle handlers |
+| `--posix` | Enable POSIX mode, reject non-POSIX syntax and non-POSIX builtins, and ignore special lifecycle handlers |
 | `--startup-test` | Enable startup test mode |
 
 Add one line per flag in `~/.cjprofile` to persist the desired behavior:

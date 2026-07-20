@@ -152,13 +152,20 @@ run_expect_fail "local disabled through command builtin" "command local foo=1" \
     "'local' is disabled in POSIX mode"
 run_expect_fail "declare disabled through command builtin" "command declare foo=1" \
     "'declare' is disabled in POSIX mode"
-run_expect_fail "source disabled through builtin wrapper" "builtin source '$tmp_source_file'" \
-    "'source' is disabled in POSIX mode"
-run_expect_fail "local disabled through builtin wrapper" "builtin local foo=1" \
-    "'local' is disabled in POSIX mode"
 run_expect_fail "set -o globstar disabled" "set -o globstar" "not available in POSIX mode"
 run_expect_fail "set -o pipefail disabled" "set -o pipefail" "not available in POSIX mode"
 run_expect_fail "set -o huponexit disabled" "set -o huponexit" "not available in POSIX mode"
+run_expect_fail "pushd builtin disabled" "pushd /tmp" "not available in POSIX mode"
+run_expect_fail "popd builtin disabled" "popd" "not available in POSIX mode"
+run_expect_fail "dirs builtin disabled" "dirs" "not available in POSIX mode"
+run_expect_fail "help builtin disabled" "help" "not available in POSIX mode"
+run_expect_fail "version builtin disabled" "version" "not available in POSIX mode"
+run_expect_fail "history builtin disabled" "history" "not available in POSIX mode"
+run_expect_fail "restart builtin disabled" "restart" "not available in POSIX mode"
+run_expect_fail "type builtin disabled" "type echo" "not available in POSIX mode"
+run_expect_fail "which builtin disabled" "which echo" "not available in POSIX mode"
+run_expect_fail "jobname builtin disabled" "jobname %1 test-name" "not available in POSIX mode"
+run_expect_fail "disown builtin disabled" "disown" "not available in POSIX mode"
 run_expect_fail "cjshopt builtin disabled" "cjshopt" "not available in POSIX mode"
 run_expect_fail "hook builtin disabled" "hook" "not available in POSIX mode"
 run_expect_fail "abbr builtin disabled" "abbr" "not available in POSIX mode"
@@ -167,6 +174,13 @@ run_expect_fail "approot builtin disabled" "approot" "not available in POSIX mod
 run_expect_fail "generate-completions builtin disabled" "generate-completions" \
     "not available in POSIX mode"
 run_expect_fail "cjsh-widget builtin disabled" "cjsh-widget" "not available in POSIX mode"
+run_expect_fail "quit alias disabled" "quit" "not available in POSIX mode"
+run_expect_fail "bye alias disabled" "bye" "not available in POSIX mode"
+run_expect_fail "builtin utility disabled" "builtin echo hi" "not available in POSIX mode"
+run_expect_fail "help disabled through command builtin" "command help" \
+    "not available in POSIX mode"
+run_expect_fail "quit disabled through command builtin" "command quit" \
+    "not available in POSIX mode"
 run_expect_literal "dot builtin allowed" ". '$tmp_source_file'" "from source"
 
 run_expect_literal "brace expansion stays literal" "echo {1..3}" "{1..3}"

@@ -74,7 +74,7 @@ int help_command() {
         // Shell control
         {"help", "Display this overview"},
         {"version", "Show cjsh version and build information"},
-        {"exit / quit", "Leave the shell with an optional exit status"},
+        {"exit / quit / bye", "Leave the shell with an optional exit status"},
         {"restart", "Re-exec cjsh in place (use --no-flags for a fresh launch)"},
 
         // Script execution

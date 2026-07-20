@@ -88,12 +88,28 @@ else
     fail "Exit without args should reuse previous status 1, got $?"
 fi
 
+log_test "Bye alias reuses last command status"
+"$SHELL_TO_TEST" -c "false; bye" 2>/dev/null
+if [ $? -eq 1 ]; then
+    pass
+else
+    fail "Bye without args should reuse previous status 1, got $?"
+fi
+
 log_test "Exit with specific code (42)"
 "$SHELL_TO_TEST" -c "exit 42" 2>/dev/null
 if [ $? -eq 42 ]; then
     pass
 else
     fail "Exit with code 42 should return 42, got $?"
+fi
+
+log_test "Bye alias with specific code (42)"
+"$SHELL_TO_TEST" -c "bye 42" 2>/dev/null
+if [ $? -eq 42 ]; then
+    pass
+else
+    fail "Bye with code 42 should return 42, got $?"
 fi
 
 log_test "Exit with large code normalization"

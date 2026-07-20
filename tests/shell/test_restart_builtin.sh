@@ -72,60 +72,28 @@ else
     fail_test "restart re-execs the shell process (got '$OUT')"
 fi
 
-OUT=$("$CJSH_PATH" --posix -c '
-if [ -z "$CJSH_RESTART_POSIX_ONCE" ]; then
-    export CJSH_RESTART_POSIX_ONCE=1
-    export CJSH_RESTART_POSIX_SHLVL="$SHLVL"
-    restart
+OUT=$("$CJSH_PATH" --posix -c 'restart' 2>&1)
+STATUS=$?
+if [ "$STATUS" -ne 0 ] && printf "%s" "$OUT" | grep -Fq "not available in POSIX mode"; then
+    pass_test "restart is disabled in POSIX mode"
+else
+    fail_test "restart is disabled in POSIX mode (status=$STATUS, output='$OUT')"
 fi
 
-cjshopt completion-case status >/dev/null 2>&1
-CJSHOPT_STATUS=$?
-
-if [ "$SHLVL" -gt "$CJSH_RESTART_POSIX_SHLVL" ] && [ "$CJSHOPT_STATUS" -ne 0 ]; then
-    echo preserved
+OUT=$("$CJSH_PATH" --posix -c 'restart --no-flags' 2>&1)
+STATUS=$?
+if [ "$STATUS" -ne 0 ] && printf "%s" "$OUT" | grep -Fq "not available in POSIX mode"; then
+    pass_test "restart --no-flags is disabled in POSIX mode"
 else
-    echo mismatch:"$SHLVL":"$CJSH_RESTART_POSIX_SHLVL":"$CJSHOPT_STATUS"
-fi
-' 2>/dev/null)
-if [ "$OUT" = "preserved" ]; then
-    pass_test "restart preserves original startup flags by default"
-else
-    fail_test "restart preserves original startup flags by default (got '$OUT')"
+    fail_test "restart --no-flags is disabled in POSIX mode (status=$STATUS, output='$OUT')"
 fi
 
-OUT=$(
-cat <<'EOF' | "$CJSH_PATH" --posix -c 'export CJSH_RESTART_NOFLAGS_SHLVL="$SHLVL"; restart --no-flags' 2>/dev/null
-cjshopt completion-case status >/dev/null 2>&1
-CJSHOPT_STATUS=$?
-if [ "$SHLVL" -gt "$CJSH_RESTART_NOFLAGS_SHLVL" ] && [ "$CJSHOPT_STATUS" -eq 0 ]; then
-    echo no-flags-ok
+OUT=$("$CJSH_PATH" --posix -c 'restart -n' 2>&1)
+STATUS=$?
+if [ "$STATUS" -ne 0 ] && printf "%s" "$OUT" | grep -Fq "not available in POSIX mode"; then
+    pass_test "restart -n is disabled in POSIX mode"
 else
-    echo no-flags-bad:"$SHLVL":"$CJSH_RESTART_NOFLAGS_SHLVL":"$CJSHOPT_STATUS"
-fi
-EOF
-)
-if [ "$OUT" = "no-flags-ok" ]; then
-    pass_test "restart --no-flags drops startup flags"
-else
-    fail_test "restart --no-flags drops startup flags (got '$OUT')"
-fi
-
-OUT=$(
-cat <<'EOF' | "$CJSH_PATH" --posix -c 'export CJSH_RESTART_SHORT_SHLVL="$SHLVL"; restart -n' 2>/dev/null
-cjshopt completion-case status >/dev/null 2>&1
-CJSHOPT_STATUS=$?
-if [ "$SHLVL" -gt "$CJSH_RESTART_SHORT_SHLVL" ] && [ "$CJSHOPT_STATUS" -eq 0 ]; then
-    echo short-ok
-else
-    echo short-bad:"$SHLVL":"$CJSH_RESTART_SHORT_SHLVL":"$CJSHOPT_STATUS"
-fi
-EOF
-)
-if [ "$OUT" = "short-ok" ]; then
-    pass_test "restart -n short option works"
-else
-    fail_test "restart -n short option works (got '$OUT')"
+    fail_test "restart -n is disabled in POSIX mode (status=$STATUS, output='$OUT')"
 fi
 
 OUT=$("$CJSH_PATH" -c "restart --help" 2>&1)
