@@ -39,6 +39,7 @@
 #include "completions.h"
 #include "history.h"
 #include "isocline.h"
+#include "stringbuf.h"
 #include "term.h"
 #include "tty.h"
 
@@ -84,6 +85,9 @@ struct ic_env_s {
     ic_check_for_continuation_or_return_fun_t*
         continuation_check_callback;         // callback that decides whether to submit or continue
     void* continuation_check_arg;            // user state for the continuation callback
+    ic_typeahead_capture_allowed_fun_t*
+        typeahead_capture_allowed_callback;  // callback that gates typeahead capture
+    void* typeahead_capture_allowed_arg;      // user state for the typeahead gate callback
     ic_status_hint_mode_t status_hint_mode;  // rendering behavior for default hints
     ic_mouse_clicking_mode_t
         mouse_reporting_mode;                  // capture strategy for mouse interaction sessions
@@ -94,6 +98,8 @@ struct ic_env_s {
     const char* match_braces;                  // matching braces, e.g "()[]{}"
     const char* auto_braces;                   // auto insertion braces, e.g "()[]{}\"\"''"
     const char* initial_input;                 // initial input text to insert into editor
+    stringbuf_t* typeahead_input_buffer;       // sanitized pending typeahead text
+    stringbuf_t* typeahead_pending_raw_bytes;  // raw bytes awaiting replay/filtering
     ic_readline_disposition_t last_readline_disposition;  // disposition from most recent read
     char multiline_eol;                    // character used for multiline input ("\") (set to 0
                                            // to disable)
@@ -125,6 +131,7 @@ struct ic_env_s {
     bool show_whitespace_characters;                   // visualize spaces while editing?
     bool inline_right_prompt_follows_cursor;           // right prompt tracks cursor row
     bool bracketed_paste_enabled;                      // bracketed paste mode active
+    bool typeahead_enabled;                             // capture pending stdin for next readline
     size_t multiline_start_line_count;  // prefill multiline prompts with this many lines
     long hint_delay;                    // delay before displaying a hint in milliseconds
 

@@ -69,7 +69,6 @@
 #include "status_line.h"
 #include "string_utils.h"
 #include "trap_command.h"
-#include "typeahead.h"
 #include "version_command.h"
 
 std::chrono::steady_clock::time_point& startup_begin_time() {
@@ -90,6 +89,10 @@ bool parent_process_alive() {
 
     const pid_t parent_pid = getppid();
     return parent_pid != 1 && (kill(parent_pid, 0) != -1 || errno != ESRCH);
+}
+
+bool typeahead_capture_allowed(void*) {
+    return !JobManager::instance().foreground_job_reads_stdin();
 }
 
 bool process_command_line(const std::string& command) {
@@ -170,10 +173,7 @@ bool process_command_line(const std::string& command) {
 #endif
 
     // handle typeahead that happened while command was executing
-    std::string typeahead_input = typeahead::capture_available_input();
-    if (!typeahead_input.empty()) {
-        typeahead::ingest_typeahead_input(typeahead_input);
-    }
+    (void)ic_typeahead_capture_available_input();
 
     return cjsh_env::exit_requested();
 }
@@ -214,27 +214,15 @@ std::optional<std::string> get_next_command() {
         ic_set_prompt_marker("", continuation_prompt.c_str());
     }
 
-    // handle typeahead input from the buffer
-    thread_local static std::string sanitized_buffer;
     thread_local static size_t consecutive_readline_errors = 0;
-    sanitized_buffer.clear();
-    typeahead::flush_pending_typeahead();
-    const std::string& pending_buffer = typeahead::get_input_buffer();
-    if (!pending_buffer.empty()) {
-        sanitized_buffer.reserve(pending_buffer.size());
-        typeahead::filter_escape_sequences_into(pending_buffer, sanitized_buffer);
-    }
 
     // read input from isocline and had over everything that we captured and calculated above
-    const char* initial_input = sanitized_buffer.empty() ? nullptr : sanitized_buffer.c_str();
     const char* inline_right_ptr = inline_right_text.empty() ? nullptr : inline_right_text.c_str();
     refresh_command_palette_entries();
     prompt::set_prompt_refresh_allowed(true);
     ic_readline_result_t readline_result =
-        ic_readline_with_status(prompt_text.c_str(), inline_right_ptr, initial_input);
+        ic_readline_with_status(prompt_text.c_str(), inline_right_ptr, nullptr);
     prompt::set_prompt_refresh_allowed(false);
-    typeahead::clear_input_buffer();
-    sanitized_buffer.clear();
 
     char* input = readline_result.input;
 
@@ -522,14 +510,15 @@ void initialize_isocline() {
     (void)ic_bind_key(IC_KEY_EVENT_PROMPT_REFRESH, IC_KEY_ACTION_RUNOFF);
     ic_set_status_message_callback(status_line::create_below_syntax_message, nullptr);
     ic_set_check_for_continuation_or_return_callback(continuation_or_return_callback, nullptr);
+    ic_set_typeahead_capture_allowed_callback(typeahead_capture_allowed, nullptr);
     if (!config::status_line_enabled) {
         (void)ic_set_status_hint_mode(IC_STATUS_HINT_OFF);
     }
 }
 
 void main_process_loop() {
-    // create a typeahead buffer
-    typeahead::initialize();
+    // enable isocline-owned typeahead capture for this interactive loop
+    (void)ic_enable_typeahead(true);
 
     std::string command_to_run;
     // main input loop, runs until exit
@@ -577,7 +566,8 @@ void main_process_loop() {
         }
     }
 
-    typeahead::cleanup();
+    ic_typeahead_clear();
+    (void)ic_enable_typeahead(false);
 }
 
 void start_interactive_process() {

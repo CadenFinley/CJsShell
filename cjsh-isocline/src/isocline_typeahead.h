@@ -1,11 +1,13 @@
 /*
-  typeahead.h
+  isocline_typeahead.h
 
-  This file is part of cjsh, CJ's Shell
+  This file is part of isocline
 
   MIT License
 
   Copyright (c) 2026 Caden Finley
+  Copyright (c) 2021 Daan Leijen
+  Largely modified for CJ's Shell
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -27,22 +29,25 @@
 */
 
 #pragma once
+#ifndef IC_TYPEAHEAD_H
+#define IC_TYPEAHEAD_H
 
-#include <string>
-#include <string_view>
+#include <stddef.h>
+#include <stdint.h>
 
-namespace typeahead {
-std::string capture_available_input();
-void initialize();
-void cleanup();
+#include "common.h"
+#include "env.h"
+#include "stringbuf.h"
 
-void filter_escape_sequences_into(std::string_view input, std::string& output);
+ic_private void ic_typeahead_filter_escape_sequences_into(const char* input, size_t input_len,
+                                                          stringbuf_t* output);
+ic_private void ic_typeahead_normalize_line_edit_sequences_into(const char* input,
+                                                                size_t input_len,
+                                                                stringbuf_t* output);
+ic_private bool ic_typeahead_ingest_raw_input(const uint8_t* data, size_t length);
+ic_private void ic_typeahead_prepare_for_readline(ic_env_t* env);
+ic_private const char* ic_typeahead_pending_initial_input(ic_env_t* env);
+ic_private ssize_t ic_typeahead_pending_initial_input_len(ic_env_t* env);
+ic_private ssize_t ic_typeahead_pending_raw_byte_count(ic_env_t* env);
 
-void normalize_line_edit_sequences_into(std::string_view input, std::string& output);
-void ingest_typeahead_input(const std::string& raw_input);
-void flush_pending_typeahead();
-
-void clear_input_buffer();
-const std::string& get_input_buffer();
-
-}  // namespace typeahead
+#endif

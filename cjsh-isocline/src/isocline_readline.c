@@ -39,6 +39,7 @@
 #include "env.h"
 #include "env_internal.h"
 #include "isocline.h"
+#include "isocline_typeahead.h"
 #include "stringbuf.h"
 
 //-------------------------------------------------------------
@@ -120,13 +121,25 @@ static ic_readline_result_t ic_readline_with_status_impl(const char* prompt_text
     result.tty_lost = (env->tty != NULL && tty_lost_terminal(env->tty));
 
     if (!env->noedit) {
-        if (initial_input != NULL) {
-            ic_env_set_initial_input(env, initial_input);
+        const char* effective_initial_input = initial_input;
+        bool using_typeahead_initial_input = false;
+
+        if (effective_initial_input == NULL) {
+            ic_typeahead_prepare_for_readline(env);
+            effective_initial_input = ic_typeahead_pending_initial_input(env);
+            using_typeahead_initial_input = (effective_initial_input != NULL);
+        }
+
+        if (effective_initial_input != NULL) {
+            ic_env_set_initial_input(env, effective_initial_input);
         }
 
         result.input = ic_editline(env, prompt_text, inline_right_text);
 
         ic_env_clear_initial_input(env);
+        if (using_typeahead_initial_input) {
+            ic_typeahead_clear();
+        }
 
         result.disposition = env->last_readline_disposition;
         result.tty_lost = (env->tty != NULL && tty_lost_terminal(env->tty));

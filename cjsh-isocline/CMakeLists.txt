@@ -41,6 +41,7 @@ set(
     "${CMAKE_CURRENT_SOURCE_DIR}/src/isocline_print.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/isocline_readline.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/isocline_terminal.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/isocline_typeahead.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/prompt_line_replacement.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/stringbuf.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/term.c"

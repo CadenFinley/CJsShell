@@ -36,6 +36,7 @@
 #include "env.h"
 #include "history.h"
 #include "isocline.h"
+#include "isocline_typeahead.h"
 #include "prompt_line_replacement.h"
 #include "stringbuf.h"
 #include "unicode.h"
@@ -110,6 +111,12 @@ static stringbuf_t* new_stringbuf(void) {
     return sbuf_new(mem);
 }
 
+static void reset_typeahead_test_state(bool enabled) {
+    ic_set_typeahead_capture_allowed_callback(NULL, NULL);
+    (void)ic_enable_typeahead(enabled);
+    ic_typeahead_clear();
+}
+
 static bool stub_continuation_checker(const char* buffer, void* arg) {
     bool arg_valid = (arg != NULL);
     bool buffer_valid = (buffer != NULL);
@@ -119,6 +126,16 @@ static bool stub_continuation_checker(const char* buffer, void* arg) {
 static const char* stub_status_message(const char* input_buffer, void* arg) {
     ic_unused(input_buffer);
     return (arg != NULL ? "status" : NULL);
+}
+
+static int g_typeahead_capture_gate_calls = 0;
+static bool g_typeahead_capture_gate_result = true;
+static void* g_typeahead_capture_gate_last_arg = NULL;
+
+static bool stub_typeahead_capture_allowed(void* arg) {
+    g_typeahead_capture_gate_calls++;
+    g_typeahead_capture_gate_last_arg = arg;
+    return g_typeahead_capture_gate_result;
 }
 
 static bool g_command_palette_handler_called = false;
@@ -1093,6 +1110,437 @@ static bool test_push_raw_input_null_pointer_rejected(void) {
                  "non-empty raw input push should reject NULL data buffers");
 
     env->tty = saved_tty;
+    return true;
+}
+
+static bool test_typeahead_toggle_lifecycle(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    reset_typeahead_test_state(false);
+    EXPECT_FALSE(ic_typeahead_is_enabled(), "typeahead should be disabled after reset");
+
+    bool previous = ic_enable_typeahead(true);
+    EXPECT_FALSE(previous, "enabling typeahead should report previous disabled state");
+    EXPECT_TRUE(ic_typeahead_is_enabled(), "typeahead should be enabled");
+
+    previous = ic_enable_typeahead(true);
+    EXPECT_TRUE(previous, "enabling typeahead again should report previous enabled state");
+    EXPECT_TRUE(ic_typeahead_is_enabled(), "typeahead should remain enabled");
+
+    previous = ic_enable_typeahead(false);
+    EXPECT_TRUE(previous, "disabling typeahead should report previous enabled state");
+    EXPECT_FALSE(ic_typeahead_is_enabled(), "typeahead should be disabled");
+    EXPECT_TRUE(ic_typeahead_pending_initial_input_len(env) == 0,
+                "disabling typeahead should clear pending initial input");
+    EXPECT_TRUE(ic_typeahead_pending_raw_byte_count(env) == 0,
+                "disabling typeahead should clear pending raw bytes");
+
+    reset_typeahead_test_state(false);
+    return true;
+}
+
+static bool test_typeahead_clear_pending_state(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    reset_typeahead_test_state(true);
+    EXPECT_TRUE(ic_typeahead_ingest_raw_input((const uint8_t*)"clear-me", strlen("clear-me")),
+                "enabled typeahead should ingest raw bytes");
+    EXPECT_TRUE(ic_typeahead_pending_initial_input_len(env) > 0,
+                "ingest should create pending initial input");
+    EXPECT_TRUE(ic_typeahead_pending_raw_byte_count(env) > 0,
+                "ingest should retain pending raw bytes until prepare");
+
+    ic_typeahead_clear();
+    EXPECT_TRUE(ic_typeahead_pending_initial_input_len(env) == 0,
+                "clear should remove pending initial input");
+    EXPECT_TRUE(ic_typeahead_pending_raw_byte_count(env) == 0,
+                "clear should remove pending raw bytes");
+
+    reset_typeahead_test_state(false);
+    return true;
+}
+
+static bool test_typeahead_capture_gate_registration_and_disabled_state(void) {
+    reset_typeahead_test_state(false);
+    g_typeahead_capture_gate_calls = 0;
+    g_typeahead_capture_gate_result = true;
+    g_typeahead_capture_gate_last_arg = NULL;
+    ic_set_typeahead_capture_allowed_callback(stub_typeahead_capture_allowed, (void*)0xBEEF);
+
+    EXPECT_FALSE(ic_typeahead_capture_available_input(),
+                 "disabled typeahead should not attempt capture");
+    EXPECT_TRUE(g_typeahead_capture_gate_calls == 0,
+                "disabled typeahead should not call the capture gate");
+
+    (void)ic_enable_typeahead(true);
+    g_typeahead_capture_gate_result = false;
+    EXPECT_FALSE(ic_typeahead_capture_available_input(),
+                 "capture gate returning false should block capture");
+    EXPECT_TRUE(g_typeahead_capture_gate_calls == 1,
+                "enabled capture should call the capture gate once");
+    EXPECT_TRUE(g_typeahead_capture_gate_last_arg == (void*)0xBEEF,
+                "capture gate should receive the configured argument");
+
+    g_typeahead_capture_gate_result = true;
+    (void)ic_typeahead_capture_available_input();
+    EXPECT_TRUE(g_typeahead_capture_gate_calls == 2,
+                "allowed capture should still consult the capture gate");
+
+    reset_typeahead_test_state(false);
+    return true;
+}
+
+static bool test_typeahead_filter_preserves_plain_text(void) {
+    stringbuf_t* out = new_stringbuf();
+    EXPECT_TRUE(out != NULL, "test string buffer allocation should succeed");
+
+    const char* input = "echo plain\ttext\n";
+    ic_typeahead_filter_escape_sequences_into(input, strlen(input), out);
+    EXPECT_STREQ(sbuf_string(out), "echo plain\ttext\n",
+                 "plain printable text, tabs, and newlines should pass through");
+
+    sbuf_free(out);
+    return true;
+}
+
+static bool test_typeahead_filter_removes_csi_sequences(void) {
+    stringbuf_t* out = new_stringbuf();
+    EXPECT_TRUE(out != NULL, "test string buffer allocation should succeed");
+
+    const char* input = "ab\x1b[C\x1b[1;5Dcd\x1b[?25hef";
+    ic_typeahead_filter_escape_sequences_into(input, strlen(input), out);
+    EXPECT_STREQ(sbuf_string(out), "abcdef",
+                 "CSI cursor/control sequences should be removed from visible input");
+
+    sbuf_free(out);
+    return true;
+}
+
+static bool test_typeahead_filter_removes_osc_sequences(void) {
+    stringbuf_t* out = new_stringbuf();
+    EXPECT_TRUE(out != NULL, "test string buffer allocation should succeed");
+
+    const char* bel_input = "pre\x1b]0;title\x07post";
+    ic_typeahead_filter_escape_sequences_into(bel_input, strlen(bel_input), out);
+    EXPECT_STREQ(sbuf_string(out), "prepost", "OSC BEL-terminated sequence should be removed");
+
+    const char* st_input = "pre\x1b]0;title\x1b\\post";
+    ic_typeahead_filter_escape_sequences_into(st_input, strlen(st_input), out);
+    EXPECT_STREQ(sbuf_string(out), "prepost", "OSC ST-terminated sequence should be removed");
+
+    sbuf_free(out);
+    return true;
+}
+
+static bool test_typeahead_filter_removes_charset_numeric_and_control_bytes(void) {
+    stringbuf_t* out = new_stringbuf();
+    EXPECT_TRUE(out != NULL, "test string buffer allocation should succeed");
+
+    const char input[] = {'a', '\x1b', '(', 'B', 'b', '\x1b', '1', '2', '3',
+                          'c', '\x07', 'd', '\x03', 'e', '\0'};
+    ic_typeahead_filter_escape_sequences_into(input, strlen(input), out);
+    EXPECT_STREQ(sbuf_string(out), "abcde",
+                 "charset, numeric escape, bell, and control bytes should be removed");
+
+    sbuf_free(out);
+    return true;
+}
+
+static bool test_typeahead_normalize_backspace_and_delete(void) {
+    stringbuf_t* out = new_stringbuf();
+    EXPECT_TRUE(out != NULL, "test string buffer allocation should succeed");
+
+    const char input[] = {'a', 'b', 'c', '\b', 'd', 0x7F, 'e'};
+    ic_typeahead_normalize_line_edit_sequences_into(input, sizeof(input), out);
+    EXPECT_STREQ(sbuf_string(out), "abe",
+                 "backspace and delete should remove the previous normalized character");
+
+    sbuf_free(out);
+    return true;
+}
+
+static bool test_typeahead_normalize_ctrl_u_keeps_previous_lines(void) {
+    stringbuf_t* out = new_stringbuf();
+    EXPECT_TRUE(out != NULL, "test string buffer allocation should succeed");
+
+    const char input[] = {'o', 'n', 'e', '\n', 't', 'w', 'o', 0x15, 'r', 'e', 'd', 'o'};
+    ic_typeahead_normalize_line_edit_sequences_into(input, sizeof(input), out);
+    EXPECT_STREQ(sbuf_string(out), "one\nredo",
+                 "Ctrl-U should delete only back to the current line start");
+
+    sbuf_free(out);
+    return true;
+}
+
+static bool test_typeahead_normalize_ctrl_w_deletes_previous_word(void) {
+    stringbuf_t* out = new_stringbuf();
+    EXPECT_TRUE(out != NULL, "test string buffer allocation should succeed");
+
+    const char* input = "cmd alpha   beta";
+    ic_typeahead_normalize_line_edit_sequences_into(input, strlen(input), out);
+    EXPECT_STREQ(sbuf_string(out), "cmd alpha   beta",
+                 "baseline normalize should preserve text without control bytes");
+
+    const char input_with_ctrl_w[] = {'c', 'm', 'd', ' ', 'a', 'l', 'p', 'h', 'a',
+                                      ' ', ' ', ' ', 'b', 'e', 't', 'a', 0x17,
+                                      'g', 'a', 'm', 'm', 'a'};
+    ic_typeahead_normalize_line_edit_sequences_into(input_with_ctrl_w,
+                                                    sizeof(input_with_ctrl_w), out);
+    EXPECT_STREQ(sbuf_string(out), "cmd alpha   gamma",
+                 "Ctrl-W should remove trailing space and the previous word");
+
+    sbuf_free(out);
+    return true;
+}
+
+static bool test_typeahead_ingest_rejects_disabled_null_and_empty_input(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    reset_typeahead_test_state(false);
+    EXPECT_FALSE(ic_typeahead_ingest_raw_input((const uint8_t*)"abc", 3),
+                 "disabled typeahead should reject manual raw ingest");
+
+    (void)ic_enable_typeahead(true);
+    EXPECT_FALSE(ic_typeahead_ingest_raw_input(NULL, 3),
+                 "manual raw ingest should reject NULL data");
+    EXPECT_FALSE(ic_typeahead_ingest_raw_input((const uint8_t*)"abc", 0),
+                 "manual raw ingest should reject empty data");
+    EXPECT_TRUE(ic_typeahead_pending_initial_input_len(env) == 0,
+                "rejected ingest should not create pending initial input");
+    EXPECT_TRUE(ic_typeahead_pending_raw_byte_count(env) == 0,
+                "rejected ingest should not create pending raw bytes");
+
+    reset_typeahead_test_state(false);
+    return true;
+}
+
+static bool test_typeahead_ingest_plain_text_sets_pending_initial_input(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    reset_typeahead_test_state(true);
+    EXPECT_TRUE(ic_typeahead_ingest_raw_input((const uint8_t*)"echo ok", strlen("echo ok")),
+                "plain text ingest should succeed");
+    EXPECT_STREQ(ic_typeahead_pending_initial_input(env), "echo ok",
+                 "plain text should become pending initial input");
+    EXPECT_TRUE(ic_typeahead_pending_raw_byte_count(env) == (ssize_t)strlen("echo ok"),
+                "raw bytes should remain pending until readline preparation");
+
+    reset_typeahead_test_state(false);
+    return true;
+}
+
+static bool test_typeahead_ingest_appends_to_existing_pending_input(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    reset_typeahead_test_state(true);
+    EXPECT_TRUE(ic_typeahead_ingest_raw_input((const uint8_t*)"git ", strlen("git ")),
+                "first ingest should succeed");
+    EXPECT_TRUE(ic_typeahead_ingest_raw_input((const uint8_t*)"status", strlen("status")),
+                "second ingest should succeed");
+    EXPECT_STREQ(ic_typeahead_pending_initial_input(env), "git status",
+                 "successive visible ingests should append to pending initial input");
+
+    reset_typeahead_test_state(false);
+    return true;
+}
+
+static bool test_typeahead_ingest_filters_escape_sequences_before_pending_input(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    reset_typeahead_test_state(true);
+    const char* raw = "ab\x1b[C\x1b]0;ignored\x07" "cd";
+    EXPECT_TRUE(ic_typeahead_ingest_raw_input((const uint8_t*)raw, strlen(raw)),
+                "escape-rich raw input should ingest");
+    EXPECT_STREQ(ic_typeahead_pending_initial_input(env), "abcd",
+                 "escape sequences should not appear in pending initial input");
+
+    reset_typeahead_test_state(false);
+    return true;
+}
+
+static bool test_typeahead_ingest_carriage_return_becomes_submit_newline(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    reset_typeahead_test_state(true);
+    EXPECT_TRUE(ic_typeahead_ingest_raw_input((const uint8_t*)"make test\r", strlen("make test\r")),
+                "CR-terminated input should ingest");
+    EXPECT_STREQ(ic_typeahead_pending_initial_input(env), "make test\n",
+                 "carriage return should normalize to a submit newline");
+
+    reset_typeahead_test_state(false);
+    return true;
+}
+
+static bool test_typeahead_ingest_keeps_last_incomplete_line_after_newline(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    reset_typeahead_test_state(true);
+    EXPECT_TRUE(
+        ic_typeahead_ingest_raw_input((const uint8_t*)"first command\nsecond", strlen("first command\nsecond")),
+        "multiline pending input should ingest");
+    EXPECT_STREQ(ic_typeahead_pending_initial_input(env), "second",
+                 "pending initial input should keep only text after the last newline");
+
+    reset_typeahead_test_state(false);
+    return true;
+}
+
+static bool test_typeahead_ingest_keeps_last_submitted_line_with_trailing_newline(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    reset_typeahead_test_state(true);
+    const char* raw = "first\nsecond\n";
+    EXPECT_TRUE(ic_typeahead_ingest_raw_input((const uint8_t*)raw, strlen(raw)),
+                "trailing-newline input should ingest");
+    EXPECT_STREQ(ic_typeahead_pending_initial_input(env), "second\n",
+                 "pending initial input should keep the last submitted line");
+
+    reset_typeahead_test_state(false);
+    return true;
+}
+
+static bool test_typeahead_ingest_newlines_only_clear_pending_input(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    reset_typeahead_test_state(true);
+    EXPECT_TRUE(ic_typeahead_ingest_raw_input((const uint8_t*)"\n\n", strlen("\n\n")),
+                "newlines-only input should ingest");
+    EXPECT_TRUE(ic_typeahead_pending_initial_input(env) == NULL,
+                "newlines-only pending input should be cleared");
+    EXPECT_TRUE(ic_typeahead_pending_initial_input_len(env) == 0,
+                "newlines-only pending input length should be zero");
+
+    reset_typeahead_test_state(false);
+    return true;
+}
+
+static bool test_typeahead_prepare_clears_raw_without_controls_and_keeps_initial_input(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    reset_typeahead_test_state(true);
+    g_typeahead_capture_gate_result = false;
+    ic_set_typeahead_capture_allowed_callback(stub_typeahead_capture_allowed, NULL);
+    EXPECT_TRUE(ic_typeahead_ingest_raw_input((const uint8_t*)"abc", strlen("abc")),
+                "plain raw input should ingest");
+    ic_typeahead_prepare_for_readline(env);
+
+    EXPECT_STREQ(ic_typeahead_pending_initial_input(env), "abc",
+                 "prepare should keep visible initial input when no control bytes are present");
+    EXPECT_TRUE(ic_typeahead_pending_raw_byte_count(env) == 0,
+                "prepare should clear raw bytes that do not need replay");
+
+    reset_typeahead_test_state(false);
+    return true;
+}
+
+static bool test_typeahead_prepare_replays_control_raw_bytes_in_original_order(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    reset_typeahead_test_state(true);
+    g_typeahead_capture_gate_result = false;
+    ic_set_typeahead_capture_allowed_callback(stub_typeahead_capture_allowed, NULL);
+
+    static const uint8_t raw[] = {'a', 'b', 0x7F, 'c', 'd'};
+    EXPECT_TRUE(ic_typeahead_ingest_raw_input(raw, sizeof(raw)),
+                "control raw input should ingest");
+    EXPECT_STREQ(ic_typeahead_pending_initial_input(env), "acd",
+                 "normalized pending input should reflect line editing before replay");
+
+    struct tty_s tty_probe;
+    memset(&tty_probe, 0, sizeof(tty_probe));
+    tty_t* saved_tty = env->tty;
+    env->tty = (tty_t*)&tty_probe;
+
+    ic_typeahead_prepare_for_readline(env);
+    EXPECT_TRUE(ic_typeahead_pending_initial_input(env) == NULL,
+                "successful raw control replay should clear pending initial input");
+    EXPECT_TRUE(ic_typeahead_pending_raw_byte_count(env) == 0,
+                "successful raw control replay should clear pending raw bytes");
+    EXPECT_TRUE(tty_probe.cpush_count == (ssize_t)sizeof(raw),
+                "raw replay should push every captured byte into the TTY character buffer");
+
+    uint8_t observed[sizeof(raw)];
+    for (size_t i = 0; i < sizeof(raw); ++i) {
+        EXPECT_TRUE(tty_cpop((tty_t*)&tty_probe, &observed[i]),
+                    "raw replay bytes should pop back from the TTY buffer");
+    }
+    EXPECT_TRUE(memcmp(observed, raw, sizeof(raw)) == 0,
+                "raw replay bytes should be read back in their original order");
+
+    env->tty = saved_tty;
+    reset_typeahead_test_state(false);
+    return true;
+}
+
+static bool test_typeahead_prepare_failed_control_replay_preserves_initial_input(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    reset_typeahead_test_state(true);
+    g_typeahead_capture_gate_result = false;
+    ic_set_typeahead_capture_allowed_callback(stub_typeahead_capture_allowed, NULL);
+
+    static const uint8_t raw[] = {'r', 'u', 'n', '\n'};
+    EXPECT_TRUE(ic_typeahead_ingest_raw_input(raw, sizeof(raw)),
+                "newline raw input should ingest");
+
+    tty_t* saved_tty = env->tty;
+    env->tty = NULL;
+    ic_typeahead_prepare_for_readline(env);
+    env->tty = saved_tty;
+
+    EXPECT_STREQ(ic_typeahead_pending_initial_input(env), "run\n",
+                 "failed raw replay should preserve normalized initial input as fallback");
+    EXPECT_TRUE(ic_typeahead_pending_raw_byte_count(env) == 0,
+                "failed raw replay should still clear pending raw bytes");
+
+    reset_typeahead_test_state(false);
+    return true;
+}
+
+static bool test_typeahead_pending_input_hidden_when_disabled(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    reset_typeahead_test_state(true);
+    EXPECT_TRUE(ic_typeahead_ingest_raw_input((const uint8_t*)"hidden", strlen("hidden")),
+                "pending input should ingest before disabling");
+    EXPECT_STREQ(ic_typeahead_pending_initial_input(env), "hidden",
+                 "pending input should be visible while typeahead is enabled");
+
+    (void)ic_enable_typeahead(false);
+    EXPECT_TRUE(ic_typeahead_pending_initial_input(env) == NULL,
+                "pending input should not be visible after disabling typeahead");
+    EXPECT_TRUE(ic_typeahead_pending_initial_input_len(env) == 0,
+                "disabling typeahead should clear pending input length");
+
+    reset_typeahead_test_state(false);
     return true;
 }
 
@@ -3265,6 +3713,44 @@ static const test_case_t kTests[] = {
     {"push_raw_input_preconditions", test_push_raw_input_preconditions},
     {"tty_character_pushback_capacity_guard", test_tty_character_pushback_capacity_guard},
     {"push_raw_input_null_pointer_rejected", test_push_raw_input_null_pointer_rejected},
+    {"typeahead_toggle_lifecycle", test_typeahead_toggle_lifecycle},
+    {"typeahead_clear_pending_state", test_typeahead_clear_pending_state},
+    {"typeahead_capture_gate_registration_and_disabled_state",
+     test_typeahead_capture_gate_registration_and_disabled_state},
+    {"typeahead_filter_preserves_plain_text", test_typeahead_filter_preserves_plain_text},
+    {"typeahead_filter_removes_csi_sequences", test_typeahead_filter_removes_csi_sequences},
+    {"typeahead_filter_removes_osc_sequences", test_typeahead_filter_removes_osc_sequences},
+    {"typeahead_filter_removes_charset_numeric_and_control_bytes",
+     test_typeahead_filter_removes_charset_numeric_and_control_bytes},
+    {"typeahead_normalize_backspace_and_delete", test_typeahead_normalize_backspace_and_delete},
+    {"typeahead_normalize_ctrl_u_keeps_previous_lines",
+     test_typeahead_normalize_ctrl_u_keeps_previous_lines},
+    {"typeahead_normalize_ctrl_w_deletes_previous_word",
+     test_typeahead_normalize_ctrl_w_deletes_previous_word},
+    {"typeahead_ingest_rejects_disabled_null_and_empty_input",
+     test_typeahead_ingest_rejects_disabled_null_and_empty_input},
+    {"typeahead_ingest_plain_text_sets_pending_initial_input",
+     test_typeahead_ingest_plain_text_sets_pending_initial_input},
+    {"typeahead_ingest_appends_to_existing_pending_input",
+     test_typeahead_ingest_appends_to_existing_pending_input},
+    {"typeahead_ingest_filters_escape_sequences_before_pending_input",
+     test_typeahead_ingest_filters_escape_sequences_before_pending_input},
+    {"typeahead_ingest_carriage_return_becomes_submit_newline",
+     test_typeahead_ingest_carriage_return_becomes_submit_newline},
+    {"typeahead_ingest_keeps_last_incomplete_line_after_newline",
+     test_typeahead_ingest_keeps_last_incomplete_line_after_newline},
+    {"typeahead_ingest_keeps_last_submitted_line_with_trailing_newline",
+     test_typeahead_ingest_keeps_last_submitted_line_with_trailing_newline},
+    {"typeahead_ingest_newlines_only_clear_pending_input",
+     test_typeahead_ingest_newlines_only_clear_pending_input},
+    {"typeahead_prepare_clears_raw_without_controls_and_keeps_initial_input",
+     test_typeahead_prepare_clears_raw_without_controls_and_keeps_initial_input},
+    {"typeahead_prepare_replays_control_raw_bytes_in_original_order",
+     test_typeahead_prepare_replays_control_raw_bytes_in_original_order},
+    {"typeahead_prepare_failed_control_replay_preserves_initial_input",
+     test_typeahead_prepare_failed_control_replay_preserves_initial_input},
+    {"typeahead_pending_input_hidden_when_disabled",
+     test_typeahead_pending_input_hidden_when_disabled},
     {"prompt_marker_roundtrip", test_prompt_marker_roundtrip},
     {"hint_delay_clamps", test_hint_delay_clamps},
     {"status_hint_mode_validation", test_status_hint_mode_validation},

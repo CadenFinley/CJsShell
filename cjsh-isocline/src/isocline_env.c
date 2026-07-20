@@ -104,6 +104,8 @@ static ic_env_t* ic_env_create(ic_malloc_fun_t* _malloc, ic_realloc_fun_t* _real
     env->history = history_new(env->mem);
     env->completions = completions_new(env->mem);
     env->bbcode = bbcode_new(env->mem, env->term);
+    env->typeahead_input_buffer = sbuf_new(env->mem);
+    env->typeahead_pending_raw_bytes = sbuf_new(env->mem);
 
     // Set default enabled features
     env->hint_delay = 0;                        // hint delay (0)
@@ -130,9 +132,11 @@ static ic_env_t* ic_env_create(ic_malloc_fun_t* _malloc, ic_realloc_fun_t* _real
     env->mouse_reporting_status_line_enabled = true;  // show indicator line when mouse is active
     env->inline_right_prompt_follows_cursor = false;  // keep right prompt anchored at row 0
     env->bracketed_paste_enabled = false;
+    env->typeahead_enabled = false;  // callers opt in for interactive shell sessions
 
     if (env->tty == NULL || env->term == NULL || env->completions == NULL || env->history == NULL ||
-        env->bbcode == NULL || !term_is_interactive(env->term)) {
+        env->bbcode == NULL || env->typeahead_input_buffer == NULL ||
+        env->typeahead_pending_raw_bytes == NULL || !term_is_interactive(env->term)) {
         env->noedit = true;
     }
     env->multiline_eol = '\\';
@@ -175,6 +179,8 @@ static void ic_env_free(ic_env_t* env) {
     history_free(env->history);
     completions_free(env->completions);
     bbcode_free(env->bbcode);
+    sbuf_free(env->typeahead_input_buffer);
+    sbuf_free(env->typeahead_pending_raw_bytes);
     term_free(env->term);
     tty_free(env->tty);
     if (env->abbreviations != NULL) {

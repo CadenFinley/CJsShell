@@ -248,6 +248,32 @@ bool ic_push_key_sequence(const ic_keycode_t* keys, size_t count);
 /// Returns `false` if the readline environment is not yet initialized.
 bool ic_push_raw_input(const uint8_t* data, size_t length);
 
+/// Callback that decides if isocline may opportunistically capture currently
+/// queued terminal input for typeahead.
+/// Return true to allow capture, or false to leave stdin untouched.
+typedef bool(ic_typeahead_capture_allowed_fun_t)(void* arg);
+
+/// Enable or disable typeahead buffering. Returns the previous enabled state.
+/// When enabled, isocline can capture bytes already queued on stdin and seed
+/// the next readline session with them.
+bool ic_enable_typeahead(bool enable);
+
+/// Returns true when typeahead buffering is enabled.
+bool ic_typeahead_is_enabled(void);
+
+/// Set a callback used to gate opportunistic typeahead capture.
+/// Shells can use this to avoid stealing input while a foreground job owns
+/// stdin. Pass NULL to allow capture whenever typeahead is enabled.
+void ic_set_typeahead_capture_allowed_callback(ic_typeahead_capture_allowed_fun_t* callback,
+                                               void* arg);
+
+/// Capture currently queued terminal input into isocline's typeahead buffer.
+/// Returns true when any bytes were captured.
+bool ic_typeahead_capture_available_input(void);
+
+/// Clear all pending typeahead state.
+void ic_typeahead_clear(void);
+
 /// Read heredoc content with full editing capabilities.
 /// Reads lines from the user until the specified delimiter is encountered on a line by itself.
 /// Each line is read with full isocline editing capabilities (history, completion, etc.).
