@@ -259,6 +259,7 @@ bool parse_array_literal_assignment(const std::vector<std::string>& args, std::s
 enum class StatementKeyword : std::uint8_t {
     If,
     For,
+    Select,
     While,
     Until,
     Case
@@ -270,6 +271,9 @@ std::optional<StatementKeyword> parse_statement_keyword_prefix(std::string_view 
     }
     if (parser_starts_with_keyword_token(text, "for")) {
         return StatementKeyword::For;
+    }
+    if (parser_starts_with_keyword_token(text, "select")) {
+        return StatementKeyword::Select;
     }
     if (parser_starts_with_keyword_token(text, "while")) {
         return StatementKeyword::While;
@@ -291,6 +295,7 @@ bool is_statement_keyword_prefix(std::string_view text, StatementKeyword keyword
 bool is_loop_keyword(StatementKeyword keyword) {
     switch (keyword) {
         case StatementKeyword::For:
+        case StatementKeyword::Select:
         case StatementKeyword::While:
         case StatementKeyword::Until:
             return true;
@@ -1183,6 +1188,12 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
             execute_simple_or_pipeline, shell_parser, should_abort_for_parameter_expansion);
     };
 
+    auto handle_select_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
+        return loop_evaluator::handle_select_block(
+            src_lines, idx, execute_block_skip_validation, execute_simple_or_pipeline,
+            shell_parser, should_abort_for_parameter_expansion);
+    };
+
     auto handle_case_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
         std::string first = trim(strip_inline_comment(src_lines[idx]));
         if (!is_statement_keyword_prefix(first, StatementKeyword::Case))
@@ -1332,10 +1343,11 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
         }
 
         // first dispatch pass for structured control-flow blocks.
-        // if for while until and case are routed before generic command parsing.
+        // if for select while until and case are routed before generic command parsing.
         auto block_result =
             try_dispatch_block_statement(lines, line_index, line, handle_if_block, handle_for_block,
-                                         handle_while_block, handle_until_block, handle_case_block);
+                                         handle_select_block, handle_while_block,
+                                         handle_until_block, handle_case_block);
 
         if (block_result.handled) {
             last_code = block_result.exit_code;
@@ -1349,6 +1361,7 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
             if (is_control_flow_exit_code(last_code) || cjsh_env::exit_requested()) {
                 return last_code;
             }
+            set_last_status(last_code);
             continue;
         }
 
@@ -1639,6 +1652,17 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                         }
                         continue;
                     }
+                    if (is_statement_keyword_prefix(t, StatementKeyword::Select) &&
+                        t.find("; do") != std::string::npos) {
+                        size_t local_idx = 0;
+                        std::vector<std::string> one{t};
+                        int code = handle_select_block(one, local_idx);
+                        last_code = code;
+                        if (g_parameter_expansion_fatal_error) {
+                            return set_last_status(last_code);
+                        }
+                        continue;
+                    }
                     if (is_statement_keyword_prefix(t, StatementKeyword::While) &&
                         t.find("; do") != std::string::npos) {
                         // one-line while loop with explicit do terminator in the same segment
@@ -1682,6 +1706,16 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
                         // multiline inline-do form split by semicolons is reconstructed here
                         if (auto inline_result = loop_evaluator::try_execute_inline_do_block(
                                 t, semis, k, handle_for_block)) {
+                            last_code = *inline_result;
+                            if (g_parameter_expansion_fatal_error) {
+                                return set_last_status(last_code);
+                            }
+                            break;
+                        }
+                    }
+                    if (is_statement_keyword_prefix(t, StatementKeyword::Select)) {
+                        if (auto inline_result = loop_evaluator::try_execute_inline_do_block(
+                                t, semis, k, handle_select_block)) {
                             last_code = *inline_result;
                             if (g_parameter_expansion_fatal_error) {
                                 return set_last_status(last_code);
@@ -2125,6 +2159,7 @@ ShellScriptInterpreter::BlockHandlerResult ShellScriptInterpreter::try_dispatch_
     const std::vector<std::string>& lines, size_t line_index, const std::string& line,
     cjsh::FunctionRef<int(const std::vector<std::string>&, size_t&)> handle_if_block,
     cjsh::FunctionRef<int(const std::vector<std::string>&, size_t&)> handle_for_block,
+    cjsh::FunctionRef<int(const std::vector<std::string>&, size_t&)> handle_select_block,
     cjsh::FunctionRef<int(const std::vector<std::string>&, size_t&)> handle_while_block,
     cjsh::FunctionRef<int(const std::vector<std::string>&, size_t&)> handle_until_block,
     cjsh::FunctionRef<int(const std::vector<std::string>&, size_t&)> handle_case_block) {
@@ -2139,6 +2174,12 @@ ShellScriptInterpreter::BlockHandlerResult ShellScriptInterpreter::try_dispatch_
         // route for headers to loop_evaluator for header parsing and body collection through done
         size_t idx = line_index;
         int rc = handle_for_block(lines, idx);
+        return {true, rc, idx};
+    }
+
+    if (line == "select" || line.rfind("select ", 0) == 0) {
+        size_t idx = line_index;
+        int rc = handle_select_block(lines, idx);
         return {true, rc, idx};
     }
 

@@ -462,6 +462,11 @@ std::vector<std::pair<std::string, std::string>> setup_user_system_vars(const st
         setenv("PS2", default_ps2.c_str(), 1);
     }
 
+    // Raw getenv here: PS4 bootstrap before shell vars exist.
+    if (getenv("PS4") == nullptr) {
+        setenv("PS4", "+ ", 1);
+    }
+
     return env_vars;
 }
 

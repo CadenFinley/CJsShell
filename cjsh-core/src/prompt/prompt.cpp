@@ -981,6 +981,17 @@ std::string render_prompt_eol_mark() {
     return expand_prompt_string(eol_mark, PromptContext::Primary);
 }
 
+std::string render_trace_prompt() {
+    std::string ps4 = get_ps("PS4", "+ ");
+    std::string trace_prompt = expand_prompt_string(ps4, PromptContext::Primary);
+    if (g_shell != nullptr) {
+        if (Parser* parser = g_shell->get_parser()) {
+            parser->expand_env_vars(trace_prompt);
+        }
+    }
+    return trace_prompt;
+}
+
 std::string render_right_prompt() {
     if (cjsh_env::shell_variable_is_set("RPROMPT")) {
         std::string rprompt = cjsh_env::get_shell_variable_value("RPROMPT");

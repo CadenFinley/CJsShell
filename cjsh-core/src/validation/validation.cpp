@@ -57,6 +57,7 @@ using validation_internal::analyze_case_syntax;
 using validation_internal::analyze_for_loop_syntax;
 using validation_internal::analyze_if_syntax;
 using validation_internal::analyze_while_until_syntax;
+using validation_internal::check_for_loop_keywords;
 using validation_internal::extract_trimmed_line;
 using validation_internal::for_each_effective_char;
 using validation_internal::is_word_boundary;
@@ -81,6 +82,7 @@ enum class ControlToken : std::uint8_t {
     While,
     Until,
     For,
+    Select,
     Do,
     Done,
     Case,
@@ -110,6 +112,8 @@ const char* control_token_name(ControlToken token) {
             return "until";
         case ControlToken::For:
             return "for";
+        case ControlToken::Select:
+            return "select";
         case ControlToken::Do:
             return "do";
         case ControlToken::Done:
@@ -156,6 +160,9 @@ std::optional<ControlToken> parse_control_token(std::string_view token) {
     }
     if (token == "for") {
         return ControlToken::For;
+    }
+    if (token == "select") {
+        return ControlToken::Select;
     }
     if (token == "do") {
         return ControlToken::Do;
@@ -445,6 +452,12 @@ bool handle_embedded_loop_header(
             if (for_check.has_inline_do) {
                 std::get<0>(control_stack.back()) = ControlToken::Do;
             }
+        } else if (keyword == ControlToken::Select) {
+            bool has_do = check_for_loop_keywords(tokens, remainder, false);
+            control_stack.push_back({ControlToken::Select, ControlToken::Select, display_line});
+            if (has_do) {
+                std::get<0>(control_stack.back()) = ControlToken::Do;
+            }
         } else {
             auto loop_check = analyze_while_until_syntax(keyword_text, remainder, tokens);
             control_stack.push_back({keyword, keyword, display_line});
@@ -462,6 +475,9 @@ bool handle_embedded_loop_header(
         return true;
     }
     if (try_keyword(ControlToken::For)) {
+        return true;
+    }
+    if (try_keyword(ControlToken::Select)) {
         return true;
     }
     return false;
@@ -487,7 +503,8 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
             return ControlToken::Fi;
         }
         if (opening_statement == ControlToken::While || opening_statement == ControlToken::Until ||
-            opening_statement == ControlToken::For || current_state == ControlToken::Do) {
+            opening_statement == ControlToken::For || opening_statement == ControlToken::Select ||
+            current_state == ControlToken::Do) {
             return ControlToken::Done;
         }
         if (opening_statement == ControlToken::Case) {
@@ -512,7 +529,8 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
 
         if (opening_statement == current_state &&
             (opening_statement == ControlToken::For || opening_statement == ControlToken::While ||
-             opening_statement == ControlToken::Until || opening_statement == ControlToken::If)) {
+             opening_statement == ControlToken::Until ||
+             opening_statement == ControlToken::Select || opening_statement == ControlToken::If)) {
             return;
         }
 
@@ -834,6 +852,9 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                    handle_inline_loop_header(trimmed_for_parsing, ControlToken::Until, display_line,
                                              control_stack) ||
                    handle_inline_loop_header(trimmed_for_parsing, ControlToken::For, display_line,
+                                             control_stack) ||
+                   handle_inline_loop_header(trimmed_for_parsing, ControlToken::Select,
+                                             display_line,
                                              control_stack)) {
         } else {
             handle_embedded_loop_header(trimmed_for_parsing, display_line, control_stack);
@@ -909,8 +930,9 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                         std::get<0>(control_stack.back()) = ControlToken::Do;
                     }
                 } else if (first_control == ControlToken::Do) {
-                    if (require_top({ControlToken::While, ControlToken::Until, ControlToken::For},
-                                    "'do' without matching 'while', 'until', or 'for'")) {
+                    if (require_top({ControlToken::While, ControlToken::Until, ControlToken::For,
+                                     ControlToken::Select},
+                                    "'do' without matching 'while', 'until', 'for', or 'select'")) {
                         std::get<0>(control_stack.back()) = ControlToken::Do;
                     }
                 } else if (first_control == ControlToken::Done) {
@@ -925,6 +947,15 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                     auto for_check = analyze_for_loop_syntax(tokens, trimmed_for_parsing);
                     control_stack.push_back({ControlToken::For, ControlToken::For, display_line});
                     if (for_check.has_inline_do) {
+                        std::get<0>(control_stack.back()) = ControlToken::Do;
+                    }
+                }
+
+                else if (first_control == ControlToken::Select) {
+                    bool has_do = check_for_loop_keywords(tokens, trimmed_for_parsing, false);
+                    control_stack.push_back(
+                        {ControlToken::Select, ControlToken::Select, display_line});
+                    if (has_do) {
                         std::get<0>(control_stack.back()) = ControlToken::Do;
                     }
                 }

@@ -49,6 +49,7 @@
 #include "isocline.h"
 #include "job_control.h"
 #include "numeric_utils.h"
+#include "prompt.h"
 #include "shell_env.h"
 #include "string_utils.h"
 #include "trap_command.h"
@@ -231,7 +232,8 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
 
     // xtrace handling
     if (get_shell_option(ShellOption::Xtrace) && !args.empty()) {
-        std::cerr << "+ " << string_utils::join_strings(args, " ") << '\n';
+        std::cerr << prompt::render_trace_prompt() << string_utils::join_strings(args, " ")
+                  << '\n';
     }
 
     // noexec handling

@@ -605,8 +605,15 @@ Displayed as part of `PS1`. The default primary template is `\S  [color=#5fd7ff]
 **Continuation Prompt Marker:**
 Displayed for continuation lines in multiline input. The default `PS2` template is `[ic-hint]> [/ic-hint]`.
 
+**Select Prompt Marker:**
+Displayed by `select` before reading a menu choice. Set `PS3` to customize it; the fallback is `#? `.
+
+**Trace Prompt Marker:**
+Displayed by `set -x` before each traced command. `PS4` defaults to `+ ` and supports the same
+prompt escapes as `PS1`, plus normal shell variable expansion at trace time.
+
 **Customization:**
-Define these markers directly inside `PS1`, `PS2`, and any helper functions you call from `PROMPT_COMMAND`.
+Define these markers directly inside `PS1`, `PS2`, `PS3`, `PS4`, and any helper functions you call from `PROMPT_COMMAND`.
 
 **Transient Final Prompt:**
 Set `PS1_FINAL` to replace the just-submitted prompt line with a different style after Enter

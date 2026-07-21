@@ -191,6 +191,7 @@ class ShellScriptInterpreter {
         const std::vector<std::string>& lines, size_t line_index, const std::string& line,
         cjsh::FunctionRef<int(const std::vector<std::string>&, size_t&)> handle_if_block,
         cjsh::FunctionRef<int(const std::vector<std::string>&, size_t&)> handle_for_block,
+        cjsh::FunctionRef<int(const std::vector<std::string>&, size_t&)> handle_select_block,
         cjsh::FunctionRef<int(const std::vector<std::string>&, size_t&)> handle_while_block,
         cjsh::FunctionRef<int(const std::vector<std::string>&, size_t&)> handle_until_block,
         cjsh::FunctionRef<int(const std::vector<std::string>&, size_t&)> handle_case_block);
