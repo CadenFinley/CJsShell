@@ -1276,6 +1276,31 @@ def main() -> int:
             f"{hist_sort_metadata!r}"
         )
 
+    hist_sort_cycle_metadata, hist_sort_cycle_metadata_output = run_case(
+        binary,
+        "history_search_sort_cycle_metadata_tag",
+        b"\x12" + ALT_S + ALT_S + ALT_S + b"\r",
+        capture_output=True,
+    )
+    if hist_sort_cycle_metadata != "rank one":
+        raise AssertionError(
+            "history_search_sort_cycle_metadata_tag expected 'rank one', got "
+            f"{hist_sort_cycle_metadata!r}"
+        )
+    normalized_sort_cycle_metadata_output = normalize_terminal_output(
+        hist_sort_cycle_metadata_output
+    )
+    if "sort rank asc" not in normalized_sort_cycle_metadata_output:
+        raise AssertionError(
+            "history metadata cycle should report rank sort, got "
+            f"normalized_output={normalized_sort_cycle_metadata_output!r}"
+        )
+    if "rank one [1]" not in normalized_sort_cycle_metadata_output:
+        raise AssertionError(
+            "history metadata cycle should show the sorted rank value beside entries, got "
+            f"normalized_output={normalized_sort_cycle_metadata_output!r}"
+        )
+
     hist_sort_cycle_nonpersistent = run_case_timed(
         binary,
         "history_search_sort_cycle_nonpersistent",

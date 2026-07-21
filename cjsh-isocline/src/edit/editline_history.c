@@ -1037,6 +1037,15 @@ again:;
             metadata_suffix_key = k_history_search_timestamp_key;
             metadata_suffix_use_default_tag = true;
         }
+        if (history_search_sort_is_metadata(session_sort) && session_sort_key != NULL &&
+            session_sort_key[0] != '\0') {
+            metadata_suffix_key = session_sort_key;
+            metadata_suffix_use_default_tag = false;
+        } else if (session_sort == IC_HISTORY_SEARCH_SORT_COMMAND_ASC ||
+                   session_sort == IC_HISTORY_SEARCH_SORT_COMMAND_DESC) {
+            metadata_suffix_key = NULL;
+            metadata_suffix_use_default_tag = false;
+        }
 
         history_fuzzy_search_with_case(env->history, query ? query : "", matches, MAX_FUZZY_RESULTS,
                                        &match_count, &metadata_filter_applied,
@@ -1165,7 +1174,8 @@ again:;
                     }
                 }
             } else if (metadata_suffix_key != NULL && metadata_suffix_key[0] != '\0') {
-                const char* meta_value = history_entry_get_metadata(entry, metadata_suffix_key);
+                const char* meta_value =
+                    history_search_entry_metadata_value(entry, metadata_suffix_key);
                 char formatted_meta_value[64];
                 const char* shown_value = history_search_pretty_metadata_value(
                     metadata_suffix_key, meta_value, formatted_meta_value,
