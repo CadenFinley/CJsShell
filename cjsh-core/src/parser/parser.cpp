@@ -1807,6 +1807,7 @@ std::vector<LogicalCommand> Parser::parse_logical_commands(const std::string& co
     DelimiterState delimiters;
     int arith_depth = 0;
     int single_bracket_depth = 0;
+    int parameter_brace_depth = 0;
     int control_depth = 0;
 
     for (size_t i = 0; i < command.length(); ++i) {
@@ -1876,11 +1877,34 @@ std::vector<LogicalCommand> Parser::parse_logical_commands(const std::string& co
             continue;
         }
 
+        if (!delimiters.in_quotes && command[i] == '{') {
+            bool starts_parameter_expansion =
+                i > 0 && command[i - 1] == '$' && !is_char_escaped(command, i - 1);
+            if (parameter_brace_depth > 0 || starts_parameter_expansion) {
+                parameter_brace_depth++;
+            } else if (parser_is_command_group_brace(command, i)) {
+                delimiters.brace_depth++;
+            }
+            current += command[i];
+            continue;
+        }
+
+        if (!delimiters.in_quotes && command[i] == '}') {
+            if (parameter_brace_depth > 0) {
+                parameter_brace_depth--;
+            } else if (delimiters.brace_depth > 0 && parser_is_command_group_brace(command, i)) {
+                delimiters.brace_depth--;
+            }
+            current += command[i];
+            continue;
+        }
+
         is_control_word_at_position(command, i, delimiters.paren_depth, delimiters.brace_depth,
                                     delimiters.in_quotes, control_depth);
 
         if (!delimiters.in_quotes && delimiters.paren_depth == 0 && arith_depth == 0 &&
-            delimiters.bracket_depth == 0 && single_bracket_depth == 0 && control_depth == 0 &&
+            delimiters.bracket_depth == 0 && delimiters.brace_depth == 0 &&
+            single_bracket_depth == 0 && parameter_brace_depth == 0 && control_depth == 0 &&
             i < command.length() - 1) {
             if (command[i] == '&' && command[i + 1] == '&') {
                 if (!current.empty()) {

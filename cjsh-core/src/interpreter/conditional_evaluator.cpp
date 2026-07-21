@@ -72,7 +72,9 @@ bool handle_quote_char(char c, bool& in_quotes, char& quote_char, std::string* o
     return true;
 }
 
-void update_group_depths(char c, int& bracket_depth, int& paren_depth) {
+void update_group_depths(const std::string& text, size_t position, int& bracket_depth,
+                         int& paren_depth, int& brace_depth, int& parameter_brace_depth) {
+    char c = text[position];
     if (c == '[') {
         bracket_depth++;
     } else if (c == ']') {
@@ -81,6 +83,20 @@ void update_group_depths(char c, int& bracket_depth, int& paren_depth) {
         paren_depth++;
     } else if (c == ')') {
         paren_depth--;
+    } else if (c == '{') {
+        bool starts_parameter_expansion =
+            position > 0 && text[position - 1] == '$' && !is_char_escaped(text, position - 1);
+        if (parameter_brace_depth > 0 || starts_parameter_expansion) {
+            parameter_brace_depth++;
+        } else if (parser_is_command_group_brace(text, position)) {
+            brace_depth++;
+        }
+    } else if (c == '}') {
+        if (parameter_brace_depth > 0) {
+            parameter_brace_depth--;
+        } else if (brace_depth > 0 && parser_is_command_group_brace(text, position)) {
+            brace_depth--;
+        }
     }
 }
 
@@ -1183,6 +1199,8 @@ int evaluate_logical_condition(const std::string& condition,
     bool escaped = false;
     int bracket_depth = 0;
     int paren_depth = 0;
+    int brace_depth = 0;
+    int parameter_brace_depth = 0;
 
     for (size_t i = 0; i + 1 < cond.length(); ++i) {
         char c = cond[i];
@@ -1200,9 +1218,11 @@ int evaluate_logical_condition(const std::string& condition,
         if (handle_quote_char(c, in_quotes, quote_char, nullptr)) {
             continue;
         }
-        update_group_depths(c, bracket_depth, paren_depth);
+        update_group_depths(cond, i, bracket_depth, paren_depth, brace_depth,
+                            parameter_brace_depth);
 
-        if (!in_quotes && bracket_depth == 0 && paren_depth == 0) {
+        if (!in_quotes && bracket_depth == 0 && paren_depth == 0 && brace_depth == 0 &&
+            parameter_brace_depth == 0) {
             if ((cond[i] == '&' && cond[i + 1] == '&') || (cond[i] == '|' && cond[i + 1] == '|')) {
                 has_logical_ops = true;
                 break;
@@ -1223,6 +1243,8 @@ int evaluate_logical_condition(const std::string& condition,
     escaped = false;
     bracket_depth = 0;
     paren_depth = 0;
+    brace_depth = 0;
+    parameter_brace_depth = 0;
 
     for (size_t i = 0; i < cond.length(); ++i) {
         char c = cond[i];
@@ -1242,9 +1264,11 @@ int evaluate_logical_condition(const std::string& condition,
         if (handle_quote_char(c, in_quotes, quote_char, &current_part)) {
             continue;
         }
-        update_group_depths(c, bracket_depth, paren_depth);
+        update_group_depths(cond, i, bracket_depth, paren_depth, brace_depth,
+                            parameter_brace_depth);
 
-        if (!in_quotes && bracket_depth == 0 && paren_depth == 0 && i + 1 < cond.length()) {
+        if (!in_quotes && bracket_depth == 0 && paren_depth == 0 && brace_depth == 0 &&
+            parameter_brace_depth == 0 && i + 1 < cond.length()) {
             if (cond[i] == '&' && cond[i + 1] == '&') {
                 parts.push_back({trim(current_part), "&&"});
                 current_part.clear();

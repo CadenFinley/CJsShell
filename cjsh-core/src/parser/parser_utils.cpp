@@ -255,6 +255,48 @@ bool parser_is_word_boundary(const std::string& text, size_t start, size_t lengt
     return start_ok && end_ok;
 }
 
+bool parser_is_command_group_brace(const std::string& text, size_t position) {
+    if (position >= text.size() || (text[position] != '{' && text[position] != '}')) {
+        return false;
+    }
+
+    auto is_token_boundary = [](char c) {
+        return (std::isspace(static_cast<unsigned char>(c)) != 0) || c == ';' || c == '&' ||
+               c == '|' || c == '(' || c == ')';
+    };
+
+    if ((position > 0 && !is_token_boundary(text[position - 1])) ||
+        (position + 1 < text.size() && !is_token_boundary(text[position + 1]))) {
+        return false;
+    }
+
+    size_t previous = position;
+    bool follows_newline = false;
+    while (previous > 0 && std::isspace(static_cast<unsigned char>(text[previous - 1])) != 0) {
+        follows_newline = follows_newline || text[previous - 1] == '\n';
+        --previous;
+    }
+
+    if (previous == 0 || follows_newline) {
+        return true;
+    }
+
+    char previous_char = text[previous - 1];
+    if (previous_char == ';' || previous_char == '&' || previous_char == '|' ||
+        previous_char == '(' || previous_char == ')' || previous_char == '{') {
+        return true;
+    }
+
+    size_t word_start = previous;
+    while (word_start > 0 && std::isalpha(static_cast<unsigned char>(text[word_start - 1])) != 0) {
+        --word_start;
+    }
+    std::string_view previous_word(text.data() + word_start, previous - word_start);
+    return previous_word == "if" || previous_word == "then" || previous_word == "elif" ||
+           previous_word == "else" || previous_word == "do" || previous_word == "while" ||
+           previous_word == "until" || previous_word == "time" || previous_char == '!';
+}
+
 size_t parser_find_keyword_token(const std::string& text, const std::string& keyword,
                                  size_t search_from) {
     if (keyword.empty() || search_from >= text.size()) {

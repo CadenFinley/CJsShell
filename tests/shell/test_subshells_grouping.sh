@@ -99,6 +99,67 @@ else
     fail_test "brace grouping (got '$OUT')"
 fi
 
+OUT=$("$CJSH_PATH" -c "{ false || true; }")
+STATUS=$?
+if [ "$STATUS" -eq 0 ] && [ -z "$OUT" ]; then
+    pass_test "brace group containing logical OR"
+else
+    fail_test "brace group logical OR (status $STATUS, got '$OUT')"
+fi
+
+OUT=$("$CJSH_PATH" -c "false || { true && echo ok; }")
+if [ "$OUT" = "ok" ]; then
+    pass_test "logical OR followed by brace group containing logical AND"
+else
+    fail_test "logical OR brace group (got '$OUT')"
+fi
+
+OUT=$("$CJSH_PATH" -c "if false || { true && true; }; then echo ok; fi")
+if [ "$OUT" = "ok" ]; then
+    pass_test "if condition containing a logical brace group"
+else
+    fail_test "if logical brace group (got '$OUT')"
+fi
+
+OUT=$("$CJSH_PATH" -c 'f() {
+    if false || { true && true; }; then
+        echo ok
+    fi
+}
+f')
+if [ "$OUT" = "ok" ]; then
+    pass_test "function if condition containing a logical brace group"
+else
+    fail_test "function logical brace group (got '$OUT')"
+fi
+
+OUT=$("$CJSH_PATH" -c 'value=left; echo ${value} && echo ok')
+EXPECTED="left
+ok"
+if [ "$OUT" = "$EXPECTED" ]; then
+    pass_test "parameter expansion braces are not command groups"
+else
+    fail_test "parameter expansion brace boundary (got '$OUT')"
+fi
+
+OUT=$("$CJSH_PATH" -c "echo {left,right} && echo ok")
+EXPECTED="left right
+ok"
+if [ "$OUT" = "$EXPECTED" ]; then
+    pass_test "brace expansion is not a command group"
+else
+    fail_test "brace expansion boundary (got '$OUT')"
+fi
+
+OUT=$("$CJSH_PATH" -c "echo before { after && echo ok")
+EXPECTED="before { after
+ok"
+if [ "$OUT" = "$EXPECTED" ]; then
+    pass_test "standalone brace argument is not a command group"
+else
+    fail_test "standalone brace argument boundary (got '$OUT')"
+fi
+
 OUT=$("$CJSH_PATH" -c "VAR=outer; { VAR=inner; echo \$VAR; }; echo \$VAR")
 EXPECTED="inner
 inner"
