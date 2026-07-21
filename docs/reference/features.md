@@ -58,7 +58,8 @@ Powered by the embedded [isocline](https://github.com/cadenfinley/isocline) edit
 - **Advanced history** – reverse search (`Ctrl+R`), deduplicated persistent history with exit codes,
     and bash-style history expansion that auto-disables in non-interactive contexts. Configure
     whether the fuzzy history menu matches case-sensitively with `cjshopt history-search-case` or
-    flip it on the fly with `Alt+C` inside the menu.
+    flip it on the fly with `Alt+C` inside the menu. Press `Alt+S` to cycle sort modes for the open
+    history search menu.
 - **Custom key bindings** – Emacs and Vi profiles plus fine-grained overrides via
     `cjshopt keybind` (including command-driven bindings through `cjsh-widget`).
 - **Mouse-aware editing** – Toggle mouse clicking with `F2` for the current prompt or set the

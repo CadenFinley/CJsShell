@@ -78,6 +78,7 @@ struct ic_env_s {
     char* prompt_eol_mark;            // marker shown when preserving partial pre-prompt output
     char* history_search_prompt;      // prompt shown while fuzzy searching history
     char* command_palette_prompt;     // prompt shown while searching the command palette
+    char* history_search_sort_key;    // metadata key for history metadata sort modes
     ic_highlight_fun_t* highlighter;  // highlight callback
     void* highlighter_arg;            // user state for the highlighter.
     ic_unhandled_key_fun_t* unhandled_key_handler;     // callback for unhandled keys
@@ -93,6 +94,8 @@ struct ic_env_s {
     ic_status_hint_mode_t status_hint_mode;  // rendering behavior for default hints
     ic_mouse_clicking_mode_t
         mouse_reporting_mode;                  // capture strategy for mouse interaction sessions
+    ic_history_search_sort_t
+        history_search_sort;                   // default fuzzy history search sort
     bool mouse_reporting_enabled_by_default;   // should new readline sessions start with mouse
                                                // capture active?
     bool mouse_reporting_status_line_enabled;  // show mouse-reporting indicator in the status

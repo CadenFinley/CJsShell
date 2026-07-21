@@ -66,6 +66,7 @@ F2 = b"\x1bOQ"
 F3 = b"\x1bOR"
 ALT_LT = b"\x1b<"
 ALT_GT = b"\x1b>"
+ALT_S = b"\x1bs"
 ALT_DELETE = b"\x1b[3;3~"
 CTRL_ENTER = b"\x1b[13;5u"
 WORD_PREV = b"\x1b[1;2D" if IS_DARWIN else b"\x1b[1;5D"
@@ -1218,9 +1219,9 @@ def main() -> int:
         b"\x12" + mouse_wheel_down + b"\r",
         capture_output=True,
     )
-    if hist_scroll != "history beta":
+    if hist_scroll != "history alpha":
         raise AssertionError(
-            f"history_search_scroll expected 'history beta', got {hist_scroll!r}"
+            f"history_search_scroll expected 'history alpha', got {hist_scroll!r}"
         )
     normalized_hist_scroll_output = normalize_terminal_output(hist_scroll_output)
     if "Mouse clicking is enabled" not in normalized_hist_scroll_output:
@@ -1232,9 +1233,9 @@ def main() -> int:
     hist_scroll_toggle = run_case(
         binary, "history_search_scroll", F2 + b"\x12" + mouse_wheel_down + b"\r"
     )
-    if hist_scroll_toggle != "history alpha":
+    if hist_scroll_toggle != "history beta":
         raise AssertionError(
-            "history_search_scroll with mouse toggle expected 'history alpha', got "
+            "history_search_scroll with mouse toggle expected 'history beta', got "
             f"{hist_scroll_toggle!r}"
         )
 
@@ -1243,15 +1244,48 @@ def main() -> int:
         "history_search_scroll",
         b"\x12" + mouse_click_history_second + b"!\r",
     )
-    if hist_click != "history beta!":
+    if hist_click != "history alpha!":
         raise AssertionError(
-            f"history_search_click expected 'history beta!', got {hist_click!r}"
+            f"history_search_click expected 'history alpha!', got {hist_click!r}"
         )
 
     hist_search_ctrl_s = run_case(binary, "history_search_scroll", b"\x13\r")
-    if hist_search_ctrl_s != "history alpha":
+    if hist_search_ctrl_s != "history beta":
         raise AssertionError(
-            f"history_search_scroll ctrl+s expected 'history alpha', got {hist_search_ctrl_s!r}"
+            f"history_search_scroll ctrl+s expected 'history beta', got {hist_search_ctrl_s!r}"
+        )
+
+    hist_sort_alt_s = run_case(
+        binary,
+        "history_search_sort_alt_s",
+        b"\x12" + ALT_S + b"\r",
+    )
+    if hist_sort_alt_s != "apple":
+        raise AssertionError(
+            f"history_search_sort_alt_s expected 'apple', got {hist_sort_alt_s!r}"
+        )
+
+    hist_sort_metadata = run_case(
+        binary,
+        "history_search_sort_default_metadata",
+        b"\x12rank\r",
+    )
+    if hist_sort_metadata != "rank one":
+        raise AssertionError(
+            "history_search_sort_default_metadata expected 'rank one', got "
+            f"{hist_sort_metadata!r}"
+        )
+
+    hist_sort_cycle_nonpersistent = run_case_timed(
+        binary,
+        "history_search_sort_cycle_nonpersistent",
+        [b"\x12a" + ALT_S + b"\r", b"\x12a\r"],
+        wait_for_reprompt=True,
+    )
+    if hist_sort_cycle_nonpersistent != "carrot|apple":
+        raise AssertionError(
+            "history_search_sort_cycle_nonpersistent expected 'carrot|apple', got "
+            f"{hist_sort_cycle_nonpersistent!r}"
         )
 
     hist_multiline_preview, hist_multiline_output = run_case(

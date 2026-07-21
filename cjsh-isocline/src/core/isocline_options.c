@@ -36,6 +36,7 @@
 #include "env.h"
 #include "env_internal.h"
 
+#include <ctype.h>
 #include <string.h>
 
 static ic_abbreviation_entry_t* ic_env_find_abbreviation(ic_env_t* env, const char* trigger,
@@ -89,6 +90,18 @@ static void ic_env_clear_command_palette_entries(ic_env_t* env) {
     mem_free(env->mem, env->command_palette_entries);
     env->command_palette_entries = NULL;
     env->command_palette_entry_count = 0;
+}
+
+static bool ic_history_search_sort_key_valid(const char* key) {
+    if (key == NULL || key[0] == '\0')
+        return false;
+    for (const char* p = key; *p != '\0'; ++p) {
+        unsigned char c = (unsigned char)*p;
+        if (isspace(c) || c == '=') {
+            return false;
+        }
+    }
+    return true;
 }
 
 ic_public const char* ic_get_prompt_marker(void) {
@@ -204,6 +217,65 @@ ic_public bool ic_history_fuzzy_search_is_case_sensitive(void) {
     if (env == NULL)
         return true;
     return history_is_fuzzy_case_sensitive(env->history);
+}
+
+ic_public bool ic_set_history_search_sort(ic_history_search_sort_t sort, const char* metadata_key) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return false;
+
+    bool needs_metadata_key = false;
+    switch (sort) {
+        case IC_HISTORY_SEARCH_SORT_RECENT:
+        case IC_HISTORY_SEARCH_SORT_COMMAND_ASC:
+        case IC_HISTORY_SEARCH_SORT_COMMAND_DESC:
+            break;
+        case IC_HISTORY_SEARCH_SORT_METADATA_ASC:
+        case IC_HISTORY_SEARCH_SORT_METADATA_DESC:
+            needs_metadata_key = true;
+            break;
+        default:
+            return false;
+    }
+
+    char* key_copy = NULL;
+    if (needs_metadata_key) {
+        if (!ic_history_search_sort_key_valid(metadata_key)) {
+            return false;
+        }
+        key_copy = mem_strdup(env->mem, metadata_key);
+        if (key_copy == NULL) {
+            return false;
+        }
+    }
+
+    mem_free(env->mem, env->history_search_sort_key);
+    env->history_search_sort_key = key_copy;
+    env->history_search_sort = sort;
+    return true;
+}
+
+ic_public ic_history_search_sort_t ic_get_history_search_sort(const char** metadata_key) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL) {
+        if (metadata_key != NULL) {
+            *metadata_key = NULL;
+        }
+        return IC_HISTORY_SEARCH_SORT_RECENT;
+    }
+
+    if (metadata_key != NULL) {
+        switch (env->history_search_sort) {
+            case IC_HISTORY_SEARCH_SORT_METADATA_ASC:
+            case IC_HISTORY_SEARCH_SORT_METADATA_DESC:
+                *metadata_key = env->history_search_sort_key;
+                break;
+            default:
+                *metadata_key = NULL;
+                break;
+        }
+    }
+    return env->history_search_sort;
 }
 
 ic_public void ic_set_history(const char* fname, long max_entries) {

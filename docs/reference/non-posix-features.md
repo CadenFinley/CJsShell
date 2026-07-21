@@ -122,6 +122,8 @@ Consult the [Completion Authoring Guide](completions.md) for cache format and cu
 - **Fuzzy history case sensitivity** – `cjshopt history-search-case` toggles whether the search menu
   treats uppercase and lowercase entries as distinct (press `Alt+C` inside the menu to flip the
   setting temporarily).
+- **Fuzzy history sorting** – History search is newest-first by default, and `Alt+S` cycles the open
+  menu through command-text and metadata sort arrangements without changing the configured default.
 - **Typeahead buffering** – Key presses made while a command runs are replayed automatically once
   the prompt returns.
 

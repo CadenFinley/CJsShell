@@ -679,6 +679,33 @@ bool ic_enable_history_fuzzy_case_sensitive(bool enable);
 /// Report whether the fuzzy history search menu currently matches case-sensitively.
 bool ic_history_fuzzy_search_is_case_sensitive(void);
 
+/// History search menu sort arrangements.
+typedef enum ic_history_search_sort_e {
+    /// Sort matches by the most recent time the command was run.
+    IC_HISTORY_SEARCH_SORT_RECENT = 0,
+    /// Sort matches alphabetically by command text, ascending.
+    IC_HISTORY_SEARCH_SORT_COMMAND_ASC = 1,
+    /// Sort matches alphabetically by command text, descending.
+    IC_HISTORY_SEARCH_SORT_COMMAND_DESC = 2,
+    /// Sort matches by a history metadata key, ascending.
+    IC_HISTORY_SEARCH_SORT_METADATA_ASC = 3,
+    /// Sort matches by a history metadata key, descending.
+    IC_HISTORY_SEARCH_SORT_METADATA_DESC = 4,
+} ic_history_search_sort_t;
+
+/// Configure the default fuzzy history search sort.
+/// For metadata modes, `metadata_key` names any built-in or custom metadata key.
+/// Missing metadata values sort after present values. Metadata values sort
+/// numerically when both values are valid integers, otherwise lexicographically.
+/// Returns false if the mode or metadata key is invalid.
+bool ic_set_history_search_sort(ic_history_search_sort_t sort, const char* metadata_key);
+
+/// Return the current default fuzzy history search sort.
+/// If `metadata_key` is not NULL, it receives the configured metadata key for
+/// metadata modes, or NULL for non-metadata modes. The returned key is owned by
+/// isocline and remains valid until the sort is changed.
+ic_history_search_sort_t ic_get_history_search_sort(const char** metadata_key);
+
 /// Disable or enable automatic tab completion after a completion
 /// to expand as far as possible if the completions are unique. (disabled by
 /// default). Returns the previous setting.

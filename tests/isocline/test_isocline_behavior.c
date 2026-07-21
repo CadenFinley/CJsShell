@@ -783,6 +783,47 @@ static bool test_history_fuzzy_case_toggle_via_api(void) {
     return true;
 }
 
+static bool test_history_search_sort_api(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    const char* metadata_key = "unexpected";
+
+    EXPECT_TRUE(ic_set_history_search_sort(IC_HISTORY_SEARCH_SORT_RECENT, NULL),
+                "history search sort should accept the default recency mode");
+    EXPECT_TRUE(ic_get_history_search_sort(&metadata_key) == IC_HISTORY_SEARCH_SORT_RECENT,
+                "history search sort getter should report recency mode");
+    EXPECT_TRUE(metadata_key == NULL, "recency sort should not expose a metadata key");
+
+    EXPECT_TRUE(ic_set_history_search_sort(IC_HISTORY_SEARCH_SORT_COMMAND_ASC, "ignored"),
+                "command sort should ignore an unnecessary metadata key");
+    metadata_key = "unexpected";
+    EXPECT_TRUE(ic_get_history_search_sort(&metadata_key) == IC_HISTORY_SEARCH_SORT_COMMAND_ASC,
+                "history search sort getter should report command ascending mode");
+    EXPECT_TRUE(metadata_key == NULL, "command sort should not expose a metadata key");
+
+    EXPECT_TRUE(ic_set_history_search_sort(IC_HISTORY_SEARCH_SORT_METADATA_DESC, "project"),
+                "metadata sort should accept a custom metadata key");
+    metadata_key = NULL;
+    EXPECT_TRUE(ic_get_history_search_sort(&metadata_key) == IC_HISTORY_SEARCH_SORT_METADATA_DESC,
+                "history search sort getter should report metadata descending mode");
+    EXPECT_STREQ(metadata_key, "project", "metadata sort getter should expose the copied key");
+
+    EXPECT_FALSE(ic_set_history_search_sort(IC_HISTORY_SEARCH_SORT_METADATA_ASC, NULL),
+                 "metadata sort should reject a missing metadata key");
+    metadata_key = NULL;
+    EXPECT_TRUE(ic_get_history_search_sort(&metadata_key) == IC_HISTORY_SEARCH_SORT_METADATA_DESC,
+                "failed metadata sort update should preserve the previous mode");
+    EXPECT_STREQ(metadata_key, "project", "failed metadata sort update should preserve the key");
+
+    EXPECT_FALSE(ic_set_history_search_sort(IC_HISTORY_SEARCH_SORT_METADATA_ASC, "bad key"),
+                 "metadata sort should reject whitespace in metadata keys");
+    EXPECT_TRUE(ic_set_history_search_sort(IC_HISTORY_SEARCH_SORT_RECENT, NULL),
+                "history search sort should be reset for later tests");
+    return true;
+}
+
 static bool test_line_wrapping_calculations(void) {
     stringbuf_t* sb = new_stringbuf();
     if (sb == NULL)
@@ -3841,6 +3882,7 @@ static const test_case_t kTests[] = {
     {"history_dedup_snapshot", test_history_dedup_snapshot},
     {"history_fuzzy_case_toggle", test_history_fuzzy_case_toggle},
     {"history_fuzzy_case_toggle_via_api", test_history_fuzzy_case_toggle_via_api},
+    {"history_search_sort_api", test_history_search_sort_api},
     {"line_wrapping_calculations", test_line_wrapping_calculations},
     {"unicode_decode_utf8_valid_sequences", test_unicode_decode_utf8_valid_sequences},
     {"unicode_decode_utf8_invalid_sequences", test_unicode_decode_utf8_invalid_sequences},

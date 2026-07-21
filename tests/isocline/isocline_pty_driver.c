@@ -286,6 +286,7 @@ static int run_case(const char* scenario) {
     const char* prompt_marker = NULL;
     const char* continuation_prompt_marker = NULL;
     bool history_interactive_triplet = false;
+    bool history_sort_cycle_nonpersistent = false;
     if (strcmp(scenario, "cursor_move_insert") == 0) {
         initial_input = "ab";
     } else if (strcmp(scenario, "home_insert") == 0) {
@@ -377,6 +378,33 @@ static int run_case(const char* scenario) {
         ic_history_clear();
         ic_history_add("printf done");
         ic_history_add("mlhist first line\nmlhist second line");
+    } else if (strcmp(scenario, "history_search_sort_alt_s") == 0) {
+        initial_input = "a";
+        ic_history_clear();
+        ic_history_add("banana");
+        ic_history_add("apple");
+        ic_history_add("carrot");
+    } else if (strcmp(scenario, "history_search_sort_default_metadata") == 0) {
+        ic_history_clear();
+        const ic_history_metadata_t rank_two[] = {{"rank", "2"}};
+        const ic_history_metadata_t rank_one[] = {{"rank", "1"}};
+        const ic_history_metadata_t rank_three[] = {{"rank", "3"}};
+        ic_history_add_with_metadata("rank two", rank_two, sizeof(rank_two) / sizeof(rank_two[0]));
+        ic_history_add_with_metadata("rank one", rank_one, sizeof(rank_one) / sizeof(rank_one[0]));
+        ic_history_add_with_metadata("rank three", rank_three,
+                                     sizeof(rank_three) / sizeof(rank_three[0]));
+        if (!ic_set_history_search_sort(IC_HISTORY_SEARCH_SORT_METADATA_ASC, "rank")) {
+            return 6;
+        }
+    } else if (strcmp(scenario, "history_search_sort_cycle_nonpersistent") == 0) {
+        ic_history_clear();
+        ic_history_add("banana");
+        ic_history_add("apple");
+        ic_history_add("carrot");
+        if (!ic_set_history_search_sort(IC_HISTORY_SEARCH_SORT_COMMAND_ASC, NULL)) {
+            return 6;
+        }
+        history_sort_cycle_nonpersistent = true;
     } else if (strcmp(scenario, "insert_backspace_mouse_default_on_hidden_status") == 0) {
         ic_enable_mouse_clicking(true);
         ic_enable_mouse_reporting_status_line(false);
@@ -508,6 +536,24 @@ static int run_case(const char* scenario) {
         emit_readline_step_done();
 
         line = ic_readline(prompt_text, NULL, NULL);
+    } else if (history_sort_cycle_nonpersistent) {
+        char* first = ic_readline(prompt_text, NULL, NULL);
+        if (first == NULL)
+            return 4;
+        emit_readline_step_done();
+
+        char* second = ic_readline(prompt_text, NULL, NULL);
+        if (second == NULL) {
+            ic_free(first);
+            return 4;
+        }
+
+        char payload[512];
+        (void)snprintf(payload, sizeof(payload), "%s|%s", first, second);
+        ic_free(first);
+        ic_free(second);
+        emit_result(payload);
+        return 0;
     } else {
         line = ic_readline(prompt_text, NULL, initial_input);
     }

@@ -464,6 +464,8 @@ argument from the previous command, use `!$` or the fuzzy history search menu (`
 
 Control whether the fuzzy history search menu matches case-sensitively with `cjshopt history-search-case <on|off|status>` or press `Alt+C` inside the menu to flip modes on the fly. Turning case sensitivity off lets uppercase queries (for example, `LS`) match lowercase history entries (`ls`) when filtering.
 
+History search results are sorted newest-first by default. Press `Alt+S` inside the menu to cycle the current menu through available sort arrangements such as command text and metadata keys present in the matching history entries. This only changes the open menu; the default sort can be changed by callers through the isocline history search sort API.
+
 ## Key Bindings
 
 CJ's Shell supports customizable key bindings with multiple profiles.
@@ -506,6 +508,7 @@ cjshopt keybind profile set emacs|vi
 - `Ctrl+R`: Open the fuzzy history search menu (reverse search)
 - `Ctrl+S`: Open the fuzzy history search menu (forward search)
 - `Alt+C`: Toggle case sensitivity while the fuzzy history search menu is open
+- `Alt+S`: Cycle sort arrangements while the fuzzy history search menu is open
 - `↑`: Previous history entry
 - `↓`: Next history entry
 - `Alt+<`: First history entry
