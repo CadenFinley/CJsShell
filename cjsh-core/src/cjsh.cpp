@@ -127,7 +127,7 @@ int run_cjsh(int argc, char* argv[]) {
     cjsh_env::reset_shell_state();
 
     // parse passed flags
-    auto parse_result = flags::parse_arguments(argc, argv);
+    flags::ParseResult parse_result = flags::parse_arguments(argc, argv);
     if (parse_result.should_exit) {
         return parse_result.exit_code;
     }
@@ -197,7 +197,7 @@ int run_cjsh(int argc, char* argv[]) {
     // the command to execute
     if (config::execute_command && !script_file.empty()) {
         setenv("0", script_file.c_str(), 1);
-        auto& env_map = cjsh_env::env_vars();
+        std::unordered_map<std::string, std::string>& env_map = cjsh_env::env_vars();
         env_map["0"] = script_file;
         cjsh_env::sync_parser_env_vars(g_shell.get());
     }
