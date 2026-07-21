@@ -36,6 +36,10 @@
 #define IC_SMALL_MENU_SOURCE_LIMIT 35
 #define IC_LARGE_MENU_SOURCE_LIMIT 70
 
+typedef struct edit_completion_preview_context_s {
+    ssize_t selected;
+} edit_completion_preview_context_t;
+
 static bool edit_completion_commit(editor_t* eb, ssize_t newpos) {
     if (newpos == IC_COMP_APPLY_FAIL) {
         editor_undo_restore(eb, false);
@@ -62,6 +66,21 @@ static bool edit_complete(ic_env_t* env, editor_t* eb, ssize_t idx) {
         edit_refresh(env, eb);
     }
     return changed;
+}
+
+static bool edit_completion_apply_selected_preview(ic_env_t* env, editor_t* eb, void* arg) {
+    edit_completion_preview_context_t* ctx = (edit_completion_preview_context_t*)arg;
+    if (env == NULL || eb == NULL || ctx == NULL || ctx->selected < 0 ||
+        ctx->selected >= completions_count(env->completions)) {
+        return false;
+    }
+
+    editor_start_modify(eb);
+    ssize_t newpos = completions_apply(env->completions, ctx->selected, eb->input, eb->pos);
+    if (newpos >= 0) {
+        eb->pos = newpos;
+    }
+    return true;
 }
 
 static void edit_complete_longest_prefix(ic_env_t* env, editor_t* eb) {
@@ -838,22 +857,13 @@ again:
     }
 
     if (!env->complete_nopreview && selected >= 0 && selected < count_displayed) {
-        const char* saved_menu = sbuf_strdup(eb->extra);
-
-        editor_start_modify(eb);
-        ssize_t newpos = completions_apply(env->completions, selected, eb->input, eb->pos);
-        if (newpos >= 0) {
-            eb->pos = newpos;
+        edit_completion_preview_context_t preview_ctx = {
+            .selected = selected,
+        };
+        if (!edit_menu_refresh_with_preview(env, eb, edit_completion_apply_selected_preview,
+                                            &preview_ctx, EDIT_MENU_PREVIEW_RESTORE_UNDO)) {
+            edit_refresh(env, eb);
         }
-
-        if (saved_menu != NULL) {
-            sbuf_replace(eb->extra, saved_menu);
-            mem_free(eb->mem, saved_menu);
-        }
-
-        edit_refresh(env, eb);
-
-        editor_undo_restore(eb, false);
     } else {
         edit_refresh(env, eb);
     }
