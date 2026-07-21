@@ -22,13 +22,6 @@ typedef struct edit_menu_window_s {
     ssize_t scroll_offset;
 } edit_menu_window_t;
 
-typedef enum edit_menu_preview_restore_e {
-    EDIT_MENU_PREVIEW_RESTORE_SNAPSHOT,
-    EDIT_MENU_PREVIEW_RESTORE_UNDO,
-} edit_menu_preview_restore_t;
-
-typedef bool(edit_menu_preview_apply_fun_t)(ic_env_t* env, editor_t* eb, void* arg);
-
 static const char* edit_menu_tag_style(bool selected) {
     return selected ? "ic-menu-selected-secondary" : "ic-diminish";
 }
@@ -380,50 +373,6 @@ static void edit_menu_finish(ic_env_t* env, editor_t* eb, edit_menu_session_t* s
     if (refresh) {
         edit_refresh(env, eb);
     }
-}
-
-static bool edit_menu_refresh_with_preview(ic_env_t* env, editor_t* eb,
-                                           edit_menu_preview_apply_fun_t* apply_preview,
-                                           void* apply_arg,
-                                           edit_menu_preview_restore_t restore_mode) {
-    if (env == NULL || eb == NULL || apply_preview == NULL) {
-        return false;
-    }
-
-    char* saved_extra = sbuf_strdup(eb->extra);
-    if (saved_extra == NULL) {
-        return false;
-    }
-
-    char* saved_input = NULL;
-    ssize_t saved_pos = eb->pos;
-    if (restore_mode == EDIT_MENU_PREVIEW_RESTORE_SNAPSHOT) {
-        saved_input = sbuf_strdup(eb->input);
-        if (saved_input == NULL) {
-            mem_free(eb->mem, saved_extra);
-            return false;
-        }
-    }
-
-    bool applied = apply_preview(env, eb, apply_arg);
-    if (saved_extra != NULL) {
-        sbuf_replace(eb->extra, saved_extra);
-    }
-
-    if (applied) {
-        edit_refresh(env, eb);
-        if (restore_mode == EDIT_MENU_PREVIEW_RESTORE_UNDO) {
-            editor_undo_restore(eb, false);
-        } else if (saved_input != NULL) {
-            sbuf_replace(eb->input, saved_input);
-            eb->pos = saved_pos;
-        }
-    }
-    sbuf_replace(eb->extra, saved_extra);
-
-    mem_free(eb->mem, saved_input);
-    mem_free(eb->mem, saved_extra);
-    return applied;
 }
 
 static ssize_t edit_menu_input_rows(ic_env_t* env, editor_t* eb) {

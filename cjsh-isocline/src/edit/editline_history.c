@@ -536,28 +536,41 @@ static void edit_yank_last_arg(ic_env_t* env, editor_t* eb) {
 
 #define MAX_FUZZY_RESULTS 5000
 
-typedef struct edit_history_preview_context_s {
-    const history_snapshot_t* snap;
-    const history_match_t* matches;
-    ssize_t match_count;
-    ssize_t selected_idx;
-} edit_history_preview_context_t;
-
-static bool edit_history_apply_selected_match_preview(ic_env_t* env, editor_t* eb, void* arg) {
-    edit_history_preview_context_t* ctx = (edit_history_preview_context_t*)arg;
-    if (env == NULL || eb == NULL || ctx == NULL || ctx->snap == NULL || ctx->matches == NULL ||
-        ctx->match_count <= 0 || ctx->selected_idx < 0 || ctx->selected_idx >= ctx->match_count) {
+static bool edit_history_preview_selected_match(ic_env_t* env, editor_t* eb,
+                                                const history_snapshot_t* snap,
+                                                const history_match_t* matches, ssize_t match_count,
+                                                ssize_t selected_idx) {
+    if (env == NULL || eb == NULL || snap == NULL || matches == NULL || match_count <= 0 ||
+        selected_idx < 0 || selected_idx >= match_count) {
         return false;
     }
 
-    const history_entry_t* selected =
-        history_snapshot_get(ctx->snap, ctx->matches[ctx->selected_idx].hidx);
+    const history_entry_t* selected = history_snapshot_get(snap, matches[selected_idx].hidx);
     if (selected == NULL || selected->command == NULL) {
         return false;
     }
 
+    char* saved_input = sbuf_strdup(eb->input);
+    char* saved_extra = sbuf_strdup(eb->extra);
+    if (saved_input == NULL || saved_extra == NULL) {
+        mem_free(eb->mem, saved_input);
+        mem_free(eb->mem, saved_extra);
+        return false;
+    }
+
+    ssize_t saved_pos = eb->pos;
+    // Keep the filter query in memory, but render the selected command like completion preview.
     sbuf_replace(eb->input, selected->command);
     eb->pos = sbuf_len(eb->input);
+
+    edit_refresh(env, eb);
+
+    sbuf_replace(eb->input, saved_input);
+    eb->pos = saved_pos;
+    sbuf_replace(eb->extra, saved_extra);
+
+    mem_free(eb->mem, saved_input);
+    mem_free(eb->mem, saved_extra);
     return true;
 }
 
@@ -876,14 +889,7 @@ again:;
                     "esc:cancel)[/]");
     }
 
-    edit_history_preview_context_t preview_ctx = {
-        .snap = &snap,
-        .matches = matches,
-        .match_count = match_count,
-        .selected_idx = selected_idx,
-    };
-    if (!edit_menu_refresh_with_preview(env, eb, edit_history_apply_selected_match_preview,
-                                        &preview_ctx, EDIT_MENU_PREVIEW_RESTORE_SNAPSHOT)) {
+    if (!edit_history_preview_selected_match(env, eb, &snap, matches, match_count, selected_idx)) {
         edit_refresh(env, eb);
     }
 
