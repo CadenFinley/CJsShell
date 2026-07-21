@@ -83,12 +83,11 @@ namespace {
 
 bool is_posix_restricted_builtin(const std::string& name) {
     return name == "abbr" || name == "abbreviate" || name == "approot" || name == "pushd" ||
-           name == "popd" || name == "dirs" || name == "unabbr" ||
-           name == "unabbreviate" || name == "help" || name == "version" ||
-           name == "history" || name == "restart" || name == "type" || name == "which" ||
-           name == "jobname" || name == "disown" || name == "generate-completions" ||
-           name == "hook" || name == "cjsh-widget" || name == "cjshopt" ||
-           name == "builtin" || name == "quit" || name == "bye";
+           name == "popd" || name == "dirs" || name == "unabbr" || name == "unabbreviate" ||
+           name == "help" || name == "version" || name == "history" || name == "restart" ||
+           name == "type" || name == "which" || name == "jobname" || name == "disown" ||
+           name == "generate-completions" || name == "hook" || name == "cjsh-widget" ||
+           name == "cjshopt" || name == "builtin" || name == "quit" || name == "bye";
 }
 
 int reject_posix_restricted_builtin(const std::string& name) {

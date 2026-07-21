@@ -854,8 +854,7 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                    handle_inline_loop_header(trimmed_for_parsing, ControlToken::For, display_line,
                                              control_stack) ||
                    handle_inline_loop_header(trimmed_for_parsing, ControlToken::Select,
-                                             display_line,
-                                             control_stack)) {
+                                             display_line, control_stack)) {
         } else {
             handle_embedded_loop_header(trimmed_for_parsing, display_line, control_stack);
 

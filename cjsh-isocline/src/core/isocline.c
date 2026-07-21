@@ -40,27 +40,27 @@
 #endif
 #define _XOPEN_SOURCE 700
 #define _DEFAULT_SOURCE
-#include "../terminal/attr.c"
-#include "../terminal/bbcode.c"
-#include "common.c"
 #include "../completion/completers.c"
 #include "../completion/completions.c"
-#include "../edit/editline.c"
 #include "../completion/highlight.c"
+#include "../edit/editline.c"
 #include "../edit/history.c"
-#include "isocline_env.c"
-#include "../keybinding/isocline_keybindings.c"
-#include "isocline_options.c"
-#include "../terminal/isocline_print.c"
 #include "../edit/isocline_readline.c"
-#include "../terminal/isocline_terminal.c"
 #include "../edit/prompt_line_replacement.c"
-#include "../utils/stringbuf.c"
+#include "../edit/undo.c"
+#include "../keybinding/isocline_keybindings.c"
+#include "../terminal/attr.c"
+#include "../terminal/bbcode.c"
+#include "../terminal/isocline_print.c"
+#include "../terminal/isocline_terminal.c"
 #include "../terminal/term.c"
 #include "../terminal/tty.c"
 #include "../terminal/tty_esc.c"
-#include "../edit/undo.c"
 #include "../terminal/unicode.c"
+#include "../utils/stringbuf.c"
+#include "common.c"
+#include "isocline_env.c"
+#include "isocline_options.c"
 #else
 #if defined(__GNUC__) || defined(__clang__)
 #define IC_ANCHOR_UNUSED __attribute__((unused))

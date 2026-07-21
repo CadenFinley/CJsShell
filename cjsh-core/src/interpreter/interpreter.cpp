@@ -1189,9 +1189,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
     };
 
     auto handle_select_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
-        return loop_evaluator::handle_select_block(
-            src_lines, idx, execute_block_skip_validation, execute_simple_or_pipeline,
-            shell_parser, should_abort_for_parameter_expansion);
+        return loop_evaluator::handle_select_block(src_lines, idx, execute_block_skip_validation,
+                                                   execute_simple_or_pipeline, shell_parser,
+                                                   should_abort_for_parameter_expansion);
     };
 
     auto handle_case_block = [&](const std::vector<std::string>& src_lines, size_t& idx) -> int {
@@ -1344,10 +1344,9 @@ int ShellScriptInterpreter::execute_block(const std::vector<std::string>& lines,
 
         // first dispatch pass for structured control-flow blocks.
         // if for select while until and case are routed before generic command parsing.
-        auto block_result =
-            try_dispatch_block_statement(lines, line_index, line, handle_if_block, handle_for_block,
-                                         handle_select_block, handle_while_block,
-                                         handle_until_block, handle_case_block);
+        auto block_result = try_dispatch_block_statement(
+            lines, line_index, line, handle_if_block, handle_for_block, handle_select_block,
+            handle_while_block, handle_until_block, handle_case_block);
 
         if (block_result.handled) {
             last_code = block_result.exit_code;

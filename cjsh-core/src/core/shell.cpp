@@ -232,8 +232,7 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
 
     // xtrace handling
     if (get_shell_option(ShellOption::Xtrace) && !args.empty()) {
-        std::cerr << prompt::render_trace_prompt() << string_utils::join_strings(args, " ")
-                  << '\n';
+        std::cerr << prompt::render_trace_prompt() << string_utils::join_strings(args, " ") << '\n';
     }
 
     // noexec handling

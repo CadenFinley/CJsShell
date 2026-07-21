@@ -87,7 +87,7 @@ bool stdout_supports_ansi_progress() {
 
 bool query_stdout_terminal_dimensions(TerminalDimensions& dimensions) {
 #ifndef _WIN32
-    struct winsize size {};
+    struct winsize size{};
     if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &size) != 0 || size.ws_col == 0)
         return false;
 
@@ -140,13 +140,17 @@ class GenerateCompletionsProgressDisplay {
         render_locked();
     }
 
-    ~GenerateCompletionsProgressDisplay() { finish(); }
+    ~GenerateCompletionsProgressDisplay() {
+        finish();
+    }
 
     GenerateCompletionsProgressDisplay(const GenerateCompletionsProgressDisplay&) = delete;
     GenerateCompletionsProgressDisplay& operator=(const GenerateCompletionsProgressDisplay&) =
         delete;
 
-    bool enabled() const { return enabled_; }
+    bool enabled() const {
+        return enabled_;
+    }
 
     void report_result(const std::string& target_name, bool generated, bool is_root_target) {
         if (!enabled_)
@@ -237,8 +241,8 @@ class GenerateCompletionsProgressDisplay {
             bar_width = 18;
         }
 
-        std::string line = std::string(kCommandName) + " [" + build_bar_locked(bar_width) +
-                           "] " + status.str();
+        std::string line =
+            std::string(kCommandName) + " [" + build_bar_locked(bar_width) + "] " + status.str();
 
         std::string label;
         if (!last_target_.empty()) {
@@ -448,18 +452,19 @@ int interrupt_exit_code() {
 int generate_completions_command(const std::vector<std::string>& args, Shell* shell) {
     auto run = [&]() -> int {
         if (builtin_handle_help(
-                args, {"Usage: generate-completions [OPTIONS] [COMMAND ...]",
-                       "Regenerate cached completion data for commands.",
-                       "With no COMMAND, all executables in PATH are processed.",
-                       "Options:", "  --quiet, -q       Suppress per-command output",
-                       "  --no-force        Reuse existing cache entries when present",
-                       "  --force, -f       Force regeneration (default)",
-                       "  --subcommands, -s Also generate caches for discovered subcommands",
-                       "  --jobs, -j <N>    Process up to N commands in parallel",
-                       "  --                Treat remaining arguments as command names",
-                       "IMPORTANT: This can take significant time and system resources.",
-                       "Tip: Use -j/--jobs to tune parallelism (defaults to CPU count).",
-                       "Progress is redrawn beneath live status lines when stdout is a terminal."})) {
+                args,
+                {"Usage: generate-completions [OPTIONS] [COMMAND ...]",
+                 "Regenerate cached completion data for commands.",
+                 "With no COMMAND, all executables in PATH are processed.",
+                 "Options:", "  --quiet, -q       Suppress per-command output",
+                 "  --no-force        Reuse existing cache entries when present",
+                 "  --force, -f       Force regeneration (default)",
+                 "  --subcommands, -s Also generate caches for discovered subcommands",
+                 "  --jobs, -j <N>    Process up to N commands in parallel",
+                 "  --                Treat remaining arguments as command names",
+                 "IMPORTANT: This can take significant time and system resources.",
+                 "Tip: Use -j/--jobs to tune parallelism (defaults to CPU count).",
+                 "Progress is redrawn beneath live status lines when stdout is a terminal."})) {
             return 0;
         }
 
@@ -561,8 +566,7 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
                       << job_count << " job" << (job_count == 1 ? "" : "s") << std::endl;
         }
 
-        GenerateCompletionsProgressDisplay progress_display(!options.quiet,
-                                                            options.targets.size());
+        GenerateCompletionsProgressDisplay progress_display(!options.quiet, options.targets.size());
 
         std::size_t success_count = 0;
         if (job_count == 1) {

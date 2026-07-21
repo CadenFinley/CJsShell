@@ -151,9 +151,8 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
             }
 
             bool has_do = check_for_loop_keywords(tokens, trimmed_line, false);
-            bool missing_do_effective =
-                !has_do && !next_effective_line_starts_with_keyword(ctx.all_lines,
-                                                                     ctx.line_index, "do");
+            bool missing_do_effective = !has_do && !next_effective_line_starts_with_keyword(
+                                                       ctx.all_lines, ctx.line_index, "do");
 
             if (missing_iteration_list) {
                 line_errors.push_back(SyntaxError(
@@ -176,9 +175,8 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                 if (inline_body_present &&
                     find_inline_done_position(trimmed_line, body_start) == std::string::npos) {
                     line_errors.push_back(SyntaxError(
-                        {display_line, 0, 0, 0}, ErrorSeverity::ERROR,
-                        ErrorCategory::CONTROL_FLOW, "SYN002",
-                        "'select' loop missing closing 'done' after inline body", line,
+                        {display_line, 0, 0, 0}, ErrorSeverity::ERROR, ErrorCategory::CONTROL_FLOW,
+                        "SYN002", "'select' loop missing closing 'done' after inline body", line,
                         "End inline select bodies with 'done' or move the body to a new line"));
                 }
             }

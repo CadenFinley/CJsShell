@@ -196,8 +196,7 @@ const char* canonical_menu_highlight_token(ic_menu_highlight_mode_t mode) {
     }
 }
 
-std::optional<ic_menu_highlight_mode_t> parse_menu_highlight_mode(
-    const std::string& normalized) {
+std::optional<ic_menu_highlight_mode_t> parse_menu_highlight_mode(const std::string& normalized) {
     if (matches_token(normalized, {"none", "off", "disable", "disabled", "false", "0"})) {
         return IC_MENU_HIGHLIGHT_NONE;
     }
@@ -817,31 +816,30 @@ int completion_click_accept_command(const std::vector<std::string>& args) {
 int menu_highlighting_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {
         "Usage: menu-highlighting <none|single|all|reverse|status>",
-        "Examples:", "  menu-highlighting none    Keep completion/history menu items unhighlighted",
+        "Examples:",
+        "  menu-highlighting none    Keep completion/history menu items unhighlighted",
         "  menu-highlighting single  Highlight only the selected menu item",
         "  menu-highlighting all     Highlight every rendered menu item",
         "  menu-highlighting reverse Highlight every rendered item except the selected one",
         "  menu-highlighting status  Show the current mode"};
 
     if (args.size() == 1) {
-        print_error(
-            {ErrorType::INVALID_ARGUMENT, "menu-highlighting", "Missing option argument",
-             usage_lines});
+        print_error({ErrorType::INVALID_ARGUMENT, "menu-highlighting", "Missing option argument",
+                     usage_lines});
         return 1;
     }
 
     if (builtin_handle_help_with_startup_guard(args, usage_lines)) {
         if (!cjsh_env::startup_active()) {
-            std::cout << "Current: "
-                      << describe_menu_highlight_mode(ic_get_menu_highlight_mode()) << '\n';
+            std::cout << "Current: " << describe_menu_highlight_mode(ic_get_menu_highlight_mode())
+                      << '\n';
         }
         return 0;
     }
 
     if (args.size() != 2) {
-        print_error(
-            {ErrorType::INVALID_ARGUMENT, "menu-highlighting", "Too many arguments provided",
-             usage_lines});
+        print_error({ErrorType::INVALID_ARGUMENT, "menu-highlighting",
+                     "Too many arguments provided", usage_lines});
         return 1;
     }
 
@@ -872,8 +870,7 @@ int menu_highlighting_command(const std::vector<std::string>& args) {
     if (!cjsh_env::startup_active()) {
         std::cout << "Menu highlighting set to " << canonical_menu_highlight_token(*requested)
                   << ".\n";
-        std::cout << "Add `cjshopt menu-highlighting "
-                  << canonical_menu_highlight_token(*requested)
+        std::cout << "Add `cjshopt menu-highlighting " << canonical_menu_highlight_token(*requested)
                   << "` to your ~/.cjshrc to persist this change.\n";
     }
 

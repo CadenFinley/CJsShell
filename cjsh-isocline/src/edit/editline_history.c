@@ -439,8 +439,9 @@ static void history_search_sort_matches(const history_snapshot_t* snap, history_
     g_history_search_match_sort_context = old_ctx;
 }
 
-static const char* history_search_sort_label(ic_history_search_sort_t sort, const char* metadata_key,
-                                             char* label_buf, size_t label_buf_size) {
+static const char* history_search_sort_label(ic_history_search_sort_t sort,
+                                             const char* metadata_key, char* label_buf,
+                                             size_t label_buf_size) {
     if (label_buf == NULL || label_buf_size == 0) {
         return "";
     }
@@ -452,7 +453,8 @@ static const char* history_search_sort_label(ic_history_search_sort_t sort, cons
             return "command Z-A";
         case IC_HISTORY_SEARCH_SORT_METADATA_ASC:
         case IC_HISTORY_SEARCH_SORT_METADATA_DESC: {
-            const char* key = (metadata_key != NULL && metadata_key[0] != '\0') ? metadata_key : "?";
+            const char* key =
+                (metadata_key != NULL && metadata_key[0] != '\0') ? metadata_key : "?";
             int n = snprintf(label_buf, label_buf_size, "%s %s", key,
                              sort == IC_HISTORY_SEARCH_SORT_METADATA_ASC ? "asc" : "desc");
             if (n < 0) {
@@ -512,8 +514,8 @@ static bool history_search_sort_choices_append(ic_env_t* env,
     }
     if (*choice_count >= *choice_capacity) {
         ssize_t new_capacity = (*choice_capacity == 0 ? 8 : *choice_capacity * 2);
-        history_search_sort_choice_t* resized = mem_realloc_tp(
-            env->mem, history_search_sort_choice_t, *choices, new_capacity);
+        history_search_sort_choice_t* resized =
+            mem_realloc_tp(env->mem, history_search_sort_choice_t, *choices, new_capacity);
         if (resized == NULL) {
             return false;
         }
@@ -527,9 +529,11 @@ static bool history_search_sort_choices_append(ic_env_t* env,
     return true;
 }
 
-static bool history_search_sort_choices_append_metadata_key(
-    ic_env_t* env, history_search_sort_choice_t** choices, ssize_t* choice_count,
-    ssize_t* choice_capacity, const char* key) {
+static bool history_search_sort_choices_append_metadata_key(ic_env_t* env,
+                                                            history_search_sort_choice_t** choices,
+                                                            ssize_t* choice_count,
+                                                            ssize_t* choice_capacity,
+                                                            const char* key) {
     if (key == NULL || key[0] == '\0') {
         return true;
     }
@@ -543,9 +547,11 @@ static bool history_search_sort_choices_append_metadata_key(
                                               IC_HISTORY_SEARCH_SORT_METADATA_DESC, key);
 }
 
-static bool history_search_sort_choices_add_entry_metadata(
-    ic_env_t* env, history_search_sort_choice_t** choices, ssize_t* choice_count,
-    ssize_t* choice_capacity, const history_entry_t* entry) {
+static bool history_search_sort_choices_add_entry_metadata(ic_env_t* env,
+                                                           history_search_sort_choice_t** choices,
+                                                           ssize_t* choice_count,
+                                                           ssize_t* choice_capacity,
+                                                           const history_entry_t* entry) {
     if (entry == NULL) {
         return true;
     }
@@ -600,15 +606,15 @@ static bool history_search_cycle_sort(ic_env_t* env, const history_snapshot_t* s
         if (match_count > 0 && matches != NULL) {
             for (ssize_t i = 0; i < match_count && ok; ++i) {
                 const history_entry_t* entry = history_snapshot_get(snap, matches[i].hidx);
-                ok = history_search_sort_choices_add_entry_metadata(
-                    env, &choices, &choice_count, &choice_capacity, entry);
+                ok = history_search_sort_choices_add_entry_metadata(env, &choices, &choice_count,
+                                                                    &choice_capacity, entry);
             }
         } else {
             ssize_t total_history = history_snapshot_count(snap);
             for (ssize_t i = 0; i < total_history && ok; ++i) {
                 const history_entry_t* entry = history_snapshot_get(snap, i);
-                ok = history_search_sort_choices_add_entry_metadata(
-                    env, &choices, &choice_count, &choice_capacity, entry);
+                ok = history_search_sort_choices_add_entry_metadata(env, &choices, &choice_count,
+                                                                    &choice_capacity, entry);
             }
         }
     }
@@ -1076,9 +1082,8 @@ again:;
     const char* mouse_suffix =
         (menu_session.mouse_scroll_enabled ? " | Mouse clicking is enabled" : "");
     char sort_label_buf[128];
-    const char* sort_label =
-        history_search_sort_label(session_sort, session_sort_key, sort_label_buf,
-                                  sizeof(sort_label_buf));
+    const char* sort_label = history_search_sort_label(session_sort, session_sort_key,
+                                                       sort_label_buf, sizeof(sort_label_buf));
     ssize_t selected_multiline_preview_rows = 0;
 
     if (match_count > 0) {
@@ -1096,29 +1101,27 @@ again:;
         }
 
         if (showing_all_due_to_no_matches) {
-            sbuf_appendf(eb->extra,
-                         "[ic-info]No matches - showing all history (%zd entr%s) - case %s - sort %s%s[/]\n",
-                         total_history, total_history == 1 ? "y" : "ies",
-                         session_case_sensitive ? "sensitive" : "insensitive", sort_label,
-                         mouse_suffix);
+            sbuf_appendf(
+                eb->extra,
+                "[ic-info]No matches - showing all history (%zd entr%s) - case %s - sort %s%s[/]\n",
+                total_history, total_history == 1 ? "y" : "ies",
+                session_case_sensitive ? "sensitive" : "insensitive", sort_label, mouse_suffix);
         } else if (is_filtered) {
             if (metadata_filter_applied) {
-                sbuf_appendf(eb->extra,
-                             "[ic-info]%zd match%s found (metadata filter) - case %s - sort %s%s[/]\n",
-                             match_count, match_count == 1 ? "" : "es",
-                             session_case_sensitive ? "sensitive" : "insensitive", sort_label,
-                             mouse_suffix);
+                sbuf_appendf(
+                    eb->extra,
+                    "[ic-info]%zd match%s found (metadata filter) - case %s - sort %s%s[/]\n",
+                    match_count, match_count == 1 ? "" : "es",
+                    session_case_sensitive ? "sensitive" : "insensitive", sort_label, mouse_suffix);
             } else {
-                sbuf_appendf(eb->extra,
-                             "[ic-info]%zd match%s found - case %s - sort %s%s[/]\n", match_count,
-                             match_count == 1 ? "" : "es",
+                sbuf_appendf(eb->extra, "[ic-info]%zd match%s found - case %s - sort %s%s[/]\n",
+                             match_count, match_count == 1 ? "" : "es",
                              session_case_sensitive ? "sensitive" : "insensitive", sort_label,
                              mouse_suffix);
             }
         } else {
-            sbuf_appendf(eb->extra,
-                         "[ic-info]History (%zd entr%s) - case %s - sort %s%s[/]\n", total_history,
-                         total_history == 1 ? "y" : "ies",
+            sbuf_appendf(eb->extra, "[ic-info]History (%zd entr%s) - case %s - sort %s%s[/]\n",
+                         total_history, total_history == 1 ? "y" : "ies",
                          session_case_sensitive ? "sensitive" : "insensitive", sort_label,
                          mouse_suffix);
         }
@@ -1248,10 +1251,10 @@ again:;
             bool highlight_match =
                 (is_filtered && !showing_all_due_to_no_matches &&
                  matches[match_idx].match_len > 0 && matches[match_idx].match_pos >= 0);
-            edit_menu_append_highlighted_prefix(
-                eb->extra, display, visible_len, entry_len, matches[match_idx].match_pos,
-                matches[match_idx].match_len, is_selected, highlight_match, env,
-                syntax_highlight_item);
+            edit_menu_append_highlighted_prefix(eb->extra, display, visible_len, entry_len,
+                                                matches[match_idx].match_pos,
+                                                matches[match_idx].match_len, is_selected,
+                                                highlight_match, env, syntax_highlight_item);
 
             if (append_ellipsis && max_columns > 3) {
                 sbuf_append(eb->extra, "...");
@@ -1276,13 +1279,12 @@ again:;
     } else {
         scroll_offset = 0;
         if (metadata_filter_applied) {
-            sbuf_appendf(eb->extra,
-                         "[ic-info]No history entries matched metadata filters - case %s - sort %s%s[/]\n",
-                         session_case_sensitive ? "sensitive" : "insensitive", sort_label,
-                         mouse_suffix);
+            sbuf_appendf(
+                eb->extra,
+                "[ic-info]No history entries matched metadata filters - case %s - sort %s%s[/]\n",
+                session_case_sensitive ? "sensitive" : "insensitive", sort_label, mouse_suffix);
         } else {
-            sbuf_appendf(eb->extra,
-                         "[ic-info]No matches found - case %s - sort %s%s[/]\n",
+            sbuf_appendf(eb->extra, "[ic-info]No matches found - case %s - sort %s%s[/]\n",
                          session_case_sensitive ? "sensitive" : "insensitive", sort_label,
                          mouse_suffix);
         }

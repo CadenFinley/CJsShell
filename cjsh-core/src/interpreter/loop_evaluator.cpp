@@ -1275,11 +1275,10 @@ int handle_for_block(
     return rc;
 }
 
-int handle_select_block(
-    const std::vector<std::string>& src_lines, size_t& idx,
-    const std::function<int(const std::vector<std::string>&)>& execute_block,
-    const std::function<int(const std::string&)>& execute_simple_or_pipeline, Parser* shell_parser,
-    const std::function<bool()>& should_abort_execution) {
+int handle_select_block(const std::vector<std::string>& src_lines, size_t& idx,
+                        const std::function<int(const std::vector<std::string>&)>& execute_block,
+                        const std::function<int(const std::string&)>& execute_simple_or_pipeline,
+                        Parser* shell_parser, const std::function<bool()>& should_abort_execution) {
     std::string first = trim(strip_inline_comment(src_lines[idx]));
     if (first != "select" && first.rfind("select ", 0) != 0)
         return 1;

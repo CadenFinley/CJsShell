@@ -26,13 +26,13 @@
   SOFTWARE.
 */
 
+#include <chrono>
 #include <cstddef>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
-#include <chrono>
 #include <filesystem>
 #include <fstream>
-#include <cstdlib>
 #include <limits>
 #include <string>
 #include <system_error>
@@ -1033,9 +1033,8 @@ static bool test_builtin_docs(void) {
     EXPECT_TRUE(
         has_entry(menu_highlighting_doc, "single", builtin_completions::EntryKind::Subcommand),
         test_name, "menu-highlighting should include single subcommand");
-    EXPECT_TRUE(
-        has_entry(menu_highlighting_doc, "all", builtin_completions::EntryKind::Subcommand),
-        test_name, "menu-highlighting should include all subcommand");
+    EXPECT_TRUE(has_entry(menu_highlighting_doc, "all", builtin_completions::EntryKind::Subcommand),
+                test_name, "menu-highlighting should include all subcommand");
     EXPECT_TRUE(
         has_entry(menu_highlighting_doc, "reverse", builtin_completions::EntryKind::Subcommand),
         test_name, "menu-highlighting should include reverse subcommand");
