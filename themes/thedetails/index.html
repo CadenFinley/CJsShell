@@ -1249,6 +1249,8 @@ tags freely; the parser keeps a stack so <code>[b][color=hotpink]...[/color][/b]
   <code>RPS1_FINAL</code> to style (or clear) the submitted line's right prompt independently.</li>
 <li><code>PS2</code> is used automatically for continuation lines by the line editor. Set it if you want a
   custom secondary prompt, e.g. <code>export PS2='[dim]&gt; [/dim]'</code>.</li>
+<li><code>PS5</code> controls the fuzzy history search prompt, and <code>PS6</code> controls the command palette prompt.
+  Both accept the same markup and escapes as <code>PS1</code>.</li>
 <li><code>PROMPT_COMMAND</code>, when set, runs before CJ's Shell generates <code>PS1</code>/<code>RPS1</code>. Use it to refresh
   environment variables, collect Git metadata, or update the terminal title.</li>
 </ul>

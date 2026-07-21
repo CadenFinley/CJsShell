@@ -1181,6 +1181,8 @@ for full details.</p>
     Tags such as <code>[b]</code>, <code>[color=hotpink]</code>, <code>[ic-hint]</code>, and <code>[bgcolor=#202020]</code> let you mix ANSI
     styles with reusable highlight names. The full markup reference lives in
     <a href="../../themes/thedetails/">Prompt Markup and Styling</a>.</li>
+<li><strong>Bash-style <code>PS3</code>/<code>PS4</code> behavior</strong> – <code>select</code> uses <code>PS3</code> for its choice prompt, and <code>set -x</code>
+    uses <code>PS4</code> for trace prefixes.</li>
 <li><strong>Partial-line preservation marker</strong> via <code>PROMPT_EOL_MARK</code> controls what appears when command
     output does not end in a newline before the next prompt.</li>
 <li><strong>Right prompt cursor tracking</strong> – <code>cjshopt right-prompt-follow-cursor</code> keeps the inline right

@@ -2084,8 +2084,18 @@ Use <code>cjshopt prompt-newline on|off|status</code>, then add the same command
 Displayed as part of <code>PS1</code>. The default primary template is <code>\S  [color=#5fd7ff]\W[/color] \g</code> (or <code>cjsh&gt;</code> when running with <code>--minimal</code> or <code>--secure</code>).</p>
 <p><strong>Continuation Prompt Marker:</strong>
 Displayed for continuation lines in multiline input. The default <code>PS2</code> template is <code>[ic-hint]&gt; [/ic-hint]</code>.</p>
+<p><strong>Select Prompt Marker:</strong>
+Displayed by <code>select</code> before reading a menu choice. Set <code>PS3</code> to customize it; the fallback is <code>#?</code>.</p>
+<p><strong>Trace Prompt Marker:</strong>
+Displayed by <code>set -x</code> before each traced command. <code>PS4</code> defaults to <code>+</code> and supports the same
+prompt escapes as <code>PS1</code>, plus normal shell variable expansion at trace time.</p>
+<p><strong>History Search Prompt Marker:</strong>
+Displayed while fuzzy-searching command history. Set <code>PS5</code> to customize it; the fallback is <code>history search:</code>.</p>
+<p><strong>Command Palette Prompt Marker:</strong>
+Displayed while searching the command palette. Set <code>PS6</code> to customize it; the fallback is <code>command palette:</code>.</p>
 <p><strong>Customization:</strong>
-Define these markers directly inside <code>PS1</code>, <code>PS2</code>, and any helper functions you call from <code>PROMPT_COMMAND</code>.</p>
+Define these markers directly inside <code>PS1</code>, <code>PS2</code>, <code>PS3</code>, <code>PS4</code>, <code>PS5</code>, <code>PS6</code>, and any helper
+functions you call from <code>PROMPT_COMMAND</code>.</p>
 <p><strong>Transient Final Prompt:</strong>
 Set <code>PS1_FINAL</code> to replace the just-submitted prompt line with a different style after Enter
 accepts the command buffer. Set <code>RPS1_FINAL</code> if you also want a dedicated transient right prompt
