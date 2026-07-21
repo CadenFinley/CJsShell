@@ -238,6 +238,8 @@ def run_case(
     key_bytes: bytes,
     timeout_s: float = 5.0,
     capture_output: bool = False,
+    initial_rows: int | None = None,
+    initial_cols: int | None = None,
 ) -> str | tuple[str, str]:
     global PTY_CASE_COUNT
     PTY_CASE_COUNT += 1
@@ -248,6 +250,8 @@ def run_case(
 
     flags = fcntl.fcntl(fd, fcntl.F_GETFL)
     fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+    if initial_rows is not None or initial_cols is not None:
+        set_pty_window_size(fd, initial_rows or 24, initial_cols or 80)
 
     output = bytearray()
     deadline = time.monotonic() + timeout_s
@@ -1563,6 +1567,38 @@ def main() -> int:
         raise AssertionError(
             "expanded completion menu should not expand selected multiline candidate text, got "
             f"normalized_output={normalized_comp_multiline_preview_output!r}"
+        )
+
+    comp_multiline_replacement, comp_multiline_replacement_output = run_case(
+        binary,
+        "completion_many_menu_multiline_replacement",
+        b"m\t\x0a" + DOWN + DOWN + b"\r\r",
+        capture_output=True,
+        initial_rows=8,
+        initial_cols=80,
+    )
+    expected_multiline_replacement = "m02 first line\nm02 second line"
+    if comp_multiline_replacement != expected_multiline_replacement:
+        raise AssertionError(
+            "completion_many_menu_multiline_replacement expected "
+            f"{expected_multiline_replacement!r}, got {comp_multiline_replacement!r}"
+        )
+    normalized_comp_multiline_replacement_output = normalize_terminal_output(
+        comp_multiline_replacement_output
+    )
+    if "Showing 1-4 of 12 completions" not in normalized_comp_multiline_replacement_output:
+        raise AssertionError(
+            "expanded completion menu should size against the multiline preview buffer, got "
+            f"normalized_output={normalized_comp_multiline_replacement_output!r}"
+        )
+    preview_menu_prefix = "pty> m02 first line\n   > m02 second line\nShowing "
+    if (
+        preview_menu_prefix + "1-5 of 12 completions"
+        in normalized_comp_multiline_replacement_output
+    ):
+        raise AssertionError(
+            "expanded completion menu rendered too many rows for the multiline preview buffer, got "
+            f"normalized_output={normalized_comp_multiline_replacement_output!r}"
         )
 
     help_result, help_output = run_case(
