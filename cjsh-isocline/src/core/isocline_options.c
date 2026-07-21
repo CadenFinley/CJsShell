@@ -266,6 +266,7 @@ ic_public ic_menu_highlight_mode_t ic_set_menu_highlight_mode(ic_menu_highlight_
         case IC_MENU_HIGHLIGHT_NONE:
         case IC_MENU_HIGHLIGHT_SINGLE:
         case IC_MENU_HIGHLIGHT_ALL:
+        case IC_MENU_HIGHLIGHT_REVERSE:
             env->menu_highlight_mode = mode;
             break;
         default:

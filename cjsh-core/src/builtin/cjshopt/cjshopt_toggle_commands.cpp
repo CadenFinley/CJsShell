@@ -174,6 +174,8 @@ std::string describe_menu_highlight_mode(ic_menu_highlight_mode_t mode) {
             return "single (highlight only the selected item)";
         case IC_MENU_HIGHLIGHT_ALL:
             return "all (highlight every rendered item)";
+        case IC_MENU_HIGHLIGHT_REVERSE:
+            return "reverse (highlight every rendered item except the selected item)";
         default:
             return "unknown";
     }
@@ -187,6 +189,8 @@ const char* canonical_menu_highlight_token(ic_menu_highlight_mode_t mode) {
             return "single";
         case IC_MENU_HIGHLIGHT_ALL:
             return "all";
+        case IC_MENU_HIGHLIGHT_REVERSE:
+            return "reverse";
         default:
             return "none";
     }
@@ -202,6 +206,9 @@ std::optional<ic_menu_highlight_mode_t> parse_menu_highlight_mode(
     }
     if (matches_token(normalized, {"all", "on", "enable", "enabled", "true", "1"})) {
         return IC_MENU_HIGHLIGHT_ALL;
+    }
+    if (matches_token(normalized, {"reverse", "inverse", "inverted"})) {
+        return IC_MENU_HIGHLIGHT_REVERSE;
     }
     return std::nullopt;
 }
@@ -809,10 +816,11 @@ int completion_click_accept_command(const std::vector<std::string>& args) {
 
 int menu_highlighting_command(const std::vector<std::string>& args) {
     static const std::vector<std::string> usage_lines = {
-        "Usage: menu-highlighting <none|single|all|status>",
+        "Usage: menu-highlighting <none|single|all|reverse|status>",
         "Examples:", "  menu-highlighting none    Keep completion/history menu items unhighlighted",
         "  menu-highlighting single  Highlight only the selected menu item",
         "  menu-highlighting all     Highlight every rendered menu item",
+        "  menu-highlighting reverse Highlight every rendered item except the selected one",
         "  menu-highlighting status  Show the current mode"};
 
     if (args.size() == 1) {

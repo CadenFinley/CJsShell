@@ -1087,7 +1087,7 @@ Control syntax highlighting for entries rendered in completion and history searc
 uses the same syntax highlighter and styles as the edit buffer. **Disabled by default.**
 
 ```bash
-cjshopt menu-highlighting <none|single|all|status>
+cjshopt menu-highlighting <none|single|all|reverse|status>
 ```
 
 Examples:
@@ -1096,12 +1096,13 @@ Examples:
 cjshopt menu-highlighting none    # Keep menu items unhighlighted (default)
 cjshopt menu-highlighting single  # Highlight only the cursor-selected item
 cjshopt menu-highlighting all     # Highlight every rendered item
+cjshopt menu-highlighting reverse # Highlight every item except the cursor-selected item
 cjshopt menu-highlighting status  # Show the current mode
 ```
 
-`none` preserves the legacy menu appearance, `single` highlights only the current selection, and
-`all` highlights every visible completion/history item. Add the command to `~/.cjshrc` to persist
-the preference.
+`none` preserves the legacy menu appearance, `single` highlights only the current selection, `all`
+highlights every visible completion/history item, and `reverse` highlights every visible item except
+the current selection. Add the command to `~/.cjshrc` to persist the preference.
 
 #### visible-whitespace
 

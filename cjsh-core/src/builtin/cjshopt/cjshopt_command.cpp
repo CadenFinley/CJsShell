@@ -201,8 +201,8 @@ const std::vector<std::string>& cjshopt_usage_lines() {
             "(default: disabled)",
         std::string("  completion-click-accept <on|off|status> Control click-to-accept behavior ") +
             "for completion entries (default: disabled)",
-        std::string("  menu-highlighting <none|single|all|status> Syntax-highlight completion ") +
-            "and history menu items (default: none)",
+        std::string("  menu-highlighting <none|single|all|reverse|status> Syntax-highlight ") +
+            "completion and history menu items (default: none)",
         std::string("  visible-whitespace <on|off|status> Configure visible whitespace ") +
             "characters (default: disabled)",
         "  hint <on|off|status>            Configure inline hints (default: enabled)",

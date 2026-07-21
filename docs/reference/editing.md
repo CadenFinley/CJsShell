@@ -210,8 +210,8 @@ cjshopt completion-menu-expanded on|off|status
 cjshopt completion-click-accept on|off|status
 
 # Syntax-highlight completion and history menu entries
-# (disabled by default; use single for selected item only)
-cjshopt menu-highlighting none|single|all|status
+# (disabled by default; reverse highlights every item except the selection)
+cjshopt menu-highlighting none|single|all|reverse|status
 
 # Enable/disable auto-tab (disabled by default)
 # Auto-tab automatically completes unique prefixes
@@ -243,8 +243,8 @@ directories that contain thousands of files or deeply nested command trees.
   (`cjshopt completion-click-accept off` keeps click selection but requires Enter/Right/End to accept)
 - In expanded menus, selected multiline completion entries expand inline so the full candidate text
   is visible while you navigate.
-- Use `cjshopt menu-highlighting single` or `all` to render completion and history menu items
-  through the same syntax highlighter used by the edit buffer.
+- Use `cjshopt menu-highlighting single`, `all`, or `reverse` to render completion and
+  history menu items through the same syntax highlighter used by the edit buffer.
 
 ### Hints and Inline Help
 

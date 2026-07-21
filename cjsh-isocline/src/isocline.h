@@ -692,11 +692,13 @@ typedef enum ic_menu_highlight_mode_e {
     IC_MENU_HIGHLIGHT_NONE = 0,
     IC_MENU_HIGHLIGHT_SINGLE = 1,
     IC_MENU_HIGHLIGHT_ALL = 2,
+    IC_MENU_HIGHLIGHT_REVERSE = 3,
 } ic_menu_highlight_mode_t;
 
 /// Configure syntax highlighting for completion and history menu items.
 /// `none` preserves the legacy unhighlighted menu, `single` highlights only
-/// the selected item, and `all` highlights every rendered item.
+/// the selected item, `all` highlights every rendered item, and `reverse`
+/// highlights every rendered item except the selected item.
 /// Returns the previous mode.
 ic_menu_highlight_mode_t ic_set_menu_highlight_mode(ic_menu_highlight_mode_t mode);
 

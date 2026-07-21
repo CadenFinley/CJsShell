@@ -52,6 +52,8 @@ static bool edit_menu_should_syntax_highlight_item_ex(const ic_env_t* env, bool 
             return true;
         case IC_MENU_HIGHLIGHT_SINGLE:
             return selected;
+        case IC_MENU_HIGHLIGHT_REVERSE:
+            return !selected;
         case IC_MENU_HIGHLIGHT_NONE:
         default:
             return false;

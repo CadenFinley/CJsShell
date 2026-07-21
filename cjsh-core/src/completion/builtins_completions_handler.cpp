@@ -732,6 +732,8 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                 {make_subcommand("none", "Do not syntax-highlight menu items"),
                  make_subcommand("single", "Highlight only the selected menu item"),
                  make_subcommand("all", "Highlight every rendered menu item"),
+                 make_subcommand("reverse",
+                                 "Highlight every rendered menu item except the selected item"),
                  make_subcommand("status", "Show current mode")});
         add_doc("cjshopt-visible-whitespace", "",
                 {make_subcommand("on", "Show whitespace markers"),

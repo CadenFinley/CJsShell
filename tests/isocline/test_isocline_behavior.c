@@ -1790,8 +1790,12 @@ static bool test_option_toggle_consistency(void) {
                 "menu highlighting setter should report previous single mode");
     EXPECT_TRUE(ic_get_menu_highlight_mode() == IC_MENU_HIGHLIGHT_ALL,
                 "menu highlighting getter should report all mode");
+    EXPECT_TRUE(ic_set_menu_highlight_mode(IC_MENU_HIGHLIGHT_REVERSE) == IC_MENU_HIGHLIGHT_ALL,
+                "menu highlighting setter should report previous all mode");
+    EXPECT_TRUE(ic_get_menu_highlight_mode() == IC_MENU_HIGHLIGHT_REVERSE,
+                "menu highlighting getter should report reverse mode");
     EXPECT_TRUE(ic_set_menu_highlight_mode((ic_menu_highlight_mode_t)999) ==
-                    IC_MENU_HIGHLIGHT_ALL,
+                    IC_MENU_HIGHLIGHT_REVERSE,
                 "invalid menu highlighting mode should report previous mode");
     EXPECT_TRUE(ic_get_menu_highlight_mode() == IC_MENU_HIGHLIGHT_NONE,
                 "invalid menu highlighting mode should reset to none");

@@ -77,7 +77,7 @@ Fuzzy matching powers command, path, and argument completions without additional
 
 ### Menu Syntax Highlighting
 **Status:** Disabled
-**Configure:** `cjshopt menu-highlighting none|single|all|status`
+**Configure:** `cjshopt menu-highlighting none|single|all|reverse|status`
 
 ### Spell Correction
 **Status:** Enabled  

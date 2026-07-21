@@ -987,6 +987,9 @@ static bool test_builtin_docs(void) {
         has_entry(menu_highlighting_doc, "all", builtin_completions::EntryKind::Subcommand),
         test_name, "menu-highlighting should include all subcommand");
     EXPECT_TRUE(
+        has_entry(menu_highlighting_doc, "reverse", builtin_completions::EntryKind::Subcommand),
+        test_name, "menu-highlighting should include reverse subcommand");
+    EXPECT_TRUE(
         has_entry(menu_highlighting_doc, "status", builtin_completions::EntryKind::Subcommand),
         test_name, "menu-highlighting should include status subcommand");
 
