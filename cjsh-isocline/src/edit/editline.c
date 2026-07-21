@@ -47,6 +47,7 @@
 #include "completions.h"
 #include "env.h"
 #include "env_internal.h"
+#include "fuzzy_match.h"
 #include "highlight.h"
 #include "history.h"
 #include "isocline.h"
@@ -3082,6 +3083,12 @@ static void edit_disable_menu_mouse_scroll(ic_env_t* env, bool enabled) {
     }
     edit_disable_mouse_tracking(env, env->current_editor, enabled);
 }
+
+//-------------------------------------------------------------
+// Menu helpers
+//-------------------------------------------------------------
+
+#include "editline_menu.c"
 
 //-------------------------------------------------------------
 // History

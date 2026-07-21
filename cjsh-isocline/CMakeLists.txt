@@ -35,6 +35,7 @@ set(
     "${CMAKE_CURRENT_SOURCE_DIR}/src/edit/editline.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/completion/highlight.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/edit/history.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/utils/fuzzy_match.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/core/isocline_env.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/keybinding/isocline_keybindings.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/core/isocline_options.c"

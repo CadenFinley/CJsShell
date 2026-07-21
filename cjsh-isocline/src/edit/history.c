@@ -40,6 +40,7 @@
 #include <time.h>
 
 #include "common.h"
+#include "fuzzy_match.h"
 #include "stringbuf.h"
 
 #define IC_DEFAULT_HISTORY (200)
@@ -945,89 +946,6 @@ ic_private bool history_search_prefix(const history_t* h, ssize_t from, const ch
     return false;
 }
 
-static int fuzzy_match_score(const char* entry, const char* query, ssize_t* match_pos,
-                             ssize_t* match_len, bool case_sensitive) {
-    if (entry == NULL || query == NULL || query[0] == '\0') {
-        return -1;
-    }
-
-    const char* e = entry;
-    const char* q = query;
-    ssize_t first_match = -1;
-    ssize_t last_match = -1;
-    ssize_t consecutive = 0;
-    ssize_t max_consecutive = 0;
-    int score = 0;
-    bool in_match = false;
-
-    while (*e && *q) {
-        char e_compare = case_sensitive ? *e : ic_tolower(*e);
-        char q_compare = case_sensitive ? *q : ic_tolower(*q);
-
-        if (e_compare == q_compare) {
-            if (first_match == -1) {
-                first_match = e - entry;
-            }
-            last_match = e - entry;
-
-            if (in_match) {
-                consecutive++;
-                score += 5;
-            } else {
-                consecutive = 1;
-                in_match = true;
-            }
-
-            if (e == entry || *(e - 1) == ' ' || *(e - 1) == '/' || *(e - 1) == '-' ||
-                *(e - 1) == '_') {
-                score += 10;
-            }
-
-            if (case_sensitive) {
-                if (*e == *q) {
-                    score += 2;
-                }
-            } else {
-                score += 2;  // reward matches equally regardless of original casing
-            }
-
-            q++;
-            score += 1;
-        } else {
-            if (consecutive > max_consecutive) {
-                max_consecutive = consecutive;
-            }
-            consecutive = 0;
-            in_match = false;
-        }
-        e++;
-    }
-
-    if (consecutive > max_consecutive) {
-        max_consecutive = consecutive;
-    }
-
-    if (*q != '\0') {
-        return -1;
-    }
-
-    score += max_consecutive * 3;
-
-    if (first_match >= 0 && last_match >= 0) {
-        ssize_t span = last_match - first_match + 1;
-        score -= (int)(span / 2);
-    }
-
-    score -= (int)(strlen(entry) / 10);
-
-    if (match_pos)
-        *match_pos = first_match;
-    if (match_len)
-        *match_len = (first_match >= 0 && last_match >= 0) ? (last_match - first_match + 1) : 0;
-
-    return score;
-}
-
 static int compare_matches(const void* a, const void* b) {
     const history_match_t* ma = (const history_match_t*)a;
     const history_match_t* mb = (const history_match_t*)b;
@@ -1284,7 +1202,7 @@ ic_private bool history_fuzzy_search_with_case(const history_t* h, const char* q
             ssize_t mpos = 0;
             ssize_t mlen = 0;
             int score =
-                fuzzy_match_score(entry->command, effective_query, &mpos, &mlen, case_sensitive);
+                ic_fuzzy_match_score(entry->command, effective_query, &mpos, &mlen, case_sensitive);
 
             if (score >= 0) {
                 score += (int)(offset / 10);
