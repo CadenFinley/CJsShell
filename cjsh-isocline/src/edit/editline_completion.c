@@ -88,11 +88,11 @@ static const char* completion_single_line_view(alloc_t* mem, const char* display
     if (display == NULL) {
         return "";
     }
-    const char* newline = strchr(display, '\n');
-    if (newline == NULL) {
+    const char* line_end = edit_menu_first_line_end(display);
+    if (line_end == NULL || *line_end == '\0') {
         return display;
     }
-    size_t prefix_len = (size_t)(newline - display);
+    size_t prefix_len = (size_t)(line_end - display);
     size_t truncated_len = prefix_len + 3;  // account for "..."
     char* truncated = mem_malloc_tp_n(mem, char, (ssize_t)(truncated_len + 1));
     if (truncated == NULL) {
@@ -179,7 +179,9 @@ static void editor_append_completion(ic_env_t* env, editor_t* eb, ssize_t idx, s
         sbuf_appendf(eb->extra, "%s ", (selected ? arrow : " "));
     }
 
-    bool apply_width_constraint = (width_remaining > 0) && (numbered || !selected);
+    bool display_has_line_break = edit_menu_contains_line_break(display);
+    bool apply_width_constraint =
+        (width_remaining > 0) && (numbered || !selected || display_has_line_break);
     if (apply_width_constraint) {
         sbuf_appendf(eb->extra, "[width=\"%zd;left; ;on\"]", width_remaining);
     }
@@ -369,34 +371,10 @@ static bool completion_menu_mouse_select(ic_env_t* env, editor_t* eb, bool expan
     ssize_t idx = -1;
     if (expanded_mode) {
         ssize_t visible_rows = (last_rows_visible > 0 ? last_rows_visible : count_displayed);
-        ssize_t selected_preview_rows = 1;
-        if (*selected >= scroll_offset && *selected < scroll_offset + visible_rows) {
-            const char* selected_display =
-                completions_get_display(env->completions, *selected, NULL);
-            if (edit_menu_contains_line_break(selected_display)) {
-                selected_preview_rows = edit_menu_line_count(selected_display);
-                if (selected_preview_rows < 1) {
-                    selected_preview_rows = 1;
-                }
-            }
-        }
-        ssize_t physical_rows = visible_rows + (selected_preview_rows - 1);
-        if (item_row >= physical_rows) {
+        if (item_row >= visible_rows) {
             return false;
         }
-        if (selected_preview_rows > 1 && *selected >= scroll_offset &&
-            *selected < scroll_offset + visible_rows) {
-            const ssize_t selected_row = *selected - scroll_offset;
-            if (item_row >= selected_row && item_row < selected_row + selected_preview_rows) {
-                idx = *selected;
-            } else if (item_row > selected_row) {
-                idx = scroll_offset + item_row - (selected_preview_rows - 1);
-            } else {
-                idx = scroll_offset + item_row;
-            }
-        } else {
-            idx = scroll_offset + item_row;
-        }
+        idx = scroll_offset + item_row;
     } else if (grid_mode) {
         if (grid_rows <= 0 || grid_columns <= 0 || colwidth <= 0 || item_row >= grid_rows) {
             return false;
@@ -505,8 +483,6 @@ static void edit_completion_menu(ic_env_t* env, editor_t* eb, bool more_availabl
     bool grid_layout_active = false;
     ssize_t grid_columns = 1;
     ssize_t grid_rows = 1;
-    const char* selected_multiline_preview = NULL;
-    ssize_t selected_multiline_preview_rows = 0;
 
 again:
     sbuf_clear(eb->extra);
@@ -515,8 +491,6 @@ again:
     grid_layout_active = false;
     grid_columns = 1;
     grid_rows = 1;
-    selected_multiline_preview = NULL;
-    selected_multiline_preview_rows = 0;
 
     if (count <= 0) {
         edit_refresh(env, eb);
@@ -696,21 +670,6 @@ again:
             rows_for_items = 1;
         }
 
-        if (selected >= 0 && selected < count_displayed) {
-            const char* selected_display =
-                completions_get_display(env->completions, selected, NULL);
-            if (edit_menu_contains_line_break(selected_display)) {
-                selected_multiline_preview = selected_display;
-                selected_multiline_preview_rows = edit_menu_line_count(selected_display);
-                if (selected_multiline_preview_rows > 1) {
-                    rows_for_items -= (selected_multiline_preview_rows - 1);
-                    if (rows_for_items < 1) {
-                        rows_for_items = 1;
-                    }
-                }
-            }
-        }
-
         bool need_scroll_hint = (total_rows > rows_for_items);
         bool need_more_hint = more_available;
         show_instructions = false;
@@ -763,13 +722,7 @@ again:
                 sbuf_append(eb->extra, "\n");
             }
             wrote_any_row = true;
-            if (selected == idx && selected_multiline_preview != NULL) {
-                edit_menu_append_completion_multiline_preview(
-                    env, eb, env->completions, idx, selected_multiline_preview,
-                    edit_menu_should_syntax_highlight_item(env, true), true);
-            } else {
-                editor_append_completion(env, eb, idx, colwidth, false, (selected == idx));
-            }
+            editor_append_completion(env, eb, idx, colwidth, false, (selected == idx));
             visible_count++;
         }
 

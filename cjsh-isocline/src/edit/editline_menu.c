@@ -706,32 +706,6 @@ static void edit_menu_append_multiline_preview(ic_env_t* env, editor_t* eb, cons
     sbuf_append(eb->extra, "[/pre][/ic-menu-selected]");
 }
 
-static void edit_menu_append_completion_multiline_preview(ic_env_t* env, editor_t* eb,
-                                                          completions_t* completions, ssize_t idx,
-                                                          const char* display,
-                                                          bool syntax_highlight,
-                                                          bool parse_bbcode) {
-    if (!syntax_highlight) {
-        edit_menu_append_multiline_preview(env, eb, display, false, parse_bbcode);
-        return;
-    }
-    if (env == NULL || eb == NULL || display == NULL) {
-        return;
-    }
-
-    const char* arrow = (tty_is_utf8(env->tty) ? "\xE2\x86\x92" : ">");
-    sbuf_append(eb->extra, "[ic-menu-selected][!pre]");
-    sbuf_appendf(eb->extra, "%s ", arrow);
-    sbuf_append(eb->extra, "[/pre]");
-    if (!edit_menu_append_completion_syntax_highlighted_text(env, eb, eb->extra, completions, idx,
-                                                             display, -1, parse_bbcode, -1, 0, true,
-                                                             false, "  ")) {
-        edit_menu_append_syntax_highlighted_text(env, eb->extra, display, -1, parse_bbcode, -1, 0,
-                                                 true, false, "  ");
-    }
-    sbuf_append(eb->extra, "[/ic-menu-selected]");
-}
-
 static ssize_t edit_menu_visible_prefix(const char* s, ssize_t len, ssize_t max_columns,
                                         ssize_t* width_out) {
     if (s == NULL || len <= 0 || max_columns <= 0) {

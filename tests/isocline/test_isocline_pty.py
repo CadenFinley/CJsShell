@@ -1492,18 +1492,17 @@ def main() -> int:
     normalized_comp_multiline_preview_output = normalize_terminal_output(
         comp_multiline_preview_output
     )
-    if "m02 second line" not in normalized_comp_multiline_preview_output:
-        raise AssertionError(
-            "expanded completion menu should show full multiline selection text, got "
-            f"normalized_output={normalized_comp_multiline_preview_output!r}"
-        )
     if (
-        "→ m02 first line..." in normalized_comp_multiline_preview_output
-        or "> m02 first line..." in normalized_comp_multiline_preview_output
+        "→ m02 first line..." not in normalized_comp_multiline_preview_output
+        and "> m02 first line..." not in normalized_comp_multiline_preview_output
     ):
         raise AssertionError(
-            "expanded completion menu should render the selected multiline candidate inline "
-            "instead of leaving the selected row collapsed, got "
+            "expanded completion menu should keep the selected multiline candidate collapsed, got "
+            f"normalized_output={normalized_comp_multiline_preview_output!r}"
+        )
+    if "m02 second line" in normalized_comp_multiline_preview_output:
+        raise AssertionError(
+            "expanded completion menu should not expand selected multiline candidate text, got "
             f"normalized_output={normalized_comp_multiline_preview_output!r}"
         )
 
