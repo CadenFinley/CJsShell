@@ -68,6 +68,7 @@ typedef struct history_query_filter_s {
 } history_query_filter_t;
 
 static const char* k_history_timestamp_key = "timestamp";
+static const char* k_history_time_legacy_key = "time";
 static const char* k_history_frequency_key = "frequency";
 static const char* k_history_exit_code_key = "code";
 static const char* k_history_exit_code_legacy_key = "exit_code";
@@ -250,6 +251,11 @@ static bool history_entry_ensure_timestamp(history_t* h, history_entry_t* entry)
     const char* existing = history_entry_metadata_lookup(entry, k_history_timestamp_key, NULL);
     if (existing != NULL && existing[0] != '\0')
         return true;
+
+    const char* legacy_time = history_entry_metadata_lookup(entry, k_history_time_legacy_key, NULL);
+    if (legacy_time != NULL && legacy_time[0] != '\0')
+        return history_entry_set_metadata(h, entry, k_history_timestamp_key, legacy_time);
+
     char ts_buf[32];
     int n = snprintf(ts_buf, sizeof(ts_buf), "%lld", (long long)time(NULL));
     if (n <= 0 || n >= (int)sizeof(ts_buf))
@@ -1509,13 +1515,21 @@ static bool history_write_record(const history_entry_t* entry, FILE* f, stringbu
     sbuf_clear(sbuf);
     sbuf_append(sbuf, "#");
 
-    bool has_timestamp = (history_entry_get_metadata(entry, k_history_timestamp_key) != NULL);
+    bool wrote_timestamp = false;
+    const char* legacy_time = history_entry_get_metadata(entry, k_history_time_legacy_key);
     bool has_frequency = history_metadata_read_frequency(
         history_entry_get_metadata(entry, k_history_frequency_key), NULL);
     for (ssize_t i = 0; i < entry->metadata_count; ++i) {
         const char* key = entry->metadata[i].key;
         if (!history_metadata_key_valid(key))
             continue;
+        if (ic_stricmp(key, k_history_time_legacy_key) == 0)
+            continue;
+        if (ic_stricmp(key, k_history_timestamp_key) == 0) {
+            if (entry->metadata[i].value == NULL || entry->metadata[i].value[0] == '\0')
+                continue;
+            wrote_timestamp = true;
+        }
         if (ic_stricmp(key, k_history_frequency_key) == 0 &&
             !history_metadata_read_frequency(entry->metadata[i].value, NULL)) {
             continue;
@@ -1532,15 +1546,19 @@ static bool history_write_record(const history_entry_t* entry, FILE* f, stringbu
         sbuf_append_char(sbuf, '=');
         sbuf_append(sbuf, "1");
     }
-    if (!has_timestamp) {
+    if (!wrote_timestamp) {
         char ts_buf[32];
-        int n = snprintf(ts_buf, sizeof(ts_buf), "%lld", (long long)time(NULL));
-        if (n <= 0 || n >= (int)sizeof(ts_buf))
-            return false;
+        const char* timestamp = legacy_time;
+        if (timestamp == NULL || timestamp[0] == '\0') {
+            int n = snprintf(ts_buf, sizeof(ts_buf), "%lld", (long long)time(NULL));
+            if (n <= 0 || n >= (int)sizeof(ts_buf))
+                return false;
+            timestamp = ts_buf;
+        }
         sbuf_append_char(sbuf, ' ');
         sbuf_append(sbuf, k_history_timestamp_key);
         sbuf_append_char(sbuf, '=');
-        sbuf_append(sbuf, ts_buf);
+        history_metadata_write_escaped(sbuf, timestamp);
     }
     sbuf_append_char(sbuf, '\n');
 

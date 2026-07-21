@@ -111,6 +111,24 @@ static stringbuf_t* new_stringbuf(void) {
     return sbuf_new(mem);
 }
 
+static bool file_contains_text(const char* path, const char* needle) {
+    FILE* f = fopen(path, "r");
+    if (f == NULL)
+        return false;
+
+    char line[512];
+    bool found = false;
+    while (fgets(line, sizeof(line), f) != NULL) {
+        if (strstr(line, needle) != NULL) {
+            found = true;
+            break;
+        }
+    }
+
+    (void)fclose(f);
+    return found;
+}
+
 static void reset_typeahead_test_state(bool enabled) {
     ic_set_typeahead_capture_allowed_callback(NULL, NULL);
     (void)ic_enable_typeahead(enabled);
@@ -629,6 +647,61 @@ static bool test_history_frequency_metadata_interactive_flow(void) {
                      "interactive staging and execution should increment frequency once per run");
         history_snapshot_free(history, &snap);
     }
+
+    history_clear(history);
+    history_free(history);
+    (void)remove(history_path);
+    return true;
+}
+
+static bool test_history_legacy_time_metadata_rewrites_to_timestamp(void) {
+    alloc_t* mem = test_allocator();
+    if (mem == NULL)
+        return false;
+
+    history_t* history = history_new(mem);
+    if (history == NULL)
+        return false;
+
+    const char* history_path = "./isocline_history_legacy_time.log";
+    (void)remove(history_path);
+
+    FILE* f = fopen(history_path, "w");
+    EXPECT_TRUE(f != NULL, "legacy history fixture should be writable");
+    EXPECT_TRUE(fputs("# time=123 code=0\nlegacy command\n", f) >= 0,
+                "legacy time metadata fixture should be written");
+    EXPECT_TRUE(fclose(f) == 0, "legacy history fixture should close cleanly");
+
+    history_load_from(history, history_path, 16);
+
+    EXPECT_FALSE(file_contains_text(history_path, " time="),
+                 "loading legacy history should rewrite time metadata out of the file");
+    EXPECT_TRUE(file_contains_text(history_path, " timestamp=123"),
+                "legacy time metadata should be preserved as timestamp metadata");
+
+    history_snapshot_t snap = {0};
+    EXPECT_TRUE(history_snapshot_load(history, &snap, false),
+                "snapshot should load rewritten legacy history");
+    const history_entry_t* newest = history_snapshot_get(&snap, 0);
+    EXPECT_TRUE(newest != NULL, "rewritten legacy history entry should be available");
+    EXPECT_STREQ(history_entry_get_metadata(newest, "timestamp"), "123",
+                 "legacy time value should be exposed through timestamp metadata");
+    EXPECT_TRUE(history_entry_get_metadata(newest, "time") == NULL,
+                "legacy time metadata should not be persisted after rewrite");
+    history_snapshot_free(history, &snap);
+
+    const ic_history_metadata_t legacy_meta[] = {
+        {"time", "456"},
+        {"code", "0"},
+    };
+    EXPECT_TRUE(history_push_with_metadata(history, "new command", legacy_meta,
+                                           sizeof(legacy_meta) / sizeof(legacy_meta[0])),
+                "legacy caller metadata should still be accepted");
+
+    EXPECT_FALSE(file_contains_text(history_path, " time="),
+                 "new writes should not persist legacy time metadata");
+    EXPECT_TRUE(file_contains_text(history_path, " timestamp=456"),
+                "legacy caller time metadata should be written as timestamp");
 
     history_clear(history);
     history_free(history);
@@ -3989,6 +4062,8 @@ static const test_case_t kTests[] = {
     {"history_frequency_metadata_tracking", test_history_frequency_metadata_tracking},
     {"history_frequency_metadata_interactive_flow",
      test_history_frequency_metadata_interactive_flow},
+    {"history_legacy_time_metadata_rewrites_to_timestamp",
+     test_history_legacy_time_metadata_rewrites_to_timestamp},
     {"history_snapshot_dedup_prefers_exit_code_metadata",
      test_history_snapshot_dedup_prefers_exit_code_metadata},
     {"history_disabled_mode_rejects_push", test_history_disabled_mode_rejects_push},

@@ -157,7 +157,7 @@ bool process_command_line(const std::string& command) {
         const std::string exit_code_str = std::to_string(exit_code);
         const std::string elapsed_ms_str = std::to_string(static_cast<long long>(elapsed_ms));
         const ic_history_metadata_t metadata[] = {
-            {"time", timestamp_str.c_str()},
+            {"timestamp", timestamp_str.c_str()},
             {"code", exit_code_str.c_str()},
             {"ms", elapsed_ms_str.c_str()},
         };
