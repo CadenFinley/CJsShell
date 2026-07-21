@@ -213,6 +213,10 @@ std::optional<std::string> get_next_command() {
     } else {
         ic_set_prompt_marker("", continuation_prompt.c_str());
     }
+    std::string history_search_prompt = prompt::render_history_search_prompt();
+    std::string command_palette_prompt = prompt::render_command_palette_prompt();
+    ic_set_history_search_prompt(history_search_prompt.c_str());
+    ic_set_command_palette_prompt(command_palette_prompt.c_str());
 
     thread_local static size_t consecutive_readline_errors = 0;
 

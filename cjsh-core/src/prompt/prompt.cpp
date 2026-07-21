@@ -960,6 +960,14 @@ std::string default_secondary_prompt_template() {
     return "[ic-hint]> [/ic-hint]";
 }
 
+std::string default_history_search_prompt_template() {
+    return "history search: ";
+}
+
+std::string default_command_palette_prompt_template() {
+    return "command palette: ";
+}
+
 std::string render_primary_prompt() {
     std::string ps1 = config::prompt_vars_enabled ? get_ps("PS1", default_primary_prompt_template())
                                                   : std::string("cjsh> ");
@@ -1024,6 +1032,20 @@ std::string render_secondary_prompt() {
         return {};
     }
     return expand_prompt_string(ps2, PromptContext::Secondary);
+}
+
+std::string render_history_search_prompt() {
+    std::string ps5 = config::prompt_vars_enabled
+                          ? get_ps("PS5", default_history_search_prompt_template())
+                          : default_history_search_prompt_template();
+    return expand_prompt_string(ps5, PromptContext::Secondary);
+}
+
+std::string render_command_palette_prompt() {
+    std::string ps6 = config::prompt_vars_enabled
+                          ? get_ps("PS6", default_command_palette_prompt_template())
+                          : default_command_palette_prompt_template();
+    return expand_prompt_string(ps6, PromptContext::Secondary);
 }
 
 bool apply_transient_final_prompt_if_configured() {

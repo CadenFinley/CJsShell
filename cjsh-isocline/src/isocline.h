@@ -641,6 +641,20 @@ void ic_set_prompt_eol_mark(const char* eol_mark);
 /// Returns NULL when the built-in default marker is active.
 const char* ic_get_prompt_eol_mark(void);
 
+/// Set the prompt shown while fuzzy-searching history.
+/// Pass NULL to restore the default ("history search: ").
+void ic_set_history_search_prompt(const char* prompt_text);
+
+/// Get the current history search prompt.
+const char* ic_get_history_search_prompt(void);
+
+/// Set the prompt shown while searching the command palette.
+/// Pass NULL to restore the default ("command palette: ").
+void ic_set_command_palette_prompt(const char* prompt_text);
+
+/// Get the current command palette prompt.
+const char* ic_get_command_palette_prompt(void);
+
 /// Disable or enable multi-line input (enabled by default).
 /// Returns the previous setting.
 bool ic_enable_multiline(bool enable);

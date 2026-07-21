@@ -1652,6 +1652,40 @@ static bool test_prompt_marker_roundtrip(void) {
     return true;
 }
 
+static bool test_menu_prompt_api_roundtrip(void) {
+    ic_env_t* env = ensure_env();
+    if (env == NULL)
+        return false;
+
+    ic_set_history_search_prompt(NULL);
+    ic_set_command_palette_prompt(NULL);
+    EXPECT_STREQ(ic_get_history_search_prompt(),
+                 "history search: ", "history search prompt default should be restored by NULL");
+    EXPECT_STREQ(ic_get_command_palette_prompt(),
+                 "command palette: ", "command palette prompt default should be restored by NULL");
+
+    char history_prompt[] = "hist> ";
+    char palette_prompt[] = "cmd> ";
+    ic_set_history_search_prompt(history_prompt);
+    ic_set_command_palette_prompt(palette_prompt);
+    history_prompt[0] = 'X';
+    palette_prompt[0] = 'X';
+
+    EXPECT_STREQ(ic_get_history_search_prompt(), "hist> ",
+                 "history search prompt setter should copy caller storage");
+    EXPECT_STREQ(ic_get_command_palette_prompt(), "cmd> ",
+                 "command palette prompt setter should copy caller storage");
+
+    ic_set_history_search_prompt(NULL);
+    ic_set_command_palette_prompt(NULL);
+    EXPECT_STREQ(ic_get_history_search_prompt(),
+                 "history search: ", "history search prompt should reset to default");
+    EXPECT_STREQ(ic_get_command_palette_prompt(),
+                 "command palette: ", "command palette prompt should reset to default");
+
+    return true;
+}
+
 static bool test_hint_delay_clamps(void) {
     ic_env_t* env = ensure_env();
     if (env == NULL)
@@ -3867,6 +3901,7 @@ static const test_case_t kTests[] = {
     {"typeahead_pending_input_hidden_when_disabled",
      test_typeahead_pending_input_hidden_when_disabled},
     {"prompt_marker_roundtrip", test_prompt_marker_roundtrip},
+    {"menu_prompt_api_roundtrip", test_menu_prompt_api_roundtrip},
     {"hint_delay_clamps", test_hint_delay_clamps},
     {"status_hint_mode_validation", test_status_hint_mode_validation},
     {"mouse_reporting_option_toggles", test_mouse_reporting_option_toggles},

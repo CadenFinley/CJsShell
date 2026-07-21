@@ -38,9 +38,17 @@ std::string render_right_prompt();
 
 std::string render_secondary_prompt();
 
+std::string render_history_search_prompt();
+
+std::string render_command_palette_prompt();
+
 std::string render_prompt_eol_mark();
 
 std::string render_trace_prompt();
+
+std::string default_history_search_prompt_template();
+
+std::string default_command_palette_prompt_template();
 
 std::string default_primary_prompt_template();
 

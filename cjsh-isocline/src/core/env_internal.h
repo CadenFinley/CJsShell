@@ -42,6 +42,10 @@ typedef struct ic_env_s ic_env_t;
 // to update the prompt and continuation prompt markers consistently.
 ic_private void ic_env_apply_prompt_markers(ic_env_t* env, const char* prompt_marker,
                                             const char* continuation_prompt_marker);
+ic_private void ic_env_apply_history_search_prompt(ic_env_t* env, const char* prompt_text);
+ic_private void ic_env_apply_command_palette_prompt(ic_env_t* env, const char* prompt_text);
+ic_private const char* ic_env_get_history_search_prompt(ic_env_t* env);
+ic_private const char* ic_env_get_command_palette_prompt(ic_env_t* env);
 
 // Shared prompt rendering helpers
 ic_private void ic_emit_continuation_indent(ic_env_t* env, const char* prompt_text);

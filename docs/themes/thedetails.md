@@ -137,6 +137,8 @@ All escape processing happens before markup is interpreted.
   `RPS1_FINAL` to style (or clear) the submitted line's right prompt independently.
 - `PS2` is used automatically for continuation lines by the line editor. Set it if you want a
   custom secondary prompt, e.g. `export PS2='[dim]> [/dim]'`.
+- `PS5` controls the fuzzy history search prompt, and `PS6` controls the command palette prompt.
+  Both accept the same markup and escapes as `PS1`.
 - `PROMPT_COMMAND`, when set, runs before CJ's Shell generates `PS1`/`RPS1`. Use it to refresh
   environment variables, collect Git metadata, or update the terminal title.
 

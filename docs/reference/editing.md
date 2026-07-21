@@ -612,8 +612,15 @@ Displayed by `select` before reading a menu choice. Set `PS3` to customize it; t
 Displayed by `set -x` before each traced command. `PS4` defaults to `+ ` and supports the same
 prompt escapes as `PS1`, plus normal shell variable expansion at trace time.
 
+**History Search Prompt Marker:**
+Displayed while fuzzy-searching command history. Set `PS5` to customize it; the fallback is `history search: `.
+
+**Command Palette Prompt Marker:**
+Displayed while searching the command palette. Set `PS6` to customize it; the fallback is `command palette: `.
+
 **Customization:**
-Define these markers directly inside `PS1`, `PS2`, `PS3`, `PS4`, and any helper functions you call from `PROMPT_COMMAND`.
+Define these markers directly inside `PS1`, `PS2`, `PS3`, `PS4`, `PS5`, `PS6`, and any helper
+functions you call from `PROMPT_COMMAND`.
 
 **Transient Final Prompt:**
 Set `PS1_FINAL` to replace the just-submitted prompt line with a different style after Enter

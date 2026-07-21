@@ -355,7 +355,8 @@ static void edit_command_palette(ic_env_t* env, editor_t* eb) {
         return;
     }
 
-    edit_menu_session_t menu_session = edit_menu_begin(env, eb, "command palette: ", true);
+    edit_menu_session_t menu_session =
+        edit_menu_begin(env, eb, ic_env_get_command_palette_prompt(env), true);
 
     command_palette_match_t* matches = (command_palette_match_t*)mem_zalloc_tp_n(
         env->mem, command_palette_match_t, MAX_COMMAND_PALETTE_RESULTS);

@@ -567,7 +567,8 @@ static void edit_history_fuzzy_search(ic_env_t* env, editor_t* eb, char* initial
 
     history_snapshot_free(env->history, &snap);
 
-    edit_menu_session_t menu_session = edit_menu_begin(env, eb, "history search: ", true);
+    edit_menu_session_t menu_session =
+        edit_menu_begin(env, eb, ic_env_get_history_search_prompt(env), true);
 
     history_match_t* matches =
         (history_match_t*)mem_zalloc_tp_n(env->mem, history_match_t, MAX_FUZZY_RESULTS);

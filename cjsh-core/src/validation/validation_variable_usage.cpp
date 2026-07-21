@@ -209,11 +209,11 @@ bool is_command_separator_token(const std::string& token) {
 
 bool is_special_shell_variable(const std::string& name) {
     static const std::unordered_set<std::string> kSpecialVars = {
-        "IFS",         "PATH",          "HOME",       "PWD",         "OLDPWD",     "MAIL",
-        "MAILPATH",    "PS1",           "PS2",        "PS3",         "PS4",        "LANG",
-        "LC_ALL",      "LC_CTYPE",      "LC_COLLATE", "LC_MESSAGES", "LC_NUMERIC", "OPTIND",
-        "OPTARG",      "SECONDS",       "RANDOM",     "LINENO",      "HISTFILE",   "HISTSIZE",
-        "HISTCONTROL", "PROMPT_COMMAND"};
+        "IFS",        "PATH",     "HOME",        "PWD",           "OLDPWD",     "MAIL",
+        "MAILPATH",   "PS1",      "PS2",         "PS3",           "PS4",        "PS5",
+        "PS6",        "LANG",     "LC_ALL",      "LC_CTYPE",      "LC_COLLATE", "LC_MESSAGES",
+        "LC_NUMERIC", "OPTIND",   "OPTARG",      "SECONDS",       "RANDOM",     "LINENO",
+        "HISTFILE",   "HISTSIZE", "HISTCONTROL", "PROMPT_COMMAND"};
     return kSpecialVars.find(name) != kSpecialVars.end();
 }
 

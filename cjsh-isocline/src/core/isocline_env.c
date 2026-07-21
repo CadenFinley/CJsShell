@@ -43,6 +43,9 @@
 // Prompt helpers shared with other modules
 //-------------------------------------------------------------
 
+static const char* ic_default_history_search_prompt = "history search: ";
+static const char* ic_default_command_palette_prompt = "command palette: ";
+
 ic_private void ic_env_apply_prompt_markers(ic_env_t* env, const char* prompt_marker,
                                             const char* continuation_prompt_marker) {
     if (env == NULL)
@@ -55,6 +58,36 @@ ic_private void ic_env_apply_prompt_markers(ic_env_t* env, const char* prompt_ma
     mem_free(env->mem, env->cprompt_marker);
     env->prompt_marker = mem_strdup(env->mem, prompt_marker);
     env->cprompt_marker = mem_strdup(env->mem, continuation_prompt_marker);
+}
+
+ic_private void ic_env_apply_history_search_prompt(ic_env_t* env, const char* prompt_text) {
+    if (env == NULL)
+        return;
+    if (prompt_text == NULL)
+        prompt_text = ic_default_history_search_prompt;
+    mem_free(env->mem, env->history_search_prompt);
+    env->history_search_prompt = mem_strdup(env->mem, prompt_text);
+}
+
+ic_private void ic_env_apply_command_palette_prompt(ic_env_t* env, const char* prompt_text) {
+    if (env == NULL)
+        return;
+    if (prompt_text == NULL)
+        prompt_text = ic_default_command_palette_prompt;
+    mem_free(env->mem, env->command_palette_prompt);
+    env->command_palette_prompt = mem_strdup(env->mem, prompt_text);
+}
+
+ic_private const char* ic_env_get_history_search_prompt(ic_env_t* env) {
+    if (env == NULL || env->history_search_prompt == NULL)
+        return ic_default_history_search_prompt;
+    return env->history_search_prompt;
+}
+
+ic_private const char* ic_env_get_command_palette_prompt(ic_env_t* env) {
+    if (env == NULL || env->command_palette_prompt == NULL)
+        return ic_default_command_palette_prompt;
+    return env->command_palette_prompt;
 }
 
 ic_private void ic_emit_continuation_indent(ic_env_t* env, const char* prompt_text) {
@@ -166,6 +199,8 @@ static ic_env_t* ic_env_create(ic_malloc_fun_t* _malloc, ic_realloc_fun_t* _real
     bbcode_style_def(env->bbcode, "constant", "#569cd6");
 
     ic_env_apply_prompt_markers(env, NULL, NULL);
+    ic_env_apply_history_search_prompt(env, NULL);
+    ic_env_apply_command_palette_prompt(env, NULL);
     env->key_binding_profile = ic_keybinding_profile_default_ptr();
 
     return env;
@@ -208,6 +243,8 @@ static void ic_env_free(ic_env_t* env) {
     mem_free(env->mem, env->cprompt_marker);
     mem_free(env->mem, env->prompt_marker);
     mem_free(env->mem, env->prompt_eol_mark);
+    mem_free(env->mem, env->history_search_prompt);
+    mem_free(env->mem, env->command_palette_prompt);
     mem_free(env->mem, env->match_braces);
     mem_free(env->mem, env->auto_braces);
     mem_free(env->mem, (void*)env->initial_input);
