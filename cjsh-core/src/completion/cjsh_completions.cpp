@@ -249,6 +249,8 @@ bool add_command_completion(ic_completion_env_t* cenv, const std::string& candid
         cenv, completion_text.c_str(), nullptr, nullptr, source, delete_before, 0);
 }
 
+constexpr int kHistoryCompletionHiddenExitCode = 127;
+
 std::string build_completion_suffix(const std::filesystem::directory_entry& entry) {
     std::string completion_suffix =
         completion_utils::quote_path_if_needed(entry.path().filename().string());
@@ -1383,7 +1385,7 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
                     if (key == "code" || key == "exit_code") {
                         char* endptr = nullptr;
                         long exit_ll = std::strtol(value.c_str(), &endptr, 10);
-                        if (endptr != value.c_str()) {
+                        if (endptr != value.c_str() && endptr != nullptr && *endptr == '\0') {
                             last_exit_code = static_cast<int>(exit_ll);
                             has_last_exit_code = true;
                         }
@@ -1399,7 +1401,8 @@ void cjsh_history_completer(ic_completion_env_t* cenv, const char* prefix) {
         }
         const std::string& entry_text = decoded_line;
 
-        if (looks_like_file_path(entry_text)) {
+        if ((has_last_exit_code && last_exit_code == kHistoryCompletionHiddenExitCode) ||
+            looks_like_file_path(entry_text)) {
             last_exit_code = 0;
             has_last_exit_code = false;
             continue;

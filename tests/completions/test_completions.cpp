@@ -29,8 +29,13 @@
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
+#include <chrono>
+#include <filesystem>
+#include <fstream>
+#include <cstdlib>
 #include <limits>
 #include <string>
+#include <system_error>
 #include <unordered_map>
 #include <vector>
 
@@ -312,6 +317,51 @@ static bool test_tokenize_shell_words_preserve_literals(void) {
                 "escaped space should retain the escape sequence");
     EXPECT_TRUE(tokens[3] == "'single quoted'", test_name,
                 "single quotes should be preserved when requested");
+    return true;
+}
+
+static bool test_history_completer_filters_exit_127(void) {
+    const char* test_name = "history_completer_filters_exit_127";
+
+    namespace fs = std::filesystem;
+    const auto unique_suffix = std::chrono::steady_clock::now().time_since_epoch().count();
+    fs::path temp_dir =
+        fs::temp_directory_path() /
+        ("cjsh_completion_history_test_" + std::to_string(static_cast<long long>(unique_suffix)));
+    std::error_code ec;
+    fs::remove_all(temp_dir, ec);
+    ec.clear();
+    fs::create_directories(temp_dir, ec);
+    EXPECT_FALSE(ec, test_name, "temporary history directory should be created");
+
+    fs::path history_path = temp_dir / "history.txt";
+    EXPECT_TRUE(setenv("CJSH_HISTORY_FILE", history_path.string().c_str(), 1) == 0, test_name,
+                "history path override should be set");
+
+    std::ofstream history_file(history_path);
+    EXPECT_TRUE(history_file.is_open(), test_name, "temporary history file should open");
+    history_file << "# code=127 time=1\n";
+    history_file << "typo_current\n";
+    history_file << "# exit_code=127 time=2\n";
+    history_file << "typo_legacy\n";
+    history_file << "# code=0 time=3\n";
+    history_file << "type good\n";
+    history_file.close();
+    EXPECT_TRUE(history_file.good(), test_name, "temporary history file should be written");
+
+    ssize_t count = run_completion_generation("ty", &cjsh_history_completer, 256);
+    bool has_good = generated_completions_include_replacement("type good");
+    bool has_current_127 = generated_completions_include_replacement("typo_current");
+    bool has_legacy_127 = generated_completions_include_replacement("typo_legacy");
+    clear_generated_completions();
+
+    fs::remove_all(temp_dir, ec);
+    unsetenv("CJSH_HISTORY_FILE");
+
+    EXPECT_TRUE(count == 1, test_name, "only non-127 history entry should be offered");
+    EXPECT_TRUE(has_good, test_name, "successful history entry should remain available");
+    EXPECT_FALSE(has_current_127, test_name, "code=127 history entry should be hidden");
+    EXPECT_FALSE(has_legacy_127, test_name, "exit_code=127 history entry should be hidden");
     return true;
 }
 
@@ -1027,6 +1077,7 @@ typedef struct test_case_s {
 } test_case_t;
 
 static const test_case_t kTests[] = {
+    {"history_completer_filters_exit_127", test_history_completer_filters_exit_127},
     {"quote_and_unquote_paths", test_quote_and_unquote_paths},
     {"quote_path_special_characters", test_quote_path_special_characters},
     {"quote_path_empty_and_dollar", test_quote_path_empty_and_dollar},
