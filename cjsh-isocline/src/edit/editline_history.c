@@ -561,6 +561,11 @@ static bool edit_history_apply_selected_match_preview(ic_env_t* env, editor_t* e
     return true;
 }
 
+static const char* edit_history_fuzzy_search_footer_text(void) {
+    return "[ic-diminish](↑↓/wheel:navigate shift+↑/↓:page enter:run tab:edit alt+c:case "
+           "esc:cancel)[/]";
+}
+
 static void edit_history_fuzzy_search(ic_env_t* env, editor_t* eb, char* initial) {
     history_snapshot_t snap = {0};
     if (!history_snapshot_load(env->history, &snap, true)) {
@@ -607,6 +612,7 @@ static void edit_history_fuzzy_search(ic_env_t* env, editor_t* eb, char* initial
     ssize_t scroll_offset = 0;
     ssize_t last_display_count = 0;
     ssize_t last_max_scroll = 0;
+    ssize_t last_rendered_input_rows = 0;
     bool session_case_sensitive = ic_history_fuzzy_search_is_case_sensitive();
 
     if (initial != NULL) {
@@ -621,6 +627,7 @@ again:;
 
     last_display_count = 0;
     last_max_scroll = 0;
+    last_rendered_input_rows = edit_menu_input_rows(env, eb);
 
     bool showing_all_due_to_no_matches = false;
     bool metadata_filter_applied = false;
@@ -671,21 +678,23 @@ again:;
     sbuf_clear(eb->extra);
     const char* mouse_suffix =
         (menu_session.mouse_scroll_enabled ? " | Mouse clicking is enabled" : "");
-    ssize_t selected_multiline_preview_rows = 0;
 
     if (match_count > 0) {
         const char* query = sbuf_string(eb->input);
         bool is_filtered = (query != NULL && query[0] != '\0');
         ssize_t total_history = history_snapshot_count(&snap);
+        ssize_t current_input_rows = edit_menu_input_rows(env, eb);
+        ssize_t rendered_input_rows = current_input_rows;
 
         if (selected_idx >= 0 && selected_idx < match_count) {
             const history_entry_t* selected_entry =
                 history_snapshot_get(&snap, matches[selected_idx].hidx);
-            if (selected_entry != NULL && selected_entry->command != NULL &&
-                edit_menu_contains_line_break(selected_entry->command)) {
-                selected_multiline_preview_rows = edit_menu_line_count(selected_entry->command);
+            if (selected_entry != NULL && selected_entry->command != NULL) {
+                rendered_input_rows = edit_menu_input_rows_for_text(
+                    env, eb, selected_entry->command, ic_strlen(selected_entry->command));
             }
         }
+        last_rendered_input_rows = rendered_input_rows;
 
         if (showing_all_due_to_no_matches) {
             sbuf_appendf(eb->extra,
@@ -713,8 +722,13 @@ again:;
         ssize_t available_lines = edit_menu_available_lines(env, eb, 4, 3);
 
         ssize_t rows_for_items = available_lines;
-        if (selected_multiline_preview_rows > 1) {
-            rows_for_items -= (selected_multiline_preview_rows - 1);
+        ssize_t preview_extra_rows = rendered_input_rows - current_input_rows;
+        if (preview_extra_rows > 0) {
+            rows_for_items -= preview_extra_rows;
+            if (!env->no_help) {
+                rows_for_items -= edit_menu_wrapped_footer_extra_rows(
+                    env, eb, edit_history_fuzzy_search_footer_text());
+            }
             if (rows_for_items < 1) {
                 rows_for_items = 1;
             }
@@ -808,18 +822,8 @@ again:;
             }
 
             bool is_selected = (match_idx == selected_idx);
-            bool show_selected_multiline_inline = (is_selected && is_multiline);
             bool syntax_highlight_item = edit_menu_should_syntax_highlight_item_ex(
                 env, is_selected, menu_session.old_highlight);
-
-            if (show_selected_multiline_inline) {
-                edit_menu_append_multiline_preview(env, eb, display, syntax_highlight_item, false);
-                if (metadata_suffix[0] != '\0') {
-                    edit_menu_append_tag_text(eb->extra, true, metadata_suffix);
-                }
-                sbuf_append(eb->extra, "\n");
-                continue;
-            }
 
             if (is_selected) {
                 sbuf_append(eb->extra, "[ic-menu-selected]");
@@ -871,9 +875,7 @@ again:;
     }
 
     if (!env->no_help) {
-        sbuf_append(eb->extra,
-                    "[ic-diminish](↑↓/wheel:navigate shift+↑/↓:page enter:run tab:edit alt+c:case "
-                    "esc:cancel)[/]");
+        sbuf_append(eb->extra, edit_history_fuzzy_search_footer_text());
     }
 
     edit_history_preview_context_t preview_ctx = {
@@ -897,7 +899,8 @@ again:;
     if (menu_session.mouse_scroll_enabled && key_no_mods == KEY_EVENT_MOUSE_OTHER) {
         bool accept_selection = false;
         if (edit_menu_mouse_select_vertical(env, eb, match_count, scroll_offset, last_display_count,
-                                            1, &selected_idx, &accept_selection)) {
+                                            1, last_rendered_input_rows, &selected_idx,
+                                            &accept_selection)) {
             if (accept_selection) {
                 c = KEY_TAB;
                 key_no_mods = KEY_TAB;

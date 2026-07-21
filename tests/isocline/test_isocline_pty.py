@@ -237,6 +237,8 @@ def run_case(
     key_bytes: bytes,
     timeout_s: float = 5.0,
     capture_output: bool = False,
+    initial_rows: int | None = None,
+    initial_cols: int | None = None,
 ) -> str | tuple[str, str]:
     global PTY_CASE_COUNT
     PTY_CASE_COUNT += 1
@@ -247,6 +249,8 @@ def run_case(
 
     flags = fcntl.fcntl(fd, fcntl.F_GETFL)
     fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+    if initial_rows is not None or initial_cols is not None:
+        set_pty_window_size(fd, initial_rows or 24, initial_cols or 80)
 
     output = bytearray()
     deadline = time.monotonic() + timeout_s
@@ -1273,14 +1277,54 @@ def main() -> int:
     normalized_hist_multiline_output = normalize_terminal_output(hist_multiline_output)
     if "mlhist second line" not in normalized_hist_multiline_output:
         raise AssertionError(
-            "history search menu should show full selected multiline command text, got "
+            "history search should preview the full selected multiline command in the buffer, got "
             f"normalized_output={normalized_hist_multiline_output!r}"
         )
-    if "mlhist first line..." in normalized_hist_multiline_output:
+    if "mlhist first line..." not in normalized_hist_multiline_output:
         raise AssertionError(
-            "history search menu should render selected multiline command inline instead of "
-            "truncating it, got "
+            "history search menu should keep selected multiline rows truncated to one line, got "
             f"normalized_output={normalized_hist_multiline_output!r}"
+        )
+    if (
+        "→ mlhist first line\n  mlhist second line" in normalized_hist_multiline_output
+        or "> mlhist first line\n  mlhist second line" in normalized_hist_multiline_output
+    ):
+        raise AssertionError(
+            "history search menu should not render the selected multiline command inline, got "
+            f"normalized_output={normalized_hist_multiline_output!r}"
+        )
+
+    hist_multiline_long, hist_multiline_long_output = run_case(
+        binary,
+        "history_search_multiline_long_menu",
+        b"\x12\r",
+        capture_output=True,
+        initial_rows=10,
+        initial_cols=60,
+    )
+    expected_hist_multiline_long = (
+        "longhist\nlonghist second line\nlonghist third line\nlonghist fourth line"
+    )
+    if hist_multiline_long != expected_hist_multiline_long:
+        raise AssertionError(
+            "history_search_multiline_long_menu expected full multiline command, got "
+            f"{hist_multiline_long!r}"
+        )
+    normalized_hist_multiline_long_output = normalize_terminal_output(hist_multiline_long_output)
+    if "longhist..." not in normalized_hist_multiline_long_output:
+        raise AssertionError(
+            "history search long multiline menu should keep selected row truncated, got "
+            f"normalized_output={normalized_hist_multiline_long_output!r}"
+        )
+    if "(19 more below)" not in normalized_hist_multiline_long_output:
+        raise AssertionError(
+            "history search long multiline menu should reduce visible rows for the preview buffer, "
+            f"got normalized_output={normalized_hist_multiline_long_output!r}"
+        )
+    if "esc:cancel" not in normalized_hist_multiline_long_output:
+        raise AssertionError(
+            "history search long multiline menu should keep footer text visible, got "
+            f"normalized_output={normalized_hist_multiline_long_output!r}"
         )
 
     comp_single = run_case(binary, "completion_single_tab", b"hel\t\r")
@@ -1497,19 +1541,48 @@ def main() -> int:
     normalized_comp_multiline_preview_output = normalize_terminal_output(
         comp_multiline_preview_output
     )
-    if "m02 second line" not in normalized_comp_multiline_preview_output:
+    if "m02 first line..." not in normalized_comp_multiline_preview_output:
         raise AssertionError(
-            "expanded completion menu should show full multiline selection text, got "
+            "expanded completion menu should keep selected multiline rows truncated to one line, got "
             f"normalized_output={normalized_comp_multiline_preview_output!r}"
         )
-    if (
-        "→ m02 first line..." in normalized_comp_multiline_preview_output
-        or "> m02 first line..." in normalized_comp_multiline_preview_output
-    ):
+    if "m02 second line" in normalized_comp_multiline_preview_output:
         raise AssertionError(
-            "expanded completion menu should render the selected multiline candidate inline "
-            "instead of leaving the selected row collapsed, got "
+            "expanded completion menu should not render the selected multiline candidate inline, got "
             f"normalized_output={normalized_comp_multiline_preview_output!r}"
+        )
+
+    comp_multiline_long, comp_multiline_long_output = run_case(
+        binary,
+        "completion_many_menu_multiline_preview_long",
+        b"m\t\x0a" + DOWN + DOWN + b"\r\r",
+        capture_output=True,
+        initial_rows=10,
+        initial_cols=60,
+    )
+    expected_comp_multiline_long = (
+        "m02 first line\nm02 second line\nm02 third line\nm02 fourth line"
+    )
+    if comp_multiline_long != expected_comp_multiline_long:
+        raise AssertionError(
+            "completion_many_menu_multiline_preview_long expected full multiline completion, got "
+            f"{comp_multiline_long!r}"
+        )
+    normalized_comp_multiline_long_output = normalize_terminal_output(comp_multiline_long_output)
+    if "m02 first line..." not in normalized_comp_multiline_long_output:
+        raise AssertionError(
+            "expanded completion long multiline menu should keep selected row truncated, got "
+            f"normalized_output={normalized_comp_multiline_long_output!r}"
+        )
+    if "Showing 1-3 of 30 completions" not in normalized_comp_multiline_long_output:
+        raise AssertionError(
+            "expanded completion long multiline menu should reduce visible rows for the preview "
+            f"buffer, got normalized_output={normalized_comp_multiline_long_output!r}"
+        )
+    if "Use up/down, tab/shift-tab" not in normalized_comp_multiline_long_output:
+        raise AssertionError(
+            "expanded completion long multiline menu should keep footer text visible, got "
+            f"normalized_output={normalized_comp_multiline_long_output!r}"
         )
 
     help_result, help_output = run_case(
