@@ -616,8 +616,9 @@ bool token_allows_split_command_merge(const std::string& token) {
 void add_command_spell_corrections(ic_completion_env_t* cenv,
                                    const CommandCompletionSources& sources,
                                    const std::string& normalized_prefix,
-                                   size_t delete_before_length) {
-    if (ic_has_completions(cenv) || !g_completion_spell_correction_enabled) {
+                                   size_t delete_before_length, bool high_confidence_only = false) {
+    if ((!high_confidence_only && ic_has_completions(cenv)) ||
+        !g_completion_spell_correction_enabled) {
         return;
     }
 
@@ -648,6 +649,16 @@ void add_command_spell_corrections(ic_completion_env_t* cenv,
         sources.executables_in_path, [](const std::string& value) { return value; },
         std::function<bool(const std::string&)>{}, normalized_prefix, spell_matches);
 
+    if (high_confidence_only) {
+        for (auto it = spell_matches.begin(); it != spell_matches.end();) {
+            if (!it->second.is_transposition) {
+                it = spell_matches.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+
     if (!spell_matches.empty()) {
         completion_spell::add_spell_correction_matches(cenv, spell_matches, delete_before_length);
     }
@@ -655,7 +666,21 @@ void add_command_spell_corrections(ic_completion_env_t* cenv,
 
 void add_command_name_completions(ic_completion_env_t* cenv,
                                   const CommandCompletionSources& sources,
-                                  const std::string& prefix, size_t delete_before_length) {
+                                  const std::string& prefix, size_t delete_before_length,
+                                  bool allow_spell_corrections = true) {
+    std::string normalized_prefix;
+    if (allow_spell_corrections) {
+        normalized_prefix = completion_utils::normalize_for_comparison(prefix);
+        if (command_resolution_is_unknown(prefix)) {
+            add_command_spell_corrections(cenv, sources, normalized_prefix, delete_before_length,
+                                          true);
+        }
+    }
+
+    if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv)) {
+        return;
+    }
+
     add_builtin_command_candidates(cenv, sources.builtin_cmds, prefix, delete_before_length);
     if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv)) {
         return;
@@ -711,8 +736,9 @@ void add_command_name_completions(ic_completion_env_t* cenv,
         cenv, sources.executables_in_path, prefix, delete_before_length, "system installed command",
         [](const std::string& value) { return value; }, {}, system_summary_provider);
 
-    std::string normalized_prefix = completion_utils::normalize_for_comparison(prefix);
-    add_command_spell_corrections(cenv, sources, normalized_prefix, delete_before_length);
+    if (allow_spell_corrections) {
+        add_command_spell_corrections(cenv, sources, normalized_prefix, delete_before_length);
+    }
 }
 
 bool add_split_unknown_command_completions(ic_completion_env_t* cenv,
@@ -741,7 +767,7 @@ bool add_split_unknown_command_completions(ic_completion_env_t* cenv,
     }
 
     auto sources = collect_command_completion_sources(true);
-    add_command_name_completions(cenv, sources, merged_prefix, full_prefix.length());
+    add_command_name_completions(cenv, sources, merged_prefix, full_prefix.length(), false);
     return ic_has_completions(cenv);
 }
 

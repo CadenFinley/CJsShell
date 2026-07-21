@@ -1256,11 +1256,15 @@ static void edit_generate_completions(ic_env_t* env, editor_t* eb, bool autotab)
     ssize_t count = completions_generate(env, env->completions, sbuf_string(eb->input), eb->pos,
                                          IC_MAX_COMPLETIONS_TO_TRY);
     bool more_available = (count >= IC_MAX_COMPLETIONS_TO_TRY);
-    if (count > 0 && completions_all_sources_equal(env->completions, "spell")) {
-        if (!autotab) {
+    const char* first_source = (count > 0 ? completions_get_source(env->completions, 0) : NULL);
+    if (first_source != NULL && strcmp(first_source, "spell") == 0) {
+        bool current_word_spell = edit_completion_is_current_word_spell(env, eb, 0, NULL, NULL);
+        if (!autotab && current_word_spell) {
             if (!edit_complete(env, eb, 0)) {
                 term_beep(env->term);
             }
+        } else if (!autotab && !current_word_spell) {
+            term_beep(env->term);
         }
         completions_clear(env->completions);
         return;

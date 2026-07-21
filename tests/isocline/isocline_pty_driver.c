@@ -52,6 +52,8 @@ typedef enum completion_mode_e {
     COMPLETION_MODE_MANY_MULTILINE,
     COMPLETION_MODE_MANY_MULTILINE_REPLACEMENT,
     COMPLETION_MODE_SPELL_SINGLE,
+    COMPLETION_MODE_SPELL_MIXED,
+    COMPLETION_MODE_SPELL_CROSS_TOKEN,
 } completion_mode_t;
 
 static completion_mode_t g_completion_mode = COMPLETION_MODE_NONE;
@@ -100,9 +102,26 @@ static void pty_completion_word_provider(ic_completion_env_t* cenv, const char* 
         }
         return;
     }
+    if (g_completion_mode == COMPLETION_MODE_SPELL_MIXED) {
+        if (prefix != NULL && strcmp(prefix, "hlelo") == 0) {
+            const long delete_before = (long)strlen(prefix);
+            (void)ic_add_completion_prim_with_source(cenv, "hello", NULL, NULL, "spell",
+                                                     delete_before, 0);
+            (void)ic_add_completion_prim_with_source(cenv, "hlelo-tool", NULL, NULL, "command",
+                                                     delete_before, 0);
+        }
+        return;
+    }
 }
 
 static void pty_completion_dispatcher(ic_completion_env_t* cenv, const char* prefix) {
+    if (g_completion_mode == COMPLETION_MODE_SPELL_CROSS_TOKEN) {
+        if (prefix != NULL && strcmp(prefix, "hlelo add") == 0) {
+            (void)ic_add_completion_prim_with_source(cenv, "hello", NULL, NULL, "spell",
+                                                     (long)strlen(prefix), 0);
+        }
+        return;
+    }
     ic_complete_word(cenv, prefix, pty_completion_word_provider, NULL);
 }
 
@@ -345,12 +364,24 @@ static int run_case(const char* scenario) {
         g_completion_mode = COMPLETION_MODE_SINGLE;
         ic_set_default_completer(pty_completion_dispatcher, NULL);
     } else if (strcmp(scenario, "enter_spell_single_disabled") == 0 ||
-               strcmp(scenario, "enter_spell_single_enabled") == 0) {
+               strcmp(scenario, "enter_spell_single_enabled") == 0 ||
+               strcmp(scenario, "spell_status_delayed") == 0) {
         g_completion_mode = COMPLETION_MODE_SPELL_SINGLE;
         ic_set_default_completer(pty_completion_dispatcher, NULL);
         if (strcmp(scenario, "enter_spell_single_enabled") == 0) {
             ic_enable_spell_correct_on_enter(true);
         }
+        if (strcmp(scenario, "spell_status_delayed") == 0) {
+            ic_enable_hint(true);
+            (void)ic_set_hint_delay(250);
+        }
+    } else if (strcmp(scenario, "spell_status_cross_token") == 0) {
+        g_completion_mode = COMPLETION_MODE_SPELL_CROSS_TOKEN;
+        ic_set_default_completer(pty_completion_dispatcher, NULL);
+        ic_enable_hint(true);
+    } else if (strcmp(scenario, "completion_spell_mixed_tab") == 0) {
+        g_completion_mode = COMPLETION_MODE_SPELL_MIXED;
+        ic_set_default_completer(pty_completion_dispatcher, NULL);
     } else if (strcmp(scenario, "hint_clears_on_empty_line") == 0) {
         g_completion_mode = COMPLETION_MODE_SINGLE;
         ic_enable_hint(true);

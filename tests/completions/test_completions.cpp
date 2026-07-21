@@ -144,6 +144,19 @@ static bool generated_completions_include_replacement(const char* replacement) {
     return false;
 }
 
+static bool first_generated_completion_matches(const char* replacement, const char* source) {
+    ic_env_t* env = ic_get_env();
+    if (env == nullptr || env->completions == nullptr) {
+        return false;
+    }
+
+    const char* actual_replacement = completions_get_replacement(env->completions, 0);
+    const char* actual_source = completions_get_source(env->completions, 0);
+    return actual_replacement != nullptr && actual_source != nullptr &&
+           std::strcmp(actual_replacement, replacement) == 0 &&
+           std::strcmp(actual_source, source) == 0;
+}
+
 static void clear_generated_completions(void) {
     ic_env_t* env = ic_get_env();
     if (env == nullptr || env->completions == nullptr) {
@@ -397,34 +410,41 @@ static bool test_default_completer_nested_command_substitution_scope(void) {
 static bool test_default_completer_split_unknown_command_merge(void) {
     const char* test_name = "default_completer_split_unknown_command_merge";
     ssize_t count = run_completion_generation("pri ntf", &cjsh_default_completer, 256);
-
-    EXPECT_TRUE(count > 0, test_name,
-                "default completer should return suggestions for split unknown command tokens");
     bool has_command = generated_completions_include_replacement("printf ") ||
                        generated_completions_include_replacement("printf");
     clear_generated_completions();
 
+    EXPECT_TRUE(count > 0, test_name,
+                "default completer should return exact split-command suggestions");
     EXPECT_TRUE(has_command, test_name,
-                "split unknown command tokens should merge into known command completions");
+                "exact split command tokens should still merge into known completions");
     return true;
 }
 
-static bool test_default_completer_split_unknown_command_spell(void) {
-    const char* test_name = "default_completer_split_unknown_command_spell";
+static bool test_default_completer_spell_follows_command_cursor(void) {
+    const char* test_name = "default_completer_spell_follows_command_cursor";
     const bool original_spell_setting = is_completion_spell_correction_enabled();
     set_completion_spell_correction_enabled(true);
 
-    ssize_t count = run_completion_generation("pri tf", &cjsh_default_completer, 256);
-    bool has_command = generated_completions_include_replacement("printf ") ||
-                       generated_completions_include_replacement("printf");
+    ssize_t command_count = run_completion_generation_at("sl add", 2, &cjsh_default_completer, 256);
+    bool has_command_correction = generated_completions_include_replacement("ls");
+    bool correction_is_first = first_generated_completion_matches("ls", "spell");
+    clear_generated_completions();
+
+    (void)run_completion_generation("sl add", &cjsh_default_completer, 256);
+    bool has_argument_correction = generated_completions_include_replacement("ls");
     clear_generated_completions();
 
     set_completion_spell_correction_enabled(original_spell_setting);
 
-    EXPECT_TRUE(count > 0, test_name,
-                "default completer should return spell suggestions for merged unknown tokens");
-    EXPECT_TRUE(has_command, test_name,
-                "merged unknown command tokens should include spell-corrected command suggestions");
+    EXPECT_TRUE(command_count > 0, test_name,
+                "the command token should offer spell correction when the cursor touches it");
+    EXPECT_TRUE(has_command_correction, test_name,
+                "the misspelled command should include its spell correction");
+    EXPECT_TRUE(correction_is_first, test_name,
+                "an adjacent-transposition correction should precede prefix completions");
+    EXPECT_FALSE(has_argument_correction, test_name,
+                 "an argument cursor must not offer a correction for the command token");
     return true;
 }
 
@@ -1092,8 +1112,8 @@ static const test_case_t kTests[] = {
      test_default_completer_nested_command_substitution_scope},
     {"default_completer_split_unknown_command_merge",
      test_default_completer_split_unknown_command_merge},
-    {"default_completer_split_unknown_command_spell",
-     test_default_completer_split_unknown_command_spell},
+    {"default_completer_spell_follows_command_cursor",
+     test_default_completer_spell_follows_command_cursor},
     {"find_last_unquoted_space", test_find_last_unquoted_space},
     {"find_last_unquoted_space_with_tabs", test_find_last_unquoted_space_with_tabs},
     {"find_last_unquoted_space_with_escaped_space",

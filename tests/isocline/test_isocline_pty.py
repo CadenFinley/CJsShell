@@ -1419,6 +1419,50 @@ def main() -> int:
             f"{spell_submit_enabled!r}"
         )
 
+    spell_status_result, spell_status_output = run_case(
+        binary, "spell_status_delayed", b"hlelo\r", capture_output=True
+    )
+    if spell_status_result != "hlelo":
+        raise AssertionError(
+            f"spell_status_delayed expected 'hlelo', got {spell_status_result!r}"
+        )
+    normalized_spell_status_output = normalize_terminal_output(spell_status_output)
+    if "spell: hlelo -> hello" not in normalized_spell_status_output:
+        raise AssertionError(
+            "delayed hints should immediately render a current-token spell status, got "
+            f"normalized_output={normalized_spell_status_output!r}"
+        )
+
+    cross_token_result, cross_token_output = run_case(
+        binary, "spell_status_cross_token", b"hlelo add\r", capture_output=True
+    )
+    if cross_token_result != "hlelo add":
+        raise AssertionError(
+            f"spell_status_cross_token expected 'hlelo add', got {cross_token_result!r}"
+        )
+    normalized_cross_token_output = normalize_terminal_output(cross_token_output)
+    if "spell:" in normalized_cross_token_output:
+        raise AssertionError(
+            "spell status should reject a correction whose apply range crosses tokens, got "
+            f"normalized_output={normalized_cross_token_output!r}"
+        )
+
+    cross_token_tab = run_case(
+        binary, "spell_status_cross_token", b"hlelo add\t\r"
+    )
+    if cross_token_tab != "hlelo add":
+        raise AssertionError(
+            "Tab should reject a spell correction whose apply range crosses tokens, got "
+            f"{cross_token_tab!r}"
+        )
+
+    spell_mixed_tab = run_case(binary, "completion_spell_mixed_tab", b"hlelo\t\r")
+    if spell_mixed_tab != "hello":
+        raise AssertionError(
+            "completion_spell_mixed_tab should accept the advertised spell correction first, "
+            f"got {spell_mixed_tab!r}"
+        )
+
     comp_common = run_case(binary, "completion_dual_common_prefix", b"pla\t\r\r")
     if comp_common != "planet":
         raise AssertionError(

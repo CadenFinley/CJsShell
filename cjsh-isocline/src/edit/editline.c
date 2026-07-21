@@ -816,6 +816,48 @@ static ssize_t edit_find_word_start(const char* input, ssize_t pos) {
     return start;
 }
 
+static bool edit_completion_is_current_word_spell(ic_env_t* env, editor_t* eb, ssize_t index,
+                                                  const char** replacement_out,
+                                                  ssize_t* word_start_out) {
+    if (replacement_out != NULL)
+        *replacement_out = NULL;
+    if (word_start_out != NULL)
+        *word_start_out = 0;
+    if (env == NULL || eb == NULL || eb->input == NULL || env->completions == NULL || eb->pos <= 0)
+        return false;
+
+    const char* source = completions_get_source(env->completions, index);
+    if (source == NULL || strcmp(source, "spell") != 0)
+        return false;
+
+    const char* input = sbuf_string(eb->input);
+    if (input == NULL)
+        return false;
+
+    ssize_t input_len = ic_strlen(input);
+    ssize_t next_len = str_next_ofs(input, input_len, eb->pos, NULL);
+    if (next_len > 0 && !ic_char_is_separator(input + eb->pos, (long)next_len))
+        return false;
+
+    ssize_t word_start = edit_find_word_start(input, eb->pos);
+    if (word_start < 0 || word_start >= eb->pos)
+        return false;
+
+    const char* replacement = NULL;
+    ssize_t replacement_start = 0;
+    if (!completions_get_apply_range(env->completions, index, input, eb->pos, &replacement,
+                                     &replacement_start, NULL) ||
+        replacement == NULL || replacement[0] == '\0' || replacement_start != word_start) {
+        return false;
+    }
+
+    if (replacement_out != NULL)
+        *replacement_out = replacement;
+    if (word_start_out != NULL)
+        *word_start_out = word_start;
+    return true;
+}
+
 static inline char ascii_tolower_char(char c) {
     if (c >= 'A' && c <= 'Z')
         return (char)(c + ('a' - 'A'));
@@ -1877,6 +1919,7 @@ static void edit_refresh_hint(ic_env_t* env, editor_t* eb) {
     // so stale suggestions are never redrawn when the new buffer has no hint.
     sbuf_clear(eb->hint);
     sbuf_clear(eb->hint_help);
+    completions_clear(env->completions);
 
     if (env->no_hint || edit_current_line_is_empty(eb)) {
         edit_refresh(env, eb);
@@ -1890,6 +1933,8 @@ static void edit_refresh_hint(ic_env_t* env, editor_t* eb) {
 
     // and see if we can construct a hint (displayed after a delay)
     ssize_t count = completions_generate(env, env->completions, sbuf_string(eb->input), eb->pos, 2);
+    bool has_spell_completion =
+        (count >= 1 && edit_completion_is_current_word_spell(env, eb, 0, NULL, NULL));
     if (count >= 1) {
         const char* help = NULL;
         const char* hint = completions_get_hint(env->completions, 0, &help);
@@ -1925,7 +1970,7 @@ static void edit_refresh_hint(ic_env_t* env, editor_t* eb) {
         }
     }
 
-    if (env->hint_delay <= 0) {
+    if (env->hint_delay <= 0 || has_spell_completion) {
         // refresh with hint directly
         edit_refresh(env, eb);
     }
@@ -2608,29 +2653,17 @@ static bool edit_format_spell_status_hint(ic_env_t* env, editor_t* eb, char* buf
     if (eb->pos <= 0 || completions_count(env->completions) <= 0)
         return false;
 
-    const char* source = completions_get_source(env->completions, 0);
-    if (source == NULL || strcmp(source, "spell") != 0)
-        return false;
-
-    const char* replacement = completions_get_replacement(env->completions, 0);
-    if (replacement == NULL || replacement[0] == '\0')
-        return false;
-
     const char* input = sbuf_string(eb->input);
     if (input == NULL)
         return false;
 
-    ssize_t input_len = ic_strlen(input);
-    ssize_t next_len = str_next_ofs(input, input_len, eb->pos, NULL);
-    if (next_len > 0 && !ic_char_is_separator(input + eb->pos, (long)next_len)) {
+    const char* replacement = NULL;
+    ssize_t replacement_start = 0;
+    if (!edit_completion_is_current_word_spell(env, eb, 0, &replacement, &replacement_start)) {
         return false;
     }
 
-    ssize_t word_start = edit_find_word_start(input, eb->pos);
-    if (word_start < 0 || word_start >= eb->pos)
-        return false;
-
-    char* original = mem_strndup(env->mem, input + word_start, eb->pos - word_start);
+    char* original = mem_strndup(env->mem, input + replacement_start, eb->pos - replacement_start);
     if (original == NULL)
         return false;
 
