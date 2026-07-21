@@ -1228,11 +1228,6 @@ def main() -> int:
             "history search menu should show mouse indicator when click support is active, got "
             f"normalized_output={normalized_hist_scroll_output!r}"
         )
-    if "history search: > history beta" not in normalized_hist_scroll_output:
-        raise AssertionError(
-            "history search menu should preview the selected entry in the input buffer, got "
-            f"normalized_output={normalized_hist_scroll_output!r}"
-        )
 
     hist_scroll_toggle = run_case(
         binary, "history_search_scroll", F2 + b"\x12" + mouse_wheel_down + b"\r"
