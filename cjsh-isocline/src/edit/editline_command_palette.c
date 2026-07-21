@@ -474,28 +474,38 @@ again:;
             }
 
             char linebuf[512];
+            char tag_prefix[4];
+            char tagbuf[96];
+            tag_prefix[0] = '\0';
+            tagbuf[0] = '\0';
             int written = -1;
             if (entry_is_custom) {
                 if (entry_description[0] == '\0') {
-                    written = snprintf(linebuf, sizeof(linebuf), "%s (custom)", entry_name);
+                    written = snprintf(linebuf, sizeof(linebuf), "%s", entry_name);
+                    snprintf(tag_prefix, sizeof(tag_prefix), " ");
+                    snprintf(tagbuf, sizeof(tagbuf), "(custom)");
                 } else if (strstr(entry_description, "(custom)") != NULL) {
+                    written = snprintf(linebuf, sizeof(linebuf), "%s", entry_name);
+                    snprintf(tag_prefix, sizeof(tag_prefix), " - ");
+                    snprintf(tagbuf, sizeof(tagbuf), "%s", entry_description);
+                } else {
                     written = snprintf(linebuf, sizeof(linebuf), "%s - %s", entry_name,
                                        entry_description);
-                } else {
-                    written = snprintf(linebuf, sizeof(linebuf), "%s - %s (custom)", entry_name,
-                                       entry_description);
+                    snprintf(tag_prefix, sizeof(tag_prefix), " ");
+                    snprintf(tagbuf, sizeof(tagbuf), "(custom)");
                 }
             } else {
                 char binding_keys[64];
                 format_binding_keys(env, entry_action, NULL, binding_keys, sizeof(binding_keys),
                                     true);
                 if (entry_description[0] == '\0') {
-                    written =
-                        snprintf(linebuf, sizeof(linebuf), "%s [%s]", entry_name, binding_keys);
+                    written = snprintf(linebuf, sizeof(linebuf), "%s", entry_name);
                 } else {
-                    written = snprintf(linebuf, sizeof(linebuf), "%s - %s [%s]", entry_name,
-                                       entry_description, binding_keys);
+                    written = snprintf(linebuf, sizeof(linebuf), "%s - %s", entry_name,
+                                       entry_description);
                 }
+                snprintf(tag_prefix, sizeof(tag_prefix), " ");
+                snprintf(tagbuf, sizeof(tagbuf), "[%s]", binding_keys);
             }
             if (written < 0) {
                 continue;
@@ -510,7 +520,9 @@ again:;
             bool is_multiline = (line_end && (*line_end == '\n' || *line_end == '\r'));
 
             ssize_t marker_columns = 4;
-            ssize_t max_columns = term_width - marker_columns;
+            ssize_t tag_reserved_columns =
+                (tagbuf[0] != '\0') ? (ssize_t)(strlen(tag_prefix) + strlen(tagbuf)) : 0;
+            ssize_t max_columns = term_width - marker_columns - tag_reserved_columns;
             if (max_columns < 4) {
                 max_columns = 4;
             }
@@ -552,6 +564,11 @@ again:;
             }
 
             sbuf_append(eb->extra, "[/pre]");
+
+            if (tagbuf[0] != '\0') {
+                sbuf_append(eb->extra, tag_prefix);
+                edit_menu_append_tag_text(eb->extra, is_selected, tagbuf);
+            }
 
             if (is_selected) {
                 sbuf_append(eb->extra, "[/ic-menu-selected]");

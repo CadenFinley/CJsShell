@@ -22,6 +22,19 @@ typedef struct edit_menu_window_s {
     ssize_t scroll_offset;
 } edit_menu_window_t;
 
+static const char* edit_menu_tag_style(bool selected) {
+    return selected ? "ic-menu-selected-secondary" : "ic-diminish";
+}
+
+static void edit_menu_append_tag_text(stringbuf_t* sb, bool selected, const char* text) {
+    if (sb == NULL || text == NULL || text[0] == '\0') {
+        return;
+    }
+    sbuf_appendf(sb, "[%s]", edit_menu_tag_style(selected));
+    sbuf_append(sb, text);
+    sbuf_append(sb, "[/]");
+}
+
 static edit_menu_session_t edit_menu_begin(ic_env_t* env, editor_t* eb, const char* prompt_text,
                                            bool enable_mouse_scroll) {
     edit_menu_session_t session = {0};

@@ -788,7 +788,7 @@ again:;
             if (show_selected_multiline_inline) {
                 edit_menu_append_multiline_preview(env, eb, display);
                 if (metadata_suffix[0] != '\0') {
-                    sbuf_appendf(eb->extra, "[ic-menu-selected-secondary]%s[/]", metadata_suffix);
+                    edit_menu_append_tag_text(eb->extra, true, metadata_suffix);
                 }
                 sbuf_append(eb->extra, "\n");
                 continue;
@@ -814,11 +814,7 @@ again:;
             sbuf_append(eb->extra, "[/pre]");
 
             if (metadata_suffix[0] != '\0') {
-                if (is_selected) {
-                    sbuf_appendf(eb->extra, "[ic-menu-selected-secondary]%s[/]", metadata_suffix);
-                } else {
-                    sbuf_appendf(eb->extra, "[ic-diminish]%s[/]", metadata_suffix);
-                }
+                edit_menu_append_tag_text(eb->extra, is_selected, metadata_suffix);
             }
 
             if (is_selected) {

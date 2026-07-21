@@ -157,7 +157,7 @@ static void editor_append_completion(ic_env_t* env, editor_t* eb, ssize_t idx, s
 
     const char* arrow = (tty_is_utf8(env->tty) ? "\xE2\x86\x92" : ">");
     ssize_t width_remaining = width;
-    const char* source_style = (selected ? "ic-menu-selected-secondary" : "ic-source");
+    const char* source_style = edit_menu_tag_style(selected);
     const char* help_style = (selected ? "ic-menu-selected-secondary" : "ic-info");
 
     if (selected) {
