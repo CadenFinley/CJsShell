@@ -484,6 +484,8 @@ generate-completions [--quiet] [--no-force] [-j jobs] [command ...]
 - `--quiet` suppresses per-command status messages and prints only a summary (failures are listed)
 - `--no-force` keeps existing cache files and only generates data for missing entries
 - `-j/--jobs` limits the number of commands processed simultaneously (defaults to CPU count)
+- Interactive terminal runs redraw a progress bar beneath live status lines; redirected output
+  keeps plain line-by-line status for scripting
 - Summary output includes total elapsed time for the run
 - Use `--` to end option parsing when processing command names that start with a dash
 

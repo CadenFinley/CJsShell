@@ -35,6 +35,7 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cstdlib>
 #include <iomanip>
 #include <iostream>
 #include <limits>
@@ -42,6 +43,11 @@
 #include <sstream>
 #include <thread>
 #include <vector>
+
+#ifndef _WIN32
+#include <sys/ioctl.h>
+#include <unistd.h>
+#endif
 
 #include "cjsh_filesystem.h"
 #include "error_out.h"
@@ -51,7 +57,9 @@
 namespace {
 
 constexpr const char kCommandName[] = "generate-completions";
+constexpr const char kAnsiClearLine[] = "\x1b[2K";
 constexpr std::size_t kFallbackDefaultJobs = 4;
+constexpr int kMinimumProgressColumns = 20;
 
 struct GenerateCompletionsOptions {
     bool quiet{false};
@@ -59,6 +67,213 @@ struct GenerateCompletionsOptions {
     bool include_subcommands{false};
     std::size_t requested_jobs{0};
     std::vector<std::string> targets;
+};
+
+struct TerminalDimensions {
+    int columns{0};
+};
+
+bool stdout_supports_ansi_progress() {
+#ifndef _WIN32
+    const char* term = std::getenv("TERM");
+    if (term != nullptr && std::string(term) == "dumb")
+        return false;
+
+    return isatty(STDOUT_FILENO) != 0;
+#else
+    return false;
+#endif
+}
+
+bool query_stdout_terminal_dimensions(TerminalDimensions& dimensions) {
+#ifndef _WIN32
+    struct winsize size {};
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &size) != 0 || size.ws_col == 0)
+        return false;
+
+    dimensions.columns = static_cast<int>(size.ws_col);
+    return true;
+#else
+    (void)dimensions;
+    return false;
+#endif
+}
+
+std::string truncate_progress_text(const std::string& text, std::size_t width) {
+    if (text.size() <= width)
+        return text;
+    if (width == 0)
+        return {};
+    if (width <= 3)
+        return text.substr(0, width);
+
+    return text.substr(0, width - 3) + "...";
+}
+
+std::string format_target_result_line(const std::string& target_name, bool generated,
+                                      bool is_root_target) {
+    std::ostringstream line;
+    if (generated) {
+        line << "  [OK] " << target_name;
+    } else {
+        line << "  [WARN] " << target_name << " (no manual entry or unable to generate)";
+    }
+
+    if (!is_root_target)
+        line << " (subcommand cache)";
+
+    return line.str();
+}
+
+class GenerateCompletionsProgressDisplay {
+   public:
+    GenerateCompletionsProgressDisplay(bool requested, std::size_t total)
+        : total_(total), enabled_(requested && total > 0 && stdout_supports_ansi_progress()) {
+        TerminalDimensions dimensions;
+        if (!enabled_ || !query_stdout_terminal_dimensions(dimensions) ||
+            dimensions.columns < kMinimumProgressColumns) {
+            enabled_ = false;
+            return;
+        }
+
+        columns_ = dimensions.columns;
+        render_locked();
+    }
+
+    ~GenerateCompletionsProgressDisplay() { finish(); }
+
+    GenerateCompletionsProgressDisplay(const GenerateCompletionsProgressDisplay&) = delete;
+    GenerateCompletionsProgressDisplay& operator=(const GenerateCompletionsProgressDisplay&) =
+        delete;
+
+    bool enabled() const { return enabled_; }
+
+    void report_result(const std::string& target_name, bool generated, bool is_root_target) {
+        if (!enabled_)
+            return;
+
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (finished_)
+            return;
+
+        std::cout << '\r' << kAnsiClearLine
+                  << format_target_result_line(target_name, generated, is_root_target) << '\n';
+
+        last_target_ = target_name;
+        last_target_is_root_ = is_root_target;
+
+        if (is_root_target) {
+            if (completed_ < total_)
+                ++completed_;
+            if (!generated)
+                ++missing_;
+        } else {
+            ++subcommand_count_;
+        }
+
+        render_locked();
+    }
+
+    void finish() {
+        if (!enabled_)
+            return;
+
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (finished_)
+            return;
+
+        refresh_dimensions_locked();
+        std::cout << '\r' << kAnsiClearLine << std::flush;
+        finished_ = true;
+    }
+
+   private:
+    void refresh_dimensions_locked() {
+        TerminalDimensions dimensions;
+        if (query_stdout_terminal_dimensions(dimensions) &&
+            dimensions.columns >= kMinimumProgressColumns) {
+            columns_ = dimensions.columns;
+        }
+    }
+
+    std::string build_bar_locked(std::size_t width) const {
+        if (width == 0)
+            return {};
+
+        const std::size_t completed = std::min(completed_, total_);
+        std::size_t filled = total_ == 0 ? width : (completed * width) / total_;
+        if (completed > 0 && filled == 0)
+            filled = 1;
+        if (completed >= total_)
+            filled = width;
+
+        std::string bar(filled, '#');
+        bar.append(width - filled, '-');
+        return bar;
+    }
+
+    std::string build_progress_line_locked() const {
+        const std::size_t terminal_width = static_cast<std::size_t>(columns_ > 0 ? columns_ : 80);
+        const std::size_t width = terminal_width > 1 ? terminal_width - 1 : terminal_width;
+        const std::size_t completed = std::min(completed_, total_);
+        const std::size_t percent = total_ == 0 ? 100 : (completed * 100) / total_;
+
+        std::ostringstream status;
+        status << completed << "/" << total_ << " " << percent << "%";
+        if (missing_ > 0)
+            status << " " << missing_ << " missing";
+        if (subcommand_count_ > 0)
+            status << " " << subcommand_count_ << " sub";
+
+        if (width < 50)
+            return truncate_progress_text(std::string(kCommandName) + " " + status.str(), width);
+
+        std::size_t bar_width = 12;
+        if (width >= 100) {
+            bar_width = 32;
+        } else if (width >= 80) {
+            bar_width = 28;
+        } else if (width >= 64) {
+            bar_width = 18;
+        }
+
+        std::string line = std::string(kCommandName) + " [" + build_bar_locked(bar_width) +
+                           "] " + status.str();
+
+        std::string label;
+        if (!last_target_.empty()) {
+            label = last_target_is_root_ ? last_target_ : "sub " + last_target_;
+        } else {
+            label = "starting";
+        }
+
+        if (!label.empty() && line.size() + 1 < width) {
+            line.push_back(' ');
+            line += truncate_progress_text(label, width - line.size());
+        }
+
+        return truncate_progress_text(line, width);
+    }
+
+    void render_locked() {
+        refresh_dimensions_locked();
+        if (columns_ < kMinimumProgressColumns)
+            return;
+
+        const std::string line = build_progress_line_locked();
+        std::cout << '\r' << kAnsiClearLine << line << std::flush;
+    }
+
+    std::mutex mutex_;
+    std::size_t total_{0};
+    std::size_t completed_{0};
+    std::size_t missing_{0};
+    std::size_t subcommand_count_{0};
+    std::string last_target_;
+    bool last_target_is_root_{true};
+    bool enabled_{false};
+    bool finished_{false};
+    int columns_{0};
 };
 
 void print_invalid_option_error(const std::string& option) {
@@ -196,22 +411,19 @@ std::size_t resolve_job_count(std::size_t requested_jobs, std::size_t target_cou
 }
 
 void print_target_result_line(const std::string& target_name, bool generated, bool is_root_target) {
-    if (generated) {
-        std::cout << "  [OK] " << target_name;
-    } else {
-        std::cout << "  [WARN] " << target_name << " (no manual entry or unable to generate)";
-    }
-
-    if (!is_root_target)
-        std::cout << " (subcommand cache)";
-
-    std::cout << std::endl;
+    std::cout << format_target_result_line(target_name, generated, is_root_target) << std::endl;
 }
 
 void report_target_result(bool quiet, std::mutex* output_mutex, const std::string& target_name,
-                          bool generated, bool is_root_target) {
+                          bool generated, bool is_root_target,
+                          GenerateCompletionsProgressDisplay* progress_display) {
     if (quiet)
         return;
+
+    if (progress_display != nullptr && progress_display->enabled()) {
+        progress_display->report_result(target_name, generated, is_root_target);
+        return;
+    }
 
     if (output_mutex != nullptr) {
         std::lock_guard<std::mutex> lock(*output_mutex);
@@ -246,7 +458,8 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
                        "  --jobs, -j <N>    Process up to N commands in parallel",
                        "  --                Treat remaining arguments as command names",
                        "IMPORTANT: This can take significant time and system resources.",
-                       "Tip: Use -j/--jobs to tune parallelism (defaults to CPU count)."})) {
+                       "Tip: Use -j/--jobs to tune parallelism (defaults to CPU count).",
+                       "Progress is redrawn beneath live status lines when stdout is a terminal."})) {
             return 0;
         }
 
@@ -348,6 +561,9 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
                       << job_count << " job" << (job_count == 1 ? "" : "s") << std::endl;
         }
 
+        GenerateCompletionsProgressDisplay progress_display(!options.quiet,
+                                                            options.targets.size());
+
         std::size_t success_count = 0;
         if (job_count == 1) {
             for (const auto& command : options.targets) {
@@ -358,7 +574,7 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
                 auto progress_report = [&](const std::string& target_name, bool generated,
                                            bool is_root_target) {
                     report_target_result(options.quiet, nullptr, target_name, generated,
-                                         is_root_target);
+                                         is_root_target, &progress_display);
                 };
 
                 auto should_cancel = [&]() { return check_for_interrupt(true); };
@@ -401,7 +617,7 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
                     auto progress_report = [&](const std::string& target_name, bool generated,
                                                bool is_root_target) {
                         report_target_result(options.quiet, &output_mutex, target_name, generated,
-                                             is_root_target);
+                                             is_root_target, &progress_display);
                     };
 
                     auto should_cancel = [&]() { return check_for_interrupt(false); };
@@ -433,6 +649,8 @@ int generate_completions_command(const std::vector<std::string>& args, Shell* sh
 
             success_count = success_counter.load(std::memory_order_relaxed);
         }
+
+        progress_display.finish();
 
         if (check_for_interrupt(true)) {
             return interrupt_exit_code();
