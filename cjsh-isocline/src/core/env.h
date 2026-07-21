@@ -110,6 +110,7 @@ struct ic_env_s {
                                            // selection in the completion menu?
     bool complete_menu_start_expanded;     // open completion menus expanded by default?
     bool completion_click_accept_enabled;  // should completion clicks accept immediately?
+    ic_menu_highlight_mode_t menu_highlight_mode;  // syntax highlight completion/history menus
     bool complete_autotab;                 // try to keep completing after a completion?
     bool no_multiline_indent;              // indent continuation lines to line up under the
                                            // initial prompt

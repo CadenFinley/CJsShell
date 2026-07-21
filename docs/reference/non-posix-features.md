@@ -82,7 +82,8 @@ remains interactive-only by default; see the History section below.
 
 - **Fuzzy matching and spell correction** – Configurable through `cjshopt completion-case`,
   `cjshopt completion-spell`, `cjshopt completion-spell-enter`, `cjshopt completion-preview`, and
-  `cjshopt completion-menu-expanded` / `cjshopt completion-click-accept`.
+  `cjshopt completion-menu-expanded`, `cjshopt completion-click-accept`, and
+  `cjshopt menu-highlighting`.
 - **Man-page scraping** – `generate-completions` and on-demand parsing of `man` pages populate a
   cache under `~/.cache/cjsh/generated_completions/` for rich option and subcommand help.
 - **Inline preview pane & source annotations** – Completion menus display descriptions, origins

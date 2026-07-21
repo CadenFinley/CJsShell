@@ -62,6 +62,7 @@ enum class CjshoptSubcommand : std::uint8_t {
     CompletionPreview,
     CompletionMenuExpanded,
     CompletionClickAccept,
+    MenuHighlighting,
     VisibleWhitespace,
     Hint,
     MultilineIndent,
@@ -123,6 +124,7 @@ constexpr std::array<CjshoptSubcommandDescriptor, static_cast<size_t>(CjshoptSub
           completion_menu_expanded_command},
          {CjshoptSubcommand::CompletionClickAccept, "completion-click-accept",
           completion_click_accept_command},
+         {CjshoptSubcommand::MenuHighlighting, "menu-highlighting", menu_highlighting_command},
          {CjshoptSubcommand::VisibleWhitespace, "visible-whitespace", visible_whitespace_command},
          {CjshoptSubcommand::Hint, "hint", hint_command},
          {CjshoptSubcommand::MultilineIndent, "multiline-indent", multiline_indent_command},
@@ -199,6 +201,8 @@ const std::vector<std::string>& cjshopt_usage_lines() {
             "(default: disabled)",
         std::string("  completion-click-accept <on|off|status> Control click-to-accept behavior ") +
             "for completion entries (default: disabled)",
+        std::string("  menu-highlighting <none|single|all|status> Syntax-highlight completion ") +
+            "and history menu items (default: none)",
         std::string("  visible-whitespace <on|off|status> Configure visible whitespace ") +
             "characters (default: disabled)",
         "  hint <on|off|status>            Configure inline hints (default: enabled)",
@@ -279,7 +283,7 @@ int cjshopt_command(const std::vector<std::string>& args) {
                   "line-numbers, line-numbers-continuation, line-numbers-replace-prompt, "
                   "current-line-number-highlight, multiline-start-lines, hint-delay, "
                   "completion-preview, completion-menu-expanded, completion-click-accept, "
-                  "visible-whitespace, hint, "
+                  "menu-highlighting, visible-whitespace, hint, "
                   "multiline-indent, multiline, inline-help, "
                   "status-hints, status-line, status-reporting, status-line-callback, "
                   "mouse-clicking, mouse-clicking-status-line, auto-tab, prompt-newline, "

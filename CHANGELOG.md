@@ -15,6 +15,7 @@ Range: `v1.3.2..HEAD` (19 commits, 52 files changed)
 ### Added
 
 - Added `cjshopt completion-click-accept` (`on|off|status`) plus completion/help metadata and isocline plumbing for click-accept behavior.
+- Added `cjshopt menu-highlighting` (`none|single|all|status`) to syntax-highlight completion and history menu items with the existing buffer highlighter.
 - Added transient prompt variables `PS1_FINAL` and `RPS1_FINAL` to restyle submitted prompt lines after Enter.
 - Added the `file-argument` syntax-highlighting style and broader path-argument highlighting for existing file arguments.
 - Added split-unknown command merge completions to recover from accidentally separated command tokens.

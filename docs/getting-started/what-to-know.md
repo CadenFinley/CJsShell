@@ -75,6 +75,10 @@ Fuzzy matching powers command, path, and argument completions without additional
 **Status:** Disabled (menus start collapsed)  
 **Configure:** `cjshopt completion-menu-expanded on|off|status`
 
+### Menu Syntax Highlighting
+**Status:** Disabled
+**Configure:** `cjshopt menu-highlighting none|single|all|status`
+
 ### Spell Correction
 **Status:** Enabled  
 **Configure:** `cjshopt completion-spell on|off|status`

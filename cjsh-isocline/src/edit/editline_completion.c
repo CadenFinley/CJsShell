@@ -186,7 +186,12 @@ static void editor_append_completion(ic_env_t* env, editor_t* eb, ssize_t idx, s
     char* single_line_alloc = NULL;
     const char* single_line_display =
         completion_single_line_view(env->mem, display, &single_line_alloc);
-    sbuf_append(eb->extra, single_line_display);
+    if (edit_menu_should_syntax_highlight_item(env, selected)) {
+        edit_menu_append_syntax_highlighted_text(env, eb->extra, single_line_display, -1, true, -1,
+                                                 0, selected, false, NULL);
+    } else {
+        sbuf_append(eb->extra, single_line_display);
+    }
     if (single_line_alloc != NULL) {
         mem_free(env->mem, single_line_alloc);
     }
@@ -755,7 +760,9 @@ again:
             }
             wrote_any_row = true;
             if (selected == idx && selected_multiline_preview != NULL) {
-                edit_menu_append_multiline_preview(env, eb, selected_multiline_preview);
+                edit_menu_append_multiline_preview(
+                    env, eb, selected_multiline_preview,
+                    edit_menu_should_syntax_highlight_item(env, true), true);
             } else {
                 editor_append_completion(env, eb, idx, colwidth, false, (selected == idx));
             }

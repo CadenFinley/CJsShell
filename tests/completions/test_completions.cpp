@@ -912,6 +912,9 @@ static bool test_builtin_docs(void) {
     EXPECT_TRUE(has_entry(cjshopt_doc, "completion-click-accept",
                           builtin_completions::EntryKind::Subcommand),
                 test_name, "cjshopt should include completion-click-accept subcommand");
+    EXPECT_TRUE(
+        has_entry(cjshopt_doc, "menu-highlighting", builtin_completions::EntryKind::Subcommand),
+        test_name, "cjshopt should include menu-highlighting subcommand");
     EXPECT_TRUE(has_entry(cjshopt_doc, "completion-spell-enter",
                           builtin_completions::EntryKind::Subcommand),
                 test_name, "cjshopt should include completion-spell-enter subcommand");
@@ -969,6 +972,23 @@ static bool test_builtin_docs(void) {
     EXPECT_TRUE(has_entry(completion_click_accept_doc, "status",
                           builtin_completions::EntryKind::Subcommand),
                 test_name, "completion-click-accept should include status subcommand");
+
+    const auto* menu_highlighting_doc =
+        builtin_completions::lookup_builtin_command_doc("cjshopt-menu-highlighting");
+    EXPECT_TRUE(menu_highlighting_doc != nullptr, test_name,
+                "cjshopt-menu-highlighting doc should exist");
+    EXPECT_TRUE(
+        has_entry(menu_highlighting_doc, "none", builtin_completions::EntryKind::Subcommand),
+        test_name, "menu-highlighting should include none subcommand");
+    EXPECT_TRUE(
+        has_entry(menu_highlighting_doc, "single", builtin_completions::EntryKind::Subcommand),
+        test_name, "menu-highlighting should include single subcommand");
+    EXPECT_TRUE(
+        has_entry(menu_highlighting_doc, "all", builtin_completions::EntryKind::Subcommand),
+        test_name, "menu-highlighting should include all subcommand");
+    EXPECT_TRUE(
+        has_entry(menu_highlighting_doc, "status", builtin_completions::EntryKind::Subcommand),
+        test_name, "menu-highlighting should include status subcommand");
 
     const auto* completion_spell_enter_doc =
         builtin_completions::lookup_builtin_command_doc("cjshopt-completion-spell-enter");

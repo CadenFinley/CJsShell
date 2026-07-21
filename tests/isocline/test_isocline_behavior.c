@@ -1779,6 +1779,23 @@ static bool test_option_toggle_consistency(void) {
     EXPECT_FALSE(env->complete_menu_start_expanded,
                  "completion menu expanded toggle should disable expanded startup mode");
 
+    env->menu_highlight_mode = IC_MENU_HIGHLIGHT_NONE;
+    EXPECT_TRUE(ic_get_menu_highlight_mode() == IC_MENU_HIGHLIGHT_NONE,
+                "menu highlighting should default to none");
+    EXPECT_TRUE(ic_set_menu_highlight_mode(IC_MENU_HIGHLIGHT_SINGLE) == IC_MENU_HIGHLIGHT_NONE,
+                "menu highlighting setter should report previous none mode");
+    EXPECT_TRUE(ic_get_menu_highlight_mode() == IC_MENU_HIGHLIGHT_SINGLE,
+                "menu highlighting getter should report single mode");
+    EXPECT_TRUE(ic_set_menu_highlight_mode(IC_MENU_HIGHLIGHT_ALL) == IC_MENU_HIGHLIGHT_SINGLE,
+                "menu highlighting setter should report previous single mode");
+    EXPECT_TRUE(ic_get_menu_highlight_mode() == IC_MENU_HIGHLIGHT_ALL,
+                "menu highlighting getter should report all mode");
+    EXPECT_TRUE(ic_set_menu_highlight_mode((ic_menu_highlight_mode_t)999) ==
+                    IC_MENU_HIGHLIGHT_ALL,
+                "invalid menu highlighting mode should report previous mode");
+    EXPECT_TRUE(ic_get_menu_highlight_mode() == IC_MENU_HIGHLIGHT_NONE,
+                "invalid menu highlighting mode should reset to none");
+
     env->no_multiline_indent = false;
     EXPECT_TRUE(ic_enable_multiline_indent(false),
                 "multiline indent disable should report previously enabled state");
@@ -1845,6 +1862,7 @@ static bool test_option_toggle_consistency(void) {
     (void)ic_enable_inline_right_prompt_cursor_follow(false);
     (void)ic_enable_brace_matching(true);
     (void)ic_enable_brace_insertion(true);
+    (void)ic_set_menu_highlight_mode(IC_MENU_HIGHLIGHT_NONE);
     return true;
 }
 

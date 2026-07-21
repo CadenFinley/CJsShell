@@ -687,6 +687,22 @@ bool ic_enable_completion_click_accept(bool enable);
 /// Returns whether click-to-accept for completion candidates is currently enabled.
 bool ic_completion_click_accept_is_enabled(void);
 
+/// Menu item syntax-highlighting mode for completion and history search menus.
+typedef enum ic_menu_highlight_mode_e {
+    IC_MENU_HIGHLIGHT_NONE = 0,
+    IC_MENU_HIGHLIGHT_SINGLE = 1,
+    IC_MENU_HIGHLIGHT_ALL = 2,
+} ic_menu_highlight_mode_t;
+
+/// Configure syntax highlighting for completion and history menu items.
+/// `none` preserves the legacy unhighlighted menu, `single` highlights only
+/// the selected item, and `all` highlights every rendered item.
+/// Returns the previous mode.
+ic_menu_highlight_mode_t ic_set_menu_highlight_mode(ic_menu_highlight_mode_t mode);
+
+/// Returns the current completion/history menu item highlighting mode.
+ic_menu_highlight_mode_t ic_get_menu_highlight_mode(void);
+
 /// Disable or enable automatic identation of continuation lines in multiline
 /// input so it aligns with the initial prompt. (enabled by default)
 /// Returns the previous setting.

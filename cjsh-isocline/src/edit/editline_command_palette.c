@@ -557,7 +557,7 @@ again:;
                                     match->match_len > 0 && match->match_pos >= 0);
             edit_menu_append_highlighted_prefix(eb->extra, display, visible_len, entry_len,
                                                 match->match_pos, match->match_len, is_selected,
-                                                highlight_match);
+                                                highlight_match, NULL, false);
 
             if (append_ellipsis && max_columns > 3) {
                 sbuf_append(eb->extra, "...");

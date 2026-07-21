@@ -35,6 +35,296 @@ static void edit_menu_append_tag_text(stringbuf_t* sb, bool selected, const char
     sbuf_append(sb, "[/]");
 }
 
+static bool edit_menu_should_syntax_highlight_item_ex(const ic_env_t* env, bool selected,
+                                                      bool syntax_highlighting_enabled) {
+    if (env == NULL || !syntax_highlighting_enabled || env->highlighter == NULL) {
+        return false;
+    }
+    switch (env->menu_highlight_mode) {
+        case IC_MENU_HIGHLIGHT_ALL:
+            return true;
+        case IC_MENU_HIGHLIGHT_SINGLE:
+            return selected;
+        case IC_MENU_HIGHLIGHT_NONE:
+        default:
+            return false;
+    }
+}
+
+static bool edit_menu_should_syntax_highlight_item(const ic_env_t* env, bool selected) {
+    return edit_menu_should_syntax_highlight_item_ex(env, selected,
+                                                     env != NULL && !env->no_highlight);
+}
+
+static bool edit_menu_color_is_rgb(ic_color_t color) {
+    return color >= IC_RGB(0);
+}
+
+static int edit_menu_ansi_color_index(ic_color_t color) {
+    if (color >= IC_ANSI_BLACK && color <= IC_ANSI_SILVER) {
+        return (int)(color - IC_ANSI_BLACK);
+    }
+    if (color >= IC_ANSI_GRAY && color <= IC_ANSI_WHITE) {
+        return 8 + (int)(color - IC_ANSI_GRAY);
+    }
+    if (color == IC_ANSI_DEFAULT) {
+        return 256;
+    }
+    return -1;
+}
+
+static void edit_menu_append_tag_separator(stringbuf_t* sb, bool* first) {
+    if (!*first) {
+        sbuf_append_char(sb, ' ');
+    }
+    *first = false;
+}
+
+static bool edit_menu_append_color_property(stringbuf_t* sb, bool* first, const char* rgb_name,
+                                            const char* ansi_name, ic_color_t color) {
+    if (color == IC_COLOR_NONE) {
+        return false;
+    }
+
+    int ansi_index = edit_menu_ansi_color_index(color);
+    bool is_rgb = edit_menu_color_is_rgb(color);
+    if (ansi_index < 0 && !is_rgb) {
+        return false;
+    }
+
+    edit_menu_append_tag_separator(sb, first);
+    if (ansi_index >= 0) {
+        sbuf_appendf(sb, "%s=%d", ansi_name, ansi_index);
+    } else {
+        sbuf_appendf(sb, "%s=#%06x", rgb_name, (unsigned int)(color & 0xFFFFFFu));
+    }
+    return true;
+}
+
+static bool edit_menu_append_attr_open(stringbuf_t* sb, attr_t attr) {
+    if (sb == NULL || attr_is_none(attr)) {
+        return false;
+    }
+
+    bool first = true;
+    ssize_t tag_start = sbuf_len(sb);
+    sbuf_append_char(sb, '[');
+    if (attr.x.bold == IC_ON) {
+        edit_menu_append_tag_separator(sb, &first);
+        sbuf_append(sb, "b");
+    }
+    if (attr.x.italic == IC_ON) {
+        edit_menu_append_tag_separator(sb, &first);
+        sbuf_append(sb, "i");
+    }
+    if (attr.x.underline == IC_ON) {
+        edit_menu_append_tag_separator(sb, &first);
+        sbuf_append(sb, "u");
+    }
+    if (attr.x.reverse == IC_ON) {
+        edit_menu_append_tag_separator(sb, &first);
+        sbuf_append(sb, "r");
+    }
+    (void)edit_menu_append_color_property(sb, &first, "color", "ansi-color", attr.x.color);
+    (void)edit_menu_append_color_property(sb, &first, "bgcolor", "ansi-bgcolor", attr.x.bgcolor);
+    (void)edit_menu_append_color_property(sb, &first, "underline-color",
+                                          "ansi-underline-color", attr.x.underline_color);
+
+    if (first) {
+        sbuf_delete_from(sb, tag_start);
+        return false;
+    }
+    sbuf_append_char(sb, ']');
+    return true;
+}
+
+static void edit_menu_append_escaped_n(stringbuf_t* sb, const char* text, ssize_t len) {
+    if (sb == NULL || text == NULL || len <= 0) {
+        return;
+    }
+
+    ssize_t segment_start = 0;
+    for (ssize_t i = 0; i < len; ++i) {
+        if (text[i] != '[' && text[i] != '\\') {
+            continue;
+        }
+        if (i > segment_start) {
+            sbuf_append_n(sb, text + segment_start, i - segment_start);
+        }
+        sbuf_append_char(sb, '\\');
+        sbuf_append_char(sb, text[i]);
+        segment_start = i + 1;
+    }
+    if (segment_start < len) {
+        sbuf_append_n(sb, text + segment_start, len - segment_start);
+    }
+}
+
+static char* edit_menu_plain_text(alloc_t* mem, bbcode_t* bbcode, const char* text, ssize_t len,
+                                  bool parse_bbcode) {
+    if (mem == NULL || text == NULL) {
+        return NULL;
+    }
+    if (len < 0) {
+        len = ic_strlen(text);
+    }
+    if (!parse_bbcode) {
+        return mem_strndup(mem, text, len);
+    }
+
+    char* text_copy = mem_strndup(mem, text, len);
+    if (text_copy == NULL) {
+        return NULL;
+    }
+    stringbuf_t* plain = sbuf_new(mem);
+    attrbuf_t* ignored_attrs = attrbuf_new(mem);
+    char* result = NULL;
+    if (plain != NULL && ignored_attrs != NULL) {
+        bbcode_append(bbcode, text_copy, plain, ignored_attrs);
+        result = mem_strdup(mem, sbuf_string(plain));
+    }
+    attrbuf_free(ignored_attrs);
+    sbuf_free(plain);
+    mem_free(mem, text_copy);
+    return result;
+}
+
+static bool edit_menu_is_line_break_at(const char* text, ssize_t len, ssize_t pos,
+                                       ssize_t* advance) {
+    if (advance != NULL) {
+        *advance = 0;
+    }
+    if (text == NULL || pos < 0 || pos >= len) {
+        return false;
+    }
+    if (text[pos] == '\r') {
+        if (advance != NULL) {
+            *advance = (pos + 1 < len && text[pos + 1] == '\n') ? 2 : 1;
+        }
+        return true;
+    }
+    if (text[pos] == '\n') {
+        if (advance != NULL) {
+            *advance = 1;
+        }
+        return true;
+    }
+    return false;
+}
+
+static void edit_menu_append_syntax_highlighted_plain(ic_env_t* env, stringbuf_t* sb,
+                                                      const char* text, ssize_t len,
+                                                      ssize_t match_pos, ssize_t match_len,
+                                                      bool selected, bool highlight_match,
+                                                      const char* newline_indent) {
+    if (env == NULL || sb == NULL || text == NULL || len <= 0) {
+        return;
+    }
+
+    attrbuf_t* attrs = attrbuf_new(env->mem);
+    if (attrs == NULL) {
+        edit_menu_append_escaped_n(sb, text, len);
+        return;
+    }
+    highlight(env->mem, env->bbcode, text, attrs, env->highlighter, env->highlighter_arg);
+    const attr_t* attr_data = attrbuf_attrs(attrs, len);
+    if (attr_data == NULL) {
+        attrbuf_free(attrs);
+        edit_menu_append_escaped_n(sb, text, len);
+        return;
+    }
+
+    ssize_t underline_start = -1;
+    ssize_t underline_end = -1;
+    if (highlight_match && match_len > 0 && match_pos >= 0 && match_pos < len) {
+        underline_start = match_pos;
+        underline_end = match_pos + match_len;
+        if (underline_end > len) {
+            underline_end = len;
+        }
+        if (underline_end <= underline_start) {
+            underline_start = -1;
+            underline_end = -1;
+        }
+    }
+
+    bool underline_open = false;
+    ssize_t pos = 0;
+    while (pos < len) {
+        ssize_t line_break_advance = 0;
+        if (edit_menu_is_line_break_at(text, len, pos, &line_break_advance)) {
+            if (underline_open) {
+                sbuf_append(sb, "[/u]");
+                underline_open = false;
+            }
+            sbuf_append_char(sb, '\n');
+            if (newline_indent != NULL) {
+                sbuf_append(sb, newline_indent);
+            }
+            pos += line_break_advance;
+            continue;
+        }
+
+        bool should_underline =
+            (underline_start >= 0 && pos >= underline_start && pos < underline_end);
+        if (should_underline != underline_open) {
+            if (underline_open) {
+                sbuf_append(sb, "[/u]");
+            } else if (selected) {
+                sbuf_append(sb, "[u]");
+            } else {
+                sbuf_append(sb, "[u ic-emphasis]");
+            }
+            underline_open = should_underline;
+        }
+
+        attr_t attr = attr_data[pos];
+        ssize_t run_end = pos + 1;
+        while (run_end < len) {
+            if (edit_menu_is_line_break_at(text, len, run_end, NULL)) {
+                break;
+            }
+            bool run_underline =
+                (underline_start >= 0 && run_end >= underline_start && run_end < underline_end);
+            if (run_underline != should_underline || !attr_is_eq(attr, attr_data[run_end])) {
+                break;
+            }
+            run_end++;
+        }
+
+        bool attr_open = edit_menu_append_attr_open(sb, attr);
+        edit_menu_append_escaped_n(sb, text + pos, run_end - pos);
+        if (attr_open) {
+            sbuf_append(sb, "[/]");
+        }
+        pos = run_end;
+    }
+
+    if (underline_open) {
+        sbuf_append(sb, "[/u]");
+    }
+    attrbuf_free(attrs);
+}
+
+static void edit_menu_append_syntax_highlighted_text(ic_env_t* env, stringbuf_t* sb,
+                                                     const char* text, ssize_t len,
+                                                     bool parse_bbcode, ssize_t match_pos,
+                                                     ssize_t match_len, bool selected,
+                                                     bool highlight_match,
+                                                     const char* newline_indent) {
+    if (env == NULL || sb == NULL || text == NULL) {
+        return;
+    }
+    char* plain = edit_menu_plain_text(env->mem, env->bbcode, text, len, parse_bbcode);
+    if (plain == NULL) {
+        return;
+    }
+    edit_menu_append_syntax_highlighted_plain(env, sb, plain, ic_strlen(plain), match_pos,
+                                              match_len, selected, highlight_match,
+                                              newline_indent);
+    mem_free(env->mem, plain);
+}
+
 static edit_menu_session_t edit_menu_begin(ic_env_t* env, editor_t* eb, const char* prompt_text,
                                            bool enable_mouse_scroll) {
     edit_menu_session_t session = {0};
@@ -264,12 +554,23 @@ static ssize_t edit_menu_line_count(const char* str) {
     return lines;
 }
 
-static void edit_menu_append_multiline_preview(ic_env_t* env, editor_t* eb, const char* display) {
+static void edit_menu_append_multiline_preview(ic_env_t* env, editor_t* eb, const char* display,
+                                               bool syntax_highlight, bool parse_bbcode) {
     if (env == NULL || eb == NULL || display == NULL) {
         return;
     }
 
     const char* arrow = (tty_is_utf8(env->tty) ? "\xE2\x86\x92" : ">");
+    if (syntax_highlight) {
+        sbuf_append(eb->extra, "[ic-menu-selected][!pre]");
+        sbuf_appendf(eb->extra, "%s ", arrow);
+        sbuf_append(eb->extra, "[/pre]");
+        edit_menu_append_syntax_highlighted_text(env, eb->extra, display, -1, parse_bbcode, -1, 0,
+                                                 true, false, "  ");
+        sbuf_append(eb->extra, "[/ic-menu-selected]");
+        return;
+    }
+
     sbuf_append(eb->extra, "[ic-menu-selected][!pre]");
     sbuf_appendf(eb->extra, "%s ", arrow);
 
@@ -337,8 +638,15 @@ static ssize_t edit_menu_visible_prefix(const char* s, ssize_t len, ssize_t max_
 static void edit_menu_append_highlighted_prefix(stringbuf_t* sb, const char* display,
                                                 ssize_t visible_len, ssize_t entry_len,
                                                 ssize_t match_pos, ssize_t match_len, bool selected,
-                                                bool highlight) {
+                                                bool highlight, ic_env_t* env,
+                                                bool syntax_highlight) {
     if (sb == NULL || display == NULL || visible_len <= 0) {
+        return;
+    }
+
+    if (syntax_highlight && env != NULL) {
+        edit_menu_append_syntax_highlighted_text(env, sb, display, visible_len, false, match_pos,
+                                                 match_len, selected, highlight, NULL);
         return;
     }
 

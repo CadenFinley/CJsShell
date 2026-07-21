@@ -692,6 +692,7 @@ Available subcommands:
 - `completion-preview` - Configure completion preview
 - `completion-menu-expanded` - Open completion menus in expanded mode by default
 - `completion-click-accept` - Configure whether click interactions accept completion candidates
+- `menu-highlighting` - Syntax-highlight completion and history menu items
 - `visible-whitespace` - Toggle visible whitespace characters in the editor
 - `hint` - Configure inline hints
 - `multiline-indent` - Configure auto-indent in multiline input
@@ -1079,6 +1080,28 @@ cjshopt completion-click-accept status   # Show the current setting
 
 `off` is useful when you still want mouse selection/highlighting but prefer confirming with
 `Enter`, `Right`, or `End`. Add the command to `~/.cjshrc` to persist the preference.
+
+#### menu-highlighting
+
+Control syntax highlighting for entries rendered in completion and history search menus. The menu
+uses the same syntax highlighter and styles as the edit buffer. **Disabled by default.**
+
+```bash
+cjshopt menu-highlighting <none|single|all|status>
+```
+
+Examples:
+
+```bash
+cjshopt menu-highlighting none    # Keep menu items unhighlighted (default)
+cjshopt menu-highlighting single  # Highlight only the cursor-selected item
+cjshopt menu-highlighting all     # Highlight every rendered item
+cjshopt menu-highlighting status  # Show the current mode
+```
+
+`none` preserves the legacy menu appearance, `single` highlights only the current selection, and
+`all` highlights every visible completion/history item. Add the command to `~/.cjshrc` to persist
+the preference.
 
 #### visible-whitespace
 

@@ -256,6 +256,32 @@ ic_public bool ic_completion_click_accept_is_enabled(void) {
     return env->completion_click_accept_enabled;
 }
 
+ic_public ic_menu_highlight_mode_t ic_set_menu_highlight_mode(ic_menu_highlight_mode_t mode) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return IC_MENU_HIGHLIGHT_NONE;
+
+    ic_menu_highlight_mode_t prev = env->menu_highlight_mode;
+    switch (mode) {
+        case IC_MENU_HIGHLIGHT_NONE:
+        case IC_MENU_HIGHLIGHT_SINGLE:
+        case IC_MENU_HIGHLIGHT_ALL:
+            env->menu_highlight_mode = mode;
+            break;
+        default:
+            env->menu_highlight_mode = IC_MENU_HIGHLIGHT_NONE;
+            break;
+    }
+    return prev;
+}
+
+ic_public ic_menu_highlight_mode_t ic_get_menu_highlight_mode(void) {
+    ic_env_t* env = ic_get_env();
+    if (env == NULL)
+        return IC_MENU_HIGHLIGHT_NONE;
+    return env->menu_highlight_mode;
+}
+
 ic_public bool ic_enable_multiline_indent(bool enable) {
     ic_env_t* env = ic_get_env();
     if (env == NULL)

@@ -784,9 +784,11 @@ again:;
 
             bool is_selected = (match_idx == selected_idx);
             bool show_selected_multiline_inline = (is_selected && is_multiline);
+            bool syntax_highlight_item = edit_menu_should_syntax_highlight_item_ex(
+                env, is_selected, menu_session.old_highlight);
 
             if (show_selected_multiline_inline) {
-                edit_menu_append_multiline_preview(env, eb, display);
+                edit_menu_append_multiline_preview(env, eb, display, syntax_highlight_item, false);
                 if (metadata_suffix[0] != '\0') {
                     edit_menu_append_tag_text(eb->extra, true, metadata_suffix);
                 }
@@ -799,19 +801,25 @@ again:;
             }
             const char* arrow = (tty_is_utf8(env->tty) ? "\xE2\x86\x92" : ">");
             sbuf_appendf(eb->extra, "[!pre]%s ", (is_selected ? arrow : " "));
+            if (syntax_highlight_item) {
+                sbuf_append(eb->extra, "[/pre]");
+            }
 
             bool highlight_match =
                 (is_filtered && !showing_all_due_to_no_matches &&
                  matches[match_idx].match_len > 0 && matches[match_idx].match_pos >= 0);
             edit_menu_append_highlighted_prefix(
                 eb->extra, display, visible_len, entry_len, matches[match_idx].match_pos,
-                matches[match_idx].match_len, is_selected, highlight_match);
+                matches[match_idx].match_len, is_selected, highlight_match, env,
+                syntax_highlight_item);
 
             if (append_ellipsis && max_columns > 3) {
                 sbuf_append(eb->extra, "...");
             }
 
-            sbuf_append(eb->extra, "[/pre]");
+            if (!syntax_highlight_item) {
+                sbuf_append(eb->extra, "[/pre]");
+            }
 
             if (metadata_suffix[0] != '\0') {
                 edit_menu_append_tag_text(eb->extra, is_selected, metadata_suffix);

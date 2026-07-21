@@ -590,6 +590,8 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                              "Open completion menus expanded by default"),
              make_subcommand("completion-click-accept",
                              "Control whether clicks accept completion entries"),
+             make_subcommand("menu-highlighting",
+                             "Syntax-highlight completion and history menu items"),
              make_subcommand("visible-whitespace", "Toggle visible whitespace"),
              make_subcommand("hint", "Toggle inline hints"),
              make_subcommand("multiline-indent", "Toggle multiline auto-indent"),
@@ -726,6 +728,11 @@ const std::unordered_map<std::string, CommandDoc>& builtin_command_docs() {
                 {make_subcommand("on", "Always accept completion entries on click"),
                  make_subcommand("off", "Click selects entries without accepting"),
                  make_subcommand("status", "Show current setting")});
+        add_doc("cjshopt-menu-highlighting", "",
+                {make_subcommand("none", "Do not syntax-highlight menu items"),
+                 make_subcommand("single", "Highlight only the selected menu item"),
+                 make_subcommand("all", "Highlight every rendered menu item"),
+                 make_subcommand("status", "Show current mode")});
         add_doc("cjshopt-visible-whitespace", "",
                 {make_subcommand("on", "Show whitespace markers"),
                  make_subcommand("off", "Hide whitespace markers"),

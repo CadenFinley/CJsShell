@@ -166,6 +166,46 @@ const char* canonical_status_hint_token(ic_status_hint_mode_t mode) {
     }
 }
 
+std::string describe_menu_highlight_mode(ic_menu_highlight_mode_t mode) {
+    switch (mode) {
+        case IC_MENU_HIGHLIGHT_NONE:
+            return "none (default: menu items are not syntax-highlighted)";
+        case IC_MENU_HIGHLIGHT_SINGLE:
+            return "single (highlight only the selected item)";
+        case IC_MENU_HIGHLIGHT_ALL:
+            return "all (highlight every rendered item)";
+        default:
+            return "unknown";
+    }
+}
+
+const char* canonical_menu_highlight_token(ic_menu_highlight_mode_t mode) {
+    switch (mode) {
+        case IC_MENU_HIGHLIGHT_NONE:
+            return "none";
+        case IC_MENU_HIGHLIGHT_SINGLE:
+            return "single";
+        case IC_MENU_HIGHLIGHT_ALL:
+            return "all";
+        default:
+            return "none";
+    }
+}
+
+std::optional<ic_menu_highlight_mode_t> parse_menu_highlight_mode(
+    const std::string& normalized) {
+    if (matches_token(normalized, {"none", "off", "disable", "disabled", "false", "0"})) {
+        return IC_MENU_HIGHLIGHT_NONE;
+    }
+    if (matches_token(normalized, {"single", "selected", "selection", "cursor"})) {
+        return IC_MENU_HIGHLIGHT_SINGLE;
+    }
+    if (matches_token(normalized, {"all", "on", "enable", "enabled", "true", "1"})) {
+        return IC_MENU_HIGHLIGHT_ALL;
+    }
+    return std::nullopt;
+}
+
 bool g_status_hint_preference_initialized = false;
 ic_status_hint_mode_t g_status_hint_preference = IC_STATUS_HINT_NORMAL;
 
@@ -765,6 +805,71 @@ int completion_click_accept_command(const std::vector<std::string>& args) {
         {}};
 
     return handle_toggle_command(config, args);
+}
+
+int menu_highlighting_command(const std::vector<std::string>& args) {
+    static const std::vector<std::string> usage_lines = {
+        "Usage: menu-highlighting <none|single|all|status>",
+        "Examples:", "  menu-highlighting none    Keep completion/history menu items unhighlighted",
+        "  menu-highlighting single  Highlight only the selected menu item",
+        "  menu-highlighting all     Highlight every rendered menu item",
+        "  menu-highlighting status  Show the current mode"};
+
+    if (args.size() == 1) {
+        print_error(
+            {ErrorType::INVALID_ARGUMENT, "menu-highlighting", "Missing option argument",
+             usage_lines});
+        return 1;
+    }
+
+    if (builtin_handle_help_with_startup_guard(args, usage_lines)) {
+        if (!cjsh_env::startup_active()) {
+            std::cout << "Current: "
+                      << describe_menu_highlight_mode(ic_get_menu_highlight_mode()) << '\n';
+        }
+        return 0;
+    }
+
+    if (args.size() != 2) {
+        print_error(
+            {ErrorType::INVALID_ARGUMENT, "menu-highlighting", "Too many arguments provided",
+             usage_lines});
+        return 1;
+    }
+
+    const std::string& option = args[1];
+    const std::string normalized = normalize_option(option);
+    if (matches_token(normalized, {"status", "--status"})) {
+        if (!cjsh_env::startup_active()) {
+            std::cout << "Menu highlighting mode is currently "
+                      << describe_menu_highlight_mode(ic_get_menu_highlight_mode()) << ".\n";
+        }
+        return 0;
+    }
+
+    std::optional<ic_menu_highlight_mode_t> requested = parse_menu_highlight_mode(normalized);
+    if (!requested.has_value()) {
+        print_error({ErrorType::INVALID_ARGUMENT, "menu-highlighting",
+                     "Unknown option '" + option + "'", usage_lines});
+        return 1;
+    }
+
+    const ic_menu_highlight_mode_t previous = ic_get_menu_highlight_mode();
+    if (previous == *requested) {
+        return 0;
+    }
+
+    ic_set_menu_highlight_mode(*requested);
+
+    if (!cjsh_env::startup_active()) {
+        std::cout << "Menu highlighting set to " << canonical_menu_highlight_token(*requested)
+                  << ".\n";
+        std::cout << "Add `cjshopt menu-highlighting "
+                  << canonical_menu_highlight_token(*requested)
+                  << "` to your ~/.cjshrc to persist this change.\n";
+    }
+
+    return 0;
 }
 
 int visible_whitespace_command(const std::vector<std::string>& args) {
