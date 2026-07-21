@@ -426,6 +426,17 @@ static bool test_completion_generation_and_apply(void) {
     EXPECT_TRUE(alpine_source != NULL && strcmp(alpine_source, "files") == 0,
                 "source metadata should be recorded for alpine completion");
 
+    const char* replacement_for_range = NULL;
+    ssize_t replacement_start = -1;
+    ssize_t delete_after = -1;
+    EXPECT_TRUE(completions_get_apply_range(env->completions, 0, "a", 1, &replacement_for_range,
+                                            &replacement_start, &delete_after),
+                "completion apply range should be available");
+    EXPECT_STREQ(replacement_for_range, "alpha",
+                 "apply range should expose the inserted replacement");
+    EXPECT_TRUE(replacement_start == 0, "apply range should account for delete_before");
+    EXPECT_TRUE(delete_after == 0, "apply range should account for delete_after");
+
     stringbuf_t* sb = new_stringbuf();
     if (sb == NULL)
         return false;
@@ -1794,9 +1805,9 @@ static bool test_option_toggle_consistency(void) {
                 "menu highlighting setter should report previous all mode");
     EXPECT_TRUE(ic_get_menu_highlight_mode() == IC_MENU_HIGHLIGHT_REVERSE,
                 "menu highlighting getter should report reverse mode");
-    EXPECT_TRUE(ic_set_menu_highlight_mode((ic_menu_highlight_mode_t)999) ==
-                    IC_MENU_HIGHLIGHT_REVERSE,
-                "invalid menu highlighting mode should report previous mode");
+    EXPECT_TRUE(
+        ic_set_menu_highlight_mode((ic_menu_highlight_mode_t)999) == IC_MENU_HIGHLIGHT_REVERSE,
+        "invalid menu highlighting mode should report previous mode");
     EXPECT_TRUE(ic_get_menu_highlight_mode() == IC_MENU_HIGHLIGHT_NONE,
                 "invalid menu highlighting mode should reset to none");
 

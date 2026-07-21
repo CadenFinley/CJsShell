@@ -258,6 +258,10 @@ ic_private const char* completions_get_display(completions_t* cms, ssize_t index
     if (help != NULL) {
         *help = NULL;
     }
+    if (cms == NULL) {
+        return NULL;
+    }
+
     completion_t* cm = completions_get(cms, index);
     if (cm == NULL)
         return NULL;
@@ -328,6 +332,62 @@ static ssize_t completion_matching_hint_after_cursor(const char* hint, const cha
         }
     }
     return 0;
+}
+
+ic_private bool completions_get_apply_range(completions_t* cms, ssize_t index, const char* input,
+                                            ssize_t pos, const char** replacement,
+                                            ssize_t* replacement_start, ssize_t* delete_after) {
+    if (replacement != NULL) {
+        *replacement = NULL;
+    }
+    if (replacement_start != NULL) {
+        *replacement_start = 0;
+    }
+    if (delete_after != NULL) {
+        *delete_after = 0;
+    }
+
+    if (cms == NULL) {
+        return false;
+    }
+
+    completion_t* cm = completions_get(cms, index);
+    if (cm == NULL || cm->replacement == NULL || input == NULL || pos < 0) {
+        return false;
+    }
+
+    ssize_t input_len = ic_strlen(input);
+    if (pos > input_len) {
+        return false;
+    }
+
+    ssize_t start = pos - cm->delete_before;
+    if (start < 0) {
+        start = 0;
+    }
+
+    ssize_t effective_delete_after = cm->delete_after;
+    if (effective_delete_after == 0) {
+        effective_delete_after =
+            completion_matching_hint_after_cursor(completion_get_hint_text(cm), input, pos);
+    }
+    if (effective_delete_after < 0) {
+        effective_delete_after = 0;
+    }
+    if (pos + effective_delete_after > input_len) {
+        effective_delete_after = input_len - pos;
+    }
+
+    if (replacement != NULL) {
+        *replacement = cm->replacement;
+    }
+    if (replacement_start != NULL) {
+        *replacement_start = start;
+    }
+    if (delete_after != NULL) {
+        *delete_after = effective_delete_after;
+    }
+    return true;
 }
 
 ic_private const char* completions_get_hint(completions_t* cms, ssize_t index, const char** help) {

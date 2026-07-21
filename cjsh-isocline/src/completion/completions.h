@@ -65,6 +65,9 @@ ic_private const char* completions_get_display(completions_t* cms, ssize_t index
                                                const char** help);
 ic_private const char* completions_get_replacement(completions_t* cms, ssize_t index);
 ic_private const char* completions_get_source(completions_t* cms, ssize_t index);
+ic_private bool completions_get_apply_range(completions_t* cms, ssize_t index, const char* input,
+                                            ssize_t pos, const char** replacement,
+                                            ssize_t* replacement_start, ssize_t* delete_after);
 ic_private bool completions_all_sources_equal(completions_t* cms, const char* source);
 ic_private const char* completions_get_hint(completions_t* cms, ssize_t index, const char** help);
 ic_private void completions_get_completer(completions_t* cms, ic_completer_fun_t** completer,

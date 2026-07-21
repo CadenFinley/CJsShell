@@ -129,8 +129,8 @@ static bool edit_menu_append_attr_open(stringbuf_t* sb, attr_t attr) {
     }
     (void)edit_menu_append_color_property(sb, &first, "color", "ansi-color", attr.x.color);
     (void)edit_menu_append_color_property(sb, &first, "bgcolor", "ansi-bgcolor", attr.x.bgcolor);
-    (void)edit_menu_append_color_property(sb, &first, "underline-color",
-                                          "ansi-underline-color", attr.x.underline_color);
+    (void)edit_menu_append_color_property(sb, &first, "underline-color", "ansi-underline-color",
+                                          attr.x.underline_color);
 
     if (first) {
         sbuf_delete_from(sb, tag_start);
@@ -159,6 +159,94 @@ static void edit_menu_append_escaped_n(stringbuf_t* sb, const char* text, ssize_
     }
     if (segment_start < len) {
         sbuf_append_n(sb, text + segment_start, len - segment_start);
+    }
+}
+
+static bool edit_menu_is_line_break_at(const char* text, ssize_t len, ssize_t pos,
+                                       ssize_t* advance);
+
+static void edit_menu_append_attr_slice(stringbuf_t* sb, const char* text, ssize_t len,
+                                        const attr_t* attr_data, ssize_t attr_offset,
+                                        ssize_t attr_len, ssize_t match_pos, ssize_t match_len,
+                                        bool selected, bool highlight_match,
+                                        const char* newline_indent) {
+    if (sb == NULL || text == NULL || len <= 0) {
+        return;
+    }
+    if (attr_data == NULL || attr_offset < 0 || attr_len < 0 || attr_offset + len > attr_len) {
+        edit_menu_append_escaped_n(sb, text, len);
+        return;
+    }
+
+    ssize_t underline_start = -1;
+    ssize_t underline_end = -1;
+    if (highlight_match && match_len > 0 && match_pos >= 0 && match_pos < len) {
+        underline_start = match_pos;
+        underline_end = match_pos + match_len;
+        if (underline_end > len) {
+            underline_end = len;
+        }
+        if (underline_end <= underline_start) {
+            underline_start = -1;
+            underline_end = -1;
+        }
+    }
+
+    bool underline_open = false;
+    ssize_t pos = 0;
+    while (pos < len) {
+        ssize_t line_break_advance = 0;
+        if (edit_menu_is_line_break_at(text, len, pos, &line_break_advance)) {
+            if (underline_open) {
+                sbuf_append(sb, "[/u]");
+                underline_open = false;
+            }
+            sbuf_append_char(sb, '\n');
+            if (newline_indent != NULL) {
+                sbuf_append(sb, newline_indent);
+            }
+            pos += line_break_advance;
+            continue;
+        }
+
+        bool should_underline =
+            (underline_start >= 0 && pos >= underline_start && pos < underline_end);
+        if (should_underline != underline_open) {
+            if (underline_open) {
+                sbuf_append(sb, "[/u]");
+            } else if (selected) {
+                sbuf_append(sb, "[u]");
+            } else {
+                sbuf_append(sb, "[u ic-emphasis]");
+            }
+            underline_open = should_underline;
+        }
+
+        attr_t attr = attr_data[attr_offset + pos];
+        ssize_t run_end = pos + 1;
+        while (run_end < len) {
+            if (edit_menu_is_line_break_at(text, len, run_end, NULL)) {
+                break;
+            }
+            bool run_underline =
+                (underline_start >= 0 && run_end >= underline_start && run_end < underline_end);
+            if (run_underline != should_underline ||
+                !attr_is_eq(attr, attr_data[attr_offset + run_end])) {
+                break;
+            }
+            run_end++;
+        }
+
+        bool attr_open = edit_menu_append_attr_open(sb, attr);
+        edit_menu_append_escaped_n(sb, text + pos, run_end - pos);
+        if (attr_open) {
+            sbuf_append(sb, "[/]");
+        }
+        pos = run_end;
+    }
+
+    if (underline_open) {
+        sbuf_append(sb, "[/u]");
     }
 }
 
@@ -236,75 +324,8 @@ static void edit_menu_append_syntax_highlighted_plain(ic_env_t* env, stringbuf_t
         return;
     }
 
-    ssize_t underline_start = -1;
-    ssize_t underline_end = -1;
-    if (highlight_match && match_len > 0 && match_pos >= 0 && match_pos < len) {
-        underline_start = match_pos;
-        underline_end = match_pos + match_len;
-        if (underline_end > len) {
-            underline_end = len;
-        }
-        if (underline_end <= underline_start) {
-            underline_start = -1;
-            underline_end = -1;
-        }
-    }
-
-    bool underline_open = false;
-    ssize_t pos = 0;
-    while (pos < len) {
-        ssize_t line_break_advance = 0;
-        if (edit_menu_is_line_break_at(text, len, pos, &line_break_advance)) {
-            if (underline_open) {
-                sbuf_append(sb, "[/u]");
-                underline_open = false;
-            }
-            sbuf_append_char(sb, '\n');
-            if (newline_indent != NULL) {
-                sbuf_append(sb, newline_indent);
-            }
-            pos += line_break_advance;
-            continue;
-        }
-
-        bool should_underline =
-            (underline_start >= 0 && pos >= underline_start && pos < underline_end);
-        if (should_underline != underline_open) {
-            if (underline_open) {
-                sbuf_append(sb, "[/u]");
-            } else if (selected) {
-                sbuf_append(sb, "[u]");
-            } else {
-                sbuf_append(sb, "[u ic-emphasis]");
-            }
-            underline_open = should_underline;
-        }
-
-        attr_t attr = attr_data[pos];
-        ssize_t run_end = pos + 1;
-        while (run_end < len) {
-            if (edit_menu_is_line_break_at(text, len, run_end, NULL)) {
-                break;
-            }
-            bool run_underline =
-                (underline_start >= 0 && run_end >= underline_start && run_end < underline_end);
-            if (run_underline != should_underline || !attr_is_eq(attr, attr_data[run_end])) {
-                break;
-            }
-            run_end++;
-        }
-
-        bool attr_open = edit_menu_append_attr_open(sb, attr);
-        edit_menu_append_escaped_n(sb, text + pos, run_end - pos);
-        if (attr_open) {
-            sbuf_append(sb, "[/]");
-        }
-        pos = run_end;
-    }
-
-    if (underline_open) {
-        sbuf_append(sb, "[/u]");
-    }
+    edit_menu_append_attr_slice(sb, text, len, attr_data, 0, len, match_pos, match_len, selected,
+                                highlight_match, newline_indent);
     attrbuf_free(attrs);
 }
 
@@ -322,9 +343,94 @@ static void edit_menu_append_syntax_highlighted_text(ic_env_t* env, stringbuf_t*
         return;
     }
     edit_menu_append_syntax_highlighted_plain(env, sb, plain, ic_strlen(plain), match_pos,
-                                              match_len, selected, highlight_match,
-                                              newline_indent);
+                                              match_len, selected, highlight_match, newline_indent);
     mem_free(env->mem, plain);
+}
+
+static bool edit_menu_append_completion_syntax_highlighted_text(
+    ic_env_t* env, editor_t* eb, stringbuf_t* sb, completions_t* completions, ssize_t idx,
+    const char* text, ssize_t len, bool parse_bbcode, ssize_t match_pos, ssize_t match_len,
+    bool selected, bool highlight_match, const char* newline_indent) {
+    if (env == NULL || eb == NULL || sb == NULL || completions == NULL || text == NULL ||
+        env->highlighter == NULL || eb->input == NULL) {
+        return false;
+    }
+
+    const char* input = sbuf_string(eb->input);
+    const char* replacement = NULL;
+    ssize_t replacement_start = 0;
+    ssize_t delete_after = 0;
+    if (!completions_get_apply_range(completions, idx, input, eb->pos, &replacement,
+                                     &replacement_start, &delete_after)) {
+        return false;
+    }
+    if (replacement == NULL) {
+        return false;
+    }
+
+    if (len < 0) {
+        len = ic_strlen(text);
+    }
+    char* plain = edit_menu_plain_text(env->mem, env->bbcode, text, len, parse_bbcode);
+    if (plain == NULL) {
+        return false;
+    }
+
+    bool appended = false;
+    const ssize_t plain_len = ic_strlen(plain);
+    const ssize_t replacement_len = ic_strlen(replacement);
+    if (plain_len <= 0) {
+        appended = true;
+        goto done_plain;
+    }
+    if (plain_len > replacement_len || memcmp(plain, replacement, (size_t)plain_len) != 0) {
+        goto done_plain;
+    }
+
+    stringbuf_t* accepted = sbuf_new(env->mem);
+    attrbuf_t* attrs = attrbuf_new(env->mem);
+    if (accepted == NULL || attrs == NULL) {
+        sbuf_free(accepted);
+        attrbuf_free(attrs);
+        goto done_plain;
+    }
+
+    const ssize_t input_len = ic_strlen(input);
+    ssize_t suffix_start = eb->pos + delete_after;
+    if (suffix_start < 0) {
+        suffix_start = 0;
+    }
+    if (suffix_start > input_len) {
+        suffix_start = input_len;
+    }
+    if (replacement_start > input_len) {
+        replacement_start = input_len;
+    }
+
+    sbuf_append_n(accepted, input, replacement_start);
+    const ssize_t attr_start = sbuf_len(accepted);
+    sbuf_append(accepted, replacement);
+    if (suffix_start < input_len) {
+        sbuf_append_n(accepted, input + suffix_start, input_len - suffix_start);
+    }
+
+    const ssize_t accepted_len = sbuf_len(accepted);
+    const char* accepted_text = sbuf_string(accepted);
+    highlight(env->mem, env->bbcode, accepted_text, attrs, env->highlighter, env->highlighter_arg);
+    const attr_t* attr_data = attrbuf_attrs(attrs, accepted_len);
+    if (attr_data != NULL) {
+        edit_menu_append_attr_slice(sb, plain, plain_len, attr_data, attr_start, accepted_len,
+                                    match_pos, match_len, selected, highlight_match,
+                                    newline_indent);
+        appended = true;
+    }
+
+    attrbuf_free(attrs);
+    sbuf_free(accepted);
+
+done_plain:
+    mem_free(env->mem, plain);
+    return appended;
 }
 
 static edit_menu_session_t edit_menu_begin(ic_env_t* env, editor_t* eb, const char* prompt_text,
@@ -598,6 +704,32 @@ static void edit_menu_append_multiline_preview(ic_env_t* env, editor_t* eb, cons
     }
 
     sbuf_append(eb->extra, "[/pre][/ic-menu-selected]");
+}
+
+static void edit_menu_append_completion_multiline_preview(ic_env_t* env, editor_t* eb,
+                                                          completions_t* completions, ssize_t idx,
+                                                          const char* display,
+                                                          bool syntax_highlight,
+                                                          bool parse_bbcode) {
+    if (!syntax_highlight) {
+        edit_menu_append_multiline_preview(env, eb, display, false, parse_bbcode);
+        return;
+    }
+    if (env == NULL || eb == NULL || display == NULL) {
+        return;
+    }
+
+    const char* arrow = (tty_is_utf8(env->tty) ? "\xE2\x86\x92" : ">");
+    sbuf_append(eb->extra, "[ic-menu-selected][!pre]");
+    sbuf_appendf(eb->extra, "%s ", arrow);
+    sbuf_append(eb->extra, "[/pre]");
+    if (!edit_menu_append_completion_syntax_highlighted_text(env, eb, eb->extra, completions, idx,
+                                                             display, -1, parse_bbcode, -1, 0, true,
+                                                             false, "  ")) {
+        edit_menu_append_syntax_highlighted_text(env, eb->extra, display, -1, parse_bbcode, -1, 0,
+                                                 true, false, "  ");
+    }
+    sbuf_append(eb->extra, "[/ic-menu-selected]");
 }
 
 static ssize_t edit_menu_visible_prefix(const char* s, ssize_t len, ssize_t max_columns,
