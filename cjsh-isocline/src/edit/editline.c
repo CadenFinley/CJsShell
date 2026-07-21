@@ -2685,9 +2685,8 @@ static bool edit_format_default_status_hints(ic_env_t* env, char* buffer, size_t
                         sizeof(command_palette_keys), true);
     format_binding_keys(env, IC_KEY_ACTION_SHOW_HELP, NULL, help_keys, sizeof(help_keys), true);
 
-    int written =
-        snprintf(buffer, buflen, "[ic-status]complete: %s  search: %s  palette: %s  help: %s[/]",
-                 completion_keys, history_search_keys, command_palette_keys, help_keys);
+    int written = snprintf(buffer, buflen, "[ic-status]complete: %s  search: %s  help: %s[/]",
+                           completion_keys, history_search_keys, help_keys);
     if (written < 0) {
         buffer[0] = '\0';
         return false;
