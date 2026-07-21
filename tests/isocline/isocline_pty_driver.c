@@ -50,7 +50,6 @@ typedef enum completion_mode_e {
     COMPLETION_MODE_DUAL,
     COMPLETION_MODE_MANY,
     COMPLETION_MODE_MANY_MULTILINE,
-    COMPLETION_MODE_MANY_MULTILINE_PREVIEW_LONG,
     COMPLETION_MODE_SPELL_SINGLE,
 } completion_mode_t;
 
@@ -83,24 +82,6 @@ static void pty_completion_word_provider(ic_completion_env_t* cenv, const char* 
         for (size_t i = 0; i < (sizeof(many_words) / sizeof(many_words[0])); i++) {
             const char* replacement = many_words[i];
             const char* display = (i == 1 ? "m02 first line\nm02 second line" : replacement);
-            (void)ic_add_completion_prim_with_source(cenv, replacement, display, NULL, "history",
-                                                     delete_before, 0);
-        }
-        return;
-    }
-    if (g_completion_mode == COMPLETION_MODE_MANY_MULTILINE_PREVIEW_LONG) {
-        const long delete_before = (prefix != NULL ? (long)strlen(prefix) : 0L);
-        for (int i = 1; i <= 30; i++) {
-            char replacement[96];
-            char display[96];
-            if (i == 2) {
-                (void)snprintf(replacement, sizeof(replacement),
-                               "m02 first line\nm02 second line\nm02 third line\nm02 fourth line");
-                (void)snprintf(display, sizeof(display), "%s", replacement);
-            } else {
-                (void)snprintf(replacement, sizeof(replacement), "m%02d", i);
-                (void)snprintf(display, sizeof(display), "%s", replacement);
-            }
             (void)ic_add_completion_prim_with_source(cenv, replacement, display, NULL, "history",
                                                      delete_before, 0);
         }
@@ -272,13 +253,11 @@ static int run_case(const char* scenario) {
         return run_history_probe_case(scenario);
     }
 
-    bool multiline_mode =
-        (strcmp(scenario, "multiline_ctrl_j_insert_newline") == 0 ||
-         strcmp(scenario, "multiline_backslash_continuation") == 0 ||
-         strcmp(scenario, "multiline_initial_ctrl_j") == 0 ||
-         strcmp(scenario, "multiline_ctrl_a_stays_on_line") == 0 ||
-         strcmp(scenario, "multiline_ctrl_e_stays_on_line") == 0 ||
-         strcmp(scenario, "completion_many_menu_multiline_preview_long") == 0);
+    bool multiline_mode = (strcmp(scenario, "multiline_ctrl_j_insert_newline") == 0 ||
+                           strcmp(scenario, "multiline_backslash_continuation") == 0 ||
+                           strcmp(scenario, "multiline_initial_ctrl_j") == 0 ||
+                           strcmp(scenario, "multiline_ctrl_a_stays_on_line") == 0 ||
+                           strcmp(scenario, "multiline_ctrl_e_stays_on_line") == 0);
     ic_enable_multiline(multiline_mode);
     ic_enable_hint(false);
     ic_enable_inline_help(false);
@@ -372,16 +351,10 @@ static int run_case(const char* scenario) {
     } else if (strcmp(scenario, "completion_many_menu") == 0 ||
                strcmp(scenario, "completion_many_menu_custom_mouse_toggle") == 0 ||
                strcmp(scenario, "completion_many_menu_mouse_default_on") == 0 ||
-               strcmp(scenario, "completion_many_menu_multiline") == 0 ||
-               strcmp(scenario, "completion_many_menu_multiline_preview_long") == 0) {
-        if (strcmp(scenario, "completion_many_menu_multiline") == 0) {
-            g_completion_mode = COMPLETION_MODE_MANY_MULTILINE;
-        } else if (strcmp(scenario, "completion_many_menu_multiline_preview_long") == 0) {
-            g_completion_mode = COMPLETION_MODE_MANY_MULTILINE_PREVIEW_LONG;
-            ic_enable_completion_preview(true);
-        } else {
-            g_completion_mode = COMPLETION_MODE_MANY;
-        }
+               strcmp(scenario, "completion_many_menu_multiline") == 0) {
+        g_completion_mode = (strcmp(scenario, "completion_many_menu_multiline") == 0
+                                 ? COMPLETION_MODE_MANY_MULTILINE
+                                 : COMPLETION_MODE_MANY);
         ic_set_default_completer(pty_completion_dispatcher, NULL);
         if (strcmp(scenario, "completion_many_menu_custom_mouse_toggle") == 0) {
             if (!ic_bind_key(IC_KEY_F3, IC_KEY_ACTION_TOGGLE_MOUSE_REPORTING)) {
@@ -404,19 +377,6 @@ static int run_case(const char* scenario) {
         ic_history_clear();
         ic_history_add("printf done");
         ic_history_add("mlhist first line\nmlhist second line");
-    } else if (strcmp(scenario, "history_search_multiline_long_menu") == 0) {
-        initial_input = "longhist";
-        ic_enable_inline_help(true);
-        ic_history_clear();
-        ic_history_add("longhist\nlonghist second line\nlonghist third line\nlonghist fourth line");
-        for (int i = 1; i <= 20; i++) {
-            char entry[160];
-            (void)snprintf(entry, sizeof(entry),
-                           "longhist filler %02d with enough trailing text to rank below the "
-                           "multiline command",
-                           i);
-            ic_history_add(entry);
-        }
     } else if (strcmp(scenario, "insert_backspace_mouse_default_on_hidden_status") == 0) {
         ic_enable_mouse_clicking(true);
         ic_enable_mouse_reporting_status_line(false);

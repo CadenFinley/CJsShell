@@ -602,7 +602,7 @@ again:;
     if (menu_session.mouse_scroll_enabled && key_no_mods == KEY_EVENT_MOUSE_OTHER) {
         bool accept_selection = false;
         if (edit_menu_mouse_select_vertical(env, eb, match_count, scroll_offset, last_display_count,
-                                            1, -1, &selected_idx, &accept_selection)) {
+                                            1, &selected_idx, &accept_selection)) {
             if (accept_selection) {
                 c = KEY_ENTER;
                 key_no_mods = KEY_ENTER;

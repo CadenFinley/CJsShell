@@ -426,9 +426,8 @@ static bool edit_menu_refresh_with_preview(ic_env_t* env, editor_t* eb,
     return applied;
 }
 
-static ssize_t edit_menu_input_rows_for_sbuf(ic_env_t* env, editor_t* eb, stringbuf_t* input,
-                                             ssize_t pos) {
-    if (env == NULL || eb == NULL || input == NULL) {
+static ssize_t edit_menu_input_rows(ic_env_t* env, editor_t* eb) {
+    if (env == NULL || eb == NULL) {
         return 1;
     }
 
@@ -436,74 +435,19 @@ static ssize_t edit_menu_input_rows_for_sbuf(ic_env_t* env, editor_t* eb, string
     ssize_t cpromptw = 0;
     edit_get_prompt_width(env, eb, false, &promptw, &cpromptw);
 
-    ssize_t input_len = sbuf_len(input);
+    ssize_t input_len = sbuf_len(eb->input);
     if (input_len < 0) {
         input_len = 0;
-    }
-    if (pos < 0 || pos > input_len) {
-        pos = input_len;
     }
 
     rowcol_t rc_dummy;
     memset(&rc_dummy, 0, sizeof(rc_dummy));
-    ssize_t input_rows = sbuf_get_rc_at_pos(input, eb->termw, promptw, cpromptw, pos, &rc_dummy);
+    ssize_t input_rows =
+        sbuf_get_rc_at_pos(eb->input, eb->termw, promptw, cpromptw, input_len, &rc_dummy);
     if (input_rows <= 0) {
         input_rows = 1;
     }
     return input_rows;
-}
-
-static ssize_t edit_menu_input_rows(ic_env_t* env, editor_t* eb) {
-    if (eb == NULL) {
-        return 1;
-    }
-    return edit_menu_input_rows_for_sbuf(env, eb, eb->input, eb->pos);
-}
-
-static ssize_t edit_menu_input_rows_for_text(ic_env_t* env, editor_t* eb, const char* text,
-                                             ssize_t pos) {
-    if (env == NULL || eb == NULL || text == NULL) {
-        return edit_menu_input_rows(env, eb);
-    }
-    stringbuf_t* input = sbuf_new(eb->mem);
-    if (input == NULL) {
-        return edit_menu_input_rows(env, eb);
-    }
-    sbuf_replace(input, text);
-    ssize_t rows = edit_menu_input_rows_for_sbuf(env, eb, input, pos);
-    sbuf_free(input);
-    return rows;
-}
-
-static ssize_t edit_menu_bbcode_rows(ic_env_t* env, editor_t* eb, const char* text) {
-    if (env == NULL || eb == NULL || text == NULL || text[0] == '\0') {
-        return 0;
-    }
-
-    stringbuf_t* plain = sbuf_new(eb->mem);
-    if (plain == NULL) {
-        return 1;
-    }
-    bbcode_append(env->bbcode, text, plain, NULL);
-    if (sbuf_len(plain) <= 0) {
-        sbuf_free(plain);
-        return 0;
-    }
-
-    rowcol_t rc_dummy;
-    memset(&rc_dummy, 0, sizeof(rc_dummy));
-    ssize_t rows = sbuf_get_rc_at_pos(plain, eb->termw, 0, 0, 0, &rc_dummy);
-    sbuf_free(plain);
-    if (rows < 1) {
-        rows = 1;
-    }
-    return rows;
-}
-
-static ssize_t edit_menu_wrapped_footer_extra_rows(ic_env_t* env, editor_t* eb,
-                                                   const char* footer_text) {
-    ssize_t footer_rows = edit_menu_bbcode_rows(env, eb, footer_text);
-    return (footer_rows > 1 ? footer_rows - 1 : 0);
 }
 
 static ssize_t edit_menu_available_lines(ic_env_t* env, editor_t* eb, ssize_t reserved_rows,
@@ -637,6 +581,76 @@ static const char* edit_menu_first_line_end(const char* str) {
     return p;
 }
 
+static bool edit_menu_contains_line_break(const char* str) {
+    if (str == NULL) {
+        return false;
+    }
+    return (strchr(str, '\n') != NULL || strchr(str, '\r') != NULL);
+}
+
+static ssize_t edit_menu_line_count(const char* str) {
+    if (str == NULL || *str == '\0') {
+        return 1;
+    }
+
+    ssize_t lines = 1;
+    for (const char* p = str; *p != '\0'; ++p) {
+        if (*p == '\n') {
+            lines++;
+        } else if (*p == '\r') {
+            lines++;
+            if (p[1] == '\n') {
+                ++p;
+            }
+        }
+    }
+    return lines;
+}
+
+static void edit_menu_append_multiline_preview(ic_env_t* env, editor_t* eb, const char* display,
+                                               bool syntax_highlight, bool parse_bbcode) {
+    if (env == NULL || eb == NULL || display == NULL) {
+        return;
+    }
+
+    const char* arrow = (tty_is_utf8(env->tty) ? "\xE2\x86\x92" : ">");
+    if (syntax_highlight) {
+        sbuf_append(eb->extra, "[ic-menu-selected][!pre]");
+        sbuf_appendf(eb->extra, "%s ", arrow);
+        sbuf_append(eb->extra, "[/pre]");
+        edit_menu_append_syntax_highlighted_text(env, eb->extra, display, -1, parse_bbcode, -1, 0,
+                                                 true, false, "  ");
+        sbuf_append(eb->extra, "[/ic-menu-selected]");
+        return;
+    }
+
+    sbuf_append(eb->extra, "[ic-menu-selected][!pre]");
+    sbuf_appendf(eb->extra, "%s ", arrow);
+
+    const char* segment = display;
+    for (const char* p = display; *p != '\0'; ++p) {
+        if (*p != '\n' && *p != '\r') {
+            continue;
+        }
+
+        if (p > segment) {
+            sbuf_append_n(eb->extra, segment, p - segment);
+        }
+
+        sbuf_append(eb->extra, "\n  ");
+        if (*p == '\r' && p[1] == '\n') {
+            ++p;
+        }
+        segment = p + 1;
+    }
+
+    if (*segment != '\0') {
+        sbuf_append(eb->extra, segment);
+    }
+
+    sbuf_append(eb->extra, "[/pre][/ic-menu-selected]");
+}
+
 static ssize_t edit_menu_visible_prefix(const char* s, ssize_t len, ssize_t max_columns,
                                         ssize_t* width_out) {
     if (s == NULL || len <= 0 || max_columns <= 0) {
@@ -748,8 +762,8 @@ static void edit_menu_append_scroll_hint(stringbuf_t* sb, ssize_t item_count, ss
 
 static bool edit_menu_mouse_select_vertical(ic_env_t* env, editor_t* eb, ssize_t item_count,
                                             ssize_t scroll_offset, ssize_t display_count,
-                                            ssize_t status_rows, ssize_t rendered_input_rows,
-                                            ssize_t* selected_idx, bool* accept_selection) {
+                                            ssize_t status_rows, ssize_t* selected_idx,
+                                            bool* accept_selection) {
     if (env == NULL || eb == NULL || env->tty == NULL || selected_idx == NULL ||
         accept_selection == NULL) {
         return false;
@@ -778,8 +792,7 @@ static bool edit_menu_mouse_select_vertical(ic_env_t* env, editor_t* eb, ssize_t
     }
     ic_unused(target_col);
 
-    const ssize_t input_rows =
-        (rendered_input_rows > 0 ? rendered_input_rows : edit_menu_input_rows(env, eb));
+    const ssize_t input_rows = edit_menu_input_rows(env, eb);
     const ssize_t items_first_row = input_rows + status_rows;
     const ssize_t item_row = target_row - items_first_row;
     if (item_row < 0 || item_row >= display_count) {
