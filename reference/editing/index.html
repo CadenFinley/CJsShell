@@ -1867,8 +1867,8 @@ Press <code>F1</code> at any time to display the complete key binding cheat shee
 - Press <code>F2</code> to toggle mouse clicking for the active prompt only
 - When enabled, the status row can show <code>Mouse clicking is enabled</code></p>
 <p><strong>Persistent defaults:</strong>
-</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1"># Enable mouse clicking by default for new prompts</span>
-</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>cjshopt<span class="w"> </span>mouse-clicking<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1"># Configure prompt and menu mouse capture</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>cjshopt<span class="w"> </span>mouse-clicking<span class="w"> </span>all-off<span class="p">|</span>off<span class="p">|</span>simple<span class="p">|</span>smart<span class="p">|</span>status
 </span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>
 </span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="c1"># Show or hide the mouse status indicator line</span>
 </span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>cjshopt<span class="w"> </span>mouse-clicking-status-line<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
@@ -1877,11 +1877,15 @@ Press <code>F1</code> at any time to display the complete key binding cheat shee
 </span><span id="__span-13-8"><a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>cjshopt<span class="w"> </span>completion-click-accept<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
 </span></code></pre></div><p></p>
 <p><strong>Behavior:</strong>
+- <code>off</code> is the default mode
 - In the editor buffer, left-click moves the cursor to the clicked position
+- In <code>off</code> mode, editing remains under terminal control while interactive menus temporarily capture
+  clicks and wheel events; collapsed completion lists remain non-clickable and <code>all-off</code> prevents
+  capture everywhere
 - In <code>smart</code> mode, starting a selection in the prompt/gutter or status rows suspends mouse capture
   so the terminal can highlight text; keyboard or focus-in input resumes capture
-- In collapsed completion menus, click selection follows the prompt-level mouse toggle
-- In expanded completion menus and history search, click selection and wheel scrolling are enabled while the menu is open
+- Expanded completion, history, and command-palette menus temporarily capture mouse events in every
+  mode except <code>all-off</code>
 - Completion click acceptance follows <code>cjshopt completion-click-accept</code> (disabled by default)</p>
 <h3 id="fish-style-abbreviations">Fish-Style Abbreviations</h3>
 <p>CJ's Shell supports fish-style abbreviations that expand typed shortcuts into longer phrases as soon as you type a whitespace character or submit the line. This is powered directly by the isocline editor, so expansions happen inline without disrupting your cursor position or undo history.</p>

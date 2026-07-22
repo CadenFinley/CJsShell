@@ -1548,12 +1548,16 @@ Fuzzy matching powers command, path, and argument completions without additional
 <p><strong>Status:</strong> Enabled<br>
 <strong>Configure:</strong> <code>cjshopt status-reporting on|off|status</code> (leave the status line visible but mute cjsh’s validation/error summaries)</p>
 <h3 id="mouse-clicking">Mouse Clicking</h3>
-<p><strong>Status:</strong> Disabled by default for new prompts (<code>F2</code> toggles it for the current prompt)<br>
-<strong>Configure:</strong></p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>cjshopt<span class="w"> </span>mouse-clicking<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
+<p><strong>Status:</strong> <code>off</code> by default: prompt editing stays native while menus temporarily capture the mouse</p>
+<p><strong>Configure:</strong></p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>cjshopt<span class="w"> </span>mouse-clicking<span class="w"> </span>all-off<span class="p">|</span>off<span class="p">|</span>simple<span class="p">|</span>smart<span class="p">|</span>status
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>cjshopt<span class="w"> </span>mouse-clicking-status-line<span class="w"> </span>on<span class="p">|</span>off<span class="p">|</span>status
 </span></code></pre></div>
-<p>When enabled, you can click to reposition the cursor in the editor, click entries in completion/history menus, and use the mouse wheel in expanded menus. <code>mouse-clicking-status-line</code> only controls whether the <code>Mouse clicking is enabled</code> indicator is shown.</p>
+<p>Use <code>all-off</code> to prevent mouse capture everywhere, or <code>off</code> to leave prompt editing under terminal
+control while allowing completion/history menus to capture clicks and wheel events temporarily.
+Collapsed completion lists remain non-clickable until expanded. <code>simple</code> and <code>smart</code> also enable
+click-to-position editing. <code>mouse-clicking-status-line</code> only controls whether the <code>Mouse clicking
+is enabled</code> indicator is shown.</p>
 <h3 id="visible-whitespace-markers">Visible Whitespace Markers</h3>
 <p><strong>Status:</strong> Disabled<br>
 <strong>Configure:</strong> <code>cjshopt visible-whitespace on|off|status</code></p>

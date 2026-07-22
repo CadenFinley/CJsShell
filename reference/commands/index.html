@@ -2838,7 +2838,7 @@ without printing a literal newline).</p>
 - <code>status-line</code> - Toggle the entire status row beneath the prompt
 - <code>status-reporting</code> - Toggle cjsh validation output in the status row
 - <code>status-line-callback</code> - Run a shell function that supplies custom status-line text
-- <code>mouse-clicking</code> - Configure whether new prompts start with mouse clicking enabled
+- <code>mouse-clicking</code> - Configure mouse capture for prompt editing and interactive menus
 - <code>mouse-clicking-status-line</code> - Show or hide the mouse-clicking status indicator text
 - <code>auto-tab</code> - Configure automatic tab completion
 - <code>prompt-newline</code> - Force a blank line after each command
@@ -3287,20 +3287,24 @@ the current selection. Add the command to <code>~/.cjshrc</code> to persist the 
 </span></code></pre></div>
 <p>Use <code>cjshopt status-reporting off</code> if you want only your callback text without cjsh validation output. Keep callback code fast because it runs frequently while editing.</p>
 <h4 id="mouse-clicking">mouse-clicking</h4>
-<p>Set whether new prompts begin with mouse clicking enabled. This controls prompt-level click
-handling (for example, clicking to reposition the cursor in the active input buffer).</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-118-1"><a id="__codelineno-118-1" name="__codelineno-118-1" href="#__codelineno-118-1"></a>cjshopt<span class="w"> </span>mouse-clicking<span class="w"> </span>&lt;disabled<span class="p">|</span>simple<span class="p">|</span>smart<span class="p">|</span>status&gt;
+<p>Configure mouse capture separately for prompt editing and interactive menus.
+The default is <code>off</code>, which leaves ordinary prompt interaction to the terminal while retaining
+mouse support inside expanded completion, history, and command-palette menus. Collapsed completion
+lists remain under terminal control and their items are not clickable in this mode.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-118-1"><a id="__codelineno-118-1" name="__codelineno-118-1" href="#__codelineno-118-1"></a>cjshopt<span class="w"> </span>mouse-clicking<span class="w"> </span>&lt;all-off<span class="p">|</span>off<span class="p">|</span>simple<span class="p">|</span>smart<span class="p">|</span>status&gt;
 </span></code></pre></div>
 <p>Examples:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-119-1"><a id="__codelineno-119-1" name="__codelineno-119-1" href="#__codelineno-119-1"></a>cjshopt<span class="w"> </span>mouse-clicking<span class="w"> </span>disabled<span class="w"> </span><span class="c1"># Never capture mouse events</span>
-</span><span id="__span-119-2"><a id="__codelineno-119-2" name="__codelineno-119-2" href="#__codelineno-119-2"></a>cjshopt<span class="w"> </span>mouse-clicking<span class="w"> </span>simple<span class="w">   </span><span class="c1"># Capture mouse events until manually toggled</span>
-</span><span id="__span-119-3"><a id="__codelineno-119-3" name="__codelineno-119-3" href="#__codelineno-119-3"></a>cjshopt<span class="w"> </span>mouse-clicking<span class="w"> </span>smart<span class="w">    </span><span class="c1"># Auto-suspend for terminal selection and resume for editing</span>
-</span><span id="__span-119-4"><a id="__codelineno-119-4" name="__codelineno-119-4" href="#__codelineno-119-4"></a>cjshopt<span class="w"> </span>mouse-clicking<span class="w"> </span>status<span class="w">   </span><span class="c1"># Show the current setting</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-119-1"><a id="__codelineno-119-1" name="__codelineno-119-1" href="#__codelineno-119-1"></a>cjshopt<span class="w"> </span>mouse-clicking<span class="w"> </span>all-off<span class="w"> </span><span class="c1"># Never capture mouse events, including inside menus</span>
+</span><span id="__span-119-2"><a id="__codelineno-119-2" name="__codelineno-119-2" href="#__codelineno-119-2"></a>cjshopt<span class="w"> </span>mouse-clicking<span class="w"> </span>off<span class="w">     </span><span class="c1"># Keep editing native; capture only in expanded/interactive menus</span>
+</span><span id="__span-119-3"><a id="__codelineno-119-3" name="__codelineno-119-3" href="#__codelineno-119-3"></a>cjshopt<span class="w"> </span>mouse-clicking<span class="w"> </span>simple<span class="w">  </span><span class="c1"># Capture mouse events until manually toggled</span>
+</span><span id="__span-119-4"><a id="__codelineno-119-4" name="__codelineno-119-4" href="#__codelineno-119-4"></a>cjshopt<span class="w"> </span>mouse-clicking<span class="w"> </span>smart<span class="w">   </span><span class="c1"># Auto-suspend for terminal selection and resume for editing</span>
+</span><span id="__span-119-5"><a id="__codelineno-119-5" name="__codelineno-119-5" href="#__codelineno-119-5"></a>cjshopt<span class="w"> </span>mouse-clicking<span class="w"> </span>status<span class="w">  </span><span class="c1"># Show the current setting</span>
 </span></code></pre></div>
 <p><code>F2</code> (or any key bound to <code>toggle-mouse-reporting</code>) still toggles mouse clicking for the current
-prompt at runtime. In <code>smart</code> mode, wheel input and selections started above the editor, in the
-prompt or continuation gutter, or on status/helper rows suspend capture. Keyboard or focus-in input
-resumes it.</p>
+prompt at runtime in <code>simple</code> and <code>smart</code> modes. In <code>smart</code> mode, wheel input and selections started
+above the editor, in the prompt or continuation gutter, or on status/helper rows suspend capture.
+Keyboard or focus-in input resumes it. <code>disabled</code> remains an alias for <code>all-off</code>; <code>menu-only</code> and
+<code>menus</code> are aliases for <code>off</code>.</p>
 <h4 id="mouse-clicking-status-line">mouse-clicking-status-line</h4>
 <p>Show or hide the status-row indicator text that appears when mouse clicking is active.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-120-1"><a id="__codelineno-120-1" name="__codelineno-120-1" href="#__codelineno-120-1"></a>cjshopt<span class="w"> </span>mouse-clicking-status-line<span class="w"> </span>&lt;on<span class="p">|</span>off<span class="p">|</span>status&gt;
