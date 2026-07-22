@@ -3289,15 +3289,18 @@ the current selection. Add the command to <code>~/.cjshrc</code> to persist the 
 <h4 id="mouse-clicking">mouse-clicking</h4>
 <p>Set whether new prompts begin with mouse clicking enabled. This controls prompt-level click
 handling (for example, clicking to reposition the cursor in the active input buffer).</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-118-1"><a id="__codelineno-118-1" name="__codelineno-118-1" href="#__codelineno-118-1"></a>cjshopt<span class="w"> </span>mouse-clicking<span class="w"> </span>&lt;on<span class="p">|</span>off<span class="p">|</span>status&gt;
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-118-1"><a id="__codelineno-118-1" name="__codelineno-118-1" href="#__codelineno-118-1"></a>cjshopt<span class="w"> </span>mouse-clicking<span class="w"> </span>&lt;disabled<span class="p">|</span>simple<span class="p">|</span>smart<span class="p">|</span>status&gt;
 </span></code></pre></div>
 <p>Examples:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-119-1"><a id="__codelineno-119-1" name="__codelineno-119-1" href="#__codelineno-119-1"></a>cjshopt<span class="w"> </span>mouse-clicking<span class="w"> </span>on<span class="w">      </span><span class="c1"># Enable mouse clicking by default for new prompts</span>
-</span><span id="__span-119-2"><a id="__codelineno-119-2" name="__codelineno-119-2" href="#__codelineno-119-2"></a>cjshopt<span class="w"> </span>mouse-clicking<span class="w"> </span>off<span class="w">     </span><span class="c1"># Disable mouse clicking by default</span>
-</span><span id="__span-119-3"><a id="__codelineno-119-3" name="__codelineno-119-3" href="#__codelineno-119-3"></a>cjshopt<span class="w"> </span>mouse-clicking<span class="w"> </span>status<span class="w">  </span><span class="c1"># Show the current setting</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-119-1"><a id="__codelineno-119-1" name="__codelineno-119-1" href="#__codelineno-119-1"></a>cjshopt<span class="w"> </span>mouse-clicking<span class="w"> </span>disabled<span class="w"> </span><span class="c1"># Never capture mouse events</span>
+</span><span id="__span-119-2"><a id="__codelineno-119-2" name="__codelineno-119-2" href="#__codelineno-119-2"></a>cjshopt<span class="w"> </span>mouse-clicking<span class="w"> </span>simple<span class="w">   </span><span class="c1"># Capture mouse events until manually toggled</span>
+</span><span id="__span-119-3"><a id="__codelineno-119-3" name="__codelineno-119-3" href="#__codelineno-119-3"></a>cjshopt<span class="w"> </span>mouse-clicking<span class="w"> </span>smart<span class="w">    </span><span class="c1"># Auto-suspend for terminal selection and resume for editing</span>
+</span><span id="__span-119-4"><a id="__codelineno-119-4" name="__codelineno-119-4" href="#__codelineno-119-4"></a>cjshopt<span class="w"> </span>mouse-clicking<span class="w"> </span>status<span class="w">   </span><span class="c1"># Show the current setting</span>
 </span></code></pre></div>
 <p><code>F2</code> (or any key bound to <code>toggle-mouse-reporting</code>) still toggles mouse clicking for the current
-prompt at runtime.</p>
+prompt at runtime. In <code>smart</code> mode, wheel input and selections started above the editor, in the
+prompt or continuation gutter, or on status/helper rows suspend capture. Keyboard or focus-in input
+resumes it.</p>
 <h4 id="mouse-clicking-status-line">mouse-clicking-status-line</h4>
 <p>Show or hide the status-row indicator text that appears when mouse clicking is active.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-120-1"><a id="__codelineno-120-1" name="__codelineno-120-1" href="#__codelineno-120-1"></a>cjshopt<span class="w"> </span>mouse-clicking-status-line<span class="w"> </span>&lt;on<span class="p">|</span>off<span class="p">|</span>status&gt;

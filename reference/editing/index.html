@@ -1878,6 +1878,8 @@ Press <code>F1</code> at any time to display the complete key binding cheat shee
 </span></code></pre></div><p></p>
 <p><strong>Behavior:</strong>
 - In the editor buffer, left-click moves the cursor to the clicked position
+- In <code>smart</code> mode, starting a selection in the prompt/gutter or status rows suspends mouse capture
+  so the terminal can highlight text; keyboard or focus-in input resumes capture
 - In collapsed completion menus, click selection follows the prompt-level mouse toggle
 - In expanded completion menus and history search, click selection and wheel scrolling are enabled while the menu is open
 - Completion click acceptance follows <code>cjshopt completion-click-accept</code> (disabled by default)</p>
