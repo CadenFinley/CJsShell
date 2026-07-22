@@ -59,6 +59,15 @@ bool is_shell_builtin(const std::string& token, Shell* shell) {
            shell->get_built_ins()->is_builtin_command(token) != 0;
 }
 
+bool token_allows_split_command_merge(const std::string& token) {
+    if (token.empty() || token[0] == '-' || token.find('=') != std::string::npos) {
+        return false;
+    }
+
+    static const std::string kDisallowedChars = "/\\'\"`$|&;(){}[]<>";
+    return token.find_first_of(kDisallowedChars) == std::string::npos;
+}
+
 bool lookup_shell_alias(const std::string& token, Shell* shell, std::string& alias_value) {
     if (shell == nullptr) {
         return false;

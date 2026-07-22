@@ -37,22 +37,28 @@
 #include "numeric_utils.h"
 #include "shell_env.h"
 
+namespace {
+
+int set_loop_control_level(const std::vector<std::string>& args, const std::string& command,
+                           const std::string& variable, int return_code) {
+    int level = 1;
+    if (args.size() > 1 && !numeric_utils::parse_int_in_range(args[1], 1, INT_MAX, level)) {
+        print_error({ErrorType::INVALID_ARGUMENT, command, "invalid level: " + args[1], {}});
+        return 1;
+    }
+
+    cjsh_env::set_shell_variable_value(variable, std::to_string(level));
+    return return_code;
+}
+
+}  // namespace
+
 int break_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(
             args, {"Usage: break [N]", "Exit N levels of enclosing loops (default 1)."})) {
         return 0;
     }
-    int level = 1;
-    if (args.size() > 1) {
-        if (!numeric_utils::parse_int_in_range(args[1], 1, INT_MAX, level)) {
-            print_error({ErrorType::INVALID_ARGUMENT, "break", "invalid level: " + args[1], {}});
-            return 1;
-        }
-    }
-
-    cjsh_env::set_shell_variable_value("CJSH_BREAK_LEVEL", std::to_string(level));
-
-    return 255;
+    return set_loop_control_level(args, "break", "CJSH_BREAK_LEVEL", 255);
 }
 
 int continue_command(const std::vector<std::string>& args) {
@@ -61,17 +67,7 @@ int continue_command(const std::vector<std::string>& args) {
                    "Skip to the next iteration of the current loop or Nth enclosing loop."})) {
         return 0;
     }
-    int level = 1;
-    if (args.size() > 1) {
-        if (!numeric_utils::parse_int_in_range(args[1], 1, INT_MAX, level)) {
-            print_error({ErrorType::INVALID_ARGUMENT, "continue", "invalid level: " + args[1], {}});
-            return 1;
-        }
-    }
-
-    cjsh_env::set_shell_variable_value("CJSH_CONTINUE_LEVEL", std::to_string(level));
-
-    return 254;
+    return set_loop_control_level(args, "continue", "CJSH_CONTINUE_LEVEL", 254);
 }
 
 int return_command(const std::vector<std::string>& args) {

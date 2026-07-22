@@ -32,6 +32,7 @@
 #include <cstring>
 #include <iomanip>
 #include <iostream>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -44,22 +45,34 @@
 namespace {
 std::unordered_map<ic_keycode_t, custom_command_binding_t> g_custom_keybindings;
 std::unordered_map<std::string, custom_command_binding_t> g_custom_palette_commands;
+
+template <typename Map>
+std::string binding_field_or_empty(const Map& bindings, const typename Map::key_type& key,
+                                   std::string custom_command_binding_t::* field) {
+    auto it = bindings.find(key);
+    return it == bindings.end() ? std::string{} : it->second.*field;
+}
+
+template <typename Map>
+auto sorted_binding_entries(const Map& bindings)
+    -> std::vector<std::pair<typename Map::key_type, typename Map::mapped_type>> {
+    std::vector<std::pair<typename Map::key_type, typename Map::mapped_type>> entries;
+    entries.reserve(bindings.size());
+    for (const auto& entry : bindings) {
+        entries.emplace_back(entry.first, entry.second);
+    }
+    std::sort(entries.begin(), entries.end(),
+              [](const auto& left, const auto& right) { return left.first < right.first; });
+    return entries;
+}
 }  // namespace
 
 std::string get_custom_keybinding(ic_keycode_t key) {
-    auto it = g_custom_keybindings.find(key);
-    if (it != g_custom_keybindings.end()) {
-        return it->second.command;
-    }
-    return "";
+    return binding_field_or_empty(g_custom_keybindings, key, &custom_command_binding_t::command);
 }
 
 std::string get_custom_keybinding_title(ic_keycode_t key) {
-    auto it = g_custom_keybindings.find(key);
-    if (it != g_custom_keybindings.end()) {
-        return it->second.title;
-    }
-    return "";
+    return binding_field_or_empty(g_custom_keybindings, key, &custom_command_binding_t::title);
 }
 
 bool has_custom_keybinding(ic_keycode_t key) {
@@ -79,27 +92,16 @@ void clear_all_custom_keybindings() {
 }
 
 std::vector<std::pair<ic_keycode_t, custom_command_binding_t>> list_custom_keybindings() {
-    std::vector<std::pair<ic_keycode_t, custom_command_binding_t>> entries(
-        g_custom_keybindings.begin(), g_custom_keybindings.end());
-    std::sort(entries.begin(), entries.end(),
-              [](const auto& left, const auto& right) { return left.first < right.first; });
-    return entries;
+    return sorted_binding_entries(g_custom_keybindings);
 }
 
 std::string get_custom_palette_command(const std::string& id) {
-    auto it = g_custom_palette_commands.find(id);
-    if (it != g_custom_palette_commands.end()) {
-        return it->second.command;
-    }
-    return "";
+    return binding_field_or_empty(g_custom_palette_commands, id,
+                                  &custom_command_binding_t::command);
 }
 
 std::string get_custom_palette_command_title(const std::string& id) {
-    auto it = g_custom_palette_commands.find(id);
-    if (it != g_custom_palette_commands.end()) {
-        return it->second.title;
-    }
-    return "";
+    return binding_field_or_empty(g_custom_palette_commands, id, &custom_command_binding_t::title);
 }
 
 bool has_custom_palette_command(const std::string& id) {
@@ -120,11 +122,7 @@ void clear_all_custom_palette_commands() {
 }
 
 std::vector<std::pair<std::string, custom_command_binding_t>> list_custom_palette_commands() {
-    std::vector<std::pair<std::string, custom_command_binding_t>> entries(
-        g_custom_palette_commands.begin(), g_custom_palette_commands.end());
-    std::sort(entries.begin(), entries.end(),
-              [](const auto& left, const auto& right) { return left.first < right.first; });
-    return entries;
+    return sorted_binding_entries(g_custom_palette_commands);
 }
 
 namespace {
@@ -144,6 +142,18 @@ bool parse_palette_spec(const std::string& key_spec, std::string* out_palette_id
     }
     *out_palette_id = id;
     return true;
+}
+
+std::optional<std::string> parse_palette_spec_or_report(const std::string& key_spec) {
+    std::string palette_id;
+    if (!parse_palette_spec(key_spec, &palette_id)) {
+        print_error({ErrorType::INVALID_ARGUMENT,
+                     "keybind ext",
+                     "Invalid palette identifier '" + key_spec + "'",
+                     {"Palette-only entries must use format 'palette:<id>'"}});
+        return std::nullopt;
+    }
+    return palette_id;
 }
 
 const std::vector<std::string>& keybind_ext_usage_lines() {
@@ -291,21 +301,17 @@ int keybind_ext_set_command(const std::vector<std::string>& args) {
     }
 
     if (key_spec.rfind(kPalettePrefix, 0) == 0) {
-        std::string palette_id;
-        if (!parse_palette_spec(key_spec, &palette_id)) {
-            print_error({ErrorType::INVALID_ARGUMENT,
-                         "keybind ext",
-                         "Invalid palette identifier '" + key_spec + "'",
-                         {"Palette-only entries must use format 'palette:<id>'"}});
+        auto palette_id = parse_palette_spec_or_report(key_spec);
+        if (!palette_id.has_value()) {
             return 1;
         }
 
-        std::string effective_title = title.empty() ? palette_id : title;
-        set_custom_palette_command(palette_id, command, effective_title);
+        std::string effective_title = title.empty() ? *palette_id : title;
+        set_custom_palette_command(*palette_id, command, effective_title);
         if (!cjsh_env::startup_active()) {
-            std::cout << "Registered palette-only command '" << palette_id << "' (title: '"
+            std::cout << "Registered palette-only command '" << *palette_id << "' (title: '"
                       << effective_title << "'): " << command << '\n';
-            std::cout << "Add `cjshopt keybind ext set 'palette:" << palette_id << "'";
+            std::cout << "Add `cjshopt keybind ext set 'palette:" << *palette_id << "'";
             if (!title.empty()) {
                 std::cout << " --title '" << title << "'";
             }
@@ -381,17 +387,13 @@ int keybind_ext_clear_command(const std::vector<std::string>& args) {
         const std::string& key_spec = args[i];
 
         if (key_spec.rfind(kPalettePrefix, 0) == 0) {
-            std::string palette_id;
-            if (!parse_palette_spec(key_spec, &palette_id)) {
-                print_error({ErrorType::INVALID_ARGUMENT,
-                             "keybind ext",
-                             "Invalid palette identifier '" + key_spec + "'",
-                             {"Palette-only entries must use format 'palette:<id>'"}});
+            auto palette_id = parse_palette_spec_or_report(key_spec);
+            if (!palette_id.has_value()) {
                 continue;
             }
 
-            if (has_custom_palette_command(palette_id)) {
-                clear_custom_palette_command(palette_id);
+            if (has_custom_palette_command(*palette_id)) {
+                clear_custom_palette_command(*palette_id);
                 cleared.push_back(key_spec);
             } else {
                 not_found.push_back(key_spec);

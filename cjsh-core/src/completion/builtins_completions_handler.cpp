@@ -66,6 +66,31 @@ std::string strip_sig_prefix(const std::string& value) {
     return value;
 }
 
+void append_unique_signal_entry(std::vector<CompletionEntry>& entries,
+                                std::unordered_set<std::string>& seen_tokens,
+                                const std::string& token, const char* description) {
+    if (!token.empty() && seen_tokens.insert(token).second) {
+        entries.push_back(make_option(token, description ? description : ""));
+    }
+}
+
+template <typename Formatter>
+void append_available_signal_entries(std::vector<CompletionEntry>& entries,
+                                     std::unordered_set<std::string>& seen_tokens,
+                                     Formatter&& format_token) {
+    for (const auto& info : SignalHandler::available_signals()) {
+        if (info.name == nullptr) {
+            continue;
+        }
+        std::string full_name(info.name);
+        append_unique_signal_entry(entries, seen_tokens, format_token(strip_sig_prefix(full_name)),
+                                   info.description);
+        append_unique_signal_entry(entries, seen_tokens, format_token(full_name), info.description);
+        append_unique_signal_entry(entries, seen_tokens, format_token(std::to_string(info.signal)),
+                                   info.description);
+    }
+}
+
 void append_kill_signal_entries(std::vector<CompletionEntry>& entries) {
     const auto& signals = SignalHandler::available_signals();
     if (signals.empty())
@@ -74,26 +99,10 @@ void append_kill_signal_entries(std::vector<CompletionEntry>& entries) {
     std::unordered_set<std::string> seen_tokens;
     seen_tokens.reserve(signals.size() * 3 + 2);
 
-    auto add_option_entry = [&](const std::string& token, const char* description) {
-        if (token.empty())
-            return;
-        std::string option_text = "-" + token;
-        if (seen_tokens.insert(option_text).second) {
-            entries.push_back(make_option(option_text, description ? description : ""));
-        }
-    };
-
-    for (const auto& info : signals) {
-        if (info.name == nullptr)
-            continue;
-        std::string full_name(info.name);
-        std::string short_name = strip_sig_prefix(full_name);
-        add_option_entry(short_name, info.description);
-        add_option_entry(full_name, info.description);
-        add_option_entry(std::to_string(info.signal), info.description);
-    }
-
-    add_option_entry("0", "Test for process existence without delivering a signal");
+    append_available_signal_entries(entries, seen_tokens,
+                                    [](const std::string& token) { return "-" + token; });
+    append_unique_signal_entry(entries, seen_tokens, "-0",
+                               "Test for process existence without delivering a signal");
 }
 
 void append_trap_signal_entries(std::vector<CompletionEntry>& entries) {
@@ -104,26 +113,10 @@ void append_trap_signal_entries(std::vector<CompletionEntry>& entries) {
     std::unordered_set<std::string> seen_tokens;
     seen_tokens.reserve(signals.size() * 3 + 4);
 
-    auto add_signal_entry = [&](const std::string& token, const char* description) {
-        if (token.empty())
-            return;
-        if (seen_tokens.insert(token).second) {
-            entries.push_back(make_option(token, description ? description : ""));
-        }
-    };
-
-    for (const auto& info : signals) {
-        if (info.name == nullptr)
-            continue;
-        std::string full_name(info.name);
-        std::string short_name = strip_sig_prefix(full_name);
-        add_signal_entry(short_name, info.description);
-        add_signal_entry(full_name, info.description);
-        add_signal_entry(std::to_string(info.signal), info.description);
-    }
-
-    add_signal_entry("EXIT", "Run when the shell exits");
-    add_signal_entry("0", "Run when the shell exits");
+    append_available_signal_entries(entries, seen_tokens,
+                                    [](const std::string& token) { return token; });
+    append_unique_signal_entry(entries, seen_tokens, "EXIT", "Run when the shell exits");
+    append_unique_signal_entry(entries, seen_tokens, "0", "Run when the shell exits");
 }
 
 std::vector<CompletionEntry> build_startup_flag_completion_entries() {

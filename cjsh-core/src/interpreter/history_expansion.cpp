@@ -38,6 +38,14 @@
 
 namespace {
 
+bool begin_history_event(const std::string& command, size_t& pos, size_t& start) {
+    if (pos >= command.length() || command[pos] != '!') {
+        return false;
+    }
+    start = pos++;
+    return true;
+}
+
 bool parse_number(const std::string& str, size_t& pos, int& number) {
     size_t start = pos;
     bool negative = false;
@@ -140,12 +148,10 @@ bool HistoryExpansion::expand_double_bang(const std::string& command, size_t& po
 bool HistoryExpansion::expand_history_number(const std::string& command, size_t& pos,
                                              const std::vector<std::string>& history,
                                              std::string& result, std::string& error) {
-    if (pos >= command.length() || command[pos] != '!') {
+    size_t start = 0;
+    if (!begin_history_event(command, pos, start)) {
         return false;
     }
-
-    size_t start = pos;
-    pos++;
 
     int number;
     if (!parse_number(command, pos, number)) {
@@ -180,12 +186,10 @@ bool HistoryExpansion::expand_history_number(const std::string& command, size_t&
 bool HistoryExpansion::expand_history_search(const std::string& command, size_t& pos,
                                              const std::vector<std::string>& history,
                                              std::string& result, std::string& error) {
-    if (pos >= command.length() || command[pos] != '!') {
+    size_t start = 0;
+    if (!begin_history_event(command, pos, start)) {
         return false;
     }
-
-    size_t start = pos;
-    pos++;
 
     bool search_substring = false;
     if (pos < command.length() && command[pos] == '?') {

@@ -783,6 +783,35 @@ enum class HereDocErrorKind : std::uint8_t {
     Duplication
 };
 
+enum class HereDocErrorStyle : std::uint8_t {
+    Standard,
+    ChildProcess
+};
+
+std::string format_here_document_error(HereDocErrorKind kind, const std::string& detail,
+                                       HereDocErrorStyle style = HereDocErrorStyle::Standard) {
+    const bool child_process = style == HereDocErrorStyle::ChildProcess;
+    switch (kind) {
+        case HereDocErrorKind::Pipe:
+            return (child_process ? "pipe: failed to secure here document pipe: "
+                                  : "failed to create pipe for here document: ") +
+                   detail;
+        case HereDocErrorKind::ContentWrite:
+            return (child_process ? "write: failed to write here document content: "
+                                  : "failed to write here document content: ") +
+                   detail;
+        case HereDocErrorKind::NewlineWrite:
+            return (child_process ? "write: failed to write here document newline: "
+                                  : "failed to write here document newline: ") +
+                   detail;
+        case HereDocErrorKind::Duplication:
+            return (child_process ? "dup2: failed to duplicate here document descriptor: "
+                                  : "failed to duplicate here document descriptor: ") +
+                   detail;
+    }
+    return detail;
+}
+
 template <typename ErrorHandler>
 bool setup_here_document_stdin(const std::string& here_doc, ErrorHandler&& on_error);
 
@@ -873,22 +902,7 @@ bool apply_ordered_redirections(const Command& cmd, ErrorHandler&& on_error) {
             }
             case CommandRedirectionType::HereDoc: {
                 auto here_doc_error = [&](HereDocErrorKind kind, const std::string& detail) {
-                    std::string message;
-                    switch (kind) {
-                        case HereDocErrorKind::Pipe:
-                            message = "failed to create pipe for here document: " + detail;
-                            break;
-                        case HereDocErrorKind::ContentWrite:
-                            message = "failed to write here document content: " + detail;
-                            break;
-                        case HereDocErrorKind::NewlineWrite:
-                            message = "failed to write here document newline: " + detail;
-                            break;
-                        case HereDocErrorKind::Duplication:
-                            message = "failed to duplicate here document descriptor: " + detail;
-                            break;
-                    }
-                    on_error(ErrorType::RUNTIME_ERROR, message);
+                    on_error(ErrorType::RUNTIME_ERROR, format_here_document_error(kind, detail));
                 };
 
                 if (!setup_here_document_stdin(redirection.value, here_doc_error)) {
@@ -1260,6 +1274,33 @@ std::optional<std::vector<std::string>> Exec::collect_command_args_with_assignme
     return cmd_args;
 }
 
+std::optional<int> Exec::run_command_not_found_handler(
+    const std::vector<std::string>& args,
+    const std::vector<std::pair<std::string, std::string>>& assignments, bool is_builtin,
+    const std::string& cached_exec_path) {
+    if (!should_try_command_not_found_handler(args, is_builtin, cached_exec_path)) {
+        return std::nullopt;
+    }
+
+    TemporaryEnvAssignmentScope temp_scope(g_shell.get(), assignments);
+    const auto handler_exit_code = maybe_invoke_command_not_found_handler(args);
+    if (!handler_exit_code.has_value()) {
+        return std::nullopt;
+    }
+
+    const std::string command_name = args.empty() ? std::string{} : args[0];
+    std::vector<std::string> suggestions = build_command_not_found_suggestions(command_name);
+    const bool use_default_output =
+        handler_defers_to_default_command_not_found_output(handler_exit_code);
+    if (use_default_output) {
+        print_error(
+            {ErrorType::COMMAND_NOT_FOUND, ErrorSeverity::ERROR, command_name, "", suggestions});
+    }
+    set_error(ErrorType::COMMAND_NOT_FOUND, command_name, "", suggestions);
+    return use_default_output ? ShellScriptInterpreter::exit_command_not_found
+                              : handler_exit_code.value();
+}
+
 bool Exec::requires_fork(const Command& cmd) const {
     return !cmd.input_file.empty() || !cmd.output_file.empty() || !cmd.append_file.empty() ||
            cmd.background || !cmd.stderr_file.empty() || cmd.stderr_to_stdout ||
@@ -1360,28 +1401,12 @@ int Exec::execute_command_sync(const std::vector<std::string>& args, bool auto_b
     bool is_builtin = exec_plan.is_builtin;
     std::string cached_exec_path = std::move(exec_plan.cached_exec_path);
 
-    if (should_try_command_not_found_handler(cmd_args_value, is_builtin, cached_exec_path)) {
-        TemporaryEnvAssignmentScope temp_scope(g_shell.get(), env_assignments);
-        auto handler_exit_code = maybe_invoke_command_not_found_handler(cmd_args_value);
-        if (handler_exit_code.has_value()) {
-            std::vector<std::string> suggestions = build_command_not_found_suggestions(
-                cmd_args_value.empty() ? std::string{} : cmd_args_value[0]);
-            if (handler_defers_to_default_command_not_found_output(handler_exit_code)) {
-                print_error({ErrorType::COMMAND_NOT_FOUND, ErrorSeverity::ERROR,
-                             cmd_args_value.empty() ? std::string{} : cmd_args_value[0], "",
-                             suggestions});
-            }
-            cleanup_process_substitutions(proc_resources, true);
-            set_error(ErrorType::COMMAND_NOT_FOUND,
-                      cmd_args_value.empty() ? std::string{} : cmd_args_value[0], "", suggestions);
-            int final_exit_code =
-                handler_defers_to_default_command_not_found_output(handler_exit_code)
-                    ? ShellScriptInterpreter::exit_command_not_found
-                    : handler_exit_code.value();
-            last_exit_code = final_exit_code;
-            set_last_pipeline_statuses({final_exit_code});
-            return final_exit_code;
-        }
+    if (auto handler_exit_code = run_command_not_found_handler(cmd_args_value, env_assignments,
+                                                               is_builtin, cached_exec_path)) {
+        cleanup_process_substitutions(proc_resources, true);
+        last_exit_code = *handler_exit_code;
+        set_last_pipeline_statuses({*handler_exit_code});
+        return *handler_exit_code;
     }
 
     std::optional<PtyPair> output_pty;
@@ -1513,27 +1538,11 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
     bool is_builtin = exec_plan.is_builtin;
     std::string cached_exec_path = std::move(exec_plan.cached_exec_path);
 
-    if (should_try_command_not_found_handler(cmd_args_value, is_builtin, cached_exec_path)) {
-        TemporaryEnvAssignmentScope temp_scope(g_shell.get(), env_assignments);
-        auto handler_exit_code = maybe_invoke_command_not_found_handler(cmd_args_value);
-        if (handler_exit_code.has_value()) {
-            std::vector<std::string> suggestions = build_command_not_found_suggestions(
-                cmd_args_value.empty() ? std::string{} : cmd_args_value[0]);
-            if (handler_defers_to_default_command_not_found_output(handler_exit_code)) {
-                print_error({ErrorType::COMMAND_NOT_FOUND, ErrorSeverity::ERROR,
-                             cmd_args_value.empty() ? std::string{} : cmd_args_value[0], "",
-                             suggestions});
-            }
-            set_error(ErrorType::COMMAND_NOT_FOUND,
-                      cmd_args_value.empty() ? std::string{} : cmd_args_value[0], "", suggestions);
-            int final_exit_code =
-                handler_defers_to_default_command_not_found_output(handler_exit_code)
-                    ? ShellScriptInterpreter::exit_command_not_found
-                    : handler_exit_code.value();
-            last_exit_code = final_exit_code;
-            set_last_pipeline_statuses({final_exit_code});
-            return final_exit_code;
-        }
+    if (auto handler_exit_code = run_command_not_found_handler(cmd_args_value, env_assignments,
+                                                               is_builtin, cached_exec_path)) {
+        last_exit_code = *handler_exit_code;
+        set_last_pipeline_statuses({*handler_exit_code});
+        return *handler_exit_code;
     }
 
     pid_t pid = fork();
@@ -1681,25 +1690,11 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             cached_exec_path = cjsh_filesystem::resolve_executable_for_execution(cmd.args[0]);
         }
 
-        if (should_try_command_not_found_handler(cmd.args, false, cached_exec_path)) {
-            TemporaryEnvAssignmentScope temp_scope(g_shell.get(), env_assignments);
-            auto handler_exit_code = maybe_invoke_command_not_found_handler(cmd.args);
-            if (handler_exit_code.has_value()) {
-                std::vector<std::string> suggestions = build_command_not_found_suggestions(
-                    cmd.args.empty() ? std::string{} : cmd.args[0]);
-                if (handler_defers_to_default_command_not_found_output(handler_exit_code)) {
-                    print_error({ErrorType::COMMAND_NOT_FOUND, ErrorSeverity::ERROR,
-                                 cmd.args.empty() ? std::string{} : cmd.args[0], "", suggestions});
-                }
-                set_error(ErrorType::COMMAND_NOT_FOUND,
-                          cmd.args.empty() ? std::string{} : cmd.args[0], "", suggestions);
-                int final_exit_code =
-                    handler_defers_to_default_command_not_found_output(handler_exit_code)
-                        ? ShellScriptInterpreter::exit_command_not_found
-                        : handler_exit_code.value();
-                set_last_pipeline_statuses({final_exit_code});
-                return finalize_exit(final_exit_code);
-            }
+        if (auto handler_exit_code =
+                run_command_not_found_handler(cmd.args, env_assignments, false, cached_exec_path)) {
+            cleanup_process_substitutions(proc_resources, true);
+            set_last_pipeline_statuses({*handler_exit_code});
+            return finalize_exit(*handler_exit_code);
         }
 
         std::optional<PtyPair> output_pty;
@@ -1751,23 +1746,9 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
 
             if (cmd.redirection_order.empty() && !cmd.here_doc.empty()) {
                 auto here_doc_error = [&](HereDocErrorKind kind, const std::string& detail) {
-                    std::string message;
-                    switch (kind) {
-                        case HereDocErrorKind::Pipe:
-                            message = "pipe: failed to secure here document pipe: " + detail;
-                            break;
-                        case HereDocErrorKind::ContentWrite:
-                            message = "write: failed to write here document content: " + detail;
-                            break;
-                        case HereDocErrorKind::NewlineWrite:
-                            message = "write: failed to write here document newline: " + detail;
-                            break;
-                        case HereDocErrorKind::Duplication:
-                            message =
-                                "dup2: failed to duplicate here document descriptor: " + detail;
-                            break;
-                    }
-                    child_exit_with_error(ErrorType::RUNTIME_ERROR, command_name, message);
+                    child_exit_with_error(
+                        ErrorType::RUNTIME_ERROR, command_name,
+                        format_here_document_error(kind, detail, HereDocErrorStyle::ChildProcess));
                 };
 
                 if (!setup_here_document_stdin(cmd.here_doc, here_doc_error)) {
@@ -2099,23 +2080,8 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
                     if (cmd.redirection_order.empty() && !cmd.here_doc.empty()) {
                         auto here_doc_error = [&](HereDocErrorKind kind,
                                                   const std::string& detail) {
-                            std::string message;
-                            switch (kind) {
-                                case HereDocErrorKind::Pipe:
-                                    message = "failed to create pipe for here document: " + detail;
-                                    break;
-                                case HereDocErrorKind::ContentWrite:
-                                    message = "failed to write here document content: " + detail;
-                                    break;
-                                case HereDocErrorKind::NewlineWrite:
-                                    message = "failed to write here document newline: " + detail;
-                                    break;
-                                case HereDocErrorKind::Duplication:
-                                    message =
-                                        "failed to duplicate here document descriptor: " + detail;
-                                    break;
-                            }
-                            child_error(ErrorType::RUNTIME_ERROR, message);
+                            child_error(ErrorType::RUNTIME_ERROR,
+                                        format_here_document_error(kind, detail));
                         };
 
                         if (!setup_here_document_stdin(cmd.here_doc, here_doc_error)) {

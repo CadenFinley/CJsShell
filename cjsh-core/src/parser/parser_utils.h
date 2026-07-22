@@ -33,6 +33,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 enum class ParserControlToken : std::uint8_t {
     If,
@@ -86,6 +87,9 @@ struct AssignmentOperand {
 
 bool parse_assignment_operand(const std::string& arg, AssignmentOperand& operand,
                               bool strip_surrounding_quotes = false);
+std::string normalize_assignment_target(std::string target, bool& append);
+std::string assignment_target_base_name(const std::string& target);
+size_t find_closing_parenthesis_token(const std::vector<std::string>& tokens, size_t open_index);
 size_t find_token_end_with_quotes(const std::string& text, size_t start, size_t end,
                                   const std::string& delimiter_chars,
                                   bool stop_on_whitespace = true);

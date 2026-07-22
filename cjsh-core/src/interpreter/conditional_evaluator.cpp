@@ -38,9 +38,11 @@
 #include "interpreter_utils.h"
 #include "parser.h"
 #include "parser_utils.h"
+#include "quote_state.h"
 #include "shell.h"
 #include "shell_env.h"
 
+using shell_script_interpreter::detail::is_control_flow_exit_code;
 using shell_script_interpreter::detail::process_line_for_validation;
 using shell_script_interpreter::detail::strip_inline_comment;
 using shell_script_interpreter::detail::trim;
@@ -116,10 +118,7 @@ std::vector<std::string> split_top_level_semicolons(const std::string& text) {
     std::string current;
     current.reserve(text.size());
 
-    bool in_single = false;
-    bool in_double = false;
-    bool in_backtick = false;
-    bool escape_next = false;
+    utils::ShellQuoteState quote_state;
     int paren_depth = 0;
     int brace_depth = 0;
     int bracket_depth = 0;
@@ -132,56 +131,30 @@ std::vector<std::string> split_top_level_semicolons(const std::string& text) {
     };
 
     for (char c : text) {
-        if (escape_next) {
-            current.push_back(c);
-            escape_next = false;
-            continue;
-        }
-
-        if (!in_single && c == '\\') {
-            escape_next = true;
+        if (quote_state.consume_forward(c) == utils::QuoteAdvanceResult::Continue ||
+            quote_state.inside_quotes()) {
             current.push_back(c);
             continue;
         }
 
-        if (!in_double && !in_backtick && c == '\'') {
-            in_single = !in_single;
-            current.push_back(c);
+        if (c == '(') {
+            paren_depth++;
+        } else if (c == ')') {
+            if (paren_depth > 0)
+                paren_depth--;
+        } else if (c == '{') {
+            brace_depth++;
+        } else if (c == '}') {
+            if (brace_depth > 0)
+                brace_depth--;
+        } else if (c == '[') {
+            bracket_depth++;
+        } else if (c == ']') {
+            if (bracket_depth > 0)
+                bracket_depth--;
+        } else if (c == ';' && paren_depth == 0 && brace_depth == 0 && bracket_depth == 0) {
+            flush_segment();
             continue;
-        }
-
-        if (!in_single && !in_backtick && c == '"') {
-            in_double = !in_double;
-            current.push_back(c);
-            continue;
-        }
-
-        if (!in_single && !in_double && c == '`') {
-            in_backtick = !in_backtick;
-            current.push_back(c);
-            continue;
-        }
-
-        if (!in_single && !in_double && !in_backtick) {
-            if (c == '(') {
-                paren_depth++;
-            } else if (c == ')') {
-                if (paren_depth > 0)
-                    paren_depth--;
-            } else if (c == '{') {
-                brace_depth++;
-            } else if (c == '}') {
-                if (brace_depth > 0)
-                    brace_depth--;
-            } else if (c == '[') {
-                bracket_depth++;
-            } else if (c == ']') {
-                if (bracket_depth > 0)
-                    bracket_depth--;
-            } else if (c == ';' && paren_depth == 0 && brace_depth == 0 && bracket_depth == 0) {
-                flush_segment();
-                continue;
-            }
         }
 
         current.push_back(c);
@@ -340,6 +313,18 @@ std::optional<ExpandedSingleLineIf> expand_single_line_if(const std::string& lin
     return ExpandedSingleLineIf{std::move(block_lines), trailing};
 }
 
+std::optional<int> execute_semicolon_control_flow_commands(
+    Parser* parser, const std::string& commands,
+    const std::function<int(const std::string&)>& execute_simple_or_pipeline) {
+    for (const auto& command : parser->parse_semicolon_commands(commands)) {
+        int result = execute_simple_or_pipeline(command);
+        if (is_control_flow_exit_code(result)) {
+            return result;
+        }
+    }
+    return std::nullopt;
+}
+
 }  // namespace
 
 namespace conditional_evaluator {
@@ -417,7 +402,7 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                     return rc;
                 }
 
-                if (!trailing_split.second.empty() && rc != 253 && rc != 254 && rc != 255 &&
+                if (!trailing_split.second.empty() && !is_control_flow_exit_code(rc) &&
                     !cjsh_env::exit_requested()) {
                     // execute any commands that came after fi in the original one-line text
                     auto trailing_cmds =
@@ -666,8 +651,7 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                     }
                 }
 
-                if (body_rc != 253 && body_rc != 254 && body_rc != 255 &&
-                    !cjsh_env::exit_requested()) {
+                if (!is_control_flow_exit_code(body_rc) && !cjsh_env::exit_requested()) {
                     size_t after_fi_pos = fi_pos + 2;
                     while (after_fi_pos < rem.length() &&
                            std::isspace(static_cast<unsigned char>(rem[after_fi_pos])) != 0) {
@@ -786,13 +770,10 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                 if (elif_pos != std::string::npos && next_pos == elif_pos) {
                     if (branch_pos == 0) {
                         if (cond_result == 0 && !condition_met) {
-                            auto cmds = shell_parser->parse_semicolon_commands(commands);
-                            for (const auto& c : cmds) {
-                                int rc = execute_simple_or_pipeline(c);
-                                if (rc == 253 || rc == 254 || rc == 255) {
-                                    idx = 0;
-                                    return rc;
-                                }
+                            if (auto result = execute_semicolon_control_flow_commands(
+                                    shell_parser, commands, execute_simple_or_pipeline)) {
+                                idx = 0;
+                                return *result;
                             }
                             idx = 0;
                             return 0;
@@ -843,14 +824,10 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                             if (elif_body_end != std::string::npos) {
                                 std::string elif_commands = trim(remaining.substr(
                                     elif_body_start, elif_body_end - elif_body_start));
-                                auto cmds = shell_parser->parse_semicolon_commands(elif_commands);
-                                for (const auto& c : cmds) {
-                                    int rc = execute_simple_or_pipeline(c);
-
-                                    if (rc == 253 || rc == 254 || rc == 255) {
-                                        idx = 0;
-                                        return rc;
-                                    }
+                                if (auto result = execute_semicolon_control_flow_commands(
+                                        shell_parser, elif_commands, execute_simple_or_pipeline)) {
+                                    idx = 0;
+                                    return *result;
                                 }
                                 idx = 0;
                                 return 0;
@@ -865,13 +842,10 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                         if (fi_end != std::string::npos) {
                             std::string else_commands =
                                 trim(remaining.substr(branch_pos, fi_end - branch_pos));
-                            auto cmds = shell_parser->parse_semicolon_commands(else_commands);
-                            for (const auto& c : cmds) {
-                                int rc = execute_simple_or_pipeline(c);
-                                if (rc == 253 || rc == 254 || rc == 255) {
-                                    idx = 0;
-                                    return rc;
-                                }
+                            if (auto result = execute_semicolon_control_flow_commands(
+                                    shell_parser, else_commands, execute_simple_or_pipeline)) {
+                                idx = 0;
+                                return *result;
                             }
                             idx = 0;
                             return 0;
@@ -880,13 +854,10 @@ int handle_if_block(const std::vector<std::string>& src_lines, size_t& idx,
                     break;
                 } else {
                     if (commands.length() > 0) {
-                        auto cmds = shell_parser->parse_semicolon_commands(commands);
-                        for (const auto& c : cmds) {
-                            int rc = execute_simple_or_pipeline(c);
-                            if (rc == 253 || rc == 254 || rc == 255) {
-                                idx = 0;
-                                return rc;
-                            }
+                        if (auto result = execute_semicolon_control_flow_commands(
+                                shell_parser, commands, execute_simple_or_pipeline)) {
+                            idx = 0;
+                            return *result;
                         }
                     }
                     break;

@@ -32,6 +32,7 @@
 #include <cstring>
 #include <iomanip>
 #include <iostream>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -116,6 +117,16 @@ const std::vector<std::string>& keybind_usage_lines() {
         "Use 'cjshopt keybind --help' for detailed guidance.",
     };
     return kUsage;
+}
+
+std::optional<ic_key_action_t> parse_key_action_or_report(const std::string& action_name) {
+    ic_key_action_t action = ic_key_action_from_name(action_name.c_str());
+    if (action == IC_KEY_ACTION__MAX) {
+        print_error({ErrorType::INVALID_ARGUMENT, "keybind", "Unknown action '" + action_name + "'",
+                     keybind_usage_lines()});
+        return std::nullopt;
+    }
+    return action;
 }
 
 std::vector<std::string> split_key_spec_string(const std::string& spec) {
@@ -256,6 +267,24 @@ bool parse_key_specs_to_codes(const std::vector<std::string>& specs,
         if (seen.insert(key_code).second) {
             out_codes->emplace_back(key_code, spec);
         }
+    }
+    return true;
+}
+
+bool parse_key_specs_from_args(const std::vector<std::string>& args, size_t start_index,
+                               std::vector<std::pair<ic_keycode_t, std::string>>& parsed) {
+    auto spec_args = parse_key_spec_arguments(args, start_index);
+    if (spec_args.empty()) {
+        print_error({ErrorType::INVALID_ARGUMENT, "keybind",
+                     "Provide at least one key specification", keybind_usage_lines()});
+        return false;
+    }
+
+    std::string invalid_spec;
+    if (!parse_key_specs_to_codes(spec_args, &parsed, &invalid_spec)) {
+        print_error({ErrorType::INVALID_ARGUMENT, "keybind",
+                     "Invalid key specification '" + invalid_spec + "'", keybind_usage_lines()});
+        return false;
     }
     return true;
 }
@@ -488,25 +517,14 @@ int keybind_set_or_add_command(const std::vector<std::string>& args, bool replac
     }
 
     const std::string& action_arg = args[2];
-    ic_key_action_t action = ic_key_action_from_name(action_arg.c_str());
-    if (action == IC_KEY_ACTION__MAX) {
-        print_error({ErrorType::INVALID_ARGUMENT, "keybind", "Unknown action '" + action_arg + "'",
-                     keybind_usage_lines()});
+    auto parsed_action = parse_key_action_or_report(action_arg);
+    if (!parsed_action.has_value()) {
         return 1;
     }
-
-    auto spec_args = parse_key_spec_arguments(args, 3);
-    if (spec_args.empty()) {
-        print_error({ErrorType::INVALID_ARGUMENT, "keybind",
-                     "Provide at least one key specification", keybind_usage_lines()});
-        return 1;
-    }
+    ic_key_action_t action = *parsed_action;
 
     std::vector<std::pair<ic_keycode_t, std::string>> parsed;
-    std::string invalid_spec;
-    if (!parse_key_specs_to_codes(spec_args, &parsed, &invalid_spec)) {
-        print_error({ErrorType::INVALID_ARGUMENT, "keybind",
-                     "Invalid key specification '" + invalid_spec + "'", keybind_usage_lines()});
+    if (!parse_key_specs_from_args(args, 3, parsed)) {
         return 1;
     }
 
@@ -634,18 +652,8 @@ int keybind_clear_keys_command(const std::vector<std::string>& args) {
         return 1;
     }
 
-    auto spec_args = parse_key_spec_arguments(args, 2);
-    if (spec_args.empty()) {
-        print_error({ErrorType::INVALID_ARGUMENT, "keybind",
-                     "Provide at least one key specification", keybind_usage_lines()});
-        return 1;
-    }
-
     std::vector<std::pair<ic_keycode_t, std::string>> parsed;
-    std::string invalid_spec;
-    if (!parse_key_specs_to_codes(spec_args, &parsed, &invalid_spec)) {
-        print_error({ErrorType::INVALID_ARGUMENT, "keybind",
-                     "Invalid key specification '" + invalid_spec + "'", keybind_usage_lines()});
+    if (!parse_key_specs_from_args(args, 2, parsed)) {
         return 1;
     }
 
@@ -682,12 +690,11 @@ int keybind_clear_action_command(const std::vector<std::string>& args) {
     }
 
     const std::string& action_arg = args[2];
-    ic_key_action_t action = ic_key_action_from_name(action_arg.c_str());
-    if (action == IC_KEY_ACTION__MAX) {
-        print_error({ErrorType::INVALID_ARGUMENT, "keybind", "Unknown action '" + action_arg + "'",
-                     keybind_usage_lines()});
+    auto parsed_action = parse_key_action_or_report(action_arg);
+    if (!parsed_action.has_value()) {
         return 1;
     }
+    ic_key_action_t action = *parsed_action;
 
     auto entries = collect_bindings();
     std::vector<std::string> removed;

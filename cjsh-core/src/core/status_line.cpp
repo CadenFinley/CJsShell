@@ -337,21 +337,6 @@ bool token_ready_for_status(const std::string& input, size_t absolute_token_end)
     return has_exited_token_context(input, absolute_token_end);
 }
 
-bool separator_is_redirection_operator(const std::string& analysis, size_t separator_start,
-                                       const command_analysis::CommandSeparator& separator) {
-    if (!separator.is_operator || separator.length == 0 || separator_start >= analysis.size()) {
-        return false;
-    }
-
-    const char first = analysis[separator_start];
-    if (first == '>' || first == '<') {
-        return true;
-    }
-
-    return separator.length >= 2 && first == '&' && separator_start + 1 < analysis.size() &&
-           analysis[separator_start + 1] == '>';
-}
-
 std::vector<std::string> extract_candidate_commands(const std::vector<std::string>& suggestions) {
     std::vector<std::string> commands;
     commands.reserve(std::min<size_t>(suggestions.size(), 3));
@@ -446,41 +431,13 @@ std::optional<UnknownCommandInfo> detect_unknown_command(Shell* shell,
 
     std::unordered_set<std::string> available_commands = shell->get_available_commands();
 
-    size_t len = analysis.length();
-    size_t pos = 0;
-    bool next_range_is_redirection_operand = false;
-    while (pos < len) {
-        size_t cmd_end = command_analysis::find_command_end(analysis, pos);
-
-        size_t cmd_start = pos;
-        while (cmd_start < cmd_end &&
-               (std::isspace(static_cast<unsigned char>(analysis[cmd_start])) != 0)) {
-            cmd_start++;
-        }
-
-        if (cmd_start < cmd_end && !next_range_is_redirection_operand) {
-            auto unknown_info = analyze_command_range(shell, original_input, analysis,
-                                                      available_commands, cmd_start, cmd_end);
-            if (unknown_info.has_value()) {
-                return unknown_info;
-            }
-        }
-
-        pos = cmd_end;
-        if (pos < len) {
-            auto separator = command_analysis::scan_command_separator(analysis, pos);
-            if (separator.length > 0) {
-                next_range_is_redirection_operand =
-                    separator_is_redirection_operator(analysis, pos, separator);
-                pos += separator.length;
-            } else {
-                next_range_is_redirection_operand = false;
-                pos += 1;
-            }
-        }
-    }
-
-    return std::nullopt;
+    std::optional<UnknownCommandInfo> result;
+    command_analysis::visit_command_ranges(analysis, [&](size_t command_start, size_t command_end) {
+        result = analyze_command_range(shell, original_input, analysis, available_commands,
+                                       command_start, command_end);
+        return !result.has_value();
+    });
+    return result;
 }
 
 bool is_auto_cd_token(const std::string& token, Shell* shell) {
@@ -507,52 +464,24 @@ std::optional<AutoCdInfo> detect_auto_cd_command(Shell* shell, const std::string
         return std::nullopt;
     }
 
-    const size_t len = analysis.size();
-    size_t pos = 0;
-    bool next_range_is_redirection_operand = false;
-    while (pos < len) {
-        size_t cmd_end = command_analysis::find_command_end(analysis, pos);
-
-        size_t cmd_start = pos;
-        while (cmd_start < cmd_end &&
-               (std::isspace(static_cast<unsigned char>(analysis[cmd_start])) != 0)) {
-            cmd_start++;
-        }
-
-        if (cmd_start < cmd_end && !next_range_is_redirection_operand) {
-            std::string cmd_str = analysis.substr(cmd_start, cmd_end - cmd_start);
-            size_t token_cursor = 0;
-            size_t token_start = 0;
-            size_t token_end = 0;
-            if (command_analysis::extract_next_token(cmd_str, token_cursor, token_start,
-                                                     token_end)) {
-                std::string token = cmd_str.substr(token_start, token_end - token_start);
-                size_t absolute_token_end = cmd_start + token_end;
-                if (token_ready_for_status(original_input, absolute_token_end) &&
-                    is_auto_cd_token(token, shell)) {
-                    AutoCdInfo info;
-                    info.token = token;
-                    info.target = resolve_auto_cd_target(token, shell);
-                    return info;
-                }
+    std::optional<AutoCdInfo> result;
+    command_analysis::visit_command_ranges(analysis, [&](size_t command_start, size_t command_end) {
+        std::string cmd_str = analysis.substr(command_start, command_end - command_start);
+        size_t token_cursor = 0;
+        size_t token_start = 0;
+        size_t token_end = 0;
+        if (command_analysis::extract_next_token(cmd_str, token_cursor, token_start, token_end)) {
+            std::string token = cmd_str.substr(token_start, token_end - token_start);
+            size_t absolute_token_end = command_start + token_end;
+            if (token_ready_for_status(original_input, absolute_token_end) &&
+                is_auto_cd_token(token, shell)) {
+                result = AutoCdInfo{token, resolve_auto_cd_target(token, shell)};
+                return false;
             }
         }
-
-        pos = cmd_end;
-        if (pos < len) {
-            auto separator = command_analysis::scan_command_separator(analysis, pos);
-            if (separator.length > 0) {
-                next_range_is_redirection_operand =
-                    separator_is_redirection_operator(analysis, pos, separator);
-                pos += separator.length;
-            } else {
-                next_range_is_redirection_operand = false;
-                pos += 1;
-            }
-        }
-    }
-
-    return std::nullopt;
+        return true;
+    });
+    return result;
 }
 
 std::string format_suggestion_list(const std::vector<std::string>& suggestions) {

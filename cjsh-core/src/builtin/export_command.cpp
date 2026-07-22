@@ -142,21 +142,18 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
         AssignmentOperand operand;
         parse_assignment_operand(args[i], operand, true);
 
+        const std::string& name = operand.name;
+        bool is_readonly = false;
+        if (!validate_export_name(name, is_readonly)) {
+            const std::string message =
+                is_readonly ? name + ": readonly variable" : name + ": invalid identifier";
+            print_error({ErrorType::INVALID_ARGUMENT, "export", message, {}});
+            all_successful = false;
+            continue;
+        }
+
         if (operand.has_assignment) {
-            const std::string& name = operand.name;
             std::string value = operand.value;
-            bool is_readonly = false;
-            if (!validate_export_name(name, is_readonly)) {
-                if (is_readonly) {
-                    print_error(
-                        {ErrorType::INVALID_ARGUMENT, "export", name + ": readonly variable", {}});
-                } else {
-                    print_error(
-                        {ErrorType::INVALID_ARGUMENT, "export", name + ": invalid identifier", {}});
-                }
-                all_successful = false;
-                continue;
-            }
 
             if (shell != nullptr) {
                 if (auto* parser = shell->get_parser()) {
@@ -168,20 +165,6 @@ int export_command(const std::vector<std::string>& args, Shell* shell) {
 
             setenv(name.c_str(), value.c_str(), 1);
         } else {
-            const std::string& name = operand.name;
-            bool is_readonly = false;
-            if (!validate_export_name(name, is_readonly)) {
-                if (is_readonly) {
-                    print_error(
-                        {ErrorType::INVALID_ARGUMENT, "export", name + ": readonly variable", {}});
-                } else {
-                    print_error(
-                        {ErrorType::INVALID_ARGUMENT, "export", name + ": invalid identifier", {}});
-                }
-                all_successful = false;
-                continue;
-            }
-
             std::string var_value;
             bool is_local = false;
 

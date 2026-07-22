@@ -62,6 +62,7 @@ bool is_shell_keyword(const std::string& token);
 bool is_shell_control_structure_leader(const std::string& token);
 const std::vector<std::string>& shell_control_structure_keywords();
 bool is_shell_builtin(const std::string& token, Shell* shell);
+bool token_allows_split_command_merge(const std::string& token);
 bool lookup_shell_alias(const std::string& token, Shell* shell, std::string& alias_value);
 bool has_shell_function(const std::string& token, Shell* shell);
 bool should_auto_cd_token(const std::string& token, Shell* shell);

@@ -36,6 +36,7 @@
 #include <iomanip>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <string>
 
@@ -48,6 +49,16 @@
 #include "string_utils.h"
 #include "wait_status_utils.h"
 
+namespace {
+
+std::optional<job_control_helpers::ResolvedJob> resolve_updated_control_job(
+    const std::vector<std::string>& args, JobManager& job_manager) {
+    job_manager.update_job_statuses();
+    return job_control_helpers::resolve_control_job_target(args, job_manager);
+}
+
+}  // namespace
+
 int bg_command(const std::vector<std::string>& args) {
     if (builtin_handle_help(args,
                             {"Usage: bg [%JOB]", "Resume a stopped job in the background."})) {
@@ -55,9 +66,7 @@ int bg_command(const std::vector<std::string>& args) {
     }
 
     auto& job_manager = JobManager::instance();
-    job_manager.update_job_statuses();
-
-    auto resolved_job = job_control_helpers::resolve_control_job_target(args, job_manager);
+    auto resolved_job = resolve_updated_control_job(args, job_manager);
     if (!resolved_job) {
         return 1;
     }
@@ -96,9 +105,7 @@ int fg_command(const std::vector<std::string>& args) {
     }
 
     auto& job_manager = JobManager::instance();
-    job_manager.update_job_statuses();
-
-    auto resolved_job = job_control_helpers::resolve_control_job_target(args, job_manager);
+    auto resolved_job = resolve_updated_control_job(args, job_manager);
     if (!resolved_job) {
         return 1;
     }

@@ -87,6 +87,14 @@ bool PatternMatcher::matches_single_pattern(const std::string& text,
     size_t pi = 0;
     size_t star_idx = std::string::npos;
     size_t match_idx = 0;
+    const auto backtrack_to_star = [&]() {
+        if (star_idx == std::string::npos) {
+            return false;
+        }
+        pi = star_idx + 1;
+        ti = ++match_idx;
+        return true;
+    };
 
     while (ti < text.length() || pi < pattern.length()) {
         if (ti >= text.length()) {
@@ -97,10 +105,7 @@ bool PatternMatcher::matches_single_pattern(const std::string& text,
         }
 
         if (pi >= pattern.length()) {
-            if (star_idx != std::string::npos) {
-                pi = star_idx + 1;
-                ti = ++match_idx;
-            } else {
+            if (!backtrack_to_star()) {
                 return false;
             }
         } else if (pattern[pi] == '[') {
@@ -110,20 +115,14 @@ bool PatternMatcher::matches_single_pattern(const std::string& text,
                 if (matches_char_class(text[ti], char_class)) {
                     ti++;
                     pi = class_end + 1;
-                } else if (star_idx != std::string::npos) {
-                    pi = star_idx + 1;
-                    ti = ++match_idx;
-                } else {
+                } else if (!backtrack_to_star()) {
                     return false;
                 }
             } else {
                 if (pattern[pi] == text[ti]) {
                     ti++;
                     pi++;
-                } else if (star_idx != std::string::npos) {
-                    pi = star_idx + 1;
-                    ti = ++match_idx;
-                } else {
+                } else if (!backtrack_to_star()) {
                     return false;
                 }
             }
@@ -132,10 +131,7 @@ bool PatternMatcher::matches_single_pattern(const std::string& text,
             if (escaped_char == text[ti]) {
                 ti++;
                 pi += 2;
-            } else if (star_idx != std::string::npos) {
-                pi = star_idx + 1;
-                ti = ++match_idx;
-            } else {
+            } else if (!backtrack_to_star()) {
                 return false;
             }
         } else if (pattern[pi] == '?') {
@@ -148,10 +144,7 @@ bool PatternMatcher::matches_single_pattern(const std::string& text,
         } else if (pattern[pi] == text[ti]) {
             ti++;
             pi++;
-        } else if (star_idx != std::string::npos) {
-            pi = star_idx + 1;
-            ti = ++match_idx;
-        } else {
+        } else if (!backtrack_to_star()) {
             return false;
         }
     }

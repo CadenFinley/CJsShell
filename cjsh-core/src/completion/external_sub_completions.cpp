@@ -69,6 +69,18 @@ struct CommandState {
     bool active{false};
 };
 
+bool append_description_continuation(std::string& description, const std::string& line) {
+    std::string extra = string_utils::trim_ascii_whitespace_copy(line);
+    if (extra.empty()) {
+        return false;
+    }
+    if (!description.empty()) {
+        description += ' ';
+    }
+    description += extra;
+    return true;
+}
+
 enum class Section : std::uint8_t {
     None,
     Options,
@@ -594,22 +606,13 @@ std::vector<CompletionEntry> parse_man_text(const std::string& doc_target,
                     continue;
                 }
             } else if (option_state.active) {
-                std::string extra = string_utils::trim_ascii_whitespace_copy(left_trimmed);
-                if (!extra.empty()) {
-                    if (!option_state.description.empty())
-                        option_state.description += ' ';
-                    option_state.description += extra;
-                }
+                append_description_continuation(option_state.description, left_trimmed);
                 continue;
             }
         }
 
         if (section == Section::Options && option_state.active) {
-            std::string extra = string_utils::trim_ascii_whitespace_copy(left_trimmed);
-            if (!extra.empty()) {
-                if (!option_state.description.empty())
-                    option_state.description += ' ';
-                option_state.description += extra;
+            if (append_description_continuation(option_state.description, left_trimmed)) {
                 continue;
             }
         }

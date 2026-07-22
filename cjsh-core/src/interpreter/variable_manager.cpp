@@ -48,6 +48,14 @@ bool is_array_join_index(const std::string& index) {
     return index == "@" || index == "*";
 }
 
+void assign_string_value(std::string& target, const std::string& value, bool append) {
+    if (append) {
+        target += value;
+    } else {
+        target = value;
+    }
+}
+
 }  // namespace
 
 void VariableManager::push_scope() {
@@ -191,62 +199,7 @@ bool VariableManager::assign_array_literal(const std::string& name,
         }
     }
 
-    if (target_array == nullptr) {
-        return false;
-    }
-
-    long long cursor = 0;
-    if (append && !target_array->empty()) {
-        cursor = target_array->rbegin()->first + 1;
-    }
-
-    for (const std::string& word : words) {
-        bool explicit_element = false;
-        bool element_append = false;
-        std::string index_expr;
-        std::string element_value;
-
-        if (word.size() >= 4 && word.front() == '[') {
-            size_t close_bracket = word.find(']');
-            if (close_bracket != std::string::npos && close_bracket > 1) {
-                if (close_bracket + 1 < word.size() && word[close_bracket + 1] == '=') {
-                    explicit_element = true;
-                    index_expr = word.substr(1, close_bracket - 1);
-                    element_value = word.substr(close_bracket + 2);
-                } else if (close_bracket + 2 < word.size() && word[close_bracket + 1] == '+' &&
-                           word[close_bracket + 2] == '=') {
-                    explicit_element = true;
-                    element_append = true;
-                    index_expr = word.substr(1, close_bracket - 1);
-                    element_value = word.substr(close_bracket + 3);
-                }
-            }
-        }
-
-        if (explicit_element) {
-            if (is_array_join_index(index_expr)) {
-                return false;
-            }
-
-            auto index = evaluate_array_index_expression(index_expr);
-            if (!index.has_value()) {
-                return false;
-            }
-
-            if (element_append) {
-                (*target_array)[*index] += element_value;
-            } else {
-                (*target_array)[*index] = element_value;
-            }
-            cursor = *index + 1;
-            continue;
-        }
-
-        (*target_array)[cursor] = word;
-        cursor++;
-    }
-
-    return true;
+    return target_array != nullptr && assign_array_words(*target_array, words, append);
 }
 
 bool VariableManager::assign_global_array_literal(const std::string& name,
@@ -269,9 +222,14 @@ bool VariableManager::assign_global_array_literal(const std::string& name,
         remove_global_scalar_binding(name);
     }
 
+    return assign_array_words(*target_array, words, append);
+}
+
+bool VariableManager::assign_array_words(IndexedArray& target_array,
+                                         const std::vector<std::string>& words, bool append) {
     long long cursor = 0;
-    if (append && !target_array->empty()) {
-        cursor = target_array->rbegin()->first + 1;
+    if (append && !target_array.empty()) {
+        cursor = target_array.rbegin()->first + 1;
     }
 
     for (const std::string& word : words) {
@@ -308,15 +266,15 @@ bool VariableManager::assign_global_array_literal(const std::string& name,
             }
 
             if (element_append) {
-                (*target_array)[*index] += element_value;
+                target_array[*index] += element_value;
             } else {
-                (*target_array)[*index] = element_value;
+                target_array[*index] = element_value;
             }
             cursor = *index + 1;
             continue;
         }
 
-        (*target_array)[cursor] = word;
+        target_array[cursor] = word;
         cursor++;
     }
 
@@ -446,64 +404,21 @@ std::string VariableManager::get_variable_value(const std::string& var_name) con
             const IndexedArray* local_array = get_local_array(parsed.name);
 
             if (local_array != nullptr) {
-                if (is_array_join_index(parsed.index)) {
-                    return join_array_values(*local_array);
-                }
-
-                auto index = evaluate_array_index_expression(parsed.index);
-                if (!index.has_value()) {
-                    return "";
-                }
-
-                auto value_it = local_array->find(*index);
-                if (value_it != local_array->end()) {
-                    return value_it->second;
-                }
-                return "";
+                return get_array_element_value(*local_array, parsed.index);
             }
 
             if (local_scalar_it != local_scalars.end()) {
-                if (is_array_join_index(parsed.index)) {
-                    return local_scalar_it->second;
-                }
-
-                auto index = evaluate_array_index_expression(parsed.index);
-                if (index.has_value() && *index == 0) {
-                    return local_scalar_it->second;
-                }
-                return "";
+                return get_scalar_element_value(local_scalar_it->second, parsed.index);
             }
         }
 
         const IndexedArray* global_array = get_global_array(parsed.name);
         if (global_array != nullptr) {
-            if (is_array_join_index(parsed.index)) {
-                return join_array_values(*global_array);
-            }
-
-            auto index = evaluate_array_index_expression(parsed.index);
-            if (!index.has_value()) {
-                return "";
-            }
-
-            auto value_it = global_array->find(*index);
-            if (value_it != global_array->end()) {
-                return value_it->second;
-            }
-            return "";
+            return get_array_element_value(*global_array, parsed.index);
         }
 
         if (has_global_scalar_binding(parsed.name)) {
-            std::string scalar_value = get_global_scalar_value(parsed.name);
-            if (is_array_join_index(parsed.index)) {
-                return scalar_value;
-            }
-
-            auto index = evaluate_array_index_expression(parsed.index);
-            if (index.has_value() && *index == 0) {
-                return scalar_value;
-            }
-            return "";
+            return get_scalar_element_value(get_global_scalar_value(parsed.name), parsed.index);
         }
 
         return "";
@@ -845,6 +760,31 @@ std::string VariableManager::join_array_keys(const IndexedArray& array) const {
     return joined;
 }
 
+std::string VariableManager::get_array_element_value(const IndexedArray& array,
+                                                     const std::string& index_expr) const {
+    if (is_array_join_index(index_expr)) {
+        return join_array_values(array);
+    }
+
+    auto index = evaluate_array_index_expression(index_expr);
+    if (!index.has_value()) {
+        return "";
+    }
+
+    auto value_it = array.find(*index);
+    return value_it == array.end() ? std::string{} : value_it->second;
+}
+
+std::string VariableManager::get_scalar_element_value(const std::string& value,
+                                                      const std::string& index_expr) const {
+    if (is_array_join_index(index_expr)) {
+        return value;
+    }
+
+    auto index = evaluate_array_index_expression(index_expr);
+    return index.has_value() && *index == 0 ? value : std::string{};
+}
+
 bool VariableManager::has_local_array_binding(const std::string& name) const {
     if (local_array_stack.empty()) {
         return false;
@@ -918,30 +858,18 @@ bool VariableManager::assign_scalar_value(const std::string& name, const std::st
 
         IndexedArray* local_array = get_local_array(name);
         if (local_array != nullptr) {
-            if (append) {
-                (*local_array)[0] += value;
-            } else {
-                (*local_array)[0] = value;
-            }
+            assign_string_value((*local_array)[0], value, append);
             return true;
         }
 
         auto& scalars = local_variable_stack.back();
-        if (append) {
-            scalars[name] += value;
-        } else {
-            scalars[name] = value;
-        }
+        assign_string_value(scalars[name], value, append);
         return true;
     }
 
     IndexedArray* global_array = get_global_array(name);
     if (global_array != nullptr) {
-        if (append) {
-            (*global_array)[0] += value;
-        } else {
-            (*global_array)[0] = value;
-        }
+        assign_string_value((*global_array)[0], value, append);
         return true;
     }
 
@@ -984,11 +912,7 @@ bool VariableManager::assign_array_element_value(const std::string& name,
             scalars.erase(scalar_it);
         }
 
-        if (append) {
-            target[*index] += value;
-        } else {
-            target[*index] = value;
-        }
+        assign_string_value(target[*index], value, append);
         return true;
     }
 
@@ -1000,11 +924,7 @@ bool VariableManager::assign_array_element_value(const std::string& name,
         remove_global_scalar_binding(name);
     }
 
-    if (append) {
-        target[*index] += value;
-    } else {
-        target[*index] = value;
-    }
+    assign_string_value(target[*index], value, append);
 
     return true;
 }

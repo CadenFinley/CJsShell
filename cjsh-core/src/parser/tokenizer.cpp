@@ -233,20 +233,7 @@ std::vector<std::string> Tokenizer::tokenize_command(const std::string& cmdline)
                     continue;
                 }
 
-                if (c == '<' && i + 1 < cmdline_len && cmdline[i + 1] == '&') {
-                    size_t j = i + 2;
-                    while (j < cmdline_len &&
-                           ((std::isdigit(static_cast<unsigned char>(cmdline[j])) != 0) ||
-                            cmdline[j] == '-')) {
-                        j++;
-                    }
-                    if (j > i + 2) {
-                        tokens.push_back(cmdline.substr(i, j - i));
-                        i = j - 1;
-                        continue;
-                    }
-                }
-                if (c == '>' && i + 1 < cmdline_len && cmdline[i + 1] == '&') {
+                if ((c == '<' || c == '>') && i + 1 < cmdline_len && cmdline[i + 1] == '&') {
                     size_t j = i + 2;
                     while (j < cmdline_len &&
                            ((std::isdigit(static_cast<unsigned char>(cmdline[j])) != 0) ||
@@ -419,14 +406,8 @@ std::vector<std::string> Tokenizer::merge_redirection_tokens(
 
         else if ((std::isdigit(token[0]) != 0) &&
                  token.find_first_not_of("0123456789") == std::string::npos &&
-                 i + 1 < tokens.size() && tokens[i + 1].rfind("<&", 0) == 0) {
-            result.push_back(token + tokens[i + 1]);
-            i++;
-        }
-
-        else if ((std::isdigit(token[0]) != 0) &&
-                 token.find_first_not_of("0123456789") == std::string::npos &&
-                 i + 1 < tokens.size() && tokens[i + 1].rfind(">&", 0) == 0) {
+                 i + 1 < tokens.size() &&
+                 (tokens[i + 1].rfind("<&", 0) == 0 || tokens[i + 1].rfind(">&", 0) == 0)) {
             result.push_back(token + tokens[i + 1]);
             i++;
         }

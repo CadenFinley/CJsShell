@@ -31,8 +31,8 @@
 #include <cctype>
 #include <string>
 
-#include "builtin.h"
 #include "cjsh_filesystem.h"
+#include "command_lookup.h"
 #include "parser_utils.h"
 #include "redirection_utils.h"
 #include "shell.h"
@@ -45,19 +45,11 @@ bool is_external_command(const std::string& token) {
 }
 
 bool is_shell_keyword(const std::string& token) {
-    if (token_constants::shell_keywords().count(token) > 0) {
-        return true;
-    }
-
-    return token == "{" || token == "}" || token == "(" || token == ")" || token == "[[" ||
-           token == "]]" || token == "!";
+    return command_lookup::is_shell_keyword(token);
 }
 
 bool is_shell_builtin(const std::string& token) {
-    if (g_shell != nullptr && g_shell->get_built_ins() != nullptr) {
-        return g_shell->get_built_ins()->is_builtin_command(token);
-    }
-    return false;
+    return command_lookup::is_shell_builtin(token, g_shell.get());
 }
 
 bool is_variable_reference(const std::string& token) {

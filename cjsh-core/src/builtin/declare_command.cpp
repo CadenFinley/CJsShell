@@ -196,24 +196,6 @@ std::string single_quote_value(const std::string& value) {
     return quoted;
 }
 
-std::string normalize_assignment_target(std::string target, bool& append) {
-    append = false;
-    if (!target.empty() && target.back() == '+') {
-        append = true;
-        target.pop_back();
-    }
-    return target;
-}
-
-std::string base_name_from_target(const std::string& target) {
-    std::string base = target;
-    size_t left_bracket = base.find('[');
-    if (left_bracket != std::string::npos) {
-        base = base.substr(0, left_bracket);
-    }
-    return base;
-}
-
 bool target_has_index(const std::string& target) {
     size_t left_bracket = target.find('[');
     return left_bracket != std::string::npos && !target.empty() && target.back() == ']';
@@ -437,6 +419,12 @@ bool assign_array_literal_for_scope(ShellScriptInterpreter* interpreter, bool lo
     return variable_manager.assign_array_literal(base_name, words, append);
 }
 
+bool assign_value_for_scope(VariableManager& variable_manager, bool force_global,
+                            const std::string& target, const std::string& value, bool append) {
+    return force_global ? variable_manager.assign_global_variable(target, value, append)
+                        : variable_manager.assign_variable(target, value, append);
+}
+
 }  // namespace
 
 int declare_command(const std::vector<std::string>& args, Shell* shell) {
@@ -499,7 +487,7 @@ int declare_command(const std::vector<std::string>& args, Shell* shell) {
 
         bool append = false;
         std::string normalized_target = normalize_assignment_target(operand.name, append);
-        std::string base_name = base_name_from_target(normalized_target);
+        std::string base_name = assignment_target_base_name(normalized_target);
 
         if (!is_valid_identifier(base_name)) {
             print_error({ErrorType::INVALID_ARGUMENT,
@@ -526,19 +514,7 @@ int declare_command(const std::vector<std::string>& args, Shell* shell) {
 
         if (operand.has_assignment && operand.value.empty() && i + 1 < args.size() &&
             args[i + 1] == "(") {
-            int depth = 0;
-            size_t close_index = std::string::npos;
-            for (size_t j = i + 1; j < args.size(); ++j) {
-                if (args[j] == "(") {
-                    ++depth;
-                } else if (args[j] == ")") {
-                    --depth;
-                    if (depth == 0) {
-                        close_index = j;
-                        break;
-                    }
-                }
-            }
+            size_t close_index = find_closing_parenthesis_token(args, i + 1);
 
             if (close_index == std::string::npos) {
                 print_error({ErrorType::INVALID_ARGUMENT,
@@ -577,13 +553,9 @@ int declare_command(const std::vector<std::string>& args, Shell* shell) {
                         interpreter->set_local_variable(base_name, "");
                     }
 
-                    if (force_global_scope) {
-                        assignment_ok = variable_manager.assign_global_variable(
-                            normalized_target, operand.value, append);
-                    } else {
-                        assignment_ok = variable_manager.assign_variable(normalized_target,
-                                                                         operand.value, append);
-                    }
+                    assignment_ok =
+                        assign_value_for_scope(variable_manager, force_global_scope,
+                                               normalized_target, operand.value, append);
                 } else {
                     assignment_ok = assign_array_literal_for_scope(
                         interpreter, local_scope, force_global_scope, base_name, {operand.value},
@@ -607,13 +579,8 @@ int declare_command(const std::vector<std::string>& args, Shell* shell) {
                     interpreter->set_local_variable(base_name, "");
                 }
 
-                if (force_global_scope) {
-                    assignment_ok = variable_manager.assign_global_variable(normalized_target,
-                                                                            operand.value, append);
-                } else {
-                    assignment_ok =
-                        variable_manager.assign_variable(normalized_target, operand.value, append);
-                }
+                assignment_ok = assign_value_for_scope(variable_manager, force_global_scope,
+                                                       normalized_target, operand.value, append);
             } else {
                 if (local_scope) {
                     interpreter->set_local_variable(base_name, "");

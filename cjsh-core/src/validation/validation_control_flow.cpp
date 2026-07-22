@@ -48,6 +48,8 @@ using validation_internal::check_for_loop_keywords;
 using validation_internal::create_tokenized_validator;
 using validation_internal::find_inline_do_position;
 using validation_internal::find_inline_done_position;
+using validation_internal::has_iteration_values_after_in;
+using validation_internal::inline_loop_body_missing_done;
 using validation_internal::next_effective_line_starts_with_keyword;
 using validation_internal::QuoteState;
 using validation_internal::should_process_char;
@@ -131,23 +133,7 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
             bool missing_iteration_list = false;
             auto in_it = std::find(tokens.begin(), tokens.end(), "in");
             if (in_it != tokens.end()) {
-                bool has_iteration_values = false;
-                for (auto iter = std::next(in_it); iter != tokens.end(); ++iter) {
-                    const std::string& candidate = *iter;
-                    if (candidate.empty()) {
-                        continue;
-                    }
-                    if (candidate[0] == '#') {
-                        break;
-                    }
-                    if (candidate == "do" || candidate == "done" || candidate == "then" ||
-                        candidate == "elif" || candidate == "else") {
-                        break;
-                    }
-                    has_iteration_values = true;
-                    break;
-                }
-                missing_iteration_list = !has_iteration_values;
+                missing_iteration_list = !has_iteration_values_after_in(tokens);
             }
 
             bool has_do = check_for_loop_keywords(tokens, trimmed_line, false);
@@ -165,15 +151,7 @@ std::vector<ShellScriptInterpreter::SyntaxError> ShellScriptInterpreter::validat
                                                   "'select' statement missing 'do' keyword", line,
                                                   "Add 'do' keyword: select var in list; do"));
             } else if (has_do) {
-                size_t inline_do_pos = find_inline_do_position(trimmed_line);
-                size_t body_start = std::string::npos;
-                if (inline_do_pos != std::string::npos) {
-                    body_start = trimmed_line.find_first_not_of(" \t;", inline_do_pos + 2);
-                }
-
-                bool inline_body_present = body_start != std::string::npos;
-                if (inline_body_present &&
-                    find_inline_done_position(trimmed_line, body_start) == std::string::npos) {
+                if (inline_loop_body_missing_done(trimmed_line)) {
                     line_errors.push_back(SyntaxError(
                         {display_line, 0, 0, 0}, ErrorSeverity::ERROR, ErrorCategory::CONTROL_FLOW,
                         "SYN002", "'select' loop missing closing 'done' after inline body", line,

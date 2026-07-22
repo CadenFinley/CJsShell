@@ -528,47 +528,18 @@ std::string ParameterExpansionEvaluator::case_convert(const std::string& value,
     }
 
     std::string result = value;
+    static_cast<void>(pattern);
+    const auto convert = [uppercase](char c) {
+        unsigned char value = static_cast<unsigned char>(c);
+        return static_cast<char>(uppercase ? std::toupper(value) : std::tolower(value));
+    };
 
-    if (pattern.empty()) {
-        if (all_chars) {
-            for (char& c : result) {
-                if (uppercase) {
-                    c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
-                } else {
-                    c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-                }
-            }
-        } else {
-            if (!result.empty()) {
-                if (uppercase) {
-                    result[0] =
-                        static_cast<char>(std::toupper(static_cast<unsigned char>(result[0])));
-                } else {
-                    result[0] =
-                        static_cast<char>(std::tolower(static_cast<unsigned char>(result[0])));
-                }
-            }
+    if (all_chars) {
+        for (char& c : result) {
+            c = convert(c);
         }
     } else {
-        if (all_chars) {
-            for (char& c : result) {
-                if (uppercase) {
-                    c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
-                } else {
-                    c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-                }
-            }
-        } else {
-            if (!result.empty()) {
-                if (uppercase) {
-                    result[0] =
-                        static_cast<char>(std::toupper(static_cast<unsigned char>(result[0])));
-                } else {
-                    result[0] =
-                        static_cast<char>(std::tolower(static_cast<unsigned char>(result[0])));
-                }
-            }
-        }
+        result[0] = convert(result[0]);
     }
 
     return result;

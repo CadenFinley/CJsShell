@@ -1085,6 +1085,25 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
     }
     args = std::move(pre_expanded_args);
 
+    auto report_environment_expansion_error = [&](const std::runtime_error& error) {
+        const std::string message = error.what();
+        if (shell != nullptr && shell->get_shell_option(ShellOption::Nounset) &&
+            message.find("parameter not set") != std::string::npos) {
+            print_error({ErrorType::RUNTIME_ERROR,
+                         ErrorSeverity::ERROR,
+                         "parser",
+                         message,
+                         {"Disable 'set -u' or ensure all parameters are defined before "
+                          "expansion."}});
+            throw;
+        }
+        print_error({ErrorType::RUNTIME_ERROR,
+                     ErrorSeverity::WARNING,
+                     "parser",
+                     "Error expanding environment variables: " + message,
+                     {"Check that referenced variables are set or properly quoted."}});
+    };
+
     auto expand_env_value = [&](const std::string& value) -> std::string {
         auto [noenv_stripped, had_noenv] = strip_noenv_sentinels(value);
         if (!had_noenv) {
@@ -1093,22 +1112,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
                 try {
                     noenv_stripped = variableExpander->resolve_parameter_value(parameter_name);
                 } catch (const std::runtime_error& e) {
-                    std::string error_msg = e.what();
-                    if (shell != nullptr && shell->get_shell_option(ShellOption::Nounset) &&
-                        error_msg.find("parameter not set") != std::string::npos) {
-                        print_error({ErrorType::RUNTIME_ERROR,
-                                     ErrorSeverity::ERROR,
-                                     "parser",
-                                     e.what(),
-                                     {"Disable 'set -u' or ensure all parameters are defined "
-                                      "before expansion."}});
-                        throw;
-                    }
-                    print_error({ErrorType::RUNTIME_ERROR,
-                                 ErrorSeverity::WARNING,
-                                 "parser",
-                                 std::string("Error expanding environment variables: ") + e.what(),
-                                 {"Check that referenced variables are set or properly quoted."}});
+                    report_environment_expansion_error(e);
                 }
                 strip_subst_literal_markers(noenv_stripped);
                 return noenv_stripped;
@@ -1121,22 +1125,7 @@ std::vector<std::string> Parser::parse_command(const std::string& cmdline) {
                     variableExpander->expand_env_vars(noenv_stripped);
                 }
             } catch (const std::runtime_error& e) {
-                std::string error_msg = e.what();
-                if (shell != nullptr && shell->get_shell_option(ShellOption::Nounset) &&
-                    error_msg.find("parameter not set") != std::string::npos) {
-                    print_error({ErrorType::RUNTIME_ERROR,
-                                 ErrorSeverity::ERROR,
-                                 "parser",
-                                 e.what(),
-                                 {"Disable 'set -u' or ensure all parameters are defined "
-                                  "before expansion."}});
-                    throw;
-                }
-                print_error({ErrorType::RUNTIME_ERROR,
-                             ErrorSeverity::WARNING,
-                             "parser",
-                             std::string("Error expanding environment variables: ") + e.what(),
-                             {"Check that referenced variables are set or properly quoted."}});
+                report_environment_expansion_error(e);
             }
             strip_subst_literal_markers(noenv_stripped);
             return noenv_stripped;

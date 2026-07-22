@@ -93,6 +93,10 @@ class VariableManager {
 
     std::string join_array_values(const IndexedArray& array) const;
     std::string join_array_keys(const IndexedArray& array) const;
+    std::string get_array_element_value(const IndexedArray& array,
+                                        const std::string& index_expr) const;
+    std::string get_scalar_element_value(const std::string& value,
+                                         const std::string& index_expr) const;
 
     bool has_local_array_binding(const std::string& name) const;
     bool has_local_binding(const std::string& name) const;
@@ -107,6 +111,8 @@ class VariableManager {
                              bool local_scope);
     bool assign_array_element_value(const std::string& name, const std::string& index_expr,
                                     const std::string& value, bool append, bool local_scope);
+    bool assign_array_words(IndexedArray& target_array, const std::vector<std::string>& words,
+                            bool append);
     bool has_global_scalar_binding(const std::string& name) const;
     std::string get_global_scalar_value(const std::string& name) const;
     void remove_global_scalar_binding(const std::string& name);

@@ -167,11 +167,7 @@ std::vector<std::string> split_ampersand(const std::string& s) {
                     } else {
                         ++i;
                     }
-                } else if (i > 0 && s[i - 1] == '>' && i + 1 < s.size() &&
-                           (std::isdigit(static_cast<unsigned char>(s[i + 1])) != 0 ||
-                            s[i + 1] == '-')) {
-                    cur += c;
-                } else if (i > 0 && s[i - 1] == '<' && i + 1 < s.size() &&
+                } else if (i > 0 && (s[i - 1] == '>' || s[i - 1] == '<') && i + 1 < s.size() &&
                            (std::isdigit(static_cast<unsigned char>(s[i + 1])) != 0 ||
                             s[i + 1] == '-')) {
                     cur += c;

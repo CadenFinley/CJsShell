@@ -604,15 +604,6 @@ bool command_resolution_is_unknown(const std::string& token) {
            !resolution.has_function && !resolution.has_path;
 }
 
-bool token_allows_split_command_merge(const std::string& token) {
-    if (token.empty() || token[0] == '-' || token.find('=') != std::string::npos) {
-        return false;
-    }
-
-    static const std::string kDisallowedChars = "/\\'\"`$|&;(){}[]<>";
-    return token.find_first_of(kDisallowedChars) == std::string::npos;
-}
-
 void add_command_spell_corrections(ic_completion_env_t* cenv,
                                    const CommandCompletionSources& sources,
                                    const std::string& normalized_prefix,
@@ -751,8 +742,8 @@ bool add_split_unknown_command_completions(ic_completion_env_t* cenv,
 
     const std::string& first_token = tokens[0];
     const std::string& second_token = tokens[1];
-    if (!token_allows_split_command_merge(first_token) ||
-        !token_allows_split_command_merge(second_token)) {
+    if (!command_lookup::token_allows_split_command_merge(first_token) ||
+        !command_lookup::token_allows_split_command_merge(second_token)) {
         return false;
     }
 
@@ -1197,62 +1188,7 @@ bool add_builtin_argument_completions(ic_completion_env_t* cenv,
         }
 
         auto sources = collect_command_completion_sources(true);
-
-        add_builtin_command_candidates(cenv, sources.builtin_cmds, context.current_prefix,
-                                       prefix_len);
-        if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv)) {
-            return ic_has_completions(cenv);
-        }
-
-        {
-            const auto& control_structures = command_lookup::shell_control_structure_keywords();
-            process_command_candidates(cenv, control_structures, context.current_prefix, prefix_len,
-                                       "control structure",
-                                       [](const std::string& value) { return value; });
-            if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv)) {
-                return ic_has_completions(cenv);
-            }
-        }
-
-        process_command_candidates(cenv, sources.function_names, context.current_prefix, prefix_len,
-                                   "function", [](const std::string& value) { return value; });
-        if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv)) {
-            return ic_has_completions(cenv);
-        }
-
-        auto alias_source_provider = make_map_source_provider(sources.alias_map);
-        process_command_candidates(
-            cenv, sources.alias_names, context.current_prefix, prefix_len, "alias",
-            [](const std::string& value) { return value; },
-            std::function<bool(const std::string&)>{}, alias_source_provider);
-        if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv)) {
-            return ic_has_completions(cenv);
-        }
-
-        auto abbreviation_source_provider = make_map_source_provider(sources.abbreviation_map);
-        process_command_candidates(
-            cenv, sources.abbreviation_names, context.current_prefix, prefix_len, "abbreviation",
-            [](const std::string& value) { return value; },
-            std::function<bool(const std::string&)>{}, abbreviation_source_provider);
-        if (completion_tracker::completion_limit_hit() || ic_stop_completing(cenv)) {
-            return ic_has_completions(cenv);
-        }
-
-        size_t summary_fetch_budget = prefix_len == 0 ? 2 : 5;
-        auto system_summary_provider = [&](const std::string& cmd) -> std::string {
-            std::string summary = get_command_summary(cmd, false);
-            if (!summary.empty())
-                return summary;
-            if (!config::completion_learning_enabled || summary_fetch_budget == 0)
-                return {};
-            --summary_fetch_budget;
-            return get_command_summary(cmd, true);
-        };
-
-        process_command_candidates(
-            cenv, sources.executables_in_path, context.current_prefix, prefix_len,
-            "system installed command", [](const std::string& value) { return value; },
-            std::function<bool(const std::string&)>{}, system_summary_provider);
+        add_command_name_completions(cenv, sources, context.current_prefix, prefix_len, false);
 
         return ic_has_completions(cenv);
     }

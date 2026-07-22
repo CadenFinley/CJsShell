@@ -253,15 +253,16 @@ void reset_child_signals() {
     sigprocmask(SIG_SETMASK, &set, nullptr);
 }
 
-bool SignalHandler::has_pending_signals() {
-    if (s_signal_pending.load(std::memory_order_acquire)) {
-        return true;
-    }
+bool SignalHandler::has_direct_pending_signal() {
     return s_sigint_received != 0 || s_sigchld_received != 0 || s_sighup_received != 0 ||
            s_sigterm_received != 0 || s_sigttin_received != 0 || s_sigttou_received != 0 ||
            s_sigquit_received != 0 || s_sigtstp_received != 0 || s_sigusr1_received != 0 ||
            s_sigusr2_received != 0 || s_sigabrt_received != 0 || s_sigalrm_received != 0 ||
            s_sigcont_received != 0 || s_sigwinch_received != 0 || s_sigpipe_received != 0;
+}
+
+bool SignalHandler::has_pending_signals() {
+    return s_signal_pending.load(std::memory_order_acquire) || has_direct_pending_signal();
 }
 
 SignalHandler::~SignalHandler() {
@@ -749,13 +750,7 @@ void SignalHandler::restore_original_handlers() {
 
 SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) {
     bool should_process = s_signal_pending.exchange(false, std::memory_order_acq_rel);
-    const bool has_direct_signal =
-        s_sigint_received != 0 || s_sigchld_received != 0 || s_sighup_received != 0 ||
-        s_sigterm_received != 0 || s_sigttin_received != 0 || s_sigttou_received != 0 ||
-        s_sigquit_received != 0 || s_sigtstp_received != 0 || s_sigusr1_received != 0 ||
-        s_sigusr2_received != 0 || s_sigabrt_received != 0 || s_sigalrm_received != 0 ||
-        s_sigcont_received != 0 || s_sigwinch_received != 0 || s_sigpipe_received != 0;
-    if (!should_process && !has_direct_signal) {
+    if (!should_process && !has_direct_pending_signal()) {
         return {};
     }
 

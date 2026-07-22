@@ -62,15 +62,6 @@ int local_command(const std::vector<std::string>& args, Shell* shell) {
 
     bool all_successful = true;
 
-    auto extract_base_name = [](const std::string& target) {
-        std::string base = target;
-        size_t left_bracket = base.find('[');
-        if (left_bracket != std::string::npos) {
-            base = base.substr(0, left_bracket);
-        }
-        return base;
-    };
-
     for (size_t i = 1; i < args.size();) {
         const std::string& arg = args[i];
 
@@ -85,12 +76,9 @@ int local_command(const std::vector<std::string>& args, Shell* shell) {
 
         if (operand.has_assignment && operand.value.empty() && i + 1 < args.size() &&
             args[i + 1] == "(") {
-            std::string target_name = trim_whitespace(operand.name);
             bool append = false;
-            if (!target_name.empty() && target_name.back() == '+') {
-                append = true;
-                target_name.pop_back();
-            }
+            std::string target_name =
+                normalize_assignment_target(trim_whitespace(operand.name), append);
 
             if (!is_valid_identifier(target_name)) {
                 print_error({ErrorType::INVALID_ARGUMENT,
@@ -102,19 +90,7 @@ int local_command(const std::vector<std::string>& args, Shell* shell) {
                 continue;
             }
 
-            int depth = 0;
-            size_t close_index = std::string::npos;
-            for (size_t j = i + 1; j < args.size(); ++j) {
-                if (args[j] == "(") {
-                    ++depth;
-                } else if (args[j] == ")") {
-                    --depth;
-                    if (depth == 0) {
-                        close_index = j;
-                        break;
-                    }
-                }
-            }
+            size_t close_index = find_closing_parenthesis_token(args, i + 1);
 
             if (close_index == std::string::npos) {
                 print_error({ErrorType::INVALID_ARGUMENT,
@@ -145,14 +121,11 @@ int local_command(const std::vector<std::string>& args, Shell* shell) {
         }
 
         if (operand.has_assignment) {
-            std::string target_name = trim_whitespace(operand.name);
             bool append = false;
-            if (!target_name.empty() && target_name.back() == '+') {
-                append = true;
-                target_name.pop_back();
-            }
+            std::string target_name =
+                normalize_assignment_target(trim_whitespace(operand.name), append);
 
-            std::string base_name = extract_base_name(target_name);
+            std::string base_name = assignment_target_base_name(target_name);
             if (!is_valid_identifier(base_name)) {
                 print_error({ErrorType::INVALID_ARGUMENT,
                              "local",
@@ -177,7 +150,7 @@ int local_command(const std::vector<std::string>& args, Shell* shell) {
             continue;
         }
 
-        std::string base_name = extract_base_name(operand.name);
+        std::string base_name = assignment_target_base_name(operand.name);
         if (!is_valid_identifier(base_name)) {
             print_error({ErrorType::INVALID_ARGUMENT,
                          "local",

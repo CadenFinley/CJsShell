@@ -233,6 +233,21 @@ CommandSeparator scan_command_separator(const std::string& analysis, size_t inde
     return match;
 }
 
+bool separator_is_redirection_operator(const std::string& analysis, size_t separator_start,
+                                       const CommandSeparator& separator) {
+    if (!separator.is_operator || separator.length == 0 || separator_start >= analysis.size()) {
+        return false;
+    }
+
+    const char first = analysis[separator_start];
+    if (first == '>' || first == '<') {
+        return true;
+    }
+
+    return separator.length >= 2 && first == '&' && separator_start + 1 < analysis.size() &&
+           analysis[separator_start + 1] == '>';
+}
+
 size_t find_command_end(const std::string& analysis, size_t start) {
     const size_t len = analysis.size();
     size_t cmd_end = start;
@@ -266,6 +281,50 @@ size_t find_command_end(const std::string& analysis, size_t start) {
     }
 
     return cmd_end;
+}
+
+bool visit_command_ranges(
+    const std::string& analysis,
+    const std::function<bool(size_t command_start, size_t command_end)>& visit_command,
+    const std::function<void(size_t separator_start, const CommandSeparator&)>& visit_separator) {
+    const size_t length = analysis.size();
+    size_t position = 0;
+    bool next_range_is_redirection_operand = false;
+
+    while (position < length) {
+        const size_t command_end = find_command_end(analysis, position);
+        size_t command_start = position;
+        while (command_start < command_end &&
+               std::isspace(static_cast<unsigned char>(analysis[command_start])) != 0) {
+            ++command_start;
+        }
+
+        if (command_start < command_end && !next_range_is_redirection_operand && visit_command &&
+            !visit_command(command_start, command_end)) {
+            return false;
+        }
+
+        position = command_end;
+        if (position >= length) {
+            break;
+        }
+
+        const auto separator = scan_command_separator(analysis, position);
+        if (separator.length == 0) {
+            next_range_is_redirection_operand = false;
+            ++position;
+            continue;
+        }
+
+        if (visit_separator) {
+            visit_separator(position, separator);
+        }
+        next_range_is_redirection_operand =
+            separator_is_redirection_operator(analysis, position, separator);
+        position += separator.length;
+    }
+
+    return true;
 }
 
 }  // namespace command_analysis

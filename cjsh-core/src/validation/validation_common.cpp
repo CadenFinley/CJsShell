@@ -534,6 +534,37 @@ size_t adjust_display_line(const std::string& text, size_t base_line, size_t off
     return base_line + static_cast<size_t>(std::count(text.begin(), end_it, '\n'));
 }
 
+bool has_iteration_values_after_in(const std::vector<std::string>& tokens) {
+    const auto in_it = std::find(tokens.begin(), tokens.end(), "in");
+    if (in_it == tokens.end()) {
+        return false;
+    }
+
+    for (auto iter = std::next(in_it); iter != tokens.end(); ++iter) {
+        const std::string& candidate = *iter;
+        if (candidate.empty()) {
+            continue;
+        }
+        if (candidate[0] == '#' || candidate == "do" || candidate == "done" ||
+            candidate == "then" || candidate == "elif" || candidate == "else") {
+            break;
+        }
+        return true;
+    }
+    return false;
+}
+
+bool inline_loop_body_missing_done(const std::string& trimmed_line) {
+    const size_t inline_do_pos = find_inline_do_position(trimmed_line);
+    if (inline_do_pos == std::string::npos) {
+        return false;
+    }
+
+    const size_t body_start = trimmed_line.find_first_not_of(" \t;", inline_do_pos + 2);
+    return body_start != std::string::npos &&
+           find_inline_done_position(trimmed_line, body_start) == std::string::npos;
+}
+
 ForLoopCheckResult analyze_for_loop_syntax(const std::vector<std::string>& tokens,
                                            const std::string& trimmed_line) {
     ForLoopCheckResult result;
@@ -545,20 +576,8 @@ ForLoopCheckResult analyze_for_loop_syntax(const std::vector<std::string>& token
             result.missing_do_keyword = true;
         }
 
-        if (result.has_inline_do) {
-            size_t inline_do_pos = find_inline_do_position(trimmed_line);
-            size_t body_start = std::string::npos;
-            if (inline_do_pos != std::string::npos) {
-                body_start = trimmed_line.find_first_not_of(" \t;", inline_do_pos + 2);
-            }
-
-            bool inline_body_present = body_start != std::string::npos;
-            if (inline_body_present) {
-                size_t done_pos = find_inline_done_position(trimmed_line, body_start);
-                if (done_pos == std::string::npos) {
-                    result.inline_body_without_done = true;
-                }
-            }
+        if (result.has_inline_do && inline_loop_body_missing_done(trimmed_line)) {
+            result.inline_body_without_done = true;
         }
     };
 
@@ -661,23 +680,7 @@ ForLoopCheckResult analyze_for_loop_syntax(const std::vector<std::string>& token
         return result;
     }
 
-    bool has_iteration_values = false;
-    for (auto iter = std::next(in_it); iter != tokens.end(); ++iter) {
-        const std::string& candidate = *iter;
-        if (candidate.empty()) {
-            continue;
-        }
-        if (candidate[0] == '#') {
-            break;
-        }
-        if (candidate == "do" || candidate == "done" || candidate == "then" ||
-            candidate == "elif" || candidate == "else") {
-            break;
-        }
-        has_iteration_values = true;
-        break;
-    }
-    if (!has_iteration_values) {
+    if (!has_iteration_values_after_in(tokens)) {
         result.missing_iteration_list = true;
     }
 

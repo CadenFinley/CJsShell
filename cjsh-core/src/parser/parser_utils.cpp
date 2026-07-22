@@ -472,40 +472,11 @@ bool parser_parse_arithmetic_command_form(std::string_view text, bool& negate_st
 }
 
 bool parser_contains_arithmetic_command_form(std::string_view text) {
-    bool in_single = false;
-    bool in_double = false;
-    bool in_backtick = false;
-    bool escaped = false;
+    utils::ShellQuoteState quote_state;
 
     for (size_t i = 0; i + 1 < text.size(); ++i) {
-        char ch = text[i];
-
-        if (escaped) {
-            escaped = false;
-            continue;
-        }
-
-        if (!in_single && ch == '\\') {
-            escaped = true;
-            continue;
-        }
-
-        if (!in_double && !in_backtick && ch == '\'') {
-            in_single = !in_single;
-            continue;
-        }
-
-        if (!in_single && !in_backtick && ch == '"') {
-            in_double = !in_double;
-            continue;
-        }
-
-        if (!in_single && !in_double && ch == '`') {
-            in_backtick = !in_backtick;
-            continue;
-        }
-
-        if (in_single || in_double || in_backtick) {
+        if (quote_state.consume_forward(text[i]) == utils::QuoteAdvanceResult::Continue ||
+            quote_state.inside_quotes()) {
             continue;
         }
 
@@ -606,6 +577,32 @@ bool parse_assignment_operand(const std::string& arg, AssignmentOperand& operand
     operand.value.clear();
     operand.has_assignment = false;
     return true;
+}
+
+std::string normalize_assignment_target(std::string target, bool& append) {
+    append = false;
+    if (!target.empty() && target.back() == '+') {
+        append = true;
+        target.pop_back();
+    }
+    return target;
+}
+
+std::string assignment_target_base_name(const std::string& target) {
+    const size_t left_bracket = target.find('[');
+    return left_bracket == std::string::npos ? target : target.substr(0, left_bracket);
+}
+
+size_t find_closing_parenthesis_token(const std::vector<std::string>& tokens, size_t open_index) {
+    int depth = 0;
+    for (size_t index = open_index; index < tokens.size(); ++index) {
+        if (tokens[index] == "(") {
+            ++depth;
+        } else if (tokens[index] == ")" && --depth == 0) {
+            return index;
+        }
+    }
+    return std::string::npos;
 }
 
 size_t find_token_end_with_quotes(const std::string& text, size_t start, size_t end,
@@ -835,8 +832,11 @@ bool strip_subst_literal_markers(std::string& value) {
     return changed;
 }
 
-size_t find_matching_paren(const std::string& text, size_t start_pos) {
-    if (start_pos >= text.length() || text[start_pos] != '(') {
+namespace {
+
+size_t find_matching_delimiter(const std::string& text, size_t start_pos, char opening,
+                               char closing) {
+    if (start_pos >= text.length() || text[start_pos] != opening) {
         return std::string::npos;
     }
 
@@ -846,9 +846,9 @@ size_t find_matching_paren(const std::string& text, size_t start_pos) {
             continue;
         }
 
-        if (text[i] == '(') {
+        if (text[i] == opening) {
             depth++;
-        } else if (text[i] == ')') {
+        } else if (text[i] == closing) {
             depth--;
             if (depth == 0) {
                 return i;
@@ -859,26 +859,12 @@ size_t find_matching_paren(const std::string& text, size_t start_pos) {
     return std::string::npos;
 }
 
+}  // namespace
+
+size_t find_matching_paren(const std::string& text, size_t start_pos) {
+    return find_matching_delimiter(text, start_pos, '(', ')');
+}
+
 size_t find_matching_brace(const std::string& text, size_t start_pos) {
-    if (start_pos >= text.length() || text[start_pos] != '{') {
-        return std::string::npos;
-    }
-
-    int depth = 0;
-    for (size_t i = start_pos; i < text.length(); ++i) {
-        if (is_inside_quotes(text, i)) {
-            continue;
-        }
-
-        if (text[i] == '{') {
-            depth++;
-        } else if (text[i] == '}') {
-            depth--;
-            if (depth == 0) {
-                return i;
-            }
-        }
-    }
-
-    return std::string::npos;
+    return find_matching_delimiter(text, start_pos, '{', '}');
 }

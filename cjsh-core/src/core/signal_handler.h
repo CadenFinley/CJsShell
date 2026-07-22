@@ -136,6 +136,7 @@ class SignalHandler {
     static volatile sig_atomic_t s_sigcont_received;
 
     static std::atomic<bool> s_signal_pending;
+    static bool has_direct_pending_signal();
     static const std::vector<SignalInfo>& signal_table();
     static pid_t s_main_pid;
 

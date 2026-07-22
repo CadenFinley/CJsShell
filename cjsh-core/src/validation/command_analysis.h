@@ -29,6 +29,7 @@
 #pragma once
 
 #include <cstddef>
+#include <functional>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -61,6 +62,13 @@ std::string sanitize_input_for_analysis(const std::string& input,
                                         std::vector<CommentRange>* comment_ranges = nullptr);
 
 CommandSeparator scan_command_separator(const std::string& analysis, size_t index);
+bool separator_is_redirection_operator(const std::string& analysis, size_t separator_start,
+                                       const CommandSeparator& separator);
 size_t find_command_end(const std::string& analysis, size_t start);
+bool visit_command_ranges(
+    const std::string& analysis,
+    const std::function<bool(size_t command_start, size_t command_end)>& visit_command,
+    const std::function<void(size_t separator_start, const CommandSeparator&)>& visit_separator =
+        nullptr);
 
 }  // namespace command_analysis

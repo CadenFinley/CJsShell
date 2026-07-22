@@ -48,6 +48,7 @@
 #include "parser.h"
 #include "parser_utils.h"
 #include "pipeline_status_utils.h"
+#include "quote_state.h"
 #include "shell.h"
 #include "shell_env.h"
 #include "signal_handler.h"
@@ -443,41 +444,13 @@ bool parse_c_style_for_header(const std::string& header, CStyleForHeader& out) {
 }
 
 std::pair<std::string, std::string> split_done_suffix(const std::string& suffix) {
-    bool in_single = false;
-    bool in_double = false;
-    bool in_backtick = false;
-    bool escaped = false;
+    utils::ShellQuoteState quote_state;
     int paren_depth = 0;
 
     for (size_t i = 0; i < suffix.size(); ++i) {
-        char ch = suffix[i];
-
-        if (escaped) {
-            escaped = false;
-            continue;
-        }
-
-        if (!in_single && ch == '\\') {
-            escaped = true;
-            continue;
-        }
-
-        if (!in_double && !in_backtick && ch == '\'') {
-            in_single = !in_single;
-            continue;
-        }
-
-        if (!in_single && !in_backtick && ch == '"') {
-            in_double = !in_double;
-            continue;
-        }
-
-        if (!in_single && !in_double && ch == '`') {
-            in_backtick = !in_backtick;
-            continue;
-        }
-
-        if (in_single || in_double || in_backtick) {
+        const char ch = suffix[i];
+        if (quote_state.consume_forward(ch) == utils::QuoteAdvanceResult::Continue ||
+            quote_state.inside_quotes()) {
             continue;
         }
 
@@ -499,6 +472,163 @@ std::pair<std::string, std::string> split_done_suffix(const std::string& suffix)
     }
 
     return {trim(suffix), ""};
+}
+
+struct ParsedLoopBlock {
+    std::string header;
+    std::vector<std::string> body_lines;
+    std::string done_redirections;
+    std::string trailing_commands;
+    size_t end_index = 0;
+};
+
+bool parse_inline_loop_block(const std::string& first, Parser* shell_parser,
+                             ParsedLoopBlock& parsed) {
+    const size_t do_pos = parser_find_inline_do_position(first);
+    if (do_pos == std::string::npos ||
+        parser_find_keyword_token(first, "done", 0) == std::string::npos ||
+        shell_parser == nullptr) {
+        return false;
+    }
+
+    parsed = ParsedLoopBlock{};
+    parsed.header = trim(first.substr(0, do_pos));
+
+    const std::string tail = trim(first.substr(do_pos + 2));
+    size_t done_pos = parser_find_keyword_token(tail, "done", 0);
+    size_t search_from = done_pos == std::string::npos ? 0 : done_pos + 4;
+    while (done_pos != std::string::npos) {
+        const size_t next = parser_find_keyword_token(tail, "done", search_from);
+        if (next == std::string::npos) {
+            break;
+        }
+        done_pos = next;
+        search_from = done_pos + 4;
+    }
+
+    const std::string body = done_pos == std::string::npos ? tail : trim(tail.substr(0, done_pos));
+    if (done_pos != std::string::npos) {
+        const std::string done_suffix = trim(tail.substr(done_pos + 4));
+        auto suffix_parts = split_done_suffix(done_suffix);
+        parsed.done_redirections = std::move(suffix_parts.first);
+        parsed.trailing_commands = std::move(suffix_parts.second);
+    }
+
+    const auto& body_lines_handle = get_cached_inline_loop_body(body, shell_parser);
+    if (body_lines_handle == nullptr) {
+        return false;
+    }
+    parsed.body_lines = *body_lines_handle;
+    return true;
+}
+
+bool parse_multiline_loop_block(const std::vector<std::string>& src_lines, size_t start_index,
+                                const std::string& first, Parser* shell_parser,
+                                ParsedLoopBlock& parsed) {
+    parsed = ParsedLoopBlock{};
+    parsed.header = first;
+    parsed.end_index = start_index;
+
+    size_t header_end_index = start_index;
+    bool have_do = false;
+    bool do_line_has_inline_body = false;
+    std::string inline_body;
+
+    if (first.size() >= 4 && first.rfind("; do") == first.size() - 4) {
+        have_do = true;
+        parsed.header = first.substr(0, first.size() - 4);
+    } else {
+        while (!have_do && ++header_end_index < src_lines.size()) {
+            const std::string current = trim(strip_inline_comment(src_lines[header_end_index]));
+            if (current == "do") {
+                have_do = true;
+                break;
+            }
+            if (current.empty()) {
+                continue;
+            }
+
+            const size_t inline_do_pos = current.find("; do");
+            if (inline_do_pos != std::string::npos) {
+                have_do = true;
+                if (!parsed.header.empty()) {
+                    parsed.header += ' ';
+                }
+                parsed.header += current.substr(0, inline_do_pos);
+                inline_body = trim(current.substr(inline_do_pos + 4));
+                do_line_has_inline_body = !inline_body.empty();
+                break;
+            }
+            if (current.rfind("do ", 0) == 0) {
+                have_do = true;
+                do_line_has_inline_body = true;
+                inline_body = trim(current.substr(3));
+                break;
+            }
+
+            if (!parsed.header.empty()) {
+                parsed.header += ' ';
+            }
+            parsed.header += current;
+        }
+    }
+
+    parsed.end_index = header_end_index;
+    if (!have_do) {
+        return false;
+    }
+
+    bool inline_consumes_done = false;
+    if (do_line_has_inline_body) {
+        if (shell_parser == nullptr) {
+            return false;
+        }
+
+        std::string inline_content = trim(inline_body);
+        if (!inline_content.empty()) {
+            if (matches_keyword_only(inline_content, "done")) {
+                inline_consumes_done = true;
+            } else {
+                const size_t done_pos = inline_content.rfind("; done");
+                if (done_pos != std::string::npos) {
+                    inline_content = trim(inline_content.substr(0, done_pos));
+                    inline_consumes_done = true;
+                } else if (inline_content.size() >= 4 &&
+                           inline_content.rfind("done") == inline_content.size() - 4) {
+                    inline_content = trim(inline_content.substr(0, inline_content.size() - 4));
+                    inline_consumes_done = true;
+                }
+            }
+
+            if (!inline_content.empty()) {
+                for (const auto& line : shell_parser->parse_into_lines(inline_content)) {
+                    const std::string trimmed_line = trim(line);
+                    if (!trimmed_line.empty() && trimmed_line != "done") {
+                        parsed.body_lines.push_back(line);
+                    }
+                }
+            }
+        }
+    }
+
+    const size_t body_start_index = inline_consumes_done ? header_end_index : header_end_index + 1;
+    const int initial_depth = inline_consumes_done ? 0 : 1;
+    if (!collect_loop_body_lines(src_lines, body_start_index, initial_depth, parsed.body_lines,
+                                 parsed.end_index)) {
+        return false;
+    }
+
+    if (parsed.end_index < src_lines.size()) {
+        const std::string closing = trim(strip_inline_comment(src_lines[parsed.end_index]));
+        const size_t done_pos = parser_find_keyword_token(closing, "done", 0);
+        if (done_pos != std::string::npos) {
+            auto suffix_parts = split_done_suffix(trim(closing.substr(done_pos + 4)));
+            parsed.done_redirections = std::move(suffix_parts.first);
+            parsed.trailing_commands = std::move(suffix_parts.second);
+        }
+    }
+
+    return true;
 }
 
 bool trailing_contains_block_closer_segment(const std::string& trailing_commands,
@@ -1084,60 +1214,24 @@ int handle_for_block(
         return finalize_with_trailing_commands(rc, trailing_commands);
     };
 
-    size_t do_pos = parser_find_inline_do_position(first);
-    size_t done_pos_on_line = parser_find_keyword_token(first, "done", 0);
-    if (do_pos != std::string::npos && done_pos_on_line != std::string::npos) {
-        // fast path for one-line for loops where do and done are on the same line
-        std::string header = trim(first.substr(0, do_pos));
-        if (!parse_header(header))
+    ParsedLoopBlock parsed_loop;
+    if (parse_inline_loop_block(first, shell_parser, parsed_loop)) {
+        if (!parse_header(parsed_loop.header))
             return 1;
-        std::string tail = trim(first.substr(do_pos + 2));
-        size_t done_pos = parser_find_keyword_token(tail, "done", 0);
-        size_t search_from = (done_pos == std::string::npos) ? 0 : done_pos + 4;
-        while (done_pos != std::string::npos) {
-            size_t next = parser_find_keyword_token(tail, "done", search_from);
-            if (next == std::string::npos) {
-                break;
-            }
-            done_pos = next;
-            search_from = done_pos + 4;
-        }
 
-        std::string body = done_pos == std::string::npos ? tail : trim(tail.substr(0, done_pos));
-        std::string done_redirections;
-        std::string trailing_commands;
-        if (done_pos != std::string::npos) {
-            std::string done_suffix = trim(tail.substr(done_pos + 4));
-            auto suffix_parts = split_done_suffix(done_suffix);
-            done_redirections = suffix_parts.first;
-            trailing_commands = suffix_parts.second;
-        }
-
-        if (shell_parser == nullptr) {
-            return 1;
-        }
-
-        auto body_lines_handle = get_cached_inline_loop_body(body, shell_parser);
-        const auto* body_lines_ptr = body_lines_handle.get();
-
-        if (body_lines_ptr == nullptr) {
-            return 1;
-        }
-
-        auto run_cached_body = [&, body_lines_ptr]() -> LoopCommandOutcome {
+        auto run_cached_body = [&]() -> LoopCommandOutcome {
             // execute one iteration body then translate result into loop flow semantics
-            int body_rc = execute_block(*body_lines_ptr);
+            int body_rc = execute_block(parsed_loop.body_lines);
             if (abort_pending()) {
                 return {LoopFlow::BREAK, body_rc};
             }
             return handle_loop_command_result(body_rc, 0, 255, 0, 254, true);
         };
 
-        if (!done_redirections.empty() && shell_parser != nullptr && g_shell &&
-            g_shell->shell_exec) {
+        if (!parsed_loop.done_redirections.empty() && g_shell && g_shell->shell_exec) {
             try {
-                auto redir_cmds =
-                    shell_parser->parse_pipeline_with_preprocessing("true " + done_redirections);
+                auto redir_cmds = shell_parser->parse_pipeline_with_preprocessing(
+                    "true " + parsed_loop.done_redirections);
                 if (!redir_cmds.empty()) {
                     bool action_invoked = false;
                     int exit_code = g_shell->shell_exec->run_with_command_redirections(
@@ -1147,131 +1241,35 @@ int handle_for_block(
                     if (!action_invoked) {
                         return exit_code;
                     }
-                    return finalize_with_trailing_commands(exit_code, trailing_commands);
+                    return finalize_with_trailing_commands(exit_code,
+                                                           parsed_loop.trailing_commands);
                 }
             } catch (const std::exception&) {
                 // Fall back to normal loop execution if redirection extraction fails.
             }
         }
 
-        return execute_for_iterations(run_cached_body, trailing_commands, []() {});
+        return execute_for_iterations(run_cached_body, parsed_loop.trailing_commands, []() {});
     }
 
-    // multiline for path: accumulate header until do and collect body through matching done
-    std::string header_accum = first;
-    size_t j = idx;
-    bool have_do = false;
-    bool do_line_has_inline_body = false;
-    std::string inline_body;
-
-    if (first.find("; do") != std::string::npos && first.rfind("; do") == first.length() - 4) {
-        have_do = true;
-        header_accum = first.substr(0, first.length() - 4);
-    } else {
-        while (!have_do && ++j < src_lines.size()) {
-            std::string cur = trim(strip_inline_comment(src_lines[j]));
-            if (cur == "do") {
-                have_do = true;
-                break;
-            }
-            if (cur.empty()) {
-                continue;
-            }
-            size_t inline_do_pos = cur.find("; do");
-            if (inline_do_pos != std::string::npos) {
-                have_do = true;
-                if (!header_accum.empty())
-                    header_accum += " ";
-                header_accum += cur.substr(0, inline_do_pos);
-                std::string after_do = trim(cur.substr(inline_do_pos + 4));
-                if (!after_do.empty()) {
-                    do_line_has_inline_body = true;
-                    inline_body = after_do;
-                }
-                break;
-            }
-            if (cur.rfind("do ", 0) == 0) {
-                have_do = true;
-                do_line_has_inline_body = true;
-                inline_body = trim(cur.substr(3));
-                break;
-            }
-            if (!cur.empty()) {
-                if (!header_accum.empty())
-                    header_accum += " ";
-                header_accum += cur;
-            }
-        }
-    }
-    if (!parse_header(header_accum)) {
-        idx = j;
+    if (!parse_multiline_loop_block(src_lines, idx, first, shell_parser, parsed_loop) ||
+        !parse_header(parsed_loop.header)) {
+        idx = parsed_loop.end_index;
         return 1;
-    }
-    if (!have_do) {
-        idx = j;
-        return 1;
-    }
-
-    std::vector<std::string> body_lines;
-    bool inline_consumes_done = false;
-    if (do_line_has_inline_body) {
-        std::string inline_content = trim(inline_body);
-        if (!inline_content.empty()) {
-            if (matches_keyword_only(inline_content, "done")) {
-                inline_consumes_done = true;
-            } else {
-                size_t done_pos = inline_content.rfind("; done");
-                if (done_pos != std::string::npos) {
-                    inline_content = trim(inline_content.substr(0, done_pos));
-                    inline_consumes_done = true;
-                } else if (inline_content.rfind("done") == inline_content.length() - 4) {
-                    inline_content = trim(inline_content.substr(0, inline_content.length() - 4));
-                    inline_consumes_done = true;
-                }
-            }
-
-            if (!inline_content.empty()) {
-                auto temp_lines = shell_parser->parse_into_lines(inline_content);
-                for (const auto& tl : temp_lines) {
-                    std::string ts = trim(tl);
-                    if (!ts.empty() && ts != "done")
-                        body_lines.push_back(tl);
-                }
-            }
-        }
-    }
-
-    size_t body_start_idx = inline_consumes_done ? j : (j + 1);
-    size_t body_end_idx = 0;
-    int initial_depth = inline_consumes_done ? 0 : 1;
-    if (!collect_loop_body_lines(src_lines, body_start_idx, initial_depth, body_lines,
-                                 body_end_idx)) {
-        idx = body_end_idx;
-        return 1;
-    }
-
-    std::string trailing_commands;
-    if (body_end_idx < src_lines.size()) {
-        std::string closing_trim = trim(strip_inline_comment(src_lines[body_end_idx]));
-        size_t done_pos = parser_find_keyword_token(closing_trim, "done", 0);
-        if (done_pos != std::string::npos) {
-            std::string done_suffix = trim(closing_trim.substr(done_pos + 4));
-            trailing_commands = split_done_suffix(done_suffix).second;
-        }
     }
 
     auto run_body_and_handle_result = [&]() -> LoopCommandOutcome {
         // execute one iteration body and map break continue behavior
-        int body_rc = execute_block(body_lines);
+        int body_rc = execute_block(parsed_loop.body_lines);
         if (abort_pending()) {
             return {LoopFlow::BREAK, body_rc};
         }
         return handle_loop_command_result(body_rc, 0, 255, 0, 254, true);
     };
 
-    int rc = execute_for_iterations(run_body_and_handle_result, trailing_commands,
-                                    [&]() { idx = body_end_idx; });
-    idx = body_end_idx;
+    int rc = execute_for_iterations(run_body_and_handle_result, parsed_loop.trailing_commands,
+                                    [&]() { idx = parsed_loop.end_index; });
+    idx = parsed_loop.end_index;
     return rc;
 }
 
@@ -1403,146 +1401,22 @@ int handle_select_block(const std::vector<std::string>& src_lines, size_t& idx,
         return finalize_with_trailing_commands(rc, trailing_commands);
     };
 
-    size_t do_pos = parser_find_inline_do_position(first);
-    size_t done_pos_on_line = parser_find_keyword_token(first, "done", 0);
-    if (do_pos != std::string::npos && done_pos_on_line != std::string::npos) {
-        std::string header = trim(first.substr(0, do_pos));
-        if (!parse_header(header))
+    ParsedLoopBlock parsed_loop;
+    if (parse_inline_loop_block(first, shell_parser, parsed_loop)) {
+        if (!parse_header(parsed_loop.header))
             return 1;
 
-        std::string tail = trim(first.substr(do_pos + 2));
-        size_t done_pos = parser_find_keyword_token(tail, "done", 0);
-        size_t search_from = (done_pos == std::string::npos) ? 0 : done_pos + 4;
-        while (done_pos != std::string::npos) {
-            size_t next = parser_find_keyword_token(tail, "done", search_from);
-            if (next == std::string::npos) {
-                break;
-            }
-            done_pos = next;
-            search_from = done_pos + 4;
-        }
-
-        std::string body = done_pos == std::string::npos ? tail : trim(tail.substr(0, done_pos));
-        std::string trailing_commands;
-        if (done_pos != std::string::npos) {
-            std::string done_suffix = trim(tail.substr(done_pos + 4));
-            trailing_commands = split_done_suffix(done_suffix).second;
-        }
-
-        auto body_lines_handle = get_cached_inline_loop_body(body, shell_parser);
-        const auto* body_lines_ptr = body_lines_handle.get();
-        if (body_lines_ptr == nullptr) {
-            return 1;
-        }
-
-        return execute_select_iterations(*body_lines_ptr, trailing_commands);
+        return execute_select_iterations(parsed_loop.body_lines, parsed_loop.trailing_commands);
     }
 
-    std::string header_accum = first;
-    size_t j = idx;
-    bool have_do = false;
-    bool do_line_has_inline_body = false;
-    std::string inline_body;
-
-    if (first.find("; do") != std::string::npos && first.rfind("; do") == first.length() - 4) {
-        have_do = true;
-        header_accum = first.substr(0, first.length() - 4);
-    } else {
-        while (!have_do && ++j < src_lines.size()) {
-            std::string cur = trim(strip_inline_comment(src_lines[j]));
-            if (cur == "do") {
-                have_do = true;
-                break;
-            }
-            if (cur.empty()) {
-                continue;
-            }
-            size_t inline_do_pos = cur.find("; do");
-            if (inline_do_pos != std::string::npos) {
-                have_do = true;
-                if (!header_accum.empty())
-                    header_accum += " ";
-                header_accum += cur.substr(0, inline_do_pos);
-                std::string after_do = trim(cur.substr(inline_do_pos + 4));
-                if (!after_do.empty()) {
-                    do_line_has_inline_body = true;
-                    inline_body = after_do;
-                }
-                break;
-            }
-            if (cur.rfind("do ", 0) == 0) {
-                have_do = true;
-                do_line_has_inline_body = true;
-                inline_body = trim(cur.substr(3));
-                break;
-            }
-            if (!cur.empty()) {
-                if (!header_accum.empty())
-                    header_accum += " ";
-                header_accum += cur;
-            }
-        }
-    }
-
-    if (!parse_header(header_accum)) {
-        idx = j;
-        return 1;
-    }
-    if (!have_do) {
-        idx = j;
+    if (!parse_multiline_loop_block(src_lines, idx, first, shell_parser, parsed_loop) ||
+        !parse_header(parsed_loop.header)) {
+        idx = parsed_loop.end_index;
         return 1;
     }
 
-    std::vector<std::string> body_lines;
-    bool inline_consumes_done = false;
-    if (do_line_has_inline_body) {
-        std::string inline_content = trim(inline_body);
-        if (!inline_content.empty()) {
-            if (matches_keyword_only(inline_content, "done")) {
-                inline_consumes_done = true;
-            } else {
-                size_t done_pos = inline_content.rfind("; done");
-                if (done_pos != std::string::npos) {
-                    inline_content = trim(inline_content.substr(0, done_pos));
-                    inline_consumes_done = true;
-                } else if (inline_content.rfind("done") == inline_content.length() - 4) {
-                    inline_content = trim(inline_content.substr(0, inline_content.length() - 4));
-                    inline_consumes_done = true;
-                }
-            }
-
-            if (!inline_content.empty()) {
-                auto temp_lines = shell_parser->parse_into_lines(inline_content);
-                for (const auto& tl : temp_lines) {
-                    std::string ts = trim(tl);
-                    if (!ts.empty() && ts != "done")
-                        body_lines.push_back(tl);
-                }
-            }
-        }
-    }
-
-    size_t body_start_idx = inline_consumes_done ? j : (j + 1);
-    size_t body_end_idx = 0;
-    int initial_depth = inline_consumes_done ? 0 : 1;
-    if (!collect_loop_body_lines(src_lines, body_start_idx, initial_depth, body_lines,
-                                 body_end_idx)) {
-        idx = body_end_idx;
-        return 1;
-    }
-
-    std::string trailing_commands;
-    if (body_end_idx < src_lines.size()) {
-        std::string closing_trim = trim(strip_inline_comment(src_lines[body_end_idx]));
-        size_t done_pos = parser_find_keyword_token(closing_trim, "done", 0);
-        if (done_pos != std::string::npos) {
-            std::string done_suffix = trim(closing_trim.substr(done_pos + 4));
-            trailing_commands = split_done_suffix(done_suffix).second;
-        }
-    }
-
-    int rc = execute_select_iterations(body_lines, trailing_commands);
-    idx = body_end_idx;
+    int rc = execute_select_iterations(parsed_loop.body_lines, parsed_loop.trailing_commands);
+    idx = parsed_loop.end_index;
     return rc;
 }
 

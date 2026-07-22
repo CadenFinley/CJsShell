@@ -97,6 +97,10 @@ class Exec {
         const std::vector<std::string>& args,
         std::vector<std::pair<std::string, std::string>>& assignments,
         const std::function<void()>& on_assignments_only, int& early_exit_code);
+    std::optional<int> run_command_not_found_handler(
+        const std::vector<std::string>& args,
+        const std::vector<std::pair<std::string, std::string>>& assignments, bool is_builtin,
+        const std::string& cached_exec_path);
     bool requires_fork(const Command& cmd) const;
     bool can_execute_in_process(const Command& cmd) const;
     int execute_builtin_with_redirections(Command cmd);

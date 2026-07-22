@@ -166,13 +166,18 @@ std::string style_preview_sample(const std::string& token_type) {
     return token_type;
 }
 
-void print_style_preview() {
+std::vector<std::string> sorted_default_style_token_types() {
     std::vector<std::string> token_types;
     token_types.reserve(token_constants::default_styles().size());
     for (const auto& pair : token_constants::default_styles()) {
         token_types.push_back(pair.first);
     }
     std::sort(token_types.begin(), token_types.end());
+    return token_types;
+}
+
+void print_style_preview() {
+    const auto token_types = sorted_default_style_token_types();
 
     ic_println("Syntax style preview:");
     for (const auto& token_type : token_types) {
@@ -191,12 +196,7 @@ void print_style_def_usage() {
     std::cout << "Define, preview, or reset syntax highlighting styles.\n\n";
     std::cout << "Token types:\n";
 
-    std::vector<std::string> token_types;
-    token_types.reserve(token_constants::default_styles().size());
-    for (const auto& pair : token_constants::default_styles()) {
-        token_types.push_back(pair.first);
-    }
-    std::sort(token_types.begin(), token_types.end());
+    const auto token_types = sorted_default_style_token_types();
 
     for (const auto& token_type : token_types) {
         std::cout << "  " << token_type

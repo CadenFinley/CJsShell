@@ -737,6 +737,18 @@ std::vector<ArithmeticEvaluator::Token> ArithmeticEvaluator::infix_to_postfix(
 long long ArithmeticEvaluator::evaluate_postfix(const std::vector<Token>& postfix) {
     std::vector<long long> eval_stack;
     eval_stack.reserve(postfix.size() / 2 + 1);
+    const auto apply_ternary = [&eval_stack]() {
+        if (eval_stack.size() < 3) {
+            return;
+        }
+        long long false_value = eval_stack.back();
+        eval_stack.pop_back();
+        long long true_value = eval_stack.back();
+        eval_stack.pop_back();
+        long long condition = eval_stack.back();
+        eval_stack.pop_back();
+        eval_stack.push_back(condition ? true_value : false_value);
+    };
 
     for (const auto& token : postfix) {
         if (token.type == TokenType::NUMBER) {
@@ -753,15 +765,7 @@ long long ArithmeticEvaluator::evaluate_postfix(const std::vector<Token>& postfi
                     eval_stack.push_back(apply_unary_operator(a, token.op_type));
                 }
             } else if (token.op == "?:") {
-                if (eval_stack.size() >= 3) {
-                    long long false_val = eval_stack.back();
-                    eval_stack.pop_back();
-                    long long true_val = eval_stack.back();
-                    eval_stack.pop_back();
-                    long long condition = eval_stack.back();
-                    eval_stack.pop_back();
-                    eval_stack.push_back(condition ? true_val : false_val);
-                }
+                apply_ternary();
             } else {
                 if (eval_stack.size() >= 2) {
                     long long b = eval_stack.back();
@@ -773,15 +777,7 @@ long long ArithmeticEvaluator::evaluate_postfix(const std::vector<Token>& postfi
                 }
             }
         } else if (token.type == TokenType::TERNARY_Q && token.op == "?:") {
-            if (eval_stack.size() >= 3) {
-                long long false_val = eval_stack.back();
-                eval_stack.pop_back();
-                long long true_val = eval_stack.back();
-                eval_stack.pop_back();
-                long long condition = eval_stack.back();
-                eval_stack.pop_back();
-                eval_stack.push_back(condition ? true_val : false_val);
-            }
+            apply_ternary();
         }
     }
 

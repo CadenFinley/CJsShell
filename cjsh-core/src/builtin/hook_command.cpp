@@ -177,12 +177,14 @@ int hook_command(const std::vector<std::string>& args, Shell* shell) {
         return 0;
     }
 
-    if (*subcommand == HookSubcommand::Add) {
+    if (*subcommand == HookSubcommand::Add || *subcommand == HookSubcommand::Remove) {
+        const bool adding = *subcommand == HookSubcommand::Add;
+        const std::string action = adding ? "add" : "remove";
         if (args.size() < 4) {
             ErrorInfo error = {ErrorType::INVALID_ARGUMENT,
                                "hook",
-                               "missing arguments for add command",
-                               {"Usage: hook add <hook_type> <function_name>"}};
+                               "missing arguments for " + action + " command",
+                               {"Usage: hook " + action + " <hook_type> <function_name>"}};
             print_error(error);
             return 1;
         }
@@ -194,28 +196,11 @@ int hook_command(const std::vector<std::string>& args, Shell* shell) {
             return 1;
         }
 
-        shell->register_hook(*hook_type, function_name);
-        return 0;
-    }
-
-    if (*subcommand == HookSubcommand::Remove) {
-        if (args.size() < 4) {
-            ErrorInfo error = {ErrorType::INVALID_ARGUMENT,
-                               "hook",
-                               "missing arguments for remove command",
-                               {"Usage: hook remove <hook_type> <function_name>"}};
-            print_error(error);
-            return 1;
+        if (adding) {
+            shell->register_hook(*hook_type, function_name);
+        } else {
+            shell->unregister_hook(*hook_type, function_name);
         }
-
-        const std::string& hook_type_arg = args[2];
-        const std::string& function_name = args[3];
-        auto hook_type = parse_hook_type_or_error(hook_type_arg);
-        if (!hook_type.has_value()) {
-            return 1;
-        }
-
-        shell->unregister_hook(*hook_type, function_name);
         return 0;
     }
 

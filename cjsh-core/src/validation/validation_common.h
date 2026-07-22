@@ -98,6 +98,8 @@ size_t find_inline_do_position(const std::string& line);
 size_t find_inline_done_position(const std::string& line, size_t search_from);
 bool check_for_loop_keywords(const std::vector<std::string>& tokens,
                              const std::string& trimmed_line, bool allow_loose_do_detection);
+bool has_iteration_values_after_in(const std::vector<std::string>& tokens);
+bool inline_loop_body_missing_done(const std::string& trimmed_line);
 std::pair<std::vector<std::string>, std::string> tokenize_and_get_first(
     const std::string& trimmed_line);
 

@@ -37,6 +37,7 @@
 #include "builtin.h"
 #include "cjsh_filesystem.h"
 #include "command_analysis.h"
+#include "command_lookup.h"
 #include "highlight_helpers.h"
 #include "shell.h"
 #include "shell_env.h"
@@ -64,15 +65,6 @@ bool argument_resolves_to_existing_path(const std::string& token) {
     const std::string path_to_check =
         cjsh_filesystem::resolve_shell_token_path(token, cwd, previous_directory);
     return std::filesystem::exists(path_to_check);
-}
-
-bool token_allows_split_command_merge(const std::string& token) {
-    if (token.empty() || token[0] == '-' || token.find('=') != std::string::npos) {
-        return false;
-    }
-
-    static const std::string kDisallowedChars = "/\\'\"`$|&;(){}[]<>";
-    return token.find_first_of(kDisallowedChars) == std::string::npos;
 }
 
 bool has_nearby_split_merge_candidate(const std::string& first_token,
@@ -114,21 +106,6 @@ bool has_nearby_split_merge_candidate(const std::string& first_token,
     }
 
     return false;
-}
-
-bool separator_is_redirection_operator(const std::string& analysis, size_t separator_start,
-                                       const command_analysis::CommandSeparator& separator) {
-    if (!separator.is_operator || separator.length == 0 || separator_start >= analysis.size()) {
-        return false;
-    }
-
-    const char first = analysis[separator_start];
-    if (first == '>' || first == '<') {
-        return true;
-    }
-
-    return separator.length >= 2 && first == '&' && separator_start + 1 < analysis.size() &&
-           analysis[separator_start + 1] == '>';
 }
 
 void highlight_command_resolution(ic_highlight_env_t* henv, size_t start, size_t length,
@@ -184,10 +161,10 @@ void highlight_command_range(ic_highlight_env_t* henv, const char* input,
             size_t third_token_end = 0;
             const bool has_third_token = command_analysis::extract_next_token(
                 cmd_str, split_cursor, third_token_start, third_token_end);
-            if (!has_third_token && token_allows_split_command_merge(token)) {
+            if (!has_third_token && command_lookup::token_allows_split_command_merge(token)) {
                 std::string second_token =
                     cmd_str.substr(second_token_start, second_token_end - second_token_start);
-                if (token_allows_split_command_merge(second_token)) {
+                if (command_lookup::token_allows_split_command_merge(second_token)) {
                     const size_t absolute_second_token_start = cmd_start + second_token_start;
                     const bool merged_token_known = command_analysis::is_known_command_token(
                         token + second_token, absolute_token_start, g_shell.get(),
@@ -440,8 +417,6 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
         highlight_history_expansions(henv, input, len);
     }
 
-    const char* analysis = sanitized_input.c_str();
-
     size_t func_name_start = 0;
     size_t func_name_end = 0;
     if (is_function_definition(sanitized_input, func_name_start, func_name_end)) {
@@ -463,38 +438,21 @@ void SyntaxHighlighter::highlight(ic_highlight_env_t* henv, const char* input, v
 
     const auto& comparison_ops = token_constants::comparison_operators();
 
-    size_t pos = 0;
-    bool next_range_is_redirection_operand = false;
-    while (pos < len) {
-        size_t cmd_end = command_analysis::find_command_end(sanitized_input, pos);
-
-        size_t cmd_start = pos;
-        while (cmd_start < cmd_end && (std::isspace((unsigned char)analysis[cmd_start]) != 0)) {
-            cmd_start++;
-        }
-
-        if (cmd_start < cmd_end && !next_range_is_redirection_operand) {
-            highlight_command_range(henv, input, sanitized_input, cmd_start, cmd_end,
+    command_analysis::visit_command_ranges(
+        sanitized_input,
+        [&](size_t command_start, size_t command_end) {
+            highlight_command_range(henv, input, sanitized_input, command_start, command_end,
                                     comparison_ops);
-        }
-
-        pos = cmd_end;
-        if (pos < len) {
-            auto separator = command_analysis::scan_command_separator(sanitized_input, pos);
+            return true;
+        },
+        [&](size_t separator_start, const command_analysis::CommandSeparator& separator) {
             if (separator.length > 0) {
                 if (separator.is_operator) {
-                    ic_highlight(henv, static_cast<long>(pos), static_cast<long>(separator.length),
-                                 "cjsh-operator");
+                    ic_highlight(henv, static_cast<long>(separator_start),
+                                 static_cast<long>(separator.length), "cjsh-operator");
                 }
-                next_range_is_redirection_operand =
-                    separator_is_redirection_operator(sanitized_input, pos, separator);
-                pos += separator.length;
-            } else {
-                next_range_is_redirection_operand = false;
-                pos += 1;
             }
-        }
-    }
+        });
 
     size_t scan_start = 0;
     for (const auto& range : comment_ranges) {

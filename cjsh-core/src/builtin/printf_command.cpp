@@ -90,17 +90,18 @@ static void verify_numeric(const char* s, char* end, const std::string& original
     }
 }
 
-static intmax_t vstrtoimax(const char* s) {
+template <typename Numeric, typename Parser>
+Numeric parse_printf_numeric(const char* s, Parser parse) {
     if (!s || !*s)
-        return 0;
+        return Numeric{};
 
-    char* end;
-    intmax_t val;
+    char* end = nullptr;
+    Numeric val{};
 
     if ((*s == '"' || *s == '\'') && *(s + 1)) {
         char quote = *s;
         unsigned char ch = static_cast<unsigned char>(*++s);
-        val = ch;
+        val = static_cast<Numeric>(ch);
 
         if (MB_CUR_MAX > 1 && *(s + 1) && *(s + 1) != quote) {
             mbstate_t mbstate;
@@ -109,7 +110,7 @@ static intmax_t vstrtoimax(const char* s) {
             size_t slen = strlen(s);
             size_t bytes = mbrtowc(&wc, s, slen, &mbstate);
             if (bytes > 0 && bytes != (size_t)-1 && bytes != (size_t)-2) {
-                val = static_cast<intmax_t>(wc);
+                val = static_cast<Numeric>(wc);
                 s += bytes - 1;
             }
         }
@@ -120,82 +121,25 @@ static intmax_t vstrtoimax(const char* s) {
         }
     } else {
         errno = 0;
-        val = strtoll(s, &end, 0);
+        val = static_cast<Numeric>(parse(s, &end));
         verify_numeric(s, end, s);
     }
     return val;
+}
+
+static intmax_t vstrtoimax(const char* s) {
+    return parse_printf_numeric<intmax_t>(
+        s, [](const char* value, char** end) { return strtoll(value, end, 0); });
 }
 
 static uintmax_t vstrtoumax(const char* s) {
-    if (!s || !*s)
-        return 0;
-
-    char* end;
-    uintmax_t val;
-
-    if ((*s == '"' || *s == '\'') && *(s + 1)) {
-        char quote = *s;
-        unsigned char ch = static_cast<unsigned char>(*++s);
-        val = ch;
-
-        if (MB_CUR_MAX > 1 && *(s + 1) && *(s + 1) != quote) {
-            mbstate_t mbstate;
-            memset(&mbstate, 0, sizeof(mbstate));
-            wchar_t wc;
-            size_t slen = strlen(s);
-            size_t bytes = mbrtowc(&wc, s, slen, &mbstate);
-            if (bytes > 0 && bytes != (size_t)-1 && bytes != (size_t)-2) {
-                val = static_cast<uintmax_t>(wc);
-                s += bytes - 1;
-            }
-        }
-
-        ++s;
-        if (*s != '\0' && *s != quote) {
-            report_character_constant_warning();
-        }
-    } else {
-        errno = 0;
-        val = strtoull(s, &end, 0);
-        verify_numeric(s, end, s);
-    }
-    return val;
+    return parse_printf_numeric<uintmax_t>(
+        s, [](const char* value, char** end) { return strtoull(value, end, 0); });
 }
 
 static long double vstrtold(const char* s) {
-    if (!s || !*s)
-        return 0.0;
-
-    char* end;
-    long double val;
-
-    if ((*s == '"' || *s == '\'') && *(s + 1)) {
-        char quote = *s;
-        unsigned char ch = static_cast<unsigned char>(*++s);
-        val = ch;
-
-        if (MB_CUR_MAX > 1 && *(s + 1) && *(s + 1) != quote) {
-            mbstate_t mbstate;
-            memset(&mbstate, 0, sizeof(mbstate));
-            wchar_t wc;
-            size_t slen = strlen(s);
-            size_t bytes = mbrtowc(&wc, s, slen, &mbstate);
-            if (bytes > 0 && bytes != (size_t)-1 && bytes != (size_t)-2) {
-                val = static_cast<long double>(wc);
-                s += bytes - 1;
-            }
-        }
-
-        ++s;
-        if (*s != '\0' && *s != quote) {
-            report_character_constant_warning();
-        }
-    } else {
-        errno = 0;
-        val = strtold(s, &end);
-        verify_numeric(s, end, s);
-    }
-    return val;
+    return parse_printf_numeric<long double>(
+        s, [](const char* value, char** end) { return strtold(value, end); });
 }
 
 static void print_esc_char(char c) {
