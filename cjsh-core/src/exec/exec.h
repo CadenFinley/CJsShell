@@ -104,6 +104,7 @@ class Exec {
     bool requires_fork(const Command& cmd) const;
     bool can_execute_in_process(const Command& cmd) const;
     int execute_builtin_with_redirections(Command cmd);
+    void set_error_from_wait_status(const std::string& command, int status);
     void warn_parent_setpgid_failure();
 
     Job* find_job_locked(int job_id);

@@ -368,8 +368,8 @@ int Shell::execute_command(std::vector<std::string> args, bool run_in_background
     }
 
     // execute the command synchronously
-    shell_exec->execute_command_sync(args, auto_background_on_stop, auto_background_on_stop_silent);
-    int exit_code = shell_exec->get_exit_code();
+    int exit_code = shell_exec->execute_command_sync(args, auto_background_on_stop,
+                                                     auto_background_on_stop_silent);
     shell_exec->print_error_if_needed(exit_code);
     return exit_code;
 }

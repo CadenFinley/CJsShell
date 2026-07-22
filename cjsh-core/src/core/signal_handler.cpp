@@ -798,49 +798,7 @@ SignalProcessingResult SignalHandler::process_pending_signals(Exec* shell_exec) 
                    reaped_count < max_reap_iterations) {
                 reaped_count++;
                 shell_exec->handle_child_signal(pid, status);
-
-                auto& job_manager = JobManager::instance();
-                auto job = job_manager.get_job_by_pgid(pid);
-                if (!job) {
-                    auto all_jobs = job_manager.get_all_jobs();
-                    for (auto& j : all_jobs) {
-                        auto it = std::find(j->pids.begin(), j->pids.end(), pid);
-                        if (it != j->pids.end()) {
-                            job = j;
-                            break;
-                        }
-                    }
-                }
-
-                if (job) {
-                    if (WIFEXITED(status) || WIFSIGNALED(status)) {
-                        job->state.store(WIFEXITED(status) ? JobState::DONE : JobState::TERMINATED,
-                                         std::memory_order_relaxed);
-                        job->exit_status =
-                            WIFEXITED(status) ? WEXITSTATUS(status) : WTERMSIG(status);
-
-                        JobManager::instance().clear_stdin_signal(job->pgid);
-
-                        job->pids.erase(std::remove(job->pids.begin(), job->pids.end(), pid),
-                                        job->pids.end());
-
-                        if (job->pids.empty()) {
-                            job->notified = true;
-                        }
-                    } else if (WIFSTOPPED(status)) {
-                        job->state.store(JobState::STOPPED, std::memory_order_relaxed);
-                        JobManager::instance().notify_job_stopped(job);
-#ifdef SIGTTIN
-                        if (WSTOPSIG(status) == SIGTTIN) {
-                            JobManager::instance().clear_stdin_signal(job->pgid);
-                        }
-#endif
-                    } else if (WIFCONTINUED(status)) {
-                        job->state.store(JobState::RUNNING, std::memory_order_relaxed);
-                        job->stop_notified.store(false, std::memory_order_relaxed);
-                        JobManager::instance().clear_stdin_signal(job->pgid);
-                    }
-                }
+                JobManager::instance().handle_child_status(pid, status);
             }
 
             if (reaped_count >= max_reap_iterations) {

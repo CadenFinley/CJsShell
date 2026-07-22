@@ -53,17 +53,18 @@ def sanitize_output(text: str) -> str:
     return text.replace("\r", "\n")
 
 
-def run_job_control_case(binary: str) -> JobControlResult:
+def run_job_control_case(
+    binary: str,
+    command: str = (
+        "stty tostop; "
+        "f(){ sleep 0.01; printf 'tick\\n' >&2; /bin/echo target; }; "
+        "f | grep target"
+    ),
+) -> JobControlResult:
     master_fd, slave_fd = os.openpty()
     os.set_blocking(master_fd, False)
     env = os.environ.copy()
     env.setdefault("TERM", "xterm-256color")
-
-    command = (
-        "stty tostop; "
-        "f(){ sleep 0.01; printf 'tick\\n' >&2; /bin/echo target; }; "
-        "f | grep target"
-    )
 
     process: subprocess.Popen[bytes] | None = None
     output = bytearray()
@@ -250,6 +251,19 @@ def main(argv: list[str]) -> int:
 
     try:
         result = run_job_control_case(argv[0])
+        abort_result = run_job_control_case(argv[0], "sh -c 'kill -ABRT $$'")
+        pipeline_abort_result = run_job_control_case(
+            argv[0], "printf ignored | sh -c 'kill -ABRT $$'"
+        )
+        term_result = run_job_control_case(argv[0], "sh -c 'kill -TERM $$'")
+        kill_result = run_job_control_case(argv[0], "sh -c 'kill -KILL $$'")
+        background_term_result = run_job_control_case(
+            argv[0], "sh -c 'kill -TERM $$' & sleep 0.1"
+        )
+        background_exit_result = run_job_control_case(
+            argv[0], "sh -c 'exit 42' & sleep 0.1"
+        )
+        foreground_exit_result = run_job_control_case(argv[0], "sh -c 'exit 42'")
         ownership_result = run_noninteractive_terminal_ownership_case(argv[0])
     except Exception as exc:
         message = f"{type(exc).__name__}: {exc}".replace("\n", "\n    ")
@@ -295,6 +309,88 @@ def main(argv: list[str]) -> int:
                 not ownership_result.timed_out and ownership_result.return_code == 0,
                 "non-interactive cjsh changed its caller's foreground process group:\n"
                 f"{ownership_result.output}",
+            ),
+        ),
+        (
+            "foreground SIGABRT preserves signal exit status",
+            lambda: require(
+                not abort_result.timed_out
+                and abort_result.return_code == 128 + signal.SIGABRT,
+                "SIGABRT command returned the wrong status:\n"
+                f"return_code={abort_result.return_code}\n{abort_result.output}",
+            ),
+        ),
+        (
+            "foreground SIGABRT reports Abort",
+            lambda: require(
+                "Abort (SIGABRT)" in abort_result.output
+                and abort_result.output.count("SIGABRT") == 1,
+                "SIGABRT diagnostic was missing or duplicated:\n"
+                f"{abort_result.output}",
+            ),
+        ),
+        (
+            "foreground pipeline SIGABRT preserves status and diagnostic",
+            lambda: require(
+                not pipeline_abort_result.timed_out
+                and pipeline_abort_result.return_code == 128 + signal.SIGABRT
+                and "Abort" in pipeline_abort_result.output,
+                "pipeline SIGABRT handling failed:\n"
+                f"return_code={pipeline_abort_result.return_code}\n"
+                f"{pipeline_abort_result.output}",
+            ),
+        ),
+        (
+            "foreground SIGTERM uses centralized signal notification",
+            lambda: require(
+                not term_result.timed_out
+                and term_result.return_code == 128 + signal.SIGTERM
+                and term_result.output.count("SIGTERM") == 1,
+                "SIGTERM handling failed or reported more than once:\n"
+                f"return_code={term_result.return_code}\n{term_result.output}",
+            ),
+        ),
+        (
+            "foreground SIGKILL uses centralized signal notification",
+            lambda: require(
+                not kill_result.timed_out
+                and kill_result.return_code == 128 + signal.SIGKILL
+                and kill_result.output.count("SIGKILL") == 1,
+                "SIGKILL handling failed or reported more than once:\n"
+                f"return_code={kill_result.return_code}\n{kill_result.output}",
+            ),
+        ),
+        (
+            "background signal notification is emitted once",
+            lambda: require(
+                not background_term_result.timed_out
+                and background_term_result.return_code == 0
+                and background_term_result.output.count("SIGTERM") == 1,
+                "background SIGTERM notification failed:\n"
+                f"return_code={background_term_result.return_code}\n"
+                f"{background_term_result.output}",
+            ),
+        ),
+        (
+            "background nonzero exit notification is emitted once",
+            lambda: require(
+                not background_exit_result.timed_out
+                and background_exit_result.return_code == 0
+                and background_exit_result.output.count("Exit 42") == 1,
+                "background exit notification failed:\n"
+                f"return_code={background_exit_result.return_code}\n"
+                f"{background_exit_result.output}",
+            ),
+        ),
+        (
+            "foreground nonzero exit stays silent",
+            lambda: require(
+                not foreground_exit_result.timed_out
+                and foreground_exit_result.return_code == 42
+                and "Exit 42" not in foreground_exit_result.output,
+                "foreground exit was reported as a background job:\n"
+                f"return_code={foreground_exit_result.return_code}\n"
+                f"{foreground_exit_result.output}",
             ),
         ),
     ]

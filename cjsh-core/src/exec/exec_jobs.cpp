@@ -54,6 +54,12 @@ int extract_exit_code(int status) {
 
 }  // namespace
 
+void Exec::set_error_from_wait_status(const std::string& command, int status) {
+    const int exit_code = extract_exit_code(status);
+        command, exit_code, "command completed successfully", "command failed with exit code ");
+    set_error(exit_result.type, command, exit_result.message, exit_result.suggestions);
+}
+
 Job* Exec::find_job_locked(int job_id) {
     auto it = jobs.find(job_id);
     if (it == jobs.end()) {
@@ -254,6 +260,10 @@ void Exec::wait_for_job(int job_id) {
             last_status = status;
         }
 
+        if (WIFEXITED(status) || WIFSIGNALED(status)) {
+            JobManager::instance().handle_child_status(pid, status);
+        }
+
         if (WIFSTOPPED(status)) {
             job_stopped = true;
             stop_signal = WSTOPSIG(status);
@@ -274,21 +284,7 @@ void Exec::wait_for_job(int job_id) {
             job.stopped = true;
             job.status = status;
 
-            auto job_control = JobManager::instance().get_job_by_pgid(job_pgid);
-            if (!job_control) {
-                auto jobs_snapshot = JobManager::instance().get_all_jobs();
-                for (const auto& candidate : jobs_snapshot) {
-                    if (!candidate) {
-                        continue;
-                    }
-                    if (candidate->pgid == job_pgid ||
-                        std::find(candidate->pids.begin(), candidate->pids.end(), job_pgid) !=
-                            candidate->pids.end()) {
-                        job_control = candidate;
-                        break;
-                    }
-                }
-            }
+            auto job_control = JobManager::instance().get_job_by_pid_or_pgid(job_pgid);
 
             const bool should_auto_background =
                 job.auto_background_on_stop && stop_signal == SIGTSTP && job.pgid > 0;
@@ -315,10 +311,7 @@ void Exec::wait_for_job(int job_id) {
                 std::cerr << "\n[" << job_id << "]+ " << display_command << " &" << '\n';
             } else {
                 last_exit_code = 128 + SIGTSTP;
-
-                if (job_control) {
-                    JobManager::instance().notify_job_stopped(job_control);
-                }
+                JobManager::instance().handle_child_status(pid, status);
             }
         } else {
             job.completed = true;
@@ -332,19 +325,10 @@ void Exec::wait_for_job(int job_id) {
             }
             job.last_status = final_status;
 
-            if (WIFEXITED(final_status)) {
-                int exit_status = extract_exit_code(final_status);
-                last_exit_code = exit_status;
+            if (WIFEXITED(final_status) || WIFSIGNALED(final_status)) {
+                last_exit_code = extract_exit_code(final_status);
                 job.completed = true;
-                auto exit_result = job_utils::make_exit_error_result(
-                    job.command, exit_status, "command completed successfully",
-                    "command failed with exit code ");
-                set_error(exit_result.type, job.command, exit_result.message,
-                          exit_result.suggestions);
-            } else if (WIFSIGNALED(final_status)) {
-                last_exit_code = 128 + WTERMSIG(final_status);
-                set_error(ErrorType::RUNTIME_ERROR, job.command,
-                          "command terminated by signal " + std::to_string(WTERMSIG(final_status)));
+                set_error_from_wait_status(job.command, final_status);
             }
         }
     }
@@ -366,7 +350,6 @@ void Exec::handle_child_signal(pid_t pid, int status) {
     std::lock_guard<std::mutex> lock(jobs_mutex);
 
     for (auto& job_pair : jobs) {
-        int job_id = job_pair.first;
         Job& job = job_pair.second;
 
         auto it = std::find(job.pids.begin(), job.pids.end(), pid);
@@ -395,20 +378,6 @@ void Exec::handle_child_signal(pid_t pid, int status) {
                     job.completed = true;
                     job.stopped = false;
                     job.status = status;
-
-                    if (job.background && !job.suppress_notifications) {
-                        if (WIFSIGNALED(status)) {
-                            std::cerr << "\n[" << job_id << "] Terminated\t" << job.command << '\n';
-                        } else {
-                            const int exit_code = extract_exit_code(status);
-                            if (exit_code == 0) {
-                                std::cerr << "\n[" << job_id << "] Done\t" << job.command << '\n';
-                            } else {
-                                std::cerr << "\n[" << job_id << "] Exit " << exit_code << '\t'
-                                          << job.command << '\n';
-                            }
-                        }
-                    }
                 }
             }
             break;

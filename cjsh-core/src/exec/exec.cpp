@@ -1496,9 +1496,11 @@ int Exec::execute_command_sync(const std::vector<std::string>& args, bool auto_b
     std::lock_guard<std::mutex> lock(jobs_mutex);
     auto it = jobs.find(job_id);
     int exit_code = last_exit_code;
+    std::optional<int> completed_status;
 
     if (it != jobs.end() && it->second.completed) {
-        exit_code = extract_exit_code(it->second.status);
+        completed_status = it->second.status;
+        exit_code = extract_exit_code(*completed_status);
         JobManager::instance().remove_job(new_job_id);
         jobs.erase(it);
     } else if (it != jobs.end() && it->second.stopped) {
@@ -1507,9 +1509,13 @@ int Exec::execute_command_sync(const std::vector<std::string>& args, bool auto_b
         }
     }
 
-    auto exit_result = job_utils::make_exit_error_result(
-        args[0], exit_code, "command completed successfully", "command failed with exit code ");
-    set_error(exit_result.type, args[0], exit_result.message, exit_result.suggestions);
+    if (completed_status.has_value()) {
+        set_error_from_wait_status(args[0], *completed_status);
+    } else {
+        auto exit_result = job_utils::make_exit_error_result(
+            args[0], exit_code, "command completed successfully", "command failed with exit code ");
+        set_error(exit_result.type, args[0], exit_result.message, exit_result.suggestions);
+    }
     last_exit_code = exit_code;
     set_last_pipeline_statuses({exit_code});
 
@@ -1583,7 +1589,13 @@ int Exec::execute_command_async(const std::vector<std::string>& args) {
         int job_id = add_job(job);
 
         std::string full_command = join_arguments(args);
-        JobManager::instance().add_job(pid, {pid}, full_command, true, false);
+        int managed_job_id = JobManager::instance().add_job(pid, {pid}, full_command, true, false);
+        if (job.suppress_notifications) {
+            auto managed_job = JobManager::instance().get_job(managed_job_id);
+            if (managed_job) {
+                managed_job->suppress_notifications = true;
+            }
+        }
         JobManager::instance().set_last_background_pid(pid);
 
         if (!job.suppress_notifications) {
@@ -1915,11 +1927,12 @@ int Exec::execute_pipeline(const std::vector<Command>& commands) {
             }
 
             int exit_code = (wpid == -1) ? EX_OSERR : extract_exit_code(status);
-
-            auto exit_result = job_utils::make_exit_error_result(cmd.args[0], exit_code,
-                                                                 "command completed successfully",
-                                                                 "command failed with exit code ");
-            set_error(exit_result.type, cmd.args[0], exit_result.message, exit_result.suggestions);
+            if (wpid == -1) {
+                set_error(ErrorType::RUNTIME_ERROR, "waitpid",
+                          "failed to wait for child process: " + std::string(strerror(errno)));
+            } else {
+                set_error_from_wait_status(cmd.args[0], status);
+            }
             cleanup_process_substitutions(proc_resources, false);
             set_last_pipeline_statuses({exit_code});
             return finalize_exit(exit_code);

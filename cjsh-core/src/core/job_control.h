@@ -56,12 +56,15 @@ struct JobControlJob {
     int job_id;
     pid_t pgid;
     std::vector<pid_t> pids;
+    pid_t last_pid{-1};
     std::string command;
     std::atomic<JobState> state{JobState::RUNNING};
     int exit_status{};
+    int termination_signal{};
     bool notified{false};
     std::atomic<bool> stop_notified{false};
     std::atomic<bool> background{false};
+    bool suppress_notifications{false};
     bool reads_stdin{false};
     bool awaiting_stdin_signal{false};
     std::uint8_t last_stdin_signal{0};
@@ -124,6 +127,8 @@ class JobManager {
     void set_shell(Shell* shell);
 
     void notify_job_stopped(const std::shared_ptr<JobControlJob>& job) const;
+    void notify_job_finished(const std::shared_ptr<JobControlJob>& job) const;
+    void handle_child_status(pid_t pid, int status);
 
     bool foreground_job_reads_stdin();
 

@@ -1928,9 +1928,7 @@ bool ShellScriptInterpreter::should_interpret_as_cjsh_script(const std::string& 
         return false;
     std::string first_line;
     std::getline(f, first_line);
-    if (first_line.rfind("#!", 0) == 0 && first_line.find("cjsh") != std::string::npos)
-        return true;
-    return false;
+    return first_line.rfind("#!", 0) == 0 && first_line.find("cjsh") != std::string::npos;
 }
 
 int ShellScriptInterpreter::evaluate_logical_condition_internal(

@@ -56,6 +56,27 @@ namespace {
 
 std::atomic<pid_t> g_atomic_last_background_pid{-1};
 
+std::string signal_status_message(int signal_number) {
+    std::string signal_name = SignalHandler::signal_to_name(signal_number);
+    std::string description = "Terminated by signal " + std::to_string(signal_number);
+
+    for (const auto& signal : SignalHandler::available_signals()) {
+        if (signal.signal == signal_number && signal.description != nullptr) {
+            description = signal.description;
+            break;
+        }
+    }
+
+    const size_t context_start = description.find(" (");
+    if (context_start != std::string::npos) {
+        description.erase(context_start);
+    }
+    if (!signal_name.empty() && signal_name != std::to_string(signal_number)) {
+        description += " (" + signal_name + ")";
+    }
+    return description;
+}
+
 enum class JobMatchKind : uint8_t {
     None,
     Exact,
@@ -386,6 +407,7 @@ JobControlJob::JobControlJob(int id, pid_t group_id, const std::vector<pid_t>& p
     : job_id(id),
       pgid(group_id),
       pids(process_ids),
+      last_pid(process_ids.empty() ? -1 : process_ids.back()),
       command(cmd),
       background(is_background),
       reads_stdin(consumes_stdin) {
@@ -476,11 +498,14 @@ std::vector<std::shared_ptr<JobControlJob>> JobManager::get_all_jobs() {
 }
 
 void JobManager::update_job_statuses() {
-    // update the status of all jobs by checking if their processes have changed state
+    std::vector<std::pair<pid_t, int>> status_changes;
+
+    // Poll a snapshot because handle_child_status removes completed pids from the live jobs.
     for (auto& pair : jobs) {
         auto job = pair.second;
+        const std::vector<pid_t> pids = job->pids;
 
-        for (pid_t pid : job->pids) {
+        for (pid_t pid : pids) {
             int status = 0;
             int status_updates = 0;
             const int max_status_updates = 16;
@@ -509,23 +534,16 @@ void JobManager::update_job_statuses() {
                 }
 
                 ++status_updates;
-                const auto wait_info = wait_status_utils::decode(status);
-                if (wait_info.disposition == wait_status_utils::WaitDisposition::Exited) {
-                    job->state.store(JobState::DONE, std::memory_order_relaxed);
-                    job->exit_status = wait_info.code;
+                status_changes.emplace_back(pid, status);
+                if (WIFEXITED(status) || WIFSIGNALED(status)) {
                     break;
-                } else if (wait_info.disposition == wait_status_utils::WaitDisposition::Signaled) {
-                    job->state.store(JobState::TERMINATED, std::memory_order_relaxed);
-                    job->exit_status = wait_info.code;
-                    break;
-                } else if (wait_info.disposition == wait_status_utils::WaitDisposition::Stopped) {
-                    job->state.store(JobState::STOPPED, std::memory_order_relaxed);
-                } else if (WIFCONTINUED(status)) {
-                    job->state.store(JobState::RUNNING, std::memory_order_relaxed);
-                    job->stop_notified.store(false, std::memory_order_relaxed);
                 }
             }
         }
+    }
+
+    for (const auto& [pid, status] : status_changes) {
+        handle_child_status(pid, status);
     }
 }
 
@@ -582,6 +600,95 @@ void JobManager::notify_job_stopped(const std::shared_ptr<JobControlJob>& job) c
     job->stop_notified.store(true, std::memory_order_relaxed);
 }
 
+void JobManager::notify_job_finished(const std::shared_ptr<JobControlJob>& job) const {
+    if (!job || job->notified) {
+        return;
+    }
+    if (job->suppress_notifications) {
+        job->notified = true;
+        return;
+    }
+
+    const JobState state = job->state.load(std::memory_order_relaxed);
+    const bool is_background = job->background.load(std::memory_order_relaxed);
+    const bool is_interactive = config::interactive_mode || config::force_interactive;
+
+    if (state == JobState::DONE && !is_background) {
+        job->notified = true;
+        return;
+    }
+    if (state == JobState::TERMINATED && !is_background && !is_interactive) {
+        job->notified = true;
+        return;
+    }
+    if (state != JobState::DONE && state != JobState::TERMINATED) {
+        return;
+    }
+
+    std::cerr << "\n[" << job->job_id << "]";
+    if (!is_background) {
+        char status_char = ' ';
+        if (job->job_id == current_job) {
+            status_char = '+';
+        } else if (job->job_id == previous_job) {
+            status_char = '-';
+        }
+        std::cerr << status_char << "  ";
+    } else {
+        std::cerr << ' ';
+    }
+
+    if (state == JobState::TERMINATED) {
+        std::cerr << signal_status_message(job->termination_signal);
+    } else if (job->exit_status == 0) {
+        std::cerr << "Done";
+    } else {
+        std::cerr << "Exit " << job->exit_status;
+    }
+    std::cerr << '\t' << job->display_command() << '\n';
+    job->notified = true;
+}
+
+void JobManager::handle_child_status(pid_t pid, int status) {
+    auto job = get_job_by_pid(pid);
+    if (!job) {
+        return;
+    }
+
+    if (WIFSTOPPED(status)) {
+        job->state.store(JobState::STOPPED, std::memory_order_relaxed);
+        notify_job_stopped(job);
+        return;
+    }
+    if (WIFCONTINUED(status)) {
+        job->state.store(JobState::RUNNING, std::memory_order_relaxed);
+        job->stop_notified.store(false, std::memory_order_relaxed);
+        clear_stdin_signal(job->pgid);
+        return;
+    }
+    if (!WIFEXITED(status) && !WIFSIGNALED(status)) {
+        return;
+    }
+
+    if (pid == job->last_pid || job->last_pid <= 0) {
+        if (WIFSIGNALED(status)) {
+            job->state.store(JobState::TERMINATED, std::memory_order_relaxed);
+            job->termination_signal = WTERMSIG(status);
+            job->exit_status = 128 + job->termination_signal;
+        } else {
+            job->state.store(JobState::DONE, std::memory_order_relaxed);
+            job->termination_signal = 0;
+            job->exit_status = WEXITSTATUS(status);
+        }
+    }
+
+    clear_stdin_signal(job->pgid);
+    job->pids.erase(std::remove(job->pids.begin(), job->pids.end(), pid), job->pids.end());
+    if (job->pids.empty()) {
+        notify_job_finished(job);
+    }
+}
+
 void JobManager::update_current_previous(int new_current) {
     if (current_job != new_current) {
         previous_job = current_job;
@@ -596,20 +703,7 @@ void JobManager::cleanup_finished_jobs() {
         auto job = pair.second;
         const JobState state = job->state.load(std::memory_order_relaxed);
         if (state == JobState::DONE || state == JobState::TERMINATED) {
-            if (!job->notified) {
-                if (state == JobState::DONE) {
-                    const char* label = job->exit_status == 0 ? "Done" : "Exit";
-                    std::cerr << "\n[" << job->job_id << "] " << label;
-                    if (job->exit_status != 0) {
-                        std::cerr << ' ' << job->exit_status;
-                    }
-                    std::cerr << "\t" << job->display_command() << '\n';
-                } else {
-                    std::cerr << "\n[" << job->job_id << "] Terminated\t" << job->display_command()
-                              << '\n';
-                }
-                job->notified = true;
-            }
+            notify_job_finished(job);
 
             if (job->notified) {
                 to_remove.push_back(job->job_id);
