@@ -56,6 +56,7 @@ int extract_exit_code(int status) {
 
 void Exec::set_error_from_wait_status(const std::string& command, int status) {
     const int exit_code = extract_exit_code(status);
+    auto exit_result = job_utils::make_exit_error_result(
         command, exit_code, "command completed successfully", "command failed with exit code ");
     set_error(exit_result.type, command, exit_result.message, exit_result.suggestions);
 }
