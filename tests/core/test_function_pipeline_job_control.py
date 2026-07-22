@@ -30,7 +30,9 @@ from __future__ import annotations
 
 import errno
 import os
+import pty
 import re
+import signal
 import subprocess
 import sys
 import time
@@ -121,6 +123,101 @@ def run_job_control_case(binary: str) -> JobControlResult:
     return JobControlResult(process.returncode, cleaned, timed_out)
 
 
+def run_noninteractive_terminal_ownership_case(binary: str) -> JobControlResult:
+    pid, master_fd = pty.fork()
+    if pid == 0:
+        before_pgid = os.getpgrp()
+        before_foreground_pgid = os.tcgetpgrp(0)
+
+        nested_pid = os.fork()
+        if nested_pid == 0:
+            os.execl(
+                binary,
+                binary,
+                "--no-source",
+                "--no-titleline",
+                "--minimal",
+                "-c",
+                "true",
+            )
+
+        _, nested_status = os.waitpid(nested_pid, 0)
+        after_foreground_pgid = os.tcgetpgrp(0)
+        nested_return_code = os.waitstatus_to_exitcode(nested_status)
+        preserved = (
+            nested_return_code == 0
+            and before_foreground_pgid == before_pgid
+            and after_foreground_pgid == before_pgid
+        )
+        message = (
+            f"caller_pgid={before_pgid} "
+            f"foreground_before={before_foreground_pgid} "
+            f"foreground_after={after_foreground_pgid} "
+            f"nested_exit={nested_return_code}\n"
+        )
+        os.write(1, message.encode())
+        os._exit(0 if preserved else 1)
+
+    os.set_blocking(master_fd, False)
+    output = bytearray()
+    wait_status: int | None = None
+    timed_out = False
+
+    try:
+        deadline = time.monotonic() + 5.0
+        while time.monotonic() < deadline:
+            try:
+                chunk = os.read(master_fd, 4096)
+            except BlockingIOError:
+                chunk = b""
+            except OSError as exc:
+                if exc.errno == errno.EIO:
+                    chunk = b""
+                else:
+                    raise
+
+            if chunk:
+                output.extend(chunk)
+
+            waited_pid, status = os.waitpid(pid, os.WNOHANG | os.WUNTRACED)
+            if waited_pid == pid:
+                wait_status = status
+                break
+            time.sleep(0.01)
+
+        if wait_status is None:
+            timed_out = True
+            os.kill(pid, signal.SIGKILL)
+            _, wait_status = os.waitpid(pid, 0)
+        elif os.WIFSTOPPED(wait_status):
+            stop_signal = os.WSTOPSIG(wait_status)
+            output.extend(f"caller stopped by signal {stop_signal}\n".encode())
+            os.kill(pid, signal.SIGKILL)
+            os.waitpid(pid, 0)
+
+        while True:
+            try:
+                chunk = os.read(master_fd, 4096)
+            except BlockingIOError:
+                break
+            except OSError as exc:
+                if exc.errno == errno.EIO:
+                    break
+                raise
+            if not chunk:
+                break
+            output.extend(chunk)
+    finally:
+        os.close(master_fd)
+
+    return_code = None
+    if wait_status is not None and not os.WIFSTOPPED(wait_status):
+        return_code = os.waitstatus_to_exitcode(wait_status)
+
+    cleaned = sanitize_output(output.decode(errors="replace"))
+    return JobControlResult(return_code, cleaned, timed_out)
+
+
 def require(condition: bool, message: str) -> None:
     if not condition:
         raise AssertionError(message)
@@ -153,6 +250,7 @@ def main(argv: list[str]) -> int:
 
     try:
         result = run_job_control_case(argv[0])
+        ownership_result = run_noninteractive_terminal_ownership_case(argv[0])
     except Exception as exc:
         message = f"{type(exc).__name__}: {exc}".replace("\n", "\n    ")
         print(
@@ -189,6 +287,14 @@ def main(argv: list[str]) -> int:
             lambda: require(
                 "target" in result.output,
                 f"expected grep output was missing:\n{result.output}",
+            ),
+        ),
+        (
+            "non-interactive cjsh preserves caller terminal ownership",
+            lambda: require(
+                not ownership_result.timed_out and ownership_result.return_code == 0,
+                "non-interactive cjsh changed its caller's foreground process group:\n"
+                f"{ownership_result.output}",
             ),
         ),
     ]

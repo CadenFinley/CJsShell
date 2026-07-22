@@ -483,7 +483,8 @@ void Shell::restore_terminal_state() {
 }
 
 void Shell::setup_job_control() {
-    if (isatty(STDIN_FILENO) == 0) {
+    const bool requested_interactive = config::interactive_mode || config::force_interactive;
+    if (!requested_interactive || isatty(STDIN_FILENO) == 0) {
         job_control_enabled = false;
         return;
     }
