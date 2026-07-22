@@ -227,7 +227,10 @@ def run_controlling_terminal_case(
         child_env = os.environ.copy()
         if extra_env is not None:
             child_env.update(extra_env)
-        os.execve(
+        # CTest supplies the locally built cjsh binary, while each command and
+        # environment override is defined by this test. The target shell's -c
+        # parsing is intentional and no intermediary host shell is invoked.
+        os.execve(  # nosemgrep
             binary,
             [
                 binary,

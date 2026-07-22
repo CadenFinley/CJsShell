@@ -246,7 +246,9 @@ def run_case(
 
     pid, fd = pty.fork()
     if pid == 0:
-        os.execv(binary, [binary, scenario])
+        # CTest supplies the locally built driver, and scenarios are fixed below.
+        # execv receives an argument vector directly; no shell parses these values.
+        os.execv(binary, [binary, scenario])  # nosemgrep
 
     flags = fcntl.fcntl(fd, fcntl.F_GETFL)
     fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
@@ -319,7 +321,9 @@ def run_case_timed(
 
     pid, fd = pty.fork()
     if pid == 0:
-        os.execv(binary, [binary, scenario])
+        # CTest supplies the locally built driver, and scenarios are fixed below.
+        # execv receives an argument vector directly; no shell parses these values.
+        os.execv(binary, [binary, scenario])  # nosemgrep
 
     flags = fcntl.fcntl(fd, fcntl.F_GETFL)
     fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
@@ -422,7 +426,9 @@ def run_resize_case(
 
     pid, fd = pty.fork()
     if pid == 0:
-        os.execv(binary, [binary, scenario])
+        # CTest supplies the locally built driver, and scenarios are fixed below.
+        # execv receives an argument vector directly; no shell parses these values.
+        os.execv(binary, [binary, scenario])  # nosemgrep
 
     flags = fcntl.fcntl(fd, fcntl.F_GETFL)
     fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
