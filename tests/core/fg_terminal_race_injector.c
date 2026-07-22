@@ -46,6 +46,14 @@
 
 static volatile sig_atomic_t injection_fired = 0;
 
+__attribute__((constructor)) static void prevent_preload_inheritance(void) {
+#if defined(__APPLE__)
+    (void)unsetenv("DYLD_INSERT_LIBRARIES");
+#else
+    (void)unsetenv("LD_PRELOAD");
+#endif
+}
+
 static pid_t read_target_pgid(const char* path) {
     char buffer[32];
     int fd = open(path, O_RDONLY);

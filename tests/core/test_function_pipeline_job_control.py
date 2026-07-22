@@ -297,12 +297,13 @@ def run_controlling_terminal_case(
 
 def run_injected_foreground_race_case(
     binary: str, injector: str
-) -> tuple[JobControlResult, bool]:
+) -> tuple[JobControlResult, bool, bool]:
     unique_suffix = f"{os.getpid()}-{time.monotonic_ns()}"
     target_file = f"/tmp/cjsh-fg-race-target-{unique_suffix}"
     arm_file = f"/tmp/cjsh-fg-race-arm-{unique_suffix}"
     result_file = f"/tmp/cjsh-fg-race-result-{unique_suffix}"
-    paths = (target_file, arm_file, result_file)
+    preload_leak_file = f"/tmp/cjsh-fg-race-preload-leak-{unique_suffix}"
+    paths = (target_file, arm_file, result_file, preload_leak_file)
 
     preload_variable = (
         "DYLD_INSERT_LIBRARIES" if sys.platform == "darwin" else "LD_PRELOAD"
@@ -328,11 +329,15 @@ def run_injected_foreground_race_case(
     try:
         result = run_controlling_terminal_case(
             binary,
-            f"sh -c 'echo $$ > {target_file}; kill -TSTP $$; sleep 30'; "
+            "sh -c 'if [ -n "
+            '"${DYLD_INSERT_LIBRARIES-}${LD_PRELOAD-}"'
+            f" ]; then touch {preload_leak_file}; fi; "
+            f"echo $$ > {target_file}; kill -TSTP $$; sleep 30'; "
             f"touch {arm_file}; fg; fg_status=$?; jobs; exit $fg_status",
             env,
         )
         injection_triggered = os.path.exists(result_file)
+        child_preload_clean = not os.path.exists(preload_leak_file)
     finally:
         for path in paths:
             try:
@@ -340,7 +345,7 @@ def run_injected_foreground_race_case(
             except FileNotFoundError:
                 pass
 
-    return result, injection_triggered
+    return result, injection_triggered, child_preload_clean
 
 
 def require(condition: bool, message: str) -> None:
@@ -414,9 +419,11 @@ def main(argv: list[str]) -> int:
                 os.unlink(termination_marker)
             except FileNotFoundError:
                 pass
-        injected_race_result, injection_triggered = run_injected_foreground_race_case(
-            argv[0], argv[1]
-        )
+        (
+            injected_race_result,
+            injection_triggered,
+            child_preload_clean,
+        ) = run_injected_foreground_race_case(argv[0], argv[1])
     except Exception as exc:
         message = f"{type(exc).__name__}: {exc}".replace("\n", "\n    ")
         print(
@@ -570,6 +577,7 @@ def main(argv: list[str]) -> int:
             "fg recovers when termination races with terminal handoff",
             lambda: require(
                 injection_triggered
+                and child_preload_clean
                 and not injected_race_result.timed_out
                 and injected_race_result.return_code == 128 + signal.SIGTERM
                 and injected_race_result.output.count("SIGTERM") == 1
@@ -578,6 +586,7 @@ def main(argv: list[str]) -> int:
                 and "No jobs" in injected_race_result.output,
                 "fg did not recover cleanly from termination during terminal handoff:\n"
                 f"injection_triggered={injection_triggered}\n"
+                f"child_preload_clean={child_preload_clean}\n"
                 f"return_code={injected_race_result.return_code}\n"
                 f"{injected_race_result.output}",
             ),
