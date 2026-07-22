@@ -111,24 +111,6 @@ static stringbuf_t* new_stringbuf(void) {
     return sbuf_new(mem);
 }
 
-static bool file_contains_text(const char* path, const char* needle) {
-    FILE* f = fopen(path, "r");
-    if (f == NULL)
-        return false;
-
-    char line[512];
-    bool found = false;
-    while (fgets(line, sizeof(line), f) != NULL) {
-        if (strstr(line, needle) != NULL) {
-            found = true;
-            break;
-        }
-    }
-
-    (void)fclose(f);
-    return found;
-}
-
 static void reset_typeahead_test_state(bool enabled) {
     ic_set_typeahead_capture_allowed_callback(NULL, NULL);
     (void)ic_enable_typeahead(enabled);
@@ -563,6 +545,8 @@ static bool test_history_frequency_metadata_tracking(void) {
     EXPECT_TRUE(newest != NULL, "snapshot should expose the stored history entry");
     EXPECT_STREQ(history_entry_get_metadata(newest, "frequency"), "1",
                  "new history entries should start with a frequency of one");
+    EXPECT_TRUE(history_entry_get_metadata(newest, "timestamp") != NULL,
+                "new history entries without user metadata should receive a timestamp");
     history_snapshot_free(history, &snap);
 
     EXPECT_TRUE(history_push(history, "echo hi"),
@@ -591,10 +575,32 @@ static bool test_history_frequency_metadata_tracking(void) {
 
     newest = history_snapshot_get(&snap, 0);
     EXPECT_TRUE(newest != NULL, "latest duplicate-suppressed entry should be available");
-    EXPECT_STREQ(history_entry_get_metadata(newest, "frequency"), "3",
-                 "rewriting a duplicate entry should preserve and increment its frequency");
     EXPECT_STREQ(history_entry_get_metadata(newest, "code"), "7",
                  "new metadata should still be attached to the rewritten history entry");
+    EXPECT_TRUE(history_entry_get_metadata(newest, "frequency") == NULL,
+                "user metadata should disable the default frequency");
+    EXPECT_TRUE(history_entry_get_metadata(newest, "timestamp") == NULL,
+                "user metadata should disable the default timestamp");
+    history_snapshot_free(history, &snap);
+
+    const ic_history_metadata_t explicit_default_meta[] = {
+        {"tag", "custom"},
+        {"frequency", "9"},
+        {"timestamp", "123"},
+    };
+    EXPECT_TRUE(history_push_with_metadata(
+                    history, "custom metadata", explicit_default_meta,
+                    sizeof(explicit_default_meta) / sizeof(explicit_default_meta[0])),
+                "history should accept explicit frequency and timestamp values");
+    EXPECT_TRUE(history_snapshot_load(history, &snap, false),
+                "snapshot should load explicit user metadata");
+
+    newest = history_snapshot_get(&snap, 0);
+    EXPECT_TRUE(newest != NULL, "explicit user metadata entry should be available");
+    EXPECT_STREQ(history_entry_get_metadata(newest, "frequency"), "9",
+                 "a nonzero user frequency should be preserved");
+    EXPECT_STREQ(history_entry_get_metadata(newest, "timestamp"), "123",
+                 "a nonzero user timestamp should be preserved");
     history_snapshot_free(history, &snap);
 
     history_clear(history);
@@ -618,7 +624,10 @@ static bool test_history_frequency_metadata_interactive_flow(void) {
     history_clear(history);
 
     const ic_history_metadata_t metadata[] = {
+        {"timestamp", "0"},
+        {"frequency", "0"},
         {"code", "0"},
+        {"ms", "42"},
     };
 
     for (int expected_frequency = 1; expected_frequency <= 3; ++expected_frequency) {
@@ -644,7 +653,14 @@ static bool test_history_frequency_metadata_interactive_flow(void) {
         char expected_buf[16];
         (void)snprintf(expected_buf, sizeof(expected_buf), "%d", expected_frequency);
         EXPECT_STREQ(history_entry_get_metadata(newest, "frequency"), expected_buf,
-                     "interactive staging and execution should increment frequency once per run");
+                     "a zero user frequency should use isocline's frequency tracking");
+        const char* timestamp = history_entry_get_metadata(newest, "timestamp");
+        EXPECT_TRUE(timestamp != NULL && strcmp(timestamp, "0") != 0,
+                    "a zero user timestamp should use isocline's current timestamp");
+        EXPECT_STREQ(history_entry_get_metadata(newest, "code"), "0",
+                     "isocline should preserve CJ's Shell exit-code metadata");
+        EXPECT_STREQ(history_entry_get_metadata(newest, "ms"), "42",
+                     "isocline should preserve CJ's Shell elapsed-time metadata");
         history_snapshot_free(history, &snap);
     }
 
@@ -654,7 +670,7 @@ static bool test_history_frequency_metadata_interactive_flow(void) {
     return true;
 }
 
-static bool test_history_legacy_time_metadata_rewrites_to_timestamp(void) {
+static bool test_history_snapshot_dedup_keeps_latest_entry(void) {
     alloc_t* mem = test_allocator();
     if (mem == NULL)
         return false;
@@ -663,62 +679,7 @@ static bool test_history_legacy_time_metadata_rewrites_to_timestamp(void) {
     if (history == NULL)
         return false;
 
-    const char* history_path = "./isocline_history_legacy_time.log";
-    (void)remove(history_path);
-
-    FILE* f = fopen(history_path, "w");
-    EXPECT_TRUE(f != NULL, "legacy history fixture should be writable");
-    EXPECT_TRUE(fputs("# time=123 code=0\nlegacy command\n", f) >= 0,
-                "legacy time metadata fixture should be written");
-    EXPECT_TRUE(fclose(f) == 0, "legacy history fixture should close cleanly");
-
-    history_load_from(history, history_path, 16);
-
-    EXPECT_FALSE(file_contains_text(history_path, " time="),
-                 "loading legacy history should rewrite time metadata out of the file");
-    EXPECT_TRUE(file_contains_text(history_path, " timestamp=123"),
-                "legacy time metadata should be preserved as timestamp metadata");
-
-    history_snapshot_t snap = {0};
-    EXPECT_TRUE(history_snapshot_load(history, &snap, false),
-                "snapshot should load rewritten legacy history");
-    const history_entry_t* newest = history_snapshot_get(&snap, 0);
-    EXPECT_TRUE(newest != NULL, "rewritten legacy history entry should be available");
-    EXPECT_STREQ(history_entry_get_metadata(newest, "timestamp"), "123",
-                 "legacy time value should be exposed through timestamp metadata");
-    EXPECT_TRUE(history_entry_get_metadata(newest, "time") == NULL,
-                "legacy time metadata should not be persisted after rewrite");
-    history_snapshot_free(history, &snap);
-
-    const ic_history_metadata_t legacy_meta[] = {
-        {"time", "456"},
-        {"code", "0"},
-    };
-    EXPECT_TRUE(history_push_with_metadata(history, "new command", legacy_meta,
-                                           sizeof(legacy_meta) / sizeof(legacy_meta[0])),
-                "legacy caller metadata should still be accepted");
-
-    EXPECT_FALSE(file_contains_text(history_path, " time="),
-                 "new writes should not persist legacy time metadata");
-    EXPECT_TRUE(file_contains_text(history_path, " timestamp=456"),
-                "legacy caller time metadata should be written as timestamp");
-
-    history_clear(history);
-    history_free(history);
-    (void)remove(history_path);
-    return true;
-}
-
-static bool test_history_snapshot_dedup_prefers_exit_code_metadata(void) {
-    alloc_t* mem = test_allocator();
-    if (mem == NULL)
-        return false;
-
-    history_t* history = history_new(mem);
-    if (history == NULL)
-        return false;
-
-    const char* history_path = "./isocline_history_dedup_exit_code.log";
+    const char* history_path = "./isocline_history_dedup_latest.log";
     (void)remove(history_path);
     history_load_from(history, history_path, 16);
     history_clear(history);
@@ -744,8 +705,8 @@ static bool test_history_snapshot_dedup_prefers_exit_code_metadata(void) {
 
     const history_entry_t* newest = history_snapshot_get(&snap, 0);
     EXPECT_TRUE(newest != NULL, "deduplicated snapshot should expose the surviving history entry");
-    EXPECT_STREQ(history_entry_get_metadata(newest, "code"), "7",
-                 "deduplicated snapshot should preserve the entry that has exit-code metadata");
+    EXPECT_TRUE(history_entry_get_metadata(newest, "code") == NULL,
+                "deduplicated snapshot should preserve the latest entry");
     history_snapshot_free(history, &snap);
 
     history_clear(history);
@@ -3266,8 +3227,10 @@ static bool test_history_fuzzy_metadata_filtering(void) {
                 "snapshot should load entries with metadata intact");
     const history_entry_t* newest = history_snapshot_get(&snap, 0);
     EXPECT_TRUE(newest != NULL, "snapshot should include newest entry");
-    EXPECT_TRUE(history_entry_get_metadata(newest, "timestamp") != NULL,
-                "history entries should always include timestamp metadata");
+    EXPECT_TRUE(history_entry_get_metadata(newest, "timestamp") == NULL,
+                "user metadata should suppress the default timestamp");
+    EXPECT_TRUE(history_entry_get_metadata(newest, "frequency") == NULL,
+                "user metadata should suppress the default frequency");
     history_snapshot_free(history, &snap);
 
     history_clear(history);
@@ -4062,10 +4025,7 @@ static const test_case_t kTests[] = {
     {"history_frequency_metadata_tracking", test_history_frequency_metadata_tracking},
     {"history_frequency_metadata_interactive_flow",
      test_history_frequency_metadata_interactive_flow},
-    {"history_legacy_time_metadata_rewrites_to_timestamp",
-     test_history_legacy_time_metadata_rewrites_to_timestamp},
-    {"history_snapshot_dedup_prefers_exit_code_metadata",
-     test_history_snapshot_dedup_prefers_exit_code_metadata},
+    {"history_snapshot_dedup_keeps_latest_entry", test_history_snapshot_dedup_keeps_latest_entry},
     {"history_disabled_mode_rejects_push", test_history_disabled_mode_rejects_push},
     {"key_spec_separator_and_invalid_forms", test_key_spec_separator_and_invalid_forms},
     {"key_binding_named_invalid_inputs", test_key_binding_named_invalid_inputs},

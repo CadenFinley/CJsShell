@@ -68,10 +68,7 @@ typedef struct history_query_filter_s {
 } history_query_filter_t;
 
 static const char* k_history_timestamp_key = "timestamp";
-static const char* k_history_time_legacy_key = "time";
 static const char* k_history_frequency_key = "frequency";
-static const char* k_history_exit_code_key = "code";
-static const char* k_history_exit_code_legacy_key = "exit_code";
 
 static bool history_metadata_key_valid(const char* key) {
     if (key == NULL || key[0] == '\0')
@@ -135,18 +132,6 @@ static const char* history_entry_metadata_lookup(const history_entry_t* entry, c
         }
     }
     return NULL;
-}
-
-static bool history_entry_has_exit_code(const history_entry_t* entry) {
-    if (entry == NULL)
-        return false;
-
-    const char* exit_code = history_entry_metadata_lookup(entry, k_history_exit_code_key, NULL);
-    if (exit_code == NULL || exit_code[0] == '\0') {
-        exit_code = history_entry_metadata_lookup(entry, k_history_exit_code_legacy_key, NULL);
-    }
-
-    return (exit_code != NULL && exit_code[0] != '\0');
 }
 
 static bool history_entry_set_metadata(history_t* h, history_entry_t* entry, const char* key,
@@ -245,16 +230,9 @@ static bool history_entry_set_metadata(history_t* h, history_entry_t* entry, con
     return history_entry_set_metadata_owned(h, entry, key_copy, value_copy);
 }
 
-static bool history_entry_ensure_timestamp(history_t* h, history_entry_t* entry) {
+static bool history_entry_set_current_timestamp(history_t* h, history_entry_t* entry) {
     if (h == NULL || entry == NULL)
         return false;
-    const char* existing = history_entry_metadata_lookup(entry, k_history_timestamp_key, NULL);
-    if (existing != NULL && existing[0] != '\0')
-        return true;
-
-    const char* legacy_time = history_entry_metadata_lookup(entry, k_history_time_legacy_key, NULL);
-    if (legacy_time != NULL && legacy_time[0] != '\0')
-        return history_entry_set_metadata(h, entry, k_history_timestamp_key, legacy_time);
 
     char ts_buf[32];
     int n = snprintf(ts_buf, sizeof(ts_buf), "%lld", (long long)time(NULL));
@@ -373,25 +351,14 @@ static void history_list_remove_duplicates(history_t* h, history_list_t* list) {
         if (current == NULL)
             continue;
 
-        bool current_has_exit_code = history_entry_has_exit_code(&list->entries[i]);
-
         for (ssize_t j = i - 1; j >= 0; j--) {
             const char* candidate = list->entries[j].command;
             if (candidate == NULL || strcmp(current, candidate) != 0) {
                 continue;
             }
 
-            bool candidate_has_exit_code = history_entry_has_exit_code(&list->entries[j]);
-
-            if (current_has_exit_code || !candidate_has_exit_code) {
-                history_list_remove_at(h, list, j);
-                i--;
-                continue;
-            }
-
-            history_list_remove_at(h, list, i);
-            i = j + 1;
-            break;
+            history_list_remove_at(h, list, j);
+            i--;
         }
     }
 }
@@ -562,12 +529,24 @@ static char* history_entry_dup_trimmed(alloc_t* mem, const char* entry) {
     return mem_strndup(mem, entry + start, end - start);
 }
 
-static bool history_entry_normalize_metadata(history_t* h, history_entry_t* entry) {
+static bool history_entry_normalize_metadata(history_t* h, history_entry_t* entry,
+                                             long long default_frequency) {
     if (h == NULL || entry == NULL)
         return false;
-    if (!history_entry_ensure_timestamp(h, entry))
+
+    const bool use_defaults = (entry->metadata_count == 0);
+    const char* timestamp = history_entry_metadata_lookup(entry, k_history_timestamp_key, NULL);
+    const char* frequency = history_entry_metadata_lookup(entry, k_history_frequency_key, NULL);
+
+    if ((use_defaults || (timestamp != NULL && strcmp(timestamp, "0") == 0)) &&
+        !history_entry_set_current_timestamp(h, entry)) {
         return false;
-    return history_entry_set_frequency(h, entry, history_entry_frequency(entry));
+    }
+    if ((use_defaults || (frequency != NULL && strcmp(frequency, "0") == 0)) &&
+        !history_entry_set_frequency(h, entry, default_frequency)) {
+        return false;
+    }
+    return true;
 }
 
 ic_private history_t* history_new(alloc_t* mem) {
@@ -757,8 +736,7 @@ ic_private bool history_push_with_metadata(history_t* h, const char* entry,
             return false;
         }
     }
-    if (!history_entry_normalize_metadata(h, &new_entry) ||
-        !history_entry_set_frequency(h, &new_entry, next_frequency)) {
+    if (!history_entry_normalize_metadata(h, &new_entry, next_frequency)) {
         history_entry_clear(h, &new_entry);
         history_list_free(h, &list);
         return false;
@@ -1515,50 +1493,32 @@ static bool history_write_record(const history_entry_t* entry, FILE* f, stringbu
     sbuf_clear(sbuf);
     sbuf_append(sbuf, "#");
 
-    bool wrote_timestamp = false;
-    const char* legacy_time = history_entry_get_metadata(entry, k_history_time_legacy_key);
-    bool has_frequency = history_metadata_read_frequency(
-        history_entry_get_metadata(entry, k_history_frequency_key), NULL);
+    bool wrote_metadata = false;
     for (ssize_t i = 0; i < entry->metadata_count; ++i) {
         const char* key = entry->metadata[i].key;
         if (!history_metadata_key_valid(key))
             continue;
-        if (ic_stricmp(key, k_history_time_legacy_key) == 0)
-            continue;
-        if (ic_stricmp(key, k_history_timestamp_key) == 0) {
-            if (entry->metadata[i].value == NULL || entry->metadata[i].value[0] == '\0')
-                continue;
-            wrote_timestamp = true;
-        }
-        if (ic_stricmp(key, k_history_frequency_key) == 0 &&
-            !history_metadata_read_frequency(entry->metadata[i].value, NULL)) {
-            continue;
-        }
+        wrote_metadata = true;
         sbuf_append_char(sbuf, ' ');
         sbuf_append(sbuf, key);
         sbuf_append_char(sbuf, '=');
         history_metadata_write_escaped(
             sbuf, entry->metadata[i].value == NULL ? "" : entry->metadata[i].value);
     }
-    if (!has_frequency) {
+    if (!wrote_metadata) {
         sbuf_append_char(sbuf, ' ');
         sbuf_append(sbuf, k_history_frequency_key);
         sbuf_append_char(sbuf, '=');
         sbuf_append(sbuf, "1");
-    }
-    if (!wrote_timestamp) {
+
         char ts_buf[32];
-        const char* timestamp = legacy_time;
-        if (timestamp == NULL || timestamp[0] == '\0') {
-            int n = snprintf(ts_buf, sizeof(ts_buf), "%lld", (long long)time(NULL));
-            if (n <= 0 || n >= (int)sizeof(ts_buf))
-                return false;
-            timestamp = ts_buf;
-        }
+        int n = snprintf(ts_buf, sizeof(ts_buf), "%lld", (long long)time(NULL));
+        if (n <= 0 || n >= (int)sizeof(ts_buf))
+            return false;
         sbuf_append_char(sbuf, ' ');
         sbuf_append(sbuf, k_history_timestamp_key);
         sbuf_append_char(sbuf, '=');
-        history_metadata_write_escaped(sbuf, timestamp);
+        history_metadata_write_escaped(sbuf, ts_buf);
     }
     sbuf_append_char(sbuf, '\n');
 
@@ -1682,7 +1642,7 @@ static bool history_collect_entries(history_t* h, history_list_t* list, bool ded
         }
 
         entry.command = command;
-        if (!history_entry_normalize_metadata(h, &entry)) {
+        if (!history_entry_normalize_metadata(h, &entry, history_entry_frequency(&entry))) {
             history_entry_clear(h, &entry);
             history_list_free(h, list);
             sbuf_free(sbuf);

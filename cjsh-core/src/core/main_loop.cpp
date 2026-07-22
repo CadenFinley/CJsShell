@@ -37,7 +37,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <ctime>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -152,16 +151,15 @@ bool process_command_line(const std::string& command) {
         if (command.size() > 1) {
             ic_history_remove_last();
         }
-        const std::string timestamp_str =
-            std::to_string(static_cast<long long>(std::time(nullptr)));
         const std::string exit_code_str = std::to_string(exit_code);
         const std::string elapsed_ms_str = std::to_string(static_cast<long long>(elapsed_ms));
         const ic_history_metadata_t metadata[] = {
-            {"timestamp", timestamp_str.c_str()},
+            {"timestamp", "0"},
+            {"frequency", "0"},
             {"code", exit_code_str.c_str()},
             {"ms", elapsed_ms_str.c_str()},
         };
-        ic_history_add_with_metadata(expanded_command.c_str(), metadata, 3);
+        ic_history_add_with_metadata(expanded_command.c_str(), metadata, 4);
     }
     // perform memory cleanup
 #if defined(__APPLE__) && MAC_OS_X_VERSION_MAX_ALLOWED >= 1070

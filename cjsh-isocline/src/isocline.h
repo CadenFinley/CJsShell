@@ -404,8 +404,8 @@ typedef struct ic_history_metadata_s {
 } ic_history_metadata_t;
 
 /// Add an entry to the history with custom metadata.
-/// Isocline always records `timestamp` and `frequency` metadata. When duplicate
-/// entries are disabled, `frequency` is incremented on the rewritten entry.
+/// Without custom metadata, isocline records `timestamp` and `frequency`. With custom metadata,
+/// either key is only recorded when provided; a value of `0` requests isocline's generated value.
 void ic_history_add_with_metadata(const char* entry, const ic_history_metadata_t* metadata,
                                   size_t metadata_count);
 
